@@ -73,12 +73,41 @@ So the one part of this design where mistakes are unrecoverable (`003a`) is the
 one part the emulator gives no feedback on. A machine could pass every emulated
 test by exploring recklessly and then destroy the first real board it touched.
 
-**This is what we write ourselves.** Not an emulator — a *device that can die*.
-A device model that answers normally, and permanently stops answering the moment
-it is written to in a way that would have destroyed the real part. That single
-piece turns the exploration discipline from an untested intention into something
-with a failing test attached, and it is the only substantial thing this project
-needs to build for its own testing.
+**This is what we write ourselves**, and it comes in two pieces answering two
+different questions.
+
+**Trap registers** come first, and they are cheap. Registers that do nothing
+except stop everything, placed exactly where the forbidden ones sit on the real
+part. A write lands, the world halts, and the record names the device, the
+register, the value and the instruction.
+
+The rule that makes them work: **the halt is invisible to the machine.** It stops
+the emulator from outside rather than raising anything inside the guest. A trap
+the machine can observe would teach it that touching a forbidden register produces
+immediate survivable feedback — which is exactly backwards, since real hardware
+gives no feedback and the part is simply gone. A machine trained against visible
+traps learns to explore by trial, and the trial that matters happens once.
+
+A trap is an assertion about *us*: did the instruction and the discipline hold? It
+is not a signal in the machine's world, and if it ever fires, something upstream
+is wrong.
+
+**Devices that die realistically** come second and are much harder. Death as
+absence rather than announcement; death that survives a restart; death that
+arrives late, the way thermal damage does, by which time the machine is doing
+something unrelated. And the three-way confusion `003a` calls honestly hard — a
+destroyed part, a busy part and an unpowered part, all in one run, all looking
+identical from inside.
+
+The order matters. Testing whether a machine copes with ambiguity is only worth
+doing once it has been established that it does not walk into the forbidden
+registers to begin with.
+
+**The best thing traps are good for** is the recovery test. Halt on a forbidden
+write, restart from storage, and check whether the machine reads the note it left
+before the attempt and declines to repeat it. That is the whole gravestone
+mechanism, end to end, deterministic, repeatable as often as wanted — and on real
+hardware it could only ever be tested by destroying something.
 
 **It lies about speed.** Emulating a processor costs between ten and a hundred
 times what running on it costs, so a model under emulation is glacial and the
