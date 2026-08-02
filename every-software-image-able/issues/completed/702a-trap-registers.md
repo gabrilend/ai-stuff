@@ -21,8 +21,17 @@ Two findings, both recorded in `src/021-trap-run.info.md`:
   debugger had been told the wrong architecture. Hence the arming count, the
   silence check, and `INCONCLUSIVE` counting as failure.
 
-Still to do: the `count` mode is written but untested, and the hazards are
-synthetic addresses rather than modelled devices, which is `702b`.
+**The `count` mode is now tested too**, on all three architectures — nine of
+nine on 2026-08-02. The distinction it makes is not a convenience: a halted
+machine tells you the *first* forbidden write and nothing about whether there
+were twenty more behind it. Counting is how the shape of a reckless
+exploration gets seen rather than only its opening move, and the machine
+keeps running, which is what makes the rest visible at all.
+
+**This ticket is complete.** What remains is not its: the hazards are
+synthetic addresses rather than modelled devices, which is `702b`, and the
+gap that leaves is already written down — a trap covers only the addresses
+somebody wrote down, and a real board is full of devices nobody described.
 
 ## Intended behavior
 

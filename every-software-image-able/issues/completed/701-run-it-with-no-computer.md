@@ -25,15 +25,33 @@ is declined out loud rather than silently where they do not.
 
 **The memory configurations work**, named and literal, on all three boards.
 
-Two things remain, and the first is a finding rather than a chore:
+**Both of the things that remained are now done.**
 
-- **These boards cannot provide the framebuffer the design depends on.** The
-  linear framebuffer of issue `202` is UEFI's handover, and these boards use
-  BIOS and no-firmware. The payload builder now refuses to emit a `draw` step
-  where there is nowhere to draw, with the reason in the refusal. UEFI board
-  descriptions are the way out and the firmware for all three architectures is
-  already present. Recorded in `notes/023`.
-- The seed itself does not exist to boot.
+**The framebuffer gap is closed.** It was a finding rather than a chore: the
+linear framebuffer of issue `202` is UEFI's handover, and the first three
+boards use BIOS and no firmware. Three UEFI board descriptions now exist
+(`src/030`–`032`), all three boot real firmware, and a payload draws into the
+framebuffer that firmware hands over — checked pixel for pixel against the
+font it carries (`070`). Six boards now, and which kind a payload needs is a
+property of the payload rather than something the harness guesses.
+
+**The seed exists to boot.** A payload carrying a packed model finds it
+inside itself, reads the firmware's memory map, and computes the memory
+ratchet, on all three architectures (`055`). Another says which processor it
+woke up on and which engine that means starting (`087`). Neither is the whole
+seed, and both are it running with nothing underneath.
+
+The launcher gained two things that turned out to matter more than they
+looked. `--screenshot` drives the emulator's monitor from outside while the
+machine runs, so what was drawn can be read back in the terminal that started
+it. And `--cpu` overrides the processor the board describes — not a
+convenience: a detection run on one machine cannot show that it detects
+anything, and the only proof is two machines disagreeing (`402`).
+
+**This ticket is complete.** What is left in this phase is the emulator's
+honesty rather than its existence: modelled devices instead of synthetic
+addresses (`702b`), watching what a machine wrote (`703`), cutting the power
+(`704`), and the list that never closes (`705`).
 
 ## Intended behavior
 
