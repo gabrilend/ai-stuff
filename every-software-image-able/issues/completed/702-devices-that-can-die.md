@@ -2,13 +2,22 @@
 
 ## Current behavior
 
-An emulated device ignores a write that would destroy the real part. Voltage
-registers, clock dividers, thermal limits, non-volatile configuration — write
-anything to any of them and the emulation carries on as though nothing happened.
+**Done, and tested** -- `src/092` is the bench, `src/093` checks it, 18 of 18
+on 2026-08-02. Its sub-issues `702a` (trap registers) and `702b` (devices that
+die realistically) are both complete.
 
-So the one part of this design where mistakes cannot be undone is the one part
-that gets no feedback during development. A machine could pass every test by
-exploring recklessly, and destroy the first real board it touched.
+This was named the risk of the phase, and a risk of omission rather than of
+difficulty: emulated devices ignore the writes that destroy real ones, so
+without this the exploration discipline was an intention with no failing test
+attached -- and a machine could pass every trap while exploring recklessly
+somewhere nobody wrote a trap for, then kill the first real board it met.
+
+It is now testable in both directions, which is the thing that was missing. A
+machine following the discipline never reaches the fatal register and the
+part survives; one that opens the register and is wrong about what it does
+kills the part permanently -- and the note it was made to write first is
+still there afterwards to be read, which is the whole reason that rule
+exists.
 
 ## Intended behavior
 
