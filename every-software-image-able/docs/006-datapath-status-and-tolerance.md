@@ -103,6 +103,14 @@ opposite reasons.
 So the utilisation display and the status display are the same dial read twice,
 which means one reading habit and one place to look.
 
+## Everything below this line is offered, not required
+
+The intercession and the backward walk are useful patterns, and the machine does
+not have to use either of them. A computer that finds a better way to notice it
+is stuck, or a better way to work out what should have happened instead, should
+use that instead. What follows is a description of one way that works, written
+down so it does not have to be invented from nothing.
+
 ## Intercession
 
 ```
