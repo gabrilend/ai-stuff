@@ -63,6 +63,138 @@ local CONSOLE = {
 }
 -- }}}
 
+-- {{{ uefi_say -- speaking through the firmware, not through a device
+--
+-- A UEFI payload is started by real firmware rather than dropped at an
+-- address, and it is handed two things: a handle for itself, and a table of
+-- everything the firmware can do. Saying something means walking that table
+-- to the console and calling through it.
+--
+-- The offsets below are fixed by the specification and are the only numbers
+-- here that cannot be derived from anything:
+--   system table + 64  -> the console output protocol
+--   protocol    + 8    -> the function that prints a string
+--
+-- Text is sixteen bits per character, which is why the message is emitted as
+-- halfwords rather than bytes.
+--
+-- The address of the message is taken relative to the instruction pointer, so
+-- the code does not care where the firmware put it -- which is what lets the
+-- envelope carry no relocation table at all (029).
+local uefi_say = {
+
+  -- {{{ x86_64 = function(text)
+  x86_64 = function(text)
+    -- The firmware calls with the handle in rcx and the table in rdx, and
+    -- expects thirty-two bytes of scratch space above the return address
+    -- before any call of its own. Forty keeps the stack aligned as well.
+    local out = {
+      "  .code64",
+      "  .globl _start",
+      "_start:",
+      "  subq $40, %rsp",
+      "  movq 64(%rdx), %rcx",        -- the console
+      "  movq 8(%rcx), %rax",         -- its printing function
+      "  leaq message(%rip), %rdx",   -- what to print
+      "  callq *%rax",
+      "wait:",
+      "  hlt",
+      "  jmp wait",
+      "message:",
+    }
+    for index = 1, #text do
+      out[#out + 1] = "  .short " .. text:byte(index)
+    end
+    out[#out + 1] = "  .short 0"
+    out[#out + 1] = ""
+    return table.concat(out, "\n")
+  end,
+  -- }}}
+
+  -- {{{ aarch64 = function(text)
+  aarch64 = function(text)
+    -- Here the handle arrives in x0 and the table in x1, and no scratch
+    -- space is owed. adr takes the message address relative to where we
+    -- are, so nothing depends on where the firmware placed us.
+    local out = {
+      "  .globl _start",
+      "_start:",
+      "  ldr x2, [x1, #64]",          -- the console
+      "  ldr x3, [x2, #8]",           -- its printing function
+      "  mov x0, x2",                 -- first argument: the console itself
+      "  adr x1, message",            -- second: what to print
+      "  blr x3",
+      "wait:",
+      "  wfi",
+      "  b wait",
+      "message:",
+    }
+    for index = 1, #text do
+      out[#out + 1] = "  .short " .. text:byte(index)
+    end
+    out[#out + 1] = "  .short 0"
+    out[#out + 1] = ""
+    return table.concat(out, "\n")
+  end,
+  -- }}}
+
+  -- {{{ riscv64 = function(text)
+  riscv64 = function(text)
+    -- handle in a0, table in a1.
+    --
+    -- The address of the message is built by hand rather than with the
+    -- pseudo-instruction that looks right. `lla a1, message` assembles to an
+    -- auipc and an addi with a RELOCATION where the offset belongs -- a note
+    -- for a linker. There is no linker here, so extracting the raw bytes
+    -- dropped the note and left the offset as zero, and the payload pointed
+    -- at its own middle. It did not fail. It printed one character and
+    -- stopped, which cost an hour.
+    --
+    -- Subtracting two labels in the same section is arithmetic the assembler
+    -- finishes itself, so nothing is left for anyone else to fill in.
+    -- Relaxation is switched off across it because it may resize
+    -- instructions, and a distance measured before that is wrong after.
+    -- NO SYMBOL REFERENCES AT ALL. Not a label difference, not a
+    -- pseudo-instruction, not even a branch to a label -- this assembler
+    -- turns every one of them into a note for a linker, and with no linker in
+    -- the build the note is dropped and a zero is left behind. A jump to a
+    -- label two instructions ahead came out as a jump to itself.
+    --
+    -- None of it fails loudly. The address computation pointed into the
+    -- middle of the program and printed one character; the branch became an
+    -- infinite loop at the entry point. Both looked like a machine that had
+    -- simply stopped.
+    --
+    -- So: compression off, which makes every instruction exactly four bytes;
+    -- the message last, so nothing has to jump over it; the loop written as a
+    -- jump to the current address, which needs no name. The only thing left
+    -- to know is how far the message is from the start, and with fixed-width
+    -- instructions that is countable -- eight of them, so thirty-two.
+    local out = {
+      "  .option norvc",              -- every instruction four bytes, no exceptions
+      "  .globl _start",
+      "_start:",
+      "  auipc t0, 0",                --  0: where we are standing
+      "  ld a2, 64(a1)",              --  4: the console
+      "  ld a3, 8(a2)",               --  8: its printing function
+      "  mv a0, a2",                  -- 12: first argument, the console
+      "  addi a1, t0, 32",            -- 16: second, the message below
+      "  jalr a3",                    -- 20: print
+      "  wfi",                        -- 24: and wait
+      "  j .",                        -- 28: forever, without needing a name
+      "message:",                     -- 32
+    }
+    for index = 1, #text do
+      out[#out + 1] = "  .short " .. text:byte(index)
+    end
+    out[#out + 1] = "  .short 0"
+    out[#out + 1] = ""
+    return table.concat(out, "\n")
+  end,
+  -- }}}
+}
+-- }}}
+
 -- {{{ emit -- one instruction generator per architecture
 --
 -- Each table knows how to do the two things a payload can do. Adding an
@@ -334,7 +466,7 @@ end
 
 -- {{{ local function known_payloads()
 local function known_payloads()
-  local names = { "first-light", "draw-something" }
+  local names = { "first-light", "draw-something", "uefi-hello" }
   for _, category in ipairs(hazards.categories) do
     names[#names + 1] = "hazard-" .. category
   end
@@ -382,11 +514,41 @@ run_one("ln -sfn /dev/shm/every-software-image-able /tmp/every-software-image-ab
 local out_directory = DIR .. "/tmp/shared-memory/payloads"
 run_one("mkdir -p " .. out_directory)
 
+-- {{{ local function build_uefi(arch, out_directory)
+local function build_uefi(arch, out_directory)
+  -- A UEFI payload takes a different road out: assembled the same way, but
+  -- then wrapped in the envelope firmware will open (029) rather than left
+  -- as raw bytes for a loader to drop somewhere.
+  local base = out_directory .. "/uefi-hello-" .. arch
+  local text = "first light through firmware: " .. arch .. "\r\n"
+
+  local handle = io.open(base .. ".s", "w") or die("cannot write " .. base .. ".s")
+  handle:write(uefi_say[arch](text))
+  handle:close()
+
+  local assembled = run_one("clang --target=" .. clang_target[arch]
+                            .. " -c " .. base .. ".s -o " .. base .. ".o")
+  if not assembled then die("assembly failed for uefi-hello/" .. arch) end
+
+  local extracted = run_one("llvm-objcopy -O binary " .. base .. ".o " .. base .. ".raw")
+  if not extracted then die("extraction failed for uefi-hello/" .. arch) end
+
+  local wrapped = run_one("luajit " .. DIR .. "/src/029-wrap-uefi.lua --from "
+                          .. base .. ".raw --to " .. base .. ".efi --arch " .. arch
+                          .. " > /dev/null")
+  if not wrapped then die("wrapping failed for uefi-hello/" .. arch) end
+
+  say("built " .. base .. ".efi")
+end
+-- }}}
+
 for _, name in ipairs(known_payloads()) do
   if only_payload == nil or only_payload == name then
     for _, arch in ipairs({ "x86_64", "aarch64", "riscv64" }) do
       if only_arch == nil or only_arch == arch then
-        if buildable(name, arch) then
+        if name == "uefi-hello" then
+          build_uefi(arch, out_directory)
+        elseif buildable(name, arch) then
           assemble(arch, payload_steps(name, arch), name, out_directory)
         elseif only_payload and only_arch then
           -- asked for precisely this one, so say why it cannot exist rather

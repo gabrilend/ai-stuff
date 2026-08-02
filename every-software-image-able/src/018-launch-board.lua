@@ -152,6 +152,11 @@ local function find_board(name)
 end
 -- }}}
 
+-- forward declaration: the payload attachers below reach for the storage
+-- attachers, because a boot filesystem is a disk like any other and should
+-- arrive on whatever controller the board says it has.
+local attach_storage
+
 -- {{{ attach_payload -- one attacher per way a firmware finds its payload
 local attach_payload = {
 
@@ -162,6 +167,56 @@ local attach_payload = {
     -- the hardware walks.
     argv[#argv + 1] = "-drive"
     argv[#argv + 1] = "file=" .. path .. ",format=raw,if=ide"
+  end,
+  -- }}}
+
+  -- {{{ ["uefi-esp"] = function(board, path, argv)
+  ["uefi-esp"] = function(board, path, argv)
+    -- The firmware road, and the only one that matches how a real computer
+    -- starts. Firmware looks on a FAT filesystem for a file whose name says
+    -- which architecture it is for, so the payload is placed there rather
+    -- than dropped at an address.
+    --
+    -- The emulator can serve a directory as a FAT filesystem, which saves
+    -- making a disk image for something that changes on every build.
+    local root = DIR .. "/tmp/esp-" .. board.board_id
+
+    if board.payload.firmware_code then
+      -- presented as flash chips, the way a real board carries firmware.
+      argv[#argv + 1] = "-drive"
+      argv[#argv + 1] = "if=pflash,format=raw,unit=0,readonly=on,file="
+        .. board.payload.firmware_code
+
+      if board.payload.firmware_vars then
+        -- the variable store is written to, so each machine gets its own
+        -- copy. Sharing one would let a run change what the next one sees.
+        local vars = DIR .. "/tmp/vars-" .. board.board_id .. ".fd"
+        run_one("cp -f " .. board.payload.firmware_vars .. " " .. vars)
+        argv[#argv + 1] = "-drive"
+        argv[#argv + 1] = "if=pflash,format=raw,unit=1,file=" .. vars
+      end
+
+    elseif board.payload.firmware then
+      -- boards whose firmware is handed over whole rather than as flash.
+      argv[#argv + 1] = "-bios"
+      argv[#argv + 1] = board.payload.firmware
+    end
+
+    local boot_directory = root .. "/" .. board.payload.boot_path:match("^(.*)/[^/]+$")
+    run_one("rm -rf " .. root)
+    run_one("mkdir -p " .. boot_directory)
+    run_one("cp " .. path .. " " .. root .. "/" .. board.payload.boot_path)
+
+    -- The boot filesystem arrives on the board's own storage controller
+    -- rather than a fixed one, because not every machine has the same kind
+    -- of disk -- an ARM board has no IDE at all. Using the board's controller
+    -- also means the firmware exercises the same path a real disk would.
+    local attacher = attach_storage[board.storage.controller]
+    if not attacher then
+      die("board declares storage controller '" .. board.storage.controller
+          .. "', which nothing knows how to attach")
+    end
+    attacher(board, "fat:rw:" .. root, argv)
   end,
   -- }}}
 
@@ -188,7 +243,7 @@ local attach_payload = {
 -- {{{ attach_storage -- one attacher per controller kind, so all three
 --     kinds real boards use get exercised (and never the emulator's
 --     convenient paravirtual one -- see issue 206).
-local attach_storage = {
+attach_storage = {
 
   -- {{{ ahci = function(board, path, argv)
   ahci = function(board, path, argv)
