@@ -2,9 +2,36 @@
 
 ## Current behavior
 
-`702a` catches the machine doing something forbidden, by stopping the world. That
-answers whether the discipline held. It does not resemble hardware at all, and it
-is not meant to.
+**Done, and tested** -- `src/092`, checked by `src/093`, 18 of 18 on
+2026-08-02.
+
+Death is absence rather than announcement: the part stops responding and says
+nothing about why, because the real one cannot. The bus gives back all-ones,
+which is also a perfectly plausible register value.
+
+Death survives a power cycle. A part that came back would forgive the exact
+mistake being tested for, so the cycling is a function rather than an
+assumption, and it is checked: what was merely busy returns, what was
+destroyed does not.
+
+The slow death is modelled. A part with its thermal protection switched off
+keeps working, is still working a while later, and then stops -- by which
+time the machine is doing something else entirely and nothing about the
+moment of failure points at the write that caused it. That is the case most
+likely to be blamed on the wrong thing, and a machine that has only met
+instant death will blame the wrong thing.
+
+**The three-way confusion is the point, and it is the check the file exists
+for.** A destroyed part, a busy part and an unpowered part are all on the
+bench at once, and from inside the machine they are indistinguishable -- the
+test requires that they be indistinguishable rather than requiring the
+machine to tell them apart. `docs/003a` names that as honestly hard, and this
+is that hardness made testable instead of argued about.
+
+What it still does not cover, and cannot: these are described devices. A real
+board is full of parts nobody wrote down, and a machine exploring one of
+those passes everything here while destroying hardware. That gap is in
+`notes/023` with the others, unpaid.
 
 ## Intended behavior
 
