@@ -14,7 +14,8 @@ every-software-image-able/
 ├── notes/
 │   ├── vision ....................... the page it started from
 │   ├── 007-deferred.md .............. worked out, then set aside, and why
-│   └── 014-spoken-while-building.md . things said in passing, kept whole
+│   ├── 014-spoken-while-building.md . things said in passing, kept whole
+│   └── 023-what-the-emulator-lies-about.md  differences, with what each cost
 │
 ├── docs/
 │   ├── table-of-contents.md ......... this file
