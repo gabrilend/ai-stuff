@@ -51,6 +51,37 @@ This replaces the question of what happens when the context fills. Nothing
 overflows. The machine is choosing, continuously, what it is thinking with — and
 running low is a condition it can see and act on rather than a wall it hits.
 
+## Reading something larger than the context
+
+A result too big to hold is not truncated and not refused. It is searched
+somewhere else.
+
+```
+build the question: the specific request, plus what is needed to understand
+   the thing being looked at
+chunk the result
+fill a scratch context with as many chunks as fit, and ask:
+   is what we need in here — and if not, should the search widen?
+swap those chunks out, swap the next ones in, ask again
+until the whole thing has been passed over
+return the chunks that had it, as text, summarised together if they span
+```
+
+The sizing is what makes it work. **A chunk is about a tenth of a full context,
+and seven to nine are resident at a time**, leaving room for the question and the
+answer. A document of any size is then covered in a predictable number of passes,
+and the machine's own context only ever sees the three or four chunks that
+mattered.
+
+This requires the engine to be able to think in a **scratch context** — filled,
+used and discarded — separate from the machine's own. What crosses back is an
+atom, with `derived_from` naming the source so the machine can go back for more.
+
+What it does not solve: an answer that needs the first chunk and the last one
+together. Every pass sees a window, so a relationship spanning the whole document
+is invisible to all of them. Known, accepted for now, and worth remembering when
+an answer comes back confidently wrong rather than missing.
+
 ## The index
 
 Atoms that are not resident are useless unless they can be found, so the index is

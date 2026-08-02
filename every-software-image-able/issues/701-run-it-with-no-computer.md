@@ -29,8 +29,13 @@ launched from.
    read the weights in place is a test; one with plenty is a demonstration.
 3. Wire the emulated serial port to standard output, so `202` produces visible
    text on the first attempt.
-4. Present a host file as an emulated storage device, so `206` and the whole
-   move-in sequence have somewhere to move in to.
+4. Present a host file as an emulated storage device — and attach it through a
+   controller of the kind real boards have rather than the emulator's paravirtual
+   one. The convenient device would leave the emulator loop and the hardware loop
+   running different drivers from the first day, which is exactly the sort of gap
+   that stays invisible until first light. Emulators model the real controllers;
+   using them costs a longer command line and nothing else. Configure each example
+   machine with a different one, so all of them get exercised.
 5. Write the launcher as a script with the project location fixed at the top and
    overridable by an argument, so it runs from anywhere. It should take which
    architecture, which image, and whether to wait for a debugger.
