@@ -63,6 +63,7 @@ run_test "the arithmetic, against its record" "037-test-forward.lua"
 run_test "the kernels, fast and slow"         "044-test-kernels.lua"
 run_test "what a thinking machine costs"      "046-what-fits.lua"
 run_test "raising e to a power, two ways"     "048-test-exp.lua"
+run_test "a whole thought, on real arithmetic" "050-test-assembly-forward.lua"
 run_test "text into numbers, and back"        "039-test-tokenizer.lua"
 run_test "choosing what to say next"          "041-test-sampler.lua"
 
