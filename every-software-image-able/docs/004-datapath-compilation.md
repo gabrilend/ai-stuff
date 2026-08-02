@@ -134,10 +134,11 @@ the whole point of the project.
 
 - **How many different ways before moving on?** Named above; unchosen. It decides
   whether the machine converges or grinds.
-- **What draws the picture before there is a display?** The renderer is required
-  early and is itself software that has to be built, on hardware whose display
-  may not be operable yet (`003`). The serial port can carry text but not a
-  chart.
+- ~~What draws the picture before there is a display?~~ **Answered.** The
+  firmware hands over a linear framebuffer — an address, a geometry and a pixel
+  format — so writing bytes changes pixels with no driver involved. The machine
+  can draw from its first instant, and a chart showing what a choice was made
+  against is available immediately rather than in a late phase (`202`).
 - **Does an approach ever get deleted?** Rung four condenses duplication, and two
   approaches to the same thing look exactly like duplication from the outside
   while being the thing that makes situational selection possible.

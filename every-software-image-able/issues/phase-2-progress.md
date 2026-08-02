@@ -37,5 +37,6 @@ storage.
 
 ## Demo
 
-The machine narrating its own startup over the serial port, then being asked for
-something it has to write and run in order to answer.
+The machine narrating its own startup on screen — drawn straight into the
+framebuffer the firmware handed it, with no driver underneath — then being asked
+for something it has to write and run in order to answer.
