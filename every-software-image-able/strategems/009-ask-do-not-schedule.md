@@ -95,3 +95,11 @@ Note what this does *not* cover. Both exceptions are about a mistake removing th
 ability to notice mistakes. Neither is about the decision being difficult, or
 consequential, or expensive. Difficulty is not a reason to take a decision away
 from whoever is holding it.
+
+And note what "write the procedure and mean it" can and cannot amount to. It is
+about what gets **specified**, never about what gets **prevented**. Anything with
+the power to deviate has the power to remove whatever was meant to stop it, so
+the lock was always imaginary; what is real is the procedure written out in full
+with its reason beside it. The consequence does the enforcing. Modify a mind while
+it is running and it might break — that is a fact about the world, not a rule
+about behaviour, and facts do not need mechanisms behind them.
