@@ -49,6 +49,7 @@ local M = {}
 --   settings     temperature, top_k, top_p
 --   finish_token a token number that means "finished", or nil for none
 --   boot_atoms   what the context starts holding, or nil
+--   hands        a catalogue (064), or nil for a machine that only speaks
 function M.new(options)
   local model = options.model
   local shape = model.shape
@@ -61,6 +62,8 @@ function M.new(options)
     model = model,
     kernels = options.kernels,
     finish_token = options.finish_token,
+    hands = options.hands,
+    answered = 0,
     atoms = context_module,
     -- the budget is the model's context, because that is what "resident"
     -- physically means here: a token the cache has room to think over.
@@ -89,6 +92,12 @@ function M.new(options)
                                              options.tables.merges)
   loop.tokenizer_module = options.tokenizer
   loop.chance = ffi.new("float[1]")
+
+  if options.hands then
+    loop.hands_module = dofile(
+      (os.getenv("ESIA_DIR") or "/mnt/mtwo/programming/ai-stuff/every-software-image-able")
+      .. "/src/064-the-hands.lua")
+  end
 
   if options.boot_atoms then
     context_module.boot(loop.context, options.boot_atoms)
@@ -223,6 +232,29 @@ function M.think(loop, request, limits)
 
     spoken[#spoken + 1] = token
 
+    -- {{{ a call, noticed the moment it finishes
+    --
+    -- Checked here rather than after the thought, because a machine that
+    -- asks for something and then keeps talking is answering its own
+    -- question with a guess. It stops at the closing mark, the hand acts,
+    -- and the answer joins the context before another token is drawn.
+    --
+    -- Only this turn's speech is searched, and it is searched fresh each
+    -- time -- an older call is already in the context with its answer
+    -- beside it, and finding it again would carry it out forever.
+    if loop.hands then
+      local so_far = M.decode(loop, spoken)
+      if so_far then
+        local asking = loop.hands_module.find(loop.hands, so_far)
+        if asking then
+          reason = "asked for something"
+          loop.pending = asking
+          break
+        end
+      end
+    end
+    -- }}}
+
     if limits.interrupt and limits.interrupt(#spoken) then
       reason = "interrupted"
       break
@@ -250,7 +282,67 @@ function M.think(loop, request, limits)
                               tokens = #spoken, origin = "written by the machine" })
   end
 
-  return { text = text, tokens = spoken, reason = reason, position = position }
+  return { text = text, tokens = spoken, reason = reason, position = position,
+           asked = loop.pending }
+end
+-- }}}
+
+-- {{{ M.converse(loop, request, limits)
+--
+-- A whole exchange: think, and whenever the machine asks for something, the
+-- hand acts and the answer joins the context as its own atom, and thinking
+-- resumes. Ends when something other than an asking stops the thought.
+--
+-- limits gains `max_calls` -- how many hands may move in one exchange. It
+-- exists because a machine can ask for the same thing forever, and a loop
+-- with no bound is the same defect as a program with no bound (204). The
+-- limit reached is reported rather than passed over.
+--
+-- Returns { turns, reason, calls, position }, where turns is every stretch
+-- the machine spoke, in order.
+function M.converse(loop, request, limits)
+  limits = limits or {}
+  local max_calls = limits.max_calls or 8
+  local turns, calls = {}, 0
+  local next_request = request
+
+  while true do
+    local thought, trouble = M.think(loop, next_request, limits)
+    if not thought then return nil, trouble end
+    next_request = nil
+    turns[#turns + 1] = thought
+
+    if thought.reason ~= "asked for something" then
+      return { turns = turns, reason = thought.reason, calls = calls,
+               position = thought.position }
+    end
+
+    if calls >= max_calls then
+      -- Said rather than swallowed: a machine stopped by a limit it cannot
+      -- see is a machine that looks like it simply gave up.
+      loop.atoms.add(loop.context, {
+        topic = "refusal", origin = "the machine it is running on",
+        content = "\nthat is " .. max_calls .. " hands moved in one exchange, "
+          .. "which is as many as this machine allows at once.\n",
+        tokens = 24 })
+      return { turns = turns, reason = "too many hands in one exchange",
+               calls = calls, position = thought.position }
+    end
+
+    local answer = loop.hands_module.answer(loop.hands, thought.asked)
+    local written = loop.hands.grammar.render(answer)
+    local counted = M.encode(loop, written)
+    loop.atoms.add(loop.context, {
+      topic = "answer to " .. answer.name,
+      content = written,
+      tokens = counted and #counted or 0,
+      origin = "the machine's own hands",
+      derived_from = { thought.asked.name },
+    })
+    loop.answered = loop.answered + 1
+    calls = calls + 1
+    loop.pending = nil
+  end
 end
 -- }}}
 
