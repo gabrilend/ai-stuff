@@ -179,6 +179,34 @@ the one distance that matters counted by hand and written as a number.
 **Cost.** An hour, and two rounds of disassembling output to find that an
 instruction which reads `addi a1, a1, 0` was supposed to say `0x10`.
 
+**And it is not only that architecture.** The same trap caught the x86 payload
+later, wearing different clothes: there the assembler resolves references to
+*local* labels itself but leaves references to **exported** ones for a linker.
+`leaq _start(%rip)` assembled to `leaq (%rip)` — the address of the next
+instruction rather than the start of the program — and everything measured
+from it was two dozen bytes out. It printed a model with a hundred and
+seventy-six word vocabulary and a size of zero: numbers that look like numbers.
+
+The rule, on every architecture: **measure from a local label, never from an
+exported one**, and disassemble the output rather than trusting that it says
+what was written.
+
+---
+
+### Counting offsets by hand produces numbers that look right
+
+Not an emulator lie, but it belongs beside them because it has the same shape:
+no failure, just a plausible wrong answer.
+
+Two field offsets in a payload's header reader were counted by hand and landed
+one field off. The machine reported a vocabulary of 176 and a total size of
+zero, and both were read out confidently in the same format as the correct
+values beside them.
+
+**The fix is structural rather than careful.** The offsets are now computed
+from the same layout description the packer and the reader use, so a payload
+cannot drift from the format it is reading. One source, three consumers.
+
 ---
 
 ## Expected, unpaid

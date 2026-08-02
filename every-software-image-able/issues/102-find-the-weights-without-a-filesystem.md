@@ -2,8 +2,32 @@
 
 ## Current behavior
 
-Nothing locates the packed blob. On an ordinary computer this is a file open; here
-there are no files, because a filesystem is software and none has been written.
+**The finding half works, on x86-64.** A payload booted by real UEFI firmware
+locates a packed model riding inside its own image and reads its header aloud:
+magic, version, layers, hidden size, heads, vocabulary, context, tensor count,
+token count and total size — every one matching what the host-side reader says
+about the same blob.
+
+The model **travels inside the program that will run it** rather than beside
+it. The wrapper (`src/029 --append`) places it a fixed distance past the code
+in the same section, so firmware maps it in without being told anything
+unusual, and the payload finds it by working out where it is standing and
+counting forward. No directory, no filename, nothing to ask — which is the
+point, since there is nothing to ask.
+
+Field offsets are computed from the layout description (`src/024`) rather than
+counted, after counting them by hand produced a model with a hundred and
+seventy-six word vocabulary and a size of zero.
+
+Still to do:
+
+- The memory map. Nothing yet reads what firmware leaves behind, so nothing
+  marks the engine and the weights as occupied, and nothing reports what is
+  free.
+- The ratchet. All three rungs are still undecided in practice because nothing
+  yet needs the memory.
+- The other two architectures. The routine must be written again in their own
+  instructions, and the RISC-V one without a single symbol reference.
 
 ## Intended behavior
 
