@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 23:32:09
+Generated on: 2026-08-01 23:39:08
 
 --------------------------------------------------------------------------------
 
@@ -4511,6 +4511,254 @@ this project that isn't answerable by thinking harder about it.
 Phase 4 next? It's small — two tickets, and one of them is a few hundred bytes
 that decides which engine to start. Given the size, we could take 4 and 5 in one
 pass and leave 6 and 7 with room to breathe.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 39
+
+  One new question, and it's the only blocking one in the design. When is a
+  machine ready for the card to come out? Nothing can test it. It's a judgement
+  about whether something has finished learning to walk, made by whoever is
+  standing there — and 602 now asks for the reasoning to
+
+  be recorded, since the reasoning will be worth more than the moment. It's the
+  first question in this project that isn't answerable by thinking harder about
+  it.
+
+
+as soon as the system is running from RAM, the card can be removed. As soon as
+the system can boot itself from disk into RAM, the system can be turned off and
+on again.
+
+
+  Phase 4 next? It's small — two tickets, and one of them is a few hundred
+  bytes that decides which engine to start. Given the size, we could take 4 and
+  5 in one pass and leave 6 and 7 with room to breathe.
+
+
+sure, 4 and 5 next.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 39
+
+Sharper than I had it, and it's two milestones rather than a judgement call.
+
+
+# Phase 4 — three tongues, in detail
+
+
+**Goal.** One chip that runs on the machines people actually have.
+
+
+## 401 — the second and third tongues
+
+
+**The half that's a translation and the half that's a rewrite.**
+
+
+The plain arithmetic ports almost mechanically — the operations are the same,
+the shapes come from the header, and the reference fixture built in `103` tells
+you when each port is right. That fixture is the whole reason this ticket is
+tractable rather than terrifying.
+
+
+The fast half is not one job done three times. The three architectures' vector
+instruction sets have nothing meaningful in common — different registers,
+different widths, different operations, different ways of loading. And on RISC-V
+the vector extension is *optional*, so a port has to either require it or carry
+a scalar path for chips that lack it. Budget this as three separate pieces of
+work that happen to solve the same problem.
+
+
+**One of the hands changes shape rather than detail.** x86 has a separate
+address space for talking to devices, reached by its own instructions. ARM and
+RISC-V don't — everything is memory-mapped. So the hand that touches ports
+exists in one form on one architecture and collapses into ordinary memory access
+on the other two.
+
+
+That means **the catalogue of hands is not identical across machines.**
+Survivable, because a machine reads its catalogue rather than being told it once
+— but it puts a constraint back on `301`: the instruction must not assume any
+particular hand exists.
+
+
+Don't build a shared abstraction layer to paper over any of this. There's no
+compiler here, so the layer would itself be written three times, and you'd have
+three things instead of one. Where the implementations must differ, say why in a
+comment beside the difference — a later reader needs to know whether a
+divergence is necessary or accidental.
+
+
+## 402 — waking on the right foot
+
+
+**This ticket was wrong when I wrote it, and the correction is structural.**
+
+
+I had it as: identify the processor, look it up in a table, start the matching
+engine. That can't exist. Machine code isn't portable, so the code doing the
+identifying would itself need an architecture — there is no shared entry
+point.
+
+
+What actually happens is that **each firmware finds its own payload.** Every
+architecture's boot convention names a place to look, the builder puts that
+architecture's engine there, and a given firmware never sees the others. Nobody
+dispatches. The selection happened at layout time.
+
+
+Which moves this ticket almost entirely into `501` and `502` — the "where the
+firmware looks" field in the board description is doing the work, and it's
+load-bearing rather than incidental.
+
+
+What remains here is the runtime detection that *is* possible, which is within
+an architecture rather than between them: which vector extensions this
+particular chip turned out to have. On x86-64 one baseline set is guaranteed and
+better ones are common but not universal. On RISC-V there may be none. So either
+target the guaranteed baseline everywhere and leave speed on the table, or carry
+more than one version of the hot loop and choose at startup — faster, and
+three times the testing.
+
+
+And still: say what was found on the serial port before handing over. "This
+processor, these extensions, starting this engine" is the most useful sentence a
+failing machine can produce, and at that moment it's the only thing that can be
+said at all.
+
+
+---
+
+
+# Phase 5 — the image, in detail
+
+
+**Goal.** Something you can put on a card.
+
+
+## 501 — the recipe and the board
+
+
+Two descriptions, and **neither names the other.** That separation is the entire
+portability claim: supporting new hardware becomes a description file and no
+code.
+
+
+The **recipe** says what the seed is — the engines, the weights, the tokenizer
+table, the instruction, the patterns, the carried device descriptions, any
+bundled drivers — with versions pinned. It never mentions a board.
+
+
+The **board description** says: the architecture; how the firmware locates
+something to start *and where it looks for it*; which device the console is on
+and at what rate; which storage controllers to expect, since `206` now targets
+real ones rather than the emulator's convenient device; what the board can boot
+from; how the medium is laid out; and what document this was transcribed from.
+
+
+That last field exists because a board description is somebody else's hardware
+documentation copied out, transcriptions rot, and one whose source isn't named
+can't be re-checked when a board revision lands.
+
+
+**Test the claim rather than asserting it.** Add a board description for a
+target nobody planned for and confirm nothing else had to change. If something
+did, the separation isn't real yet.
+
+
+And bake nothing secret and nothing machine-specific in. An image gets copied
+onto every card in a batch; anything particular to one machine is particular to
+all of them. Everything individual about a machine happens after it wakes.
+
+
+## 502 — build the image
+
+
+Resolve recipe and board description into a **manifest** naming every component
+and version. The manifest is the honest account of what this image is; the image
+itself is a pile of bytes.
+
+
+Hash the manifest and let that be the image's identity — same inputs, same
+number, reproducible by anyone. That reproducibility is a build-time property
+and stops meaning anything the moment a machine starts growing, which is fine
+and expected.
+
+
+**Lay the medium out per the board description**, including putting each
+architecture's payload where that architecture's firmware will go looking —
+which is how `402` actually works. And the offsets have to agree with what `102`
+expects, **checked by the build rather than hoped for.** This seam is where
+first light will fail if it fails, because the failure arrives at the earliest
+possible moment with the least possible information.
+
+
+**Take the model as a parameter**, since which model an image carries is the
+operator's choice rather than a project decision. This is also where a model too
+large for the board being built for gets refused, with the three numbers said
+out loud: what the medium holds, what the board's memory holds alongside working
+space, and what the resulting speed will be.
+
+
+**Generate the carried randomness** — around a hundred kilobytes, made at
+build time, each number seeding a generator that yields thousands of draws.
+Record the seed that produced the file in the manifest: same recipe and same
+seed gives the same machine exactly, which turns a strange failure into
+something reproducible by handing somebody an image.
+
+
+Emit three files — image, manifest, hash — never only the image. And keep
+the build reproducible in the plain sense: same inputs, same output bytes.
+Timestamps and build paths leaking into the image are the usual reason that
+fails.
+
+
+## 503 — put it on a card
+
+
+Require the operator to name the device *and* something identifying about it —
+serial, size, label. List what was found and refuse if the two disagree.
+
+
+**Make the confirmation uncomfortable on purpose.** Writing an image to the
+wrong disk destroys whatever was there, and unlike every other mistake in this
+project it can't be repaired by writing more software.
+
+
+Then write, read back, hash, and compare against `502`'s number — reporting
+the comparison rather than assuming it.
+
+
+Prefer read-only media where the target supports it, and say so in the tool's
+own help, because that's now three properties rather than one: the seed can be
+replanted indefinitely, it can't be damaged by a machine dying halfway through
+being started, and it holds the original of everything the machine was told for
+as long as it stays plugged in.
+
+
+Support writing many cards in one run, since one image is meant to serve many
+machines and doing them one at a time is where mistakes come from.
+
+
+**After flashing, the card belongs to nobody.** Nothing secret is on it, nothing
+identifies a machine, and it's identical to every other card in the batch.
+Everything individual appears when a computer wakes up holding it.
+
+
+---
+
+
+**Where these two phases go wrong:** the seam between `502` and `102`, and it's
+worth building the check for it before anything depends on it. Everything else
+here has a known shape.
+
+
+**What changes about the project at the end of them:** it stops being something
+on a desk and becomes something you can hand to somebody.
 
 
 --------------------------------------------------------------------------------
