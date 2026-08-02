@@ -15,7 +15,7 @@ later," since in practice `701` is the first ticket anyone should finish.
 |---|---|---|
 | `701` | Run it with no computer | in progress — first light on all three architectures |
 | `702` | Devices that can die — the parent of the two below | not started |
-| `702a` | Trap registers | not started |
+| `702a` | Trap registers | working — 6 of 6 matrix cases on all three architectures |
 | `702b` | Devices that die realistically | not started |
 | `703` | Watch what it wrote | not started |
 | `704` | Cut the power on purpose | not started |
