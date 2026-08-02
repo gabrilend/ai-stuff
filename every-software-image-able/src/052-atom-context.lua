@@ -151,12 +151,19 @@ end
 -- {{{ M.concatenate(context)
 -- What the machine is actually thinking with, in order. This is the whole of
 -- it -- there is nothing else anywhere.
+--
+-- Joined with NOTHING between, deliberately. The first version put a
+-- newline between atoms, and the thinking loop (061) found what that
+-- means: the separators are content no atom owns -- unnamed bytes the rule
+-- above says cannot exist -- and they made the token accounting drift from
+-- the real encoding and broke the cache's prefix reuse at every atom
+-- boundary. An atom that wants a boundary owns the boundary in its content.
 function M.concatenate(context)
   local parts = {}
   for _, number in ipairs(context.order) do
     parts[#parts + 1] = context.atoms[number].content
   end
-  return table.concat(parts, "\n")
+  return table.concat(parts)
 end
 -- }}}
 

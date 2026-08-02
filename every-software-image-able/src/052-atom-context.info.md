@@ -18,6 +18,13 @@ instruction it woke up holding.
 That is tested rather than asserted: the whole context is rebuilt from its
 enumerated atoms and must come out identical.
 
+Joined with nothing between, since 2026-08-02. The first version put a
+newline between atoms — exactly the "separator nobody named" the rule
+forbids — and the thinking loop (`061`) caught it: those bytes belonged to
+no atom, drifted the token accounting from the real encoding, and broke the
+cache's prefix reuse at every atom boundary. An atom that wants a boundary
+owns the boundary in its content.
+
 ## What it exports
 
 | Name | Meaning |

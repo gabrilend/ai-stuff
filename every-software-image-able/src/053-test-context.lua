@@ -78,8 +78,13 @@ local rebuilt = {}
 for _, entry in ipairs(context_module.enumerate(context)) do
   rebuilt[#rebuilt + 1] = context.atoms[entry.number].content
 end
+-- Joined with nothing between. The first version of both sides put a
+-- newline there -- exactly the "separator nobody named" this check's own
+-- words warn about -- and the thinking loop (061) caught it: those bytes
+-- belonged to no atom, drifted the token accounting, and broke the cache's
+-- prefix reuse at every atom boundary.
 check("the context is exactly its atoms, joined",
-      whole == table.concat(rebuilt, "\n"),
+      whole == table.concat(rebuilt),
       "something is in the context that is not an atom")
 -- }}}
 
