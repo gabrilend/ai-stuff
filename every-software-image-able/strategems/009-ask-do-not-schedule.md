@@ -67,17 +67,31 @@ see.
 **Delegate the method wherever mistakes are recoverable. Specify the procedure
 where they are not.**
 
-This project has exactly one place where the answer is a procedure rather than a
-delegation, and it is the exploration of hardware without a description
-(`docs/003a`). Reads before writes. One change at a time. A predicted outcome
-stated beforehand. Never into the registers that control voltage, clocking,
-thermal limits, or anything stored in non-volatile memory. The intent written
-down before the attempt.
+This project has two places where the answer is a procedure rather than a
+delegation, and they are the only two.
 
-None of that is delegated, because a destroyed chip cannot be re-decided. Every
-other mistake in this design is answered by writing more software; that one is
-answered by buying more hardware.
+**Exploring hardware that has no description** (`docs/003a`). Reads before
+writes. One change at a time. A predicted outcome stated beforehand. Never into
+the registers controlling voltage, clocking, thermal limits, or anything held in
+non-volatile memory. The intent written down before the attempt. A destroyed chip
+cannot be re-decided, and every other mistake here is answered by writing more
+software while that one is answered by buying more hardware.
+
+**Changing the thing that thinks** (`docs/010`). Keep a backup. Build the new
+version alongside rather than in place. Run both and compare while the old one is
+still working. Switch only after watching the new one work. Never modify what is
+currently running.
+
+The second is the sharper case, and it is why the test below is worded the way it
+is. A damaged mind does not report an error, because reporting is among the
+things that broke. It goes quiet, and the only repair replaces the individual
+with a new one that has to grow from nothing.
 
 So the test is not "is this important" — it is **"can the executor find out it
 was wrong, and still be there to act on that?"** Where the answer is yes, ask and
 step back. Where it is no, write the procedure and mean it.
+
+Note what this does *not* cover. Both exceptions are about a mistake removing the
+ability to notice mistakes. Neither is about the decision being difficult, or
+consequential, or expensive. Difficulty is not a reason to take a decision away
+from whoever is holding it.
