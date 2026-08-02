@@ -28,7 +28,31 @@
 -- so that everything the machine writes later agrees with everything else it
 -- wrote.
 
+local ffi = require("ffi")
+
 local M = {}
+
+-- {{{ bit patterns, computed rather than written down
+--
+-- Assembly has no way to say "one seven-hundred-and-twentieth" -- a constant
+-- must arrive as the exact bits of a single-precision number. Writing those by
+-- hand is how one of these came to be `0x3a83b8ac` when the correct pattern is
+-- `0x3ab60b61`, which would have made the exponential quietly slightly wrong
+-- in a way nothing downstream could have noticed.
+--
+-- So they are computed from the same values the reference uses, and the
+-- assembly is generated with them already in place. One source, and no
+-- opportunity to transcribe.
+local box = ffi.new("float[1]")
+local as_bits = ffi.cast("uint32_t *", box)
+
+local function bits_of(value)
+  box[0] = value
+  return string.format("0x%08x", as_bits[0])
+end
+
+M.bits_of = bits_of
+-- }}}
 
 -- {{{ M.x86_64
 M.x86_64 = {
@@ -214,17 +238,268 @@ rms_normalise:
 }
 -- }}}
 
+-- {{{ the exponential, in assembly
+--
+-- The last function that stood between this project and a forward pass
+-- comparable exactly rather than approximately. It is written here to follow
+-- the specification in 047 step for step -- the same constants, the same
+-- polynomial, the same order of operations -- because agreeing with the
+-- reference matters more than any other property it could have.
+--
+-- The method: turn raising e to a power into raising two to a power, split
+-- that into a whole part and a fraction, adjust the number's exponent field by
+-- the whole part (exact, and free), and approximate the fraction with a short
+-- polynomial. Seven terms, chosen by measurement rather than preference (048).
+--
+-- Both constants are loaded as bit patterns built in a register. A constant in
+-- memory would need a symbol reference, and a symbol reference here is a note
+-- for a linker that nothing reads.
+-- Built as a function rather than held as text, because its constants are
+-- computed from the specification (047) rather than transcribed.
+function M.build_exp_x86_64(specification)
+  local series = specification.SERIES[specification.CHOSEN]
+
+  local body = {}
+  local function line(text) body[#body + 1] = text end
+
+  line([[
+  .globl exp_one
+  .type exp_one, @function
+exp_one:
+  # xmm0 holds the power. The answer comes back in xmm0.
+
+  # clamp above: anything past the limit returns the largest there is
+  movl $]] .. bits_of(specification.LIMIT) .. [[, %eax
+  movd %eax, %xmm1
+  comiss %xmm1, %xmm0
+  jbe 1f
+  movl $0x7f7fffff, %eax        # the largest single-precision number
+  movd %eax, %xmm0
+  retq
+1:
+  # clamp below: anything past minus the limit returns zero
+  movl $]] .. bits_of(-specification.LIMIT) .. [[, %eax
+  movd %eax, %xmm1
+  comiss %xmm0, %xmm1
+  jbe 2f
+  xorps %xmm0, %xmm0
+  retq
+2:
+  # how many powers of two, rounded to the nearest whole one
+  movl $]] .. string.format("0x%08x", specification.LOG2E_BITS) .. [[, %eax
+  movd %eax, %xmm1
+  movaps %xmm0, %xmm2
+  mulss %xmm1, %xmm2
+  cvtss2si %xmm2, %ecx          # rounds to nearest, which is what is wanted
+  cvtsi2ssl %ecx, %xmm3
+
+  # and what is left over, always between minus a half and a half of ln 2
+  movl $]] .. string.format("0x%08x", specification.LN2_BITS) .. [[, %eax
+  movd %eax, %xmm1
+  mulss %xmm1, %xmm3
+  subss %xmm3, %xmm0            # xmm0 is now the leftover
+
+  # the series, nested: multiply by the leftover, add the next coefficient.
+  # Generated from the specification, highest coefficient first.]])
+
+  -- the first coefficient starts the total; every one after is a multiply and
+  -- an add, in the reference's order, because the order is part of the answer.
+  line("  movl $" .. bits_of(series[1]) .. ", %eax")
+  line("  movd %eax, %xmm2")
+  for index = 2, #series do
+    line("  movl $" .. bits_of(series[index]) .. ", %eax")
+    line("  movd %eax, %xmm4")
+    line("  mulss %xmm0, %xmm2")
+    line("  addss %xmm4, %xmm2")
+  end
+
+  line([[
+  # the powers of two, applied straight to the exponent field
+  addl $127, %ecx
+  cmpl $1, %ecx
+  jge 3f
+  xorps %xmm0, %xmm0            # underflowed to nothing
+  retq
+3:
+  cmpl $254, %ecx
+  jle 4f
+  movl $0x7f7fffff, %eax
+  movd %eax, %xmm0
+  retq
+4:
+  shll $23, %ecx
+  movd %ecx, %xmm5
+  mulss %xmm5, %xmm2
+  movaps %xmm2, %xmm0
+  retq]])
+
+  return table.concat(body, "\n")
+end
+-- }}}
+
+-- {{{ softmax, in assembly
+--
+-- void softmax(float *values, int count)
+--
+-- values is rdi, count esi. Turns a set of scores into weights adding to one,
+-- in place.
+--
+-- The largest is subtracted first. That changes nothing about the answer and
+-- stops the exponentials from running away -- and because it is done, every
+-- argument handed to the exponential is zero or negative, which is the range
+-- it is most accurate over.
+M.x86_64.softmax = [[
+  .globl softmax
+  .type softmax, @function
+softmax:
+  testl %esi, %esi
+  jle 9f
+  pushq %rbx
+  pushq %r12
+  pushq %r13
+  # Thirty-two bytes of scratch, ABOVE the stack pointer.
+  #
+  # The obvious place to keep something across a call is just below the stack
+  # pointer, where a function may use a little space without asking. It is the
+  # one place that cannot be used here: a call writes its return address
+  # exactly there, so anything left below the pointer is destroyed by the very
+  # instruction it had to survive. This produced a softmax whose every value
+  # was a fraction of a fraction of nothing, and it did not fail.
+  #
+  # The size is thirty-two rather than eight so that the pointer stays
+  # sixteen-byte aligned at each call, which the convention requires.
+  subq $32, %rsp
+  movq %rdi, %rbx               # the values
+  movl %esi, %r12d              # how many
+
+  # find the largest
+  movss (%rbx), %xmm6
+  movl $1, %eax
+1:
+  cmpl %r12d, %eax
+  jge 2f
+  movss (%rbx,%rax,4), %xmm1
+  comiss %xmm6, %xmm1
+  jbe 11f
+  movaps %xmm1, %xmm6
+11:
+  incl %eax
+  jmp 1b
+2:
+  # raise e to each score less the largest, and total them as we go
+  xorps %xmm7, %xmm7            # the running total
+  xorl %r13d, %r13d
+3:
+  cmpl %r12d, %r13d
+  jge 4f
+  movss (%rbx,%r13,4), %xmm0
+  subss %xmm6, %xmm0
+  movss %xmm6, (%rsp)           # every one of these may be used by the call
+  movss %xmm7, 8(%rsp)
+  call exp_one
+  movss (%rsp), %xmm6
+  movss 8(%rsp), %xmm7
+  movss %xmm0, (%rbx,%r13,4)
+  addss %xmm0, %xmm7
+  incl %r13d
+  jmp 3b
+4:
+  # and divide each by the total
+  xorl %eax, %eax
+5:
+  cmpl %r12d, %eax
+  jge 6f
+  movss (%rbx,%rax,4), %xmm1
+  divss %xmm7, %xmm1
+  movss %xmm1, (%rbx,%rax,4)
+  incl %eax
+  jmp 5b
+6:
+  addq $32, %rsp
+  popq %r13
+  popq %r12
+  popq %rbx
+9:
+  retq
+]]
+-- }}}
+
+-- {{{ the gate, in assembly
+--
+-- void swiglu(float *gate, const float *up, int count)
+--
+-- gate is rdi, up rsi, count edx. The gate decides how much of each position
+-- passes, on a curve that is smooth everywhere rather than a hard cutoff, and
+-- what passes is then multiplied by the other half.
+M.x86_64.swiglu = [[
+  .globl swiglu
+  .type swiglu, @function
+swiglu:
+  testl %edx, %edx
+  jle 9f
+  pushq %rbx
+  pushq %r12
+  pushq %r13
+  subq $32, %rsp                # above the pointer, and aligned -- see softmax
+  movq %rdi, %rbx
+  movq %rsi, %r12
+  movl %edx, %r13d
+  xorl %eax, %eax
+1:
+  cmpl %r13d, %eax
+  jge 2f
+  movss (%rbx,%rax,4), %xmm0
+  movss %xmm0, (%rsp)           # the value itself, wanted again after the call
+  movl %eax, 8(%rsp)
+  xorps %xmm1, %xmm1
+  subss %xmm0, %xmm1            # minus the value
+  movaps %xmm1, %xmm0
+  call exp_one
+  movl 8(%rsp), %eax
+  movl $0x3f800000, %ecx        # one
+  movd %ecx, %xmm2
+  addss %xmm2, %xmm0            # one plus e to minus the value
+  movss (%rsp), %xmm3           # the value again
+  divss %xmm0, %xmm3            # how much passes
+  mulss (%r12,%rax,4), %xmm3    # times the other half
+  movss %xmm3, (%rbx,%rax,4)
+  incl %eax
+  jmp 1b
+2:
+  # thirty-two, matching the prologue. Restoring a different amount leaves the
+  # stack pointer somewhere else than it started and the function returns to
+  # whatever happens to be there -- which, unusually for this project, does
+  # crash rather than quietly continue.
+  addq $32, %rsp
+  popq %r13
+  popq %r12
+  popq %rbx
+9:
+  retq
+]]
+-- }}}
+
 -- {{{ M.names -- what exists, so a test can ask rather than be told
-M.names = { "matrix_vector_plain", "matrix_vector_wide", "rms_normalise" }
+M.names = {
+  "matrix_vector_plain", "matrix_vector_wide", "rms_normalise",
+  "exp_one", "softmax", "swiglu",
+}
 -- }}}
 
 -- {{{ M.source(arch)
 -- Everything for one architecture, in one assembler file.
-function M.source(arch)
+function M.source(arch, specification)
   local kernels = M[arch]
   if not kernels then
     error("043-emit-kernels: no kernels written for " .. tostring(arch))
   end
+
+  -- the exponential is generated rather than stored, so its constants come
+  -- from the specification and cannot be transcribed wrongly
+  if arch == "x86_64" and specification then
+    kernels.exp_one = M.build_exp_x86_64(specification)
+  end
+
   local parts = { "  .text" }
   for _, name in ipairs(M.names) do
     if kernels[name] then parts[#parts + 1] = kernels[name] end

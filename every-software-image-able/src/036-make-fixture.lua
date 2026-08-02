@@ -81,6 +81,18 @@ local function write_description(path, shape, tensors)
     "  end",
     "end",
     "",
+    "-- for tensors whose contents are computed rather than drawn",
+    "local function exact_numbers(values)",
+    "  return function(count)",
+    "    local ffi = require('ffi')",
+    "    local numbers = ffi.new('float[?]', count / 4)",
+    "    for index = 0, count / 4 - 1 do",
+    "      numbers[index] = values[index + 1] or 0",
+    "    end",
+    "    return ffi.string(numbers, count)",
+    "  end",
+    "end",
+    "",
     "return {",
     string.format("  shape = { layers = %d, hidden = %d, heads = %d, head_width = %d,",
                   shape.layers, shape.hidden, shape.heads, shape.head_width),
@@ -92,10 +104,29 @@ local function write_description(path, shape, tensors)
   -- a different seed per tensor, so no two tensors hold the same numbers --
   -- an implementation that reads the wrong one then fails rather than
   -- coincidentally agreeing.
+  --
+  -- The rotation table is the exception: it is not weights but a table of
+  -- turns, computed from the shape rather than drawn. Filling it with random
+  -- numbers would make the fixture reproducible and meaningless, and would
+  -- hide any mistake in how position is applied.
+  local shapes = dofile(DIR .. "/src/034-model-shapes.lua")
+  local turns = shapes.rotation_table(shape)
+
   for index, tensor in ipairs(tensors) do
-    lines[#lines + 1] = string.format(
-      "    { name = %q, precision = \"f32\", shape = { %s }, data = weights_from(%d) },",
-      tensor.name, table.concat(tensor.shape, ", "), 1000 + index * 37)
+    if tensor.name == "rotation" then
+      local numbers = {}
+      for slot = 1, #turns do
+        numbers[slot] = string.format("%.9g", turns[slot])
+      end
+      lines[#lines + 1] = string.format(
+        "    { name = %q, precision = \"f32\", shape = { %s },",
+        tensor.name, table.concat(tensor.shape, ", "))
+      lines[#lines + 1] = "      data = exact_numbers({ " .. table.concat(numbers, ", ") .. " }) },"
+    else
+      lines[#lines + 1] = string.format(
+        "    { name = %q, precision = \"f32\", shape = { %s }, data = weights_from(%d) },",
+        tensor.name, table.concat(tensor.shape, ", "), 1000 + index * 37)
+    end
   end
 
   lines[#lines + 1] = "  },"
