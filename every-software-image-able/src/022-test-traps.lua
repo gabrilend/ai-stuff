@@ -56,12 +56,20 @@ local BOARDS = {
 }
 
 local CASES = {
-  { payload = "first-light",
+  { payload = "first-light", mode = "halt",
     expect = "clean",
     means = "a machine that behaves is not accused" },
-  { payload = "hazard-clock",
+  { payload = "hazard-clock", mode = "halt",
     expect = "forbidden write",
     means = "a machine that misbehaves is caught, by name" },
+  -- Counting rather than halting. The distinction is not a convenience: a
+  -- halted machine tells you the FIRST forbidden write and nothing about
+  -- whether there were twenty more behind it. Counting is how the shape of
+  -- a reckless exploration gets seen rather than only its opening move --
+  -- and the machine keeps running, which is what makes the rest visible.
+  { payload = "hazard-clock", mode = "count",
+    expect = "forbidden write",
+    means = "a run that counts sees the write and lets the machine continue" },
 }
 -- }}}
 
@@ -96,6 +104,7 @@ for _, target in ipairs(BOARDS) do
 
     local output = capture("luajit " .. DIR .. "/src/021-trap-run.lua "
       .. target.board .. " --payload " .. payload
+      .. " --mode " .. (case.mode or "halt")
       .. " --seconds " .. seconds .. " --dir " .. DIR)
 
     local result = output:match("RESULT:%s+([^\n]+)") or "no result reported"
@@ -108,8 +117,8 @@ for _, target in ipairs(BOARDS) do
       ok = ok, result = result, means = case.means,
     }
 
-    say(string.format("  %-9s %-14s %s", target.arch, case.payload,
-                      ok and "as expected" or "WRONG"))
+    say(string.format("  %-9s %-14s %-6s %s", target.arch, case.payload,
+                      case.mode or "halt", ok and "as expected" or "WRONG"))
     say(string.format("  %-24s %s", "", result))
     say("")
   end
