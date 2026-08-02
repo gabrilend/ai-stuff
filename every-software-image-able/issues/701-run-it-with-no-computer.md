@@ -18,9 +18,15 @@ launched from.
    operating system calls, of which there are none in this project. No guest
    operating system is involved, which is the thing that makes this simpler than
    it sounds (`docs/012`).
-2. Stand up all three architectures from the start. The same tool covers them, and
-   having the port targets runnable before the ports exist means phase 4 begins
-   with somewhere to run.
+2. **Stand up an example machine for each of the three architectures from the
+   start** — one for x86-64, one for 64-bit ARM, one for RISC-V. This is what
+   replaces knowing which board the project targets: it does not need to know.
+   Each example is a named configuration with a stated processor, memory size, set
+   of attached devices and boot scheme, kept beside the board descriptions of
+   `501` so the two stay recognisable as the same kind of thing.
+3. Give each example machine more than one memory size, so the ratchet in `102`
+   is exercised rather than assumed. A configuration with barely enough memory to
+   read the weights in place is a test; one with plenty is a demonstration.
 3. Wire the emulated serial port to standard output, so `202` produces visible
    text on the first attempt.
 4. Present a host file as an emulated storage device, so `206` and the whole

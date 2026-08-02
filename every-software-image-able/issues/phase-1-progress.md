@@ -10,11 +10,12 @@ be run is a file.
 
 | | | Status |
 |---|---|---|
-| `101` | Choose and package the model | not started |
+| `101` | Package a model, whichever one | not started |
 | `102` | Find the weights without a filesystem | not started |
 | `103` | The arithmetic, in assembly | not started |
-| `104` | Sampling, and the recorded draw | not started |
+| `104` | Sampling, and the carried seed | not started |
 | `105` | The thinking loop, and its limits | not started |
+| `105a` | The tokenizer | not started |
 | `106` | Measure the engine | not started |
 
 ## Where the risk is
@@ -23,6 +24,14 @@ be run is a file.
 assembly, and it will be written twice more in phase 4. The reference comparison
 built alongside it is what makes the later ports tractable, so building that
 fixture properly is worth more than it looks.
+
+`105a` is the quiet one. A subtly wrong tokenizer does not fail — it produces a
+model that seems mildly stupid, and nobody suspects the right thing for weeks.
+
+## What is not decided here
+
+Which model. That is a parameter of the build utility, chosen by whoever makes an
+image, and this phase only has to be able to carry whichever one arrives.
 
 ## Demo
 

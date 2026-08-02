@@ -19,20 +19,24 @@ machine has thought for longer than it can hold.
 2. Decide what stops it. A token that means "finished", a length limit, or an
    outside interruption — and the third matters most here, because a machine that
    cannot be interrupted mid-thought cannot be told to stop doing something.
-3. **Decide what happens when the context fills.** This is the ticket's real
-   subject. A machine that runs for months will exceed what it can hold within
-   the first day. The options are genuinely different machines: drop the oldest
-   and lose the beginning; summarise the older part and lose fidelity while
-   keeping shape; or write the older part out and retrieve pieces of it when
-   relevant.
-4. The third option is the one the design already leans toward. `docs/005` calls
-   this cognition space — what the machine can think of that is relevant to what
-   it is doing right now — and names it a retrieval problem rather than a memory
-   limit. But retrieval needs storage, and storage does not exist during phase 1,
-   so this ticket should implement the simple answer and leave a marked seam for
-   the better one.
-5. Whatever is chosen, say so out loud when it happens. Silently dropping the
-   start of a thought is a fallback, and a fallback that is not announced is a
+3. **Build the context out of atoms rather than as one growing string.** The
+   context is a concatenation of atomic artifacts and nothing else — each one a
+   chunk grouped by topic, each one carried or dropped as a unit, each one
+   nameable. Nothing is implicit and nothing sits outside the list, including the
+   instruction the machine woke up with. `docs/013` is the whole mechanism.
+4. Provide the operations as tool calls rather than as an automatic policy: carry
+   forward, drop, write out, recall, merge, summarise, transform. What the machine
+   is thinking with is a decision it makes, continuously, rather than a rule
+   applied to it — which means running low is a condition it can see and act on
+   instead of a wall it hits.
+5. Index them, because an atom that is not resident is useless unless it can be
+   found. Keyed on topic, searched by task.
+6. Load the resident set at boot from a mutable file naming which atoms start
+   present. In phase 1 there is no storage, so writing out and recalling cannot
+   work yet — implement the residency and the index in memory, leave the disk half
+   as a marked seam, and complete it in `304`.
+7. Say out loud when something is dropped for want of room rather than by
+   decision. That case is a fallback, and a fallback nobody was told about is a
    warning nobody received.
 
 ## Blocks
@@ -41,9 +45,11 @@ machine has thought for longer than it can hold.
 
 ## Blocked by
 
-`103`, `104`.
+`103`, `104`, `105a`.
 
 ## Related documents
 
+`docs/013-datapath-the-context.md` — atoms, the operations on them, and the
+mutable file that says which are present at boot.
 `docs/005-datapath-the-four-rungs.md` — cognition space as retrieval rather than
 as a limit.
