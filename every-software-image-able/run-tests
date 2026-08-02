@@ -71,8 +71,10 @@ run_test "what the machine is thinking with"  "053-test-context.lua"
 if [ -z "${QUICK}" ]; then
   # These boot real emulated machines on three architectures and take minutes.
   run_test "the discipline, held and broken"  "022-test-traps.lua"
+  run_test "the machine's arithmetic, against the host's" "055-test-blob-report.lua"
 else
   printf '\n=== skipped: the discipline, held and broken (--quick) ===\n'
+  printf '\n=== skipped: the machine'"'"'s arithmetic, against the host'"'"'s (--quick) ===\n'
 fi
 
 printf '\n'
