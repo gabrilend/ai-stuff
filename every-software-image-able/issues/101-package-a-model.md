@@ -2,7 +2,25 @@
 
 ## Current behavior
 
-No layout is defined for the weights, and no tool produces one.
+**Done, and tested.** The layout lives in `src/024` — shared by the packer and
+the reader so the two cannot disagree about where anything is. The packer is
+`src/025`, the reader is a separate program at `src/026` because generation and
+viewing stay apart, and `src/027` runs the round trip: ten of ten as expected
+on 2026-08-02.
+
+The reader also serves as the reference for the engine's own reading code
+(`102`). Whatever the assembly does when it walks a blob, it should agree with
+it — and the round-trip test walks the tensor table the same way, rather than
+trusting the packer, so a disagreement between the two would be caught.
+
+Two things worth knowing that came out of building it. Tensors are aligned to
+32 bytes, because a vectorised inner loop that must begin with an unaligned
+step pays for it on every row. And the reader refuses a version it does not
+know rather than guessing — guessing at a layout produces tensors full of
+neighbouring tensors, which does not fail, it just thinks badly forever.
+
+Not yet done: the tokenizer *table* is packed and read, but the code that uses
+it is `105a`.
 
 ## Intended behavior
 

@@ -6,8 +6,12 @@ Passing every emulated test is treated as meaning the seed works. It does not
 mean that, and the places where it does not are currently discovered one at a
 time, painfully, at first light.
 
-**Three entries already exist and should start the list.** All three were paid
-for during `701` and `702a` rather than predicted:
+**The list exists**, at `notes/023-what-the-emulator-lies-about.md`, seeded
+with the three differences below plus five expected-but-unpaid ones written
+down before being met.
+
+All three of these were paid for during `701` and `702a` rather than
+predicted:
 
 | Difference | What it cost |
 |---|---|
