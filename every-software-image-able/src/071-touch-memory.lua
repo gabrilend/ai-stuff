@@ -182,6 +182,22 @@ function M.poke(memory, address, width, value)
 end
 -- }}}
 
+-- {{{ M.poke_byte(memory, address, value)
+-- One byte, through the same rules. Placing a program (204) writes byte by
+-- byte and must go through the rules rather than around them -- a hand that
+-- could bypass the one refusal would make the refusal decorative.
+function M.poke_byte(memory, address, value)
+  local ok, why = M.check_range_write(memory, address, 1)
+  if not ok then
+    memory.refusals = memory.refusals + 1
+    return nil, why
+  end
+  memory.writes = memory.writes + 1
+  memory.write(address, 1, value)
+  return true
+end
+-- }}}
+
 -- {{{ the bulk forms
 --
 -- A model issuing one call per byte spends its whole context on addresses.
