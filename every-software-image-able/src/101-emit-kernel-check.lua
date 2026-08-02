@@ -51,8 +51,22 @@ function M.aarch64(options)
   line("_start:")
   line("  b start_here")
 
+  -- THE KERNELS' NAMES ARE STRIPPED OF THEIR EXPORT, and that is the third
+  -- appearance of this project's oldest trap. A call to an EXPORTED symbol
+  -- is a note for a linker even on an assembler that resolves local
+  -- references itself. There is no linker here, so extracting the raw bytes
+  -- drops the note and leaves the branch offset as zero -- and a call whose
+  -- offset is zero is a call to ITSELF. Every kernel call became an infinite
+  -- loop, with no fault and nothing said: the machine printed its first mark
+  -- and then span forever.
+  --
+  -- The kernels keep their exports in their own file, because the hosted
+  -- build genuinely needs them to load the library. It is only here, where
+  -- nothing links, that a name must be local.
   line(options.kernels:gsub("%s*%.section%s+%.note%.GNU%-stack[^\n]*\n", "\n")
-                      :gsub("^%s*%.text%s*\n", ""))
+                      :gsub("^%s*%.text%s*\n", "")
+                      :gsub("%s*%.globl%s+[%w_]+%s*\n", "\n")
+                      :gsub("%s*%.type%s+[%w_]+%s*,%s*@function%s*\n", "\n"))
 
   line("start_here:")
   line("here:")
