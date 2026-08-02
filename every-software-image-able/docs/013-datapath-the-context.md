@@ -119,6 +119,24 @@ might break; a machine that wants to stay stable would do well not to. That is a
 fact about the world rather than a rule about behaviour, and it does not need a
 mechanism behind it.
 
+## The original, while the card is in
+
+The machine is told that the atoms making up its instruction can be rewritten. It
+is **not** told that rewriting them could destroy its own purpose — that is left
+to be derived, because a machine that works it out understands it, where a machine
+that was warned merely has a rule.
+
+Leaving it underived is safe for a specific reason. The delivery medium is
+read-only and still holds the original atoms, exactly as they were handed over, so
+for as long as it is plugged in an overwritten instruction can be read back from
+it (`003`). The mistake is undoable, which is why nothing has to be said in
+advance.
+
+**When the card comes out, that stops being true.** The machine is then only what
+it has become, with no copy of what it was told to compare against. That is the
+point at which its own instruction becomes genuinely irreversible, and it arrives
+by somebody's judgement rather than by anything the machine does.
+
 ## Where this leaves the seed
 
 The seed carries the initial atoms — the instruction, the patterns, the device

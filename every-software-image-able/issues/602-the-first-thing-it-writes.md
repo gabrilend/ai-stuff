@@ -33,6 +33,13 @@ being a seed.
 6. Then leave it alone and watch it grow. What it builds, in what order, and what
    it does when it runs out of room, are the first observations anybody has of
    this kind of machine, and they belong in `notes/` rather than in a ticket.
+7. **Decide when to pull the card, and record why.** Until it comes out, the
+   original of everything the machine was told is still readable from it, so an
+   overwritten instruction can be recovered. After it comes out the machine is
+   only what it has become. Nothing tests readiness for this — it is a judgement
+   about whether something has finished learning to walk, made by whoever is
+   standing there, and the reasoning is worth more than the moment (question 21 in
+   `docs/008`).
 
 ## What would count as failure
 
