@@ -1,0 +1,30 @@
+# Phase 1 — The engine
+
+**Goal.** A model that thinks on bare hardware, with no operating system beneath
+it. Weights in, tokens out, at a measured rate on a real board.
+
+Nothing else in the project means anything until this works. A model that cannot
+be run is a file.
+
+## Issues
+
+| | | Status |
+|---|---|---|
+| `101` | Choose and package the model | not started |
+| `102` | Find the weights without a filesystem | not started |
+| `103` | The arithmetic, in assembly | not started |
+| `104` | Sampling, and the recorded draw | not started |
+| `105` | The thinking loop, and its limits | not started |
+| `106` | Measure the engine | not started |
+
+## Where the risk is
+
+`103`. It is the largest single piece of work in the project, it is written in
+assembly, and it will be written twice more in phase 4. The reference comparison
+built alongside it is what makes the later ports tractable, so building that
+fixture properly is worth more than it looks.
+
+## Demo
+
+`106` produces it: tokens per second, bytes occupied, largest context, time from
+power to first token, on whatever boards are to hand.
