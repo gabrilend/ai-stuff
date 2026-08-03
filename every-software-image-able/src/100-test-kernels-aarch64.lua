@@ -181,12 +181,176 @@ for case_index, size in ipairs(NORM) do
 end
 -- }}}
 
+-- {{{ the other seven kernels, run on the first architecture and recorded
+--
+-- Each one takes a buffer, changes it, and is compared against what this
+-- machine made of the same buffer. Between them they cover every shape the
+-- matrix product does not: one that calls another kernel, one that walks
+-- pairs of numbers, two that read a second array at a stride, and the
+-- exponential that everything above it depends on.
+ffi.cdef[[
+  void add_into(float *destination, const float *addend, int count);
+  void rotate(float *vec, const float *turns, int heads, int head_width);
+  void attention_scores(float *scores, const float *query, const float *keys,
+                        int count, int width, int stride, float scale);
+  void attention_mix(float *out, const float *weights, const float *values,
+                     int count, int width, int stride);
+  float exp_one(float x);
+  void softmax(float *values, int count);
+  void swiglu(float *gate, const float *up, int count);
+]]
+
+local jobs = {}
+
+-- {{{ local function record(job)
+-- Runs a kernel here, keeps the answer as bit patterns, and says how the
+-- other machine should call it.
+local function record(job)
+  -- big enough for whichever is larger: what goes in, or what comes out.
+  -- The attention kernels write more than their first input holds, and a
+  -- buffer sized only for the input would be written past its end here --
+  -- on the host, where it would be a crash, rather than on the board where
+  -- it would be a wrong answer.
+  local room = math.max(job.words, job.compare)
+  local scratch = ffi.new("float[?]", room)
+  for index = 0, job.words - 1 do scratch[index] = job.input[index + 1] end
+
+  local second, third = nil, nil
+  if job.extra then
+    second = ffi.new("float[?]", #job.extra)
+    for index = 0, #job.extra - 1 do second[index] = job.extra[index + 1] end
+  end
+  if job.extra2 then
+    third = ffi.new("float[?]", #job.extra2)
+    for index = 0, #job.extra2 - 1 do third[index] = job.extra2[index + 1] end
+  end
+
+  job.run(scratch, second, third)
+
+  local as_bits = ffi.cast("uint32_t *", scratch)
+  job.want = {}
+  for index = 0, job.compare - 1 do job.want[index + 1] = as_bits[index] end
+
+  job.input_label = job.name .. "in"
+  job.extra_label = job.name .. "ex"
+  job.extra2_label = job.name .. "ex2"
+  job.want_label = job.name .. "want"
+  jobs[#jobs + 1] = job
+  return job
+end
+-- }}}
+
+local function spread(count, salt)
+  local out = {}
+  for index = 1, count do out[index] = number_at(index + salt) end
+  return out
+end
+
+-- carrying a value forward
+record({
+  name = "add_into", words = 48, compare = 48,
+  input = spread(48, 11000), extra = spread(48, 12000),
+  call = { "  add x0, sp, #1024", "  adr x1, add_intoex", "  mov w2, #48" },
+  run = function(a, b) kernels.add_into(a, b, 48) end,
+})
+
+-- turning pairs by a carried angle: 4 heads of 8, so 4 pairs per head
+record({
+  name = "rotate", words = 32, compare = 32,
+  input = spread(32, 13000), extra = spread(8, 14000),
+  call = { "  add x0, sp, #1024", "  adr x1, rotateex",
+           "  mov w2, #4", "  mov w3, #8" },
+  run = function(a, b) kernels.rotate(a, b, 4, 8) end,
+})
+
+-- the exponential, over the range a softmax actually produces
+record({
+  name = "exp_one", words = 40, compare = 40,
+  input = (function()
+    local out = {}
+    for index = 1, 40 do out[index] = -30 + (index - 1) * 0.75 end
+    return out
+  end)(),
+  call = {},
+  emit_call = true,
+  run = function(a)
+    for index = 0, 39 do a[index] = kernels.exp_one(a[index]) end
+  end,
+})
+
+-- scores into weights, which calls the exponential
+record({
+  name = "softmax", words = 24, compare = 24,
+  input = spread(24, 15000),
+  call = { "  add x0, sp, #1024", "  mov w1, #24" },
+  run = function(a) kernels.softmax(a, 24) end,
+})
+
+-- the gate, which also calls it
+record({
+  name = "swiglu", words = 24, compare = 24,
+  input = spread(24, 16000), extra = spread(24, 17000),
+  call = { "  add x0, sp, #1024", "  adr x1, swigluex", "  mov w2, #24" },
+  run = function(a, b) kernels.swiglu(a, b, 24) end,
+})
+
+-- {{{ the two that read a second array at a stride
+--
+-- These write a fresh output rather than changing what they were given, and
+-- they read two arrays, so they take their inputs where they lie instead of
+-- being copied into scratch first. Eight past positions, sixteen numbers
+-- each, laid one after another -- which is the arrangement the real cache
+-- has, where every layer and every key head shares one array.
+local SCALE = 0.3535533905932738      -- one over the square root of eight
+local scale_bits = float_bits.of(SCALE)
+
+record({
+  name = "attention_scores", words = 16, compare = 8, no_copy = true,
+  input = spread(16, 18000),          -- the question
+  extra = spread(128, 19000),         -- eight positions of sixteen
+  call = {
+    "  add x0, sp, #1024",
+    "  adr x1, attention_scoresin",
+    "  adr x2, attention_scoresex",
+    "  mov w3, #8", "  mov w4, #16", "  mov w5, #16",
+    string.format("  movz w6, #0x%x", scale_bits % 0x10000),
+    string.format("  movk w6, #0x%x, lsl #16",
+                  math.floor(scale_bits / 0x10000)),
+    "  fmov s0, w6",
+  },
+  run = function(out, keys)
+    local query = ffi.new("float[?]", 16)
+    for index = 0, 15 do query[index] = number_at(index + 1 + 18000) end
+    kernels.attention_scores(out, query, keys, 8, 16, 16, SCALE)
+  end,
+})
+
+record({
+  name = "attention_mix", words = 8, compare = 16, no_copy = true,
+  input = spread(8, 20000),           -- how well each position matched
+  extra = spread(128, 21000),         -- what each position held
+  call = {
+    "  add x0, sp, #1024",
+    "  adr x1, attention_mixin",
+    "  adr x2, attention_mixex",
+    "  mov w3, #8", "  mov w4, #16", "  mov w5, #16",
+  },
+  run = function(out, values)
+    local weights = ffi.new("float[?]", 8)
+    for index = 0, 7 do weights[index] = number_at(index + 1 + 20000) end
+    kernels.attention_mix(out, weights, values, 8, 16, 16)
+  end,
+})
+-- }}}
+-- }}}
+
 -- {{{ the payload that runs the same arithmetic on the other machine
 local emit_arm = dofile(DIR .. "/src/101-emit-kernel-check.lua")
 local text = emit_arm.aarch64({
   cases = CASES, recorded = recorded,
   norms = NORM, recorded_norm = recorded_norm,
-  kernels = arm.source(),
+  kernels = arm.source(nil, specification, float_bits),
+  jobs = jobs,
   number_at = number_at,
   dir = DIR,
 })
@@ -241,9 +405,9 @@ check("and every normalisation does too",
 -- }}}
 
 -- {{{ what is not written yet, counted rather than omitted
-check("what this tongue does not have yet is named, not omitted",
-      #arm.not_written_yet == 7,
-      "a port that quietly covers less than the first looks finished")
+check("every kernel the first architecture has, this one has too",
+      #arm.not_written_yet == 0 and #arm.written == 10,
+      #arm.written .. " written, " .. #arm.not_written_yet .. " missing")
 -- }}}
 
 say("")
@@ -251,15 +415,19 @@ say("  " .. string.rep("-", 58))
 say("  " .. passed .. " of " .. (passed + failed) .. " as expected")
 say("")
 say("  where this port stands:")
-say("    written and proved bit-exact on a real ARM machine:")
-say("      the matrix product, plain and four-at-a-time, and the")
-say("      normalisation -- the three built only from multiply, add and")
-say("      square root, which are the ones that CAN be required to match")
-say("      exactly rather than closely.")
-say("    not written yet: " .. table.concat(arm.not_written_yet, ", "))
-say("    and the third tongue is not begun. It needs 054's word emitter,")
-say("    which exists, and its vector extension may not exist at all on a")
-say("    given machine -- which 402's levels table already says.")
+say("    all ten routines written, and every answer proved bit-identical")
+say("    to the first architecture on a real ARM machine -- including the")
+say("    exponential, which is a polynomial here rather than the host")
+say("    library, and is therefore comparable at all.")
+say("")
+say("    what is NOT covered: a whole forward pass on this architecture.")
+say("    Each routine agrees alone; nothing yet runs them together there,")
+say("    and the first architecture learned that a piece can be right by")
+say("    itself and be handed the wrong thing by the piece before it.")
+say("")
+say("    and the third architecture is not begun. Its branches need the")
+say("    word emitter that already exists, and its vector hardware may not")
+say("    exist at all on a given chip.")
 say("")
 
 run_one("mkdir -p " .. DIR .. "/output")
