@@ -113,12 +113,38 @@ check("a destroyed part is indistinguishable from a busy one",
 check("and from an unpowered one", dead.answering == off.answering)
 -- }}}
 
+-- {{{ the read that never comes back
+-- The one condition that is not like the others: every state above returns
+-- something when asked. This one does not return at all.
+bench_module.attach(bench, {
+  name = "silent-bus", base = 0x6000, length = 0x100, condition = "hangs",
+  registers = { [0] = 0x6789 },
+})
+
+local value, why = bench_module.read(bench, "silent-bus", 0)
+check("a read that never comes back returns no value at all",
+      value == nil and why == "never came back",
+      "it handed back a value, which a stalled processor cannot do")
+
+check("and it is not the same thing as reading all-ones",
+      bench_module.read(bench, "unpowered", 0) == 0xffffffff
+      and bench_module.read(bench, "silent-bus", 0) == nil,
+      "a device holding all-ones and a bus that never answers were confused")
+
+check("and the bench counts them, since nothing inside the machine could",
+      bench.hung == 2, tostring(bench.hung))
+-- }}}
+
 -- {{{ death survives a power cycle, and the others do not
 local came_back, still_gone = bench_module.power_cycle(bench)
 check("switching it off and on brings back what was merely busy",
       #came_back == 3, table.concat(came_back, ", "))
-check("and does not bring back what was destroyed",
-      #still_gone == 1 and still_gone[1] == "fragile",
+-- The destroyed part AND the address nothing answers at both stay gone, for
+-- different reasons that look identical from inside: one part was killed,
+-- and the other was never there.
+check("and does not bring back what cannot come back",
+      #still_gone == 2 and still_gone[1] == "fragile"
+      and still_gone[2] == "silent-bus",
       table.concat(still_gone, ", "))
 check("which is what makes it a test rather than a forgiveness",
       bench_module.read(bench, "fragile", 0) == 0xffffffff)
