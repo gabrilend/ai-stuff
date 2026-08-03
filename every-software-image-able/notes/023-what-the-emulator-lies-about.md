@@ -380,6 +380,45 @@ is a plausible answer nobody questions.
 
 ---
 
+### A conversion that is right until its loop gets hot
+
+**Class:** the host language. **Cost:** most of a day, an innocent port
+accused, and a wrong answer reported to the person who asked.
+
+Assembly cannot say "one seven-hundred-and-twentieth"; a constant has to
+arrive as the exact bits of a single-precision number. The standard way to
+get them is to write the number into a float-shaped box and read it back
+through a pointer of a different shape.
+
+**That works perfectly for the first few dozen calls.** Then the loop it sits
+in gets hot, the compiler traces it, and the read through the second pointer
+is treated as unable to have changed -- nothing tells the compiler the two
+pointers touch the same storage. From then on every call returns the same
+answer.
+
+Measured: two thousand different numbers through the aliased version give
+**sixty-eight** distinct results. Through a union, two thousand.
+
+**What it did.** A payload was built carrying 256 numbers of test data, of
+which 3 were distinct. A real ARM machine ran the arithmetic correctly over
+those wrong numbers, disagreed with the first architecture by eighty-nine
+percent, and was very nearly written down as a broken port. The kernels were
+correct the entire time.
+
+**Why it survived a spot check.** The first few values were right. Anything
+that looked at the beginning of the output saw exactly what it expected.
+
+**Structural response.** One shared conversion (`107`), built on a union --
+one object with two ways of being read, so the compiler cannot mistake one
+view for something unrelated. It carries its own hot-loop self-check,
+because the failure cannot be caught by a small one. The test that was
+misled now runs that check on its own tools before trusting its own inputs.
+
+**The transferable rule:** a test that cannot vouch for its own inputs is not
+testing what it claims to test.
+
+---
+
 ### A CALL to an exported symbol is a note for a linker too
 
 **Class:** no linker. **Cost:** most of an afternoon, and it is the third

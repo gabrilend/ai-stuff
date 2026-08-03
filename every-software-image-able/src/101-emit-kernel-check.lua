@@ -30,13 +30,15 @@ function M.aarch64(options)
   -- {{{ the numbers, as the exact bit patterns the host had
   -- Not as decimal text: a decimal that has to be parsed back into a float
   -- is a rounding this test would then be measuring.
-  local ffi = require("ffi")
-  local box = ffi.new("float[1]")
-  local as_bits = ffi.cast("uint32_t *", box)
-  local function bits_of(value)
-    box[0] = value
-    return as_bits[0]
-  end
+  --
+  -- Through 107 rather than done here. The version that lived in this file
+  -- wrote a float and read it back through a pointer of another shape, which
+  -- is correct until the loop goes hot and the compiler decides the second
+  -- read cannot have changed. It emitted 256 numbers of which 3 were
+  -- distinct, and the machine that ran them was very nearly recorded as a
+  -- broken port.
+  local bits = dofile((options.dir or ".") .. "/src/107-float-bits.lua")
+  local function bits_of(value) return bits.of(value) end
   -- }}}
 
   -- THE FIRST INSTRUCTION MUST BE OURS. Firmware enters at offset zero of

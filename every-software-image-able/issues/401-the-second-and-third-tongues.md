@@ -28,10 +28,20 @@ payload alongside the second tongue kernels (`src/101`), boots a real ARM
 machine, and has it compare its own results **as integers**, so nothing
 rounds and "close" cannot happen.
 
-**Where it stands: 28 of 58 matrix answers agree, and 36 of 133
-normalisation values.** That is a real arithmetic disagreement in the port,
-and it is now measurable instead of silent. It is the next thing to chase,
-and the roughly-half shape of it is a clue rather than noise.
+**Where it stands: every answer agrees, bit for bit, on a real ARM
+machine.** The matrix product plain, the matrix product four at a time, and
+the normalisation all reproduce the first architecture exactly -- which is
+the claim no tolerance can make, and the reason the exact specification is
+worth keeping even now that the fast one is what runs.
+
+**The disagreement that was reported earlier was the harness, not the
+port.** It carried 256 numbers of test data of which 3 were distinct,
+because the conversion from a number to its exact bits silently began
+returning the same answer once its loop went hot. The machine computed
+correctly over wrong numbers and was very nearly recorded as broken. See
+`notes/023`; the shared conversion is now `src/107` and carries its own
+hot-loop check, and this test runs that check before trusting its own
+inputs.
 
 ## Four errors on the way here, and what each taught
 

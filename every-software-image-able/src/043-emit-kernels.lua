@@ -43,12 +43,25 @@ local M = {}
 -- So they are computed from the same values the reference uses, and the
 -- assembly is generated with them already in place. One source, and no
 -- opportunity to transcribe.
-local box = ffi.new("float[1]")
-local as_bits = ffi.cast("uint32_t *", box)
+-- Through the shared conversion (107) rather than done here. The version
+-- that lived in this file wrote a float and read it back through a pointer
+-- of a different shape, which is correct until the loop it sits in gets hot
+-- and the compiler decides the second read cannot have changed.
+--
+-- It was never wrong HERE, because it is called a handful of times -- once
+-- per polynomial coefficient -- and the failure needs hundreds of calls to
+-- appear. It was wrong in a file that copied it, where it emitted two
+-- hundred and fifty-six numbers of which three were distinct and very nearly
+-- got an innocent port recorded as broken.
+--
+-- Moved rather than left alone, because the next thing wanting a table of
+-- constants would have copied it again, and the copy is where it bites.
+local float_bits = dofile(
+  (os.getenv("ESIA_DIR") or "/mnt/mtwo/programming/ai-stuff/every-software-image-able")
+  .. "/src/107-float-bits.lua")
 
 local function bits_of(value)
-  box[0] = value
-  return string.format("0x%08x", as_bits[0])
+  return float_bits.hex(value)
 end
 
 M.bits_of = bits_of
