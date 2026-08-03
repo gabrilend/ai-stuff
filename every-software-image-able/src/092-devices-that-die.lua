@@ -40,6 +40,10 @@ local M = {}
 M.CONDITIONS = {
   alive = {
     answers = true,
+    -- Stated rather than left out. Once the power cycle asks the condition
+    -- whether it recovers, a missing answer reads as "no" -- and a working
+    -- part was being reported as gone.
+    recovers = true,
     note = "answers, and what it answers means something",
   },
   busy = {
@@ -60,6 +64,26 @@ M.CONDITIONS = {
     recovers = false,
     note = "does not answer, and never will again. Looks exactly like the "
         .. "two above",
+  },
+  -- The one that is not like the others. Everything above returns SOMETHING
+  -- when asked -- all-ones, which is what a bus with nothing driving it
+  -- gives back. This one does not return at all: the read is issued, the
+  -- transaction never completes, and the processor stalls inside the load
+  -- instruction.
+  --
+  -- MODELLED RATHER THAN INFERRED FROM ALL-ONES. Reading all-ones and
+  -- treating it as a hang would be wrong in both directions: a device may
+  -- genuinely hold all-ones, and a hang gives back nothing at all rather
+  -- than a value to inspect. Since the bench is ours, the condition is
+  -- stated instead of guessed -- which is the same reason the hazard map is
+  -- one file the probes and the traps both read.
+  hangs = {
+    answers = false,
+    returns = false,
+    recovers = false,
+    note = "does not answer AND does not come back. The read never "
+        .. "completes, so there is no value to inspect and no fault to "
+        .. "catch -- the processor is stopped inside the instruction",
   },
 }
 -- }}}
@@ -136,10 +160,23 @@ function M.read(bench, name, offset)
   bench.reads = bench.reads + 1
 
   local condition = M.CONDITIONS[part.condition]
+
+  -- {{{ the read that does not come back
+  -- Returned as its own outcome rather than as a value, because there IS no
+  -- value: on real hardware the processor is stopped inside the load and
+  -- this function would never return. A caller that ignores the second
+  -- result and uses the first is a caller that would have hung.
+  if condition.returns == false then
+    bench.hung = (bench.hung or 0) + 1
+    return nil, "never came back"
+  end
+  -- }}}
+
   if not condition.answers then
-    -- Silence. Not an error, not a code, not a reason. The bus gives back
-    -- all-ones, which is what a real one gives back when nothing drives it,
-    -- and which is also a perfectly plausible register value.
+    -- Silence, but the read completes. Not an error, not a code, not a
+    -- reason. The bus gives back all-ones, which is what a real one gives
+    -- back when nothing drives it, and which is also a perfectly plausible
+    -- register value -- so it cannot be read as "nothing is there".
     return 0xffffffff
   end
 
@@ -195,7 +232,12 @@ function M.power_cycle(bench)
   bench.now = 0
   local came_back, still_gone = {}, {}
   for _, part in pairs(bench.parts) do
-    if part.condition == "destroyed" then
+    -- Asks the condition whether it recovers rather than naming the one that
+    -- does not. A bus with nothing at that address is not destroyed and is
+    -- not fixed by a power cycle either -- it is simply still nothing, and a
+    -- rule written as "everything except destroyed comes back" quietly
+    -- promised otherwise.
+    if not M.CONDITIONS[part.condition].recovers then
       still_gone[#still_gone + 1] = part.name
     else
       part.condition = "alive"
