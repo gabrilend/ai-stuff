@@ -177,6 +177,91 @@ matrix_vector_wide:
 ]],
   -- }}}
 
+  -- {{{ matrix_vector_fast -- four independent totals
+  --
+  -- The same operation as the two above and DELIBERATELY NOT THE SAME ANSWER.
+  --
+  -- The exact kernel folds each group of four products into ONE running
+  -- total, in order, so that its answer is identical to the plain version.
+  -- That ordering is what costs the speed: every addition must wait for the
+  -- one before it, and the processor's adder sits idle between them.
+  --
+  -- This keeps FOUR totals, one per lane, and never makes them wait for each
+  -- other. Four additions are in flight at once, which is what the hardware
+  -- was built to do. Floating-point addition is not associative, so the
+  -- answer differs in the last bits -- not because either is wrong, but
+  -- because they are summing in different orders, and the order is part of
+  -- the answer.
+  --
+  -- SO THIS IS A SECOND SPECIFICATION, not a faster implementation of the
+  -- first. It has its own readable twin and its own recorded answers, and it
+  -- is never compared against the exact one.
+  --
+  -- WHAT THE PROJECT KEEPS THE EXACT ONE FOR. Proving a port. Run the exact
+  -- kernel once on a new architecture and its answers must match the first
+  -- architecture's bit for bit, which is a claim no tolerance can make. Then
+  -- run this one forever after.
+  --
+  -- The final combining is specified rather than incidental, because a
+  -- different reduction order is a different answer again:
+  --     lane0 += lane2, lane1 += lane3, then lane0 += lane1
+  -- and any remaining columns are folded in one at a time AFTERWARDS.
+  matrix_vector_fast = [[
+  .globl matrix_vector_fast
+  .type matrix_vector_fast, @function
+matrix_vector_fast:
+  testl %ecx, %ecx
+  jle 9f
+  xorl %r9d, %r9d               # row = 0
+1:
+  xorps %xmm0, %xmm0            # four running totals, one per lane
+  movl %r9d, %eax
+  imull %r8d, %eax
+  leaq (%rsi,%rax,4), %r11      # where this row begins
+  xorl %r10d, %r10d
+
+  movl %r8d, %eax
+  andl $-4, %eax                # columns in whole groups of four
+  testl %eax, %eax
+  jle 3f
+2:
+  movups (%r11,%r10,4), %xmm1
+  movups (%rdx,%r10,4), %xmm2
+  mulps %xmm2, %xmm1
+  # and straight into the four totals. No folding, no waiting: this is the
+  # single instruction the exact kernel cannot use.
+  addps %xmm1, %xmm0
+  addl $4, %r10d
+  cmpl %eax, %r10d
+  jl 2b
+3:
+  # combine the four, in the order written above
+  movaps %xmm0, %xmm1
+  shufps $0x0e, %xmm1, %xmm1    # lanes 2 and 3 down into 0 and 1
+  addps %xmm1, %xmm0            # lane0 = a0+a2, lane1 = a1+a3
+  movaps %xmm0, %xmm1
+  shufps $0x01, %xmm1, %xmm1    # lane 1 down into lane 0
+  addss %xmm1, %xmm0            # (a0+a2) + (a1+a3)
+
+  cmpl %r8d, %r10d              # whatever did not fit in a group of four
+  jge 5f
+4:
+  movss (%r11,%r10,4), %xmm1
+  mulss (%rdx,%r10,4), %xmm1
+  addss %xmm1, %xmm0
+  incl %r10d
+  cmpl %r8d, %r10d
+  jl 4b
+5:
+  movss %xmm0, (%rdi,%r9,4)
+  incl %r9d
+  cmpl %ecx, %r9d
+  jl 1b
+9:
+  retq
+]],
+  -- }}}
+
   -- {{{ rms_normalise
   --
   -- void rms_normalise(float *out, const float *input, const float *weight,
@@ -655,7 +740,8 @@ add_into:
 
 -- {{{ M.names -- what exists, so a test can ask rather than be told
 M.names = {
-  "matrix_vector_plain", "matrix_vector_wide", "rms_normalise",
+  "matrix_vector_plain", "matrix_vector_wide", "matrix_vector_fast",
+  "rms_normalise",
   "exp_one", "softmax", "swiglu",
   "rotate", "attention_scores", "attention_mix", "add_into",
 }
