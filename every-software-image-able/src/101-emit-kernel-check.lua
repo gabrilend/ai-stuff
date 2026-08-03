@@ -246,6 +246,19 @@ function M.aarch64(options)
   -- crash on some machines and not others. The stack is writable
   -- everywhere, which is why 033 puts its map buffer there too. This one
   -- announced itself by speaking its greeting and then going silent.
+  -- {{{ the buffers the other seven kernels work on
+  for _, job in ipairs(options.jobs or {}) do
+    lay_down(job.input_label, job.input)
+    if job.extra then lay_down(job.extra_label, job.extra) end
+    if job.extra2 then lay_down(job.extra2_label, job.extra2) end
+    line("  .balign 16")
+    line(job.want_label .. ":")
+    for _, answer in ipairs(job.want) do
+      line(string.format("  .word 0x%08x", answer))
+    end
+  end
+  -- }}}
+
   line("data_done:")
   -- }}}
 
@@ -318,6 +331,80 @@ function M.aarch64(options)
     line("  cmp w8, w9")
     line("  b.ne " .. loop .. "no")
     line("  add x23, x23, #1")
+    line(loop .. "no:")
+    line("  subs w7, w7, #1")
+    line("  b.ne " .. loop)
+  end
+  -- }}}
+
+  -- {{{ the seven that transform a buffer in place
+  --
+  -- Every one of these takes a buffer, changes it, and is compared against
+  -- what the first architecture made of the same buffer. That covers the
+  -- shapes the matrix product does not: one that calls another kernel, one
+  -- that walks pairs, two that read a second array at a stride, and the
+  -- exponential, which everything above it depends on being exact.
+  --
+  -- The results go on the stack rather than over the source, because the
+  -- source is compared afterwards on some of them and because the payload's
+  -- own code is not writable.
+  for _, job in ipairs(options.jobs or {}) do
+    say_text(",")
+
+    -- Most of these change the buffer they are given, so it is copied into
+    -- scratch first and the original stays intact for the next run. The two
+    -- attention kernels write a fresh output instead and read their inputs
+    -- where they lie, so they say so and the copy is skipped.
+    if not job.no_copy then
+      line("  add x0, sp, #1024")
+      line("  adr x1, " .. job.input_label)
+      line("  mov w2, #" .. job.words)
+      line("copyin" .. job.name .. ":")
+      line("  ldr w3, [x1], #4")
+      line("  str w3, [x0], #4")
+      line("  subs w2, w2, #1")
+      line("  b.ne copyin" .. job.name)
+    end
+
+    if job.emit_call then
+      -- The exponential takes one number and gives one back, so it is
+      -- called once per value rather than handed a buffer. Every other
+      -- kernel here transforms in place; this one is the exception and is
+      -- written out rather than forced into the same shape.
+      local loop = "sloop" .. job.name
+      line("  mov w28, #0")
+      line(loop .. ":")
+      line("  add x0, sp, #1024")
+      line("  ldr s0, [x0, w28, sxtw #2]")
+      line("  bl " .. job.name)
+      line("  add x0, sp, #1024")
+      line("  str s0, [x0, w28, sxtw #2]")
+      line("  add w28, w28, #1")
+      line("  cmp w28, #" .. job.words)
+      line("  b.lt " .. loop)
+    else
+      for _, instruction in ipairs(job.call) do line(instruction) end
+      line("  bl " .. job.name)
+    end
+
+    -- compare what came back against what the first architecture said
+    line("  add x5, sp, #1024")
+    line("  adr x6, " .. job.want_label)
+    line("  mov w7, #" .. job.compare)
+    local loop = "jcmp" .. job.name
+    line(loop .. ":")
+    line("  ldr w8, [x5], #4")
+    line("  ldr w9, [x6], #4")
+    line("  add x22, x22, #1")
+    line("  cmp w8, w9")
+    line("  b.eq " .. loop .. "same")
+    line("  cbnz x27, " .. loop .. "no")
+    line("  mov x25, x8")
+    line("  mov x26, x9")
+    line("  mov x27, #1")
+    line("  b " .. loop .. "no")
+    line(loop .. "same:")
+    line("  add x21, x21, #1")
     line(loop .. "no:")
     line("  subs w7, w7, #1")
     line("  b.ne " .. loop)
