@@ -77,6 +77,16 @@ function M.aarch64(options)
   line("  mov x22, xzr")                   -- total
   line("  mov x23, xzr")                   -- normalisations matched
   line("  mov x24, xzr")                   -- normalisations total
+  -- The first disagreement, kept whole. Counting how many differ says
+  -- nothing about WHETHER the port is subtly rounding differently or plainly
+  -- wrong, and those want opposite responses -- one is accepted, the other
+  -- is a defect that the fast kernel would inherit. So the first pair is
+  -- carried back intact and the host works out the distance, rather than
+  -- floating-point arithmetic being done here to answer a question about
+  -- floating-point arithmetic.
+  line("  mov x25, xzr")                   -- what this machine got
+  line("  mov x26, xzr")                   -- what the first tongue said
+  line("  mov x27, xzr")                   -- whether one has been captured
 
   -- {{{ saying things
   local said = 0
@@ -220,11 +230,18 @@ function M.aarch64(options)
       line("  mov w7, #" .. case.rows)
       local loop = "cmp" .. case_index .. which:gsub("_", "")
       line(loop .. ":")
-      line("  ldr w8, [x5], #4")
-      line("  ldr w9, [x6], #4")
+      line("  ldr w8, [x5], #4")           -- what this machine got
+      line("  ldr w9, [x6], #4")           -- what the first tongue said
       line("  add x22, x22, #1")
       line("  cmp w8, w9")
-      line("  b.ne " .. loop .. "no")
+      line("  b.eq " .. loop .. "same")
+      -- the first disagreement is kept whole, and only the first
+      line("  cbnz x27, " .. loop .. "no")
+      line("  mov x25, x8")
+      line("  mov x26, x9")
+      line("  mov x27, #1")
+      line("  b " .. loop .. "no")
+      line(loop .. "same:")
       line("  add x21, x21, #1")
       line(loop .. "no:")
       line("  subs w7, w7, #1")
@@ -272,6 +289,10 @@ function M.aarch64(options)
   say_hex("x23")
   say_text("\r\n  nof ")
   say_hex("x24")
+  say_text("\r\n  got ")
+  say_hex("x25")
+  say_text("\r\n  want ")
+  say_hex("x26")
   say_text("\r\n")
 
   line("chalt:")
