@@ -11,7 +11,7 @@ paid once, by people, before any of these machines exist.
 
 | | | Status |
 |---|---|---|
-| `401` | The second and third tongues | **in progress** — three of nine kernels written for the second tongue and assembling; the cross-architecture harness boots and does not yet report |
+| `401` | The second and third tongues | **in progress** — three of ten kernels written for the second tongue and proved bit-exact on a real ARM machine; seven remain, and the third tongue is not begun |
 | `402` | Waking on the right foot | **completed** — the selection proved on all three architectures, the within-architecture detection written and proved by booting two different processors and requiring them to disagree, 18 of 18 |
 
 ## Where the risk is
