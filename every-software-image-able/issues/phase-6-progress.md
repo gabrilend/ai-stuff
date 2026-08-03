@@ -13,7 +13,7 @@ be tested alone.
 |---|---|---|
 | `601` | First light | not started |
 | `602` | The first thing it writes | not started |
-| `603` | The demos, and the thing that runs them | not started |
+| `603` | The demos, and the thing that runs them | **completed** — five demonstrations and the script that asks which to show |
 
 ## Where the risk is
 

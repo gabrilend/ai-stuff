@@ -90,6 +90,7 @@ if [ -z "${QUICK}" ]; then
   run_test "saying something with nothing underneath" "070-test-say.lua"
   run_test "waking up, and knowing what it woke on" "087-test-waking.lua"
   run_test "the second tongue, against the first" "100-test-kernels-aarch64.lua"
+  run_test "a whole thought, in the second tongue" "110-test-forward-aarch64.lua"
 else
   printf '\n=== skipped: the discipline, held and broken (--quick) ===\n'
   printf '\n=== skipped: the machine'"'"'s arithmetic, against the host'"'"'s (--quick) ===\n'
