@@ -83,6 +83,22 @@ local function check(what, ok, detail)
   end
 end
 
+-- {{{ the tool that makes the test data, checked before the test uses it
+--
+-- Not ceremony. The conversion from a number to its exact bits was silently
+-- returning the same answer once its loop went hot, so this test carried 256
+-- numbers of which 3 were distinct -- and then reported the machine that ran
+-- them as disagreeing with the first architecture by eighty-nine percent.
+-- The port was innocent; the tool was broken.
+--
+-- A test that cannot vouch for its own inputs is not testing what it claims
+-- to test. So it vouches for them first, with a hot loop, because a small
+-- check passes the broken version perfectly.
+local float_bits = dofile(DIR .. "/src/107-float-bits.lua")
+local bits_sound, bits_why = float_bits.self_check()
+check("the tool that makes the test data still works", bits_sound, bits_why)
+-- }}}
+
 -- {{{ the cases, and what the first tongue says about them
 -- Shapes chosen so the wide kernel's remainder path is exercised rather than
 -- assumed: column counts that are and are not multiples of four.
@@ -172,6 +188,7 @@ local text = emit_arm.aarch64({
   norms = NORM, recorded_norm = recorded_norm,
   kernels = arm.source(),
   number_at = number_at,
+  dir = DIR,
 })
 
 local base = DIR .. "/tmp/shared-memory/payloads/kernel-check-aarch64"
