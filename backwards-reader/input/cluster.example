@@ -1,0 +1,28 @@
+# cluster.example — copy to input/cluster and name the doors.
+#
+# One line per door:
+#   name host port kind
+#
+# The format matches the porch in gif-generator on purpose. A door is an
+# address that answers; what stands behind it — one machine, three little
+# minds, a split model — is not this program's business.
+#
+# kind is one of:
+#   mirror     answers /completion, turns a meaning inside out
+#   angle      answers /embedding, measures how far the turn went
+#   both       answers both, because one llama-server can
+#
+# A door with no kind is assumed to be "both".
+#
+# The reader will refuse to start if a named door does not answer. It will
+# not quietly fall back to running everything here — a cluster you thought
+# was helping and wasn't is worse than no cluster, because the timings lie.
+# If you want to read on this machine alone, say so out loud:
+#
+#   here 127.0.0.1 8080 both
+#
+# cluster-one   192.168.1.41  8080  both
+# cluster-two   192.168.1.42  8080  both
+# cluster-three 192.168.1.43  8080  both
+# workstation   192.168.0.115 8080  mirror
+# local-gpu     127.0.0.1     8080  both
