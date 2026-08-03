@@ -33,7 +33,8 @@ every-software-image-able/
 │   ├── 011-roadmap.md ............... seven phases; what people build, not what it becomes
 │   ├── 012-datapath-the-proving-ground.md  testing it without a computer, and what that hides
 │   ├── 013-datapath-the-context.md .. atoms; what the machine is thinking with, and its choosing
-│   └── 042-whitepaper.md ............ seven ways of being wrong without being told
+│   ├── 042-whitepaper.md ............ seven ways of being wrong without being told
+│   └── 102-adding-a-new-machine.md .. the procedure for a computer the seed does not yet run on
 │
 ├── strategems/
 │   └── 009-ask-do-not-schedule.md ... say what is wanted; leave the method alone
