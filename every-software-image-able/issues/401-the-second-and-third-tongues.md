@@ -2,13 +2,39 @@
 
 ## Current behavior
 
-**In progress. Three of nine kernels written for the second tongue; the
-harness runs them on a real ARM machine and reports, and they do not yet
-agree.**
+**In progress. A whole thought is now assembly end to end on the second
+architecture, and every score agrees with the first bit for bit. The third
+architecture is not begun, and neither are the hands.**
 
 **All ten routines are written for the second architecture, and every one
 is proved bit-identical to the first on a real ARM machine** -- 250 of 250
 values, and 133 of 133 normalisation values, on 2026-08-03.
+
+**And they are now proved correct together, which is the harder claim.** The
+conducting is written in this tongue too (`src/108`) -- the layer walk, the
+head walk, and every pointer handed to a kernel -- so a whole forward pass
+runs on a real ARM machine with nothing readable left in the loop. Over the
+fixture model and its four-token prompt, all 192 scores match what the first
+architecture's own conducting produced, as integers, on 2026-08-03.
+
+That is a different statement from the one above it. A piece can be right
+alone and be handed the wrong thing by the piece before it, and the first
+architecture learned exactly that: composing nine kernels that each passed
+found a disagreement of four parts in a thousand million, at the second token
+only, and the defect was in the reference rather than the assembly.
+
+**The same payload also carries a conducting that is wrong on purpose**, and
+is required to disagree with it. The feedforward's two projections are handed
+to each other's kernels -- same shapes, nothing faults, every kernel still
+correct, and only who-is-given-what changed. It moved all 192 scores. Without
+that, a run reporting agreement everywhere would be indistinguishable from a
+payload comparing something against itself.
+
+The wide matrix kernel is checked the hard way here as well: the whole prompt
+is run again through it and required to give the identical answer. A
+difference of one bit anywhere compounds through every tensor and every layer
+before it reaches a score, which makes a whole pass a far stronger test of it
+than any single call.
 
 That includes the exponential, which is comparable at all only because this
 project specified its own as a polynomial rather than borrowing the host
@@ -21,11 +47,17 @@ vector in one step, for the same reason the first tongue does not: that
 answer differs in the last bit, which makes it a different specification
 rather than a better implementation of this one.
 
-**What is not covered:** a whole forward pass on this architecture. Each
-routine agrees alone; nothing yet conducts them together there. The first
-architecture learned exactly that lesson -- composing kernels that were each
-correct found a defect none of them had alone -- so this is a named gap
-rather than a formality.
+**What is not covered: the hands.** Everything above the arithmetic and the
+conducting is still first-tongue only -- the sampler, the tokenizer, the
+thinking loop, and every one of the hands. This is where the port stops being
+a translation, because **x86 reaches devices through a separate address space
+with its own instructions and this architecture has no such thing** --
+everything here is memory-mapped. The hand that touches ports exists in one
+form on one machine and collapses into ordinary memory access on the other
+two, so the catalogue of hands is genuinely not identical across machines.
+That is survivable only because the machine reads its catalogue rather than
+being told it, and it means the instruction (`301`) must not assume any
+particular hand exists.
 
 **The third architecture is not begun.** Its branches need the word emitter
 that already exists, and its vector hardware may be absent from a given chip
@@ -37,6 +69,17 @@ records what the FIRST tongue produces, bakes those exact bit patterns into a
 payload alongside the second tongue kernels (`src/101`), boots a real ARM
 machine, and has it compare its own results **as integers**, so nothing
 rounds and "close" cannot happen.
+
+The whole-pass check (`src/109`, `src/110`) is the same shape one level up:
+the entire model is carried as raw words, the scores come from the first
+architecture's own conducting, and the comparison is again between integers.
+The weights are never turned into text and back at any point, which is the
+defect `107` exists because of, avoided by not doing the thing.
+
+It also makes the reference vouch for itself before trusting it. A first
+architecture that had quietly regressed would otherwise silently become the
+standard the second one is measured against, and a matching pair of wrong
+answers reads exactly like a working port.
 
 **Where it stands: every answer agrees, bit for bit, on a real ARM
 machine.** The matrix product plain, the matrix product four at a time, and
@@ -53,7 +96,7 @@ correctly over wrong numbers and was very nearly recorded as broken. See
 hot-loop check, and this test runs that check before trusting its own
 inputs.
 
-## Four errors on the way here, and what each taught
+## Six errors on the way here, and what each taught
 
 **One: the first instruction must be ours.** Firmware enters at offset zero,
 so emitting the kernels first meant the machine entered the matrix product
@@ -85,12 +128,46 @@ the signature of a write cut off midway. The machine booted half a program,
 ran off the end of it, and took a synchronous exception that the firmware
 handler asserted on.
 
+**Five: the stack pointer cannot be moved by an arbitrary number.** That
+instruction takes a twelve-bit number, or a twelve-bit number shifted up by
+twelve, and nothing in between -- so a workspace of 7376 bytes is a size it
+cannot express and 8192 is. Loud, immediate, and cost nothing, which is what
+an assembler refusing something is for. The rounding now happens where the
+size is decided rather than where it is used.
+
+**Six: a register read before saying something is a register the firmware has
+destroyed.** Two of the payload's reported numbers were loaded into `x13`
+before their labels were printed, and the console call overwrote them on its
+way out -- the convention lets a called routine keep `x9` through `x15`. The
+payload then reported what the firmware had left behind: eight, in the run
+that found it, with nothing actually disagreeing at all.
+
+It looked exactly like a real value, which is this project's oldest shape of
+defect wearing new clothes. The counters survive the same calls only because
+`x19` through `x28` are the ones a called routine must give back, and that
+was luck of habit rather than a decision until now.
+
 **And the diagnostic that lied.** For a while the evidence said the machine
 stopped before its first mark. It had not; the shell command reading the log
 printed only the remainder of the matched line, and everything after the
 greeting sat on later lines. A bad reading of the evidence cost more than any
-of the four defects. The lesson is the project own: a tool that answers
+of the defects. The lesson is the project own: a tool that answers
 confidently is worth checking before the thing it is reporting on.
+
+## What a passing run is now required to include
+
+A test that can only ever report agreement has not shown it would notice a
+disagreement. So the whole-pass payload carries a conducting built wrong on
+purpose and requires the machine to report that it differs.
+
+The wrongness is chosen to be the exact class of defect this ticket exists to
+catch, rather than something a compiler would refuse: the feedforward's two
+projections are handed to each other's kernels. Both tensors are identically
+shaped, so nothing reads outside anything and nothing faults; every kernel
+still computes precisely what it is asked. Only who-is-given-what changed.
+
+It moved all 192 scores. That number is the argument that the 192 agreements
+beside it mean something.
 
 ## Intended behavior
 
