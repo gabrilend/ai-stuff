@@ -6,20 +6,30 @@
 harness runs them on a real ARM machine and reports, and they do not yet
 agree.**
 
-**Written** (`src/099`): the matrix product plain, the matrix product four at
-a time, and the normalisation -- the three built only from multiplication,
-addition and square root, which are the ones that CAN be required to match
-exactly rather than closely.
+**All ten routines are written for the second architecture, and every one
+is proved bit-identical to the first on a real ARM machine** -- 250 of 250
+values, and 133 of 133 normalisation values, on 2026-08-03.
+
+That includes the exponential, which is comparable at all only because this
+project specified its own as a polynomial rather than borrowing the host
+library. Everything above it -- the softmax and the gate -- calls it, so an
+exponential that differed between architectures would have made every
+softmax in the engine incomparable.
 
 The wide one deliberately does not use the instruction that sums a whole
 vector in one step, for the same reason the first tongue does not: that
 answer differs in the last bit, which makes it a different specification
 rather than a better implementation of this one.
 
-**Not written**: `exp_one`, `softmax`, `swiglu`, `rotate`,
-`attention_scores`, `attention_mix`, `add_into` -- named in `src/099` rather
-than omitted, because a port that quietly covers less than the first looks
-finished. The third tongue is not begun.
+**What is not covered:** a whole forward pass on this architecture. Each
+routine agrees alone; nothing yet conducts them together there. The first
+architecture learned exactly that lesson -- composing kernels that were each
+correct found a defect none of them had alone -- so this is a named gap
+rather than a formality.
+
+**The third architecture is not begun.** Its branches need the word emitter
+that already exists, and its vector hardware may be absent from a given chip
+entirely.
 
 **The harness works and the shape of it is right.** The host cannot test
 these by calling them -- it does not speak this language -- so `src/100`
