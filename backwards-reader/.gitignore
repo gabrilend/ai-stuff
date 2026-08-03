@@ -1,0 +1,12 @@
+# tmp/ is a symlink into RAM. Its contents are logs, scratch readings, and
+# measurement runs — all regenerable, none of it belongs in history.
+tmp
+
+# A reading is an output, not a source. The record format is designed to be
+# replayable from the input text plus the transport fixtures, so the readings
+# themselves are rebuildable and stay out of the repository.
+output/readings/
+
+# The cluster roster names machines on the person's own network. The example
+# is tracked; the filled-in copy is theirs and stays local.
+input/cluster

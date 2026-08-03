@@ -41,6 +41,50 @@ function M.aarch64(options)
   local function bits_of(value) return bits.of(value) end
   -- }}}
 
+  -- {{{ local function lay_down(label, values)
+  -- Writes a block of numbers into the payload, and REFUSES TO WRITE ONE
+  -- THAT IS NOT VARIED.
+  --
+  -- This is the check that would have caught the defect directly, rather
+  -- than the one that caught it eventually. The conversion tool was
+  -- returning a stale answer, so this payload was built carrying 256 numbers
+  -- of which 3 were distinct -- not empty, not obviously wrong, just the
+  -- same real-looking number over and over. A machine then did correct
+  -- arithmetic over it and was nearly recorded as a broken port.
+  --
+  -- Checking the tool is checking a proxy. Checking what came out of it is
+  -- checking the thing. Both are here now, but this is the one that matters:
+  -- however the numbers get made, and whatever breaks next, data that all
+  -- looks the same never reaches a machine again.
+  --
+  -- Small blocks are exempt because a run of four numbers can legitimately
+  -- repeat by chance, and refusing that would be refusing arithmetic.
+  local function lay_down(label, values)
+    line("  .balign 16")
+    line(label .. ":")
+
+    local distinct, count = {}, 0
+    for _, value in ipairs(values) do
+      local word = string.format("0x%08x", bits_of(value))
+      line("  .word " .. word)
+      if not distinct[word] then
+        distinct[word] = true
+        count = count + 1
+      end
+    end
+
+    if #values > 8 and count < #values * 0.9 then
+      error(string.format(
+        "101-emit-kernel-check: '%s' would carry %d numbers of which only %d "
+        .. "are distinct. That is not test data, it is one number repeated, "
+        .. "and a machine given it will compute the right answer over the "
+        .. "wrong inputs and look broken. Something between the generator "
+        .. "and here is handing back a stale value.",
+        label, #values, count))
+    end
+  end
+  -- }}}
+
   -- THE FIRST INSTRUCTION MUST BE OURS. Firmware enters at offset zero of
   -- the code, so whatever is emitted first is what runs. Putting the kernels
   -- first meant the machine entered `matrix_vector_plain` with the
@@ -152,19 +196,17 @@ function M.aarch64(options)
       want = "want" .. case_index,
     }
 
-    line("  .balign 16")
-    line(data_labels[case_index].matrix .. ":")
+    local matrix_values = {}
     for index = 0, case.rows * case.columns - 1 do
-      line(string.format("  .word 0x%08x",
-                         bits_of(options.number_at(index + case_index * 100))))
+      matrix_values[#matrix_values + 1] = options.number_at(index + case_index * 100)
     end
+    lay_down(data_labels[case_index].matrix, matrix_values)
 
-    line("  .balign 16")
-    line(data_labels[case_index].input .. ":")
+    local input_values = {}
     for index = 0, case.columns - 1 do
-      line(string.format("  .word 0x%08x",
-                         bits_of(options.number_at(index + case_index * 7000))))
+      input_values[#input_values + 1] = options.number_at(index + case_index * 7000)
     end
+    lay_down(data_labels[case_index].input, input_values)
 
     line("  .balign 16")
     line(data_labels[case_index].want .. ":")
@@ -181,18 +223,17 @@ function M.aarch64(options)
       weight = "nweight" .. case_index,
       want = "nwant" .. case_index,
     }
-    line("  .balign 16")
-    line(norm_labels[case_index].input .. ":")
+    local norm_input = {}
     for index = 0, size - 1 do
-      line(string.format("  .word 0x%08x",
-                         bits_of(options.number_at(index + case_index * 300))))
+      norm_input[#norm_input + 1] = options.number_at(index + case_index * 300)
     end
-    line("  .balign 16")
-    line(norm_labels[case_index].weight .. ":")
+    lay_down(norm_labels[case_index].input, norm_input)
+
+    local norm_weight = {}
     for index = 0, size - 1 do
-      line(string.format("  .word 0x%08x",
-                         bits_of(options.number_at(index + case_index * 900))))
+      norm_weight[#norm_weight + 1] = options.number_at(index + case_index * 900)
     end
+    lay_down(norm_labels[case_index].weight, norm_weight)
     line("  .balign 16")
     line(norm_labels[case_index].want .. ":")
     for _, answer in ipairs(entry.answers) do
