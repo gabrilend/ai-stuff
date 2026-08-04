@@ -194,6 +194,7 @@ function M.aarch64(options)
       matrix = "matrix" .. case_index,
       input = "input" .. case_index,
       want = "want" .. case_index,
+      want_fast = "wantfast" .. case_index,
     }
 
     local matrix_values = {}
@@ -211,6 +212,13 @@ function M.aarch64(options)
     line("  .balign 16")
     line(data_labels[case_index].want .. ":")
     for _, answer in ipairs(entry.answers) do
+      line(string.format("  .word 0x%08x", answer))
+    end
+
+    -- the fast product's own answers, which are NOT the ones above
+    line("  .balign 16")
+    line(data_labels[case_index].want_fast .. ":")
+    for _, answer in ipairs(entry.fast_answers) do
       line(string.format("  .word 0x%08x", answer))
     end
   end
@@ -272,19 +280,24 @@ function M.aarch64(options)
     -- the same reason a hazard probe speaks before it acts (019).
     say_text(".")
 
-    for _, which in ipairs({ "matrix_vector_plain", "matrix_vector_wide" }) do
+    -- The exact pair are held to the same answer; the fast one is held to
+    -- its own, because it sums in a different order on purpose and matching
+    -- the exact one would mean it had stopped doing that.
+    for _, which in ipairs({ { "matrix_vector_plain", labels.want },
+                             { "matrix_vector_wide", labels.want },
+                             { "matrix_vector_fast", labels.want_fast } }) do
       line("  add x0, sp, #512")
       line("  adr x1, " .. labels.matrix)
       line("  adr x2, " .. labels.input)
       line("  mov w3, #" .. case.rows)
       line("  mov w4, #" .. case.columns)
-      line("  bl " .. which)
+      line("  bl " .. which[1])
 
       -- compare as integers. Nothing rounds, and "close" cannot happen.
       line("  add x5, sp, #512")
-      line("  adr x6, " .. labels.want)
+      line("  adr x6, " .. which[2])
       line("  mov w7, #" .. case.rows)
-      local loop = "cmp" .. case_index .. which:gsub("_", "")
+      local loop = "cmp" .. case_index .. which[1]:gsub("_", "")
       line(loop .. ":")
       line("  ldr w8, [x5], #4")           -- what this machine got
       line("  ldr w9, [x6], #4")           -- what the first tongue said
