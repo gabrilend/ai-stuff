@@ -60,20 +60,32 @@ vector in one step, for the same reason the first tongue does not: that
 answer differs in the last bit, which makes it a different specification
 rather than a better implementation of this one.
 
-**The second architecture can also choose a word now.** The sampler is
-written for it and held to the first architecture choice for choice: 620
-draws across all six settings, every choice identical, every chance
-identical bit for bit, and both machines ending at the same place in the
-carried file -- which is bookkeeping rather than arithmetic and is the part
+**All three architectures can also choose a word now.** The sampler is
+written for the second and third and held to the first choice for choice:
+620 draws across all six settings on each, every choice identical, every
+chance identical bit for bit, and all three ending at the same place in the
+carried file -- which is bookkeeping rather than arithmetic, and the part
 independent draws would never have tested.
 
 That matters more than a routine count. An engine that produces a score for
 every possible next word and has no way to pick one is not yet a machine
-that speaks, and until today the second architecture was exactly that.
+that speaks, and until now the second and third architectures were exactly
+that.
+
+The one thing that had to be reasoned about rather than translated: the
+first two architectures compare floating numbers by setting flags, and both
+arrange those flags so a pair where something is not a number takes the same
+branch as less-or-equal. The third has no floating flags at all -- a
+comparison writes a one or a zero into an ordinary register, and every such
+instruction answers zero for an unordered pair. So each comparison there is
+written as the positive test and branched on being false, which lands an
+unordered pair on the same branch the other two take. Nothing in a real
+score is ever not a number, and a specification exact everywhere else should
+not be approximate there.
 
 **What is not covered: the tokenizer, the thinking loop, and the hands.**
-Everything else above the arithmetic and the conducting is still
-first-tongue only, and the third architecture has no sampler yet either. This is where the port stops being
+Everything else above the arithmetic, the conducting and the sampler is
+still first-tongue only. This is where the port stops being
 a translation, because **x86 reaches devices through a separate address space
 with its own instructions and this architecture has no such thing** --
 everything here is memory-mapped. The hand that touches ports exists in one
