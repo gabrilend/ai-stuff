@@ -50,10 +50,49 @@ pattern({
 pattern({
   name = "the-calling-convention",
   about = "how everything you write can call everything else you write",
-  what = "Arguments arrive in registers, in order. On this architecture: the "
-      .. "first four in di, si, d, c. What comes back comes back in a. A "
-      .. "function may use those and must give back anything else it touched, "
-      .. "including the processor's flags.",
+
+  -- THE ONE PATTERN THAT IS DIFFERENT ON EVERY MACHINE, and the one where
+  -- being wrong is silent.
+  --
+  -- This said "on this architecture: the first four in di, si, d, c" on all
+  -- three cards, because it was written when there was one architecture and
+  -- nobody came back to it. Those are the first architecture's registers. A
+  -- machine waking on either of the other two was handed a sentence
+  -- beginning "on this architecture" that described a different one.
+  --
+  -- Its own note below says what that costs: something that does not give
+  -- back what it borrowed will break a loop that was correct, and the
+  -- machine will hang rather than fail. So this is not a stale comment, it
+  -- is an instruction to write routines that return to addresses that were
+  -- never return addresses -- on a machine with nothing above it to notice.
+  --
+  -- There is no default. A caller that does not say which processor this
+  -- card is for gets an error, because the failure being prevented is
+  -- exactly a plausible-looking wrong answer, and a default is how you get
+  -- one.
+  per_architecture = {
+    x86_64 = "Arguments arrive in registers, in order: the first six in di, "
+          .. "si, d, c, r8, r9. What comes back comes back in a. A function "
+          .. "may use those and must give back b, bp, sp and r12 through r15 "
+          .. "as it found them, along with the processor's flags.",
+    aarch64 = "Arguments arrive in registers, in order: the first eight in "
+           .. "x0 through x7. What comes back comes back in x0. A function "
+           .. "may use x0 through x18 and must give back x19 through x28, "
+           .. "the frame and link registers, and the low halves of the first "
+           .. "eight vector registers -- those last are easy to forget, "
+           .. "because the whole-number ones are the famous half.",
+    riscv64 = "Arguments arrive in registers, in order: the first eight in "
+           .. "a0 through a7, and floating ones in fa0 through fa7. What "
+           .. "comes back comes back in a0. A function may use the t and a "
+           .. "registers and must give back s0 through s11 and fs0 through "
+           .. "fs11, and the return address if it calls anything itself.",
+  },
+
+  what = "Arguments arrive in registers, in order. A function may use the "
+      .. "ones set aside for that and must give back anything else it "
+      .. "touched, including the processor's flags. Which registers those "
+      .. "are is different on every machine, and the entry for this one "
+      .. "follows.",
   worked = "The assembler you have, the arithmetic underneath it, and every "
         .. "kernel the engine runs. They all agree already.",
   costs = "Nothing, so long as it is followed from the beginning.",
@@ -227,15 +266,45 @@ pattern({
 -- }}}
 
 -- {{{ M.as_text(name)
-function M.as_text(name)
+-- `architecture` is required by any pattern that differs between machines,
+-- and refused rather than defaulted. A card carries the text for the
+-- processor it is for; there is no such thing as the general answer, and a
+-- default here would be a plausible-looking wrong one.
+function M.as_text(name, architecture)
   local entry = M.PATTERNS[name]
   if not entry then return nil end
+
+  local what = entry.what
+  if entry.per_architecture then
+    if not architecture then
+      error("083-the-patterns: '" .. name .. "' is different on every "
+            .. "machine and no architecture was given. There is no general "
+            .. "answer to write here, and a default would be a sentence "
+            .. "beginning 'on this architecture' that describes a different "
+            .. "one -- which is what this used to do.")
+    end
+    local specific = entry.per_architecture[architecture]
+    if not specific then
+      local known = {}
+      for name_of in pairs(entry.per_architecture) do
+        known[#known + 1] = name_of
+      end
+      table.sort(known)
+      error("083-the-patterns: '" .. name .. "' has nothing written for "
+            .. tostring(architecture) .. ". It knows: "
+            .. table.concat(known, ", ") .. ". A machine cannot be handed a "
+            .. "blank where its calling convention should be, and cannot be "
+            .. "handed somebody else's.")
+    end
+    what = what .. "\n\n  on this machine:\n  " .. specific
+  end
+
   local lines = {
     entry.name,
     "  " .. entry.about,
     "",
     "what it is:",
-    "  " .. entry.what,
+    "  " .. what,
     "",
     "where it has worked:",
     "  " .. entry.worked,
@@ -268,7 +337,16 @@ end
 -- }}}
 
 -- {{{ M.offer(catalogue, hands)
-function M.offer(catalogue, hands)
+-- `architecture` is which processor this card is for. The hand that hands
+-- back a whole pattern needs it for the same reason the payload builder
+-- does: one of them is different on every machine.
+function M.offer(catalogue, hands, architecture)
+  if not architecture then
+    error("083-the-patterns: the hands cannot offer patterns without knowing "
+          .. "which processor this machine is. The calling convention is an "
+          .. "agreement rather than a suggestion, and the wrong one is worse "
+          .. "than none.")
+  end
   hands.offer(catalogue, {
     name = "patterns", takes = {}, gives = "shapes that have worked before",
     does = function()
@@ -287,7 +365,7 @@ function M.offer(catalogue, hands)
   hands.offer(catalogue, {
     name = "pattern", takes = { "name" }, gives = "the whole of one",
     does = function(arguments)
-      local text = M.as_text(arguments[1])
+      local text = M.as_text(arguments[1], architecture)
       if not text then
         return nil, "there is no pattern called '" .. tostring(arguments[1])
           .. "'. Ask <call patterns> for the list."

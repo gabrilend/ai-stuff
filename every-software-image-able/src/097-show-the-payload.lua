@@ -41,6 +41,7 @@ handle:close()
 
 local atoms = payload_module.build({
   instruction = instruction, patterns = patterns, descriptions = descriptions,
+  architecture = "x86_64",
 })
 
 -- the budget a real machine would have. Taken from the smallest model shape

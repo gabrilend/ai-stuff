@@ -141,11 +141,63 @@ check("the pattern about patterns is carried too",
       patterns.PATTERNS["ask-do-not-schedule"] ~= nil)
 
 check("and the calling convention is marked as the one agreement",
-      patterns.as_text("the-calling-convention"):find("agreement rather than a "
-        .. "suggestion") ~= nil)
+      patterns.as_text("the-calling-convention", "x86_64")
+        :find("agreement rather than a suggestion") ~= nil)
 
 check("and it carries what the flags defect taught",
       patterns.PATTERNS["the-calling-convention"].learned:find("hang") ~= nil)
+
+-- {{{ the calling convention names the machine it is on, and only that one
+--
+-- It said "on this architecture: the first four in di, si, d, c" on all
+-- three cards, because it was written when there was one architecture. Those
+-- are the first architecture's registers, and a machine on either of the
+-- other two was handed a sentence beginning "on this architecture" that
+-- described a different one -- an instruction to write routines that return
+-- to addresses that were never return addresses.
+--
+-- So each card is checked to carry its own and NOT the others'. Checking
+-- only that it carries its own would pass a card carrying all three, which
+-- is a machine being told three incompatible things and choosing.
+local ARCHITECTURE_REGISTERS = {
+  x86_64  = { own = "di, si, d, c", others = { "x0 through x7", "a0 through a7" } },
+  aarch64 = { own = "x0 through x7", others = { "di, si, d, c", "a0 through a7" } },
+  riscv64 = { own = "a0 through a7", others = { "di, si, d, c", "x0 through x7" } },
+}
+
+local convention_sound, convention_trouble = true, nil
+for architecture, expected in pairs(ARCHITECTURE_REGISTERS) do
+  local text = patterns.as_text("the-calling-convention", architecture)
+  if not text:find(expected.own, 1, true) then
+    convention_sound = false
+    convention_trouble = convention_trouble
+      or (architecture .. " is not told about " .. expected.own)
+  end
+  for _, foreign in ipairs(expected.others) do
+    if text:find(foreign, 1, true) then
+      convention_sound = false
+      convention_trouble = convention_trouble
+        or (architecture .. " is also handed " .. foreign
+            .. ", which is another machine's")
+    end
+  end
+end
+check("each machine is told its own calling convention, and no other",
+      convention_sound, convention_trouble)
+
+-- And a card for a processor nothing is written for is refused rather than
+-- handed a blank, because a blank where the one agreement should be is a
+-- machine inventing one.
+local guessed = pcall(patterns.as_text, "the-calling-convention", "sparc64")
+check("a machine nothing is written for is refused, not guessed at",
+      not guessed,
+      "it returned something for an architecture with no convention written")
+
+local defaulted = pcall(patterns.as_text, "the-calling-convention")
+check("and it will not be written without knowing which machine",
+      not defaulted,
+      "it produced a convention for no machine in particular")
+-- }}}
 -- }}}
 
 -- {{{ every description is complete, and names its source
@@ -214,6 +266,10 @@ check("a revision outside what the description covers is refused",
 -- {{{ the payload: what is held at boot, and what is not
 local atoms = payload_module.build({
   instruction = instruction, patterns = patterns, descriptions = descriptions,
+  -- which processor this card is for. Required rather than defaulted: the
+  -- calling convention is different on every machine and the wrong one is an
+  -- instruction to write routines that never come back.
+  architecture = "x86_64",
 })
 check("the payload is built out of atoms rather than one block",
       #atoms > 15, #atoms .. " atoms")
@@ -346,7 +402,7 @@ check("and the old set can be put back", payload_module.boot_set(payload) == was
 local catalogue = hands.new({ budget = 20000 })
 hands.offer_the_catalogue(catalogue)
 payload_module.offer(catalogue, hands, payload)
-patterns.offer(catalogue, hands)
+patterns.offer(catalogue, hands, "x86_64")
 descriptions.offer(catalogue, hands, reading)
 
 local carried = hands.answer(catalogue, hands.find(catalogue, "<call carried>"))
