@@ -11,7 +11,7 @@ paid once, by people, before any of these machines exist.
 
 | | | Status |
 |---|---|---|
-| `401` | The second and third tongues | **in progress** — a whole thought is now assembly end to end on the second architecture and every score agrees with the first bit for bit, 192 of 192; the hands are not ported, and the third architecture is not begun |
+| `401` | The second and third tongues | **in progress** — a whole thought runs end to end on the second architecture, 192 of 192 scores agreeing bit for bit; all eleven routines of the third architecture agree too, 279 of 279, but nothing conducts them there yet; the hands are ported nowhere |
 | `402` | Waking on the right foot | **completed** — the selection proved on all three architectures, the within-architecture detection written and proved by booting two different processors and requiring them to disagree, 18 of 18 |
 
 ## Where the risk is
@@ -34,10 +34,19 @@ between the two — this architecture has ten registers that survive a call
 where x86 has six, and therefore keeps in registers what the first tongue had
 to spill to the stack — cannot change an answer.
 
-What is left of `401` after this is the half that is not a translation at
-all: the hands. x86 reaches devices through a separate address space with its
-own instructions and the other two are memory-mapped throughout, so that hand
-changes shape rather than detail.
+The third architecture's arithmetic turned out to be spent risk too, and not
+where it was expected. Its vector hardware is genuinely absent on the
+processor its board names -- measured with a bare probe rather than argued
+about -- so the fast product keeps its four totals in ordinary registers and
+still agrees with the first architecture bit for bit. The extension was never
+the obstacle it was budgeted as; the obstacle was that this assembler leaves
+a relocation on a branch to a label in its own file, which the word emitter
+(`054`) was built for a phase early.
+
+What is left of `401` is the conducting on the third architecture, and then
+the half that is not a translation at all: the hands. x86 reaches devices
+through a separate address space with its own instructions and the other two
+are memory-mapped throughout, so that hand changes shape rather than detail.
 
 `402` turned out not to be what it looked like. There is no shared code that can
 detect a processor and pick an engine — machine code is not portable, so the
