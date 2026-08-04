@@ -92,6 +92,7 @@ if [ -z "${QUICK}" ]; then
   run_test "the second tongue, against the first" "100-test-kernels-aarch64.lua"
   run_test "a whole thought, in the second tongue" "110-test-forward-aarch64.lua"
   run_test "the third tongue, against the first"  "113-test-kernels-riscv64.lua"
+  run_test "a whole thought, in the third tongue" "116-test-forward-riscv64.lua"
 else
   printf '\n=== skipped: the discipline, held and broken (--quick) ===\n'
   printf '\n=== skipped: the machine'"'"'s arithmetic, against the host'"'"'s (--quick) ===\n'

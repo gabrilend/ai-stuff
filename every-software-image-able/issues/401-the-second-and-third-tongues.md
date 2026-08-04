@@ -72,16 +72,25 @@ That is survivable only because the machine reads its catalogue rather than
 being told it, and it means the instruction (`301`) must not assume any
 particular hand exists.
 
-**The third architecture's arithmetic is written and proved.** All eleven
-routines, on a real emulated RISC-V machine through real UEFI firmware --
-279 of 279 matrix values and 133 of 133 normalisation values, bit-identical
-to the first architecture, on 2026-08-03. That includes the exponential, and
-the softmax and the gate that call it.
+**The third architecture is written and proved, arithmetic and conducting
+both.** All eleven routines agree one at a time -- 279 of 279 matrix values
+and 133 of 133 normalisation values -- and a whole forward pass conducted in
+the same tongue produces all 192 scores identical to the first
+architecture's, on a real emulated RISC-V machine through real UEFI firmware,
+on 2026-08-03. Its bent-on-purpose conducting moved all 192, so the
+comparison is measuring something.
 
-**Its conducting is not written.** Each routine agrees alone; nothing yet
-runs them in the order a thought requires there. This is the same named gap
-the second architecture had until today, and it is a gap rather than a
-formality for the same reason.
+**So a whole thought now runs end to end, in assembly, on all three
+architectures, and all three produce the same scores over the same weights.**
+The engine is portable in the only sense that means anything here: not that
+it compiles everywhere, but that it agrees everywhere.
+
+The conducting was the easy half on this architecture too, and for the same
+reason it was easy on the other two: there is no floating point in it. The
+one genuine difference is that this architecture has twelve registers that
+survive a call where x86 has six and ARM has ten, so nothing spills to the
+stack and nothing needs a slot beside the frame. That cannot change an
+answer.
 
 **Three of its ground rules are now measured rather than guessed.**
 
