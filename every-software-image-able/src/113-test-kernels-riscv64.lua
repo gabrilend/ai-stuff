@@ -1,25 +1,24 @@
 #!/usr/bin/env luajit
--- 100-test-kernels-aarch64.lua
+-- 113-test-kernels-riscv64.lua
 --
--- The second tongue's arithmetic, run on a real emulated ARM machine and
+-- The third tongue's arithmetic, run on a real emulated RISC-V machine and
 -- compared against answers recorded from the first tongue -- bit for bit,
 -- not closely. Issue 401.
 --
--- For a general: the first architecture's kernels could be tested by loading
+-- For a general: the first architecture's routines can be tested by loading
 -- them into this process and calling them, because this processor speaks
 -- that language. It does not speak this one. So the only honest test is to
 -- boot a machine that does, run the arithmetic there, and have it report
 -- what it got -- which is why the emulated boards were built first.
 --
 -- WHAT MAKES THE COMPARISON WORTH ANYTHING. The answers are not recomputed
--- on the ARM side and compared to themselves. They are the exact bit
--- patterns the x86 kernels produced, carried into the payload as constants,
--- and the machine compares its own results against them and reports how many
--- matched. A port is correct when it agrees with the fixture the first one
--- agreed with, and that is the whole reason the fixture exists.
+-- on the RISC-V side and compared to themselves. They are the exact bit
+-- patterns the x86 routines produced, carried into the payload as
+-- constants, and the machine compares its own results against them as
+-- integers.
 --
 -- usage:
---   luajit 100-test-kernels-aarch64.lua [--dir ROOT] [--seconds N]
+--   luajit 113-test-kernels-riscv64.lua [--dir ROOT] [--seconds N]
 
 -- {{{ DIR -- the project root, hard-coded, overridable by --dir
 local DIR = "/mnt/mtwo/programming/ai-stuff/every-software-image-able"
@@ -52,24 +51,27 @@ end
 -- }}}
 
 -- {{{ main
-local seconds = 60
+local seconds = 90
 local index = 1
 while index <= #arg do
   if arg[index] == "--dir" then
     index = index + 1 ; DIR = arg[index]
   elseif arg[index] == "--seconds" then
-    index = index + 1 ; seconds = tonumber(arg[index]) or 60
+    index = index + 1 ; seconds = tonumber(arg[index]) or 90
   end
   index = index + 1
 end
 
 say("")
-say("  the second tongue, against what the first one said")
+say("  the third tongue, against what the first one said")
 say("  " .. string.rep("-", 58))
 say("")
 
 local emit = dofile(DIR .. "/src/043-emit-kernels.lua")
-local arm = dofile(DIR .. "/src/099-kernels-aarch64.lua")
+local riscv = dofile(DIR .. "/src/111-kernels-riscv64.lua")
+local payload = dofile(DIR .. "/src/112-emit-kernel-check-riscv.lua")
+local specification = dofile(DIR .. "/src/047-reference-exp.lua")
+local float_bits = dofile(DIR .. "/src/107-float-bits.lua")
 
 local passed, failed = 0, 0
 local function check(what, ok, detail)
@@ -84,24 +86,19 @@ local function check(what, ok, detail)
 end
 
 -- {{{ the tool that makes the test data, checked before the test uses it
---
--- Not ceremony. The conversion from a number to its exact bits was silently
--- returning the same answer once its loop went hot, so this test carried 256
--- numbers of which 3 were distinct -- and then reported the machine that ran
--- them as disagreeing with the first architecture by eighty-nine percent.
--- The port was innocent; the tool was broken.
---
--- A test that cannot vouch for its own inputs is not testing what it claims
--- to test. So it vouches for them first, with a hot loop, because a small
--- check passes the broken version perfectly.
-local float_bits = dofile(DIR .. "/src/107-float-bits.lua")
+-- Not ceremony. The conversion from a number to its exact bits was once
+-- silently returning the same answer after its loop went hot, which built a
+-- payload carrying 256 numbers of which 3 were distinct -- and then reported
+-- the machine that ran them as a broken port. It was the tool that was
+-- broken. A test that cannot vouch for its own inputs is not testing what it
+-- claims to.
 local bits_sound, bits_why = float_bits.self_check()
 check("the tool that makes the test data still works", bits_sound, bits_why)
 -- }}}
 
 -- {{{ the cases, and what the first tongue says about them
--- Shapes chosen so the wide kernel's remainder path is exercised rather than
--- assumed: column counts that are and are not multiples of four.
+-- Shapes chosen so the wide routine's remainder path is exercised rather
+-- than assumed: column counts that are and are not multiples of four.
 local CASES = {
   { rows = 1, columns = 1 },
   { rows = 3, columns = 1 },
@@ -112,17 +109,18 @@ local CASES = {
   { rows = 7, columns = 65 },
 }
 
--- deterministic numbers, so the recorded answers are the same every run and
--- the payload can carry them as constants.
+-- the same deterministic numbers the second tongue's check uses, so a
+-- disagreement between the two ports is a disagreement about arithmetic
+-- rather than about which numbers they were given.
 local function number_at(index)
   local value = ((index * 2654435761) % 1000003) / 500000.0 - 1.0
   return value
 end
 
 run_one("mkdir -p " .. DIR .. "/tmp/shared-memory/kernels")
+run_one("mkdir -p " .. DIR .. "/tmp/shared-memory/payloads")
 run_one("mkdir -p " .. DIR .. "/tmp/kernels")
 
-local specification = dofile(DIR .. "/src/047-reference-exp.lua")
 local source = DIR .. "/tmp/shared-memory/kernels/kernels-x86_64.s"
 local library = DIR .. "/tmp/kernels/kernels-x86_64.so"
 local handle = io.open(source, "w")
@@ -134,15 +132,10 @@ if not run_one("clang -shared -o " .. library .. " " .. source) then
 end
 
 dofile(DIR .. "/src/049-assembly-forward.lua").declare()
-
--- The fast matrix product is not in the shared declaration, because the
--- engine's readable conductor never calls it -- it is the routine that runs
--- once a port has been proved rather than the one that proves it.
 ffi.cdef[[
   void matrix_vector_fast(float *out, const float *matrix, const float *input,
                           int rows, int columns);
 ]]
-
 local kernels = ffi.load(library)
 
 -- {{{ record what the first tongue produces
@@ -160,24 +153,21 @@ for case_index, case in ipairs(CASES) do
   end
 
   kernels.matrix_vector_plain(out, matrix, input, case.rows, case.columns)
-
   local as_bits = ffi.cast("uint32_t *", out)
   local answers = {}
   for index = 0, case.rows - 1 do answers[index + 1] = as_bits[index] end
 
-  -- The fast product's answers are recorded SEPARATELY and compared only
-  -- against themselves across architectures. It keeps four totals instead of
-  -- one, so it is a second specification rather than a faster version of the
-  -- first, and holding it to the exact one's answer would be requiring it to
-  -- stop being what it is.
+  -- The fast product's answers are recorded SEPARATELY. It keeps four totals
+  -- instead of one, so it is a second specification rather than a faster
+  -- version of the first, and holding it to the exact one's answer would be
+  -- requiring it to stop being what it is.
   local quick = ffi.new("float[?]", case.rows)
   kernels.matrix_vector_fast(quick, matrix, input, case.rows, case.columns)
   local quick_bits = ffi.cast("uint32_t *", quick)
-  local quick_answers = {}
-  for index = 0, case.rows - 1 do quick_answers[index + 1] = quick_bits[index] end
+  local fast_answers = {}
+  for index = 0, case.rows - 1 do fast_answers[index + 1] = quick_bits[index] end
 
-  recorded[case_index] = { matrix = matrix, input = input, answers = answers,
-                           fast_answers = quick_answers }
+  recorded[case_index] = { answers = answers, fast_answers = fast_answers }
 end
 check("the first tongue produced answers to compare against",
       #recorded == #CASES)
@@ -198,64 +188,42 @@ for case_index, size in ipairs(NORM) do
   local as_bits = ffi.cast("uint32_t *", out)
   local answers = {}
   for index = 0, size - 1 do answers[index + 1] = as_bits[index] end
-  recorded_norm[case_index] = { input = input, weight = weight, answers = answers }
+  recorded_norm[case_index] = { answers = answers }
 end
 -- }}}
 
--- {{{ the other seven kernels, run on the first architecture and recorded
---
--- Each one takes a buffer, changes it, and is compared against what this
--- machine made of the same buffer. Between them they cover every shape the
--- matrix product does not: one that calls another kernel, one that walks
--- pairs of numbers, two that read a second array at a stride, and the
--- exponential that everything above it depends on.
+-- {{{ the other seven routines, run on the first architecture and recorded
 ffi.cdef[[
-  void add_into(float *destination, const float *addend, int count);
-  void rotate(float *vec, const float *turns, int heads, int head_width);
-  void attention_scores(float *scores, const float *query, const float *keys,
-                        int count, int width, int stride, float scale);
-  void attention_mix(float *out, const float *weights, const float *values,
-                     int count, int width, int stride);
-  float exp_one(float x);
-  void softmax(float *values, int count);
-  void swiglu(float *gate, const float *up, int count);
+  float exp_one_shim(float x);
 ]]
 
 local jobs = {}
 
 -- {{{ local function record(job)
--- Runs a kernel here, keeps the answer as bit patterns, and says how the
--- other machine should call it.
+-- Runs a routine here, keeps the answer as bit patterns, and leaves the
+-- calling sequence to 112, which is where the per-architecture part lives.
 local function record(job)
-  -- big enough for whichever is larger: what goes in, or what comes out.
-  -- The attention kernels write more than their first input holds, and a
-  -- buffer sized only for the input would be written past its end here --
-  -- on the host, where it would be a crash, rather than on the board where
-  -- it would be a wrong answer.
+  -- big enough for whichever is larger: what goes in, or what comes out. The
+  -- attention routines write more than their first input holds, and a buffer
+  -- sized only for the input would be written past its end here -- on the
+  -- host, where it would be a crash, rather than on the board where it would
+  -- be a wrong answer.
   local room = math.max(job.words, job.compare)
   local scratch = ffi.new("float[?]", room)
   for index = 0, job.words - 1 do scratch[index] = job.input[index + 1] end
 
-  local second, third = nil, nil
+  local second = nil
   if job.extra then
     second = ffi.new("float[?]", #job.extra)
     for index = 0, #job.extra - 1 do second[index] = job.extra[index + 1] end
   end
-  if job.extra2 then
-    third = ffi.new("float[?]", #job.extra2)
-    for index = 0, #job.extra2 - 1 do third[index] = job.extra2[index + 1] end
-  end
 
-  job.run(scratch, second, third)
+  job.run(scratch, second)
 
   local as_bits = ffi.cast("uint32_t *", scratch)
   job.want = {}
   for index = 0, job.compare - 1 do job.want[index + 1] = as_bits[index] end
 
-  job.input_label = job.name .. "in"
-  job.extra_label = job.name .. "ex"
-  job.extra2_label = job.name .. "ex2"
-  job.want_label = job.name .. "want"
   jobs[#jobs + 1] = job
   return job
 end
@@ -271,7 +239,6 @@ end
 record({
   name = "add_into", words = 48, compare = 48,
   input = spread(48, 11000), extra = spread(48, 12000),
-  call = { "  add x0, sp, #1024", "  adr x1, add_intoex", "  mov w2, #48" },
   run = function(a, b) kernels.add_into(a, b, 48) end,
 })
 
@@ -279,8 +246,6 @@ record({
 record({
   name = "rotate", words = 32, compare = 32,
   input = spread(32, 13000), extra = spread(8, 14000),
-  call = { "  add x0, sp, #1024", "  adr x1, rotateex",
-           "  mov w2, #4", "  mov w3, #8" },
   run = function(a, b) kernels.rotate(a, b, 4, 8) end,
 })
 
@@ -292,8 +257,6 @@ record({
     for index = 1, 40 do out[index] = -30 + (index - 1) * 0.75 end
     return out
   end)(),
-  call = {},
-  emit_call = true,
   run = function(a)
     for index = 0, 39 do a[index] = kernels.exp_one(a[index]) end
   end,
@@ -303,7 +266,6 @@ record({
 record({
   name = "softmax", words = 24, compare = 24,
   input = spread(24, 15000),
-  call = { "  add x0, sp, #1024", "  mov w1, #24" },
   run = function(a) kernels.softmax(a, 24) end,
 })
 
@@ -311,7 +273,6 @@ record({
 record({
   name = "swiglu", words = 24, compare = 24,
   input = spread(24, 16000), extra = spread(24, 17000),
-  call = { "  add x0, sp, #1024", "  adr x1, swigluex", "  mov w2, #24" },
   run = function(a, b) kernels.swiglu(a, b, 24) end,
 })
 
@@ -329,16 +290,7 @@ record({
   name = "attention_scores", words = 16, compare = 8, no_copy = true,
   input = spread(16, 18000),          -- the question
   extra = spread(128, 19000),         -- eight positions of sixteen
-  call = {
-    "  add x0, sp, #1024",
-    "  adr x1, attention_scoresin",
-    "  adr x2, attention_scoresex",
-    "  mov w3, #8", "  mov w4, #16", "  mov w5, #16",
-    string.format("  movz w6, #0x%x", scale_bits % 0x10000),
-    string.format("  movk w6, #0x%x, lsl #16",
-                  math.floor(scale_bits / 0x10000)),
-    "  fmov s0, w6",
-  },
+  scale_bits = scale_bits,
   run = function(out, keys)
     local query = ffi.new("float[?]", 16)
     for index = 0, 15 do query[index] = number_at(index + 1 + 18000) end
@@ -350,12 +302,6 @@ record({
   name = "attention_mix", words = 8, compare = 16, no_copy = true,
   input = spread(8, 20000),           -- how well each position matched
   extra = spread(128, 21000),         -- what each position held
-  call = {
-    "  add x0, sp, #1024",
-    "  adr x1, attention_mixin",
-    "  adr x2, attention_mixex",
-    "  mov w3, #8", "  mov w4, #16", "  mov w5, #16",
-  },
   run = function(out, values)
     local weights = ffi.new("float[?]", 8)
     for index = 0, 7 do weights[index] = number_at(index + 1 + 20000) end
@@ -366,41 +312,56 @@ record({
 -- }}}
 
 -- {{{ the payload that runs the same arithmetic on the other machine
-local emit_arm = dofile(DIR .. "/src/101-emit-kernel-check.lua")
-local text = emit_arm.aarch64({
+local text = payload.riscv64({
   cases = CASES, recorded = recorded,
   norms = NORM, recorded_norm = recorded_norm,
-  kernels = arm.source(nil, specification, float_bits),
   jobs = jobs,
   number_at = number_at,
+  epsilon_bits = float_bits.of(1e-5),
+  kernels = riscv,
+  specification = specification,
+  float_bits = float_bits,
   dir = DIR,
 })
 
-local base = DIR .. "/tmp/shared-memory/payloads/kernel-check-aarch64"
-run_one("mkdir -p " .. DIR .. "/tmp/shared-memory/payloads")
+local base = DIR .. "/tmp/shared-memory/payloads/kernel-check-riscv64"
 handle = io.open(base .. ".s", "w")
 handle:write(text)
 handle:close()
 
-if not run_one("clang --target=aarch64-unknown-none -c " .. base .. ".s -o "
-               .. base .. ".o") then
-  check("the second tongue's kernels assemble", false,
-        "see " .. base .. ".s")
+if not run_one("clang --target=riscv64-unknown-none -march=rv64imafd -c "
+               .. base .. ".s -o " .. base .. ".o") then
+  check("the third tongue's kernels assemble", false, "see " .. base .. ".s")
   say("")
   say("  " .. passed .. " of " .. (passed + failed + 1) .. " as expected")
   os.exit(1)
 end
-check("the second tongue's kernels assemble", true)
+check("the third tongue's kernels assemble", true)
+
+-- THE WHOLE REASON 054 EXISTS, checked rather than trusted. If any branch or
+-- jump had been written as a branch to a label, the assembler would have
+-- left a relocation, extraction would have dropped it, and the offset would
+-- have stayed zero -- which is a branch to itself, and a machine that spins
+-- forever saying nothing. A payload with any relocation in it is a payload
+-- that will not run, so this is checked before the machine is booted rather
+-- than diagnosed afterwards.
+local relocations = io.popen("llvm-readelf -r " .. base .. ".o 2>&1")
+local relocation_text = relocations and relocations:read("*a") or ""
+if relocations then relocations:close() end
+local none_left = relocation_text:find("There are no relocations", 1, true) ~= nil
+  or relocation_text:match("^%s*$") ~= nil
+check("nothing in it is waiting on a linker", none_left,
+      "a relocation left behind becomes a branch to itself, silently")
 
 run_one("llvm-objcopy -O binary " .. base .. ".o " .. base .. ".raw")
 run_one("luajit " .. DIR .. "/src/029-wrap-uefi.lua --from " .. base
-        .. ".raw --to " .. base .. ".efi --arch aarch64 > /dev/null")
+        .. ".raw --to " .. base .. ".efi --arch riscv64 > /dev/null")
 -- }}}
 
 -- {{{ boot it and read what it said
-local serial = DIR .. "/tmp/shared-memory/logs/qemu-uefi-arm64-serial.log"
+local serial = DIR .. "/tmp/shared-memory/logs/qemu-uefi-riscv64-serial.log"
 run_one("rm -f " .. serial)
-run_one("luajit " .. DIR .. "/src/018-launch-board.lua qemu-uefi-arm64"
+run_one("luajit " .. DIR .. "/src/018-launch-board.lua qemu-uefi-riscv64"
   .. " --payload " .. base .. ".efi --seconds " .. seconds
   .. " --dir " .. DIR .. " > /dev/null 2>&1")
 
@@ -410,11 +371,21 @@ check("the other machine ran the arithmetic and reported",
       spoken:find("kernels checked", 1, true) ~= nil,
       "nothing recognisable came back; see " .. serial)
 
--- Only what the payload said, and only where a mark begins a line. The
--- firmware narrates too, at length and first: on the RISC-V board it prints
--- "device is of 3 speed" while enumerating USB, and a loose search for "of"
--- found that rather than the payload's count. This board does not happen to
--- say it, which is exactly why the guard belongs here as well.
+-- {{{ reading only what the payload said, and only at the start of a line
+--
+-- THE FIRMWARE TALKS TOO, and it talks first. This board is the one with
+-- USB storage attached -- deliberately, as the most demanding of the three
+-- -- and while enumerating it the firmware prints "device is of 3 speed".
+-- A search for "of" followed by a number found that, eleven hundred lines
+-- before the payload said anything, and reported the machine as having
+-- compared three values when it had compared two hundred and seventy-nine.
+-- Every answer was right and the test said the port was broken.
+--
+-- So the search starts after the payload's own header and every mark must
+-- begin a line. This project has now been misled twice by a tool reading a
+-- log rather than by anything the log said, which is worth more than the
+-- defect: a tool that answers confidently is worth checking before the
+-- thing it is reporting on.
 local report = spoken:match("kernels checked(.*)$") or ""
 local function number_after(mark)
   return tonumber(report:match("[\r\n]%s*" .. mark .. "%s+(%x+)") or "", 16)
@@ -433,24 +404,28 @@ check("and every normalisation does too",
       norm_matched ~= nil and norm_total ~= nil
       and norm_matched == norm_total and norm_total > 0,
       tostring(norm_matched) .. " of " .. tostring(norm_total))
+
+-- {{{ how far apart, when they are apart at all
+local got = number_after("got")
+local want = number_after("want")
+if got and want and got ~= want then
+  local pair = ffi.new("uint32_t[2]")
+  pair[0], pair[1] = got, want
+  local viewed = ffi.cast("float *", pair)
+  say("")
+  say(string.format("  the first disagreement: %.9g against %.9g",
+                    viewed[0], viewed[1]))
+  say(string.format("  which is %d in the last place",
+                    math.abs(tonumber(got) - tonumber(want))))
+end
+-- }}}
 -- }}}
 
--- {{{ what is not written yet, WORKED OUT rather than remembered
---
--- This check used to compare the count against a literal ten, beside a
--- hand-kept table of what was still missing that had been emptied. Both
--- agreed with each other and both were wrong: the first tongue had eleven
--- routines and this port had ten, and the absent one was the fast matrix
--- product -- the routine that provides all of the speed, missing from a port
--- reported as complete.
---
--- It now asks the first tongue what it has rather than being told a number.
--- A test that carries the answer it is checking for cannot notice the answer
--- changing.
-local missing = arm.missing_from(emit.names)
+-- {{{ what is not written yet, worked out rather than remembered
+local missing = riscv.missing_from(emit.names)
 check("every kernel the first architecture has, this one has too",
       #missing == 0,
-      #arm.written .. " written against the first tongue's " .. #emit.names
+      #riscv.written .. " written against the first tongue's " .. #emit.names
       .. "; missing: " .. table.concat(missing, ", "))
 -- }}}
 
@@ -459,31 +434,29 @@ say("  " .. string.rep("-", 58))
 say("  " .. passed .. " of " .. (passed + failed) .. " as expected")
 say("")
 say("  where this port stands:")
-say("    all " .. #arm.written .. " routines written, the same "
-    .. #emit.names .. " the first architecture has, and every")
-say("    answer proved bit-identical on a real ARM machine -- including the")
-say("    exponential, which is a polynomial here rather than the host")
-say("    library, and is therefore comparable at all.")
+say("    all " .. #riscv.written .. " routines written, the same "
+    .. #emit.names .. " the first architecture has, every one")
+say("    laid out by the word emitter rather than written as text -- because")
+say("    this assembler leaves a relocation on a branch to a label in its")
+say("    own file, and with no linker that becomes a branch to itself.")
 say("")
-say("    the exact matrix product and the fast one are held to DIFFERENT")
-say("    recorded answers. They sum in different orders on purpose, so")
-say("    requiring them to agree would be requiring the fast one to stop")
-say("    being the thing it is.")
+say("    the fast matrix product keeps its four totals in ORDINARY floating")
+say("    registers here. The vector hardware is absent on the processor this")
+say("    board names -- measured, not assumed -- and where it exists it stays")
+say("    switched off until something with machine-mode privilege enables it.")
+say("    Same lane assignment and same combining order, so it still agrees")
+say("    with the first architecture's fast kernel bit for bit.")
 say("")
-say("    running them together, in the order a thought requires, is a")
-say("    separate and harder claim and is proved separately (110).")
-say("")
-say("    the third architecture is not begun. Its branches need the word")
-say("    emitter that already exists (054), and its vector hardware is")
-say("    ABSENT on the processor its board names -- measured, not guessed,")
-say("    and where it does exist it is switched off until something with")
-say("    machine-mode privilege turns it on.")
+say("    what is NOT covered: a whole forward pass on this architecture.")
+say("    Each routine agrees alone; nothing yet conducts them together here,")
+say("    and the other two architectures both learned that a piece can be")
+say("    right by itself and be handed the wrong thing by the piece before it.")
 say("")
 
 run_one("mkdir -p " .. DIR .. "/output")
 local goodbye = io.open(DIR .. "/output/goodbye", "w")
 if goodbye then
-  goodbye:write("second tongue: " .. passed .. " of " .. (passed + failed)
+  goodbye:write("third tongue: " .. passed .. " of " .. (passed + failed)
                 .. " as expected\ngoodbye\n")
   goodbye:close()
 end

@@ -328,8 +328,15 @@ check("the other machine conducted a pass and reported",
       spoken:find("pass conducted", 1, true) ~= nil,
       "nothing recognisable came back; see " .. serial)
 
+-- Only what the payload said, and only where a mark begins a line. The
+-- firmware narrates too, at length and first: on the RISC-V board it prints
+-- "device is of 3 speed" while enumerating USB, eleven hundred lines before
+-- the payload speaks, and a loose search for "of" found that instead. This
+-- board does not happen to say it -- which is exactly why the guard belongs
+-- here rather than only where the trap was sprung.
+local report = spoken:match("pass conducted(.*)$") or ""
 local function number_after(mark)
-  return tonumber(spoken:match(mark .. "%s+(%x+)") or "", 16)
+  return tonumber(report:match("[\r\n]%s*" .. mark .. "%s+(%x+)") or "", 16)
 end
 
 local matched, total = number_after("matched"), number_after("of")
