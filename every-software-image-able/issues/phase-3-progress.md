@@ -10,6 +10,24 @@ Settled while there is one engine to test against rather than three.
 the text exists, it says what it must and refrains from saying what it must
 not, and all of it is reachable. Whether it *works* is `602`'s question.
 
+**One word qualified, 2026-08-04: reachable by what.** This phase came
+through the review of phases 1 and 2 in better shape than either, because
+what it produces is text rather than code — and text does not have two
+versions, one that runs on the chip and one that proves it. The instruction,
+the descriptions and the patterns are real, and they are laid into the
+image's text region by the builder, on the card, where the machine will find
+them.
+
+What reaches them today is a program on the development machine. Nothing on
+a bare machine can yet open that region, turn its bytes into the model's
+numbers, and put them in front of the engine — that is the driver (`107`),
+and until it exists the text is present and unread.
+
+That changes nothing about this phase's work and nothing about these
+tickets. It is recorded because "all of it is reachable" is the kind of
+sentence that is true of the wrong subject, and the same sentence about
+phases 1 and 2 turned out to be hiding more.
+
 ## Issues
 
 | | | Status |

@@ -118,6 +118,32 @@ Once the machine can boot itself from disk into memory, it can be turned off and
 on again. They are different moments, and a machine in the gap between them exists
 only in volatile memory with nothing able to recreate it. `003`.
 
+**20 — What belongs in the seed, and what does the machine write?**
+Not "is it hard" and not "is there one correct way." **What does being wrong
+look like.**
+
+If wrong looks like a wrong answer, the machine can see it, say so, and try
+again. Leave it to the machine. If wrong looks like **silence** — a jump into
+weights, a call whose offset is zero and is therefore a call to itself, a
+return to an address that was never a return address — then the machine
+cannot see it, cannot report it, and does not get a second attempt, because
+there is nobody left to attempt.
+
+The seed carries the second kind. Not to save the machine work, and not
+because we know better: because a machine that spins forever from an
+instruction we wrote never gets to disagree with us about it.
+
+This is why the arithmetic is carried even though a machine could derive it —
+the order of addition *is* the answer, and getting it wrong is a wrong
+number, but getting the calling convention around it wrong is silence. It is
+why the driver (`107`) is written down and the allocator is not. And it is
+the argument for the interpreter being the layer worth reaching quickly:
+below it a bad address is unobservable, because checking would need a
+memory-management unit this design deliberately does not have; at it, the
+check is nearly free, because the loop is already holding both numbers
+(`002`). The interpreter is the lowest layer at which "that was wrong" is
+something that can be said rather than something that kills you.
+
 **13 — What makes the machine want something?**
 Nothing internal. Requests arrive from arbitrary sources, and the machine builds
 the capability to accept input from as many sources as its body provides — so the
@@ -127,7 +153,35 @@ set of possible requests is a function of the hardware map. `003`.
 
 ## Open, and blocking
 
-**None.** Every question that was stopping work has an answer, and four of them
+**One, added 2026-08-04.**
+
+**22 — Where does the operation table live?**
+
+The interpreter the machine writes is a loop that fetches a number, looks it
+up in a table, and runs the matching operation (`002`). That table is the
+whole of the machine's instruction set, and it is also the door — the list of
+things a program may ask for is the same table the loop reads, because there
+is no privilege level here to put a separate list behind.
+
+If the table lives in **writable memory**, a running program can add a row,
+and the machine extends itself while alive. If it lives in the **instruction
+stream**, adding an operation means rebuilding the interpreter, which means
+the machine cannot learn a new trick without stopping.
+
+`002` already asks whether a program may add an operation, and lists it as one
+of that document's open ones. It is promoted here and marked blocking because
+it is not really a question about permissions — it is a question about where
+one array goes, it is answered by the first machine that writes an
+interpreter, and it is answered *by accident* if nobody decides it
+deliberately. Whichever way the first machine happens to lay it out becomes
+what that machine is, and this is the first minute of its life.
+
+It blocks nothing that is being built right now. It blocks the interpreter,
+and the interpreter is the machine's own first act.
+
+---
+
+Every other question that was stopping work has an answer, and four of them
 were answered the same way — by handing the decision to the machine rather than
 writing a rule for it (`strategems/009`).
 
@@ -163,7 +217,7 @@ Held in full at the end of each document; listed here so the count is honest.
 
 | Document | Open | The sharpest one |
 |---|---|---|
-| `002` interpreter | 3 | Can a running program add an operation, or must the interpreter be rebuilt to learn a new trick? |
+| `002` interpreter | 2 | What decides that an operation is worth a row? Any sequence used often enough could become one, and nothing measures this |
 | `003` bootstrap | 3 | A machine where nothing is operable cannot report that nothing is operable |
 | `003a` exploration | 4 | Absence of response is what a destroyed device, a busy device, and an unpowered device all look like |
 | `004` compilation | 3 | What draws the picture before there is anything to draw on? |
@@ -183,3 +237,16 @@ After that, the issue files — and the thing to be careful of while writing the
 is that a ticket describing how the machine must be organised is the same mistake
 as a schedule. State what is wanted and what it costs to get wrong; leave the
 approach to whoever is holding the problem.
+
+**Both are done, and 2026-08-04 added a third thing to be careful of.** A
+progress note that says a phase is complete has to say complete *at what*.
+Three phases reported done on a reading of "exists" that did not distinguish
+between code which runs on the chip and code which proves that code. Every
+individual claim in them was true; the sentences summarising those claims
+were not, because they added two kinds of thing together.
+
+The correction is in the phase notes for one, two, three and five. The
+general form is worth keeping here: **a summary that aggregates across a
+distinction its rows depend on will be wrong in a way none of its rows are**,
+and it will stay wrong for as long as people read the summary instead of the
+rows. Which is what summaries are for.

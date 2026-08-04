@@ -13,6 +13,7 @@ paid once, by people, before any of these machines exist.
 |---|---|---|
 | `401` | The second and third tongues | **in progress** — a whole thought runs end to end in assembly on all three architectures, and all three produce the same 192 scores bit for bit over the same weights; what remains is the hands, which are ported nowhere |
 | `402` | Waking on the right foot | **completed** — the selection proved on all three architectures, the within-architecture detection written and proved by booting two different processors and requiring them to disagree, 18 of 18 |
+| `403` | The rest of the engine, elsewhere | **not started** — the tokenizer and the console exist in assembly on the first architecture only, and the driver calls both on every turn |
 
 ## Where the risk is
 
