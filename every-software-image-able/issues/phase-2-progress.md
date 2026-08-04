@@ -6,10 +6,36 @@ a status, and — the one that matters most — running code it has just written
 A machine that can think but not act has nothing to be instructed about, which is
 why this comes before the words.
 
-**The phase is complete, 2026-08-02.** The machine can be asked for something
-and answer, can be heard, can reach memory and storage and the devices
-attached to it, can say how it is on hardware that cannot spell, and can run
-what it wrote — and be stopped when what it wrote will not stop.
+**The phase is complete as a specification, 2026-08-02. None of it runs on
+the chip yet, and that was noticed on 2026-08-04.**
+
+The machine can be asked for something and answer, can be heard, can reach
+memory and storage and the devices attached to it, can say how it is on
+hardware that cannot spell, and can run what it wrote — and be stopped when
+what it wrote will not stop. Every one of those is proved, and every one of
+them is proved of a program running on the development machine.
+
+**Only two things in this phase are assembly**: saying something, and the
+console it says it through. The catalogue, the parser that recognises a
+request, the answering, the assembler, reading something too big to hold,
+touching memory, keeping something, touching hardware and emitting a status
+are all the readable kind — they run in a language the chip has no way to
+execute.
+
+That is the project's method applied honestly and not yet finished. The
+arithmetic went readable, then recorded, then assembly. This phase has the
+first two.
+
+**It is not a defect and it is not a reason to redo anything.** These are the
+specification the assembly will be held to, and they are more valuable as
+that than they would have been as a first draft in assembly. What was wrong
+was the word "complete" standing alone, when what is complete is the half
+that says what the hands *are*.
+
+Carrying them onto the chip is `107`'s ninth step, and it is the part of that
+ticket to budget for: recognising a request inside generated text is
+comparing byte strings, and doing it in assembly three times is the least
+pleasant work remaining in the project.
 
 ## Issues
 

@@ -2,6 +2,42 @@
 
 ## Current behavior
 
+**Reopened on 2026-08-04. The loop exists and does not run on the machine
+it was built for.**
+
+Everything below this paragraph is true and was true when this closed. What
+was missing from it is the distinction between the two kinds of code in this
+project, and this ticket is where that distinction first mattered.
+
+**Assembly** is real processor instructions, which can be extracted as raw
+bytes and put on a card. That is what runs on the chip. **A readable
+program** runs on the development machine and reaches the assembly by loading
+it as a library and calling in. That is scaffolding: it proves the assembly
+is right, and it cannot go on a card, because a bare machine has nothing to
+run it with.
+
+The loop is the readable kind. So are the assembler, the hands, and the
+context. That is the project's usual method applied faithfully at the bottom
+and not yet above it -- the arithmetic got its readable version, then its
+recorded answers, then its assembly. Everything above the arithmetic has the
+first two and not the third.
+
+The consequence is precise: **on a flashed machine, the waking code detects
+the processor, says "handing over," and halts.** There is nothing to hand
+over to.
+
+Carrying this loop onto the chip is `107`, which is a separate ticket
+because what it must do is more than this loop does -- it also has to find
+its own pieces, find the model's tensors, and lay out memory, none of which
+this loop does because a foreign-function interface did all three for it.
+
+**This ticket stays open until the readable loop has an assembly twin held
+to it**, the same way the readable forward pass has one. The readable half
+below is not superseded by that; it becomes the reference the assembly half
+is measured against, and it should stay exactly as it is.
+
+---
+
 **The context mechanism exists and is tested** — `src/052`, checked by
 `src/053`, 17 of 17.
 

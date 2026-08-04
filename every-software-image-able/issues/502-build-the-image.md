@@ -2,6 +2,32 @@
 
 ## Current behavior
 
+**Reopened on 2026-08-04. The builder is right and has never been handed an
+engine.**
+
+Everything below this paragraph holds. The builder lays down five regions in
+the order the firmware meets them -- the waking code, the engine, the model,
+the text, the carried randomness -- each starting on a block boundary,
+because a medium is written in blocks and a region straddling one cannot be
+replaced alone. It checks the offsets it writes against the offsets the
+engine will look for, and refuses to build when they disagree.
+
+**The engine's bytes arrive as a parameter, and one caller supplies that
+parameter: a test, passing two thousand copies of the letter E.** So the seam
+between the builder and the engine is checked against a placeholder, which
+means the check is real and has never been exercised against anything that
+would run.
+
+Nothing here is wrong. The builder does not know what an engine is and should
+not; the engine is somebody else's output. But this ticket cannot be called
+finished while the only image it has ever produced contains no engine, because
+what it produces is the thing `503` puts on a card and `601` switches on.
+
+**This closes again when `107` hands it real bytes** and the layout check
+becomes a check between two things that both exist.
+
+---
+
 **Done, and tested** -- `src/089`, checked by `src/090`, 34 of 34 on
 2026-08-02.
 
