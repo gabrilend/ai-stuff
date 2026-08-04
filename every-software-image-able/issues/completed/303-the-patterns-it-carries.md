@@ -2,8 +2,35 @@
 
 ## Current behavior
 
-**Done, and tested** -- `src/083`, checked by `src/085`, 43 of 43 on
-2026-08-02.
+**Done, and tested** -- `src/083`, checked by `src/085`, 46 of 46 on
+2026-08-04.
+
+**One pattern was wrong on two machines out of three, and was fixed on
+2026-08-04.** The calling convention -- the one pattern here that is an
+agreement rather than a suggestion -- said "on this architecture: the first
+four in di, si, d, c" on every card. Those are the first architecture's
+registers. It was written when there was one architecture and nothing brought
+anyone back to it.
+
+A machine waking on either of the other two was handed a sentence beginning
+"on this architecture" that described a different one, and this pattern's own
+note says what that costs: something that does not give back what it borrowed
+will break a loop that was correct, and the machine will hang rather than
+fail. So it was not a stale comment. It was an instruction to write routines
+that return to addresses which were never return addresses, on a machine with
+nothing above it to notice.
+
+It now carries all three conventions and **refuses to be written at all
+without being told which processor the card is for**. There is no default,
+because the failure being prevented is a plausible-looking wrong answer and a
+default is how you get one. Three checks were added: that each machine is
+told its own and not another's; that an architecture nothing is written for
+is refused rather than handed a blank; and that no convention can be produced
+for no machine in particular.
+
+The general form of this is now in `docs/010` and in `403`: a piece of the
+seed is not finished until it exists for all three, and carried **text**
+drifts exactly the way carried code does.
 
 Eleven patterns, each with four parts, and every one is checked for having
 all four: what it is, where it has worked, what it costs, and **where it

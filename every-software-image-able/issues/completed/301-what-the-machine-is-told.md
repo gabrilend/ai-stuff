@@ -22,6 +22,33 @@ status square; those are patterns and live in `303`. A machine that
 organises itself completely differently can still follow this text, which is
 checked by searching for those shapes and requiring their absence.
 
+## The assumption this text rests on, written down 2026-08-04
+
+**The machine supplies the instruction set from its own knowledge. Nothing in
+the seed carries one.**
+
+There is no opcode table on the chip, no mnemonic list, no encoding
+reference. The patterns give shapes — *an interpreter is a loop that fetches
+a number and looks it up in a table*. The descriptions give devices. This
+text gives the order that cannot be rearranged. What none of them give is
+what `mov` or `ldr` or `jalr` mean, or how many bytes any of them occupies.
+
+That the model already knows is assumed, and it is a reasonable assumption:
+anything able to write assembly at all knows this, and carrying an encoding
+reference for three architectures would be larger than the instruction, the
+patterns and the descriptions together.
+
+It is written down here because it is **the load-bearing premise of the whole
+bootstrap** and was nowhere. Everything the machine ever builds is downstream
+of it writing correct assembly on the first try, with an assembler that will
+encode what it is given and a processor that will run whatever that encodes
+to. If the assumption is wrong, nothing else in the seed matters — and the
+failure mode is the silent one, because assembly that assembles and does the
+wrong thing does not announce itself.
+
+It is not a thing to fix. It is a thing to know, and the place it gets tested
+is `602`, by leaving machines alone and counting how many succeed.
+
 ## Intended behavior
 
 The text the machine wakes up holding. It has to convey enough that a computer

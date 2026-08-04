@@ -1,4 +1,51 @@
-# 403 — The rest of the engine, on the other two machines
+# 403 — The tokenizer and the console, on all three at once
+
+## The rule this ticket is written under
+
+**Every piece of assembly is written for all three architectures as one piece
+of work.** Not one, then ported twice. This ticket was first drafted as
+"port the stragglers" and that framing is the thing being corrected.
+
+**It is not about fairness between machines. It is about what goes wrong.**
+
+*A list that is written once and consulted later goes stale in between.* The
+fast matrix product was absent from the second architecture for weeks and
+nothing reported it, because the first architecture had it, the second was
+written later against a list of what was still to do, and that list had been
+emptied when the port felt finished. Written together there is no "later" for
+a list to go stale in, because there is no list.
+
+*A second implementation catches what a recorded answer cannot.* This project
+learned that directly: composing the arithmetic found a rounding defect that
+was in the **reference**, and no fixture could have caught it, because the
+fixture was produced by the thing that was wrong. Implementations written
+side by side check each other continuously. Written in sequence, they check
+the first one twice and late.
+
+*Decisions get frozen by whichever machine went first.* The first
+architecture reaches devices through a separate address space with its own
+instructions; the other two are memory-mapped throughout. The third has no
+vector hardware on the processor its board names, and where such hardware
+exists it stays switched off until something with machine-mode privilege
+enables it. Both are design questions that belong at the moment a routine is
+designed, and both were discovered while porting.
+
+*And the text carried on the chip drifts the same way.* The bundled patterns
+told every machine that arguments arrive in the first architecture's
+registers, on all three cards, for as long as there were three -- because
+they were written when there was one. That one is now fixed and refuses to
+be written without knowing which processor the card is for.
+
+**What stays sequential is a different axis: first light on physical
+hardware.** Getting one board working before three is not about writing code
+for one architecture first. It is that integration on real hardware fails for
+reasons which have nothing to do with the instruction set, and finding those
+on one board is cheaper than on three (`601`). Write in parallel; debug on
+one board.
+
+---
+
+## What this ticket covers
 
 ## Current behavior
 
@@ -27,9 +74,14 @@ for the second or third architecture.
 
 ## Intended behavior
 
-Both written for the other two architectures and held to the first the way
-everything else here is: the same inputs, the same recorded answers, compared
-as integers on a real emulated machine.
+Both existing on all three, held to the same recorded answers, compared as
+integers on a real emulated machine of each kind.
+
+That the first architecture already has them is an accident of when they were
+written, not a head start to be preserved. If either turns out to want a
+change -- and the tokenizer might, since nothing has yet asked it to run
+where there is no allocator -- the change is made in all three, at once,
+rather than in one and then chased.
 
 ## Why these two and not the hands
 
