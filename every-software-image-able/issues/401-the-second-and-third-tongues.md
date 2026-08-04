@@ -6,9 +6,22 @@
 architecture, and every score agrees with the first bit for bit. The third
 architecture is not begun, and neither are the hands.**
 
-**All ten routines are written for the second architecture, and every one
-is proved bit-identical to the first on a real ARM machine** -- 250 of 250
+**All eleven routines are written for the second architecture, and every one
+is proved bit-identical to the first on a real ARM machine** -- 279 of 279
 values, and 133 of 133 normalisation values, on 2026-08-03.
+
+It was ten for a while, and the missing one was the fast matrix product --
+the routine that provides all of the speed, absent from a port that was
+reported as finished. Nothing said so. The list of what was still missing
+was a hand-kept table that had been emptied when the port felt done, and the
+check that was meant to notice compared the count against a literal ten. The
+stale table and the stale check agreed with each other.
+
+Both are gone. The port is now asked what it has, the first tongue is asked
+what it has, and the difference is worked out rather than remembered. The
+exact product and the fast one are held to **different** recorded answers,
+because they sum in different orders on purpose and requiring them to agree
+would be requiring the fast one to stop being what it is.
 
 **And they are now proved correct together, which is the harder claim.** The
 conducting is written in this tongue too (`src/108`) -- the layer walk, the
@@ -59,9 +72,38 @@ That is survivable only because the machine reads its catalogue rather than
 being told it, and it means the instruction (`301`) must not assume any
 particular hand exists.
 
-**The third architecture is not begun.** Its branches need the word emitter
-that already exists, and its vector hardware may be absent from a given chip
-entirely.
+**The third architecture is not begun, and three of its ground rules are now
+measured rather than guessed.**
+
+**Its branches cannot be written as branches.** Confirmed again on
+2026-08-03: with relaxation and compressed instructions both switched off, a
+conditional branch to a label in the same file still leaves a relocation
+behind, and the extracted bytes encode a branch to the instruction's own
+address. With no linker, every loop becomes a silent infinite one. All
+control flow goes through the word emitter (`054`), which is why that tool
+was built.
+
+**Its vector hardware is absent on the processor its board names.** Measured,
+not assumed: a bare probe that executes one vector-configuring instruction
+and then says so gets no further on the `rv64` processor `032` specifies.
+So the fast matrix product cannot be a vector kernel on this architecture
+without changing which machines the seed runs on.
+
+**And where the hardware does exist, it is switched off.** The same probe,
+on a processor built with vectors, still fails -- until the vector unit is
+enabled through a machine-mode control register first. That is a privilege
+question rather than an instruction-set one, and it depends on what level
+the firmware hands over at, which differs between the three firmwares this
+project already knows hand over three different ways.
+
+The consequence is a decision this ticket has to make rather than discover
+later: **on RISC-V the fast product should be four totals kept in ordinary
+registers rather than in a vector register.** Same second specification, same
+lane assignment, same final combining order, so it stays comparable to the
+first architecture's fast kernel bit for bit -- and it needs no extension, no
+privilege, and no negotiation with firmware. A genuinely vectorised one can
+follow later, for chips that have the hardware, as a fourth kernel rather
+than as a replacement.
 
 **The harness works and the shape of it is right.** The host cannot test
 these by calling them -- it does not speak this language -- so `src/100`
