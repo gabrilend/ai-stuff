@@ -68,9 +68,13 @@ local FORBIDDEN_IN_OP = {
   bgez = "use :branch with explicit registers",
   bltz = "use :branch with explicit registers",
   bgtz = "use :branch with explicit registers",
-  call = "there is nothing to call; this is a payload, not a program with a runtime",
-  tail = "there is nothing to call; this is a payload, not a program with a runtime",
-  ret = "a payload never returns",
+  call = "use :call, which encodes the offset itself",
+  tail = "use :jump for a jump that links nothing, or :call for one that does",
+  -- A payload's OUTERMOST code never returns -- there is nothing beneath it
+  -- to return to. Its subroutines do, and an engine is mostly subroutines,
+  -- so this is refused for the byte-counting reason rather than the
+  -- philosophical one it used to give.
+  ret = "spell it as 'jalr zero, 0(ra)', so the tool can see it is four bytes",
 }
 -- }}}
 
@@ -170,6 +174,28 @@ function M.new()
   end
   -- }}}
 
+  -- {{{ program:call(label)
+  -- A jump that DOES link: jal ra, offset. The same encoding as :jump with a
+  -- different destination register, which the encoder already took as an
+  -- argument and this was simply never asking for.
+  --
+  -- It exists because payloads acquired subroutines. When this file was
+  -- written a payload was one straight run of code with loops in it and
+  -- nothing to call, which is why `ret` is refused below. An engine has
+  -- routines that call each other -- the softmax and the gate both raise e to
+  -- a power -- so the call had to become expressible.
+  --
+  -- Returning is still `jalr zero, 0(ra)` spelled out through :op rather than
+  -- `ret`, because a pseudo-instruction whose expansion the tool has not
+  -- checked is exactly what the byte counting cannot survive.
+  function program:call(label)
+    self.entries[#self.entries + 1] = {
+      kind = "jump", bytes = 4, target = label, link = 1,
+      spelled = "jal ra, " .. label,
+    }
+  end
+  -- }}}
+
   -- {{{ program:load_constant(register, value)
   -- li with its expansion chosen here, so the byte count is known the moment
   -- it is emitted. Small values are one addi; anything else is lui plus
@@ -216,6 +242,21 @@ function M.new()
   function program:shorts(text)
     self.entries[#self.entries + 1] = {
       kind = "shorts", bytes = (#text + 1) * 2, text = text,
+    }
+  end
+  -- }}}
+
+  -- {{{ program:word(value)
+  -- Four bytes of DATA rather than an instruction.
+  --
+  -- Separate from :op because :op means "one real instruction, verbatim",
+  -- and a payload that carries a whole model carries far more of these than
+  -- of instructions. Passing data through the instruction method would
+  -- count correctly and read as a lie.
+  function program:word(value)
+    self.entries[#self.entries + 1] = {
+      kind = "op", bytes = 4,
+      text = string.format(".word 0x%08x", value % 4294967296),
     }
   end
   -- }}}
@@ -274,7 +315,7 @@ function M.new()
             error("054-riscv-words: jump to '" .. entry.target .. "' is " .. delta
                   .. " bytes away, past the +-1MB a jump reaches")
           end
-          word = encode_jump(0, delta)
+          word = encode_jump(entry.link or 0, delta)
         end
         -- the finished number, with what it means beside it. %08x keeps the
         -- sign bit readable; bit operations hand back signed numbers.

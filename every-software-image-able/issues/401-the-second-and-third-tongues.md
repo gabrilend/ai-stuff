@@ -72,8 +72,18 @@ That is survivable only because the machine reads its catalogue rather than
 being told it, and it means the instruction (`301`) must not assume any
 particular hand exists.
 
-**The third architecture is not begun, and three of its ground rules are now
-measured rather than guessed.**
+**The third architecture's arithmetic is written and proved.** All eleven
+routines, on a real emulated RISC-V machine through real UEFI firmware --
+279 of 279 matrix values and 133 of 133 normalisation values, bit-identical
+to the first architecture, on 2026-08-03. That includes the exponential, and
+the softmax and the gate that call it.
+
+**Its conducting is not written.** Each routine agrees alone; nothing yet
+runs them in the order a thought requires there. This is the same named gap
+the second architecture had until today, and it is a gap rather than a
+formality for the same reason.
+
+**Three of its ground rules are now measured rather than guessed.**
 
 **Its branches cannot be written as branches.** Confirmed again on
 2026-08-03: with relaxation and compressed instructions both switched off, a
@@ -81,7 +91,15 @@ conditional branch to a label in the same file still leaves a relocation
 behind, and the extracted bytes encode a branch to the instruction's own
 address. With no linker, every loop becomes a silent infinite one. All
 control flow goes through the word emitter (`054`), which is why that tool
-was built.
+was built -- and the test now refuses a payload with any relocation left in
+it rather than booting one and diagnosing the silence afterwards.
+
+The emitter gained two things it had never needed. A **call**: the encoder
+always took a link register and the method hard-coded it away, because when
+the tool was written a payload was one straight run of code with nothing to
+call. An engine is mostly subroutines. And a **word**, for four bytes of
+data rather than an instruction, because passing data through the
+instruction method counts correctly and reads as a lie.
 
 **Its vector hardware is absent on the processor its board names.** Measured,
 not assumed: a bare probe that executes one vector-configuring instruction
@@ -96,14 +114,30 @@ question rather than an instruction-set one, and it depends on what level
 the firmware hands over at, which differs between the three firmwares this
 project already knows hand over three different ways.
 
-The consequence is a decision this ticket has to make rather than discover
-later: **on RISC-V the fast product should be four totals kept in ordinary
-registers rather than in a vector register.** Same second specification, same
-lane assignment, same final combining order, so it stays comparable to the
-first architecture's fast kernel bit for bit -- and it needs no extension, no
-privilege, and no negotiation with firmware. A genuinely vectorised one can
-follow later, for chips that have the hardware, as a fourth kernel rather
-than as a replacement.
+The consequence was a decision this ticket had to make rather than discover
+later, and it is made: **on RISC-V the fast product keeps four totals in
+ordinary floating registers rather than in a vector register.** Same second
+specification, same lane assignment, same final combining order, so it agrees
+with the first architecture's fast kernel bit for bit -- and it needs no
+extension, no privilege, and no negotiation with firmware. A genuinely
+vectorised one can follow later, for chips that have the hardware, as a
+fourth kernel rather than as a replacement.
+
+**And the diagnostic lied a second time.** The first RISC-V run reported that
+the machine had compared three values when it had compared two hundred and
+seventy-nine, and every one of them agreed. This is the board with USB
+storage attached -- deliberately, as the most demanding of the three -- and
+while enumerating it the firmware prints `device is of 3 speed`. A search of
+the log for the word "of" followed by a number found that, eleven hundred
+lines before the payload said anything.
+
+The port was correct and the test called it broken, which is the same shape
+as the second architecture's first reported disagreement and the same shape
+as the log-reading that cost a day during `701`. Three times now the tool
+reading the evidence has been the thing at fault. The reading is now confined
+to the text after the payload's own header, with every mark required to begin
+a line, and the guard was added to both ARM tests as well -- they do not
+happen to trip it, which is exactly why.
 
 **The harness works and the shape of it is right.** The host cannot test
 these by calling them -- it does not speak this language -- so `src/100`

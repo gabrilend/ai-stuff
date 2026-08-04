@@ -410,15 +410,25 @@ check("the other machine ran the arithmetic and reported",
       spoken:find("kernels checked", 1, true) ~= nil,
       "nothing recognisable came back; see " .. serial)
 
-local matched = tonumber(spoken:match("matched%s+(%x+)") or "", 16)
-local total = tonumber(spoken:match("of%s+(%x+)") or "", 16)
+-- Only what the payload said, and only where a mark begins a line. The
+-- firmware narrates too, at length and first: on the RISC-V board it prints
+-- "device is of 3 speed" while enumerating USB, and a loose search for "of"
+-- found that rather than the payload's count. This board does not happen to
+-- say it, which is exactly why the guard belongs here as well.
+local report = spoken:match("kernels checked(.*)$") or ""
+local function number_after(mark)
+  return tonumber(report:match("[\r\n]%s*" .. mark .. "%s+(%x+)") or "", 16)
+end
+
+local matched = number_after("matched")
+local total = number_after("of")
 
 check("every matrix answer agrees with the first tongue, bit for bit",
       matched ~= nil and total ~= nil and matched == total and total > 0,
       tostring(matched) .. " of " .. tostring(total))
 
-local norm_matched = tonumber(spoken:match("norms%s+(%x+)") or "", 16)
-local norm_total = tonumber(spoken:match("nof%s+(%x+)") or "", 16)
+local norm_matched = number_after("norms")
+local norm_total = number_after("nof")
 check("and every normalisation does too",
       norm_matched ~= nil and norm_total ~= nil
       and norm_matched == norm_total and norm_total > 0,
