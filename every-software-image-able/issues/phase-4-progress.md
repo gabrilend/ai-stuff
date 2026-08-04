@@ -11,7 +11,7 @@ paid once, by people, before any of these machines exist.
 
 | | | Status |
 |---|---|---|
-| `401` | The second and third tongues | **in progress** — a whole thought runs end to end on the second architecture, 192 of 192 scores agreeing bit for bit; all eleven routines of the third architecture agree too, 279 of 279, but nothing conducts them there yet; the hands are ported nowhere |
+| `401` | The second and third tongues | **in progress** — a whole thought runs end to end in assembly on all three architectures, and all three produce the same 192 scores bit for bit over the same weights; what remains is the hands, which are ported nowhere |
 | `402` | Waking on the right foot | **completed** — the selection proved on all three architectures, the within-architecture detection written and proved by booting two different processors and requiring them to disagree, 18 of 18 |
 
 ## Where the risk is
@@ -43,10 +43,16 @@ the obstacle it was budgeted as; the obstacle was that this assembler leaves
 a relocation on a branch to a label in its own file, which the word emitter
 (`054`) was built for a phase early.
 
-What is left of `401` is the conducting on the third architecture, and then
-the half that is not a translation at all: the hands. x86 reaches devices
-through a separate address space with its own instructions and the other two
-are memory-mapped throughout, so that hand changes shape rather than detail.
+What is left of `401` is the half that is not a translation at all: the
+hands. x86 reaches devices through a separate address space with its own
+instructions and the other two are memory-mapped throughout, so that hand
+changes shape rather than detail. Everything above the arithmetic and the
+conducting is still first-tongue only — the sampler, the tokenizer, the
+thinking loop, and every hand.
+
+The demo this phase names is now possible for the first time, and was not
+before: the same measurement across all three architectures side by side
+needs three engines that agree, and there are three.
 
 `402` turned out not to be what it looked like. There is no shared code that can
 detect a processor and pick an engine — machine code is not portable, so the
