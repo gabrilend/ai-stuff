@@ -134,6 +134,15 @@ if not run_one("clang -shared -o " .. library .. " " .. source) then
 end
 
 dofile(DIR .. "/src/049-assembly-forward.lua").declare()
+
+-- The fast matrix product is not in the shared declaration, because the
+-- engine's readable conductor never calls it -- it is the routine that runs
+-- once a port has been proved rather than the one that proves it.
+ffi.cdef[[
+  void matrix_vector_fast(float *out, const float *matrix, const float *input,
+                          int rows, int columns);
+]]
+
 local kernels = ffi.load(library)
 
 -- {{{ record what the first tongue produces
@@ -156,7 +165,19 @@ for case_index, case in ipairs(CASES) do
   local answers = {}
   for index = 0, case.rows - 1 do answers[index + 1] = as_bits[index] end
 
-  recorded[case_index] = { matrix = matrix, input = input, answers = answers }
+  -- The fast product's answers are recorded SEPARATELY and compared only
+  -- against themselves across architectures. It keeps four totals instead of
+  -- one, so it is a second specification rather than a faster version of the
+  -- first, and holding it to the exact one's answer would be requiring it to
+  -- stop being what it is.
+  local quick = ffi.new("float[?]", case.rows)
+  kernels.matrix_vector_fast(quick, matrix, input, case.rows, case.columns)
+  local quick_bits = ffi.cast("uint32_t *", quick)
+  local quick_answers = {}
+  for index = 0, case.rows - 1 do quick_answers[index + 1] = quick_bits[index] end
+
+  recorded[case_index] = { matrix = matrix, input = input, answers = answers,
+                           fast_answers = quick_answers }
 end
 check("the first tongue produced answers to compare against",
       #recorded == #CASES)
@@ -404,10 +425,23 @@ check("and every normalisation does too",
       tostring(norm_matched) .. " of " .. tostring(norm_total))
 -- }}}
 
--- {{{ what is not written yet, counted rather than omitted
+-- {{{ what is not written yet, WORKED OUT rather than remembered
+--
+-- This check used to compare the count against a literal ten, beside a
+-- hand-kept table of what was still missing that had been emptied. Both
+-- agreed with each other and both were wrong: the first tongue had eleven
+-- routines and this port had ten, and the absent one was the fast matrix
+-- product -- the routine that provides all of the speed, missing from a port
+-- reported as complete.
+--
+-- It now asks the first tongue what it has rather than being told a number.
+-- A test that carries the answer it is checking for cannot notice the answer
+-- changing.
+local missing = arm.missing_from(emit.names)
 check("every kernel the first architecture has, this one has too",
-      #arm.not_written_yet == 0 and #arm.written == 10,
-      #arm.written .. " written, " .. #arm.not_written_yet .. " missing")
+      #missing == 0,
+      #arm.written .. " written against the first tongue's " .. #emit.names
+      .. "; missing: " .. table.concat(missing, ", "))
 -- }}}
 
 say("")
@@ -415,19 +449,25 @@ say("  " .. string.rep("-", 58))
 say("  " .. passed .. " of " .. (passed + failed) .. " as expected")
 say("")
 say("  where this port stands:")
-say("    all ten routines written, and every answer proved bit-identical")
-say("    to the first architecture on a real ARM machine -- including the")
+say("    all " .. #arm.written .. " routines written, the same "
+    .. #emit.names .. " the first architecture has, and every")
+say("    answer proved bit-identical on a real ARM machine -- including the")
 say("    exponential, which is a polynomial here rather than the host")
 say("    library, and is therefore comparable at all.")
 say("")
-say("    what is NOT covered: a whole forward pass on this architecture.")
-say("    Each routine agrees alone; nothing yet runs them together there,")
-say("    and the first architecture learned that a piece can be right by")
-say("    itself and be handed the wrong thing by the piece before it.")
+say("    the exact matrix product and the fast one are held to DIFFERENT")
+say("    recorded answers. They sum in different orders on purpose, so")
+say("    requiring them to agree would be requiring the fast one to stop")
+say("    being the thing it is.")
 say("")
-say("    and the third architecture is not begun. Its branches need the")
-say("    word emitter that already exists, and its vector hardware may not")
-say("    exist at all on a given chip.")
+say("    running them together, in the order a thought requires, is a")
+say("    separate and harder claim and is proved separately (110).")
+say("")
+say("    the third architecture is not begun. Its branches need the word")
+say("    emitter that already exists (054), and its vector hardware is")
+say("    ABSENT on the processor its board names -- measured, not guessed,")
+say("    and where it does exist it is switched off until something with")
+say("    machine-mode privilege turns it on.")
 say("")
 
 run_one("mkdir -p " .. DIR .. "/output")

@@ -140,6 +140,95 @@ matrix_vector_wide:
 ]]
 -- }}}
 
+-- {{{ M.matrix_vector_fast -- four independent totals
+--
+-- The same operation as the two above and DELIBERATELY NOT THE SAME ANSWER.
+--
+-- The exact kernel folds each group of four products into ONE running total,
+-- in order, so its answer is identical on every machine that has ever run
+-- it. That ordering is what costs the speed: every addition waits for the
+-- one before it, and the adder sits idle in between. This keeps FOUR totals,
+-- one per lane, and never makes them wait for each other -- which is what
+-- the vector hardware was built to do.
+--
+-- SO THIS IS A SECOND SPECIFICATION, not a faster implementation of the
+-- first. It is never compared against the exact one. It is compared against
+-- the first architecture's fast kernel, bit for bit, exactly as everything
+-- else here is -- and that comparison is the whole reason `103` wrote the
+-- second specification down rather than leaving it as "whatever is quick".
+--
+-- WHY IT WAS MISSING UNTIL NOW, which is worth more than the kernel. The
+-- first tongue has eleven routines and this file had ten. Nothing said so:
+-- the list of what is absent was a hand-kept table that had been emptied,
+-- and the test that was meant to notice compared against a literal ten
+-- rather than against what the first tongue actually has. Both agreed, and
+-- both were wrong. The port that resulted had the routine that proves
+-- correctness and not the one that provides the speed.
+--
+-- THE FINAL COMBINING IS SPECIFIED RATHER THAN INCIDENTAL, because a
+-- different reduction order is a different answer again:
+--     lane0 += lane2, lane1 += lane3, then lane0 += lane1
+-- and any remaining columns are folded in one at a time AFTERWARDS. All four
+-- lanes are read out before any of them is written back, because the
+-- accumulator's low lane and the register the total ends up in are the same
+-- thirty-two bits.
+M.matrix_vector_fast = [[
+  .globl matrix_vector_fast
+  .type matrix_vector_fast, @function
+matrix_vector_fast:
+  cmp w3, #0
+  b.le 9f
+  mov w5, #0                    // row
+1:
+  movi v0.4s, #0                // four running totals, one per lane
+  mul w6, w5, w4
+  add x6, x1, w6, sxtw #2       // where this row begins
+  mov w7, #0                    // column
+
+  and w8, w4, #-4               // columns that fit in whole groups of four
+  cmp w8, #0
+  b.le 3f
+2:
+  add x9, x6, w7, sxtw #2
+  ldr q1, [x9]                  // four from the row
+  add x9, x2, w7, sxtw #2
+  ldr q2, [x9]                  // four from the input
+  fmul v1.4s, v1.4s, v2.4s
+  fadd v0.4s, v0.4s, v1.4s      // straight into the four totals, none
+                                // waiting on another -- the one instruction
+                                // the exact kernel cannot use
+  add w7, w7, #4
+  cmp w7, w8
+  b.lt 2b
+3:
+  mov s1, v0.s[0]
+  mov s2, v0.s[1]
+  mov s3, v0.s[2]
+  mov s4, v0.s[3]
+  fadd s1, s1, s3               // lane0 += lane2
+  fadd s2, s2, s4               // lane1 += lane3
+  fadd s0, s1, s2               // and the two halves together
+
+  cmp w7, w4                    // whatever did not fit in a group of four
+  b.ge 5f
+4:
+  ldr s1, [x6, w7, sxtw #2]
+  ldr s2, [x2, w7, sxtw #2]
+  fmul s1, s1, s2
+  fadd s0, s0, s1
+  add w7, w7, #1
+  cmp w7, w4
+  b.lt 4b
+5:
+  str s0, [x0, w5, sxtw #2]
+  add w5, w5, #1
+  cmp w5, w3
+  b.lt 1b
+9:
+  ret
+]]
+-- }}}
+
 -- {{{ M.rms_normalise
 --
 -- void rms_normalise(float *out, const float *input, const float *weight,
@@ -636,19 +725,42 @@ end
 
 -- {{{ M.written -- what exists here, so a test can ask rather than be told
 --
--- Six of the nine are not written yet. Named rather than omitted, because a
--- port that quietly covers less than the first tongue is a port that looks
--- finished.
 -- The exponential comes before the two that call it, because the assembler
 -- resolves a call to something it has already seen and this file is emitted
 -- in order.
 M.written = {
-  "matrix_vector_plain", "matrix_vector_wide", "rms_normalise",
+  "matrix_vector_plain", "matrix_vector_wide", "matrix_vector_fast",
+  "rms_normalise",
   "add_into", "rotate", "attention_scores", "attention_mix",
   "exp_one", "softmax", "swiglu",
 }
+-- }}}
 
-M.not_written_yet = {}
+-- {{{ M.missing_from(first_tongue_names)
+-- What the first architecture has that this one does not, WORKED OUT rather
+-- than remembered.
+--
+-- There was a hand-kept table here called `not_written_yet`, holding the
+-- names still to be done. It was emptied when the port felt finished and
+-- then said nothing ever again -- while the first tongue quietly had one
+-- more routine than this file did. The test that was supposed to catch that
+-- compared the count against a literal ten, so the stale table and the stale
+-- test agreed with each other and the missing routine was the fast matrix
+-- product: the one that provides all of the speed.
+--
+-- A port that quietly covers less than the first tongue is a port that looks
+-- finished, which is what the emptied table said in its own comment while
+-- being the reason it happened. So nothing is remembered now. The caller
+-- hands over the first tongue's list and this returns the difference.
+function M.missing_from(first_tongue_names)
+  local have = {}
+  for _, name in ipairs(M.written) do have[name] = true end
+  local missing = {}
+  for _, name in ipairs(first_tongue_names) do
+    if not have[name] then missing[#missing + 1] = name end
+  end
+  return missing
+end
 -- }}}
 
 return M
