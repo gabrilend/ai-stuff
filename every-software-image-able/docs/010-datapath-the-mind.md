@@ -42,6 +42,42 @@ situation where the seed is not self-sufficient.
 Writing the same program three times is the cost of not having a compiler. It is
 paid once, by people, before any of these machines exist.
 
+### Three at once, not one and then two
+
+**A piece of assembly is not finished until it exists on all three.** Write
+them together; do not write one and port it later. The cost is the same
+either way and the failures are not.
+
+*A list consulted later goes stale in between.* The fast matrix product was
+absent from the second architecture for weeks and nothing reported it — the
+first had it, the second was written afterwards against a list of what
+remained, and that list had been emptied when the port felt done. Written
+together there is no later for a list to go stale in, because there is no
+list.
+
+*A second implementation catches what a recorded answer cannot.* Composing
+the arithmetic found a rounding defect that was in the **reference**. No
+fixture could have caught it, because the fixture was produced by the thing
+that was wrong. Implementations written side by side check each other
+continuously; written in sequence they check the first one twice, and late.
+
+*Otherwise the first machine freezes the decisions.* That devices are reached
+through a separate address space on one architecture and are memory-mapped on
+the other two, and that the third has no vector hardware on the processor its
+board names — both are design questions belonging to the moment a routine is
+designed, and both were instead discovered while porting.
+
+*And carried text drifts the same way as carried code.* The bundled patterns
+told every machine that arguments arrive in the first architecture's
+registers — on all three cards, for as long as there were three, because they
+were written when there was one.
+
+What stays sequential is a different axis. **First light on physical hardware
+should happen on one board before three**, because integration fails there
+for reasons that have nothing to do with the instruction set, and finding
+those on one board is cheaper than on three (`003`). Write in parallel; debug
+on one board.
+
 ## The bundled patterns
 
 A set of recommended build patterns rides along on the chip. Named so far:

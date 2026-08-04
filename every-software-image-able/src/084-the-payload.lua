@@ -38,6 +38,22 @@ function M.build(options)
   local patterns = options.patterns
   local descriptions = options.descriptions
 
+  -- WHICH PROCESSOR THIS CARD IS FOR, and it is required rather than
+  -- defaulted. One of the patterns -- the calling convention -- is different
+  -- on every machine, and it is the one pattern that is an agreement rather
+  -- than a suggestion. Handing a machine somebody else's is an instruction
+  -- to write routines that return to addresses that were never return
+  -- addresses, on a machine with nothing above it to notice.
+  --
+  -- It carried the first architecture's registers to all three for as long
+  -- as there were three, because it was written when there was one.
+  local architecture = options.architecture
+  if not architecture then
+    error("084-the-payload: no architecture was given, and the patterns "
+          .. "cannot be written without one -- the calling convention is "
+          .. "different on every machine and there is no general form of it.")
+  end
+
   local atoms = {}
   local function carry(topic, content, resident)
     atoms[#atoms + 1] = {
@@ -94,7 +110,7 @@ function M.build(options)
   -- A pattern is relevant when the machine is about to build something of
   -- that shape, which is not at boot.
   for _, name in ipairs(patterns.names()) do
-    carry("pattern: " .. name, patterns.as_text(name), false)
+    carry("pattern: " .. name, patterns.as_text(name, architecture), false)
   end
   -- }}}
 
