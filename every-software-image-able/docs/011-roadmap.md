@@ -17,11 +17,23 @@ seed is growing.
 ```
 what people build                    what it becomes
 ─────────────────────                ─────────────────────
-the engine, in assembly       →      a machine that can think
+the engine, in assembly       →      arithmetic that can be trusted
+the driver, in assembly       →      a machine that can think
 the hands                     →      a machine that can act
 the instruction and patterns  →      a machine that knows what to do
 the image and the flasher     →      a machine that exists
 ```
+
+**The first two rows were one row until 2026-08-04**, and merging them cost
+this project a false reading of three phases. "The engine, in assembly"
+was taken to mean the arithmetic — which is written, three times over, and
+agrees with itself to the last bit on all three architectures. What it did
+not mean, and had to, is the program the firmware actually enters: the one
+that finds its own pieces without a linker, finds the model's tensors, lays
+out memory without an allocator, and runs the arithmetic in a loop forever.
+
+Arithmetic that agrees is not a machine that thinks. It is a machine that
+would think, if something drove it. That something is `107`.
 
 ## The phases
 
