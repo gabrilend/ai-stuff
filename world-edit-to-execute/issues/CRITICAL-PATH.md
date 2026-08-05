@@ -223,7 +223,7 @@ How should chat be integrated across both perspectives?
 **Priority:** 🟡 MEDIUM
 **Affects:** Phase 5 (rendering), Phase 7 (gameplay)
 **Status:** DECIDED
-**Source:** Issue 500, libs/wow-chat
+**Source:** Issue 500, the wow-chat addon (github.com/gabrilend/wow-chat)
 
 How should entities spawn in the world?
 
@@ -237,7 +237,10 @@ How should entities spawn in the world?
 - Empty base world (all static creatures removed)
 - Periodic spawn systems: Mordaunts (21s), Travellers (210s), Treasure (120s)
 - Same underlying events, different visual presentation per perspective
-- Reference implementation: libs/wow-chat/
+- Reference implementation: the wow-chat addon, read from
+  github.com/gabrilend/wow-chat rather than vendored here (the local copy under
+  `libs/` was removed 2026-08-04; it was a read-only reference, and keeping a
+  second copy of a published repository only invited the two to drift)
 **Decided by:** User
 **Date:** 2025-12-31
 **Details:** See issue 500 "Decided Answers" section (D8)
