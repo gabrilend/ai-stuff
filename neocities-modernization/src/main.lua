@@ -855,7 +855,9 @@ function M.test_single_similarity_page(poem_id)
 
         if poem_data then
             local ranking = flat_html_generator.generate_similarity_ranked_list(poem_id, poems_data, similarity_data.similarities or similarity_data)
-            -- Issue 10-036: Pass nil for chrono_mapping in test function (uses "01" fallback)
+            -- Issue 10-036: nil chrono_mapping here on purpose -- this is a dev test, not the
+            -- site build. The formatter now warns once and points at
+            -- chronological/index.html, which exists in both pagination modes.
             local html = flat_html_generator.generate_flat_poem_list_html(poem_data, ranking, "similar", poem_id, nil)
             local test_file = string.format("%s/test_similar_%03d.html", output_dir, poem_id)
             os.execute("mkdir -p " .. output_dir)
@@ -893,7 +895,9 @@ function M.test_single_difference_page(poem_id)
         if poem_data then
             local diversity_chaining = require("diversity-chaining")
             local ranking = diversity_chaining.generate_diversity_chain(poem_id, poems_data, embeddings_data)
-            -- Issue 10-036: Pass nil for chrono_mapping in test function (uses "01" fallback)
+            -- Issue 10-036: nil chrono_mapping here on purpose -- this is a dev test, not the
+            -- site build. The formatter now warns once and points at
+            -- chronological/index.html, which exists in both pagination modes.
             local html = flat_html_generator.generate_flat_poem_list_html(poem_data, ranking, "different", poem_id, nil)
             local test_file = string.format("%s/test_different_%03d.html", output_dir, poem_id)
             os.execute("mkdir -p " .. output_dir)
