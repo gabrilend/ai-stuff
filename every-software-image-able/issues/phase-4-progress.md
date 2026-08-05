@@ -77,5 +77,23 @@ where the seed is not self-sufficient.
 
 ## Demo
 
-The same measurement from `106` run across all three architectures, side by side,
-from one recipe.
+`issues/completed/demos/phase-4-three-tongues.sh`, chosen through `run-demo`
+at the project root.
+
+It was planned as the measurement from `106` run across all three
+architectures side by side, and that is not what phase 4 turned out to be
+about. Speed is a property of a board; what this phase built is three
+engines written by hand that produce **the same numbers to the last bit**,
+and a table of three times-per-second would say nothing about that.
+
+So the demo counts agreements instead -- every comparison every architecture
+has been put through, with what it was held to beside it -- and then boots a
+real emulated machine of each kind and earns them in front of the reader.
+`--quick` skips the booting and says so, because without it the numbers are a
+story rather than a claim.
+
+Every figure in the summary is derived rather than typed. That is not a
+principle applied in advance: the count of routines was written into it by
+hand as eleven and was **twelve** by the time it first ran, because a routine
+had been added in between. It caught itself doing the thing this phase has
+already been bitten by once.
