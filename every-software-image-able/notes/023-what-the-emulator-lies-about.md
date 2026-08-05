@@ -498,3 +498,43 @@ have cost anything yet, which means none of them have been confirmed either.
 Emulated tokens-per-second is not slow-but-indicative. It is meaningless, and
 putting it in a table beside a real measurement invites somebody to compare
 them. Keep those figures in their own place, marked (`106`).
+
+---
+
+## Sixteen: how much stack a payload actually has
+
+**Paid for on 2026-08-04, in about forty minutes, during `107`.**
+
+A payload reserved a hundred and twenty-eight kilobytes of stack for its own
+working memory. That is exactly what the firmware specification guarantees a
+loaded program — all of it — so the pointer landed at the very bottom, and
+the first call back into firmware pushed past the end.
+
+**What it looked like:** the payload said its greeting and two of its three
+marks, and then took a synchronous exception with no handler. Precisely the
+silence class, and diagnosed exactly the way this project's failures always
+are: by the last mark printed.
+
+**What made it slow to find** was not the fault. It was two probes that lied
+about where the fault was.
+
+The first read the answer of a routine *after* saying something. Saying
+something calls firmware, firmware returns its own status in the register an
+answer arrives in, and that status is zero for success — so a routine that
+had correctly found twenty-two tensors was reported as having found none, and
+sent the hunt into the one piece that was working. The second probe made the
+same mistake with a different register.
+
+**The rule, and it is not new so much as newly expensive:** on a machine with
+nothing above it, a diagnostic that runs *through* the firmware is a
+diagnostic that has already changed the thing it is measuring. Anything to be
+reported is copied into a register the callee must give back, before the
+first word is said.
+
+That is the fourth time in this project a tool reading the evidence has been
+the thing at fault, and the second time in two days.
+
+**What is not known:** how much stack a real board leaves. The guarantee is a
+floor, firmware may leave more, and a payload that quietly relies on more
+than the floor works everywhere until it does not. The number a payload takes
+should be a fraction of the guarantee and nothing else.
