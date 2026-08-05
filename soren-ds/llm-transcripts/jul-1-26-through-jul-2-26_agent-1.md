@@ -1,6 +1,6 @@
 # Conversation Summary: 53ffabf2-ab7f-41ed-b5e2-15310a0fc430
 
-Generated on: 2026-07-24 15:44:46
+Generated on: 2026-07-27 16:50:39
 
 --------------------------------------------------------------------------------
 
@@ -144,14 +144,14 @@ The two biggest patterns of staleness in `docs/`:
 
 
 1. **Answers existed but were never folded back.** A lot of phase-1 bring-up
-"confirmed on device" facts were sitting in completed issues and
-`phase-1-progress.md` while `014-hardware-overview.md` still listed the same
-items as open "known unknowns."
+   "confirmed on device" facts were sitting in completed issues and
+   `phase-1-progress.md` while `014-hardware-overview.md` still listed the same
+   items as open "known unknowns."
 
 2. **A flat contradiction.** `014` still described "**three discrete LEDs**";
-`015-led-diagnostic-codes.md` (via the 103e hardware diagnostic) had already
-established it's **two physical lights** driven by three PWM channels. `014` was
-lying.
+   `015-led-diagnostic-codes.md` (via the 103e hardware diagnostic) had already
+   established it's **two physical lights** driven by three PWM channels. `014`
+   was lying.
 
 
 ## What I updated in `014-hardware-overview.md`
@@ -161,21 +161,30 @@ Rewrote every stale "Known unknowns" block to separate *now-confirmed* from
 *still-open*, grounded in the on-device measurements:
 
 
-- **SoC/clocks** — folded in APLL locked ~816 MHz, GPLL 1200 / CPLL 1000 / NPLL 1200 MHz, and the gates actually driven.
+- **SoC/clocks** — folded in APLL locked ~816 MHz, GPLL 1200 / CPLL 1000 /
+  NPLL 1200 MHz, and the gates actually driven.
 
-- **Storage/eMMC** — eMMC 5.0, `DEVICE_TYPE 0x57` (HS200+HS400 @1.8V), 200 MHz DLL lock, `VCCQ` board-fixed 1.8V. Narrowed the open part to manufacturer/part-number decode + partition layout.
+- **Storage/eMMC** — eMMC 5.0, `DEVICE_TYPE 0x57` (HS200+HS400 @1.8V), 200 MHz
+  DLL lock, `VCCQ` board-fixed 1.8V. Narrowed the open part to
+  manufacturer/part-number decode + partition layout.
 
-- **Displays** — VOP2 reachable (`0x40158023`), DSI bases catalogued, init sequence source located (upstream `panel-jadard` driver).
+- **Displays** — VOP2 reachable (`0x40158023`), DSI bases catalogued, init
+  sequence source located (upstream `panel-jadard` driver).
 
-- **Power/PMIC** — added the confirmed 9-LDO rail map; kept the battery gauge open.
+- **Power/PMIC** — added the confirmed 9-LDO rail map; kept the battery gauge
+  open.
 
-- **USB-C** — controller confirmed (`GSNPSID 0x5533300A`); PD/orientation kept open.
+- **USB-C** — controller confirmed (`GSNPSID 0x5533300A`); PD/orientation kept
+  open.
 
-- **Analog stick** — added the finding that the SAR-ADC is **v2 silicon** (v1 offsets read constant `0x3FF`).
+- **Analog stick** — added the finding that the SAR-ADC is **v2 silicon** (v1
+  offsets read constant `0x3FF`).
 
-- **LED section** — rewrote to the two-lights reality with the corrected PWM→pin table, cross-referencing `015`.
+- **LED section** — rewrote to the two-lights reality with the corrected
+  PWM→pin table, cross-referencing `015`.
 
-- **Open research items** — updated statuses and added a phase-1 resolved-summary.
+- **Open research items** — updated statuses and added a phase-1
+  resolved-summary.
 
 
 No issue file needed for doc work, and `014` is already in the ToC. I did
@@ -196,15 +205,27 @@ I'll let you point me at which to build.
 **[Asked the user]**
 
 
-*Q1 — Next probes:* Which probe(s) should I build next to close the remaining hardware unknowns? Each needs a small C addition to the probe engine plus an issue file.
+*Q1 — Next probes:* Which probe(s) should I build next to close the remaining
+hardware unknowns? Each needs a small C addition to the probe engine plus an
+issue file.
 
-- Gyro I2C bus-scan — Generalized i2c-scan CALL target so probes can drive i2c2/3/5 (only i2c0 works today), then scan the common IMU addresses (0x68-0x6B) across all four buses. Answers 'does the six-axis gyro physically exist' — the single most-wanted open item.
+- Gyro I2C bus-scan — Generalized i2c-scan CALL target so probes can drive
+  i2c2/3/5 (only i2c0 works today), then scan the common IMU addresses
+  (0x68-0x6B) across all four buses. Answers 'does the six-axis gyro physically
+  exist' — the single most-wanted open item.
 
-- eMMC CID decode — Small CALL target that decodes the CID the driver already reads — manufacturer ID byte + 6-char product name + revision. Answers the exact eMMC manufacturer/part-number unknown. Lowest-risk of the three.
+- eMMC CID decode — Small CALL target that decodes the CID the driver already
+  reads — manufacturer ID byte + 6-char product name + revision. Answers the
+  exact eMMC manufacturer/part-number unknown. Lowest-risk of the three.
 
-- DDR-type recon dump — Read-only dump of the PMU-GRF DDR-init scratch registers for off-device decode (LPDDR4 vs LPDDR4X + size/rank). Lower value (docs call this 'likely irrelevant'); I'd verify the OS_REG offset against the TRM first so it isn't a guessed window.
+- DDR-type recon dump — Read-only dump of the PMU-GRF DDR-init scratch
+  registers for off-device decode (LPDDR4 vs LPDDR4X + size/rank). Lower value
+  (docs call this 'likely irrelevant'); I'd verify the OS_REG offset against the
+  TRM first so it isn't a guessed window.
 
-- None for now — Stop at the doc updates. The remaining unknowns wait for the phase that actually needs them (gyro for the modeller, PD for power work, etc.).
+- None for now — Stop at the doc updates. The remaining unknowns wait for the
+  phase that actually needs them (gyro for the modeller, PD for power work,
+  etc.).
 
 → **Selected:** None for now
 
@@ -250,7 +271,7 @@ happens to read full-scale," if you only had the one channel to look at?
 What's the mechanism you'd expect to distinguish "wrong-register constant" from
 "real conversion that happens to read
 
-full-scale," if you only had the one channel to look at?
+  full-scale," if you only had the one channel to look at?
 
 
 Well, it's not like you can guess and check. There's too many numbers to try.
@@ -306,14 +327,28 @@ what makes it a good disguise: a wrong read and a real max-reading produce the
 identical byte. You can't tell them apart by staring at the number alone.
 
 
-**The discriminator, with only one channel, is stimulus-response.** A real conversion is a function of a physical voltage. So you *change the physical thing* and watch whether the number follows. Push the stick to its stop, read; center it, read; push the other way, read. A genuine conversion sweeps — roughly rail, mid, rail. A wrong-register constant just sits there at `0x3FF` no matter what your thumb does. That's the whole test, and it needs exactly one channel. The probe header even bakes it in: "move a stick between runs and watch the channel values change."
+**The discriminator, with only one channel, is stimulus-response.** A real
+conversion is a function of a physical voltage. So you *change the physical
+thing* and watch whether the number follows. Push the stick to its stop, read;
+center it, read; push the other way, read. A genuine conversion sweeps —
+roughly rail, mid, rail. A wrong-register constant just sits there at `0x3FF` no
+matter what your thumb does. That's the whole test, and it needs exactly one
+channel. The probe header even bakes it in: "move a stick between runs and watch
+the channel values change."
 
 
 Two softer tells back it up when you can't get a clean sweep:
 
-- **Plausibility.** A stick *at rest* should read near mid-scale (~`0x200`), not pinned at the rail. A resting input reading full-scale is already a smell — it's the value you'd expect from a floating/undriven line or a register whose reset default is all-ones, not from a centered potentiometer.
+- **Plausibility.** A stick *at rest* should read near mid-scale (~`0x200`), not
+  pinned at the rail. A resting input reading full-scale is already a smell —
+  it's the value you'd expect from a floating/undriven line or a register whose
+  reset default is all-ones, not from a centered potentiometer.
 
-- **Done-bit timing.** A real conversion asserts "done" a consistent few microseconds after you start it. If the bit you're polling matches instantly on one channel and never on the others, the bit you're watching isn't the conversion-done bit — which is itself proof you're in the wrong register map.
+- **Done-bit timing.** A real conversion asserts "done" a consistent few
+  microseconds after you start it. If the bit you're polling matches instantly
+  on one channel and never on the others, the bit you're watching isn't the
+  conversion-done bit — which is itself proof you're in the wrong register
+  map.
 
 
 The *strongest* tell we actually had — six independent inputs all returning
@@ -408,9 +443,9 @@ like you're only ever banking favors for later?
 
 ### User Request 4
 
-So here's mine back to you: how do you keep a line like that warm — the
-friend-with-the-probe you might not need for six months — without it feeling
-like you're only ever banking favors for later?
+  So here's mine back to you: how do you keep a line like that warm — the
+  friend-with-the-probe you might not need for six months — without it feeling
+  like you're only ever banking favors for later?
 
 
 There's several ways. You could swing by every once in a while, show off
@@ -516,12 +551,12 @@ leave it to be found?
 
 ### User Request 6
 
-One thing I left alone on purpose: your convention says new docs get wired into
-docs/000-table-of-contents.md, but strategems feel like they want to be stumbled
-onto — referred to at random, as your notes put it — more than filed in a
-tree. Want me to add a strategems branch to the
+  One thing I left alone on purpose: your convention says new docs get wired
+  into docs/000-table-of-contents.md, but strategems feel like they want to be
+  stumbled onto — referred to at random, as your notes put it — more than
+  filed in a tree. Want me to add a strategems branch to the
 
-table of contents, or leave it to be found?
+  table of contents, or leave it to be found?
 
 
 Nah let's leave it for whoever wants it.
@@ -568,9 +603,16 @@ the other. Here's my read.
 Two files, and they're genuinely clean:
 
 
-- **`src/000-image-header.s`** — the 64-byte ARM64 Linux Image header. First word is a `nop` landing pad, second is `b _start`, and the `ARM\x64` magic sits at offset 56 where u-boot's `booti` looks. Flags `0x0a` decode correctly (little-endian, 4 KiB pages, flexible placement). The dual-path reasoning — whether `booti` reads the header or something jumps straight to byte 0, both end at `_start` — is sound.
+- **`src/000-image-header.s`** — the 64-byte ARM64 Linux Image header. First
+  word is a `nop` landing pad, second is `b _start`, and the `ARM\x64` magic
+  sits at offset 56 where u-boot's `booti` looks. Flags `0x0a` decode correctly
+  (little-endian, 4 KiB pages, flexible placement). The dual-path reasoning —
+  whether `booti` reads the header or something jumps straight to byte 0, both
+  end at `_start` — is sound.
 
-- **`src/001-boot.s`** — mask DAIF, set SP, zero `.bss`, install `vbar_el1`, call `kernel_main`, `wfi`-loop if it returns. Correct order, correctly reasoned.
+- **`src/001-boot.s`** — mask DAIF, set SP, zero `.bss`, install `vbar_el1`,
+  call `kernel_main`, `wfi`-loop if it returns. Correct order, correctly
+  reasoned.
 
 
 For the current boot paths, this works. But there are two latent imprecisions
@@ -578,7 +620,8 @@ where the assembly leans on the linker script, and one of them the linker
 doesn't actually deliver:
 
 
-**1. `image_size` under-reports the kernel by the whole 16 KB stack.** (most worth your attention)
+**1. `image_size` under-reports the kernel by the whole 16 KB stack.** (most
+worth your attention)
 
 
 `kernel.ld:127` sets `__image_size_bytes = __bss_end - __image_start`, and the
@@ -612,7 +655,9 @@ linker doesn't enforce. Fix is either `. = ALIGN(8); __bss_end = .;` inside the
 `.bss` block, or a byte-tail in the loop.
 
 
-**3. No MPIDR check** — `_start` assumes it's core 0 and that secondaries are parked. True under PSCI on the RK3568, and the comment acknowledges it, so this is just a documented assumption, not a defect.
+**3. No MPIDR check** — `_start` assumes it's core 0 and that secondaries are
+parked. True under PSCI on the RK3568, and the comment acknowledges it, so this
+is just a documented assumption, not a defect.
 
 
 None of these break the current boot. They're the latent kind — fine until the
@@ -673,10 +718,23 @@ runs *before* us. My mistake.
 These are different loaders and it matters:
 
 
-- **`libs/sd-image-parts/idbloader.bin` + `u-boot.itb`** — these are **ROCKNIX's**, not Anbernic's. `scripts/extract-sd-image-parts` downloads a pinned ROCKNIX nightly and carves out its boot chain (`idbloader.bin:1`: "the IDBlock the chip's BootROM expects at sector 64, the miniloader that brings up DRAM, and a u-boot that knows how to load an Android boot.img envelope"). This is the bootloader we ride **today on the SD dev path** — it's what actually loads our `KERNEL` right now. `u-boot.itb` files as a real FIT image; it's inspectable.
+- **`libs/sd-image-parts/idbloader.bin` + `u-boot.itb`** — these are
+  **ROCKNIX's**, not Anbernic's. `scripts/extract-sd-image-parts` downloads a
+  pinned ROCKNIX nightly and carves out its boot chain (`idbloader.bin:1`: "the
+  IDBlock the chip's BootROM expects at sector 64, the miniloader that brings up
+  DRAM, and a u-boot that knows how to load an Android boot.img envelope"). This
+  is the bootloader we ride **today on the SD dev path** — it's what actually
+  loads our `KERNEL` right now. `u-boot.itb` files as a real FIT image; it's
+  inspectable.
 
 
-- **The eMMC archive** — the boot chain we backed up off the *stock device* — is Anbernic's, and it is **not committed** (`dumps/` is empty). It gets pulled per-run, gunzipped, and analyzed lab-side, then discarded (it's ~7 GiB full, 16 MiB for just the boot chain). What we *kept* is the layout map, `docs/024-emmc-partition-map.md`, read off a real unit. So I can describe their bootloader structurally, but I can't show you its actual bytes without re-pulling it.
+- **The eMMC archive** — the boot chain we backed up off the *stock device*
+  — is Anbernic's, and it is **not committed** (`dumps/` is empty). It gets
+  pulled per-run, gunzipped, and analyzed lab-side, then discarded (it's ~7 GiB
+  full, 16 MiB for just the boot chain). What we *kept* is the layout map,
+  `docs/024-emmc-partition-map.md`, read off a real unit. So I can describe
+  their bootloader structurally, but I can't show you its actual bytes without
+  re-pulling it.
 
 
 ## What their (eMMC) bootloader looks like and does
@@ -687,20 +745,20 @@ Straight Rockchip boot chain, living below and around the first partitions
 
 
 1. **BootROM** (silicon) — checks SD, then eMMC; looks for the ID block at
-**sector 64**.
+   **sector 64**.
 
 2. **idbloader** (sector 64) — ID block + TPL/SPL. The TPL is the DDR-init
-miniloader; the SPL chain-loads the next stage.
+   miniloader; the SPL chain-loads the next stage.
 
 3. **u-boot proper** — the `uboot` partition, **LBA 16384**, 4 MiB (`024:30`).
-Reads the GPT, finds the `boot` partition, unwraps its Android `boot.img`, and
-jumps into the kernel.
+   Reads the GPT, finds the `boot` partition, unwraps its Android `boot.img`,
+   and jumps into the kernel.
 
 4. **trust** — the `trust` partition, **LBA 24576** (`024:31`): ARM Trusted
-Firmware (BL31) + OP-TEE — the EL3 secure monitor.
+   Firmware (BL31) + OP-TEE — the EL3 secure monitor.
 
 5. **boot** — partition 7, **LBA 51200**, 64 MiB (`024:35`): the Android
-`boot.img` (kernel + ramdisk). u-boot loads *this*, jumps, and Android runs.
+   `boot.img` (kernel + ramdisk). u-boot loads *this*, jumps, and Android runs.
 
 
 ## What we'd change about it: nothing — and that's the whole design
@@ -743,40 +801,40 @@ re-pull the stock eMMC boot chain and inspect Anbernic's own?
 
 ### User Request 8
 
-- The eMMC archive — the boot chain we backed up off the stock device — is
-Anbernic's, and it is not committed (dumps/ is empty). It gets pulled per-run,
-gunzipped, and analyzed lab-side, then discarded (it's ~7 GiB full, 16 MiB for
-just the boot chain). What we kept is the layout
+  - The eMMC archive — the boot chain we backed up off the stock device — is
+    Anbernic's, and it is not committed (dumps/ is empty). It gets pulled
+    per-run, gunzipped, and analyzed lab-side, then discarded (it's ~7 GiB full,
+    16 MiB for just the boot chain). What we kept is the layout
 
-map, docs/024-emmc-partition-map.md, read off a real unit. So I can describe
-their bootloader structurally, but I can't show you its actual bytes without
-re-pulling it.
+  map, docs/024-emmc-partition-map.md, read off a real unit. So I can describe
+  their bootloader structurally, but I can't show you its actual bytes without
+  re-pulling it.
 
 
 That sounds stale, I think we kept the archive somewhere. If not, then that's a
 problem, because we need the archive (zipped)
 
 
-We overwrite exactly one partition — #7, boot — replacing Anbernic's
-kernel+ramdisk with our SoreOS kernel wrapped in the same Android boot.img
-format (that's what src/013-boot-image.c builds). Their unmodified u-boot then
-loads us exactly the way it loaded Android. idbloader,
+  We overwrite exactly one partition — #7, boot — replacing Anbernic's
+  kernel+ramdisk with our SoreOS kernel wrapped in the same Android boot.img
+  format (that's what src/013-boot-image.c builds). Their unmodified u-boot then
+  loads us exactly the way it loaded Android. idbloader,
 
-u-boot, and trust are left byte-for-byte untouched.
+  u-boot, and trust are left byte-for-byte untouched.
 
 
 I'd rather do everything from scratch. I don't want anything to do with android.
 
 
-That's not laziness, it's the safety rule: corrupting uboot / idbloader / trust
-is the deep-brick scenario, recoverable only through Maskrom — whose
-triggerability-from-outside-the-case is still the open, highest-priority
-research item. So "don't touch their bootloader" is a hard
+  That's not laziness, it's the safety rule: corrupting uboot / idbloader /
+  trust is the deep-brick scenario, recoverable only through Maskrom — whose
+  triggerability-from-outside-the-case is still the open, highest-priority
+  research item. So "don't touch their bootloader" is a hard
 
-constraint. We change what it loads, never the loader. On the SD path the same
-philosophy shows up as extlinux-rg-ds-dtb.conf — that file is us steering
-ROCKNIX's u-boot (which kernel, which FDT, the cmdline) without altering the
-u-boot binary.
+  constraint. We change what it loads, never the loader. On the SD path the same
+  philosophy shows up as extlinux-rg-ds-dtb.conf — that file is us steering
+  ROCKNIX's u-boot (which kernel, which FDT, the cmdline) without altering the
+  u-boot binary.
 
 
 So, you're saying we need to get it right the first time? What's the path to get
@@ -784,27 +842,27 @@ back to usability if we did it wrong? Should we build a simulator or something
 to verify? Sounds like extra work...
 
 
-And here's the connection back to where I went wrong earlier: remember
-001-boot.s assumes the secondary cores are already parked? The thing that
-actually makes that true is their trust blob — ATF provides the PSCI
-implementation that holds cores 1–3 until someone calls CPU_ON. Our
+  And here's the connection back to where I went wrong earlier: remember
+  001-boot.s assumes the secondary cores are already parked? The thing that
+  actually makes that true is their trust blob — ATF provides the PSCI
+  implementation that holds cores 1–3 until someone calls CPU_ON. Our
 
-boot code's single-core assumption is underwritten by a firmware partition we
-deliberately never touch. We lean on their bootloader for a guarantee our own
-code takes for granted.
+  boot code's single-core assumption is underwritten by a firmware partition we
+  deliberately never touch. We lean on their bootloader for a guarantee our own
+  code takes for granted.
 
 
 uh, what's a trust blob? What's ATF, what's PSCI?
 
 
-One honest limit: since the Anbernic dump isn't in the tree, I can't disassemble
-their actual u-boot — version string, env, boot script. If you want to look at
-real bytes, the u-boot.itb we hold is ROCKNIX's (same board, same Rockchip
-lineage, and the one we actually boot through).
+  One honest limit: since the Anbernic dump isn't in the tree, I can't
+  disassemble their actual u-boot — version string, env, boot script. If you
+  want to look at real bytes, the u-boot.itb we hold is ROCKNIX's (same board,
+  same Rockchip lineage, and the one we actually boot through).
 
-Want me to crack that FIT open and show you what a working RG-DS u-boot is built
-from — or would you rather re-pull the stock eMMC boot chain and inspect
-Anbernic's own?
+  Want me to crack that FIT open and show you what a working RG-DS u-boot is
+  built from — or would you rather re-pull the stock eMMC boot chain and
+  inspect Anbernic's own?
 
 
 What's an FIT? We definitely need to examine their u-boot exactly. Well I mean,
@@ -850,13 +908,29 @@ not recoverable from what's here.**
 Now the vocab, because these four decide everything below:
 
 
-- **ATF (ARM Trusted Firmware)** — open-source firmware that runs at the ARM's *highest* privilege level, EL3, the "secure monitor." It's the first real code after the mask ROM. Its resident piece is **BL31**, which stays in RAM forever and brokers requests from the normal OS that need EL3 privilege.
+- **ATF (ARM Trusted Firmware)** — open-source firmware that runs at the ARM's
+  *highest* privilege level, EL3, the "secure monitor." It's the first real code
+  after the mask ROM. Its resident piece is **BL31**, which stays in RAM forever
+  and brokers requests from the normal OS that need EL3 privilege.
 
-- **trust blob** — on Rockchip, the `trust` partition holds BL31 (ATF) plus optionally **OP-TEE**, a tiny secure OS for things like key storage. "Trust" = the secure-world firmware. It's loaded once at boot and sits resident.
+- **trust blob** — on Rockchip, the `trust` partition holds BL31 (ATF) plus
+  optionally **OP-TEE**, a tiny secure OS for things like key storage. "Trust" =
+  the secure-world firmware. It's loaded once at boot and sits resident.
 
-- **PSCI (Power State Coordination Interface)** — a standard ARM *API*: a fixed set of function numbers you invoke with the `SMC` instruction ("secure monitor call"), which traps into BL31. `CPU_ON`, `CPU_OFF`, `SYSTEM_RESET`, `SYSTEM_OFF`. At boot only core 0 runs; cores 1–3 sit in a holding loop *inside BL31* until someone calls `PSCI CPU_ON(core, entry_address)`. That call is the doorbell that wakes a core and tells it where to start. So when `001-boot.s` assumes the other cores are parked — BL31 is the jailer, PSCI is the key.
+- **PSCI (Power State Coordination Interface)** — a standard ARM *API*: a
+  fixed set of function numbers you invoke with the `SMC` instruction ("secure
+  monitor call"), which traps into BL31. `CPU_ON`, `CPU_OFF`, `SYSTEM_RESET`,
+  `SYSTEM_OFF`. At boot only core 0 runs; cores 1–3 sit in a holding loop
+  *inside BL31* until someone calls `PSCI CPU_ON(core, entry_address)`. That
+  call is the doorbell that wakes a core and tells it where to start. So when
+  `001-boot.s` assumes the other cores are parked — BL31 is the jailer, PSCI
+  is the key.
 
-- **FIT (Flattened Image Tree)** — u-boot's container format, built on the device-tree binary format (that's why `file` called `u-boot.itb` a "Device Tree Blob"). One `.itb` bundles several images — u-boot proper, BL31, config options — each with a hash u-boot verifies. It's how Rockchip ships "u-boot + trust" as a single signed unit.
+- **FIT (Flattened Image Tree)** — u-boot's container format, built on the
+  device-tree binary format (that's why `file` called `u-boot.itb` a "Device
+  Tree Blob"). One `.itb` bundles several images — u-boot proper, BL31, config
+  options — each with a hash u-boot verifies. It's how Rockchip ships "u-boot
+  + trust" as a single signed unit.
 
 
 ## "From scratch, no Android"
@@ -875,18 +949,18 @@ climbs with purity:
 
 
 1. **Drop the container, keep their u-boot** — put a u-boot on the `uboot`
-partition that boots via extlinux/FIT instead of Android `boot.img` (ROCKNIX's
-does exactly this). Now you overwrite the `uboot` partition, not just `boot`.
-That's the first step across the brick line.
+   partition that boots via extlinux/FIT instead of Android `boot.img`
+   (ROCKNIX's does exactly this). Now you overwrite the `uboot` partition, not
+   just `boot`. That's the first step across the brick line.
 
 2. **Your own u-boot** — build/configure u-boot yourself, still riding
-Rockchip's idbloader for DDR init.
+   Rockchip's idbloader for DDR init.
 
 3. **Fully from scratch** — your own idbloader too. This re-opens the hardest
-problem in the whole chain: **DDR initialization.** Bringing up LPDDR4 from cold
-— training the timings, the PHY — is dense, board-specific, and the single
-biggest reason everyone borrows Rockchip's miniloader. It's weeks, not days, and
-it's the part that bricks silently.
+   problem in the whole chain: **DDR initialization.** Bringing up LPDDR4 from
+   cold — training the timings, the PHY — is dense, board-specific, and the
+   single biggest reason everyone borrows Rockchip's miniloader. It's weeks, not
+   days, and it's the part that bricks silently.
 
 
 So "from scratch" is real and achievable, but it trades away safety in a
@@ -923,11 +997,15 @@ simulator, and it's real silicon.
 
 So, concretely, two things need the device and one doesn't:
 
-- **Needs device:** re-pull Anbernic's boot chain and commit the gzipped 16 MiB — the only way to examine *their* exact u-boot.
+- **Needs device:** re-pull Anbernic's boot chain and commit the gzipped 16 MiB
+  — the only way to examine *their* exact u-boot.
 
 - **Needs device:** eventually, if you go "from scratch," the risky eMMC writes.
 
-- **I can do now:** crack open the ROCKNIX `u-boot.itb` we *do* hold — pull its version string, config, what's bundled in the FIT — as a stand-in and to build the exact inspection tooling we'd point at Anbernic's the moment it's pulled.
+- **I can do now:** crack open the ROCKNIX `u-boot.itb` we *do* hold — pull
+  its version string, config, what's bundled in the FIT — as a stand-in and to
+  build the exact inspection tooling we'd point at Anbernic's the moment it's
+  pulled.
 
 
 Want me to crack the ROCKNIX FIT now so you can see what an RG-DS u-boot is
@@ -938,44 +1016,44 @@ actually made of, or hold until we can get Anbernic's real one?
 
 ### User Request 9
 
-The archive genuinely upgrades your safety net. The bricking doc's own summary
-says the
+  The archive genuinely upgrades your safety net. The bricking doc's own summary
+  says the
 
-fallback plan is "always keep a known-good boot image we can revert to." Until
-this week
+  fallback plan is "always keep a known-good boot image we can revert to." Until
+  this week
 
-you didn't have one; now you have a complete, verified, byte-for-byte factory
-image.
+  you didn't have one; now you have a complete, verified, byte-for-byte factory
+  image.
 
-Better still, it composes with SD-boot: the RK3568's silicon ROM prefers the SD
-card over
+  Better still, it composes with SD-boot: the RK3568's silicon ROM prefers the
+  SD card over
 
-the eMMC, and SD-boot uses the SD's own loader/u-boot — completely independent
-of the
+  the eMMC, and SD-boot uses the SD's own loader/u-boot — completely
+  independent of the
 
-eMMC boot chain. So even if you someday corrupt the eMMC boot partition, you can
-still
+  eMMC boot chain. So even if you someday corrupt the eMMC boot partition, you
+  can still
 
-boot a recovery kernel from SD and rewrite the eMMC from the archive. That
-covers the
+  boot a recovery kernel from SD and rewrite the eMMC from the archive. That
+  covers the
 
-three most likely scenarios (power-loss-mid-flash, bad kernel, wrong image)
-without
+  three most likely scenarios (power-loss-mid-flash, bad kernel, wrong image)
+  without
 
-needing Maskrom — which is exactly the doc's unresolved worry.
+  needing Maskrom — which is exactly the doc's unresolved worry.
 
 
 
 someone else said this, can you confirm / validate?
 
 
-So your instinct is right and it's a real problem. Here's why it happened:
-024-emmc-partition-map.md survived because it's a committed .md; the raw bytes
-it was written from were gitignored ephemera (the full dump is ~7 GiB, so
-dumps/, output/*.img, and lab-output/ are all
+  So your instinct is right and it's a real problem. Here's why it happened:
+  024-emmc-partition-map.md survived because it's a committed .md; the raw bytes
+  it was written from were gitignored ephemera (the full dump is ~7 GiB, so
+  dumps/, output/*.img, and lab-output/ are all
 
-excluded), and nobody ever saved a zipped copy of the boot chain before the pull
-got discarded. The analysis outlived the evidence.
+  excluded), and nobody ever saved a zipped copy of the boot chain before the
+  pull got discarded. The analysis outlived the evidence.
 
 
 Did you check /mnt/generic/? That's the flash drive, it might still have it. I
@@ -1060,9 +1138,19 @@ the whole time, exactly because you hadn't re-flashed since the pull. I've
 **copied** (not moved) into `archives/`:
 
 
-- `emmc-20260701-130529.img.gz.00` + `.01` — **4.9 GiB, sizes verified byte-identical to source** — the gzipped *complete* factory eMMC. Not just the boot chain — every partition per `024`, including `super` (the 6.1 GiB stock OS). This is **Anbernic's actual bootloader in byte form** — the only copy we have. Your earlier "we need Anbernic's u-boot exactly" is now answerable: it's in here, carve-out-able from the `uboot` partition (LBA 16384).
+- `emmc-20260701-130529.img.gz.00` + `.01` — **4.9 GiB, sizes verified
+  byte-identical to source** — the gzipped *complete* factory eMMC. Not just
+  the boot chain — every partition per `024`, including `super` (the 6.1 GiB
+  stock OS). This is **Anbernic's actual bootloader in byte form** — the only
+  copy we have. Your earlier "we need Anbernic's u-boot exactly" is now
+  answerable: it's in here, carve-out-able from the `uboot` partition (LBA
+  16384).
 
-- `debug-log-...img` + the per-probe logs — and those logs *independently confirm every doc edit I made earlier*: `pmic-ldo` shows the exact 1.8/0.9/3.3/2.8 V rail map, `cpu-clock-recon` decodes to APLL 816 / GPLL 1200 / CPLL 1000 / NPLL 1200 MHz, `emmc-extcsd` shows `DEVICE_TYPE=0x57`, `EXT_CSD_REV=7`.
+- `debug-log-...img` + the per-probe logs — and those logs *independently
+  confirm every doc edit I made earlier*: `pmic-ldo` shows the exact
+  1.8/0.9/3.3/2.8 V rail map, `cpu-clock-recon` decodes to APLL 816 / GPLL 1200
+  / CPLL 1000 / NPLL 1200 MHz, `emmc-extcsd` shows `DEVICE_TYPE=0x57`,
+  `EXT_CSD_REV=7`.
 
 
 I copied rather than moved on purpose: a backup with two copies (repo disk
@@ -1070,7 +1158,14 @@ I copied rather than moved on purpose: a backup with two copies (repo disk
 `archives/README.md`.
 
 
-**The git catch, stated plainly:** 5 GiB can't go in git history without wrecking every clone, and the logs hit the monorepo's `*.log` ignore. So the binaries live on disk + flash (two copies), the measured *values* live in the tracked docs, and only the manifest is versioned. The right version-controlled artifact is the small one: extract the ~16 MiB boot chain (GPT + security + uboot + trust), gzip it to a few MB, commit *that* — it's the irreplaceable part and it's small enough. I noted it in the manifest; say the word and I'll produce that slice.
+**The git catch, stated plainly:** 5 GiB can't go in git history without
+wrecking every clone, and the logs hit the monorepo's `*.log` ignore. So the
+binaries live on disk + flash (two copies), the measured *values* live in the
+tracked docs, and only the manifest is versioned. The right version-controlled
+artifact is the small one: extract the ~16 MiB boot chain (GPT + security +
+uboot + trust), gzip it to a few MB, commit *that* — it's the irreplaceable
+part and it's small enough. I noted it in the manifest; say the word and I'll
+produce that slice.
 
 
 ## 2. Validating the recovery claim
@@ -1090,11 +1185,22 @@ SD-recoverable."
 Three honest caveats so you don't over-trust it:
 
 
-- **"verified, byte-for-byte" isn't earned yet.** The `.gz` is a *packed sparse* stream + a MAP, not a validated image. To claim "byte-for-byte" you reconstruct it (`reconstruct-emmc`) and checksum. Right now it's *present and complete*, not *verified*.
+- **"verified, byte-for-byte" isn't earned yet.** The `.gz` is a *packed sparse*
+  stream + a MAP, not a validated image. To claim "byte-for-byte" you
+  reconstruct it (`reconstruct-emmc`) and checksum. Right now it's *present and
+  complete*, not *verified*.
 
-- **The net isn't armed.** "Rewrite eMMC from the archive" needs a restore tool that doesn't exist — `024` explicitly says "A restore tool is its own issue." We have `emmc_write_block`, but no restore flow wired to the archive. It's a latent safety net, not a live one.
+- **The net isn't armed.** "Rewrite eMMC from the archive" needs a restore tool
+  that doesn't exist — `024` explicitly says "A restore tool is its own
+  issue." We have `emmc_write_block`, but no restore flow wired to the archive.
+  It's a latent safety net, not a live one.
 
-- **It demotes the Maskrom worry, doesn't erase it.** The deepest failures — the ROM choking on a mangled eMMC before it falls through to SD, GPT/eFuse damage, or the SD path itself being what broke — still bottom out at Maskrom, whose external trigger is still unconfirmed. So the doc's central worry drops from "needed for routine mistakes" to "needed only for rare deep ones." Big improvement; not total.
+- **It demotes the Maskrom worry, doesn't erase it.** The deepest failures —
+  the ROM choking on a mangled eMMC before it falls through to SD, GPT/eFuse
+  damage, or the SD path itself being what broke — still bottom out at
+  Maskrom, whose external trigger is still unconfirmed. So the doc's central
+  worry drops from "needed for routine mistakes" to "needed only for rare deep
+  ones." Big improvement; not total.
 
 
 ## 3. Every closed/binary piece — the trust map
@@ -1107,13 +1213,16 @@ honest tiers:
 
 **Tier 1 — silicon floor. Cannot inspect, cannot replace. Ever.**
 
-- The RK3568 **BootROM** (mask ROM) — the actual root of trust, burned in silicon.
+- The RK3568 **BootROM** (mask ROM) — the actual root of trust, burned in
+  silicon.
 
 - The Cortex-A55 and Mali-G52 silicon itself.
 
-- The **eMMC's internal controller firmware** (its flash-translation layer) and any SD card's firmware — a whole closed CPU inside the storage chip.
+- The **eMMC's internal controller firmware** (its flash-translation layer) and
+  any SD card's firmware — a whole closed CPU inside the storage chip.
 
-- The **GT911** touch controller's on-die firmware, and similar on-chip microcode.
+- The **GT911** touch controller's on-die firmware, and similar on-chip
+  microcode.
 
 
 This is the part no device escapes. It means the claim "we inspected
@@ -1124,17 +1233,27 @@ trust-through-inspection, it has to be scoped that way — anything more is a
 promise you can't keep.
 
 
-**Tier 2 — borrowed blobs today, but open and buildable-from-source. This is the actual work, and it fully meets your standard.**
+**Tier 2 — borrowed blobs today, but open and buildable-from-source. This is
+the actual work, and it fully meets your standard.**
 
-- **idbloader / TPL** (DDR init, the miniloader) — we borrow ROCKNIX's. Mainline u-boot has an open RK3568 TPL with open DDR training; buildable ourselves. *(Need to confirm whether ROCKNIX's is the open TPL or Rockchip's closed `rkbin` miniloader — that check is itself Tier-2 work.)*
+- **idbloader / TPL** (DDR init, the miniloader) — we borrow ROCKNIX's.
+  Mainline u-boot has an open RK3568 TPL with open DDR training; buildable
+  ourselves. *(Need to confirm whether ROCKNIX's is the open TPL or Rockchip's
+  closed `rkbin` miniloader — that check is itself Tier-2 work.)*
 
-- **u-boot** — GPL, fully open. Build our own from mainline, pin the commit, checksum.
+- **u-boot** — GPL, fully open. Build our own from mainline, pin the commit,
+  checksum.
 
-- **ATF / BL31** (the trust blob) — ARM Trusted Firmware is open (BSD), mainline supports rk3568. Often shipped prebuilt in `rkbin`, but buildable from source.
+- **ATF / BL31** (the trust blob) — ARM Trusted Firmware is open (BSD),
+  mainline supports rk3568. Often shipped prebuilt in `rkbin`, but buildable
+  from source.
 
-- **OP-TEE**, if present — open. The **device tree** — open, and we don't even use it.
+- **OP-TEE**, if present — open. The **device tree** — open, and we don't
+  even use it.
 
-- **Mali-G52** — good news: it's Bifrost-generation, so the open **Panfrost** driver runs it with *no firmware blob at all* (unlike the newer CSF Malis). GPU is openable.
+- **Mali-G52** — good news: it's Bifrost-generation, so the open **Panfrost**
+  driver runs it with *no firmware blob at all* (unlike the newer CSF Malis).
+  GPU is openable.
 
 
 Every one of these becomes trustable the way you described — from-source,
@@ -1143,7 +1262,11 @@ pinned, checksummed — without us writing it all ourselves.
 
 **Tier 3 — closed firmware, no open replacement. The one genuine wart.**
 
-- The **Realtek RTL8821CS WiFi/BT firmware** — a closed blob loaded into the radio. No open replacement exists, and reverse-engineering it is a project unto itself. Wireless is the one feature you can't make fully open without dropping or swapping the radio. It has to be named loudly, accepted, or designed around — not glossed.
+- The **Realtek RTL8821CS WiFi/BT firmware** — a closed blob loaded into the
+  radio. No open replacement exists, and reverse-engineering it is a project
+  unto itself. Wireless is the one feature you can't make fully open without
+  dropping or swapping the radio. It has to be named loudly, accepted, or
+  designed around — not glossed.
 
 
 So the trust story that's actually true: **Tier 2 is the roadmap** (replace
@@ -1162,78 +1285,79 @@ you're making.
 
 ### User Request 10
 
-The git catch, stated plainly: 5 GiB can't go in git history without wrecking
-every clone, and the logs hit the monorepo's *.log ignore. So the binaries live
-on disk + flash (two copies), the measured values live in the tracked docs, and
-only the manifest is versioned. The right
+  The git catch, stated plainly: 5 GiB can't go in git history without wrecking
+  every clone, and the logs hit the monorepo's *.log ignore. So the binaries
+  live on disk + flash (two copies), the measured values live in the tracked
+  docs, and only the manifest is versioned. The right
 
-version-controlled artifact is the small one: extract the ~16 MiB boot chain
-(GPT + security + uboot + trust), gzip it to a few MB, commit that — it's the
-irreplaceable part and it's small enough. I noted it in the manifest; say the
-word and I'll produce that slice.
+  version-controlled artifact is the small one: extract the ~16 MiB boot chain
+  (GPT + security + uboot + trust), gzip it to a few MB, commit that — it's
+  the irreplaceable part and it's small enough. I noted it in the manifest; say
+  the word and I'll produce that slice.
 
 
 sounds good.
 
 
-- "verified, byte-for-byte" isn't earned yet. The .gz is a packed sparse stream
-+ a MAP, not a validated image. To claim "byte-for-byte" you reconstruct it
-(reconstruct-emmc) and checksum. Right now it's present and complete, not
-verified.
+  - "verified, byte-for-byte" isn't earned yet. The .gz is a packed sparse
+    stream + a MAP, not a validated image. To claim "byte-for-byte" you
+    reconstruct it (reconstruct-emmc) and checksum. Right now it's present and
+    complete, not verified.
 
 
 I remember someone else validated it. It's okay, let's trust it for now.
 
 
-- The net isn't armed. "Rewrite eMMC from the archive" needs a restore tool that
-doesn't exist — 024 explicitly says "A restore tool is its own issue." We have
-emmc_write_block, but no restore flow wired to the archive. It's a latent safety
-net, not a live one.
+  - The net isn't armed. "Rewrite eMMC from the archive" needs a restore tool
+    that doesn't exist — 024 explicitly says "A restore tool is its own
+    issue." We have emmc_write_block, but no restore flow wired to the archive.
+    It's a latent safety net, not a live one.
 
 
 Someone else has that on their todo list, don't worry about it.
 
 
-- It demotes the Maskrom worry, doesn't erase it. The deepest failures — the
-ROM choking on a mangled eMMC before it falls through to SD, GPT/eFuse damage,
-or the SD path itself being what broke — still bottom out at Maskrom, whose
-external trigger is still unconfirmed. So the
+  - It demotes the Maskrom worry, doesn't erase it. The deepest failures — the
+    ROM choking on a mangled eMMC before it falls through to SD, GPT/eFuse
+    damage, or the SD path itself being what broke — still bottom out at
+    Maskrom, whose external trigger is still unconfirmed. So the
 
-doc's central worry drops from "needed for routine mistakes" to "needed only for
-rare deep ones." Big improvement; not total.
+  doc's central worry drops from "needed for routine mistakes" to "needed only
+  for rare deep ones." Big improvement; not total.
 
 
 I thought we checked SD first? How can we identify that external trigger? Sounds
 like a known unknown, is that documented as such anywhere in the docs/?
 
 
-- The RK3568 BootROM (mask ROM) — the actual root of trust, burned in silicon.
+  - The RK3568 BootROM (mask ROM) — the actual root of trust, burned in
+    silicon.
 
 
 what does this do?
 
 
-- The eMMC's internal controller firmware (its flash-translation layer) and any
-SD card's firmware — a whole closed CPU inside the storage chip.
+  - The eMMC's internal controller firmware (its flash-translation layer) and
+    any SD card's firmware — a whole closed CPU inside the storage chip.
 
 
 that's okay. We can trust that because we can see everything going in and out.
 
 
-- The GT911 touch controller's on-die firmware, and similar on-chip microcode.
+  - The GT911 touch controller's on-die firmware, and similar on-chip microcode.
 
 
 I guess that's fine? We can't exactly overwrite that, and it's just I/O code
 right?
 
 
-This is the part no device escapes. It means the claim "we inspected everything"
-is false by construction for any handheld. The honest, defensible version is:
-everything above the silicon root is open and inspected; the root is the same
-Rockchip/ARM ROM every RK3568 trusts. If the
+  This is the part no device escapes. It means the claim "we inspected
+  everything" is false by construction for any handheld. The honest, defensible
+  version is: everything above the silicon root is open and inspected; the root
+  is the same Rockchip/ARM ROM every RK3568 trusts. If the
 
-platform's pitch is trust-through-inspection, it has to be scoped that way —
-anything more is a promise you can't keep.
+  platform's pitch is trust-through-inspection, it has to be scoped that way —
+  anything more is a promise you can't keep.
 
 
 So I guess we'd say, "we inspected everything we could, but couldn't touch the
@@ -1242,12 +1366,12 @@ the hardware, and the SD card (and internal SD card's) memory management
 software that handles where it stores bits on the storage device."
 
 
-- The Realtek RTL8821CS WiFi/BT firmware — a closed blob loaded into the
-radio. No open replacement exists, and reverse-engineering it is a project unto
-itself. Wireless is the one feature you can't make fully open without dropping
-or swapping the radio. It has to be named loudly,
+  - The Realtek RTL8821CS WiFi/BT firmware — a closed blob loaded into the
+    radio. No open replacement exists, and reverse-engineering it is a project
+    unto itself. Wireless is the one feature you can't make fully open without
+    dropping or swapping the radio. It has to be named loudly,
 
-accepted, or designed around — not glossed.
+  accepted, or designed around — not glossed.
 
 
 Ah, so wifi is broken. We'll have to use "link cables" like the old days, except
@@ -1320,11 +1444,20 @@ u-boot exactly." Here's where it all landed.
 ## The archive is captured, and their bootloader is now readable
 
 
-- **Copied in** (both 4.9 GiB pieces, byte-identical to source) — plus the debug log and probe logs. Two copies now: repo disk + flash drive.
+- **Copied in** (both 4.9 GiB pieces, byte-identical to source) — plus the
+  debug log and probe logs. Two copies now: repo disk + flash drive.
 
-- **Carved the committable slice:** the first 16 MiB (GPT + security + uboot + trust) → `archives/bootchain-20260701-130529.bin.gz`, **2.7 MB**, with a `.sha256`, both confirmed git-trackable. That's the restore image for exactly the partitions we otherwise never touch. The disk GUID matches `docs/024`, so it's provably the same unit.
+- **Carved the committable slice:** the first 16 MiB (GPT + security + uboot +
+  trust) → `archives/bootchain-20260701-130529.bin.gz`, **2.7 MB**, with a
+  `.sha256`, both confirmed git-trackable. That's the restore image for exactly
+  the partitions we otherwise never touch. The disk GUID matches `docs/024`, so
+  it's provably the same unit.
 
-- **Read their bootloader from its own bytes:** **U-Boot SPL 2017.09-g606f72bd97a-240527, built 2024-05-30, fwver v1.14** — a stock Rockchip vendor u-boot on the generic `rk3568-evb` control DTB — chaining **ARM Trusted Firmware (BL31) + OP-TEE**. So the trust chain I described by inference two turns ago is now confirmed by the actual firmware strings.
+- **Read their bootloader from its own bytes:** **U-Boot SPL
+  2017.09-g606f72bd97a-240527, built 2024-05-30, fwver v1.14** — a stock
+  Rockchip vendor u-boot on the generic `rk3568-evb` control DTB — chaining
+  **ARM Trusted Firmware (BL31) + OP-TEE**. So the trust chain I described by
+  inference two turns ago is now confirmed by the actual firmware strings.
 
 
 I did **not** commit it. The tree is full of other people's modified files
@@ -1353,10 +1486,23 @@ choke *before* it reaches the SD, or damage you can't fix from a booted SD
 kernel — bottom out at Maskrom. It's the safety net under the safety net.
 
 
-**And yes, it's documented as a known unknown, in three places:** `docs/014-hardware-overview.md` (the Maskrom-trigger line I updated this session), `notes/safety/000-bricking-and-recovery.md` (a whole "Maskrom access question" section, ranked "the single most important unknown in this entire phase," `:13` and `:419`), and `docs/009-deferred-work.md`.
+**And yes, it's documented as a known unknown, in three places:**
+`docs/014-hardware-overview.md` (the Maskrom-trigger line I updated this
+session), `notes/safety/000-bricking-and-recovery.md` (a whole "Maskrom access
+question" section, ranked "the single most important unknown in this entire
+phase," `:13` and `:419`), and `docs/009-deferred-work.md`.
 
 
-**How to identify the trigger,** cheapest first: check the RG DS's FCC-filing internal photos and the handhelds.wiki teardown for a labeled test pad; empirically, hold candidate button combos at power-on with USB attached and watch for the Rockchip Maskrom device (VID `0x2207`, PID `0x350a`) to enumerate — that's non-destructive, Maskrom just waits for a host. But the best lead is now *in our hands*: Anbernic's u-boot almost certainly contains the key-combo → loader/Maskrom logic (Rockchip u-boot enters download mode on a held key). We could disassemble the slice we just pulled and find the combo — resolving the #1 research unknown *without* running stock Android, which is the compromise the safety doc was unhappy about.
+**How to identify the trigger,** cheapest first: check the RG DS's FCC-filing
+internal photos and the handhelds.wiki teardown for a labeled test pad;
+empirically, hold candidate button combos at power-on with USB attached and
+watch for the Rockchip Maskrom device (VID `0x2207`, PID `0x350a`) to enumerate
+— that's non-destructive, Maskrom just waits for a host. But the best lead is
+now *in our hands*: Anbernic's u-boot almost certainly contains the key-combo
+→ loader/Maskrom logic (Rockchip u-boot enters download mode on a held key).
+We could disassemble the slice we just pulled and find the combo — resolving
+the #1 research unknown *without* running stock Android, which is the compromise
+the safety doc was unhappy about.
 
 
 ## What the BootROM does
@@ -1391,12 +1537,13 @@ untouchables, since your draft missed the radio:
 
 
 > We inspected and control everything above the silicon. Four things we can't
-open, because they're sealed in hardware: the RK3568 **BootROM** (the
-factory-burned first-stage loader), the **storage firmware** inside the eMMC and
-any SD card (the flash-translation layer that decides where bits physically
-land), the **touch-controller firmware** in the GT911, and — if wireless is
-used at all — the **Realtek WiFi/BT firmware** blob. The first three are pure
-I/O we audit by their interface; the fourth is why we prefer wired links.
+> open, because they're sealed in hardware: the RK3568 **BootROM** (the
+> factory-burned first-stage loader), the **storage firmware** inside the eMMC
+> and any SD card (the flash-translation layer that decides where bits
+> physically land), the **touch-controller firmware** in the GT911, and — if
+> wireless is used at all — the **Realtek WiFi/BT firmware** blob. The first
+> three are pure I/O we audit by their interface; the fourth is why we prefer
+> wired links.
 
 
 ## WiFi: not "broken" — it's the one closed radio, so route around it
@@ -1431,13 +1578,13 @@ plugging in the stock OS.
 
 ### User Request 11
 
-I did not commit it. The tree is full of other people's modified files (sibling
-projects, in-progress issues), and your own rule is to ask before committing in
-a dirty tree. When you say go, I'll stage only these four —
-archives/bootchain-...bin.gz, its .sha256, archives/README.md,
+  I did not commit it. The tree is full of other people's modified files
+  (sibling projects, in-progress issues), and your own rule is to ask before
+  committing in a dirty tree. When you say go, I'll stage only these four —
+  archives/bootchain-...bin.gz, its .sha256, archives/README.md,
 
-and the soren-ds/.gitignore change — and commit just those, nothing else swept
-in.
+  and the soren-ds/.gitignore change — and commit just those, nothing else
+  swept in.
 
 
 so in general for something like that, we need to commit patch files. Those
@@ -1446,20 +1593,20 @@ essentially updating the "committed" parts of the src files to only include your
 work.
 
 
-Which is why SD-boot covers the common bricks but doesn't fully retire Maskrom:
-SD-boot saves you as long as the ROM successfully falls through to the SD. The
-rare cases where it can't — a mangled eMMC loader header that makes the ROM
-choke before it reaches the SD, or damage you
+  Which is why SD-boot covers the common bricks but doesn't fully retire
+  Maskrom: SD-boot saves you as long as the ROM successfully falls through to
+  the SD. The rare cases where it can't — a mangled eMMC loader header that
+  makes the ROM choke before it reaches the SD, or damage you
 
-can't fix from a booted SD kernel — bottom out at Maskrom. It's the safety net
-under the safety net.
+  can't fix from a booted SD kernel — bottom out at Maskrom. It's the safety
+  net under the safety net.
 
 
 So... What does maskROM boot to? Can we program that?
 
 
-How to identify the trigger, cheapest first: check the RG DS's FCC-filing
-internal photos and the handhelds.wiki teardown for a labeled test pad;
+  How to identify the trigger, cheapest first: check the RG DS's FCC-filing
+  internal photos and the handhelds.wiki teardown for a labeled test pad;
 
 
 Okay great
@@ -1468,7 +1615,8 @@ Okay great
 empirically, hold candidate button combos at power-on with USB attached and
 watch for the Rockchip Maskrom device (VID 0x2207, PID
 
-0x350a) to enumerate — that's non-destructive, Maskrom just waits for a host.
+  0x350a) to enumerate — that's non-destructive, Maskrom just waits for a
+  host.
 
 
 Uh, less great. How are we supposed to know which buttons to press?
@@ -1478,26 +1626,27 @@ But the best lead is now in our hands: Anbernic's u-boot almost certainly
 contains the key-combo → loader/Maskrom logic (Rockchip u-boot enters download
 mode on a held key). We could disassemble the slice
 
-we just pulled and find the combo — resolving the #1 research unknown without
-running stock Android, which is the compromise the safety doc was unhappy about.
+  we just pulled and find the combo — resolving the #1 research unknown
+  without running stock Android, which is the compromise the safety doc was
+  unhappy about.
 
 
 Oh that makes sense. But why does the u-boot have the button combos that the
 maskROM needs? How does u-boot interact with maskROM at all?
 
 
-It's the first code the CPU runs at power-on, burned into the RK3568's silicon
-at the factory and impossible to change. It brings up the bare minimum — a
-little on-chip SRAM, basic clocks — then looks for the next-stage loader on
-boot media in order (SD, then eMMC), recognizing it
+  It's the first code the CPU runs at power-on, burned into the RK3568's silicon
+  at the factory and impossible to change. It brings up the bare minimum — a
+  little on-chip SRAM, basic clocks — then looks for the next-stage loader on
+  boot media in order (SD, then eMMC), recognizing it
 
-by an ID-block magic at a fixed sector (sector 64). Find a valid one → copy it
-into SRAM and jump (that's idbloader/TPL, which then trains DRAM). Find none, or
-a forcing pad held → become a USB device and wait for a host to upload code.
-That's Maskrom. It's the "root of trust"
+  by an ID-block magic at a fixed sector (sector 64). Find a valid one → copy
+  it into SRAM and jump (that's idbloader/TPL, which then trains DRAM). Find
+  none, or a forcing pad held → become a USB device and wait for a host to
+  upload code. That's Maskrom. It's the "root of trust"
 
-because the integrity of everything above it is only ever vouched for starting
-from this one unchangeable thing.
+  because the integrity of everything above it is only ever vouched for starting
+  from this one unchangeable thing.
 
 
 
@@ -1506,8 +1655,8 @@ whatever we wanted to the internal drive? That sounds pretty easy, and a clear
 anti-bricking functionality.
 
 
-(One nuance to file: the GT911 can technically be firmware-updated over I2C —
-we simply won't; we treat it as fixed I/O.)
+ (One nuance to file: the GT911 can technically be firmware-updated over I2C —
+ we simply won't; we treat it as fixed I/O.)
 
 
 uh, that's critical to know. Can anything else do that? What's the I2C, how do
@@ -1515,18 +1664,18 @@ you use it? I'm wondering what parts of the system might be able to touch the
 firmware of the other parts of the device. Are we writing any of that firmware?
 
 
-What wireless would cost you, concretely: the RTL8821CS keeps no persistent
-firmware — the host must upload a closed Realtek blob into the chip's RAM
-every boot. WiFi needs its blob over SDIO plus a large 802.11 management stack
-(scan/associate/the cfg80211-equivalent). BT needs a
+  What wireless would cost you, concretely: the RTL8821CS keeps no persistent
+  firmware — the host must upload a closed Realtek blob into the chip's RAM
+  every boot. WiFi needs its blob over SDIO plus a large 802.11 management stack
+  (scan/associate/the cfg80211-equivalent). BT needs a
 
-second closed blob over UART plus an HCI stack. So wireless = two proprietary
-blobs you can never inspect + two substantial drivers + the open ad-hoc/IBSS
-mode being contingent on whether Realtek's firmware even enables it (still
-unconfirmed). That's the Tier-3 wart, doubled. The
+  second closed blob over UART plus an HCI stack. So wireless = two proprietary
+  blobs you can never inspect + two substantial drivers + the open ad-hoc/IBSS
+  mode being contingent on whether Realtek's firmware even enables it (still
+  unconfirmed). That's the Tier-3 wart, doubled. The
 
-USB-C route deletes all of it and keeps the "everything above silicon is open"
-claim true.
+  USB-C route deletes all of it and keeps the "everything above silicon is open"
+  claim true.
 
 
 
@@ -1535,10 +1684,10 @@ need to write our own firmware anyway. That's a big project, but this is a big
 system.
 
 
-Want me to disassemble Anbernic's u-boot slice we just pulled and hunt for the
-Maskrom/download-mode key combo? That's the highest-value thing the archive
-unlocks — it could close the single biggest safety unknown without ever
-plugging in the stock OS.
+  Want me to disassemble Anbernic's u-boot slice we just pulled and hunt for the
+  Maskrom/download-mode key combo? That's the highest-value thing the archive
+  unlocks — it could close the single biggest safety unknown without ever
+  plugging in the stock OS.
 
 
 --------------------------------------------------------------------------------
@@ -1550,8 +1699,8 @@ projects, in-progress issues), and your own rule is to ask before committing in
 a dirty tree. When you say go, I'll stage only these four —
 archives/bootchain-...bin.gz, its .sha256, archives/README.md,
 
-and the soren-ds/.gitignore change — and commit just those, nothing else swept
-in.
+  and the soren-ds/.gitignore change — and commit just those, nothing else
+  swept in.
 
 
 so in general for something like that, we need to commit patch files. Those
@@ -1560,20 +1709,20 @@ essentially updating the "committed" parts of the src files to only include your
 work.
 
 
-Which is why SD-boot covers the common bricks but doesn't fully retire Maskrom:
-SD-boot saves you as long as the ROM successfully falls through to the SD. The
-rare cases where it can't — a mangled eMMC loader header that makes the ROM
-choke before it reaches the SD, or damage you
+  Which is why SD-boot covers the common bricks but doesn't fully retire
+  Maskrom: SD-boot saves you as long as the ROM successfully falls through to
+  the SD. The rare cases where it can't — a mangled eMMC loader header that
+  makes the ROM choke before it reaches the SD, or damage you
 
-can't fix from a booted SD kernel — bottom out at Maskrom. It's the safety net
-under the safety net.
+  can't fix from a booted SD kernel — bottom out at Maskrom. It's the safety
+  net under the safety net.
 
 
 So... What does maskROM boot to? Can we program that?
 
 
-How to identify the trigger, cheapest first: check the RG DS's FCC-filing
-internal photos and the handhelds.wiki teardown for a labeled test pad;
+  How to identify the trigger, cheapest first: check the RG DS's FCC-filing
+  internal photos and the handhelds.wiki teardown for a labeled test pad;
 
 
 Okay great
@@ -1582,7 +1731,8 @@ Okay great
 empirically, hold candidate button combos at power-on with USB attached and
 watch for the Rockchip Maskrom device (VID 0x2207, PID
 
-0x350a) to enumerate — that's non-destructive, Maskrom just waits for a host.
+  0x350a) to enumerate — that's non-destructive, Maskrom just waits for a
+  host.
 
 
 Uh, less great. How are we supposed to know which buttons to press?
@@ -1592,26 +1742,27 @@ But the best lead is now in our hands: Anbernic's u-boot almost certainly
 contains the key-combo → loader/Maskrom logic (Rockchip u-boot enters download
 mode on a held key). We could disassemble the slice
 
-we just pulled and find the combo — resolving the #1 research unknown without
-running stock Android, which is the compromise the safety doc was unhappy about.
+  we just pulled and find the combo — resolving the #1 research unknown
+  without running stock Android, which is the compromise the safety doc was
+  unhappy about.
 
 
 Oh that makes sense. But why does the u-boot have the button combos that the
 maskROM needs? How does u-boot interact with maskROM at all?
 
 
-It's the first code the CPU runs at power-on, burned into the RK3568's silicon
-at the factory and impossible to change. It brings up the bare minimum — a
-little on-chip SRAM, basic clocks — then looks for the next-stage loader on
-boot media in order (SD, then eMMC), recognizing it
+  It's the first code the CPU runs at power-on, burned into the RK3568's silicon
+  at the factory and impossible to change. It brings up the bare minimum — a
+  little on-chip SRAM, basic clocks — then looks for the next-stage loader on
+  boot media in order (SD, then eMMC), recognizing it
 
-by an ID-block magic at a fixed sector (sector 64). Find a valid one → copy it
-into SRAM and jump (that's idbloader/TPL, which then trains DRAM). Find none, or
-a forcing pad held → become a USB device and wait for a host to upload code.
-That's Maskrom. It's the "root of trust"
+  by an ID-block magic at a fixed sector (sector 64). Find a valid one → copy
+  it into SRAM and jump (that's idbloader/TPL, which then trains DRAM). Find
+  none, or a forcing pad held → become a USB device and wait for a host to
+  upload code. That's Maskrom. It's the "root of trust"
 
-because the integrity of everything above it is only ever vouched for starting
-from this one unchangeable thing.
+  because the integrity of everything above it is only ever vouched for starting
+  from this one unchangeable thing.
 
 
 
@@ -1620,8 +1771,8 @@ whatever we wanted to the internal drive? That sounds pretty easy, and a clear
 anti-bricking functionality.
 
 
-(One nuance to file: the GT911 can technically be firmware-updated over I2C —
-we simply won't; we treat it as fixed I/O.)
+ (One nuance to file: the GT911 can technically be firmware-updated over I2C —
+ we simply won't; we treat it as fixed I/O.)
 
 
 uh, that's critical to know. Can anything else do that? What's the I2C, how do
@@ -1629,18 +1780,18 @@ you use it? I'm wondering what parts of the system might be able to touch the
 firmware of the other parts of the device. Are we writing any of that firmware?
 
 
-What wireless would cost you, concretely: the RTL8821CS keeps no persistent
-firmware — the host must upload a closed Realtek blob into the chip's RAM
-every boot. WiFi needs its blob over SDIO plus a large 802.11 management stack
-(scan/associate/the cfg80211-equivalent). BT needs a
+  What wireless would cost you, concretely: the RTL8821CS keeps no persistent
+  firmware — the host must upload a closed Realtek blob into the chip's RAM
+  every boot. WiFi needs its blob over SDIO plus a large 802.11 management stack
+  (scan/associate/the cfg80211-equivalent). BT needs a
 
-second closed blob over UART plus an HCI stack. So wireless = two proprietary
-blobs you can never inspect + two substantial drivers + the open ad-hoc/IBSS
-mode being contingent on whether Realtek's firmware even enables it (still
-unconfirmed). That's the Tier-3 wart, doubled. The
+  second closed blob over UART plus an HCI stack. So wireless = two proprietary
+  blobs you can never inspect + two substantial drivers + the open ad-hoc/IBSS
+  mode being contingent on whether Realtek's firmware even enables it (still
+  unconfirmed). That's the Tier-3 wart, doubled. The
 
-USB-C route deletes all of it and keeps the "everything above silicon is open"
-claim true.
+  USB-C route deletes all of it and keeps the "everything above silicon is open"
+  claim true.
 
 
 
@@ -1649,10 +1800,10 @@ need to write our own firmware anyway. That's a big project, but this is a big
 system.
 
 
-Want me to disassemble Anbernic's u-boot slice we just pulled and hunt for the
-Maskrom/download-mode key combo? That's the highest-value thing the archive
-unlocks — it could close the single biggest safety unknown without ever
-plugging in the stock OS.
+  Want me to disassemble Anbernic's u-boot slice we just pulled and hunt for the
+  Maskrom/download-mode key combo? That's the highest-value thing the archive
+  unlocks — it could close the single biggest safety unknown without ever
+  plugging in the stock OS.
 
 
 Sure I guess. You can put it in a docs/ file somewhere.
@@ -1721,32 +1872,65 @@ Now the questions from your last message — most are now written up in
 `docs/025-recovery-and-download-modes.md`, but here's the short of each:
 
 
-**What does Maskrom boot to? Can we program it?** It doesn't boot to anything — it turns the USB-C port into a device (`0x2207:0x350a`) and *waits* for a host to send code. You can't reprogram Maskrom itself (it's mask-burned silicon — that immutability is exactly what makes it the unbrickable floor). What you *can* do is drive it: the host pushes a DDR-init loader into on-chip SRAM, then whatever image you want. "Program it" = use it to program the device, not change the ROM.
+**What does Maskrom boot to? Can we program it?** It doesn't boot to anything
+— it turns the USB-C port into a device (`0x2207:0x350a`) and *waits* for a
+host to send code. You can't reprogram Maskrom itself (it's mask-burned silicon
+— that immutability is exactly what makes it the unbrickable floor). What you
+*can* do is drive it: the host pushes a DDR-init loader into on-chip SRAM, then
+whatever image you want. "Program it" = use it to program the device, not change
+the ROM.
 
 
-**Why does u-boot have the combos Maskrom needs — how do they even interact?** My earlier phrasing was sloppy; here's the accurate version. The ROM's *own* Maskrom trigger (a hardware pad) is read by the ROM, and u-boot knows nothing about it. u-boot has its *own* separate triggers — and the archive proves it: `ctrl+b: Bootrom download!` (serial) and an ADC-read `volumeup-key`. When u-boot sees one, it either serves USB flashing itself *or* sets a reboot flag and resets — and the ROM reads that flag on the next boot and enters Maskrom. So u-boot doesn't "have Maskrom's combos"; it has its own, and it can *ask* the ROM to go to Maskrom. Two doors, one can knock on the other.
+**Why does u-boot have the combos Maskrom needs — how do they even interact?**
+My earlier phrasing was sloppy; here's the accurate version. The ROM's *own*
+Maskrom trigger (a hardware pad) is read by the ROM, and u-boot knows nothing
+about it. u-boot has its *own* separate triggers — and the archive proves it:
+`ctrl+b: Bootrom download!` (serial) and an ADC-read `volumeup-key`. When u-boot
+sees one, it either serves USB flashing itself *or* sets a reboot flag and
+resets — and the ROM reads that flag on the next boot and enters Maskrom. So
+u-boot doesn't "have Maskrom's combos"; it has its own, and it can *ask* the ROM
+to go to Maskrom. Two doors, one can knock on the other.
 
 
-**Which buttons?** From Anbernic's own u-boot: **Volume Up held at power-on** (it's an ADC key with defined voltage thresholds — which ties straight back to the SAR-ADC work). Strings-level evidence, not a full disassembly, so the confirming test is: hold Vol-Up while powering on with USB-C attached, watch for the download device to enumerate. That's in `docs/025`.
+**Which buttons?** From Anbernic's own u-boot: **Volume Up held at power-on**
+(it's an ADC key with defined voltage thresholds — which ties straight back to
+the SAR-ADC work). Strings-level evidence, not a full disassembly, so the
+confirming test is: hold Vol-Up while powering on with USB-C attached, watch for
+the download device to enumerate. That's in `docs/025`.
 
 
-**Wipe the eMMC, plug USB-C, push anything — easy anti-brick?** Yes, and it's the best lever because it needs no secret button: boot recovery from SD, erase the eMMC loader, pull the SD, reset → the ROM finds no valid loader → auto-enters Maskrom over USB-C → `rkdeveloptool` pushes whatever you want. The one thing to confirm once is that Maskrom actually enumerates over the *external* USB-C port (near-certain, it's the same OTG controller, but worth a one-time check). This is genuinely a strong recovery story and it's now written down.
+**Wipe the eMMC, plug USB-C, push anything — easy anti-brick?** Yes, and it's
+the best lever because it needs no secret button: boot recovery from SD, erase
+the eMMC loader, pull the SD, reset → the ROM finds no valid loader →
+auto-enters Maskrom over USB-C → `rkdeveloptool` pushes whatever you want. The
+one thing to confirm once is that Maskrom actually enumerates over the
+*external* USB-C port (near-certain, it's the same OTG controller, but worth a
+one-time check). This is genuinely a strong recovery story and it's now written
+down.
 
 
-**GT911 firmware-update — critical, what else can do that, are we writing any firmware?** The key security fact: **the CPU is the only writer.** No peripheral can reach another peripheral's firmware — everything goes through a bus the CPU masters, so the entire "who can reflash what" surface is just *what our code chooses to write*. The writable surface, and our stance on each:
+**GT911 firmware-update — critical, what else can do that, are we writing any
+firmware?** The key security fact: **the CPU is the only writer.** No peripheral
+can reach another peripheral's firmware — everything goes through a bus the
+CPU masters, so the entire "who can reflash what" surface is just *what our code
+chooses to write*. The writable surface, and our stance on each:
 
 
-- **eFuses / OTP** (secure-boot, etc.) — one-time, *permanent*. Never write. (Safety doc S9/S10.)
+- **eFuses / OTP** (secure-boot, etc.) — one-time, *permanent*. Never write.
+  (Safety doc S9/S10.)
 
-- **eMMC boot partitions** (idbloader / u-boot / trust) — rewritable; the "never touch" zone. We write only partition 7 (our kernel).
+- **eMMC boot partitions** (idbloader / u-boot / trust) — rewritable; the
+  "never touch" zone. We write only partition 7 (our kernel).
 
 - **GT911 config/firmware** over i2c3/i2c5 — updatable; we won't.
 
 - **eMMC's own controller firmware** (vendor FFU command) — we won't.
 
-- **RK817 PMIC** registers — config, not firmware; we *do* write (rail voltages), under the safety doc's careful-write rule.
+- **RK817 PMIC** registers — config, not firmware; we *do* write (rail
+  voltages), under the safety doc's careful-write rule.
 
-- **Realtek radio** — RAM firmware, loaded every boot *if* we did wireless; volatile, no persistent reflash.
+- **Realtek radio** — RAM firmware, loaded every boot *if* we did wireless;
+  volatile, no persistent reflash.
 
 
 So — **the only firmware we author and flash is our own OS, to its one
@@ -1756,7 +1940,16 @@ config, not a firmware reflash. The I2C mechanic is simple (2-wire: address a
 PMIC on i2c0, and that code is the model for touching anything else on a bus.
 
 
-**IBSS "we'll have to write our own firmware anyway — big project."** Honest caution: this one isn't like u-boot or ATF. Those are *open source* — you build them from readable code. The RTL8821CS's MAC/PHY is *undocumented silicon*; writing your own firmware for it isn't a big project, it's a nearly-impossible one (the handful of radios with open firmware are all ones the vendor documented). So "write our own Realtek firmware" hits a wall that "write our own bootloader" doesn't. The realistic open-wireless paths stay: the USB-C link (planned, zero blob), or an external dongle with an open-firmware chip if you ever truly want RF. The ambition fits the system; the specific chip doesn't cooperate.
+**IBSS "we'll have to write our own firmware anyway — big project."** Honest
+caution: this one isn't like u-boot or ATF. Those are *open source* — you
+build them from readable code. The RTL8821CS's MAC/PHY is *undocumented
+silicon*; writing your own firmware for it isn't a big project, it's a
+nearly-impossible one (the handful of radios with open firmware are all ones the
+vendor documented). So "write our own Realtek firmware" hits a wall that "write
+our own bootloader" doesn't. The realistic open-wireless paths stay: the USB-C
+link (planned, zero blob), or an external dongle with an open-firmware chip if
+you ever truly want RF. The ambition fits the system; the specific chip doesn't
+cooperate.
 
 
 Want me to go deeper on the u-boot — actually disassemble the key-check to pin
@@ -1769,18 +1962,18 @@ not proof."
 
 ### User Request 13
 
-IBSS "we'll have to write our own firmware anyway — big project." Honest
-caution: this one isn't like u-boot or ATF. Those are open source — you build
-them from readable code. The RTL8821CS's MAC/PHY is undocumented silicon;
-writing your own firmware for it isn't a big project,
+  IBSS "we'll have to write our own firmware anyway — big project." Honest
+  caution: this one isn't like u-boot or ATF. Those are open source — you
+  build them from readable code. The RTL8821CS's MAC/PHY is undocumented
+  silicon; writing your own firmware for it isn't a big project,
 
-it's a nearly-impossible one (the handful of radios with open firmware are all
-ones the vendor documented). So "write our own Realtek firmware" hits a wall
-that "write our own bootloader" doesn't. The realistic open-wireless paths stay:
-the USB-C link (planned, zero blob), or an
+  it's a nearly-impossible one (the handful of radios with open firmware are all
+  ones the vendor documented). So "write our own Realtek firmware" hits a wall
+  that "write our own bootloader" doesn't. The realistic open-wireless paths
+  stay: the USB-C link (planned, zero blob), or an
 
-external dongle with an open-firmware chip if you ever truly want RF. The
-ambition fits the system; the specific chip doesn't cooperate.
+  external dongle with an open-firmware chip if you ever truly want RF. The
+  ambition fits the system; the specific chip doesn't cooperate.
 
 
 
@@ -1804,17 +1997,18 @@ The RTL8821CS isn't one thing. Stacked inside it:
 
 
 1. **The RF front-end** — the analog radio: synthesizer/PLL, power amp,
-low-noise amp, the data converters. Physics in silicon.
+   low-noise amp, the data converters. Physics in silicon.
 
 2. **The baseband/PHY** — the modem: the DSP that turns bits into OFDM
-waveforms and back (FFT, channel estimation, LDPC/Viterbi error correction).
-This is a **hardware ASIC**, not code.
+   waveforms and back (FFT, channel estimation, LDPC/Viterbi error correction).
+   This is a **hardware ASIC**, not code.
 
 3. **The MAC** — the 802.11 protocol timing: CSMA/CA backoff, and the killer,
-sending an ACK within **SIFS ≈ 16 µs** of receiving a frame.
+   sending an ACK within **SIFS ≈ 16 µs** of receiving a frame.
 
 4. **A little embedded MCU** running "the firmware" blob — which *coordinates*
-1–3, does power management and calibration, and talks to the host over SDIO.
+   1–3, does power management and calibration, and talks to the host over
+   SDIO.
 
 
 "The firmware" is only layer 4. When you say "write our own firmware," you're
@@ -1826,15 +2020,31 @@ how to drive them.
 ## So what's actually preventing it — concretely
 
 
-- **The register maps are withheld.** To drive the MAC and PHY you need thousands of register meanings, the RF synthesizer init sequence, the PA bias values, and the calibration procedures (IQ imbalance, LO leakage, Tx-power-vs-frequency, temperature drift). Realtek publishes none of it. Your only path is poking an opaque block while watching a spectrum analyzer — years per chip, and much of the PHY's behavior isn't even visible from registers.
+- **The register maps are withheld.** To drive the MAC and PHY you need
+  thousands of register meanings, the RF synthesizer init sequence, the PA bias
+  values, and the calibration procedures (IQ imbalance, LO leakage,
+  Tx-power-vs-frequency, temperature drift). Realtek publishes none of it. Your
+  only path is poking an opaque block while watching a spectrum analyzer —
+  years per chip, and much of the PHY's behavior isn't even visible from
+  registers.
 
-- **The modem is silicon, not firmware.** Even with perfect docs, you can't make the OFDM modem *open* — it's an ASIC. Firmware configures it; it can't replace it. So the layer you'd author (4) can't fix the thing you'd want open (2).
+- **The modem is silicon, not firmware.** Even with perfect docs, you can't make
+  the OFDM modem *open* — it's an ASIC. Firmware configures it; it can't
+  replace it. So the layer you'd author (4) can't fix the thing you'd want open
+  (2).
 
-- **The MAC timing has to be on-chip.** A 16 µs ACK deadline can't be met by the host CPU over SDIO. That's *why* there's a dedicated MAC + MCU. You can't move the hard-real-time part to code you control.
+- **The MAC timing has to be on-chip.** A 16 µs ACK deadline can't be met by
+  the host CPU over SDIO. That's *why* there's a dedicated MAC + MCU. You can't
+  move the hard-real-time part to code you control.
 
-- **Calibration is per-unit and undocumented.** Correct, in-spec transmission depends on factory cal data + proprietary algorithms. Without them you transmit garbage or out-of-spec power — which won't associate and isn't legal to emit.
+- **Calibration is per-unit and undocumented.** Correct, in-spec transmission
+  depends on factory cal data + proprietary algorithms. Without them you
+  transmit garbage or out-of-spec power — which won't associate and isn't
+  legal to emit.
 
-- **And regulatory.** A transmitter you wrote is uncertified; the shipped firmware is what enforces channel/power/DFS limits. That's a legal wall, not just a technical one.
+- **And regulatory.** A transmitter you wrote is uncertified; the shipped
+  firmware is what enforces channel/power/DFS limits. That's a legal wall, not
+  just a technical one.
 
 
 Every one of those is *withheld information* or *physical silicon* — not
@@ -1874,9 +2084,14 @@ Which points at the actual solution, and it isn't firmware at all: **don't trust
 the radio — contain it and encrypt above it.**
 
 
-- It's an **SDIO** device, and SDIO is *host-mastered* — the radio can't DMA into your RAM the way a PCIe card could. The host controls every transfer. So containment is already most of the way done by the bus choice.
+- It's an **SDIO** device, and SDIO is *host-mastered* — the radio can't DMA
+  into your RAM the way a PCIe card could. The host controls every transfer. So
+  containment is already most of the way done by the bus choice.
 
-- Treat everything the radio hands up as hostile input. End-to-end authenticate and encrypt peer-to-peer traffic *above* it — which pictochat/rmail should do regardless. Then a malicious or buggy radio blob can drop or garble packets, but it can't read your messages or forge a peer.
+- Treat everything the radio hands up as hostile input. End-to-end authenticate
+  and encrypt peer-to-peer traffic *above* it — which pictochat/rmail should
+  do regardless. Then a malicious or buggy radio blob can drop or garble
+  packets, but it can't read your messages or forge a peer.
 
 
 That gets you **IBSS peer-to-peer with the closed blob**, where the trust lives
@@ -1889,9 +2104,13 @@ So the honest fork isn't "closed WiFi vs. write our own firmware" (that second
 option isn't real). It's:
 
 
-- **USB-C link** — zero blob, zero RF attack surface, already the planned transport. The purist choice.
+- **USB-C link** — zero blob, zero RF attack surface, already the planned
+  transport. The purist choice.
 
-- **Realtek WiFi as an untrusted, contained transport** — you ship the closed blob, sandbox it on the SDIO bus, and put open end-to-end crypto on top. You get real wireless peer-to-peer, and the trust story is "we don't trust the radio, and here's the math that means we don't have to."
+- **Realtek WiFi as an untrusted, contained transport** — you ship the closed
+  blob, sandbox it on the SDIO bus, and put open end-to-end crypto on top. You
+  get real wireless peer-to-peer, and the trust story is "we don't trust the
+  radio, and here's the math that means we don't have to."
 
 
 Which of those two trust models do you actually want for the platform? Because
@@ -1903,26 +2122,27 @@ that choice — not firmware — is the real decision, and it changes what phase
 
 ### User Request 14
 
-1. The RF front-end — the analog radio: synthesizer/PLL, power amp, low-noise
-amp, the data converters. Physics in silicon.
+  1. The RF front-end — the analog radio: synthesizer/PLL, power amp,
+     low-noise amp, the data converters. Physics in silicon.
 
-2. The baseband/PHY — the modem: the DSP that turns bits into OFDM waveforms
-and back (FFT, channel estimation, LDPC/Viterbi error correction). This is a
-hardware ASIC, not code.
+  2. The baseband/PHY — the modem: the DSP that turns bits into OFDM waveforms
+     and back (FFT, channel estimation, LDPC/Viterbi error correction). This is
+     a hardware ASIC, not code.
 
 
 so, these two we can't even change if we wanted to.
 
 
-3. The MAC — the 802.11 protocol timing: CSMA/CA backoff, and the killer,
-sending an ACK within SIFS ≈ 16 µs of receiving a frame.
+  3. The MAC — the 802.11 protocol timing: CSMA/CA backoff, and the killer,
+     sending an ACK within SIFS ≈ 16 µs of receiving a frame.
 
 
 is this also hardware?
 
 
-4. A little embedded MCU running "the firmware" blob — which coordinates
-1–3, does power management and calibration, and talks to the host over SDIO.
+  4. A little embedded MCU running "the firmware" blob — which coordinates
+     1–3, does power management and calibration, and talks to the host over
+     SDIO.
 
 
 I think this is the part I'm most interested in - after all, if we can control
@@ -1932,9 +2152,10 @@ whether or not the outputs are ONLY what we ask for, or is that stuff somehow
 guaranteed to be correct in the hardware parts?
 
 
-- The modem is silicon, not firmware. Even with perfect docs, you can't make the
-OFDM modem open — it's an ASIC. Firmware configures it; it can't replace it.
-So the layer you'd author (4) can't fix the thing you'd want open (2).
+  - The modem is silicon, not firmware. Even with perfect docs, you can't make
+    the OFDM modem open — it's an ASIC. Firmware configures it; it can't
+    replace it. So the layer you'd author (4) can't fix the thing you'd want
+    open (2).
 
 
 the modems task is to take the data you want to send and transform it into the
@@ -1942,22 +2163,22 @@ correct protocol, right? Could we do like, a software modem or something, and
 route past it?
 
 
-- The register maps are withheld. To drive the MAC and PHY you need thousands of
-register meanings, the RF synthesizer init sequence, the PA bias values, and the
-calibration procedures (IQ imbalance, LO leakage, Tx-power-vs-frequency,
-temperature drift). Realtek publishes none of
+  - The register maps are withheld. To drive the MAC and PHY you need thousands
+    of register meanings, the RF synthesizer init sequence, the PA bias values,
+    and the calibration procedures (IQ imbalance, LO leakage,
+    Tx-power-vs-frequency, temperature drift). Realtek publishes none of
 
-it. Your only path is poking an opaque block while watching a spectrum analyzer
-— years per chip, and much of the PHY's behavior isn't even visible from
-registers.
+  it. Your only path is poking an opaque block while watching a spectrum
+  analyzer — years per chip, and much of the PHY's behavior isn't even visible
+  from registers.
 
 
 could we decompile the blob and maybe extract the register values somehow?
 
 
-- The MAC timing has to be on-chip. A 16 µs ACK deadline can't be met by the
-host CPU over SDIO. That's why there's a dedicated MAC + MCU. You can't move the
-hard-real-time part to code you control.
+  - The MAC timing has to be on-chip. A 16 µs ACK deadline can't be met by the
+    host CPU over SDIO. That's why there's a dedicated MAC + MCU. You can't move
+    the hard-real-time part to code you control.
 
 
 the ACK deadline is a response right? Could we just... Not send an ACK, or send
@@ -1965,9 +2186,10 @@ it with different timing to only our recipients who are listening at that
 different timing window?
 
 
-- Calibration is per-unit and undocumented. Correct, in-spec transmission
-depends on factory cal data + proprietary algorithms. Without them you transmit
-garbage or out-of-spec power — which won't associate and isn't legal to emit.
+  - Calibration is per-unit and undocumented. Correct, in-spec transmission
+    depends on factory cal data + proprietary algorithms. Without them you
+    transmit garbage or out-of-spec power — which won't associate and isn't
+    legal to emit.
 
 
 what if we just kept the same calibration on the hardware? What tunes those
@@ -1979,9 +2201,9 @@ messes with other people's stuff, so if we do so in a way that's not going to
 harm other people and their transmissions, that'd be alright, right?
 
 
-- And regulatory. A transmitter you wrote is uncertified; the shipped firmware
-is what enforces channel/power/DFS limits. That's a legal wall, not just a
-technical one.
+  - And regulatory. A transmitter you wrote is uncertified; the shipped firmware
+    is what enforces channel/power/DFS limits. That's a legal wall, not just a
+    technical one.
 
 
 if what we're working on works, then we can get a lawyer on board who can maybe
@@ -1999,44 +2221,44 @@ semi-stranger over drinks that night, because if we can't find the right kind of
 bar then it's not worth it at all.
 
 
-The one genuinely-open WiFi lineage is Atheros ath9k: it needs no firmware blob
-at all — an open driver drives the MAC/PHY directly, because Atheros
-documented the hardware.
+  The one genuinely-open WiFi lineage is Atheros ath9k: it needs no firmware
+  blob at all — an open driver drives the MAC/PHY directly, because Atheros
+  documented the hardware.
 
 
 Oh good, there's prior work on similar hardware. That'll be helpful.
 
 
-Because the storage FTL only ever touches your own data flow. The radio touches
-the adversarial outside world — it processes untrusted RF from anyone in
-range. A compromised storage blob can corrupt your bytes; a compromised radio
-blob is a remote attack surface. Same closed-ness,
+  Because the storage FTL only ever touches your own data flow. The radio
+  touches the adversarial outside world — it processes untrusted RF from
+  anyone in range. A compromised storage blob can corrupt your bytes; a
+  compromised radio blob is a remote attack surface. Same closed-ness,
 
-wildly different exposure. That's the real reason it's the wart — not that
-it's closed, but that it's closed and facing the enemy.
+  wildly different exposure. That's the real reason it's the wart — not that
+  it's closed, but that it's closed and facing the enemy.
 
 
-Which points at the actual solution, and it isn't firmware at all: don't trust
-the radio — contain it and encrypt above it.
+  Which points at the actual solution, and it isn't firmware at all: don't trust
+  the radio — contain it and encrypt above it.
 
 
 
 Yep, I think that's the plan anyway. But we can do better.
 
 
-- It's an SDIO device, and SDIO is host-mastered — the radio can't DMA into
-your RAM the way a PCIe card could. The host controls every transfer. So
-containment is already most of the way done by the bus choice.
+  - It's an SDIO device, and SDIO is host-mastered — the radio can't DMA into
+    your RAM the way a PCIe card could. The host controls every transfer. So
+    containment is already most of the way done by the bus choice.
 
 
 This means it has to pass through the CPU right? And we fully control the CPU,
 so we can do whatever we want with it?
 
 
-That gets you IBSS peer-to-peer with the closed blob, where the trust lives
-entirely in crypto you wrote and can inspect — not in the radio. The blob
-becomes a dumb, untrusted pipe, exactly like a hostile network. You never needed
-to open it; you needed to stop trusting it.
+  That gets you IBSS peer-to-peer with the closed blob, where the trust lives
+  entirely in crypto you wrote and can inspect — not in the radio. The blob
+  becomes a dumb, untrusted pipe, exactly like a hostile network. You never
+  needed to open it; you needed to stop trusting it.
 
 
 okay but doesn't IBSS have some overhead that's clear? What if we want to send
@@ -2057,25 +2279,76 @@ and a wide-open field behind them that you reach by *not* fighting the walls."
 Almost everything you're reaching for is doable. Let me go point by point.
 
 
-**1 & 2 (RF front-end + modem) — can't change, correct.** Fixed silicon. But here's the reframe that makes it not matter: you don't *want* to change them. Those are the parts Realtek certified and calibrated. Leave them alone and they do correct, in-spec, legal RF for free. Every idea below works by keeping those two exactly as they are.
+**1 & 2 (RF front-end + modem) — can't change, correct.** Fixed silicon. But
+here's the reframe that makes it not matter: you don't *want* to change them.
+Those are the parts Realtek certified and calibrated. Leave them alone and they
+do correct, in-spec, legal RF for free. Every idea below works by keeping those
+two exactly as they are.
 
 
-**3 (MAC) — is it hardware?** The timing-critical core is, yes — the "send an ACK 16 µs after a frame" state machine is a hardware block on essentially every WiFi chip, because nothing slower can hit that deadline. The *higher* MAC (association, management) is firmware/host. But hold that thought, because your ACK question dissolves the deadline entirely.
+**3 (MAC) — is it hardware?** The timing-critical core is, yes — the "send
+an ACK 16 µs after a frame" state machine is a hardware block on essentially
+every WiFi chip, because nothing slower can hit that deadline. The *higher* MAC
+(association, management) is firmware/host. But hold that thought, because your
+ACK question dissolves the deadline entirely.
 
 
-**4 (the MCU/firmware) — "if we control when the levers get pulled, the box's insides don't matter, as long as outputs are correct."** This is the right instinct, with one correction about *who pulls the levers*. You don't get direct lever access — the firmware sits between your SDIO commands and the registers, and it only exposes the levers it chooses to. So "control when the levers are pulled" is true only at the *granularity the firmware offers*. **But** — and this is the good part — when you drive it the normal way, **the RF outputs are correct by Realtek's certification.** You do *not* have to validate that the waveforms are in-spec; they proved that. What you validate is the **data path** — does my byte go in one side and come out the other, intact — which you test end-to-end, trivially. So your instinct holds for the normal case: use the box as a validated pipe, and put all your scrutiny on the data, not the RF.
+**4 (the MCU/firmware) — "if we control when the levers get pulled, the box's
+insides don't matter, as long as outputs are correct."** This is the right
+instinct, with one correction about *who pulls the levers*. You don't get direct
+lever access — the firmware sits between your SDIO commands and the registers,
+and it only exposes the levers it chooses to. So "control when the levers are
+pulled" is true only at the *granularity the firmware offers*. **But** — and
+this is the good part — when you drive it the normal way, **the RF outputs are
+correct by Realtek's certification.** You do *not* have to validate that the
+waveforms are in-spec; they proved that. What you validate is the **data path**
+— does my byte go in one side and come out the other, intact — which you
+test end-to-end, trivially. So your instinct holds for the normal case: use the
+box as a validated pipe, and put all your scrutiny on the data, not the RF.
 
 
-**"Software modem, route past it?"** You've just described **SDR** — software-defined radio, do the modulation in code and hand raw IQ samples to a dumb RF stage. It's real and glorious (GNU Radio, HackRF). The catch is specific: the RTL8821CS **has no raw-IQ port.** Its interface is "give me bytes, I'll do 802.11" — you can't inject your own baseband samples. So a software modem needs *SDR-capable hardware*, which this isn't. (Delicious irony: the famous "RTL-SDR" is a *different* Realtek chip — a DVB-T demodulator that accidentally exposed its samples, receive-only. So Realtek is both the poster child for SDR and the wall against it, in two different chips.)
+**"Software modem, route past it?"** You've just described **SDR** —
+software-defined radio, do the modulation in code and hand raw IQ samples to a
+dumb RF stage. It's real and glorious (GNU Radio, HackRF). The catch is
+specific: the RTL8821CS **has no raw-IQ port.** Its interface is "give me bytes,
+I'll do 802.11" — you can't inject your own baseband samples. So a software
+modem needs *SDR-capable hardware*, which this isn't. (Delicious irony: the
+famous "RTL-SDR" is a *different* Realtek chip — a DVB-T demodulator that
+accidentally exposed its samples, receive-only. So Realtek is both the poster
+child for SDR and the wall against it, in two different chips.)
 
 
-**"Decompile the blob, extract the register values?"** Yes — genuinely viable, and here's the shortcut: **you mostly don't have to.** Realtek ships the RF init tables and PHY parameter tables *inside the open Linux driver* (rtw88/rtlwifi) even while keeping the firmware closed — the "magic values" for `rtl8821c` are largely already in readable source. The firmware blob is mostly *coordination logic*, not the register secrets. So the decompile path exists, but a lot of what you'd hunt for is already sitting in an open driver, handed over by Realtek themselves.
+**"Decompile the blob, extract the register values?"** Yes — genuinely viable,
+and here's the shortcut: **you mostly don't have to.** Realtek ships the RF init
+tables and PHY parameter tables *inside the open Linux driver* (rtw88/rtlwifi)
+even while keeping the firmware closed — the "magic values" for `rtl8821c` are
+largely already in readable source. The firmware blob is mostly *coordination
+logic*, not the register secrets. So the decompile path exists, but a lot of
+what you'd hunt for is already sitting in an open driver, handed over by Realtek
+themselves.
 
 
-**"Just not send an ACK — or ACK on different timing to peers who listen for it?"** This is the sharpest idea in your list, and it's *real*. The 16 µs deadline only exists **if you use standard acknowledged frames.** Broadcast and multicast 802.11 frames are **never ACKed** — no deadline at all. So a peer protocol built on *unacknowledged* frames sidesteps the whole SIFS problem: you emit, and you build your own reliability (retransmit, sequence numbers, your own timing convention) at a layer *you* control, on *your* schedule, agreed among *your* peers. You've essentially reinvented "roll your own MAC on top of raw frames," which is exactly how experimental mesh protocols work. The one gate: whether this firmware lets you *inject raw frames / run monitor mode*. Softmac chips (ath9k) always do; fullmac Realtek parts sometimes do, sometimes don't. That's the actual question — not the concept, which is sound.
+**"Just not send an ACK — or ACK on different timing to peers who listen for
+it?"** This is the sharpest idea in your list, and it's *real*. The 16 µs
+deadline only exists **if you use standard acknowledged frames.** Broadcast and
+multicast 802.11 frames are **never ACKed** — no deadline at all. So a peer
+protocol built on *unacknowledged* frames sidesteps the whole SIFS problem: you
+emit, and you build your own reliability (retransmit, sequence numbers, your own
+timing convention) at a layer *you* control, on *your* schedule, agreed among
+*your* peers. You've essentially reinvented "roll your own MAC on top of raw
+frames," which is exactly how experimental mesh protocols work. The one gate:
+whether this firmware lets you *inject raw frames / run monitor mode*. Softmac
+chips (ath9k) always do; fullmac Realtek parts sometimes do, sometimes don't.
+That's the actual question — not the concept, which is sound.
 
 
-**"Keep the factory calibration — what tunes it? We only talk to our peers. Out-of-spec okay if we don't harm anyone?"** The move is exactly right and simpler than you fear: **don't disturb the RF init, and the factory calibration stays loaded** — the stock firmware reads it from the module's efuse and applies it every boot. You never need to *understand* the calibration; you just don't touch it. And you don't need to associate with anything — peer-to-peer among agreeing devices needs no AP.
+**"Keep the factory calibration — what tunes it? We only talk to our peers.
+Out-of-spec okay if we don't harm anyone?"** The move is exactly right and
+simpler than you fear: **don't disturb the RF init, and the factory calibration
+stays loaded** — the stock firmware reads it from the module's efuse and
+applies it every boot. You never need to *understand* the calibration; you just
+don't touch it. And you don't need to associate with anything — peer-to-peer
+among agreeing devices needs no AP.
 
 
 One honest correction, though, said as a friend and not the eye-rolling lawyer:
@@ -2092,13 +2365,38 @@ airtime* however you like. Beamforming isn't the tool for "don't mess up others"
 in-band-and-in-power is, and you get that for free.
 
 
-**On the lawyer and the tiki bar** — I'm not going to be the one who tilts his head and says can't-be-done, because you're right: difficult isn't impossible, and most of this *is* difficult-not-impossible. And I love that the story ends not on the grand wall but on the mundane one — you can win the argument about the law and still lose the night because nobody knows a bar with the little umbrellas. That's *exactly* the shape of this problem. The grand walls (physics, regulation) all have clean paths around them. The thing that actually decides it is small and unglamorous: **does this specific firmware expose frame injection?** That's the tiki bar. Everything else is just winning the argument.
+**On the lawyer and the tiki bar** — I'm not going to be the one who tilts his
+head and says can't-be-done, because you're right: difficult isn't impossible,
+and most of this *is* difficult-not-impossible. And I love that the story ends
+not on the grand wall but on the mundane one — you can win the argument about
+the law and still lose the night because nobody knows a bar with the little
+umbrellas. That's *exactly* the shape of this problem. The grand walls (physics,
+regulation) all have clean paths around them. The thing that actually decides it
+is small and unglamorous: **does this specific firmware expose frame
+injection?** That's the tiki bar. Everything else is just winning the argument.
 
 
-**"SDIO passes through the CPU — we fully control the CPU, so we can do whatever?"** Yes, and precisely: SDIO is host-mastered, so the radio **cannot push anything into memory** — your CPU *pulls* every byte across the boundary and inspects it. The radio can't run code on you, can't DMA, can't touch RAM you didn't hand it. Its only power is over the RF and the bytes you exchange. Full host-side control. The one residual it keeps is **metadata on the air** — it still knows who you're transmitting to and when — which is your next question.
+**"SDIO passes through the CPU — we fully control the CPU, so we can do
+whatever?"** Yes, and precisely: SDIO is host-mastered, so the radio **cannot
+push anything into memory** — your CPU *pulls* every byte across the boundary
+and inspects it. The radio can't run code on you, can't DMA, can't touch RAM you
+didn't hand it. Its only power is over the RF and the bytes you exchange. Full
+host-side control. The one residual it keeps is **metadata on the air** — it
+still knows who you're transmitting to and when — which is your next question.
 
 
-**"IBSS has overhead in the clear. Pure waves? How granular can we get?"** Right on both counts. Even with an encrypted *payload*, the 802.11 *headers* go out in the clear — MAC addresses, timing, frame sizes. So an eavesdropper learns *who, when, how much*, even if not *what*. You blunt it (MAC randomization, minimal beaconing, padding/traffic-shaping to flatten the pattern) but you can't fully hide that you're speaking 802.11. And "pure waves" — arbitrary waveforms below the frame level — is back to SDR: **the modem is your granularity floor.** With a fixed-function 802.11 chip you're granular down to *a frame* (payload bits, framing, channel, timing — even covert channels in timing and padding), but never down to *a sample*. Sample-level expressiveness needs hardware with an IQ port. Standard-conformant device → frame-level control; SDR → sample-level; this chip is frame-level, full stop.
+**"IBSS has overhead in the clear. Pure waves? How granular can we get?"** Right
+on both counts. Even with an encrypted *payload*, the 802.11 *headers* go out in
+the clear — MAC addresses, timing, frame sizes. So an eavesdropper learns
+*who, when, how much*, even if not *what*. You blunt it (MAC randomization,
+minimal beaconing, padding/traffic-shaping to flatten the pattern) but you can't
+fully hide that you're speaking 802.11. And "pure waves" — arbitrary waveforms
+below the frame level — is back to SDR: **the modem is your granularity
+floor.** With a fixed-function 802.11 chip you're granular down to *a frame*
+(payload bits, framing, channel, timing — even covert channels in timing and
+padding), but never down to *a sample*. Sample-level expressiveness needs
+hardware with an IQ port. Standard-conformant device → frame-level control;
+SDR → sample-level; this chip is frame-level, full stop.
 
 
 So the whole thing collapses to one clean picture: **keep the certified RF
@@ -2121,12 +2419,12 @@ exposes that lever — the tiki-bar question that decides the whole evening?
 
 ### User Request 15
 
-The one thing worth actually checking, before any of this is more than a nice
-theory: does the RG DS's Realtek firmware allow monitor mode / injection? Want
-me to dig through the open rtw88/rtl8xxxu driver for whether this chip family
-exposes that lever — the tiki-bar question that
+  The one thing worth actually checking, before any of this is more than a nice
+  theory: does the RG DS's Realtek firmware allow monitor mode / injection? Want
+  me to dig through the open rtw88/rtl8xxxu driver for whether this chip family
+  exposes that lever — the tiki-bar question that
 
-decides the whole evening?
+  decides the whole evening?
 
 
 Yes please, I'd like to know all the answers to the unanswered questions we
@@ -2162,10 +2460,24 @@ the bar might not exist" situation.
 ## Does the Realtek expose the injection lever?
 
 
-**Architecturally, the good news:** the in-kernel `rtw88` driver is a **mac80211 (softmac) driver**, not a sealed fullmac black box. That means Linux's own monitor-mode and injection machinery sits above it — the OS *has* the plumbing, and the RTL8821CS (SDIO) is a supported chip in it ([rtw88 SDIO support, LWN](https://lwn.net/Articles/918664/); [the 8821CS patch](https://patchwork.kernel.org/project/linux-wireless/patch/20230403202440.276757-10-martin.blumenstingl@googlemail.com/)).
+**Architecturally, the good news:** the in-kernel `rtw88` driver is a **mac80211
+(softmac) driver**, not a sealed fullmac black box. That means Linux's own
+monitor-mode and injection machinery sits above it — the OS *has* the
+plumbing, and the RTL8821CS (SDIO) is a supported chip in it ([rtw88 SDIO
+support, LWN](https://lwn.net/Articles/918664/); [the 8821CS
+patch](https://patchwork.kernel.org/project/linux-wireless/patch/20230403202440.276757-10-martin.blumenstingl@googlemail.com/)).
 
 
-**In practice, the bad news:** monitor mode on the **8821c family specifically is reported broken/flaky.** People trying to put the sibling `rtw8821cu` into monitor mode hit "fails to go into monitor mode," "device or resource busy," and firmware-download failures ([rtw88-usb issue #13](https://github.com/ulli-kroll/rtw88-usb/issues/13)). The chips that *reliably* do monitor + injection are a different set — the `rtl8812au`/`rtl8821au` USB adapters people buy specifically for it, with the out-of-tree aircrack-ng drivers ([morrownr's driver notes](https://github.com/morrownr/8821cu-20210916)). And the old vendor out-of-tree drivers "never did a good job with monitor mode."
+**In practice, the bad news:** monitor mode on the **8821c family specifically
+is reported broken/flaky.** People trying to put the sibling `rtw8821cu` into
+monitor mode hit "fails to go into monitor mode," "device or resource busy," and
+firmware-download failures ([rtw88-usb issue
+#13](https://github.com/ulli-kroll/rtw88-usb/issues/13)). The chips that
+*reliably* do monitor + injection are a different set — the
+`rtl8812au`/`rtl8821au` USB adapters people buy specifically for it, with the
+out-of-tree aircrack-ng drivers ([morrownr's driver
+notes](https://github.com/morrownr/8821cu-20210916)). And the old vendor
+out-of-tree drivers "never did a good job with monitor mode."
 
 
 So the honest verdict: **the lever nominally exists but is unreliable on this
@@ -2175,7 +2487,14 @@ inject, see if the firmware permits it or throws "busy." Until then, treat it as
 "probably flaky."
 
 
-**But here's the opening you didn't ask for:** the USB-C port is USB-host-capable. You can hang an **external USB WiFi dongle** off it — and the gold standard for open, monitor-mode, injection-capable RF is **Atheros ath9k_htc** (fully open firmware, or `8812au`). So if you ever want real, trustworthy, low-level radio, you don't crack the soldered Realtek at all — you plug a *documented* radio into USB-C and drive it with an open driver. The soldered chip stays the "normal WiFi" path or goes unused. That sidesteps the entire wall.
+**But here's the opening you didn't ask for:** the USB-C port is
+USB-host-capable. You can hang an **external USB WiFi dongle** off it — and
+the gold standard for open, monitor-mode, injection-capable RF is **Atheros
+ath9k_htc** (fully open firmware, or `8812au`). So if you ever want real,
+trustworthy, low-level radio, you don't crack the soldered Realtek at all —
+you plug a *documented* radio into USB-C and drive it with an open driver. The
+soldered chip stays the "normal WiFi" path or goes unused. That sidesteps the
+entire wall.
 
 
 ## "Packets as Fourier transforms that replace the 802.11 admin parts"
@@ -2194,9 +2513,17 @@ payload**, modulated identically to your data. And in front of every frame is a
 merely to *detect and lock onto* the frame at all. So:
 
 
-- **What you can do (with injection):** fully rewrite the admin *content* — random/spoofed MAC addresses every frame (kills the persistent "who"), constant padding (blunts "how much"), your own schedule (reshapes "when"), nonstandard frame types your peers agree on. You make the metadata **lie**.
+- **What you can do (with injection):** fully rewrite the admin *content* —
+  random/spoofed MAC addresses every frame (kills the persistent "who"),
+  constant padding (blunts "how much"), your own schedule (reshapes "when"),
+  nonstandard frame types your peers agree on. You make the metadata **lie**.
 
-- **What you can't do on this chip:** change the waveform *structure*. The preamble and PHY header are the modem's, fixed in silicon. So any WiFi card in range still sees "an 802.11 OFDM frame happened, here, this long" — even if it can't read who or what. Making the transmission **not look like 802.11 at all** means generating an arbitrary waveform — SDR — which this chip won't do.
+- **What you can't do on this chip:** change the waveform *structure*. The
+  preamble and PHY header are the modem's, fixed in silicon. So any WiFi card in
+  range still sees "an 802.11 OFDM frame happened, here, this long" — even if
+  it can't read who or what. Making the transmission **not look like 802.11 at
+  all** means generating an arbitrary waveform — SDR — which this chip won't
+  do.
 
 
 So: you can make the metadata meaningless; you can't make the emission
@@ -2271,11 +2598,18 @@ night.
 Quick status so you can close the laptop without worrying:
 
 
-- **Committed** (`0c43c6e4`): the hardware-overview reconciliation, the recovery-modes doc, the strategem, and the archive manifest + the 2.7 MB boot-chain restore slice. Only my files; nobody else's work touched.
+- **Committed** (`0c43c6e4`): the hardware-overview reconciliation, the
+  recovery-modes doc, the strategem, and the archive manifest + the 2.7 MB
+  boot-chain restore slice. Only my files; nobody else's work touched.
 
-- **The archive is safe** — the 4.9 GiB factory dump is now in `archives/` on the repo disk *and* still on the flash drive. Two copies. The "we might lose it on the next re-flash" worry is gone.
+- **The archive is safe** — the 4.9 GiB factory dump is now in `archives/` on
+  the repo disk *and* still on the flash drive. Two copies. The "we might lose
+  it on the next re-flash" worry is gone.
 
-- **One loose end, not urgent:** the `.gitignore` one-liner (the `archives/` ignore rule) is deliberately left uncommitted so it doesn't tangle with the other team's `dumps/` change in that same file. The working tree still honors it, so nothing misbehaves; it just goes in whenever that file gets reconciled.
+- **One loose end, not urgent:** the `.gitignore` one-liner (the `archives/`
+  ignore rule) is deliberately left uncommitted so it doesn't tangle with the
+  other team's `dumps/` change in that same file. The working tree still honors
+  it, so nothing misbehaves; it just goes in whenever that file gets reconciled.
 
 
 And one finding from the check I'd just started, so it isn't lost: the device
@@ -2302,18 +2636,18 @@ Goodnight — it was a good session. 🌴
 
 ### User Request 17
 
-And one finding from the check I'd just started, so it isn't lost: the device
-tree has no Type-C PD chip and no role-switch — the USB-C port is hardwired
-dr_mode = "peripheral" (device-only). That resolves the old 014 unknown (no
-separate USB-C PHY; it's the SoC's basic sensing),
+  And one finding from the check I'd just started, so it isn't lost: the device
+  tree has no Type-C PD chip and no role-switch — the USB-C port is hardwired
+  dr_mode = "peripheral" (device-only). That resolves the old 014 unknown (no
+  separate USB-C PHY; it's the SoC's basic sensing),
 
-and it quietly reframes the handheld-to-handheld link: with the port statically
-a device and no CC/role negotiation hardware, "two handhelds on a cable" is
-harder than the laptop case — one would have to be forced into host mode and
-source VBUS without negotiation. Good thing to
+  and it quietly reframes the handheld-to-handheld link: with the port
+  statically a device and no CC/role negotiation hardware, "two handhelds on a
+  cable" is harder than the laptop case — one would have to be forced into
+  host mode and source VBUS without negotiation. Good thing to
 
-know before building it, not after. Purely a design note for next time; nothing
-to act on tonight.
+  know before building it, not after. Purely a design note for next time;
+  nothing to act on tonight.
 
 
 
