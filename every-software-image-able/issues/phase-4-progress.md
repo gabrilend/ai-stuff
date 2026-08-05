@@ -13,7 +13,7 @@ paid once, by people, before any of these machines exist.
 |---|---|---|
 | `401` | The second and third tongues | **in progress** — a whole thought runs end to end in assembly on all three architectures, and all three produce the same 192 scores bit for bit over the same weights; what remains is the hands, which are ported nowhere |
 | `402` | Waking on the right foot | **completed** — the selection proved on all three architectures, the within-architecture detection written and proved by booting two different processors and requiring them to disagree, 18 of 18 |
-| `403` | The tokenizer and the console, on all three at once | **in progress** — the tokenizer now exists on all three and agrees over the awkward corpus in both directions, 9 of 9; the console is still first-architecture only |
+| `403` | The tokenizer and the console, on all three at once | **completed** — the tokenizer agrees over the awkward corpus in both directions, 9 of 9; and saying something is a callable routine on all three, chunked and checked in order, 9 of 9 |
 
 ## Where the risk is
 
@@ -51,8 +51,10 @@ changes shape rather than detail — and the hands are still the readable kind
 of code on *every* architecture including the first, so they are `107`'s
 work rather than a port.
 
-Above the arithmetic and the conducting, the sampler and the tokenizer now
-exist on all three as well. What does not is the console, which is `403`.
+Above the arithmetic and the conducting, the sampler, the tokenizer and
+saying something all exist on all three as well. **Everything phase 4 set out
+to do is done**, and what remains for a machine to think on its own is not a
+port at all: it is the driver (`107`), which has never existed anywhere.
 
 The demo this phase names is now possible for the first time, and was not
 before: the same measurement across all three architectures side by side
