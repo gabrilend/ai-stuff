@@ -42,7 +42,7 @@ not yet above it.
 | `105` | The thinking loop, and its limits | **reopened** — the readable loop is closed on the assembly engine and proved, 13 of 13, and it runs on the development machine rather than on the chip; it stays the reference its assembly twin is held to |
 | `105a` | The tokenizer | **completed** — reference 21 of 21; assembly agrees on the whole awkward corpus, 17 of 17 |
 | `106` | Measure the engine | **completed** — 1.36 G multiply-adds/s conducted end to end; three boards timed from power to their own memory report; results kept as data |
-| `107` | The driver, and what a machine cannot be told | **in progress** — finding the model and locating every tensor is written and proved on all three, 14 of 14; the memory layout, the plan and the loop are not |
+| `107` | The driver, and what a machine cannot be told | **in progress** — finding every tensor and dividing memory with no allocator are both written and proved on all three, 14 of 14 each; the plan and the loop are not |
 | `108` | What a weight costs, said once | **completed** — one description, asked by everything that needs it; and the engine reads four-bit weights on all three architectures, agreeing bit for bit, 9 of 9 |
 
 ## Where the risk was, and what it turned out to be
