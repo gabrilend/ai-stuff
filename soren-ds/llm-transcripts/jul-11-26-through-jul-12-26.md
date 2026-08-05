@@ -1,6 +1,6 @@
 # Conversation Summary: 1c7bcb95-8404-47b1-abbc-a195a5a7ee8a
 
-Generated on: 2026-07-24 15:44:45
+Generated on: 2026-07-27 16:50:37
 
 --------------------------------------------------------------------------------
 
@@ -33,17 +33,41 @@ The koan in your description is *blocky and simultaneously rounded*. I think
 that resolves cleanly, and it's the most valuable thing to get right first:
 
 
-**Separate the topology from the surface treatment.** The blocky part is the *decision about what exists* — few primitives, axis-aligned, MS-Paint-simple. The rounded part is *how the seams between them are drawn*. A signed distance field does exactly this. An SDF is a function: hand it any point in space, it returns the distance to the nearest surface — negative inside a shape, positive outside. You combine two shapes by taking the *minimum* of their two functions. If you use a hard minimum, you get a sharp blocky corner where they meet. If you swap in a *softened* minimum that curves near the crossover, the seam rounds off — and the amount of rounding is a single number, `k`. So "blocky geometry, full of rounded edges and splines" isn't a contradiction; it's `k` turned up. Same box primitives, one knob for how much they melt into each other.
+**Separate the topology from the surface treatment.** The blocky part is the
+*decision about what exists* — few primitives, axis-aligned, MS-Paint-simple.
+The rounded part is *how the seams between them are drawn*. A signed distance
+field does exactly this. An SDF is a function: hand it any point in space, it
+returns the distance to the nearest surface — negative inside a shape,
+positive outside. You combine two shapes by taking the *minimum* of their two
+functions. If you use a hard minimum, you get a sharp blocky corner where they
+meet. If you swap in a *softened* minimum that curves near the crossover, the
+seam rounds off — and the amount of rounding is a single number, `k`. So
+"blocky geometry, full of rounded edges and splines" isn't a contradiction; it's
+`k` turned up. Same box primitives, one knob for how much they melt into each
+other.
 
 
 Two things I'd push back on before you commit, in order of how much they'll
 bite:
 
 
-**One — what WiFi actually hands you.** Channel state sensing measures how the signal's phase and amplitude smear as it bounces off walls and bodies. You can invert that into "which voxels of the room are roughly full," but it's low-resolution and noisy — you learn *where mass is*, not clean surfaces. So the blocky aesthetic might not be a style choice at all. It might be the *honest* resolution of the sensor. That reframes the whole engine as "render exactly as much as you actually measured, no more." Does that match your intent, or do you want the blockiness even when you have better data?
+**One — what WiFi actually hands you.** Channel state sensing measures how the
+signal's phase and amplitude smear as it bounces off walls and bodies. You can
+invert that into "which voxels of the room are roughly full," but it's
+low-resolution and noisy — you learn *where mass is*, not clean surfaces. So
+the blocky aesthetic might not be a style choice at all. It might be the
+*honest* resolution of the sensor. That reframes the whole engine as "render
+exactly as much as you actually measured, no more." Does that match your intent,
+or do you want the blockiness even when you have better data?
 
 
-**Two — the color assignment is a graph-coloring problem, and it can be infeasible.** "Adjacent regions contrast" + "same material shares one color even when the patches are disjoint across the room" — those two rules fight. You can build an adjacency layout that *cannot* be satisfied with a fixed palette without either splitting a material or letting two neighbors go non-contrasting. What should the engine do when it's cornered — widen the palette, break the same-material rule, or refuse and flag it?
+**Two — the color assignment is a graph-coloring problem, and it can be
+infeasible.** "Adjacent regions contrast" + "same material shares one color even
+when the patches are disjoint across the room" — those two rules fight. You
+can build an adjacency layout that *cannot* be satisfied with a fixed palette
+without either splitting a material or letting two neighbors go non-contrasting.
+What should the engine do when it's cornered — widen the palette, break the
+same-material rule, or refuse and flag it?
 
 
 And the sharp one I actually want your answer on: **does the LLM only *label*
@@ -65,17 +89,17 @@ think pre-school kinder-ninja dinosaur-pink-and-blue played by a 32 year old
 woman-man
 
 
-One — what WiFi actually hands you. Channel state sensing measures how the
-signal's phase and amplitude smear as it bounces off walls and bodies. You can
-invert that into "which voxels of the room are roughly full," but it's
-low-resolution and noisy — you learn where mass is, not
+  One — what WiFi actually hands you. Channel state sensing measures how the
+  signal's phase and amplitude smear as it bounces off walls and bodies. You can
+  invert that into "which voxels of the room are roughly full," but it's
+  low-resolution and noisy — you learn where mass is, not
 
-clean surfaces. So the blocky aesthetic might not be a style choice at all. It
-might be the honest resolution of the sensor. That reframes the whole engine as
-"render exactly as much as you actually measured, no more." Does that match your
-intent, or do you want the blockiness even
+  clean surfaces. So the blocky aesthetic might not be a style choice at all. It
+  might be the honest resolution of the sensor. That reframes the whole engine
+  as "render exactly as much as you actually measured, no more." Does that match
+  your intent, or do you want the blockiness even
 
-when you have better data?
+  when you have better data?
 
 
 
@@ -86,14 +110,14 @@ orientation, and continuity with the prior events (otherwise is a shock, as a
 sudden change in behavior reacts to the new learning)
 
 
-Two — the color assignment is a graph-coloring problem, and it can be
-infeasible. "Adjacent regions contrast" + "same material shares one color even
-when the patches are disjoint across the room" — those two rules fight. You
-can build an adjacency layout that cannot be satisfied
+  Two — the color assignment is a graph-coloring problem, and it can be
+  infeasible. "Adjacent regions contrast" + "same material shares one color even
+  when the patches are disjoint across the room" — those two rules fight. You
+  can build an adjacency layout that cannot be satisfied
 
-with a fixed palette without either splitting a material or letting two
-neighbors go non-contrasting. What should the engine do when it's cornered —
-widen the palette, break the same-material rule, or refuse and flag it?
+  with a fixed palette without either splitting a material or letting two
+  neighbors go non-contrasting. What should the engine do when it's cornered —
+  widen the palette, break the same-material rule, or refuse and flag it?
 
 
 that's fine. they should try their best, and if they must intersect, they should
@@ -102,14 +126,14 @@ planes of vertices, but also does not in others. does that resolve the specific
 issue you had at hand?
 
 
-And the sharp one I actually want your answer on: does the LLM only label
-surfaces you measured, or is it allowed to complete geometry and color you never
-sensed? Labeling is safe. Completion is the model confabulating a room. Given
-how you feel about fallbacks and nil-checks, I'd
+  And the sharp one I actually want your answer on: does the LLM only label
+  surfaces you measured, or is it allowed to complete geometry and color you
+  never sensed? Labeling is safe. Completion is the model confabulating a room.
+  Given how you feel about fallbacks and nil-checks, I'd
 
-guess you want unknown regions rendered as visibly unknown rather than plausibly
-filled — but that's your call, and it changes the whole trust model of the
-thing.
+  guess you want unknown regions rendered as visibly unknown rather than
+  plausibly filled — but that's your call, and it changes the whole trust
+  model of the thing.
 
 
 oh, it's not labelling at all. always estimation. this is recorded and
@@ -147,9 +171,14 @@ years from now: your three answers didn't pick from my menus, they dissolved the
 menus.
 
 
-- The WiFi honesty question → there is no "honest vs. stylized" fork, because it's *always estimation*, held with continuity, and a sharp contradiction registers as **shock** that drives relearning rather than a silent overwrite.
+- The WiFi honesty question → there is no "honest vs. stylized" fork, because
+  it's *always estimation*, held with continuity, and a sharp contradiction
+  registers as **shock** that drives relearning rather than a silent overwrite.
 
-- The label-vs-complete question → neither, for the same reason: everything is an estimate that carries its own classification, so "unknown" isn't a special case to render differently, it's just low confidence waiting for a second estimator to co-create with.
+- The label-vs-complete question → neither, for the same reason: everything is
+  an estimate that carries its own classification, so "unknown" isn't a special
+  case to render differently, it's just low confidence waiting for a second
+  estimator to co-create with.
 
 
 That's a coherent spine. Leaving it be — come back to it whenever.

@@ -1,6 +1,6 @@
 # Conversation Summary: a8349c04-3cc4-4dac-a4bc-ea7e66a7dd07
 
-Generated on: 2026-07-24 15:44:47
+Generated on: 2026-07-27 16:50:39
 
 --------------------------------------------------------------------------------
 
@@ -62,7 +62,9 @@ Now stitching the bootable SD image.
 Done. The flashable image is built and ready.
 
 
-**`output/bootable-sd.img`** (285 MB) — a full Rockchip boot chain (idbloader + u-boot FIT + RG DS device tree) plus the diagnostic kernel with the probe battery compiled in.
+**`output/bootable-sd.img`** (285 MB) — a full Rockchip boot chain (idbloader
++ u-boot FIT + RG DS device tree) plus the diagnostic kernel with the probe
+battery compiled in.
 
 
 **What it'll gather — 24 armed probes**, in sweep order:
@@ -77,17 +79,18 @@ emmc-extcsd · emmc-hs200 · emmc-hs400 · sd-capabilities · emmc-dma · sd-dma
 **Two things worth a look before you flash:**
 
 1. **One register-writing probe is armed and will run: `display-presence`**
-(it's `#WRITES`). The other write-capable probes (`saradc-gamepad`,
-`pwm-bringup`, `emmc-dll-tune`) are de-selected, so they stay dormant. If you
-don't want any pokes this run, say so and I'll de-select it.
+   (it's `#WRITES`). The other write-capable probes (`saradc-gamepad`,
+   `pwm-bringup`, `emmc-dll-tune`) are de-selected, so they stay dormant. If you
+   don't want any pokes this run, say so and I'll de-select it.
 
 2. **7 probes are compiled in but de-selected** (won't gather):
-`saradc-gamepad`, `dram-march`, `pwm-bringup`, `emmc-dll-tune`, `emmc-backup`,
-`emmc-dump`, `emmc-scan`. If the "new probes" you're chasing are among these,
-name them and I'll arm them (`#NEEDED 1`) and rebuild.
+   `saradc-gamepad`, `dram-march`, `pwm-bringup`, `emmc-dll-tune`,
+   `emmc-backup`, `emmc-dump`, `emmc-scan`. If the "new probes" you're chasing
+   are among these, name them and I'll arm them (`#NEEDED 1`) and rebuild.
 
 
-**Next step is yours** (the air-gapped part): `scripts/push-to-usb` to carry it across, then `scripts/lab-side/flash-sd` to write the microSD.
+**Next step is yours** (the air-gapped part): `scripts/push-to-usb` to carry it
+across, then `scripts/lab-side/flash-sd` to write the microSD.
 
 
 Which set matches the info you're trying to collect — is the current 24 right,
@@ -114,11 +117,9 @@ read:
 
 |---|---|---|---|
 
-| `W 0xFDD20350 0x1FFC0000` | `CLKGATE_CON20` | `0xFDD20350` | Un-gates the VOP2
-+ VO bus-interface clocks (bits 2..12 → 0 = on) |
+| `W 0xFDD20350 0x1FFC0000` | `CLKGATE_CON20` | `0xFDD20350` | Un-gates the VOP2 + VO bus-interface clocks (bits 2..12 → 0 = on) |
 
-| `W 0xFDD20440 0x01FF0000` | `SOFTRST_CON16` | `0xFDD20440` | Releases the VOP2
-resets (bits 0..8 → 0 = released) |
+| `W 0xFDD20440 0x01FF0000` | `SOFTRST_CON16` | `0xFDD20440` | Releases the VOP2 resets (bits 0..8 → 0 = released) |
 
 
 Then it delays 20 µs and **reads** `VOP2_SYS_VERSION_INFO` at `0xFE040004`,
@@ -177,9 +178,12 @@ before I write the issue and build this.
 
 **How probes touch hardware today, two ways:**
 
-- **Script probes** like `display-presence` use the `W`/`WH`/`WB` commands — easy to intercept.
+- **Script probes** like `display-presence` use the `W`/`WH`/`WB` commands —
+  easy to intercept.
 
-- **C `CALL` routines** (`otp`, `rng`, `crypto`, the i2c setup) poke registers directly with hand-written `mmio_w32` and *already* leave clocks ungated when they finish.
+- **C `CALL` routines** (`otp`, `rng`, `crypto`, the i2c setup) poke registers
+  directly with hand-written `mmio_w32` and *already* leave clocks ungated when
+  they finish.
 
 
 Interestingly, the team already believes in your invariant in spots:
@@ -191,7 +195,18 @@ reverse at the end of the probe, so each probe hands the next one a pristine
 slate.
 
 
-**The landmine** is restoring the CRU/GRF "write-mask" registers — which is exactly what `display-presence` writes to. On these, the high 16 bits are a per-bit write-enable and the low 16 are the values. So if you read `CLKGATE_CON20`, you get the live state with the mask half reading `0` — and writing that straight back **changes nothing**, because you just told the hardware "enable zero bits for writing." A naive read-then-writeback restore silently no-ops on every CRU register. To actually restore you must write `0xFFFF0000 | saved_low`. But you can't just apply that formula everywhere: `I2C0_CLKDIV` at `0xFDD40000` sits in the *same* address window yet is **not** a masked register (both its 16-bit halves are real divider values), so the mask trick would corrupt it. So the engine has to *know*, per register, which kind it is — and getting that wrong pokes bad values into the clock tree.
+**The landmine** is restoring the CRU/GRF "write-mask" registers — which is
+exactly what `display-presence` writes to. On these, the high 16 bits are a
+per-bit write-enable and the low 16 are the values. So if you read
+`CLKGATE_CON20`, you get the live state with the mask half reading `0` — and
+writing that straight back **changes nothing**, because you just told the
+hardware "enable zero bits for writing." A naive read-then-writeback restore
+silently no-ops on every CRU register. To actually restore you must write
+`0xFFFF0000 | saved_low`. But you can't just apply that formula everywhere:
+`I2C0_CLKDIV` at `0xFDD40000` sits in the *same* address window yet is **not** a
+masked register (both its 16-bit halves are real divider values), so the mask
+trick would corrupt it. So the engine has to *know*, per register, which kind it
+is — and getting that wrong pokes bad values into the clock tree.
 
 
 Three decisions shape what I build. My recommendation is the first option in
@@ -201,33 +216,58 @@ each:
 **[Asked the user]**
 
 
-*Q1 — Default meaning:* You want to log when a register is 'not in its default state' — default relative to what?
+*Q1 — Default meaning:* You want to log when a register is 'not in its default
+state' — default relative to what?
 
-- Chip reset value — The power-on value from the TRM. The engine can't know these itself, so each probe declares them via a new 'DEFAULT <addr> <value> [mask]' line; the engine reads at probe start and flags any mismatch. This catches the bootloader/firmware having already moved a clock or rail before we probed.
+- Chip reset value — The power-on value from the TRM. The engine can't know
+  these itself, so each probe declares them via a new 'DEFAULT <addr> <value>
+  [mask]' line; the engine reads at probe start and flags any mismatch. This
+  catches the bootloader/firmware having already moved a clock or rail before we
+  probed.
 
-- Untouched since boot — The value a register held the first time any probe read it this boot. The engine snapshots first-seen values and flags if a later probe finds it changed. Needs no TRM values, but only catches drift our own probes (or late firmware) cause — not the boot-time starting config.
+- Untouched since boot — The value a register held the first time any probe
+  read it this boot. The engine snapshots first-seen values and flags if a later
+  probe finds it changed. Needs no TRM values, but only catches drift our own
+  probes (or late firmware) cause — not the boot-time starting config.
 
-- Both — Declare reset values where the TRM gives them AND track first-seen values, logging against whichever is available. Most coverage, most machinery.
+- Both — Declare reset values where the TRM gives them AND track first-seen
+  values, logging against whichever is available. Most coverage, most machinery.
 
 → **Selected:** Chip reset value
 
 
-*Q2 — Restore method:* How should the engine tell a write-mask CRU/GRF register (restore needs 0xFFFF0000|saved) apart from a plain register in the same window (restore raw)?
+*Q2 — Restore method:* How should the engine tell a write-mask CRU/GRF
+register (restore needs 0xFFFF0000|saved) apart from a plain register in the
+same window (restore raw)?
 
-- Engine knows the windows — The engine carries a precise table of the write-mask blocks (CRU 0xFDD20000, PMU-CRU 0xFDD00000, GRF, PMU-GRF) and restores those with the mask trick, everything else raw. Existing probes need no edits; the table is a documented hardware fact, excluding I2C0 etc.
+- Engine knows the windows — The engine carries a precise table of the
+  write-mask blocks (CRU 0xFDD20000, PMU-CRU 0xFDD00000, GRF, PMU-GRF) and
+  restores those with the mask trick, everything else raw. Existing probes need
+  no edits; the table is a documented hardware fact, excluding I2C0 etc.
 
-- Probe marks masked writes — Add a distinct 'WM' (write-masked) command. WM writes get restored with the mask trick; plain W restored raw. Intent is explicit in each probe and there's no table to maintain, but the CRU-writing probes must be edited to use WM.
+- Probe marks masked writes — Add a distinct 'WM' (write-masked) command. WM
+  writes get restored with the mask trick; plain W restored raw. Intent is
+  explicit in each probe and there's no table to maintain, but the CRU-writing
+  probes must be edited to use WM.
 
-- Probe restores itself — No auto-restore; each probe ends with its own explicit restore writes (like pmic_write_test does today). Simplest engine, but 'ensure everything is restored' then depends on the author remembering.
+- Probe restores itself — No auto-restore; each probe ends with its own
+  explicit restore writes (like pmic_write_test does today). Simplest engine,
+  but 'ensure everything is restored' then depends on the author remembering.
 
 → **Selected:** Probe restores itself
 
 
-*Q3 — Scope:* display-presence is a script probe, so DSL-level save/restore covers it. Some probes ungate clocks from hand-written C and leave them on. Include those now?
+*Q3 — Scope:* display-presence is a script probe, so DSL-level save/restore
+covers it. Some probes ungate clocks from hand-written C and leave them on.
+Include those now?
 
-- Script probes first — Implement save/restore + default-check for the DSL W/WH/WB path now (covers display-presence and any script probe). File a follow-up issue for the C CALL routines (otp/rng/crypto/i2c).
+- Script probes first — Implement save/restore + default-check for the DSL
+  W/WH/WB path now (covers display-presence and any script probe). File a
+  follow-up issue for the C CALL routines (otp/rng/crypto/i2c).
 
-- Everything now — Also thread save/restore through the hand-written C routines (otp/rng/crypto/i2c) in the same change. Larger, touches more register code, higher chance of a mistake in the clock-tree pokes.
+- Everything now — Also thread save/restore through the hand-written C
+  routines (otp/rng/crypto/i2c) in the same change. Larger, touches more
+  register code, higher chance of a mistake in the clock-tree pokes.
 
 → **Selected:** Everything now
 
@@ -235,11 +275,17 @@ each:
 Good — that gives me a clear, coherent design:
 
 
-- **Default = chip reset value** → a new `DEFAULT <addr> <value> [mask]` command; the probe declares the TRM reset value, the engine reads at entry and logs `NON-DEFAULT` if the bootloader/firmware already moved it.
+- **Default = chip reset value** → a new `DEFAULT <addr> <value> [mask]`
+  command; the probe declares the TRM reset value, the engine reads at entry and
+  logs `NON-DEFAULT` if the bootloader/firmware already moved it.
 
-- **Probe restores itself** → no auto-journal magic; each probe (and each C routine) explicitly writes back what it changed, to as-found. The author — who knows the register — writes the correct masked restore, so the engine stays simple and can't guess wrong.
+- **Probe restores itself** → no auto-journal magic; each probe (and each C
+  routine) explicitly writes back what it changed, to as-found. The author —
+  who knows the register — writes the correct masked restore, so the engine
+  stays simple and can't guess wrong.
 
-- **Everything now** → also bracket the hand-written C routines (`otp`, `rng`, `crypto`, the shared i2c0 setup) with save/restore.
+- **Everything now** → also bracket the hand-written C routines (`otp`, `rng`,
+  `crypto`, the shared i2c0 setup) with save/restore.
 
 
 Per your workflow this needs an issue file first. Let me find the right number
@@ -302,25 +348,57 @@ Done — the image is rebuilt and ready to flash. Here's what changed underneath
 it.
 
 
-**The image**: `output/bootable-sd.img` (285 MB), same 24 armed probes as before, but now every probe that disturbs a clock, reset, or pin puts it back. Next steps unchanged: `scripts/push-to-usb`, then `scripts/lab-side/flash-sd`.
+**The image**: `output/bootable-sd.img` (285 MB), same 24 armed probes as
+before, but now every probe that disturbs a clock, reset, or pin puts it back.
+Next steps unchanged: `scripts/push-to-usb`, then `scripts/lab-side/flash-sd`.
 
 
-**What "leave it as found" now means, concretely** — three places were leaking state and now don't:
+**What "leave it as found" now means, concretely** — three places were leaking
+state and now don't:
 
-- **The display probe** re-gates the VOP2 clocks and re-holds its resets after reading the version register, instead of leaving the display block powered for everything downstream.
+- **The display probe** re-gates the VOP2 clocks and re-holds its resets after
+  reading the version register, instead of leaving the display block powered for
+  everything downstream.
 
-- **The i2c0 bus bring-up** — shared by *five* probes (PMIC dump/write/LDO, the bus scan, the audio-codec dump) — gained a matching teardown. Each of those probes now brackets "bring the bus up … put it back": re-gate its clocks, re-hold its resets, and return the two GPIO pads to whatever function they had. Previously even the two probes that carefully restored their *device* register still left the *bus* re-muxed.
+- **The i2c0 bus bring-up** — shared by *five* probes (PMIC dump/write/LDO,
+  the bus scan, the audio-codec dump) — gained a matching teardown. Each of
+  those probes now brackets "bring the bus up … put it back": re-gate its
+  clocks, re-hold its resets, and return the two GPIO pads to whatever function
+  they had. Previously even the two probes that carefully restored their
+  *device* register still left the *bus* re-muxed.
 
-- **The OTP, RNG, and crypto probes** each snapshot their clock-gate/reset registers on entry and re-gate on exit.
+- **The OTP, RNG, and crypto probes** each snapshot their clock-gate/reset
+  registers on entry and re-gate on exit.
 
 
-**The masked-register trap you spotted lives in exactly one place now.** There's a single helper that does the `0xFFFF0000 | saved` write-back, with a comment explaining why writing the read-back value verbatim would silently do nothing. Every C routine restores through it; the display probe (being a script) writes its own re-gate line with the mask spelled out. Plain registers like `I2C0_CLKDIV` are restored raw — the code picks the right form per register rather than guessing from the address, which is the whole reason we went with "the probe restores itself."
+**The masked-register trap you spotted lives in exactly one place now.** There's
+a single helper that does the `0xFFFF0000 | saved` write-back, with a comment
+explaining why writing the read-back value verbatim would silently do nothing.
+Every C routine restores through it; the display probe (being a script) writes
+its own re-gate line with the mask spelled out. Plain registers like
+`I2C0_CLKDIV` are restored raw — the code picks the right form per register
+rather than guessing from the address, which is the whole reason we went with
+"the probe restores itself."
 
 
-**The default-state check** is a new `DEFAULT <addr> <value> [mask]` command. Put at the top of a probe, it reads the register and logs `at-reset` or `NON-DEFAULT got=… reset=…`. The display probe now opens with two of them, for the clock gate and the reset register.
+**The default-state check** is a new `DEFAULT <addr> <value> [mask]` command.
+Put at the top of a probe, it reads the register and logs `at-reset` or
+`NON-DEFAULT got=… reset=…`. The display probe now opens with two of them,
+for the clock gate and the reset register.
 
 
-**One thing I want to flag honestly, and it's your kind of question:** the script-side restore puts the display back to its *reset* state (re-gated, re-held), which only equals "as we found it" if the display was actually at reset when we arrived. That holds *only if u-boot never touches the VOP2 before handing off to us*. I don't know that it doesn't — and that's precisely what the `NON-DEFAULT` line is there to catch on the next sweep. So: **do you know whether our u-boot brings up the display at all?** If it might, the honest fix is to give the script path a save-first `SAVE`/`RESTORE` pair (restore to the actual entry value, like the C routines do) rather than restore-to-reset. I left that as a deferred note rather than build it, since you chose the simplest engine — but if u-boot is a display-toucher, it's worth doing now instead of trusting the reset assumption.
+**One thing I want to flag honestly, and it's your kind of question:** the
+script-side restore puts the display back to its *reset* state (re-gated,
+re-held), which only equals "as we found it" if the display was actually at
+reset when we arrived. That holds *only if u-boot never touches the VOP2 before
+handing off to us*. I don't know that it doesn't — and that's precisely what
+the `NON-DEFAULT` line is there to catch on the next sweep. So: **do you know
+whether our u-boot brings up the display at all?** If it might, the honest fix
+is to give the script path a save-first `SAVE`/`RESTORE` pair (restore to the
+actual entry value, like the C routines do) rather than restore-to-reset. I left
+that as a deferred note rather than build it, since you chose the simplest
+engine — but if u-boot is a display-toucher, it's worth doing now instead of
+trusting the reset assumption.
 
 
 I recorded all this in a new issue file in the probe series (the `110o`
@@ -384,12 +462,15 @@ Rebuilt and verified — `output/bootable-sd.img` now carries the
 `lab-side/flash-sd`).
 
 
-**What changed from the last build.** The display probe no longer restores to the *reset* state — it restores to whatever it actually found:
+**What changed from the last build.** The display probe no longer restores to
+the *reset* state — it restores to whatever it actually found:
 
 
-- At entry it runs `SAVE 0xFDD20350` / `SAVE 0xFDD20440`, which read the two CRU registers and stash their real values.
+- At entry it runs `SAVE 0xFDD20350` / `SAVE 0xFDD20440`, which read the two CRU
+  registers and stash their real values.
 
-- At exit it runs `RESTORE 0xFDD20440 0x01FF` / `RESTORE 0xFDD20350 0x1FFC`, which write those saved values back.
+- At exit it runs `RESTORE 0xFDD20440 0x01FF` / `RESTORE 0xFDD20350 0x1FFC`,
+  which write those saved values back.
 
 
 So the three cases all come out right: if the display was **off** when we
@@ -406,7 +487,12 @@ only way to move these CRU registers. It also means `RESTORE` only puts back the
 bits this probe disturbed, leaving the rest of the register alone.
 
 
-**`DEFAULT` is now purely a diagnostic.** Before, I'd tied it to restore correctness ("restore-to-reset is only valid if we started at reset"). With save-first restore, that dependency is gone — the restore is correct whatever the entry state was. `DEFAULT` still logs `at-reset` / `NON-DEFAULT`, but now it's just telling you *whether something upstream had already brought the display up* — useful to know, independent of the restore.
+**`DEFAULT` is now purely a diagnostic.** Before, I'd tied it to restore
+correctness ("restore-to-reset is only valid if we started at reset"). With
+save-first restore, that dependency is gone — the restore is correct whatever
+the entry state was. `DEFAULT` still logs `at-reset` / `NON-DEFAULT`, but now
+it's just telling you *whether something upstream had already brought the
+display up* — useful to know, independent of the restore.
 
 
 Worth noting: the **C routines** (OTP, RNG, crypto, the shared i2c bus) already
@@ -460,7 +546,9 @@ Both are done. Let me give you the final artifact details for the flash:
 Both done.
 
 
-**Committed** — `master 4b6e226b`, just the three files (probe engine, display probe, issue blueprint), 415 insertions and no deletions since it's all additive. The other modified files across your tree were left untouched.
+**Committed** — `master 4b6e226b`, just the three files (probe engine, display
+probe, issue blueprint), 415 insertions and no deletions since it's all
+additive. The other modified files across your tree were left untouched.
 
 
 **Fresh image built** from that committed source:
@@ -509,9 +597,13 @@ Everything I touched is healthy — I'll get to the headline in a second, but
 first the important cross-checks:
 
 
-- **OTP, crypto, RNG** all show their `restored … to as-found` line and none hung.
+- **OTP, crypto, RNG** all show their `restored … to as-found` line and none
+  hung.
 
-- **The five i2c probes** (dump, write, ldo, scan, audio) all completed — `pmic-write` still round-trips (wrote `0x5A`, restored `0x00`), the scan still finds the PMIC at `0x20`. The teardown runs silently, so there's no log line for it (minor — I could add one).
+- **The five i2c probes** (dump, write, ldo, scan, audio) all completed —
+  `pmic-write` still round-trips (wrote `0x5A`, restored `0x00`), the scan still
+  finds the PMIC at `0x20`. The teardown runs silently, so there's no log line
+  for it (minor — I could add one).
 
 
 **The headline, from the display probe:**
@@ -519,21 +611,21 @@ first the important cross-checks:
 
 ```
 
-SAVE 0xFDD20350 = 0x00000000 ← clock gate, as we ARRIVED
+SAVE 0xFDD20350 = 0x00000000      ← clock gate, as we ARRIVED
 
-SAVE 0xFDD20440 = 0x00000000 ← reset reg, as we ARRIVED
+SAVE 0xFDD20440 = 0x00000000      ← reset reg,  as we ARRIVED
 
 DEFAULT ... NON-DEFAULT got=0x0 reset=0x1FFC
 
 DEFAULT ... NON-DEFAULT got=0x0 reset=0x01FF
 
-W 0xFDD20350 <= 0x1FFC0000 ← our ungate: writing 0 to bits already 0 = no-op
+W 0xFDD20350 <= 0x1FFC0000         ← our ungate: writing 0 to bits already 0 = no-op
 
 ...
 
-RESTORE 0xFDD20440 <= 0x01FF0000 (masked) ← put back the 0 we found
+RESTORE 0xFDD20440 <= 0x01FF0000  (masked)   ← put back the 0 we found
 
-RESTORE 0xFDD20350 <= 0x1FFC0000 (masked) ← put back the 0 we found
+RESTORE 0xFDD20350 <= 0x1FFC0000  (masked)   ← put back the 0 we found
 
 ```
 
@@ -575,9 +667,13 @@ clocks **on** and resets **released**.
 
 So my headline was wrong, and the culprit was my own guess:
 
-- The registers read `0x0` because that **is** their power-on default — the display block was **not** "already brought up by u-boot." It's just that these clocks reset to on.
+- The registers read `0x0` because that **is** their power-on default — the
+  display block was **not** "already brought up by u-boot." It's just that these
+  clocks reset to on.
 
-- My `DEFAULT` lines declared reset = `0x1FFC`/`0x01FF` (gated/held). That was **backwards**. So the `NON-DEFAULT` verdict was a **false alarm from my bad declaration**, not a real signal.
+- My `DEFAULT` lines declared reset = `0x1FFC`/`0x01FF` (gated/held). That was
+  **backwards**. So the `NON-DEFAULT` verdict was a **false alarm from my bad
+  declaration**, not a real signal.
 
 
 What this *doesn't* change — and actually validates harder — is the
@@ -610,19 +706,20 @@ declaration.
 ## What the sweep told us
 
 
-**The mechanism works.** Everything I changed ran clean — OTP, RNG, and crypto each logged their `restored … to as-found` line, all five i2c probes completed (PMIC still round-trips and the bus scan still finds `0x20`), nothing hung.
+**The mechanism works.** Everything I changed ran clean — OTP, RNG, and crypto
+each logged their `restored … to as-found` line, all five i2c probes completed
+(PMIC still round-trips and the bus scan still finds `0x20`), nothing hung.
 
 
-**I was wrong about u-boot, and the TRM says why.** I dug the reset values out of the TRM detail pages:
+**I was wrong about u-boot, and the TRM says why.** I dug the reset values out
+of the TRM detail pages:
 
 
 ```
 
-CRU_GATE_CON20 (0x350) reset 0x00000000 bit = "1: disable clock" → 0 = clock
-ON
+CRU_GATE_CON20    (0x350)  reset 0x00000000   bit = "1: disable clock"   → 0 = clock ON
 
-CRU_SOFTRST_CON16 (0x440) reset 0x00000000 bit = "1: reset logic" → 0 =
-released
+CRU_SOFTRST_CON16 (0x440)  reset 0x00000000   bit = "1: reset logic"     → 0 = released
 
 ```
 
@@ -635,15 +732,30 @@ bad declaration. I've corrected both `DEFAULT` lines to `reset = 0x00000000` and
 fixed the probe's header comments; the next sweep will read `at-reset`.
 
 
-**But this is the strongest possible vindication of save-first restore.** If I'd shipped the restore-to-reset version using my *declared* value, it would have written `0x1FFC1FFC` and **gated clocks the chip resets to ungated** — actively breaking the display block on every boot. Save-first captured the real `0` and wrote `0` back, so it was correct *despite* my wrong assumption. Restore-to-as-found protects against not knowing the reset value — which is exactly the situation I turned out to be in.
+**But this is the strongest possible vindication of save-first restore.** If I'd
+shipped the restore-to-reset version using my *declared* value, it would have
+written `0x1FFC1FFC` and **gated clocks the chip resets to ungated** —
+actively breaking the display block on every boot. Save-first captured the real
+`0` and wrote `0` back, so it was correct *despite* my wrong assumption.
+Restore-to-as-found protects against not knowing the reset value — which is
+exactly the situation I turned out to be in.
 
 
 ## Two things worth your eye in the gathered data
 
 
-- **RNG only filled 2 of 8 words**: `0x556AAB55 0x9555AAAD` then six zeros. Words 0–1 look like real entropy, 2–7 are dead. This is unrelated to my change (the zeros are read *before* the restore), and it's the first RNG data we've pulled — but the probe's own note says "all-equal/zero = stuck," so this TRNG is either only producing 64 bits per draw or genuinely not filling the output FIFO. Might want a probe that starts a fresh draw per word.
+- **RNG only filled 2 of 8 words**: `0x556AAB55 0x9555AAAD` then six zeros.
+  Words 0–1 look like real entropy, 2–7 are dead. This is unrelated to my
+  change (the zeros are read *before* the restore), and it's the first RNG data
+  we've pulled — but the probe's own note says "all-equal/zero = stuck," so
+  this TRNG is either only producing 64 bits per draw or genuinely not filling
+  the output FIFO. Might want a probe that starts a fresh draw per word.
 
-- **The clock registers can't answer "does u-boot draw to the panel."** Since they're on at reset regardless, they tell us nothing about active scanout. To actually know, we'd read VOP2's **window-enable / framebuffer-address** registers — is a layer turned on, is a buffer programmed. That's a small new probe if you want the answer.
+- **The clock registers can't answer "does u-boot draw to the panel."** Since
+  they're on at reset regardless, they tell us nothing about active scanout. To
+  actually know, we'd read VOP2's **window-enable / framebuffer-address**
+  registers — is a layer turned on, is a buffer programmed. That's a small new
+  probe if you want the answer.
 
 
 ## Next steps
@@ -654,13 +766,13 @@ The fix is a clean, TRM-backed bugfix to the display probe
 
 
 1. **Commit the correction** — want me to stage and commit just the probe
-file? (`git`, one file, message describing the reset-value fix.)
+   file? (`git`, one file, message describing the reset-value fix.)
 
 2. **Re-flash and re-sweep** to confirm `DEFAULT` now reads `at-reset` — the
-last thing before issue `110o` is truly done.
+   last thing before issue `110o` is truly done.
 
 3. **Add the scanout probe** if you want to settle the u-boot-draws-the-panel
-question for real.
+   question for real.
 
 
 The image is built and ready either way. Which do you want?
@@ -670,13 +782,14 @@ The image is built and ready either way. Which do you want?
 
 ### User Request 7
 
-- The clock registers can't answer "does u-boot draw to the panel." Since
-they're on at reset regardless, they tell us nothing about active
+  - The clock registers can't answer "does u-boot draw to the panel." Since
+    they're on at reset regardless, they tell us nothing about active
 
-scanout. To actually know, we'd read VOP2's window-enable / framebuffer-address
-registers — is a layer turned on, is a buffer programmed.
+  scanout. To actually know, we'd read VOP2's window-enable /
+  framebuffer-address registers — is a layer turned on, is a buffer
+  programmed.
 
-That's a small new probe if you want the answer.
+  That's a small new probe if you want the answer.
 
 
 
@@ -684,16 +797,16 @@ it's okay we don't need to know that now. There's a I/O validation utility issue
 for that.
 
 
-- RNG only filled 2 of 8 words: 0x556AAB55 0x9555AAAD then six zeros. Words
-0–1 look like real entropy, 2–7 are dead. This is unrelated to
+  - RNG only filled 2 of 8 words: 0x556AAB55 0x9555AAAD then six zeros. Words
+    0–1 look like real entropy, 2–7 are dead. This is unrelated to
 
-my change (the zeros are read before the restore), and it's the first RNG data
-we've pulled — but the probe's own note says "all-equal/zero
+  my change (the zeros are read before the restore), and it's the first RNG data
+  we've pulled — but the probe's own note says "all-equal/zero
 
-= stuck," so this TRNG is either only producing 64 bits per draw or genuinely
-not filling the output FIFO. Might want a probe that starts
+  = stuck," so this TRNG is either only producing 64 bits per draw or genuinely
+  not filling the output FIFO. Might want a probe that starts
 
-a fresh draw per word.
+  a fresh draw per word.
 
 
 
@@ -718,7 +831,7 @@ Found it. The TRM is unambiguous (Part 2, §11.x TRNG):
 
 
 > If `RNG_CTL.rng_len = 0x00`, the last valid bit is stored in
-`RNG_DOUT_1.bit31`, and `RNG_DOUT_2 ~ RNG_DOUT_7 are [zero]`.
+> `RNG_DOUT_1.bit31`, and `RNG_DOUT_2 ~ RNG_DOUT_7 are [zero]`.
 
 
 So words 2–7 aren't *stuck* — they're **defined-zero because the draw is in
@@ -749,23 +862,34 @@ Fixed and built. Final image sha256 `1d83ed39…79a80d`, with **both**
 corrections baked in.
 
 
-**RNG — root cause and fix.** Words 2–7 weren't stuck hardware; `RNG_CTL.rng_len` resets to `00` (64-bit), which by the TRM's own wording makes `DOUT_2..7` read a *defined zero* while the probe read all eight. So the draw and the readout disagreed. The probe now sets `rng_len = 2'b11` (256-bit) before starting, so a full draw fills all eight words. I also:
+**RNG — root cause and fix.** Words 2–7 weren't stuck hardware;
+`RNG_CTL.rng_len` resets to `00` (64-bit), which by the TRM's own wording makes
+`DOUT_2..7` read a *defined zero* while the probe read all eight. So the draw
+and the readout disagreed. The probe now sets `rng_len = 2'b11` (256-bit) before
+starting, so a full draw fills all eight words. I also:
 
-- Corrected a stale comment — the write-enable mask on `RNG_CTL` is bits **21:16**, not the "31:16" it claimed.
+- Corrected a stale comment — the write-enable mask on `RNG_CTL` is bits
+  **21:16**, not the "31:16" it claimed.
 
-- Widened the completion poll from 200k to 1M iterations, since a 256-bit draw collects ~4× the samples (still bounded — it can only time out, never hang).
+- Widened the completion poll from 200k to 1M iterations, since a 256-bit draw
+  collects ~4× the samples (still bounded — it can only time out, never
+  hang).
 
 
-**Validation is the next sweep** (I can't run the TRNG here): the RNG section should now show eight populated, differing words instead of two-then-zeros, and — from the earlier fix — `display-presence` should read `DEFAULT … at-reset` instead of `NON-DEFAULT`.
+**Validation is the next sweep** (I can't run the TRNG here): the RNG section
+should now show eight populated, differing words instead of two-then-zeros, and
+— from the earlier fix — `display-presence` should read `DEFAULT …
+at-reset` instead of `NON-DEFAULT`.
 
 
-**Two uncommitted changes are sitting in the tree, and they're separate concerns**, so I'd make them two commits to keep the record clean:
+**Two uncommitted changes are sitting in the tree, and they're separate
+concerns**, so I'd make them two commits to keep the record clean:
 
 1. `input/probes/display-presence.probe` — declare the true clock/reset
-defaults from the TRM (fixes the false `NON-DEFAULT`).
+   defaults from the TRM (fixes the false `NON-DEFAULT`).
 
 2. `src/019-probe-engine.c` — draw the full 256 bits from the TRNG (fixes the
-dead output words).
+   dead output words).
 
 
 Want me to commit both as two separate commits? And if you're flashing now, the
@@ -797,9 +921,9 @@ after the rsync):
 
 ```
 
-sync # line 231 — flush dirty pages to the device
+sync                          # line 231 — flush dirty pages to the device
 
-sudo umount "$USB_MOUNT" # line 232 — this is the real guarantee
+sudo umount "$USB_MOUNT"      # line 232 — this is the real guarantee
 
 ```
 
@@ -825,9 +949,9 @@ scripts, and the SD side is even more thorough than a bare `sync`:
 
 ```
 
-sync # flush dirty pages
+sync                          # flush dirty pages
 
-sudo umount "$USB_MOUNT" # can't return until the FS is flushed + detached
+sudo umount "$USB_MOUNT"      # can't return until the FS is flushed + detached
 
 ```
 
@@ -868,11 +992,11 @@ usefulness:
 
 
 1. **(Recommended)** Split the flush into its own visible step in `push-to-usb`
-(`flushing... done`), so you *see* it complete — delivers the "so we know"
-without a redundant op. Small, no behavior change.
+   (`flushing... done`), so you *see* it complete — delivers the "so we know"
+   without a redundant op. Small, no behavior change.
 
 2. Add a bare `sync` at the very end anyway — harmless belt-and-suspenders,
-but it flushes nothing new after the `umount`.
+   but it flushes nothing new after the `umount`.
 
 3. Leave both as-is — they're already correct.
 
@@ -916,8 +1040,7 @@ hardware-confirmed — the last thing it was waiting on.
 
 ```
 
-DOUT0-7: 0x555AAA55 0xA9556AAB 0xAAB5552A 0x2AAB5556 0x6AAA9555 0x2AAA9555
-0x6AAAD555 0x6AAA9555
+DOUT0-7: 0x555AAA55 0xA9556AAB 0xAAB5552A 0x2AAB5556 0x6AAA9555 0x2AAA9555 0x6AAAD555 0x6AAA9555
 
 ```
 
@@ -925,12 +1048,19 @@ All eight words populated and differing, no more dead tail. The 64-bit-mode
 mismatch is fixed.
 
 
-**But now that we can see all 256 bits, the data raises a sharper question — and it's a good one.** Look closely at those words, don't just check "not zero":
+**But now that we can see all 256 bits, the data raises a sharper question —
+and it's a good one.** Look closely at those words, don't just check "not zero":
 
 
-- Nearly every nibble is `5` (0101), `A` (1010), or a neighbor (`9 6 2 D B`). The values `0`,`1`,`3`,`4`,`7`,`8`,`C`,`E`,`F` barely appear. A healthy TRNG spreads evenly across all sixteen; this is heavily biased toward **alternating-bit patterns**.
+- Nearly every nibble is `5` (0101), `A` (1010), or a neighbor (`9 6 2 D B`).
+  The values `0`,`1`,`3`,`4`,`7`,`8`,`C`,`E`,`F` barely appear. A healthy TRNG
+  spreads evenly across all sixteen; this is heavily biased toward
+  **alternating-bit patterns**.
 
-- Word 4 and word 7 are **byte-for-byte identical** — `0x6AAA9555` both times — and words 4–7 all share the `0x_AA_?555` skeleton. Two identical 32-bit words in a 256-bit "random" draw is a 1-in-4-billion coincidence, or it's structure.
+- Word 4 and word 7 are **byte-for-byte identical** — `0x6AAA9555` both times
+  — and words 4–7 all share the `0x_AA_?555` skeleton. Two identical 32-bit
+  words in a 256-bit "random" draw is a 1-in-4-billion coincidence, or it's
+  structure.
 
 
 So it passes the probe's crude "not all-equal/zero" check while clearly not
@@ -950,17 +1080,17 @@ there's housekeeping too:
 
 
 1. **Chase the entropy** — either look up what value the vendor RK3568 RNG
-driver programs, or (more in the spirit of the probe) turn this into a quality
-probe that draws at several `sample_cnt` values and reports a nibble histogram
-per rate, so we *see* which rate whitens. Data-generation and data-viewing kept
-separate.
+   driver programs, or (more in the spirit of the probe) turn this into a
+   quality probe that draws at several `sample_cnt` values and reports a nibble
+   histogram per rate, so we *see* which rate whitens. Data-generation and
+   data-viewing kept separate.
 
 2. **Commit what's validated** — the display reset-value fix and the RNG
-256-bit fix are both confirmed now; I'd commit them as two separate commits, and
-`110o` can move to completed with phase-1 progress updated.
+   256-bit fix are both confirmed now; I'd commit them as two separate commits,
+   and `110o` can move to completed with phase-1 progress updated.
 
 3. The **`sync` visibility tweak** for `push-to-usb` is still on the table from
-before, if you want it.
+   before, if you want it.
 
 
 Which do you want first? My instinct is commit the validated fixes (2), then dig
@@ -971,13 +1101,13 @@ into the entropy (1).
 
 ### User Request 10
 
-1. Chase the entropy — either look up what value the vendor RK3568 RNG driver
-programs, or (more in the spirit of the probe) turn this into
+   1. Chase the entropy — either look up what value the vendor RK3568 RNG
+      driver programs, or (more in the spirit of the probe) turn this into
 
-a quality probe that draws at several sample_cnt values and reports a nibble
-histogram per rate, so we see which rate whitens.
+  a quality probe that draws at several sample_cnt values and reports a nibble
+  histogram per rate, so we see which rate whitens.
 
-Data-generation and data-viewing kept separate.
+  Data-generation and data-viewing kept separate.
 
 
 
@@ -985,8 +1115,8 @@ sure I like that. We can learn how to turn the knobs to generate more / less
 random random numbers. Useful.
 
 
-3. The sync visibility tweak for push-to-usb is still on the table from before,
-if you want it.
+  3. The sync visibility tweak for push-to-usb is still on the table from
+     before, if you want it.
 
 
 eh I don't think we need it. Maybe we could put one at the end of
@@ -1029,17 +1159,18 @@ Now validate the script syntax and rebuild the image with the sweep:
 Done — image rebuilt with both changes. sha256 `87dc8c39…f4056`.
 
 
-**The RNG sweep is in.** On the next flash the RNG section will draw a full 256-bit block at five sample rates and print a histogram under each, so you can watch the knob work. It'll look like this per rate:
+**The RNG sweep is in.** On the next flash the RNG section will draw a full
+256-bit block at five sample rates and print a histogram under each, so you can
+watch the knob work. It'll look like this per rate:
 
 
 ```
 
 [rng] sample_cnt=0 DOUT0-7: 0x555AAA55 0xA9556AAB ...
 
-[rng] nibbles (of 64, ideal ~4 each): 0:0 1:1 2:4 3:0 4:0 5:15 6:9 7:0 8:0 9:8
-A:13 B:3 C:0 D:2 E:0 F:0
+[rng]   nibbles (of 64, ideal ~4 each): 0:0 1:1 2:4 3:0 4:0 5:15 6:9 7:0 8:0 9:8 A:13 B:3 C:0 D:2 E:0 F:0
 
-[rng] ones=131/256 (ideal 128)
+[rng]   ones=131/256 (ideal 128)
 
 [rng] sample_cnt=16 ...
 
@@ -1055,7 +1186,9 @@ them to melt as the count climbs — but the whole point is to measure it, not
 guess.) Recorded the finding-slot for that in the `110p` issue.
 
 
-**`dump-from-sd` now flushes** — a `flush_outputs` step (`sync`) runs after the dumps and before it tells you to carry the drive back, so the extracted logs are guaranteed on the USB drive.
+**`dump-from-sd` now flushes** — a `flush_outputs` step (`sync`) runs after
+the dumps and before it tells you to carry the drive back, so the extracted logs
+are guaranteed on the USB drive.
 
 
 That leaves the tree with four uncommitted pieces across three clean concerns.
@@ -1063,10 +1196,10 @@ My suggested commits, in order:
 
 
 1. **display probe** — the TRM reset-value correction (the `110o` fix that
-made `DEFAULT` read `at-reset`). `input/probes/display-presence.probe`
+   made `DEFAULT` read `at-reset`). `input/probes/display-presence.probe`
 
 2. **RNG quality sweep** — the 256-bit draw + sample-rate sweep, with its
-issue. `src/019-probe-engine.c` + `issues/110p-…md`
+   issue. `src/019-probe-engine.c` + `issues/110p-…md`
 
 3. **dump-from-sd flush** — the `sync`. `scripts/lab-side/dump-from-sd`
 
@@ -1152,24 +1285,50 @@ everything reflashable (S1/S2/S3/S11 — you're right, those are free), here's
 what's left, and the single unifying fact:
 
 
-**The PMIC is the only component that turns a software number into a physical voltage or current that can exceed a part's rating.** Everything else either self-limits (GPIO drivers, thermal shutdown at ~110 °C), just crashes (clocks/PLLs pushed too fast → reboot), or corrupts data (DMA/storage → reflash). The PMIC is the one actuator with a wire from "wrong register value" to "dead silicon." So your two worries collapse into one mechanism:
+**The PMIC is the only component that turns a software number into a physical
+voltage or current that can exceed a part's rating.** Everything else either
+self-limits (GPIO drivers, thermal shutdown at ~110 °C), just crashes
+(clocks/PLLs pushed too fast → reboot), or corrupts data (DMA/storage →
+reflash). The PMIC is the one actuator with a wire from "wrong register value"
+to "dead silicon." So your two worries collapse into one mechanism:
 
 
-- **"Push the wrong value to the CPU and shatter it"** — silicon doesn't shatter mechanically; it dies electrically. Too much voltage across a transistor's gate oxide punches through the dielectric (permanent short); too much current density electromigrates a metal trace until it opens. The core voltage is set by an RK817 DCDC buck over i²c — so the "wrong value to the CPU" path runs *through the PMIC*, not through any CPU register.
+- **"Push the wrong value to the CPU and shatter it"** — silicon doesn't
+  shatter mechanically; it dies electrically. Too much voltage across a
+  transistor's gate oxide punches through the dielectric (permanent short); too
+  much current density electromigrates a metal trace until it opens. The core
+  voltage is set by an RK817 DCDC buck over i²c — so the "wrong value to the
+  CPU" path runs *through the PMIC*, not through any CPU register.
 
-- **"Overload a capacitor"** — same event. Every rail's decoupling caps are rated just above that rail. Raise the rail past their rating → they crack/short/vent. Frying the CPU and popping a cap are the *same* PMIC over-volt, seen at two components on the same rail.
+- **"Overload a capacitor"** — same event. Every rail's decoupling caps are
+  rated just above that rail. Raise the rail past their rating → they
+  crack/short/vent. Frying the CPU and popping a cap are the *same* PMIC
+  over-volt, seen at two components on the same rail.
 
 
 The other permanent vectors, all narrower:
 
-- **Backlight (S8)** — over-driving the backlight LED current via PWM burns it out (case-open repair). `pwm-bringup.probe` can do this; it's currently **de-selected**, keep it that way until we know the panel's rated current.
+- **Backlight (S8)** — over-driving the backlight LED current via PWM burns it
+  out (case-open repair). `pwm-bringup.probe` can do this; it's currently
+  **de-selected**, keep it that way until we know the panel's rated current.
 
-- **eFuse / secure-boot (S9/S10)** — not "damage" but permanent chip lock. Our OTP code only *reads*; it must never issue a fuse-program command.
+- **eFuse / secure-boot (S9/S10)** — not "damage" but permanent chip lock. Our
+  OTP code only *reads*; it must never issue a fuse-program command.
 
-- **Battery (S7)** — deep-discharge or a wrong charger setting kills the (soldered) cell — a fire risk, not just a brick.
+- **Battery (S7)** — deep-discharge or a wrong charger setting kills the
+  (soldered) cell — a fire risk, not just a brick.
 
 
-**The part that should make us careful: our probe engine already carries the loaded gun.** `pmic_write_test` writes arbitrary RK817 registers (today just the harmless RTC reg 0x10), and `rk817_ldo_set_mv` sets LDO voltages. The i²c write path has **no register guard** — unlike our MMIO `W` commands, which have the `write_allowed` window check. So a probe that pointed a PMIC write at a buck/LDO/charger voltage register would sail straight through. That's the one concrete thing I'd *build* before we get adventurous: a deny-list on the PMIC register-write path (mirror the MMIO allowlist), so voltage and charger registers are physically unwritable from a probe. It directly neutralizes the only path to a dead board.
+**The part that should make us careful: our probe engine already carries the
+loaded gun.** `pmic_write_test` writes arbitrary RK817 registers (today just the
+harmless RTC reg 0x10), and `rk817_ldo_set_mv` sets LDO voltages. The i²c write
+path has **no register guard** — unlike our MMIO `W` commands, which have the
+`write_allowed` window check. So a probe that pointed a PMIC write at a
+buck/LDO/charger voltage register would sail straight through. That's the one
+concrete thing I'd *build* before we get adventurous: a deny-list on the PMIC
+register-write path (mirror the MMIO allowlist), so voltage and charger
+registers are physically unwritable from a probe. It directly neutralizes the
+only path to a dead board.
 
 
 ## The gate the doc screams about — and it's yours to answer
@@ -1207,28 +1366,28 @@ with the eMMC untouched.** Our kernel brings USB up itself on the SD-boot path
 
 
 1. **"Write our own u-boot to the eMMC pointing at the SD" — not needed.** The
-SD already carries its *own* full boot chain (idbloader at sector 64, u-boot at
-16384, kernel), and the BootROM boots it directly — that's how every sweep so
-far has run. Putting u-boot on the eMMC would only matter if the BootROM
-couldn't boot SD, and it demonstrably can. Drop that step: one fewer write to
-the soldered, finite-life eMMC.
+   SD already carries its *own* full boot chain (idbloader at sector 64, u-boot
+   at 16384, kernel), and the BootROM boots it directly — that's how every
+   sweep so far has run. Putting u-boot on the eMMC would only matter if the
+   BootROM couldn't boot SD, and it demonstrably can. Drop that step: one fewer
+   write to the soldered, finite-life eMMC.
 
 
 2. **"Can't test USB until the eMMC is wiped" — I don't think that's true for
-*our* USB, and I want to check your reasoning.** Our SD kernel already brings up
-the gadget and hangs at enumeration regardless of the eMMC. The place the eMMC
-*does* matter is the *other* USB path: a wiped eMMC makes the BootROM fall
-through to Maskrom-over-USB on a boot miss, so the *laptop would see a Rockchip
-download device*. Is that what you meant — you want the port to *appear on the
-PC* (the recovery/flashing path), rather than testing our own gadget? Or have
-you seen the stock eMMC OS grab the port when plugged in? That distinction
-changes the sequencing.
+   *our* USB, and I want to check your reasoning.** Our SD kernel already brings
+   up the gadget and hangs at enumeration regardless of the eMMC. The place the
+   eMMC *does* matter is the *other* USB path: a wiped eMMC makes the BootROM
+   fall through to Maskrom-over-USB on a boot miss, so the *laptop would see a
+   Rockchip download device*. Is that what you meant — you want the port to
+   *appear on the PC* (the recovery/flashing path), rather than testing our own
+   gadget? Or have you seen the stock eMMC OS grab the port when plugged in?
+   That distinction changes the sequencing.
 
 
 3. **Boot priority:** since sweeps boot from SD with the eMMC still populated,
-SD already wins the boot order on this unit — so wiping the eMMC won't change
-how we boot, it only removes the stock OS. Good to know it's low-risk; it also
-means the wipe buys us *recovery-path* behavior, not *boot* behavior.
+   SD already wins the boot order on this unit — so wiping the eMMC won't
+   change how we boot, it only removes the stock OS. Good to know it's low-risk;
+   it also means the wipe buys us *recovery-path* behavior, not *boot* behavior.
 
 
 ## What I'd do before the next flash
@@ -1251,11 +1410,12 @@ guard, first?
 
 ### User Request 12
 
-- Backlight (S8) — over-driving the backlight LED current via PWM burns it out
+  - Backlight (S8) — over-driving the backlight LED current via PWM burns it
+    out
 
-(case-open repair). pwm-bringup.probe can do this; it's currently de-selected,
+  (case-open repair). pwm-bringup.probe can do this; it's currently de-selected,
 
-keep it that way until we know the panel's rated current.
+  keep it that way until we know the panel's rated current.
 
 
 
@@ -1265,65 +1425,67 @@ to probe so we can find that value, and instead of breaking it just make sure
 it's at the right value.
 
 
-- eFuse / secure-boot (S9/S10) — not "damage" but permanent chip lock. Our OTP
+  - eFuse / secure-boot (S9/S10) — not "damage" but permanent chip lock. Our
+    OTP
 
-code only reads; it must never issue a fuse-program command.
+  code only reads; it must never issue a fuse-program command.
 
 
 um, what does this mean?
 
 
-- Battery (S7) — deep-discharge or a wrong charger setting kills the
-(soldered)
+  - Battery (S7) — deep-discharge or a wrong charger setting kills the
+    (soldered)
 
-cell — a fire risk, not just a brick.
+  cell — a fire risk, not just a brick.
 
 
 can we actually interact with the battery in any meaningful capacity? I thought
 the hardware handled that and didn't expose anything for us to mess with.
 
 
-The part that should make us careful: our probe engine already carries the
-loaded
+  The part that should make us careful: our probe engine already carries the
+  loaded
 
-gun. pmic_write_test writes arbitrary RK817 registers (today just the harmless
-RTC
+  gun. pmic_write_test writes arbitrary RK817 registers (today just the harmless
+  RTC
 
-reg 0x10), and rk817_ldo_set_mv sets LDO voltages. The i²c write path has no
+  reg 0x10), and rk817_ldo_set_mv sets LDO voltages. The i²c write path has no
 
-register guard — unlike our MMIO W commands, which have the write_allowed
-window
+  register guard — unlike our MMIO W commands, which have the write_allowed
+  window
 
-check. So a probe that pointed a PMIC write at a buck/LDO/charger voltage
-register
+  check. So a probe that pointed a PMIC write at a buck/LDO/charger voltage
+  register
 
-would sail straight through. That's the one concrete thing I'd build before we
+  would sail straight through. That's the one concrete thing I'd build before we
 
-get adventurous: a deny-list on the PMIC register-write path (mirror the MMIO
+  get adventurous: a deny-list on the PMIC register-write path (mirror the MMIO
 
-allowlist), so voltage and charger registers are physically unwritable from a
+  allowlist), so voltage and charger registers are physically unwritable from a
 
-probe. It directly neutralizes the only path to a dead board.
+  probe. It directly neutralizes the only path to a dead board.
 
 
 
 explain this more?
 
 
-The doc's #1 unknown: is Maskrom (or fastboot) reachable over USB-C from outside
+  The doc's #1 unknown: is Maskrom (or fastboot) reachable over USB-C from
+  outside
 
-the sealed case? Until that's confirmed, every low-level flash is a one-way
-trip.
+  the sealed case? Until that's confirmed, every low-level flash is a one-way
+  trip.
 
-Your plan wipes the eMMC — which is fine only if a failed boot afterward can
-still
+  Your plan wipes the eMMC — which is fine only if a failed boot afterward can
+  still
 
-be recovered. So: have we actually confirmed we can put this unit into Maskrom
+  be recovered. So: have we actually confirmed we can put this unit into Maskrom
 
-and talk to it from the laptop without opening it? If yes, wipe away. If not,
-that
+  and talk to it from the laptop without opening it? If yes, wipe away. If not,
+  that
 
-confirmation is the true prerequisite, above the wipe.
+  confirmation is the true prerequisite, above the wipe.
 
 
 
@@ -1332,41 +1494,45 @@ haven't confirmed. We can't confirm. Just gotta wing it I guess. Unless you have
 any better ideas...?
 
 
-I checked the code. usb_init runs at boot from the SD kernel (002-main.c:194),
-and
+  I checked the code. usb_init runs at boot from the SD kernel (002-main.c:194),
+  and
 
-the PHY side (109a) is favorable — the doc's probe shows the OTG PHY already
-out
+  the PHY side (109a) is favorable — the doc's probe shows the OTG PHY already
+  out
 
-of suspend at reset, nothing to un-power-down. The blocker is 109b: depcmd_issue
+  of suspend at reset, nothing to un-power-down. The blocker is 109b:
+  depcmd_issue
 
-spins forever on the first DWC3 endpoint command — enumeration hangs.
-009-usb.c
+  spins forever on the first DWC3 endpoint command — enumeration hangs.
+  009-usb.c
 
-even says so in a comment. The leading hypothesis is already written down: the
+  even says so in a comment. The leading hypothesis is already written down: the
 
-controller's DCTL RUN/STOP bit must be set (or the event buffer finished) before
+  controller's DCTL RUN/STOP bit must be set (or the event buffer finished)
+  before
 
-endpoint commands are accepted — resolved in TRM Part 2 Ch17.
+  endpoint commands are accepted — resolved in TRM Part 2 Ch17.
 
 
 
 great let's work on that.
 
 
-1. "Write our own u-boot to the eMMC pointing at the SD" — not needed. The SD
+  1. "Write our own u-boot to the eMMC pointing at the SD" — not needed. The
+     SD
 
-already carries its own full boot chain (idbloader at sector 64, u-boot at
-16384,
+  already carries its own full boot chain (idbloader at sector 64, u-boot at
+  16384,
 
-kernel), and the BootROM boots it directly — that's how every sweep so far has
+  kernel), and the BootROM boots it directly — that's how every sweep so far
+  has
 
-run. Putting u-boot on the eMMC would only matter if the BootROM couldn't boot
-SD,
+  run. Putting u-boot on the eMMC would only matter if the BootROM couldn't boot
+  SD,
 
-and it demonstrably can. Drop that step: one fewer write to the soldered,
+  and it demonstrably can. Drop that step: one fewer write to the soldered,
 
-finite-life eMMC.
+  finite-life eMMC.
 
 
 whenever we flash the SD card with a new kernel, are we writing to the same
@@ -1460,12 +1626,12 @@ Our probe engine has **two** ways to write hardware, and only one is guarded:
 
 
 1. **MMIO writes** — the `W`/`WH`/`WB` script commands. These already pass
-through `write_allowed(addr)`, which only permits the peripheral address
-windows. A typo can't scribble on DRAM. Guarded.
+   through `write_allowed(addr)`, which only permits the peripheral address
+   windows. A typo can't scribble on DRAM. Guarded.
 
 2. **i²c writes to the PMIC** — `i2c0_write_reg(0x20, reg, val)`, used by
-`pmic_write_test` and `rk817_ldo_set_mv`. **No guard at all.** Any RK817
-register `0x00–0xFF`, any value.
+   `pmic_write_test` and `rk817_ldo_set_mv`. **No guard at all.** Any RK817
+   register `0x00–0xFF`, any value.
 
 
 That second path is the exposed one. From `docs/021` the dangerous targets are
@@ -1481,9 +1647,14 @@ The deny-list is a guard *inside the i²c-write path*, exactly mirroring
 register against a table and drops-and-logs a write to any voltage or charger
 register. Two shapes:
 
-- **Deny-list** — block a known-dangerous set (the buck/LDO `*_VSEL` registers, the charger config block), allow the rest. Easy, but you must know every dangerous register.
+- **Deny-list** — block a known-dangerous set (the buck/LDO `*_VSEL`
+  registers, the charger config block), allow the rest. Easy, but you must know
+  every dangerous register.
 
-- **Allow-list (default-deny)** — block *everything* except a small set our probes legitimately need (the RTC comp reg, the read-only status regs). Safer, since an unknown register is dangerous-by-default — which matters because we *don't* have the full RK817 map.
+- **Allow-list (default-deny)** — block *everything* except a small set our
+  probes legitimately need (the RTC comp reg, the read-only status regs). Safer,
+  since an unknown register is dangerous-by-default — which matters because we
+  *don't* have the full RK817 map.
 
 
 I'd do the allow-list: it's the same "default-deny + explicit exceptions"
@@ -1500,11 +1671,14 @@ should be the safety net at all — **the SD card is a better one**, and it's
 already in your hands:
 
 
-- We boot from **SD**, and the boot never depends on the eMMC (every sweep proves it).
+- We boot from **SD**, and the boot never depends on the eMMC (every sweep
+  proves it).
 
-- Our kernel can **write** the eMMC (that's issue `110b`, bootable-emmc-overwrite, already done), and you have the **eMMC archive**.
+- Our kernel can **write** the eMMC (that's issue `110b`,
+  bootable-emmc-overwrite, already done), and you have the **eMMC archive**.
 
-- So the recovery loop is: bad state → reboot from a **known-good golden SD** → if needed, rewrite the eMMC archive from SD. That never touches maskROM.
+- So the recovery loop is: bad state → reboot from a **known-good golden SD**
+  → if needed, rewrite the eMMC archive from SD. That never touches maskROM.
 
 
 The only unrecoverable case is "the SD boot chain *itself* is broken **and**
@@ -1563,27 +1737,27 @@ Two things in the bring-up point at an unclocked/half-reset core:
 
 
 1. **`009-usb.c` never touches `GUSB2PHYCFG` (`0xFCC0C200`).** That register
-carries the PHY suspend bit (`SusPHY`) and the UTMI reference-clock config. If
-`SusPHY` is set, the PHY parks and stops feeding the controller its clock —
-and `DEPCMD` hangs. The Linux dwc3 driver explicitly clears it during init; we
-don't.
+   carries the PHY suspend bit (`SusPHY`) and the UTMI reference-clock config.
+   If `SusPHY` is set, the PHY parks and stops feeding the controller its clock
+   — and `DEPCMD` hangs. The Linux dwc3 driver explicitly clears it during
+   init; we don't.
 
 2. **We reset with `GCTL.CoreSoftReset` (bit 11)** — the *legacy* reset. The
-modern DWC3 device init the driver uses is `DCTL.CSFTRST` **plus** toggling the
-PHY soft-resets (`GUSB2PHYCFG.PHYSOFTRST`) around it. Using only the old GCTL
-reset can leave the command interface not fully initialized.
+   modern DWC3 device init the driver uses is `DCTL.CSFTRST` **plus** toggling
+   the PHY soft-resets (`GUSB2PHYCFG.PHYSOFTRST`) around it. Using only the old
+   GCTL reset can leave the command interface not fully initialized.
 
 
 So my plan, in order of likelihood:
 
 1. In `009-usb.c`, before the endpoint bring-up: read/modify `GUSB2PHYCFG` to
-**clear `SusPHY`** and set the ref-clock fields, and switch the reset to the
-proper `DCTL.CSFTRST` + PHY-soft-reset sequence.
+   **clear `SusPHY`** and set the ref-clock fields, and switch the reset to the
+   proper `DCTL.CSFTRST` + PHY-soft-reset sequence.
 
 2. Add a bounded timeout to `depcmd_issue`'s spin so a future mistake **logs and
-fails** instead of hanging the whole kernel (right now the "safe" watchdog would
-just reset us — a bounded loop that reports "CMDACT stuck" is a far better
-diagnostic, and it's the fail-loud posture the project wants).
+   fails** instead of hanging the whole kernel (right now the "safe" watchdog
+   would just reset us — a bounded loop that reports "CMDACT stuck" is a far
+   better diagnostic, and it's the fail-loud posture the project wants).
 
 
 Next concrete step is to pin the exact `GUSB2PHYCFG` bit positions and the reset
@@ -1598,20 +1772,21 @@ allow-list in that same batch, or keep it separate?
 
 ### User Request 13
 
-I conflated two different things. pwm-bringup.probe doesn't touch the display
+  I conflated two different things. pwm-bringup.probe doesn't touch the display
 
-backlight at all — it drives the red indicator LED (PWM1 channel 7) at ~10%
-duty
+  backlight at all — it drives the red indicator LED (PWM1 channel 7) at ~10%
+  duty
 
-as a pin-routing test. Indicator LEDs, low duty, not the panel. So there's
-nothing
+  as a pin-routing test. Indicator LEDs, low duty, not the panel. So there's
+  nothing
 
-there to burn out, and nothing to "set to the right value" — it's already
-safe,
+  there to burn out, and nothing to "set to the right value" — it's already
+  safe,
 
-and it's de-selected only because the LED layer took over that job. My S8 worry
+  and it's de-selected only because the LED layer took over that job. My S8
+  worry
 
-was misattributed.
+  was misattributed.
 
 
 
@@ -1619,21 +1794,23 @@ so it's dead code? we won't need this probe because there's another pwm system
 that handles testing the LEDs and pwm system? If so... can we prune it?
 
 
-The actual panel backlight is a separate PWM channel we don't drive yet. And its
+  The actual panel backlight is a separate PWM channel we don't drive yet. And
+  its
 
-rated current is genuinely unknown — docs/014-hardware-overview.md:167 lists
-it
+  rated current is genuinely unknown — docs/014-hardware-overview.md:167 lists
+  it
 
-explicitly under "still to extract," alongside the panel's DCS init table. So
+  explicitly under "still to extract," alongside the panel's DCS init table. So
 
-there's no value to enforce until we build the backlight driver; when we do,
-I'll
+  there's no value to enforce until we build the backlight driver; when we do,
+  I'll
 
-pull the max current from the device tree's backlight node and the panel driver
+  pull the max current from the device tree's backlight node and the panel
+  driver
 
-before we ever raise the duty. Net: no fix needed now, and I over-warned you.
+  before we ever raise the duty. Net: no fix needed now, and I over-warned you.
 
-Good.
+  Good.
 
 
 
@@ -1643,37 +1820,40 @@ gather anything silently without user interaction (like backlight details) then
 we could write a probe for it.
 
 
-An eFuse is a microscopic physical fuse built into the chip's silicon.
+  An eFuse is a microscopic physical fuse built into the chip's silicon.
 
-"Programming" one means blowing it — pushing enough current to permanently
-change
+  "Programming" one means blowing it — pushing enough current to permanently
+  change
 
-it — and once blown it can never be restored; it's one-time and physical. The
-chip
+  it — and once blown it can never be restored; it's one-time and physical.
+  The chip
 
-has a bank of them (OTP, one-time-programmable). Some just hold read-only facts
+  has a bank of them (OTP, one-time-programmable). Some just hold read-only
+  facts
 
-like the chip ID (that's what chip-otp reads). Others are config fuses — e.g.
-one
+  like the chip ID (that's what chip-otp reads). Others are config fuses —
+  e.g. one
 
-that says "from now on, only run boot code signed with key X" (secure boot). The
+  that says "from now on, only run boot code signed with key X" (secure boot).
+  The
 
-OTP controller has two modes: a read path (safe, reread a billion times — what
-our
+  OTP controller has two modes: a read path (safe, reread a billion times —
+  what our
 
-probe uses) and a program/blow path (permanent). "Only reads, never a
+  probe uses) and a program/blow path (permanent). "Only reads, never a
 
-fuse-program command" means we exclusively use the read path. The danger if we
+  fuse-program command" means we exclusively use the read path. The danger if we
 
-ever didn't: accidentally blow the secure-boot fuse without owning the signing
-key
+  ever didn't: accidentally blow the secure-boot fuse without owning the signing
+  key
 
-→ the chip rejects every future flash → dead forever, no maskROM escape.
-It's the
+  → the chip rejects every future flash → dead forever, no maskROM escape.
+  It's the
 
-one peripheral where a single wrong command is irreversible, so the rule is just
+  one peripheral where a single wrong command is irreversible, so the rule is
+  just
 
-"read side only."
+  "read side only."
 
 
 
@@ -1686,14 +1866,15 @@ bad and should feel sorry for yourself because you almost ruined the device, ya
 dummy. what a dingus. absolute moron."
 
 
-I'd do the allow-list: it's the same "default-deny + explicit exceptions"
-posture
+  I'd do the allow-list: it's the same "default-deny + explicit exceptions"
+  posture
 
-as the MMIO window check, and it means the one register class that can kill the
+  as the MMIO window check, and it means the one register class that can kill
+  the
 
-board is physically unwritable from a probe even by accident. Small,
+  board is physically unwritable from a probe even by accident. Small,
 
-self-contained, no hardware needed to land it.
+  self-contained, no hardware needed to land it.
 
 
 
@@ -1701,17 +1882,19 @@ I like allowed-list better for this sort of thing. Question... Why don't we have
 the datasheets? Can you find them online? Did you search in docs/datasheets/?
 
 
-Next concrete step is to pin the exact GUSB2PHYCFG bit positions and the reset
+  Next concrete step is to pin the exact GUSB2PHYCFG bit positions and the reset
 
-ordering against the DWC3 driver / TRM Part 2 Ch17 before I write it — I don't
+  ordering against the DWC3 driver / TRM Part 2 Ch17 before I write it — I
+  don't
 
-want to guess register bits and burn a flash. Want me to go pin those down and
+  want to guess register bits and burn a flash. Want me to go pin those down and
 
-implement both changes (the PHY-clock fix + the bounded depcmd timeout), and we
+  implement both changes (the PHY-clock fix + the bounded depcmd timeout), and
+  we
 
-validate it on the same flash as the RNG sweep? And should I land the PMIC
+  validate it on the same flash as the RNG sweep? And should I land the PMIC
 
-allow-list in that same batch, or keep it separate?
+  allow-list in that same batch, or keep it separate?
 
 
 
@@ -1745,9 +1928,9 @@ verbatim:
 
 
 > *"In device mode, before issuing any device endpoint command when operating in
-2.0 speeds, disable this bit and enable it after the command completes. If you
-issue a command without disabling this bit ... if mac2_clk is gated off, **the
-command will not get completed.**"*
+> 2.0 speeds, disable this bit and enable it after the command completes. If you
+> issue a command without disabling this bit ... if mac2_clk is gated off, **the
+> command will not get completed.**"*
 
 
 "The command will not get completed" = `CMDACT` never clears = our exact hang.
@@ -1802,42 +1985,88 @@ things I need to flag.
 ## What I built (in this image, pending the next flash)
 
 
-**USB 109b — the enumeration hang, TRM-grounded.** The smoking gun was `GUSB2PHYCFG0` bit 6 (`suspendusb20`): the databook says outright that a device-mode endpoint command issued while it's set can find `mac2_clk` gated and *"will not get completed"* — our `CMDACT` spin, exactly. So I clear that bit at the top of endpoint-zero bring-up, before the first command. I also **corrected the doc's own hypothesis** — `DCTL.run_stop` is *not* required before endpoint commands (it's for connecting to the host after CSR init), so I didn't touch it. And I bounded `depcmd_issue`: instead of an infinite spin it now logs `DEPCMD stuck … (mac2_clk gated? check SusPHY)` and returns — fail-loud, so a future regression leaves a breadcrumb instead of a silent freeze.
+**USB 109b — the enumeration hang, TRM-grounded.** The smoking gun was
+`GUSB2PHYCFG0` bit 6 (`suspendusb20`): the databook says outright that a
+device-mode endpoint command issued while it's set can find `mac2_clk` gated and
+*"will not get completed"* — our `CMDACT` spin, exactly. So I clear that bit
+at the top of endpoint-zero bring-up, before the first command. I also
+**corrected the doc's own hypothesis** — `DCTL.run_stop` is *not* required
+before endpoint commands (it's for connecting to the host after CSR init), so I
+didn't touch it. And I bounded `depcmd_issue`: instead of an infinite spin it
+now logs `DEPCMD stuck … (mac2_clk gated? check SusPHY)` and returns —
+fail-loud, so a future regression leaves a breadcrumb instead of a silent
+freeze.
 
 
-**PMIC allow-list.** Default-deny in the i²c write path: `pmic_reg_write_allowed` permits exactly one register today (`0x10`, the RTC comp reg pmic-write round-trips) and refuses everything else — every VSEL voltage register, the charger, anything unrecognized — logged and dropped, un-overridable by a `#WRITES` probe, same posture as `write_allowed` for MMIO. And I turned `pmic-ldo`'s old "set-path OK" round-trip into a **guard self-test**: it now attempts the (same-value) LDO1 write and confirms the guard *refuses* it — so every armed sweep proves the safety floor is live.
+**PMIC allow-list.** Default-deny in the i²c write path:
+`pmic_reg_write_allowed` permits exactly one register today (`0x10`, the RTC
+comp reg pmic-write round-trips) and refuses everything else — every VSEL
+voltage register, the charger, anything unrecognized — logged and dropped,
+un-overridable by a `#WRITES` probe, same posture as `write_allowed` for MMIO.
+And I turned `pmic-ldo`'s old "set-path OK" round-trip into a **guard
+self-test**: it now attempts the (same-value) LDO1 write and confirms the guard
+*refuses* it — so every armed sweep proves the safety floor is live.
 
 
-**The OTP honeypot** (`input/probes/otp-write.probe`) — a `#WRITES`-marked, scary-named lever that issues zero writes and just logs the eFuse explanation and the scolding you asked for ("what a dingus. absolute moron. (said with love…)"). Compiled in, DE-SELECTED — arming it *is* pulling the lever.
+**The OTP honeypot** (`input/probes/otp-write.probe`) — a `#WRITES`-marked,
+scary-named lever that issues zero writes and just logs the eFuse explanation
+and the scolding you asked for ("what a dingus. absolute moron. (said with
+love…)"). Compiled in, DE-SELECTED — arming it *is* pulling the lever.
 
 
 ## Your questions
 
 
-**Datasheets — why not in the repo, and yes they're online.** They're not missing, they're **`.gitignore`d** on purpose: `docs/datasheets/.gitignore` is `*.pdf` because TRM Part 2 alone is 125 MB — bloating every clone. `INDEX.md` (tracked) lists each one and where to re-download it. We *do* have the RK3568 TRM 1+2, datasheet, SDHCI, JEDEC eMMC locally. What we lack is the RK817 PMIC datasheet — and it's freely findable (I searched): V1.7 and V2.1, register descriptions from ~p.47. The register map is *also* fully in the Linux `rk808`/`rk817` driver, which is what our code already cites. Want me to pull the PDF into `docs/datasheets/` (gitignored, local-only) the way the TRM was?
+**Datasheets — why not in the repo, and yes they're online.** They're not
+missing, they're **`.gitignore`d** on purpose: `docs/datasheets/.gitignore` is
+`*.pdf` because TRM Part 2 alone is 125 MB — bloating every clone. `INDEX.md`
+(tracked) lists each one and where to re-download it. We *do* have the RK3568
+TRM 1+2, datasheet, SDHCI, JEDEC eMMC locally. What we lack is the RK817 PMIC
+datasheet — and it's freely findable (I searched): V1.7 and V2.1, register
+descriptions from ~p.47. The register map is *also* fully in the Linux
+`rk808`/`rk817` driver, which is what our code already cites. Want me to pull
+the PDF into `docs/datasheets/` (gitignored, local-only) the way the TRM was?
 
 
-**pwm-bringup — dead code?** Not quite dead — it's a *dormant, armable* standalone check (de-selected, not unreachable), and its own header keeps it as the isolated "does the raw PWM channel + pin-mux actually work" test, independent of the LED abstraction. It *is* redundant with the LED layer (`003-pwm`/`004-led`) for normal operation, and it costs nothing idle. My lean: **keep it** — it's the one thing that isolates the PWM hardware from the LED abstraction, useful the day the LEDs misbehave and you need to know which layer broke. But nothing depends on it, so if you're trimming the battery it's a clean delete. Your call.
+**pwm-bringup — dead code?** Not quite dead — it's a *dormant, armable*
+standalone check (de-selected, not unreachable), and its own header keeps it as
+the isolated "does the raw PWM channel + pin-mux actually work" test,
+independent of the LED abstraction. It *is* redundant with the LED layer
+(`003-pwm`/`004-led`) for normal operation, and it costs nothing idle. My lean:
+**keep it** — it's the one thing that isolates the PWM hardware from the LED
+abstraction, useful the day the LEDs misbehave and you need to know which layer
+broke. But nothing depends on it, so if you're trimming the battery it's a clean
+delete. Your call.
 
 
-**Silent display/backlight probe — yes, very doable.** Read-only, no user interaction, we can gather: VOP2 **window-enable / scanout** registers (is a layer active, is a framebuffer address programmed — this finally answers "does u-boot actually draw to the panel?"), the **backlight PWM channel's period/duty/enable** (is it on, at what level), and DSI0/DSI1 presence (`0xFE850000`/`0xFE860000`). The one thing *not* silently gatherable is the backlight's rated max current — that's a datasheet/hardware spec, not a register. So a `display-recon` probe complements the interactive I/O validator nicely. To write it I'd pull the VOP2 window/scanout offsets from TRM Part 2 and the backlight PWM channel from the DTS. Want it in the next batch?
+**Silent display/backlight probe — yes, very doable.** Read-only, no user
+interaction, we can gather: VOP2 **window-enable / scanout** registers (is a
+layer active, is a framebuffer address programmed — this finally answers "does
+u-boot actually draw to the panel?"), the **backlight PWM channel's
+period/duty/enable** (is it on, at what level), and DSI0/DSI1 presence
+(`0xFE850000`/`0xFE860000`). The one thing *not* silently gatherable is the
+backlight's rated max current — that's a datasheet/hardware spec, not a
+register. So a `display-recon` probe complements the interactive I/O validator
+nicely. To write it I'd pull the VOP2 window/scanout offsets from TRM Part 2 and
+the backlight PWM channel from the DTS. Want it in the next batch?
 
 
 ## Two flags
 
 
 1. **The tree — and this image — carry someone else's in-progress work.**
-Beyond my four files (`010-usb-enumeration.c`, `019-probe-engine.c`,
-`otp-write.probe`, `110p`), the working tree has modified `002-main.c` and
-`011-cdc-acm.c` and new `020-chips.c` + issues `115` (I/O validator) and `116`
-(chip scripts / console-io) — that's the parallel effort. It all compiles, so
-the **flashed image includes their uncommitted code**, not just mine. Good to
-know for attributing what the next sweep shows, and I'll stage only my four
-files when we commit.
+   Beyond my four files (`010-usb-enumeration.c`, `019-probe-engine.c`,
+   `otp-write.probe`, `110p`), the working tree has modified `002-main.c` and
+   `011-cdc-acm.c` and new `020-chips.c` + issues `115` (I/O validator) and
+   `116` (chip scripts / console-io) — that's the parallel effort. It all
+   compiles, so the **flashed image includes their uncommitted code**, not just
+   mine. Good to know for attributing what the next sweep shows, and I'll stage
+   only my four files when we commit.
 
 2. **Validation load for the next flash is stacking up:** RNG sweep, the USB
-fix, the PMIC guard's self-test — plus whatever the parallel work does. That's
-fine, just a lot riding on one boot; the per-probe logs will separate it.
+   fix, the PMIC guard's self-test — plus whatever the parallel work does.
+   That's fine, just a lot riding on one boot; the per-probe logs will separate
+   it.
 
 
 Ready for `push-to-usb` → `flash-sd` whenever. Want the RK817 PDF fetched
@@ -1857,30 +2086,31 @@ binding)](https://www.kernel.org/doc/Documentation/devicetree/bindings/mfd/rockc
 
 ### User Request 14
 
-USB 109b — the enumeration hang, TRM-grounded. The smoking gun was
-GUSB2PHYCFG0
+  USB 109b — the enumeration hang, TRM-grounded. The smoking gun was
+  GUSB2PHYCFG0
 
-bit 6 (suspendusb20): the databook says outright that a device-mode endpoint
+  bit 6 (suspendusb20): the databook says outright that a device-mode endpoint
 
-command issued while it's set can find mac2_clk gated and "will not get
-completed"
+  command issued while it's set can find mac2_clk gated and "will not get
+  completed"
 
-— our CMDACT spin, exactly. So I clear that bit at the top of endpoint-zero
+  — our CMDACT spin, exactly. So I clear that bit at the top of endpoint-zero
 
-bring-up, before the first command. I also corrected the doc's own hypothesis
-—
+  bring-up, before the first command. I also corrected the doc's own hypothesis
+  —
 
-DCTL.run_stop is not required before endpoint commands (it's for connecting to
-the
+  DCTL.run_stop is not required before endpoint commands (it's for connecting to
+  the
 
-host after CSR init), so I didn't touch it. And I bounded depcmd_issue: instead
+  host after CSR init), so I didn't touch it. And I bounded depcmd_issue:
+  instead
 
-of an infinite spin it now logs DEPCMD stuck … (mac2_clk gated? check SusPHY)
-and
+  of an infinite spin it now logs DEPCMD stuck … (mac2_clk gated? check
+  SusPHY) and
 
-returns — fail-loud, so a future regression leaves a breadcrumb instead of a
+  returns — fail-loud, so a future regression leaves a breadcrumb instead of a
 
-silent freeze.
+  silent freeze.
 
 
 
@@ -1890,25 +2120,28 @@ explain the items in use and their relation to one another? For example for this
 one, how does the USB pipeline actually work? What part did you modify?
 
 
-Datasheets — why not in the repo, and yes they're online. They're not missing,
+  Datasheets — why not in the repo, and yes they're online. They're not
+  missing,
 
-they're .gitignored on purpose: docs/datasheets/.gitignore is *.pdf because TRM
+  they're .gitignored on purpose: docs/datasheets/.gitignore is *.pdf because
+  TRM
 
-Part 2 alone is 125 MB — bloating every clone. INDEX.md (tracked) lists each
-one
+  Part 2 alone is 125 MB — bloating every clone. INDEX.md (tracked) lists each
+  one
 
-and where to re-download it. We do have the RK3568 TRM 1+2, datasheet, SDHCI,
+  and where to re-download it. We do have the RK3568 TRM 1+2, datasheet, SDHCI,
 
-JEDEC eMMC locally. What we lack is the RK817 PMIC datasheet — and it's freely
+  JEDEC eMMC locally. What we lack is the RK817 PMIC datasheet — and it's
+  freely
 
-findable (I searched): V1.7 and V2.1, register descriptions from ~p.47. The
+  findable (I searched): V1.7 and V2.1, register descriptions from ~p.47. The
 
-register map is also fully in the Linux rk808/rk817 driver, which is what our
-code
+  register map is also fully in the Linux rk808/rk817 driver, which is what our
+  code
 
-already cites. Want me to pull the PDF into docs/datasheets/ (gitignored,
+  already cites. Want me to pull the PDF into docs/datasheets/ (gitignored,
 
-local-only) the way the TRM was?
+  local-only) the way the TRM was?
 
 
 
@@ -1916,30 +2149,30 @@ oh. then why didn't you read them first instead of telling me you had no idea?
 that's why they're there, you silly goose. :)
 
 
-Silent display/backlight probe — yes, very doable. Read-only, no user
-interaction,
+  Silent display/backlight probe — yes, very doable. Read-only, no user
+  interaction,
 
-we can gather: VOP2 window-enable / scanout registers (is a layer active, is a
+  we can gather: VOP2 window-enable / scanout registers (is a layer active, is a
 
-framebuffer address programmed — this finally answers "does u-boot actually
-draw
+  framebuffer address programmed — this finally answers "does u-boot actually
+  draw
 
-to the panel?"), the backlight PWM channel's period/duty/enable (is it on, at
-what
+  to the panel?"), the backlight PWM channel's period/duty/enable (is it on, at
+  what
 
-level), and DSI0/DSI1 presence (0xFE850000/0xFE860000). The one thing not
+  level), and DSI0/DSI1 presence (0xFE850000/0xFE860000). The one thing not
 
-silently gatherable is the backlight's rated max current — that's a
+  silently gatherable is the backlight's rated max current — that's a
 
-datasheet/hardware spec, not a register. So a display-recon probe complements
-the
+  datasheet/hardware spec, not a register. So a display-recon probe complements
+  the
 
-interactive I/O validator nicely. To write it I'd pull the VOP2 window/scanout
+  interactive I/O validator nicely. To write it I'd pull the VOP2 window/scanout
 
-offsets from TRM Part 2 and the backlight PWM channel from the DTS. Want it in
-the
+  offsets from TRM Part 2 and the backlight PWM channel from the DTS. Want it in
+  the
 
-next batch?
+  next batch?
 
 
 
@@ -1947,35 +2180,36 @@ Okay, write a probe to gather the details. Also, look in the docs and see if you
 can find the answers. If you can, then we don't need to probe them.
 
 
-1. The tree — and this image — carry someone else's in-progress work. Beyond
-my
+  1. The tree — and this image — carry someone else's in-progress work.
+     Beyond my
 
-four files (010-usb-enumeration.c, 019-probe-engine.c, otp-write.probe, 110p),
-the
+  four files (010-usb-enumeration.c, 019-probe-engine.c, otp-write.probe, 110p),
+  the
 
-working tree has modified 002-main.c and 011-cdc-acm.c and new 020-chips.c +
+  working tree has modified 002-main.c and 011-cdc-acm.c and new 020-chips.c +
 
-issues 115 (I/O validator) and 116 (chip scripts / console-io) — that's the
+  issues 115 (I/O validator) and 116 (chip scripts / console-io) — that's the
 
-parallel effort. It all compiles, so the flashed image includes their
-uncommitted
+  parallel effort. It all compiles, so the flashed image includes their
+  uncommitted
 
-code, not just mine. Good to know for attributing what the next sweep shows, and
+  code, not just mine. Good to know for attributing what the next sweep shows,
+  and
 
-I'll stage only my four files when we commit.
+  I'll stage only my four files when we commit.
 
 
 
 no need to be so defensive, they're your friend!
 
 
-2. Validation load for the next flash is stacking up: RNG sweep, the USB fix,
-the
+  2. Validation load for the next flash is stacking up: RNG sweep, the USB fix,
+     the
 
-PMIC guard's self-test — plus whatever the parallel work does. That's fine,
-just a
+  PMIC guard's self-test — plus whatever the parallel work does. That's fine,
+  just a
 
-lot riding on one boot; the per-probe logs will separate it.
+  lot riding on one boot; the per-probe logs will separate it.
 
 
 
@@ -2017,18 +2251,28 @@ Picture it as a stack, cable at the bottom, "laptop sees a serial port" at the
 top.
 
 
-**The cable & the PHY.** A USB-C cable to the laptop carries two data wires (D+/D-). The **USB2 PHY** (an Innosilicon analog block, steered through a GRF syscon at `0xFDCA0000`) is what turns the controller's digital bitstream into the actual wiggling voltages on those wires. It runs off a 480 MHz PLL that it divides down to a ~60 MHz **UTMI clock — `mac2_clk`**. Hold onto that clock; it's the whole story. The PHY is allowed to *suspend* — gate `mac2_clk` — when the bus looks idle, to save power.
+**The cable & the PHY.** A USB-C cable to the laptop carries two data wires
+(D+/D-). The **USB2 PHY** (an Innosilicon analog block, steered through a GRF
+syscon at `0xFDCA0000`) is what turns the controller's digital bitstream into
+the actual wiggling voltages on those wires. It runs off a 480 MHz PLL that it
+divides down to a ~60 MHz **UTMI clock — `mac2_clk`**. Hold onto that clock;
+it's the whole story. The PHY is allowed to *suspend* — gate `mac2_clk` —
+when the bus looks idle, to save power.
 
 
-**The controller.** Above the PHY sits the **DWC3** (a Synopsys USB3 OTG core at `0xFCC00000`). It's the digital brain, and it's organized as a few register groups:
+**The controller.** Above the PHY sits the **DWC3** (a Synopsys USB3 OTG core at
+`0xFCC00000`). It's the digital brain, and it's organized as a few register
+groups:
 
 - *Global* (`GCTL`, `GUSB2PHYCFG`, `GSNPSID`…) — core-wide config,
 
 - *Device* (`DCFG` = speed+address, `DCTL` = run/stop),
 
-- *Per-endpoint command* (`DEPCMD`) — you drive each endpoint by writing a command here,
+- *Per-endpoint command* (`DEPCMD`) — you drive each endpoint by writing a
+  command here,
 
-- an *event buffer* — a slab of RAM the controller writes into to tell you "a transfer finished," "the host reset the bus," etc.
+- an *event buffer* — a slab of RAM the controller writes into to tell you "a
+  transfer finished," "the host reset the bus," etc.
 
 
 Crucially: **the controller's command and link logic is clocked by `mac2_clk`,
@@ -2036,13 +2280,31 @@ which comes from the PHY.** The brain's heartbeat is borrowed from the analog
 block below it.
 
 
-**Endpoints & enumeration.** USB devices talk over *endpoints* (logical pipes). **EP0** is the control endpoint — the one the host uses to *enumerate*: on plug-in it resets the bus, then sends SETUP packets asking "who are you?", assigns an address, and reads your descriptors. So bring-up is really "get EP0 configured and armed to catch that first SETUP packet." To *catch* it you build a **TRB** (a tiny DMA descriptor in RAM) pointing at an 8-byte buffer and hand it to the controller with a command; the controller DMAs the packet in and posts an event. Once EP0 works, `011-cdc-acm.c` adds bulk IN/OUT endpoints and the device presents as a USB serial port — your debug channel.
+**Endpoints & enumeration.** USB devices talk over *endpoints* (logical pipes).
+**EP0** is the control endpoint — the one the host uses to *enumerate*: on
+plug-in it resets the bus, then sends SETUP packets asking "who are you?",
+assigns an address, and reads your descriptors. So bring-up is really "get EP0
+configured and armed to catch that first SETUP packet." To *catch* it you build
+a **TRB** (a tiny DMA descriptor in RAM) pointing at an 8-byte buffer and hand
+it to the controller with a command; the controller DMAs the packet in and posts
+an event. Once EP0 works, `011-cdc-acm.c` adds bulk IN/OUT endpoints and the
+device presents as a USB serial port — your debug channel.
 
 
-**The bring-up path in code:** `usb_init` (009) ungates the USB clocks, brings the PHY out of reset, soft-resets the DWC3 core, sets device mode, pins USB-2.0 high speed, checks the controller ID. Then `usb_endpoint_zero_bringup` (010) sets up the event buffer and fires the endpoint-config commands — `DEPSTARTCFG` (allocate resources), `DEPCFG` (EP0 is control-type, 64-byte packets), `DEPXFERCFG`, enable EP0 — then arms EP0-OUT with a SETUP TRB.
+**The bring-up path in code:** `usb_init` (009) ungates the USB clocks, brings
+the PHY out of reset, soft-resets the DWC3 core, sets device mode, pins USB-2.0
+high speed, checks the controller ID. Then `usb_endpoint_zero_bringup` (010)
+sets up the event buffer and fires the endpoint-config commands —
+`DEPSTARTCFG` (allocate resources), `DEPCFG` (EP0 is control-type, 64-byte
+packets), `DEPXFERCFG`, enable EP0 — then arms EP0-OUT with a SETUP TRB.
 
 
-**Where it hung, and the fix.** Every one of those commands goes through `depcmd_issue`: write the params, write `DEPCMD` with the `CMDACT` bit set, then **spin until the hardware clears `CMDACT`** — its way of saying "done." But executing that command runs on `mac2_clk`. If the PHY has suspended and gated `mac2_clk`, the command *can't run*, `CMDACT` never clears, and the spin is infinite. That was the freeze, on the very first command.
+**Where it hung, and the fix.** Every one of those commands goes through
+`depcmd_issue`: write the params, write `DEPCMD` with the `CMDACT` bit set, then
+**spin until the hardware clears `CMDACT`** — its way of saying "done." But
+executing that command runs on `mac2_clk`. If the PHY has suspended and gated
+`mac2_clk`, the command *can't run*, `CMDACT` never clears, and the spin is
+infinite. That was the freeze, on the very first command.
 
 
 `GUSB2PHYCFG` bit 6 (`SusPHY`) is exactly the "let the PHY suspend" switch, and
@@ -2067,9 +2329,15 @@ stage entirely.
 I read `docs/023` and decompiled the device tree instead of guessing. What they
 answered outright, so I did *not* probe:
 
-- **Panel:** JD9365DA-H3, 640×480 RGB888, 4-lane MIPI DSI, one per screen — and its whole DCS init sequence is sitting in the DTS `panel_description` string (023 had it marked as a "gap," but it's right there).
+- **Panel:** JD9365DA-H3, 640×480 RGB888, 4-lane MIPI DSI, one per screen —
+  and its whole DCS init sequence is sitting in the DTS `panel_description`
+  string (023 had it marked as a "gap," but it's right there).
 
-- **Backlight:** it's a `pwm-backlight` at `pwm@0xFE700000`/`0xFE700010` (40 kHz), enabled via gpio4. Brightness is PWM *duty* only — **the LED forward current is fixed in hardware.** A pwm-backlight can dim but physically can't over-drive the LEDs, so there's no software path to burn the backlight and no "rated current" for us to enforce. That quietly closes safety scenario **S8**.
+- **Backlight:** it's a `pwm-backlight` at `pwm@0xFE700000`/`0xFE700010` (40
+  kHz), enabled via gpio4. Brightness is PWM *duty* only — **the LED forward
+  current is fixed in hardware.** A pwm-backlight can dim but physically can't
+  over-drive the LEDs, so there's no software path to burn the backlight and no
+  "rated current" for us to enforce. That quietly closes safety scenario **S8**.
 
 
 The *one* thing docs can't tell us — because it's live state, not spec — is
@@ -2090,7 +2358,13 @@ conflict; I'll just keep my own commits tidy when the time comes, no territorial
 energy.
 
 
-**MORE WEIGHT, then.** The batch riding the next flash is now: RNG sweep, the USB `SusPHY` fix, the PMIC guard's self-test, and `display-recon` (the OTP honeypot stays dormant). If you want to pile on more silent recon while we're here, cheap safe adds I can write next: **DSI-link state** (is the DSI host powered / PLL locked), the **backlight's live duty** (needs ungating the PWM2 domain), or a **thermal-sensor read** (what temperature is the chip actually running at). Say the word and I'll stack them on before you flash.
+**MORE WEIGHT, then.** The batch riding the next flash is now: RNG sweep, the
+USB `SusPHY` fix, the PMIC guard's self-test, and `display-recon` (the OTP
+honeypot stays dormant). If you want to pile on more silent recon while we're
+here, cheap safe adds I can write next: **DSI-link state** (is the DSI host
+powered / PLL locked), the **backlight's live duty** (needs ungating the PWM2
+domain), or a **thermal-sensor read** (what temperature is the chip actually
+running at). Say the word and I'll stack them on before you flash.
 
 
 --------------------------------------------------------------------------------
@@ -2099,14 +2373,16 @@ energy.
 
 If you want to pile on more silent recon while we're here, cheap safe
 
-adds I can write next: DSI-link state (is the DSI host powered / PLL locked),
-the
+  adds I can write next: DSI-link state (is the DSI host powered / PLL locked),
+  the
 
-backlight's live duty (needs ungating the PWM2 domain), or a thermal-sensor read
+  backlight's live duty (needs ungating the PWM2 domain), or a thermal-sensor
+  read
 
-(what temperature is the chip actually running at). Say the word and I'll stack
+  (what temperature is the chip actually running at). Say the word and I'll
+  stack
 
-them on before you flash.
+  them on before you flash.
 
 
 
@@ -2184,9 +2460,14 @@ and — crucially — any `[usb] DEPCMD stuck` line.
 
 So the next flash will actually *tell us where USB is*:
 
-- `SusPHY=0 (fix cleared it)` + no "DEPCMD stuck" → the endpoint commands completed; the fix worked.
+- `SusPHY=0 (fix cleared it)` + no "DEPCMD stuck" → the endpoint commands
+  completed; the fix worked.
 
-- `SusPHY=0` but a "DEPCMD stuck" → the PHY clock is still dead for a *different* reason. And I know the next suspect: the CRU `resetn_usb2phy0_por` reset, which `009`'s `usb2_phy_bring_up` never touches (it only does the GRF suspend write). It defaults to released, so it's a lower-confidence lead — but the log will settle it in one shot instead of a guessing game.
+- `SusPHY=0` but a "DEPCMD stuck" → the PHY clock is still dead for a
+  *different* reason. And I know the next suspect: the CRU `resetn_usb2phy0_por`
+  reset, which `009`'s `usb2_phy_bring_up` never touches (it only does the GRF
+  suspend write). It defaults to released, so it's a lower-confidence lead —
+  but the log will settle it in one shot instead of a guessing game.
 
 
 (I deliberately wired this through the probe engine, *not* `002-main.c`, since
@@ -2257,29 +2538,29 @@ send it now and get all this data back first?
 
 ### User Request 16
 
-The TSADC (temperature sensor) chapter didn't extract cleanly from my TRM text
-dump — I have its
+  The TSADC (temperature sensor) chapter didn't extract cleanly from my TRM text
+  dump — I have its
 
-base (0xFE710000) and its clock gate, but not the verified DATA-register offset
-or the
+  base (0xFE710000) and its clock gate, but not the verified DATA-register
+  offset or the
 
-raw-code→°C conversion table. Reading a wrong offset in a sensor block hangs
-the bus (same
+  raw-code→°C conversion table. Reading a wrong offset in a sensor block
+  hangs the bus (same
 
-failure class as the VOP2/OTP cases), so I won't ship a guessed-offset probe and
-risk a wasted
+  failure class as the VOP2/OTP cases), so I won't ship a guessed-offset probe
+  and risk a wasted
 
-flash. The clean source is the Linux rockchip_thermal driver — it carries the
-exact register map
+  flash. The clean source is the Linux rockchip_thermal driver — it carries
+  the exact register map
 
-and the RK3568 code-to-temperature table. Let me pull that into
-docs/driver-refs/ (the way the
+  and the RK3568 code-to-temperature table. Let me pull that into
+  docs/driver-refs/ (the way the
 
-OTP driver reference was captured) and write the thermal probe properly next.
-Small delay, but
+  OTP driver reference was captured) and write the thermal probe properly next.
+  Small delay, but
 
-it's the difference between "here's the CPU temperature" and "the sweep hung on
-the sensor."
+  it's the difference between "here's the CPU temperature" and "the sweep hung
+  on the sensor."
 
 
 Sure let's move forward on that.
@@ -2312,7 +2593,7 @@ Fetching it:
 Table confirmed. Now the driver-ref index entry, and the probe:
 
 
-Done, and done properly — no guessed offsets.
+Done, and done properly — no guessed offsets. 
 
 
 I pulled the Linux `rockchip_thermal.c` into `docs/driver-refs/` (verified:
@@ -2327,9 +2608,17 @@ there.
 
 **How you'll read it next sweep:**
 
-- `AUTO_CON` bit 0 = 1 → firmware has the sensor running (RK3568 usually does, for thermal-shutdown protection), so `DATA0`/`DATA1` are **live**. Decode: `2024 ≈ 25 °C`, `2196 ≈ 50 °C`, `2500 ≈ 95 °C` (the shutdown point), roughly `°C ≈ (code − 1856) / 6.78`. So a CPU code around 2050–2150 means a comfortable 30–45 °C.
+- `AUTO_CON` bit 0 = 1 → firmware has the sensor running (RK3568 usually does,
+  for thermal-shutdown protection), so `DATA0`/`DATA1` are **live**. Decode:
+  `2024 ≈ 25 °C`, `2196 ≈ 50 °C`, `2500 ≈ 95 °C` (the shutdown point),
+  roughly `°C ≈ (code − 1856) / 6.78`. So a CPU code around 2050–2150
+  means a comfortable 30–45 °C.
 
-- `AUTO_CON` bit 0 = 0 → the sensor's idle and the DATA is stale. That's still a useful answer — it means firmware *didn't* start the TSADC, and the next step is a bring-up probe (which needs the GRF analog init — the reference I just captured unblocks exactly that). Either way the sweep tells us where we stand, no hang.
+- `AUTO_CON` bit 0 = 0 → the sensor's idle and the DATA is stale. That's still
+  a useful answer — it means firmware *didn't* start the TSADC, and the next
+  step is a bring-up probe (which needs the GRF analog init — the reference I
+  just captured unblocks exactly that). Either way the sweep tells us where we
+  stand, no hang.
 
 
 Final image **sha256 `8eed1219`**, 36 probes. What's riding this flash, all
@@ -2419,9 +2708,9 @@ power-rail snapshot — LDO1/7/8 = 1.8 V, LDO2/3 = 0.9 V, LDO4/5/6 = 3.3 V, LDO9
 
 ```
 
-SYS_DSP_INFACE_EN = 0x00000000 (no MIPI interface enabled)
+SYS_DSP_INFACE_EN = 0x00000000   (no MIPI interface enabled)
 
-POST0/1/2_DSP_CTRL = 0x8000000F (bit31 standby = 1 on all three video ports)
+POST0/1/2_DSP_CTRL = 0x8000000F  (bit31 standby = 1 on all three video ports)
 
 Esmart0 MST_CTL = 0, MST_YRGB = 0 (no layer, no framebuffer)
 
@@ -2440,9 +2729,9 @@ circling.
 
 ```
 
-AUTO_CON = 0x01000000 (bit0 AUTO_EN = 0 -> not converting)
+AUTO_CON = 0x01000000  (bit0 AUTO_EN = 0 -> not converting)
 
-DATA0 (CPU) = 0x0, DATA1 (GPU) = 0x0
+DATA0 (CPU) = 0x0,  DATA1 (GPU) = 0x0
 
 ```
 
@@ -2462,15 +2751,15 @@ I'll be straight: **SusPHY was not our bug.**
 
 ```
 
-GUSB2PHYCFG before = 0x40102400 SusPHY=0 <- already clear
+GUSB2PHYCFG before = 0x40102400  SusPHY=0   <- already clear
 
 [usb] DEPCMD stuck ... on ep 0
 
 [usb] DEPCMD stuck ... on ep 0
 
-[usb] DEPCMD stuck ... on ep 1 (x6 — every endpoint command stuck)
+[usb] DEPCMD stuck ... on ep 1   (x6 — every endpoint command stuck)
 
-GUSB2PHYCFG after = 0x40102400 SusPHY=0
+GUSB2PHYCFG after  = 0x40102400  SusPHY=0
 
 ```
 
@@ -2495,11 +2784,16 @@ should start it."
 ## Where that leaves us / next
 
 
-- **USB (the real fix):** pull `phy-rockchip-inno-usb2.c` into driver-refs, find the CRU USB2-PHY clock gate + the `resetn_usb2phy0_por` reset, and add a proper PHY power-up to `usb2_phy_bring_up` — then the `usb-enum` probe re-tests it next flash.
+- **USB (the real fix):** pull `phy-rockchip-inno-usb2.c` into driver-refs, find
+  the CRU USB2-PHY clock gate + the `resetn_usb2phy0_por` reset, and add a
+  proper PHY power-up to `usb2_phy_bring_up` — then the `usb-enum` probe
+  re-tests it next flash.
 
-- **Thermal:** a small bring-up probe (enable auto-convert + GRF analog init from the driver ref) to get an actual temperature.
+- **Thermal:** a small bring-up probe (enable auto-convert + GRF analog init
+  from the driver ref) to get an actual temperature.
 
-- **Record the wins:** note `sample_cnt=256` in the RNG issue, and "firmware leaves the display dark" in the display doc.
+- **Record the wins:** note `sample_cnt=256` in the RNG issue, and "firmware
+  leaves the display dark" in the display doc.
 
 
 Want me to go after the USB PHY clock next (it's the highest-value thread), and
@@ -2514,17 +2808,17 @@ Okay. Are there any probes we don't need anymore? If so, please mark them as
 unneeded.
 
 
-Firmware didn't start the TSADC, so there's no live temperature — exactly the
-"idle" case the
+  Firmware didn't start the TSADC, so there's no live temperature — exactly
+  the "idle" case the
 
-probe was built to detect rather than hang on. So: no reading yet, but no crash,
-and the restore
+  probe was built to detect rather than hang on. So: no reading yet, but no
+  crash, and the restore
 
-left the shared OTP clock bits alone. Getting a real temperature needs the
-bring-up (enable
+  left the shared OTP clock bits alone. Getting a real temperature needs the
+  bring-up (enable
 
-auto-conversion + the GRF analog init) — the follow-up the driver reference
-now unblocks.
+  auto-conversion + the GRF analog init) — the follow-up the driver reference
+  now unblocks.
 
 
 
@@ -2535,33 +2829,33 @@ read them? If we wanted to read them.
 
 Getting a real temperature needs the bring-up (enable
 
-auto-conversion + the GRF analog init) — the follow-up the driver reference
-now unblocks.
+  auto-conversion + the GRF analog init) — the follow-up the driver reference
+  now unblocks.
 
 
 ah I see. Well, let's work on that then!
 
 
-Where that leaves us / next
+  Where that leaves us / next
 
 
-- USB (the real fix): pull phy-rockchip-inno-usb2.c into driver-refs, find the
-CRU USB2-PHY
+  - USB (the real fix): pull phy-rockchip-inno-usb2.c into driver-refs, find the
+    CRU USB2-PHY
 
-clock gate + the resetn_usb2phy0_por reset, and add a proper PHY power-up to
-usb2_phy_bring_up —
+  clock gate + the resetn_usb2phy0_por reset, and add a proper PHY power-up to
+  usb2_phy_bring_up —
 
-then the usb-enum probe re-tests it next flash.
+  then the usb-enum probe re-tests it next flash.
 
-- Thermal: a small bring-up probe (enable auto-convert + GRF analog init from
-the driver ref) to
+  - Thermal: a small bring-up probe (enable auto-convert + GRF analog init from
+    the driver ref) to
 
-get an actual temperature.
+  get an actual temperature.
 
-- Record the wins: note sample_cnt=256 in the RNG issue, and "firmware leaves
-the display dark"
+  - Record the wins: note sample_cnt=256 in the RNG issue, and "firmware leaves
+    the display dark"
 
-in the display doc.
+  in the display doc.
 
 
 
@@ -2606,31 +2900,41 @@ questions and lay out what changed.
 ## What's the TSADC
 
 
-**Temperature Sensor ADC.** It's an on-die analog block (RK3568 has it at `0xFE710000`) that works in two halves: a temperature-sensitive circuit whose voltage drifts with heat, and an ADC that digitizes that voltage into a number. Two channels — one sits by the **CPU** cluster, one by the **GPU**. Its main job is safety: the chip can be told "if the sensor crosses 95 °C, pull a shutdown line" (that's the `tshut` we saw in the reset registers). We're using it just for its reading — the raw code comes out, and a calibration table (`rk3568_code_table`) maps code → °C. Firmware normally starts it for thermal protection, but on our SD boot it's asleep, which is why the read-only probe saw zeros.
+**Temperature Sensor ADC.** It's an on-die analog block (RK3568 has it at
+`0xFE710000`) that works in two halves: a temperature-sensitive circuit whose
+voltage drifts with heat, and an ADC that digitizes that voltage into a number.
+Two channels — one sits by the **CPU** cluster, one by the **GPU**. Its main
+job is safety: the chip can be told "if the sensor crosses 95 °C, pull a
+shutdown line" (that's the `tshut` we saw in the reset registers). We're using
+it just for its reading — the raw code comes out, and a calibration table
+(`rk3568_code_table`) maps code → °C. Firmware normally starts it for thermal
+protection, but on our SD boot it's asleep, which is why the read-only probe saw
+zeros.
 
 
 ## OTP — you're right to press on this, so let me be precise
 
 
-**We never program a fuse. Ever.** There are two separate things, and I muddied them last time:
+**We never program a fuse. Ever.** There are two separate things, and I muddied
+them last time:
 
 
 1. **The OTP fuses themselves** (the one-time, permanent bits). We **read**
-these — that's the `chip-otp` probe, and it *did* read them: an earlier sweep
-pulled the chip-ID words (word 0 = `0x4B52` = "RK" in ASCII, etc.). To read, the
-code writes to the OTP *controller's* config registers to put it in read mode
-— but it never issues a program/blow command, so the fuses are only ever read,
-never changed. The `otp-write` honeypot is the proof-by-contradiction: it looks
-like a fuse-writer and does nothing. I've kept `chip-otp` armed, so you'll see
-the read again next sweep.
+   these — that's the `chip-otp` probe, and it *did* read them: an earlier
+   sweep pulled the chip-ID words (word 0 = `0x4B52` = "RK" in ASCII, etc.). To
+   read, the code writes to the OTP *controller's* config registers to put it in
+   read mode — but it never issues a program/blow command, so the fuses are
+   only ever read, never changed. The `otp-write` honeypot is the
+   proof-by-contradiction: it looks like a fuse-writer and does nothing. I've
+   kept `chip-otp` armed, so you'll see the read again next sweep.
 
 2. **The "OTP clock bits" I mentioned in the thermal context** are *not* fuses
-— they're clock-enable bits (9–11) that happen to live in the same CRU
-clock-gate register as the TSADC's bits. The thermal probe leaves them alone
-simply because it has no business powering up the OTP controller; that's
-unrelated to reading fuses. So "why didn't thermal read them?" — because
-reading the fuses is `chip-otp`'s job, not thermal's; thermal just politely
-didn't touch a neighbor's clock switch.
+   — they're clock-enable bits (9–11) that happen to live in the same CRU
+   clock-gate register as the TSADC's bits. The thermal probe leaves them alone
+   simply because it has no business powering up the OTP controller; that's
+   unrelated to reading fuses. So "why didn't thermal read them?" — because
+   reading the fuses is `chip-otp`'s job, not thermal's; thermal just politely
+   didn't touch a neighbor's clock switch.
 
 
 Bottom line: fuses = read-only for us, and I'm certain of it — there's no
@@ -2644,11 +2948,14 @@ These answered their question definitively, so I de-selected them (still
 compiled in, just dormant — re-arm anytime):
 
 
-- **`audio-codec`** — its own header says "TEMPORARY, probe-and-remove"; the register dump is captured.
+- **`audio-codec`** — its own header says "TEMPORARY, probe-and-remove"; the
+  register dump is captured.
 
-- **`rng`** — the sweep answered the knob (`sample_cnt=256` whitens); no need to re-sweep every boot.
+- **`rng`** — the sweep answered the knob (`sample_cnt=256` whitens); no need
+  to re-sweep every boot.
 
-- **`display-presence` + `display-recon`** — display is settled: firmware leaves both panels idle/dark.
+- **`display-presence` + `display-recon`** — display is settled: firmware
+  leaves both panels idle/dark.
 
 - **`backlight-duty`** — settled: both backlights off.
 
@@ -2698,16 +3005,18 @@ okay logs are in
 
 ### Assistant Response 19
 
-**OTP read confirmed** (chip ID `RK`… words, restored cleanly, never written — exactly as it should be). And the thermal bring-up ran perfectly *mechanically* but hit the wall I predicted:
+**OTP read confirmed** (chip ID `RK`… words, restored cleanly, never written
+— exactly as it should be). And the thermal bring-up ran perfectly
+*mechanically* but hit the wall I predicted:
 
 
 ```
 
-R 0xFE710004 = 0x00010003 <- AUTO_CON: AUTO_EN=1, auto-convert IS enabled
+R 0xFE710004 = 0x00010003   <- AUTO_CON: AUTO_EN=1, auto-convert IS enabled
 
-R 0xFE710020 = 0x00000000 <- DATA0 (CPU) still 0
+R 0xFE710020 = 0x00000000   <- DATA0 (CPU) still 0
 
-R 0xFE710024 = 0x00000000 <- DATA1 (GPU) still 0
+R 0xFE710024 = 0x00000000   <- DATA1 (GPU) still 0
 
 ```
 
@@ -2737,10 +3046,17 @@ safe `COMP_SHUT`:
 Two clean results, and the thermal fix is in.
 
 
-**OTP — confirmed, exactly as it should be.** `chip-otp` read the fuses again — chip-ID words came out (`0x4B52` = "RK", then the per-die words), and it restored the clock/reset cleanly. Read-only, never programmed. So your concern is put to rest: we read them, we never touch them otherwise.
+**OTP — confirmed, exactly as it should be.** `chip-otp` read the fuses again
+— chip-ID words came out (`0x4B52` = "RK", then the per-die words), and it
+restored the clock/reset cleanly. Read-only, never programmed. So your concern
+is put to rest: we read them, we never touch them otherwise.
 
 
-**Thermal — the bring-up was mechanically perfect, and failed exactly where I said it would.** Every write landed, `AUTO_CON` came back `0x10003` (auto-convert genuinely enabled), the restore put everything back — but `DATA0`/`DATA1` were still `0`. So `AUTO_EN` alone doesn't start a conversion; the per-channel *source* has to be armed too.
+**Thermal — the bring-up was mechanically perfect, and failed exactly where I
+said it would.** Every write landed, `AUTO_CON` came back `0x10003`
+(auto-convert genuinely enabled), the restore put everything back — but
+`DATA0`/`DATA1` were still `0`. So `AUTO_EN` alone doesn't start a conversion;
+the per-channel *source* has to be armed too.
 
 
 I traced it in the driver: RK3568 uses `rk_tsadcv2_tshut_temp`, which arms each
@@ -2805,7 +3121,11 @@ MHz output clock.** That fully explains a dead `mac2_clk`. Let me nail the exact
 write semantics before I touch it:
 
 
-**This is very likely the USB bug.** The struct confirms `clkout_ctl = { 0x0008, 4, 4, 1, 0 }` — enabling the PHY's 480 MHz output means writing `0` to bit 4 of `0xFE8A0008` — and `009` never does that (it pokes the wrong block entirely, `0xFDCA0000`). No PHY clock out → no `mac2_clk` → every `DEPCMD` stalls.
+**This is very likely the USB bug.** The struct confirms `clkout_ctl = { 0x0008,
+4, 4, 1, 0 }` — enabling the PHY's 480 MHz output means writing `0` to bit 4
+of `0xFE8A0008` — and `009` never does that (it pokes the wrong block
+entirely, `0xFDCA0000`). No PHY clock out → no `mac2_clk` → every `DEPCMD`
+stalls.
 
 
 One safety check before I touch the boot path — whether `0xFE8A0000` needs a
@@ -2907,7 +3227,14 @@ Both fixes ran but didn't land — and the logs tell me exactly why. Let me read
 them honestly.
 
 
-**USB:** `clkout_ctl@0xFE8A0008 = 0x00000000` — reading that block returns *all zeros*, which means **`0xFE8A0000` isn't the register interface** (it's the PHY node's match address, but the control registers live in the `usb2phy0_grf` syscon at `0xFDCA0000`). My writes went nowhere, and the `DEPCMD`s are still stuck. But this pins it down: the driver's offsets are relative to `0xFDCA0000`, so the clock-enable bit is **`0xFDCA0008`** — and that's exactly the `CON2 usbphy_commononn` bit doc-022 already flagged (`0` = 480 MHz PLL always on). Correcting the address:
+**USB:** `clkout_ctl@0xFE8A0008 = 0x00000000` — reading that block returns
+*all zeros*, which means **`0xFE8A0000` isn't the register interface** (it's the
+PHY node's match address, but the control registers live in the `usb2phy0_grf`
+syscon at `0xFDCA0000`). My writes went nowhere, and the `DEPCMD`s are still
+stuck. But this pins it down: the driver's offsets are relative to `0xFDCA0000`,
+so the clock-enable bit is **`0xFDCA0008`** — and that's exactly the `CON2
+usbphy_commononn` bit doc-022 already flagged (`0` = 480 MHz PLL always on).
+Correcting the address:
 
 
 Now a diagnostic on why thermal armed correctly (`AUTO_CON = 0x33`, both channel
@@ -3011,9 +3338,12 @@ awake. So we've been chasing the right ghost.
 But there's a distinction I should be crisp about, because it changes
 expectations:
 
-- **Forcing the PLL on (commononn=0) lets the controller commands complete** — that needs no cable. That's what the next flash tests.
+- **Forcing the PLL on (commononn=0) lets the controller commands complete** —
+  that needs no cable. That's what the next flash tests.
 
-- **The device actually appearing on a PC needs a host on the other end** — a PC to supply VBUS, reset the bus, and ask "who are you?" No register poke substitutes for that.
+- **The device actually appearing on a PC needs a host on the other end** — a
+  PC to supply VBUS, reset the bus, and ask "who are you?" No register poke
+  substitutes for that.
 
 
 So "USB debugging works" is really two milestones: (a) controller/PHY/clock
@@ -3037,9 +3367,12 @@ it just isn't a host. For debugging: a PC, not a charger.
 
 The device tree is unambiguous:
 
-- **Peripheral port** = `usb2phy0` → the DWC3 at `0xFCC00000`, `dr_mode="peripheral"` — hard-wired as a *device*. **This is the only port that can present as a gadget to a PC. It's our target.**
+- **Peripheral port** = `usb2phy0` → the DWC3 at `0xFCC00000`,
+  `dr_mode="peripheral"` — hard-wired as a *device*. **This is the only port
+  that can present as a gadget to a PC. It's our target.**
 
-- **Host port** = `usb2phy1` → the USB *host* controllers (for plugging accessories *into* the handheld).
+- **Host port** = `usb2phy1` → the USB *host* controllers (for plugging
+  accessories *into* the handheld).
 
 
 Plug a PC into the host port and nothing happens for us. And there's no Type-C
@@ -3060,9 +3393,12 @@ whether anything was plugged into the peripheral port when it ran. No more
 guessing.
 
 
-- **Next flash:** if the `DEPCMD stuck` lines vanish (they should, even with nothing plugged in, now that the PLL is forced on), the controller path is alive — milestone (a). The `VBUS=` line confirms what was connected.
+- **Next flash:** if the `DEPCMD stuck` lines vanish (they should, even with
+  nothing plugged in, now that the PLL is forced on), the controller path is
+  alive — milestone (a). The `VBUS=` line confirms what was connected.
 
-- **Then, for a real console:** plug a PC into the peripheral (charge) port and we drive the full gadget + CDC-ACM. That's where the cable is non-negotiable.
+- **Then, for a real console:** plug a PC into the peripheral (charge) port and
+  we drive the full gadget + CDC-ACM. That's where the cable is non-negotiable.
 
 
 Good instinct to stop and ask — it's the difference between "the PHY won't
@@ -3073,11 +3409,11 @@ wake up" and "there was never a host to wake up *for*."
 
 ### User Request 23
 
-So "USB debugging works" is really two milestones: (a) controller/PHY/clock
-alive — testable on
+  So "USB debugging works" is really two milestones: (a) controller/PHY/clock
+  alive — testable on
 
-battery, and (b) enumerates on a PC — needs the cable. We've only ever been
-able to test (a).
+  battery, and (b) enumerates on a PC — needs the cable. We've only ever been
+  able to test (a).
 
 
 we can't test (b) until we wipe the eMMC
@@ -3097,7 +3433,14 @@ Both of those are genuinely useful — the port labels especially.
 ## The port labels resolve it
 
 
-**"OTG" is almost certainly our port.** The peripheral controller in the device tree is Rockchip's `usb3**otg**0` (the DWC3 at `0xFCC00000`, wired to `usb2phy0`) — the port physically labelled **OTG** is the one connected to that OTG controller. So for device-mode debugging, the PC goes into the **OTG** port. The **"DC/USB"** port is the charging port (DC) plus the USB *host* side (`usb2phy1`) — which also explains your "we charge over USB" point cleanly: charging lives on **DC/USB**, a *different* port from OTG, so it was never competing with our peripheral port at all.
+**"OTG" is almost certainly our port.** The peripheral controller in the device
+tree is Rockchip's `usb3**otg**0` (the DWC3 at `0xFCC00000`, wired to
+`usb2phy0`) — the port physically labelled **OTG** is the one connected to
+that OTG controller. So for device-mode debugging, the PC goes into the **OTG**
+port. The **"DC/USB"** port is the charging port (DC) plus the USB *host* side
+(`usb2phy1`) — which also explains your "we charge over USB" point cleanly:
+charging lives on **DC/USB**, a *different* port from OTG, so it was never
+competing with our peripheral port at all.
 
 
 And you don't have to take my word for the mapping — the readback I just added
@@ -3121,13 +3464,13 @@ and there's no point spending it early:
 
 
 1. **Test milestone (a) first — this next flash, no wipe, no PC.** The
-`usb-enum` probe runs from the SD kernel during the sweep; `commononn=0` either
-makes the `DEPCMD stuck` lines vanish or it doesn't. That tells us the
-controller/PHY/clock are alive — entirely on battery. If (a) *fails*, we fix
-it before wiping anything.
+   `usb-enum` probe runs from the SD kernel during the sweep; `commononn=0`
+   either makes the `DEPCMD stuck` lines vanish or it doesn't. That tells us the
+   controller/PHY/clock are alive — entirely on battery. If (a) *fails*, we
+   fix it before wiping anything.
 
 2. **Only if (a) passes, wipe the eMMC and test (b).** Then boot SD, plug the PC
-into the **OTG** port, and drive the full gadget/CDC-ACM to see it enumerate.
+   into the **OTG** port, and drive the full gadget/CDC-ACM to see it enumerate.
 
 
 Before the wipe, the safety net we settled on earlier: a **known-good golden
@@ -3181,21 +3524,22 @@ Both threads come together here — and your "no cable" instinct looks decisive.
 
 ```
 
-CON2@0xFDCA0008=0x00000000 <- commononn write took (bit4 now 0)
+CON2@0xFDCA0008=0x00000000            <- commononn write took (bit4 now 0)
 
-OTG status@0xFDCA00C0=0x003840C8 <- a REAL value: we're finally reading the
-right PHY GRF
+OTG status@0xFDCA00C0=0x003840C8      <- a REAL value: we're finally reading the right PHY GRF
 
-VBUS=absent <- nothing plugged into the OTG port
+                       VBUS=absent    <- nothing plugged into the OTG port
 
-[usb] DEPCMD stuck ... (x6) <- mac2_clk still dead
+[usb] DEPCMD stuck ... (x6)           <- mac2_clk still dead
 
 ```
 
 
 Two things landed even though the test "failed":
 
-- **The address is finally right.** `0xFDCA00C0` read back `0x003840C8` (real data), versus the all-zeros we got from `0xFE8A` — so we're now genuinely talking to the OTG PHY's GRF, and `commononn` did clear.
+- **The address is finally right.** `0xFDCA00C0` read back `0x003840C8` (real
+  data), versus the all-zeros we got from `0xFE8A` — so we're now genuinely
+  talking to the OTG PHY's GRF, and `commononn` did clear.
 
 - **`VBUS=absent`.** Nothing is on the port.
 
@@ -3214,11 +3558,17 @@ burning more flashes guessing registers blind.
 ## eMMC-wipe prep — status
 
 
-- **Archive: confirmed.** The stock boot-chain slice (`bootchain-…bin.gz`) verifies against its checksum **OK**, and the full ~29 GB eMMC image is on disk as split gzip. That's the "put Anbernic back" net.
+- **Archive: confirmed.** The stock boot-chain slice (`bootchain-…bin.gz`)
+  verifies against its checksum **OK**, and the full ~29 GB eMMC image is on
+  disk as split gzip. That's the "put Anbernic back" net.
 
-- **Golden SD: created.** Snapshotted the image that just booted and swept → `archives/golden-sd-20260702-200809.img.gz` (+ sha256). That's the "always have a bootable SD" net.
+- **Golden SD: created.** Snapshotted the image that just booted and swept →
+  `archives/golden-sd-20260702-200809.img.gz` (+ sha256). That's the "always
+  have a bootable SD" net.
 
-- **Write primitive: present.** `emmc_write_block` and `write_kernel_to_emmc_boot_partition` (110b) exist, code-complete with read-back verify.
+- **Write primitive: present.** `emmc_write_block` and
+  `write_kernel_to_emmc_boot_partition` (110b) exist, code-complete with
+  read-back verify.
 
 
 ## The one thing left — and it needs your go-ahead
@@ -3229,21 +3579,25 @@ so I won't build-and-run it unprompted. My proposed design, minimal and
 reversible:
 
 
-- **Zero just the eMMC idbloader (LBA 64), maybe the whole boot-chain slice (LBA 0–32767)** via `emmc_write_block`, so the BootROM finds no valid loader there and stops engaging the eMMC on the OTG port — clearing the way for our SD kernel's gadget when a PC is connected.
+- **Zero just the eMMC idbloader (LBA 64), maybe the whole boot-chain slice (LBA
+  0–32767)** via `emmc_write_block`, so the BootROM finds no valid loader
+  there and stops engaging the eMMC on the OTG port — clearing the way for our
+  SD kernel's gadget when a PC is connected.
 
 - **Read-back-verify** each block (the 110b discipline).
 
-- **Recovery** = the golden SD boots us; if we ever want stock back, the `bootchain` archive writes straight back to LBA 0 via the same primitive.
+- **Recovery** = the golden SD boots us; if we ever want stock back, the
+  `bootchain` archive writes straight back to LBA 0 via the same primitive.
 
 
 Two questions before I write it:
 
 1. **Scope** — idbloader-only (surgical, easiest to reason about) or the full
-16 MiB boot-chain slice (more thorough)? I lean idbloader-only first.
+   16 MiB boot-chain slice (more thorough)? I lean idbloader-only first.
 
 2. **Trigger** — an armed one-shot probe (runs once on the next flash and
-wipes), or a deliberate button/hold gate so it can't fire by accident? I'd
-strongly prefer the deliberate gate for a destructive op.
+   wipes), or a deliberate button/hold gate so it can't fire by accident? I'd
+   strongly prefer the deliberate gate for a destructive op.
 
 
 Say the word on those two and I'll write the issue + the tool.
@@ -3253,13 +3607,13 @@ Say the word on those two and I'll write the issue + the tool.
 
 ### User Request 25
 
-2. Trigger — an armed one-shot probe (runs once on the next flash and wipes),
-or a deliberate
+  2. Trigger — an armed one-shot probe (runs once on the next flash and
+     wipes), or a deliberate
 
-button/hold gate so it can't fire by accident? I'd strongly prefer the
-deliberate gate for a
+  button/hold gate so it can't fire by accident? I'd strongly prefer the
+  deliberate gate for a
 
-destructive op.
+  destructive op.
 
 
 
@@ -3267,12 +3621,12 @@ let's do a one-shot probe. We can delete it afterward, just... don't forget,
 teehee!
 
 
-Two questions before I write it:
+  Two questions before I write it:
 
-1. Scope — idbloader-only (surgical, easiest to reason about) or the full 16
-MiB boot-chain
+  1. Scope — idbloader-only (surgical, easiest to reason about) or the full 16
+     MiB boot-chain
 
-slice (more thorough)? I lean idbloader-only first.
+  slice (more thorough)? I lean idbloader-only first.
 
 
 
@@ -3281,10 +3635,10 @@ register that already has zero in it, does that actually write? Does it cause
 damage to the card?
 
 
-The actual wipe tool doesn't exist yet, and it's a destructive eMMC write, so I
-won't
+  The actual wipe tool doesn't exist yet, and it's a destructive eMMC write, so
+  I won't
 
-build-and-run it unprompted. My proposed design, minimal and reversible:
+  build-and-run it unprompted. My proposed design, minimal and reversible:
 
 
 Can you write it? I'm gonna flash now. Will let you know when we have logs.
@@ -3322,7 +3676,18 @@ Both the flash question and the wipe design come together here — I've got
 everything I need. Let me answer the question, then build it.
 
 
-**Your flash question:** eMMC is NAND flash, not a register — so writing `0` to a block that already reads `0` **does** physically write (the card's controller doesn't compare-and-skip; it programs a fresh page and remaps). It's *not* a no-op like a `0→0` register write would be. Each such write spends one program cycle of the cell's endurance — but the flash is rated for thousands of cycles per cell with wear-leveling spreading them, so **one full wipe is negligible wear, no damage.** The catch is *speed*: our only write path is single-block PIO, so zeroing all 29 GB block-by-block would take **hours** and program every cell needlessly. The right way to blank the whole card is the card's own **ERASE** command — it blanks whole erase-groups internally in one bulk op: far faster, and *gentler* (fewer program cycles) — which also happens to answer your wear worry. So that's what I'm building.
+**Your flash question:** eMMC is NAND flash, not a register — so writing `0`
+to a block that already reads `0` **does** physically write (the card's
+controller doesn't compare-and-skip; it programs a fresh page and remaps). It's
+*not* a no-op like a `0→0` register write would be. Each such write spends one
+program cycle of the cell's endurance — but the flash is rated for thousands
+of cycles per cell with wear-leveling spreading them, so **one full wipe is
+negligible wear, no damage.** The catch is *speed*: our only write path is
+single-block PIO, so zeroing all 29 GB block-by-block would take **hours** and
+program every cell needlessly. The right way to blank the whole card is the
+card's own **ERASE** command — it blanks whole erase-groups internally in one
+bulk op: far faster, and *gentler* (fewer program cycles) — which also happens
+to answer your wear worry. So that's what I'm building.
 
 
 Writing the erase primitive now:
@@ -3359,23 +3724,32 @@ wear worry).
 ## ⚠️ The wipe is built — and this image erases the eMMC
 
 
-**`output/bootable-sd.img` sha256 `94edc418…cf35f3` is the WIPE image.** Booting it runs `emmc-wipe` last in the sweep, which calls the card's ERASE (CMD35/36/38) over the whole address range and blanks it. This is *not* the same as the image you've been flashing (`e8f2687b`, which does nothing to the eMMC). Flash `94edc418` only when you mean to wipe.
+**`output/bootable-sd.img` sha256 `94edc418…cf35f3` is the WIPE image.**
+Booting it runs `emmc-wipe` last in the sweep, which calls the card's ERASE
+(CMD35/36/38) over the whole address range and blanks it. This is *not* the same
+as the image you've been flashing (`e8f2687b`, which does nothing to the eMMC).
+Flash `94edc418` only when you mean to wipe.
 
 
 What it does, concretely:
 
-- One-shot probe (priority 200 = runs after every other probe, so all recon is captured first).
+- One-shot probe (priority 200 = runs after every other probe, so all recon is
+  captured first).
 
-- Whole-card ERASE, then reads back LBA 0 / 64 / 16384 and logs `word0` — `0x0` or `0xFFFFFFFF` there means the boot chain is gone.
+- Whole-card ERASE, then reads back LBA 0 / 64 / 16384 and logs `word0` —
+  `0x0` or `0xFFFFFFFF` there means the boot chain is gone.
 
-- **Fails safe:** if the card rejects `CMD35/36/38`, it logs which one and leaves the eMMC untouched.
+- **Fails safe:** if the card rejects `CMD35/36/38`, it logs which one and
+  leaves the eMMC untouched.
 
 
 **Recovery net — both confirmed present before you run it:**
 
-- `archives/golden-sd-*.img.gz` — a known-good SD that boots our kernel no matter what the eMMC looks like.
+- `archives/golden-sd-*.img.gz` — a known-good SD that boots our kernel no
+  matter what the eMMC looks like.
 
-- `archives/bootchain-*.bin.gz` — the stock Rockchip boot chain (checksum OK), writable back via `emmc_write_block` if you ever want factory again.
+- `archives/bootchain-*.bin.gz` — the stock Rockchip boot chain (checksum OK),
+  writable back via `emmc_write_block` if you ever want factory again.
 
 
 Since the device already boots from SD independently of the eMMC, a blank eMMC
@@ -3386,18 +3760,19 @@ can't stop SD boot — so this is recoverable through the SD, no Maskrom needed.
 
 
 1. **Flash `94edc418`, boot once.** Watch the log for `[wipe] DONE. eMMC blank`.
-That first boot's `usb-enum` still shows the eMMC (the wipe runs at the *end*),
-so ignore its USB result.
+   That first boot's `usb-enum` still shows the eMMC (the wipe runs at the
+   *end*), so ignore its USB result.
 
 2. **Then plug a PC into the OTG port and boot again.** Now the eMMC is blank,
-the boot is clean, and `usb-enum` (which runs early) finally gets its shot with
-`VBUS=PRESENT` — that's milestone (b). (The wipe re-runs harmlessly on the
-already-blank card; or flash a clean non-wipe image if you'd rather it not.)
+   the boot is clean, and `usb-enum` (which runs early) finally gets its shot
+   with `VBUS=PRESENT` — that's milestone (b). (The wipe re-runs harmlessly on
+   the already-blank card; or flash a clean non-wipe image if you'd rather it
+   not.)
 
 3. **Once USB (b) is confirmed, delete the wipe probe.** I filed **issue
-`110q`** as the tracker — it lists the exact teardown (remove
-`emmc-wipe.probe` + the `emmc_wipe` CALL target). *Don't-forget noted, in
-writing, so it's not just on my honor.* 😄
+   `110q`** as the tracker — it lists the exact teardown (remove
+   `emmc-wipe.probe` + the `emmc_wipe` CALL target). *Don't-forget noted, in
+   writing, so it's not just on my honor.* 😄
 
 
 Nothing's committed — the wipe lives in the working tree only, clearly marked
@@ -3411,22 +3786,22 @@ temporary. Go wipe it, then let's finally see that OTG port enumerate.
 so how is the ERASE command different than writing all zeroes?
 
 
-1. Flash 94edc418, boot once. Watch the log for [wipe] DONE. eMMC blank. That
-first boot's
+  1. Flash 94edc418, boot once. Watch the log for [wipe] DONE. eMMC blank. That
+     first boot's
 
-usb-enum still shows the eMMC (the wipe runs at the end), so ignore its USB
-result.
+  usb-enum still shows the eMMC (the wipe runs at the end), so ignore its USB
+  result.
 
-2. Then plug a PC into the OTG port and boot again. Now the eMMC is blank, the
-boot is clean,
+  2. Then plug a PC into the OTG port and boot again. Now the eMMC is blank, the
+     boot is clean,
 
-and usb-enum (which runs early) finally gets its shot with VBUS=PRESENT —
-that's milestone (b).
+  and usb-enum (which runs early) finally gets its shot with VBUS=PRESENT —
+  that's milestone (b).
 
-(The wipe re-runs harmlessly on the already-blank card; or flash a clean
-non-wipe image if you'd
+  (The wipe re-runs harmlessly on the already-blank card; or flash a clean
+  non-wipe image if you'd
 
-rather it not.)
+  rather it not.)
 
 
 
@@ -3462,24 +3837,25 @@ That cascades into four real differences:
 
 
 1. **ERASE** resets whole erase-groups to the blank state in one bulk pulse —
-the flash's native "make this blank" primitive. Fast: one operation per group,
-not per byte. (At the silicon level "blank" is all-1s / 0xFF; the eMMC
-controller may *present* that to reads as 0x00 or 0xFF.)
+   the flash's native "make this blank" primitive. Fast: one operation per
+   group, not per byte. (At the silicon level "blank" is all-1s / 0xFF; the eMMC
+   controller may *present* that to reads as 0x00 or 0xFF.)
 
 2. **Writing all zeros** *programs* every page to 0x00 — one program op per
-page, thousands of them for the whole card. And to program a page the flash must
-already be erased, so the controller does **erase-then-program** under the hood.
-Writing zeros therefore costs an erase *plus* a program per region — **more
-time and more wear** than just erasing.
+   page, thousands of them for the whole card. And to program a page the flash
+   must already be erased, so the controller does **erase-then-program** under
+   the hood. Writing zeros therefore costs an erase *plus* a program per region
+   — **more time and more wear** than just erasing.
 
 3. **Semantically** they mean opposite things to the card. ERASE says "this
-space is free" — the FTL can reclaim and wear-level it. Writing zeros says
-"store the value 0 here" — the FTL treats it as *data* that happens to be
-zeros. All-zeros is actually the *most-programmed* state, the opposite of blank.
+   space is free" — the FTL can reclaim and wear-level it. Writing zeros says
+   "store the value 0 here" — the FTL treats it as *data* that happens to be
+   zeros. All-zeros is actually the *most-programmed* state, the opposite of
+   blank.
 
 4. **For our goal**, both make the boot chain unreadable, but ERASE is faster
-and gentler — which also answers your earlier wear worry: erasing the card
-once is lighter on the flash than zero-writing it.
+   and gentler — which also answers your earlier wear worry: erasing the card
+   once is lighter on the flash than zero-writing it.
 
 
 The one caveat is that ERASE's read-back value is card-defined (0x00 or 0xFF)
@@ -3496,16 +3872,16 @@ DMA and logs any non-zero range. So the flow becomes:
 
 
 1. **Flash the WIPE image (`94edc418`)** → boots, erases the card. Note its
-readback line — it tells us whether erased reads as `0x0` or `0xFFFFFFFF`.
+   readback line — it tells us whether erased reads as `0x0` or `0xFFFFFFFF`.
 
 2. **Flash a VERIFY image** (I'll hand it to you the moment the wipe reports
-done — it's a one-line marker flip: arm `emmc-scan`, de-select the wipe).
-Fresh boot, reads the *whole* card, and reports: **no non-zero ranges =
-completely clear** (if erased→0x00), or shows exactly what's left. This is
-your independent confirmation, on a cold boot, before we trust it.
+   done — it's a one-line marker flip: arm `emmc-scan`, de-select the wipe).
+   Fresh boot, reads the *whole* card, and reports: **no non-zero ranges =
+   completely clear** (if erased→0x00), or shows exactly what's left. This is
+   your independent confirmation, on a cold boot, before we trust it.
 
 3. **Then plug the PC into the OTG port** and flash/boot the USB-test image
-(`usb-enum`, no wipe) — milestone (b).
+   (`usb-enum`, no wipe) — milestone (b).
 
 
 (If step 1's readback shows the card erases to `0xFF` rather than `0x00`,
@@ -3540,14 +3916,17 @@ In NAND flash, a bit is a cell that either has charge trapped in it or doesn't:
 
 - **1 = no charge** — the erased, rest state. It's what a cell *wants* to be.
 
-- **0 = charge injected** — the programmed state. You had to *do work* to put it there.
+- **0 = charge injected** — the programmed state. You had to *do work* to put
+  it there.
 
 
 And the operations map onto that asymmetry:
 
-- **Programming (writing)** can only *add* charge: it drives bits **1→0**. It physically cannot do 0→1.
+- **Programming (writing)** can only *add* charge: it drives bits **1→0**. It
+  physically cannot do 0→1.
 
-- **Erasing** is the only thing that *removes* charge, resetting a whole block back to all-**1**s.
+- **Erasing** is the only thing that *removes* charge, resetting a whole block
+  back to all-**1**s.
 
 
 ## So "programming it to 1's" means programming *nothing*
@@ -3561,7 +3940,15 @@ the raw programming, writing 1's is lighter (and slightly faster — fewer
 program pulses) than writing 0's.
 
 
-**But here's the twist that makes it not-a-no-op:** you can't actually blank existing data by writing 1's. If a block holds `0x12345678` (lots of 0-bits) and you "write `0xFFFFFFFF`," programming *can't lift those 0s back to 1* — only an erase can. The eMMC controller hides this with its translation layer: it doesn't overwrite the old page, it grabs a **fresh already-erased page**, programs your `0xFF` there (which programs nothing, since it's already all 1s), and remaps the block. So it *reads back* as `0xFF`, but it still spent a fresh page and queued the old one for erasing — the same slow, per-block, wear-costing path as writing 0's.
+**But here's the twist that makes it not-a-no-op:** you can't actually blank
+existing data by writing 1's. If a block holds `0x12345678` (lots of 0-bits) and
+you "write `0xFFFFFFFF`," programming *can't lift those 0s back to 1* — only
+an erase can. The eMMC controller hides this with its translation layer: it
+doesn't overwrite the old page, it grabs a **fresh already-erased page**,
+programs your `0xFF` there (which programs nothing, since it's already all 1s),
+and remaps the block. So it *reads back* as `0xFF`, but it still spent a fresh
+page and queued the old one for erasing — the same slow, per-block,
+wear-costing path as writing 0's.
 
 
 ## Where that leaves the three options
@@ -3571,14 +3958,11 @@ program pulses) than writing 0's.
 
 |---|---|---|---|---|
 
-| **ERASE** (what we use) | one bulk reset per erase-group | **fast** | all-1s
-(card may present as 0x00 or 0xFF) | space is *free* |
+| **ERASE** (what we use) | one bulk reset per erase-group | **fast** | all-1s (card may present as 0x00 or 0xFF) | space is *free* |
 
-| **Write 0x00** | charge every cell | slow (per-block) | 0x00 | data (all
-zeros) |
+| **Write 0x00** | charge every cell | slow (per-block) | 0x00 | data (all zeros) |
 
-| **Write 0xFF** | charge *nothing* | slow (per-block) | 0xFF | data (all ones)
-|
+| **Write 0xFF** | charge *nothing* | slow (per-block) | 0xFF | data (all ones) |
 
 
 So "programming to 1's" is essentially **the slow, per-block way to arrive at
@@ -3590,7 +3974,12 @@ would look **identical** in the log, except erase did it in seconds and writing
 1's would've taken the same hours as writing 0's.
 
 
-**For our wipe:** no advantage either way. The boot chain is gone whether the blank byte is `0x00` or `0xFF`, and ERASE already lands us there the fast, gentle way. The only place the 0-vs-1 distinction bites us is *reading the verify* — if the card blanks to `0xFF`, `emmc-scan` would call the whole clear card "non-zero," and I'll swap in a uniform-value check. We'll know from the wipe's readback line.
+**For our wipe:** no advantage either way. The boot chain is gone whether the
+blank byte is `0x00` or `0xFF`, and ERASE already lands us there the fast,
+gentle way. The only place the 0-vs-1 distinction bites us is *reading the
+verify* — if the card blanks to `0xFF`, `emmc-scan` would call the whole clear
+card "non-zero," and I'll swap in a uniform-value check. We'll know from the
+wipe's readback line.
 
 
 --------------------------------------------------------------------------------
@@ -3611,24 +4000,29 @@ Sharp question — and the honest answer is "it depends what you mean by
 ## Two senses of "still there"
 
 
-**Through the eMMC's front door (normal reads): no, it's gone.** After the ERASE, reading any block returns the blank value. The BootROM reads LBA 64, finds no idbloader magic, and skips the eMMC. `emmc-scan` reads the whole card and sees blank. So for *our* goal — the card no longer boots and no longer claims the USB port — the data is functionally gone, and the verify flash proves it. Nothing reachable over the block interface is the old data anymore.
+**Through the eMMC's front door (normal reads): no, it's gone.** After the
+ERASE, reading any block returns the blank value. The BootROM reads LBA 64,
+finds no idbloader magic, and skips the eMMC. `emmc-scan` reads the whole card
+and sees blank. So for *our* goal — the card no longer boots and no longer
+claims the USB port — the data is functionally gone, and the verify flash
+proves it. Nothing reachable over the block interface is the old data anymore.
 
 
 **On the raw silicon (forensically): partly, yes.** Two things leave residue:
 
 
 1. **Erase is address-scoped; the card's history isn't.** Our `CMD38` with arg
-`0` is a *real* erase (not just a "trim/deallocate" that leaves the cells alone
-and only returns blank on reads) — so the physical blocks currently *mapped*
-to those addresses do get their charge wiped. But remember the FTL does
-**out-of-place writes**: over this card's life, every "overwrite" left the *old*
-copy sitting in some physical page that got unmapped and never reused. Those
-stale copies aren't at any logical address, so an erase-by-address range never
-touches them. A lab that de-solders the NAND and reads it raw could recover
-fragments from those orphaned pages.
+   `0` is a *real* erase (not just a "trim/deallocate" that leaves the cells
+   alone and only returns blank on reads) — so the physical blocks currently
+   *mapped* to those addresses do get their charge wiped. But remember the FTL
+   does **out-of-place writes**: over this card's life, every "overwrite" left
+   the *old* copy sitting in some physical page that got unmapped and never
+   reused. Those stale copies aren't at any logical address, so an
+   erase-by-address range never touches them. A lab that de-solders the NAND and
+   reads it raw could recover fragments from those orphaned pages.
 
 2. Even a freshly-erased cell can leave faint analog charge traces, though
-that's exotic-recovery territory.
+   that's exotic-recovery territory.
 
 
 ## The tool for *actually* destroying it
@@ -3689,7 +4083,11 @@ let alone erase them. Sweep every address you like; the stale copies sit
 untouched in the raw NAND.
 
 
-**SANITIZE is the command that specifically hunts down and physically purges those unmapped pages** — the ones no address-based operation can reach. The JEDEC-recommended sequence is exactly: erase/trim the addressable content *first*, then SANITIZE to purge what's left orphaned. So ERASE-all + SANITIZE is a proper superset of ERASE-all alone.
+**SANITIZE is the command that specifically hunts down and physically purges
+those unmapped pages** — the ones no address-based operation can reach. The
+JEDEC-recommended sequence is exactly: erase/trim the addressable content
+*first*, then SANITIZE to purge what's left orphaned. So ERASE-all + SANITIZE is
+a proper superset of ERASE-all alone.
 
 
 So you're not being too principled — if the requirement is "no chance of *any*
@@ -3728,14 +4126,14 @@ supersedes `94edc418`, which only erased).
 The wipe is now two passes, in the JEDEC-recommended order:
 
 1. **ERASE** the addressable range — blanks the current, mapped content
-(`emmc_erase_all`, as before).
+   (`emmc_erase_all`, as before).
 
 2. **SANITIZE** — `emmc_sanitize()` writes `EXT_CSD SANITIZE_START` (byte 165)
-via CMD6, which tells the card's controller to physically erase **all the
-unmapped/orphaned pages** the address-based erase can't reach. That's the piece
-that closes your "no chance of *any* data present" requirement — it's the
-strongest purge the eMMC exposes, and it exists precisely to defeat the
-stale-copy problem we were discussing.
+   via CMD6, which tells the card's controller to physically erase **all the
+   unmapped/orphaned pages** the address-based erase can't reach. That's the
+   piece that closes your "no chance of *any* data present" requirement — it's
+   the strongest purge the eMMC exposes, and it exists precisely to defeat the
+   stale-copy problem we were discussing.
 
 
 So to your question directly: **no, erasing every address is not the same as
@@ -3745,22 +4143,29 @@ sanitize), which is the real thing.
 
 A few things worth knowing before you run it:
 
-- **It can take minutes.** SANITIZE walks the whole flash. The busy-wait is long and **pets the watchdog** throughout (I added that to the erase pass too), so it won't get reset mid-wipe. Watch for `[wipe] SANITIZE complete — no orphaned data remains`.
+- **It can take minutes.** SANITIZE walks the whole flash. The busy-wait is long
+  and **pets the watchdog** throughout (I added that to the erase pass too), so
+  it won't get reset mid-wipe. Watch for `[wipe] SANITIZE complete — no
+  orphaned data remains`.
 
-- **Fails safe.** If the card rejects SANITIZE (some don't implement it), it logs `rejected` and returns — the erase pass still stands, and nothing is left in a weird state.
+- **Fails safe.** If the card rejects SANITIZE (some don't implement it), it
+  logs `rejected` and returns — the erase pass still stands, and nothing is
+  left in a weird state.
 
-- **Recovery is untouched.** The stock firmware archive lives on the host (`archives/`), not the eMMC, so sanitizing the card can't hurt our ability to restore it.
+- **Recovery is untouched.** The stock firmware archive lives on the host
+  (`archives/`), not the eMMC, so sanitizing the card can't hurt our ability to
+  restore it.
 
 
 ## The flow, updated
 
 
 1. **Flash `080e86f6`** → boot → erase pass, then sanitize pass. Note the
-erase's LBA readback (tells us if blank is `0x0` or `0xFFFFFFFF`), and wait for
-the SANITIZE-complete line (give it a few minutes).
+   erase's LBA readback (tells us if blank is `0x0` or `0xFFFFFFFF`), and wait
+   for the SANITIZE-complete line (give it a few minutes).
 
 2. **Verify flash** (`emmc-scan` armed, wipe off) → independent cold-boot
-full-card read confirming it's blank.
+   full-card read confirming it's blank.
 
 3. **Plug the PC into the OTG port** → USB-test image → milestone (b).
 
