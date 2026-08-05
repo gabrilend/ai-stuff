@@ -1,0 +1,29 @@
+a corporate structure (or other organization, it doesn't have to be for profit)
+I don't know much about this
+a structure that is based on soramech:
+/home/ritz/programming/ai-playground/minimal-soramech/
+that has a display for the entire company that everyone can see
+everyone can see what's blocking, everyone can make "pull requests" or similar
+to modify the system to change it to be better. Suddenly, executives are
+obsolete, because everyone can see what needs to change to get better.
+
+we should lay out several solutions to how we can accept pull requests and such
+like... is it voted on, is there seniority, do we trust expertise, do they get
+more votes, what if that's my thing and you're making me do it differently and
+I don't want to do it differently, what if there's externalities that are hard
+to measure on a mapgraph, what if engineers hide complexity from everyone else
+and obfuscate their work, what if people stop working jobs and just frolic in
+the forest and/or sit on a couch and eat cheetos while the world burns, what if
+nothing matters more than family time but your family doesn't want to get bit by
+mosquitos so they burn down the everglades because they are vengeful
+
+... uh, right, idk what to do about that. Definitely a, uh... meaningful... and
+    relevant concern. let's uh, let's focus on the UI:
+
+probably gotta be done with HTML, check out
+/home/ritz/programming/ai-playground/ceramic-trainstation/
+for a decent enough starting point. We'll need to add a lot of quality of life
+features but this (broken, unworking) prototype is what we want for the visuals.
+Or something like it. Honestly, the UI is not that important, people can design
+their own UIs. What's important is the data model underneath it, so we're going
+to need to spend careful attention to that and make sure it's precisely defined.
