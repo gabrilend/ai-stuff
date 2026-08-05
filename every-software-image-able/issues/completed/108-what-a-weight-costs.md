@@ -55,9 +55,33 @@ guarantee is worth more here: this project holds three implementations to
 identical answers, and an unbounded case is exactly where three
 implementations stop agreeing.
 
-What remains is the assembly: a matrix-vector product that unpacks a block,
-applies the shared scale, and proceeds -- on all three architectures as one
-piece of work, held to `123`'s answers.
+**And the assembly is written, on all three architectures as one piece of
+work** -- `src/125`, 9 of 9. The first in this process, the other two on real
+emulated machines through real firmware, every one agreeing with the readable
+specification bit for bit. This ticket is complete.
+
+**The scale is unpacked in whole-number arithmetic on all three, and that is
+the decision worth recording.** The second architecture has a
+half-to-single conversion instruction sitting right there and does not use
+it. The first's equivalent is an optional extension a given chip may not
+have; the third's base instruction set has no half-precision at all -- the
+same shape of absence as its vector hardware, and measured the same way. One
+architecture taking a shortcut the others must imitate is exactly how three
+implementations stop agreeing, so none of them take it.
+
+The unpacking is three steps everywhere: shift the pattern up thirteen places
+so its mantissa lands where a single precision mantissa goes, add the
+difference between the two exponent biases, and -- only when the exponent
+field was zero -- take one step into the normal range and subtract it off
+again, which resolves a subnormal without counting leading zeroes.
+
+**The test carries a block whose scale really is subnormal**, and checks that
+it is before relying on it. The first attempt used values small enough to
+drive the scale to exactly zero, which is a different case -- exact and
+uninteresting -- and would have left the harder half of the unpacking
+untested on all three machines. Two weights are taken per pass rather than
+one, because choosing a half of a byte by testing an index would put a branch
+in the innermost loop of the machine.
 
 ---
 

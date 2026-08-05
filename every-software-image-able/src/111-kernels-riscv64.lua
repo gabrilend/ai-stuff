@@ -54,6 +54,7 @@ local M = {}
 -- so order carries no meaning here.
 M.written = {
   "matrix_vector_plain", "matrix_vector_wide", "matrix_vector_fast",
+  "matrix_vector_quantised",
   "rms_normalise",
   "add_into", "rotate", "attention_scores", "attention_mix",
   "exp_one", "softmax", "swiglu",
@@ -248,6 +249,125 @@ emitters.matrix_vector_fast = function(p)
   p:op("addi t0, t0, 1")
   p:branch("blt", "t0", "a3", "mvf_row")
   p:label("mvf_done")
+  p:op("jalr zero, 0(ra)")
+end
+-- }}}
+
+-- {{{ emitters.matrix_vector_quantised -- weights at four bits
+--
+-- void matrix_vector_quantised(float *out, const unsigned char *matrix,
+--                              const float *input, int rows, int columns)
+--
+-- out a0, matrix a1, input a2, rows a3, columns a4.
+--
+-- A FOURTH SPECIFICATION, not a smaller version of the three above. Its
+-- weights have already lost information and its answer is different on
+-- purpose, so it is never compared against the exact product -- it is held
+-- to `123` and to the other two architectures.
+--
+-- THE SCALE IS UNPACKED IN WHOLE-NUMBER ARITHMETIC, and this architecture is
+-- the reason all three do it that way. Half-precision here is an extension
+-- (Zfh) that the base set does not include and the processor this project's
+-- board names does not have -- the same shape of absence as its vector
+-- hardware, and measured the same way. The other two could each borrow a
+-- conversion instruction and this one cannot, so none of them do: three
+-- implementations agreeing is the point, and one taking a shortcut the
+-- others cannot follow is how they stop.
+--
+-- The unpacking is the same three steps everywhere: shift the pattern up
+-- thirteen places so its mantissa lands where a single precision mantissa
+-- goes, add the difference between the two exponent biases, and -- only when
+-- the exponent field was zero -- take one step into the normal range and
+-- subtract it off again, which resolves a subnormal without counting leading
+-- zeroes. A scale is never negative and never infinite, because the
+-- quantiser takes a magnitude and saturates.
+--
+-- TWO WEIGHTS PER PASS, and not for speed: choosing a half of a byte by
+-- testing an index would put a branch in the innermost loop of the machine.
+emitters.matrix_vector_quantised = function(p)
+  p:label("matrix_vector_quantised")
+  p:branch("bge", "zero", "a3", "mvq_done")   -- no rows: nothing to do
+
+  -- The patterns the scale's unpacking needs, built once -- in a5, a6 and a7
+  -- rather than in the s registers, which is not a style choice. This routine
+  -- calls nothing, so it is tempting to treat any register as scratch; the s
+  -- registers belong to whoever called, and a routine that keeps them is a
+  -- routine that breaks a loop somewhere above it and hangs rather than
+  -- fails. The argument registers past the fifth are free precisely because
+  -- this routine takes five.
+  p:load_constant("a5", 0x0f800000)           -- where the exponent field sits
+  p:load_constant("a6", 0x38000000)           -- the biases differ by this
+  p:load_constant("a7", 0x00800000)           -- one step into the normals
+  p:load_constant("t0", 0x38800000)
+  p:op("fmv.w.x ft7, t0")                     -- that step, as a number
+
+  p:op("addi t0, zero, 0")                    -- row
+  p:label("mvq_row")
+  p:op("fmv.w.x ft0, zero")                   -- running total for this row
+  p:op("srli t1, a4, 5")                      -- blocks in a row: columns / 32
+  p:op("mul t1, t0, t1")                      -- rows of blocks before this one
+  p:op("addi t2, zero, 18")
+  p:op("mul t1, t1, t2")                      -- eighteen bytes to a block
+  p:op("add t1, a1, t1")                      -- where this row's bytes begin
+  p:op("addi t2, zero, 0")                    -- column
+  p:branch("bge", "zero", "a4", "mvq_store")  -- a row of no columns is zero
+
+  p:label("mvq_block")
+  -- the scale, out of two bytes and into a single precision register
+  p:op("lhu t3, 0(t1)")
+  p:op("slli t3, t3, 13")
+  p:op("and t4, t3, a5")                      -- the exponent field
+  p:op("add t3, t3, a6")
+  p:branch("bne", "t4", "zero", "mvq_normal")
+  p:op("add t3, t3, a7")                      -- a step into the normal range
+  p:op("fmv.w.x ft1, t3")
+  p:op("fsub.s ft1, ft1, ft7")                -- and the same step, taken off
+  p:jump("mvq_have_scale")
+  p:label("mvq_normal")
+  p:op("fmv.w.x ft1, t3")
+  p:label("mvq_have_scale")
+
+  p:op("addi t5, zero, 0")                    -- which byte of the sixteen
+  p:label("mvq_byte")
+  p:op("add t6, t1, t5")
+  p:op("lbu t3, 2(t6)")                       -- two weights
+
+  p:op("andi t4, t3, 15")                     -- the earlier one is the low half
+  p:op("addi t4, t4, -8")                     -- eight stands for nothing
+  p:op("fcvt.s.w ft2, t4, rne")
+  p:op("fmul.s ft2, ft2, ft1")                -- times the block's scale
+  p:op("slli t6, t2, 2")
+  p:op("add t6, a2, t6")
+  p:op("flw ft3, 0(t6)")
+  p:op("fmul.s ft2, ft2, ft3")                -- times what it meets
+  p:op("fadd.s ft0, ft0, ft2")                -- ascending order, as everywhere
+  p:op("addi t2, t2, 1")
+
+  p:op("srli t4, t3, 4")                      -- the later one is the high half
+  p:op("addi t4, t4, -8")
+  p:op("fcvt.s.w ft2, t4, rne")
+  p:op("fmul.s ft2, ft2, ft1")
+  p:op("slli t6, t2, 2")
+  p:op("add t6, a2, t6")
+  p:op("flw ft3, 0(t6)")
+  p:op("fmul.s ft2, ft2, ft3")
+  p:op("fadd.s ft0, ft0, ft2")
+  p:op("addi t2, t2, 1")
+
+  p:op("addi t5, t5, 1")
+  p:op("addi t6, zero, 16")
+  p:branch("blt", "t5", "t6", "mvq_byte")
+
+  p:op("addi t1, t1, 18")                     -- the next block
+  p:branch("blt", "t2", "a4", "mvq_block")
+
+  p:label("mvq_store")
+  p:op("slli t3, t0, 2")
+  p:op("add t3, a0, t3")
+  p:op("fsw ft0, 0(t3)")
+  p:op("addi t0, t0, 1")
+  p:branch("blt", "t0", "a3", "mvq_row")
+  p:label("mvq_done")
   p:op("jalr zero, 0(ra)")
 end
 -- }}}

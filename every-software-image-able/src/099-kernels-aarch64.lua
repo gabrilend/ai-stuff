@@ -229,6 +229,122 @@ matrix_vector_fast:
 ]]
 -- }}}
 
+-- {{{ M.matrix_vector_quantised -- weights at four bits, unpacked as it goes
+--
+-- void matrix_vector_quantised(float *out, const unsigned char *matrix,
+--                              const float *input, int rows, int columns)
+--
+-- out x0, matrix x1, input x2, rows w3, columns w4.
+--
+-- A FOURTH SPECIFICATION, not a smaller version of the three above. The
+-- weights it reads have already lost information and its answer is different
+-- on purpose, so it is never compared against the exact product. It is held
+-- to `123`, the readable specification, and to the other two architectures.
+--
+-- THE SCALE IS UNPACKED IN WHOLE-NUMBER ARITHMETIC, and this architecture is
+-- the one that makes that look like a waste -- it has a half-to-single
+-- conversion instruction sitting right there. It is not used. The first
+-- architecture's equivalent is an optional extension a given chip may not
+-- have, and the third's base instruction set has no half-precision at all,
+-- so borrowing the instruction here would mean this architecture's answer
+-- came from hardware the others must imitate. Three implementations agreeing
+-- is the point; one of them taking a shortcut the others cannot is how they
+-- stop.
+--
+-- The unpacking is the same three steps everywhere: shift the pattern up
+-- thirteen places so its mantissa lands where a single precision mantissa
+-- goes, add the difference between the two exponent biases, and -- only when
+-- the exponent field was zero -- take one step into the normal range and
+-- subtract it off again, which resolves a subnormal without counting leading
+-- zeroes. A scale is never negative and never infinite, because the
+-- quantiser takes a magnitude and saturates, so neither case is written.
+--
+-- TWO WEIGHTS PER PASS, and not for speed: choosing a half of a byte by
+-- testing an index would put a branch in the innermost loop of the machine,
+-- and taking the low half then the high half needs no test at all.
+M.matrix_vector_quantised = [[
+  .globl matrix_vector_quantised
+  .type matrix_vector_quantised, @function
+matrix_vector_quantised:
+  cmp w3, #0
+  b.le 9f                       // no rows: nothing to do, and not an error
+
+  // the three patterns the scale's unpacking needs, built once
+  movz w15, #0x0000
+  movk w15, #0x0f80, lsl #16    // where the exponent field sits after shifting
+  movz w16, #0x0000
+  movk w16, #0x3800, lsl #16    // the two biases differ by this much
+  movz w17, #0x0000
+  movk w17, #0x0080, lsl #16    // one step into the normal range
+  movz w13, #0x0000
+  movk w13, #0x3880, lsl #16
+  fmov s7, w13                  // and that step as a number, to take back off
+
+  mov w5, #0                    // row
+1:
+  fmov s0, wzr                  // running total for this row
+  lsr w6, w4, #5                // blocks in a row: columns / 32
+  mul w7, w5, w6                // rows of blocks before this one
+  mov w8, #18
+  mul w7, w7, w8                // and eighteen bytes to a block
+  add x9, x1, w7, sxtw          // where this row's bytes begin
+  mov w10, #0                   // column
+  cmp w4, #0
+  b.le 5f                       // a row of no columns totals zero
+2:
+  // the scale, out of two bytes and into a single precision register
+  ldrh w11, [x9]
+  lsl w11, w11, #13
+  and w12, w11, w15             // the exponent field, where it now sits
+  add w11, w11, w16
+  cbnz w12, 3f
+  add w11, w11, w17             // a step into the normal range
+  fmov s1, w11
+  fsub s1, s1, s7               // and the same step, taken back off
+  b 4f
+3:
+  fmov s1, w11
+4:
+  mov w14, #0                   // which byte of the sixteen
+6:
+  add x18, x9, w14, sxtw
+  ldrb w11, [x18, #2]           // two weights
+
+  and w12, w11, #15             // the earlier one is the low half
+  sub w12, w12, #8              // eight stands for nothing
+  scvtf s2, w12
+  fmul s2, s2, s1               // times the block's scale
+  ldr s3, [x2, w10, sxtw #2]
+  fmul s2, s2, s3               // times what it meets
+  fadd s0, s0, s2               // ascending order, as everywhere else
+  add w10, w10, #1
+
+  lsr w12, w11, #4              // and the later one is the high half
+  sub w12, w12, #8
+  scvtf s2, w12
+  fmul s2, s2, s1
+  ldr s3, [x2, w10, sxtw #2]
+  fmul s2, s2, s3
+  fadd s0, s0, s2
+  add w10, w10, #1
+
+  add w14, w14, #1
+  cmp w14, #16
+  b.lt 6b
+
+  add x9, x9, #18               // the next block
+  cmp w10, w4
+  b.lt 2b
+5:
+  str s0, [x0, w5, sxtw #2]
+  add w5, w5, #1
+  cmp w5, w3
+  b.lt 1b
+9:
+  ret
+]]
+-- }}}
+
 -- {{{ M.rms_normalise
 --
 -- void rms_normalise(float *out, const float *input, const float *weight,
@@ -730,6 +846,7 @@ end
 -- in order.
 M.written = {
   "matrix_vector_plain", "matrix_vector_wide", "matrix_vector_fast",
+  "matrix_vector_quantised",
   "rms_normalise",
   "add_into", "rotate", "attention_scores", "attention_mix",
   "exp_one", "softmax", "swiglu",
