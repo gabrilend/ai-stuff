@@ -49,8 +49,26 @@ one board.
 
 ## Current behavior
 
-**The three architectures agree about thinking and disagree about
-everything either side of it.**
+**The tokenizer is done on all three, 2026-08-04.** Written for the second
+and third architectures as one piece of work, and held to the first over the
+corpus where tokenizers actually disagree -- plain prose, runs of spaces, a
+leading space, only spaces, a newline and a tab, a null byte in the middle,
+bytes above 127, one character, nothing at all, and text that is entirely a
+single token. Both directions: the same numbers out, and the same bytes back
+again. 9 of 9 in `src/127`.
+
+The decode half is checked as hard as the encode half, and that is not
+symmetry for its own sake -- a tokenizer whose two halves are wrong in
+matching ways round-trips perfectly while saying something else entirely.
+
+**What remains here is the console**, on the second and third architectures.
+That is what a failing machine uses to say why it stopped, and until it
+exists a machine that stops on either of those two says nothing at all.
+
+---
+
+**The state this ticket was written in. The three architectures agreed about
+thinking and disagreed about everything either side of it.**
 
 What exists on all three, each proved against the first architecture bit for
 bit on a real emulated machine:
