@@ -30,6 +30,27 @@ Both are cheap here and impossible to notice later. The numbers differ
 because to somebody reading a serial port they mean different things: the
 wrong model, or half of one.
 
+**Step three -- dividing memory with no allocator -- is written and proved
+too**: `src/133`, checked by `src/134`, 14 of 14. All three machines read the
+model's counts out of its own header, divide a run of memory into the eight
+working vectors and the two halves of the cache, and put every one of them in
+the same place.
+
+The property that matters there is not agreement. It is that **no two regions
+overlap** -- because two that do would not fault. Attention would write over
+the cache, the cache would read back what attention left, and the machine
+would think something unrelated while reporting nothing. So the regions are
+checked against each other directly, and the host's own answer is checked
+that way before it is used as the standard, since three machines agreeing
+about a wrong layout is the worst outcome available.
+
+**It refuses rather than trims, and the refusal is the shortfall.** A board
+short of room is told how many bytes it was short by, because "needs four
+thousand more bytes than this has" is something a person can act on and
+"failed" is not. The alternative -- quietly shortening the context, or
+overlapping two things that are rarely both live -- is how a machine ends up
+subtly wrong in a way that only shows under load.
+
 ---
 
 **What remains, and what the rest of this ticket was written about.**
