@@ -193,6 +193,17 @@ words-pdf/libs/libharu-*/
 words-pdf/libs/luahpdf/
 words-pdf/backup-mvp/libs/libharu-*/
 
+# CUDA toolkit - a vendor install, not our source
+# Re-fetch with: the NVIDIA toolkit installer for your driver version
+#
+# This was committed by accident on 2026-07-22 and carried 3.8 GB in 5,050
+# files, eleven of them past the 100 MB per-file ceiling GitHub rejects on -
+# which blocked every push from that day until 2026-08-04, when the commits
+# were rebuilt without it. Deleting the directory would not have been enough:
+# the bytes live in whatever commit added them until that commit is remade.
+# Kept ignored so a reinstall cannot walk it back in.
+words-pdf/libs/cuda/
+
 # AppImage binaries - download from project releases
 *.AppImage
 
