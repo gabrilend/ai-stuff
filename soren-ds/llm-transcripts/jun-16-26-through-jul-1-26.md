@@ -1,6 +1,6 @@
 # Conversation Summary: cf88abe5-fad8-4525-b1b4-5f080e603f21
 
-Generated on: 2026-07-24 15:44:49
+Generated on: 2026-07-27 16:50:41
 
 --------------------------------------------------------------------------------
 
@@ -18,9 +18,9 @@ to.</local-command-caveat>
 
 <command-name>/effort</command-name>
 
-<command-message>effort</command-message>
+            <command-message>effort</command-message>
 
-<command-args></command-args>
+            <command-args></command-args>
 
 
 --------------------------------------------------------------------------------
@@ -79,7 +79,10 @@ Let me look at the PWM driver and check for one common boot-failure cause on
 aarch64: GCC emitting NEON/FP instructions that would trap without CPACR setup.
 
 
-**Found it!** GCC is emitting NEON/SIMD instructions (`movi v31.4s, #0`, `str q31`, `ldr d31`, etc.) — but the FPU/SIMD unit is **disabled by default at reset on aarch64**. The first SIMD instruction will trap before anything else runs. Let me locate which function hits it first.
+**Found it!** GCC is emitting NEON/SIMD instructions (`movi v31.4s, #0`, `str
+q31`, `ldr d31`, etc.) — but the FPU/SIMD unit is **disabled by default at
+reset on aarch64**. The first SIMD instruction will trap before anything else
+runs. Let me locate which function hits it first.
 
 
 Let me check whether the device tree actually drives those LEDs through PWM (vs
@@ -121,13 +124,21 @@ address Anbernic's stock u-boot uses. But the SD card development boot path runs
 
 - u-boot jumps to `0x0200_0000`
 
-- The first two instructions (the NOP and the branch into `_start`) work fine because they're encoded as offsets relative to where the CPU is currently fetching from — they don't care about the linker's opinion
+- The first two instructions (the NOP and the branch into `_start`) work fine
+  because they're encoded as offsets relative to where the CPU is currently
+  fetching from — they don't care about the linker's opinion
 
-- But the moment `_start` does the equivalent of "look up the address of the stack" (a load from a literal pool), it gets back `0x0028_7ad0`, the address the linker had in mind. The kernel sets the stack pointer to that. From here on, the stack is in the wrong memory — somewhere in the middle of u-boot's own region, not in our kernel's allocated stack space.
+- But the moment `_start` does the equivalent of "look up the address of the
+  stack" (a load from a literal pool), it gets back `0x0028_7ad0`, the address
+  the linker had in mind. The kernel sets the stack pointer to that. From here
+  on, the stack is in the wrong memory — somewhere in the middle of u-boot's
+  own region, not in our kernel's allocated stack space.
 
-- The BSS-zeroing loop writes zeros to the linker's idea of where BSS lives, not the actual BSS. Statics start their life as garbage.
+- The BSS-zeroing loop writes zeros to the linker's idea of where BSS lives, not
+  the actual BSS. Statics start their life as garbage.
 
-- The exception vector base register gets pointed at a memory range that has no vectors in it.
+- The exception vector base register gets pointed at a memory range that has no
+  vectors in it.
 
 
 PC-relative things still work, which is why function calls between our functions
@@ -139,13 +150,21 @@ link time is now wrong by `0x01D8_0000`.
 ## How I verified
 
 
-- Pulled the strings out of the u-boot FIT image. The compiled-in defaults include `kernel_addr_r=0x02000000`, `fdt_addr_r=0x12000000`, etc. The version is U-Boot 2026.01.
+- Pulled the strings out of the u-boot FIT image. The compiled-in defaults
+  include `kernel_addr_r=0x02000000`, `fdt_addr_r=0x12000000`, etc. The version
+  is U-Boot 2026.01.
 
-- Confirmed the header in `output/kernel.img` is structurally correct: NOP at 0, branch reaching byte 64, image_size 0x3ad0, flags 0x0a, ARM\x64 magic at offset 56, and `msr DAIFSet, #0xF` (the first real instruction) at byte 64.
+- Confirmed the header in `output/kernel.img` is structurally correct: NOP at 0,
+  branch reaching byte 64, image_size 0x3ad0, flags 0x0a, ARM\x64 magic at
+  offset 56, and `msr DAIFSet, #0xF` (the first real instruction) at byte 64.
 
-- Disassembled the linked ELF: the literal pool after `_start` contains `0x0028_7ad0` (stack top), `0x0028_3a38` (bss start), `0x0028_3ad0` (bss end), `0x0028_2800` (vector table) — all referencing the wrong load address.
+- Disassembled the linked ELF: the literal pool after `_start` contains
+  `0x0028_7ad0` (stack top), `0x0028_3a38` (bss start), `0x0028_3ad0` (bss end),
+  `0x0028_2800` (vector table) — all referencing the wrong load address.
 
-- Confirmed the SD card image is well-formed end-to-end: `RKNS` magic at sector 64, `d00dfeed` FIT magic at sector 16384, FAT partition mounts, `/KERNEL` and `/extlinux/extlinux.conf` are present and correct.
+- Confirmed the SD card image is well-formed end-to-end: `RKNS` magic at sector
+  64, `d00dfeed` FIT magic at sector 16384, FAT partition mounts, `/KERNEL` and
+  `/extlinux/extlinux.conf` are present and correct.
 
 
 ## The fix
@@ -246,21 +265,28 @@ Done. Here's what shipped:
 
 **Code & config**
 
-- `src/kernel.ld`: load pin moved from `0x0028_0000` to `0x0200_0000`, comment expanded to name both bootloaders and explain the 2 MB-alignment reason.
+- `src/kernel.ld`: load pin moved from `0x0028_0000` to `0x0200_0000`, comment
+  expanded to name both bootloaders and explain the 2 MB-alignment reason.
 
-- `src/000-image-header.s`: the flag-field example comment now names the SD-path bootloader's actual address.
+- `src/000-image-header.s`: the flag-field example comment now names the SD-path
+  bootloader's actual address.
 
-- `src/013-boot-image.c`: the constant the eMMC boot.img envelope uses for the kernel's load address now matches the linker, so the same kernel binary works on both boot paths.
+- `src/013-boot-image.c`: the constant the eMMC boot.img envelope uses for the
+  kernel's load address now matches the linker, so the same kernel binary works
+  on both boot paths.
 
 
 **Docs**
 
-- `docs/016-physical-memory-map.md`: DRAM-regions table re-cut around the new boundary; caveats section explains where the old number came from and how the new one was verified.
+- `docs/016-physical-memory-map.md`: DRAM-regions table re-cut around the new
+  boundary; caveats section explains where the old number came from and how the
+  new one was verified.
 
 
 **Issue tracking**
 
-- New issue file in `issues/completed/` describing the problem, why it existed, why two bootloaders disagree, and the implementation steps.
+- New issue file in `issues/completed/` describing the problem, why it existed,
+  why two bootloaders disagree, and the implementation steps.
 
 - `issues/phase-1-progress.md` gained a paragraph summarising the same.
 
@@ -271,9 +297,13 @@ Done. Here's what shipped:
 
 - ELF symbols all start with `0x0200_…` instead of `0x0028_…`.
 
-- Disassembly of the literal pool right after `_start` shows the four absolute addresses (stack top, BSS start, BSS end, vector table) now point inside the new range.
+- Disassembly of the literal pool right after `_start` shows the four absolute
+  addresses (stack top, BSS start, BSS end, vector table) now point inside the
+  new range.
 
-- The recognition envelope still starts with NOP, branch-to-byte-64, `image_size = 0x3ad0`, flags `0x0a`, `ARM\x64` magic at offset 56, and `msr DAIFSet` at byte 64.
+- The recognition envelope still starts with NOP, branch-to-byte-64, `image_size
+  = 0x3ad0`, flags `0x0a`, `ARM\x64` magic at offset 56, and `msr DAIFSet` at
+  byte 64.
 
 - `bootable-sd.img` rebuilt with the corrected kernel.
 
@@ -349,9 +379,16 @@ A couple of questions before I dig further, because the answers cut the search
 space:
 
 
-- Have the LEDs on this specific device ever lit up — on stock Anbernic firmware, on ROCKNIX, on anything? (If yes, the hardware works and the silence is purely a software setup problem. If no, there's a small chance of a hardware fault and we should rule that out before chasing register configurations.)
+- Have the LEDs on this specific device ever lit up — on stock Anbernic
+  firmware, on ROCKNIX, on anything? (If yes, the hardware works and the silence
+  is purely a software setup problem. If no, there's a small chance of a
+  hardware fault and we should rule that out before chasing register
+  configurations.)
 
-- When the device is plugged into power and powered on, do you see anything at all — the LCD backlight coming on briefly, a faint glow under any of the three LED holes, anything from the speaker? (Helps tell whether the bootloader is reaching any peripheral, vs. nothing alive at all.)
+- When the device is plugged into power and powered on, do you see anything at
+  all — the LCD backlight coming on briefly, a faint glow under any of the
+  three LED holes, anything from the speaker? (Helps tell whether the bootloader
+  is reaching any peripheral, vs. nothing alive at all.)
 
 
 While you check those, let me pull the actual pin-multiplexer values out of the
@@ -426,45 +463,45 @@ most want.
 
 ### User Request 8
 
-- Have the LEDs on this specific device ever lit up — on stock Anbernic
-firmware, on ROCKNIX, on
+  - Have the LEDs on this specific device ever lit up — on stock Anbernic
+    firmware, on ROCKNIX, on
 
-anything? (If yes, the hardware works and the silence is purely a software setup
-problem. If
+   anything? (If yes, the hardware works and the silence is purely a software
+   setup problem. If
 
-no, there's a small chance of a hardware fault and we should rule that out
-before chasing
+  no, there's a small chance of a hardware fault and we should rule that out
+  before chasing
 
-register configurations.)
+  register configurations.)
 
 
 
 yes they have turned on before.
 
 
-- When the device is plugged into power and powered on, do you see anything at
-all — the LCD
+  - When the device is plugged into power and powered on, do you see anything at
+    all — the LCD
 
-backlight coming on briefly, a faint glow under any of the three LED holes,
-anything from the
+  backlight coming on briefly, a faint glow under any of the three LED holes,
+  anything from the
 
-speaker? (Helps tell whether the bootloader is reaching any peripheral, vs.
-nothing alive at
+  speaker? (Helps tell whether the bootloader is reaching any peripheral, vs.
+  nothing alive at
 
-all.)
+  all.)
 
 
 
 I can't tell if it's even turning on at all because there's no output :(
 
 
-Want me to add a tiny GPIO-direct probe at the very top of the kernel — before
-the LED layer
+  Want me to add a tiny GPIO-direct probe at the very top of the kernel —
+  before the LED layer
 
-comes up at all — that just sets those three pins to output, drives them high,
-and sits in a
+  comes up at all — that just sets those three pins to output, drives them
+  high, and sits in a
 
-long busy-wait so you can see them?
+  long busy-wait so you can see them?
 
 
 sure, we can try that.
@@ -524,13 +561,22 @@ Committed. Here's where things stand and what you need to do next:
 
 **On the main machine (already done by me)**
 
-- The kernel now has a four-write GPIO probe sitting at the very top of `_start`, right after the asynchronous-exception mask. It clears the pin-multiplexer function for the three LED pins to plain GPIO, marks them as outputs, drives them high, waits ~2 seconds, drives them low for ~1 second, drives them high again, then falls through into the normal stack/BSS/vector-table setup and the C entry.
+- The kernel now has a four-write GPIO probe sitting at the very top of
+  `_start`, right after the asynchronous-exception mask. It clears the
+  pin-multiplexer function for the three LED pins to plain GPIO, marks them as
+  outputs, drives them high, waits ~2 seconds, drives them low for ~1 second,
+  drives them high again, then falls through into the normal
+  stack/BSS/vector-table setup and the C entry.
 
-- Disassembly confirmed: each of those writes assembled to the right address and the right value, no literal-pool loads (so the probe doesn't depend on anything later in the linker layout being correct).
+- Disassembly confirmed: each of those writes assembled to the right address and
+  the right value, no literal-pool loads (so the probe doesn't depend on
+  anything later in the linker layout being correct).
 
-- `output/kernel.img` and `output/bootable-sd.img` are both rebuilt with the probe in place.
+- `output/kernel.img` and `output/bootable-sd.img` are both rebuilt with the
+  probe in place.
 
-- Committed as `babab7a3` with the temporary-diagnostic disposition spelled out in the source comment and the issue file.
+- Committed as `babab7a3` with the temporary-diagnostic disposition spelled out
+  in the source comment and the issue file.
 
 
 **What you need to do**
@@ -538,7 +584,7 @@ Committed. Here's where things stand and what you need to do next:
 1. Unplug the USB drive from the lab laptop, bring it back to the main machine.
 
 2. On the main machine, run `scripts/push-to-usb` so the new `bootable-sd.img`
-lands on the drive.
+   lands on the drive.
 
 3. Take the drive back to the lab, run `scripts/lab-side/flash-sd` again.
 
@@ -547,11 +593,18 @@ lands on the drive.
 
 **What you're looking for**
 
-- The wink pattern: all three LEDs come on, stay on for a couple of seconds, go off for about a second, come back on, and stay on. After that the kernel continues into its normal boot (which won't visibly affect the LEDs because the probe took them out of PWM control).
+- The wink pattern: all three LEDs come on, stay on for a couple of seconds, go
+  off for about a second, come back on, and stay on. After that the kernel
+  continues into its normal boot (which won't visibly affect the LEDs because
+  the probe took them out of PWM control).
 
-- If you see the wink: the kernel reaches its entry point. The next thing to investigate is the PWM controller's clock gate and the LED pins' pin-multiplexer routing, and the LED layer can be fixed properly.
+- If you see the wink: the kernel reaches its entry point. The next thing to
+  investigate is the PWM controller's clock gate and the LED pins'
+  pin-multiplexer routing, and the LED layer can be fixed properly.
 
-- If you still see nothing: the kernel is not reaching its entry point at all. The next investigation moves further upstream — the bootloader's handoff state, the recognition envelope's parsing, possibly the load address again.
+- If you still see nothing: the kernel is not reaching its entry point at all.
+  The next investigation moves further upstream — the bootloader's handoff
+  state, the recognition envelope's parsing, possibly the load address again.
 
 
 Tell me which you see when you've run it.
@@ -615,9 +668,14 @@ trio, that's a clue worth following before we move on. Two readings to confirm
 before I plan the PWM fix:
 
 
-- **How many discrete points of light do you count on the device's front edge during the on phase — one, two, or three?** (Hold the device closed if possible, so the top screen doesn't bleed into the picture.)
+- **How many discrete points of light do you count on the device's front edge
+  during the on phase — one, two, or three?** (Hold the device closed if
+  possible, so the top screen doesn't bleed into the picture.)
 
-- **Are they truly amber-colored, or are some of them a different color that just reads as amber from the angle you're looking at?** (A green LED viewed at a glance can look yellowish; a red LED at low brightness through a diffuser can look orange.)
+- **Are they truly amber-colored, or are some of them a different color that
+  just reads as amber from the angle you're looking at?** (A green LED viewed at
+  a glance can look yellowish; a red LED at low brightness through a diffuser
+  can look orange.)
 
 
 The reason this matters: if the green and red LEDs are dark while only amber
@@ -650,18 +708,43 @@ way to turn the device off.
 
 ### Assistant Response 15
 
-**Pulling the card while running:** the card itself won't be damaged — SD cards are designed for hot-plug, no mechanical concern. The risk is file-system state. If a write is in flight when you pull, the FAT partition can end up with a half-written sector that confuses the next mount and you'd need to re-flash the card from the main machine to clean it up. Our kernel reads `/KERNEL` exactly once at boot (long since done by now) and otherwise only writes to a reserved region way above the FAT partition during the eMMC-to-SD backup. We can't see from the LEDs whether the backup is currently in flight, but on a typical boot it kicks off seconds after `_start` and runs for several minutes. So: probably fine to pull, especially if it's been more than a few minutes since power-on; not zero risk.
+**Pulling the card while running:** the card itself won't be damaged — SD
+cards are designed for hot-plug, no mechanical concern. The risk is file-system
+state. If a write is in flight when you pull, the FAT partition can end up with
+a half-written sector that confuses the next mount and you'd need to re-flash
+the card from the main machine to clean it up. Our kernel reads `/KERNEL`
+exactly once at boot (long since done by now) and otherwise only writes to a
+reserved region way above the FAT partition during the eMMC-to-SD backup. We
+can't see from the LEDs whether the backup is currently in flight, but on a
+typical boot it kicks off seconds after `_start` and runs for several minutes.
+So: probably fine to pull, especially if it's been more than a few minutes since
+power-on; not zero risk.
 
 
-**Powering off without a kernel power-off path:** the chip's power management IC ("PMIC" — the dedicated voltage-regulator chip that handles all the device's rails, the battery, and the on/off button) handles this independent of any software running on the main CPU. Hold the device's power button for 6-10 seconds and the PMIC force-cuts power regardless of what our kernel is doing. That's how every Rockchip handheld I've seen handles "the OS hung, get me off." Worth confirming you have an actual power button accessible — on the RG DS it's usually on the top edge near the hinge.
+**Powering off without a kernel power-off path:** the chip's power management IC
+("PMIC" — the dedicated voltage-regulator chip that handles all the device's
+rails, the battery, and the on/off button) handles this independent of any
+software running on the main CPU. Hold the device's power button for 6-10
+seconds and the PMIC force-cuts power regardless of what our kernel is doing.
+That's how every Rockchip handheld I've seen handles "the OS hung, get me off."
+Worth confirming you have an actual power button accessible — on the RG DS
+it's usually on the top edge near the hinge.
 
 
-**The two-LED finding is interesting.** Two amber windows, when we drove three pins high, tells us our model of the hardware is wrong in some specific way:
+**The two-LED finding is interesting.** Two amber windows, when we drove three
+pins high, tells us our model of the hardware is wrong in some specific way:
 
 
-- *Possibility A.* Each window has a multi-element LED behind it (green + amber + red dice inside one package, behind a diffuser). All three elements lit at once produces a yellow-to-amber appearance, and the device tree's three "colors" are the three elements of each composite LED rather than three separate lights on the case.
+- *Possibility A.* Each window has a multi-element LED behind it (green + amber
+  + red dice inside one package, behind a diffuser). All three elements lit at
+  once produces a yellow-to-amber appearance, and the device tree's three
+  "colors" are the three elements of each composite LED rather than three
+  separate lights on the case.
 
-- *Possibility B.* The two windows are wired only to the amber pin, and the device tree's green and red entries point at hardware that isn't populated on this particular board variant — they'd correspond to LEDs that would exist on a different SKU or a developer board but were never soldered in here.
+- *Possibility B.* The two windows are wired only to the amber pin, and the
+  device tree's green and red entries point at hardware that isn't populated on
+  this particular board variant — they'd correspond to LEDs that would exist
+  on a different SKU or a developer board but were never soldered in here.
 
 
 Either reading is consistent with what you're seeing. The difference matters
@@ -671,7 +754,11 @@ can figure out which by driving each pin individually (one high, others low)
 once we have a working diagnostic loop. Not urgent right now.
 
 
-**The actual next step** is getting the PWM path working — finding the right pin-multiplexer write to route those pins to PWM (function 1 instead of function 0), and finding the right clock-gate register to ungate the PWM1 controller. Want me to research those and write the bring-up code? Or pause to power-cycle and think first?
+**The actual next step** is getting the PWM path working — finding the right
+pin-multiplexer write to route those pins to PWM (function 1 instead of function
+0), and finding the right clock-gate register to ungate the PWM1 controller.
+Want me to research those and write the bring-up code? Or pause to power-cycle
+and think first?
 
 
 --------------------------------------------------------------------------------
@@ -690,19 +777,61 @@ goes somewhere — an LED's anode, a motor's input, a speaker's terminal, a
 sensor's signal line. They differ in what they put on the wire.
 
 
-**GPIO** — "general-purpose input/output." The chip has a small controller block that can do exactly three things to the wire: drive it to the chip's logic-high voltage (about 3.3 volts on this device), drive it to ground (zero volts), or stop driving and let the chip read what voltage some external thing is putting on the wire. Software writes a "1" or "0" into a register inside the controller; the controller flips a tiny transistor that connects the pin to either the 3.3-volt rail or the ground rail. Output is binary — on, or off, nothing in between. For an LED, GPIO-high = lit at full brightness, GPIO-low = dark.
+**GPIO** — "general-purpose input/output." The chip has a small controller
+block that can do exactly three things to the wire: drive it to the chip's
+logic-high voltage (about 3.3 volts on this device), drive it to ground (zero
+volts), or stop driving and let the chip read what voltage some external thing
+is putting on the wire. Software writes a "1" or "0" into a register inside the
+controller; the controller flips a tiny transistor that connects the pin to
+either the 3.3-volt rail or the ground rail. Output is binary — on, or off,
+nothing in between. For an LED, GPIO-high = lit at full brightness, GPIO-low =
+dark.
 
 
-**PWM** — "pulse-width modulation." A different controller in the chip drives the same kind of pin, but instead of holding the pin steady, it toggles between high and low very rapidly — typically thousands or millions of times per second. Each cycle of toggling has a "duty cycle," meaning what fraction of the cycle is spent at high. Twenty-percent duty means the pin sits at 3.3 volts for 20% of every cycle and at ground for the other 80%. The toggling is so fast that most things on the other end of the wire can't keep up with it and just see the average: an LED looks like it's lit at twenty-percent brightness rather than blinking visibly, a small motor spins at twenty-percent of its top speed, a speaker emits a quiet hum rather than audible clicks. Software writes the duty value into a register and the controller does all the high-frequency toggling itself in dedicated counter hardware.
+**PWM** — "pulse-width modulation." A different controller in the chip drives
+the same kind of pin, but instead of holding the pin steady, it toggles between
+high and low very rapidly — typically thousands or millions of times per
+second. Each cycle of toggling has a "duty cycle," meaning what fraction of the
+cycle is spent at high. Twenty-percent duty means the pin sits at 3.3 volts for
+20% of every cycle and at ground for the other 80%. The toggling is so fast that
+most things on the other end of the wire can't keep up with it and just see the
+average: an LED looks like it's lit at twenty-percent brightness rather than
+blinking visibly, a small motor spins at twenty-percent of its top speed, a
+speaker emits a quiet hum rather than audible clicks. Software writes the duty
+value into a register and the controller does all the high-frequency toggling
+itself in dedicated counter hardware.
 
 
-**Why have both.** GPIO is cheap hardware — a single transistor and a single register bit per pin. PWM is more hardware — a counter, a comparator, a duty register, a period register — but it lets you smoothly control brightness, motor speed, or sound intensity without needing an external analog circuit to convert digital values into a varying voltage. If a wire only needs on/off, GPIO is fine. If it needs fades, dimming, or smooth ramps, PWM earns its keep.
+**Why have both.** GPIO is cheap hardware — a single transistor and a single
+register bit per pin. PWM is more hardware — a counter, a comparator, a duty
+register, a period register — but it lets you smoothly control brightness,
+motor speed, or sound intensity without needing an external analog circuit to
+convert digital values into a varying voltage. If a wire only needs on/off, GPIO
+is fine. If it needs fades, dimming, or smooth ramps, PWM earns its keep.
 
 
-**The wire is the same wire.** What changes between "this pin is GPIO" and "this pin is PWM" is which controller inside the chip is listening to your register writes and operating the transistor at the pin's far end. The pin-multiplexer setting we've been worrying about is exactly the register that picks which controller owns a given pin. Function zero in the pin-mux = the GPIO controller is in charge; function one = the PWM controller is in charge; functions two through fifteen would route the same wire to other peripherals the chip can multiplex onto the same pin (a UART transmit line, an I²C clock, etc.).
+**The wire is the same wire.** What changes between "this pin is GPIO" and "this
+pin is PWM" is which controller inside the chip is listening to your register
+writes and operating the transistor at the pin's far end. The pin-multiplexer
+setting we've been worrying about is exactly the register that picks which
+controller owns a given pin. Function zero in the pin-mux = the GPIO controller
+is in charge; function one = the PWM controller is in charge; functions two
+through fifteen would route the same wire to other peripherals the chip can
+multiplex onto the same pin (a UART transmit line, an I²C clock, etc.).
 
 
-**For our situation.** We have GPIO confirmed working. We don't have PWM working, and getting it working requires another round of investigating which clock-gate register controls the PWM1 controller and writing the right pin-mux value to route the pins back to function one. For boot stage signaling — which is the whole reason the LED layer exists right now — we only need on/off. Dropping PWM entirely and driving the LEDs as GPIOs from the LED layer is a legitimate phase-1 simplification: we lose the smooth-fade breathing heartbeat (the amber LED that was supposed to slowly pulse during the multi-minute eMMC backup), but we get a reliable LED layer that works today and a single peripheral less to chase. The breathing heartbeat can come back later, once we have a debug channel up that makes the next PWM-bringup attempt less of a flying-blind exercise.
+**For our situation.** We have GPIO confirmed working. We don't have PWM
+working, and getting it working requires another round of investigating which
+clock-gate register controls the PWM1 controller and writing the right pin-mux
+value to route the pins back to function one. For boot stage signaling — which
+is the whole reason the LED layer exists right now — we only need on/off.
+Dropping PWM entirely and driving the LEDs as GPIOs from the LED layer is a
+legitimate phase-1 simplification: we lose the smooth-fade breathing heartbeat
+(the amber LED that was supposed to slowly pulse during the multi-minute eMMC
+backup), but we get a reliable LED layer that works today and a single
+peripheral less to chase. The breathing heartbeat can come back later, once we
+have a debug channel up that makes the next PWM-bringup attempt less of a
+flying-blind exercise.
 
 
 Worth considering whether to take that simplification before sinking more time
@@ -728,7 +857,10 @@ What we now know from the two data points:
 
 - Kernel reaches `_start`. (The probe wink confirmed this.)
 
-- Kernel never gets far enough in `kernel_main` to do a single flush of the SD-backed debug log. The log flush happens periodically inside the multi-minute eMMC-to-SD backup, and again right before the "backup complete" stage signal. Neither ran.
+- Kernel never gets far enough in `kernel_main` to do a single flush of the
+  SD-backed debug log. The log flush happens periodically inside the
+  multi-minute eMMC-to-SD backup, and again right before the "backup complete"
+  stage signal. Neither ran.
 
 
 Between `_start` finishing and the backup running, the kernel walks through
@@ -773,9 +905,16 @@ channel that works.
 
 Two questions before I do it:
 
-- **Do you have an actual power-off path on the device?** When you pulled the SD card just now — did the device's power button do anything, or did you pull the card with the device still running? (Affects whether we keep designing around "developer can power-cycle quickly" or whether we need a hardware mitigation.)
+- **Do you have an actual power-off path on the device?** When you pulled the SD
+  card just now — did the device's power button do anything, or did you pull
+  the card with the device still running? (Affects whether we keep designing
+  around "developer can power-cycle quickly" or whether we need a hardware
+  mitigation.)
 
-- **Is "binary on/off for stages, blinking for long operations, no smooth fades for now" an acceptable phase-1 LED vocabulary to you?** It changes the project's LED diagnostic doc nontrivially. I want your buy-in before I rewrite the layer rather than just doing it and presenting a fait accompli.
+- **Is "binary on/off for stages, blinking for long operations, no smooth fades
+  for now" an acceptable phase-1 LED vocabulary to you?** It changes the
+  project's LED diagnostic doc nontrivially. I want your buy-in before I rewrite
+  the layer rather than just doing it and presenting a fait accompli.
 
 
 --------------------------------------------------------------------------------
@@ -809,23 +948,23 @@ Built and committed. To test: bring the USB drive back to the main machine, run
 push-to-usb, then flash and observe.
 
 
-**What you'll see**, given the pattern: roughly two-second phases in a loop, repeating forever until you power-cycle.
+**What you'll see**, given the pattern: roughly two-second phases in a loop,
+repeating forever until you power-cycle.
 
 
-| Phase | What the kernel is doing | What you should observe (if device tree's
-pin labels are right) |
+| Phase | What the kernel is doing                     | What you should observe (if device tree's pin labels are right) |
 
 |-----:|----------------------------------------------|----------------------------------------------------------|
 
-| 1 | Only the "green" pin high | A green light, by itself |
+| 1    | Only the "green" pin high                    | A green light, by itself                                 |
 
-| 2 | Only the "amber" pin high | An amber light, by itself |
+| 2    | Only the "amber" pin high                    | An amber light, by itself                                |
 
-| 3 | Only the "red" pin high | A red light, by itself |
+| 3    | Only the "red" pin high                      | A red light, by itself                                   |
 
-| 4 | All three pins high together | The amber-looking blend you saw before |
+| 4    | All three pins high together                 | The amber-looking blend you saw before                   |
 
-| 5 | All three pins low | Dark |
+| 5    | All three pins low                           | Dark                                                     |
 
 
 Then back to phase 1.
@@ -834,11 +973,17 @@ Then back to phase 1.
 **What the actual observations will tell us**:
 
 
-- If each single-pin phase lights a *visibly different* light or color, the device has the three discrete coloured channels the device tree claims and the additive-mixing reading from before was correct.
+- If each single-pin phase lights a *visibly different* light or color, the
+  device has the three discrete coloured channels the device tree claims and the
+  additive-mixing reading from before was correct.
 
-- If phases 1 and 3 leave the lights dark and only phase 2 (amber pin alone) lights anything, the device's two windows are wired only to the amber pin and the other two pins are talking to hardware that isn't there.
+- If phases 1 and 3 leave the lights dark and only phase 2 (amber pin alone)
+  lights anything, the device's two windows are wired only to the amber pin and
+  the other two pins are talking to hardware that isn't there.
 
-- If phases 1 and 3 light *something*, but it's not green or red — some other color, or just amber again — the device tree's color labels are wrong for this board.
+- If phases 1 and 3 light *something*, but it's not green or red — some other
+  color, or just amber again — the device tree's color labels are wrong for
+  this board.
 
 
 Whatever you see, describe it in detail: which window lit during which phase,
@@ -869,11 +1014,23 @@ think it's repeating.
 That's a really clean reading. The hardware model just snapped into focus:
 
 
-- **The top window** has a multi-element LED behind it with separate green and red dice. Driving the "green" pin alone lights its green die; driving the "red" pin alone lights its red die; driving both at once mixes additively to yellow, which is what your eye reads as "amber-but-brighter." The brightness difference you noticed in phase 4 is the green and red dice both putting out light at the same time, summing roughly to twice the photon output of either alone. That's not PWM doing anything — PWM never ran during this boot, because the probe loops forever before `kernel_main`. It's just two emitters lit instead of one.
+- **The top window** has a multi-element LED behind it with separate green and
+  red dice. Driving the "green" pin alone lights its green die; driving the
+  "red" pin alone lights its red die; driving both at once mixes additively to
+  yellow, which is what your eye reads as "amber-but-brighter." The brightness
+  difference you noticed in phase 4 is the green and red dice both putting out
+  light at the same time, summing roughly to twice the photon output of either
+  alone. That's not PWM doing anything — PWM never ran during this boot,
+  because the probe loops forever before `kernel_main`. It's just two emitters
+  lit instead of one.
 
-- **The bottom window** is a single-color amber LED, driven by the pin in the middle of the device tree's three. Drive that pin, you get amber; don't drive it, you get nothing.
+- **The bottom window** is a single-color amber LED, driven by the pin in the
+  middle of the device tree's three. Drive that pin, you get amber; don't drive
+  it, you get nothing.
 
-- The device tree's pin-to-color labels are basically right — the only thing the device tree didn't tell us is that two of the three "channels" live in the same physical window.
+- The device tree's pin-to-color labels are basically right — the only thing
+  the device tree didn't tell us is that two of the three "channels" live in the
+  same physical window.
 
 
 That also explains the original "both amber when all three pins are high"
@@ -881,28 +1038,46 @@ observation cleanly: top window = green + red = yellow-amber, bottom window =
 amber. To your eye, two amber lights. ✓
 
 
-**One useful side observation**: you said "a couple minutes" between phase transitions. The probe is asking for about three billion loop iterations per phase, which would resolve to roughly two seconds at the chip's nominal 1.8 GHz operating point. Two minutes per phase means the chip is currently running at something like one to three percent of its rated speed — almost certainly still at the crystal-frequency boot clock, because the bootloader never ramped up the CPU's phase-locked loop before handing off. That's a useful pre-existing condition to know about: every busy-wait in the kernel right now is about a hundred times slower than its comments claim, and the LED layer's delay constants need to be cut way down if we want phase transitions on a human time scale.
+**One useful side observation**: you said "a couple minutes" between phase
+transitions. The probe is asking for about three billion loop iterations per
+phase, which would resolve to roughly two seconds at the chip's nominal 1.8 GHz
+operating point. Two minutes per phase means the chip is currently running at
+something like one to three percent of its rated speed — almost certainly
+still at the crystal-frequency boot clock, because the bootloader never ramped
+up the CPU's phase-locked loop before handing off. That's a useful pre-existing
+condition to know about: every busy-wait in the kernel right now is about a
+hundred times slower than its comments claim, and the LED layer's delay
+constants need to be cut way down if we want phase transitions on a human time
+scale.
 
 
-**Where this leaves us.** We have eight distinct LED states available with the two physical lights (top off / green / red / yellow × bottom off / amber). That's plenty of room for the five boot-stage patterns the project's diagnostic doc lists. The probe has done its job; the next move is to take it out, rewrite the LED layer to drive these two windows through the GPIO controller instead of the PWM controller, recalibrate the timing constants for the actual clock speed, and let the kernel run its normal boot. We'll then see — by eye — which stage the kernel gets stuck at, which is the question we've been trying to answer ever since the SD-backed debug log showed nothing was written.
+**Where this leaves us.** We have eight distinct LED states available with the
+two physical lights (top off / green / red / yellow × bottom off / amber).
+That's plenty of room for the five boot-stage patterns the project's diagnostic
+doc lists. The probe has done its job; the next move is to take it out, rewrite
+the LED layer to drive these two windows through the GPIO controller instead of
+the PWM controller, recalibrate the timing constants for the actual clock speed,
+and let the kernel run its normal boot. We'll then see — by eye — which
+stage the kernel gets stuck at, which is the question we've been trying to
+answer ever since the SD-backed debug log showed nothing was written.
 
 
 **Proposed stage-pattern vocabulary, given the actual hardware:**
 
 
-| Stage | Top window | Bottom window |
+| Stage                            | Top window           | Bottom window |
 
 |----------------------------------|----------------------|---------------|
 
-| Reached the kernel's C entry | Green | Dark |
+| Reached the kernel's C entry     | Green                | Dark          |
 
-| USB controller alive | Dark | Amber |
+| USB controller alive             | Dark                 | Amber         |
 
-| USB enumerated by host | Yellow (green + red) | Amber |
+| USB enumerated by host           | Yellow (green + red) | Amber         |
 
-| eMMC backup complete | Red | Amber |
+| eMMC backup complete             | Red                  | Amber         |
 
-| Panic / fatal exception | Red | Dark |
+| Panic / fatal exception          | Red                  | Dark          |
 
 
 Each one is visibly distinct from every other, and from the dark / power-on
@@ -915,12 +1090,12 @@ Two questions before I rewrite the LED layer:
 
 
 1. **Are you happy with that pattern vocabulary?** I can shift any color around
-if you'd rather a different state mean a different thing.
+   if you'd rather a different state mean a different thing.
 
 2. **Want me to also recalibrate the timing constants** (delay-busy, hello-flash
-duration, heartbeat step pacing) for the low-clock reality, or leave them as
-they are and have those operations just take much longer than the comments claim
-until something later sets the CPU clock for real?
+   duration, heartbeat step pacing) for the low-clock reality, or leave them as
+   they are and have those operations just take much longer than the comments
+   claim until something later sets the CPU clock for real?
 
 
 --------------------------------------------------------------------------------
@@ -965,7 +1140,8 @@ rebuild the SD image, then commit.
 Build the SD image and verify the staging looks right.
 
 
-**Ready to flash.** Bring the USB drive back to the main machine, run push-to-usb, then re-flash and power on.
+**Ready to flash.** Bring the USB drive back to the main machine, run
+push-to-usb, then re-flash and power on.
 
 
 To answer your earlier question directly: PWM is deferred to
@@ -978,11 +1154,15 @@ diagnostic channel for everything else.
 
 **What's on the SD image now:**
 
-- The cycling probe is gone — `_start` is back to its normal shape (mask exceptions, set stack, zero the uninitialized region, install the vector table, branch to the C entry).
+- The cycling probe is gone — `_start` is back to its normal shape (mask
+  exceptions, set stack, zero the uninitialized region, install the vector
+  table, branch to the C entry).
 
-- The LED layer drives the two windows through the GPIO controller using the pin-to-window mapping the probe surfaced.
+- The LED layer drives the two windows through the GPIO controller using the
+  pin-to-window mapping the probe surfaced.
 
-- The hello-flash constant is cut about fiftyfold for the actual clock speed; the heartbeat is a discrete amber blink rather than a fade.
+- The hello-flash constant is cut about fiftyfold for the actual clock speed;
+  the heartbeat is a discrete amber blink rather than a fade.
 
 - The diagnostic-codes document is rewritten around the two-window vocabulary.
 
@@ -990,28 +1170,23 @@ diagnostic channel for everything else.
 **Pattern table to take to the lab seat:**
 
 
-| What you see | Means |
+| What you see                                                | Means                                                                                  |
 
 |-------------------------------------------------------------|----------------------------------------------------------------------------------------|
 
-| Nothing, ever | Boot chain failed upstream of the kernel |
+| Nothing, ever                                               | Boot chain failed upstream of the kernel                                               |
 
-| Brief flash (top yellow-amber + bottom amber), then a stage | Kernel reached
-its C entry — read the steady stage that follows |
+| Brief flash (top yellow-amber + bottom amber), then a stage | Kernel reached its C entry — read the steady stage that follows                        |
 
-| Top green, bottom dark, steady | At `kernel_main`; hangs in allocator / USB
-PHY / USB controller bring-up |
+| Top green, bottom dark, steady                              | At `kernel_main`; hangs in allocator / USB PHY / USB controller bring-up               |
 
-| Top dark, bottom amber, steady | Past USB controller bring-up; hangs in USB
-endpoint config / eMMC / SD bring-up |
+| Top dark, bottom amber, steady                              | Past USB controller bring-up; hangs in USB endpoint config / eMMC / SD bring-up        |
 
-| Top yellow-amber + bottom amber blinking | Mid-backup; the blink is the
-heartbeat |
+| Top yellow-amber + bottom amber blinking                    | Mid-backup; the blink is the heartbeat                                                 |
 
-| Top red, bottom amber, steady | Backup finished cleanly — power off, pull
-the card |
+| Top red, bottom amber, steady                               | Backup finished cleanly — power off, pull the card                                     |
 
-| Top red, bottom dark, steady | Fatal exception or a bring-up step failed |
+| Top red, bottom dark, steady                                | Fatal exception or a bring-up step failed                                              |
 
 
 Whichever steady pattern the device lands on tells us exactly where to look
@@ -1043,11 +1218,16 @@ device, then it all happens again.
 **What "two amber → green flash → two amber → green flash" decodes to**
 
 
-- *two amber* is the hello flash from the LED layer — top window yellow-amber + bottom amber, held for about a second.
+- *two amber* is the hello flash from the LED layer — top window yellow-amber
+  + bottom amber, held for about a second.
 
-- *green flash* is the kernel-reached-C-entry stage signal. It's "flashing" rather than steady because the kernel paints that signal, takes a handful of more steps, and within a fraction of a second hits an instruction that traps.
+- *green flash* is the kernel-reached-C-entry stage signal. It's "flashing"
+  rather than steady because the kernel paints that signal, takes a handful of
+  more steps, and within a fraction of a second hits an instruction that traps.
 
-- The dark gaps you didn't explicitly mention are the hello-flash off phase plus the bootloader re-running from the top. The cycle is the chip being reset every few seconds.
+- The dark gaps you didn't explicitly mention are the hello-flash off phase plus
+  the bootloader re-running from the top. The cycle is the chip being reset
+  every few seconds.
 
 
 **The instruction that's tripping the trap**
@@ -1080,7 +1260,7 @@ order of events on every boot is:
 
 
 1. The bootloader hands off, the kernel's entry runs through stack/BSS/vector
-setup
+   setup
 
 2. C entry paints the hello flash (two amber, about a second)
 
@@ -1091,9 +1271,9 @@ setup
 5. First SIMD instruction inside the page-allocator function fires a trap
 
 6. The trap goes to whatever exception handler is installed — and at the
-current exception level, the handler is the bootloader's, not ours. The
-bootloader's handler decides the right thing to do with an unexpected trap is
-reset the system.
+   current exception level, the handler is the bootloader's, not ours. The
+   bootloader's handler decides the right thing to do with an unexpected trap is
+   reset the system.
 
 7. Bootloader re-runs, kernel re-runs, back to step 2.
 
@@ -1101,9 +1281,18 @@ reset the system.
 **Two ways to fix this**
 
 
-- *Tell the compiler not to emit SIMD instructions.* A single flag on the build line (`-mgeneral-regs-only`) makes GCC restrict itself to the integer register file for everything. The resulting code is sometimes a little less efficient than what GCC would emit otherwise, but for a freestanding kernel that doesn't do floating-point math anyway, "a little less efficient" is invisible. The kernel side needs no changes.
+- *Tell the compiler not to emit SIMD instructions.* A single flag on the build
+  line (`-mgeneral-regs-only`) makes GCC restrict itself to the integer register
+  file for everything. The resulting code is sometimes a little less efficient
+  than what GCC would emit otherwise, but for a freestanding kernel that doesn't
+  do floating-point math anyway, "a little less efficient" is invisible. The
+  kernel side needs no changes.
 
-- *Enable the FP/SIMD register file in software.* A single write to a control register turns it on. The compiler can keep emitting SIMD instructions. The cost is that any later issue that introduces multi-threading has to remember to save and restore the SIMD register file on every context switch, because two threads using SIMD will trash each other's state.
+- *Enable the FP/SIMD register file in software.* A single write to a control
+  register turns it on. The compiler can keep emitting SIMD instructions. The
+  cost is that any later issue that introduces multi-threading has to remember
+  to save and restore the SIMD register file on every context switch, because
+  two threads using SIMD will trash each other's state.
 
 
 Phase 1 doesn't use floating-point math anywhere. The first option costs less
@@ -1132,15 +1321,25 @@ did all their math in integers, including the 3D graphics. It's a well-trodden
 path.
 
 
-**What "disable floating point" actually means at the language and compiler level**
+**What "disable floating point" actually means at the language and compiler
+level**
 
 
 There are two separate things to think about:
 
 
-- *The hardware FP/SIMD unit on the chip.* This is the dedicated math co-processor we've been tripping over. We can tell the compiler "never emit instructions that touch that unit" (the flag we discussed). The kernel never enables the unit, so the hardware stays off, and any instruction that would have touched it doesn't exist in our binary.
+- *The hardware FP/SIMD unit on the chip.* This is the dedicated math
+  co-processor we've been tripping over. We can tell the compiler "never emit
+  instructions that touch that unit" (the flag we discussed). The kernel never
+  enables the unit, so the hardware stays off, and any instruction that would
+  have touched it doesn't exist in our binary.
 
-- *The C language's `float` and `double` types.* These are language-level concepts. When the compiler sees `float a = 3.14;` in source, it normally translates the math into instructions that touch the FP unit. Without the FP unit, the compiler has two options: emit calls to a software floating-point library (which we don't link because we're freestanding), or refuse to compile the code at all.
+- *The C language's `float` and `double` types.* These are language-level
+  concepts. When the compiler sees `float a = 3.14;` in source, it normally
+  translates the math into instructions that touch the FP unit. Without the FP
+  unit, the compiler has two options: emit calls to a software floating-point
+  library (which we don't link because we're freestanding), or refuse to compile
+  the code at all.
 
 
 When you add the flag we discussed, the compiler also stops accepting `float`
@@ -1182,15 +1381,23 @@ the better fit.
 **What we gain by not having floating point**
 
 
-- The current bug goes away. The compiler stops emitting the instructions that trap.
+- The current bug goes away. The compiler stops emitting the instructions that
+  trap.
 
-- One less hardware subsystem the kernel has to be aware of. If we eventually add multi-threading, threads don't need to save and restore the FP register file on every context switch — the FP register file isn't in play at all.
+- One less hardware subsystem the kernel has to be aware of. If we eventually
+  add multi-threading, threads don't need to save and restore the FP register
+  file on every context switch — the FP register file isn't in play at all.
 
-- One less category of bug. Floating-point on aarch64 has subtle behaviors around denormals, rounding modes, and NaN propagation that we don't have to think about.
+- One less category of bug. Floating-point on aarch64 has subtle behaviors
+  around denormals, rounding modes, and NaN propagation that we don't have to
+  think about.
 
-- Smaller binaries (the FP code paths the compiler would have emitted just aren't there).
+- Smaller binaries (the FP code paths the compiler would have emitted just
+  aren't there).
 
-- Code that always means exactly what it says. `1.0 / 3.0` in floating-point is not exactly one-third; in fixed-point at any scale, the truncation is explicit and predictable.
+- Code that always means exactly what it says. `1.0 / 3.0` in floating-point is
+  not exactly one-third; in fixed-point at any scale, the truncation is explicit
+  and predictable.
 
 
 **The cost**
@@ -1318,11 +1525,22 @@ There are three threading dispositions a kernel can take with respect to
 SIMD/FP:
 
 
-- *Disabled entirely.* The hardware is off, the compiler emits no SIMD instructions, threads don't have an FP/SIMD register state because nobody touches that register file. Save/restore is just the integer registers. Simple.
+- *Disabled entirely.* The hardware is off, the compiler emits no SIMD
+  instructions, threads don't have an FP/SIMD register state because nobody
+  touches that register file. Save/restore is just the integer registers.
+  Simple.
 
-- *Enabled, eager save.* The hardware is on, threads can use SIMD, and the scheduler unconditionally saves and restores the SIMD register file on every yield. Costs the extra bookkeeping every time. Simple and predictable.
+- *Enabled, eager save.* The hardware is on, threads can use SIMD, and the
+  scheduler unconditionally saves and restores the SIMD register file on every
+  yield. Costs the extra bookkeeping every time. Simple and predictable.
 
-- *Enabled, lazy save.* The hardware is on, but the scheduler marks the SIMD register file "untouched" when a thread starts running. The first SIMD instruction the thread executes faults; the fault handler saves the previous thread's SIMD state (if any) and clears the mark, then re-runs the instruction. Threads that never touch SIMD pay zero cost. Threads that do touch SIMD pay the save once. This is what the Linux kernel does. More code, more clever, more failure modes if you get it wrong.
+- *Enabled, lazy save.* The hardware is on, but the scheduler marks the SIMD
+  register file "untouched" when a thread starts running. The first SIMD
+  instruction the thread executes faults; the fault handler saves the previous
+  thread's SIMD state (if any) and clears the mark, then re-runs the
+  instruction. Threads that never touch SIMD pay zero cost. Threads that do
+  touch SIMD pay the save once. This is what the Linux kernel does. More code,
+  more clever, more failure modes if you get it wrong.
 
 
 A multi-threaded kernel that wants SIMD to be usable picks one of the second
@@ -1370,16 +1588,16 @@ the same location and processing things in a periodic fashion. What do you
 think?
 
 
-The difference is just bookkeeping. The integer registers are 32 of them × 64
-bits = 256
+  The difference is just bookkeeping. The integer registers are 32 of them × 64
+  bits = 256
 
-bytes per thread. The SIMD/FP registers are 32 of them × 128 bits = 512 bytes
-per thread.
+  bytes per thread. The SIMD/FP registers are 32 of them × 128 bits = 512 bytes
+  per thread.
 
-Plus a few control registers. So a thread that uses both has about 800 bytes of
-register
+   Plus a few control registers. So a thread that uses both has about 800 bytes
+   of register
 
-state the scheduler has to save on every yield.
+   state the scheduler has to save on every yield.
 
 
 
@@ -1399,10 +1617,23 @@ ups by doing lazy save, in exchange for a bit of unpredictable timing.
 Three things to clean up, then we're good to go on the disable.
 
 
-**Yes, four cores.** Specifically, four Cortex-A55 cores. Each one is a complete CPU in its own right — its own integer register file, its own program counter, its own pipeline, its own SIMD/FP unit. The four cores share the L3 cache, the bus to RAM, and the bus to peripherals, but they execute fully independently. Phase 1 leaves three of them parked in a low-power state per the boot protocol and runs everything on core zero; phase 2 — the multi-core bring-up issues — is where the other three wake up.
+**Yes, four cores.** Specifically, four Cortex-A55 cores. Each one is a complete
+CPU in its own right — its own integer register file, its own program counter,
+its own pipeline, its own SIMD/FP unit. The four cores share the L3 cache, the
+bus to RAM, and the bus to peripherals, but they execute fully independently.
+Phase 1 leaves three of them parked in a low-power state per the boot protocol
+and runs everything on core zero; phase 2 — the multi-core bring-up issues —
+is where the other three wake up.
 
 
-**One correction on the register size — bits, not bytes.** Each SIMD register on this chip is 128 *bits* wide, which is 16 bytes. Still way wider than the 8-byte integer registers, and still capable of holding four 32-bit lanes or two 64-bit lanes per register, but the math on per-thread state was: 32 registers × 16 bytes = 512 bytes of SIMD state per thread. Not 4 kilobytes. (Apologies — I should have been clearer about the unit.) Still big in proportion — you've got two-thirds of a kilobyte of pure scratch space per thread once SIMD is on, which is a lot of free working room.
+**One correction on the register size — bits, not bytes.** Each SIMD register
+on this chip is 128 *bits* wide, which is 16 bytes. Still way wider than the
+8-byte integer registers, and still capable of holding four 32-bit lanes or two
+64-bit lanes per register, but the math on per-thread state was: 32 registers ×
+16 bytes = 512 bytes of SIMD state per thread. Not 4 kilobytes. (Apologies — I
+should have been clearer about the unit.) Still big in proportion — you've got
+two-thirds of a kilobyte of pure scratch space per thread once SIMD is on, which
+is a lot of free working room.
 
 
 **On the reserve-one-quarter-per-core idea**
@@ -1444,7 +1675,9 @@ you were initially imagining. Imagine a simulation tick with sixteen entities to
 update:
 
 
-- Core zero handles entities 0-3, using one SIMD register with four 32-bit lanes — one lane per entity — and updates all four with one instruction per attribute.
+- Core zero handles entities 0-3, using one SIMD register with four 32-bit lanes
+  — one lane per entity — and updates all four with one instruction per
+  attribute.
 
 - Core one handles entities 4-7 the same way, in parallel with core zero.
 
@@ -1555,11 +1788,18 @@ bytes per thread on this chip on top of the 256 bytes of integer state).
 Three regimes, and they have very different costs:
 
 
-- *Threads on different cores.* No clobbering, ever. Each core's SIMD unit is private to that core. No bookkeeping needed for cross-core protection — the chip's geometry handles it.
+- *Threads on different cores.* No clobbering, ever. Each core's SIMD unit is
+  private to that core. No bookkeeping needed for cross-core protection — the
+  chip's geometry handles it.
 
-- *Threads on the same core, no time-sharing.* If we design the system so each core has exactly one thread pinned to it and that thread never yields, there's also no clobbering — the one thread on the core owns the register file forever. No save/restore needed because there's nothing to switch to.
+- *Threads on the same core, no time-sharing.* If we design the system so each
+  core has exactly one thread pinned to it and that thread never yields, there's
+  also no clobbering — the one thread on the core owns the register file
+  forever. No save/restore needed because there's nothing to switch to.
 
-- *Threads on the same core, time-sharing.* This is where the scheduler has to save and restore SIMD state on every switch. The cost is the 512 bytes of register state plus the cycles to copy them.
+- *Threads on the same core, time-sharing.* This is where the scheduler has to
+  save and restore SIMD state on every switch. The cost is the 512 bytes of
+  register state plus the cycles to copy them.
 
 
 Soramech's design will pick a posture. "One pinned thread per core" is the
@@ -1594,16 +1834,20 @@ Clean — no FP/SIMD instructions left in the binary. Moving 103f to completed,
 updating progress, committing.
 
 
-**Ready to flash.** Bring the USB drive back to the main machine, push, then re-flash and watch.
+**Ready to flash.** Bring the USB drive back to the main machine, push, then
+re-flash and watch.
 
 
 **What's different:**
 
-- Single build-line flag added; the compiler now uses only the integer register file. The disassembly I checked has zero floating-point or SIMD instructions left in the binary.
+- Single build-line flag added; the compiler now uses only the integer register
+  file. The disassembly I checked has zero floating-point or SIMD instructions
+  left in the binary.
 
 - The trap that was resetting the system at the allocator self-test is gone.
 
-- New issue file (`103f`) records the disposition: phase-1 default-off, soramech turns it back on with eager-save, lazy-save as a future optimization.
+- New issue file (`103f`) records the disposition: phase-1 default-off, soramech
+  turns it back on with eager-save, lazy-save as a future optimization.
 
 
 **What you should see this time, given everything we've fixed:**
@@ -1614,15 +1858,24 @@ the next bring-up step. That step is the USB controller's PHY and DWC3 setup.
 Several things could happen:
 
 
-- *Top dark + bottom amber, steady.* The kernel reached the USB-controller stage signal. USB hardware came up cleanly. The next failure (if any) is in USB endpoint config or eMMC bring-up.
+- *Top dark + bottom amber, steady.* The kernel reached the USB-controller stage
+  signal. USB hardware came up cleanly. The next failure (if any) is in USB
+  endpoint config or eMMC bring-up.
 
-- *Top green, bottom dark, steady.* Allocator passed but USB PHY / controller bring-up is hanging. We didn't reach the next stage signal. This was the original phase-1-blocker before we even knew about the FP issue.
+- *Top green, bottom dark, steady.* Allocator passed but USB PHY / controller
+  bring-up is hanging. We didn't reach the next stage signal. This was the
+  original phase-1-blocker before we even knew about the FP issue.
 
-- *Top red, bottom dark, steady.* The allocator self-test or USB controller bring-up failed and the kernel routed it through the panic path. We'd then know specifically that the panic was reached.
+- *Top red, bottom dark, steady.* The allocator self-test or USB controller
+  bring-up failed and the kernel routed it through the panic path. We'd then
+  know specifically that the panic was reached.
 
-- *Top yellow-amber + bottom amber, blinking the bottom amber.* The kernel reached the eMMC backup and the heartbeat is firing. Spectacular.
+- *Top yellow-amber + bottom amber, blinking the bottom amber.* The kernel
+  reached the eMMC backup and the heartbeat is firing. Spectacular.
 
-- *The two-amber / green-flash cycle from before.* Either there's another instruction we missed, or the trap is from something other than what we think. Unlikely but worth knowing.
+- *The two-amber / green-flash cycle from before.* Either there's another
+  instruction we missed, or the trap is from something other than what we think.
+  Unlikely but worth knowing.
 
 
 Whatever pattern lands, that tells us the next investigation. Report what you
@@ -1684,7 +1937,8 @@ bootloader installed (we don't have one installed at the exception level we're
 actually running at). The bootloader's handler resets the system. Cycle.
 
 
-**Candidate two: the chip's watchdog timer is running and we're not feeding it.**
+**Candidate two: the chip's watchdog timer is running and we're not feeding
+it.**
 
 
 Many SoCs have a hardware watchdog timer — it counts down at a configured
@@ -1705,9 +1959,17 @@ green light. No allocator, no USB, no SD, no backup — just paint green and
 sleep.
 
 
-- If the LED stays steady green forever after the hello flash, the cycling is downstream of the stage signal. The kernel's stage-painting and wait-loop work; something one of the bring-up steps (most likely USB) is doing reaches into hardware that isn't clocked and the resulting fault takes us out. The fix is "research which clock-gate register the USB controller wants and write to it before usb_init, same shape as the PWM-side investigation we shelved."
+- If the LED stays steady green forever after the hello flash, the cycling is
+  downstream of the stage signal. The kernel's stage-painting and wait-loop
+  work; something one of the bring-up steps (most likely USB) is doing reaches
+  into hardware that isn't clocked and the resulting fault takes us out. The fix
+  is "research which clock-gate register the USB controller wants and write to
+  it before usb_init, same shape as the PWM-side investigation we shelved."
 
-- If the LED still cycles, the kernel is being reset by something that doesn't care what the kernel is doing — almost certainly the watchdog. The fix is "disable the watchdog at the top of `kernel_main`, before anything else, so the countdown stops."
+- If the LED still cycles, the kernel is being reset by something that doesn't
+  care what the kernel is doing — almost certainly the watchdog. The fix is
+  "disable the watchdog at the top of `kernel_main`, before anything else, so
+  the countdown stops."
 
 
 The first case is good news: there's a specific peripheral to bring up. The
@@ -1753,24 +2015,24 @@ Three findings that fit our symptom together:
 
 
 1. *The bootloader leaves the watchdog enabled.* Mainline u-boot's defconfig for
-this chip doesn't touch the watchdog, but the Rockchip BSP boot blobs that run
-before u-boot (the DDR-init code, the trust-firmware) enable the watchdog inside
-themselves to catch their own hangs during DRAM bring-up. The watchdog stays
-ticking through the rest of boot. When our kernel takes over, it inherits a
-ticking countdown.
+   this chip doesn't touch the watchdog, but the Rockchip BSP boot blobs that
+   run before u-boot (the DDR-init code, the trust-firmware) enable the watchdog
+   inside themselves to catch their own hangs during DRAM bring-up. The watchdog
+   stays ticking through the rest of boot. When our kernel takes over, it
+   inherits a ticking countdown.
 
 2. *The DesignWare watchdog cannot be disabled by writing zero to its control
-register.* The driver source in mainline Linux has a comment that says this
-explicitly. Once the enable bit is on, writes that would clear it are silently
-ignored. The only ways to stop it are to feed it forever, or to ask the chip's
-clock-and-reset unit to reset the watchdog hardware block back to its post-reset
-"off" state.
+   register.* The driver source in mainline Linux has a comment that says this
+   explicitly. Once the enable bit is on, writes that would clear it are
+   silently ignored. The only ways to stop it are to feed it forever, or to ask
+   the chip's clock-and-reset unit to reset the watchdog hardware block back to
+   its post-reset "off" state.
 
 3. *The BSP default timeout is around 2.7 seconds.* Which matches the cadence of
-your reset cycle almost exactly — the dark phase between green and the next
-two-amber is the bootloader re-running from the top, and the time spent in our
-kernel (hello flash + green stage signal + a few microseconds of allocator work)
-lands neatly inside the 2.7-second budget.
+   your reset cycle almost exactly — the dark phase between green and the next
+   two-amber is the bootloader re-running from the top, and the time spent in
+   our kernel (hello flash + green stage signal + a few microseconds of
+   allocator work) lands neatly inside the 2.7-second budget.
 
 
 Linux gets away with not petting the watchdog explicitly because its watchdog
@@ -1782,9 +2044,17 @@ such subsystem.
 **Two ways to fix this**
 
 
-- *Pet the watchdog periodically.* The petting register is at offset twelve from the watchdog's base address; writing the byte value 0x76 to it resets the countdown. We'd add a small inline that does that single write, and call it from anywhere the kernel busy-waits (the LED hello flash, the USB controller's settling waits, the allocator's bitmap walk). Watchdog stays happy as long as the kernel is making forward progress through any of those places.
+- *Pet the watchdog periodically.* The petting register is at offset twelve from
+  the watchdog's base address; writing the byte value 0x76 to it resets the
+  countdown. We'd add a small inline that does that single write, and call it
+  from anywhere the kernel busy-waits (the LED hello flash, the USB controller's
+  settling waits, the allocator's bitmap walk). Watchdog stays happy as long as
+  the kernel is making forward progress through any of those places.
 
-- *Reset the watchdog hardware block.* The chip's clock-and-reset unit has a register that can put the watchdog hardware back into its post-reset "off" state. Two MMIO writes — assert the reset, then deassert it — and the watchdog is fully silent for the rest of our run.
+- *Reset the watchdog hardware block.* The chip's clock-and-reset unit has a
+  register that can put the watchdog hardware back into its post-reset "off"
+  state. Two MMIO writes — assert the reset, then deassert it — and the
+  watchdog is fully silent for the rest of our run.
 
 
 The second one is permanent and simpler going forward (no scattered pet calls),
@@ -1896,15 +2166,50 @@ sick enough that a reset is the right move.
 Things the silicon gives us for free, no software construction needed:
 
 
-- *ARM Generic Timer.* The biggest one and the most underrated. Every aarch64 CPU core has a built-in 64-bit counter and a comparator pair, accessible through system registers (the same kind of register the kernel's been using to mask exceptions and install the vector table). The counter is shared across all cores at the system level — every core reads the same monotonically-increasing tick. The frequency is fixed at boot; on this chip family it's the 24 MHz crystal divided down to typically 24 MHz exactly, exposed through a read-only system register. The comparator pair lets each core schedule an interrupt at a specific tick value — set the comparator, enable the timer, when the count reaches the comparator the interrupt fires. This is what every modern aarch64 kernel uses for scheduler ticks, sleep timeouts, and time-of-day. It's free, it's per-core, it has no MMIO surface, and it's the standard answer.
+- *ARM Generic Timer.* The biggest one and the most underrated. Every aarch64
+  CPU core has a built-in 64-bit counter and a comparator pair, accessible
+  through system registers (the same kind of register the kernel's been using to
+  mask exceptions and install the vector table). The counter is shared across
+  all cores at the system level — every core reads the same
+  monotonically-increasing tick. The frequency is fixed at boot; on this chip
+  family it's the 24 MHz crystal divided down to typically 24 MHz exactly,
+  exposed through a read-only system register. The comparator pair lets each
+  core schedule an interrupt at a specific tick value — set the comparator,
+  enable the timer, when the count reaches the comparator the interrupt fires.
+  This is what every modern aarch64 kernel uses for scheduler ticks, sleep
+  timeouts, and time-of-day. It's free, it's per-core, it has no MMIO surface,
+  and it's the standard answer.
 
-- *Hardware Timer blocks at MMIO.* The chip exposes a handful of dedicated timer peripherals at specific MMIO addresses (the device tree calls them `timer@fe5f0000` and friends). Each one is a configurable counter with reload and interrupt-on-zero capabilities. These are leftover from before ARM standardized the Generic Timer — useful for systems with the Generic Timer already busy on something else, or for cases where the Generic Timer's resolution isn't enough. Phase 1 doesn't need them.
+- *Hardware Timer blocks at MMIO.* The chip exposes a handful of dedicated timer
+  peripherals at specific MMIO addresses (the device tree calls them
+  `timer@fe5f0000` and friends). Each one is a configurable counter with reload
+  and interrupt-on-zero capabilities. These are leftover from before ARM
+  standardized the Generic Timer — useful for systems with the Generic Timer
+  already busy on something else, or for cases where the Generic Timer's
+  resolution isn't enough. Phase 1 doesn't need them.
 
-- *PWM controllers as timers.* This is the underappreciated one. The same hardware blocks that drive the LEDs through their duty-cycle output can also be configured as plain interrupt-on-period timers. The chip has many PWM channels; the ones not used for LEDs are just sitting idle, available to be programmed as timers. They're slower to set up than the Generic Timer (more MMIO to write, clock to ungate, pinmux concern — though if you're not using the output pin the pinmux doesn't matter), but they're a real second timer if you need one.
+- *PWM controllers as timers.* This is the underappreciated one. The same
+  hardware blocks that drive the LEDs through their duty-cycle output can also
+  be configured as plain interrupt-on-period timers. The chip has many PWM
+  channels; the ones not used for LEDs are just sitting idle, available to be
+  programmed as timers. They're slower to set up than the Generic Timer (more
+  MMIO to write, clock to ungate, pinmux concern — though if you're not using
+  the output pin the pinmux doesn't matter), but they're a real second timer if
+  you need one.
 
-- *Real-Time Clock.* The chip has a true RTC at a specific MMIO address, backed by its own oscillator and (in the deployed device's case) by a small battery so it keeps wall-clock time through power-off. The RTC counts in seconds typically, with finer subdivision available through its registers. Different purpose from the Generic Timer — the Generic Timer measures elapsed cycles since boot, the RTC measures elapsed seconds since 1970. Useful for timestamping log entries, less useful for scheduler ticks.
+- *Real-Time Clock.* The chip has a true RTC at a specific MMIO address, backed
+  by its own oscillator and (in the deployed device's case) by a small battery
+  so it keeps wall-clock time through power-off. The RTC counts in seconds
+  typically, with finer subdivision available through its registers. Different
+  purpose from the Generic Timer — the Generic Timer measures elapsed cycles
+  since boot, the RTC measures elapsed seconds since 1970. Useful for
+  timestamping log entries, less useful for scheduler ticks.
 
-- *Performance Monitoring Unit counters.* Each core has dedicated counters for events like cycles executed, instructions retired, cache misses, branch mispredictions. Programmable as event counters with overflow interrupts. Mostly used for profiling rather than scheduling, but they're a periodic source if you want one.
+- *Performance Monitoring Unit counters.* Each core has dedicated counters for
+  events like cycles executed, instructions retired, cache misses, branch
+  mispredictions. Programmable as event counters with overflow interrupts.
+  Mostly used for profiling rather than scheduling, but they're a periodic
+  source if you want one.
 
 
 For our soramech-side watchdog petting task, the right answer is the ARM Generic
@@ -1920,27 +2225,27 @@ Four artifacts:
 
 
 1. A new docs file (`017-clocks-and-timers.md`) catalogs the chip's timing
-infrastructure: the watchdog's behavior, the Generic Timer's interface, the
-hardware timer blocks' addresses, the PWM channels as alternate timers, the RTC,
-the Performance Monitor counters. Same shape as the existing physical-memory-map
-and LED-diagnostic docs — reference material that future drivers can point at
-instead of harvesting from scratch.
+   infrastructure: the watchdog's behavior, the Generic Timer's interface, the
+   hardware timer blocks' addresses, the PWM channels as alternate timers, the
+   RTC, the Performance Monitor counters. Same shape as the existing
+   physical-memory-map and LED-diagnostic docs — reference material that
+   future drivers can point at instead of harvesting from scratch.
 
 2. A new issue file (`103g-watchdog-handling`) describes the watchdog's
-situation: bootloader leaves it ticking, the chip resets us before we can do
-anything, the phase-1 disposition is to silence it via the chip's
-reset-controller, the eventual end state is a soramech-scheduled petting task
-using the Generic Timer.
+   situation: bootloader leaves it ticking, the chip resets us before we can do
+   anything, the phase-1 disposition is to silence it via the chip's
+   reset-controller, the eventual end state is a soramech-scheduled petting task
+   using the Generic Timer.
 
 3. A new issue file (`109d-usb-clocks-and-phy-power-down`) describes what's
-needed to make USB actually work — the three clock-gate writes the agent
-identified, the hardware reset deassertion, and the USB-2 PHY power-down
-register the GRF needs cleared.
+   needed to make USB actually work — the three clock-gate writes the agent
+   identified, the hardware reset deassertion, and the USB-2 PHY power-down
+   register the GRF needs cleared.
 
 4. The existing PWM-bring-up issue (106c) gets its placeholder clock-gate
-references filled in with the specific register offsets and bit positions the
-same research surfaced for the broader CRU layout, so when we eventually return
-to it the work doesn't need to be researched again.
+   references filled in with the specific register offsets and bit positions the
+   same research surfaced for the broader CRU layout, so when we eventually
+   return to it the work doesn't need to be researched again.
 
 
 After that, propose the immediate code fix for the watchdog — single MMIO
@@ -1977,17 +2282,36 @@ issue" doesn't have a clean home today.
 My proposed structure, given your preferences:
 
 
-**On 109d — agreed, kill it.** The USB clocks and PHY power-down belong in 109a (USB PHY and controller bring-up) — that issue's whole point is "bring this hardware up correctly," and saying "but skip the clock setup the bootloader leaves undone" was always a hidden weakness in its scope. Reopen 109a by moving it back from `completed/` to `issues/`, update its current-behavior section to acknowledge the gap, and the implementation steps grow the three clock-gate writes plus the reset deassertion plus the PMU-GRF power-down clear. Single issue, vertical history, no horizontal sprawl. Git tracks the move, so the history is preserved end-to-end.
+**On 109d — agreed, kill it.** The USB clocks and PHY power-down belong in
+109a (USB PHY and controller bring-up) — that issue's whole point is "bring
+this hardware up correctly," and saying "but skip the clock setup the bootloader
+leaves undone" was always a hidden weakness in its scope. Reopen 109a by moving
+it back from `completed/` to `issues/`, update its current-behavior section to
+acknowledge the gap, and the implementation steps grow the three clock-gate
+writes plus the reset deassertion plus the PMU-GRF power-down clear. Single
+issue, vertical history, no horizontal sprawl. Git tracks the move, so the
+history is preserved end-to-end.
 
 
-**On 103g — I'd argue for keeping it as its own issue, but split the implementation across both phases.** The reasoning:
+**On 103g — I'd argue for keeping it as its own issue, but split the
+implementation across both phases.** The reasoning:
 
 
-- The phase-1 silence work (one MMIO write sequence into the clock-and-reset unit to reset the watchdog hardware block) is a concrete, narrow, completable piece of work that the kernel needs *right now* before any other phase-1 hardware testing can resume. It doesn't conceptually belong in a soramech issue; soramech doesn't exist yet, and the silence isn't a scheduler concern.
+- The phase-1 silence work (one MMIO write sequence into the clock-and-reset
+  unit to reset the watchdog hardware block) is a concrete, narrow, completable
+  piece of work that the kernel needs *right now* before any other phase-1
+  hardware testing can resume. It doesn't conceptually belong in a soramech
+  issue; soramech doesn't exist yet, and the silence isn't a scheduler concern.
 
-- The phase-2 petting task — once soramech can schedule periodic tasks — is genuinely a soramech-side concern, but it's also genuinely a *watchdog-side* concern. The two things together tell one story: "the watchdog ticks, we silence it for development, we eventually pet it as a safety net."
+- The phase-2 petting task — once soramech can schedule periodic tasks — is
+  genuinely a soramech-side concern, but it's also genuinely a *watchdog-side*
+  concern. The two things together tell one story: "the watchdog ticks, we
+  silence it for development, we eventually pet it as a safety net."
 
-- Splitting them into two issues means the safety-net story lives in two places. Keeping them together in 103g, with the phase-2 portion as the "this issue is not completable until..." gate, keeps the story in one place where it's findable.
+- Splitting them into two issues means the safety-net story lives in two places.
+  Keeping them together in 103g, with the phase-2 portion as the "this issue is
+  not completable until..." gate, keeps the story in one place where it's
+  findable.
 
 
 What the issue file would say, in shape:
@@ -2017,19 +2341,19 @@ from running the pet task triggers an automatic reset.
 
 Implementation steps:
 
-1. (Phase 1) Reset the watchdog hardware block. One MMIO
+  1. (Phase 1) Reset the watchdog hardware block. One MMIO
 
-write sequence at the top of kernel_main. After this,
+     write sequence at the top of kernel_main. After this,
 
-the kernel can sit idle indefinitely without resetting.
+     the kernel can sit idle indefinitely without resetting.
 
-2. (Phase 2, deferred) Once soramech can schedule periodic
+  2. (Phase 2, deferred) Once soramech can schedule periodic
 
-tasks via the ARM Generic Timer, replace the reset-and-
+     tasks via the ARM Generic Timer, replace the reset-and-
 
-leave-silent disposition with reset-then-re-enable, and
+     leave-silent disposition with reset-then-re-enable, and
 
-register a 1-Hz petting task with the scheduler.
+     register a 1-Hz petting task with the scheduler.
 
 
 Blocked by: nothing for step 1; the soramech periodic-task
@@ -2051,7 +2375,12 @@ soramech timer is in place — but the phase-1 work that enables the kernel to
 boot can still happen now.
 
 
-**On the soramech periodic-task issue** — I'd hold off creating one until we get to phase 2. Phase-1 issues for phase-2 work tend to drift before they get implemented. We'll know more about soramech's actual shape when 201-211 are being implemented, and the periodic-task issue can be created with informed scope at that point. 103g's "blocked by" reference to it stays as a textual forward reference until it exists.
+**On the soramech periodic-task issue** — I'd hold off creating one until we
+get to phase 2. Phase-1 issues for phase-2 work tend to drift before they get
+implemented. We'll know more about soramech's actual shape when 201-211 are
+being implemented, and the periodic-task issue can be created with informed
+scope at that point. 103g's "blocked by" reference to it stays as a textual
+forward reference until it exists.
 
 
 Sound right? If yes, I'll write the four artifacts (017-clocks-and-timers doc,
@@ -2111,20 +2440,37 @@ Clean. Committing.
 All four artifacts committed:
 
 
-- **`docs/017-clocks-and-timers.md`** — the chip's clock-gating, peripheral-reset, and timing-source catalogue. Names the specific clock-gate bits for USB and watchdog and the placeholder for PWM, documents the four periodicity sources (Generic Timer, hardware timer blocks, PWM-as-timer, RTC), and explains the DesignWare watchdog's "can't be turned off in software once enabled" quirk.
+- **`docs/017-clocks-and-timers.md`** — the chip's clock-gating,
+  peripheral-reset, and timing-source catalogue. Names the specific clock-gate
+  bits for USB and watchdog and the placeholder for PWM, documents the four
+  periodicity sources (Generic Timer, hardware timer blocks, PWM-as-timer, RTC),
+  and explains the DesignWare watchdog's "can't be turned off in software once
+  enabled" quirk.
 
-- **`issues/103g-watchdog-handling.md`** — phase-1 silence as the immediate work, phase-2-or-3 petting task as the closing condition. The issue stays open until the soramech-side petting task lands; closing condition is the safety net, not the silence.
+- **`issues/103g-watchdog-handling.md`** — phase-1 silence as the immediate
+  work, phase-2-or-3 petting task as the closing condition. The issue stays open
+  until the soramech-side petting task lands; closing condition is the safety
+  net, not the silence.
 
-- **`issues/109a-usb-phy-and-controller.md`** reopened (git-tracked move from `completed/`). The current-behavior section now acknowledges the clock-bringup gap; implementation steps list the three specific register writes needed before the existing DWC3 configuration sequence can succeed.
+- **`issues/109a-usb-phy-and-controller.md`** reopened (git-tracked move from
+  `completed/`). The current-behavior section now acknowledges the clock-bringup
+  gap; implementation steps list the three specific register writes needed
+  before the existing DWC3 configuration sequence can succeed.
 
-- **`issues/106c-pwm-controller-bring-up.md`** — placeholder clock-gate references filled in with the broader CRU register-layout the same research surfaced. PWM1's specific bit position is still the open piece of research.
+- **`issues/106c-pwm-controller-bring-up.md`** — placeholder clock-gate
+  references filled in with the broader CRU register-layout the same research
+  surfaced. PWM1's specific bit position is still the open piece of research.
 
 
 Plus the table of contents got the new doc entry and `phase-1-progress.md` was
 updated to reflect 109a's reopening and the new open issues.
 
 
-**Ready to make the immediate code fix.** That fix is two MMIO writes at the very top of `kernel_main`, before `led_init`, that assert and then deassert the watchdog's soft-reset bit in the main CRU's `SOFTRST_CON(8)` register. After that the watchdog hardware block is back in its post-reset state and the cycling stops.
+**Ready to make the immediate code fix.** That fix is two MMIO writes at the
+very top of `kernel_main`, before `led_init`, that assert and then deassert the
+watchdog's soft-reset bit in the main CRU's `SOFTRST_CON(8)` register. After
+that the watchdog hardware block is back in its post-reset state and the cycling
+stops.
 
 
 Want me to land it?
@@ -2152,9 +2498,11 @@ Committed. Ready to flash.
 
 - Two MMIO writes at the very top of `kernel_main`, before everything else
 
-- The disassembly confirms they assembled to the right address (`0xFDD20420`) and the right values (`0x04000400` assert, `0x04000000` deassert)
+- The disassembly confirms they assembled to the right address (`0xFDD20420`)
+  and the right values (`0x04000400` assert, `0x04000000` deassert)
 
-- The watchdog hardware block goes into its post-reset disabled state and stays there
+- The watchdog hardware block goes into its post-reset disabled state and stays
+  there
 
 
 **What you should see when you flash and power on:**
@@ -2165,13 +2513,26 @@ bring-up reaches, indefinitely, until you power-cycle the device yourself. Most
 likely outcomes:
 
 
-- *Top green, bottom dark, steady forever.* The kernel reached the C entry, painted the kernel-reached-main stage signal, and the USB-controller bring-up hung waiting on a register that won't respond because the USB clocks aren't enabled (the next thing on the list, tracked in 109a). This would confirm both that the watchdog was the reset cause and that the next bring-up gap is USB clocks.
+- *Top green, bottom dark, steady forever.* The kernel reached the C entry,
+  painted the kernel-reached-main stage signal, and the USB-controller bring-up
+  hung waiting on a register that won't respond because the USB clocks aren't
+  enabled (the next thing on the list, tracked in 109a). This would confirm both
+  that the watchdog was the reset cause and that the next bring-up gap is USB
+  clocks.
 
-- *Top dark, bottom amber, steady forever.* The kernel somehow got past USB controller bring-up and the LEDs are at the USB-controller-stage signal. Very unlikely given what we know about the clocks, but possible — would mean we got lucky on USB.
+- *Top dark, bottom amber, steady forever.* The kernel somehow got past USB
+  controller bring-up and the LEDs are at the USB-controller-stage signal. Very
+  unlikely given what we know about the clocks, but possible — would mean we
+  got lucky on USB.
 
-- *Top red, bottom dark, steady forever.* The USB controller bring-up returned a failure code and the kernel painted the panic stage signal. Means the controller wrote back its identification register but with the wrong magic — the kernel's code path is reachable, the failure mode is the expected one.
+- *Top red, bottom dark, steady forever.* The USB controller bring-up returned a
+  failure code and the kernel painted the panic stage signal. Means the
+  controller wrote back its identification register but with the wrong magic —
+  the kernel's code path is reachable, the failure mode is the expected one.
 
-- *Two amber lights, dark, green flash, two amber — same cycle as before.* Watchdog wasn't the actual cause and we've learned something. Possible but unlikely given how cleanly the BSP-default-timeout theory fits.
+- *Two amber lights, dark, green flash, two amber — same cycle as before.*
+  Watchdog wasn't the actual cause and we've learned something. Possible but
+  unlikely given how cleanly the BSP-default-timeout theory fits.
 
 
 Whatever pattern lands, tell me what you see and we'll go from there.
@@ -2207,23 +2568,15 @@ Ready to flash. Push, then watch — this boot will tell us which of three
 things is going on:
 
 
-| What you see this time | What it means |
+| What you see this time                  | What it means                                                                              |
 
 |-----------------------------------------|--------------------------------------------------------------------------------------------|
 
-| *Top green, steady, indefinitely* | The cycling was either the SoC watchdog
-(petting fixed it) or something we skipped after the stage signal (most likely
-USB-side fault). Next iteration brings the bring-up chain back one piece at a
-time. |
+| *Top green, steady, indefinitely*       | The cycling was either the SoC watchdog (petting fixed it) or something we skipped after the stage signal (most likely USB-side fault). Next iteration brings the bring-up chain back one piece at a time. |
 
-| *Cycle, but each held a lot longer* | Two things are resetting us. Petting
-extended the SoC watchdog's effective timeout but a second mechanism — most
-likely the chip's power-management IC's autonomous watchdog over I²C — fires
-on a longer interval. |
+| *Cycle, but each held a lot longer*     | Two things are resetting us. Petting extended the SoC watchdog's effective timeout but a second mechanism — most likely the chip's power-management IC's autonomous watchdog over I²C — fires on a longer interval. |
 
-| *Same short cycle as before* | The SoC watchdog isn't the cause. PMIC watchdog
-or external supervisor circuit is what we're looking at, and the next
-investigation goes to the I²C-attached power-management chip. |
+| *Same short cycle as before*            | The SoC watchdog isn't the cause. PMIC watchdog or external supervisor circuit is what we're looking at, and the next investigation goes to the I²C-attached power-management chip. |
 
 
 Time the cycle if you can — the difference between "held a lot longer" and
@@ -2259,15 +2612,27 @@ watchdog noise.
 **Plan for the next iteration**
 
 
-- *Move the pet into the busy-wait utility.* Every long delay the kernel performs goes through that one function. If it pets the watchdog at its start and every few thousand iterations, then any code that's busy-waiting — the LED hello flash, the USB controller's settling delays, eventually the eMMC and SD controllers' polling waits — keeps the watchdog alive without each caller having to know about it. The petting moves from "explicit special diagnostic loop" to "implicit property of any code that delays."
+- *Move the pet into the busy-wait utility.* Every long delay the kernel
+  performs goes through that one function. If it pets the watchdog at its start
+  and every few thousand iterations, then any code that's busy-waiting — the
+  LED hello flash, the USB controller's settling delays, eventually the eMMC and
+  SD controllers' polling waits — keeps the watchdog alive without each caller
+  having to know about it. The petting moves from "explicit special diagnostic
+  loop" to "implicit property of any code that delays."
 
-- *Pet once at the very top of `kernel_main`* as the initial reset of the counter, before any code that might delay.
+- *Pet once at the very top of `kernel_main`* as the initial reset of the
+  counter, before any code that might delay.
 
-- *Restore the allocator self-test* (it's pure DRAM access, no MMIO, lowest possible risk of being the actual cycling cause).
+- *Restore the allocator self-test* (it's pure DRAM access, no MMIO, lowest
+  possible risk of being the actual cycling cause).
 
-- *Leave the USB controller bring-up skipped for this iteration.* The USB-clock work in 109a hasn't been written yet; running `usb_init` against the un-clocked DWC3 registers is the next likely fault source, and we want to test the allocator and the petting mechanism without that confound.
+- *Leave the USB controller bring-up skipped for this iteration.* The USB-clock
+  work in 109a hasn't been written yet; running `usb_init` against the
+  un-clocked DWC3 registers is the next likely fault source, and we want to test
+  the allocator and the petting mechanism without that confound.
 
-- *Land in a petting wait loop* after the allocator finishes, instead of in WFI — so that when the kernel sits idle the petting keeps happening.
+- *Land in a petting wait loop* after the allocator finishes, instead of in WFI
+  — so that when the kernel sits idle the petting keeps happening.
 
 
 Making the changes now.
@@ -2279,19 +2644,37 @@ Making the changes now.
 **What should happen this time:**
 
 
-- LED hello flash (top yellow-amber + bottom amber for about a second, dark for another second).
+- LED hello flash (top yellow-amber + bottom amber for about a second, dark for
+  another second).
 
-- Top green, steady, indefinitely — same end-state as the prior boot, but reached by a different path. The kernel paints the kernel-reached-main stage signal, runs the allocator self-test (which allocates two pages, compares them, frees them, allocates again, confirms reuse), and then lands in the petting wait loop.
+- Top green, steady, indefinitely — same end-state as the prior boot, but
+  reached by a different path. The kernel paints the kernel-reached-main stage
+  signal, runs the allocator self-test (which allocates two pages, compares
+  them, frees them, allocates again, confirms reuse), and then lands in the
+  petting wait loop.
 
 
 **What we'll learn:**
 
 
-- *If you see steady green again,* the allocator self-test passes on real hardware for the first time (it's never been verified before — issue 108 marked it as code-complete but hardware-pending). That's a previously-untested piece of the kernel reaching production status. The next iteration adds the USB clock-and-reset writes to `usb_init`, restores the USB bring-up, and we'd expect to see either green advance to bottom amber (USB controller alive, success) or red (panic — controller didn't identify, expected failure mode).
+- *If you see steady green again,* the allocator self-test passes on real
+  hardware for the first time (it's never been verified before — issue 108
+  marked it as code-complete but hardware-pending). That's a previously-untested
+  piece of the kernel reaching production status. The next iteration adds the
+  USB clock-and-reset writes to `usb_init`, restores the USB bring-up, and we'd
+  expect to see either green advance to bottom amber (USB controller alive,
+  success) or red (panic — controller didn't identify, expected failure mode).
 
-- *If you see top red, bottom dark steady,* the allocator self-test failed and panicked — the kernel paints the panic stage signal and parks. This would be surprising; the allocator's logic is straightforward and hasn't seemed broken. But it's the failure path we'd expect to see if anything's actually off.
+- *If you see top red, bottom dark steady,* the allocator self-test failed and
+  panicked — the kernel paints the panic stage signal and parks. This would be
+  surprising; the allocator's logic is straightforward and hasn't seemed broken.
+  But it's the failure path we'd expect to see if anything's actually off.
 
-- *If you see cycling again,* something the allocator does is the cause. Less likely, but possible — the allocator writes a ~100 KB bitmap to DRAM at the start, and if that DRAM region overlaps with something the bootloader cares about, we could be smashing it. We'd then look at the memory map more carefully.
+- *If you see cycling again,* something the allocator does is the cause. Less
+  likely, but possible — the allocator writes a ~100 KB bitmap to DRAM at the
+  start, and if that DRAM region overlaps with something the bootloader cares
+  about, we could be smashing it. We'd then look at the memory map more
+  carefully.
 
 
 Should be steady green, and we'd then advance to USB.
@@ -2333,27 +2716,27 @@ bare wfi.
 
 
 1. *Top dark, bottom amber, steady forever.* The USB controller bring-up went
-all the way through — clocks ungated, reset deasserted, PHY out of suspend,
-controller out of soft reset, port direction set to device mode, identification
-register read back the expected "U3" magic. The kernel-reached-main →
-USB-controller-alive stage transition happens for the first time on real
-hardware. The previously-untested USB code is confirmed.
+   all the way through — clocks ungated, reset deasserted, PHY out of suspend,
+   controller out of soft reset, port direction set to device mode,
+   identification register read back the expected "U3" magic. The
+   kernel-reached-main → USB-controller-alive stage transition happens for the
+   first time on real hardware. The previously-untested USB code is confirmed.
 
 2. *Top red, bottom dark, steady forever.* The controller's identification
-register read back something other than the expected magic, the kernel routed
-the failure through the panic path, and the panic stage signal is lit. This is a
-*clean* failure mode — the kernel is alive, the LED layer works, the panic
-path works, the only question is what the identification register actually
-returned. Next investigation would be a code change that logs the register value
-somewhere we can see it (probably the SD-backed debug log when that comes back
-online).
+   register read back something other than the expected magic, the kernel routed
+   the failure through the panic path, and the panic stage signal is lit. This
+   is a *clean* failure mode — the kernel is alive, the LED layer works, the
+   panic path works, the only question is what the identification register
+   actually returned. Next investigation would be a code change that logs the
+   register value somewhere we can see it (probably the SD-backed debug log when
+   that comes back online).
 
 3. *Cycling again.* The clock-gate write didn't actually take, or the
-controller's MMIO is stalling the bus, or there's another peripheral the
-bring-up depends on that we haven't woken up. Next investigation looks at
-whether the write landed (we can read the gate register back), whether the bus
-is responding (we can test by reading a known-good register first), and whether
-the USB-2 PHY has its own clock requirement we missed.
+   controller's MMIO is stalling the bus, or there's another peripheral the
+   bring-up depends on that we haven't woken up. Next investigation looks at
+   whether the write landed (we can read the gate register back), whether the
+   bus is responding (we can test by reading a known-good register first), and
+   whether the USB-2 PHY has its own clock requirement we missed.
 
 
 The cycling case is the most informative if it happens — it tells us
@@ -2379,9 +2762,17 @@ Hmm, can you double-check on the description? Two readings on "amber" are
 possible and they mean very different things:
 
 
-- *Both windows lit, both reading amber-colored* — like the led_hello flash from earlier rounds. Would mean the cycle is the same shape as before the watchdog work and usb_init is faulting somewhere inside its newly-added clock-and-reset writes.
+- *Both windows lit, both reading amber-colored* — like the led_hello flash
+  from earlier rounds. Would mean the cycle is the same shape as before the
+  watchdog work and usb_init is faulting somewhere inside its newly-added
+  clock-and-reset writes.
 
-- *Only the bottom window lit, in its actual amber* — would mean usb_init succeeded all the way through and the LED stage advanced to STAGE_USB_CONTROLLER. The fact that it then *cycles back* would be something else resetting us from the wait loop afterward, which is the more interesting case (we'd be back at the watchdog conversation but with a second mechanism in play).
+- *Only the bottom window lit, in its actual amber* — would mean usb_init
+  succeeded all the way through and the LED stage advanced to
+  STAGE_USB_CONTROLLER. The fact that it then *cycles back* would be something
+  else resetting us from the wait loop afterward, which is the more interesting
+  case (we'd be back at the watchdog conversation but with a second mechanism in
+  play).
 
 
 The visual difference: in the first case the *top* window has its green and red
@@ -2440,33 +2831,34 @@ the existing `STAGE_USB_CONTROLLER` for success).
 Ready to flash. Push and observe carefully through one full cycle.
 
 
-**What to watch for** (in order of what the cycle's visible sequence would look like):
+**What to watch for** (in order of what the cycle's visible sequence would look
+like):
 
 
 1. Hello flash (top yellow-amber + bottom amber, then dark — about a second
-each, same as before).
+   each, same as before).
 
 2. Brief green flash (`STAGE_KERNEL_MAIN`).
 
 3. *Then one of:*
 
-- **Just resets, no further LED activity.** Faulted at the first MMIO write
-inside `usb_clocks_and_reset_enable`. The clock-gate register at `0xFDD20328` is
-not actually accessible from this stage of boot.
+   - **Just resets, no further LED activity.** Faulted at the first MMIO write
+     inside `usb_clocks_and_reset_enable`. The clock-gate register at
+     `0xFDD20328` is not actually accessible from this stage of boot.
 
-- **Top green + bottom amber held briefly.** Checkpoint A reached, faulted
-during the clock-and-reset enable (between checkpoint A and checkpoint B). The
-clock-gate write may have landed but something downstream of it (the soft-reset
-write or the reset deassertion) tripped the fault.
+   - **Top green + bottom amber held briefly.** Checkpoint A reached, faulted
+     during the clock-and-reset enable (between checkpoint A and checkpoint B).
+     The clock-gate write may have landed but something downstream of it (the
+     soft-reset write or the reset deassertion) tripped the fault.
 
-- **Top yellow-amber + bottom dark held briefly.** Both checkpoints reached,
-faulted during the PHY-suspend write or the DWC3 sub-step.
+   - **Top yellow-amber + bottom dark held briefly.** Both checkpoints reached,
+     faulted during the PHY-suspend write or the DWC3 sub-step.
 
-- **Top dark + bottom amber, steady.** Made it all the way through. (Unlikely
-given what we know, but it's the goal.)
+   - **Top dark + bottom amber, steady.** Made it all the way through. (Unlikely
+     given what we know, but it's the goal.)
 
-- **Top red + bottom dark, steady.** DWC3 returned a clean identification
-failure. We'd then know exactly what register read what value.
+   - **Top red + bottom dark, steady.** DWC3 returned a clean identification
+     failure. We'd then know exactly what register read what value.
 
 
 Each checkpoint holds for about half a second so you have time to see it. Pull
@@ -2502,16 +2894,30 @@ steady). If the cycle still happens with Checkpoint B as the last visible state,
 the PHY-bring-up itself is the fault and the DWC3 sub-step was never reached.
 
 
-**Ready to flash.** Push and watch through the cycle (or what becomes a non-cycle).
+**Ready to flash.** Push and watch through the cycle (or what becomes a
+non-cycle).
 
 
 **Two possible outcomes, two different next moves:**
 
 
-- *Top dark, bottom amber, steady, forever.* The PHY work is fine; the fault is downstream in the DWC3 sub-step. Next round restores the DWC3 work with a finer-grained set of checkpoints inside the controller's own register sequence (the soft-reset toggle, the port-capability direction write, the device-speed pin, the identification-register read), so we can find the specific DWC3 register access that the controller objects to.
+- *Top dark, bottom amber, steady, forever.* The PHY work is fine; the fault is
+  downstream in the DWC3 sub-step. Next round restores the DWC3 work with a
+  finer-grained set of checkpoints inside the controller's own register sequence
+  (the soft-reset toggle, the port-capability direction write, the device-speed
+  pin, the identification-register read), so we can find the specific DWC3
+  register access that the controller objects to.
 
 
-- *Same cycle as before, ending with the top yellow-amber + bottom dark checkpoint visible briefly before the reset.* The PHY-suspend write itself is the fault. Next round looks at why — possibilities include the PHY's reference clock actually not being enabled (the agent thought it was by reset default but that may not be true on this board), or the suspend register taking a slightly different value on this specific PHY revision than the upstream code expects, or the PHY needing its power-down bits cleared before the suspend write lands. The reopened 109a issue's research-pending step about the PMU GRF power-down register layout becomes the next thing to chase.
+- *Same cycle as before, ending with the top yellow-amber + bottom dark
+  checkpoint visible briefly before the reset.* The PHY-suspend write itself is
+  the fault. Next round looks at why — possibilities include the PHY's
+  reference clock actually not being enabled (the agent thought it was by reset
+  default but that may not be true on this board), or the suspend register
+  taking a slightly different value on this specific PHY revision than the
+  upstream code expects, or the PHY needing its power-down bits cleared before
+  the suspend write lands. The reopened 109a issue's research-pending step about
+  the PMU GRF power-down register layout becomes the next thing to chase.
 
 
 Whichever you see, that's the diagnostic. Take your time, watch one full cycle,
@@ -2543,7 +2949,10 @@ project's hardware-overview doc uses another. The agent's research flagged this
 as a real possible source of the trouble.
 
 
-**Found a real bug.** The device tree says the controller is at `0xFCC00000`, not `0xFEC00000`. The project's memory map and the USB code both have the wrong address. Let me confirm what's actually at the wrong address we've been writing to.
+**Found a real bug.** The device tree says the controller is at `0xFCC00000`,
+not `0xFEC00000`. The project's memory map and the USB code both have the wrong
+address. Let me confirm what's actually at the wrong address we've been writing
+to.
 
 
 Confirmed — `0xFCC00000` is the actual DWC3 controller address; `0xFEC00000`
@@ -2557,34 +2966,35 @@ Fixing the address, restoring the DWC3 sub-step, updating the doc.
 Now updating the project memory map.
 
 
-**Ready to flash.** This is a genuine bug fix — not just a diagnostic. The driver was writing to empty bus space the whole time.
+**Ready to flash.** This is a genuine bug fix — not just a diagnostic. The
+driver was writing to empty bus space the whole time.
 
 
 **Three possible outcomes when you flash:**
 
 
 1. *Top dark, bottom amber, steady forever.* USB controller bring-up succeeds
-end-to-end. The clocks ungate, the soft reset toggles cleanly, the port
-direction sets to device mode, the device-speed pins to USB 2.0 high speed, and
-the identification register reads back the documented Synopsys "U3" magic. The
-previously-untested USB-side code is confirmed working, and the kernel is at
-`STAGE_USB_CONTROLLER` for the first time on real hardware.
+   end-to-end. The clocks ungate, the soft reset toggles cleanly, the port
+   direction sets to device mode, the device-speed pins to USB 2.0 high speed,
+   and the identification register reads back the documented Synopsys "U3"
+   magic. The previously-untested USB-side code is confirmed working, and the
+   kernel is at `STAGE_USB_CONTROLLER` for the first time on real hardware.
 
 
 2. *Top red + bottom dark, steady forever.* The DWC3 controller is responding
-now (no fault) but the identification register read back something other than
-`0x5533` in its upper sixteen bits. The kernel routes through the panic path
-cleanly — we have a specific actual value we'd want to read off, which we'd do
-in the next iteration by either lighting a value-derived LED pattern or
-restoring the debug log path. This is also progress: it means the controller is
-alive at the new address.
+   now (no fault) but the identification register read back something other than
+   `0x5533` in its upper sixteen bits. The kernel routes through the panic path
+   cleanly — we have a specific actual value we'd want to read off, which we'd
+   do in the next iteration by either lighting a value-derived LED pattern or
+   restoring the debug log path. This is also progress: it means the controller
+   is alive at the new address.
 
 
 3. *Two checkpoints visible in a cycle, ending at checkpoint B.* The DWC3 base
-address is still wrong somehow — possibly a different bus mapping is active,
-or the device tree we extracted isn't reflecting what ROCKNIX's u-boot
-configured. Less likely, but if it happens we'd look at the chip's bus
-configuration registers.
+   address is still wrong somehow — possibly a different bus mapping is
+   active, or the device tree we extracted isn't reflecting what ROCKNIX's
+   u-boot configured. Less likely, but if it happens we'd look at the chip's bus
+   configuration registers.
 
 
 I'd bet on outcome one. Push and see.
@@ -2630,28 +3040,29 @@ leaving the long backup skipped for one more round.
 
 
 1. *Top dark, bottom amber, steady forever.* All four bring-up steps (endpoint
-zero, eMMC controller, SD controller, debug-log init) completed cleanly. The
-kernel is sitting in its idle wait loop with the USB-controller stage signal
-lit. This is the goal — every peripheral the phase-1 design expects has been
-brought up successfully on real hardware for the first time.
+   zero, eMMC controller, SD controller, debug-log init) completed cleanly. The
+   kernel is sitting in its idle wait loop with the USB-controller stage signal
+   lit. This is the goal — every peripheral the phase-1 design expects has
+   been brought up successfully on real hardware for the first time.
 
 
 2. *Top red, bottom dark, steady forever.* One of the four bring-up steps
-returned a clean failure code; the kernel routed through the panic stage signal.
-The kernel itself is alive and the LED layer works; we'd need a small
-one-bit-at-a-time diagnostic to find out which step panicked (the steps return
-errors before painting their own intermediate stage, so we'd add a
-stage-by-stage trail to find which one hit the failure path).
+   returned a clean failure code; the kernel routed through the panic stage
+   signal. The kernel itself is alive and the LED layer works; we'd need a small
+   one-bit-at-a-time diagnostic to find out which step panicked (the steps
+   return errors before painting their own intermediate stage, so we'd add a
+   stage-by-stage trail to find which one hit the failure path).
 
 
-**One outcome that would tell us to re-apply the previous round's diagnostic toolkit:**
+**One outcome that would tell us to re-apply the previous round's diagnostic
+toolkit:**
 
 
 3. *Cycling reset.* One of the four bring-up steps has the same shape of
-address-or-clock gap the USB controller had — the kernel can't reach the
-panic-painting code because it faults first and the bootloader resets us. We'd
-then narrow down which step with the same checkpoint-before-each-step pattern we
-used for USB.
+   address-or-clock gap the USB controller had — the kernel can't reach the
+   panic-painting code because it faults first and the bootloader resets us.
+   We'd then narrow down which step with the same checkpoint-before-each-step
+   pattern we used for USB.
 
 
 The eMMC and SD controllers are the most likely candidates for cycling, given
@@ -2695,24 +3106,23 @@ so the others didn't bite us in active code, but they're all wrong in the
 memory-map doc:
 
 
-| What it is | Doc says | Actually is |
+| What it is                         | Doc says       | Actually is    |
 
 |------------------------------------|----------------|----------------|
 
-| USB3 OTG controller (DWC3) | `0xFEC0_0000` | `0xFCC0_0000` |
+| USB3 OTG controller (DWC3)         | `0xFEC0_0000`  | `0xFCC0_0000`  |
 
-| USB3 host 1 xHCI | `0xFED0_0000` | `0xFD00_0000` |
+| USB3 host 1 xHCI                   | `0xFED0_0000`  | `0xFD00_0000`  |
 
-| USB2 host 0 EHCI | `0xFED8_0000` | `0xFD80_0000` |
+| USB2 host 0 EHCI                   | `0xFED8_0000`  | `0xFD80_0000`  |
 
-| USB2 host 0 OHCI | `0xFED8_4000` | `0xFD84_0000` |
+| USB2 host 0 OHCI                   | `0xFED8_4000`  | `0xFD84_0000`  |
 
-| USB2 host 1 EHCI | `0xFED8_8000` | `0xFD88_0000` |
+| USB2 host 1 EHCI                   | `0xFED8_8000`  | `0xFD88_0000`  |
 
-| USB2 host 1 OHCI | `0xFED8_C000` | `0xFD8C_0000` |
+| USB2 host 1 OHCI                   | `0xFED8_C000`  | `0xFD8C_0000`  |
 
-| PMU (power-management) | `0xFD80_0000` | `0xFDD9_0000` (and the doc's
-`0xFD80_0000` is *actually* USB2 host 0 EHCI) |
+| PMU (power-management)             | `0xFD80_0000`  | `0xFDD9_0000` (and the doc's `0xFD80_0000` is *actually* USB2 host 0 EHCI) |
 
 
 Everything else I checked against the DT is correct: eMMC at `0xFE31_0000`,
@@ -2732,30 +3142,37 @@ narrow down which one faults in the same way we did for USB.
 
 
 1. **Doc audit done.** All the USB controller addresses in
-`docs/016-physical-memory-map.md` are now corrected. The same
-transcription-error pattern as the DWC3 bug shows up across the whole USB
-section (`FE` where the device tree has `FD` or `FC`), plus a misplaced PMU row
-that was actually USB2 host 0 EHCI's address. Nothing else in the doc had wrong
-addresses — eMMC, SD, watchdog, PWM, GPIO, GRF, CRU, I²C, UART, SPI, USB2
-PHYs all check out.
+   `docs/016-physical-memory-map.md` are now corrected. The same
+   transcription-error pattern as the DWC3 bug shows up across the whole USB
+   section (`FE` where the device tree has `FD` or `FC`), plus a misplaced PMU
+   row that was actually USB2 host 0 EHCI's address. Nothing else in the doc had
+   wrong addresses — eMMC, SD, watchdog, PWM, GPIO, GRF, CRU, I²C, UART, SPI,
+   USB2 PHYs all check out.
 
 
 2. **Diagnostic for the new cycling.** Two checkpoints between
-USB-controller-stage and the eMMC bring-up, same shape as the USB-side
-diagnostic that found the address bug. SD and debug-log bring-up skipped so a
-fault in those doesn't muddle the picture this round.
+   USB-controller-stage and the eMMC bring-up, same shape as the USB-side
+   diagnostic that found the address bug. SD and debug-log bring-up skipped so a
+   fault in those doesn't muddle the picture this round.
 
 
 Push and observe — outcomes from most-likely to least:
 
 
-- *Top yellow-amber + bottom dark, steady, indefinitely.* Endpoint-zero configuration and the eMMC bring-up both succeeded. The fault was in SD or debug-log; next round restores those with the same checkpoint pattern.
+- *Top yellow-amber + bottom dark, steady, indefinitely.* Endpoint-zero
+  configuration and the eMMC bring-up both succeeded. The fault was in SD or
+  debug-log; next round restores those with the same checkpoint pattern.
 
-- *Top green + bottom amber held briefly, then cycle.* Endpoint-zero configuration is the fault site.
+- *Top green + bottom amber held briefly, then cycle.* Endpoint-zero
+  configuration is the fault site.
 
-- *Top red + bottom dark, steady.* eMMC bring-up returned a clean identification failure — we get a specific value to investigate.
+- *Top red + bottom dark, steady.* eMMC bring-up returned a clean identification
+  failure — we get a specific value to investigate.
 
-- *Cycle without ever seeing checkpoint A.* The kernel doesn't reach the first checkpoint, which would be surprising given the previous boot did reach `STAGE_USB_CONTROLLER`. Would suggest the LED layer itself is somehow affected.
+- *Cycle without ever seeing checkpoint A.* The kernel doesn't reach the first
+  checkpoint, which would be surprising given the previous boot did reach
+  `STAGE_USB_CONTROLLER`. Would suggest the LED layer itself is somehow
+  affected.
 
 
 Tell me what you see.
@@ -2779,7 +3196,9 @@ specifically it does, since that'll guide whether to drill in with more
 checkpoints or skip it for now.
 
 
-**Found it.** `010-usb-enumeration.c` has its own copy of `DWC3_BASE` still pointing at the wrong address — same bug, separate file, missed in the previous fix. Let me also check the CDC-ACM file for the same.
+**Found it.** `010-usb-enumeration.c` has its own copy of `DWC3_BASE` still
+pointing at the wrong address — same bug, separate file, missed in the
+previous fix. Let me also check the CDC-ACM file for the same.
 
 
 Same bug, two more files. Fixing both.
@@ -2789,15 +3208,24 @@ Now cleaning up the kernel_main checkpoints and restoring the rest of the
 bring-up chain.
 
 
-**Ready to flash.** This is a real bug fix — same shape as the previous USB address fix, but the duplicated constant lived in two more files that the previous round missed. All three USB-side files now agree on `0xFCC0_0000`.
+**Ready to flash.** This is a real bug fix — same shape as the previous USB
+address fix, but the duplicated constant lived in two more files that the
+previous round missed. All three USB-side files now agree on `0xFCC0_0000`.
 
 
 **Two outcomes worth watching for:**
 
 
-- *Top dark, bottom amber, steady, indefinitely.* All four post-USB-controller bring-up steps succeeded — endpoint zero, eMMC, SD card, debug-log init. Massive milestone: every controller the phase-1 design touches is now alive on real hardware. The next iteration restores the 32 GB backup and watches it run for many minutes.
+- *Top dark, bottom amber, steady, indefinitely.* All four post-USB-controller
+  bring-up steps succeeded — endpoint zero, eMMC, SD card, debug-log init.
+  Massive milestone: every controller the phase-1 design touches is now alive on
+  real hardware. The next iteration restores the 32 GB backup and watches it run
+  for many minutes.
 
-- *Top red, bottom dark, steady.* One of the four returned a clean panic. The kernel made it all the way to the panic path without faulting; we'd need a one-bit-at-a-time signal to find which step panicked, but we'd be in clean territory with a working diagnostic channel.
+- *Top red, bottom dark, steady.* One of the four returned a clean panic. The
+  kernel made it all the way to the panic path without faulting; we'd need a
+  one-bit-at-a-time signal to find which step panicked, but we'd be in clean
+  territory with a working diagnostic channel.
 
 
 The cycling shape you've been seeing all evening shouldn't happen this round.
@@ -2820,17 +3248,26 @@ steady top dark.
 working on real hardware for the first time in this single boot:
 
 
-- The kernel itself reaches its C entry, runs its allocator self-test, sits at the USB-controller stage signal.
+- The kernel itself reaches its C entry, runs its allocator self-test, sits at
+  the USB-controller stage signal.
 
-- The USB 3.0 OTG controller (DWC3) — clocks ungated by us, hardware reset deasserted by us, PHY out of suspend, controller in device mode at USB 2.0 high speed, identification register correct.
+- The USB 3.0 OTG controller (DWC3) — clocks ungated by us, hardware reset
+  deasserted by us, PHY out of suspend, controller in device mode at USB 2.0
+  high speed, identification register correct.
 
-- USB endpoint zero is now configured. The event-ring address, the endpoint command machinery, and the TRB plumbing all came up without a fault — the kernel did write to all the DWC3 endpoint-command registers at the corrected base address and the controller responded.
+- USB endpoint zero is now configured. The event-ring address, the endpoint
+  command machinery, and the TRB plumbing all came up without a fault — the
+  kernel did write to all the DWC3 endpoint-command registers at the corrected
+  base address and the controller responded.
 
-- The eMMC controller (SDHCI for the internal 8-bit non-removable storage) brought up successfully.
+- The eMMC controller (SDHCI for the internal 8-bit non-removable storage)
+  brought up successfully.
 
-- The SD card controller (DW MSHC for the external microSD) brought up successfully — and it's the same one the bootloader read `/KERNEL` from.
+- The SD card controller (DW MSHC for the external microSD) brought up
+  successfully — and it's the same one the bootloader read `/KERNEL` from.
 
-- The SD-backed debug log infrastructure is ready (DRAM ring buffer allocated, flush target known on the SD card).
+- The SD-backed debug log infrastructure is ready (DRAM ring buffer allocated,
+  flush target known on the SD card).
 
 
 Every assumption the project made about "the bootloader has this peripheral set
@@ -2846,20 +3283,25 @@ This is a real phase-1 milestone. The kernel is now genuinely usable as a
 foundation.
 
 
-**The one remaining piece of phase 1 hardware bring-up:** the 32 GB eMMC-to-SD backup. It runs for "many minutes" at the chip's currently-slow boot clock, the bottom amber LED blinks as a heartbeat while it copies (every megabyte), and it finishes with `STAGE_BACKUP_COMPLETE` (top red + bottom amber) at which point you power off, pull the SD card, and analyze the eMMC dump on the lab laptop to find the boot partition's real LBA (issue 110e's closing evidence).
+**The one remaining piece of phase 1 hardware bring-up:** the 32 GB eMMC-to-SD
+backup. It runs for "many minutes" at the chip's currently-slow boot clock, the
+bottom amber LED blinks as a heartbeat while it copies (every megabyte), and it
+finishes with `STAGE_BACKUP_COMPLETE` (top red + bottom amber) at which point
+you power off, pull the SD card, and analyze the eMMC dump on the lab laptop to
+find the boot partition's real LBA (issue 110e's closing evidence).
 
 
 Two paths from here:
 
 
 1. **Restore the backup and run it.** Multi-minute test on hardware, but the
-closing evidence on 110e — and on the whole SD-side bring-up — would land.
-The next phase-1 work (eMMC takeover writes, USB-C runtime re-flash) becomes
-unblocked.
+   closing evidence on 110e — and on the whole SD-side bring-up — would
+   land. The next phase-1 work (eMMC takeover writes, USB-C runtime re-flash)
+   becomes unblocked.
 
 2. **Stop here for now.** The bring-up portion of phase 1 is done; the backup
-can be its own session whenever it's convenient. The kernel as-is is a clean
-checkpoint.
+   can be its own session whenever it's convenient. The kernel as-is is a clean
+   checkpoint.
 
 
 Either way, we just turned a lot of broken assumptions into working hardware.
@@ -2888,32 +3330,32 @@ restoring the backup call in `kernel_main`.
 
 
 1. *Standard early-boot sequence.* Hello flash (double amber, dark), brief green
-flash for the kernel-reached-main stage signal, brief bottom-amber-flash for the
-USB-controller stage signal as the kernel passes through it.
+   flash for the kernel-reached-main stage signal, brief bottom-amber-flash for
+   the USB-controller stage signal as the kernel passes through it.
 
 2. *Bottom amber blinking, top dark, indefinitely.* This is the backup running.
-The blink fires once every ten megabytes of forward progress on the eMMC-to-SD
-copy. At the chip's currently-slow boot clock the cadence between blinks will
-probably be on the order of several seconds — you should be able to count
-individual blinks comfortably.
+   The blink fires once every ten megabytes of forward progress on the
+   eMMC-to-SD copy. At the chip's currently-slow boot clock the cadence between
+   blinks will probably be on the order of several seconds — you should be
+   able to count individual blinks comfortably.
 
 3. *(Many minutes later.)* The blinking stops and the LED settles on either:
 
-- **Top red + bottom amber, steady.** Backup complete. Power off, pull the SD
-card, and the lab-side workflow becomes "`dd` the reserved region off the card
-starting at LBA `0x200000`, analyze the eMMC's GPT to find the boot partition's
-actual LBA." That closes issue 110e and unblocks the eMMC takeover work (110b
-can run with a verified LBA after that).
+   - **Top red + bottom amber, steady.** Backup complete. Power off, pull the SD
+     card, and the lab-side workflow becomes "`dd` the reserved region off the
+     card starting at LBA `0x200000`, analyze the eMMC's GPT to find the boot
+     partition's actual LBA." That closes issue 110e and unblocks the eMMC
+     takeover work (110b can run with a verified LBA after that).
 
-- **Top red + bottom dark, steady.** Backup hit a fatal error. The kernel does a
-final flush of the SD-backed debug log before painting the panic stage signal,
-so whatever text-side narration of the failure was emitted is on the SD card.
-Pull and analyze regardless.
+   - **Top red + bottom dark, steady.** Backup hit a fatal error. The kernel
+     does a final flush of the SD-backed debug log before painting the panic
+     stage signal, so whatever text-side narration of the failure was emitted is
+     on the SD card. Pull and analyze regardless.
 
 4. *(Failure mode worth watching for.)* **Blinking stops without advancing to
-either steady pattern.** The kernel is stuck on a specific sector inside the
-loop. The SD-card debug log up to that point will tell us which sector and what
-happened.
+   either steady pattern.** The kernel is stuck on a specific sector inside the
+   loop. The SD-card debug log up to that point will tell us which sector and
+   what happened.
 
 
 Let it run. The bring-up phase of phase 1 is in the home stretch.
@@ -2936,10 +3378,22 @@ Two things you should know about what's likely happening, and one design issue I
 should have caught.
 
 
-**The first heartbeat is invisible.** The `led_heartbeat()` function starts its internal state at "amber off" and toggles on each call. The very first call (at sector zero of the backup loop) toggles to "amber on" — but the bottom amber LED was *already* on from the `STAGE_USB_CONTROLLER` stage signal that ran just before the backup started. So the first heartbeat does nothing visibly. The first observable blink is the *second* heartbeat call, ten megabytes into the backup, when amber toggles to off. That's the first thing you'd see change.
+**The first heartbeat is invisible.** The `led_heartbeat()` function starts its
+internal state at "amber off" and toggles on each call. The very first call (at
+sector zero of the backup loop) toggles to "amber on" — but the bottom amber
+LED was *already* on from the `STAGE_USB_CONTROLLER` stage signal that ran just
+before the backup started. So the first heartbeat does nothing visibly. The
+first observable blink is the *second* heartbeat call, ten megabytes into the
+backup, when amber toggles to off. That's the first thing you'd see change.
 
 
-**Ten megabytes might take longer than you'd expect.** The eMMC and SD drivers in this kernel are polled — every byte goes through MMIO register reads. At the chip's currently-slow boot clock, each sector probably costs somewhere between fifty microseconds and a few hundred microseconds, depending on the SD card's controller state. Ten megabytes is twenty thousand sectors; even at the fast end of that estimate, that's a few seconds, and at the slow end it could be twenty or thirty seconds.
+**Ten megabytes might take longer than you'd expect.** The eMMC and SD drivers
+in this kernel are polled — every byte goes through MMIO register reads. At
+the chip's currently-slow boot clock, each sector probably costs somewhere
+between fifty microseconds and a few hundred microseconds, depending on the SD
+card's controller state. Ten megabytes is twenty thousand sectors; even at the
+fast end of that estimate, that's a few seconds, and at the slow end it could be
+twenty or thirty seconds.
 
 
 So a steady bottom amber for fifteen to thirty seconds after the
@@ -2948,15 +3402,25 @@ happened but did nothing visible, and the second one is still ten megabytes
 away."
 
 
-**But the bigger problem: thirty-two gigabytes is the whole eMMC.** At a few minutes per gigabyte at this clock, the full backup could take *hours*. The original phase-1-issue's specification was a *two-hundred-megabyte* backup just for the boot-partition GPT analysis, but at some point along the way that got expanded to a full chip copy. That's overkill for what we need.
+**But the bigger problem: thirty-two gigabytes is the whole eMMC.** At a few
+minutes per gigabyte at this clock, the full backup could take *hours*. The
+original phase-1-issue's specification was a *two-hundred-megabyte* backup just
+for the boot-partition GPT analysis, but at some point along the way that got
+expanded to a full chip copy. That's overkill for what we need.
 
 
 **Two options.**
 
 
-- *Keep waiting.* If you've got an hour or three, the LED should start blinking visibly after the first ten megabytes (give it thirty seconds before deciding it's stuck), and the backup will eventually finish. You'll have a complete eMMC dump on the SD card, which is more than needed but doesn't hurt.
+- *Keep waiting.* If you've got an hour or three, the LED should start blinking
+  visibly after the first ten megabytes (give it thirty seconds before deciding
+  it's stuck), and the backup will eventually finish. You'll have a complete
+  eMMC dump on the SD card, which is more than needed but doesn't hurt.
 
-- *Power off, I'll change the backup size to two hundred megabytes, you re-flash.* The backup will complete in something like a minute or two instead of hours, you'll still get the boot-partition GPT, and `110e` will close just the same. This is what I'd recommend.
+- *Power off, I'll change the backup size to two hundred megabytes, you
+  re-flash.* The backup will complete in something like a minute or two instead
+  of hours, you'll still get the boot-partition GPT, and `110e` will close just
+  the same. This is what I'd recommend.
 
 
 Want me to make that change?
@@ -2982,7 +3446,15 @@ it running. Also, why is the estimated clock speed so slow?
 Three quick answers and then you can leave it running:
 
 
-**Yes, the partial backup is persistent.** Each sector goes through `sd_write_block`, which on this controller issues `CMD24` (write single block) per sector and waits for the controller to confirm the write before returning to the loop. By the time the kernel moves on to the next sector, the previous one is already committed to the SD card. So if you unplug now (after the device has been "stuck" for some minutes), pull the card, and `dd` the reserved region off, you'll have whatever sectors got written so far — the boot-partition GPT lives in the first sector of the eMMC, so even a few seconds of running already covers what issue 110e actually needs.
+**Yes, the partial backup is persistent.** Each sector goes through
+`sd_write_block`, which on this controller issues `CMD24` (write single block)
+per sector and waits for the controller to confirm the write before returning to
+the loop. By the time the kernel moves on to the next sector, the previous one
+is already committed to the SD card. So if you unplug now (after the device has
+been "stuck" for some minutes), pull the card, and `dd` the reserved region off,
+you'll have whatever sectors got written so far — the boot-partition GPT lives
+in the first sector of the eMMC, so even a few seconds of running already covers
+what issue 110e actually needs.
 
 
 Given that, **leave it running.** The LED-status improvements are nice-to-have
@@ -2993,7 +3465,18 @@ have a rough proxy for "the kernel is still alive and the storage is still
 flowing." If the blink stops mid-backup, then we know it's stuck.
 
 
-**Why the clock is so slow.** The chip's CPU core can run at up to 1.8 GHz, but the actual speed at any moment is set by its phase-locked loops (PLLs) in the clock-and-reset unit. PLLs are tiny analog circuits that take a slow reference clock (the chip's 24 MHz crystal) and multiply it up to a much higher frequency — they need to be configured with a target frequency and then take a few milliseconds to "lock" before their output is stable. The mainline-derived bootloader on the SD-card boot path apparently runs the CPU PLL at something like 50 MHz — fast enough for its own purposes (DRAM init, reading the kernel image off the SD card, the small amount of work a bootloader needs to do) but nowhere near the chip's rated full speed. When the bootloader hands off to our kernel, the PLL keeps the value it was running at — we inherit whatever the bootloader left.
+**Why the clock is so slow.** The chip's CPU core can run at up to 1.8 GHz, but
+the actual speed at any moment is set by its phase-locked loops (PLLs) in the
+clock-and-reset unit. PLLs are tiny analog circuits that take a slow reference
+clock (the chip's 24 MHz crystal) and multiply it up to a much higher frequency
+— they need to be configured with a target frequency and then take a few
+milliseconds to "lock" before their output is stable. The mainline-derived
+bootloader on the SD-card boot path apparently runs the CPU PLL at something
+like 50 MHz — fast enough for its own purposes (DRAM init, reading the kernel
+image off the SD card, the small amount of work a bootloader needs to do) but
+nowhere near the chip's rated full speed. When the bootloader hands off to our
+kernel, the PLL keeps the value it was running at — we inherit whatever the
+bootloader left.
 
 
 To run the CPU at its rated speed, our kernel would need to write to the chip's
@@ -3015,17 +3498,17 @@ will finish eventually and you'll have a complete eMMC dump.
 
 ### User Request 47
 
-To run the CPU at its rated speed, our kernel would need to write to the chip's
-CRU PLL configuration registers, set the target multiplier, and wait for the
-lock. That's
+  To run the CPU at its rated speed, our kernel would need to write to the
+  chip's CRU PLL configuration registers, set the target multiplier, and wait
+  for the lock. That's
 
-straightforward enough to be a small deferred phase-1 issue (or to fold into the
-soramech-runtime bring-up where it actually matters), but it's not strictly
-required for anything
+  straightforward enough to be a small deferred phase-1 issue (or to fold into
+  the soramech-runtime bring-up where it actually matters), but it's not
+  strictly required for anything
 
-phase-1's roadmap calls for. The backup running slow at this clock is the most
-visible practical cost; everything else just happens at human-noticeable but
-acceptable speeds.
+  phase-1's roadmap calls for. The backup running slow at this clock is the most
+  visible practical cost; everything else just happens at human-noticeable but
+  acceptable speeds.
 
 
 
@@ -3052,10 +3535,20 @@ You need three things: the SD card's block-device path on the lab laptop, the
 offset to read from on the card, and the number of sectors to grab.
 
 
-*Finding the SD card device.* After you pull the card and put it back in the laptop's slot, run `lsblk` to list block devices. The SD card shows up as something like `/dev/mmcblk0` (if it's in the built-in slot) or `/dev/sdX` (if you used a USB reader, where `X` is some letter). It'll be obviously the right size — your card is at least 256 GB per your earlier setup. Don't pick a partition (`mmcblk0p1`) — pick the whole device (`mmcblk0`).
+*Finding the SD card device.* After you pull the card and put it back in the
+laptop's slot, run `lsblk` to list block devices. The SD card shows up as
+something like `/dev/mmcblk0` (if it's in the built-in slot) or `/dev/sdX` (if
+you used a USB reader, where `X` is some letter). It'll be obviously the right
+size — your card is at least 256 GB per your earlier setup. Don't pick a
+partition (`mmcblk0p1`) — pick the whole device (`mmcblk0`).
 
 
-*The kernel writes the backup starting at the SD card's reserved region.* That region begins at logical block address `0x200000` (decimal `2097152`) — that's the SD card's 2,097,152nd sector at 512 bytes per sector, which is one gigabyte from the start of the card. The reserved region is comfortably above the FAT partition the bootloader uses, so the card stays bootable across this whole operation.
+*The kernel writes the backup starting at the SD card's reserved region.* That
+region begins at logical block address `0x200000` (decimal `2097152`) — that's
+the SD card's 2,097,152nd sector at 512 bytes per sector, which is one gigabyte
+from the start of the card. The reserved region is comfortably above the FAT
+partition the bootloader uses, so the card stays bootable across this whole
+operation.
 
 
 *The command, with the device path filled in for the built-in slot case:*
@@ -3063,25 +3556,31 @@ offset to read from on the card, and the number of sectors to grab.
 
 ```
 
-sudo dd if=/dev/mmcblk0 of=emmc-partial-dump.img bs=512 skip=2097152
-count=204800 status=progress
+sudo dd if=/dev/mmcblk0 of=emmc-partial-dump.img bs=512 skip=2097152 count=204800 status=progress
 
 ```
 
 
 What each piece does:
 
-- `if=/dev/mmcblk0` — input file is the raw SD card block device (replace with the actual device `lsblk` showed you).
+- `if=/dev/mmcblk0` — input file is the raw SD card block device (replace with
+  the actual device `lsblk` showed you).
 
-- `of=emmc-partial-dump.img` — output goes to a regular file in your current directory.
+- `of=emmc-partial-dump.img` — output goes to a regular file in your current
+  directory.
 
 - `bs=512` — work in 512-byte chunks, matching the SD card's sector size.
 
-- `skip=2097152` — skip the first 2,097,152 sectors of the SD card to land at the kernel's reserved region.
+- `skip=2097152` — skip the first 2,097,152 sectors of the SD card to land at
+  the kernel's reserved region.
 
-- `count=204800` — read 204,800 sectors, which is one hundred megabytes. The kernel's backup writes sectors in order from the start of the eMMC, so a hundred megabytes covers way more than what 110e needs (the GPT and partition entries live in the first sector or two) and gives you a generous margin.
+- `count=204800` — read 204,800 sectors, which is one hundred megabytes. The
+  kernel's backup writes sectors in order from the start of the eMMC, so a
+  hundred megabytes covers way more than what 110e needs (the GPT and partition
+  entries live in the first sector or two) and gives you a generous margin.
 
-- `status=progress` — dd prints how many bytes it's read so far while it runs, so you can watch it work.
+- `status=progress` — dd prints how many bytes it's read so far while it runs,
+  so you can watch it work.
 
 
 After the dump finishes, the file `emmc-partial-dump.img` contains a mix of
@@ -3093,11 +3592,14 @@ beginning.
 
 To analyze the GPT for the 110e closing evidence:
 
-- `file emmc-partial-dump.img` — should report "DOS/MBR boot sector" plus a GPT signature.
+- `file emmc-partial-dump.img` — should report "DOS/MBR boot sector" plus a
+  GPT signature.
 
-- `gdisk -l emmc-partial-dump.img` — lists the partition table, which is what you actually want for 110e (the boot partition's real LBA).
+- `gdisk -l emmc-partial-dump.img` — lists the partition table, which is what
+  you actually want for 110e (the boot partition's real LBA).
 
-- `xxd emmc-partial-dump.img | head -8` — first 128 bytes raw, which lets you eyeball the MBR's protective entry and the GPT header signature.
+- `xxd emmc-partial-dump.img | head -8` — first 128 bytes raw, which lets you
+  eyeball the MBR's protective entry and the GPT header signature.
 
 
 If the dump came up shorter than expected (the backup hadn't run far before you
@@ -3130,10 +3632,19 @@ location too, since that might have something:
 Let me look at what's in the dump and what it tells us.
 
 
-**What the dump looks like:** Every sector I sampled (sector 0, sector 64 — where the Rockchip idbloader should live, sector 16384 — where the u-boot FIT should be) shows uniformly random high-entropy bytes. No `RKNS` at sector 64, no `d00dfeed` at sector 16384, no `EFI PART` anywhere, no MBR signature, no readable strings in the whole 100 megabytes. The eMMC's boot chain blobs (which the BootROM needs to read in cleartext on every boot) would have shown up immediately if the dump contained actual eMMC content.
+**What the dump looks like:** Every sector I sampled (sector 0, sector 64 —
+where the Rockchip idbloader should live, sector 16384 — where the u-boot FIT
+should be) shows uniformly random high-entropy bytes. No `RKNS` at sector 64, no
+`d00dfeed` at sector 16384, no `EFI PART` anywhere, no MBR signature, no
+readable strings in the whole 100 megabytes. The eMMC's boot chain blobs (which
+the BootROM needs to read in cleartext on every boot) would have shown up
+immediately if the dump contained actual eMMC content.
 
 
-**What that means:** the kernel almost certainly never reached the backup. The "stuck at bottom amber, steady" state we saw on the device wasn't the backup running and the LED-blink waiting on the first ten-megabyte mark — it was the kernel hanging *before* the backup started. The candidates are:
+**What that means:** the kernel almost certainly never reached the backup. The
+"stuck at bottom amber, steady" state we saw on the device wasn't the backup
+running and the LED-blink waiting on the first ten-megabyte mark — it was the
+kernel hanging *before* the backup started. The candidates are:
 
 
 - `usb_endpoint_zero_bringup` — the controller's endpoint configuration
@@ -3151,35 +3662,36 @@ flash doesn't zero on erase; whatever was at LBA 2097152+ from prior use is what
 `dd` read back.
 
 
-**The next diagnostic should tell us specifically where the kernel hung.** Two complementary moves:
+**The next diagnostic should tell us specifically where the kernel hung.** Two
+complementary moves:
 
 
 1. *If the SD card is still around, try the debug log.* `debug_log_init`
-allocates space at LBA `0x4000000` (~32 GB into the card, sector 67108864
-decimal). If `debug_log_init` ran successfully — meaning the kernel got past
-it before hanging on the backup — there would be a flush of the bring-up
-narration on the SD card waiting for us. If the debug log is also empty (zeros
-or residual), the kernel hung *before* `debug_log_init`, in either USB endpoint
-zero, eMMC init, or SD init. The command:
+   allocates space at LBA `0x4000000` (~32 GB into the card, sector 67108864
+   decimal). If `debug_log_init` ran successfully — meaning the kernel got
+   past it before hanging on the backup — there would be a flush of the
+   bring-up narration on the SD card waiting for us. If the debug log is also
+   empty (zeros or residual), the kernel hung *before* `debug_log_init`, in
+   either USB endpoint zero, eMMC init, or SD init. The command:
 
-```
+   ```
 
-sudo dd if=/dev/mmcblk0 of=debug-log.img bs=512 skip=67108864 count=32768
-status=progress
+   sudo dd if=/dev/mmcblk0 of=debug-log.img bs=512 skip=67108864 count=32768 status=progress
 
-```
+   ```
 
-(Adjust the device path and pass `bs=512 skip=67108864 count=32768` to capture a
-16 MB window around the debug-log start.) Then `strings debug-log.img | head
--50` would show whatever text the kernel managed to flush.
+   (Adjust the device path and pass `bs=512 skip=67108864 count=32768` to
+   capture a 16 MB window around the debug-log start.) Then `strings
+   debug-log.img | head -50` would show whatever text the kernel managed to
+   flush.
 
 
 2. *Re-flash the kernel with intermediate LED stages.* Same shape as the USB
-checkpoint diagnostic we ran earlier — set a distinct LED pattern after each
-successful bring-up step, so the next "stuck" state tells us which step the
-kernel actually reached. We have two unused LED-pattern combinations available;
-that's enough to distinguish "stuck after endpoint zero" vs "stuck after eMMC"
-vs "stuck after SD" vs "stuck after debug-log."
+   checkpoint diagnostic we ran earlier — set a distinct LED pattern after
+   each successful bring-up step, so the next "stuck" state tells us which step
+   the kernel actually reached. We have two unused LED-pattern combinations
+   available; that's enough to distinguish "stuck after endpoint zero" vs "stuck
+   after eMMC" vs "stuck after SD" vs "stuck after debug-log."
 
 
 Where's the SD card now? If you can give me the `/dev/...` path it's at, I'll
@@ -3214,27 +3726,26 @@ used to find the USB address bug, applied to the four bring-up steps after
 `STAGE_USB_CONTROLLER`.
 
 
-**Ready to flash.** Push and observe the LED state after the kernel-reached-main flash.
+**Ready to flash.** Push and observe the LED state after the kernel-reached-main
+flash.
 
 
 **What each end-state tells us:**
 
 
-| LED holds at | Means |
+| LED holds at                              | Means                                          |
 
 |-------------------------------------------|------------------------------------------------|
 
-| Bottom amber alone (top dark) | `usb_endpoint_zero_bringup` is the hang |
+| Bottom amber alone (top dark)             | `usb_endpoint_zero_bringup` is the hang        |
 
-| Top green + bottom amber | `emmc_init` is the hang |
+| Top green + bottom amber                  | `emmc_init` is the hang                        |
 
-| Top yellow-amber + bottom dark | `sd_init` or `debug_log_init` is the hang |
+| Top yellow-amber + bottom dark            | `sd_init` or `debug_log_init` is the hang      |
 
-| Top yellow-amber + bottom amber (all three) | `debug_log_init` is the hang
-(made it past `sd_init`) |
+| Top yellow-amber + bottom amber (all three) | `debug_log_init` is the hang (made it past `sd_init`) |
 
-| Top yellow-amber + bottom dark, indefinitely | All four bring-ups succeeded
-— next round restores the backup itself |
+| Top yellow-amber + bottom dark, indefinitely | All four bring-ups succeeded — next round restores the backup itself |
 
 
 The two yellow-amber-plus-dark patterns share an LED shape but their *meaning*
@@ -3289,26 +3800,30 @@ USB-enumeration issue and let the backup proceed without it.
 
 
 1. *Hello flash and stage signals.* Double amber, dark, brief green flash, brief
-bottom-amber for the USB-controller stage signal.
+   bottom-amber for the USB-controller stage signal.
 
 2. *Through the bring-up checkpoints quickly.* Brief top green + bottom amber
-(after eMMC init), brief top yellow-amber + bottom dark (after SD init).
+   (after eMMC init), brief top yellow-amber + bottom dark (after SD init).
 
 3. *Bottom amber alone as the backup starts.* The LED settles back to
-STAGE_USB_CONTROLLER's pattern as the kernel enters the backup loop.
+   STAGE_USB_CONTROLLER's pattern as the kernel enters the backup loop.
 
 4. *Bottom amber starts blinking.* Every ten megabytes of progress through the
-200-megabyte backup (so twenty heartbeats total). At the chip's slow clock,
-expect roughly a few seconds to ten seconds between blinks. The first heartbeat
-at sector zero is invisible (amber was already on); the first visible blink is
-at sector 20,480, ten megabytes in.
+   200-megabyte backup (so twenty heartbeats total). At the chip's slow clock,
+   expect roughly a few seconds to ten seconds between blinks. The first
+   heartbeat at sector zero is invisible (amber was already on); the first
+   visible blink is at sector 20,480, ten megabytes in.
 
 5. *(A few minutes later.)* Top red + bottom amber, steady. Backup complete.
-Power off, pull the card, dd the reserved region off, run `gdisk -l` against the
-dump file.
+   Power off, pull the card, dd the reserved region off, run `gdisk -l` against
+   the dump file.
 
 
-**If anything goes wrong:** the LED state tells us where. Top green + bottom amber held forever = `sd_init` is the hang. Top yellow-amber + bottom dark held forever = `debug_log_init` is the hang. Bottom amber alone with no blinking past about a minute = the backup itself is stuck on a sector (probably the first one). Top red + bottom dark steady = clean panic from one of the bring-up steps.
+**If anything goes wrong:** the LED state tells us where. Top green + bottom
+amber held forever = `sd_init` is the hang. Top yellow-amber + bottom dark held
+forever = `debug_log_init` is the hang. Bottom amber alone with no blinking past
+about a minute = the backup itself is stuck on a sector (probably the first
+one). Top red + bottom dark steady = clean panic from one of the bring-up steps.
 
 
 Push, flash, run.
@@ -3330,9 +3845,15 @@ Important clarifying question before I propose anything: **after the two
 flashes, is the bottom window dark or still amber?**
 
 
-- *Top red, bottom amber* = `STAGE_BACKUP_COMPLETE` — but only twenty megabytes of progress before that signal would mean the backup completed astonishingly fast (way faster than the slow-clock estimate predicted), which doesn't match what we'd expect.
+- *Top red, bottom amber* = `STAGE_BACKUP_COMPLETE` — but only twenty
+  megabytes of progress before that signal would mean the backup completed
+  astonishingly fast (way faster than the slow-clock estimate predicted), which
+  doesn't match what we'd expect.
 
-- *Top red, bottom dark* = `STAGE_PANIC_GENERIC` — the backup loop hit either an eMMC read failure or an SD write failure partway through, the kernel did a final flush of the SD-backed debug log, and the panic stage signal got painted.
+- *Top red, bottom dark* = `STAGE_PANIC_GENERIC` — the backup loop hit either
+  an eMMC read failure or an SD write failure partway through, the kernel did a
+  final flush of the SD-backed debug log, and the panic stage signal got
+  painted.
 
 
 The second reading is much more likely. The two visible heartbeat toggles before
@@ -3356,8 +3877,7 @@ time:
 
 ```
 
-sudo dd if=/dev/mmcblk0 of=debug-log.img bs=512 skip=67108864 count=32768
-status=progress
+sudo dd if=/dev/mmcblk0 of=debug-log.img bs=512 skip=67108864 count=32768 status=progress
 
 ```
 
@@ -3365,11 +3885,17 @@ status=progress
 Then `strings debug-log.img | head -50` should show the bring-up narration
 ending with one of:
 
-- `[backup] eMMC read failed` — the eMMC read at some sector returned an error code, probably because the eMMC controller's command sequencing breaks down after the first few sectors. Investigation moves to the eMMC driver.
+- `[backup] eMMC read failed` — the eMMC read at some sector returned an error
+  code, probably because the eMMC controller's command sequencing breaks down
+  after the first few sectors. Investigation moves to the eMMC driver.
 
-- `[backup] SD write failed` — the SD write at some sector hit an error, probably the SD card's controller state machine getting confused. Investigation moves to the SD driver.
+- `[backup] SD write failed` — the SD write at some sector hit an error,
+  probably the SD card's controller state machine getting confused.
+  Investigation moves to the SD driver.
 
-- `[backup] buffer allocation failed` — `alloc_page` returned zero, which would mean the allocator self-test passed but a later allocation request failed. Surprising; would mean the page bitmap got corrupted somehow.
+- `[backup] buffer allocation failed` — `alloc_page` returned zero, which
+  would mean the allocator self-test passed but a later allocation request
+  failed. Surprising; would mean the page bitmap got corrupted somehow.
 
 
 Confirm the bottom LED state, then if it's dark and you have the card on the lab
@@ -3402,8 +3928,7 @@ The command, since you'll need it again:
 
 ```
 
-sudo dd if=/dev/mmcblk0 of=/mnt/generic/debug-log.img bs=512 skip=67108864
-count=32768 status=progress
+sudo dd if=/dev/mmcblk0 of=/mnt/generic/debug-log.img bs=512 skip=67108864 count=32768 status=progress
 
 ```
 
@@ -3443,16 +3968,36 @@ lab laptop, it'll do the right thing end-to-end and print the debug log inline
 so we can see what failed.
 
 
-**Other lab-side utilities worth thinking about** (in rough order of how often they'd come up):
+**Other lab-side utilities worth thinking about** (in rough order of how often
+they'd come up):
 
 
-- **`verify-flash`** — after running `flash-sd`, read the first few megabytes back off the card and compare against the in-flight `bootable-sd.img` to confirm the dd actually landed. Catches the case where a write was attempted but the card's actual contents don't match — silent flash failure. Cheap to write and would have saved a flash cycle or two during the watchdog debugging earlier.
+- **`verify-flash`** — after running `flash-sd`, read the first few megabytes
+  back off the card and compare against the in-flight `bootable-sd.img` to
+  confirm the dd actually landed. Catches the case where a write was attempted
+  but the card's actual contents don't match — silent flash failure. Cheap to
+  write and would have saved a flash cycle or two during the watchdog debugging
+  earlier.
 
-- **`wipe-region`** — explicitly zero (or 0xFF) the kernel's reserved SD regions (the debug log and the backup) before a fresh test. So each test iteration starts from a known-clean state and the partial-versus-residual ambiguity we hit with the first partial-dump analysis goes away — anything we see after a test must have been written by the kernel during that test.
+- **`wipe-region`** — explicitly zero (or 0xFF) the kernel's reserved SD
+  regions (the debug log and the backup) before a fresh test. So each test
+  iteration starts from a known-clean state and the partial-versus-residual
+  ambiguity we hit with the first partial-dump analysis goes away — anything
+  we see after a test must have been written by the kernel during that test.
 
-- **`watch-leds`** — not really a script, but worth noting: a checklist or quick-reference text file that lays out the eight-pattern LED vocabulary in one place the developer can read at the lab seat without a network connection. The `015-led-diagnostic-codes.md` document does this on the project side, but having a printed or text-only copy on the USB drive's `lab-output/` (or maybe `lab-reference/`) directory means the lab laptop can `cat` it without crossing back to the main machine.
+- **`watch-leds`** — not really a script, but worth noting: a checklist or
+  quick-reference text file that lays out the eight-pattern LED vocabulary in
+  one place the developer can read at the lab seat without a network connection.
+  The `015-led-diagnostic-codes.md` document does this on the project side, but
+  having a printed or text-only copy on the USB drive's `lab-output/` (or maybe
+  `lab-reference/`) directory means the lab laptop can `cat` it without crossing
+  back to the main machine.
 
-- **`bundle-results`** — if the lab is running many test iterations, a script that tarballs all the timestamped dumps in `lab-output/` plus the boot test's wall-clock notes (which the developer would type into a `lab-output/notes.txt`) into one archive for the air-gap return. Less urgent than the others; only matters once iteration cadence picks up.
+- **`bundle-results`** — if the lab is running many test iterations, a script
+  that tarballs all the timestamped dumps in `lab-output/` plus the boot test's
+  wall-clock notes (which the developer would type into a
+  `lab-output/notes.txt`) into one archive for the air-gap return. Less urgent
+  than the others; only matters once iteration cadence picks up.
 
 
 The `verify-flash` one is the most immediately useful — would catch a class of
@@ -3543,26 +4088,33 @@ Two-and-a-half candidates for why:
 
 
 1. *`debug_log_init`'s `alloc_page` returned zero*, so `log_ready` stayed at
-zero, and every subsequent `debug_log_append` and `debug_log_flush` silently
-short-circuited. The log code is "best-effort": if it can't get a buffer it just
-disables itself, no panic, no LED change. The rest of the boot continues fine,
-debug writes silently drop, and we end up here.
+   zero, and every subsequent `debug_log_append` and `debug_log_flush` silently
+   short-circuited. The log code is "best-effort": if it can't get a buffer it
+   just disables itself, no panic, no LED change. The rest of the boot continues
+   fine, debug writes silently drop, and we end up here.
 
 2. *`sd_write_block` returns success but doesn't actually persist the data to
-that particular SD region*. Less likely — the same function had to be working
-for the backup loop's twenty-megabytes-worth of writes that we saw the heartbeat
-for — but possible if some sector-range-specific quirk applies.
+   that particular SD region*. Less likely — the same function had to be
+   working for the backup loop's twenty-megabytes-worth of writes that we saw
+   the heartbeat for — but possible if some sector-range-specific quirk
+   applies.
 
 3. *The kernel reached `debug_log_flush` from the panic path, but
-`log_buffer_pos` was still zero* because no `debug_write` calls had run between
-`debug_log_init` and the panic. That would happen if `debug_log_append` is
-silently dropping writes for the same reason as case 1 (log_ready = 0).
+   `log_buffer_pos` was still zero* because no `debug_write` calls had run
+   between `debug_log_init` and the panic. That would happen if
+   `debug_log_append` is silently dropping writes for the same reason as case 1
+   (log_ready = 0).
 
 
 Cases 1 and 3 are really the same case. The diagnostic that tells us which:
 
 
-**Replace `debug_log_init`'s `alloc_page` with a static buffer.** If `alloc_page` is the problem, the static buffer takes that off the table and the next boot writes actual text to the SD card's log region. If we *still* see `0xFF`, the failure is downstream in `sd_write_block` and we'd need a different probe — write a known pattern directly to LBA `0x4000000` from `kernel_main` and see if that survives.
+**Replace `debug_log_init`'s `alloc_page` with a static buffer.** If
+`alloc_page` is the problem, the static buffer takes that off the table and the
+next boot writes actual text to the SD card's log region. If we *still* see
+`0xFF`, the failure is downstream in `sd_write_block` and we'd need a different
+probe — write a known pattern directly to LBA `0x4000000` from `kernel_main`
+and see if that survives.
 
 
 One more question before I make the change: **the dump-from-sd script also does
@@ -3587,15 +4139,23 @@ yes please make the edit
 
 ### Assistant Response 57
 
-**Ready to flash.** Push and run the same test cycle — flash, power on, observe LED progression, power off, pull card, run `dump-from-sd`.
+**Ready to flash.** Push and run the same test cycle — flash, power on,
+observe LED progression, power off, pull card, run `dump-from-sd`.
 
 
 **What to expect this round:**
 
 
-- The LED sequence should look the same — hello flash, brief stage transitions, into the backup, two heartbeat-amber flashes, then top red. The static buffer change doesn't affect the LED-driven story, only what gets written to the SD card's log region.
+- The LED sequence should look the same — hello flash, brief stage
+  transitions, into the backup, two heartbeat-amber flashes, then top red. The
+  static buffer change doesn't affect the LED-driven story, only what gets
+  written to the SD card's log region.
 
-- The dump-from-sd output of the debug log should now contain readable text — `[backup] eMMC-to-SD backup starting`, two or three `[backup] progress...` lines, and an `[backup] eMMC read failed` or `[backup] SD write failed` (or `[backup] buffer allocation failed` if the page allocator is what's failing inside the backup loop too) naming the specific failure mode.
+- The dump-from-sd output of the debug log should now contain readable text —
+  `[backup] eMMC-to-SD backup starting`, two or three `[backup] progress...`
+  lines, and an `[backup] eMMC read failed` or `[backup] SD write failed` (or
+  `[backup] buffer allocation failed` if the page allocator is what's failing
+  inside the backup loop too) naming the specific failure mode.
 
 
 If you see actual text in the log this time, we learn the failure mode in one
@@ -3660,21 +4220,23 @@ Specifically, we should now be able to see:
 
 - A `[backup] eMMC-to-SD backup starting` line at the top
 
-- One or two `[backup] progress...` lines (matching the heartbeat flashes you saw)
+- One or two `[backup] progress...` lines (matching the heartbeat flashes you
+  saw)
 
 - Then one of:
 
-- `[backup] eMMC read failed` — the eMMC controller stopped responding to a
-read command. Investigation moves to the eMMC driver's command-reissue / state
-handling.
+  - `[backup] eMMC read failed` — the eMMC controller stopped responding to a
+    read command. Investigation moves to the eMMC driver's command-reissue /
+    state handling.
 
-- `[backup] SD write failed` — the SD controller stopped responding to a write
-command after the initial burst worked. Investigation moves to the SD driver.
+  - `[backup] SD write failed` — the SD controller stopped responding to a
+    write command after the initial burst worked. Investigation moves to the SD
+    driver.
 
-- `[backup] buffer allocation failed` — surprising, would mean `alloc_page`
-returns zero inside `emmc_backup_to_sd` even though the static-buffer change
-made `debug_log_init` independent of it. Would tell us the allocator itself has
-a problem we missed.
+  - `[backup] buffer allocation failed` — surprising, would mean `alloc_page`
+    returns zero inside `emmc_backup_to_sd` even though the static-buffer change
+    made `debug_log_init` independent of it. Would tell us the allocator itself
+    has a problem we missed.
 
 
 Once you've got the log dumped, drop it at `/mnt/generic/lab-output/` again and
@@ -3723,10 +4285,17 @@ go back to that size. Let me also update the dump script to match, then we'll
 see if moving the log to a different LBA changes the behavior.
 
 
-**Ready to flash again.** Push, flash, run, then pull the card and `dump-from-sd`.
+**Ready to flash again.** Push, flash, run, then pull the card and
+`dump-from-sd`.
 
 
-**What to expect this round:** since your card is 256 GB, the original `0x4000000` (32 GB) value was actually in range — the silent rejection wasn't a past-the-end-of-card thing the way I initially feared. But the constant *was* still wrong relative to its own comment, and it would have collided with a future full eMMC backup. After this round, the log region lives at 2 GB (LBA `0x400000`), comfortably after the 200 MB backup region and clear of any future expansion.
+**What to expect this round:** since your card is 256 GB, the original
+`0x4000000` (32 GB) value was actually in range — the silent rejection wasn't
+a past-the-end-of-card thing the way I initially feared. But the constant *was*
+still wrong relative to its own comment, and it would have collided with a
+future full eMMC backup. After this round, the log region lives at 2 GB (LBA
+`0x400000`), comfortably after the 200 MB backup region and clear of any future
+expansion.
 
 
 If the new dump shows actual text, the off-by-one-zero was the bug — the
@@ -3782,19 +4351,32 @@ has the pattern, that tells us which region is broken. If neither has it,
 **Ready to flash.** Push, flash, run.
 
 
-**What you'll see this time:** standard early-boot sequence (hello flash, brief stage signals), then the kernel settles to **bottom amber alone (`STAGE_USB_CONTROLLER`), steady, indefinitely**. No backup, no heartbeat, no panic — the kernel just performed two `sd_write_block` calls (one to LBA `0x400000`, one to LBA `0x200000`) and is now sitting in the petting wait loop.
+**What you'll see this time:** standard early-boot sequence (hello flash, brief
+stage signals), then the kernel settles to **bottom amber alone
+(`STAGE_USB_CONTROLLER`), steady, indefinitely**. No backup, no heartbeat, no
+panic — the kernel just performed two `sd_write_block` calls (one to LBA
+`0x400000`, one to LBA `0x200000`) and is now sitting in the petting wait loop.
 
 
 **Then pull the card and run `dump-from-sd`.** The two dumps tell us:
 
 
-- *Both files start with the literal text "SOREN_SD_WRITE_TEST_LBA_MARKER":* `sd_write_block` works at both addresses. The earlier failures were upstream — the log layer's flush was firing with an empty buffer (something's wrong in the debug-log code path), and the backup's `emmc_read_block` wasn't filling its buffer (something's wrong in the eMMC reader).
+- *Both files start with the literal text "SOREN_SD_WRITE_TEST_LBA_MARKER":*
+  `sd_write_block` works at both addresses. The earlier failures were upstream
+  — the log layer's flush was firing with an empty buffer (something's wrong
+  in the debug-log code path), and the backup's `emmc_read_block` wasn't filling
+  its buffer (something's wrong in the eMMC reader).
 
-- *Only the log-region file has the marker (backup is residual random):* writes work for LBA `0x400000` but fail silently for LBA `0x200000`. The SD controller has some kind of address-range-specific behavior.
+- *Only the log-region file has the marker (backup is residual random):* writes
+  work for LBA `0x400000` but fail silently for LBA `0x200000`. The SD
+  controller has some kind of address-range-specific behavior.
 
-- *Only the backup-region file has the marker (log is zeros or 0xFF):* writes work for `0x200000` but fail for `0x400000`. Same shape, other direction.
+- *Only the backup-region file has the marker (log is zeros or 0xFF):* writes
+  work for `0x200000` but fail for `0x400000`. Same shape, other direction.
 
-- *Neither file has the marker:* `sd_write_block` itself is the bug, and the next probe needs to look inside the SD controller's command issuance and polling loops.
+- *Neither file has the marker:* `sd_write_block` itself is the bug, and the
+  next probe needs to look inside the SD controller's command issuance and
+  polling loops.
 
 
 Whichever of the four outcomes lands tells us where to look next.
@@ -3821,9 +4403,18 @@ B's pattern after `sd_init` succeeded)?**
 The difference matters because:
 
 
-- *Solid red* means the kernel panicked somewhere in `emmc_init` or `sd_init`. My test code never ran. The marker isn't in the dump because the kernel hit a controller-bring-up failure before reaching the writes.
+- *Solid red* means the kernel panicked somewhere in `emmc_init` or `sd_init`.
+  My test code never ran. The marker isn't in the dump because the kernel hit a
+  controller-bring-up failure before reaching the writes.
 
-- *Yellow-orange* means `sd_init` succeeded (Checkpoint B got painted), `debug_log_init` ran, and then either the first `sd_write_block(0x400000)` call is hanging (kernel stuck in the SD writer's polling loop forever, LED frozen at Checkpoint B) or the call returned but something between it and the `STAGE_USB_CONTROLLER` paint stalled. The dumps support this: the log region is still zeros (so the prior round's `debug_log_flush` either also hung, or wrote zeros that got persisted), and the marker isn't there because the kernel never got past the first call.
+- *Yellow-orange* means `sd_init` succeeded (Checkpoint B got painted),
+  `debug_log_init` ran, and then either the first `sd_write_block(0x400000)`
+  call is hanging (kernel stuck in the SD writer's polling loop forever, LED
+  frozen at Checkpoint B) or the call returned but something between it and the
+  `STAGE_USB_CONTROLLER` paint stalled. The dumps support this: the log region
+  is still zeros (so the prior round's `debug_log_flush` either also hung, or
+  wrote zeros that got persisted), and the marker isn't there because the kernel
+  never got past the first call.
 
 
 In low light a bicolor LED's yellow-orange can read as "red," so I want to make
@@ -3863,27 +4454,45 @@ findings.
 The agent came back with extremely specific findings. Top-level summary:
 
 
-**Root cause for the "panic at first MMIO access":** the eMMC and SD controllers each need *multiple* clocks ungated and *multiple* soft-resets deasserted before they respond to register writes. Our driver almost certainly ungates one of the clocks but not all five (for eMMC) or both (for SD), and probably doesn't deassert the soft-resets at all. The **BCLK reset on eMMC is the most commonly missed one** — when it's left asserted, register reads return 0 or 0xFFFFFFFF and writes vanish silently, presenting on a bare-metal kernel as the panic-at-first-write we keep hitting.
+**Root cause for the "panic at first MMIO access":** the eMMC and SD controllers
+each need *multiple* clocks ungated and *multiple* soft-resets deasserted before
+they respond to register writes. Our driver almost certainly ungates one of the
+clocks but not all five (for eMMC) or both (for SD), and probably doesn't
+deassert the soft-resets at all. The **BCLK reset on eMMC is the most commonly
+missed one** — when it's left asserted, register reads return 0 or 0xFFFFFFFF
+and writes vanish silently, presenting on a bare-metal kernel as the
+panic-at-first-write we keep hitting.
 
 
-**Why it's intermittent:** u-boot boots from eMMC, so it leaves the eMMC controller's clocks on and resets deasserted from its own use. That state survives the handoff to our kernel. But u-boot *doesn't touch the SD controller at all* (it has no need to read from it). So the SD bring-up has *always* been running against a controller in raw-reset state — whether it works depends entirely on what the reset bits happen to be at boot time, which varies. That asymmetry exactly matches what we've been seeing.
+**Why it's intermittent:** u-boot boots from eMMC, so it leaves the eMMC
+controller's clocks on and resets deasserted from its own use. That state
+survives the handoff to our kernel. But u-boot *doesn't touch the SD controller
+at all* (it has no need to read from it). So the SD bring-up has *always* been
+running against a controller in raw-reset state — whether it works depends
+entirely on what the reset bits happen to be at boot time, which varies. That
+asymmetry exactly matches what we've been seeing.
 
 
-**The fix** — concretely, in our two driver files (`012-emmc.c` and `015-sdmmc.c`), before the existing initialization sequence:
+**The fix** — concretely, in our two driver files (`012-emmc.c` and
+`015-sdmmc.c`), before the existing initialization sequence:
 
 
 For eMMC, three writes to the main clock-and-reset unit at `0xFDD2_0000`:
 
-- `0xFDD20324` (CLKGATE_CON(9)) ← `0x03E00000` — ungates the five eMMC clocks (ACLK / HCLK / BCLK / CCLK / TCLK, bits 5-9)
+- `0xFDD20324` (CLKGATE_CON(9)) ← `0x03E00000` — ungates the five eMMC
+  clocks (ACLK / HCLK / BCLK / CCLK / TCLK, bits 5-9)
 
-- `0xFDD2041C` (SOFTRST_CON(7)) ← `0x03E003E0` then `udelay(1)` then `0x03E00000` — pulses all five eMMC resets
+- `0xFDD2041C` (SOFTRST_CON(7)) ← `0x03E003E0` then `udelay(1)` then
+  `0x03E00000` — pulses all five eMMC resets
 
 
 For SD, the same shape:
 
-- `0xFDD2033C` (CLKGATE_CON(15)) ← `0x00030000` — ungates HCLK and CCLK_SDMMC0 (bits 0-1)
+- `0xFDD2033C` (CLKGATE_CON(15)) ← `0x00030000` — ungates HCLK and
+  CCLK_SDMMC0 (bits 0-1)
 
-- `0xFDD20434` (SOFTRST_CON(13)) ← `0x00180018` then deassert `0x00180000` — pulses both SD0 resets
+- `0xFDD20434` (SOFTRST_CON(13)) ← `0x00180018` then deassert `0x00180000` —
+  pulses both SD0 resets
 
 
 Plus, before issuing any controller register write, a **diagnostic
@@ -3895,9 +4504,14 @@ what's wrong before the first real write.
 
 Plus two driver-side fixes the agent caught:
 
-- The SD driver's polling loop should check `RINTSTS` bit 12 (HLE — Hardware Locked Error), which fires when the "update clock" dance was skipped between clock changes. Our polling loop currently doesn't.
+- The SD driver's polling loop should check `RINTSTS` bit 12 (HLE — Hardware
+  Locked Error), which fires when the "update clock" dance was skipped between
+  clock changes. Our polling loop currently doesn't.
 
-- The dwcmshc driver needs three vendor-area register writes to disable command-conflict checking and clear the DLL registers, then a full SDHCI software reset before the standard SDHCI bring-up. Missing that sequence is a quirky-but-required Rockchip-specific step.
+- The dwcmshc driver needs three vendor-area register writes to disable
+  command-conflict checking and clear the DLL registers, then a full SDHCI
+  software reset before the standard SDHCI bring-up. Missing that sequence is a
+  quirky-but-required Rockchip-specific step.
 
 
 The agent's report has the full sequence with exact register addresses and bit
@@ -3906,7 +4520,11 @@ patch the MMC drivers — the work is all in the upstream Linux drivers, we just
 need to actually do it).
 
 
-**Want me to land the CRU writes for both controllers as the first step?** That's the highest-impact change — it should make the SD bring-up stop being flaky immediately, and gives us a stable foundation for the rest. The other refinements (HLE check, dwcmshc vendor-area writes, diagnostic discriminator) can follow once we know the CRU work helped.
+**Want me to land the CRU writes for both controllers as the first step?**
+That's the highest-impact change — it should make the SD bring-up stop being
+flaky immediately, and gives us a stable foundation for the rest. The other
+refinements (HLE check, dwcmshc vendor-area writes, diagnostic discriminator)
+can follow once we know the CRU work helped.
 
 
 --------------------------------------------------------------------------------
@@ -3951,16 +4569,39 @@ Handoff complete. Sleep well.
 **What's persisted for the night shift:**
 
 
-- `issues/110a-emmc-controller-driver.md` and `issues/110f-microsd-controller-driver.md` are both reopened from `completed/`, each with a "Reopened" section that contains the exact register-by-register playbook — addresses, bit positions, write-mask-encoded values, the things the original implementation got wrong, the diagnostic discriminator reads. The 110f file also documents the missing "update clock" no-op CMD dance and the polling-loop error-bit checks the DW MSHC driver needs.
+- `issues/110a-emmc-controller-driver.md` and
+  `issues/110f-microsd-controller-driver.md` are both reopened from
+  `completed/`, each with a "Reopened" section that contains the exact
+  register-by-register playbook — addresses, bit positions, write-mask-encoded
+  values, the things the original implementation got wrong, the diagnostic
+  discriminator reads. The 110f file also documents the missing "update clock"
+  no-op CMD dance and the polling-loop error-bit checks the DW MSHC driver
+  needs.
 
-- `docs/017-clocks-and-timers.md` gains all the new MMC clock and reset entries — the five eMMC clocks at `CLKGATE_CON(9)` bits 5-9, the two SDMMC0 clocks at `CLKGATE_CON(15)` bits 0-1, the five eMMC resets at `SOFTRST_CON(7)` bits 5-9, the two SDMMC0 resets at `SOFTRST_CON(13)` bits 3-4. The most-commonly-missed BCLK reset for eMMC is called out specifically.
+- `docs/017-clocks-and-timers.md` gains all the new MMC clock and reset entries
+  — the five eMMC clocks at `CLKGATE_CON(9)` bits 5-9, the two SDMMC0 clocks
+  at `CLKGATE_CON(15)` bits 0-1, the five eMMC resets at `SOFTRST_CON(7)` bits
+  5-9, the two SDMMC0 resets at `SOFTRST_CON(13)` bits 3-4. The
+  most-commonly-missed BCLK reset for eMMC is called out specifically.
 
-- `src/002-main.c` is back to its clean shape — the direct `sd_write_block` test pattern is gone, the regular backup chain is restored, the two diagnostic checkpoints between USB-controller and emmc_init/sd_init stay in place so the night shift can see exactly which step succeeds.
+- `src/002-main.c` is back to its clean shape — the direct `sd_write_block`
+  test pattern is gone, the regular backup chain is restored, the two diagnostic
+  checkpoints between USB-controller and emmc_init/sd_init stay in place so the
+  night shift can see exactly which step succeeds.
 
-- `issues/phase-1-progress.md` records the reopens in both the completed-issues section (now "REOPENED — see open-issues section") and the open-issues section (with the full description of what's missing).
+- `issues/phase-1-progress.md` records the reopens in both the completed-issues
+  section (now "REOPENED — see open-issues section") and the open-issues
+  section (with the full description of what's missing).
 
 
-**The night shift's starting point:** the two reopened issue files. Both contain everything needed — the implementer doesn't need to re-research any of it, doesn't need to read the upstream Linux source themselves, doesn't need to figure out which clocks are required. The work to do is "write the code that performs the register writes the issue file describes," in two files (`src/012-emmc.c` and `src/015-sdmmc.c`), with a known-good test path (the kernel boots, walks past the two diagnostic checkpoints, reaches the backup, runs the backup to completion, lands at `STAGE_BACKUP_COMPLETE`).
+**The night shift's starting point:** the two reopened issue files. Both contain
+everything needed — the implementer doesn't need to re-research any of it,
+doesn't need to read the upstream Linux source themselves, doesn't need to
+figure out which clocks are required. The work to do is "write the code that
+performs the register writes the issue file describes," in two files
+(`src/012-emmc.c` and `src/015-sdmmc.c`), with a known-good test path (the
+kernel boots, walks past the two diagnostic checkpoints, reaches the backup,
+runs the backup to completion, lands at `STAGE_BACKUP_COMPLETE`).
 
 
 Have a good rest.
@@ -3978,367 +4619,356 @@ Summary:
 
 1. Primary Request and Intent:
 
-The user is bringing up a bare-metal aarch64 kernel ("Soren DS") for an Anbernic
-RG DS handheld (Rockchip RK3568 SoC). The conversation started with "the kernel
-isn't booting correctly" and evolved through many debugging cycles. The final
-explicit request was: "Can you update the relevant issue files? Someone else is
-going to do the actual implementation of the fix. We'll let the night shift
-handle it - I'm about ready to konk out. Be sure to write down anything you
-think is important to persist." Prior to that, the user asked to "reverse
-engineer one or more of the community OS's" because we were "running in circles"
-on SD/eMMC bring-up failures.
+   The user is bringing up a bare-metal aarch64 kernel ("Soren DS") for an
+   Anbernic RG DS handheld (Rockchip RK3568 SoC). The conversation started with
+   "the kernel isn't booting correctly" and evolved through many debugging
+   cycles. The final explicit request was: "Can you update the relevant issue
+   files? Someone else is going to do the actual implementation of the fix.
+   We'll let the night shift handle it - I'm about ready to konk out. Be sure to
+   write down anything you think is important to persist." Prior to that, the
+   user asked to "reverse engineer one or more of the community OS's" because we
+   were "running in circles" on SD/eMMC bring-up failures.
 
 
 2. Key Technical Concepts:
 
-- RK3568 SoC: 4× Cortex-A55, clocks/resets via CRU at 0xFDD20000 and PMU CRU at
-0xFDD40000
+   - RK3568 SoC: 4× Cortex-A55, clocks/resets via CRU at 0xFDD20000 and PMU CRU
+     at 0xFDD40000
 
-- Write-mask convention: upper 16 bits mask, lower 16 bits value
+   - Write-mask convention: upper 16 bits mask, lower 16 bits value
 
-- DesignWare SDHCI/dwcmshc for eMMC at 0xFE310000
+   - DesignWare SDHCI/dwcmshc for eMMC at 0xFE310000
 
-- Synopsys DW MSHC for microSD at 0xFE2B0000
+   - Synopsys DW MSHC for microSD at 0xFE2B0000
 
-- DWC3 USB 3.0 OTG at 0xFCC00000 (project doc had wrong 0xFEC00000)
+   - DWC3 USB 3.0 OTG at 0xFCC00000 (project doc had wrong 0xFEC00000)
 
-- Debug log SD region: 0x400000 LBA (project had wrong 0x4000000)
+   - Debug log SD region: 0x400000 LBA (project had wrong 0x4000000)
 
-- Backup region: 0x200000 LBA (~1 GB into SD card)
+   - Backup region: 0x200000 LBA (~1 GB into SD card)
 
-- Watchdog at 0xFE600000 (DesignWare DW_apb_wdt)
+   - Watchdog at 0xFE600000 (DesignWare DW_apb_wdt)
 
-- GPIO0 at 0xFDD60000 (PMU domain), PMU GRF at 0xFDC20000
+   - GPIO0 at 0xFDD60000 (PMU domain), PMU GRF at 0xFDC20000
 
-- Static buffer pattern to avoid alloc_page dependency
+   - Static buffer pattern to avoid alloc_page dependency
 
-- `-mgeneral-regs-only` compiler flag to disable FP/SIMD
+   - `-mgeneral-regs-only` compiler flag to disable FP/SIMD
 
-- Phase 1 (hardware bring-up) → Phase 2 (soramech threading runtime)
+   - Phase 1 (hardware bring-up) → Phase 2 (soramech threading runtime)
 
 
 3. Files and Code Sections:
 
 
--
-**`/mnt/mtwo/programming/ai-stuff/soren-ds/issues/110a-emmc-controller-driver.md`**
-(REOPENED)
+   - **`/mnt/mtwo/programming/ai-stuff/soren-ds/issues/110a-emmc-controller-driver.md`**
+     (REOPENED)
 
-- Moved from `completed/` via `git mv`
+     - Moved from `completed/` via `git mv`
 
-- Added "Reopened — CRU clock and reset setup missing, plus dwcmshc
-vendor-area writes" section
+     - Added "Reopened — CRU clock and reset setup missing, plus dwcmshc vendor-area writes" section
 
-- Documents 5 clocks (ACLK/HCLK/BCLK/CCLK/TCLK_EMMC) at
-CLKGATE_CON(9)=0xFDD20324 bits 5-9
+     - Documents 5 clocks (ACLK/HCLK/BCLK/CCLK/TCLK_EMMC) at CLKGATE_CON(9)=0xFDD20324 bits 5-9
 
-- Documents 5 resets at SOFTRST_CON(7)=0xFDD2041C bits 5-9
+     - Documents 5 resets at SOFTRST_CON(7)=0xFDD2041C bits 5-9
 
-- Specific writes:
+     - Specific writes:
 
-```
+     ```
 
-mmio_write32(0xFDD20324u, 0x03E00000u); /* ungate */
+     mmio_write32(0xFDD20324u, 0x03E00000u);  /* ungate */
 
-mmio_write32(0xFDD2041Cu, 0x03E003E0u); /* assert all 5 resets */
+     mmio_write32(0xFDD2041Cu, 0x03E003E0u);  /* assert all 5 resets */
 
-rough_delay(1000);
+     rough_delay(1000);
 
-mmio_write32(0xFDD2041Cu, 0x03E00000u); /* deassert */
+     mmio_write32(0xFDD2041Cu, 0x03E00000u);  /* deassert */
 
-```
+     ```
 
-- Diagnostic discriminator: read SDHCI_CAPABILITIES at 0xFE310040
+     - Diagnostic discriminator: read SDHCI_CAPABILITIES at 0xFE310040
 
-- dwcmshc vendor-area writes at base+0x500: HOST_CTRL3, DLL_TXCLK, DLL_STRBIN
-clears
+     - dwcmshc vendor-area writes at base+0x500: HOST_CTRL3, DLL_TXCLK, DLL_STRBIN clears
 
-- Full SDHCI software reset via byte write of 0x01 to 0xFE31002F
+     - Full SDHCI software reset via byte write of 0x01 to 0xFE31002F
 
-- Note: BCLK reset (bit 7) is most commonly missed
+     - Note: BCLK reset (bit 7) is most commonly missed
 
-- DWCMSHC_EMMC_DLL_CTRL (0xFE310800) must NOT be touched during bring-up
+     - DWCMSHC_EMMC_DLL_CTRL (0xFE310800) must NOT be touched during bring-up
 
 
--
-**`/mnt/mtwo/programming/ai-stuff/soren-ds/issues/110f-microsd-controller-driver.md`**
-(REOPENED)
+   - **`/mnt/mtwo/programming/ai-stuff/soren-ds/issues/110f-microsd-controller-driver.md`**
+     (REOPENED)
 
-- Moved from `completed/` via `git mv`
+     - Moved from `completed/` via `git mv`
 
-- Added "Reopened — CRU clock and reset setup missing, plus polling-loop and
-clock-update fixes" section
+     - Added "Reopened — CRU clock and reset setup missing, plus polling-loop and clock-update fixes" section
 
-- SD panics EVERY time (u-boot never touches SDMMC0; BootROM reads via
-fixed-offset, not SDMMC0 protocol stack)
+     - SD panics EVERY time (u-boot never touches SDMMC0; BootROM reads via fixed-offset, not SDMMC0 protocol stack)
 
-- Documents 2 clocks (HCLK/CLK_SDMMC0) at CLKGATE_CON(15)=0xFDD2033C bits 0-1
+     - Documents 2 clocks (HCLK/CLK_SDMMC0) at CLKGATE_CON(15)=0xFDD2033C bits 0-1
 
-- Documents 2 resets at SOFTRST_CON(13)=0xFDD20434 bits 3-4
+     - Documents 2 resets at SOFTRST_CON(13)=0xFDD20434 bits 3-4
 
-- Specific writes:
+     - Specific writes:
 
-```
+     ```
 
-mmio_write32(0xFDD2033Cu, 0x00030000u); /* ungate */
+     mmio_write32(0xFDD2033Cu, 0x00030000u);  /* ungate */
 
-mmio_write32(0xFDD20434u, 0x00180018u); /* assert */
+     mmio_write32(0xFDD20434u, 0x00180018u);  /* assert */
 
-rough_delay(1000);
+     rough_delay(1000);
 
-mmio_write32(0xFDD20434u, 0x00180000u); /* deassert */
+     mmio_write32(0xFDD20434u, 0x00180000u);  /* deassert */
 
-```
+     ```
 
-- Diagnostic discriminator: read SDMMC_HCON at 0xFE2B0070 (expect ~0x0003E47A)
+     - Diagnostic discriminator: read SDMMC_HCON at 0xFE2B0070 (expect ~0x0003E47A)
 
-- Critical RINTSTS clear (write 0xFFFFFFFF to 0xFE2B0044) after controller reset
+     - Critical RINTSTS clear (write 0xFFFFFFFF to 0xFE2B0044) after controller reset
 
-- Update-clock no-op CMD dance: write 0xA0202000 to 0xFE2B002C between every
-CLKENA/CLKDIV/CLKSRC change
+     - Update-clock no-op CMD dance: write 0xA0202000 to 0xFE2B002C between every CLKENA/CLKDIV/CLKSRC change
 
-- Polling loop must check HLE bit (RINTSTS bit 12) for wedged controller
+     - Polling loop must check HLE bit (RINTSTS bit 12) for wedged controller
 
-- 500ms timeout wrapper
+     - 500ms timeout wrapper
 
 
-- **`/mnt/mtwo/programming/ai-stuff/soren-ds/docs/017-clocks-and-timers.md`**
-(UPDATED)
+   - **`/mnt/mtwo/programming/ai-stuff/soren-ds/docs/017-clocks-and-timers.md`**
+     (UPDATED)
 
-- Added 7 MMC clock entries to clock-identifier table
+     - Added 7 MMC clock entries to clock-identifier table
 
-- Added 7 MMC reset entries to reset-identifier table
+     - Added 7 MMC reset entries to reset-identifier table
 
-- Each documents specific CRU register, bit, and notes (especially BCLK_EMMC and
-SRST_B_EMMC marked as "most commonly missed")
+     - Each documents specific CRU register, bit, and notes (especially BCLK_EMMC and SRST_B_EMMC marked as "most commonly missed")
 
 
-- **`/mnt/mtwo/programming/ai-stuff/soren-ds/src/002-main.c`** (REVERTED)
+   - **`/mnt/mtwo/programming/ai-stuff/soren-ds/src/002-main.c`** (REVERTED)
 
-- Removed the diagnostic sd_write_block test pattern code
+     - Removed the diagnostic sd_write_block test pattern code
 
-- Restored clean flow:
+     - Restored clean flow:
 
-```c
+     ```c
 
-debug_log_init();
+     debug_log_init();
 
-led_set_stage(STAGE_USB_CONTROLLER);
+     led_set_stage(STAGE_USB_CONTROLLER);
 
-if (emmc_backup_to_sd(0, 0x200000, 409600) != 0) {
+     if (emmc_backup_to_sd(0, 0x200000, 409600) != 0) {
 
-debug_log_flush();
+         debug_log_flush();
 
-led_set_stage(STAGE_PANIC_GENERIC);
+         led_set_stage(STAGE_PANIC_GENERIC);
 
-while (1) { delay_busy(1000000); }
+         while (1) { delay_busy(1000000); }
 
-}
+     }
 
-debug_log_flush();
+     debug_log_flush();
 
-led_set_stage(STAGE_BACKUP_COMPLETE);
+     led_set_stage(STAGE_BACKUP_COMPLETE);
 
-while (1) { delay_busy(1000000); }
+     while (1) { delay_busy(1000000); }
 
-```
+     ```
 
-- Kept Checkpoint A (top green + bottom amber after emmc_init) and Checkpoint B
-(top yellow + bottom dark after sd_init) — these remain useful for night shift
-implementation
+     - Kept Checkpoint A (top green + bottom amber after emmc_init) and Checkpoint B (top yellow + bottom dark after sd_init) — these remain useful for night shift implementation
 
 
-- **`/mnt/mtwo/programming/ai-stuff/soren-ds/issues/phase-1-progress.md`**
-(UPDATED)
+   - **`/mnt/mtwo/programming/ai-stuff/soren-ds/issues/phase-1-progress.md`**
+     (UPDATED)
 
-- Marked 110a and 110f entries as "(REOPENED — see the open-issues section
-below.)"
+     - Marked 110a and 110f entries as "(REOPENED — see the open-issues section below.)"
 
-- Added detailed entries for 109a, 109b, 110a, 110f reopens in open-issues
-section
+     - Added detailed entries for 109a, 109b, 110a, 110f reopens in open-issues section
 
 
-- **`/mnt/mtwo/programming/ai-stuff/soren-ds/scripts/lab-side/flash-sd`**
-(UPDATED earlier)
+   - **`/mnt/mtwo/programming/ai-stuff/soren-ds/scripts/lab-side/flash-sd`**
+     (UPDATED earlier)
 
-- Added `ensure_lab_output_dir()` function that creates `lab-output/` with sudo,
-no chown
+     - Added `ensure_lab_output_dir()` function that creates `lab-output/` with sudo, no chown
 
 
-- **`/mnt/mtwo/programming/ai-stuff/soren-ds/scripts/lab-side/dump-from-sd`**
-(CREATED earlier)
+   - **`/mnt/mtwo/programming/ai-stuff/soren-ds/scripts/lab-side/dump-from-sd`**
+     (CREATED earlier)
 
-- Dumps debug log (LBA 0x400000, 16 MB) and eMMC backup (LBA 0x200000, 200 MB)
+     - Dumps debug log (LBA 0x400000, 16 MB) and eMMC backup (LBA 0x200000, 200 MB)
 
-- DEBUG_LOG_LBA=4194304, BACKUP_LBA=2097152
+     - DEBUG_LOG_LBA=4194304, BACKUP_LBA=2097152
 
-- Inspects with strings and gdisk
+     - Inspects with strings and gdisk
 
 
 4. Errors and fixes:
 
-- **LED address transcription error**: project memory map had `0xFEC0_0000` for
-DWC3, actual is `0xFCC0_0000`. Fix: corrected in 009-usb.c,
-010-usb-enumeration.c, 011-cdc-acm.c, and docs/016.
+   - **LED address transcription error**: project memory map had `0xFEC0_0000`
+     for DWC3, actual is `0xFCC0_0000`. Fix: corrected in 009-usb.c,
+     010-usb-enumeration.c, 011-cdc-acm.c, and docs/016.
 
-- **Debug log LBA typo**: `0x4000000` (32 GB) instead of `0x400000` (2 GB). Fix:
-corrected in 017-debug-log.c and dump-from-sd.
+   - **Debug log LBA typo**: `0x4000000` (32 GB) instead of `0x400000` (2 GB).
+     Fix: corrected in 017-debug-log.c and dump-from-sd.
 
-- **Wrong file format**: User had wrong `flash-sd` and `dump-from-sd` chown —
-FAT32 doesn't support Unix ownership. User feedback: "the flash-sd script says
-'changing ownership of /mnt/generic/lab-output permission not permitted'." Fix:
-removed chown attempts in both scripts.
+   - **Wrong file format**: User had wrong `flash-sd` and `dump-from-sd` chown
+     — FAT32 doesn't support Unix ownership. User feedback: "the flash-sd
+     script says 'changing ownership of /mnt/generic/lab-output permission not
+     permitted'." Fix: removed chown attempts in both scripts.
 
-- **alloc_page-dependent debug_log_init**: silently disabled itself if
-alloc_page failed. Fix: replaced with static buffer.
+   - **alloc_page-dependent debug_log_init**: silently disabled itself if
+     alloc_page failed. Fix: replaced with static buffer.
 
-- **Watchdog reset cycle**: Fix attempted via CRU reset (didn't work), then via
-petting in delay_busy (worked).
+   - **Watchdog reset cycle**: Fix attempted via CRU reset (didn't work), then
+     via petting in delay_busy (worked).
 
-- **Wrong DWC3 base in 010/011**: After fixing in 009, found
-010-usb-enumeration.c and 011-cdc-acm.c had the SAME wrong address. Fix:
-corrected in both files.
+   - **Wrong DWC3 base in 010/011**: After fixing in 009, found
+     010-usb-enumeration.c and 011-cdc-acm.c had the SAME wrong address. Fix:
+     corrected in both files.
 
-- **User feedback "running in circles"**: led to research agent dispatch that
-found the actual root cause (CRU clock/reset setup missing for both MMC
-controllers).
+   - **User feedback "running in circles"**: led to research agent dispatch that
+     found the actual root cause (CRU clock/reset setup missing for both MMC
+     controllers).
 
 
 5. Problem Solving:
 
-- Solved: kernel boot, LED layer, USB controller bring-up, watchdog silencing,
-FP/SIMD trap, partial backup file write
+   - Solved: kernel boot, LED layer, USB controller bring-up, watchdog
+     silencing, FP/SIMD trap, partial backup file write
 
-- Ongoing (for night shift): eMMC and SD controller CRU clock/reset bring-up
+   - Ongoing (for night shift): eMMC and SD controller CRU clock/reset bring-up
 
 
 6. All user messages:
 
-- "hi, can you look through the current src and help me figure out why the
-kernel isn't booting correctly?" (initial)
+   - "hi, can you look through the current src and help me figure out why the
+     kernel isn't booting correctly?" (initial)
 
-- "great! can you set that up for me?" (for load address fix)
+   - "great! can you set that up for me?" (for load address fix)
 
-- "okay I'm on the lab laptop, and I should just run the flash-sd script right?"
+   - "okay I'm on the lab laptop, and I should just run the flash-sd script
+     right?"
 
-- "still no LEDs :("
+   - "still no LEDs :("
 
-- "yes they have turned on before" / "I can't tell if it's even turning on at
-all because there's no output :("
+   - "yes they have turned on before" / "I can't tell if it's even turning on at
+     all because there's no output :("
 
-- "sure, we can try that." (GPIO probe)
+   - "sure, we can try that." (GPIO probe)
 
-- "Oh! The LEDs turned on, and now they're both amber!" / "boop"
+   - "Oh! The LEDs turned on, and now they're both amber!" / "boop"
 
-- "there's only two LEDs..." (described two amber windows)
+   - "there's only two LEDs..." (described two amber windows)
 
-- "what's the difference between PWM and GPIO?"
+   - "what's the difference between PWM and GPIO?"
 
-- "can you explain more about the SIMD register?"
+   - "can you explain more about the SIMD register?"
 
-- "I think the system is 4 cores, can you confirm?..." (SIMD/threads question)
+   - "I think the system is 4 cores, can you confirm?..." (SIMD/threads
+     question)
 
-- "Wow! So, tell me, how would different threads clobber each other's simd
-instructions if they don't share the simd registers?"
+   - "Wow! So, tell me, how would different threads clobber each other's simd
+     instructions if they don't share the simd registers?"
 
-- "okay it's flashing now..." / "okay it turns on two amber lights, then
-dark..."
+   - "okay it's flashing now..." / "okay it turns on two amber lights, then
+     dark..."
 
-- Multiple LED state reports
+   - Multiple LED state reports
 
-- "amber, dark, green flash, dark, repeat." (testing iterations)
+   - "amber, dark, green flash, dark, repeat." (testing iterations)
 
-- "they're both lit."
+   - "they're both lit."
 
-- "okay double amber, then dark, then top green flash very fast..."
+   - "okay double amber, then dark, then top green flash very fast..."
 
-- "okay double amber, then dark, then top green flash very rapid and bottom
-amber steady. Seems to be stuck there. Want me to keep waiting? How long should
-it take?"
+   - "okay double amber, then dark, then top green flash very rapid and bottom
+     amber steady. Seems to be stuck there. Want me to keep waiting? How long
+     should it take?"
 
-- "If I unplug it now, will it have a partial backup?... why is the estimated
-clock speed so slow?"
+   - "If I unplug it now, will it have a partial backup?... why is the estimated
+     clock speed so slow?"
 
-- "can you add that to a phase-2 issue somewhere? I'm going to check for a
-partial log. Can you tell me the dd command I'll need?"
+   - "can you add that to a phase-2 issue somewhere? I'm going to check for a
+     partial log. Can you tell me the dd command I'll need?"
 
-- "okay check /mnt/generic for the sd-card from the lab laptop"
+   - "okay check /mnt/generic for the sd-card from the lab laptop"
 
-- "okay the debug log should be at /mnt/generic"
+   - "okay the debug log should be at /mnt/generic"
 
-- "yes please make the edit"
+   - "yes please make the edit"
 
-- "okay both amber, then dark, then bottom flash amber and top stay red. Dumping
-logs now. Check /mnt/generic/"
+   - "okay both amber, then dark, then bottom flash amber and top stay red.
+     Dumping logs now. Check /mnt/generic/"
 
-- "the sd-card is 256gb in size."
+   - "the sd-card is 256gb in size."
 
-- "solid red. I'd say orange or amber if it was orange or amber. It seems like
-we're running in circles, can you reverse engineer one or more of the community
-OS's?"
+   - "solid red. I'd say orange or amber if it was orange or amber. It seems
+     like we're running in circles, can you reverse engineer one or more of the
+     community OS's?"
 
-- "Can you update the relevant issue files? Someone else is going to do the
-actual implementation of the fix. We'll let the night shift handle it - I'm
-about ready to konk out. Be sure to write down anything you think is important
-to persist."
+   - "Can you update the relevant issue files? Someone else is going to do the
+     actual implementation of the fix. We'll let the night shift handle it - I'm
+     about ready to konk out. Be sure to write down anything you think is
+     important to persist."
 
-- Many lab-side script issue reports
+   - Many lab-side script issue reports
 
 
 7. Pending Tasks:
 
-- **For night shift**: Implement CRU clock/reset bring-up for eMMC controller
-per 110a reopened issue file
+   - **For night shift**: Implement CRU clock/reset bring-up for eMMC controller
+     per 110a reopened issue file
 
-- **For night shift**: Implement CRU clock/reset bring-up for SD controller per
-110f reopened issue file
+   - **For night shift**: Implement CRU clock/reset bring-up for SD controller
+     per 110f reopened issue file
 
-- Phase 1 still has open: 110c (USB-C runtime re-flash), 110e (eMMC layout
-probe), 111a-d (display), 112, 113
+   - Phase 1 still has open: 110c (USB-C runtime re-flash), 110e (eMMC layout
+     probe), 111a-d (display), 112, 113
 
-- Phase 2: 201a (CPU clock to rated speed), then full soramech bring-up
+   - Phase 2: 201a (CPU clock to rated speed), then full soramech bring-up
 
 
 8. Current Work:
 
-The last commit (95db6fca) completed the handoff to the night shift. I reopened
-both 110a and 110f issues with detailed register-by-register playbooks, updated
-docs/017-clocks-and-timers.md with the new clock and reset entries, reverted
-src/002-main.c from the diagnostic test pattern code back to the clean backup
-flow, and updated phase-1-progress.md to reflect the reopens. The commit message
-was: "Reopen the two MMC bring-up issues with the full reverse-engineered
-findings, so the night shift can implement the fix". The commit included 5
-changed files with 378 insertions and 54 deletions, plus the git renames from
-completed/ to issues/. The kernel still builds cleanly.
+   The last commit (95db6fca) completed the handoff to the night shift. I
+   reopened both 110a and 110f issues with detailed register-by-register
+   playbooks, updated docs/017-clocks-and-timers.md with the new clock and reset
+   entries, reverted src/002-main.c from the diagnostic test pattern code back
+   to the clean backup flow, and updated phase-1-progress.md to reflect the
+   reopens. The commit message was: "Reopen the two MMC bring-up issues with the
+   full reverse-engineered findings, so the night shift can implement the fix".
+   The commit included 5 changed files with 378 insertions and 54 deletions,
+   plus the git renames from completed/ to issues/. The kernel still builds
+   cleanly.
 
 
 The reverse-engineered findings document specifically:
 
-- For eMMC at 0xFE310000: 5 clocks at CLKGATE_CON(9)=0xFDD20324 bits 5-9 (write
-0x03E00000), 5 resets at SOFTRST_CON(7)=0xFDD2041C bits 5-9, plus dwcmshc
-vendor-area writes at 0xFE310500+0x08/0x808/0x80C, plus full SDHCI software
-reset
+   - For eMMC at 0xFE310000: 5 clocks at CLKGATE_CON(9)=0xFDD20324 bits 5-9
+     (write 0x03E00000), 5 resets at SOFTRST_CON(7)=0xFDD2041C bits 5-9, plus
+     dwcmshc vendor-area writes at 0xFE310500+0x08/0x808/0x80C, plus full SDHCI
+     software reset
 
-- For SD at 0xFE2B0000: 2 clocks at CLKGATE_CON(15)=0xFDD2033C bits 0-1 (write
-0x00030000), 2 resets at SOFTRST_CON(13)=0xFDD20434 bits 3-4 (write
-0x00180018/0x00180000), plus RINTSTS clear, plus update-clock no-op CMD dance
-(0xA0202000), plus HLE bit check (RINTSTS bit 12)
+   - For SD at 0xFE2B0000: 2 clocks at CLKGATE_CON(15)=0xFDD2033C bits 0-1
+     (write 0x00030000), 2 resets at SOFTRST_CON(13)=0xFDD20434 bits 3-4 (write
+     0x00180018/0x00180000), plus RINTSTS clear, plus update-clock no-op CMD
+     dance (0xA0202000), plus HLE bit check (RINTSTS bit 12)
 
 
 9. Optional Next Step:
 
-The user explicitly stated the work is being handed off to "the night shift" who
-will do the actual implementation. The user said "I'm about ready to konk out"
-— they're going to bed. The commit was made; no further action is needed at
-this point. The user's explicit task ("update the relevant issue files... Be
-sure to write down anything you think is important to persist") has been
-completed.
+   The user explicitly stated the work is being handed off to "the night shift"
+   who will do the actual implementation. The user said "I'm about ready to konk
+   out" — they're going to bed. The commit was made; no further action is
+   needed at this point. The user's explicit task ("update the relevant issue
+   files... Be sure to write down anything you think is important to persist")
+   has been completed.
 
 
-No next step should be taken without confirmation from the user, as the
-conversation is at a clean handoff point. If anything, the appropriate next
-action would be to wait for the night shift's implementation or for the user to
-return and confirm the work is complete.
+   No next step should be taken without confirmation from the user, as the
+   conversation is at a clean handoff point. If anything, the appropriate next
+   action would be to wait for the night shift's implementation or for the user
+   to return and confirm the work is complete.
 
 
 If you need specific details from before compaction (like exact code snippets,
@@ -4367,9 +4997,9 @@ to.</local-command-caveat>
 
 <command-name>/compact</command-name>
 
-<command-message>compact</command-message>
+            <command-message>compact</command-message>
 
-<command-args></command-args>
+            <command-args></command-args>
 
 
 --------------------------------------------------------------------------------
@@ -4471,33 +5101,33 @@ Two things worth flagging:
 
 
 1. **The implementation has landed.** Both 110a and 110f now have CRU bring-up
-wired into the start of their `_init` functions, the diagnostic discriminator
-reads in place, plus the dwcmshc vendor-area clears (eMMC) and RINTSTS-clear +
-FIFOTH writes (SD). Build is clean.
+   wired into the start of their `_init` functions, the diagnostic discriminator
+   reads in place, plus the dwcmshc vendor-area clears (eMMC) and RINTSTS-clear
+   + FIFOTH writes (SD). Build is clean.
 
 
 2. **There's an untracked `extlinux-rg-ds-dtb.conf` in the project root** that
-looks like a reference dump pulled from the ROCKNIX SD card during research —
-it isn't from any of my edits and isn't part of the build pipeline (the
-bootable-SD script embeds its own template). I'll leave it alone unless you tell
-me what to do with it.
+   looks like a reference dump pulled from the ROCKNIX SD card during research
+   — it isn't from any of my edits and isn't part of the build pipeline (the
+   bootable-SD script embeds its own template). I'll leave it alone unless you
+   tell me what to do with it.
 
 
 Where would you like to go next? Three options I see, ranked by value:
 
 
 1. **Flash and test on the lab laptop.** This is the validating step — if both
-bring-ups land cleanly, we should see Checkpoint A (top green + bottom amber)
-and then Checkpoint B (top yellow + bottom dark) light up before the backup
-heartbeat kicks in. If a discriminator catches a stuck reset or gated clock, the
-debug log on the SD card will say so explicitly.
+   bring-ups land cleanly, we should see Checkpoint A (top green + bottom amber)
+   and then Checkpoint B (top yellow + bottom dark) light up before the backup
+   heartbeat kicks in. If a discriminator catches a stuck reset or gated clock,
+   the debug log on the SD card will say so explicitly.
 
 2. **Commit the implementation as a checkpoint** before flashing, so we have a
-clean state to return to if the hardware test surfaces a regression.
+   clean state to return to if the hardware test surfaces a regression.
 
 3. **Walk through the new code together** before flashing, in case anything
-feels off — extra eyes catch register-encoding mistakes that the compiler
-can't.
+   feels off — extra eyes catch register-encoding mistakes that the compiler
+   can't.
 
 
 I'd suggest doing (2) and then (1) — commit, then push to USB, then carry the
@@ -4550,14 +5180,14 @@ Two findings worth pausing on:
 
 
 1. **The debug log only ever initializes after `sd_init()` succeeds** — that's
-why every prior dump is empty too, not just this one. The eMMC bring-up's
-narration goes to `debug_write`, which fans to CDC-ACM (not up) and
-`debug_log_append` (silently dropped because the log isn't initialized yet).
-We've been flashing blind on the eMMC path all along.
+   why every prior dump is empty too, not just this one. The eMMC bring-up's
+   narration goes to `debug_write`, which fans to CDC-ACM (not up) and
+   `debug_log_append` (silently dropped because the log isn't initialized yet).
+   We've been flashing blind on the eMMC path all along.
 
 
 2. **Let me check whether previous "successful" backups actually contain real
-eMMC content** before assuming sd_init really worked in past runs.
+   eMMC content** before assuming sd_init really worked in past runs.
 
 
 The previous "successful" backups are identical byte-for-byte — they're not
@@ -4577,18 +5207,19 @@ can produce:
 
 
 1. **Bottom amber → top red.** SD bring-up itself failed. Same visual as today
-but it now means SD, not eMMC. Still no debug log because SD never came up to
-back it. We'd diagnose by walking through `sd_initialize_card`'s discriminator
-returns by hand or by LED-encoding the return code in a follow-up patch.
+   but it now means SD, not eMMC. Still no debug log because SD never came up to
+   back it. We'd diagnose by walking through `sd_initialize_card`'s
+   discriminator returns by hand or by LED-encoding the return code in a
+   follow-up patch.
 
 2. **Bottom amber → top green + bottom amber (Checkpoint A) → top red.** SD
-up, then eMMC failed. The SD-backed debug log now has the `[emmc]` narration up
-to the failure point — we'd dump it and read exactly which step returned what
-code.
+   up, then eMMC failed. The SD-backed debug log now has the `[emmc]` narration
+   up to the failure point — we'd dump it and read exactly which step returned
+   what code.
 
 3. **Heartbeat into backup completion (top red + bottom amber).** Everything
-worked. The eMMC backup file on the SD card will have real content this time
-(not the leftover garbage we've been seeing all along).
+   worked. The eMMC backup file on the SD card will have real content this time
+   (not the leftover garbage we've been seeing all along).
 
 
 Run `scripts/push-to-usb` on this machine, then `scripts/lab-side/flash-sd` on
@@ -4644,16 +5275,16 @@ complete" status bit. Three almost-certain reasons SDHCI does this on dwcmshc:
 
 
 1. **The Normal Interrupt Status Enable register gets cleared by
-`SOFT_RESET_ALL`.** Without `INT_ENABLE` set, the COMMAND_COMPLETE bit never
-appears in `INT_STATUS` at all — even though the command is going out fine. We
-never write to that register.
+   `SOFT_RESET_ALL`.** Without `INT_ENABLE` set, the COMMAND_COMPLETE bit never
+   appears in `INT_STATUS` at all — even though the command is going out fine.
+   We never write to that register.
 
 2. **Card-detect signal says "no card."** eMMC has no card-detect pin and the
-line floats. Until we tell `HOST_CONTROL_1` to use the test level instead of the
-real pin (bits 6 and 7), the controller refuses to issue commands.
+   line floats. Until we tell `HOST_CONTROL_1` to use the test level instead of
+   the real pin (bits 6 and 7), the controller refuses to issue commands.
 
 3. **No delay between SD-clock enable and the first command.** eMMC spec
-requires 74 clock cycles at the bus rate before CMD0.
+   requires 74 clock cycles at the bus rate before CMD0.
 
 
 All three are tiny fixes. Let me apply them together, plus split the "CMD0
@@ -4670,9 +5301,16 @@ Built clean. The new image is ready to push to USB and flash.
 
 What to expect from the next run:
 
-- **Best case:** the LED walks through Checkpoint A (SD up) → Checkpoint B (eMMC up) → backup heartbeat → backup-complete (top red + bottom amber, steady, no longer the panic-red).
+- **Best case:** the LED walks through Checkpoint A (SD up) → Checkpoint B
+  (eMMC up) → backup heartbeat → backup-complete (top red + bottom amber,
+  steady, no longer the panic-red).
 
-- **Still failing case:** same bottom-amber → red as before, but the debug log will now narrate exactly which of the three CMD0 failure modes fired (`CMD/DAT inhibit never cleared` / `controller raised error bit` / `neither error nor complete`). Each one points at a different root cause — the third is the INT_ENABLE story, the first means the controller's actually wedged, the second would name the specific bus error.
+- **Still failing case:** same bottom-amber → red as before, but the debug log
+  will now narrate exactly which of the three CMD0 failure modes fired (`CMD/DAT
+  inhibit never cleared` / `controller raised error bit` / `neither error nor
+  complete`). Each one points at a different root cause — the third is the
+  INT_ENABLE story, the first means the controller's actually wedged, the second
+  would name the specific bus error.
 
 
 Push and flash whenever you're ready.
@@ -4700,16 +5338,16 @@ A few likely reasons CMD3 specifically times out:
 
 
 1. **CMD2's response (136-bit CID) isn't being drained.** Some SDHCI controllers
-wedge after R2 if the host doesn't read all four response words — they stay in
-"response in progress" mode and the next command goes out into the void. We only
-read word 0.
+   wedge after R2 if the host doesn't read all four response words — they stay
+   in "response in progress" mode and the next command goes out into the void.
+   We only read word 0.
 
 2. **The card needs a few hundred microseconds between CMD2 and CMD3.** The card
-transitions Ident → Stand-by on CMD3, and that transition may not be instant;
-some eMMCs need explicit settle time.
+   transitions Ident → Stand-by on CMD3, and that transition may not be
+   instant; some eMMCs need explicit settle time.
 
 3. **The Rockchip dwcmshc needs an explicit "command done, end of R2"
-acknowledgement** before the next response slot is armed.
+   acknowledgement** before the next response slot is armed.
 
 
 Let me check if there's already a debug-stream hex helper before adding the fix,
@@ -4729,16 +5367,17 @@ Built clean. The new image will tell us three useful things on the next run:
 
 
 1. **`[emmc] CID[0]=0x...`** — the first word of the CID. A plausible non-zero
-value (manufacturer ID + OID + product name fragment) confirms CMD2 really
-worked and the card transitioned to Ident state. All-zeros or all-ones would
-mean CMD2 succeeded electrically but the card was never actually there to speak.
+   value (manufacturer ID + OID + product name fragment) confirms CMD2 really
+   worked and the card transitioned to Ident state. All-zeros or all-ones would
+   mean CMD2 succeeded electrically but the card was never actually there to
+   speak.
 
 2. **If CMD3 still times out:** `PRESENT_STATE=` and `INT_STATUS=` dumps right
-before the failure tell us if the bus is wedged or if it's just a missing
-response.
+   before the failure tell us if the bus is wedged or if it's just a missing
+   response.
 
 3. **If CMD3 succeeds:** `RESP0=` shows the card status the card returned, and
-we move on to CMD9 and CMD7.
+   we move on to CMD9 and CMD7.
 
 
 The R2 drain alone might be the entire fix — that's my top guess. The settle
@@ -4790,24 +5429,33 @@ Built clean. Image is ready to push and flash.
 What the next run produces:
 
 
-- **`[suite] iteration 1 of 2`** at the top, then each test's name as it runs (`sd_init: running`, then `sd_init: PASS` or `FAIL rc=N`).
+- **`[suite] iteration 1 of 2`** at the top, then each test's name as it runs
+  (`sd_init: running`, then `sd_init: PASS` or `FAIL rc=N`).
 
 - **Six tests per iteration**, two iterations.
 
 - **End-of-suite summary** with `fail_count=N`.
 
-- **LED at the end:** all-pass → top red + bottom amber steady (backup-complete pattern, even though backup didn't run); any-fail → top red steady + bottom amber slow-blink (visually distinct from "kernel hung" and from "panic before suite finished").
+- **LED at the end:** all-pass → top red + bottom amber steady
+  (backup-complete pattern, even though backup didn't run); any-fail → top red
+  steady + bottom amber slow-blink (visually distinct from "kernel hung" and
+  from "panic before suite finished").
 
 
 The first run should tell us:
 
-- Is `sd_init` still reliable? (We saw one pass — does it pass twice in a row?)
+- Is `sd_init` still reliable? (We saw one pass — does it pass twice in a
+  row?)
 
-- Did the R2-drain + settle delay fix `emmc_init`? Either way the log narrates exactly which CMD failed.
+- Did the R2-drain + settle delay fix `emmc_init`? Either way the log narrates
+  exactly which CMD failed.
 
-- Does `sd_roundtrip` confirm the SD write/read path actually works end-to-end? This is the test that proves the eMMC backup file we eventually see is real content and not stale card bytes.
+- Does `sd_roundtrip` confirm the SD write/read path actually works end-to-end?
+  This is the test that proves the eMMC backup file we eventually see is real
+  content and not stale card bytes.
 
-- What's `usb_endpoint_zero_bringup` doing? Either it hangs (suite hangs, log shows last test attempted) or it returns a code we can interpret.
+- What's `usb_endpoint_zero_bringup` doing? Either it hangs (suite hangs, log
+  shows last test attempted) or it returns a code we can interpret.
 
 
 If it hangs inside `usb_ep0_bringup`, that's a known 109b issue and we'd see it.
@@ -4838,15 +5486,15 @@ The log is extraordinarily useful. Three big findings:
 
 
 1. **`sd_init` PASSED both individual init AND the round-trip write/read.** SD
-is fully working — backup files we eventually produce will be real.
+   is fully working — backup files we eventually produce will be real.
 
 2. **`CID[0]=0xFFFFFFFF`** — the eMMC CMD2 response is all-ones. That's the
-floating-bus pattern: the response register is undriven, the controller never
-received a real CID. CMD2's "success" was phantom.
+   floating-bus pattern: the response register is undriven, the controller never
+   received a real CID. CMD2's "success" was phantom.
 
 3. **CMD3 cmd_timeout** with INT_STATUS = 0x00018001 (COMMAND_COMPLETE +
-ERROR_INTERRUPT + CMD_TIMEOUT). The command went out on the wire from the
-controller's perspective, but no response came back.
+   ERROR_INTERRUPT + CMD_TIMEOUT). The command went out on the wire from the
+   controller's perspective, but no response came back.
 
 
 The eMMC controller is talking to nothing. The card never sees any command. This
@@ -4906,9 +5554,15 @@ to GPIO-mode pads.
 What to expect on the next run:
 
 
-- **If the pinmux fix lands cleanly:** `CID[0]` shows a non-`0xFFFFFFFF` value (real manufacturer/OID/product bytes). CMD3 returns a real R1. The full init sequence passes. `emmc_read_block_0` returns 0. The suite reports `fail_count=0` (or close to it — `usb_ep0_bringup` is still expected to fail per the 109b reopen). All-pass LED fires.
+- **If the pinmux fix lands cleanly:** `CID[0]` shows a non-`0xFFFFFFFF` value
+  (real manufacturer/OID/product bytes). CMD3 returns a real R1. The full init
+  sequence passes. `emmc_read_block_0` returns 0. The suite reports
+  `fail_count=0` (or close to it — `usb_ep0_bringup` is still expected to fail
+  per the 109b reopen). All-pass LED fires.
 
-- **If pinmux is wrong somehow** (wrong register offset, wrong function number): same `CID[0]=0xFFFFFFFF` we saw this time. We'd revisit by checking the device tree's function field or the GRF offset table.
+- **If pinmux is wrong somehow** (wrong register offset, wrong function number):
+  same `CID[0]=0xFFFFFFFF` we saw this time. We'd revisit by checking the device
+  tree's function field or the GRF offset table.
 
 
 Push, flash, power-cycle. What do you see?
@@ -4963,15 +5617,15 @@ Picking up the debugging. The pinmux fix didn't change anything — same
 
 
 1. **My pinmux writes aren't actually landing** (wrong GRF offset, wrong mask
-format, or some register lock I haven't disabled). A readback after each write
-would confirm.
+   format, or some register lock I haven't disabled). A readback after each
+   write would confirm.
 
 2. **Pinmux was already correct** (the chip BootROM may have set it during its
-first-pass attempt to boot from eMMC), and the real issue is something else —
-most likely the dwcmshc `EMMC_CONTROL` register at base+0x52C. Bit 0 of that
-register tells the controller "this slot is eMMC, not SD." Without it the
-controller frames commands in SD style, which explains
-everything-times-out-but-the-bus-looks-fine.
+   first-pass attempt to boot from eMMC), and the real issue is something else
+   — most likely the dwcmshc `EMMC_CONTROL` register at base+0x52C. Bit 0 of
+   that register tells the controller "this slot is eMMC, not SD." Without it
+   the controller frames commands in SD style, which explains
+   everything-times-out-but-the-bus-looks-fine.
 
 
 The `CARD_IS_EMMC` bit is what the upstream Linux dwcmshc driver writes during
@@ -5003,14 +5657,14 @@ Built clean. The new run's log will tell us two new things:
 
 
 1. **`GPIO1B_IOMUX_H=...`, `GPIO1C_IOMUX_L=...`, `GPIO1C_IOMUX_H=...`** —
-readback values of our pinmux writes. If they read back with `0x1111`-pattern
-function bits, the writes landed and pinmux isn't the issue. If they read back
-at default (typically 0x0000 for unmapped/GPIO function), our GRF address is
-wrong.
+   readback values of our pinmux writes. If they read back with `0x1111`-pattern
+   function bits, the writes landed and pinmux isn't the issue. If they read
+   back at default (typically 0x0000 for unmapped/GPIO function), our GRF
+   address is wrong.
 
 2. **`EMMC_CONTROL=...`** — what the dwcmshc register holds after we set
-`CARD_IS_EMMC`. If it reads back with bit 0 set, the controller now knows it's
-talking to an eMMC.
+   `CARD_IS_EMMC`. If it reads back with bit 0 set, the controller now knows
+   it's talking to an eMMC.
 
 
 The most likely outcome is `CARD_IS_EMMC` fixes it on its own and `CID[0]`
@@ -5037,17 +5691,18 @@ The readback is gold:
 
 
 1. **`GPIO1B_IOMUX_H=0x00001111`** etc — pinmux writes ARE landing. Pin
-function is set correctly.
+   function is set correctly.
 
 2. **`EMMC_CONTROL=0x0000000D`** — bit 0 set (CARD_IS_EMMC). But bit 12
-(HW_RESET) is **clear**. In upstream Linux's dwcmshc driver, bit 12 of
-EMMC_CONTROL is `DWCMSHC_EMMC_HW_RESET`. When that bit is 0, the eMMC's RST_N
-line is held asserted — the card is in hardware reset and ignores everything
-on the bus. That fits everything we're seeing: COMMAND_COMPLETE fires
-(controller sends the command), but the card itself is frozen and doesn't reply.
+   (HW_RESET) is **clear**. In upstream Linux's dwcmshc driver, bit 12 of
+   EMMC_CONTROL is `DWCMSHC_EMMC_HW_RESET`. When that bit is 0, the eMMC's RST_N
+   line is held asserted — the card is in hardware reset and ignores
+   everything on the bus. That fits everything we're seeing: COMMAND_COMPLETE
+   fires (controller sends the command), but the card itself is frozen and
+   doesn't reply.
 
 3. The card's wire-side `CID[0]=0xFFFFFFFF` (floating-bus read) is exactly what
-you'd see if the card is held in reset.
+   you'd see if the card is held in reset.
 
 
 I also need to add the DLL register clears the upstream driver does at init —
@@ -5067,13 +5722,21 @@ silently:
 Built clean. The new run will tell us:
 
 
-- **`EMMC_CONTROL=...`** after the reset pulse. We want to see bit 12 set (value with `0x1000` or-ed in) — confirming the eMMC's `RST_N` line is now high and the card is running.
+- **`EMMC_CONTROL=...`** after the reset pulse. We want to see bit 12 set (value
+  with `0x1000` or-ed in) — confirming the eMMC's `RST_N` line is now high and
+  the card is running.
 
-- **`CID[0]=0x...`** — if this is no longer `0xFFFFFFFF`, the card is finally responding. A real value contains card-specific identifier bits.
+- **`CID[0]=0x...`** — if this is no longer `0xFFFFFFFF`, the card is finally
+  responding. A real value contains card-specific identifier bits.
 
-- **The rest of the eMMC init sequence** proceeds: CMD3 should now get a real R1 response, CMD9 the CSD, CMD7 the select-card busy completion, then transfer-clock bump.
+- **The rest of the eMMC init sequence** proceeds: CMD3 should now get a real R1
+  response, CMD9 the CSD, CMD7 the select-card busy completion, then
+  transfer-clock bump.
 
-- **If `CID[0]` still reads `0xFFFFFFFF`**, my new validation catches it explicitly with `floating-bus CID, card not responding` and we know the hardware reset wasn't the missing piece — onward to the next suspect (PMIC rail / voltage).
+- **If `CID[0]` still reads `0xFFFFFFFF`**, my new validation catches it
+  explicitly with `floating-bus CID, card not responding` and we know the
+  hardware reset wasn't the missing piece — onward to the next suspect (PMIC
+  rail / voltage).
 
 
 Push, flash, power-cycle. What does it do this time?
@@ -5122,17 +5785,25 @@ setup:
 Built. The next log will tell us things like:
 
 
-- **`CAPABILITIES=...`** — bits 22:16 are the base clock in MHz (0 = unknown). Bits 31:24 + 26 + 27 are voltage support. Bit 30 is "SDR50 supported," etc.
+- **`CAPABILITIES=...`** — bits 22:16 are the base clock in MHz (0 = unknown).
+  Bits 31:24 + 26 + 27 are voltage support. Bit 30 is "SDR50 supported," etc.
 
-- **`HOST_CONTROL_1=0xC0`** confirms the CD test level took (would mean the controller sees a card). Anything else means our HOST_CONTROL_1 write got clobbered.
+- **`HOST_CONTROL_1=0xC0`** confirms the CD test level took (would mean the
+  controller sees a card). Anything else means our HOST_CONTROL_1 write got
+  clobbered.
 
-- **`POWER_CONTROL=0x0F`** confirms power is on at 3.3V. If it's 0 the slot isn't powered.
+- **`POWER_CONTROL=0x0F`** confirms power is on at 3.3V. If it's 0 the slot
+  isn't powered.
 
-- **`CLOCK_CONTROL=...`** — bit 0 should be 1 (internal clock enabled), bit 1 should be 1 (clock stable), bit 2 should be 1 (SD clock to card enabled), upper bits = the divisor.
+- **`CLOCK_CONTROL=...`** — bit 0 should be 1 (internal clock enabled), bit 1
+  should be 1 (clock stable), bit 2 should be 1 (SD clock to card enabled),
+  upper bits = the divisor.
 
-- **`PRESENT_STATE`** at idle should show no CMD_INHIBIT or DAT_INHIBIT, and the card-detect bits should reflect what we set.
+- **`PRESENT_STATE`** at idle should show no CMD_INHIBIT or DAT_INHIBIT, and the
+  card-detect bits should reflect what we set.
 
-- **`SDHCI_VERSION`** gives us spec version so we know which SDHCI variant we're dealing with.
+- **`SDHCI_VERSION`** gives us spec version so we know which SDHCI variant we're
+  dealing with.
 
 
 This data set lets us either find the specific misconfiguration or confirm
@@ -5167,7 +5838,8 @@ being debugged? Maybe we can clear out some work for future issue files.
 The dump has the answer:
 
 
-**`CAPABILITIES=0x226DC881`** — decoding the voltage support bits (24, 25, 26):
+**`CAPABILITIES=0x226DC881`** — decoding the voltage support bits (24, 25,
+26):
 
 - **bit 24 (3.3V VDD support) = 0 — NOT supported**
 
@@ -5214,44 +5886,44 @@ most value extracted per minute":
 **Quick wins** (no hardware testing, no flashing needed — pure desk work):
 
 1. **Extract pinmux for every other peripheral from the device tree.** We did
-this for eMMC by hand. Doing it for USB / display / PWM / SDMMC0 right now means
-every future bring-up has the answers pre-staged. The DTB is at
-`libs/sd-image-parts/rk3568-anbernic-rg-ds.dtb`, dtc works. One docs file:
-`docs/019-board-pinmux.md`.
+   this for eMMC by hand. Doing it for USB / display / PWM / SDMMC0 right now
+   means every future bring-up has the answers pre-staged. The DTB is at
+   `libs/sd-image-parts/rk3568-anbernic-rg-ds.dtb`, dtc works. One docs file:
+   `docs/019-board-pinmux.md`.
 
 2. **Decode the PMIC and regulators from the device tree.** We'll eventually
-need to talk to the PMIC over I²C (for voltage switching during HS200/HS400,
-for any rail not enabled by default). Identifying the chip and its rails now
-means later issues can reference an existing doc.
+   need to talk to the PMIC over I²C (for voltage switching during HS200/HS400,
+   for any rail not enabled by default). Identifying the chip and its rails now
+   means later issues can reference an existing doc.
 
 3. **Add an SDMMC0 (SD card) host controller doc, sibling to 018.** We have
-working SD bring-up — capture what we learned from `sd_init` succeeding (the
-register values that worked), and the pinmux from the device tree. Future bug
-investigations on SD have a baseline reference.
+   working SD bring-up — capture what we learned from `sd_init` succeeding
+   (the register values that worked), and the pinmux from the device tree.
+   Future bug investigations on SD have a baseline reference.
 
 4. **Update issue 110a with today's findings** — voltage 3.0V, byte-width
-vendor-area writes, the diagnostic dump approach. Important so a future reader
-doesn't rediscover the same things.
+   vendor-area writes, the diagnostic dump approach. Important so a future
+   reader doesn't rediscover the same things.
 
 
 **Medium investments** (small implementation pieces, low-risk):
 
 5. **109a USB PHY register writes.** The reopen has the research already done:
-two CRU writes + one PMU GRF write. Mechanical. Would unblock 109b, which would
-unblock CDC-ACM live debugging (no more flash-to-iterate cycle).
+   two CRU writes + one PMU GRF write. Mechanical. Would unblock 109b, which
+   would unblock CDC-ACM live debugging (no more flash-to-iterate cycle).
 
 6. **106c PWM bring-up.** Brings back the smooth-fade LED vocabulary 106a
-originally had. Small, independent, satisfying.
+   originally had. Small, independent, satisfying.
 
 
 **Big chunks** (significant focus):
 
 7. **Display research (111a/b/c/d).** Read the device tree's VOP2 + MIPI DSI +
-JD9365DA-H3 panel nodes, write four issue files with complete register
-playbooks. The implementation work then follows a written plan.
+   JD9365DA-H3 panel nodes, write four issue files with complete register
+   playbooks. The implementation work then follows a written plan.
 
 8. **Phase-2 prep.** Read the soramech runtime doc (`docs/012`) and write the
-issue files for phase-2 issues 201a, 202, 203 — already have stubs.
+   issue files for phase-2 issues 201a, 202, 203 — already have stubs.
 
 
 My recommendation: while you push the new image and flash it, I can knock out
@@ -5272,9 +5944,10 @@ start on items 1-4 while you do that? Which item should I prioritize?
 what does VCC and VDD mean?
 
 
-The new image is also ready to flash with the 3.0V + byte-write fix. Want me to
+  The new image is also ready to flash with the 3.0V + byte-write fix. Want me
+  to
 
-start on items 1-4 while you do that? Which item should I prioritize?
+  start on items 1-4 while you do that? Which item should I prioritize?
 
 
 yes please. You can decide priority order, make sure you add each of them to
@@ -5285,12 +5958,18 @@ your todo list.
 
 ### Assistant Response 81
 
-**VCC and VDD** are both names for "positive supply voltage" but come from different chip eras:
+**VCC and VDD** are both names for "positive supply voltage" but come from
+different chip eras:
 
 
-- **VCC** = "Voltage Common Collector" — from the bipolar-transistor era. The `C` was the collector terminal of an NPN transistor, which got tied to the positive rail. Lingered as the generic name for "the supply feeding the chip" on older silicon.
+- **VCC** = "Voltage Common Collector" — from the bipolar-transistor era. The
+  `C` was the collector terminal of an NPN transistor, which got tied to the
+  positive rail. Lingered as the generic name for "the supply feeding the chip"
+  on older silicon.
 
-- **VDD** = "Voltage Drain-to-Drain" — from the MOSFET era. The `D` was the drain of an N-channel MOSFET, tied to the positive rail in CMOS logic. The modern equivalent of VCC.
+- **VDD** = "Voltage Drain-to-Drain" — from the MOSFET era. The `D` was the
+  drain of an N-channel MOSFET, tied to the positive rail in CMOS logic. The
+  modern equivalent of VCC.
 
 
 For eMMC specifically there are two distinct rails: **VCC** is the card's core
@@ -5328,13 +6007,33 @@ All four parallel tasks done.
 **Summary of what landed while the eMMC voltage fix is waiting to flash:**
 
 
-- **`issues/110a` updated** — current-behaviour section now matches the code (pinmux readback, byte-width vendor writes, 3.0V power, CARD_IS_EMMC, INT_ENABLE post-reset, CMD2 floating-bus validation, cross-reference to `docs/018`).
+- **`issues/110a` updated** — current-behaviour section now matches the code
+  (pinmux readback, byte-width vendor writes, 3.0V power, CARD_IS_EMMC,
+  INT_ENABLE post-reset, CMD2 floating-bus validation, cross-reference to
+  `docs/018`).
 
-- **`docs/019-board-pinmux.md`** — every peripheral on the board with pin/function tables: SDMMC0 (microSD), SDMMC1 (WiFi), I²C0 (PMIC), UART, all 8 PWM channels, audio (acodec / audiopwm conflicting pins), display panel control (LCD reset and VCC/VCCIO enables for both screens), touchscreens, the full gamepad button matrix in GPIO2_D and GPIO3, sensors (hall, headphone-detect, PMIC interrupt, WiFi IRQ), and the GRF base addresses + bank-window offsets to translate any of these into actual register writes. USB is noted as "fixed-function, not muxable."
+- **`docs/019-board-pinmux.md`** — every peripheral on the board with
+  pin/function tables: SDMMC0 (microSD), SDMMC1 (WiFi), I²C0 (PMIC), UART, all
+  8 PWM channels, audio (acodec / audiopwm conflicting pins), display panel
+  control (LCD reset and VCC/VCCIO enables for both screens), touchscreens, the
+  full gamepad button matrix in GPIO2_D and GPIO3, sensors (hall,
+  headphone-detect, PMIC interrupt, WiFi IRQ), and the GRF base addresses +
+  bank-window offsets to translate any of these into actual register writes. USB
+  is noted as "fixed-function, not muxable."
 
-- **`docs/020-sdmmc0-host-controller.md`** — sibling to 018 for the SD path: what the BootROM does for us (pinmux + power) vs what `sd_init` has to do (CRU + identification sequence), the HCON discriminator with the expected `0x0003_E47A` value, the full post-reset register configuration, the update-clock no-op CMD dance, the clock-divider math (`f_card = f_src / (2 * (CLKDIV+1))`), and the four polling-loop error bits.
+- **`docs/020-sdmmc0-host-controller.md`** — sibling to 018 for the SD path:
+  what the BootROM does for us (pinmux + power) vs what `sd_init` has to do (CRU
+  + identification sequence), the HCON discriminator with the expected
+  `0x0003_E47A` value, the full post-reset register configuration, the
+  update-clock no-op CMD dance, the clock-divider math (`f_card = f_src / (2 *
+  (CLKDIV+1))`), and the four polling-loop error bits.
 
-- **`docs/021-pmic-and-regulators.md`** — the RK817 inventory. Four buck regulators (`vdd_logic`, `vdd_gpu`, `vcc_ddr`, `vcc_3v3`), nine LDOs including the interesting switchable ones (`vccio_sd` 1.8/3.3 V, `vcc1v8_dvp` 1.8/3.3 V), the BOOST for USB VBUS, OTG_SWITCH. Documents why phase 1 doesn't need to touch the PMIC and what the path looks like when it eventually does (i2c0 at `0xFDD4_0000`, address `0x20`).
+- **`docs/021-pmic-and-regulators.md`** — the RK817 inventory. Four buck
+  regulators (`vdd_logic`, `vdd_gpu`, `vcc_ddr`, `vcc_3v3`), nine LDOs including
+  the interesting switchable ones (`vccio_sd` 1.8/3.3 V, `vcc1v8_dvp` 1.8/3.3
+  V), the BOOST for USB VBUS, OTG_SWITCH. Documents why phase 1 doesn't need to
+  touch the PMIC and what the path looks like when it eventually does (i2c0 at
+  `0xFDD4_0000`, address `0x20`).
 
 - **`docs/000-table-of-contents.md`** updated with all three new entries.
 
@@ -5363,12 +6062,12 @@ silent. Two new observations:
 
 
 1. **HOST_CTRL3 still reads `0x000F0001`** — bit 0 came back as 1 even with
-byte-width write. The controller forces this bit; cmd-conflict-check stays
-enabled regardless. Not the bug.
+   byte-width write. The controller forces this bit; cmd-conflict-check stays
+   enabled regardless. Not the bug.
 
 2. **The suite hangs at `usb_ep0_bringup`** as expected per 109b — iteration 2
-never runs. We're losing half the diagnostic value per flash because of a
-known-hanging test.
+   never runs. We're losing half the diagnostic value per flash because of a
+   known-hanging test.
 
 
 Let me check the device tree for eMMC `vmmc-supply` / `vqmmc-supply` properties
@@ -5390,13 +6089,18 @@ Now the slower divisor + post-clock-setup dump in the eMMC code:
 Built clean. The next run should give us:
 
 
-- **Iteration 2 actually runs** (no more usb_ep0 hang) — we'll see whether the second pass through `emmc_init` behaves differently than the first.
+- **Iteration 2 actually runs** (no more usb_ep0 hang) — we'll see whether the
+  second pass through `emmc_init` behaves differently than the first.
 
-- **`CLOCK_CONTROL=...`** — verifies the divisor + clock-enable bits actually took. Should be roughly `0xFF07` (bits 15:8 = 0xFF divisor, bit 0+1+2 = internal en, stable, SD en).
+- **`CLOCK_CONTROL=...`** — verifies the divisor + clock-enable bits actually
+  took. Should be roughly `0xFF07` (bits 15:8 = 0xFF divisor, bit 0+1+2 =
+  internal en, stable, SD en).
 
 - **`POWER_CONTROL=...`** — confirms 0x0D held through the clock-setup phase.
 
-- **eMMC at 392 kHz instead of 781 kHz** — more forgiving of pad drive strength. If the issue was clock-rate-vs-drive-strength, the slower rate gives the card a chance to respond.
+- **eMMC at 392 kHz instead of 781 kHz** — more forgiving of pad drive
+  strength. If the issue was clock-rate-vs-drive-strength, the slower rate gives
+  the card a chance to respond.
 
 
 If the slower clock fixes it: we know drive strength is the underlying issue,
@@ -5454,9 +6158,11 @@ Now to your two parallel-work questions — let me check the docs:
 Honest answers:
 
 
-- **PWM1 clock-gate bit: NOT yet found.** The `docs/017` entry says "TBD — research before 106c lands."
+- **PWM1 clock-gate bit: NOT yet found.** The `docs/017` entry says "TBD —
+  research before 106c lands."
 
-- **USB PHY power-down register: NOT yet researched.** The 109a issue says the same.
+- **USB PHY power-down register: NOT yet researched.** The 109a issue says the
+  same.
 
 
 Both are research blockers, but I can dig into the device tree right now for
@@ -5487,13 +6193,13 @@ Three paths to unblock parallel work on 106c / 109a:
 
 
 1. **Drop upstream Linux into `libs/`** (one-time clone). Then every future
-bring-up has the source to lookup from. The clone is ~5 GB though.
+   bring-up has the source to lookup from. The clone is ~5 GB though.
 
 2. **Guess + verify with readback** — I can take educated guesses at the
-register positions based on the standard Rockchip patterns (the PMU CRU layout
-mirrors the main CRU we already understand; USB2 PHY GRF registers are
-documented enough to make plausible guesses). The diagnostic suite dumps the
-readback, so a wrong guess gives us data, not a wedged chip.
+   register positions based on the standard Rockchip patterns (the PMU CRU
+   layout mirrors the main CRU we already understand; USB2 PHY GRF registers are
+   documented enough to make plausible guesses). The diagnostic suite dumps the
+   readback, so a wrong guess gives us data, not a wedged chip.
 
 3. **Pick different parallel work** that we have everything for already.
 
@@ -5531,40 +6237,43 @@ Linux into `libs/` in the background so we have it for future work?
 
 ### User Request 84
 
-2. Guess + verify with readback — I can take educated guesses at the register
+  2. Guess + verify with readback — I can take educated guesses at the
+     register
 
-positions based on the standard Rockchip patterns (the PMU CRU layout mirrors
-the
+  positions based on the standard Rockchip patterns (the PMU CRU layout mirrors
+  the
 
-main CRU we already understand; USB2 PHY GRF registers are documented enough to
+  main CRU we already understand; USB2 PHY GRF registers are documented enough
+  to
 
-make plausible guesses). The diagnostic suite dumps the readback, so a wrong
-guess
+  make plausible guesses). The diagnostic suite dumps the readback, so a wrong
+  guess
 
-gives us data, not a wedged chip.
+  gives us data, not a wedged chip.
 
 
 
-Shall I proceed with the PULL/DRV fix? If yes, do you want to grab upstream
-Linux
+  Shall I proceed with the PULL/DRV fix? If yes, do you want to grab upstream
+  Linux
 
-into libs/ in the background so we have it for future work?
+  into libs/ in the background so we have it for future work?
 
 
 yes, but no I'd prefer to enumerate it ourselves if we can.
 
 
-That leaves the most likely cause: pull-up + drive-strength registers for the
-eMMC
+  That leaves the most likely cause: pull-up + drive-strength registers for the
+  eMMC
 
-pins — we set the IOMUX function bits but never the PULL or DRV registers. The
+  pins — we set the IOMUX function bits but never the PULL or DRV registers.
+  The
 
-device tree's pcfg-pull-up-drv-level-2 for the data lines tells us they should
+  device tree's pcfg-pull-up-drv-level-2 for the data lines tells us they should
 
-have internal pull-ups enabled and drive level 2 — neither of which our
-IOMUX-only
+  have internal pull-ups enabled and drive level 2 — neither of which our
+  IOMUX-only
 
-writes touched. CMD line floating is exactly the symptom we see.
+  writes touched. CMD line floating is exactly the symptom we see.
 
 
 
@@ -5582,14 +6291,14 @@ three pieces:
 
 
 1. **PULL/DRV register writes for eMMC pins** (educated guesses at GRF offsets,
-with readback so a wrong guess teaches us)
+   with readback so a wrong guess teaches us)
 
 2. **A pre-write dump of the suspected PULL/DRV addresses** (shows the BootROM's
-defaults — useful baseline)
+   defaults — useful baseline)
 
 3. **A new `system_probe` test that dumps registers we haven't touched yet** —
-PMU CRU clock-gates (covers PWM1 + others), USB2 PHY GRF (covers 109a), CRU
-CLKSEL for the eMMC's clock source. All read-only — no writes, no risk.
+   PMU CRU clock-gates (covers PWM1 + others), USB2 PHY GRF (covers 109a), CRU
+   CLKSEL for the eMMC's clock source. All read-only — no writes, no risk.
 
 
 This way one flash gives us answers on three fronts at once.
@@ -5622,28 +6331,40 @@ Built clean. The next flash gives us data on three independent fronts:
 
 **Front 1 — eMMC pad config:**
 
-- `GPIO1B_P (pre)=...` and `GPIO1C_P (pre)=...` show the chip-default pull bias for the eMMC pins. If they read sensible values (matching what the BootROM might have set), my GRF offset guesses (`+0x84`, `+0x88`, etc.) are right.
+- `GPIO1B_P (pre)=...` and `GPIO1C_P (pre)=...` show the chip-default pull bias
+  for the eMMC pins. If they read sensible values (matching what the BootROM
+  might have set), my GRF offset guesses (`+0x84`, `+0x88`, etc.) are right.
 
 - `GPIO1B_P (post)=` after our writes — verify the changes landed.
 
-- Then `emmc_init` runs with proper pull-up + drive level 2. If CMD2 finally returns a real CID instead of `0xFFFFFFFF`, this was the fix all along.
+- Then `emmc_init` runs with proper pull-up + drive level 2. If CMD2 finally
+  returns a real CID instead of `0xFFFFFFFF`, this was the fix all along.
 
-- If my offset guesses are wrong, the `(pre)` and `(post)` values will tell us — and the write-mask convention means we won't have damaged anything.
+- If my offset guesses are wrong, the `(pre)` and `(post)` values will tell us
+  — and the write-mask convention means we won't have damaged anything.
 
 
 **Front 2 — PMU CRU (unblocks 106c):**
 
-- `PMU_CRU + 0x180` through `+0x18C` — sweeps the suspected PMU CRU clock-gate registers. PWM1 is in this domain. Whatever bits we see, the pattern (compared to the device tree's clock IDs 13 and 48 for PWM1) lets us narrow down which bit controls PCLK_PWM1 and CLK_PWM1.
+- `PMU_CRU + 0x180` through `+0x18C` — sweeps the suspected PMU CRU clock-gate
+  registers. PWM1 is in this domain. Whatever bits we see, the pattern (compared
+  to the device tree's clock IDs 13 and 48 for PWM1) lets us narrow down which
+  bit controls PCLK_PWM1 and CLK_PWM1.
 
 
 **Front 3 — USB2 PHY GRF (unblocks 109a):**
 
-- `USB2PHY0_GRF + 0x000` through `+0x044` — dumps the first few registers of the USB2 PHY's syscon block. The Rockchip USB2 PHY's USBOTG / USBHOST control registers (which hold the power-down bits) live in this range. The values tell us what state the bootloader left them in.
+- `USB2PHY0_GRF + 0x000` through `+0x044` — dumps the first few registers of
+  the USB2 PHY's syscon block. The Rockchip USB2 PHY's USBOTG / USBHOST control
+  registers (which hold the power-down bits) live in this range. The values tell
+  us what state the bootloader left them in.
 
 
 **Bonus — CRU CLKSEL:**
 
-- A few CLKSEL_CON registers from the main CRU — looking for the one that controls CCLK_EMMC's source selection. Tells us what actual base clock the eMMC controller is running at.
+- A few CLKSEL_CON registers from the main CRU — looking for the one that
+  controls CCLK_EMMC's source selection. Tells us what actual base clock the
+  eMMC controller is running at.
 
 
 Push and flash. This one flash should give us either an actually-working eMMC
@@ -5672,11 +6393,13 @@ Big harvest. Let me decode:
 **Front 1 — eMMC pad config: my GRF offset guesses are CORRECT!**
 
 
-- `GPIO1B_P (pre)=0x55AA` — decoding 2 bits per pin: B4-B7 already at `01` (pull-up). **The BootROM set the eMMC pull-ups before us.**
+- `GPIO1B_P (pre)=0x55AA` — decoding 2 bits per pin: B4-B7 already at `01`
+  (pull-up). **The BootROM set the eMMC pull-ups before us.**
 
 - `GPIO1C_P (pre)=0x8555` — C0-C5 already at `01` (pull-up). Same story.
 
-- `GPIO1B_DRV (pre)=0x5555` → `(post)=0xAA55` — our write changed B4-B7 from drive level 1 to level 2. Took correctly.
+- `GPIO1B_DRV (pre)=0x5555` → `(post)=0xAA55` — our write changed B4-B7 from
+  drive level 1 to level 2. Took correctly.
 
 - `GPIO1C_DRV (pre)=0x5555` → `(post)=0x5AAA` — same for C0-C5.
 
@@ -5687,13 +6410,18 @@ left is no longer pad-side — it's something about how the card itself comes
 out of reset on this boot path.
 
 
-**Front 2 — PMU CRU at 0x180-0x18C: all zeros.** Those aren't the CLKGATE registers — wrong region. Need to sweep wider for 106c.
+**Front 2 — PMU CRU at 0x180-0x18C: all zeros.** Those aren't the CLKGATE
+registers — wrong region. Need to sweep wider for 106c.
 
 
-**Front 3 — USB2 PHY GRF — real values dumped.** `0x000=0x0C52`, `0x004=0x01D1`, `0x040/044=0x00030100`. We can now decode the actual PHY-control register layout against the upstream binding to find the power-down bits, which unblocks 109a research.
+**Front 3 — USB2 PHY GRF — real values dumped.** `0x000=0x0C52`,
+`0x004=0x01D1`, `0x040/044=0x00030100`. We can now decode the actual PHY-control
+register layout against the upstream binding to find the power-down bits, which
+unblocks 109a research.
 
 
-**Front 4 — CRU CLKSEL_CONs** — interesting values but inconclusive without the upstream binding header.
+**Front 4 — CRU CLKSEL_CONs** — interesting values but inconclusive without
+the upstream binding header.
 
 
 For the eMMC: now that pads are right, the remaining suspects are **card-reset
@@ -5715,22 +6443,31 @@ Built. The next flash gives us:
 
 **Front A — eMMC card-side reset experiments:**
 
-- A full slot **power-cycle** (off, 1ms, back to 3.0V) before the card init sequence. Forces the eMMC into a fresh power-on state.
+- A full slot **power-cycle** (off, 1ms, back to 3.0V) before the card init
+  sequence. Forces the eMMC into a fresh power-on state.
 
-- **Pre-idle CMD0 with arg `0xF0F0F0F0`** — the eMMC4.4+ "I don't care what state you're in, drop everything and go to pre-idle" command. Followed by the normal CMD0.
+- **Pre-idle CMD0 with arg `0xF0F0F0F0`** — the eMMC4.4+ "I don't care what
+  state you're in, drop everything and go to pre-idle" command. Followed by the
+  normal CMD0.
 
-- If the card responds after these, the issue all along was a previous boot session leaving the card in a non-Idle state.
+- If the card responds after these, the issue all along was a previous boot
+  session leaving the card in a non-Idle state.
 
-- If it still doesn't respond, we've ruled out card-state as the variable — leaving only "the card itself isn't being powered by the board" (PMIC rail) as the suspect.
+- If it still doesn't respond, we've ruled out card-state as the variable —
+  leaving only "the card itself isn't being powered by the board" (PMIC rail) as
+  the suspect.
 
 
 **Front B — PMU CRU at 0x300+ for 106c:**
 
-- Reading PMU_CRU at 0x300 / 0x304 / ... — mirroring the main CRU's CLKGATE_CON layout. If we see non-zero values matching what we'd expect for a PMU-domain peripheral configuration, that's where PWM1's gate bit lives.
+- Reading PMU_CRU at 0x300 / 0x304 / ... — mirroring the main CRU's
+  CLKGATE_CON layout. If we see non-zero values matching what we'd expect for a
+  PMU-domain peripheral configuration, that's where PWM1's gate bit lives.
 
 - Plus SOFTRST_CON at 0x400+ for the matching reset register.
 
-- 106c's research-blocker is exactly "which PMU CRU register holds the PWM1 clock-gate bit." A wide enough sweep finds it.
+- 106c's research-blocker is exactly "which PMU CRU register holds the PWM1
+  clock-gate bit." A wide enough sweep finds it.
 
 
 While you flash, I can also lay groundwork for parsing the USB2 PHY GRF values
@@ -5759,30 +6496,38 @@ Honest answer to the meta-question first.
 
 - **SD, debug log, USB controller, watchdog**: fully working. Big wins.
 
-- **Test framework + diagnostic dumps**: gives us real data per flash instead of guessing.
+- **Test framework + diagnostic dumps**: gives us real data per flash instead of
+  guessing.
 
 - **Documentation**: 5 new docs files in 24 hours, all empirically-grounded.
 
-- **eMMC specifically**: we've eliminated a lot of possible causes (pinmux ✓, CRU clocks ✓, voltage ✓, CARD_IS_EMMC ✓, INT_ENABLE ✓, pull-up ✓ — already set by BootROM, drive strength ✓ — now level 2, clock divisor ✓) but the card itself still doesn't respond. We're now running out of "controller-side" things to try. The remaining suspects are card-side (power-cycle, pre-idle CMD0) or board-level (PMIC rail for the eMMC actually off despite always-on flag).
+- **eMMC specifically**: we've eliminated a lot of possible causes (pinmux ✓,
+  CRU clocks ✓, voltage ✓, CARD_IS_EMMC ✓, INT_ENABLE ✓, pull-up ✓ —
+  already set by BootROM, drive strength ✓ — now level 2, clock divisor ✓)
+  but the card itself still doesn't respond. We're now running out of
+  "controller-side" things to try. The remaining suspects are card-side
+  (power-cycle, pre-idle CMD0) or board-level (PMIC rail for the eMMC actually
+  off despite always-on flag).
 
 
-**Is there a datasheet?** Yes, and we should be using it. There are actually four documents that would help:
+**Is there a datasheet?** Yes, and we should be using it. There are actually
+four documents that would help:
 
 
 1. **Rockchip RK3568 TRM** (Technical Reference Manual) — Parts 1 & 2, free
-PDFs from Rockchip. Has every register layout, every bit field, every clock-gate
-ID. This is the one document that would unblock everything I've been guessing
-at. Typically lives at https://opensource.rock-chips.com/wiki_RK3568 or in
-various git mirrors.
+   PDFs from Rockchip. Has every register layout, every bit field, every
+   clock-gate ID. This is the one document that would unblock everything I've
+   been guessing at. Typically lives at
+   https://opensource.rock-chips.com/wiki_RK3568 or in various git mirrors.
 
 2. **SDHCI Host Controller Standard Specification** — JEDEC/SD Association doc
-that defines the SDHCI register set we drive the eMMC through.
+   that defines the SDHCI register set we drive the eMMC through.
 
 3. **JEDEC eMMC 5.1 spec** — what CMD0/CMD1/etc. actually do at the wire
-level.
+   level.
 
 4. **Synopsys DWC_mshc datasheet** — vendor-area register definitions for the
-dwcmshc controller specifically. Harder to find publicly.
+   dwcmshc controller specifically. Harder to find publicly.
 
 
 We have **none** of these on disk. Every register guess I've been making is from
@@ -5808,11 +6553,14 @@ from the upstream Linux source you didn't want to grab.
 
 If that's not on the table, the alternatives:
 
-- Push through with guess-and-verify (slow but works for the cases where my pattern-knowledge is right)
+- Push through with guess-and-verify (slow but works for the cases where my
+  pattern-knowledge is right)
 
-- Pivot to other phase-1 work (display research, 106c PWM bring-up — both still benefit from the TRM but can also be approached via guessing)
+- Pivot to other phase-1 work (display research, 106c PWM bring-up — both
+  still benefit from the TRM but can also be approached via guessing)
 
-- Pivot to phase-2 prep work, which is more software-design and less hardware-poking
+- Pivot to phase-2 prep work, which is more software-design and less
+  hardware-poking
 
 
 What's your call? If you can grab the TRM, the next flash question becomes
@@ -5824,28 +6572,29 @@ next." That's a qualitatively different mode of work.
 
 ### User Request 87
 
-1. Rockchip RK3568 TRM (Technical Reference Manual) — Parts 1 & 2, free PDFs
-from
+  1. Rockchip RK3568 TRM (Technical Reference Manual) — Parts 1 & 2, free PDFs
+     from
 
-Rockchip. Has every register layout, every bit field, every clock-gate ID. This
-is
+  Rockchip. Has every register layout, every bit field, every clock-gate ID.
+  This is
 
-the one document that would unblock everything I've been guessing at. Typically
+  the one document that would unblock everything I've been guessing at.
+  Typically
 
-lives at https://opensource.rock-chips.com/wiki_RK3568 or in various git
-mirrors.
+  lives at https://opensource.rock-chips.com/wiki_RK3568 or in various git
+  mirrors.
 
-2. SDHCI Host Controller Standard Specification — JEDEC/SD Association doc
-that
+  2. SDHCI Host Controller Standard Specification — JEDEC/SD Association doc
+     that
 
-defines the SDHCI register set we drive the eMMC through.
+  defines the SDHCI register set we drive the eMMC through.
 
-3. JEDEC eMMC 5.1 spec — what CMD0/CMD1/etc. actually do at the wire level.
+  3. JEDEC eMMC 5.1 spec — what CMD0/CMD1/etc. actually do at the wire level.
 
-4. Synopsys DWC_mshc datasheet — vendor-area register definitions for the
-dwcmshc
+  4. Synopsys DWC_mshc datasheet — vendor-area register definitions for the
+     dwcmshc
 
-controller specifically. Harder to find publicly.
+  controller specifically. Harder to find publicly.
 
 
 
@@ -5909,24 +6658,22 @@ Six PDFs landed in `docs/datasheets/`, totaling 145 MB. Summary:
 
 |---|---|---|---|
 
-| `rk3568-trm-part1.pdf` | 12 MB | (many) | Rockchip official, via Internet
-Archive |
+| `rk3568-trm-part1.pdf` | 12 MB | (many) | Rockchip official, via Internet Archive |
 
-| `rk3568-trm-part2.pdf` | 120 MB | **2583** | GitHub heitbaum/rk3568 (mirrored
-from Rockchip internal) |
+| `rk3568-trm-part2.pdf` | 120 MB | **2583** | GitHub heitbaum/rk3568 (mirrored from Rockchip internal) |
 
 | `rk3568-datasheet.pdf` | 3.4 MB | 62 | Same GitHub mirror |
 
-| `sdhci-host-controller-spec.pdf` | 2.4 MB | 234 | SD Association v4.20
-simplified spec |
+| `sdhci-host-controller-spec.pdf` | 2.4 MB | 234 | SD Association v4.20 simplified spec |
 
 | `jedec-emmc-5.1.pdf` | 6.3 MB | 352 | Archive.org SD-specs collection |
 
-| `synopsys-dwc-mshc.pdf` | 1.5 MB | 21 | Partial excerpt from mweda.com mirror;
-full databook is NDA |
+| `synopsys-dwc-mshc.pdf` | 1.5 MB | 21 | Partial excerpt from mweda.com mirror; full databook is NDA |
 
 
-**TRM Part 2** is the big win — 2583 pages covering every Rockchip peripheral including the dwcmshc-on-RK3568 register layout. The vendor-area mystery (HOST_CTRL3, EMMC_CONTROL bit 12, etc.) gets answered there.
+**TRM Part 2** is the big win — 2583 pages covering every Rockchip peripheral
+including the dwcmshc-on-RK3568 register layout. The vendor-area mystery
+(HOST_CTRL3, EMMC_CONTROL bit 12, etc.) gets answered there.
 
 
 The Synopsys databook is only a 21-page excerpt because the full one is behind
@@ -5946,15 +6693,20 @@ those alone got us across the line?
 
 Sources:
 
-- [Rockchip RK3568 TRM Part 1 (Internet Archive)](https://archive.org/details/rockchip-rk-3568-trm-part-1-v-1.3-20220930)
+- [Rockchip RK3568 TRM Part 1 (Internet
+  Archive)](https://archive.org/details/rockchip-rk-3568-trm-part-1-v-1.3-20220930)
 
-- [Rockchip RK3568 TRM Part 2 (GitHub mirror)](https://github.com/heitbaum/rk3568/blob/main/doc/Rockchip%20RK3568%20TRM%20Part2%20V1.1-20210301.pdf)
+- [Rockchip RK3568 TRM Part 2 (GitHub
+  mirror)](https://github.com/heitbaum/rk3568/blob/main/doc/Rockchip%20RK3568%20TRM%20Part2%20V1.1-20210301.pdf)
 
-- [SDHCI Simplified Specification v4.20](https://www.taterli.com/wp-content/uploads/2017/05/SD-Host-Controller-Simplified-SpecificationV4.20.pdf)
+- [SDHCI Simplified Specification
+  v4.20](https://www.taterli.com/wp-content/uploads/2017/05/SD-Host-Controller-Simplified-SpecificationV4.20.pdf)
 
-- [JEDEC JESD84-B51 eMMC 5.1 (Internet Archive)](https://archive.org/download/SD-specs/JESD84-B51.pdf)
+- [JEDEC JESD84-B51 eMMC 5.1 (Internet
+  Archive)](https://archive.org/download/SD-specs/JESD84-B51.pdf)
 
-- [Synopsys DWC Mobile Storage Databook excerpt](http://ee.mweda.com/imgqa/smqh/me/me-2981c14lsca0hsz.pdf)
+- [Synopsys DWC Mobile Storage Databook
+  excerpt](http://ee.mweda.com/imgqa/smqh/me/me-2981c14lsca0hsz.pdf)
 
 - [Rockchip opensource wiki](https://opensource.rock-chips.com/wiki_RK3568)
 
@@ -5975,9 +6727,9 @@ to.</local-command-caveat>
 
 <command-name>/model</command-name>
 
-<command-message>model</command-message>
+            <command-message>model</command-message>
 
-<command-args></command-args>
+            <command-args></command-args>
 
 
 --------------------------------------------------------------------------------
@@ -6004,9 +6756,9 @@ to.</local-command-caveat>
 
 <command-name>/effort</command-name>
 
-<command-message>effort</command-message>
+            <command-message>effort</command-message>
 
-<command-args></command-args>
+            <command-args></command-args>
 
 
 --------------------------------------------------------------------------------
@@ -6098,7 +6850,12 @@ reset values. Critically, I notice the register map lists `EMMC_HOST_CTRL3` at
 CARD_IS_EMMC mechanism directly — this is the crux.
 
 
-**Found the crux.** `EMMC_EMMC_CTRL` at `0x052C`, reset default `0x0C`. The bit decode (chapter line 2817+) shows **bit 2 = `EMMC_RST_N`** (controls `sd_rst_n` output, reset value `0x1` = card *not* held in reset), bit 3 = `EMMC_RST_N_OE`, **bit 0 = `CARD_IS_EMMC`**. Our 0x0D readback = default 0x0C + our CARD_IS_EMMC bit. So the card is *not* held in reset — that's not the bug. The "commands go out, responses read 0xFFFFFFFF" symptom points at RX sampling/DLL.
+**Found the crux.** `EMMC_EMMC_CTRL` at `0x052C`, reset default `0x0C`. The bit
+decode (chapter line 2817+) shows **bit 2 = `EMMC_RST_N`** (controls `sd_rst_n`
+output, reset value `0x1` = card *not* held in reset), bit 3 = `EMMC_RST_N_OE`,
+**bit 0 = `CARD_IS_EMMC`**. Our 0x0D readback = default 0x0C + our CARD_IS_EMMC
+bit. So the card is *not* held in reset — that's not the bug. The "commands go
+out, responses read 0xFFFFFFFF" symptom points at RX sampling/DLL.
 
 
 This eMMC synthesis is the crux and I'll do it myself. Let me launch parallel
@@ -6125,7 +6882,7 @@ sequence.
 
 
 > 1'b0: RX clock source is inverted. 1'b1: RX clock source is no-inverted.
-**This bit should be set to 1 for normal operation.**
+> **This bit should be set to 1 for normal operation.**
 
 
 Reset default is **0 (inverted)**. With an inverted RX clock, the controller
@@ -6146,18 +6903,18 @@ code/docs**:
 
 
 1. **Agent B found our drive-strength writes are hitting the WRONG register.**
-`0xC4`/`0xC8` are `GPIO1B_IE`/`GPIO1C_IE` (pad **input-enable**), not drive
-strength. The real DRV block (`DS`) starts at `0x200` (GPIO1B_DS_2 at 0x218,
-etc.). We've been writing drive-strength bit patterns into the input-enable
-register — which can *disable the eMMC pins' input buffers*, a second
-independent cause of floating-bus reads.
+   `0xC4`/`0xC8` are `GPIO1B_IE`/`GPIO1C_IE` (pad **input-enable**), not drive
+   strength. The real DRV block (`DS`) starts at `0x200` (GPIO1B_DS_2 at 0x218,
+   etc.). We've been writing drive-strength bit patterns into the input-enable
+   register — which can *disable the eMMC pins' input buffers*, a second
+   independent cause of floating-bus reads.
 
 2. **Agent A found CCLK_EMMC defaults to 24 MHz**, not the 200 MHz the SDHCI
-CAPABILITIES register advertises — the bootloader never sets the mux on our
-boot path. Our divisor math is 8× off.
+   CAPABILITIES register advertises — the bootloader never sets the mux on our
+   boot path. Our divisor math is 8× off.
 
 3. **Agent C found our PMU CRU base is wrong in the docs**: it's `0xFDD00000`,
-not `0xFDD40000` (that's I2C0 — which is why the PMU probe read zeros).
+   not `0xFDD40000` (that's I2C0 — which is why the PMU probe read zeros).
 
 
 Combined with the RX-clock-inversion root cause, I have the full eMMC picture.
@@ -6307,11 +7064,16 @@ even though the card is answering. That's the *exact* signature we saw: TX works
 check is the first to reject the garbage.
 
 
-**The fix is implemented and the bootable image is built, ready to flash.** Plus two of our *own* mistakes that the datasheet exposed:
+**The fix is implemented and the bootable image is built, ready to flash.** Plus
+two of our *own* mistakes that the datasheet exposed:
 
-- The registers we'd been writing as "drive strength" (`0xC4`/`0xC8`) are actually pad **input-enable** — we were potentially disabling the eMMC pins' input buffers. Removed.
+- The registers we'd been writing as "drive strength" (`0xC4`/`0xC8`) are
+  actually pad **input-enable** — we were potentially disabling the eMMC pins'
+  input buffers. Removed.
 
-- `CCLK_EMMC` sits at its **24 MHz reset default** while the controller advertises 200 MHz, so our divisor math was 8× off. Now we set the clock-source mux.
+- `CCLK_EMMC` sits at its **24 MHz reset default** while the controller
+  advertises 200 MHz, so our divisor math was 8× off. Now we set the
+  clock-source mux.
 
 
 ## Documentation updated (your actual ask)
@@ -6320,15 +7082,27 @@ check is the first to reject the garbage.
 **Every question mark I could find is now answered:**
 
 
-- **docs/018 (eMMC)** — rewritten as the authoritative reference: the RX-clock root cause, the full vendor register map, the `EMMC_EMMC_CTRL` bit decode (and a correction — the card-reset is bit 2 at default-deasserted, *not* the bit-12 we'd guessed).
+- **docs/018 (eMMC)** — rewritten as the authoritative reference: the RX-clock
+  root cause, the full vendor register map, the `EMMC_EMMC_CTRL` bit decode (and
+  a correction — the card-reset is bit 2 at default-deasserted, *not* the
+  bit-12 we'd guessed).
 
-- **docs/017 (clocks)** — fixed a **wrong PMU CRU base** (`0xFDD00000`, not `0xFDD40000` — that's I2C0, which is why that probe read zeros), filled the **PWM1/2/3 + PWM0 clock-gate TBDs** (unblocks 106c), added the `CCLK_EMMC` source mux and PWM resets.
+- **docs/017 (clocks)** — fixed a **wrong PMU CRU base** (`0xFDD00000`, not
+  `0xFDD40000` — that's I2C0, which is why that probe read zeros), filled the
+  **PWM1/2/3 + PWM0 clock-gate TBDs** (unblocks 106c), added the `CCLK_EMMC`
+  source mux and PWM resets.
 
-- **docs/019 (pinmux)** — corrected the **drive-strength vs input-enable** offset confusion, fixed an **i2c0 SCL/SDA swap**, added the confirmed pull/drive/IE register layout.
+- **docs/019 (pinmux)** — corrected the **drive-strength vs input-enable**
+  offset confusion, fixed an **i2c0 SCL/SDA swap**, added the confirmed
+  pull/drive/IE register layout.
 
-- **docs/022 (USB)** — *new.* For 109a: the USB2 PHY OTG port is already out of suspend at reset, so there's no power-down bit to clear — the real work is two CRU writes.
+- **docs/022 (USB)** — *new.* For 109a: the USB2 PHY OTG port is already out
+  of suspend at reset, so there's no power-down bit to clear — the real work
+  is two CRU writes.
 
-- **docs/023 (display)** — *new.* VOP2 + MIPI DSI + DPHY reconnaissance with the minimum scan-out register path and init-ordering constraints, mapping the work for 111a-d.
+- **docs/023 (display)** — *new.* VOP2 + MIPI DSI + DPHY reconnaissance with
+  the minimum scan-out register path and init-ordering constraints, mapping the
+  work for 111a-d.
 
 
 Issues **110a, 106c, 109a** now point at the docs; **phase-1-progress** records
@@ -6345,7 +7119,9 @@ GRF, PMU, display) against the text while I worked the eMMC chapter myself. The
 text extracts live in `tmp/` (RAM) and regenerate from the PDFs on demand.
 
 
-**Next step is yours: push and flash.** If the RX-clock fix lands, CMD2 should finally return a real CID instead of `0xFFFFFFFF`, and the eMMC backup should produce real card content for the first time.
+**Next step is yours: push and flash.** If the RX-clock fix lands, CMD2 should
+finally return a real CID instead of `0xFFFFFFFF`, and the eMMC backup should
+produce real card content for the first time.
 
 
 --------------------------------------------------------------------------------
@@ -6436,11 +7212,14 @@ that over-claimed it as the root cause — accuracy over a tidy story.
 
 What this flash *did* confirm, via readback against the datasheet:
 
-- Drive-strength now reads correctly (`0x0707` = level 2) — we're writing the right register, and input-enable is clean (`0x5555`, no longer clobbered).
+- Drive-strength now reads correctly (`0x0707` = level 2) — we're writing the
+  right register, and input-enable is clean (`0x5555`, no longer clobbered).
 
 - `CCLK_EMMC` mux is now 200 MHz, internal clock stable.
 
-- **Every single controller register is correctly configured.** Pinmux, pull, clocks, power (3.0 V), clock-control, card-detect, conflict-check, `CARD_IS_EMMC` — all verified correct against TRM Part 2 Ch7.
+- **Every single controller register is correctly configured.** Pinmux, pull,
+  clocks, power (3.0 V), clock-control, card-detect, conflict-check,
+  `CARD_IS_EMMC` — all verified correct against TRM Part 2 Ch7.
 
 
 And the card still returns `0xFFFFFFFF`. That's the important conclusion: **this
@@ -6463,9 +7242,15 @@ low→high** (>1 µs assert, >200 µs recovery) before CMD0.
 ## What to expect
 
 
-- **If `CID[0]` comes back non-`0xFFFFFFFF`:** the card was stuck and the reset freed it — we're past the wall.
+- **If `CID[0]` comes back non-`0xFFFFFFFF`:** the card was stuck and the reset
+  freed it — we're past the wall.
 
-- **If it's still `0xFFFFFFFF`:** we've definitively ruled out software config *and* card-state, which points at the physical layer (is the clock/command actually reaching the card pads) or a board-level rail/level-shifter. The next move then is to reverse-engineer exactly what ROCKNIX's u-boot does to probe the eMMC on this specific board — ground truth for hardware we can't otherwise see.
+- **If it's still `0xFFFFFFFF`:** we've definitively ruled out software config
+  *and* card-state, which points at the physical layer (is the clock/command
+  actually reaching the card pads) or a board-level rail/level-shifter. The next
+  move then is to reverse-engineer exactly what ROCKNIX's u-boot does to probe
+  the eMMC on this specific board — ground truth for hardware we can't
+  otherwise see.
 
 
 Push and flash when ready.
@@ -6508,20 +7293,21 @@ Two independent reasons:
 
 
 1. **The whole flash never writes to the eMMC at all.** I audited the active
-code path. The only function that writes eMMC (`emmc_write_block`) is called
-from exactly one place — the 110b boot-partition writer — and that writer is
-**defined but never called** (grep confirms: it appears only as its definition
-and an unused `extern`). The test suite runs six tests; the only two that touch
-the eMMC are `emmc_init` (identification: CMD0–CMD9, read-only) and
-`emmc_read_block_0` (reads block 0). **eMMC interaction is 100% read-only.**
+   code path. The only function that writes eMMC (`emmc_write_block`) is called
+   from exactly one place — the 110b boot-partition writer — and that writer
+   is **defined but never called** (grep confirms: it appears only as its
+   definition and an unused `extern`). The test suite runs six tests; the only
+   two that touch the eMMC are `emmc_init` (identification: CMD0–CMD9,
+   read-only) and `emmc_read_block_0` (reads block 0). **eMMC interaction is
+   100% read-only.**
 
 
 2. **A hardware reset is not a data operation.** RST_n resets the card's
-*protocol state machine* (what mode it's in, bus width, selected partition) back
-to its power-on state. It's the electrical equivalent of a reset button, not a
-format. Erasing eMMC data requires explicit `ERASE`/`WRITE`/`TRIM` commands
-(CMD24/25/38…) — we issue none of them. There is no code path from a RST_n
-pulse to flash modification; the hardware doesn't work that way.
+   *protocol state machine* (what mode it's in, bus width, selected partition)
+   back to its power-on state. It's the electrical equivalent of a reset button,
+   not a format. Erasing eMMC data requires explicit `ERASE`/`WRITE`/`TRIM`
+   commands (CMD24/25/38…) — we issue none of them. There is no code path
+   from a RST_n pulse to flash modification; the hardware doesn't work that way.
 
 
 The only writes *anywhere* in this flash go to the **SD card** (the debug log at
@@ -6532,11 +7318,20 @@ at 16–272 MB — so even the SD card stays bootable.
 ## It cannot prevent booting
 
 
-- **RST_n is non-persistent.** It returns the card to the exact state it's in at every normal power-on. It programs no one-time bits and changes no stored configuration — altering the card's reset behavior (`RST_n_FUNCTION` in EXT_CSD) would require a `CMD6 SWITCH` write, which we never send. A momentary pin toggle can't survive a power cycle.
+- **RST_n is non-persistent.** It returns the card to the exact state it's in at
+  every normal power-on. It programs no one-time bits and changes no stored
+  configuration — altering the card's reset behavior (`RST_n_FUNCTION` in
+  EXT_CSD) would require a `CMD6 SWITCH` write, which we never send. A momentary
+  pin toggle can't survive a power cycle.
 
-- **The next boot re-initializes the eMMC from scratch regardless.** Whatever volatile state we leave the card in is wiped the instant you power the device off and on. The stock boot chain doesn't inherit anything from our session.
+- **The next boot re-initializes the eMMC from scratch regardless.** Whatever
+  volatile state we leave the card in is wiped the instant you power the device
+  off and on. The stock boot chain doesn't inherit anything from our session.
 
-- **Most likely outcome: it does nothing.** If the card's RST_n is at its factory-default "temporarily disabled" setting, the card *ignores* the pulse entirely. It's harmless either way — it either resets volatile state or is a no-op.
+- **Most likely outcome: it does nothing.** If the card's RST_n is at its
+  factory-default "temporarily disabled" setting, the card *ignores* the pulse
+  entirely. It's harmless either way — it either resets volatile state or is a
+  no-op.
 
 
 ## The one caveat — and why it doesn't apply
@@ -6591,13 +7386,28 @@ That experiment was the last tractable software lever, and it didn't move.
 Here's my honest read of where we are.
 
 
-**What we now know for certain.** The eMMC *controller* is healthy and every one of its registers is correct — pinmux, clocks, the 200 MHz source, power, clock-control, card-detect, conflict-check, CARD_IS_EMMC, the DLL registers — all verified by readback against the datasheet. The card-level hardware reset is a no-op. The I/O-domain voltage isn't ours to set (hardware-strapped). The bus reads exactly as it would if nothing were attached to it.
+**What we now know for certain.** The eMMC *controller* is healthy and every one
+of its registers is correct — pinmux, clocks, the 200 MHz source, power,
+clock-control, card-detect, conflict-check, CARD_IS_EMMC, the DLL registers —
+all verified by readback against the datasheet. The card-level hardware reset is
+a no-op. The I/O-domain voltage isn't ours to set (hardware-strapped). The bus
+reads exactly as it would if nothing were attached to it.
 
 
-**What that means.** This is no longer a software-configuration problem. The two remaining explanations both sit outside register-poking: a physical/board-level issue (a level shifter, an enable, or a depopulated part on this board rev — needs test equipment), or a subtle init step that only ROCKNIX's u-boot knows (extractable only by reading/disassembling its boot blob). Both are high-effort, lower-certainty than anything we've done so far.
+**What that means.** This is no longer a software-configuration problem. The two
+remaining explanations both sit outside register-poking: a physical/board-level
+issue (a level shifter, an enable, or a depopulated part on this board rev —
+needs test equipment), or a subtle init step that only ROCKNIX's u-boot knows
+(extractable only by reading/disassembling its boot blob). Both are high-effort,
+lower-certainty than anything we've done so far.
 
 
-**The thing worth saying plainly:** the eMMC has never been blocking anything. SoreOS boots and runs from the SD card, and SD block I/O works perfectly. The eMMC only matters for the eventual safety-backup-then-standalone-install path — which we can defer without holding up the rest of phase 1. And we now have all the datasheets, which makes the *other* phase-1 work (display, USB) far more tractable than it was this morning.
+**The thing worth saying plainly:** the eMMC has never been blocking anything.
+SoreOS boots and runs from the SD card, and SD block I/O works perfectly. The
+eMMC only matters for the eventual safety-backup-then-standalone-install path
+— which we can defer without holding up the rest of phase 1. And we now have
+all the datasheets, which makes the *other* phase-1 work (display, USB) far more
+tractable than it was this morning.
 
 
 So I don't think the next move is another eMMC flash. I think it's a fork, and
@@ -6607,15 +7417,25 @@ it's genuinely your call:
 **[Asked the user]**
 
 
-*Q1 — Direction:* We've exhausted the software hypotheses for the eMMC (it's not blocking anything — SD-boot works). Where do you want to point the effort next?
+*Q1 — Direction:* We've exhausted the software hypotheses for the eMMC (it's
+not blocking anything — SD-boot works). Where do you want to point the effort
+next?
 
-- USB device mode (109a/b) — Bring up USB CDC-ACM live debug so we stop the slow flash-to-iterate loop. Highest leverage — it speeds up ALL future work. We have the datasheet register sequences now, and docs/022 maps the remaining gaps.
+- USB device mode (109a/b) — Bring up USB CDC-ACM live debug so we stop the
+  slow flash-to-iterate loop. Highest leverage — it speeds up ALL future work.
+  We have the datasheet register sequences now, and docs/022 maps the remaining
+  gaps.
 
-- Display bring-up (111a) — Get a pixel on screen. Most visible progress. docs/023 has the VOP2 + DSI + DPHY register map and init ordering ready to turn into a driver.
+- Display bring-up (111a) — Get a pixel on screen. Most visible progress.
+  docs/023 has the VOP2 + DSI + DPHY register map and init ordering ready to
+  turn into a driver.
 
-- Keep digging on eMMC — Pursue ground truth from ROCKNIX u-boot — read its open-source rk3568 SPL/TPL mmc init for a board-specific step we're missing. Requires fetching upstream source (a deviation from enumerating ourselves).
+- Keep digging on eMMC — Pursue ground truth from ROCKNIX u-boot — read its
+  open-source rk3568 SPL/TPL mmc init for a board-specific step we're missing.
+  Requires fetching upstream source (a deviation from enumerating ourselves).
 
-- Wrap up / commit — Stop here, commit the large body of datasheet docs + eMMC findings + code changes from this session, and pick a direction fresh later.
+- Wrap up / commit — Stop here, commit the large body of datasheet docs + eMMC
+  findings + code changes from this session, and pick a direction fresh later.
 
 → **Selected:** Keep digging on eMMC
 
@@ -6630,7 +7450,8 @@ Got the driver with the rk3568-specific functions. Let me read the three that
 matter — `set_clock`, `config_dll`, and `set_ios_post` — plus the probe.
 
 
-**This is the difference.** Look at u-boot's low-speed path (clock < 100 MHz — our identification case), lines 394-413:
+**This is the difference.** Look at u-boot's low-speed path (clock < 100 MHz —
+our identification case), lines 394-413:
 
 
 ```c
@@ -6639,9 +7460,9 @@ matter — `set_clock`, `config_dll`, and `set_ios_post` — plus the probe.
 
 extra = DWCMSHC_EMMC_DLL_BYPASS | DWCMSHC_EMMC_DLL_START;
 
-sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_CTRL); // NOT zero!
+sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_CTRL);     // NOT zero!
 
-sdhci_writel(host, DLL_RXCLK_ORI_GATE, DWCMSHC_EMMC_DLL_RXCLK); // NOT zero!
+sdhci_writel(host, DLL_RXCLK_ORI_GATE, DWCMSHC_EMMC_DLL_RXCLK);  // NOT zero!
 
 sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_TXCLK);
 
@@ -6659,11 +7480,14 @@ me get the exact constant values and check the probe for anything else.
 
 Exact constants confirmed:
 
-- `DWCMSHC_EMMC_DLL_START = BIT(0)`, `DWCMSHC_EMMC_DLL_BYPASS = BIT(24)` → DLL_CTRL = `0x01000001`
+- `DWCMSHC_EMMC_DLL_START = BIT(0)`, `DWCMSHC_EMMC_DLL_BYPASS = BIT(24)` →
+  DLL_CTRL = `0x01000001`
 
-- `DLL_RXCLK_ORI_GATE = BIT(31)` → DLL_RXCLK = `0x80000000` (note: the TRM marked bit 31 "reserved" — u-boot writes it anyway; reality wins)
+- `DLL_RXCLK_ORI_GATE = BIT(31)` → DLL_RXCLK = `0x80000000` (note: the TRM
+  marked bit 31 "reserved" — u-boot writes it anyway; reality wins)
 
-- `DLL_STRBIN = DLYENA(27) | STRBIN_DELAY_NUM_SEL(26) | (0x0a << 16)` = `0x0C0A0000`
+- `DLL_STRBIN = DLYENA(27) | STRBIN_DELAY_NUM_SEL(26) | (0x0a << 16)` =
+  `0x0C0A0000`
 
 
 We've been writing all of these as `0`. The comment — "the bypass bit and
@@ -6689,11 +7513,11 @@ low-speed DLL config that makes the card respond is:
 
 ```
 
-DLL_CTRL = BYPASS(24) | START(0) = 0x01000001
+DLL_CTRL   = BYPASS(24) | START(0)              = 0x01000001
 
-DLL_RXCLK = ORI_GATE(31) = 0x80000000
+DLL_RXCLK  = ORI_GATE(31)                       = 0x80000000
 
-DLL_TXCLK = 0
+DLL_TXCLK  = 0
 
 DLL_STRBIN = DLYENA(27) | DELAY_NUM_SEL(26) | (0x10<<16) = 0x0C100000
 
@@ -6733,11 +7557,11 @@ DLL registers at zero. It writes:
 
 ```
 
-DLL_CTRL = 0x01000001 (BYPASS | START)
+DLL_CTRL   = 0x01000001   (BYPASS | START)
 
-DLL_RXCLK = 0x80000000 (ORI_GATE)
+DLL_RXCLK  = 0x80000000   (ORI_GATE)
 
-DLL_STRBIN = 0x0C100000 (DLYENA | DELAY_NUM_SEL | 0x10<<16)
+DLL_STRBIN = 0x0C100000   (DLYENA | DELAY_NUM_SEL | 0x10<<16)
 
 ```
 
@@ -6746,7 +7570,11 @@ with the comment: *"the bypass bit and start bit need to be set if DLL is not
 locked."*
 
 
-**We had been writing all four DLL registers to `0` through every single iteration** — which is exactly the broken state. At the identification clock the DLL can't lock, and without BYPASS+START the dwcmshc generates no valid sample/drive clock, so the card never sees a usable clock and never answers. That's a clean, mechanism-level explanation for the entire silent-card saga.
+**We had been writing all four DLL registers to `0` through every single
+iteration** — which is exactly the broken state. At the identification clock
+the DLL can't lock, and without BYPASS+START the dwcmshc generates no valid
+sample/drive clock, so the card never sees a usable clock and never answers.
+That's a clean, mechanism-level explanation for the entire silent-card saga.
 
 
 ## Why this lead is different from the earlier ones
@@ -6763,9 +7591,14 @@ bypass+start we were missing entirely.
 ## What to expect
 
 
-- **If `CID[0]` comes back as a real value** (not `0xFFFFFFFF`): the saga is over — the card is finally talking, and the full identification sequence should run through to the eMMC read test.
+- **If `CID[0]` comes back as a real value** (not `0xFFFFFFFF`): the saga is
+  over — the card is finally talking, and the full identification sequence
+  should run through to the eMMC read test.
 
-- **If it's still `0xFFFFFFFF`:** then we've matched the known-good driver's init and the card *still* won't talk, which would point hard at a physical/board issue (and we'd stop chasing it in software). But I'd put real money on this one.
+- **If it's still `0xFFFFFFFF`:** then we've matched the known-good driver's
+  init and the card *still* won't talk, which would point hard at a
+  physical/board issue (and we'd stop chasing it in software). But I'd put real
+  money on this one.
 
 
 The new dump also prints `DLL_CTRL=` and `DLL_RXCLK=` so we can confirm the
@@ -6857,19 +7690,25 @@ are both physical:
 
 
 1. **There may be no eMMC populated on this board.** The `mmc@fe310000` node
-comes from ROCKNIX's device tree, which is generic across RG DS board revisions.
-It's entirely possible this unit's stock OS lives on a **built-in microSD**, not
-eMMC — many Anbernic devices are exactly that. If so, we've been talking to a
-controller with no chip wired to it, which produces precisely what we see.
+   comes from ROCKNIX's device tree, which is generic across RG DS board
+   revisions. It's entirely possible this unit's stock OS lives on a **built-in
+   microSD**, not eMMC — many Anbernic devices are exactly that. If so, we've
+   been talking to a controller with no chip wired to it, which produces
+   precisely what we see.
 
 2. **A board-level issue** (clock/command lines not reaching the part) — not
-diagnosable without test equipment.
+   diagnosable without test equipment.
 
 
 ## The question only you can answer
 
 
-**Does this device actually have internal eMMC — and where does the stock OS live?** A couple of ways to tell: does it still boot stock with the external SD card removed? Is there a second/internal SD slot? What do the Anbernic specs say about storage? If the stock OS is on a built-in SD, there's no eMMC and the whole pursuit was a phantom — and that's *fine*, because SoreOS already boots and runs from SD exactly the way the stock system would.
+**Does this device actually have internal eMMC — and where does the stock OS
+live?** A couple of ways to tell: does it still boot stock with the external SD
+card removed? Is there a second/internal SD slot? What do the Anbernic specs say
+about storage? If the stock OS is on a built-in SD, there's no eMMC and the
+whole pursuit was a phantom — and that's *fine*, because SoreOS already boots
+and runs from SD exactly the way the stock system would.
 
 
 ## Recommendation
@@ -6903,19 +7742,20 @@ still come up?
 
 ### User Request 99
 
-Does this device actually have internal eMMC — and where does the stock OS
-live? A
+  Does this device actually have internal eMMC — and where does the stock OS
+  live? A
 
-couple of ways to tell: does it still boot stock with the external SD card
+  couple of ways to tell: does it still boot stock with the external SD card
 
-removed? Is there a second/internal SD slot? What do the Anbernic specs say
-about
+  removed? Is there a second/internal SD slot? What do the Anbernic specs say
+  about
 
-storage? If the stock OS is on a built-in SD, there's no eMMC and the whole
+  storage? If the stock OS is on a built-in SD, there's no eMMC and the whole
 
-pursuit was a phantom — and that's fine, because SoreOS already boots and runs
+  pursuit was a phantom — and that's fine, because SoreOS already boots and
+  runs
 
-from SD exactly the way the stock system would.
+  from SD exactly the way the stock system would.
 
 
 
@@ -6926,15 +7766,16 @@ there's only one visible externally. We should have docs/ that list the anbernic
 specs.
 
 
-The genuinely important thing: the eMMC never blocked anything. SoreOS boots
-from
+  The genuinely important thing: the eMMC never blocked anything. SoreOS boots
+  from
 
-SD, SD block I/O works, and this session produced a large permanent payoff —
-the
+  SD, SD block I/O works, and this session produced a large permanent payoff —
+  the
 
-full datasheet library, six new hardware docs, and drivers now confirmed correct
+  full datasheet library, six new hardware docs, and drivers now confirmed
+  correct
 
-against ground truth.
+  against ground truth.
 
 
 
@@ -6949,25 +7790,25 @@ time. Let's work through things bit-by-bit, trying to take good, decent steps
 each time.
 
 
-While you mull the eMMC question, the parallel work landed: I fixed a real
-latent
+  While you mull the eMMC question, the parallel work landed: I fixed a real
+  latent
 
-bug (the transfer clock was secretly 100 MHz, which would've failed the block
-read
+  bug (the transfer clock was secretly 100 MHz, which would've failed the block
+  read
 
-even if the card had responded — now a safe 25 MHz) and captured the u-boot
+  even if the card had responded — now a safe 25 MHz) and captured the u-boot
 
-high-speed reference in docs/018 for the eventual fast-backup work.
+  high-speed reference in docs/018 for the eventual fast-backup work.
 
 
 
 great. Thanks.
 
 
-What does the device do with the external SD removed — does stock Android
-still
+  What does the device do with the external SD removed — does stock Android
+  still
 
-come up?
+  come up?
 
 
 yep.
@@ -7071,18 +7912,24 @@ what the divider does. The variable is gone.
 
 And the ground is solid under us now:
 
-- The device tree settles it — `mmc@fe310000` (eMMC) is the **only** internal storage; SDMMC1 is disabled, SDMMC2 is WiFi. The stock OS *must* be on this eMMC.
+- The device tree settles it — `mmc@fe310000` (eMMC) is the **only** internal
+  storage; SDMMC1 is disabled, SDMMC2 is WiFi. The stock OS *must* be on this
+  eMMC.
 
-- It boots stock without the SD card, so the BootROM reads this eMMC successfully every power-on.
+- It boots stock without the SD card, so the BootROM reads this eMMC
+  successfully every power-on.
 
-- Therefore the chip is present and readable. This is a driver bug, and a bug can be caught.
+- Therefore the chip is present and readable. This is a driver bug, and a bug
+  can be caught.
 
 
 **What to watch for:**
 
-- The new dump line `CLOCK_CONTROL=` should now read `0x0007` (divider 0) instead of `0xFF07` — confirming pass-through took.
+- The new dump line `CLOCK_CONTROL=` should now read `0x0007` (divider 0)
+  instead of `0xFF07` — confirming pass-through took.
 
-- If `CID[0]` comes back as anything other than `0xFFFFFFFF` — the card is finally talking, and we've found it.
+- If `CID[0]` comes back as anything other than `0xFFFFFFFF` — the card is
+  finally talking, and we've found it.
 
 
 You've kept the faith through a long hunt, and the hunt has steadily narrowed:
@@ -7120,16 +7967,15 @@ celebrate.
 
 ```
 
-[emmc] CLOCK_CONTROL=0x00000007 ← divider 0 (pass-through), CCLK driving
-directly
+[emmc]   CLOCK_CONTROL=0x00000007     ← divider 0 (pass-through), CCLK driving directly
 
 [emmc] CMD2 all-send-cid...
 
-[emmc] CID[0]=0x00010AA9 ← a REAL card identifier, not 0xFFFFFFFF
+[emmc]   CID[0]=0x00010AA9            ← a REAL card identifier, not 0xFFFFFFFF
 
-[suite] emmc_init: PASS
+[suite]   emmc_init: PASS
 
-[suite] emmc_read_block_0: PASS ← we just READ a block off the internal eMMC
+[suite]   emmc_read_block_0: PASS     ← we just READ a block off the internal eMMC
 
 ```
 
@@ -7161,13 +8007,27 @@ These three are exactly what we just untangled, so I can make them concrete
 instead of abstract:
 
 
-- **SDHCI** = *SD Host Controller Interface*. It's a published **standard** (the spec we downloaded to `docs/datasheets/`) that defines a common register layout for the chip-block that talks to SD/eMMC cards — command register here, response register there, clock-control register at this offset. Our eMMC controller follows it (plus a few Rockchip extras), so "SDHCI register" just means "a register at the offset the standard dictates." It's the *language* the controller speaks.
+- **SDHCI** = *SD Host Controller Interface*. It's a published **standard** (the
+  spec we downloaded to `docs/datasheets/`) that defines a common register
+  layout for the chip-block that talks to SD/eMMC cards — command register
+  here, response register there, clock-control register at this offset. Our eMMC
+  controller follows it (plus a few Rockchip extras), so "SDHCI register" just
+  means "a register at the offset the standard dictates." It's the *language*
+  the controller speaks.
 
 
-- **CRU** = *Clock and Reset Unit*. One block in the chip that is the master electrical panel for the whole SoC. Every peripheral needs a clock switched on and needs to be released from reset before it does anything; the CRU is a big bank of registers where each bit is a switch (clock on/off) or a breaker (reset assert/deassert). When we "ungated the eMMC clocks," we flipped switches in the CRU at `0xFDD20000`.
+- **CRU** = *Clock and Reset Unit*. One block in the chip that is the master
+  electrical panel for the whole SoC. Every peripheral needs a clock switched on
+  and needs to be released from reset before it does anything; the CRU is a big
+  bank of registers where each bit is a switch (clock on/off) or a breaker
+  (reset assert/deassert). When we "ungated the eMMC clocks," we flipped
+  switches in the CRU at `0xFDD20000`.
 
 
-- **CCLK** = *Card Clock* — the literal clock signal sent out the physical CLK pin to the card, ticking its internal logic. The card reads commands and sends replies in lockstep with it. During identification a card can only handle ~400 kHz.
+- **CCLK** = *Card Clock* — the literal clock signal sent out the physical CLK
+  pin to the card, ticking its internal logic. The card reads commands and sends
+  replies in lockstep with it. During identification a card can only handle ~400
+  kHz.
 
 
 And here's the bug in one sentence, using all three: **the SDHCI standard says
@@ -7218,12 +8078,12 @@ So two good directions, and I want your steer on order:
 
 
 1. **Grab the backup first** — switch `kernel_main` to run the real eMMC→SD
-backup, flash once, and pull a genuine stock-OS dump. It's the high-priority
-deliverable and it's now a small change.
+   backup, flash once, and pull a genuine stock-OS dump. It's the high-priority
+   deliverable and it's now a small change.
 
 2. **Build the probe engine first (110i)** — then use *it* to run and verify
-the backup (the backup becomes one `CALL`), and have the fast-iteration tool in
-hand for USB and display next.
+   the backup (the backup becomes one `CALL`), and have the fast-iteration tool
+   in hand for USB and display next.
 
 
 My lean: **(1) then (2)** — capture the factory-restore image while we know
@@ -7270,11 +8130,16 @@ and runs `gdisk -l` on it. The image is built and ready to push.
 ## What to expect on this flash
 
 
-- Two amber → dark → green flash → then **bottom amber blinking** for roughly a minute or two. That blink is the backup heartbeat — one step per ~10 MB as it copies eMMC → SD at the legacy 1-bit/24 MHz rate (~3 MB/s). It's *progress*, not a hang.
+- Two amber → dark → green flash → then **bottom amber blinking** for
+  roughly a minute or two. That blink is the backup heartbeat — one step per
+  ~10 MB as it copies eMMC → SD at the legacy 1-bit/24 MHz rate (~3 MB/s).
+  It's *progress*, not a hang.
 
-- When it goes **steady amber + red** (the same win pattern), the 200 MB backup is complete.
+- When it goes **steady amber + red** (the same win pattern), the 200 MB backup
+  is complete.
 
-- This is **read-only on the eMMC** — we read from it and write to the SD card. Zero risk to the stock OS, same as everything we've done.
+- This is **read-only on the eMMC** — we read from it and write to the SD
+  card. Zero risk to the stock OS, same as everything we've done.
 
 
 ## After it completes — the real test
@@ -7284,9 +8149,14 @@ Pull the SD and run `scripts/lab-side/dump-from-sd`. The moment of truth is what
 `gdisk -l` shows on the backup file:
 
 
-- **Before the fix**, every backup was identical stale SD garbage (that repeating `0x92a3…` pattern) — no GPT, nothing.
+- **Before the fix**, every backup was identical stale SD garbage (that
+  repeating `0x92a3…` pattern) — no GPT, nothing.
 
-- **Now**, if we're genuinely reading the eMMC, `gdisk` should walk a real **GPT** and list the stock partitions — you'll see names like `uboot`, `trust`, `boot`, `rootfs`/`system`, `vendor`, `userdata`. And `strings` will turn up Rockchip loader and Android/bootloader signatures. That's the proof we pulled real factory data.
+- **Now**, if we're genuinely reading the eMMC, `gdisk` should walk a real
+  **GPT** and list the stock partitions — you'll see names like `uboot`,
+  `trust`, `boot`, `rootfs`/`system`, `vendor`, `userdata`. And `strings` will
+  turn up Rockchip loader and Android/bootloader signatures. That's the proof we
+  pulled real factory data.
 
 
 That partition table is also exactly what we need next: it tells us the real LBA
@@ -7322,24 +8192,29 @@ content or stale garbage? Let me examine the dump.
 
 **That's real stock content.** The decisive proof:
 
-- **`EFI PART` at offset 512** — a valid GPT header (revision 1.0, 92-byte header, real CRC). The pre-fix backups had no GPT at all.
+- **`EFI PART` at offset 512** — a valid GPT header (revision 1.0, 92-byte
+  header, real CRC). The pre-fix backups had no GPT at all.
 
-- The data is unmistakably the stock system: Linux kernel trace strings, the `rockchip-rk817` PMIC driver, f2fs/recovery/fastboot markers, "Trust" (the Rockchip ATF). This is the genuine factory OS, copied off the internal eMMC.
+- The data is unmistakably the stock system: Linux kernel trace strings, the
+  `rockchip-rk817` PMIC driver, f2fs/recovery/fastboot markers, "Trust" (the
+  Rockchip ATF). This is the genuine factory OS, copied off the internal eMMC.
 
 
 The `strings` grep got swamped by the kernel's embedded format strings. Let me
 get the clean partition table with `gdisk`.
 
 
-**The factory partition map, in full.** `gdisk` walked the GPT cleanly — main header OK, main partition table OK (the "backup GPT ERROR" warnings are just because our 200 MB image is truncated; the backup GPT lives at the end of the 32 GB disk). This is a textbook Android layout:
+**The factory partition map, in full.** `gdisk` walked the GPT cleanly — main
+header OK, main partition table OK (the "backup GPT ERROR" warnings are just
+because our 200 MB image is truncated; the backup GPT lives at the end of the 32
+GB disk). This is a textbook Android layout:
 
 
 | # | Name | Size | What it is |
 
 |---|------|------|------------|
 
-| 1-6 | security, uboot, trust, misc, dtbo, vbmeta | 4 MiB ea | bootloader +
-verified-boot chain |
+| 1-6 | security, uboot, trust, misc, dtbo, vbmeta | 4 MiB ea | bootloader + verified-boot chain |
 
 | 7 | **boot** | 64 MiB | kernel + ramdisk |
 
@@ -7352,7 +8227,10 @@ verified-boot chain |
 | 15 | userdata | 22 GiB | user data |
 
 
-**Our 200 MB pull fully captured partitions 1-8** — the complete bootloader + boot + recovery chain, which is exactly what you need to restore bootability. Let me record this durable map and update the layout-probe issue, then we settle the sequencing.
+**Our 200 MB pull fully captured partitions 1-8** — the complete bootloader +
+boot + recovery chain, which is exactly what you need to restore bootability.
+Let me record this durable map and update the layout-probe issue, then we settle
+the sequencing.
 
 
 Now update the layout-probe issue (110e) — this is the issue the partition map
@@ -7371,11 +8249,16 @@ this was a genuine success on every axis.
 
 ## What we proved
 
-- **The backup is real factory data**, not stale garbage — valid GPT, named Android partitions, the Rockchip trust blob and `rockchip-rk817` driver. The eMMC bring-up is solid.
+- **The backup is real factory data**, not stale garbage — valid GPT, named
+  Android partitions, the Rockchip trust blob and `rockchip-rk817` driver. The
+  eMMC bring-up is solid.
 
-- **We have the complete factory partition map** — all 15 partitions with exact LBAs.
+- **We have the complete factory partition map** — all 15 partitions with
+  exact LBAs.
 
-- **The 200 MB pull fully captured partitions 1-8** — the entire bootloader + boot + recovery chain. If you ever needed to restore *bootability*, that's in hand right now.
+- **The 200 MB pull fully captured partitions 1-8** — the entire bootloader +
+  boot + recovery chain. If you ever needed to restore *bootability*, that's in
+  hand right now.
 
 
 ## A catch worth pausing on
@@ -7402,12 +8285,12 @@ Nothing is being wiped yet, so the full `super` backup only has to exist
 
 
 1. **Proceed to the probe engine (110i)** as we planned — then build the
-high-speed eMMC path (the probe engine makes that faster), then do the full
-`super` backup *fast*. My recommendation: the boot chain is already safe, and
-this gets the better tooling in place first.
+   high-speed eMMC path (the probe engine makes that faster), then do the full
+   `super` backup *fast*. My recommendation: the boot chain is already safe, and
+   this gets the better tooling in place first.
 
 2. **Grab the full `super` backup now** at the slow rate (~40 min, one-time) so
-the complete factory image is on the shelf before anything else.
+   the complete factory image is on the shelf before anything else.
 
 
 Which way — build the instrument (1), or bank the full image first (2)?
@@ -7479,19 +8362,29 @@ changes the loop.
 ## What's built (issue 110i)
 
 
-- **`src/019-probe-engine.c`** — the interpreter. At boot the kernel reads a probe script from the SD card and runs it: `R`/`W`/`DUMP`/`DELAY`/`EXPECT`/`CALL`/`LOG`. Results go to the debug log.
+- **`src/019-probe-engine.c`** — the interpreter. At boot the kernel reads a
+  probe script from the SD card and runs it:
+  `R`/`W`/`DUMP`/`DELAY`/`EXPECT`/`CALL`/`LOG`. Results go to the debug log.
 
-- **`scripts/lab-side/write-probe`** — writes a probe-script text file to the SD card's probe region (512 MB in, clear of everything). Reads-only by default; `--writes` flag is required to let `W` lines fire.
+- **`scripts/lab-side/write-probe`** — writes a probe-script text file to the
+  SD card's probe region (512 MB in, clear of everything). Reads-only by
+  default; `--writes` flag is required to let `W` lines fire.
 
-- **`input/probes/example-emmc-registers.probe`** — a worked example (reads the eMMC caps + CRU clocks, `EXPECT`s the controller ID, then `CALL emmc_init` + `emmc_read0`).
+- **`input/probes/example-emmc-registers.probe`** — a worked example (reads
+  the eMMC caps + CRU clocks, `EXPECT`s the controller ID, then `CALL emmc_init`
+  + `emmc_read0`).
 
-- Safety: writes need both the header's writes-enabled bit *and* an address inside the peripheral allowlist; reads are unrestricted. Documented the SD region layout in `docs/016`.
+- Safety: writes need both the header's writes-enabled bit *and* an address
+  inside the peripheral allowlist; reads are unrestricted. Documented the SD
+  region layout in `docs/016`.
 
 
 ## The new loop (this is the point)
 
 
-**One-time:** flash this kernel (`flash-sd`). It has the probe engine baked in. With no probe script on the card, it behaves exactly as before — runs the normal eMMC backup.
+**One-time:** flash this kernel (`flash-sd`). It has the probe engine baked in.
+With no probe script on the card, it behaves exactly as before — runs the
+normal eMMC backup.
 
 
 **Per experiment, no rebuild, no reflash:**
@@ -7499,7 +8392,7 @@ changes the loop.
 1. Edit a text file: `input/probes/whatever.probe`
 
 2. `scripts/lab-side/write-probe whatever.probe /dev/sdX` (writes only the 512
-MB probe region — doesn't touch the kernel)
+   MB probe region — doesn't touch the kernel)
 
 3. Reboot the device → it runs your script → `dump-from-sd` to read results
 
@@ -7576,15 +8469,11 @@ everything" question — which has one important wrinkle.
 
 |-------|--------------|---------|
 
-| `health-check.probe` | The smoke test — brings up each controller, verifies
-its known-good signature, dumps all clock/reset/pinmux/controller state |
-read-only |
+| `health-check.probe` | The smoke test — brings up each controller, verifies its known-good signature, dumps all clock/reset/pinmux/controller state | read-only |
 
-| `emmc-dll-tune.probe` | Fast-eMMC-path recon — does the DLL lock at 200 MHz,
-and at what value | needs `--writes` |
+| `emmc-dll-tune.probe` | Fast-eMMC-path recon — does the DLL lock at 200 MHz, and at what value | needs `--writes` |
 
-| `usb-phy.probe` | USB2 PHY GRF + USB3 clock/reset + DWC3 core state (for
-109a/b) | read-only |
+| `usb-phy.probe` | USB2 PHY GRF + USB3 clock/reset + DWC3 core state (for 109a/b) | read-only |
 
 | `example-emmc-registers.probe` | The original teaching example | read-only |
 
@@ -7618,18 +8507,18 @@ comprehensive probe has to work in *layers*:
 
 
 1. **Always safe** — the CRU and GRF families (`0xFDC…`/`0xFDD…`). They're
-the clock/config controllers; they're always on. (Clock gates, resets, pinmux,
-PHY GRFs.)
+   the clock/config controllers; they're always on. (Clock gates, resets,
+   pinmux, PHY GRFs.)
 
 2. **Already up** — SD and USB, brought up by `kernel_main` before the probe
-runs.
+   runs.
 
 3. **Bring-up-then-check** — eMMC, via `CALL emmc_init`, then read its
-registers.
+   registers.
 
 4. **Gated blocks** (display, audio, SARADC…) — you must **ungate the clock
-first** (`--writes`, a `W` to the right `CLKGATE_CON` bit) and only then read.
-Blind reads here hang.
+   first** (`--writes`, a `W` to the right `CLKGATE_CON` bit) and only then
+   read. Blind reads here hang.
 
 
 `health-check.probe` deliberately covers layers 1-3 and **stops short of layer
@@ -7665,13 +8554,19 @@ scripts/lab-side/write-probe input/probes/emmc-dll-tune.probe /dev/sdX --writes
 ## Other probes worth adding later
 
 
-- **Display presence** (VOP2/DSI) — a layer-4 probe: ungate the VOP clocks, then read the controller ID. Needs the VOP clock-gate bits pinned down first (the display agent left those for the CRU research) — and finding them is itself a good probe-engine job.
+- **Display presence** (VOP2/DSI) — a layer-4 probe: ungate the VOP clocks,
+  then read the controller ID. Needs the VOP clock-gate bits pinned down first
+  (the display agent left those for the CRU research) — and finding them is
+  itself a good probe-engine job.
 
-- **PMIC over I²C0** — read the RK817 status/regulator registers; needs an I²C-bring-up `CALL` target first.
+- **PMIC over I²C0** — read the RK817 status/regulator registers; needs an
+  I²C-bring-up `CALL` target first.
 
-- **DRAM walk** — write/read patterns across the allocator pool to catch bad RAM.
+- **DRAM walk** — write/read patterns across the allocator pool to catch bad
+  RAM.
 
-- **Gamepad SARADC** — read the analog-stick/button ADC channels (a layer-4 block).
+- **Gamepad SARADC** — read the analog-stick/button ADC channels (a layer-4
+  block).
 
 
 Want me to take the **fast eMMC path** in C next (using `emmc-dll-tune` to
@@ -7683,15 +8578,16 @@ the obvious one since it unblocks getting a pixel on screen?
 
 ### User Request 105
 
-# read-only smoke test:
+  # read-only smoke test:
 
-scripts/lab-side/write-probe input/probes/health-check.probe /dev/sdX
+  scripts/lab-side/write-probe input/probes/health-check.probe /dev/sdX
 
-# the DLL recon (note the --writes):
+  # the DLL recon (note the --writes):
 
-scripts/lab-side/write-probe input/probes/emmc-dll-tune.probe /dev/sdX --writes
+  scripts/lab-side/write-probe input/probes/emmc-dll-tune.probe /dev/sdX
+  --writes
 
-…then reboot the device, pull the card, dump-from-sd, read the log.
+  …then reboot the device, pull the card, dump-from-sd, read the log.
 
 
 
@@ -7699,23 +8595,25 @@ can you tell me more about these? Why are we running this kind of script on the
 lab machine, instead of preparing it before we flash? Just curious.
 
 
-- Display presence (VOP2/DSI) — a layer-4 probe: ungate the VOP clocks, then
-read
+  - Display presence (VOP2/DSI) — a layer-4 probe: ungate the VOP clocks, then
+    read
 
-the controller ID. Needs the VOP clock-gate bits pinned down first (the display
+  the controller ID. Needs the VOP clock-gate bits pinned down first (the
+  display
 
-agent left those for the CRU research) — and finding them is itself a good
+  agent left those for the CRU research) — and finding them is itself a good
 
-probe-engine job.
+  probe-engine job.
 
-- PMIC over I²C0 — read the RK817 status/regulator registers; needs an
+  - PMIC over I²C0 — read the RK817 status/regulator registers; needs an
 
-I²C-bring-up CALL target first.
+  I²C-bring-up CALL target first.
 
-- DRAM walk — write/read patterns across the allocator pool to catch bad RAM.
+  - DRAM walk — write/read patterns across the allocator pool to catch bad
+    RAM.
 
-- Gamepad SARADC — read the analog-stick/button ADC channels (a layer-4
-block).
+  - Gamepad SARADC — read the analog-stick/button ADC channels (a layer-4
+    block).
 
 
 
@@ -7730,7 +8628,19 @@ Good question — let me answer it, then push on the probes in parallel while
 you reflash.
 
 
-**Why write the probe at the lab, not bake it into the image:** because the kernel and the probe have completely different change rates, and decoupling them is the whole point. The kernel is the *instrument* — big, slow to rebuild/push/flash, flashed once. The probe is the *measurement* you take with it — tiny, changes every few minutes during a debugging session. If the probe lived inside the kernel image, every "let me check a different register" would mean a full rebuild → push-to-USB → reflash. By keeping it a separate small write to a region the kernel image doesn't even occupy (512 MB in; the image is 272 MB), the loop becomes *edit text → `dd` → reboot*, entirely at the lab bench, without crossing the air gap back to the build machine. You don't rebuild an oscilloscope to measure a different pin — you point it somewhere else. (You *can* prep the probe before flashing if you want; they're just independent writes. The value is that they're independent.)
+**Why write the probe at the lab, not bake it into the image:** because the
+kernel and the probe have completely different change rates, and decoupling them
+is the whole point. The kernel is the *instrument* — big, slow to
+rebuild/push/flash, flashed once. The probe is the *measurement* you take with
+it — tiny, changes every few minutes during a debugging session. If the probe
+lived inside the kernel image, every "let me check a different register" would
+mean a full rebuild → push-to-USB → reflash. By keeping it a separate small
+write to a region the kernel image doesn't even occupy (512 MB in; the image is
+272 MB), the loop becomes *edit text → `dd` → reboot*, entirely at the lab
+bench, without crossing the air gap back to the build machine. You don't rebuild
+an oscilloscope to measure a different pin — you point it somewhere else. (You
+*can* prep the probe before flashing if you want; they're just independent
+writes. The value is that they're independent.)
 
 
 Now, the probes. Let me kick off the register research in parallel, then
@@ -7787,19 +8697,15 @@ new image.
 
 |-------|----------------|-----------|
 
-| `health-check` | smoke test: CRU/GRF/SD/USB/eMMC signatures | **current
-flash** |
+| `health-check` | smoke test: CRU/GRF/SD/USB/eMMC signatures | **current flash** |
 
-| `emmc-dll-tune` | does the DLL lock at 200 MHz (fast-path recon) | **current
-flash** (`--writes`) |
+| `emmc-dll-tune` | does the DLL lock at 200 MHz (fast-path recon) | **current flash** (`--writes`) |
 
 | `usb-phy` | USB2 PHY + USB3 clock/reset + DWC3 core | **current flash** |
 
-| `display-presence` | ungate VOP2, read its version `0x40158588` | **current
-flash** (`--writes`) |
+| `display-presence` | ungate VOP2, read its version `0x40158588` | **current flash** (`--writes`) |
 
-| `saradc-gamepad` | sweep all 6 analog ADC channels | **current flash**
-(`--writes`) |
+| `saradc-gamepad` | sweep all 6 analog ADC channels | **current flash** (`--writes`) |
 
 | `dram-walk` | 1 MB DRAM pattern test | **needs new image** |
 
@@ -7808,19 +8714,39 @@ flash** (`--writes`) |
 | `example-emmc-registers` | the teaching example | current flash |
 
 
-**The split that matters:** the first five are *pure scripts* (`R`/`W`/`POLL`/`EXPECT`) — they run on any probe-engine kernel, including the one you're flashing now. The last two needed new C `CALL` targets (`memtest`, `pmic_dump`), so they only work once you push + reflash the **new `bootable-sd.img` I just built** — which is a strict superset (all eight work on it). So: finish your current flash and you immediately have the five; grab the new image when you want DRAM/PMIC.
+**The split that matters:** the first five are *pure scripts*
+(`R`/`W`/`POLL`/`EXPECT`) — they run on any probe-engine kernel, including the
+one you're flashing now. The last two needed new C `CALL` targets (`memtest`,
+`pmic_dump`), so they only work once you push + reflash the **new
+`bootable-sd.img` I just built** — which is a strict superset (all eight work
+on it). So: finish your current flash and you immediately have the five; grab
+the new image when you want DRAM/PMIC.
 
 
 ## Highlights
 
 
-- **Display** — the cleanest of the bunch. VOP2 publishes a fixed version constant `0x40158588` at `0xFE040004`; the probe ungates the VOP clocks first (reading it gated would hang — layer-4 rule) then `EXPECT`s that value. A clean pass means the display controller is alive, which is the first real step toward a pixel on screen (111x).
+- **Display** — the cleanest of the bunch. VOP2 publishes a fixed version
+  constant `0x40158588` at `0xFE040004`; the probe ungates the VOP clocks first
+  (reading it gated would hang — layer-4 rule) then `EXPECT`s that value. A
+  clean pass means the display controller is alive, which is the first real step
+  toward a pixel on screen (111x).
 
-- **SARADC** — sweeps all 6 channels; wiggle a stick between runs to map axes. **Honest caveat baked into the script:** the TRM documents the *v1* register layout I used, but mainline Linux treats rk3568 as *v2*. If every channel reads a constant, the silicon's v2 and we swap offsets. The probe is how we'll find out.
+- **SARADC** — sweeps all 6 channels; wiggle a stick between runs to map axes.
+  **Honest caveat baked into the script:** the TRM documents the *v1* register
+  layout I used, but mainline Linux treats rk3568 as *v2*. If every channel
+  reads a constant, the silicon's v2 and we swap offsets. The probe is how we'll
+  find out.
 
-- **PMIC** — the i2c0 `CALL` target is the reusable win here: a working bare-metal I²C read path to the RK817. `pmic-dump` reads its first 16 registers; non-`TIMEOUT` answers prove the channel works. It safely times out rather than hanging if the PMIC doesn't answer. This unblocks battery/regulator/sensor reads later. (Decoding the values wants the RK817 datasheet, which I couldn't fetch — a small follow-on.)
+- **PMIC** — the i2c0 `CALL` target is the reusable win here: a working
+  bare-metal I²C read path to the RK817. `pmic-dump` reads its first 16
+  registers; non-`TIMEOUT` answers prove the channel works. It safely times out
+  rather than hanging if the PMIC doesn't answer. This unblocks
+  battery/regulator/sensor reads later. (Decoding the values wants the RK817
+  datasheet, which I couldn't fetch — a small follow-on.)
 
-- **DRAM walk** — marching patterns + address-in-address over a 1 MB window at the 1 GB mark, well clear of the kernel.
+- **DRAM walk** — marching patterns + address-in-address over a 1 MB window at
+  the 1 GB mark, well clear of the kernel.
 
 
 ## On your "probe everything" instinct
@@ -7843,35 +8769,36 @@ probes, it's ready to push.
 
 ### User Request 106
 
-Why write the probe at the lab, not bake it into the image: because the kernel
-and
+  Why write the probe at the lab, not bake it into the image: because the kernel
+  and
 
-the probe have completely different change rates, and decoupling them is the
+  the probe have completely different change rates, and decoupling them is the
 
-whole point. The kernel is the instrument — big, slow to rebuild/push/flash,
+  whole point. The kernel is the instrument — big, slow to rebuild/push/flash,
 
-flashed once. The probe is the measurement you take with it — tiny, changes
-every
+  flashed once. The probe is the measurement you take with it — tiny, changes
+  every
 
-few minutes during a debugging session. If the probe lived inside the kernel
+  few minutes during a debugging session. If the probe lived inside the kernel
 
-image, every "let me check a different register" would mean a full rebuild →
+  image, every "let me check a different register" would mean a full rebuild →
 
-push-to-USB → reflash. By keeping it a separate small write to a region the
-kernel
+  push-to-USB → reflash. By keeping it a separate small write to a region the
+  kernel
 
-image doesn't even occupy (512 MB in; the image is 272 MB), the loop becomes
-edit
+  image doesn't even occupy (512 MB in; the image is 272 MB), the loop becomes
+  edit
 
-text → dd → reboot, entirely at the lab bench, without crossing the air gap
-back
+  text → dd → reboot, entirely at the lab bench, without crossing the air
+  gap back
 
-to the build machine. You don't rebuild an oscilloscope to measure a different
-pin
+  to the build machine. You don't rebuild an oscilloscope to measure a different
+  pin
 
-— you point it somewhere else. (You can prep the probe before flashing if you
+  — you point it somewhere else. (You can prep the probe before flashing if
+  you
 
-want; they're just independent writes. The value is that they're independent.)
+  want; they're just independent writes. The value is that they're independent.)
 
 
 
@@ -7879,11 +8806,12 @@ what if we updated the flash-sd script that's run from the lab laptop to also
 iterate through the probes directory and write these:
 
 
-scripts/lab-side/write-probe input/probes/health-check.probe /dev/sdX
+  scripts/lab-side/write-probe input/probes/health-check.probe /dev/sdX
 
-# the DLL recon (note the --writes):
+  # the DLL recon (note the --writes):
 
-scripts/lab-side/write-probe input/probes/emmc-dll-tune.probe /dev/sdX --writes
+  scripts/lab-side/write-probe input/probes/emmc-dll-tune.probe /dev/sdX
+  --writes
 
 
 
@@ -7990,10 +8918,10 @@ the one spot," flash-sd now writes the whole library into a **catalog**
 1. Flashes the kernel (as before).
 
 2. Copies **every** probe in `input/probes/` into the on-card catalog + a text
-manifest.
+   manifest.
 
 3. **Activates `health-check` by default** — so a freshly-flashed card runs
-the smoke test on first boot with zero extra steps.
+   the smoke test on first boot with zero extra steps.
 
 4. Prints the probe list and how to pick another.
 
@@ -8004,11 +8932,16 @@ the smoke test on first boot with zero extra steps.
 Three things a tech can no longer forget:
 
 
-- **Forget to include a probe?** Can't — `flash-sd` loads the entire library every time.
+- **Forget to include a probe?** Can't — `flash-sd` loads the entire library
+  every time.
 
-- **Forget `--writes`?** Can't — each register-poking probe carries a `#WRITES` marker in its own text; the tooling reads it and sets the bit automatically. No flag anywhere.
+- **Forget `--writes`?** Can't — each register-poking probe carries a
+  `#WRITES` marker in its own text; the tooling reads it and sets the bit
+  automatically. No flag anywhere.
 
-- **Forget which probe / how to select?** The common case (smoke test) needs no selection at all; for the rest, it's one word: `select-probe emmc-dll-tune /dev/sdX` (or `select-probe --list /dev/sdX` to see them).
+- **Forget which probe / how to select?** The common case (smoke test) needs no
+  selection at all; for the rest, it's one word: `select-probe emmc-dll-tune
+  /dev/sdX` (or `select-probe --list /dev/sdX` to see them).
 
 
 ## New lab workflow
@@ -8016,17 +8949,17 @@ Three things a tech can no longer forget:
 
 ```
 
-main machine: push-to-usb → image + scripts + probes to the USB drive
+main machine:  push-to-usb          → image + scripts + probes to the USB drive
 
-lab laptop: flash-sd → kernel + full catalog + health-check active
+lab laptop:    flash-sd             → kernel + full catalog + health-check active
 
-(boot) → smoke test runs automatically
+               (boot)               → smoke test runs automatically
 
-select-probe NAME → pick a different probe (no reflash, no flag)
+               select-probe NAME    → pick a different probe (no reflash, no flag)
 
-(reboot, pull card)
+               (reboot, pull card)
 
-dump-from-sd → read results
+               dump-from-sd         → read results
 
 ```
 
@@ -8034,13 +8967,22 @@ dump-from-sd → read results
 ## Details worth noting
 
 
-- **Validated end-to-end** against a simulated card file: the binary `SPRB` header, the manifest, the slot math, and `select-probe`'s extraction all round-trip correctly (activating `display-presence` correctly landed it with writes auto-enabled from its `#WRITES` marker).
+- **Validated end-to-end** against a simulated card file: the binary `SPRB`
+  header, the manifest, the slot math, and `select-probe`'s extraction all
+  round-trip correctly (activating `display-presence` correctly landed it with
+  writes auto-enabled from its `#WRITES` marker).
 
-- **Caught a gap:** `push-to-usb` only carried `output/` and the scripts, not `input/probes/` — so the catalog loader would've found nothing on the lab laptop. Fixed; it now syncs the probe library too.
+- **Caught a gap:** `push-to-usb` only carried `output/` and the scripts, not
+  `input/probes/` — so the catalog loader would've found nothing on the lab
+  laptop. Fixed; it now syncs the probe library too.
 
-- **One source of truth:** the LBA constants live once in `scripts/lab-side/probe-common.sh`, shared by `flash-sd`/`write-probe`/`select-probe` and matched to the kernel. `write-probe` survives for ad-hoc one-off scripts.
+- **One source of truth:** the LBA constants live once in
+  `scripts/lab-side/probe-common.sh`, shared by
+  `flash-sd`/`write-probe`/`select-probe` and matched to the kernel.
+  `write-probe` survives for ad-hoc one-off scripts.
 
-- **No kernel change** — this is all lab tooling, so it works with the image you've already got. Docs (`016`, `110i`) updated.
+- **No kernel change** — this is all lab tooling, so it works with the image
+  you've already got. Docs (`016`, `110i`) updated.
 
 
 When you're back at the build machine, a `push-to-usb` then `flash-sd` gives the
@@ -8064,7 +9006,15 @@ Oh, that's the better idea — the natural endpoint of the whole thing. Let me
 give you the honest engineering read, then build it.
 
 
-**Yes — and there's exactly one real catch: hangs.** The probe engine is single-threaded with no preemption, so if one probe wedges the bus (or loops), every probe after it never runs. So "run all" needs three things to be safe: run the most valuable probe (`health-check`) *first*, flush the log *after each probe* (so a hang preserves everything before it), and make "which one hung" obvious from the log. With those, a hang costs you the tail but you still see exactly where it died. (The bulletproof version — re-enable the watchdog, record progress on the SD, and *resume past* the hung probe across an automatic reboot — is a great follow-on, but let me not gold-plate it yet.)
+**Yes — and there's exactly one real catch: hangs.** The probe engine is
+single-threaded with no preemption, so if one probe wedges the bus (or loops),
+every probe after it never runs. So "run all" needs three things to be safe: run
+the most valuable probe (`health-check`) *first*, flush the log *after each
+probe* (so a hang preserves everything before it), and make "which one hung"
+obvious from the log. With those, a hang costs you the tail but you still see
+exactly where it died. (The bulletproof version — re-enable the watchdog,
+record progress on the SD, and *resume past* the hung probe across an automatic
+reboot — is a great follow-on, but let me not gold-plate it yet.)
 
 
 Let me look at the current engine entry point and refactor it for a run-all
@@ -8142,13 +9092,13 @@ steps, zero decisions:
 
 ```
 
-main machine: push-to-usb
+main machine:  push-to-usb
 
-lab laptop: flash-sd → flashes kernel + loads catalog + arms the run-all sweep
+lab laptop:    flash-sd        → flashes kernel + loads catalog + arms the run-all sweep
 
-(boot) → runs ALL auto probes, health-check first
+               (boot)          → runs ALL auto probes, health-check first
 
-dump-from-sd → splits the result into probe-<name>-<stamp>.log files
+               dump-from-sd    → splits the result into probe-<name>-<stamp>.log files
 
 ```
 
@@ -8159,8 +9109,7 @@ is gone). The sweep order, by `#AUTO` priority, came out exactly right:
 
 ```
 
-health-check → usb-phy → pmic-dump → saradc-gamepad → display-presence
-→ dram-walk → emmc-dll-tune
+health-check → usb-phy → pmic-dump → saradc-gamepad → display-presence → dram-walk → emmc-dll-tune
 
 ```
 
@@ -8263,13 +9212,25 @@ Not an "uh-oh" — a one-line oversight, and nothing's broken. Here's exactly
 what happened and where you stand.
 
 
-**What went wrong:** `rsync` will create the *last* directory in a destination path but not the ones above it. `output/` and `scripts/` are one level deep, so those synced fine — but `input/probes/` is two levels, and the drive had no `input/` yet, so it failed trying to make `probes/` inside a non-existent `input/`. Fixed: `push-to-usb` now pre-creates `input/probes` before that rsync.
+**What went wrong:** `rsync` will create the *last* directory in a destination
+path but not the ones above it. `output/` and `scripts/` are one level deep, so
+those synced fine — but `input/probes/` is two levels, and the drive had no
+`input/` yet, so it failed trying to make `probes/` inside a non-existent
+`input/`. Fixed: `push-to-usb` now pre-creates `input/probes` before that rsync.
 
 
-**The stale mount is harmless.** Your aborted run left the drive mounted at `/mnt/soren-ds` (the cleanup trap's `umount` got swallowed by its `|| true`). I couldn't clear it from here — no cached sudo in my shell — but you don't need to: `push-to-usb` has a `release_existing_mount()` that finds the device wherever it's mounted and unmounts it before remounting. So the **re-run handles it automatically**.
+**The stale mount is harmless.** Your aborted run left the drive mounted at
+`/mnt/soren-ds` (the cleanup trap's `umount` got swallowed by its `|| true`). I
+couldn't clear it from here — no cached sudo in my shell — but you don't
+need to: `push-to-usb` has a `release_existing_mount()` that finds the device
+wherever it's mounted and unmounts it before remounting. So the **re-run handles
+it automatically**.
 
 
-**Where the drive is right now:** the image and the lab scripts already synced (those came first); only the probe library didn't. If you flashed as-is, `flash-sd` would just log "no input/probes; skipping catalog" and flash a working kernel without the probes — no crash. But you want the probes, so:
+**Where the drive is right now:** the image and the lab scripts already synced
+(those came first); only the probe library didn't. If you flashed as-is,
+`flash-sd` would just log "no input/probes; skipping catalog" and flash a
+working kernel without the probes — no crash. But you want the probes, so:
 
 
 **Just re-run it:**
@@ -8319,20 +9280,23 @@ you flashed with the drive in its partial state (image + scripts synced, but
 `input/probes/` not), from before a clean `push-to-usb`.
 
 
-**It's completely harmless** — read-only on the eMMC, writing to the SD backup region. Let it finish (you'll get a fresh real 200 MB backup with the GPT, same as before) or just pull the card; either is fine.
+**It's completely harmless** — read-only on the eMMC, writing to the SD backup
+region. Let it finish (you'll get a fresh real 200 MB backup with the GPT, same
+as before) or just pull the card; either is fine.
 
 
 **To actually get the sweep:**
 
 1. `./scripts/push-to-usb` — and confirm it finishes *clean* this time (with
-the `mkdir -p` fix, `input/probes/` should sync). You should see no rsync error.
+   the `mkdir -p` fix, `input/probes/` should sync). You should see no rsync
+   error.
 
 2. `flash-sd` on the lab laptop — watch its output for a line like `Loaded N
-probes; active = RUN-ALL sweep`. If you see "skipping catalog," the probes still
-aren't on the drive.
+   probes; active = RUN-ALL sweep`. If you see "skipping catalog," the probes
+   still aren't on the drive.
 
 3. Boot → it sweeps every probe (health-check first), `dump-from-sd` splits
-them into `probe-*.log`.
+   them into `probe-*.log`.
 
 
 So the question that pins it down: **when you re-ran `push-to-usb` after my fix,
@@ -8345,14 +9309,16 @@ re-flash and you'll get the sweep.
 
 ### User Request 110
 
-So the question that pins it down: when you re-ran push-to-usb after my fix, did
+  So the question that pins it down: when you re-ran push-to-usb after my fix,
+  did
 
-it finish without the rsync error? If you flashed straight from the failed-push
+  it finish without the rsync error? If you flashed straight from the
+  failed-push
 
-drive without re-pushing, that's the whole story — re-push and re-flash and
-you'll
+  drive without re-pushing, that's the whole story — re-push and re-flash and
+  you'll
 
-get the sweep.
+  get the sweep.
 
 
 
@@ -8387,7 +9353,8 @@ record of what your last `flash-sd` actually did. That's the decisive evidence,
 and it'll tell us which of three things happened without another flash cycle.
 
 
-**On the lab laptop, from the directory where you run `scripts/flash-sd` (the USB drive), run these three and paste the output:**
+**On the lab laptop, from the directory where you run `scripts/flash-sd` (the
+USB drive), run these three and paste the output:**
 
 
 ```
@@ -8405,28 +9372,28 @@ Here's what each one decides:
 
 
 1. **`grep -c load_probe_catalog scripts/flash-sd`** — expect **2**. If it
-prints **0**, the drive still has the *old* flash-sd (the sync isn't updating it
-— most likely you're running `flash-sd` from a different copy than the one
-`push-to-usb` writes, or the drive auto-mounted somewhere stale).
+   prints **0**, the drive still has the *old* flash-sd (the sync isn't updating
+   it — most likely you're running `flash-sd` from a different copy than the
+   one `push-to-usb` writes, or the drive auto-mounted somewhere stale).
 
 
 2. **`ls input/probes/`** — expect **8 `.probe` files**. If it's empty or "No
-such file or directory", the probe library didn't land on the drive even though
-the rsync reported success — and `flash-sd` would log "skipping" and the
-kernel falls through to the backup.
+   such file or directory", the probe library didn't land on the drive even
+   though the rsync reported success — and `flash-sd` would log "skipping" and
+   the kernel falls through to the backup.
 
 
 3. **`tail -30 /tmp/flash-sd.log`** — this is the truth of your last run. One
-of:
+   of:
 
-- a line like **`Loaded N probes; active = RUN-ALL sweep`** → it *did* arm the
-sweep (then the puzzle moves to the kernel side),
+   - a line like **`Loaded N probes; active = RUN-ALL sweep`** → it *did* arm
+     the sweep (then the puzzle moves to the kernel side),
 
-- **`...input/probes not found... skipping`** → the probes weren't on the
-drive (#2 above),
+   - **`...input/probes not found... skipping`** → the probes weren't on the
+     drive (#2 above),
 
-- **no "probe" line at all** → that flash-sd never had the catalog step (#1
-above — old flash-sd).
+   - **no "probe" line at all** → that flash-sd never had the catalog step (#1
+     above — old flash-sd).
 
 
 My side is verified clean — the call is in `main()` (line 339), the function's
@@ -8445,43 +9412,45 @@ What do the three commands show?
 
 ### User Request 111
 
-1. grep -c load_probe_catalog scripts/flash-sd — expect 2. If it prints 0, the
+  1. grep -c load_probe_catalog scripts/flash-sd — expect 2. If it prints 0,
+     the
 
-drive still has the old flash-sd (the sync isn't updating it — most likely
-you're
+  drive still has the old flash-sd (the sync isn't updating it — most likely
+  you're
 
-running flash-sd from a different copy than the one push-to-usb writes, or the
+  running flash-sd from a different copy than the one push-to-usb writes, or the
 
-drive auto-mounted somewhere stale).
+  drive auto-mounted somewhere stale).
 
 
 
 prints 3.
 
 
-2. ls input/probes/ — expect 8 .probe files. If it's empty or "No such file or
+  2. ls input/probes/ — expect 8 .probe files. If it's empty or "No such file
+     or
 
-directory", the probe library didn't land on the drive even though the rsync
+  directory", the probe library didn't land on the drive even though the rsync
 
-reported success — and flash-sd would log "skipping" and the kernel falls
-through
+  reported success — and flash-sd would log "skipping" and the kernel falls
+  through
 
-to the backup.
+  to the backup.
 
 
 
 there's 8 files.
 
 
-3. tail -30 /tmp/flash-sd.log — this is the truth of your last run. One of:
+  3. tail -30 /tmp/flash-sd.log — this is the truth of your last run. One of:
 
-- a line like Loaded N probes; active = RUN-ALL sweep → it did arm the sweep
+    - a line like Loaded N probes; active = RUN-ALL sweep → it did arm the sweep
 
-(then the puzzle moves to the kernel side),
+  (then the puzzle moves to the kernel side),
 
-- ...input/probes not found... skipping → the probes weren't on the drive (#2
+    - ...input/probes not found... skipping → the probes weren't on the drive (#2
 
-above),
+  above),
 
 
 
@@ -8530,365 +9499,369 @@ Summary:
 
 1. Primary Request and Intent:
 
-The overarching project is bringing up "Soren DS," a bare-metal aarch64 kernel
-for the Anbernic RG DS handheld (Rockchip RK3568 SoC). Across this session the
-explicit requests evolved:
+   The overarching project is bringing up "Soren DS," a bare-metal aarch64
+   kernel for the Anbernic RG DS handheld (Rockchip RK3568 SoC). Across this
+   session the explicit requests evolved:
 
-- Initial: "Okay. Can you write the probes that we need for the fast eMMC path?
-Any other probes you think we might need? ... Would it make sense to write
-probes to probe EVERYTHING we can on the device, so that if it starts to make
-weird beeps or emit smoke or something, we can run the tests and see what's
-breaking?"
+   - Initial: "Okay. Can you write the probes that we need for the fast eMMC
+     path? Any other probes you think we might need? ... Would it make sense to
+     write probes to probe EVERYTHING we can on the device, so that if it starts
+     to make weird beeps or emit smoke or something, we can run the tests and
+     see what's breaking?"
 
-- Earlier in session: continue eMMC debugging (the card returning `0xFFFFFFFF`),
-which eventually succeeded.
+   - Earlier in session: continue eMMC debugging (the card returning
+     `0xFFFFFFFF`), which eventually succeeded.
 
-- Build a dynamic hardware probe engine so testing is "more dynamic ... while in
-flight, without being able to provide additional demands" (issue 110i).
+   - Build a dynamic hardware probe engine so testing is "more dynamic ... while
+     in flight, without being able to provide additional demands" (issue 110i).
 
-- "What if we updated the flash-sd script ... to also iterate through the probes
-directory and write these ... to the kernel image? The lab techs are kinda dumb
-so they'll definitely forget to add certain probes ... Better to just make the
-probes dynamically add-able, and do it automatically." (→ probe catalog +
-select-probe)
+   - "What if we updated the flash-sd script ... to also iterate through the
+     probes directory and write these ... to the kernel image? The lab techs are
+     kinda dumb so they'll definitely forget to add certain probes ... Better to
+     just make the probes dynamically add-able, and do it automatically." (→
+     probe catalog + select-probe)
 
-- "What if we just... ran all the probes, wrote them to individual logs, and
-then the lab tech doesn't have to select a probe at all?" (→ run-all sweep as
-default)
+   - "What if we just... ran all the probes, wrote them to individual logs, and
+     then the lab tech doesn't have to select a probe at all?" (→ run-all
+     sweep as default)
 
-- Most recent: debug why the probes/sweep aren't running after flashing (the
-kernel ran the 200MB backup instead).
+   - Most recent: debug why the probes/sweep aren't running after flashing (the
+     kernel ran the 200MB backup instead).
 
 
 2. Key Technical Concepts:
 
-- RK3568 SoC: dwcmshc (Synopsys SDHCI-compatible) eMMC controller at 0xFE310000;
-DW MSHC SD controller at 0xFE2B0000
+   - RK3568 SoC: dwcmshc (Synopsys SDHCI-compatible) eMMC controller at
+     0xFE310000; DW MSHC SD controller at 0xFE2B0000
 
-- **THE eMMC ROOT CAUSE: the rk3568 dwcmshc IGNORES the SDHCI internal clock
-divider — card clock = whatever CCLK_EMMC is set to. Must drive CCLK_EMMC
-directly via CRU mux (CLKSEL_CON28=0xFDD20170, bits 14:12), not rely on the
-SDHCI divider.** CCLK_EMMC_SEL_375K=(0x5<<12) for identification,
-CCLK_EMMC_SEL_24M=(0x0<<12) for legacy transfer.
+   - **THE eMMC ROOT CAUSE: the rk3568 dwcmshc IGNORES the SDHCI internal clock
+     divider — card clock = whatever CCLK_EMMC is set to. Must drive CCLK_EMMC
+     directly via CRU mux (CLKSEL_CON28=0xFDD20170, bits 14:12), not rely on the
+     SDHCI divider.** CCLK_EMMC_SEL_375K=(0x5<<12) for identification,
+     CCLK_EMMC_SEL_24M=(0x0<<12) for legacy transfer.
 
-- CRU write-mask convention: upper 16 bits mask, lower 16 bits value
+   - CRU write-mask convention: upper 16 bits mask, lower 16 bits value
 
-- DLL bypass+start at low speed (from u-boot rockchip_sdhci.c):
-DLL_CTRL=0x01000001, DLL_RXCLK=0x80000000(ORI_GATE bit31), DLL_STRBIN=0x0C100000
+   - DLL bypass+start at low speed (from u-boot rockchip_sdhci.c):
+     DLL_CTRL=0x01000001, DLL_RXCLK=0x80000000(ORI_GATE bit31),
+     DLL_STRBIN=0x0C100000
 
-- Slot voltage 3.0V not 3.3V (CAPABILITIES=0x226DC881 bit 24=0);
-POWER_CONTROL=0x0D
+   - Slot voltage 3.0V not 3.3V (CAPABILITIES=0x226DC881 bit 24=0);
+     POWER_CONTROL=0x0D
 
-- GRF register layout: PULL at +0x80, INPUT-ENABLE at +0xC0 (NOT drive
-strength), DRV at +0x200 (4 regs/group, 6-bit thermometer)
+   - GRF register layout: PULL at +0x80, INPUT-ENABLE at +0xC0 (NOT drive
+     strength), DRV at +0x200 (4 regs/group, 6-bit thermometer)
 
-- PMU CRU base is 0xFDD00000 (NOT 0xFDD40000 which is I2C0); PMUGATE_CON at
-0x180
+   - PMU CRU base is 0xFDD00000 (NOT 0xFDD40000 which is I2C0); PMUGATE_CON at
+     0x180
 
-- Probe engine: SD-card-driven interpreter (R/W/DUMP/DELAY/EXPECT/POLL/CALL/LOG
-commands); SPRB magic = single probe, SPRA magic = run-all sweep
+   - Probe engine: SD-card-driven interpreter
+     (R/W/DUMP/DELAY/EXPECT/POLL/CALL/LOG commands); SPRB magic = single probe,
+     SPRA magic = run-all sweep
 
-- Probe catalog: all probes in 32-block slots; slot 0 = text manifest with SPCT
-sentinel
+   - Probe catalog: all probes in 32-block slots; slot 0 = text manifest with
+     SPCT sentinel
 
-- #WRITES marker (auto-enables register writes), #AUTO N marker (run priority
-for sweep)
+   - #WRITES marker (auto-enables register writes), #AUTO N marker (run priority
+     for sweep)
 
-- **Kernel 6.5+ refuses writes to a whole block device with any mounted
-partition (the current bug)**
+   - **Kernel 6.5+ refuses writes to a whole block device with any mounted
+     partition (the current bug)**
 
 
 3. Files and Code Sections:
 
-- **src/012-emmc.c** (eMMC driver) — heavily modified. Key final state: drives
-CCLK directly. `emmc_cru_bring_up()` ungates clocks, sets
-`mmio_write32(CRU_CLKSEL_CON_28, (CCLK_EMMC_SEL_MASK << 16) |
-CCLK_EMMC_SEL_375K)`. Identification clock uses `sdhci_set_clock(0)`
-(pass-through, card clock=CCLK=375kHz). Transfer clock switches CCLK to 24MHz
-then `sdhci_set_clock(0)`. `dwcmshc_vendor_config()` runs after SDHCI reset with
-DLL low-speed config. Defines: CCLK_EMMC_SEL_375K=(0x5u<<12),
-CCLK_EMMC_SEL_24M=(0x0u<<12), CCLK_EMMC_SEL_MASK=(0x7u<<12),
-CRU_CLKSEL_CON_28=0xFDD20170u.
+   - **src/012-emmc.c** (eMMC driver) — heavily modified. Key final state:
+     drives CCLK directly. `emmc_cru_bring_up()` ungates clocks, sets
+     `mmio_write32(CRU_CLKSEL_CON_28, (CCLK_EMMC_SEL_MASK << 16) |
+     CCLK_EMMC_SEL_375K)`. Identification clock uses `sdhci_set_clock(0)`
+     (pass-through, card clock=CCLK=375kHz). Transfer clock switches CCLK to
+     24MHz then `sdhci_set_clock(0)`. `dwcmshc_vendor_config()` runs after SDHCI
+     reset with DLL low-speed config. Defines: CCLK_EMMC_SEL_375K=(0x5u<<12),
+     CCLK_EMMC_SEL_24M=(0x0u<<12), CCLK_EMMC_SEL_MASK=(0x7u<<12),
+     CRU_CLKSEL_CON_28=0xFDD20170u.
 
 
-- **src/019-probe-engine.c** (created, ~700 lines) — the probe engine. Reads
-active region (PROBE_REGION_LBA=0x100000); SPRB→run_probe_buf,
-SPRA→run_all_probes. Commands: R/RH/RB, W/WH/WB, DUMP, DELAY, EXPECT, POLL,
-CALL, LOG. CALL targets: sd_init, emmc_init, emmc_read0, backup200, memtest,
-pmic_dump. Has write allowlist (0xFDC00000-0xFDE00000, 0xFE000000-0xFE800000).
-run_all_probes reads catalog manifest from PROBE_CATALOG_LBA=0x180000, runs auto
-entries in manifest order with `===== PROBE name =====` banners +
-debug_log_flush() after each. memtest tests 1MB at 0x40000000. pmic_dump brings
-up i2c0 (0xFDD40000) and reads RK817 (addr 0x20) registers 0x00-0x0F.
+   - **src/019-probe-engine.c** (created, ~700 lines) — the probe engine.
+     Reads active region (PROBE_REGION_LBA=0x100000); SPRB→run_probe_buf,
+     SPRA→run_all_probes. Commands: R/RH/RB, W/WH/WB, DUMP, DELAY, EXPECT,
+     POLL, CALL, LOG. CALL targets: sd_init, emmc_init, emmc_read0, backup200,
+     memtest, pmic_dump. Has write allowlist (0xFDC00000-0xFDE00000,
+     0xFE000000-0xFE800000). run_all_probes reads catalog manifest from
+     PROBE_CATALOG_LBA=0x180000, runs auto entries in manifest order with `=====
+     PROBE name =====` banners + debug_log_flush() after each. memtest tests 1MB
+     at 0x40000000. pmic_dump brings up i2c0 (0xFDD40000) and reads RK817 (addr
+     0x20) registers 0x00-0x0F.
 
 
-- **src/002-main.c** (kernel_main) — modified to: sd_init → Checkpoint A →
-debug_log_init → `if (probe_engine_run()) { park }` → else emmc_init +
-`emmc_backup_to_sd(0, 0x200000, 409600)` (200MB backup). Added `extern int
-probe_engine_run(void);`
+   - **src/002-main.c** (kernel_main) — modified to: sd_init → Checkpoint A
+     → debug_log_init → `if (probe_engine_run()) { park }` → else
+     emmc_init + `emmc_backup_to_sd(0, 0x200000, 409600)` (200MB backup). Added
+     `extern int probe_engine_run(void);`
 
 
-- **scripts/lab-side/probe-common.sh** (created) — shared constants/helpers:
-PROBE_ACTIVE_LBA=1048576, PROBE_CATALOG_LBA=1572864, PROBE_SLOT_BLOCKS=32,
-PROBE_DEFAULT=health-check. Functions: probe_auto_priority(),
-write_runall_marker() (writes "SPRA"+12 zeros), probe_needs_writes(),
-build_probe_payload() (writes "SPRB"+flags+length+text header).
+   - **scripts/lab-side/probe-common.sh** (created) — shared
+     constants/helpers: PROBE_ACTIVE_LBA=1048576, PROBE_CATALOG_LBA=1572864,
+     PROBE_SLOT_BLOCKS=32, PROBE_DEFAULT=health-check. Functions:
+     probe_auto_priority(), write_runall_marker() (writes "SPRA"+12 zeros),
+     probe_needs_writes(), build_probe_payload() (writes
+     "SPRB"+flags+length+text header).
 
 
-- **scripts/lab-side/flash-sd** — added `load_probe_catalog()` called in
-main() after flash_image. Most recent edit added unmount_partitions and
-start-log:
+   - **scripts/lab-side/flash-sd** — added `load_probe_catalog()` called in
+     main() after flash_image. Most recent edit added unmount_partitions and
+     start-log:
 
-```bash
+     ```bash
 
-load_probe_catalog() {
+     load_probe_catalog() {
 
-local device="$1"
+         local device="$1"
 
-log "Probe catalog: loading from ${PROBES_DIR} ..."
+         log "Probe catalog: loading from ${PROBES_DIR} ..."
 
-if [[ ! -d "$PROBES_DIR" ]]; then log "...not found...skipping"; return 0; fi
+         if [[ ! -d "$PROBES_DIR" ]]; then log "...not found...skipping"; return 0; fi
 
-local probe_count
+         local probe_count
 
-probe_count="$(find "$PROBES_DIR" -maxdepth 1 -name '*.probe' 2>/dev/null | wc
--l)"
+         probe_count="$(find "$PROBES_DIR" -maxdepth 1 -name '*.probe' 2>/dev/null | wc -l)"
 
-if [[ "$probe_count" -eq 0 ]]; then log "...no .probe files...skipping"; return
-0; fi
+         if [[ "$probe_count" -eq 0 ]]; then log "...no .probe files...skipping"; return 0; fi
 
-log "Probe catalog: re-unmounting card partitions before writing slots."
+         log "Probe catalog: re-unmounting card partitions before writing slots."
 
-unmount_partitions "$device"
+         unmount_partitions "$device"
 
-local manifest unsorted payload slot=1 ...
+         local manifest unsorted payload slot=1 ...
 
-manifest="$(mktemp)"; unsorted="$(mktemp)"; payload="$(mktemp)"
+         manifest="$(mktemp)"; unsorted="$(mktemp)"; payload="$(mktemp)"
 
-sudo dd if=/dev/zero of="$device" bs=512 seek="$PROBE_CATALOG_LBA"
-count="$PROBE_SLOT_BLOCKS" conv=fsync status=none
+         sudo dd if=/dev/zero of="$device" bs=512 seek="$PROBE_CATALOG_LBA" count="$PROBE_SLOT_BLOCKS" conv=fsync status=none
 
-for probe in "$PROBES_DIR"/*.probe; do ... build_probe_payload; dd to slot;
-printf '%03d %s %d %s %s\n' key name slot writes auto >> unsorted; done
+         for probe in "$PROBES_DIR"/*.probe; do ... build_probe_payload; dd to slot; printf '%03d %s %d %s %s\n' key name slot writes auto >> unsorted; done
 
-printf 'SPCT\n' > "$manifest"; sort -n "$unsorted" | sed 's/^[0-9]* //' >>
-"$manifest"; dd manifest to catalog
+         printf 'SPCT\n' > "$manifest"; sort -n "$unsorted" | sed 's/^[0-9]* //' >> "$manifest"; dd manifest to catalog
 
-write_runall_marker "$payload"; dd payload to PROBE_ACTIVE_LBA # default = SPRA
-run-all
+         write_runall_marker "$payload"; dd payload to PROBE_ACTIVE_LBA   # default = SPRA run-all
 
-}
+     }
 
-```
+     ```
 
-flash_image() ends with `sudo dd if="$image" of="$device" bs=4M status=progress
-conv=fsync` then `sync`.
+     flash_image() ends with `sudo dd if="$image" of="$device" bs=4M status=progress conv=fsync` then `sync`.
 
 
-- **scripts/lab-side/select-probe** (created) — `select-probe <name> <device>`
-activates one; `--all` writes SPRA; `--list` shows catalog in sweep order.
+   - **scripts/lab-side/select-probe** (created) — `select-probe <name>
+     <device>` activates one; `--all` writes SPRA; `--list` shows catalog in
+     sweep order.
 
 
-- **scripts/lab-side/write-probe** — refactored to source probe-common.sh,
-auto-detect #WRITES.
+   - **scripts/lab-side/write-probe** — refactored to source probe-common.sh,
+     auto-detect #WRITES.
 
 
-- **scripts/lab-side/dump-from-sd** — added split_probe_logs() that carves the
-sweep log into lab-output/probe-<name>-<stamp>.log files by `===== PROBE name
-=====` banners (a probe with no END banner = the one that hung).
+   - **scripts/lab-side/dump-from-sd** — added split_probe_logs() that carves
+     the sweep log into lab-output/probe-<name>-<stamp>.log files by `=====
+     PROBE name =====` banners (a probe with no END banner = the one that hung).
 
 
-- **scripts/push-to-usb** — added PROBES_DIR sync; fixed rsync two-level path
-with `sudo mkdir -p "${USB_MOUNT}/input/probes"` before the rsync.
+   - **scripts/push-to-usb** — added PROBES_DIR sync; fixed rsync two-level
+     path with `sudo mkdir -p "${USB_MOUNT}/input/probes"` before the rsync.
 
 
-- **input/probes/*.probe** (8 created): health-check (#AUTO 10), usb-phy (#AUTO
-20), pmic-dump (#AUTO 30), saradc-gamepad (#WRITES, #AUTO 40), display-presence
-(#WRITES, #AUTO 50), dram-walk (#AUTO 60), emmc-dll-tune (#WRITES, #AUTO 90),
-example-emmc-registers (no #AUTO = manual).
+   - **input/probes/*.probe** (8 created): health-check (#AUTO 10), usb-phy
+     (#AUTO 20), pmic-dump (#AUTO 30), saradc-gamepad (#WRITES, #AUTO 40),
+     display-presence (#WRITES, #AUTO 50), dram-walk (#AUTO 60), emmc-dll-tune
+     (#WRITES, #AUTO 90), example-emmc-registers (no #AUTO = manual).
 
 
-- **docs/datasheets/** — downloaded: rk3568-trm-part1.pdf (852pg),
-rk3568-trm-part2.pdf (2583pg), rk3568-datasheet.pdf,
-sdhci-host-controller-spec.pdf, jedec-emmc-5.1.pdf, synopsys-dwc-mshc.pdf
-(partial). INDEX.md catalogues them. Extracted to
-tmp/datasheet-text/trm-part1.txt and trm-part2.txt.
+   - **docs/datasheets/** — downloaded: rk3568-trm-part1.pdf (852pg),
+     rk3568-trm-part2.pdf (2583pg), rk3568-datasheet.pdf,
+     sdhci-host-controller-spec.pdf, jedec-emmc-5.1.pdf, synopsys-dwc-mshc.pdf
+     (partial). INDEX.md catalogues them. Extracted to
+     tmp/datasheet-text/trm-part1.txt and trm-part2.txt.
 
 
-- **docs/016-021, 024** — physical memory map (incl. SD region layout +
-microSD catalog), clocks/timers, eMMC host controller, board pinmux, sdmmc0,
-pmic, usb-device-controller, display-controller, emmc-partition-map (the 15
-Android partitions:
-security/uboot/trust/misc/dtbo/vbmeta/boot[LBA51200]/recovery/backup/cache/metadata/frp/baseparameter/super[6.1GiB]/userdata[22GiB]).
+   - **docs/016-021, 024** — physical memory map (incl. SD region layout +
+     microSD catalog), clocks/timers, eMMC host controller, board pinmux,
+     sdmmc0, pmic, usb-device-controller, display-controller, emmc-partition-map
+     (the 15 Android partitions:
+     security/uboot/trust/misc/dtbo/vbmeta/boot[LBA51200]/recovery/backup/cache/metadata/frp/baseparameter/super[6.1GiB]/userdata[22GiB]).
 
 
-- **tmp/uboot-ref/rockchip_sdhci.c** — fetched u-boot driver (ground truth for
-the eMMC fix and DLL config).
+   - **tmp/uboot-ref/rockchip_sdhci.c** — fetched u-boot driver (ground truth
+     for the eMMC fix and DLL config).
 
 
 4. Errors and fixes:
 
-- **eMMC card silent (0xFFFFFFFF) — THE central bug:** After ruling out
-pinmux, CRU clocks, voltage, CARD_IS_EMMC, RST_n, pull-up, drive strength (which
-was a self-inflicted bug — we wrote drive-strength to the input-enable
-registers at 0xC4/0xC8), DLL bypass+start, the fix was: dwcmshc ignores SDHCI
-divider; drive CCLK_EMMC directly at 375kHz via CRU mux. VERIFIED:
-CID[0]=0x00010AA9, emmc_init PASS.
+   - **eMMC card silent (0xFFFFFFFF) — THE central bug:** After ruling out
+     pinmux, CRU clocks, voltage, CARD_IS_EMMC, RST_n, pull-up, drive strength
+     (which was a self-inflicted bug — we wrote drive-strength to the
+     input-enable registers at 0xC4/0xC8), DLL bypass+start, the fix was:
+     dwcmshc ignores SDHCI divider; drive CCLK_EMMC directly at 375kHz via CRU
+     mux. VERIFIED: CID[0]=0x00010AA9, emmc_init PASS.
 
-- **Drive-strength vs input-enable confusion:** 0xC4/0xC8 are GPIO1x_IE
-(input-enable), not drive strength (which is at 0x200). Removed the bogus
-writes.
+   - **Drive-strength vs input-enable confusion:** 0xC4/0xC8 are GPIO1x_IE
+     (input-enable), not drive strength (which is at 0x200). Removed the bogus
+     writes.
 
-- **PMU CRU base wrong:** docs said 0xFDD40000 but that's I2C0; correct is
-0xFDD00000. Fixed in docs/017.
+   - **PMU CRU base wrong:** docs said 0xFDD40000 but that's I2C0; correct is
+     0xFDD00000. Fixed in docs/017.
 
-- **i2c0 SDA/SCL swap:** B1=SCL, B2=SDA (docs had reversed). Fixed.
+   - **i2c0 SDA/SCL swap:** B1=SCL, B2=SDA (docs had reversed). Fixed.
 
-- **push-to-usb rsync failure:** `mkdir "/mnt/soren-ds/input/probes" failed: No
-such file or directory` — rsync only creates the last path component. Fixed
-with `sudo mkdir -p "${USB_MOUNT}/input/probes"` before the rsync. User
-feedback: "uh-oh"; then "didn't work. I re-ran push-to-usb and it finished
-without the rsync error, yet the probes didn't run."
+   - **push-to-usb rsync failure:** `mkdir "/mnt/soren-ds/input/probes" failed:
+     No such file or directory` — rsync only creates the last path component.
+     Fixed with `sudo mkdir -p "${USB_MOUNT}/input/probes"` before the rsync.
+     User feedback: "uh-oh"; then "didn't work. I re-ran push-to-usb and it
+     finished without the rsync error, yet the probes didn't run."
 
-- **Probes not running (CURRENT, fix just applied):** flash-sd correct (grep -c
-load_probe_catalog = 3), 8 probes present, but no probe log output. Diagnosed:
-kernel 6.5+ refuses writes to a whole device with mounted partitions; flashing
-creates a FAT partition that auto-remounts, so load_probe_catalog's first `dd`
-fails and `set -e` aborts flash-sd silently. Fix just applied: added
-`unmount_partitions "$device"` at the start of load_probe_catalog (after the
-probe_count check, before the dd's).
+   - **Probes not running (CURRENT, fix just applied):** flash-sd correct (grep
+     -c load_probe_catalog = 3), 8 probes present, but no probe log output.
+     Diagnosed: kernel 6.5+ refuses writes to a whole device with mounted
+     partitions; flashing creates a FAT partition that auto-remounts, so
+     load_probe_catalog's first `dd` fails and `set -e` aborts flash-sd
+     silently. Fix just applied: added `unmount_partitions "$device"` at the
+     start of load_probe_catalog (after the probe_count check, before the dd's).
 
-- **Over-claimed RX-clock-inversion as root cause:** I had to walk back this
-claim in docs/018 and 110a when a flash disproved it (no-inverter bit applied,
-card still silent; upstream leaves RX inverted at low speed). Corrected the docs
-to be honest.
+   - **Over-claimed RX-clock-inversion as root cause:** I had to walk back this
+     claim in docs/018 and 110a when a flash disproved it (no-inverter bit
+     applied, card still silent; upstream leaves RX inverted at low speed).
+     Corrected the docs to be honest.
 
 
 5. Problem Solving:
 
-- SOLVED: eMMC bring-up (the CCLK-direct fix). Verified backup produces real GPT
-content.
+   - SOLVED: eMMC bring-up (the CCLK-direct fix). Verified backup produces real
+     GPT content.
 
-- SOLVED: probe engine + catalog + run-all sweep + per-probe log splitting, all
-validated against simulated card files (manifest sort order, SPRA marker, --list
-rendering, log splitting incl. hung-probe case).
+   - SOLVED: probe engine + catalog + run-all sweep + per-probe log splitting,
+     all validated against simulated card files (manifest sort order, SPRA
+     marker, --list rendering, log splitting incl. hung-probe case).
 
-- SOLVED: the partition map (docs/024) which caught 110b's wrong boot LBA.
+   - SOLVED: the partition map (docs/024) which caught 110b's wrong boot LBA.
 
-- ONGOING: the probes-not-running issue — just applied the unmount_partitions
-fix to load_probe_catalog; awaiting user re-push + re-flash to verify.
+   - ONGOING: the probes-not-running issue — just applied the
+     unmount_partitions fix to load_probe_catalog; awaiting user re-push +
+     re-flash to verify.
 
 
 6. All user messages:
 
-- "Can you write the probes that we need for the fast eMMC path? Any other
-probes you think we might need? Can you give me some examples? Would it make
-sense to write probes to probe EVERYTHING we can on the device, so that if it
-starts to make weird beeps or emit smoke or something, we can run the tests and
-see what's breaking?"
+   - "Can you write the probes that we need for the fast eMMC path? Any other
+     probes you think we might need? Can you give me some examples? Would it
+     make sense to write probes to probe EVERYTHING we can on the device, so
+     that if it starts to make weird beeps or emit smoke or something, we can
+     run the tests and see what's breaking?"
 
-- "[quoted my workflow text] can you tell me more about these? Why are we
-running this kind of script on the lab machine, instead of preparing it before
-we flash? Just curious. [quoted the 4 future probes] can you write these in
-parallel while I reflash?"
+   - "[quoted my workflow text] can you tell me more about these? Why are we
+     running this kind of script on the lab machine, instead of preparing it
+     before we flash? Just curious. [quoted the 4 future probes] can you write
+     these in parallel while I reflash?"
 
-- "What if we just... ran all the probes, wrote them to individual logs, and
-then the lab tech doesn't have to select a probe at all?"
+   - "What if we just... ran all the probes, wrote them to individual logs, and
+     then the lab tech doesn't have to select a probe at all?"
 
-- "[quoted my probe-on-lab explanation] what if we updated the flash-sd script
-that's run from the lab laptop to also iterate through the probes directory and
-write these [examples] to the kernel image? The lab techs are kinda dumb so
-they'll definitely forget to add certain probes when we need them. Better to
-just make the probes dynamically add-able, and do it automatically."
+   - "[quoted my probe-on-lab explanation] what if we updated the flash-sd
+     script that's run from the lab laptop to also iterate through the probes
+     directory and write these [examples] to the kernel image? The lab techs are
+     kinda dumb so they'll definitely forget to add certain probes when we need
+     them. Better to just make the probes dynamically add-able, and do it
+     automatically."
 
-- "[push-to-usb terminal output showing the rsync error] uh-oh"
+   - "[push-to-usb terminal output showing the rsync error] uh-oh"
 
-- "double amber, double dark, then bottom amber solid (are we re-running the
-200mb eMMC extraction?) then dark... then solid amber, etc. Will let you know
-what happens when the eMMC thing is done."
+   - "double amber, double dark, then bottom amber solid (are we re-running the
+     200mb eMMC extraction?) then dark... then solid amber, etc. Will let you
+     know what happens when the eMMC thing is done."
 
-- "[quoted my question] didn't work. I re-ran push-to-usb and it finished
-without the rsync error, yet the probes didn't run. On the lab laptop, it
-doesn't say anything about any probes."
+   - "[quoted my question] didn't work. I re-ran push-to-usb and it finished
+     without the rsync error, yet the probes didn't run. On the lab laptop, it
+     doesn't say anything about any probes."
 
-- "[quoted my 3 diagnostic commands] prints 3. ... there's 8 files. ... just a
-lot of 'flashing sd-card' and 'requesting sudo' and such. Nothing about probes."
+   - "[quoted my 3 diagnostic commands] prints 3. ... there's 8 files. ... just
+     a lot of 'flashing sd-card' and 'requesting sudo' and such. Nothing about
+     probes."
 
-- (Earlier session messages about LED states, eMMC debugging, datasheets, "let's
-do (1) then (2)", "Okay let's do the probe engine. Is that blocking the fast
-eMMC path?", "okay done!", etc.)
+   - (Earlier session messages about LED states, eMMC debugging, datasheets,
+     "let's do (1) then (2)", "Okay let's do the probe engine. Is that blocking
+     the fast eMMC path?", "okay done!", etc.)
 
-- Security/style constraints from CLAUDE.md (in effect throughout): "you can say
-no"; "don't do anything unless I tell you to"; scripts must have hard-coded
-${DIR} with override arg, all paths relative to DIR; prefer error messages over
-fallbacks (notify on fallbacks); prefer Lua/LuaJIT, disprefer Python; "the exec
-operation paired with bash or lua is banned for all directory or file targetting
-capabilities. read-only is fine, but run the commands individually instead of
-chaining them"; write logs to RAM tmp/ symlink; "if a bash command is to be run,
-each line should be on a different command ... use named pipes [assign to
-variable and pass in]"; "read from the project specific tmp/ directory instead"
-(user explicitly redirected me to use the project tmp/, not /tmp directly);
-don't refer to functions/issues by name/number to the user; commits only after
-issue completion and only when asked.
+   - Security/style constraints from CLAUDE.md (in effect throughout): "you can
+     say no"; "don't do anything unless I tell you to"; scripts must have
+     hard-coded ${DIR} with override arg, all paths relative to DIR; prefer
+     error messages over fallbacks (notify on fallbacks); prefer Lua/LuaJIT,
+     disprefer Python; "the exec operation paired with bash or lua is banned for
+     all directory or file targetting capabilities. read-only is fine, but run
+     the commands individually instead of chaining them"; write logs to RAM tmp/
+     symlink; "if a bash command is to be run, each line should be on a
+     different command ... use named pipes [assign to variable and pass in]";
+     "read from the project specific tmp/ directory instead" (user explicitly
+     redirected me to use the project tmp/, not /tmp directly); don't refer to
+     functions/issues by name/number to the user; commits only after issue
+     completion and only when asked.
 
 
 7. Pending Tasks:
 
-- Verify the unmount_partitions fix resolves probes-not-running (user must
-re-push + re-flash).
+   - Verify the unmount_partitions fix resolves probes-not-running (user must
+     re-push + re-flash).
 
-- User open question still unanswered: "What did that eMMC backup-flash end up
-doing — did the partition table come off clean?" (Answer: yes — but this was
-about an earlier backup; the recent flashes ran the backup as a fallback because
-the sweep wasn't armed.)
+   - User open question still unanswered: "What did that eMMC backup-flash end
+     up doing — did the partition table come off clean?" (Answer: yes — but
+     this was about an earlier backup; the recent flashes ran the backup as a
+     fallback because the sweep wasn't armed.)
 
-- Deferred: the watchdog-resume "bulletproof" version of run-all (documented in
-110i as future).
+   - Deferred: the watchdog-resume "bulletproof" version of run-all (documented
+     in 110i as future).
 
-- Deferred: fast eMMC path in C (HS200, CMD6, DMA) using emmc-dll-tune probe to
-confirm DLL lock.
+   - Deferred: fast eMMC path in C (HS200, CMD6, DMA) using emmc-dll-tune probe
+     to confirm DLL lock.
 
 
 8. Current Work:
 
-I was debugging why the probe sweep didn't run after the user flashed. The user
-confirmed: flash-sd on the drive is current (`grep -c load_probe_catalog
-scripts/flash-sd` = 3), the 8 probe files are present on the drive, but
-`/tmp/flash-sd.log` shows "just a lot of 'flashing sd-card' and 'requesting
-sudo' and such. Nothing about probes." I diagnosed this as kernel 6.5+ blocking
-writes to a whole device with a mounted partition: after flash_image rewrites
-the partition table, the lab laptop's automounter re-mounts the new FAT
-partition, so load_probe_catalog's first `sudo dd if=/dev/zero of="$device"`
-fails and `set -e` silently aborts flash-sd. I just applied the fix — added to
-load_probe_catalog (scripts/lab-side/flash-sd) right before the dd writes:
+   I was debugging why the probe sweep didn't run after the user flashed. The
+   user confirmed: flash-sd on the drive is current (`grep -c load_probe_catalog
+   scripts/flash-sd` = 3), the 8 probe files are present on the drive, but
+   `/tmp/flash-sd.log` shows "just a lot of 'flashing sd-card' and 'requesting
+   sudo' and such. Nothing about probes." I diagnosed this as kernel 6.5+
+   blocking writes to a whole device with a mounted partition: after flash_image
+   rewrites the partition table, the lab laptop's automounter re-mounts the new
+   FAT partition, so load_probe_catalog's first `sudo dd if=/dev/zero
+   of="$device"` fails and `set -e` silently aborts flash-sd. I just applied the
+   fix — added to load_probe_catalog (scripts/lab-side/flash-sd) right before
+   the dd writes:
 
-```bash
+   ```bash
 
-log "Probe catalog: re-unmounting card partitions before writing slots."
+   log "Probe catalog: re-unmounting card partitions before writing slots."
 
-unmount_partitions "$device"
+   unmount_partitions "$device"
 
-```
+   ```
 
-I had also just added (in a prior edit) an unconditional start-log "Probe
-catalog: loading from ${PROBES_DIR} ..." and a probe_count check at the top of
-load_probe_catalog. The edit succeeded (the Edit tool returned success).
+   I had also just added (in a prior edit) an unconditional start-log "Probe
+   catalog: loading from ${PROBES_DIR} ..." and a probe_count check at the top
+   of load_probe_catalog. The edit succeeded (the Edit tool returned success).
 
 
 9. Optional Next Step:
 
-Inform the user that the fix is applied and they should re-push and re-flash,
-then watch for the new log lines. Direct quotes establishing the task: User said
-"it doesn't say anything about any probes"; I concluded "the device is 'busy',
-dd fails, and set -e kills flash-sd silently right there. That's a perfect
-match: flash succeeds, catalog step vanishes with no log. The fix: re-unmount
-the device's partitions inside load_probe_catalog before it writes." The next
-step is to tell the user: re-run `./scripts/push-to-usb` (to ship the fixed
-flash-sd) then `scripts/flash-sd` on the lab laptop, and confirm they now see
-"Probe catalog: loading from..." and "Loaded N probes; active = RUN-ALL sweep"
-in the output — which would confirm the sweep is finally armed. I should also
-syntax-check the edited flash-sd before declaring it ready (a tool call that
-would have been next but cannot be done in this summary turn).
+   Inform the user that the fix is applied and they should re-push and re-flash,
+   then watch for the new log lines. Direct quotes establishing the task: User
+   said "it doesn't say anything about any probes"; I concluded "the device is
+   'busy', dd fails, and set -e kills flash-sd silently right there. That's a
+   perfect match: flash succeeds, catalog step vanishes with no log. The fix:
+   re-unmount the device's partitions inside load_probe_catalog before it
+   writes." The next step is to tell the user: re-run `./scripts/push-to-usb`
+   (to ship the fixed flash-sd) then `scripts/flash-sd` on the lab laptop, and
+   confirm they now see "Probe catalog: loading from..." and "Loaded N probes;
+   active = RUN-ALL sweep" in the output — which would confirm the sweep is
+   finally armed. I should also syntax-check the edited flash-sd before
+   declaring it ready (a tool call that would have been next but cannot be done
+   in this summary turn).
 
 
 If you need specific details from before compaction (like exact code snippets,
@@ -8917,9 +9890,9 @@ to.</local-command-caveat>
 
 <command-name>/compact</command-name>
 
-<command-message>compact</command-message>
+            <command-message>compact</command-message>
 
-<command-args></command-args>
+            <command-args></command-args>
 
 
 --------------------------------------------------------------------------------
@@ -8999,10 +9972,27 @@ refactor didn't disturb the layout.
 So here's where this landed.
 
 
-**What was actually wrong.** Unmounting the card once wasn't enough. Every time we write to the raw card and close the handle, the kernel re-scans its partition table, and the laptop's automounter re-mounts the FAT partition. Modern kernels (6.5+) refuse to open a whole disk for writing while one of its partitions is mounted — so the *first* catalog write would succeed, its close would trigger a re-mount, and the *next* write would fail on the now-busy card. With errors-abort-on-first-failure turned on, the flasher died silently right after the image flash. That's the exact thing you saw: flash succeeds, nothing about probes, and because the active region never got its marker, the device found no probe to run and fell back to the 200 MB eMMC backup.
+**What was actually wrong.** Unmounting the card once wasn't enough. Every time
+we write to the raw card and close the handle, the kernel re-scans its partition
+table, and the laptop's automounter re-mounts the FAT partition. Modern kernels
+(6.5+) refuse to open a whole disk for writing while one of its partitions is
+mounted — so the *first* catalog write would succeed, its close would trigger
+a re-mount, and the *next* write would fail on the now-busy card. With
+errors-abort-on-first-failure turned on, the flasher died silently right after
+the image flash. That's the exact thing you saw: flash succeeds, nothing about
+probes, and because the active region never got its marker, the device found no
+probe to run and fell back to the 200 MB eMMC backup.
 
 
-**The fix.** Hold a *single* writer open on the card for the entire catalog-writing pass. While that one handle is open, two things happen: the laptop physically cannot mount the partition (the kernel blocks it), and keeping the handle open also suppresses the per-close partition re-scan that was triggering the re-mount in the first place. So all the writes — every probe slot, the manifest, the run-all marker — go down in one uninterrupted pass. I also made any residual failure *loud*: if the card is genuinely stuck for some other reason, you now get a clear error line saying the image flashed fine and to just re-run, instead of silence.
+**The fix.** Hold a *single* writer open on the card for the entire
+catalog-writing pass. While that one handle is open, two things happen: the
+laptop physically cannot mount the partition (the kernel blocks it), and keeping
+the handle open also suppresses the per-close partition re-scan that was
+triggering the re-mount in the first place. So all the writes — every probe
+slot, the manifest, the run-all marker — go down in one uninterrupted pass. I
+also made any residual failure *loud*: if the card is genuinely stuck for some
+other reason, you now get a clear error line saying the image flashed fine and
+to just re-run, instead of silence.
 
 
 I verified the byte layout off-device first (that's the simulation above, run
@@ -9014,7 +10004,7 @@ change on top of the race fix.
 
 
 1. On the main machine: `scripts/push-to-usb` — ships the fixed flasher to the
-drive.
+   drive.
 
 2. On the lab laptop: `scripts/flash-sd`
 
@@ -9023,7 +10013,8 @@ This time the lab-laptop output should show three new lines:
 
 - `Probe catalog: loading from .../input/probes ...`
 
-- `Probe catalog: writing 8 probe slots + manifest + active marker (held-open pass)`
+- `Probe catalog: writing 8 probe slots + manifest + active marker (held-open
+  pass)`
 
 - `Loaded 8 probes; active = RUN-ALL sweep (runs on boot, no selection).`
 
@@ -9048,15 +10039,16 @@ double amber, double dark, top green flash, solid bottom amber. It's doing the
 eMMC probe again, I'm going to interrupt it.
 
 
-One open question that decides whether we're fully clear: when you flash and
-watch
+  One open question that decides whether we're fully clear: when you flash and
+  watch
 
-the lab-laptop output, do you get those three lines? If yes, the card is armed.
+  the lab-laptop output, do you get those three lines? If yes, the card is
+  armed.
 
-If instead you get the new red error line, that tells me the card stayed busy
-for
+  If instead you get the new red error line, that tells me the card stayed busy
+  for
 
-a different reason and I'll chase that — but it won't be silent anymore.
+  a different reason and I'll chase that — but it won't be silent anymore.
 
 
 
@@ -9148,11 +10140,11 @@ Recommended plan, smallest-proof-first:
 1. Move the probe region to ~288 MB, just past the partition.
 
 2. Bake a **single read-only probe** (the health check) into the image as the
-active script — nothing else, no catalog.
+   active script — nothing else, no catalog.
 
 3. You flash and boot. If it runs, the kernel engine is *proven on real
-hardware* and the whole post-flash card-write step is dead. Then I bake the full
-catalog + run-all sweep.
+   hardware* and the whole post-flash card-write step is dead. Then I bake the
+   full catalog + run-all sweep.
 
 
 Want me to do that? (If you'd rather first confirm the current fix instead, the
@@ -9204,25 +10196,49 @@ compile-time define plus a generated blob that only exists in a debug build.
 That's all doable cleanly. Here's the plan.
 
 
-**1. Update the issue first.** Rewrite 110i's intended design from "SD-driven, no rebuild" to "compiled in under a build flag." The card delivery, the catalog, and the lab-side write become the *superseded* prior design — kept as the story of how we got here, not deleted. (Issue before code.)
+**1. Update the issue first.** Rewrite 110i's intended design from "SD-driven,
+no rebuild" to "compiled in under a build flag." The card delivery, the catalog,
+and the lab-side write become the *superseded* prior design — kept as the
+story of how we got here, not deleted. (Issue before code.)
 
 
-**2. `scripts/build --probes`** generates an embedded probe blob from `input/probes/*.probe` — a small generator (Lua, per project convention), sorted by the same `#AUTO` priority, each probe's text baked into a C byte array — written into the RAM build dir, then compiles with `-DSOREN_PROBES`. Plain `scripts/build` does neither. (This also means teaching the `build` wrapper to treat `--probes` as a flag, not a make target.)
+**2. `scripts/build --probes`** generates an embedded probe blob from
+`input/probes/*.probe` — a small generator (Lua, per project convention),
+sorted by the same `#AUTO` priority, each probe's text baked into a C byte array
+— written into the RAM build dir, then compiles with `-DSOREN_PROBES`. Plain
+`scripts/build` does neither. (This also means teaching the `build` wrapper to
+treat `--probes` as a flag, not a make target.)
 
 
-**3. Lean by default.** The whole body of the probe engine sits under `#ifdef SOREN_PROBES`, so a production build compiles it to an empty object — zero probe code in the binary. The generated blob lives *outside* `src/`, so the default glob never sees it.
+**3. Lean by default.** The whole body of the probe engine sits under `#ifdef
+SOREN_PROBES`, so a production build compiles it to an empty object — zero
+probe code in the binary. The generated blob lives *outside* `src/`, so the
+default glob never sees it.
 
 
-**4. Rework the engine's front end.** Keep the interpreter and the `CALL` targets exactly as they are — they're tested. Replace only the part that *reads probes off the SD card* with one that walks the embedded array: same `===== PROBE name =====` banners, same log-flush-after-each, then park. The card's active/catalog regions and their magic bytes go away entirely.
+**4. Rework the engine's front end.** Keep the interpreter and the `CALL`
+targets exactly as they are — they're tested. Replace only the part that
+*reads probes off the SD card* with one that walks the embedded array: same
+`===== PROBE name =====` banners, same log-flush-after-each, then park. The
+card's active/catalog regions and their magic bytes go away entirely.
 
 
-**5. `kernel_main`** under `--probes`: run the sweep, flush, park (log preserved). Default: straight to the normal flow, no probe call.
+**5. `kernel_main`** under `--probes`: run the sweep, flush, park (log
+preserved). Default: straight to the normal flow, no probe call.
 
 
-**6. Retire the obsolete lab-side machinery** — `load_probe_catalog` in flash-sd, `select-probe`, `write-probe`, `probe-common.sh`, and the SD probe-region notes in the docs. flash-sd goes back to unmount → one `dd` → eject. I'll archive these (tracked in the issue), not silently delete.
+**6. Retire the obsolete lab-side machinery** — `load_probe_catalog` in
+flash-sd, `select-probe`, `write-probe`, `probe-common.sh`, and the SD
+probe-region notes in the docs. flash-sd goes back to unmount → one `dd` →
+eject. I'll archive these (tracked in the issue), not silently delete.
 
 
-**One recommendation:** keep the interpreter rather than rewriting the 8 probes as C. We rebuild either way now, so the only thing left to weigh is authoring — a text `.probe` file is nicer than hand-written MMIO reads, and the 8 we have already work. It's a few KB and only in `--probes` builds. (If you'd rather go native C and drop the interpreter, that's the leaner-still alternative, but it's more churn and tosses working code.)
+**One recommendation:** keep the interpreter rather than rewriting the 8 probes
+as C. We rebuild either way now, so the only thing left to weigh is authoring
+— a text `.probe` file is nicer than hand-written MMIO reads, and the 8 we
+have already work. It's a few KB and only in `--probes` builds. (If you'd rather
+go native C and drop the interpreter, that's the leaner-still alternative, but
+it's more churn and tosses working code.)
 
 
 Want me to start at step 1 and work down?
@@ -9444,9 +10460,13 @@ is empty.
 
 Conclusive:
 
-- **Lean** `019` object: `0 text / 0 data / 0 bss` — completely empty. Production image carries zero probe code, and `probe_engine_run`/`builtin_probes` are absent from the lean ELF. (#29 ✓, #31 ✓ — it links without the call.)
+- **Lean** `019` object: `0 text / 0 data / 0 bss` — completely empty.
+  Production image carries zero probe code, and
+  `probe_engine_run`/`builtin_probes` are absent from the lean ELF. (#29 ✓,
+  #31 ✓ — it links without the call.)
 
-- **Probes** `019` object: real code + a 16 KB scratch `bss`, and both symbols present in the ELF — the engine walks the array. (#30 ✓)
+- **Probes** `019` object: real code + a 16 KB scratch `bss`, and both symbols
+  present in the ELF — the engine walks the array. (#30 ✓)
 
 
 Let me do one last sanity check that the *embedded text* actually made it into
@@ -9552,32 +10572,55 @@ text), and `build-bootable-sd` wrapped it into a ready-to-flash
 All six steps are done and verified on the build side. Here's where it landed.
 
 
-**What changed, mechanically.** The probe battery is no longer data written onto the card after flashing — it's compiled into the kernel. A plain `scripts/build` gives a lean kernel with *zero* probe code (the engine's object file is literally empty). `scripts/build --probes` runs a small generator that bakes every `#AUTO`-marked probe into the kernel as a C array, switches the engine on, and the kernel runs all seven on boot, in priority order, logging each one bracketed by the same banners as before. I proved the split at link time: the probe symbols and the probe text are present in the `--probes` binary and absent from the lean one. The whole fragile card-write path — the thing that kept failing against the automounter — is gone: `flash-sd` is back to its simple unmount→`dd`→eject (in fact byte-identical to its last committed state), the three card-writing helpers are archived under `scripts/lab-side/retired/`, and `push-to-usb` no longer ships probes to the drive.
+**What changed, mechanically.** The probe battery is no longer data written onto
+the card after flashing — it's compiled into the kernel. A plain
+`scripts/build` gives a lean kernel with *zero* probe code (the engine's object
+file is literally empty). `scripts/build --probes` runs a small generator that
+bakes every `#AUTO`-marked probe into the kernel as a C array, switches the
+engine on, and the kernel runs all seven on boot, in priority order, logging
+each one bracketed by the same banners as before. I proved the split at link
+time: the probe symbols and the probe text are present in the `--probes` binary
+and absent from the lean one. The whole fragile card-write path — the thing
+that kept failing against the automounter — is gone: `flash-sd` is back to its
+simple unmount→`dd`→eject (in fact byte-identical to its last committed
+state), the three card-writing helpers are archived under
+`scripts/lab-side/retired/`, and `push-to-usb` no longer ships probes to the
+drive.
 
 
 **To test on hardware** (the one thing not yet verified — it needs you):
 
 ```
 
-scripts/build --probes # already done; output/kernel.img is the probe kernel
+scripts/build --probes          # already done; output/kernel.img is the probe kernel
 
-scripts/build-bootable-sd # already done; output/bootable-sd.img is ready
+scripts/build-bootable-sd       # already done; output/bootable-sd.img is ready
 
-scripts/push-to-usb # carry the drive over
+scripts/push-to-usb             # carry the drive over
 
-scripts/flash-sd # on the lab laptop — just flashes, no catalog step
+scripts/flash-sd                # on the lab laptop — just flashes, no catalog step
 
 #   boot the device, then:
 
-scripts/lab-side/dump-from-sd # on the lab laptop — splits the log per probe
+scripts/lab-side/dump-from-sd   # on the lab laptop — splits the log per probe
 
 ```
 
 
-**What to watch for on boot:** you should *not* see the long solid-bottom-amber backup grind this time. After Checkpoint A (top green + bottom amber), the kernel runs the sweep — the probes are quick — then parks. The proof is in `dump-from-sd`: one log file per probe, starting with `health-check`. If a probe hangs, its file is the last one with a START banner and no END.
+**What to watch for on boot:** you should *not* see the long solid-bottom-amber
+backup grind this time. After Checkpoint A (top green + bottom amber), the
+kernel runs the sweep — the probes are quick — then parks. The proof is in
+`dump-from-sd`: one log file per probe, starting with `health-check`. If a probe
+hangs, its file is the last one with a START banner and no END.
 
 
-**Not committed.** Per your rule, commits wait until the issue is actually complete, and 110i is honestly still "in progress" — the design is built and green, but it hasn't run on real hardware yet. I left the tree uncommitted so you can flash first; once the sweep runs on the device, that's the moment to commit and move 110i to completed. (Heads-up for whenever we do: the probe sources, `019-probe-engine.c`, and `110i` are all still untracked — they were never committed — so they'll need adding alongside the modified files.)
+**Not committed.** Per your rule, commits wait until the issue is actually
+complete, and 110i is honestly still "in progress" — the design is built and
+green, but it hasn't run on real hardware yet. I left the tree uncommitted so
+you can flash first; once the sweep runs on the device, that's the moment to
+commit and move 110i to completed. (Heads-up for whenever we do: the probe
+sources, `019-probe-engine.c`, and `110i` are all still untracked — they were
+never committed — so they'll need adding alongside the modified files.)
 
 
 One question that decides the next move: when you boot this, does the sweep run
@@ -9627,7 +10670,7 @@ So to your two questions:
 
 
 1. **How long to wait?** You don't — it's already finished. The probe sweep is
-seconds of work, not the minutes the 200 MB backup took.
+   seconds of work, not the minutes the 200 MB backup took.
 
 2. **Does top-red + bottom-amber mean done?** Yes. Power off and pull the card.
 
@@ -9649,7 +10692,7 @@ stages make it the sweep. The definitive proof is the log:
 
 ```
 
-scripts/lab-side/dump-from-sd # on the lab laptop
+scripts/lab-side/dump-from-sd        # on the lab laptop
 
 ```
 
@@ -9682,7 +10725,10 @@ working.
 The logs are the main event — let me find them. Checking `/mnt/generic/`.
 
 
-**Seven per-probe log files in `lab-output/`** — that's the confirmation. The embedded sweep ran on real hardware and `dump-from-sd` split it into one file per probe, all seven, in sweep order. Let me read the actual results plus the awk error you hit.
+**Seven per-probe log files in `lab-output/`** — that's the confirmation. The
+embedded sweep ran on real hardware and `dump-from-sd` split it into one file
+per probe, all seven, in sweep order. Let me read the actual results plus the
+awk error you hit.
 
 
 This is the payoff — and it's a clean win. Let me read the remaining five logs
@@ -9709,7 +10755,10 @@ Let me syntax-check it and validate the split *logic* locally on a synthetic log
 of the sudo fix.
 
 
-**It worked.** The sweep ran on real hardware — all seven probes, each with a START *and* an END, none hung. The compile-in-under-a-flag rebuild is verified end to end. You booted the card and it told you everything; that's the whole idea, realized.
+**It worked.** The sweep ran on real hardware — all seven probes, each with a
+START *and* an END, none hung. The compile-in-under-a-flag rebuild is verified
+end to end. You booted the card and it told you everything; that's the whole
+idea, realized.
 
 
 The awk bug is fixed and regression-tested. `split_probe_logs` now runs its
@@ -9727,25 +10776,37 @@ case.)
 
 - **DRAM** — memtest PASS (1 MB, four patterns).
 
-- **eMMC** — fully alive: CID `0x00010AA9`, caps `0x226DC881` (EXPECT PASS), block 0 reads real data (not `0xFFFFFFFF`).
+- **eMMC** — fully alive: CID `0x00010AA9`, caps `0x226DC881` (EXPECT PASS),
+  block 0 reads real data (not `0xFFFFFFFF`).
 
 - **USB2 PHY** — OTG port normal, `0x0C52` (EXPECT PASS).
 
-- **USB3 / DWC3 core** — alive: GSNPSID `0x5533300A` readable, so its clocks are up.
+- **USB3 / DWC3 core** — alive: GSNPSID `0x5533300A` readable, so its clocks
+  are up.
 
 
 *The standout:*
 
-- **eMMC DLL locks at 200 MHz.** `emmc-dll-tune` switched CCLK to 200 MHz, reset and started the DLL, and it locked on the **first** poll — `DLL_STATUS0 = 0x13B` (bit 8 = locked, lock value `0x3B`), per-line delays `0x0010011E`. That was the one unknown gating the fast eMMC path. It's answered: the controller's DLL works at full speed. HS200 is viable.
+- **eMMC DLL locks at 200 MHz.** `emmc-dll-tune` switched CCLK to 200 MHz, reset
+  and started the DLL, and it locked on the **first** poll — `DLL_STATUS0 =
+  0x13B` (bit 8 = locked, lock value `0x3B`), per-line delays `0x0010011E`. That
+  was the one unknown gating the fast eMMC path. It's answered: the controller's
+  DLL works at full speed. HS200 is viable.
 
 
 *Findings to chase (real subsystem data, not engine problems):*
 
-- **Display (VOP2)** — alive and clocked, version reads `0x40158023` where the probe guessed `0x40158588`, so it logged FAIL. Really good news: the controller's present and responding; the probe's expected value just needs correcting to the real one. One-line fix.
+- **Display (VOP2)** — alive and clocked, version reads `0x40158023` where the
+  probe guessed `0x40158588`, so it logged FAIL. Really good news: the
+  controller's present and responding; the probe's expected value just needs
+  correcting to the real one. One-line fix.
 
-- **SARADC (gamepad)** — channel 0 converts fine (reads `0x3FF`); channels 1–5 time out (conversion-done bit never sets). Channel-select or wiring — worth a look.
+- **SARADC (gamepad)** — channel 0 converts fine (reads `0x3FF`); channels
+  1–5 time out (conversion-done bit never sets). Channel-select or wiring —
+  worth a look.
 
-- **RK817 PMIC over i2c0** — every register times out. The i2c0→PMIC path needs debugging; at least it fails cleanly instead of hanging.
+- **RK817 PMIC over i2c0** — every register times out. The i2c0→PMIC path
+  needs debugging; at least it fails cleanly instead of hanging.
 
 
 Five subsystems confirmed up, two with actionable findings, one dead path —
@@ -9756,16 +10817,16 @@ exactly the map the battery was built to produce.
 
 
 1. **Commit this.** The engine is verified working on hardware, so 110i is
-genuinely done. I'd update its "current behavior" to record the successful run,
-move it to `completed/`, and commit the rebuild + the awk fix — staging *only*
-the probe-related files (the repo has unrelated neocities/games changes I won't
-touch). Want me to?
+   genuinely done. I'd update its "current behavior" to record the successful
+   run, move it to `completed/`, and commit the rebuild + the awk fix —
+   staging *only* the probe-related files (the repo has unrelated
+   neocities/games changes I won't touch). Want me to?
 
 2. **Fast eMMC path** — the DLL result greenlights HS200 (CMD6 → HS200,
-8-bit bus, DMA). New issue.
+   8-bit bus, DMA). New issue.
 
 3. **Fix the display probe's expected version** to `0x40158023` so it reads PASS
-next run (needs a `--probes` rebuild to take effect).
+   next run (needs a `--probes` rebuild to take effect).
 
 4. **PMIC / SARADC** — the two real findings, each its own debug.
 
@@ -9777,39 +10838,42 @@ Which thread do you want?
 
 ### User Request 124
 
-1. Commit this. The engine is verified working on hardware, so 110i is genuinely
+  1. Commit this. The engine is verified working on hardware, so 110i is
+     genuinely
 
-done. I'd update its "current behavior" to record the successful run, move it to
+  done. I'd update its "current behavior" to record the successful run, move it
+  to
 
-completed/, and commit the rebuild + the awk fix — staging only the
-probe-related
+  completed/, and commit the rebuild + the awk fix — staging only the
+  probe-related
 
-files (the repo has unrelated neocities/games changes I won't touch). Want me
-to?
+  files (the repo has unrelated neocities/games changes I won't touch). Want me
+  to?
 
 
 
 great!
 
 
-2. Fast eMMC path — the DLL result greenlights HS200 (CMD6 → HS200, 8-bit
-bus,
+  2. Fast eMMC path — the DLL result greenlights HS200 (CMD6 → HS200, 8-bit
+     bus,
 
-DMA). New issue.
+  DMA). New issue.
 
 
 Okay!
 
 
-3. Fix the display probe's expected version to 0x40158023 so it reads PASS next
+  3. Fix the display probe's expected version to 0x40158023 so it reads PASS
+     next
 
-run (needs a --probes rebuild to take effect).
+  run (needs a --probes rebuild to take effect).
 
 
 Sure!
 
 
-4. PMIC / SARADC — the two real findings, each its own debug.
+  4. PMIC / SARADC — the two real findings, each its own debug.
 
 
 Sounds good! Though... What's PMIC / SARADC mean?
@@ -9823,9 +10887,23 @@ All four approved — let me knock them out. First, what **PMIC** and **SARADC**
 are, since you asked:
 
 
-- **PMIC** = Power Management IC. It's a dedicated companion chip (here the Rockchip **RK817**) that sits next to the SoC and generates all the different voltage rails the system needs — the CPU core voltage, the 1.8 V and 3.3 V rails, the DRAM voltage, battery charging, etc. The main SoC talks to it over a tiny 2-wire **i2c** bus to say "give me 0.9 V on rail 3" or "what's the battery voltage?" When our probe got all-timeouts, it means the SoC isn't successfully talking to the RK817 over i2c0 — the chip is there (the device runs, so *something* is powering the rails), we just can't *converse* with it yet.
+- **PMIC** = Power Management IC. It's a dedicated companion chip (here the
+  Rockchip **RK817**) that sits next to the SoC and generates all the different
+  voltage rails the system needs — the CPU core voltage, the 1.8 V and 3.3 V
+  rails, the DRAM voltage, battery charging, etc. The main SoC talks to it over
+  a tiny 2-wire **i2c** bus to say "give me 0.9 V on rail 3" or "what's the
+  battery voltage?" When our probe got all-timeouts, it means the SoC isn't
+  successfully talking to the RK817 over i2c0 — the chip is there (the device
+  runs, so *something* is powering the rails), we just can't *converse* with it
+  yet.
 
-- **SARADC** = Successive-Approximation Analog-to-Digital Converter. It's the block that turns an analog voltage into a number. On this handheld it's wired to the **analog thumbsticks** — a stick is just a pair of potentiometers, and the SARADC reads each one's wiper voltage as a 0–1023 value so the kernel knows the stick position. Our probe found channel 0 converting fine but channels 1–5 timing out, which is why it's a real lead: the gamepad needs several channels, and only one is answering.
+- **SARADC** = Successive-Approximation Analog-to-Digital Converter. It's the
+  block that turns an analog voltage into a number. On this handheld it's wired
+  to the **analog thumbsticks** — a stick is just a pair of potentiometers,
+  and the SARADC reads each one's wiper voltage as a 0–1023 value so the
+  kernel knows the stick position. Our probe found channel 0 converting fine but
+  channels 1–5 timing out, which is why it's a real lead: the gamepad needs
+  several channels, and only one is answering.
 
 
 Now let me set up the work. Reading the issues layout so I number the new eMMC
@@ -9904,26 +10982,29 @@ All four of your items are done:
 1. ✅ Committed.
 
 2. ✅ **110j filed** — the fast eMMC path. Because the probe already proved
-the DLL locks at 200 MHz, the issue is concrete: switch the card to 8-bit +
-HS200 via `CMD6`, put the controller in HS200 mode, run the DLL bring-up the
-probe validated, and move transfers to DMA. It flags one real dependency —
-HS200 needs 1.8 V signalling, which *might* route through that unresponsive
-PMIC.
+   the DLL locks at 200 MHz, the issue is concrete: switch the card to 8-bit +
+   HS200 via `CMD6`, put the controller in HS200 mode, run the DLL bring-up the
+   probe validated, and move transfers to DMA. It flags one real dependency —
+   HS200 needs 1.8 V signalling, which *might* route through that unresponsive
+   PMIC.
 
 3. ✅ **Display probe corrected** to `0x40158023` and rebuilt green — it'll
-read PASS next sweep.
+   read PASS next sweep.
 
 4. ✅ Explained PMIC/SARADC above.
 
 
-**One thing I need to flag.** Committing exposed a large pile of *uncommitted* work in the tree from earlier this session — the eMMC and SD driver bring-up and all the hardware-research docs:
+**One thing I need to flag.** Committing exposed a large pile of *uncommitted*
+work in the tree from earlier this session — the eMMC and SD driver bring-up
+and all the hardware-research docs:
 
 
 - `src/012-emmc.c`, `src/015-sdmmc.c` (the drivers)
 
 - issues `110a` (eMMC), `110f` (SD), `110e`, `110h`, plus `109a`/`106c`
 
-- new docs `018`–`024`, the `datasheets/` folder, `.file-index-counter`, table-of-contents
+- new docs `018`–`024`, the `datasheets/` folder, `.file-index-counter`,
+  table-of-contents
 
 
 That's the eMMC/SD work, and **the probe sweep just produced the hardware
@@ -9939,9 +11020,12 @@ directly on `012-emmc.c`.
 
 Where do you want to go?
 
-- **Close & commit the eMMC/SD base work** (110a + 110f) — clears the backlog and unblocks 110j. *(My recommendation — it's the foundation everything else is stacked on.)*
+- **Close & commit the eMMC/SD base work** (110a + 110f) — clears the backlog
+  and unblocks 110j. *(My recommendation — it's the foundation everything else
+  is stacked on.)*
 
-- **Start 110j** (the fast eMMC path) — but it'll want that base committed first.
+- **Start 110j** (the fast eMMC path) — but it'll want that base committed
+  first.
 
 - **Chase a finding** — PMIC i2c0, or the SARADC channels.
 
@@ -9952,12 +11036,13 @@ Where do you want to go?
 
 ### User Request 125
 
-- Close & commit the eMMC/SD base work (110a + 110f) — clears the backlog and
+  - Close & commit the eMMC/SD base work (110a + 110f) — clears the backlog
+    and
 
-unblocks 110j. (My recommendation — it's the foundation everything else is
-stacked
+  unblocks 110j. (My recommendation — it's the foundation everything else is
+  stacked
 
-on.)
+  on.)
 
 
 
@@ -9967,13 +11052,14 @@ let's do this
 then this:
 
 
-- Start 110j (the fast eMMC path) — but it'll want that base committed first.
+  - Start 110j (the fast eMMC path) — but it'll want that base committed
+    first.
 
 
 then this:
 
 
-- Re-flash the corrected build to watch the display probe flip to PASS.
+  - Re-flash the corrected build to watch the display probe flip to PASS.
 
 
 and we should have a full backup of the eMMC drive, right?
@@ -10014,9 +11100,11 @@ put in git, and I want to know what that stray boot-config file is.
 
 Decisions made:
 
-- **datasheets = 145 MB of PDFs, not gitignored** — those must not go into git. I'll gitignore the PDFs (keep the text `INDEX.md`).
+- **datasheets = 145 MB of PDFs, not gitignored** — those must not go into
+  git. I'll gitignore the PDFs (keep the text `INDEX.md`).
 
-- **109a/106c** diffs are genuinely USB/PWM (109a refines `usb_init` and cites the USB recon doc) — not eMMC/SD. Excluded.
+- **109a/106c** diffs are genuinely USB/PWM (109a refines `usb_init` and cites
+  the USB recon doc) — not eMMC/SD. Excluded.
 
 - **extlinux-rg-ds-dtb.conf** is a boot-config experiment — excluded.
 
@@ -10060,9 +11148,11 @@ docs (017–024) landed, and the 145 MB of datasheet PDFs are now git-ignored
 (the text index stays).
 
 
-**What I deliberately left out of these commits** — it's other-subsystem work, not eMMC/SD:
+**What I deliberately left out of these commits** — it's other-subsystem work,
+not eMMC/SD:
 
-- `src/018-bringup-test-suite.c` + `issues/110h` (the static bring-up test runner)
+- `src/018-bringup-test-suite.c` + `issues/110h` (the static bring-up test
+  runner)
 
 - `issues/109a` (USB), `issues/106c` (PWM) — planning updates
 
@@ -10073,7 +11163,11 @@ I can sort those into their own commits whenever you want; they're not blocking
 anything.
 
 
-**Step 3 is ready to bank right now** — `output/bootable-sd.img` is the `--probes` build carrying the corrected display EXPECT. And nicely, it'll double as the 110j test surface, since the eMMC probes `CALL emmc_init`: one flash confirms the display flips to PASS *and* exercises whatever 110j changes I make. So the order you gave works out — 110j first, then the re-flash tests both.
+**Step 3 is ready to bank right now** — `output/bootable-sd.img` is the
+`--probes` build carrying the corrected display EXPECT. And nicely, it'll double
+as the 110j test surface, since the eMMC probes `CALL emmc_init`: one flash
+confirms the display flips to PASS *and* exercises whatever 110j changes I make.
+So the order you gave works out — 110j first, then the re-flash tests both.
 
 
 Now **starting 110j**. Before I touch the driver I want to pin exactly where
@@ -10090,17 +11184,32 @@ which is exactly where HS200 negotiation begins.
 So the hook point is clean: **after `emmc_initialize()` returns**, add the HS200
 ladder. Mapped against the 110j plan:
 
-- `sdhci_send_command` already handles the command/response plumbing I need for the `CMD6` SWITCH commands.
+- `sdhci_send_command` already handles the command/response plumbing I need for
+  the `CMD6` SWITCH commands.
 
-- Bus width and HS_TIMING are `CMD6` SWITCH writes to EXT_CSD; the controller-side mode is `HOST_CONTROL_2` + the 200 MHz mux write (the exact one the probe made) + the DLL bring-up that `dwcmshc_vendor_config` already does at low speed.
+- Bus width and HS_TIMING are `CMD6` SWITCH writes to EXT_CSD; the
+  controller-side mode is `HOST_CONTROL_2` + the 200 MHz mux write (the exact
+  one the probe made) + the DLL bring-up that `dwcmshc_vendor_config` already
+  does at low speed.
 
-- The one missing primitive is a **data-in** path for `CMD8` (SEND_EXT_CSD, a 512-byte read) and eventually ADMA2 — the current driver only does single-block PIO via `emmc_read_block`.
+- The one missing primitive is a **data-in** path for `CMD8` (SEND_EXT_CSD, a
+  512-byte read) and eventually ADMA2 — the current driver only does
+  single-block PIO via `emmc_read_block`.
 
 
-**The first move, lowest-risk and independently testable** (110j step 2): switch to the 8-bit bus *at the existing legacy clock* and re-read block 0. If it still reads the same real data at 8-bit/24 MHz, the bus-width half is proven before I touch the clock — isolating width from speed so that if HS200 later returns garbage, I know it's timing/voltage, not wiring.
+**The first move, lowest-risk and independently testable** (110j step 2): switch
+to the 8-bit bus *at the existing legacy clock* and re-read block 0. If it still
+reads the same real data at 8-bit/24 MHz, the bus-width half is proven before I
+touch the clock — isolating width from speed so that if HS200 later returns
+garbage, I know it's timing/voltage, not wiring.
 
 
-**The risk I want flagged before I start poking:** HS200 needs the eMMC's I/O rail (VCCQ) at 1.8 V. If the board fixes it there, we're fine (the DLL already locking at 200 MHz is a good sign it is). If it's software-controlled, it runs through that **unresponsive PMIC** — and then 110j is blocked until the i2c0 path works. The first HS200 read is the test: real data = rail's fine; garbage with a locked DLL = it's the voltage.
+**The risk I want flagged before I start poking:** HS200 needs the eMMC's I/O
+rail (VCCQ) at 1.8 V. If the board fixes it there, we're fine (the DLL already
+locking at 200 MHz is a good sign it is). If it's software-controlled, it runs
+through that **unresponsive PMIC** — and then 110j is blocked until the i2c0
+path works. The first HS200 read is the test: real data = rail's fine; garbage
+with a locked DLL = it's the voltage.
 
 
 That's the plan and the one landmine. I'm ready to implement the
@@ -10113,47 +11222,51 @@ the display fix. Want me to go ahead and write it?
 
 ### User Request 126
 
-So the hook point is clean: after emmc_initialize() returns, add the HS200
-ladder.
+  So the hook point is clean: after emmc_initialize() returns, add the HS200
+  ladder.
 
-Mapped against the 110j plan:
+  Mapped against the 110j plan:
 
-- sdhci_send_command already handles the command/response plumbing I need for
-the
+  - sdhci_send_command already handles the command/response plumbing I need for
+    the
 
-CMD6 SWITCH commands.
+  CMD6 SWITCH commands.
 
-- Bus width and HS_TIMING are CMD6 SWITCH writes to EXT_CSD; the controller-side
+  - Bus width and HS_TIMING are CMD6 SWITCH writes to EXT_CSD; the
+    controller-side
 
-mode is HOST_CONTROL_2 + the 200 MHz mux write (the exact one the probe made) +
+  mode is HOST_CONTROL_2 + the 200 MHz mux write (the exact one the probe made)
+  +
 
-the DLL bring-up that dwcmshc_vendor_config already does at low speed.
+  the DLL bring-up that dwcmshc_vendor_config already does at low speed.
 
-- The one missing primitive is a data-in path for CMD8 (SEND_EXT_CSD, a 512-byte
+  - The one missing primitive is a data-in path for CMD8 (SEND_EXT_CSD, a
+    512-byte
 
-read) and eventually ADMA2 — the current driver only does single-block PIO via
+  read) and eventually ADMA2 — the current driver only does single-block PIO
+  via
 
-emmc_read_block.
+  emmc_read_block.
 
 
 
 can you explain this paragraph in more detail? Be sure to define things.
 
 
-The risk I want flagged before I start poking: HS200 needs the eMMC's I/O rail
+  The risk I want flagged before I start poking: HS200 needs the eMMC's I/O rail
 
-(VCCQ) at 1.8 V. If the board fixes it there, we're fine (the DLL already
-locking
+  (VCCQ) at 1.8 V. If the board fixes it there, we're fine (the DLL already
+  locking
 
-at 200 MHz is a good sign it is). If it's software-controlled, it runs through
+  at 200 MHz is a good sign it is). If it's software-controlled, it runs through
 
-that unresponsive PMIC — and then 110j is blocked until the i2c0 path works.
-The
+  that unresponsive PMIC — and then 110j is blocked until the i2c0 path works.
+  The
 
-first HS200 read is the test: real data = rail's fine; garbage with a locked DLL
-=
+  first HS200 read is the test: real data = rail's fine; garbage with a locked
+  DLL =
 
-it's the voltage.
+  it's the voltage.
 
 
 
@@ -10167,44 +11280,48 @@ could we work on the i2c0 path first? We're going to need it eventually...
 So the hook point is clean: after emmc_initialize() returns, add the HS200
 ladder.
 
-Mapped against the 110j plan:
+  Mapped against the 110j plan:
 
-- sdhci_send_command already handles the command/response plumbing I need for
-the
+  - sdhci_send_command already handles the command/response plumbing I need for
+    the
 
-CMD6 SWITCH commands.
+  CMD6 SWITCH commands.
 
-- Bus width and HS_TIMING are CMD6 SWITCH writes to EXT_CSD; the controller-side
+  - Bus width and HS_TIMING are CMD6 SWITCH writes to EXT_CSD; the
+    controller-side
 
-mode is HOST_CONTROL_2 + the 200 MHz mux write (the exact one the probe made) +
+  mode is HOST_CONTROL_2 + the 200 MHz mux write (the exact one the probe made)
+  +
 
-the DLL bring-up that dwcmshc_vendor_config already does at low speed.
+  the DLL bring-up that dwcmshc_vendor_config already does at low speed.
 
-- The one missing primitive is a data-in path for CMD8 (SEND_EXT_CSD, a 512-byte
+  - The one missing primitive is a data-in path for CMD8 (SEND_EXT_CSD, a
+    512-byte
 
-read) and eventually ADMA2 — the current driver only does single-block PIO via
+  read) and eventually ADMA2 — the current driver only does single-block PIO
+  via
 
-emmc_read_block.
+  emmc_read_block.
 
 
 
 can you explain this paragraph in more detail? Be sure to define things.
 
 
-The risk I want flagged before I start poking: HS200 needs the eMMC's I/O rail
+  The risk I want flagged before I start poking: HS200 needs the eMMC's I/O rail
 
-(VCCQ) at 1.8 V. If the board fixes it there, we're fine (the DLL already
-locking
+  (VCCQ) at 1.8 V. If the board fixes it there, we're fine (the DLL already
+  locking
 
-at 200 MHz is a good sign it is). If it's software-controlled, it runs through
+  at 200 MHz is a good sign it is). If it's software-controlled, it runs through
 
-that unresponsive PMIC — and then 110j is blocked until the i2c0 path works.
-The
+  that unresponsive PMIC — and then 110j is blocked until the i2c0 path works.
+  The
 
-first HS200 read is the test: real data = rail's fine; garbage with a locked DLL
-=
+  first HS200 read is the test: real data = rail's fine; garbage with a locked
+  DLL =
 
-it's the voltage.
+  it's the voltage.
 
 
 
@@ -10237,31 +11354,91 @@ i2c0 pivot.
 ## The HS200 paragraph, defined
 
 
-**"After `emmc_initialize()` returns."** An eMMC chip powers up in a slow, cautious state and has to be walked through a fixed sequence of numbered commands before it's usable: reset it, ask what voltage it wants, read its ID, hand it a short address to be called by, then "select" it. `emmc_initialize()` is the function that runs that handshake. When it finishes, the spec says the chip is in **transfer state** — awake, addressed, ready to take read/write commands — but still running at the slow legacy clock. That's the clean seam: everything that makes it *fast* goes after this point, because you can't negotiate speed with a chip that isn't awake yet.
+**"After `emmc_initialize()` returns."** An eMMC chip powers up in a slow,
+cautious state and has to be walked through a fixed sequence of numbered
+commands before it's usable: reset it, ask what voltage it wants, read its ID,
+hand it a short address to be called by, then "select" it. `emmc_initialize()`
+is the function that runs that handshake. When it finishes, the spec says the
+chip is in **transfer state** — awake, addressed, ready to take read/write
+commands — but still running at the slow legacy clock. That's the clean seam:
+everything that makes it *fast* goes after this point, because you can't
+negotiate speed with a chip that isn't awake yet.
 
 
-**"HS200 ladder."** HS200 is the name of a fast eMMC mode — a 200 MHz clock over an 8-wire data bus, good for ~100+ MB/s. "Ladder" because you reach it by climbing a few negotiation rungs in order, each of which *both* sides must agree on.
+**"HS200 ladder."** HS200 is the name of a fast eMMC mode — a 200 MHz clock
+over an 8-wire data bus, good for ~100+ MB/s. "Ladder" because you reach it by
+climbing a few negotiation rungs in order, each of which *both* sides must agree
+on.
 
 
-**"`sdhci_send_command` handles the command/response plumbing."** Every interaction with the chip is "send a numbered command, wait for the response." There's already a helper that does exactly that — writes the command into the controller's command register, waits for done, reads the response back. The new speed-negotiation commands are just more numbered commands, so they reuse it unchanged.
+**"`sdhci_send_command` handles the command/response plumbing."** Every
+interaction with the chip is "send a numbered command, wait for the response."
+There's already a helper that does exactly that — writes the command into the
+controller's command register, waits for done, reads the response back. The new
+speed-negotiation commands are just more numbered commands, so they reuse it
+unchanged.
 
 
-**"Bus width and HS_TIMING are CMD6 SWITCH writes to EXT_CSD."** Inside the eMMC is a 512-byte settings-and-capabilities table called **EXT_CSD** (Extended Card-Specific Data). Some bytes are read-only facts (how big it is, what it supports); some are writable knobs. Two knobs matter: **BUS_WIDTH** (how many data wires — 1, 4, or 8) and **HS_TIMING** (which speed mode — legacy, high-speed, HS200, HS400). You change a knob by sending **command 6, "SWITCH,"** which writes one byte in that table. So "go 8-bit" and "go HS200" are each one CMD6 to the *chip*.
+**"Bus width and HS_TIMING are CMD6 SWITCH writes to EXT_CSD."** Inside the eMMC
+is a 512-byte settings-and-capabilities table called **EXT_CSD** (Extended
+Card-Specific Data). Some bytes are read-only facts (how big it is, what it
+supports); some are writable knobs. Two knobs matter: **BUS_WIDTH** (how many
+data wires — 1, 4, or 8) and **HS_TIMING** (which speed mode — legacy,
+high-speed, HS200, HS400). You change a knob by sending **command 6, "SWITCH,"**
+which writes one byte in that table. So "go 8-bit" and "go HS200" are each one
+CMD6 to the *chip*.
 
 
-**"The controller-side mode is HOST_CONTROL_2 + the 200 MHz mux write + the DLL bring-up."** The chip and the **controller** (the SoC's eMMC peripheral) must be in the *same* mode. CMD6 tells the chip; on the controller side you (a) set a mode field in a register called HOST_CONTROL_2 to "HS200, 1.8 V signaling," (b) switch the clock source so the eMMC clock runs at 200 MHz — the single register write the probe already made — and (c) run the **DLL** setup. The DLL (delay-locked loop) is a small circuit that finds the exact instant to sample each incoming bit; at 200 MHz a bit is only valid for a few hundred picoseconds, so you can't guess — the DLL hunts for the right delay and "locks" onto it. The driver already runs a low-speed version; HS200 needs the high-speed version, which the probe confirmed locks.
+**"The controller-side mode is HOST_CONTROL_2 + the 200 MHz mux write + the DLL
+bring-up."** The chip and the **controller** (the SoC's eMMC peripheral) must be
+in the *same* mode. CMD6 tells the chip; on the controller side you (a) set a
+mode field in a register called HOST_CONTROL_2 to "HS200, 1.8 V signaling," (b)
+switch the clock source so the eMMC clock runs at 200 MHz — the single
+register write the probe already made — and (c) run the **DLL** setup. The DLL
+(delay-locked loop) is a small circuit that finds the exact instant to sample
+each incoming bit; at 200 MHz a bit is only valid for a few hundred picoseconds,
+so you can't guess — the DLL hunts for the right delay and "locks" onto it.
+The driver already runs a low-speed version; HS200 needs the high-speed version,
+which the probe confirmed locks.
 
 
-**"The missing primitive is a data-in path for CMD8 (SEND_EXT_CSD), and eventually ADMA2."** To make smart choices (does this chip even support HS200? what's it set to now?) you first *read* that EXT_CSD table — **command 8, SEND_EXT_CSD**, and the chip streams 512 bytes back. The snag: the current driver can send commands and read small fixed responses, but it has no routine for receiving a *block of data* — except `emmc_read_block`, which reads a 512-byte storage block. Reading EXT_CSD is the same shape (a 512-byte data-in), so I need a small data-receive routine. And the two transfer styles: today every read is **PIO** (Programmed I/O) — the CPU loops copying 512 bytes word-by-word out of the data register, simple but slow and CPU-bound. The fast way is **ADMA2** (Advanced DMA v2): you write a little list of memory addresses (a descriptor table), hand it to the controller, and it copies the data into memory itself, in bursts, while the CPU does nothing. That — plus reading many blocks per command instead of one — is where the speed actually comes from, and it's the biggest code piece.
+**"The missing primitive is a data-in path for CMD8 (SEND_EXT_CSD), and
+eventually ADMA2."** To make smart choices (does this chip even support HS200?
+what's it set to now?) you first *read* that EXT_CSD table — **command 8,
+SEND_EXT_CSD**, and the chip streams 512 bytes back. The snag: the current
+driver can send commands and read small fixed responses, but it has no routine
+for receiving a *block of data* — except `emmc_read_block`, which reads a
+512-byte storage block. Reading EXT_CSD is the same shape (a 512-byte data-in),
+so I need a small data-receive routine. And the two transfer styles: today every
+read is **PIO** (Programmed I/O) — the CPU loops copying 512 bytes
+word-by-word out of the data register, simple but slow and CPU-bound. The fast
+way is **ADMA2** (Advanced DMA v2): you write a little list of memory addresses
+(a descriptor table), hand it to the controller, and it copies the data into
+memory itself, in bursts, while the CPU does nothing. That — plus reading many
+blocks per command instead of one — is where the speed actually comes from,
+and it's the biggest code piece.
 
 
 ## The voltage risk, and why i2c0-first is right
 
 
-**VCCQ defined.** An eMMC has *two* power inputs. **VCC** runs the actual flash memory array (≈3.3 V). **VCCQ** is a separate supply that runs *only the I/O* — the pin drivers that put voltage on the data/clock/command wires — so VCCQ sets the *voltage level of the signaling*. Legacy modes tolerate VCCQ at 3.3 V, but HS200 is *defined* by the spec to run at VCCQ = 1.8 V (at 200 MHz you need the smaller, faster voltage swing for clean edges). A *locked DLL doesn't prove the voltage* — the DLL locks onto the clock's *timing*; it doesn't check the data's *levels*. Perfect timing with wrong levels gives garbage data and a happily-locked DLL. That 1.8 V rail is generated by the PMIC, so if it's programmable you have to *tell the PMIC* to set it — over i2c0.
+**VCCQ defined.** An eMMC has *two* power inputs. **VCC** runs the actual flash
+memory array (≈3.3 V). **VCCQ** is a separate supply that runs *only the I/O*
+— the pin drivers that put voltage on the data/clock/command wires — so VCCQ
+sets the *voltage level of the signaling*. Legacy modes tolerate VCCQ at 3.3 V,
+but HS200 is *defined* by the spec to run at VCCQ = 1.8 V (at 200 MHz you need
+the smaller, faster voltage swing for clean edges). A *locked DLL doesn't prove
+the voltage* — the DLL locks onto the clock's *timing*; it doesn't check the
+data's *levels*. Perfect timing with wrong levels gives garbage data and a
+happily-locked DLL. That 1.8 V rail is generated by the PMIC, so if it's
+programmable you have to *tell the PMIC* to set it — over i2c0.
 
 
-**So yes — let's do i2c0 first.** Two reasons: it's the gate on the HS200 voltage question (do it now and the rail is controllable when 110j needs it), and the PMIC is foundational regardless — it owns *every* voltage rail (CPU, DRAM, all of it), plus battery charging and a fuel gauge. "Talk to the PMIC" is a capability the whole project needs, not just HS200. Good instinct.
+**So yes — let's do i2c0 first.** Two reasons: it's the gate on the HS200
+voltage question (do it now and the rail is controllable when 110j needs it),
+and the PMIC is foundational regardless — it owns *every* voltage rail (CPU,
+DRAM, all of it), plus battery charging and a fuel gauge. "Talk to the PMIC" is
+a capability the whole project needs, not just HS200. Good instinct.
 
 
 ## The i2c0 first move
@@ -10282,7 +11459,15 @@ even running a transaction (its own functional clock is gated). Right now they
 look identical.
 
 
-**First move: instrument before fixing.** Add a few lines to the PMIC probe that, on timeout, dump the i2c0 status registers (the pending-interrupt flags and the control register). One flash tells us which branch we're in. My two leading suspects to confirm: the **functional clock** — an i2c controller needs both a register-access clock *and* a separate clock that actually toggles SCL, and the bring-up may ungate only one — and the **pad-source routing** that decides whether those two pins belong to the i2c0 controller or the audio codec the RK817 also contains. And it rides the same flash that confirms the display fix, so one trip does double duty.
+**First move: instrument before fixing.** Add a few lines to the PMIC probe
+that, on timeout, dump the i2c0 status registers (the pending-interrupt flags
+and the control register). One flash tells us which branch we're in. My two
+leading suspects to confirm: the **functional clock** — an i2c controller
+needs both a register-access clock *and* a separate clock that actually toggles
+SCL, and the bring-up may ungate only one — and the **pad-source routing**
+that decides whether those two pins belong to the i2c0 controller or the audio
+codec the RK817 also contains. And it rides the same flash that confirms the
+display fix, so one trip does double duty.
 
 
 Want me to start there — create the i2c0/PMIC issue and add the status-dump
@@ -10324,20 +11509,22 @@ diagnostics in one trip.
 
 - The corrected display probe (should flip to PASS).
 
-- The instrumented PMIC probe: it now reads back the six setup registers after bring-up, and on the first timeout it captures the controller's status the instant it gave up.
+- The instrumented PMIC probe: it now reads back the six setup registers after
+  bring-up, and on the first timeout it captures the controller's status the
+  instant it gave up.
 
 
 **Flash it the usual way:**
 
 ```
 
-scripts/push-to-usb # main machine
+scripts/push-to-usb            # main machine
 
-scripts/flash-sd # lab laptop
+scripts/flash-sd               # lab laptop
 
 #   boot, then:
 
-scripts/lab-side/dump-from-sd # lab laptop
+scripts/lab-side/dump-from-sd  # lab laptop
 
 ```
 
@@ -10346,28 +11533,29 @@ scripts/lab-side/dump-from-sd # lab laptop
 
 
 1. `probe-display-presence-*.log` — the `EXPECT 0xFE040004 …` line should
-now say **PASS** (`got=0x40158023 want=0x40158023`). That closes the
-display-version loop.
+   now say **PASS** (`got=0x40158023 want=0x40158023`). That closes the
+   display-version loop.
 
 
 2. `probe-pmic-dump-*.log` — this is the one that decides our next move. It'll
-have a new **"i2c0 setup readback"** block (six register values) and, on the
-first `reg`, a `[IPD@timeout=… CON@timeout=…]` tag. Here's how to read it
-yourself, so you know what we're looking at:
+   have a new **"i2c0 setup readback"** block (six register values) and, on the
+   first `reg`, a `[IPD@timeout=… CON@timeout=…]` tag. Here's how to read it
+   yourself, so you know what we're looking at:
 
 
-- **`IPD@timeout` has bit `0x40` set** → the chip *NAK'd*: the bus is alive
-but the RK817 didn't acknowledge. That points at pins, address, or the chip's
-own clock — **not** our controller.
+   - **`IPD@timeout` has bit `0x40` set** → the chip *NAK'd*: the bus is alive
+     but the RK817 didn't acknowledge. That points at pins, address, or the
+     chip's own clock — **not** our controller.
 
-- **`IPD@timeout = 0x00000000`** → the controller never even ran a
-transaction. That means its *functional clock* (the one that toggles SCL) is
-gated — my leading suspect — and the fix is one more ungate write.
+   - **`IPD@timeout = 0x00000000`** → the controller never even ran a
+     transaction. That means its *functional clock* (the one that toggles SCL)
+     is gated — my leading suspect — and the fix is one more ungate write.
 
-- The **setup readbacks** are the cross-check: these are write-mask registers,
-so reading one back shows the *live* value. If a bit we set reads back as 0
-(e.g. `PMUGATE_CON01` or the pinmux), the write didn't land — wrong register
-or a powered-off domain — and that's the bug by itself.
+   - The **setup readbacks** are the cross-check: these are write-mask
+     registers, so reading one back shows the *live* value. If a bit we set
+     reads back as 0 (e.g. `PMUGATE_CON01` or the pinmux), the write didn't land
+     — wrong register or a powered-off domain — and that's the bug by
+     itself.
 
 
 So whichever way it falls, the dump tells us exactly which thread to pull.
@@ -10397,10 +11585,12 @@ Sweep ran clean again (same done pattern). Let me pull the two logs that matter.
 Both answers are in, and they're informative.
 
 
-**Display: PASS** — `EXPECT 0xFE040004 PASS got=0x40158023 want=0x40158023`. That loop is closed; the corrected probe reads clean.
+**Display: PASS** — `EXPECT 0xFE040004 PASS got=0x40158023 want=0x40158023`.
+That loop is closed; the corrected probe reads clean.
 
 
-**i2c0: the instrumentation paid off — it's neither of the two simple cases.** The key line:
+**i2c0: the instrumentation paid off — it's neither of the two simple cases.**
+The key line:
 
 ```
 
@@ -10439,7 +11629,17 @@ correct. That means the bug isn't physical at all — and the stall signature
 points right at it.
 
 
-**Root cause found.** Look at the captured state again: `IPD=0x10` (START fired) but the **START bit in `CON` is still set** (`0x...2B`), and nothing else happened. The Rockchip i2c is a multi-*phase* state machine: writing START issues the start condition and raises the START flag, but then the controller **waits until software clears the START bit before it will send the address** — that's the exact step the mainline `rk3x_i2c` driver performs in its start-interrupt handler. Our read routine sets START and immediately polls for "byte received," never doing the clear-START hand-off in between. So it stalls precisely where the data shows: start issued, START bit high, no address, no ACK, no data. Everything physical checked out because nothing physical was wrong.
+**Root cause found.** Look at the captured state again: `IPD=0x10` (START fired)
+but the **START bit in `CON` is still set** (`0x...2B`), and nothing else
+happened. The Rockchip i2c is a multi-*phase* state machine: writing START
+issues the start condition and raises the START flag, but then the controller
+**waits until software clears the START bit before it will send the address**
+— that's the exact step the mainline `rk3x_i2c` driver performs in its
+start-interrupt handler. Our read routine sets START and immediately polls for
+"byte received," never doing the clear-START hand-off in between. So it stalls
+precisely where the data shows: start issued, START bit high, no address, no
+ACK, no data. Everything physical checked out because nothing physical was
+wrong.
 
 
 The fix is to drive the phases: issue START → wait the START flag → clear it
@@ -10456,23 +11656,33 @@ ticket (keeping its current-behavior honest), then hand it back for a flash.
 Both threads resolved as far as I can take them without hardware:
 
 
-**Display — done.** PASS confirmed (`got=0x40158023 want=0x40158023`). That loop is closed.
+**Display — done.** PASS confirmed (`got=0x40158023 want=0x40158023`). That
+loop is closed.
 
 
-**i2c0 — root cause found, fix in.** The instrument-first pass paid off exactly as intended: it ruled out every physical cause (clock, pinmux, pad-source all verified, TRM-confirmed) and caught the controller frozen one step into the transaction — START issued, START bit still high, nothing after. That's a **protocol-sequencing bug, not a wiring bug**: the Rockchip i2c is a phase-by-phase state machine, and our read routine issued START but never performed the "clear START to release the address phase" hand-off the hardware waits for. The routine now drives all the phases (START → clear-START → byte-or-NAK → STOP) and fails fast on a NAK. Built clean, bootable image rebuilt.
+**i2c0 — root cause found, fix in.** The instrument-first pass paid off
+exactly as intended: it ruled out every physical cause (clock, pinmux,
+pad-source all verified, TRM-confirmed) and caught the controller frozen one
+step into the transaction — START issued, START bit still high, nothing after.
+That's a **protocol-sequencing bug, not a wiring bug**: the Rockchip i2c is a
+phase-by-phase state machine, and our read routine issued START but never
+performed the "clear START to release the address phase" hand-off the hardware
+waits for. The routine now drives all the phases (START → clear-START →
+byte-or-NAK → STOP) and fails fast on a NAK. Built clean, bootable image
+rebuilt.
 
 
 **Flash to find out if the PMIC answers:**
 
 ```
 
-scripts/push-to-usb # main machine
+scripts/push-to-usb            # main machine
 
-scripts/flash-sd # lab laptop
+scripts/flash-sd               # lab laptop
 
 #   boot, then:
 
-scripts/lab-side/dump-from-sd # lab laptop
+scripts/lab-side/dump-from-sd  # lab laptop
 
 ```
 
@@ -10480,11 +11690,17 @@ scripts/lab-side/dump-from-sd # lab laptop
 Read me back `probe-pmic-dump-*.log`. Three outcomes, each tells us where we
 are:
 
-- **`reg 0x00 = 0xNN` … real values** → the RK817 is reachable. That's layer 1 of issue 114 done, and it immediately lets us answer the HS200 voltage question for 110j (read the VCCQ rail's setting).
+- **`reg 0x00 = 0xNN` … real values** → the RK817 is reachable. That's layer
+  1 of issue 114 done, and it immediately lets us answer the HS200 voltage
+  question for 110j (read the VCCQ rail's setting).
 
-- **Still TIMEOUT, but a *different* captured status** → the START fix worked and a *later* phase is now stuck; the new `IPD@timeout` value pinpoints which (a `0x40` NAK means the address went out but the chip didn't acknowledge — pins or address; stuck without NAK means the data phase).
+- **Still TIMEOUT, but a *different* captured status** → the START fix worked
+  and a *later* phase is now stuck; the new `IPD@timeout` value pinpoints which
+  (a `0x40` NAK means the address went out but the chip didn't acknowledge —
+  pins or address; stuck without NAK means the data phase).
 
-- **Identical `IPD=0x10`** → the start-clear isn't enough for this mode and I'll look at the mode-01 sub-sequencing.
+- **Identical `IPD=0x10`** → the start-clear isn't enough for this mode and
+  I'll look at the mode-01 sub-sequencing.
 
 
 So whichever way it lands, we learn the next move. I haven't committed any of
@@ -10506,40 +11722,68 @@ can you tell me where we're at with the PWM system?
 Here's the PWM picture.
 
 
-**What it's for.** The three indicator LEDs (the bicolor top window, the amber bottom) were originally driven by the chip's **PWM1** controller. PWM — pulse-width modulation — lets you set *brightness* smoothly by varying the on/off duty cycle, which is what gave us the "breathing" amber fade during long operations, instead of a hard on/off blink.
+**What it's for.** The three indicator LEDs (the bicolor top window, the amber
+bottom) were originally driven by the chip's **PWM1** controller. PWM —
+pulse-width modulation — lets you set *brightness* smoothly by varying the
+on/off duty cycle, which is what gave us the "breathing" amber fade during long
+operations, instead of a hard on/off blink.
 
 
-**Current state: parked and unused.** The PWM driver (`src/003-pwm.c`) is still in the tree, but nothing calls it. Every LED you've been reading all session — the "double amber, top green, top red" patterns — is the **GPIO** path, plain on/off. That pivot happened deliberately: the first SD-boot test showed the LEDs dark when driven via PWM, and the GPIO-LED diagnostic (103e) confirmed the kernel *was* reaching the PWM writes and they *were* landing at the right addresses — so the controller just wasn't producing output. Rather than stall phase-1 bring-up on it, the LED layer was rewired to GPIO (106b) so we'd have a working diagnostic channel, and PWM was set aside.
+**Current state: parked and unused.** The PWM driver (`src/003-pwm.c`) is still
+in the tree, but nothing calls it. Every LED you've been reading all session —
+the "double amber, top green, top red" patterns — is the **GPIO** path, plain
+on/off. That pivot happened deliberately: the first SD-boot test showed the LEDs
+dark when driven via PWM, and the GPIO-LED diagnostic (103e) confirmed the
+kernel *was* reaching the PWM writes and they *were* landing at the right
+addresses — so the controller just wasn't producing output. Rather than stall
+phase-1 bring-up on it, the LED layer was rewired to GPIO (106b) so we'd have a
+working diagnostic channel, and PWM was set aside.
 
 
-**Why it didn't produce output.** Two things the SD-boot bootloader doesn't set up that the PWM driver assumed were already done:
+**Why it didn't produce output.** Two things the SD-boot bootloader doesn't set
+up that the PWM driver assumed were already done:
 
 1. The PWM1 **clock isn't ungated** — the controller's counter never ticks, so
-duty registers drive nothing.
+   duty registers drive nothing.
 
 2. The LED **pins are muxed to plain GPIO**, not to the PWM controller's output,
-so even a running controller wouldn't reach the pads.
+   so even a running controller wouldn't reach the pads.
 
 (And possibly a third: the controller's reset may need deasserting.)
 
 
-**What changed this session.** The research that was blocking it is now *done* — that's the recent uncommitted edit to the PWM bring-up issue (106c). The exact registers are pinned down from the TRM and recorded in `docs/017`:
+**What changed this session.** The research that was blocking it is now *done*
+— that's the recent uncommitted edit to the PWM bring-up issue (106c). The
+exact registers are pinned down from the TRM and recorded in `docs/017`:
 
-- Clock gate: `CLKGATE_CON31` (`0xFDD2037C`), bit 10 = the bus clock, bit 11 = the functional clock — write either to 0 to ungate.
+- Clock gate: `CLKGATE_CON31` (`0xFDD2037C`), bit 10 = the bus clock, bit 11 =
+  the functional clock — write either to 0 to ungate.
 
 - Reset: `SOFTRST_CON23` (`0xFDD2045C`), bits 0/1.
 
-- Pinmux: `PMU_GRF_GPIO0C_IOMUX_H` (`0xFDC20014`), routing the three LED pins (`GPIO0_C4/C5/C6`) to function 1.
+- Pinmux: `PMU_GRF_GPIO0C_IOMUX_H` (`0xFDC20014`), routing the three LED pins
+  (`GPIO0_C4/C5/C6`) to function 1.
 
 
 So it went from "needs TRM archaeology" to "registers known, implementation not
 yet written."
 
 
-**What's left.** The code itself — a clock-enable, a pinmux write, maybe a reset deassert, and rewiring the LED layer back through the PWM duty path. None of that is done. It's **deferred and blocks nothing** — the GPIO LEDs carry the full diagnostic vocabulary, and the discrete blink is just a less-pretty stand-in for the breathing fade.
+**What's left.** The code itself — a clock-enable, a pinmux write, maybe a
+reset deassert, and rewiring the LED layer back through the PWM duty path. None
+of that is done. It's **deferred and blocks nothing** — the GPIO LEDs carry
+the full diagnostic vocabulary, and the discrete blink is just a less-pretty
+stand-in for the breathing fade.
 
 
-**One genuine open puzzle** before it'll work, and it's worth your eye: the PWM1 controller lives in the chip's **main domain** (`0xFE6E0000`), but the three LED pins are `GPIO0_C4/5/6` in the **PMU GRF** — a different power/clock domain. So how does setting function 1 on a *PMU-domain* pin connect it to a *main-domain* peripheral's output? Either there's a cross-domain route I haven't traced, or those pins actually reach a PWM0 (PMU-domain) channel rather than PWM1 — the device tree's per-channel pinctrl is the thing that settles it. That's the one assumption I wouldn't build on without checking.
+**One genuine open puzzle** before it'll work, and it's worth your eye: the PWM1
+controller lives in the chip's **main domain** (`0xFE6E0000`), but the three LED
+pins are `GPIO0_C4/5/6` in the **PMU GRF** — a different power/clock domain.
+So how does setting function 1 on a *PMU-domain* pin connect it to a
+*main-domain* peripheral's output? Either there's a cross-domain route I haven't
+traced, or those pins actually reach a PWM0 (PMU-domain) channel rather than
+PWM1 — the device tree's per-channel pinctrl is the thing that settles it.
+That's the one assumption I wouldn't build on without checking.
 
 
 It's a clean, self-contained chunk to pick up whenever — the research is in
@@ -10567,11 +11811,13 @@ flash (that's the practical version of "in parallel" — both land in one boot).
 Two results, and they redirect the work:
 
 
-**i2c0 — the START fix worked, but it surfaced the *real* blocker.** Compare the captured status:
+**i2c0 — the START fix worked, but it surfaced the *real* blocker.** Compare
+the captured status:
 
 - Before: `IPD=0x10`, `CON=…2B` (START fired, START bit stuck).
 
-- Now: `IPD=0x00`, `CON=…23` (**START bit cleared** — the controller advanced past the start phase).
+- Now: `IPD=0x00`, `CON=…23` (**START bit cleared** — the controller
+  advanced past the start phase).
 
 
 So the phase hand-off is correct now. But it still never completes the address
@@ -10614,7 +11860,7 @@ investigations:
 
 ```
 
-GPIO0_EXT_PORT@0xFDD60070=0x... SCL(bit9)=? SDA(bit10)=?
+GPIO0_EXT_PORT@0xFDD60070=0x...  SCL(bit9)=?  SDA(bit10)=?
 
 ```
 
@@ -10623,30 +11869,44 @@ TRM, pinmux/pad-source correct), the transaction freezing right after START with
 *no NAK* means the address bits aren't clocking out — and these two bits say
 whether that's because a line is **stuck low**:
 
-- **`SCL=1 SDA=1`** → bus is idle, lines are healthy → the fault is the controller not toggling SCL despite everything looking right (deeper — I'd look at whether mode-01 needs different sequencing).
+- **`SCL=1 SDA=1`** → bus is idle, lines are healthy → the fault is the
+  controller not toggling SCL despite everything looking right (deeper — I'd
+  look at whether mode-01 needs different sequencing).
 
-- **either `=0`** → that line is held low (missing pull-up, the RK817's codec half grabbing the pads, or the mux not truly landing) → that's the freeze, and the fix is on the pin/pull side.
-
-
-**PWM — running in parallel, in the same boot.** I wrote a probe that brings PWM1 up and drives **only the red LED** at ~10% duty, re-muxing only its pin — green and amber stay on the GPIO path so the diagnostic survives. Two readouts:
-
-- In the log: it reads the PWM counter twice; if the two values **differ**, the controller is clocked and the channel is running.
-
-- On the device: **the red LED itself is the answer to 106c's open cross-domain puzzle.** Dim red = PWM works and function-1 on that PMU-domain pin really does reach the main-domain PWM channel. Dark red = it doesn't, and the routing question is real.
+- **either `=0`** → that line is held low (missing pull-up, the RK817's codec
+  half grabbing the pads, or the mux not truly landing) → that's the freeze,
+  and the fix is on the pin/pull side.
 
 
-**Heads-up on the done-state LEDs:** because the red pin is now PWM-driven, the park indicator will look different — top red will be **dim** (PWM works) or **dark** (routing fails) instead of solid, while the **bottom amber stays solid**. The solid bottom amber still means the sweep finished normally; the red is just the PWM readout now.
+**PWM — running in parallel, in the same boot.** I wrote a probe that brings
+PWM1 up and drives **only the red LED** at ~10% duty, re-muxing only its pin —
+green and amber stay on the GPIO path so the diagnostic survives. Two readouts:
+
+- In the log: it reads the PWM counter twice; if the two values **differ**, the
+  controller is clocked and the channel is running.
+
+- On the device: **the red LED itself is the answer to 106c's open cross-domain
+  puzzle.** Dim red = PWM works and function-1 on that PMU-domain pin really
+  does reach the main-domain PWM channel. Dark red = it doesn't, and the routing
+  question is real.
+
+
+**Heads-up on the done-state LEDs:** because the red pin is now PWM-driven, the
+park indicator will look different — top red will be **dim** (PWM works) or
+**dark** (routing fails) instead of solid, while the **bottom amber stays
+solid**. The solid bottom amber still means the sweep finished normally; the red
+is just the PWM readout now.
 
 
 ```
 
-scripts/push-to-usb # main machine
+scripts/push-to-usb            # main machine
 
-scripts/flash-sd # lab laptop
+scripts/flash-sd               # lab laptop
 
 #   boot — note the RED LED brightness at the end — then:
 
-scripts/lab-side/dump-from-sd # lab laptop
+scripts/lab-side/dump-from-sd  # lab laptop
 
 ```
 
@@ -10678,13 +11938,30 @@ Read the logs, and they reframe the "bright red" — it's not the failure it
 looks like, but it's not success either. Here's the honest picture.
 
 
-**PWM: the controller isn't oscillating.** The DUMP confirms my config all landed — duty `0x64`, period `0x3E8`, control `0x0B`, exactly as written. But the **counter reads `0x00000000` both times — frozen.** A PWM counter that doesn't advance isn't being clocked, so it's stuck partway through its cycle (in the "on" portion), which drives the output static-high → bright, not a sweeping dim. So the config is perfect and the *clock isn't running*. (And bright is ambiguous on the routing question — it could be the PWM output stuck-on, or the GPIO layer still driving the pin; we can't tell until the counter actually moves.)
+**PWM: the controller isn't oscillating.** The DUMP confirms my config all
+landed — duty `0x64`, period `0x3E8`, control `0x0B`, exactly as written. But
+the **counter reads `0x00000000` both times — frozen.** A PWM counter that
+doesn't advance isn't being clocked, so it's stuck partway through its cycle (in
+the "on" portion), which drives the output static-high → bright, not a
+sweeping dim. So the config is perfect and the *clock isn't running*. (And
+bright is ambiguous on the routing question — it could be the PWM output
+stuck-on, or the GPIO layer still driving the pin; we can't tell until the
+counter actually moves.)
 
 
-**i2c0: the bus is healthy.** `SCL=1, SDA=1` — both idle-high. That's genuinely useful: it rules out a stuck line, a missing pull-up, the codec grabbing the bus — the whole electrical class. The transaction freezes after START with the lines sitting idle, which means the controller **isn't toggling SCL at all.**
+**i2c0: the bus is healthy.** `SCL=1, SDA=1` — both idle-high. That's
+genuinely useful: it rules out a stuck line, a missing pull-up, the codec
+grabbing the bus — the whole electrical class. The transaction freezes after
+START with the lines sitting idle, which means the controller **isn't toggling
+SCL at all.**
 
 
-**And here's the thing worth staring at:** two completely unrelated peripherals, different power domains, and the *same* symptom — their register clock is on (we read and write their registers fine), but their **functional core won't run** (i2c won't toggle SCL; PWM's counter won't tick). That's not two coincidences; that's a pattern. Something about how we're enabling functional clocks isn't taking, even though the gate bits read back ungated.
+**And here's the thing worth staring at:** two completely unrelated peripherals,
+different power domains, and the *same* symptom — their register clock is on
+(we read and write their registers fine), but their **functional core won't
+run** (i2c won't toggle SCL; PWM's counter won't tick). That's not two
+coincidences; that's a pattern. Something about how we're enabling functional
+clocks isn't taking, even though the gate bits read back ungated.
 
 
 I'll be straight with you: my i2c0 transaction sequencing has been educated
@@ -10732,7 +12009,8 @@ details.
 Big finds already. Two things jump out:
 
 
-**The PWM "bright red" is explained — and it's not a clock problem.** The TRM register map (line 34165) is:
+**The PWM "bright red" is explained — and it's not a clock problem.** The TRM
+register map (line 34165) is:
 
 - `+0x00` CNT, **`+0x04` PERIOD**, **`+0x08` DUTY**, `+0x0C` CTRL
 
@@ -10765,9 +12043,11 @@ driver. The CTRL bits also show a `clk_src_sel` (bit 10) and `force_clk_en` (bit
 
 This is the answer. The canonical sequence is fundamentally different from ours:
 
-- **START is its own step** (`CON = EN|START` *alone*, wait STARTIPD, clear it) — `rk_i2c_send_start_bit`.
+- **START is its own step** (`CON = EN|START` *alone*, wait STARTIPD, clear it)
+  — `rk_i2c_send_start_bit`.
 
-- *Then* set MRXADDR/MRXRADDR, write `CON = EN | MODE` (no START), and **writing MRXCNT is what triggers the transfer**.
+- *Then* set MRXADDR/MRXRADDR, write `CON = EN | MODE` (no START), and **writing
+  MRXCNT is what triggers the transfer**.
 
 
 Our code combined START+mode into one write and wrote MRXCNT *first* — so the
@@ -10820,19 +12100,30 @@ Done — and the deep-dive paid off on **both** fronts. The TRM plus the
 canonical drivers gave me the actual root causes, not more guesses.
 
 
-**PWM: it was working the whole time — I had two registers reversed.** The TRM register map (Part 1 Ch 15) is `+0x04` = **PERIOD**, `+0x08` = **DUTY**. The driver (`003-pwm.c`) and my probe assumed the opposite. So my "period 1000, duty 100" actually wrote **DUTY=1000 into a PERIOD of 100** — duty far bigger than period pins the output fully on → **bright**. So the bright red was genuinely *good news*: the controller is clocked, the output drives, and re-muxing the pin to PWM reached the channel — which quietly answers 106c's cross-domain routing puzzle (it works). The swap had hidden for ages because the LED layer only ever drove full-on or full-off, where you can't tell period from duty apart. Fixed in both the probe and the driver, with a comment so it doesn't come back.
+**PWM: it was working the whole time — I had two registers reversed.** The TRM
+register map (Part 1 Ch 15) is `+0x04` = **PERIOD**, `+0x08` = **DUTY**. The
+driver (`003-pwm.c`) and my probe assumed the opposite. So my "period 1000, duty
+100" actually wrote **DUTY=1000 into a PERIOD of 100** — duty far bigger than
+period pins the output fully on → **bright**. So the bright red was genuinely
+*good news*: the controller is clocked, the output drives, and re-muxing the pin
+to PWM reached the channel — which quietly answers 106c's cross-domain routing
+puzzle (it works). The swap had hidden for ages because the LED layer only ever
+drove full-on or full-off, where you can't tell period from duty apart. Fixed in
+both the probe and the driver, with a comment so it doesn't come back.
 
 
-**i2c0: root cause found against u-boot's `rk_i2c.c`.** The bus was healthy all along (lines idle-high, clock confirmed PCLK-derived and on), so it was always our *sequence*. The canonical driver showed three things we had wrong:
+**i2c0: root cause found against u-boot's `rk_i2c.c`.** The bus was healthy all
+along (lines idle-high, clock confirmed PCLK-derived and on), so it was always
+our *sequence*. The canonical driver showed three things we had wrong:
 
 1. **START is its own step** — `CON = EN|START` alone, wait, clear — not
-folded into the transfer's mode write.
+   folded into the transfer's mode write.
 
 2. **The address needs the read bit** (`(addr<<1)|1`).
 
 3. **Writing `MRXCNT` is the trigger**, so it must come *last*. We wrote it
-*first*, which is exactly why the controller issued the start and then sat there
-doing nothing — the "STARTIPD, then silence" the capture showed.
+   *first*, which is exactly why the controller issued the start and then sat
+   there doing nothing — the "STARTIPD, then silence" the capture showed.
 
 
 Rewrote the read to the canonical order. I saved the TRM i2c chapter context and
@@ -10844,13 +12135,13 @@ Both fixes are built into one image. Flash it and we test both at once:
 
 ```
 
-scripts/push-to-usb # main machine
+scripts/push-to-usb            # main machine
 
-scripts/flash-sd # lab laptop
+scripts/flash-sd               # lab laptop
 
 #   boot — watch the RED LED — then:
 
-scripts/lab-side/dump-from-sd # lab laptop
+scripts/lab-side/dump-from-sd  # lab laptop
 
 ```
 
@@ -10890,11 +12181,16 @@ lives in the on-card log, so it needs `dump-from-sd` to pull it out.
 But the dim red on its own already settles the PWM side completely:
 
 
-- **The controller is clocked and running** (the counter only advances with `ch_cnt_en`, which I set — and a 10% duty can only show as dim if the waveform is actually being generated).
+- **The controller is clocked and running** (the counter only advances with
+  `ch_cnt_en`, which I set — and a 10% duty can only show as dim if the
+  waveform is actually being generated).
 
-- **The pin routing works** — function 1 on `GPIO0_C6` reaches PWM channel 7 across the PMU→main domain boundary. That was 106c's one genuinely open question, and it's answered: yes.
+- **The pin routing works** — function 1 on `GPIO0_C6` reaches PWM channel 7
+  across the PMU→main domain boundary. That was 106c's one genuinely open
+  question, and it's answered: yes.
 
-- **The duty/period fix was right** — bright→dim is exactly the swap correction.
+- **The duty/period fix was right** — bright→dim is exactly the swap
+  correction.
 
 
 So **106c is essentially solved.** Everything hard is done; the only work left
@@ -10907,7 +12203,7 @@ For the i2c0 verdict — run the dump and bring the drive over:
 
 ```
 
-scripts/lab-side/dump-from-sd # lab laptop
+scripts/lab-side/dump-from-sd   # lab laptop
 
 #   then re-mount the drive at /mnt/generic here
 
@@ -10941,16 +12237,17 @@ including `probe-pmic-dump` and `probe-pwm-bringup`. Reading the one we're both
 waiting on:
 
 
-**The PMIC is answering.** 🎉 Real, varied register values — no more TIMEOUT:
+**The PMIC is answering.** 🎉 Real, varied register values — no more
+TIMEOUT:
 
 
 ```
 
-reg 0x07 = 0x25 reg 0x0A = 0x14 reg 0x0D = 0x80
+reg 0x07 = 0x25   reg 0x0A = 0x14   reg 0x0D = 0x80
 
-reg 0x08 = 0x17 reg 0x0B = 0x06 reg 0x0E = 0x02
+reg 0x08 = 0x17   reg 0x0B = 0x06   reg 0x0E = 0x02
 
-reg 0x09 = 0x05 reg 0x0C = 0x26
+reg 0x09 = 0x05   reg 0x0C = 0x26
 
 ```
 
@@ -10968,25 +12265,28 @@ precise bugs — a swapped register pair and a reordered write sequence — that
 the TRM and the reference driver pinned down cold. Worth the dig.
 
 
-**What it unblocks:** we can now talk to the chip that owns every voltage rail. That's the key to the eMMC `VCCQ` question for the fast storage path (110j), plus battery/charge state and DVFS down the line.
+**What it unblocks:** we can now talk to the chip that owns every voltage rail.
+That's the key to the eMMC `VCCQ` question for the fast storage path (110j),
+plus battery/charge state and DVFS down the line.
 
 
 A couple of natural next moves — your call:
 
 
 1. **Commit this milestone.** Both fixes are hardware-verified and hard-won; I'd
-bank them now (the i2c read sequence, the PWM duty/period fix in `003-pwm.c`,
-the probe). Neither issue is *fully* done — 114 still wants writes + the
-`VCCQ` rail, 106c still wants the LED layer rewired to PWM — so they'd stay
-open, but the working code gets saved. *(I'd recommend this either way.)*
+   bank them now (the i2c read sequence, the PWM duty/period fix in `003-pwm.c`,
+   the probe). Neither issue is *fully* done — 114 still wants writes + the
+   `VCCQ` rail, 106c still wants the LED layer rewired to PWM — so they'd stay
+   open, but the working code gets saved. *(I'd recommend this either way.)*
 
 2. **Push i2c0 to layer 2** — add a write path and confirm a read-after-write
-round-trips — and grab the **RK817 datasheet** (we don't have it yet) so we
-can decode these register values and find the `VCCQ` rail. That's the straight
-line back to the fast-eMMC voltage question you pivoted here to answer.
+   round-trips — and grab the **RK817 datasheet** (we don't have it yet) so we
+   can decode these register values and find the `VCCQ` rail. That's the
+   straight line back to the fast-eMMC voltage question you pivoted here to
+   answer.
 
 3. **Finish 106c** — wire `004-led.c` back through the PWM duty path so the
-indicator LEDs get smooth brightness and the breathing heartbeat again.
+   indicator LEDs get smooth brightness and the breathing heartbeat again.
 
 
 Want me to commit first, then go get the RK817 datasheet and start on the PMIC
@@ -11067,23 +12367,32 @@ All three done — committed, register map pulled and decoded, and the write
 path implemented and built clean (9 probes now; no warnings).
 
 
-**The register decode confirmed the win:** those values we read are the RK817's **RTC and alarm registers** (`0x00`–`0x0C`), holding a real BCD timestamp. You can't read a coherent clock off a chip you're not actually talking to — so reachability is rock-solid, not a fluke.
+**The register decode confirmed the win:** those values we read are the RK817's
+**RTC and alarm registers** (`0x00`–`0x0C`), holding a real BCD timestamp. You
+can't read a coherent clock off a chip you're not actually talking to — so
+reachability is rock-solid, not a fluke.
 
 
-**The write path is in.** I added `i2c0_write_reg` modeled on u-boot's write sequence — same shape as the read (START on its own, then arm, then the count write triggers it), but TX mode: pack `[slave, reg, data]` into the transmit register and send 3 bytes. And a **non-destructive round-trip test**: it writes `0x5A` to the RTC compensation register (`0x10` — plain binary, no power rail, safe), reads it back, then restores the original byte. New probe `pmic-write` (#AUTO 35) calls it.
+**The write path is in.** I added `i2c0_write_reg` modeled on u-boot's write
+sequence — same shape as the read (START on its own, then arm, then the count
+write triggers it), but TX mode: pack `[slave, reg, data]` into the transmit
+register and send 3 bytes. And a **non-destructive round-trip test**: it writes
+`0x5A` to the RTC compensation register (`0x10` — plain binary, no power rail,
+safe), reads it back, then restores the original byte. New probe `pmic-write`
+(#AUTO 35) calls it.
 
 
 **Flash to confirm writes work:**
 
 ```
 
-scripts/push-to-usb # main machine
+scripts/push-to-usb            # main machine
 
-scripts/flash-sd # lab laptop
+scripts/flash-sd               # lab laptop
 
 #   boot, then:
 
-scripts/lab-side/dump-from-sd # lab laptop
+scripts/lab-side/dump-from-sd  # lab laptop
 
 ```
 
@@ -11092,10 +12401,19 @@ read-back `= 0x5A`. If it matches, layer 2 is done and we can both read and
 write the PMIC.
 
 
-**On the datasheet:** I pulled the Linux RK817 register-map header and the regulator driver into `tmp/uboot-ref/` — that's what decoded the registers, and the regulator driver also carries the LDO voltage tables we'll need. The standalone RK817 datasheet PDF tends to be NDA-gated; rather than chase it now, the driver sources cover the register map and voltages. I'd reach for it (or lean on those tables) when we get to the actual rail work.
+**On the datasheet:** I pulled the Linux RK817 register-map header and the
+regulator driver into `tmp/uboot-ref/` — that's what decoded the registers,
+and the regulator driver also carries the LDO voltage tables we'll need. The
+standalone RK817 datasheet PDF tends to be NDA-gated; rather than chase it now,
+the driver sources cover the register map and voltages. I'd reach for it (or
+lean on those tables) when we get to the actual rail work.
 
 
-**Next, once the write confirms:** find which LDO feeds the eMMC's `VCCQ` on this board (that's a device-tree lookup) and set it to 1.8 V — which is the exact question you pivoted to the PMIC to answer for the fast-eMMC path. Nothing committed since the milestone; the write path stays in the tree until the hardware says PASS.
+**Next, once the write confirms:** find which LDO feeds the eMMC's `VCCQ` on
+this board (that's a device-tree lookup) and set it to 1.8 V — which is the
+exact question you pivoted to the PMIC to answer for the fast-eMMC path. Nothing
+committed since the milestone; the write path stays in the tree until the
+hardware says PASS.
 
 
 --------------------------------------------------------------------------------
@@ -11141,18 +12459,18 @@ Two moves, in order:
 
 
 1. **Commit the write path** — it's verified, so I'd bank `i2c0_write_reg` +
-the round-trip test + the probe, and mark 114's read/write layers done (the
-issue stays open for the rail work). *(Recommend.)*
+   the round-trip test + the probe, and mark 114's read/write layers done (the
+   issue stays open for the rail work). *(Recommend.)*
 
 2. **Go for `VCCQ` — the actual prize.** Now that we can read and write the
-PMIC, the question 110j hinges on becomes answerable: which LDO feeds the eMMC's
-I/O rail, and is it already at 1.8 V (board-fixed) or does it need setting?
-That's a two-part lookup — the **board device tree** says which regulator is
-the eMMC's `vqmmc-supply`, and the regulator driver (already in
-`tmp/uboot-ref/`) gives the register + voltage table for that LDO. We have the
-`.dtb`; I can decompile it to find the mapping, then read the rail's current
-setting on the next flash. If it's already 1.8 V, 110j's voltage dependency
-evaporates; if not, we now have the means to set it.
+   PMIC, the question 110j hinges on becomes answerable: which LDO feeds the
+   eMMC's I/O rail, and is it already at 1.8 V (board-fixed) or does it need
+   setting? That's a two-part lookup — the **board device tree** says which
+   regulator is the eMMC's `vqmmc-supply`, and the regulator driver (already in
+   `tmp/uboot-ref/`) gives the register + voltage table for that LDO. We have
+   the `.dtb`; I can decompile it to find the mapping, then read the rail's
+   current setting on the next flash. If it's already 1.8 V, 110j's voltage
+   dependency evaporates; if not, we now have the means to set it.
 
 
 Want me to commit, then start tracing the `VCCQ` rail through the device tree?
@@ -11182,42 +12500,73 @@ spelled out:
 
 **The goal and the chain that hangs off it.** We want to read the **eMMC** fast.
 
-- **eMMC** = **e**mbedded **M**ulti**M**edia**C**ard. "Embedded" = soldered down (unlike a removable card); MultiMediaCard is the old card standard it descends from. It's the handheld's built-in flash drive.
+- **eMMC** = **e**mbedded **M**ulti**M**edia**C**ard. "Embedded" = soldered down
+  (unlike a removable card); MultiMediaCard is the old card standard it descends
+  from. It's the handheld's built-in flash drive.
 
 - Fast = **HS200** mode = **H**igh **S**peed at **200** MHz (the clock rate). 
 
-- HS200 only works if the eMMC's *signaling* runs at 1.8 V, and that voltage is called **VCCQ**.
+- HS200 only works if the eMMC's *signaling* runs at 1.8 V, and that voltage is
+  called **VCCQ**.
 
-- **VCC** = the chip's main positive supply. "V" is voltage; "CC" is a leftover
-from transistor days (the rail that fed a transistor's **C**olle**C**tor) —
-today it just means "the positive power rail."
+  - **VCC** = the chip's main positive supply. "V" is voltage; "CC" is a
+    leftover from transistor days (the rail that fed a transistor's
+    **C**olle**C**tor) — today it just means "the positive power rail."
 
-- **VCCQ** = the same idea but for the **Q**, the **I/O** (input/output) side of
-the chip. So an eMMC has *two* supplies: **VCC** powers the actual flash memory
-cells, **VCCQ** powers the pins and signal drivers that talk to the host. HS200
-is a *signaling* speed, so it's **VCCQ** specifically that has to drop to 1.8 V.
+  - **VCCQ** = the same idea but for the **Q**, the **I/O** (input/output) side
+    of the chip. So an eMMC has *two* supplies: **VCC** powers the actual flash
+    memory cells, **VCCQ** powers the pins and signal drivers that talk to the
+    host. HS200 is a *signaling* speed, so it's **VCCQ** specifically that has
+    to drop to 1.8 V.
 
 
 **Who makes that voltage, and how we change it.**
 
-- The voltage comes from the **PMIC** = **P**ower **M**anagement **I**ntegrated **C**ircuit — a companion chip that generates every power rail on the board. Ours is the **RK817** (a **R**ock**c**hip part; Rockchip also makes the main brain, the **SoC** = **S**ystem **o**n **C**hip, model **RK3568**).
+- The voltage comes from the **PMIC** = **P**ower **M**anagement **I**ntegrated
+  **C**ircuit — a companion chip that generates every power rail on the board.
+  Ours is the **RK817** (a **R**ock**c**hip part; Rockchip also makes the main
+  brain, the **SoC** = **S**ystem **o**n **C**hip, model **RK3568**).
 
-- Inside the PMIC, VCCQ is produced by an **LDO** = **L**ow-**D**rop**O**ut regulator — a simple regulator that turns a higher voltage into a precise lower one. The PMIC has several LDOs, each programmable to a target voltage.
+- Inside the PMIC, VCCQ is produced by an **LDO** = **L**ow-**D**rop**O**ut
+  regulator — a simple regulator that turns a higher voltage into a precise
+  lower one. The PMIC has several LDOs, each programmable to a target voltage.
 
-- We program that LDO by talking to the PMIC over **i2c** (= **I**nter-**I**ntegrated **C**ircuit) — the 2-wire chip-to-chip bus we just got working. Its two wires: **SCL** = **S**erial **CL**ock (timing), **SDA** = **S**erial **DA**ta. Talking on it means sending an address, getting an **ACK** (**ACK**nowledge) or **NAK** (**N**egative **A**c**K**nowledge) back, etc.
+- We program that LDO by talking to the PMIC over **i2c** (=
+  **I**nter-**I**ntegrated **C**ircuit) — the 2-wire chip-to-chip bus we just
+  got working. Its two wires: **SCL** = **S**erial **CL**ock (timing), **SDA** =
+  **S**erial **DA**ta. Talking on it means sending an address, getting an
+  **ACK** (**ACK**nowledge) or **NAK** (**N**egative **A**c**K**nowledge) back,
+  etc.
 
-- To know *which* LDO feeds the eMMC's VCCQ, we read the **device tree** — a text description of how the board is wired, compiled into a **DTB** (**D**evice **T**ree **B**lob) from a **DTS** (**D**evice **T**ree **S**ource). The eMMC's entry names a `vqmmc-supply` — literally the **V**oltage-for-**q**mmc (the MMC's I/O voltage = VCCQ) supply — pointing at the regulator.
+- To know *which* LDO feeds the eMMC's VCCQ, we read the **device tree** — a
+  text description of how the board is wired, compiled into a **DTB**
+  (**D**evice **T**ree **B**lob) from a **DTS** (**D**evice **T**ree
+  **S**ource). The eMMC's entry names a `vqmmc-supply` — literally the
+  **V**oltage-for-**q**mmc (the MMC's I/O voltage = VCCQ) supply — pointing at
+  the regulator.
 
 
 **The supporting cast you've been seeing scroll by:**
 
-- **CRU** = **C**lock and **R**eset **U**nit (turns peripheral clocks on/off and resets them); **PMUCRU** is the **P**ower-**M**anagement-**U**nit copy that stays on in the always-on domain. We used these to ungate i2c0's and the PWM's clocks.
+- **CRU** = **C**lock and **R**eset **U**nit (turns peripheral clocks on/off and
+  resets them); **PMUCRU** is the **P**ower-**M**anagement-**U**nit copy that
+  stays on in the always-on domain. We used these to ungate i2c0's and the PWM's
+  clocks.
 
-- **GRF** = **G**eneral **R**egister **F**ile (a bag of board-level config registers), home of the **IOMUX** = **I/O MU**ltiple**X**er, which picks *which peripheral a physical pin connects to*. **GPIO** = **G**eneral-**P**urpose **I/O**, a pin's plain on/off mode.
+- **GRF** = **G**eneral **R**egister **F**ile (a bag of board-level config
+  registers), home of the **IOMUX** = **I/O MU**ltiple**X**er, which picks
+  *which peripheral a physical pin connects to*. **GPIO** =
+  **G**eneral-**P**urpose **I/O**, a pin's plain on/off mode.
 
-- **MMIO** = **M**emory-**M**apped **I/O** — the trick behind all of it: each hardware register shows up at a memory address, so writing that address pokes the hardware.
+- **MMIO** = **M**emory-**M**apped **I/O** — the trick behind all of it: each
+  hardware register shows up at a memory address, so writing that address pokes
+  the hardware.
 
-- **TRM** = **T**echnical **R**eference **M**anual (the 3000-page chip bible we keep mining). **RTC** = **R**eal-**T**ime **C**lock (the timekeeping block in the PMIC whose registers we read). **BCD** = **B**inary-**C**oded **D**ecimal (each decimal digit in 4 bits, so the byte `0x25` means "25," not 37 — that's why the alarm time read sensibly).
+- **TRM** = **T**echnical **R**eference **M**anual (the 3000-page chip bible we
+  keep mining). **RTC** = **R**eal-**T**ime **C**lock (the timekeeping block in
+  the PMIC whose registers we read). **BCD** = **B**inary-**C**oded **D**ecimal
+  (each decimal digit in 4 bits, so the byte `0x25` means "25," not 37 —
+  that's why the alarm time read sensibly).
 
 
 Now let me actually start the trace — find the device tree and look up the
@@ -11239,7 +12588,11 @@ phandle.
 Here's what the trace turns up — and it's a clean answer.
 
 
-**The eMMC's full device-tree node has _no_ `vqmmc-supply` at all.** Its properties are: `compatible = rockchip,rk3568-dwcmshc`, `bus-width = 8`, `non-removable`, and `max-frequency = 0xbebc200` — which is **200,000,000**, i.e. 200 MHz. So the board itself declares this eMMC as a 200 MHz, 8-bit part (that's HS200-class), but it lists **no regulator for its VCCQ.**
+**The eMMC's full device-tree node has _no_ `vqmmc-supply` at all.** Its
+properties are: `compatible = rockchip,rk3568-dwcmshc`, `bus-width = 8`,
+`non-removable`, and `max-frequency = 0xbebc200` — which is **200,000,000**,
+i.e. 200 MHz. So the board itself declares this eMMC as a 200 MHz, 8-bit part
+(that's HS200-class), but it lists **no regulator for its VCCQ.**
 
 
 That absence *is* the answer. When a device's I/O rail is software-adjustable,
@@ -11256,15 +12609,23 @@ cleanly at 200 MHz in our earlier probe is exactly what you'd expect if the pads
 are already at 1.8 V.
 
 
-**So 110j's voltage dependency — the whole reason you pivoted to the PMIC — is resolved: the eMMC VCCQ is board-fixed at 1.8 V, no PMIC change needed.** The definitive last word is the HS200 read itself in 110j (real data back = the rail's right), but the device tree says we won't have to touch a regulator to get there.
+**So 110j's voltage dependency — the whole reason you pivoted to the PMIC —
+is resolved: the eMMC VCCQ is board-fixed at 1.8 V, no PMIC change needed.** The
+definitive last word is the HS200 read itself in 110j (real data back = the
+rail's right), but the device tree says we won't have to touch a regulator to
+get there.
 
 
 That reframes where we are:
 
 
-- The PMIC detour wasn't wasted — we came out of it able to **read and write** the RK817 over i2c0, which is foundational for everything power-related later (battery, charge state, DVFS = **D**ynamic **V**oltage and **F**requency **S**caling). That capability is real and verified.
+- The PMIC detour wasn't wasted — we came out of it able to **read and write**
+  the RK817 over i2c0, which is foundational for everything power-related later
+  (battery, charge state, DVFS = **D**ynamic **V**oltage and **F**requency
+  **S**caling). That capability is real and verified.
 
-- But the *specific* layer-3 goal of 114 — program an LDO to set VCCQ — has no consumer anymore, because VCCQ isn't software-controlled here.
+- But the *specific* layer-3 goal of 114 — program an LDO to set VCCQ — has
+  no consumer anymore, because VCCQ isn't software-controlled here.
 
 
 Which bears on your commit rule. Issue 114's driving purpose — reach the PMIC,
@@ -11306,7 +12667,12 @@ This is a great question, and there's a real distinction worth getting straight
 much,"** and the breathing-LED case is actually the *other* one.
 
 
-**The dim red you saw was not a voltage change.** The LED was getting the full rail voltage the whole time — it was just being switched fully on and fully off, fast (kilohertz), and left on only ~10% of the time. Your eye can't see the flicker, so it averages it to "10% bright." That's all PWM is: **vary the fraction of time it's on (the duty cycle), not the voltage.** The voltage is always either full-on or zero.
+**The dim red you saw was not a voltage change.** The LED was getting the full
+rail voltage the whole time — it was just being switched fully on and fully
+off, fast (kilohertz), and left on only ~10% of the time. Your eye can't see the
+flicker, so it averages it to "10% bright." That's all PWM is: **vary the
+fraction of time it's on (the duty cycle), not the voltage.** The voltage is
+always either full-on or zero.
 
 
 So your breathing / progress-bar ideas are *pure PWM*, and we already have the
@@ -11314,7 +12680,8 @@ mechanism:
 
 - **Breathing** = sweep the duty cycle 0% → 100% → 0% on a timer.
 
-- **Progress bar brightness** = set duty proportional to progress (30% done → 30% duty).
+- **Progress bar brightness** = set duty proportional to progress (30% done →
+  30% duty).
 
 
 No LDO needed — and in fact you'd never dim an LED by lowering its voltage.
@@ -11323,18 +12690,32 @@ swings brightness wildly and drifts with temperature. PWM sidesteps all that,
 which is exactly why everyone uses it for LEDs.
 
 
-**An LDO is for the other job: holding a power rail at a precise steady voltage.** It takes a higher DC voltage in and produces a clean lower DC voltage out, by acting as a smart variable resistor (a pass transistor with a feedback loop) that burns the excess off as heat. The output doesn't switch — it's a constant rail you *power chips from*. So your instinct is dead right, just for powering things rather than LEDs. Where it earns its keep:
+**An LDO is for the other job: holding a power rail at a precise steady
+voltage.** It takes a higher DC voltage in and produces a clean lower DC voltage
+out, by acting as a smart variable resistor (a pass transistor with a feedback
+loop) that burns the excess off as heat. The output doesn't switch — it's a
+constant rail you *power chips from*. So your instinct is dead right, just for
+powering things rather than LEDs. Where it earns its keep:
 
 
-- **Per-chip voltages** — the CPU wants ~0.9 V, DRAM ~1.1 V, a sensor 1.8 V, I/O pins 3.3 V; each gets its own regulator at its own level.
+- **Per-chip voltages** — the CPU wants ~0.9 V, DRAM ~1.1 V, a sensor 1.8 V,
+  I/O pins 3.3 V; each gets its own regulator at its own level.
 
-- **DVFS** (**D**ynamic **V**oltage & **F**requency **S**caling) — when you slow the CPU to save battery you also *drop its voltage*, and power falls with the **square** of voltage, so this is the single biggest battery lever a handheld has. It's literally an LDO/buck being reprogrammed on the fly.
+- **DVFS** (**D**ynamic **V**oltage & **F**requency **S**caling) — when you
+  slow the CPU to save battery you also *drop its voltage*, and power falls with
+  the **square** of voltage, so this is the single biggest battery lever a
+  handheld has. It's literally an LDO/buck being reprogrammed on the fly.
 
-- **I/O signaling levels** — VCCQ at 1.8 V for eMMC HS200; an SD card toggling 3.3 V ↔ 1.8 V. (What started all this.)
+- **I/O signaling levels** — VCCQ at 1.8 V for eMMC HS200; an SD card toggling
+  3.3 V ↔ 1.8 V. (What started all this.)
 
-- **Reference voltages** — an **ADC** (**A**nalog-to-**D**igital **C**onverter, like the gamepad's SARADC) measures everything *relative to* a reference voltage; if that reference isn't precise and steady, every reading drifts.
+- **Reference voltages** — an **ADC** (**A**nalog-to-**D**igital
+  **C**onverter, like the gamepad's SARADC) measures everything *relative to* a
+  reference voltage; if that reference isn't precise and steady, every reading
+  drifts.
 
-- **Battery charging** — charging to exactly 4.20 V vs 4.25 V is the difference between a healthy cell and a fire. Precise thresholds matter.
+- **Battery charging** — charging to exactly 4.20 V vs 4.25 V is the
+  difference between a healthy cell and a fire. Precise thresholds matter.
 
 
 And one more tool worth naming since you're curious: a **DAC**
@@ -11379,9 +12760,12 @@ Built clean — 10 probes, no warnings, bootable image ready.
 So the **LDO programming abstraction** is in. Two small functions are the whole
 capability:
 
-- `rk817_ldo_get_mv(ldo)` — read a rail's programmed voltage and decode it (`mV = 600 + sel*25`).
+- `rk817_ldo_get_mv(ldo)` — read a rail's programmed voltage and decode it
+  (`mV = 600 + sel*25`).
 
-- `rk817_ldo_set_mv(ldo, target_mv)` — clamp to the LDO's 600–3400 mV range, encode to the 25 mV-step selector, and write it (read-modify-write so it only touches the voltage bits).
+- `rk817_ldo_set_mv(ldo, target_mv)` — clamp to the LDO's 600–3400 mV range,
+  encode to the 25 mV-step selector, and write it (read-modify-write so it only
+  touches the voltage bits).
 
 
 That's the "command a rail to an exact voltage" tool — the regulator
@@ -11402,13 +12786,13 @@ Flash to see the power tree and confirm the set path:
 
 ```
 
-scripts/push-to-usb # main machine
+scripts/push-to-usb            # main machine
 
-scripts/flash-sd # lab laptop
+scripts/flash-sd               # lab laptop
 
 #   boot, then:
 
-scripts/lab-side/dump-from-sd # lab laptop
+scripts/lab-side/dump-from-sd  # lab laptop
 
 ```
 
@@ -11439,11 +12823,11 @@ All nine LDOs read sensible voltages and the set path round-tripped:
 
 ```
 
-LDO1=1800 LDO2=900 LDO3=900 LDO4=3300 LDO5=3300
+LDO1=1800  LDO2=900   LDO3=900   LDO4=3300  LDO5=3300
 
-LDO6=3300 LDO7=1800 LDO8=1800 LDO9=2800 mV
+LDO6=3300  LDO7=1800  LDO8=1800  LDO9=2800   mV
 
-set LDO1: 1800 → 1800 SET PATH OK
+                       set LDO1: 1800 → 1800   SET PATH OK
 
 ```
 
@@ -11475,25 +12859,45 @@ Clean — exactly the PMIC-capability files (114 renamed into `completed/`).
 Writing the message and committing:
 
 
-**Committed — `e841f924`.** 114 is complete and moved to `completed/`. The whole i2c0/PMIC arc is done: we can **read, write, and program voltage rails** on the RK817, and the issue's recorded with all three layers verified on hardware.
+**Committed — `e841f924`.** 114 is complete and moved to `completed/`. The
+whole i2c0/PMIC arc is done: we can **read, write, and program voltage rails**
+on the RK817, and the issue's recorded with all three layers verified on
+hardware.
 
 
 Stepping back, here's what this stretch accomplished and where it leaves us:
 
 
-**The detour did its job — and then some.** You pivoted to the PMIC to answer one question: does the eMMC's 1.8 V signaling rail need software control for the fast path? The answer is **no** — its device-tree node has no `vqmmc-supply`, so it's hardwired at 1.8 V (confirmed by the board's 1.8 V LDO rails and the DLL locking at 200 MHz). That clears the last unknown off the fast-storage path. As a bonus, we came out with a *foundational capability* — full PMIC control — that everything power-related will lean on later (frequency scaling, battery, thermal, safe shutdown).
+**The detour did its job — and then some.** You pivoted to the PMIC to answer
+one question: does the eMMC's 1.8 V signaling rail need software control for the
+fast path? The answer is **no** — its device-tree node has no `vqmmc-supply`,
+so it's hardwired at 1.8 V (confirmed by the board's 1.8 V LDO rails and the DLL
+locking at 200 MHz). That clears the last unknown off the fast-storage path. As
+a bonus, we came out with a *foundational capability* — full PMIC control —
+that everything power-related will lean on later (frequency scaling, battery,
+thermal, safe shutdown).
 
 
-**Four clean commits this run:** the compiled-in probe engine, the eMMC/SD bring-up, the i2c0 read + PWM fixes, and now the PMIC write + rail control. Each verified on real hardware before it landed.
+**Four clean commits this run:** the compiled-in probe engine, the eMMC/SD
+bring-up, the i2c0 read + PWM fixes, and now the PMIC write + rail control. Each
+verified on real hardware before it landed.
 
 
 **Where the open threads stand now:**
 
-- **110j (fast eMMC, HS200)** — *fully unblocked.* The DLL prerequisite is confirmed, the voltage dependency is resolved, the controller driver is in. This is the original prize: at HS200 a full eMMC image goes from ~3 hours to minutes. It's pure driver work now (the CMD6 mode switches, 8-bit bus, DMA), no remaining unknowns.
+- **110j (fast eMMC, HS200)** — *fully unblocked.* The DLL prerequisite is
+  confirmed, the voltage dependency is resolved, the controller driver is in.
+  This is the original prize: at HS200 a full eMMC image goes from ~3 hours to
+  minutes. It's pure driver work now (the CMD6 mode switches, 8-bit bus, DMA),
+  no remaining unknowns.
 
-- **106c (PWM LEDs)** — the controller, routing, and duty path are all proven (the dim red). Only the mechanical bit remains: wire the LED layer back through the duty path for breathing/brightness.
+- **106c (PWM LEDs)** — the controller, routing, and duty path are all proven
+  (the dim red). Only the mechanical bit remains: wire the LED layer back
+  through the duty path for breathing/brightness.
 
-- **Findings still parked:** the SARADC gamepad channels (1–5 timing out), and the older uncommitted pile from earlier sessions (USB `109a`, the bring-up test suite, the datasheets) whenever you want to sort it.
+- **Findings still parked:** the SARADC gamepad channels (1–5 timing out), and
+  the older uncommitted pile from earlier sessions (USB `109a`, the bring-up
+  test suite, the datasheets) whenever you want to sort it.
 
 
 My suggestion for next, if you want one: **110j** — it's the thing this whole
@@ -11557,9 +12961,11 @@ This is the "look before you leap" step. Before switching the eMMC into HS200,
 we confirm it actually advertises that mode (you never put a card into a mode it
 doesn't claim). The probe reads and decodes:
 
-- **DEVICE_TYPE** — which speed modes the card supports; bit 4 = HS200 at 1.8 V (the go/no-go for the whole plan).
+- **DEVICE_TYPE** — which speed modes the card supports; bit 4 = HS200 at 1.8
+  V (the go/no-go for the whole plan).
 
-- **HS_TIMING / BUS_WIDTH** — the card's *current* mode and bus width (should be legacy / 1-bit right now).
+- **HS_TIMING / BUS_WIDTH** — the card's *current* mode and bus width (should
+  be legacy / 1-bit right now).
 
 - **EXT_CSD_REV** — which eMMC spec revision the card implements.
 
@@ -11575,13 +12981,13 @@ Flash and let's see what the card says:
 
 ```
 
-scripts/push-to-usb # main machine
+scripts/push-to-usb            # main machine
 
-scripts/flash-sd # lab laptop
+scripts/flash-sd               # lab laptop
 
 #   boot, then:
 
-scripts/lab-side/dump-from-sd # lab laptop
+scripts/lab-side/dump-from-sd  # lab laptop
 
 ```
 
@@ -11632,10 +13038,17 @@ the feature) and the image:
 Both clean, image ready. The loading bar is in.
 
 
-**The primitive** (`pwm_progress_init` / `pwm_progress_set(current, max)`) lives in the PWM driver, so it's reusable — `pwm_progress_set(3, 10)` lights the bar to 30%, and anything can call it. It drives the **bottom amber** LED (I picked it because that window is single-colour, so it reads as a clean dim→bright ramp instead of a colour mix, while the top green stays on as the "kernel's alive" sign).
+**The primitive** (`pwm_progress_init` / `pwm_progress_set(current, max)`) lives
+in the PWM driver, so it's reusable — `pwm_progress_set(3, 10)` lights the bar
+to 30%, and anything can call it. It drives the **bottom amber** LED (I picked
+it because that window is single-colour, so it reads as a clean dim→bright
+ramp instead of a colour mix, while the top green stays on as the "kernel's
+alive" sign).
 
 
-**Wired into the sweep:** the amber bar starts dim at the first probe and fills to full by the last — exactly the 0%→100% mapping you described, `current = probe index, max = count-1`.
+**Wired into the sweep:** the amber bar starts dim at the first probe and fills
+to full by the last — exactly the 0%→100% mapping you described, `current =
+probe index, max = count-1`.
 
 
 So when you flash this, you'll watch the **bottom amber brighten step by step**
@@ -11652,13 +13065,13 @@ tell us whether the card advertises HS200. One trip, two payoffs.
 
 ```
 
-scripts/push-to-usb # main machine
+scripts/push-to-usb            # main machine
 
-scripts/flash-sd # lab laptop
+scripts/flash-sd               # lab laptop
 
 #   boot — watch the amber bar fill — then:
 
-scripts/lab-side/dump-from-sd # lab laptop
+scripts/lab-side/dump-from-sd  # lab laptop
 
 ```
 
@@ -11695,9 +13108,13 @@ physically exist.
 
 **What's actually on the board: three emitters in two windows.**
 
-- **Top window** is *bicolor* — a **green** emitter and a **red** emitter behind one lens. Drive both and they blend (additive light): green alone → green, red alone → red, both → **yellow/amber** in between. So the top window has a green↔red color axis.
+- **Top window** is *bicolor* — a **green** emitter and a **red** emitter
+  behind one lens. Drive both and they blend (additive light): green alone →
+  green, red alone → red, both → **yellow/amber** in between. So the top
+  window has a green↔red color axis.
 
-- **Bottom window** is a **single amber** emitter. Brightness only — it's always amber, no color to change.
+- **Bottom window** is a **single amber** emitter. Brightness only — it's
+  always amber, no color to change.
 
 
 There's **no blue anywhere**, so this can't do RGB — no blue, cyan, purple, or
@@ -11711,17 +13128,21 @@ only has *two* color channels and the bottom has *one*. Three values won't fit
 either window.
 
 
-**What does fit — and gives you everything the hardware can do — is three brightnesses, one per real emitter:**
+**What does fit — and gives you everything the hardware can do — is three
+brightnesses, one per real emitter:**
 
 
 ```
 
-led_set(green, red, amber) // each 0–100
+led_set(green, red, amber)     // each 0–100
 
 ```
 
 
-- `green` + `red` set the **top window's color and brightness** — `(100,0,_)` bright green, `(0,100,_)` bright red, `(60,40,_)` amber-ish, `(100,100,_)` bright yellow. That's your "color from combining LEDs," just the two that actually share a window.
+- `green` + `red` set the **top window's color and brightness** — `(100,0,_)`
+  bright green, `(0,100,_)` bright red, `(60,40,_)` amber-ish, `(100,100,_)`
+  bright yellow. That's your "color from combining LEDs," just the two that
+  actually share a window.
 
 - `amber` sets the **bottom window's brightness**.
 
@@ -11780,11 +13201,18 @@ blue, but at least the top window gives you a green→yellow→red range to play
 with.
 
 
-**Your two-function design works well, and it's the right shape** — splitting top/bottom matches the asymmetric windows (top has two color channels, bottom has one), and `current/max` is progress-native and cheap. I'll bake in two tiny robustness tweaks that don't change your idea or the cost:
+**Your two-function design works well, and it's the right shape** — splitting
+top/bottom matches the asymmetric windows (top has two color channels, bottom
+has one), and `current/max` is progress-native and cheap. I'll bake in two tiny
+robustness tweaks that don't change your idea or the cost:
 
-- **`current == 0` (or a zero max) → off.** So passing zeros for a channel cleanly turns it off, exactly as you described, instead of dividing by zero.
+- **`current == 0` (or a zero max) → off.** So passing zeros for a channel
+  cleanly turns it off, exactly as you described, instead of dividing by zero.
 
-- **64-bit intermediate in the ratio.** On aarch64 a 64-bit multiply/divide is still one instruction each, but it means a huge `max` (say a multi-million-block backup) can't overflow. Still just **one multiply + one divide per channel** — nothing precomputed.
+- **64-bit intermediate in the ratio.** On aarch64 a 64-bit multiply/divide is
+  still one instruction each, but it means a huge `max` (say a
+  multi-million-block backup) can't overflow. Still just **one multiply + one
+  divide per channel** — nothing precomputed.
 
 
 Here's the comment I'm putting at the top of the section (duplicated for you):
@@ -11794,67 +13222,67 @@ Here's the comment I'm putting at the top of the section (duplicated for you):
 
 /* PWM LED control — brightness, and (top window only) colour.
 
-*
+ *
 
-* Three emitters in two windows (found empirically in 103e by driving
+ * Three emitters in two windows (found empirically in 103e by driving
 
-* each pin and watching the lights):
+ * each pin and watching the lights):
 
-* TOP = green emitter + red emitter behind one lens (bicolor). Their
+ *   TOP    = green emitter + red emitter behind one lens (bicolor). Their
 
-* blend is the colour: green only=green, red only=red, both=
+ *            blend is the colour: green only=green, red only=red, both=
 
-* yellow/orange between. No blue, so no white/cyan/purple.
+ *            yellow/orange between. No blue, so no white/cyan/purple.
 
-* BOTTOM = one amber emitter. Brightness only, always amber.
+ *   BOTTOM = one amber emitter. Brightness only, always amber.
 
-*
+ *
 
-* Each emitter's brightness is the fraction current/max of full, written
+ * Each emitter's brightness is the fraction current/max of full, written
 
-* to its PWM duty. That one fraction is the whole knob:
+ * to its PWM duty. That one fraction is the whole knob:
 
-*
+ *
 
-* BRIGHTNESS : current/max IS the brightness. (3,10)=30%, (1,1)=full,
+ *   BRIGHTNESS : current/max IS the brightness. (3,10)=30%, (1,1)=full,
 
-* (0,_)=off.
+ *                (0,_)=off.
 
-*
+ *
 
-* COLOUR (top): the RATIO of the red fraction to the green fraction is
+ *   COLOUR (top): the RATIO of the red fraction to the green fraction is
 
-* the colour; their size is the brightness.
+ *                the colour; their size is the brightness.
 
-* led_top(1,1, 0,1) = full red
+ *                  led_top(1,1, 0,1) = full red
 
-* led_top(0,1, 1,1) = full green
+ *                  led_top(0,1, 1,1) = full green
 
-* led_top(1,1, 1,1) = full yellow (both full)
+ *                  led_top(1,1, 1,1) = full yellow (both full)
 
-* led_top(1,1, 1,2) = red full, green half = orange
+ *                  led_top(1,1, 1,2) = red full, green half = orange
 
-*
+ *
 
-* SCALING MAX is how you recolour without touching 'current': since
+ *   SCALING MAX is how you recolour without touching 'current': since
 
-* brightness = current/max, a BIGGER max makes that channel
+ *                brightness = current/max, a BIGGER max makes that channel
 
-* DIMMER. Doubling max_green halves green's contribution
+ *                DIMMER. Doubling max_green halves green's contribution
 
-* (shifts a yellow toward red); doubling max_red shifts it
+ *                (shifts a yellow toward red); doubling max_red shifts it
 
-* toward green. So to make a progress bar fill TOWARD a
+ *                toward green. So to make a progress bar fill TOWARD a
 
-* colour, fill 'current' normally and pre-scale each
+ *                colour, fill 'current' normally and pre-scale each
 
-* channel's 'max': e.g. max_red=total, max_green=2*total ->
+ *                channel's 'max': e.g. max_red=total, max_green=2*total ->
 
-* at 100% the bar is full red + half green = orange.
+ *                at 100% the bar is full red + half green = orange.
 
-*
+ *
 
-* Cost: one multiply + one divide per channel, nothing cached. */
+ * Cost: one multiply + one divide per channel, nothing cached. */
 
 ```
 
@@ -11878,11 +13306,13 @@ Both clean — the 64-bit ratio compiled fine under the no-FP flag, no warnings.
 Bootable image ready. The two-function API is in `003-pwm.c`:
 
 
-- **`led_pwm_init()`** — takes all three LED pins from GPIO to PWM (ungate clock, configure channels, mux pins).
+- **`led_pwm_init()`** — takes all three LED pins from GPIO to PWM (ungate
+  clock, configure channels, mux pins).
 
 - **`led_bottom(current, max)`** — amber brightness.
 
-- **`led_top(cur_red, max_red, cur_green, max_green)`** — the bicolor top, exactly your shape: zeros for a pair = that color off, two ratios = a blend.
+- **`led_top(cur_red, max_red, cur_green, max_green)`** — the bicolor top,
+  exactly your shape: zeros for a pair = that color off, two ratios = a blend.
 
 - plus the private `led_duty()` helper and the section comment I showed you.
 
@@ -11896,7 +13326,8 @@ per channel.
 
 - top window holds **green** ("kernel alive") via `led_top(0,1, 1,1)`,
 
-- bottom **amber** fills 0→100% across the probes via `led_bottom(i, count-1)`,
+- bottom **amber** fills 0→100% across the probes via `led_bottom(i,
+  count-1)`,
 
 - at the end the top flips to **red** ("done") via `led_top(1,1, 0,1)`.
 
@@ -11918,13 +13349,13 @@ it.
 
 ```
 
-scripts/push-to-usb # main machine
+scripts/push-to-usb            # main machine
 
-scripts/flash-sd # lab laptop
+scripts/flash-sd               # lab laptop
 
 #   boot — watch the amber fill, top green->red — then:
 
-scripts/lab-side/dump-from-sd # lab laptop
+scripts/lab-side/dump-from-sd  # lab laptop
 
 ```
 
@@ -11948,422 +13379,422 @@ Summary:
 
 1. Primary Request and Intent:
 
-The overarching project is "Soren DS," a bare-metal aarch64 kernel for the
-Anbernic RG DS handheld (Rockchip RK3568 SoC). Across this session the explicit
-requests evolved through several phases:
+   The overarching project is "Soren DS," a bare-metal aarch64 kernel for the
+   Anbernic RG DS handheld (Rockchip RK3568 SoC). Across this session the
+   explicit requests evolved through several phases:
 
-- Fix flash-sd's probe-catalog write failing against the lab laptop's
-automounter.
+   - Fix flash-sd's probe-catalog write failing against the lab laptop's
+     automounter.
 
-- **Pivot to compile probes into the kernel** instead of SD-card delivery: "we
-should just build it into the kernel, and have it be part of the compilation /
-build cycle instead. We can maybe do build with --debug or --probes or something
-to build it in, and otherwise we can just have a lean, production ready kernel."
-Then: "Can you make one todo list entry for each step?"
+   - **Pivot to compile probes into the kernel** instead of SD-card delivery:
+     "we should just build it into the kernel, and have it be part of the
+     compilation / build cycle instead. We can maybe do build with --debug or
+     --probes or something to build it in, and otherwise we can just have a
+     lean, production ready kernel." Then: "Can you make one todo list entry for
+     each step?"
 
-- Work through the 6 tasks, then commit verified milestones.
+   - Work through the 6 tasks, then commit verified milestones.
 
-- Close & commit eMMC/SD base (110a, 110f) — "We want to clear the way for USB
-flashing asap."
+   - Close & commit eMMC/SD base (110a, 110f) — "We want to clear the way for
+     USB flashing asap."
 
-- Debug i2c0/PMIC (issue 114): "could we work on the i2c0 path first? We're
-going to need it eventually..." Explicitly asked for acronym expansions: "Can
-you try and explain what acronyms mean? I'm a little lost... connect them
-together... I remember things better if I know what the letters stand for."
+   - Debug i2c0/PMIC (issue 114): "could we work on the i2c0 path first? We're
+     going to need it eventually..." Explicitly asked for acronym expansions:
+     "Can you try and explain what acronyms mean? I'm a little lost... connect
+     them together... I remember things better if I know what the letters stand
+     for."
 
-- Build LDO programming: "let's find a way to build some abstractions that let
-us do LDO programming easily." Plus a curiosity question about where precise
-voltage is useful and whether PWM uses an LDO.
+   - Build LDO programming: "let's find a way to build some abstractions that
+     let us do LDO programming easily." Plus a curiosity question about where
+     precise voltage is useful and whether PWM uses an LDO.
 
-- Work on 110j (fast eMMC HS200) next: "We want to clear the way for USB
-flashing asap :)"
+   - Work on 110j (fast eMMC HS200) next: "We want to clear the way for USB
+     flashing asap :)"
 
-- Build a loading-bar LED primitive: "make one of the LEDs change brightness as
-we go through the probes... a loading bar primitive that takes in a 'current'
-and 'max' value and changes the brightness to match."
+   - Build a loading-bar LED primitive: "make one of the LEDs change brightness
+     as we go through the probes... a loading bar primitive that takes in a
+     'current' and 'max' value and changes the brightness to match."
 
-- Refine the LED primitive into two functions (most recent): bottom function =
-`(current, max)`, top function = `(current_red, max_red, current_green,
-max_green)`; pass zeros for off; modify max/current for color mixing. Wanted a
-comment explaining how scaling max recolors the output, duplicated to the user.
-Wanted it fast with few computations.
+   - Refine the LED primitive into two functions (most recent): bottom function
+     = `(current, max)`, top function = `(current_red, max_red, current_green,
+     max_green)`; pass zeros for off; modify max/current for color mixing.
+     Wanted a comment explaining how scaling max recolors the output, duplicated
+     to the user. Wanted it fast with few computations.
 
 
 2. Key Technical Concepts:
 
-- RK3568 SoC: dwcmshc eMMC controller @ 0xFE310000; DW MSHC SD @ 0xFE2B0000;
-PWM1 @ 0xFE6E0000; i2c0 @ 0xFDD40000; CRU @ 0xFDD20000; PMUCRU @ 0xFDD00000; PMU
-GRF @ 0xFDC20000; GPIO0 @ 0xFDD60000
+   - RK3568 SoC: dwcmshc eMMC controller @ 0xFE310000; DW MSHC SD @ 0xFE2B0000;
+     PWM1 @ 0xFE6E0000; i2c0 @ 0xFDD40000; CRU @ 0xFDD20000; PMUCRU @
+     0xFDD00000; PMU GRF @ 0xFDC20000; GPIO0 @ 0xFDD60000
 
-- Compiled-in probe battery: `scripts/build --probes` defines `-DSOREN_PROBES`,
-runs `scripts/embed-probes` (luajit) to generate
-`tmp/build/generated/probe-list.inc`; lean build = empty 019 object
+   - Compiled-in probe battery: `scripts/build --probes` defines
+     `-DSOREN_PROBES`, runs `scripts/embed-probes` (luajit) to generate
+     `tmp/build/generated/probe-list.inc`; lean build = empty 019 object
 
-- `#AUTO N` (sweep inclusion + priority), `#WRITES` markers in `.probe` files
+   - `#AUTO N` (sweep inclusion + priority), `#WRITES` markers in `.probe` files
 
-- eMMC HS200: 200MHz/8-bit/1.8V VCCQ; DLL locked at 200MHz (DLL_STATUS0=0x13B,
-lock 0x3B); DEVICE_TYPE bit 4 = HS200@1.8V
+   - eMMC HS200: 200MHz/8-bit/1.8V VCCQ; DLL locked at 200MHz
+     (DLL_STATUS0=0x13B, lock 0x3B); DEVICE_TYPE bit 4 = HS200@1.8V
 
-- **Rockchip i2c sequence (canonical, from u-boot rk_i2c.c): START is its own
-step (CON=EN|START=0x09, wait STARTIPD=0x10, clear); address carries read bit
-((dev<<1)|1); transfer CON=0x23 (EN|TRX|NAK); writing MRXCNT/MTXCNT is the
-TRIGGER (must come last). IPD bits: 0x04=MBTF, 0x08=MBRF, 0x10=STARTIPD,
-0x20=STOPIPD, 0x40=NAK. SCL=PCLK/divisor (no separate functional clock
-needed).**
+   - **Rockchip i2c sequence (canonical, from u-boot rk_i2c.c): START is its own
+     step (CON=EN|START=0x09, wait STARTIPD=0x10, clear); address carries read
+     bit ((dev<<1)|1); transfer CON=0x23 (EN|TRX|NAK); writing MRXCNT/MTXCNT is
+     the TRIGGER (must come last). IPD bits: 0x04=MBTF, 0x08=MBRF,
+     0x10=STARTIPD, 0x20=STOPIPD, 0x40=NAK. SCL=PCLK/divisor (no separate
+     functional clock needed).**
 
-- RK817 PMIC @ i2c 0x20: regs 0x00-0x0C = RTC/alarm (BCD); LDOs mV=600+sel*25,
-reg 0xCC+(n-1)*2, mask 0x7F, range 600-3400; POWER_EN_REG=0xB1+i
+   - RK817 PMIC @ i2c 0x20: regs 0x00-0x0C = RTC/alarm (BCD); LDOs
+     mV=600+sel*25, reg 0xCC+(n-1)*2, mask 0x7F, range 600-3400;
+     POWER_EN_REG=0xB1+i
 
-- **PWM register layout (TRM Part1 Ch15): +0x00 CNT (RO, needs CTRL bit7
-ch_cnt_en), +0x04 PERIOD_HPR, +0x08 DUTY_LPR, +0x0C CTRL. CTRL: bit0 pwm_en,
-bits2:1 mode(01=continuous), bit3 duty_pol, bit7 ch_cnt_en. 0x0B =
-enable|continuous|duty-positive.**
+   - **PWM register layout (TRM Part1 Ch15): +0x00 CNT (RO, needs CTRL bit7
+     ch_cnt_en), +0x04 PERIOD_HPR, +0x08 DUTY_LPR, +0x0C CTRL. CTRL: bit0
+     pwm_en, bits2:1 mode(01=continuous), bit3 duty_pol, bit7 ch_cnt_en. 0x0B =
+     enable|continuous|duty-positive.**
 
-- LED hardware (discovered empirically in issue 103e): 3 emitters in 2 windows.
-TOP=bicolor green(C4/ch5/0xFE6E0010)+red(C6/ch7/0xFE6E0030);
-BOTTOM=amber(C5/ch6/0xFE6E0020). No blue/RGB. IOMUX GPIO0C_IOMUX_H @ 0xFDC20014:
-C4=[3:0], C5=[7:4], C6=[11:8], func1=PWM. CLKGATE_CON31 @ 0xFDD2037C
-(bits10,11), SOFTRST_CON23 @ 0xFDD2045C (bits 0,1)
+   - LED hardware (discovered empirically in issue 103e): 3 emitters in 2
+     windows. TOP=bicolor green(C4/ch5/0xFE6E0010)+red(C6/ch7/0xFE6E0030);
+     BOTTOM=amber(C5/ch6/0xFE6E0020). No blue/RGB. IOMUX GPIO0C_IOMUX_H @
+     0xFDC20014: C4=[3:0], C5=[7:4], C6=[11:8], func1=PWM. CLKGATE_CON31 @
+     0xFDD2037C (bits10,11), SOFTRST_CON23 @ 0xFDD2045C (bits 0,1)
 
-- VCCQ board-fixed: eMMC dtb node has no vqmmc-supply → not PMIC-controlled,
-hardwired 1.8V
+   - VCCQ board-fixed: eMMC dtb node has no vqmmc-supply → not
+     PMIC-controlled, hardwired 1.8V
 
-- PWM vs LDO vs DAC distinction (taught to user): PWM=vary time/duty;
-LDO=precise steady voltage rail; DAC=arbitrary analog signal
+   - PWM vs LDO vs DAC distinction (taught to user): PWM=vary time/duty;
+     LDO=precise steady voltage rail; DAC=arbitrary analog signal
 
-- Reference material in tmp/uboot-ref/: rockchip_sdhci.c, rk_i2c.c, i2c-rk3x.c,
-rk808.h, rk808-regulator.c. TRM text in tmp/datasheet-text/trm-part1.txt and
-trm-part2.txt. Datasheets gitignored (145MB PDFs).
+   - Reference material in tmp/uboot-ref/: rockchip_sdhci.c, rk_i2c.c,
+     i2c-rk3x.c, rk808.h, rk808-regulator.c. TRM text in
+     tmp/datasheet-text/trm-part1.txt and trm-part2.txt. Datasheets gitignored
+     (145MB PDFs).
 
 
 3. Files and Code Sections:
 
-- **src/019-probe-engine.c** (the probe engine, heavily modified):
+   - **src/019-probe-engine.c** (the probe engine, heavily modified):
 
-- Reworked from SD-card reader to embedded-array walker; whole body under
-`#ifdef SOREN_PROBES`; includes `#include "probe-list.inc"` into `struct
-builtin_probe { const char *name; int writes_enabled; const char *text; }` array
+     - Reworked from SD-card reader to embedded-array walker; whole body under `#ifdef SOREN_PROBES`; includes `#include "probe-list.inc"` into `struct builtin_probe { const char *name; int writes_enabled; const char *text; }` array
 
-- i2c0 read/write (canonical sequence), pmic_dump, pmic_write_test,
-rk817_ldo_get_mv/set_mv, pmic_ldo_test, emmc_ext_csd_dump CALL targets
+     - i2c0 read/write (canonical sequence), pmic_dump, pmic_write_test, rk817_ldo_get_mv/set_mv, pmic_ldo_test, emmc_ext_csd_dump CALL targets
 
-- I2C0 register defines added: `#define I2C0_MTXCNT (I2C0_BASE+0x10u)`, `#define
-I2C0_TXDATA0 (I2C0_BASE+0x100u)`, RXDATA0 @ 0x200
+     - I2C0 register defines added: `#define I2C0_MTXCNT (I2C0_BASE+0x10u)`, `#define I2C0_TXDATA0 (I2C0_BASE+0x100u)`, RXDATA0 @ 0x200
 
-- Most recent edits — externs changed to:
+     - Most recent edits — externs changed to:
 
-```c
+       ```c
 
-extern int emmc_read_block(uint32_t lba, uint8_t *buffer);
+       extern int  emmc_read_block(uint32_t lba, uint8_t *buffer);
 
-extern int emmc_read_ext_csd(uint8_t *buffer);
+       extern int  emmc_read_ext_csd(uint8_t *buffer);
 
-extern void led_pwm_init(void); /* 003-pwm.c */
+       extern void led_pwm_init(void);                         /* 003-pwm.c */
 
-extern void led_bottom(uint32_t current, uint32_t max);
+       extern void led_bottom(uint32_t current, uint32_t max);
 
-extern void led_top(uint32_t cur_red, uint32_t max_red,
+       extern void led_top(uint32_t cur_red, uint32_t max_red,
 
-uint32_t cur_green, uint32_t max_green);
+                           uint32_t cur_green, uint32_t max_green);
 
-```
+       ```
 
-- probe_engine_run sweep loop (most recent edit):
+     - probe_engine_run sweep loop (most recent edit):
 
-```c
+       ```c
 
-led_pwm_init();
+       led_pwm_init();
 
-led_top(0u, 1u, 1u, 1u); /* red off, green full -> top green */
+       led_top(0u, 1u, 1u, 1u);    /* red off, green full -> top green */
 
-for (unsigned i = 0; i < builtin_probe_count; i++) {
+       for (unsigned i = 0; i < builtin_probe_count; i++) {
 
-led_bottom(i, builtin_probe_count - 1u);
+           led_bottom(i, builtin_probe_count - 1u);
 
-run_probe_text(builtin_probes[i].name, builtin_probes[i].writes_enabled,
-builtin_probes[i].text);
+           run_probe_text(builtin_probes[i].name, builtin_probes[i].writes_enabled, builtin_probes[i].text);
 
-debug_log_flush();
+           debug_log_flush();
 
-}
+       }
 
-led_bottom(1u, 1u); /* amber full */
+       led_bottom(1u, 1u);         /* amber full */
 
-led_top(1u, 1u, 0u, 1u); /* red full, green off -> top red = done */
+       led_top(1u, 1u, 0u, 1u);    /* red full, green off -> top red = done */
 
-```
+       ```
 
-- CALL dispatch has: sd_init, emmc_init, emmc_read0, backup200, memtest,
-pmic_dump, pmic_write_test, pmic_ldo_test, emmc_ext_csd
+     - CALL dispatch has: sd_init, emmc_init, emmc_read0, backup200, memtest, pmic_dump, pmic_write_test, pmic_ldo_test, emmc_ext_csd
 
-- **src/003-pwm.c** (PWM driver):
+   - **src/003-pwm.c** (PWM driver):
 
-- Fixed swapped offsets: `#define PWM_PERIOD_OFFSET 0x04` and `#define
-PWM_DUTY_OFFSET 0x08` (were reversed)
+     - Fixed swapped offsets: `#define PWM_PERIOD_OFFSET 0x04` and `#define PWM_DUTY_OFFSET 0x08` (were reversed)
 
-- MOST RECENT: replaced pwm_progress_init/set with the LED control API. Added
-the big section comment (brightness/colour/scaling-max explanation), plus:
+     - MOST RECENT: replaced pwm_progress_init/set with the LED control API. Added the big section comment (brightness/colour/scaling-max explanation), plus:
 
-```c
+       ```c
 
-static uint32_t led_duty(uint32_t current, uint32_t max)
+       static uint32_t led_duty(uint32_t current, uint32_t max)
 
-{
+       {
 
-if (current == 0u || max == 0u) return 0u;
+           if (current == 0u || max == 0u) return 0u;
 
-if (current >= max) return PWM_PERIOD_TICKS;
+           if (current >= max) return PWM_PERIOD_TICKS;
 
-return (uint32_t)(((uint64_t)current * PWM_PERIOD_TICKS) / max);
+           return (uint32_t)(((uint64_t)current * PWM_PERIOD_TICKS) / max);
 
-}
+       }
 
-void led_pwm_init(void) {
+       void led_pwm_init(void) {
 
-mmio_write32(PWM1_CLKGATE_CON31, 0x0C000000u);
+           mmio_write32(PWM1_CLKGATE_CON31, 0x0C000000u);
 
-mmio_write32(PWM1_SOFTRST_CON23, 0x00030000u);
+           mmio_write32(PWM1_SOFTRST_CON23, 0x00030000u);
 
-pwm_channel_setup(PWM_CHANNEL_5_BASE, 0); /* green */
+           pwm_channel_setup(PWM_CHANNEL_5_BASE, 0);   /* green */
 
-pwm_channel_setup(PWM_CHANNEL_6_BASE, 0); /* amber */
+           pwm_channel_setup(PWM_CHANNEL_6_BASE, 0);   /* amber */
 
-pwm_channel_setup(PWM_CHANNEL_7_BASE, 0); /* red */
+           pwm_channel_setup(PWM_CHANNEL_7_BASE, 0);   /* red */
 
-mmio_write32(PMU_GRF_GPIO0C_IOMUX_H, 0x0FFF0111u); /* C4,C5,C6 -> func 1 */
+           mmio_write32(PMU_GRF_GPIO0C_IOMUX_H, 0x0FFF0111u);  /* C4,C5,C6 -> func 1 */
 
-}
+       }
 
-void led_bottom(uint32_t current, uint32_t max) {
+       void led_bottom(uint32_t current, uint32_t max) {
 
-mmio_write32(PWM_CHANNEL_6_BASE + PWM_DUTY_OFFSET, led_duty(current, max));
+           mmio_write32(PWM_CHANNEL_6_BASE + PWM_DUTY_OFFSET, led_duty(current, max));
 
-}
+       }
 
-void led_top(uint32_t cur_red, uint32_t max_red, uint32_t cur_green, uint32_t
-max_green) {
+       void led_top(uint32_t cur_red, uint32_t max_red, uint32_t cur_green, uint32_t max_green) {
 
-mmio_write32(PWM_CHANNEL_7_BASE + PWM_DUTY_OFFSET, led_duty(cur_red, max_red));
+           mmio_write32(PWM_CHANNEL_7_BASE + PWM_DUTY_OFFSET, led_duty(cur_red, max_red));
 
-mmio_write32(PWM_CHANNEL_5_BASE + PWM_DUTY_OFFSET, led_duty(cur_green,
-max_green));
+           mmio_write32(PWM_CHANNEL_5_BASE + PWM_DUTY_OFFSET, led_duty(cur_green, max_green));
 
-}
+       }
 
-```
+       ```
 
-- **src/012-emmc.c**: Added `int emmc_read_ext_csd(uint8_t *buffer)` (CMD8
-SEND_EXT_CSD, mechanically identical to emmc_read_block/CMD17 but index 8 + arg
-0). Uses
-CMD_IDX(8)|CMD_RESPONSE_LEN_48|CMD_DATA_PRESENT|CMD_CRC_CHECK|CMD_INDEX_CHECK,
-reads 512 bytes from SDHCI_BUFFER_PORT(0x20).
+   - **src/012-emmc.c**: Added `int emmc_read_ext_csd(uint8_t *buffer)` (CMD8
+     SEND_EXT_CSD, mechanically identical to emmc_read_block/CMD17 but index 8 +
+     arg 0). Uses
+     CMD_IDX(8)|CMD_RESPONSE_LEN_48|CMD_DATA_PRESENT|CMD_CRC_CHECK|CMD_INDEX_CHECK,
+     reads 512 bytes from SDHCI_BUFFER_PORT(0x20).
 
-- **scripts/embed-probes** (luajit generator): reads input/probes/*.probe, sorts
-by #AUTO, emits C array to tmp/build/generated/probe-list.inc
+   - **scripts/embed-probes** (luajit generator): reads input/probes/*.probe,
+     sorts by #AUTO, emits C array to tmp/build/generated/probe-list.inc
 
-- **Makefile**: PROBES variant (separate kernel-probes dir, -DSOREN_PROBES,
--I$(GEN_DIR), FORCE on KERNEL_IMG to fix variant-switch stale image)
+   - **Makefile**: PROBES variant (separate kernel-probes dir, -DSOREN_PROBES,
+     -I$(GEN_DIR), FORCE on KERNEL_IMG to fix variant-switch stale image)
 
-- **input/probes/** (11 probes): health-check(10), usb-phy(20), pmic-dump(30),
-pmic-write(35), pmic-ldo(36), saradc-gamepad(40), display-presence(50, EXPECT
-corrected to 0x40158023), dram-walk(60), pwm-bringup(80), emmc-dll-tune(90),
-emmc-extcsd(95); plus example-emmc-registers (manual, no #AUTO)
+   - **input/probes/** (11 probes): health-check(10), usb-phy(20),
+     pmic-dump(30), pmic-write(35), pmic-ldo(36), saradc-gamepad(40),
+     display-presence(50, EXPECT corrected to 0x40158023), dram-walk(60),
+     pwm-bringup(80), emmc-dll-tune(90), emmc-extcsd(95); plus
+     example-emmc-registers (manual, no #AUTO)
 
-- **issues/completed/**: 110a, 110f, 110i, 114 (all moved here, complete)
+   - **issues/completed/**: 110a, 110f, 110i, 114 (all moved here, complete)
 
-- **issues/110j-fast-emmc-hs200.md**: open; VCCQ dependency resolved
-(board-fixed)
+   - **issues/110j-fast-emmc-hs200.md**: open; VCCQ dependency resolved
+     (board-fixed)
 
-- **issues/106c-pwm-controller-bring-up.md**: open; PWM proven (dim red), needs
-LED-layer rewire
+   - **issues/106c-pwm-controller-bring-up.md**: open; PWM proven (dim red),
+     needs LED-layer rewire
 
-- **scripts/lab-side/dump-from-sd**: split_probe_logs awk now runs under sudo
-(permission fix)
+   - **scripts/lab-side/dump-from-sd**: split_probe_logs awk now runs under sudo
+     (permission fix)
 
 
 4. Errors and fixes:
 
-- **flash-sd automounter race**: held-open fd (exec 9>device) — but this whole
-path was later retired when probes moved into the kernel.
+   - **flash-sd automounter race**: held-open fd (exec 9>device) — but this
+     whole path was later retired when probes moved into the kernel.
 
-- **Variant-switch stale image**: lean/probes both write output/kernel.img;
-added FORCE target so objcopy always runs. Fixed.
+   - **Variant-switch stale image**: lean/probes both write output/kernel.img;
+     added FORCE target so objcopy always runs. Fixed.
 
-- **PMIC i2c0 all-timeout**: Diagnosed via instrumentation (not physical —
-clock/pinmux/pad-source all confirmed via TRM/readbacks; lines idle-high). Root
-cause from u-boot rk_i2c.c: 3 sequencing bugs (START not separate, no read bit,
-MRXCNT written first instead of last). Fixed → PMIC answers.
+   - **PMIC i2c0 all-timeout**: Diagnosed via instrumentation (not physical —
+     clock/pinmux/pad-source all confirmed via TRM/readbacks; lines idle-high).
+     Root cause from u-boot rk_i2c.c: 3 sequencing bugs (START not separate, no
+     read bit, MRXCNT written first instead of last). Fixed → PMIC answers.
 
-- **PWM bright instead of dim**: 003-pwm.c had PERIOD/DUTY offsets swapped (TRM
-says +0x04 PERIOD, +0x08 DUTY). My probe inherited the swap. Fixed → dim red
-confirmed.
+   - **PWM bright instead of dim**: 003-pwm.c had PERIOD/DUTY offsets swapped
+     (TRM says +0x04 PERIOD, +0x08 DUTY). My probe inherited the swap. Fixed →
+     dim red confirmed.
 
-- **dump-from-sd awk permission denied**: awk ran without sudo, couldn't write
-per-probe files to root-owned lab-output. User worked around with manual sudo.
-Fixed by adding sudo to the awk.
+   - **dump-from-sd awk permission denied**: awk ran without sudo, couldn't
+     write per-probe files to root-owned lab-output. User worked around with
+     manual sudo. Fixed by adding sudo to the awk.
 
-- **led_duty edge case**: User's "(0,0) for off" would hit max==0; original
-pwm_progress treated max==0 as full. Fixed by treating current==0 OR max==0 as
-off (0).
+   - **led_duty edge case**: User's "(0,0) for off" would hit max==0; original
+     pwm_progress treated max==0 as full. Fixed by treating current==0 OR max==0
+     as off (0).
 
-- User feedback corrections: "it's better to commit when the issue file is fully
-completed, unless we need to take a break"; user wanted active LDO programming
-finished (not 114 closed early); user wanted acronyms expanded with connections.
+   - User feedback corrections: "it's better to commit when the issue file is
+     fully completed, unless we need to take a break"; user wanted active LDO
+     programming finished (not 114 closed early); user wanted acronyms expanded
+     with connections.
 
 
 5. Problem Solving:
 
-- SOLVED: probe engine compiled-in (6 tasks), eMMC/SD bring-up confirmed, i2c0
-read+write working, PWM dim confirmed, LDO read/set working, VCCQ resolved
-(board-fixed 1.8V → 110j unblocked).
+   - SOLVED: probe engine compiled-in (6 tasks), eMMC/SD bring-up confirmed,
+     i2c0 read+write working, PWM dim confirmed, LDO read/set working, VCCQ
+     resolved (board-fixed 1.8V → 110j unblocked).
 
-- Methodology established: instrument-first (capture status at failure), then
-consult TRM + reference drivers (u-boot/Linux) rather than guess.
+   - Methodology established: instrument-first (capture status at failure), then
+     consult TRM + reference drivers (u-boot/Linux) rather than guess.
 
-- ONGOING: 110j HS200 (step 1 EXT_CSD reader built, untested); LED top/bottom
-primitive just built, untested.
+   - ONGOING: 110j HS200 (step 1 EXT_CSD reader built, untested); LED top/bottom
+     primitive just built, untested.
 
 
 6. All user messages:
 
-- "please continue"
+   - "please continue"
 
-- "Great sounds good. Can you make one todo list entry for each step?"
+   - "Great sounds good. Can you make one todo list entry for each step?"
 
-- "Yes please" (start task #27)
+   - "Yes please" (start task #27)
 
-- "double amber, double dark, then solid green top and solid amber bottom. How
-long should I wait? Then, top red and bottom solid amber. Does that mean it's
-done?"
+   - "double amber, double dark, then solid green top and solid amber bottom.
+     How long should I wait? Then, top red and bottom solid amber. Does that
+     mean it's done?"
 
-- "okay logs in /mnt/generic/ - there was an error with the awk command btw so I
-put it in a .txt file on the flash drive. I also added a 'sudo' to get it
-working."
+   - "okay logs in /mnt/generic/ - there was an error with the awk command btw
+     so I put it in a .txt file on the flash drive. I also added a 'sudo' to get
+     it working."
 
-- "[approval of 4 items]" + "What's PMIC / SARADC mean?"
+   - "[approval of 4 items]" + "What's PMIC / SARADC mean?"
 
-- "1. Commit this... great!" "2. Fast eMMC path... Okay!" "3. Fix the display
-probe's expected version... Sure!" "4. PMIC / SARADC... Sounds good! Though...
-What's PMIC / SARADC mean?"
+   - "1. Commit this... great!" "2. Fast eMMC path... Okay!" "3. Fix the display
+     probe's expected version... Sure!" "4. PMIC / SARADC... Sounds good!
+     Though... What's PMIC / SARADC mean?"
 
-- "double amber, double dark, top green flash, solid bottom amber. It's doing
-the eMMC probe again, I'm going to interrupt it." / "no."
+   - "double amber, double dark, top green flash, solid bottom amber. It's doing
+     the eMMC probe again, I'm going to interrupt it." / "no."
 
-- "Can you check /mnt/generic again? Tell me if the logs are there?"
+   - "Can you check /mnt/generic again? Tell me if the logs are there?"
 
-- "omg! the top red light is dim!"
+   - "omg! the top red light is dim!"
 
-- "double amber, double dark, top green bottom amber both solid, then top red
-and bottom amber solid."
+   - "double amber, double dark, top green bottom amber both solid, then top red
+     and bottom amber solid."
 
-- "Ok let's work on 110j next. We want to clear the way for USB flashing asap
-:)"
+   - "Ok let's work on 110j next. We want to clear the way for USB flashing asap
+     :)"
 
-- "could we work on the i2c0 path first? We're going to need it eventually..."
+   - "could we work on the i2c0 path first? We're going to need it
+     eventually..."
 
-- "[explain acronyms request] Can you try and explain what acronyms mean? I'm a
-little lost... connect them together... I remember things better if I know what
-the letters stand for."
+   - "[explain acronyms request] Can you try and explain what acronyms mean? I'm
+     a little lost... connect them together... I remember things better if I
+     know what the letters stand for."
 
-- "Um, I think we should finish the active LDO programming. We will probably
-need the capability to take a high-voltage signal and turn it into a precise
-low-value signal... does the PWM system use such a thing?... can you give me
-some examples because I'm curious? And yeah let's find a way to build some
-abstractions that let us do LDO programming easily."
+   - "Um, I think we should finish the active LDO programming. We will probably
+     need the capability to take a high-voltage signal and turn it into a
+     precise low-value signal... does the PWM system use such a thing?... can
+     you give me some examples because I'm curious? And yeah let's find a way to
+     build some abstractions that let us do LDO programming easily."
 
-- "sure!" (commit + datasheet + write path)
+   - "sure!" (commit + datasheet + write path)
 
-- "okay done, check the flash drive for logs"
+   - "okay done, check the flash drive for logs"
 
-- "Can we make one of the LEDs change brightness as we go through the probes?
-Maybe we could make a loading bar primitive that takes in a 'current' and 'max'
-value and changes the brightness to match... first probe would be 0%, last would
-be 100%... It's just flavor for now, but it could be useful later on."
+   - "Can we make one of the LEDs change brightness as we go through the probes?
+     Maybe we could make a loading bar primitive that takes in a 'current' and
+     'max' value and changes the brightness to match... first probe would be 0%,
+     last would be 100%... It's just flavor for now, but it could be useful
+     later on."
 
-- "We should make it accept a 0 or 1 for the bottom or top LED, and also a color
-value expressed as three values between 0 and 100..."
+   - "We should make it accept a 0 or 1 for the bottom or top LED, and also a
+     color value expressed as three values between 0 and 100..."
 
-- "Ah okay. So, we want fully PWM controlled instead of GPIO because GPIO is
-just on/off - How did you know there's only amber on the bottom?... how about we
-have two separate functions, one for the bottom and one for the top. The bottom
-one just accepts brightness in two values (current, max) and the top accepts
-current_red, max_red, and current_green, max_green?... Can you write a comment
-at the top (and duplicate it for me here) that explains how scaling the max
-value... Would that work or is there a better approach? Ideally it'd be fast
-with as few computations inside the progress bar as possible."
+   - "Ah okay. So, we want fully PWM controlled instead of GPIO because GPIO is
+     just on/off - How did you know there's only amber on the bottom?... how
+     about we have two separate functions, one for the bottom and one for the
+     top. The bottom one just accepts brightness in two values (current, max)
+     and the top accepts current_red, max_red, and current_green, max_green?...
+     Can you write a comment at the top (and duplicate it for me here) that
+     explains how scaling the max value... Would that work or is there a better
+     approach? Ideally it'd be fast with as few computations inside the progress
+     bar as possible."
 
-- Security/style constraints (in effect throughout, from CLAUDE.md): "you can
-say no"; "don't do anything unless I tell you to"; prefer error messages over
-fallbacks; scripts need hard-coded DIR with arg override; prefer Lua/LuaJIT,
-disprefer Python; "the exec operation paired with bash or lua is banned for all
-directory or file targetting capabilities. read-only is fine, but run the
-commands individually instead of chaining them"; write logs to project tmp/
-symlink (RAM); don't refer to functions/issues by name/number to the user;
-commits only after completing an issue file and only when asked; explain how
-technology functions (not just names); warnings treated as errors; "if a bash
-command is to be run, each line should be on a different command"; commit
-messages descriptive/abstract, end with "Co-Authored-By: Claude Opus 4.8 (1M
-context) <noreply@anthropic.com>"; only stage own files when committing.
+   - Security/style constraints (in effect throughout, from CLAUDE.md): "you can
+     say no"; "don't do anything unless I tell you to"; prefer error messages
+     over fallbacks; scripts need hard-coded DIR with arg override; prefer
+     Lua/LuaJIT, disprefer Python; "the exec operation paired with bash or lua
+     is banned for all directory or file targetting capabilities. read-only is
+     fine, but run the commands individually instead of chaining them"; write
+     logs to project tmp/ symlink (RAM); don't refer to functions/issues by
+     name/number to the user; commits only after completing an issue file and
+     only when asked; explain how technology functions (not just names);
+     warnings treated as errors; "if a bash command is to be run, each line
+     should be on a different command"; commit messages descriptive/abstract,
+     end with "Co-Authored-By: Claude Opus 4.8 (1M context)
+     <noreply@anthropic.com>"; only stage own files when committing.
 
 
 7. Pending Tasks:
 
-- 110j (fast eMMC HS200) — step 1 (EXT_CSD reader) built but NOT flashed;
-remaining steps: 8-bit bus switch (CMD6), HS200 switch + DLL, ADMA2 DMA, re-run
-backup. The goal is to clear the way for USB flashing (110j → full backup →
-110b eMMC overwrite → 110c USB-C flash).
+   - 110j (fast eMMC HS200) — step 1 (EXT_CSD reader) built but NOT flashed;
+     remaining steps: 8-bit bus switch (CMD6), HS200 switch + DLL, ADMA2 DMA,
+     re-run backup. The goal is to clear the way for USB flashing (110j → full
+     backup → 110b eMMC overwrite → 110c USB-C flash).
 
-- The new LED top/bottom primitive — just built, NOT flashed/tested.
+   - The new LED top/bottom primitive — just built, NOT flashed/tested.
 
-- Deferred: 106c full LED-layer rewire (boot-stage indicators to PWM); SARADC
-gamepad channels 1-5 timeout; older uncommitted pile (issues/109a USB,
-src/018-bringup-test-suite.c + issues/110h, extlinux-rg-ds-dtb.conf).
+   - Deferred: 106c full LED-layer rewire (boot-stage indicators to PWM); SARADC
+     gamepad channels 1-5 timeout; older uncommitted pile (issues/109a USB,
+     src/018-bringup-test-suite.c + issues/110h, extlinux-rg-ds-dtb.conf).
 
 
 8. Current Work:
 
-Immediately before this summary, I was building the user's refined two-function
-LED API. The user accepted the hardware explanation (3 emitters, 2 windows,
-bicolor top green+red, single amber bottom, no RGB — discovered in issue 103e)
-and requested: `led_bottom(current, max)` for amber, `led_top(cur_red, max_red,
-cur_green, max_green)` for top, pass zeros for off, scale max for color mixing,
-plus an explanatory comment. I affirmed the design, added two robustness
-refinements (current==0 or max==0 → off; 64-bit intermediate to prevent
-overflow on large maxes — both keeping it to one multiply + one divide per
-channel), wrote the explanatory comment (duplicated to the user), and made these
-edits:
+   Immediately before this summary, I was building the user's refined
+   two-function LED API. The user accepted the hardware explanation (3 emitters,
+   2 windows, bicolor top green+red, single amber bottom, no RGB — discovered
+   in issue 103e) and requested: `led_bottom(current, max)` for amber,
+   `led_top(cur_red, max_red, cur_green, max_green)` for top, pass zeros for
+   off, scale max for color mixing, plus an explanatory comment. I affirmed the
+   design, added two robustness refinements (current==0 or max==0 → off;
+   64-bit intermediate to prevent overflow on large maxes — both keeping it to
+   one multiply + one divide per channel), wrote the explanatory comment
+   (duplicated to the user), and made these edits:
 
-- Replaced pwm_progress_init/set in src/003-pwm.c with
-led_duty/led_pwm_init/led_bottom/led_top + the big section comment.
+   - Replaced pwm_progress_init/set in src/003-pwm.c with
+     led_duty/led_pwm_init/led_bottom/led_top + the big section comment.
 
-- Updated src/019-probe-engine.c externs (pwm_progress_* →
-led_pwm_init/led_bottom/led_top).
+   - Updated src/019-probe-engine.c externs (pwm_progress_* →
+     led_pwm_init/led_bottom/led_top).
 
-- Updated probe_engine_run sweep: led_pwm_init() + led_top(0,1,1,1) green-alive
-at start; led_bottom(i, count-1) per probe; led_bottom(1,1) + led_top(1,1,0,1)
-red-done at end.
+   - Updated probe_engine_run sweep: led_pwm_init() + led_top(0,1,1,1)
+     green-alive at start; led_bottom(i, count-1) per probe; led_bottom(1,1) +
+     led_top(1,1,0,1) red-done at end.
 
-The final build succeeded: "lean exit: 0", "probes exit: 0", "Ready for
-push-to-usb then lab-side/flash-sd." This build also still carries the untested
-emmc-extcsd probe (110j step 1). The user has NOT yet flashed this build, and no
-user message followed the successful build.
+   The final build succeeded: "lean exit: 0", "probes exit: 0", "Ready for
+   push-to-usb then lab-side/flash-sd." This build also still carries the
+   untested emmc-extcsd probe (110j step 1). The user has NOT yet flashed this
+   build, and no user message followed the successful build.
 
 
 9. Optional Next Step:
 
-Report the successful build to the user and provide flash instructions, noting
-the flash will test BOTH the new LED top/bottom progress-bar choreography (top
-green during sweep, amber loading bar filling, top red at done) AND capture the
-emmc-extcsd result (110j step 1) that hasn't been flashed yet. This is directly
-in line with the user's most recent request (the LED primitive, just built) and
-the established flow. The expected report: the user flashes
-(`scripts/push-to-usb` → `scripts/flash-sd` → boot watching the amber bar
-fill → `scripts/lab-side/dump-from-sd`), then reads back
-`probe-emmc-extcsd-*.log` looking for "HS200 @ 1.8V SUPPORTED" to green-light
-continuing 110j step 2 (the 8-bit bus switch). Nothing has been committed for
-the LED API or 110j work yet (110j is in-progress; the LED primitive is flavor
-riding along) — consistent with the user's rule to "commit when the issue file
-is fully completed."
+   Report the successful build to the user and provide flash instructions,
+   noting the flash will test BOTH the new LED top/bottom progress-bar
+   choreography (top green during sweep, amber loading bar filling, top red at
+   done) AND capture the emmc-extcsd result (110j step 1) that hasn't been
+   flashed yet. This is directly in line with the user's most recent request
+   (the LED primitive, just built) and the established flow. The expected
+   report: the user flashes (`scripts/push-to-usb` → `scripts/flash-sd` →
+   boot watching the amber bar fill → `scripts/lab-side/dump-from-sd`), then
+   reads back `probe-emmc-extcsd-*.log` looking for "HS200 @ 1.8V SUPPORTED" to
+   green-light continuing 110j step 2 (the 8-bit bus switch). Nothing has been
+   committed for the LED API or 110j work yet (110j is in-progress; the LED
+   primitive is flavor riding along) — consistent with the user's rule to
+   "commit when the issue file is fully completed."
 
 
 If you need specific details from before compaction (like exact code snippets,
@@ -12392,9 +13823,9 @@ to.</local-command-caveat>
 
 <command-name>/compact</command-name>
 
-<command-message>compact</command-message>
+            <command-message>compact</command-message>
 
-<command-args></command-args>
+            <command-args></command-args>
 
 
 --------------------------------------------------------------------------------
@@ -12453,9 +13884,15 @@ Here's the shape of what I'm building, and the one real design question it
 answers:
 
 
-- `#AUTO` already decides *compiled in or not*. It can't express "keep it in the image but skip it this build" — drop `#AUTO` and the probe's name and text vanish entirely.
+- `#AUTO` already decides *compiled in or not*. It can't express "keep it in the
+  image but skip it this build" — drop `#AUTO` and the probe's name and text
+  vanish entirely.
 
-- New `#NEEDED` directive is that missing third axis: a per-probe flag (`#NEEDED 1`/`#NEEDED 0`) the generator collects into **a row of 0/1 bits baked into the image** — one bit per probe, sweep order. The engine consults it and runs only the 1s, logging a **DE-SELECTED** banner where a 0 sits so the log shows the probe was *deliberately* skipped, not missing.
+- New `#NEEDED` directive is that missing third axis: a per-probe flag (`#NEEDED
+  1`/`#NEEDED 0`) the generator collects into **a row of 0/1 bits baked into the
+  image** — one bit per probe, sweep order. The engine consults it and runs
+  only the 1s, logging a **DE-SELECTED** banner where a 0 sits so the log shows
+  the probe was *deliberately* skipped, not missing.
 
 
 This is build-time selection — exactly what 110i removed at the lab-side layer
@@ -12509,17 +13946,22 @@ four-field list — so the generator and the engine's record are in lockstep.
 Here's what's now in place.
 
 
-**The per-probe flag.** Every probe carries a `#NEEDED` line at its top (all set to `1` right now). `1` or a bare `#NEEDED` means run it; `0` means *keep it compiled in but skip it this build*; and a probe with no such line defaults to run, so nothing that omits it ever goes dark by surprise.
+**The per-probe flag.** Every probe carries a `#NEEDED` line at its top (all set
+to `1` right now). `1` or a bare `#NEEDED` means run it; `0` means *keep it
+compiled in but skip it this build*; and a probe with no such line defaults to
+run, so nothing that omits it ever goes dark by surprise.
 
 
-**The row of bits in the image.** The build collects those flags into a single list — one bit per probe, in run order — baked into the kernel. You can see it in one glance at the top of the generated file:
+**The row of bits in the image.** The build collects those flags into a single
+list — one bit per probe, in run order — baked into the kernel. You can see
+it in one glance at the top of the generated file:
 
 
 ```
 
-* run-list (1=run this build, 0=de-selected), in sweep order:
+ * run-list (1=run this build, 0=de-selected), in sweep order:
 
-* 1 1 1 1 1 1 1 1 1 1 1
+ *   1 1 1 1 1 1 1 1 1 1 1
 
 ```
 
@@ -12536,7 +13978,9 @@ All of this lives only in the `--probes` (debug) build — the lean production
 kernel has no probe engine, so no run-list.
 
 
-**Right now nothing's behavior has changed** — the row is all ones, so the next flash would run the same eleven probes as before. The mechanism is in place and inert, waiting for you to flip a bit.
+**Right now nothing's behavior has changed** — the row is all ones, so the
+next flash would run the same eleven probes as before. The mechanism is in place
+and inert, waiting for you to flip a bit.
 
 
 The natural first flip is the **PWM bring-up probe**. It's been redundant since
@@ -12593,11 +14037,17 @@ The new capability read worked end to end (`rc=0`, real data back, not zeros or
 all-ones), and the card's capability table says:
 
 
-- **HS200 @ 1.8V — supported.** The capability byte is `0x57`, and bit 4 is the "200 MHz, 1.8 V" mode. (Bonus: bit 6 is set too — this card also speaks **HS400**, double-data-rate at 200 MHz, an even higher ceiling for later. HS200 is the right next rung; HS400 needs an extra strobe step.)
+- **HS200 @ 1.8V — supported.** The capability byte is `0x57`, and bit 4 is
+  the "200 MHz, 1.8 V" mode. (Bonus: bit 6 is set too — this card also speaks
+  **HS400**, double-data-rate at 200 MHz, an even higher ceiling for later.
+  HS200 is the right next rung; HS400 needs an extra strobe step.)
 
-- Right now it's running **1-bit bus, legacy speed** (`HS_TIMING=0`, `BUS_WIDTH=0`) — the slow wake-up mode, exactly as expected at this point.
+- Right now it's running **1-bit bus, legacy speed** (`HS_TIMING=0`,
+  `BUS_WIDTH=0`) — the slow wake-up mode, exactly as expected at this point.
 
-- Its **boot partitions are 4 MB each** (size-multiplier `0x20` → 128 KB × 32), and boot isn't currently enabled — that's the detail the eMMC-overwrite/USB-flash step will need.
+- Its **boot partitions are 4 MB each** (size-multiplier `0x20` → 128 KB ×
+  32), and boot isn't currently enabled — that's the detail the
+  eMMC-overwrite/USB-flash step will need.
 
 
 So the question this flash was meant to answer — "will the card go fast before
@@ -12647,13 +14097,13 @@ So three levers, your call:
 
 
 1. **Press on with the fast path** — start the 8-bit/HS200 switch now that the
-card's confirmed willing.
+   card's confirmed willing.
 
 2. **De-select the gamepad probe** (flag → 0, rebuild) — speeds the sweep,
-proves the new skip path, parks the broken probe without losing it.
+   proves the new skip path, parks the broken probe without losing it.
 
 3. **Fix the gamepad probe** to the v2 layout — turns the slow dead weight
-back into a working stick reader.
+   back into a working stick reader.
 
 
 --------------------------------------------------------------------------------
@@ -12708,13 +14158,34 @@ Good instinct, and it's not just inherited planning. Three real reasons, the
 first being the big one:
 
 
-- **You reach HS400 *through* HS200.** HS400 (High Speed 400 — it's DDR, Double Data Rate, at a 200 MHz clock, so data on *both* clock edges → ~400 MB/s) can't be entered from a cold start. The eMMC (embedded MultiMediaCard) spec makes you first bring the card up in HS200 (High Speed 200 — SDR, Single Data Rate, one edge, ~200 MB/s), run the tuning command (CMD21) there to find the correct data-sampling point, *then* step across into HS400. There's no legacy→HS400 shortcut. So HS200 isn't a lesser thing we're settling for — it's a mandatory waypoint. Getting it solid is most of the path to HS400 regardless.
+- **You reach HS400 *through* HS200.** HS400 (High Speed 400 — it's DDR,
+  Double Data Rate, at a 200 MHz clock, so data on *both* clock edges → ~400
+  MB/s) can't be entered from a cold start. The eMMC (embedded MultiMediaCard)
+  spec makes you first bring the card up in HS200 (High Speed 200 — SDR,
+  Single Data Rate, one edge, ~200 MB/s), run the tuning command (CMD21) there
+  to find the correct data-sampling point, *then* step across into HS400.
+  There's no legacy→HS400 shortcut. So HS200 isn't a lesser thing we're
+  settling for — it's a mandatory waypoint. Getting it solid is most of the
+  path to HS400 regardless.
 
 
-- **HS400 needs a strobe line; HS200 doesn't.** At 400 MB/s DDR the controller can't reliably sample incoming data against its own clock, so HS400 adds a dedicated **data strobe** (DQS — the card drives a timing pulse back alongside the data), with its own delay-locked loop and pad setup. That's an extra physical signal and an extra tuning stage to get right on bare metal. HS200 samples using the controller's existing DLL (Delay-Locked Loop) — the very one we *already watched lock at 200 MHz* in the earlier sweep — so it has strictly fewer moving parts.
+- **HS400 needs a strobe line; HS200 doesn't.** At 400 MB/s DDR the controller
+  can't reliably sample incoming data against its own clock, so HS400 adds a
+  dedicated **data strobe** (DQS — the card drives a timing pulse back
+  alongside the data), with its own delay-locked loop and pad setup. That's an
+  extra physical signal and an extra tuning stage to get right on bare metal.
+  HS200 samples using the controller's existing DLL (Delay-Locked Loop) — the
+  very one we *already watched lock at 200 MHz* in the earlier sweep — so it
+  has strictly fewer moving parts.
 
 
-- **The 2× mostly can't help our use yet.** The reason we want fast eMMC is to copy it onto the SD card — so we can then overwrite the eMMC and flash it over USB. In that copy the **SD card is the slow side**, far below 200 MB/s, so HS200-vs-HS400 on the eMMC end barely changes the backup time. The giant win is the jump from where we sit now (1-bit, legacy, a few MB/s) up to HS200 8-bit — that's a 50–100× leap. HS400 is a 2× on top that the destination can't absorb until *it's* also fast.
+- **The 2× mostly can't help our use yet.** The reason we want fast eMMC is to
+  copy it onto the SD card — so we can then overwrite the eMMC and flash it
+  over USB. In that copy the **SD card is the slow side**, far below 200 MB/s,
+  so HS200-vs-HS400 on the eMMC end barely changes the backup time. The giant
+  win is the jump from where we sit now (1-bit, legacy, a few MB/s) up to HS200
+  8-bit — that's a 50–100× leap. HS400 is a 2× on top that the destination
+  can't absorb until *it's* also fast.
 
 
 So: land HS200 (huge, simpler, required anyway), prove the fast read path, and
@@ -12729,16 +14200,32 @@ The capability table (EXT_CSD — Extended Card-Specific Data, the 512-byte
 block the card hands back describing itself) carried a few keepers:
 
 
-- **It's an eMMC 5.0 card** — the revision field reads 7, which is the v5.0 code. Consistent with the HS400 bit being set (only 5.0+ parts have HS400), and it means the card also has that generation's extras (cache, reliable-write) if we ever want them.
+- **It's an eMMC 5.0 card** — the revision field reads 7, which is the v5.0
+  code. Consistent with the HS400 bit being set (only 5.0+ parts have HS400),
+  and it means the card also has that generation's extras (cache,
+  reliable-write) if we ever want them.
 
 
-- **The bootloader lives in the main user area, not a boot partition.** The partition-config field reads 0 → "no boot partition enabled," so the SoC's boot ROM is pulling the first-stage loader from the ordinary user-data region. That's exactly what the overwrite/USB-flash step needs to know: when we rewrite the boot image it goes into the user area at the offset the boot ROM scans, *not* into a dedicated boot partition.
+- **The bootloader lives in the main user area, not a boot partition.** The
+  partition-config field reads 0 → "no boot partition enabled," so the SoC's
+  boot ROM is pulling the first-stage loader from the ordinary user-data region.
+  That's exactly what the overwrite/USB-flash step needs to know: when we
+  rewrite the boot image it goes into the user area at the offset the boot ROM
+  scans, *not* into a dedicated boot partition.
 
 
-- **There are two unused 4 MB boot partitions sitting there** — the size-multiplier reads 32, and each unit is 128 KB, so 4 MB apiece. Empty now, but a clean place to park a bootloader later if we ever want the "proper" boot-partition layout.
+- **There are two unused 4 MB boot partitions sitting there** — the
+  size-multiplier reads 32, and each unit is 128 KB, so 4 MB apiece. Empty now,
+  but a clean place to park a bootloader later if we ever want the "proper"
+  boot-partition layout.
 
 
-- And quietly the most reassuring part: **the read worked at all.** Fetching EXT_CSD is a data-bearing command (CMD8 SEND_EXT_CSD — the card streams back a 512-byte block), and it's the *same* command machinery we'll reuse for the switch command (CMD6) that actually flips the bus to 8-bit and the speed into HS200. So step one didn't only answer "can it go fast" — it proved the plumbing the next step rides on.
+- And quietly the most reassuring part: **the read worked at all.** Fetching
+  EXT_CSD is a data-bearing command (CMD8 SEND_EXT_CSD — the card streams back
+  a 512-byte block), and it's the *same* command machinery we'll reuse for the
+  switch command (CMD6) that actually flips the bus to 8-bit and the speed into
+  HS200. So step one didn't only answer "can it go fast" — it proved the
+  plumbing the next step rides on.
 
 
 The upshot: the fast path is clear to start whenever you want, and the sticks
@@ -12749,60 +14236,60 @@ become readable the day we redo that probe against the v2 layout.
 
 ### User Request 152
 
-- You reach HS400 through HS200. HS400 (High Speed 400 — it's DDR, Double Data
-Rate, at a 200
+  - You reach HS400 through HS200. HS400 (High Speed 400 — it's DDR, Double
+    Data Rate, at a 200
 
-MHz clock, so data on both clock edges → ~400 MB/s) can't be entered from a
-cold start. The eMMC
+  MHz clock, so data on both clock edges → ~400 MB/s) can't be entered from a
+  cold start. The eMMC
 
-(embedded MultiMediaCard) spec makes you first bring the card up in HS200 (High
-Speed 200 —
+  (embedded MultiMediaCard) spec makes you first bring the card up in HS200
+  (High Speed 200 —
 
-SDR, Single Data Rate, one edge, ~200 MB/s), run the tuning command (CMD21)
-there to find the
+  SDR, Single Data Rate, one edge, ~200 MB/s), run the tuning command (CMD21)
+  there to find the
 
-correct data-sampling point, then step across into HS400. There's no
-legacy→HS400 shortcut. So
+  correct data-sampling point, then step across into HS400. There's no
+  legacy→HS400 shortcut. So
 
-HS200 isn't a lesser thing we're settling for — it's a mandatory waypoint.
-Getting it solid is
+  HS200 isn't a lesser thing we're settling for — it's a mandatory waypoint.
+  Getting it solid is
 
-most of the path to HS400 regardless.
+  most of the path to HS400 regardless.
 
-- HS400 needs a strobe line; HS200 doesn't. At 400 MB/s DDR the controller can't
-reliably sample
+  - HS400 needs a strobe line; HS200 doesn't. At 400 MB/s DDR the controller
+    can't reliably sample
 
-incoming data against its own clock, so HS400 adds a dedicated data strobe (DQS
-— the card
+  incoming data against its own clock, so HS400 adds a dedicated data strobe
+  (DQS — the card
 
-drives a timing pulse back alongside the data), with its own delay-locked loop
-and pad setup.
+  drives a timing pulse back alongside the data), with its own delay-locked loop
+  and pad setup.
 
-That's an extra physical signal and an extra tuning stage to get right on bare
-metal. HS200
+  That's an extra physical signal and an extra tuning stage to get right on bare
+  metal. HS200
 
-samples using the controller's existing DLL (Delay-Locked Loop) — the very one
-we already
+  samples using the controller's existing DLL (Delay-Locked Loop) — the very
+  one we already
 
-watched lock at 200 MHz in the earlier sweep — so it has strictly fewer moving
-parts.
+  watched lock at 200 MHz in the earlier sweep — so it has strictly fewer
+  moving parts.
 
-- The 2× mostly can't help our use yet. The reason we want fast eMMC is to copy
-it onto the SD
+  - The 2× mostly can't help our use yet. The reason we want fast eMMC is to
+    copy it onto the SD
 
-card — so we can then overwrite the eMMC and flash it over USB. In that copy
-the SD card is the
+  card — so we can then overwrite the eMMC and flash it over USB. In that copy
+  the SD card is the
 
-slow side, far below 200 MB/s, so HS200-vs-HS400 on the eMMC end barely changes
-the backup time.
+  slow side, far below 200 MB/s, so HS200-vs-HS400 on the eMMC end barely
+  changes the backup time.
 
-The giant win is the jump from where we sit now (1-bit, legacy, a few MB/s) up
-to HS200 8-bit —
+  The giant win is the jump from where we sit now (1-bit, legacy, a few MB/s) up
+  to HS200 8-bit —
 
-that's a 50–100× leap. HS400 is a 2× on top that the destination can't
-absorb until it's also
+  that's a 50–100× leap. HS400 is a 2× on top that the destination can't
+  absorb until it's also
 
-fast.
+  fast.
 
 
 
@@ -12813,54 +14300,54 @@ something unrelated to the goal we have at that future time. Let's build out the
 HS400 functionality.
 
 
-1. Would moving the sticks show up?
+  1. Would moving the sticks show up?
 
 
-Almost certainly not, with the probe as it stands — and for the same reason
-it's reading
+  Almost certainly not, with the probe as it stands — and for the same reason
+  it's reading
 
-garbage. When you move a stick you do change the real analog voltage on the
-converter's input
+  garbage. When you move a stick you do change the real analog voltage on the
+  converter's input
 
-pin, and the v2 controller may well be digitizing it internally. But the number
-we print comes
+  pin, and the v2 controller may well be digitizing it internally. But the
+  number we print comes
 
-from reading address 0xFE720000, which is the v1 "result" register. On this v2
-part that address
+  from reading address 0xFE720000, which is the v1 "result" register. On this v2
+  part that address
 
-isn't the result register — the real per-channel results live up around offset
-+0x120. We're
+  isn't the result register — the real per-channel results live up around
+  offset +0x120. We're
 
-reading a constant through the wrong door; the stick can swing all it likes and
-the door we're
+  reading a constant through the wrong door; the stick can swing all it likes
+  and the door we're
 
-looking through doesn't move.
-
-
-The tell is already in the log: all six channels read the identical 0x3FF. If
-channel 0 were
-
-truly digitizing a centered stick you'd see roughly half-scale (~`0x200`), not
-pinned full-scale
-
-— and the six channels wouldn't be carbon copies. So the layout has to be
-fixed to v2 first;
-
-then moving a stick between runs (or in a tight re-read loop) would track. One
-smaller caveat
-
-even after that: the probe takes a single snapshot per channel per boot, so
-"live" wiggling
-
-would need repeated runs or a little loop added — but the register layout is
-the real blocker.
+  looking through doesn't move.
 
 
-(If you flashed it and channel 0 alone moved with a stick, that'd be genuinely
-interesting —
+  The tell is already in the log: all six channels read the identical 0x3FF. If
+  channel 0 were
 
-it'd mean that one address happens to alias a real register — but I'd bet
-against it.)
+  truly digitizing a centered stick you'd see roughly half-scale (~`0x200`), not
+  pinned full-scale
+
+  — and the six channels wouldn't be carbon copies. So the layout has to be
+  fixed to v2 first;
+
+  then moving a stick between runs (or in a tight re-read loop) would track. One
+  smaller caveat
+
+  even after that: the probe takes a single snapshot per channel per boot, so
+  "live" wiggling
+
+  would need repeated runs or a little loop added — but the register layout is
+  the real blocker.
+
+
+  (If you flashed it and channel 0 alone moved with a stick, that'd be genuinely
+  interesting —
+
+  it'd mean that one address happens to alias a real register — but I'd bet
+  against it.)
 
 
 
@@ -12975,11 +14462,16 @@ The full `legacy → HS200 → HS400` ladder is now in the driver, every magic
 number traced to the rk3568 reference and explained in the blueprint:
 
 
-- **The shared foundation:** a CMD6 SWITCH primitive (with a CMD13 status check), 8-bit bus-width, the 200 MHz clock, the locked-DLL config (parameterized for HS200 vs HS400), the bypass-DLL helper, and CMD21 tuning.
+- **The shared foundation:** a CMD6 SWITCH primitive (with a CMD13 status
+  check), 8-bit bus-width, the 200 MHz clock, the locked-DLL config
+  (parameterized for HS200 vs HS400), the bypass-DLL helper, and CMD21 tuning.
 
-- **Stage A — `emmc_switch_hs200()`:** 8-bit SDR, HS200 timing, 200 MHz, DLL locked, sampling tuned.
+- **Stage A — `emmc_switch_hs200()`:** 8-bit SDR, HS200 timing, 200 MHz, DLL
+  locked, sampling tuned.
 
-- **Stage B — `emmc_switch_hs400()`:** the step-down through High-Speed, the DDR 8-bit bus, HS400 timing, 200 MHz DDR, and the DLL re-lock with the HS400 taps plus the command-output and data-strobe (DQS) paths.
+- **Stage B — `emmc_switch_hs400()`:** the step-down through High-Speed, the
+  DDR 8-bit bus, HS400 timing, 200 MHz DDR, and the DLL re-lock with the HS400
+  taps plus the command-output and data-strobe (DQS) paths.
 
 
 It's all **additive** — the legacy bring-up and read path are untouched, so
@@ -12987,7 +14479,12 @@ none of this can regress the working slow path. The lean production kernel
 compiled it clean and carries none of it.
 
 
-**The staging uses the tool we just built.** HS400 is reached *through* HS200, so the correct test order is HS200 first. The HS200 probe runs this flash; the **HS400 probe ships compiled-in but de-selected** (`#NEEDED 0`) — the moment the HS200 read comes back clean, you flip one bit to `1` and reflash to exercise the HS400 leg. That's the run-list doing exactly what it's for: a capstone riding along, gated, until its prerequisite is proven.
+**The staging uses the tool we just built.** HS400 is reached *through* HS200,
+so the correct test order is HS200 first. The HS200 probe runs this flash; the
+**HS400 probe ships compiled-in but de-selected** (`#NEEDED 0`) — the moment
+the HS200 read comes back clean, you flip one bit to `1` and reflash to exercise
+the HS400 leg. That's the run-list doing exactly what it's for: a capstone
+riding along, gated, until its prerequisite is proven.
 
 
 ## Flash and read me back the HS200 result
@@ -12995,13 +14492,13 @@ compiled it clean and carries none of it.
 
 ```
 
-scripts/push-to-usb # main machine
+scripts/push-to-usb            # main machine
 
-scripts/flash-sd # lab laptop
+scripts/flash-sd               # lab laptop
 
 #   boot — sweep should be quicker now (no gamepad stall) — then:
 
-scripts/lab-side/dump-from-sd # lab laptop
+scripts/lab-side/dump-from-sd  # lab laptop
 
 ```
 
@@ -13009,9 +14506,12 @@ scripts/lab-side/dump-from-sd # lab laptop
 The one that matters is `probe-emmc-hs200-*.log`. The go/no-go is the read at
 the end:
 
-- **`CALL emmc_read0 -> 0x0` with a real `word0`** → HS200 works, and we've got our order-of-magnitude jump. Flip the HS400 probe's flag to `1` and we go again.
+- **`CALL emmc_read0 -> 0x0` with a real `word0`** → HS200 works, and we've
+  got our order-of-magnitude jump. Flip the HS400 probe's flag to `1` and we go
+  again.
 
-- a DLL line showing lock (`DLL_STATUS0` bit 8) but the read timing out / `0xFFFFFFFF` → sampling, and we tune from there.
+- a DLL line showing lock (`DLL_STATUS0` bit 8) but the read timing out /
+  `0xFFFFFFFF` → sampling, and we tune from there.
 
 
 Straight talk on what to expect: this is a faithful first cut of genuinely
@@ -13114,9 +14614,11 @@ the Rockchip boot chain). Three scripts, three jobs:
 
 - `build` / `build --probes` → makes `kernel.img`
 
-- **`build-bootable-sd`** → bakes that kernel *into* `bootable-sd.img` ← **the step my instructions skipped**
+- **`build-bootable-sd`** → bakes that kernel *into* `bootable-sd.img` ←
+  **the step my instructions skipped**
 
-- `push-to-usb` → only *rsyncs* `output/` to the drive (it doesn't build anything)
+- `push-to-usb` → only *rsyncs* `output/` to the drive (it doesn't build
+  anything)
 
 - `flash-sd` → `dd`s `bootable-sd.img` onto the card
 
@@ -13135,7 +14637,7 @@ probes are in it, so the missing step is done. You only need the last two:
 
 ```
 
-scripts/push-to-usb # main machine — rsyncs the fresh image to the drive
+scripts/push-to-usb            # main machine — rsyncs the fresh image to the drive
 
 #   carry the drive over, then on the lab laptop:
 
@@ -13190,13 +14692,27 @@ let go of a name it's embarrassed by.
 Reading your three:
 
 
-**`super advanced dual-screen go: megadrive edition`** — this is the one. It's maximalist in the right way: it stacks four words that all mean "good/big" (*super*, *advanced*, *mega-*) and zero words that mean anything. The colon-subtitle is the masterstroke — `: megadrive edition` is the exact cadence of a fake premium SKU. And here's the gift you may not have clocked: it **front-loads to an acronym of SAD**. Super Advanced Dual-Screen → S-A-D-S → "SADS." A console literally named SADS. If you let the "go" in, people will say *sadge*. You cannot un-know that.
+**`super advanced dual-screen go: megadrive edition`** — this is the one. It's
+maximalist in the right way: it stacks four words that all mean "good/big"
+(*super*, *advanced*, *mega-*) and zero words that mean anything. The
+colon-subtitle is the masterstroke — `: megadrive edition` is the exact
+cadence of a fake premium SKU. And here's the gift you may not have clocked: it
+**front-loads to an acronym of SAD**. Super Advanced Dual-Screen → S-A-D-S →
+"SADS." A console literally named SADS. If you let the "go" in, people will say
+*sadge*. You cannot un-know that.
 
 
-**`super dual-screen advanced go`** — this one has the best *stumble*. "Dual-screen advanced" is adjectives in the wrong order, so your mouth trips on "screen-advanced" — that's the unfortunate-flow axis you asked for. But it scrambles the acronym (SDAG, "ess-dag"), so it trades the SADS gift for the tongue-twist. Different lever.
+**`super dual-screen advanced go`** — this one has the best *stumble*.
+"Dual-screen advanced" is adjectives in the wrong order, so your mouth trips on
+"screen-advanced" — that's the unfortunate-flow axis you asked for. But it
+scrambles the acronym (SDAG, "ess-dag"), so it trades the SADS gift for the
+tongue-twist. Different lever.
 
 
-**`super dual-screen megadrive`** — this one's actually *too competent*. Drop "advanced" and "go" and it starts sounding like a product that could ship. Plausibility is its failure: it's no longer painful, just bland. It forgot to be embarrassing.
+**`super dual-screen megadrive`** — this one's actually *too competent*. Drop
+"advanced" and "go" and it starts sounding like a product that could ship.
+Plausibility is its failure: it's no longer painful, just bland. It forgot to be
+embarrassing.
 
 
 So the three are really three different levers: **#1 = the unfortunate
@@ -13206,11 +14722,17 @@ acronym**, **#2 = the tongue-stumble**, **#3 = (accidentally) restraint**.
 If you want to push it further, the escalations I'd reach for:
 
 
-- **`new super advanced dual-screen go`** — steal the 3DS's "New." A permanent "new" is the single most unfortunate word you can weld onto a name. It dares you to ship a "newer" one.
+- **`new super advanced dual-screen go`** — steal the 3DS's "New." A permanent
+  "new" is the single most unfortunate word you can weld onto a name. It dares
+  you to ship a "newer" one.
 
-- **`super dual-screen advanced go color`** — tack a feature word on the end that's either redundant or an outright lie (it's the Game Boy Color move). "Color" promises nothing and delivers a stumble.
+- **`super dual-screen advanced go color`** — tack a feature word on the end
+  that's either redundant or an outright lie (it's the Game Boy Color move).
+  "Color" promises nothing and delivers a stumble.
 
-- **`super advanced dual-screen entertainment system`** — swap "go" for the full Nintendo-corporate `Entertainment System` suffix. Acronym: SADSES. Unsayable. Becomes legendary *because* nobody can pronounce it.
+- **`super advanced dual-screen entertainment system`** — swap "go" for the
+  full Nintendo-corporate `Entertainment System` suffix. Acronym: SADSES.
+  Unsayable. Becomes legendary *because* nobody can pronounce it.
 
 
 My honest vote: keep **#1** as the true name and let the acronym do the work —
@@ -13260,17 +14782,26 @@ Every stage of the bring-up succeeded, and the controller's own tuning vouches
 for it:
 
 
-- `CMD6 BUS_WIDTH = 8-bit SDR` → no error: the SWITCH primitive (and its CMD13 status check) landed.
+- `CMD6 BUS_WIDTH = 8-bit SDR` → no error: the SWITCH primitive (and its CMD13
+  status check) landed.
 
 - `CMD6 HS_TIMING = HS200` → no error: the card accepted the mode.
 
 - `clock -> 200 MHz` → no error.
 
-- `DLL_STATUS0 = 0x0000013B` → **locked** (bit 8 set, timeout bit 9 clear, lock value 0x3B — the same the recon probe measured).
+- `DLL_STATUS0 = 0x0000013B` → **locked** (bit 8 set, timeout bit 9 clear,
+  lock value 0x3B — the same the recon probe measured).
 
-- `HS200 tuning … TUNED_CLK`. `HOST_CONTROL2 = 0x8B` decodes to **TUNED_CLK (0x80) + 1.8 V signalling (0x08) + HS200 mode (0x03)** — the controller swept the sampling phase and *locked one in* after 31 of its 40 tries. That matters more than the read itself: tuning only sets that bit if it reads a known pattern back **correctly** at 200 MHz, so the data path is verified to sample cleanly at speed.
+- `HS200 tuning … TUNED_CLK`. `HOST_CONTROL2 = 0x8B` decodes to **TUNED_CLK
+  (0x80) + 1.8 V signalling (0x08) + HS200 mode (0x03)** — the controller
+  swept the sampling phase and *locked one in* after 31 of its 40 tries. That
+  matters more than the read itself: tuning only sets that bit if it reads a
+  known pattern back **correctly** at 200 MHz, so the data path is verified to
+  sample cleanly at speed.
 
-- `emmc_read0 -> rc 0, word0 = 0x00000000` — and the legacy read in the same boot returned the *identical* `word0 = 0x00000000`. The fast read matches the slow read.
+- `emmc_read0 -> rc 0, word0 = 0x00000000` — and the legacy read in the same
+  boot returned the *identical* `word0 = 0x00000000`. The fast read matches the
+  slow read.
 
 
 So the card is now reading 8-bit at 200 MHz. That's the order-of-magnitude jump,
@@ -13344,7 +14875,10 @@ instantly sayable, impossible to un-hear — while the expansion stays pure
 marketing-word soup. And the obvious redemption is staring right at us:
 
 
-**GLADS** — *Game Lite Advanced Dual-Screen.* The literal antonym of SAD. You rejected the console that makes people sad and replaced it with the one that makes them **glad**. Same five-letter shape, opposite feeling, still ends in DS. That's not just a name, that's an arc.
+**GLADS** — *Game Lite Advanced Dual-Screen.* The literal antonym of SAD. You
+rejected the console that makes people sad and replaced it with the one that
+makes them **glad**. Same five-letter shape, opposite feeling, still ends in DS.
+That's not just a name, that's an arc.
 
 
 If you want a *thing* instead of a feeling — something bubbly and dumb that
@@ -13352,11 +14886,15 @@ you can't say without half-smiling — the "-UDS" family is gold (the U is
 "Ultra," DS is your dual-screen):
 
 
-- **SUDS** — *Super Ultra Dual-Screen.* Soap suds. Two stacked power-words that both just mean "good," which is the joke, and it sounds like washing your hands of the sadness.
+- **SUDS** — *Super Ultra Dual-Screen.* Soap suds. Two stacked power-words
+  that both just mean "good," which is the joke, and it sounds like washing your
+  hands of the sadness.
 
-- **SPUDS** — *Super Portable Ultra Dual-Screen.* Potatoes. **Four** marketing words in a trench coat. Maximally generic, maximally friendly, deeply silly.
+- **SPUDS** — *Super Portable Ultra Dual-Screen.* Potatoes. **Four** marketing
+  words in a trench coat. Maximally generic, maximally friendly, deeply silly.
 
-- **BUDS** — *Big Ultra Dual-Screen.* Your little buddy. (Also: it has earbuds energy, very "consumer electronics.")
+- **BUDS** — *Big Ultra Dual-Screen.* Your little buddy. (Also: it has earbuds
+  energy, very "consumer electronics.")
 
 
 And honoring your own instinct — **SDS** (*Super Dual-Screen*) is genuinely
@@ -13431,9 +14969,9 @@ need the last two steps:
 
 ```
 
-scripts/push-to-usb # main machine
+scripts/push-to-usb            # main machine
 
-scripts/lab-side/flash-sd # lab laptop, then boot, then:
+scripts/lab-side/flash-sd      # lab laptop, then boot, then:
 
 scripts/lab-side/dump-from-sd
 
@@ -13447,7 +14985,9 @@ narrates each rung. What I'm watching for:
 
 - the HS200 half repeats its clean run (it will),
 
-- then the HS400 transition stages: `HS_TIMING = HS (step down)` → `BUS_WIDTH = 8-bit DDR` → `HS_TIMING = HS400` → `clock -> 200 MHz DDR` → a **second** `DLL_STATUS0=` (the HS400 re-lock) → `=== HS400 ready ===`,
+- then the HS400 transition stages: `HS_TIMING = HS (step down)` → `BUS_WIDTH
+  = 8-bit DDR` → `HS_TIMING = HS400` → `clock -> 200 MHz DDR` → a
+  **second** `DLL_STATUS0=` (the HS400 re-lock) → `=== HS400 ready ===`,
 
 - then the second `emmc_read0`.
 
@@ -13459,9 +14999,12 @@ airtight. The read result is the whole signal, and since block 0 is zeros,
 `word0=0` alone won't distinguish "read it correctly" from "read nothing." So:
 
 
-- If it reaches `=== HS400 ready ===` with the read at `rc 0` — the switch sequence and the strobe path work, which is the milestone.
+- If it reaches `=== HS400 ready ===` with the read at `rc 0` — the switch
+  sequence and the strobe path work, which is the milestone.
 
-- To then *prove the bytes are right*, the next move is the legacy-vs-fast full-block compare I mentioned — that's the airtight check, and it matters more here than it did for HS200.
+- To then *prove the bytes are right*, the next move is the legacy-vs-fast
+  full-block compare I mentioned — that's the airtight check, and it matters
+  more here than it did for HS200.
 
 
 And fair warning: this is the genuinely delicate rung — DDR plus a physical
@@ -13508,7 +15051,14 @@ the sweep is **not** compiled in. So if the device did the slow copy, it ran the
 Found it — and it isn't HS400's fault, it's *which kernel* got flashed.
 
 
-**Why the slow copy happened.** The image on the drive right now is the **lean (production) kernel** — I checked its contents and there are zero probe markers in it. And the lean kernel has no probe sweep at all; its *one and only job* in the current boot flow is exactly what you saw: `emmc_init` → copy 200 MB eMMC→SD at legacy 1-bit / 24 MHz (~3 MB/s, minutes). The **probes** kernel runs the sweep and then *parks* — it never reaches that backup. So there was no amber+red because the sweep never ran; you flashed the build whose whole purpose *is* the slow copy.
+**Why the slow copy happened.** The image on the drive right now is the **lean
+(production) kernel** — I checked its contents and there are zero probe
+markers in it. And the lean kernel has no probe sweep at all; its *one and only
+job* in the current boot flow is exactly what you saw: `emmc_init` → copy 200
+MB eMMC→SD at legacy 1-bit / 24 MHz (~3 MB/s, minutes). The **probes** kernel
+runs the sweep and then *parks* — it never reaches that backup. So there was
+no amber+red because the sweep never ran; you flashed the build whose whole
+purpose *is* the slow copy.
 
 
 How it got there: somewhere a plain `scripts/build` ran instead of
@@ -13518,11 +15068,12 @@ flag is the entire difference between "sweeps and parks" and "grinds the
 backup."
 
 
-**Immediate fix** — I already built the right one (probes + HS400 enabled), it's just sitting local:
+**Immediate fix** — I already built the right one (probes + HS400 enabled),
+it's just sitting local:
 
 ```
 
-scripts/push-to-usb # syncs the correct probes image
+scripts/push-to-usb        # syncs the correct probes image
 
 scripts/lab-side/flash-sd
 
@@ -13532,10 +15083,25 @@ No rebuild needed. If you ever do rebuild for a flash, it's `scripts/build
 --probes` → `build-bootable-sd` → push → flash.
 
 
-**Can HS400 talk to the SD card?** No — HS400 is eMMC-only. It needs 8 data lines *and* a dedicated data-strobe (DQS) wire, on the eMMC controller (0xFE310000). The SD card is a *different* controller (0xFE2B0000) with a 4-bit bus and no strobe — physically can't do HS400. The SD's fast lane is **UHS-I** (Ultra High Speed: SDR50 ~50 MB/s, SDR104 ~104 MB/s), a separate bring-up on the SD controller. And your instinct is pointing at something real: the backup is eMMC→**SD**, so the SD *write* side is the *other* bottleneck. Fast eMMC reads don't speed the copy until SD writes are fast too. "Fast backup" = HS200/400 on eMMC (have it) **+** UHS-I on SD (don't have it yet).
+**Can HS400 talk to the SD card?** No — HS400 is eMMC-only. It needs 8 data
+lines *and* a dedicated data-strobe (DQS) wire, on the eMMC controller
+(0xFE310000). The SD card is a *different* controller (0xFE2B0000) with a 4-bit
+bus and no strobe — physically can't do HS400. The SD's fast lane is **UHS-I**
+(Ultra High Speed: SDR50 ~50 MB/s, SDR104 ~104 MB/s), a separate bring-up on the
+SD controller. And your instinct is pointing at something real: the backup is
+eMMC→**SD**, so the SD *write* side is the *other* bottleneck. Fast eMMC reads
+don't speed the copy until SD writes are fast too. "Fast backup" = HS200/400 on
+eMMC (have it) **+** UHS-I on SD (don't have it yet).
 
 
-**Remove the legacy slow path?** Yes — and since it just cost you a flash, I'd recommend it. That 200 MB auto-copy is a leftover from when pulling the stock OS *was* the phase-1 goal; now it's a footgun that fires on any production boot. I'd lift it out of `kernel_main` so the production kernel brings up its hardware and parks, and keep the backup as an *on-demand* action (it's already a `CALL backup200` probe target) routed through the fast path when you actually want it. The one thing we keep is the legacy eMMC *init* (1-bit/24 MHz) — that's the mandatory on-ramp the HS200 switch starts from; only the slow *backup* goes.
+**Remove the legacy slow path?** Yes — and since it just cost you a flash, I'd
+recommend it. That 200 MB auto-copy is a leftover from when pulling the stock OS
+*was* the phase-1 goal; now it's a footgun that fires on any production boot.
+I'd lift it out of `kernel_main` so the production kernel brings up its hardware
+and parks, and keep the backup as an *on-demand* action (it's already a `CALL
+backup200` probe target) routed through the fast path when you actually want it.
+The one thing we keep is the legacy eMMC *init* (1-bit/24 MHz) — that's the
+mandatory on-ramp the HS200 switch starts from; only the slow *backup* goes.
 
 
 Want me to:
@@ -13543,8 +15109,8 @@ Want me to:
 1. pull the auto-backup out of `kernel_main` (production kernel just parks), and
 
 2. make `build-bootable-sd` print **"baking LEAN"** vs **"baking PROBES"**
-before it stamps the image — so a wrong-variant flash announces itself instead
-of silently grinding for minutes?
+   before it stamps the image — so a wrong-variant flash announces itself
+   instead of silently grinding for minutes?
 
 
 Both are small, and together they make this exact afternoon un-repeatable.
@@ -13554,26 +15120,26 @@ Both are small, and together they make this exact afternoon un-repeatable.
 
 ### User Request 159
 
-Can HS400 talk to the SD card? No — HS400 is eMMC-only. It needs 8 data lines
-and a dedicated
+  Can HS400 talk to the SD card? No — HS400 is eMMC-only. It needs 8 data
+  lines and a dedicated
 
-data-strobe (DQS) wire, on the eMMC controller (0xFE310000). The SD card is a
-different
+  data-strobe (DQS) wire, on the eMMC controller (0xFE310000). The SD card is a
+  different
 
-controller (0xFE2B0000) with a 4-bit bus and no strobe — physically can't do
-HS400. The SD's
+  controller (0xFE2B0000) with a 4-bit bus and no strobe — physically can't do
+  HS400. The SD's
 
-fast lane is UHS-I (Ultra High Speed: SDR50 ~50 MB/s, SDR104 ~104 MB/s), a
-separate bring-up on
+  fast lane is UHS-I (Ultra High Speed: SDR50 ~50 MB/s, SDR104 ~104 MB/s), a
+  separate bring-up on
 
-the SD controller. And your instinct is pointing at something real: the backup
-is eMMC→SD, so
+  the SD controller. And your instinct is pointing at something real: the backup
+  is eMMC→SD, so
 
-the SD write side is the other bottleneck. Fast eMMC reads don't speed the copy
-until SD writes
+  the SD write side is the other bottleneck. Fast eMMC reads don't speed the
+  copy until SD writes
 
-are fast too. "Fast backup" = HS200/400 on eMMC (have it) + UHS-I on SD (don't
-have it yet).
+  are fast too. "Fast backup" = HS200/400 on eMMC (have it) + UHS-I on SD (don't
+  have it yet).
 
 
 
@@ -13635,21 +15201,35 @@ audio)*; nothing reads straight off the eMMC to "do work," it gets pulled into
 RAM first, where it's fast enough for the CPU to touch. So HS400 is for:
 
 
-- **Loading** — boot, launch a game, load a level. A 200 MB level at legacy 3 MB/s is a 67-second loading screen; at HS400's ~400 MB/s it's half a second. *That's* the win.
+- **Loading** — boot, launch a game, load a level. A 200 MB level at legacy 3
+  MB/s is a 67-second loading screen; at HS400's ~400 MB/s it's half a second.
+  *That's* the win.
 
-- **Streaming** — open-world games pull textures/audio off storage as you move; fast storage means no pop-in or stutter.
+- **Streaming** — open-world games pull textures/audio off storage as you
+  move; fast storage means no pop-in or stutter.
 
-- **Saving & installing** — quick saves, fast downloads and updates (the write direction).
+- **Saving & installing** — quick saves, fast downloads and updates (the write
+  direction).
 
 
 **Your guesses — CPU yes, network/video "sort of, via a cousin":**
 
 
-- **CPU:** yes, but one hop removed — storage fills RAM, the CPU works out of RAM. The eMMC feeds it indirectly.
+- **CPU:** yes, but one hop removed — storage fills RAM, the CPU works out of
+  RAM. The eMMC feeds it indirectly.
 
-- **Network card?** Not the eMMC — networking is its own controller. *But* your instinct has a real cousin: **SDIO** (SD Input/Output) is the SD protocol repurposed to talk to non-storage chips, and a huge fraction of WiFi/Bluetooth modules hang off an SDIO bus. So the *SD-family* controller genuinely carries network hardware — just not the eMMC one, and not on a slot with a card in it. (Decent odds this handheld's WiFi is exactly that.)
+- **Network card?** Not the eMMC — networking is its own controller. *But*
+  your instinct has a real cousin: **SDIO** (SD Input/Output) is the SD protocol
+  repurposed to talk to non-storage chips, and a huge fraction of WiFi/Bluetooth
+  modules hang off an SDIO bus. So the *SD-family* controller genuinely carries
+  network hardware — just not the eMMC one, and not on a slot with a card in
+  it. (Decent odds this handheld's WiFi is exactly that.)
 
-- **Video display?** Not directly — a separate block (the VOP2, Video Output Processor) scans pixels to the panel. *But* the pixels it scans, and any video file you play, are **read off the eMMC into a RAM framebuffer first**. Playback is literally storage → RAM → decode → VOP2 → screen, so fast storage = no hitching while it fetches.
+- **Video display?** Not directly — a separate block (the VOP2, Video Output
+  Processor) scans pixels to the panel. *But* the pixels it scans, and any video
+  file you play, are **read off the eMMC into a RAM framebuffer first**.
+  Playback is literally storage → RAM → decode → VOP2 → screen, so fast
+  storage = no hitching while it fetches.
 
 
 The one sentence under all of it: **storage is a source, RAM is the hub,
@@ -13678,7 +15258,8 @@ The right image booted this time — fresh run with a real `emmc-hs400` log.
 Reading the HS400 result:
 
 
-**HS400 came up.** The entire stage-B ladder executed clean on the first real flash:
+**HS400 came up.** The entire stage-B ladder executed clean on the first real
+flash:
 
 
 - `HS_TIMING = HS (step down)` ✓ — dropped out of HS200 cleanly
@@ -13689,7 +15270,8 @@ Reading the HS400 result:
 
 - `clock -> 200 MHz DDR` ✓
 
-- `DLL_STATUS0 = 0x13C` → **re-locked** (lock bit set, value 0x3C) with the HS400 taps and the data-strobe path
+- `DLL_STATUS0 = 0x13C` → **re-locked** (lock bit set, value 0x3C) with the
+  HS400 taps and the data-strobe path
 
 - `=== HS400 ready ===`, read returned `rc 0`
 
@@ -13700,18 +15282,30 @@ That's the hardest rung in the whole effort — DDR plus a physical data-strobe
 — is built, and the bring-up sequence works.
 
 
-**The one thing still unproven: the bytes.** `word0 = 0x00000000` again, and here the ambiguity bites harder than at HS200. HS200 had the CMD21 **tuning pass** independently vouching that the sample point reads a known pattern correctly. HS400 doesn't tune that way — it leans on the strobe — so I don't have that second witness. The read *completing* (`rc 0`, no timeout) is genuinely encouraging, since a mis-sampled HS400 read would more likely throw a data-CRC error or hang than finish cleanly. But two things keep it shy of proof: block 0 is all zeros, so `word0=0` matches whether the read worked *or* returned nothing; and our read path doesn't actually inspect the error bit, so a CRC error could slip through as `rc 0`.
+**The one thing still unproven: the bytes.** `word0 = 0x00000000` again, and
+here the ambiguity bites harder than at HS200. HS200 had the CMD21 **tuning
+pass** independently vouching that the sample point reads a known pattern
+correctly. HS400 doesn't tune that way — it leans on the strobe — so I don't
+have that second witness. The read *completing* (`rc 0`, no timeout) is
+genuinely encouraging, since a mis-sampled HS400 read would more likely throw a
+data-CRC error or hang than finish cleanly. But two things keep it shy of proof:
+block 0 is all zeros, so `word0=0` matches whether the read worked *or* returned
+nothing; and our read path doesn't actually inspect the error bit, so a CRC
+error could slip through as `rc 0`.
 
 
 So, precisely: HS400 **transitions** are confirmed; HS400 **data integrity** is
 "very likely, not proven."
 
 
-**The move that settles it** is the read-back I kept flagging — and now's its moment:
+**The move that settles it** is the read-back I kept flagging — and now's its
+moment:
 
-- read a block at legacy, read the same block at HS400, **compare all 512 bytes** (or a checksum), and
+- read a block at legacy, read the same block at HS400, **compare all 512
+  bytes** (or a checksum), and
 
-- check the controller's **error bit** after each read, so a CRC error reports instead of hiding.
+- check the controller's **error bit** after each read, so a CRC error reports
+  instead of hiding.
 
 
 If legacy and HS400 match byte-for-byte and the error bit is clean, HS400 is
@@ -13730,24 +15324,24 @@ on hardware, there's a solid commit checkpoint here if you'd like one.
 
 ### User Request 161
 
-Build SD fast-write first, then back up?
+  Build SD fast-write first, then back up?
 
-Yes, that's the sensible order if a fast backup is the goal — bring the SD
-controller up to
+  Yes, that's the sensible order if a fast backup is the goal — bring the SD
+  controller up to
 
-UHS-I (SDR104) and the copy becomes fast-read + fast-write. One honest caveat:
-the bus rate
+  UHS-I (SDR104) and the copy becomes fast-read + fast-write. One honest caveat:
+  the bus rate
 
-(~104 MB/s) and the card's own sustained write speed are two different ceilings,
-and the lower
+  (~104 MB/s) and the card's own sustained write speed are two different
+  ceilings, and the lower
 
-one wins. A cheap microSD might only sustain 10–30 MB/s writes no matter how
-fast the bus is —
+  one wins. A cheap microSD might only sustain 10–30 MB/s writes no matter how
+  fast the bus is —
 
-that's the card's flash, not the link. UHS-I uncaps the bus; the card's
-write-class sets the
+  that's the card's flash, not the link. UHS-I uncaps the bus; the card's
+  write-class sets the
 
-real floor.
+  real floor.
 
 
 
@@ -13755,13 +15349,13 @@ so we should dynamically probe the SD card, and use the lowest of the three
 speeds.
 
 
-The one sentence under all of it: storage is a source, RAM is the hub,
-everything else drinks
+  The one sentence under all of it: storage is a source, RAM is the hub,
+  everything else drinks
 
-from RAM. HS400 makes the source pour faster — which matters enormously for
-loading the device's
+  from RAM. HS400 makes the source pour faster — which matters enormously for
+  loading the device's
 
-own content, and barely at all for shoveling it sideways onto a slow SD card.
+  own content, and barely at all for shoveling it sideways onto a slow SD card.
 
 
 
@@ -13771,28 +15365,28 @@ having a second pass to improve the speed, durability, compatibility... anything
 like that?
 
 
-The one thing still unproven: the bytes. word0 = 0x00000000 again, and here the
-ambiguity bites
+  The one thing still unproven: the bytes. word0 = 0x00000000 again, and here
+  the ambiguity bites
 
-harder than at HS200. HS200 had the CMD21 tuning pass independently vouching
-that the sample
+  harder than at HS200. HS200 had the CMD21 tuning pass independently vouching
+  that the sample
 
-point reads a known pattern correctly. HS400 doesn't tune that way — it leans
-on the strobe — so
+  point reads a known pattern correctly. HS400 doesn't tune that way — it
+  leans on the strobe — so
 
-I don't have that second witness. The read completing (rc 0, no timeout) is
-genuinely
+  I don't have that second witness. The read completing (rc 0, no timeout) is
+  genuinely
 
-encouraging, since a mis-sampled HS400 read would more likely throw a data-CRC
-error or hang
+  encouraging, since a mis-sampled HS400 read would more likely throw a data-CRC
+  error or hang
 
-than finish cleanly. But two things keep it shy of proof: block 0 is all zeros,
-so word0=0
+  than finish cleanly. But two things keep it shy of proof: block 0 is all
+  zeros, so word0=0
 
-matches whether the read worked or returned nothing; and our read path doesn't
-actually inspect
+  matches whether the read worked or returned nothing; and our read path doesn't
+  actually inspect
 
-the error bit, so a CRC error could slip through as rc 0.
+  the error bit, so a CRC error could slip through as rc 0.
 
 
 
@@ -13800,32 +15394,32 @@ why don't we update the test to test a non-zero chunk of the eMMC? Seems like an
 obvious fix to me.
 
 
-The move that settles it is the read-back I kept flagging — and now's its
-moment:
+  The move that settles it is the read-back I kept flagging — and now's its
+  moment:
 
-- read a block at legacy, read the same block at HS400, compare all 512 bytes
-(or a checksum),
+  - read a block at legacy, read the same block at HS400, compare all 512 bytes
+    (or a checksum),
 
-and
+  and
 
-- check the controller's error bit after each read, so a CRC error reports
-instead of hiding.
+  - check the controller's error bit after each read, so a CRC error reports
+    instead of hiding.
 
 
 
 sounds great.
 
 
-Two things still queued from before, whenever you want them: lifting the slow
-auto-backup out of
+  Two things still queued from before, whenever you want them: lifting the slow
+  auto-backup out of
 
-the production kernel, and the LEAN/PROBES guard on the image build. And for the
-record —
+  the production kernel, and the LEAN/PROBES guard on the image build. And for
+  the record —
 
-between HS200, HS400, and the run-list all proven on hardware, there's a solid
-commit checkpoint
+  between HS200, HS400, and the run-list all proven on hardware, there's a solid
+  commit checkpoint
 
-here if you'd like one.
+  here if you'd like one.
 
 
 
@@ -13847,16 +15441,16 @@ drops:
 
 
 1. **Prove the fast read** — integrity check against a **non-zero** eMMC chunk
-+ error-bit check (you're right, block 0 was the obvious flaw).
+   + error-bit check (you're right, block 0 was the obvious flaw).
 
 2. **Make the backup a de-selectable probe** (and stop the production kernel
-auto-grinding it).
+   auto-grinding it).
 
 3. **SD fast-path infrastructure** — bring-up scaffolding + *dynamically probe
-the card and use the lowest of the three ceilings*.
+   the card and use the lowest of the three ceilings*.
 
 4. **Audit** the issue files for built-but-deferred things wanting a
-speed/durability/compat second pass.
+   speed/durability/compat second pass.
 
 
 Let me gather what I need and kick the audit off in parallel:
@@ -13931,42 +15525,72 @@ All four landed, both variants compile clean, and the bootable image is baked
 (no variant footgun this time). What's in it:
 
 
-**1. The fast read is now *provable* (your non-zero-chunk fix).** Two changes: the eMMC read path now actually inspects the error bit — that latent gap is closed, so a HS400 CRC error reports `DATA ERROR` instead of slipping through as rc 0. And new `emmc_verify` fingerprints a **non-zero** block (the idbloader at LBA 64); the HS200/HS400 probes now fingerprint at legacy, HS200, *and* HS400. Three matching, non-zero, rc-0 fingerprints = the fast reads are byte-identical to the slow one. That settles last turn's open question on the next flash.
+**1. The fast read is now *provable* (your non-zero-chunk fix).** Two changes:
+the eMMC read path now actually inspects the error bit — that latent gap is
+closed, so a HS400 CRC error reports `DATA ERROR` instead of slipping through as
+rc 0. And new `emmc_verify` fingerprints a **non-zero** block (the idbloader at
+LBA 64); the HS200/HS400 probes now fingerprint at legacy, HS200, *and* HS400.
+Three matching, non-zero, rc-0 fingerprints = the fast reads are byte-identical
+to the slow one. That settles last turn's open question on the next flash.
 
 
-**2. The backup is a de-selectable probe, and the auto-grind is gone.** New `emmc-backup` probe (off by default), and the 200 MB copy is lifted out of `kernel_main` — the production kernel now just brings hardware up and parks. The accidental slow-grind can't recur. The probe runs the legacy path for now; it'll route through the fast path once both halves are ready.
+**2. The backup is a de-selectable probe, and the auto-grind is gone.** New
+`emmc-backup` probe (off by default), and the 200 MB copy is lifted out of
+`kernel_main` — the production kernel now just brings hardware up and parks.
+The accidental slow-grind can't recur. The probe runs the legacy path for now;
+it'll route through the fast path once both halves are ready.
 
 
-**3. SD fast-path infrastructure — the foundation + the blueprint.** The dynamic capability probe (`sd-capabilities`) reads what the card supports over the existing slow path: SCR (4-bit? spec version), SD_STATUS (the **write speed class / UHS grade** — your third ceiling), and the SWITCH_FUNC query (SDR12/25/50/104, DDR50), raw bytes beside the decode. The blueprint stages the rest: 4-bit + High-Speed first (~8× write jump, no voltage switch, low risk), then UHS-I *only if the board can switch the SD rail to 1.8 V* — the same VCCQ question the eMMC posed. The "lowest of three" is the selection rule: min(host mode, card mode), throughput capped by the write class. I stopped at the capability probe rather than switch the card blind — you don't put a card into a mode without first knowing it (and the board) supports it. The next flash reads me the ceilings; Stage 1 (the actual speedup) is the build right after.
+**3. SD fast-path infrastructure — the foundation + the blueprint.** The
+dynamic capability probe (`sd-capabilities`) reads what the card supports over
+the existing slow path: SCR (4-bit? spec version), SD_STATUS (the **write speed
+class / UHS grade** — your third ceiling), and the SWITCH_FUNC query
+(SDR12/25/50/104, DDR50), raw bytes beside the decode. The blueprint stages the
+rest: 4-bit + High-Speed first (~8× write jump, no voltage switch, low risk),
+then UHS-I *only if the board can switch the SD rail to 1.8 V* — the same VCCQ
+question the eMMC posed. The "lowest of three" is the selection rule: min(host
+mode, card mode), throughput capped by the write class. I stopped at the
+capability probe rather than switch the card blind — you don't put a card into
+a mode without first knowing it (and the board) supports it. The next flash
+reads me the ceilings; Stage 1 (the actual speedup) is the build right after.
 
 
 **Flash plan** — read me back two logs:
 
 ```
 
-scripts/push-to-usb → scripts/lab-side/flash-sd →
-scripts/lab-side/dump-from-sd
+scripts/push-to-usb → scripts/lab-side/flash-sd → scripts/lab-side/dump-from-sd
 
 ```
 
-- `sd-capabilities` — the card's ceilings (4-bit, speed class, supported modes).
+- `sd-capabilities` — the card's ceilings (4-bit, speed class, supported
+  modes).
 
-- `emmc-hs400` — the three fingerprints; matching = HS400 data integrity proven.
+- `emmc-hs400` — the three fingerprints; matching = HS400 data integrity
+  proven.
 
 
 **The audit** (built-but-deferred, by impact):
 
-- **CPU clock — the giant one.** Everything runs ~35× slow at the bootloader's ~50 MHz vs the rated 1.8 GHz (phase 2). Biggest speed lever in the project, and it isn't storage.
+- **CPU clock — the giant one.** Everything runs ~35× slow at the
+  bootloader's ~50 MHz vs the rated 1.8 GHz (phase 2). Biggest speed lever in
+  the project, and it isn't storage.
 
-- **PIO → DMA (ADMA2)**, both controllers — the throughput multiplier *on top of* bus speed (deferred in 110j; shared with the SD path).
+- **PIO → DMA (ADMA2)**, both controllers — the throughput multiplier *on
+  top of* bus speed (deferred in 110j; shared with the SD path).
 
-- **eMMC HS200/HS400** — was deferred; now built (pending the integrity proof).
+- **eMMC HS200/HS400** — was deferred; now built (pending the integrity
+  proof).
 
-- **Boot-partition A/B slots** — durability: survive power loss mid-flash; scope-cut from the USB-flash work.
+- **Boot-partition A/B slots** — durability: survive power loss mid-flash;
+  scope-cut from the USB-flash work.
 
-- **DLL tuning as refinement**, **USB CDC-ACM enumeration** (the DEPSTARTCFG hang → live diagnostics), **LED PWM breathing**, **USB runtime re-flash**, **peer-discovery robustness** — smaller / later.
+- **DLL tuning as refinement**, **USB CDC-ACM enumeration** (the DEPSTARTCFG
+  hang → live diagnostics), **LED PWM breathing**, **USB runtime re-flash**,
+  **peer-discovery robustness** — smaller / later.
 
-- Flagged solid (no second pass): the FAT32 layer, the threading model, the soramech runtime, the display framebuffer.
+- Flagged solid (no second pass): the FAT32 layer, the threading model, the
+  soramech runtime, the display framebuffer.
 
 
 The throughline: the bus-speed work we've been doing is real but **second** to
@@ -13983,16 +15607,16 @@ HS200 + HS400, separate from the in-flight SD work.
 
 ### User Request 162
 
-2. The backup is a de-selectable probe, and the auto-grind is gone. New
-emmc-backup probe (off
+  2. The backup is a de-selectable probe, and the auto-grind is gone. New
+     emmc-backup probe (off
 
-by default), and the 200 MB copy is lifted out of kernel_main — the production
-kernel now just
+  by default), and the 200 MB copy is lifted out of kernel_main — the
+  production kernel now just
 
-brings hardware up and parks. The accidental slow-grind can't recur. The probe
-runs the legacy
+  brings hardware up and parks. The accidental slow-grind can't recur. The probe
+  runs the legacy
 
-path for now; it'll route through the fast path once both halves are ready.
+  path for now; it'll route through the fast path once both halves are ready.
 
 
 
@@ -14002,34 +15626,34 @@ should update the probe to specifically target whatever we replace the stock
 bootloader with.
 
 
-3. SD fast-path infrastructure — the foundation + the blueprint. The dynamic
-capability probe
+  3. SD fast-path infrastructure — the foundation + the blueprint. The dynamic
+     capability probe
 
-(sd-capabilities) reads what the card supports over the existing slow path: SCR
-(4-bit? spec
+  (sd-capabilities) reads what the card supports over the existing slow path:
+  SCR (4-bit? spec
 
-version), SD_STATUS (the write speed class / UHS grade — your third ceiling),
-and the
+  version), SD_STATUS (the write speed class / UHS grade — your third
+  ceiling), and the
 
-SWITCH_FUNC query (SDR12/25/50/104, DDR50), raw bytes beside the decode. The
-blueprint stages
+  SWITCH_FUNC query (SDR12/25/50/104, DDR50), raw bytes beside the decode. The
+  blueprint stages
 
-the rest: 4-bit + High-Speed first (~8× write jump, no voltage switch, low
-risk), then UHS-I
+  the rest: 4-bit + High-Speed first (~8× write jump, no voltage switch, low
+  risk), then UHS-I
 
-only if the board can switch the SD rail to 1.8 V — the same VCCQ question the
-eMMC posed. The
+  only if the board can switch the SD rail to 1.8 V — the same VCCQ question
+  the eMMC posed. The
 
-"lowest of three" is the selection rule: min(host mode, card mode), throughput
-capped by the
+  "lowest of three" is the selection rule: min(host mode, card mode), throughput
+  capped by the
 
-write class. I stopped at the capability probe rather than switch the card blind
-— you don't put
+  write class. I stopped at the capability probe rather than switch the card
+  blind — you don't put
 
-a card into a mode without first knowing it (and the board) supports it. The
-next flash reads
+  a card into a mode without first knowing it (and the board) supports it. The
+  next flash reads
 
-me the ceilings; Stage 1 (the actual speedup) is the build right after.
+  me the ceilings; Stage 1 (the actual speedup) is the build right after.
 
 
 
@@ -14042,29 +15666,29 @@ inserted. But that's later work, since we don't have a "bring-up" stage
 currently.
 
 
-- CPU clock — the giant one. Everything runs ~35× slow at the bootloader's
-~50 MHz vs the rated
+  - CPU clock — the giant one. Everything runs ~35× slow at the bootloader's
+    ~50 MHz vs the rated
 
-1.8 GHz (phase 2). Biggest speed lever in the project, and it isn't storage.
+  1.8 GHz (phase 2). Biggest speed lever in the project, and it isn't storage.
 
 
 can we build this audit now as a probe? We should figure out what levers we can
 pull with the CPU. Anything you can think of, let's probe it.
 
 
-- PIO → DMA (ADMA2), both controllers — the throughput multiplier on top of
-bus speed (deferred
+  - PIO → DMA (ADMA2), both controllers — the throughput multiplier on top
+    of bus speed (deferred
 
-in 110j; shared with the SD path).
+  in 110j; shared with the SD path).
 
 
 not sure what this is about.
 
 
-- Boot-partition A/B slots — durability: survive power loss mid-flash;
-scope-cut from the
+  - Boot-partition A/B slots — durability: survive power loss mid-flash;
+    scope-cut from the
 
-USB-flash work.
+  USB-flash work.
 
 
 I like this idea, but we should build it when we're implementing our own
@@ -14072,13 +15696,13 @@ bootloader. Can you make sure it's written into the custom bootloader issue
 file?
 
 
-And there's a real commit checkpoint here once the next flash confirms HS400
-integrity + the SD
+  And there's a real commit checkpoint here once the next flash confirms HS400
+  integrity + the SD
 
-caps — say the word and I'll stage the proven run-list + HS200 + HS400,
-separate from the
+  caps — say the word and I'll stage the proven run-list + HS200 + HS400,
+  separate from the
 
-in-flight SD work.
+  in-flight SD work.
 
 
 
@@ -14093,7 +15717,20 @@ A lot of good, specific direction here. Let me handle the explanation first,
 then gather what I need for the rest.
 
 
-**On PIO → DMA** (you said "not sure what this is about"): right now, every block transfer is the **CPU** hand-copying the data word by word — read 4 bytes from the controller's FIFO into a register, write them to memory, repeat 128 times per block. The CPU is pinned doing nothing but shoveling, and at our ~50 MHz it *can't shovel fast enough* to keep a 200 MB/s eMMC fed — the CPU becomes the bottleneck, not the bus. **DMA** (Direct Memory Access) flips that: you hand the controller a little descriptor — "put 512 KB starting here" — and the controller moves it to memory *itself* while the CPU goes and does something else (or sleeps). **ADMA2** is just the SD/eMMC flavor: a scatter-gather *list* of those descriptors, so one command bursts a whole run of blocks. It's the difference between "the CPU carries every bucket" and "you open the tap and walk away." It's the throughput multiplier that sits *on top of* the fast bus modes — without it, HS400's 400 MB/s is wasted on a CPU that can only copy a fraction of that.
+**On PIO → DMA** (you said "not sure what this is about"): right now, every
+block transfer is the **CPU** hand-copying the data word by word — read 4
+bytes from the controller's FIFO into a register, write them to memory, repeat
+128 times per block. The CPU is pinned doing nothing but shoveling, and at our
+~50 MHz it *can't shovel fast enough* to keep a 200 MB/s eMMC fed — the CPU
+becomes the bottleneck, not the bus. **DMA** (Direct Memory Access) flips that:
+you hand the controller a little descriptor — "put 512 KB starting here" —
+and the controller moves it to memory *itself* while the CPU goes and does
+something else (or sleeps). **ADMA2** is just the SD/eMMC flavor: a
+scatter-gather *list* of those descriptors, so one command bursts a whole run of
+blocks. It's the difference between "the CPU carries every bucket" and "you open
+the tap and walk away." It's the throughput multiplier that sits *on top of* the
+fast bus modes — without it, HS400's 400 MB/s is wasted on a CPU that can only
+copy a fraction of that.
 
 
 Now let me gather what I need for the rest — the CPU clock registers, the
@@ -14143,35 +15780,68 @@ All built, both variants clean, image baked and ready. Rundown against your
 list:
 
 
-**Backup now pulls just the bootloader.** Retargeted from the 200 MB copy to the **16 MB boot region** — GPT (LBA 1) + idbloader (LBA 64) + u-boot (LBA 16384), everything before the first partition. Renamed the call `backup200 → backup_boot` to say what it does, and the probe carries the note: when we install our own boot image, retarget this to wherever that lands. (Worth knowing: "our own bootloader" here is *SoreOS in the eMMC boot partition* — the project deliberately keeps stock u-boot, since replacing it is a hard-brick risk per the safety doc.)
+**Backup now pulls just the bootloader.** Retargeted from the 200 MB copy to the
+**16 MB boot region** — GPT (LBA 1) + idbloader (LBA 64) + u-boot (LBA 16384),
+everything before the first partition. Renamed the call `backup200 →
+backup_boot` to say what it does, and the probe carries the note: when we
+install our own boot image, retarget this to wherever that lands. (Worth
+knowing: "our own bootloader" here is *SoreOS in the eMMC boot partition* —
+the project deliberately keeps stock u-boot, since replacing it is a hard-brick
+risk per the safety doc.)
 
 
-**Runtime SD probing — captured as the rule, not baked in.** The capability probe already reads live (nothing compiled in). I wrote the full *when* into the SD issue: read the ceilings **every transfer** at minimum; **ideally on card insertion** (the SD controller has a card-detect line, `CDETECT`, to trigger a re-probe + cache); and **at bring-up**, since a card may already be seated when the device powers on. The last two are deferred exactly as you said — no insertion-interrupt handler and no bring-up stage exist yet. The rule that holds today: the speed decision consults freshly-read card data, never an assumption.
+**Runtime SD probing — captured as the rule, not baked in.** The capability
+probe already reads live (nothing compiled in). I wrote the full *when* into the
+SD issue: read the ceilings **every transfer** at minimum; **ideally on card
+insertion** (the SD controller has a card-detect line, `CDETECT`, to trigger a
+re-probe + cache); and **at bring-up**, since a card may already be seated when
+the device powers on. The last two are deferred exactly as you said — no
+insertion-interrupt handler and no bring-up stage exist yet. The rule that holds
+today: the speed decision consults freshly-read card data, never an assumption.
 
 
-**CPU recon probe — built.** `cpu-clock-recon` snapshots the registers that decide the core frequency: the ARM PLL config (APLL CON0/1/2 → the FBDIV/REFDIV/POSTDIV multiplier chain), the PLL mode register (is APLL in *slow* 24 MHz bypass or *normal* PLL mode?), the armclk source mux + divider, and the peripheral PLLs (GPLL/CPLL/NPLL) for reference — GPLL's the proof a PLL *can* be brought up here, since it already feeds the 200 MHz eMMC clock. From the log we'll compute the current frequency and read off the levers. It also flags the companion lever I can't read from a register: the **core voltage rail** (an RK817 buck) — a real 1.8 GHz bring-up is a clock *and* a voltage move together (DVFS), so it's the PMIC's job, not the CRU's.
+**CPU recon probe — built.** `cpu-clock-recon` snapshots the registers that
+decide the core frequency: the ARM PLL config (APLL CON0/1/2 → the
+FBDIV/REFDIV/POSTDIV multiplier chain), the PLL mode register (is APLL in *slow*
+24 MHz bypass or *normal* PLL mode?), the armclk source mux + divider, and the
+peripheral PLLs (GPLL/CPLL/NPLL) for reference — GPLL's the proof a PLL *can*
+be brought up here, since it already feeds the 200 MHz eMMC clock. From the log
+we'll compute the current frequency and read off the levers. It also flags the
+companion lever I can't read from a register: the **core voltage rail** (an
+RK817 buck) — a real 1.8 GHz bring-up is a clock *and* a voltage move together
+(DVFS), so it's the PMIC's job, not the CRU's.
 
 
-**A/B slots — already filed.** It's documented in full in the flash-protocol issue (a dedicated "resilience to mid-flash interruption" section), and the eMMC-overwrite issue defers to it. So it's already in the right home for when we build our boot-partition installer; nothing to re-file.
+**A/B slots — already filed.** It's documented in full in the flash-protocol
+issue (a dedicated "resilience to mid-flash interruption" section), and the
+eMMC-overwrite issue defers to it. So it's already in the right home for when we
+build our boot-partition installer; nothing to re-file.
 
 
 **Flash plan — one flash, three answers:**
 
 ```
 
-scripts/push-to-usb → scripts/lab-side/flash-sd →
-scripts/lab-side/dump-from-sd
+scripts/push-to-usb → scripts/lab-side/flash-sd → scripts/lab-side/dump-from-sd
 
 ```
 
-- `cpu-clock-recon` — the CPU's current clock + the levers (the giant speed lever).
+- `cpu-clock-recon` — the CPU's current clock + the levers (the giant speed
+  lever).
 
-- `sd-capabilities` — the card's ceilings (4-bit, write class, supported modes).
+- `sd-capabilities` — the card's ceilings (4-bit, write class, supported
+  modes).
 
-- `emmc-hs400` — the three fingerprints; matching = HS400 data integrity **proven**.
+- `emmc-hs400` — the three fingerprints; matching = HS400 data integrity
+  **proven**.
 
 
-**On the commit:** agreed — once an issue's done. That `emmc-hs400` fingerprint check is the last open piece of the fast-eMMC-read issue (HS200 + HS400 transitions are already proven; DMA is explicitly a separate deferred issue). So if the next flash shows three matching fingerprints, **the fast eMMC read path is a finished issue** — and that's the moment I'll propose the commit, anchored on it. Send me the logs.
+**On the commit:** agreed — once an issue's done. That `emmc-hs400`
+fingerprint check is the last open piece of the fast-eMMC-read issue (HS200 +
+HS400 transitions are already proven; DMA is explicitly a separate deferred
+issue). So if the next flash shows three matching fingerprints, **the fast eMMC
+read path is a finished issue** — and that's the moment I'll propose the
+commit, anchored on it. Send me the logs.
 
 
 --------------------------------------------------------------------------------
@@ -14235,11 +15905,11 @@ Three fingerprints, three speeds, all identical and all clean:
 
 ```
 
-legacy : rc 0 fingerprint=0xC4FBFA8B (non-zero)
+legacy : rc 0   fingerprint=0xC4FBFA8B  (non-zero)
 
-HS200 : rc 0 fingerprint=0xC4FBFA8B (non-zero)
+HS200  : rc 0   fingerprint=0xC4FBFA8B  (non-zero)
 
-HS400 : rc 0 fingerprint=0xC4FBFA8B (non-zero)
+HS400  : rc 0   fingerprint=0xC4FBFA8B  (non-zero)
 
 ```
 
@@ -14265,11 +15935,14 @@ fetch stalls on DRAM — that's what makes an 816 MHz core *behave* like 50 MHz.
 This reshuffles the priority list:
 
 
-- **Caches / MMU bring-up** is the giant lever (the real ~10–30×), not the clock.
+- **Caches / MMU bring-up** is the giant lever (the real ~10–30×), not the
+  clock.
 
-- Bumping APLL 816 → 1800 MHz is a secondary ~2.2×, and it has to move the core voltage with it (DVFS — faster clock, more volts, via the PMIC).
+- Bumping APLL 816 → 1800 MHz is a secondary ~2.2×, and it has to move the
+  core voltage with it (DVFS — faster clock, more volts, via the PMIC).
 
-- I've corrected the premise in the CPU issue (it assumed 50 MHz), with a note to confirm the delivered clock with a cycle counter before fully trusting it.
+- I've corrected the premise in the CPU issue (it assumed 50 MHz), with a note
+  to confirm the delivered clock with a cycle counter before fully trusting it.
 
 
 That's the answer to "what levers can we pull with the CPU" — and the honest
@@ -14285,7 +15958,10 @@ The capability probe worked first try and read:
 
 - **Speed class: Class 10 / U3** — so ~10 MB/s guaranteed write, ~30 in UHS.
 
-- **Modes at 3.3 V: Default + High Speed only.** The card *is* UHS-capable (the U3 grade says so), but at the 3.3 V our init currently uses it only advertises up to High Speed — the SDR50/104 modes unlock only after the 1.8 V voltage-switch handshake, which our init doesn't request yet.
+- **Modes at 3.3 V: Default + High Speed only.** The card *is* UHS-capable (the
+  U3 grade says so), but at the 3.3 V our init currently uses it only advertises
+  up to High Speed — the SDR50/104 modes unlock only after the 1.8 V
+  voltage-switch handshake, which our init doesn't request yet.
 
 
 So **Stage 1 (4-bit + High Speed, no voltage switch) is the clear next build**
@@ -14309,7 +15985,7 @@ device ~10–30× faster), or **DMA** (take the CPU out of the copy loop).
 
 ### User Request 164
 
-- Speed class: Class 10 / U3 — so ~10 MB/s guaranteed write, ~30 in UHS.
+  - Speed class: Class 10 / U3 — so ~10 MB/s guaranteed write, ~30 in UHS.
 
 
 explain this a bit more? What do the acronyms mean?
@@ -14317,10 +15993,10 @@ explain this a bit more? What do the acronyms mean?
 
 Your call which lever to pull
 
-next: SD Stage 1 (finish the fast backup), caches/MMU (make the whole device
-~10–30× faster), or
+  next: SD Stage 1 (finish the fast backup), caches/MMU (make the whole device
+  ~10–30× faster), or
 
-DMA (take the CPU out of the copy loop).
+  DMA (take the CPU out of the copy loop).
 
 
 
@@ -14347,13 +16023,19 @@ where dropping below it means dropped frames. That's why these classes exist.)
 There are four overlapping systems, and a card can carry several at once:
 
 
-- **Speed Class** (the original) — `C2 / C4 / C6 / C10`, the number inside a **C**. The digit *is* the floor in MB/s. **C10 = 10 MB/s** minimum sustained write.
+- **Speed Class** (the original) — `C2 / C4 / C6 / C10`, the number inside a
+  **C**. The digit *is* the floor in MB/s. **C10 = 10 MB/s** minimum sustained
+  write.
 
-- **UHS Speed Class** — `U1 / U3`, the number inside a **U**. UHS = **Ultra High Speed** (the faster bus family). U1 = 10 MB/s, **U3 = 30 MB/s** minimum write.
+- **UHS Speed Class** — `U1 / U3`, the number inside a **U**. UHS = **Ultra
+  High Speed** (the faster bus family). U1 = 10 MB/s, **U3 = 30 MB/s** minimum
+  write.
 
-- **Video Speed Class** — `V6 … V90`, for 4K/8K capture. Our card read **V0** (none).
+- **Video Speed Class** — `V6 … V90`, for 4K/8K capture. Our card read
+  **V0** (none).
 
-- **Application Performance Class** — `A1 / A2`, about random read/write *operations per second* for running apps off the card (not in our dump).
+- **Application Performance Class** — `A1 / A2`, about random read/write
+  *operations per second* for running apps off the card (not in our dump).
 
 
 Your card carries **both C10 and U3** because they apply in **different bus
@@ -14385,11 +16067,14 @@ The actual path to USB flashing looks like:
 
 - **back up the bootloader** (works now, fast) →
 
-- **parse the eMMC's GPT** to find where the boot partition really lives (the overwrite code currently has a placeholder address) →
+- **parse the eMMC's GPT** to find where the boot partition really lives (the
+  overwrite code currently has a placeholder address) →
 
-- **wire up the eMMC overwrite** (write SoreOS into the boot partition) — the *first* takeover can happen via the button-bootstrap, no USB needed →
+- **wire up the eMMC overwrite** (write SoreOS into the boot partition) — the
+  *first* takeover can happen via the button-bootstrap, no USB needed →
 
-- for the **runtime USB-C loop**, fix the **USB enumeration hang** (the endpoint-zero stall that's been deferred).
+- for the **runtime USB-C loop**, fix the **USB enumeration hang** (the
+  endpoint-zero stall that's been deferred).
 
 
 None of that needs DMA, fast SD, or caches. Those are real and we'll want them
@@ -14401,13 +16086,20 @@ to check the routing before sinking effort into DMA:
 **[Asked the user]**
 
 
-*Q1 — Next move:* Given the backup is now small/fast and DMA/SD/caches aren't on the USB-flashing path, what should I take on next?
+*Q1 — Next move:* Given the backup is now small/fast and DMA/SD/caches aren't
+on the USB-flashing path, what should I take on next?
 
-- The USB-flash route — Back up the bootloader, parse the eMMC GPT to find the boot partition, wire up the eMMC overwrite (110b), and fix the USB enumeration hang (109b). The literal quickest path to flashing SoreOS over USB.
+- The USB-flash route — Back up the bootloader, parse the eMMC GPT to find the
+  boot partition, wire up the eMMC overwrite (110b), and fix the USB enumeration
+  hang (109b). The literal quickest path to flashing SoreOS over USB.
 
-- DMA first, as planned — Build the descriptor-driven transfers (ADMA2 for eMMC, IDMAC for SD) so the controllers move bytes without the CPU. Foundational for big future transfers, but off the USB-flash critical path.
+- DMA first, as planned — Build the descriptor-driven transfers (ADMA2 for
+  eMMC, IDMAC for SD) so the controllers move bytes without the CPU.
+  Foundational for big future transfers, but off the USB-flash critical path.
 
-- Just get SoreOS on eMMC — The overwrite path + button-bootstrap takeover only (backup -> GPT -> 110b), deferring the runtime USB-C loop and its enumeration fix for later.
+- Just get SoreOS on eMMC — The overwrite path + button-bootstrap takeover
+  only (backup -> GPT -> 110b), deferring the runtime USB-C loop and its
+  enumeration fix for later.
 
 → **Answered:** we need to copy the entire eMMC onto the dev machine so we can
 examine it. I fully expect it to be mostly zeroes. For that, we want DMA and the
@@ -14447,15 +16139,21 @@ Done — the eMMC DMA read is built and baked in, and the descriptor path is
 wired so the next flash *proves* it. Quick rundown:
 
 
-**What I built.** `emmc_read_blocks_dma` hands the controller an ADMA2 descriptor — "move these bytes to this RAM address" — and lets it burst a multi-block read on its own, no CPU in the copy loop. The `emmc-dma` probe reads the non-zero idbloader region that way at all three speeds and fingerprints it. A nice quirk in our favor: with the MMU and caches off, the DMA write lands in DRAM and the CPU reads DRAM directly, so there's **no cache-coherency dance** to get wrong yet (I noted in the code that this must be revisited when caches come on).
+**What I built.** `emmc_read_blocks_dma` hands the controller an ADMA2
+descriptor — "move these bytes to this RAM address" — and lets it burst a
+multi-block read on its own, no CPU in the copy loop. The `emmc-dma` probe reads
+the non-zero idbloader region that way at all three speeds and fingerprints it.
+A nice quirk in our favor: with the MMU and caches off, the DMA write lands in
+DRAM and the CPU reads DRAM directly, so there's **no cache-coherency dance** to
+get wrong yet (I noted in the code that this must be revisited when caches come
+on).
 
 
 **Flash plan — read me back `probe-emmc-dma-*.log`:**
 
 ```
 
-scripts/push-to-usb → scripts/lab-side/flash-sd →
-scripts/lab-side/dump-from-sd
+scripts/push-to-usb → scripts/lab-side/flash-sd → scripts/lab-side/dump-from-sd
 
 ```
 
@@ -14468,13 +16166,20 @@ likely first-iteration snag, and the error bit now reports it rather than hiding
 it).
 
 
-**Honest map of the rest, since the dump is the real target.** This is the *read* half. For a full eMMC→SD dump the bottleneck is the **SD write**, and that side is the bigger lift:
+**Honest map of the rest, since the dump is the real target.** This is the
+*read* half. For a full eMMC→SD dump the bottleneck is the **SD write**, and
+that side is the bigger lift:
 
-- the microSD controller is a different chip (DW MSHC) with its own DMA engine (IDMAC, not ADMA2) — and I don't have its reference driver in the tree yet, so that's the one piece that'll need a reference extraction first, like we did for the eMMC and i2c;
+- the microSD controller is a different chip (DW MSHC) with its own DMA engine
+  (IDMAC, not ADMA2) — and I don't have its reference driver in the tree yet,
+  so that's the one piece that'll need a reference extraction first, like we did
+  for the eMMC and i2c;
 
 - then SD Stage 1 (the 4-bit + High-Speed bus you'd queued next);
 
-- then the full-dump wiring itself — read the card's sector count for the size, chunk the whole card into linked descriptors, and double-buffer so read and write overlap.
+- then the full-dump wiring itself — read the card's sector count for the
+  size, chunk the whole card into linked descriptors, and double-buffer so read
+  and write overlap.
 
 
 So: **prove this DMA read on the next flash**, then the work turns to the SD
@@ -14490,13 +16195,13 @@ path is a finished piece.
 so, question... if we're not using the CPU, what is our C code running on?
 
 
-- the microSD controller is a different chip (DW MSHC) with its own DMA engine
-(IDMAC, not
+  - the microSD controller is a different chip (DW MSHC) with its own DMA engine
+    (IDMAC, not
 
-ADMA2) — and I don't have its reference driver in the tree yet, so that's the
-one piece that'll
+  ADMA2) — and I don't have its reference driver in the tree yet, so that's
+  the one piece that'll
 
-need a reference extraction first, like we did for the eMMC and i2c;
+  need a reference extraction first, like we did for the eMMC and i2c;
 
 
 
@@ -14517,9 +16222,15 @@ The precise picture. A storage transfer has two jobs: (1) tell the card what to
 do, and (2) actually shovel each 512-byte block between the controller and RAM.
 
 
-- **Without DMA (PIO)**, the CPU does *both*. It runs a loop — read a word from the controller's FIFO into a register, write it to RAM, repeat 128 times a block. Every byte passes *through* the CPU. The CPU is the bucket brigade.
+- **Without DMA (PIO)**, the CPU does *both*. It runs a loop — read a word
+  from the controller's FIFO into a register, write it to RAM, repeat 128 times
+  a block. Every byte passes *through* the CPU. The CPU is the bucket brigade.
 
-- **With DMA**, the CPU does job (1) — a handful of instructions to hand over the descriptor and kick it off — and job (2) is done by *a different piece of silicon*: the storage controller itself. The controller is a "bus master" — it can drive the memory bus directly — so it streams the block straight into RAM, and the bytes never touch the CPU.
+- **With DMA**, the CPU does job (1) — a handful of instructions to hand over
+  the descriptor and kick it off — and job (2) is done by *a different piece
+  of silicon*: the storage controller itself. The controller is a "bus master"
+  — it can drive the memory bus directly — so it streams the block straight
+  into RAM, and the bytes never touch the CPU.
 
 
 So what's the CPU doing *during* the transfer? Right now, in our code, it's
@@ -14575,11 +16286,14 @@ driver interpretation. I read it and distilled the build-ready bits into the DMA
 issue:
 
 
-- the **descriptor** (DES0 control word — OWN/chain/first/last; DES1 size; DES2 buffer address; DES3 next-descriptor),
+- the **descriptor** (DES0 control word — OWN/chain/first/last; DES1 size;
+  DES2 buffer address; DES3 next-descriptor),
 
-- the **registers** (CTRL bit 25 to switch the engine on, BMOD/DBADDR/IDSTS at 0x80/0x88/0x8C),
+- the **registers** (CTRL bit 25 to switch the engine on, BMOD/DBADDR/IDSTS at
+  0x80/0x88/0x8C),
 
-- the **init order** (reset → BMOD → build list → DBADDR → enable → command → poll IDSTS).
+- the **init order** (reset → BMOD → build list → DBADDR → enable →
+  command → poll IDSTS).
 
 
 One detail worth flagging now: the SD engine's per-descriptor size field is only
@@ -14609,18 +16323,20 @@ logs delivered, btw.
 
 ### Assistant Response 166
 
-**Four for four — DMA read is proven.** The PIO baseline and all three DMA reads (legacy, HS200, HS400) printed the identical `0xC4FBFA8B`, `rc 0`, non-zero:
+**Four for four — DMA read is proven.** The PIO baseline and all three DMA
+reads (legacy, HS200, HS400) printed the identical `0xC4FBFA8B`, `rc 0`,
+non-zero:
 
 
 ```
 
-PIO legacy : fingerprint = 0xC4FBFA8B
+PIO  legacy : fingerprint = 0xC4FBFA8B
 
-DMA legacy : fp[blk0] = 0xC4FBFA8B
+DMA  legacy : fp[blk0]    = 0xC4FBFA8B
 
-DMA HS200 : fp[blk0] = 0xC4FBFA8B
+DMA  HS200   : fp[blk0]    = 0xC4FBFA8B
 
-DMA HS400 : fp[blk0] = 0xC4FBFA8B
+DMA  HS400   : fp[blk0]    = 0xC4FBFA8B
 
 ```
 
@@ -14651,8 +16367,7 @@ once by PIO and once by the IDMAC, back to back, and compares fingerprints.
 
 ```
 
-scripts/push-to-usb → scripts/lab-side/flash-sd →
-scripts/lab-side/dump-from-sd
+scripts/push-to-usb → scripts/lab-side/flash-sd → scripts/lab-side/dump-from-sd
 
 ```
 
@@ -14668,7 +16383,10 @@ need a tweak; the error logging is there for exactly that).
 
 - eMMC **read**: HS400 + ADMA2 → fast *and* CPU-free — **proven**. ✓
 
-- microSD **write**: this validates the engine via a *read* first (safest); once it's green, the **write** path (the dump's actual need) is a short step on the same engine, then **Stage 1** for the fast bus, then the chunked full-dump loop.
+- microSD **write**: this validates the engine via a *read* first (safest); once
+  it's green, the **write** path (the dump's actual need) is a short step on the
+  same engine, then **Stage 1** for the fast bus, then the chunked full-dump
+  loop.
 
 
 So the next flash tells us the SD DMA engine is sound, and after that the
@@ -14692,7 +16410,9 @@ Didn't we already validate writing to the SD card because of the 200mb (now
 Two good catches, and you're right on both.
 
 
-**Yes — SD *writes* are thoroughly proven.** Every boot writes the debug log to the card (that's how we've been reading these probe logs all session), and the backup wrote to it too. PIO writes to the SD are rock solid.
+**Yes — SD *writes* are thoroughly proven.** Every boot writes the debug log
+to the card (that's how we've been reading these probe logs all session), and
+the backup wrote to it too. PIO writes to the SD are rock solid.
 
 
 But here's the distinction: what's proven is the **PIO** path — the CPU
@@ -14704,7 +16424,12 @@ about whether that descriptor/bus-master engine works. It's never been switched
 on.
 
 
-**And you caught the real mistake: I tested the wrong direction.** The dump only ever *writes* to the SD (it reads eMMC, writes SD) — a DMA *read* of the card isn't even on its path. So testing an IDMAC read was pointless. The right test is an IDMAC *write*, which is both what the dump needs and perfectly safe (we write to the SD constantly). Let me fix it — write a pattern via the IDMAC, read it back through the proven PIO path, compare:
+**And you caught the real mistake: I tested the wrong direction.** The dump only
+ever *writes* to the SD (it reads eMMC, writes SD) — a DMA *read* of the card
+isn't even on its path. So testing an IDMAC read was pointless. The right test
+is an IDMAC *write*, which is both what the dump needs and perfectly safe (we
+write to the SD constantly). Let me fix it — write a pattern via the IDMAC,
+read it back through the proven PIO path, compare:
 
 
 Now the test function itself (that diagnostic is the old read test still calling
@@ -14730,8 +16455,7 @@ settled.
 
 ```
 
-scripts/push-to-usb → scripts/lab-side/flash-sd →
-scripts/lab-side/dump-from-sd
+scripts/push-to-usb → scripts/lab-side/flash-sd → scripts/lab-side/dump-from-sd
 
 ```
 
@@ -14766,52 +16490,80 @@ lands; this'll make it readable.)
 
 **The two ways to move the bytes**
 
-- **PIO — Programmed I/O.** The CPU runs a *program* (a loop) to do the in/out: read a word, write a word, repeat. The CPU carries every bucket.
+- **PIO — Programmed I/O.** The CPU runs a *program* (a loop) to do the
+  in/out: read a word, write a word, repeat. The CPU carries every bucket.
 
-- **DMA — Direct Memory Access.** A device reaches into memory *directly*, no CPU in the copy.
+- **DMA — Direct Memory Access.** A device reaches into memory *directly*, no
+  CPU in the copy.
 
 
 **The two DMA flavors — one per controller, because they're different chips**
 
-- **ADMA2 — Advanced DMA, version 2.** The DMA scheme baked into the SD-host *standard*; "advanced" because it walks a *list* of descriptors (the older "SDMA" it replaced handled one buffer at a time). Our **eMMC** controller uses this.
+- **ADMA2 — Advanced DMA, version 2.** The DMA scheme baked into the SD-host
+  *standard*; "advanced" because it walks a *list* of descriptors (the older
+  "SDMA" it replaced handled one buffer at a time). Our **eMMC** controller uses
+  this.
 
-- **IDMAC — Internal Direct Memory Access Controller.** Same idea, but the DesignWare controller's *own built-in* engine — "internal" = part of the controller, not a separate system-wide unit. Our **microSD** controller uses this.
+- **IDMAC — Internal Direct Memory Access Controller.** Same idea, but the
+  DesignWare controller's *own built-in* engine — "internal" = part of the
+  controller, not a separate system-wide unit. Our **microSD** controller uses
+  this.
 
 
 **The two controllers themselves — why they need separate code**
 
-- **SDHCI — SD Host Controller Interface.** An *industry-standard* register layout; follow it and generic drivers just work. The eMMC controller speaks SDHCI (+ ADMA2).
+- **SDHCI — SD Host Controller Interface.** An *industry-standard* register
+  layout; follow it and generic drivers just work. The eMMC controller speaks
+  SDHCI (+ ADMA2).
 
-- **DW MSHC — DesignWare Mobile Storage Host Controller.** "DesignWare" is Synopsys's brand of licensable chip blocks; this is their storage one, and it does *not* follow SDHCI — own registers, own IDMAC. The microSD controller is one of these. (That's why "nothing in the eMMC driver is reusable here.")
+- **DW MSHC — DesignWare Mobile Storage Host Controller.** "DesignWare" is
+  Synopsys's brand of licensable chip blocks; this is their storage one, and it
+  does *not* follow SDHCI — own registers, own IDMAC. The microSD controller
+  is one of these. (That's why "nothing in the eMMC driver is reusable here.")
 
 
 **The plumbing a transfer flows through**
 
-- **FIFO — First In, First Out.** A little hardware queue between controller and bus, like a turnstile — bytes in one end, out the other in order. In PIO the *CPU* fills/drains it; in DMA the *engine* does (which is why "when DMA is on, the FIFO can't be reached the CPU's way").
+- **FIFO — First In, First Out.** A little hardware queue between controller
+  and bus, like a turnstile — bytes in one end, out the other in order. In PIO
+  the *CPU* fills/drains it; in DMA the *engine* does (which is why "when DMA is
+  on, the FIFO can't be reached the CPU's way").
 
-- **LBA — Logical Block Address.** Just the *block number* on the card — LBA 0, LBA 1, … each a 512-byte sector.
+- **LBA — Logical Block Address.** Just the *block number* on the card — LBA
+  0, LBA 1, … each a 512-byte sector.
 
 
-**The descriptor — the DMA's little instruction note ("move these bytes here")**
+**The descriptor — the DMA's little instruction note ("move these bytes
+here")**
 
 - Four 32-bit words, **DES0–DES3** (DES = descriptor element).
 
-- **OWN** — the ownership flag: 1 = the engine owns the note (hands off, CPU), and the engine *clears* OWN when it finishes — that's how it says "done."
+- **OWN** — the ownership flag: 1 = the engine owns the note (hands off, CPU),
+  and the engine *clears* OWN when it finishes — that's how it says "done."
 
 - **FS / LD** — First / Last descriptor of a chain.
 
-- **BS1 — Buffer Size 1** — how many bytes this note's buffer holds (the SD engine's is 13 bits → ~8 KB, the detail that makes the dump chain more of them).
+- **BS1 — Buffer Size 1** — how many bytes this note's buffer holds (the SD
+  engine's is 13 bits → ~8 KB, the detail that makes the dump chain more of
+  them).
 
 
 **The registers we poke to run it**
 
-- **BMOD — Bus Mode** — switches the IDMAC engine on and sets its burst behavior.
+- **BMOD — Bus Mode** — switches the IDMAC engine on and sets its burst
+  behavior.
 
-- **DBADDR — Descriptor Base Address** — tells the engine *where the note is* in RAM.
+- **DBADDR — Descriptor Base Address** — tells the engine *where the note
+  is* in RAM.
 
-- **RINTSTS — Raw Interrupt Status** — the "what just happened" light: a bit for transfer-done, a bit per error. "Raw" = unfiltered; we *poll* it (read in a loop) instead of taking an interrupt. When you see me check `RINTSTS`, that's me reading the status light.
+- **RINTSTS — Raw Interrupt Status** — the "what just happened" light: a bit
+  for transfer-done, a bit per error. "Raw" = unfiltered; we *poll* it (read in
+  a loop) instead of taking an interrupt. When you see me check `RINTSTS`,
+  that's me reading the status light.
 
-- And **CMD17 / CMD24** are just the SD/eMMC spec's *numbered* commands — CMD17 = read one block, CMD24 = write one block (CMD18/CMD25 are the multi-block versions the dump will use).
+- And **CMD17 / CMD24** are just the SD/eMMC spec's *numbered* commands —
+  CMD17 = read one block, CMD24 = write one block (CMD18/CMD25 are the
+  multi-block versions the dump will use).
 
 
 The one-sentence weave: the **CPU** writes a **descriptor** (DES0–3, **OWN**
@@ -14865,9 +16617,11 @@ first word of each buffer so the pattern is visible. Three distinguishable
 outcomes now:
 
 
-- **`IDMAC WRITE OK (read-back matches the non-zero pattern)`** — the engine works.
+- **`IDMAC WRITE OK (read-back matches the non-zero pattern)`** — the engine
+  works.
 
-- **`INCONCLUSIVE: read-back all zeros (DMA write did not land)`** — the write silently did nothing (the failure the old test was *hiding*).
+- **`INCONCLUSIVE: read-back all zeros (DMA write did not land)`** — the write
+  silently did nothing (the failure the old test was *hiding*).
 
 - **`IDMAC WRITE MISMATCH`** — it wrote, but wrong bytes.
 
@@ -14880,8 +16634,7 @@ zeros"; the new test tells them apart.
 
 ```
 
-scripts/push-to-usb → scripts/lab-side/flash-sd →
-scripts/lab-side/dump-from-sd
+scripts/push-to-usb → scripts/lab-side/flash-sd → scripts/lab-side/dump-from-sd
 
 ```
 
@@ -14912,13 +16665,13 @@ Now *that's* a real pass:
 
 ```
 
-DMA-write rc = 0x00
+DMA-write rc   = 0x00
 
-read-back rc = 0x00
+read-back rc   = 0x00
 
-wrote [0..3] = 0x82BFA8A5 ← the pattern, non-zero, exactly as predicted
+wrote    [0..3] = 0x82BFA8A5    ← the pattern, non-zero, exactly as predicted
 
-readback [0..3] = 0x82BFA8A5 ← identical
+readback [0..3] = 0x82BFA8A5    ← identical
 
 IDMAC WRITE OK (read-back matches the non-zero pattern)
 
@@ -14948,9 +16701,11 @@ IDMAC-write each, loop with a progress bar.
 
 So two ways to go, your call:
 
-- **SD Stage 1 next** (your plan) — one more build+flash to get the fast SD bus, *then* assemble the dump so it finishes in minutes; or
+- **SD Stage 1 next** (your plan) — one more build+flash to get the fast SD
+  bus, *then* assemble the dump so it finishes in minutes; or
 
-- **assemble the dump now** on the proven-but-slow path — gets you the examine-it data sooner, just with a long grind (and we speed it up afterward).
+- **assemble the dump now** on the proven-but-slow path — gets you the
+  examine-it data sooner, just with a long grind (and we speed it up afterward).
 
 
 Either way the engines are done. Nothing committed — 110m finishes when the
@@ -14979,16 +16734,17 @@ clarifications so we're aligned, then I'll build it:
 
 
 1. **The picker still drives a switch *mechanism*** — the ACMD6 4-bit +
-CMD6-to-High-Speed + clock-change code. That part isn't throwaway; it's exactly
-what the picker *applies*. So "skip Stage 1" really means "don't hardcode the
-target" — we build the mechanism and the chooser together, in one go.
+   CMD6-to-High-Speed + clock-change code. That part isn't throwaway; it's
+   exactly what the picker *applies*. So "skip Stage 1" really means "don't
+   hardcode the target" — we build the mechanism and the chooser together, in
+   one go.
 
 2. **For this card, the picker lands on 4-bit + High-Speed**, not UHS. The card
-only advertises up to High-Speed at 3.3 V (UHS modes appear *after* a 1.8 V
-voltage switch we haven't built). So the dynamic system correctly picks the safe
-max = High-Speed; reaching UHS is the separate voltage-switch ceiling, and the
-picker extends to it for free once that exists. Just so "dynamic" doesn't imply
-"faster than High-Speed yet."
+   only advertises up to High-Speed at 3.3 V (UHS modes appear *after* a 1.8 V
+   voltage switch we haven't built). So the dynamic system correctly picks the
+   safe max = High-Speed; reaching UHS is the separate voltage-switch ceiling,
+   and the picker extends to it for free once that exists. Just so "dynamic"
+   doesn't imply "faster than High-Speed yet."
 
 
 Building it — read the three inputs, log them, apply the safe minimum,
@@ -15017,8 +16773,7 @@ faster, wider bus.
 
 ```
 
-scripts/push-to-usb → scripts/lab-side/flash-sd →
-scripts/lab-side/dump-from-sd
+scripts/push-to-usb → scripts/lab-side/flash-sd → scripts/lab-side/dump-from-sd
 
 ```
 
@@ -15058,13 +16813,13 @@ each run / IDMAC-write each, loop with a progress bar. That's 110m's finish line
 
 ### User Request 172
 
-Once this is green, the only thing between us and the dump is the assembly you
-already know:
+  Once this is green, the only thing between us and the dump is the assembly you
+  already know:
 
-read the eMMC's sector count, chunk the whole card, ADMA2-read each run /
-IDMAC-write each, loop
+  read the eMMC's sector count, chunk the whole card, ADMA2-read each run /
+  IDMAC-write each, loop
 
-with a progress bar. That's 110m's finish line — and the commit.
+  with a progress bar. That's 110m's finish line — and the commit.
 
 
 
@@ -15138,7 +16893,9 @@ So both halves of the dump are now proven *and* the scaffold's in:
 
 - **SD write**: 4-bit High-Speed + IDMAC ✓ (dynamically selected)
 
-- **the dump loop**: written, compiles, capped at 8 MB, de-selected, with 9 `PLACEHOLDER(dump)` markers (the multi-block SD write, the cap, the destination/capacity check, double-buffering, the throughput timer).
+- **the dump loop**: written, compiles, capped at 8 MB, de-selected, with 9
+  `PLACEHOLDER(dump)` markers (the multi-block SD write, the cap, the
+  destination/capacity check, double-buffering, the throughput timer).
 
 
 The only thing left to see the dump *actually run* is to flip the `emmc-dump`
@@ -15188,13 +16945,17 @@ old legacy backup stay de-selected). This is the run where we either win or find
 out exactly where it stops.
 
 
-**What the flash does:** brings up the SD (dynamic 4-bit High-Speed) and the eMMC (HS200), then streams the **whole card** to SD LBA `0x800000` over the proven DMA paths. It logs the eMMC's sector count and the required SD span *first*, so you'll see how big it is (and whether your card fits) before it commits. Then the bottom LED fills as a progress bar, `[dump] N / limit` prints ~per megabyte, and `[dump] complete` at the end.
+**What the flash does:** brings up the SD (dynamic 4-bit High-Speed) and the
+eMMC (HS200), then streams the **whole card** to SD LBA `0x800000` over the
+proven DMA paths. It logs the eMMC's sector count and the required SD span
+*first*, so you'll see how big it is (and whether your card fits) before it
+commits. Then the bottom LED fills as a progress bar, `[dump] N / limit` prints
+~per megabyte, and `[dump] complete` at the end.
 
 
 ```
 
-scripts/push-to-usb → scripts/lab-side/flash-sd → boot, watch the LED fill
-→ scripts/lab-side/dump-from-sd
+scripts/push-to-usb → scripts/lab-side/flash-sd → boot, watch the LED fill → scripts/lab-side/dump-from-sd
 
 ```
 
@@ -15202,9 +16963,20 @@ scripts/push-to-usb → scripts/lab-side/flash-sd → boot, watch the LED fill
 Two honest things:
 
 
-- **Pace.** The SD write still loops single-block (that's the big `PLACEHOLDER(dump)`), so a multi-GB card is a grind — could be many minutes. The point is correctness first; if the early `[dump] N / limit` lines march cleanly, the mechanism's good and it'll run to the full image. If the pace is painful, the multi-block write is the one lever that fixes it, and I'll fill it.
+- **Pace.** The SD write still loops single-block (that's the big
+  `PLACEHOLDER(dump)`), so a multi-GB card is a grind — could be many minutes.
+  The point is correctness first; if the early `[dump] N / limit` lines march
+  cleanly, the mechanism's good and it'll run to the full image. If the pace is
+  painful, the multi-block write is the one lever that fixes it, and I'll fill
+  it.
 
-- **Getting the image off.** The dump lands at SD LBA `0x800000`; `dump-from-sd` pulls the *debug log* (so you'll see the `[dump]` progress and the sector count there), but it doesn't grab the image region yet. Once this run tells us the eMMC's real size, I'll wire that exact read into `dump-from-sd` — or you can `dd if=<sd> bs=512 skip=8388608 count=<sectors from the log>` it directly. Either way, that read-back is the last link between "the dump ran" and "we're examining it."
+- **Getting the image off.** The dump lands at SD LBA `0x800000`; `dump-from-sd`
+  pulls the *debug log* (so you'll see the `[dump]` progress and the sector
+  count there), but it doesn't grab the image region yet. Once this run tells us
+  the eMMC's real size, I'll wire that exact read into `dump-from-sd` — or you
+  can `dd if=<sd> bs=512 skip=8388608 count=<sectors from the log>` it directly.
+  Either way, that read-back is the last link between "the dump ran" and "we're
+  examining it."
 
 
 Flash it and let it grind. If `dump-from-sd` comes back with `[dump] complete`
@@ -15228,7 +17000,8 @@ and **CMD25** (WRITE_MULTIPLE_BLOCK, "write a *run* of blocks starting here"),
 and it matters entirely because of *per-transaction overhead*.
 
 
-**What we do now (single-block).** Our `sd_write_blocks_dma` loops one block at a time, and each block is a whole transaction:
+**What we do now (single-block).** Our `sd_write_blocks_dma` loops one block at
+a time, and each block is a whole transaction:
 
 - send CMD24 over the command line, wait for the card's response,
 
@@ -15247,7 +17020,12 @@ paid once **per block** — at our caches-off effective speed that alone is a
 real tax, times millions.
 
 
-**What multi-block does.** CMD25 says "here's a start address and a count — write this whole run back-to-back." You pay the command and the engine setup **once**, then N blocks stream through the FIFO into the card without stopping, and a single **CMD12** (STOP_TRANSMISSION) ends the run — the DW MSHC can even send that stop automatically. The overhead is amortized over the whole run instead of paid N times.
+**What multi-block does.** CMD25 says "here's a start address and a count —
+write this whole run back-to-back." You pay the command and the engine setup
+**once**, then N blocks stream through the FIFO into the card without stopping,
+and a single **CMD12** (STOP_TRANSMISSION) ends the run — the DW MSHC can even
+send that stop automatically. The overhead is amortized over the whole run
+instead of paid N times.
 
 
 The analogy: single-block is a checkout line where you ring up *one item*, pay,
@@ -15256,13 +17034,29 @@ putting the whole cart on the belt and paying once. Same groceries; the
 line-waiting was the overhead.
 
 
-**Worth knowing: the eMMC *read* side already does this.** `emmc_read_blocks_dma` uses CMD18 (READ_MULTIPLE_BLOCK) and reads up to 128 blocks per ADMA2 descriptor. So the read half is already efficient — the dump's grind is *entirely* on the SD write half that's still single-block.
+**Worth knowing: the eMMC *read* side already does this.**
+`emmc_read_blocks_dma` uses CMD18 (READ_MULTIPLE_BLOCK) and reads up to 128
+blocks per ADMA2 descriptor. So the read half is already efficient — the
+dump's grind is *entirely* on the SD write half that's still single-block.
 
 
-**The wrinkle (why I deferred it).** The SD DMA engine's descriptor can only describe ~8 KB (that 13-bit `BS1` size field, vs the eMMC's 64 KB). So a run bigger than ~15 blocks needs a *chain* of descriptors — descriptor A's "next" pointer (`DES3`, with the chained bit set) points at B, and the engine walks the chain feeding one CMD25. So filling this isn't "swap 24 for 25"; it's build a descriptor chain for the chunk, issue CMD25 with the count, enable auto-stop, and handle the multi-block busy/complete. New code with a few moving parts — which is exactly why I left the *proven* single-block loop in for a first correct image.
+**The wrinkle (why I deferred it).** The SD DMA engine's descriptor can only
+describe ~8 KB (that 13-bit `BS1` size field, vs the eMMC's 64 KB). So a run
+bigger than ~15 blocks needs a *chain* of descriptors — descriptor A's "next"
+pointer (`DES3`, with the chained bit set) points at B, and the engine walks the
+chain feeding one CMD25. So filling this isn't "swap 24 for 25"; it's build a
+descriptor chain for the chunk, issue CMD25 with the count, enable auto-stop,
+and handle the multi-block busy/complete. New code with a few moving parts —
+which is exactly why I left the *proven* single-block loop in for a first
+correct image.
 
 
-**What it buys.** The card's flash has a floor write speed (~10–25 MB/s for this Class-10/U3 card). Single-block runs *far below* that floor because the overhead dominates; multi-block strips the overhead out of the per-block path so the dump runs at roughly the card's real write speed — the best this bus and card can do. It's the difference between a long grind and a copy that finishes near the physical limit.
+**What it buys.** The card's flash has a floor write speed (~10–25 MB/s for
+this Class-10/U3 card). Single-block runs *far below* that floor because the
+overhead dominates; multi-block strips the overhead out of the per-block path so
+the dump runs at roughly the card's real write speed — the best this bus and
+card can do. It's the difference between a long grind and a copy that finishes
+near the physical limit.
 
 
 So it's the one lever that turns the dump from "correct but slow" into "correct
@@ -15325,30 +17119,38 @@ Rich log — three findings, and the multi-block write is now in (dump
 de-selected until the SD-DMA probe validates it).
 
 
-**The partial dump was a partial *win*.** Everything ran clean — SD up + sped to 4-bit/50 MHz, eMMC up + HS200, sector count read, and the copy loop marched steadily (`0x0 → 0x24800`, ~73 MB) with **no errors** before you cancelled. So the whole dump *mechanism* is validated — the loop, the ADMA2 read, the IDMAC write, the progress bar. It was only the single-block pace that made you stop, which is exactly what the multi-block write I just built fixes.
+**The partial dump was a partial *win*.** Everything ran clean — SD up + sped
+to 4-bit/50 MHz, eMMC up + HS200, sector count read, and the copy loop marched
+steadily (`0x0 → 0x24800`, ~73 MB) with **no errors** before you cancelled. So
+the whole dump *mechanism* is validated — the loop, the ADMA2 read, the IDMAC
+write, the progress bar. It was only the single-block pace that made you stop,
+which is exactly what the multi-block write I just built fixes.
 
 
-**The eMMC is `0x03A3E000` sectors = ~29 GiB (31.3 GB).** That's the number we didn't have. And you got ~73 MB in — about **0.23%** — before cancelling, which tells you everything about the single-block grind: the full card that way would've been *hours*.
+**The eMMC is `0x03A3E000` sectors = ~29 GiB (31.3 GB).** That's the number we
+didn't have. And you got ~73 MB in — about **0.23%** — before cancelling,
+which tells you everything about the single-block grind: the full card that way
+would've been *hours*.
 
 
 **That 29 GiB raises two things worth deciding before we run the real thing:**
 
 
 1. **Capacity.** The full dump needs a **~33 GiB** SD region (29 GiB + the 4 GB
-offset — that offset's wasteful, I'll trim it). If your SD isn't comfortably
-bigger than the eMMC, the dump overflows partway. Worth confirming your card
-size, or I add a real capacity check.
+   offset — that offset's wasteful, I'll trim it). If your SD isn't
+   comfortably bigger than the eMMC, the dump overflows partway. Worth
+   confirming your card size, or I add a real capacity check.
 
 
 2. **"Mostly zeroes" — is a 29 GiB dump even the right tool?** You expect
-mostly zeroes, and moving 29 GiB (then reading 29 GiB *back* to the dev machine)
-to confirm that is a lot of shovelling for little signal. The sharper move might
-be a **scan-and-map**: read the whole card (fast, ADMA2), and instead of writing
-it all out, just *log the non-zero ranges* — a tiny map that tells you the
-real layout in minutes, no big SD write, no big read-back. Then dump only the
-interesting regions. The full literal image is still there if you actually want
-the bytes; but for "what's on here and is it mostly zeroes," the map answers it
-far cheaper.
+   mostly zeroes, and moving 29 GiB (then reading 29 GiB *back* to the dev
+   machine) to confirm that is a lot of shovelling for little signal. The
+   sharper move might be a **scan-and-map**: read the whole card (fast, ADMA2),
+   and instead of writing it all out, just *log the non-zero ranges* — a tiny
+   map that tells you the real layout in minutes, no big SD write, no big
+   read-back. Then dump only the interesting regions. The full literal image is
+   still there if you actually want the bytes; but for "what's on here and is it
+   mostly zeroes," the map answers it far cheaper.
 
 
 So two things queued: **flash to validate the multi-block write** (the `sd-dma`
@@ -15363,38 +17165,38 @@ nearly there.)
 
 ### User Request 176
 
-1. Capacity. The full dump needs a ~33 GiB SD region (29 GiB + the 4 GB offset
-— that offset's
+  1. Capacity. The full dump needs a ~33 GiB SD region (29 GiB + the 4 GB offset
+     — that offset's
 
-wasteful, I'll trim it). If your SD isn't comfortably bigger than the eMMC, the
-dump overflows
+  wasteful, I'll trim it). If your SD isn't comfortably bigger than the eMMC,
+  the dump overflows
 
-partway. Worth confirming your card size, or I add a real capacity check.
+  partway. Worth confirming your card size, or I add a real capacity check.
 
 
 
 the card is 256gb. What does the offset mean / do?
 
 
-2. "Mostly zeroes" — is a 29 GiB dump even the right tool? You expect mostly
-zeroes, and moving
+  2. "Mostly zeroes" — is a 29 GiB dump even the right tool? You expect mostly
+     zeroes, and moving
 
-29 GiB (then reading 29 GiB back to the dev machine) to confirm that is a lot of
-shovelling for
+  29 GiB (then reading 29 GiB back to the dev machine) to confirm that is a lot
+  of shovelling for
 
-little signal. The sharper move might be a scan-and-map: read the whole card
-(fast, ADMA2), and
+  little signal. The sharper move might be a scan-and-map: read the whole card
+  (fast, ADMA2), and
 
-instead of writing it all out, just log the non-zero ranges — a tiny map that
-tells you the real
+  instead of writing it all out, just log the non-zero ranges — a tiny map
+  that tells you the real
 
-layout in minutes, no big SD write, no big read-back. Then dump only the
-interesting regions.
+  layout in minutes, no big SD write, no big read-back. Then dump only the
+  interesting regions.
 
-The full literal image is still there if you actually want the bytes; but for
-"what's on here
+  The full literal image is still there if you actually want the bytes; but for
+  "what's on here
 
-and is it mostly zeroes," the map answers it far cheaper.
+  and is it mostly zeroes," the map answers it far cheaper.
 
 
 
@@ -15412,10 +17214,21 @@ and the offset waste is irrelevant. Let me answer your two questions and build
 the map.
 
 
-**What the offset is.** `DUMP_DEST_LBA` is just *where on the SD card the dump starts writing* — 4 GB in, in my scaffold. It's an offset because the SD card already has things near its start: the boot image, the debug log, the backup region, the DMA-test block. The dump has to write *past* all of those so it doesn't clobber them. Think of it as "start pouring at the 4 GB mark, the shallow end's taken." For the scan-and-map it's moot — the map doesn't write an image at all, it only logs ranges to the debug log.
+**What the offset is.** `DUMP_DEST_LBA` is just *where on the SD card the dump
+starts writing* — 4 GB in, in my scaffold. It's an offset because the SD card
+already has things near its start: the boot image, the debug log, the backup
+region, the DMA-test block. The dump has to write *past* all of those so it
+doesn't clobber them. Think of it as "start pouring at the 4 GB mark, the
+shallow end's taken." For the scan-and-map it's moot — the map doesn't write
+an image at all, it only logs ranges to the debug log.
 
 
-**On compression — yes, and you've already half-invented it.** Zip/DEFLATE (LZ77 finding repeated substrings + Huffman entropy-coding) is powerful but a real chunk of code. The dead-simple algorithm for *mostly-zeroes* is **RLE — Run-Length Encoding**: instead of storing "0, 0, 0, … (a billion zeros)," you store "*zero × a billion*." A run of N identical bytes becomes one (value, count) pair. A mostly-zero card collapses to almost nothing.
+**On compression — yes, and you've already half-invented it.** Zip/DEFLATE
+(LZ77 finding repeated substrings + Huffman entropy-coding) is powerful but a
+real chunk of code. The dead-simple algorithm for *mostly-zeroes* is **RLE —
+Run-Length Encoding**: instead of storing "0, 0, 0, … (a billion zeros)," you
+store "*zero × a billion*." A run of N identical bytes becomes one (value,
+count) pair. A mostly-zero card collapses to almost nothing.
 
 
 And here's the thing: **the scan-and-map *is* RLE, at the block level.** "Zeros
@@ -15448,414 +17261,425 @@ Summary:
 
 1. Primary Request and Intent:
 
-The project is "Soren DS" / "SoreOS," a bare-metal aarch64 kernel for the
-Anbernic RG DS handheld (Rockchip RK3568 SoC). Across this long session the user
-made these explicit requests, in order:
+   The project is "Soren DS" / "SoreOS," a bare-metal aarch64 kernel for the
+   Anbernic RG DS handheld (Rockchip RK3568 SoC). Across this long session the
+   user made these explicit requests, in order:
 
-- **Per-probe run-list (110k):** "for each probe, we should set a flag at the
-top that says whether or not it's needed. And in the built image we should have
-a list of 0's and 1's that determine whether or not each probe is going to run
-that time. This should all be inside the --debug flag."
+   - **Per-probe run-list (110k):** "for each probe, we should set a flag at the
+     top that says whether or not it's needed. And in the built image we should
+     have a list of 0's and 1's that determine whether or not each probe is
+     going to run that time. This should all be inside the --debug flag."
 
-- **Answer curiosity questions** about joysticks/SARADC (v1 vs v2), HS200 vs
-HS400, and what EXT_CSD revealed — with acronym expansions ("I remember things
-better if I know what the letters stand for").
+   - **Answer curiosity questions** about joysticks/SARADC (v1 vs v2), HS200 vs
+     HS400, and what EXT_CSD revealed — with acronym expansions ("I remember
+     things better if I know what the letters stand for").
 
-- **Build out HS400 functionality:** "we should build all the utility we can
-into the hardware interfaces while we're working on hardware interfaces... Let's
-build out the HS400 functionality."
+   - **Build out HS400 functionality:** "we should build all the utility we can
+     into the hardware interfaces while we're working on hardware interfaces...
+     Let's build out the HS400 functionality."
 
-- **Disable the gamepad probe** (first real run-list use) and consider
-refactoring it to v2 SARADC layout.
+   - **Disable the gamepad probe** (first real run-list use) and consider
+     refactoring it to v2 SARADC layout.
 
-- **Backup targets bootloader only:** "can you make sure the 200mb copy just
-pulls the bootloader? ... when we update the bootloader with our own, we should
-update the probe to specifically target whatever we replace the stock bootloader
-with."
+   - **Backup targets bootloader only:** "can you make sure the 200mb copy just
+     pulls the bootloader? ... when we update the bootloader with our own, we
+     should update the probe to specifically target whatever we replace the
+     stock bootloader with."
 
-- **Runtime (not baked-in) SD capability probing:** "we also have to be able to
-do that dynamically at runtime. We can't just bake in SD card details... It has
-to be data that's gathered every time we do a transfer, or ideally, every time
-an SD card is inserted... Also at bring-up... But that's later work."
+   - **Runtime (not baked-in) SD capability probing:** "we also have to be able
+     to do that dynamically at runtime. We can't just bake in SD card details...
+     It has to be data that's gathered every time we do a transfer, or ideally,
+     every time an SD card is inserted... Also at bring-up... But that's later
+     work."
 
-- **CPU lever audit as a probe:** "can we build this audit now as a probe? We
-should figure out what levers we can pull with the CPU. Anything you can think
-of, let's probe it."
+   - **CPU lever audit as a probe:** "can we build this audit now as a probe? We
+     should figure out what levers we can pull with the CPU. Anything you can
+     think of, let's probe it."
 
-- **A/B slots into the custom bootloader issue.**
+   - **A/B slots into the custom bootloader issue.**
 
-- **Commit discipline:** "Let's make a commit once we've finished an issue file.
-:)"
+   - **Commit discipline:** "Let's make a commit once we've finished an issue
+     file. :)"
 
-- **Ordering:** "let's do DMA first, then SD stage 1, then caches/MMU... I'd
-like to take the quickest route to the USB flashing that we can." Later
-clarified the real goal: "we need to copy the entire eMMC onto the dev machine
-so we can examine it. I fully expect it to be mostly zeroes. For that, we want
-DMA and the fast SD card path."
+   - **Ordering:** "let's do DMA first, then SD stage 1, then caches/MMU... I'd
+     like to take the quickest route to the USB flashing that we can." Later
+     clarified the real goal: "we need to copy the entire eMMC onto the dev
+     machine so we can examine it. I fully expect it to be mostly zeroes. For
+     that, we want DMA and the fast SD card path."
 
-- **Skip hardcoded Stage 1, build dynamic speed picker directly:** "why don't we
-skip the 4-bit + high speed and just go straight for the dynamic system which
-picks the slowest of the 3 speeds between the eMMC, chip, and sd card? No sense
-building infrastructure that we don't need and which doesn't give us valuable
-debug information."
+   - **Skip hardcoded Stage 1, build dynamic speed picker directly:** "why don't
+     we skip the 4-bit + high speed and just go straight for the dynamic system
+     which picks the slowest of the 3 speeds between the eMMC, chip, and sd
+     card? No sense building infrastructure that we don't need and which doesn't
+     give us valuable debug information."
 
-- **Scaffold the dump with placeholders:** "can you write this part while I grab
-the logs? It's okay to add placeholders as long as you grep for them when we're
-implementing."
+   - **Scaffold the dump with placeholders:** "can you write this part while I
+     grab the logs? It's okay to add placeholders as long as you grep for them
+     when we're implementing."
 
-- **Full dump as validation:** "Why don't we just do the dump as the validation?
-If we get a full image, then we won."
+   - **Full dump as validation:** "Why don't we just do the dump as the
+     validation? If we get a full image, then we won."
 
-- **Final message (this turn):** "can you tell me about the multi-block write?"
-(Answer deferred — this turn is a summarization task, TEXT ONLY, no tools.)
+   - **Final message (this turn):** "can you tell me about the multi-block
+     write?" (Answer deferred — this turn is a summarization task, TEXT ONLY,
+     no tools.)
 
 
 2. Key Technical Concepts:
 
-- RK3568 SoC: eMMC dwcmshc/SDHCI @ 0xFE310000; microSD DW MSHC (Synopsys
-DesignWare) @ 0xFE2B0000; main CRU @ 0xFDD20000.
+   - RK3568 SoC: eMMC dwcmshc/SDHCI @ 0xFE310000; microSD DW MSHC (Synopsys
+     DesignWare) @ 0xFE2B0000; main CRU @ 0xFDD20000.
 
-- eMMC speed modes: legacy 1-bit/24MHz → HS200 (8-bit SDR 200MHz, DLL-locked,
-CMD21-tuned) → HS400 (8-bit DDR 200MHz, data strobe/DQS). Reached
-HS200→HS400 (HS200 is a mandatory waypoint).
+   - eMMC speed modes: legacy 1-bit/24MHz → HS200 (8-bit SDR 200MHz,
+     DLL-locked, CMD21-tuned) → HS400 (8-bit DDR 200MHz, data strobe/DQS).
+     Reached HS200→HS400 (HS200 is a mandatory waypoint).
 
-- SD speed modes: Default (25MHz) → High-Speed (50MHz, 3.3V) → UHS-I
-SDR50/104 (needs 1.8V voltage switch via CMD11).
+   - SD speed modes: Default (25MHz) → High-Speed (50MHz, 3.3V) → UHS-I
+     SDR50/104 (needs 1.8V voltage switch via CMD11).
 
-- DMA: ADMA2 (SDHCI standard, eMMC controller, descriptor {attr,len,addr}) vs
-IDMAC (DW MSHC internal, descriptor DES0-3). Coherency is free with caches/MMU
-off (must revisit when caches come on).
+   - DMA: ADMA2 (SDHCI standard, eMMC controller, descriptor {attr,len,addr}) vs
+     IDMAC (DW MSHC internal, descriptor DES0-3). Coherency is free with
+     caches/MMU off (must revisit when caches come on).
 
-- PIO (Programmed I/O, CPU copies FIFO word-by-word) vs DMA (controller
-bus-masters directly to RAM).
+   - PIO (Programmed I/O, CPU copies FIFO word-by-word) vs DMA (controller
+     bus-masters directly to RAM).
 
-- Per-probe run-list: `#AUTO N` (in-battery + priority), `#WRITES`, `#NEEDED`
-(0=de-selected, 1/absent=run). Generated by `scripts/embed-probes` (luajit) into
-`probe-list.inc`.
+   - Per-probe run-list: `#AUTO N` (in-battery + priority), `#WRITES`, `#NEEDED`
+     (0=de-selected, 1/absent=run). Generated by `scripts/embed-probes` (luajit)
+     into `probe-list.inc`.
 
-- Fingerprint validation: rotate-xor `fp = ((fp<<1)|(fp>>31)) ^ word` over 512
-bytes; caught folding-to-zero flaw.
+   - Fingerprint validation: rotate-xor `fp = ((fp<<1)|(fp>>31)) ^ word` over
+     512 bytes; caught folding-to-zero flaw.
 
-- CPU recon finding: APLL already ~816MHz (not ~50MHz); slowness is caches/MMU
-off, not clock.
+   - CPU recon finding: APLL already ~816MHz (not ~50MHz); slowness is
+     caches/MMU off, not clock.
 
-- Flash pipeline: `scripts/build [--probes]` → `output/kernel.img`;
-`scripts/build-bootable-sd` → `output/bootable-sd.img` (bakes kernel into FAT
-partition); `scripts/push-to-usb` (rsync to drive); `scripts/lab-side/flash-sd`
-(dd the disk image); `scripts/lab-side/dump-from-sd` (read logs back).
+   - Flash pipeline: `scripts/build [--probes]` → `output/kernel.img`;
+     `scripts/build-bootable-sd` → `output/bootable-sd.img` (bakes kernel into
+     FAT partition); `scripts/push-to-usb` (rsync to drive);
+     `scripts/lab-side/flash-sd` (dd the disk image);
+     `scripts/lab-side/dump-from-sd` (read logs back).
 
-- Monorepo: git root = /mnt/mtwo/programming/ai-stuff/ (contains soren-ds,
-neocities, games, llm-transcripts). Must stage ONLY soren-ds files.
+   - Monorepo: git root = /mnt/mtwo/programming/ai-stuff/ (contains soren-ds,
+     neocities, games, llm-transcripts). Must stage ONLY soren-ds files.
 
 
 3. Files and Code Sections:
 
-- **scripts/embed-probes** (luajit generator): Added `probe_needed(lines)`
-(defaults true), `needed` field threaded through, emits struct field + run-list
-header row `1 1 1 ... 0`.
+   - **scripts/embed-probes** (luajit generator): Added `probe_needed(lines)`
+     (defaults true), `needed` field threaded through, emits struct field +
+     run-list header row `1 1 1 ... 0`.
 
-- **src/019-probe-engine.c**: `struct builtin_probe {name; writes_enabled;
-needed; text}`. Sweep gate skips `#NEEDED 0` probes with a DE-SELECTED banner.
-Externs + CALL targets added for: emmc_switch_hs200/hs400, emmc_verify,
-emmc_verify_dma, emmc_dump_to_sd, sd_probe_capabilities (`sd_caps`),
-sd_dma_write_test (`sd_dma`), sd_select_speed (`sd_speed`), backup_boot (renamed
-from backup200, 16MB).
+   - **src/019-probe-engine.c**: `struct builtin_probe {name; writes_enabled;
+     needed; text}`. Sweep gate skips `#NEEDED 0` probes with a DE-SELECTED
+     banner. Externs + CALL targets added for: emmc_switch_hs200/hs400,
+     emmc_verify, emmc_verify_dma, emmc_dump_to_sd, sd_probe_capabilities
+     (`sd_caps`), sd_dma_write_test (`sd_dma`), sd_select_speed (`sd_speed`),
+     backup_boot (renamed from backup200, 16MB).
 
-- **src/012-emmc.c**: Added HS200/HS400 layer (emmc_switch_hs200/hs400,
-emmc_config_dll_locked, emmc_execute_tuning, emmc_switch,
-emmc_set_bus_width_8bit). Fixed emmc_read_block to check INT_ERROR (bit15).
-Added emmc_verify (LBA 64, fingerprint), emmc_read_blocks_dma (ADMA2 CMD18),
-emmc_verify_dma. Added the DUMP scaffold:
+   - **src/012-emmc.c**: Added HS200/HS400 layer (emmc_switch_hs200/hs400,
+     emmc_config_dll_locked, emmc_execute_tuning, emmc_switch,
+     emmc_set_bus_width_8bit). Fixed emmc_read_block to check INT_ERROR (bit15).
+     Added emmc_verify (LBA 64, fingerprint), emmc_read_blocks_dma (ADMA2
+     CMD18), emmc_verify_dma. Added the DUMP scaffold:
 
-```c
+     ```c
 
-uint32_t emmc_sector_count(void) { /* EXT_CSD bytes 212-215 LE */ }
+     uint32_t emmc_sector_count(void) { /* EXT_CSD bytes 212-215 LE */ }
 
-#define DUMP_CHUNK_BLOCKS 128u
+     #define DUMP_CHUNK_BLOCKS 128u
 
-#define DUMP_DEST_LBA 0x800000u /* PLACEHOLDER(dump) */
+     #define DUMP_DEST_LBA     0x800000u  /* PLACEHOLDER(dump) */
 
-int emmc_dump_to_sd(void) {
+     int emmc_dump_to_sd(void) {
 
-uint32_t total = emmc_sector_count(); ...
+         uint32_t total = emmc_sector_count(); ...
 
-uint32_t limit = total; /* cap removed this turn */
+         uint32_t limit = total;  /* cap removed this turn */
 
-static uint8_t chunk[DUMP_CHUNK_BLOCKS * EMMC_BLOCK_SIZE];
+         static uint8_t chunk[DUMP_CHUNK_BLOCKS * EMMC_BLOCK_SIZE];
 
-for (uint32_t lba = 0; lba < limit; lba += DUMP_CHUNK_BLOCKS) {
+         for (uint32_t lba = 0; lba < limit; lba += DUMP_CHUNK_BLOCKS) {
 
-uint32_t n = (limit-lba < DUMP_CHUNK_BLOCKS)?(limit-lba):DUMP_CHUNK_BLOCKS;
+             uint32_t n = (limit-lba < DUMP_CHUNK_BLOCKS)?(limit-lba):DUMP_CHUNK_BLOCKS;
 
-emmc_read_blocks_dma(lba, n, chunk); /* ADMA2 */
+             emmc_read_blocks_dma(lba, n, chunk);           /* ADMA2 */
 
-sd_write_blocks_dma(DUMP_DEST_LBA+lba, n, chunk); /* IDMAC */
+             sd_write_blocks_dma(DUMP_DEST_LBA+lba, n, chunk); /* IDMAC */
 
-if ((lba % 0x800u)==0u) { led_bottom(lba, limit); /* log + flush */ }
+             if ((lba % 0x800u)==0u) { led_bottom(lba, limit); /* log + flush */ }
 
-}
+         }
 
-led_bottom(1u,1u); /* PLACEHOLDER(dump): multi-block + double-buffer */
+         led_bottom(1u,1u); /* PLACEHOLDER(dump): multi-block + double-buffer */
 
-}
+     }
 
-```
+     ```
 
-- **src/015-sdmmc.c**: Added sd_probe_capabilities (SCR/SD_STATUS/SWITCH_FUNC),
-sd_read_small, sd_log_byte, sd_log_hex32, sd_word0. IDMAC: `struct idmac_desc
-{des0,des1,des2,des3}`, sd_write_block_dma (CMD24, BMOD_SWR reset → CTRL bit25
-→ DBADDR → BMOD DE|FB → CMD → poll DATA_OVER → disable IDMAC).
-sd_dma_write_test (byte-compare + non-zero guard). Dynamic speed:
-sd_set_bus_width_4bit (ACMD6 arg 2 + CTYPE=1), sd_switch_high_speed (CMD6 arg
-0x80FFFFF1 + set_clock_divider(0)), sd_select_speed (logs card width/speed +
-host ceiling, applies safe min). Added multi-block wrapper:
+   - **src/015-sdmmc.c**: Added sd_probe_capabilities
+     (SCR/SD_STATUS/SWITCH_FUNC), sd_read_small, sd_log_byte, sd_log_hex32,
+     sd_word0. IDMAC: `struct idmac_desc {des0,des1,des2,des3}`,
+     sd_write_block_dma (CMD24, BMOD_SWR reset → CTRL bit25 → DBADDR →
+     BMOD DE|FB → CMD → poll DATA_OVER → disable IDMAC). sd_dma_write_test
+     (byte-compare + non-zero guard). Dynamic speed: sd_set_bus_width_4bit
+     (ACMD6 arg 2 + CTYPE=1), sd_switch_high_speed (CMD6 arg 0x80FFFFF1 +
+     set_clock_divider(0)), sd_select_speed (logs card width/speed + host
+     ceiling, applies safe min). Added multi-block wrapper:
 
-```c
+     ```c
 
-/* PLACEHOLDER(dump): loops proven single-block; replace with CMD25 multi-block
-*/
+     /* PLACEHOLDER(dump): loops proven single-block; replace with CMD25 multi-block */
 
-int sd_write_blocks_dma(uint32_t lba, uint32_t count, const uint8_t *buffer) {
+     int sd_write_blocks_dma(uint32_t lba, uint32_t count, const uint8_t *buffer) {
 
-for (uint32_t i=0;i<count;i++)
+         for (uint32_t i=0;i<count;i++)
 
-if (sd_write_block_dma(lba+i, buffer+i*SD_BLOCK_SIZE)!=0) return -1;
+             if (sd_write_block_dma(lba+i, buffer+i*SD_BLOCK_SIZE)!=0) return -1;
 
-return 0;
+         return 0;
 
-}
+     }
 
-```
+     ```
 
-- **src/002-main.c**: Removed auto-backup from kernel_main (production kernel
-just parks).
+   - **src/002-main.c**: Removed auto-backup from kernel_main (production kernel
+     just parks).
 
-- **src/003-pwm.c**: led_top/led_bottom/led_pwm_init/led_duty primitive (built
-pre-session start).
+   - **src/003-pwm.c**: led_top/led_bottom/led_pwm_init/led_duty primitive
+     (built pre-session start).
 
-- **Probe files** (input/probes/): all got `#NEEDED 1` except saradc-gamepad
-(#NEEDED 0), emmc-backup (#NEEDED 0). New: emmc-hs200, emmc-hs400, emmc-dma,
-sd-capabilities, sd-dma, sd-speed, cpu-clock-recon, emmc-backup, emmc-dump (now
-#NEEDED 1).
+   - **Probe files** (input/probes/): all got `#NEEDED 1` except saradc-gamepad
+     (#NEEDED 0), emmc-backup (#NEEDED 0). New: emmc-hs200, emmc-hs400,
+     emmc-dma, sd-capabilities, sd-dma, sd-speed, cpu-clock-recon, emmc-backup,
+     emmc-dump (now #NEEDED 1).
 
-- **issues/**: 110j (broadened HS200→HS400), 110k (run-list, MOVED to
-completed/), 110l (fast SD, dynamic-picker), 110m (DMA storage transfers, with
-distilled IDMAC reference from RK3568 TRM 6.3.3), 201a (updated: CPU already
-~816MHz), phase-1-progress.md (updated).
+   - **issues/**: 110j (broadened HS200→HS400), 110k (run-list, MOVED to
+     completed/), 110l (fast SD, dynamic-picker), 110m (DMA storage transfers,
+     with distilled IDMAC reference from RK3568 TRM 6.3.3), 201a (updated: CPU
+     already ~816MHz), phase-1-progress.md (updated).
 
-- **tmp/uboot-ref/rockchip_sdhci.c**: reference for eMMC HS200/HS400 DLL config
-(rk3568_data, rk3568_sdhci_config_dll).
+   - **tmp/uboot-ref/rockchip_sdhci.c**: reference for eMMC HS200/HS400 DLL
+     config (rk3568_data, rk3568_sdhci_config_dll).
 
-- **tmp/datasheet-text/trm-part2.txt**: RK3568 TRM; section 6.3.3 has the full
-IDMAC spec (read lines ~12498-12727).
+   - **tmp/datasheet-text/trm-part2.txt**: RK3568 TRM; section 6.3.3 has the
+     full IDMAC spec (read lines ~12498-12727).
 
 
 4. Errors and fixes:
 
-- **Flash pipeline stale image:** New builds weren't reaching the card. Root
-cause: `build-bootable-sd` (which bakes kernel.img into bootable-sd.img) was
-skipped; my "recipe" omitted it. Fixed by rebuilding bootable-sd.img. Then a
-second variant: a `scripts/build` (lean) got flashed instead of `build --probes`
-(lean kernel → auto-grinds the 200MB backup). Fixed by always building
-`--probes` + build-bootable-sd, and verifying with `grep -a -c 'emmc-hs200'
-bootable-sd.img`.
+   - **Flash pipeline stale image:** New builds weren't reaching the card. Root
+     cause: `build-bootable-sd` (which bakes kernel.img into bootable-sd.img)
+     was skipped; my "recipe" omitted it. Fixed by rebuilding bootable-sd.img.
+     Then a second variant: a `scripts/build` (lean) got flashed instead of
+     `build --probes` (lean kernel → auto-grinds the 200MB backup). Fixed by
+     always building `--probes` + build-bootable-sd, and verifying with `grep -a
+     -c 'emmc-hs200' bootable-sd.img`.
 
-- **PWM/PERIOD-DUTY swap** (pre-session): fixed earlier.
+   - **PWM/PERIOD-DUTY swap** (pre-session): fixed earlier.
 
-- **word0=0 non-discriminating HS200/HS400 read:** User said "why don't we
-update the test to test a non-zero chunk of the eMMC?" — fixed with
-emmc_verify reading LBA 64 (idbloader, fingerprint 0xC4FBFA8B) + inspecting
-INT_ERROR bit.
+   - **word0=0 non-discriminating HS200/HS400 read:** User said "why don't we
+     update the test to test a non-zero chunk of the eMMC?" — fixed with
+     emmc_verify reading LBA 64 (idbloader, fingerprint 0xC4FBFA8B) + inspecting
+     INT_ERROR bit.
 
-- **Tested wrong DMA direction:** User caught: "Didn't we already validate
-writing to the SD card because of the 200mb boot dump, and also the logs we
-write every time?" I had built an IDMAC *read* test; the dump only WRITES to SD,
-and PIO writes are already proven. Fixed by switching to sd_write_block_dma
-(CMD24) + a write-then-PIO-read-back test.
+   - **Tested wrong DMA direction:** User caught: "Didn't we already validate
+     writing to the SD card because of the 200mb boot dump, and also the logs we
+     write every time?" I had built an IDMAC *read* test; the dump only WRITES
+     to SD, and PIO writes are already proven. Fixed by switching to
+     sd_write_block_dma (CMD24) + a write-then-PIO-read-back test.
 
-- **False-pass fingerprint (folded to 0):** sd-dma reported "IDMAC WRITE OK" but
-both fingerprints were 0x00000000. I computed via luajit that pattern `i^0x5A`
-folds to exactly 0x00000000, so "0==0" passed vacuously. Fixed: byte-for-byte
-compare + explicit non-zero guard + raw first-word logging; new pattern
-`0xA5^(i*13)` (word0 0x82BFA8A5). Re-flash showed genuine pass.
+   - **False-pass fingerprint (folded to 0):** sd-dma reported "IDMAC WRITE OK"
+     but both fingerprints were 0x00000000. I computed via luajit that pattern
+     `i^0x5A` folds to exactly 0x00000000, so "0==0" passed vacuously. Fixed:
+     byte-for-byte compare + explicit non-zero guard + raw first-word logging;
+     new pattern `0xA5^(i*13)` (word0 0x82BFA8A5). Re-flash showed genuine pass.
 
-- **Routing concern (my error of premise):** I flagged DMA/SD/caches weren't on
-the "USB flashing" path (backup now only 16MB). User clarified the real goal is
-a FULL eMMC dump, which genuinely needs DMA + fast SD. I acknowledged and
-proceeded.
+   - **Routing concern (my error of premise):** I flagged DMA/SD/caches weren't
+     on the "USB flashing" path (backup now only 16MB). User clarified the real
+     goal is a FULL eMMC dump, which genuinely needs DMA + fast SD. I
+     acknowledged and proceeded.
 
-- **git mv on untracked file failed** (110k was new/untracked); used plain `mv`
-instead.
+   - **git mv on untracked file failed** (110k was new/untracked); used plain
+     `mv` instead.
 
 
 5. Problem Solving:
 
-- SOLVED & PROVEN ON HARDWARE: run-list de-select (110k, committed); HS200 read
-(DLL 0x13B, tuning TUNED_CLK, fingerprints match); HS400 read (transitions +
-fingerprint 0xC4FBFA8B match across legacy/HS200/HS400); eMMC ADMA2 DMA read
-(fingerprints match at all 3 speeds); SD IDMAC DMA write (0x82BFA8A5
-round-trip); dynamic SD speed select (4-bit + High-Speed applied, round-trip
-OK); CPU recon (816MHz, caches are the real lever); SD capabilities (4-bit,
-Class10/U3, High-Speed at 3.3V).
+   - SOLVED & PROVEN ON HARDWARE: run-list de-select (110k, committed); HS200
+     read (DLL 0x13B, tuning TUNED_CLK, fingerprints match); HS400 read
+     (transitions + fingerprint 0xC4FBFA8B match across legacy/HS200/HS400);
+     eMMC ADMA2 DMA read (fingerprints match at all 3 speeds); SD IDMAC DMA
+     write (0x82BFA8A5 round-trip); dynamic SD speed select (4-bit + High-Speed
+     applied, round-trip OK); CPU recon (816MHz, caches are the real lever); SD
+     capabilities (4-bit, Class10/U3, High-Speed at 3.3V).
 
-- COMMITTED: bfc9bc64 (26 soren-ds files only, monorepo-aware staging).
+   - COMMITTED: bfc9bc64 (26 soren-ds files only, monorepo-aware staging).
 
-- IN PROGRESS: full eMMC dump (110m) — scaffold written, cap removed, probe
-enabled, awaiting first full-dump flash.
+   - IN PROGRESS: full eMMC dump (110m) — scaffold written, cap removed, probe
+     enabled, awaiting first full-dump flash.
 
 
 6. All user messages:
 
-- "for each probe, we should set a flag at the top that says whether or not it's
-needed. And in the built image we should have a list of 0's and 1's that
-determine whether or not each probe is going to run that time. This should all
-be inside the --debug flag of course."
+   - "for each probe, we should set a flag at the top that says whether or not
+     it's needed. And in the built image we should have a list of 0's and 1's
+     that determine whether or not each probe is going to run that time. This
+     should all be inside the --debug flag of course."
 
-- "okay the brightness modulation worked well, there's one test in the middle
-that seems to take the longest by far, which is interesting. the logs are on
-/mnt/generic/"
+   - "okay the brightness modulation worked well, there's one test in the middle
+     that seems to take the longest by far, which is interesting. the logs are
+     on /mnt/generic/"
 
-- "would it give us data if I moved the joysticks while the testing is ongoing?
-Also, if HS200 is slower than HS400... why not do HS400?... What else did it
-tell you, anything useful to me?"
+   - "would it give us data if I moved the joysticks while the testing is
+     ongoing? Also, if HS200 is slower than HS400... why not do HS400?... What
+     else did it tell you, anything useful to me?"
 
-- (Pasted-back quotes) "we should build all the utility we can into the hardware
-interfaces while we're working on hardware interfaces... Let's build out the
-HS400 functionality." + "this test seems kinda useless? Let's disable it, and
-consider refactoring it to give us some actually useful information... Remember,
-we're going to want these probes later on so we can validate all of the hardware
-functionality."
+   - (Pasted-back quotes) "we should build all the utility we can into the
+     hardware interfaces while we're working on hardware interfaces... Let's
+     build out the HS400 functionality." + "this test seems kinda useless? Let's
+     disable it, and consider refactoring it to give us some actually useful
+     information... Remember, we're going to want these probes later on so we
+     can validate all of the hardware functionality."
 
-- "okay the brightness modulation worked well..." [earlier] and "okay logs in
-/mnt/generic..." variants
+   - "okay the brightness modulation worked well..." [earlier] and "okay logs in
+     /mnt/generic..." variants
 
-- "okay flashed it, check /mnt/generic for the hs200 log"
+   - "okay flashed it, check /mnt/generic for the hs200 log"
 
-- "would moving the joysticks..." (above)
+   - "would moving the joysticks..." (above)
 
-- "so we should dynamically probe the SD card, and use the lowest of the three
-speeds." + "what other 'fast path' style things do we have? Can you check the
-issue files..." + "why don't we update the test to test a non-zero chunk of the
-eMMC? Seems like an obvious fix to me." + "sounds great." + "we should make the
-eMMC->SD card transfer one of othe probes, to be disabled at will." + "Can you
-set up the SD card fast-path infrastructure so we can get the eMMC saved?"
+   - "so we should dynamically probe the SD card, and use the lowest of the
+     three speeds." + "what other 'fast path' style things do we have? Can you
+     check the issue files..." + "why don't we update the test to test a
+     non-zero chunk of the eMMC? Seems like an obvious fix to me." + "sounds
+     great." + "we should make the eMMC->SD card transfer one of othe probes, to
+     be disabled at will." + "Can you set up the SD card fast-path
+     infrastructure so we can get the eMMC saved?"
 
-- "Can you make sure the 200mb copy just pulls the bootloader?..." + "we also
-have to be able to do that dynamically at runtime..." + "can we build this audit
-now as a probe?..." + "not sure what this is about." [PIO→DMA] + "I like this
-idea, but we should build it when we're implementing our own bootloader. Can you
-make sure it's written into the custom bootloader issue file?" + "Let's make a
-commit once we've finished an issue file. :)"
+   - "Can you make sure the 200mb copy just pulls the bootloader?..." + "we also
+     have to be able to do that dynamically at runtime..." + "can we build this
+     audit now as a probe?..." + "not sure what this is about." [PIO→DMA] + "I
+     like this idea, but we should build it when we're implementing our own
+     bootloader. Can you make sure it's written into the custom bootloader issue
+     file?" + "Let's make a commit once we've finished an issue file. :)"
 
-- "let's do DMA first, then SD stage 1, then caches/MMU. We have to get to all
-of them eventually, but I'd like to take the quickest route to the USB flashing
-that we can."
+   - "let's do DMA first, then SD stage 1, then caches/MMU. We have to get to
+     all of them eventually, but I'd like to take the quickest route to the USB
+     flashing that we can."
 
-- (AskUserQuestion answer) "we need to copy the entire eMMC onto the dev machine
-so we can examine it. I fully expect it to be mostly zeroes. For that, we want
-DMA and the fast SD card path, which we need eventually anyway."
+   - (AskUserQuestion answer) "we need to copy the entire eMMC onto the dev
+     machine so we can examine it. I fully expect it to be mostly zeroes. For
+     that, we want DMA and the fast SD card path, which we need eventually
+     anyway."
 
-- "logs delivered, btw." / "so, question... if we're not using the CPU, what is
-our C code running on?" + "can we do this now in parallel?" [dw_mmc reference]
+   - "logs delivered, btw." / "so, question... if we're not using the CPU, what
+     is our C code running on?" + "can we do this now in parallel?" [dw_mmc
+     reference]
 
-- "logs just landed." (multiple)
+   - "logs just landed." (multiple)
 
-- "Didn't we already validate writing to the SD card because of the 200mb (now
-16mb) boot dump, and also the logs we write every time?"
+   - "Didn't we already validate writing to the SD card because of the 200mb
+     (now 16mb) boot dump, and also the logs we write every time?"
 
-- "why don't we skip the 4-bit + high speed and just go straight for the dynamic
-system which picks the slowest of the 3 speeds between the eMMC, chip, and sd
-card? No sense building infrastructure that we don't need and which doesn't give
-us valuable debug information."
+   - "why don't we skip the 4-bit + high speed and just go straight for the
+     dynamic system which picks the slowest of the 3 speeds between the eMMC,
+     chip, and sd card? No sense building infrastructure that we don't need and
+     which doesn't give us valuable debug information."
 
-- "can you write this part while I grab the logs? It's okay to add placeholders
-as long as you grep for them when we're implementing."
+   - "can you write this part while I grab the logs? It's okay to add
+     placeholders as long as you grep for them when we're implementing."
 
-- "logs are in." (interrupt during scaffold)
+   - "logs are in." (interrupt during scaffold)
 
-- "Why don't we just do the dump as the validation? If we get a full image, then
-we won."
+   - "Why don't we just do the dump as the validation? If we get a full image,
+     then we won."
 
-- "can you tell me about the multi-block write?" (with CRITICAL: TEXT ONLY, no
-tools — the summarization task)
+   - "can you tell me about the multi-block write?" (with CRITICAL: TEXT ONLY,
+     no tools — the summarization task)
 
-- **Standing constraints from CLAUDE.md** (must remain in effect): scripts need
-hard-coded ${DIR} with arg override; prefer Lua/LuaJIT (LuaJIT-compatible, no
-lua5.4 syntax), disprefer Python; "the exec operation paired with bash or lua is
-banned for all directory or file targetting capabilities. read-only is fine, but
-run the commands individually instead of chaining them"; write logs to project
-tmp/ (RAM symlink); don't refer to functions/issues by name/number to the user
-(use plain English); commits only after completing an issue file AND when asked;
-"if files are staged that are not part of the changes you made, remove them";
-commit messages descriptive/abstract, end with "Co-Authored-By: Claude Opus 4.8
-(1M context) <noreply@anthropic.com>"; prefer error messages over fallbacks;
-"you don't need to write 2>/dev/null"; if on default branch consider branching
-(but this repo commits to master by established convention); explain how
-technology functions + expand acronyms; each bash line a different command.
+   - **Standing constraints from CLAUDE.md** (must remain in effect): scripts
+     need hard-coded ${DIR} with arg override; prefer Lua/LuaJIT
+     (LuaJIT-compatible, no lua5.4 syntax), disprefer Python; "the exec
+     operation paired with bash or lua is banned for all directory or file
+     targetting capabilities. read-only is fine, but run the commands
+     individually instead of chaining them"; write logs to project tmp/ (RAM
+     symlink); don't refer to functions/issues by name/number to the user (use
+     plain English); commits only after completing an issue file AND when asked;
+     "if files are staged that are not part of the changes you made, remove
+     them"; commit messages descriptive/abstract, end with "Co-Authored-By:
+     Claude Opus 4.8 (1M context) <noreply@anthropic.com>"; prefer error
+     messages over fallbacks; "you don't need to write 2>/dev/null"; if on
+     default branch consider branching (but this repo commits to master by
+     established convention); explain how technology functions + expand
+     acronyms; each bash line a different command.
 
 
 7. Pending Tasks:
 
-- **Answer the user's question about the multi-block write** (the final message;
-deferred because this turn is the TEXT-ONLY summarization task).
+   - **Answer the user's question about the multi-block write** (the final
+     message; deferred because this turn is the TEXT-ONLY summarization task).
 
-- Flash the full eMMC dump (emmc-dump probe now enabled) and read back the
-result.
+   - Flash the full eMMC dump (emmc-dump probe now enabled) and read back the
+     result.
 
-- Fill the 9 `PLACEHOLDER(dump)` markers (grep `PLACEHOLDER(dump)`): the real
-multi-block CMD25 IDMAC write (the "multi-block write" the user just asked about
-— biggest speed lever), the SD capacity check, coordinating DUMP_DEST_LBA
-(0x800000) with dump-from-sd read-back, double-buffering, throughput timer
-(CNTPCT).
+   - Fill the 9 `PLACEHOLDER(dump)` markers (grep `PLACEHOLDER(dump)`): the real
+     multi-block CMD25 IDMAC write (the "multi-block write" the user just asked
+     about — biggest speed lever), the SD capacity check, coordinating
+     DUMP_DEST_LBA (0x800000) with dump-from-sd read-back, double-buffering,
+     throughput timer (CNTPCT).
 
-- Wire the dump image read-back into `scripts/lab-side/dump-from-sd` (or manual
-dd from LBA 8388608).
+   - Wire the dump image read-back into `scripts/lab-side/dump-from-sd` (or
+     manual dd from LBA 8388608).
 
-- Deferred: SD UHS-I via 1.8V voltage switch (110l Stage 2); SARADC v2 refactor;
-caches/MMU (the big speed lever, issue 901); eMMC ADMA2 write (CMD25).
+   - Deferred: SD UHS-I via 1.8V voltage switch (110l Stage 2); SARADC v2
+     refactor; caches/MMU (the big speed lever, issue 901); eMMC ADMA2 write
+     (CMD25).
 
-- Commit 110m when the full dump runs end-to-end.
+   - Commit 110m when the full dump runs end-to-end.
 
 
 8. Current Work:
 
-Immediately before this summary request, I had just responded to "Why don't we
-just do the dump as the validation? If we get a full image, then we won." I
-agreed, then: (a) removed the `DUMP_TEST_LIMIT` 8MB cap from `emmc_dump_to_sd`
-in src/012-emmc.c (replaced with a full-dump path that logs the required SD
-span: `"[dump] destination SD LBA 0x800000 .. <DUMP_DEST_LBA+total> (card must
-be at least that big)"`); (b) enabled the emmc-dump probe
-(input/probes/emmc-dump.probe changed `#NEEDED 0` → `#NEEDED 1`, updated its
-comment to note full dump + single-block grind + read-back); (c) rebuilt —
-lean clean, probes clean (20 probes, emmc-dump now active/not DE-SELECTED),
-bootable-sd.img baked (`CALL emmc_dump` present, 2 hits). I told the user to
-flash it and watch the LED progress bar, noting two caveats: the single-block SD
-write makes a multi-GB dump a grind (the multi-block PLACEHOLDER is the fix),
-and the image read-back at SD LBA 0x800000 needs coordinating (dump-from-sd
-doesn't read it yet; `dd if=<sd> bs=512 skip=8388608 count=<sectors>`). The user
-has not yet flashed; instead they asked about the multi-block write.
+   Immediately before this summary request, I had just responded to "Why don't
+   we just do the dump as the validation? If we get a full image, then we won."
+   I agreed, then: (a) removed the `DUMP_TEST_LIMIT` 8MB cap from
+   `emmc_dump_to_sd` in src/012-emmc.c (replaced with a full-dump path that logs
+   the required SD span: `"[dump] destination SD LBA 0x800000 ..
+   <DUMP_DEST_LBA+total> (card must be at least that big)"`); (b) enabled the
+   emmc-dump probe (input/probes/emmc-dump.probe changed `#NEEDED 0` →
+   `#NEEDED 1`, updated its comment to note full dump + single-block grind +
+   read-back); (c) rebuilt — lean clean, probes clean (20 probes, emmc-dump
+   now active/not DE-SELECTED), bootable-sd.img baked (`CALL emmc_dump` present,
+   2 hits). I told the user to flash it and watch the LED progress bar, noting
+   two caveats: the single-block SD write makes a multi-GB dump a grind (the
+   multi-block PLACEHOLDER is the fix), and the image read-back at SD LBA
+   0x800000 needs coordinating (dump-from-sd doesn't read it yet; `dd if=<sd>
+   bs=512 skip=8388608 count=<sectors>`). The user has not yet flashed; instead
+   they asked about the multi-block write.
 
 
 9. Optional Next Step:
 
-The user's current message is "can you tell me about the multi-block write?" —
-a question about the deferred throughput optimization (the `sd_write_blocks_dma`
-PLACEHOLDER that currently loops single-block writes; the real version would use
-CMD25 multi-block SD writes with IDMAC descriptor chaining, BS1 max ~8KB/15
-blocks per descriptor per RK3568 TRM 6.3.3). Because this turn is a TEXT-ONLY
-summarization task (no tools allowed), the next step is: **after this summary,
-answer the user's question about the multi-block write** — explaining CMD25
-(WRITE_MULTIPLE_BLOCK), how it replaces the per-block IDMAC re-arm overhead
-(each single-block `sd_write_block_dma` does a BMOD SWR reset +
-`delay_loops(1000)` + enable/disable cycle) with one setup per run, the DW MSHC
-`send_auto_stop` need, and the descriptor-chaining constraint (13-bit BS1 ≈
-8KB per descriptor, so a 64KB chunk chains ~8 descriptors). Do NOT flash or
-build until the user directs, since they explicitly paused to ask this question
-rather than flashing the enabled full dump. Relevant verbatim context: the
-`PLACEHOLDER(dump)` comment in src/015-sdmmc.c reads "replace with a true CMD25
-multi-block write (one descriptor up to ~15 blocks, or chained for more) for
-throughput — re-arming the IDMAC per block is the slow part," and my last
-message called it "the one lever that fixes it, and I'll fill it."
+   The user's current message is "can you tell me about the multi-block write?"
+   — a question about the deferred throughput optimization (the
+   `sd_write_blocks_dma` PLACEHOLDER that currently loops single-block writes;
+   the real version would use CMD25 multi-block SD writes with IDMAC descriptor
+   chaining, BS1 max ~8KB/15 blocks per descriptor per RK3568 TRM 6.3.3).
+   Because this turn is a TEXT-ONLY summarization task (no tools allowed), the
+   next step is: **after this summary, answer the user's question about the
+   multi-block write** — explaining CMD25 (WRITE_MULTIPLE_BLOCK), how it
+   replaces the per-block IDMAC re-arm overhead (each single-block
+   `sd_write_block_dma` does a BMOD SWR reset + `delay_loops(1000)` +
+   enable/disable cycle) with one setup per run, the DW MSHC `send_auto_stop`
+   need, and the descriptor-chaining constraint (13-bit BS1 ≈ 8KB per
+   descriptor, so a 64KB chunk chains ~8 descriptors). Do NOT flash or build
+   until the user directs, since they explicitly paused to ask this question
+   rather than flashing the enabled full dump. Relevant verbatim context: the
+   `PLACEHOLDER(dump)` comment in src/015-sdmmc.c reads "replace with a true
+   CMD25 multi-block write (one descriptor up to ~15 blocks, or chained for
+   more) for throughput — re-arming the IDMAC per block is the slow part," and
+   my last message called it "the one lever that fixes it, and I'll fill it."
 
 
 If you need specific details from before compaction (like exact code snippets,
@@ -15884,9 +17708,9 @@ to.</local-command-caveat>
 
 <command-name>/compact</command-name>
 
-<command-message>compact</command-message>
+            <command-message>compact</command-message>
 
-<command-args></command-args>
+            <command-args></command-args>
 
 
 --------------------------------------------------------------------------------
@@ -15928,23 +17752,25 @@ Green across the board — ready to flash:
 
 - **lean + probes + bootable** all clean.
 
-- **`emmc-scan` (104) is active**; the dump (103), backup, and gamepad stay de-selected.
+- **`emmc-scan` (104) is active**; the dump (103), backup, and gamepad stay
+  de-selected.
 
-- Baked into the image: `CALL emmc_scan` and the multi-block "OK" string are both present.
+- Baked into the image: `CALL emmc_scan` and the multi-block "OK" string are
+  both present.
 
 
 This next flash gives us **two** results to read back:
 
 
 1. **`sd-dma`** → the multi-block write's verdict. Watch for `IDMAC
-MULTI-BLOCK WRITE OK (24 blocks read back correct)`. That's 3 chained
-descriptors round-tripped, so it proves the chain + auto-stop, not just a single
-block.
+   MULTI-BLOCK WRITE OK (24 blocks read back correct)`. That's 3 chained
+   descriptors round-tripped, so it proves the chain + auto-stop, not just a
+   single block.
 
 2. **`emmc-scan`** → the map. It reads all ~29 GiB (a few minutes; bottom LED
-is the progress bar, `[scan] at <lba>` every 256 MB), then logs `[scan] NON-ZERO
-<start> .. <end>` for each real region and a summary line (range count + how
-many 64 KB chunks were non-zero out of the whole card).
+   is the progress bar, `[scan] at <lba>` every 256 MB), then logs `[scan]
+   NON-ZERO <start> .. <end>` for each real region and a summary line (range
+   count + how many 64 KB chunks were non-zero out of the whole card).
 
 
 Push it over and flash (`push-to-usb` → `lab-side/flash-sd`), let the scan run
@@ -15991,15 +17817,18 @@ pull the summary and shape rather than read all 1661 lines:
 Both green, and the scan turned up a real surprise. Let me lay it out.
 
 
-**Multi-block write: validated.** 24 blocks across 3 chained descriptors, `0x82BFA8A5` round-tripped byte-perfect. Chain-walking + auto-stop both work — the dump has a fast, proven writer now.
+**Multi-block write: validated.** 24 blocks across 3 chained descriptors,
+`0x82BFA8A5` round-tripped byte-perfect. Chain-walking + auto-stop both work —
+the dump has a fast, proven writer now.
 
 
-**Scan: completed the whole 29 GiB** (progress marched cleanly to `0x03A00000` and the final chunk). And here's the headline:
+**Scan: completed the whole 29 GiB** (progress marched cleanly to `0x03A00000`
+and the final chunk). And here's the headline:
 
 
 > **The card is *not* mostly zeroes.** `0x1C84A` = **116,810** of `0x747C0` =
-477,120 chunks are non-zero — **~24.5%, about 7.1 GiB of real content**,
-across **742 regions**.
+> 477,120 chunks are non-zero — **~24.5%, about 7.1 GiB of real content**,
+> across **742 regions**.
 
 
 So ~22 GiB is zero, but there's a solid **7 GiB of something** on here. That's
@@ -16015,24 +17844,28 @@ exact thing we'd want fully preserved before we ever write our own image to the
 eMMC. The dump isn't just examination anymore, it's the safety net.
 
 
-**But one honest caveat — a question I can't answer yet.** My scan only knows *zero vs. non-zero*. Some of that 7 GiB could be **erased flash — all `0xFF`** — which isn't data, it just isn't zero. Raw NAND erases to ones, not zeros, so "not zero" ≠ "real." I genuinely can't tell how much of the 7 GiB is content vs. erased-but-untouched.
+**But one honest caveat — a question I can't answer yet.** My scan only knows
+*zero vs. non-zero*. Some of that 7 GiB could be **erased flash — all `0xFF`**
+— which isn't data, it just isn't zero. Raw NAND erases to ones, not zeros, so
+"not zero" ≠ "real." I genuinely can't tell how much of the 7 GiB is content
+vs. erased-but-untouched.
 
 
 Where to point next, most-valuable first:
 
 
 1. **Classify the chunks** (recommended) — one more comparison per chunk: zero
-/ all-`0xFF` (erased) / real varied data. Same runtime, and it tells us the
-*true* amount of content before we move a single byte. This is exactly your RLE
-idea generalized — *any* constant run is free, not just zeros.
+   / all-`0xFF` (erased) / real varied data. Same runtime, and it tells us the
+   *true* amount of content before we move a single byte. This is exactly your
+   RLE idea generalized — *any* constant run is free, not just zeros.
 
 2. **Sparse-dump the ~7.1 GiB now** — multi-block, ~6 minutes, the real bytes
-on the dev machine for `strings`/`fdisk`/filesystem-ID, and the true
-stock-firmware backup in one shot.
+   on the dev machine for `strings`/`fdisk`/filesystem-ID, and the true
+   stock-firmware backup in one shot.
 
 3. **Tiny table-of-contents dump** — just the GPT + the first sectors of each
-region, a few MB that names the partitions and their filesystems without moving
-7 GiB.
+   region, a few MB that names the partitions and their filesystems without
+   moving 7 GiB.
 
 
 My lean: **(1) then (2)** — classify so we know whether it's 7 GiB of firmware
@@ -16097,40 +17930,49 @@ it. Let me make the script executable and build + verify:
 Ready to flash. Everything's clean and wired:
 
 
-- **Sparse dump (103) active**, standalone scan (104) de-selected (it'd just re-read the whole card for a map the dump already produces).
+- **Sparse dump (103) active**, standalone scan (104) de-selected (it'd just
+  re-read the whole card for a map the dump already produces).
 
-- Multi-block writer — the validated one — is what packs the non-zero chunks.
+- Multi-block writer — the validated one — is what packs the non-zero
+  chunks.
 
 - **`reconstruct-emmc`** written and syntax-checked.
 
 
-**What this flash does:** re-confirms the multi-block write (quick), then the sparse dump reads all 29 GiB, packs only the ~7 GiB of non-zero 64 KB chunks to the SD from LBA `0x800000`, and logs a `MAP` line per run. Reads the whole card + writes ~7 GiB, so give it ~15–20 min; the bottom LED is the progress bar and `[dump] at <lba> packed <sectors>` prints every 256 MB.
+**What this flash does:** re-confirms the multi-block write (quick), then the
+sparse dump reads all 29 GiB, packs only the ~7 GiB of non-zero 64 KB chunks to
+the SD from LBA `0x800000`, and logs a `MAP` line per run. Reads the whole card
++ writes ~7 GiB, so give it ~15–20 min; the bottom LED is the progress bar and
+`[dump] at <lba> packed <sectors>` prints every 256 MB.
 
 
-**Cross-check when it finishes:** the last line is `[dump] complete total=.. ranges=.. packed=..`. Against last run's scan, expect **`ranges≈0x2E6`** (742) and **`packed≈0xE42A00` sectors (~7.1 GiB)**. If those match the scan, the dump saw the same card the scan did.
+**Cross-check when it finishes:** the last line is `[dump] complete total=..
+ranges=.. packed=..`. Against last run's scan, expect **`ranges≈0x2E6`** (742)
+and **`packed≈0xE42A00` sectors (~7.1 GiB)**. If those match the scan, the
+dump saw the same card the scan did.
 
 
 **Then, to get the image out (one logistics note that matters):**
 
 1. `dump-from-sd` as usual — pulls the small log with the `MAP` back onto the
-USB drive.
+   USB drive.
 
 2. **Carry the SD card itself** to a machine with a reader. The 7 GiB of packed
-data stays *on the SD* — only the tiny MAP log rides the USB drive, and a 29
-GiB image can't live on a FAT32 drive anyway.
+   data stays *on the SD* — only the tiny MAP log rides the USB drive, and a
+   29 GiB image can't live on a FAT32 drive anyway.
 
 3. Run it:
 
-```
+   ```
 
-scripts/lab-side/reconstruct-emmc /dev/sdX
+   scripts/lab-side/reconstruct-emmc /dev/sdX
 
-```
+   ```
 
-It finds the newest dump log, pre-sizes a sparse 29 GiB file in `output/`, and
-replays each MAP run off the SD into place (zeros stay as holes — real cost ~7
-GiB). Then: `fdisk -l output/emmc-*.img` and `strings -n 8` to finally *see*
-what that 7 GiB is.
+   It finds the newest dump log, pre-sizes a sparse 29 GiB file in `output/`,
+   and replays each MAP run off the SD into place (zeros stay as holes — real
+   cost ~7 GiB). Then: `fdisk -l output/emmc-*.img` and `strings -n 8` to
+   finally *see* what that 7 GiB is.
 
 
 Push it over, flash, and bring me the dump log — I want to see that `packed=`
@@ -16190,21 +18032,29 @@ Everything's in place. The full round-trip now:
 
 **On the device (image already built + verified — flash when ready):**
 
-- Sparse dump reads all 29 GiB, packs ~7 GiB of non-zero chunks to the SD, logs the `MAP` + a `packed=` total.
+- Sparse dump reads all 29 GiB, packs ~7 GiB of non-zero chunks to the SD, logs
+  the `MAP` + a `packed=` total.
 
 
 **Lab laptop — `dump-from-sd` (now does the split automatically):**
 
 - Pulls the log (with the MAP) as before.
 
-- Reads back exactly `packed=` sectors and pipes them through `split` into `emmc-packed-<stamp>.part00/01/02…` — each under 3 GiB, so ~7 GiB rides home on a FAT32 USB drive. It even prints the reconstruct command with the right prefix.
+- Reads back exactly `packed=` sectors and pipes them through `split` into
+  `emmc-packed-<stamp>.part00/01/02…` — each under 3 GiB, so ~7 GiB rides
+  home on a FAT32 USB drive. It even prints the reconstruct command with the
+  right prefix.
 
 
 **Main machine — `reconstruct-emmc emmc-packed-<stamp>.part`:**
 
-- Reassembles the pieces (`cat`, byte-order guaranteed by `split -d`), pre-sizes a sparse 29 GiB file in `output/`, and replays each MAP run into place — zeros stay as holes, real cost ~7 GiB.
+- Reassembles the pieces (`cat`, byte-order guaranteed by `split -d`), pre-sizes
+  a sparse 29 GiB file in `output/`, and replays each MAP run into place —
+  zeros stay as holes, real cost ~7 GiB.
 
-- Then `fdisk -l` / `strings` to see what it is, and `gzip -k` to archive — **the zeros collapse, and the fact that pieces → full image → gzip all succeeds is the proof it archived correctly**, exactly your validation.
+- Then `fdisk -l` / `strings` to see what it is, and `gzip -k` to archive —
+  **the zeros collapse, and the fact that pieces → full image → gzip all
+  succeeds is the proof it archived correctly**, exactly your validation.
 
 
 Three ways into `reconstruct-emmc` (live `/dev/sdX`, a single packed file, or
@@ -16232,11 +18082,15 @@ The sparse dump nailed it. Clean run, and the cross-check is essentially
 perfect:
 
 
-- `total=0x03A3E000` (29.1 GiB), **`ranges=0x2E6` = 742 — exact match with the scan.**
+- `total=0x03A3E000` (29.1 GiB), **`ranges=0x2E6` = 742 — exact match with the
+  scan.**
 
-- `packed=0xE42500` = 14,951,168 sectors ≈ **7.13 GiB** (I predicted `0xE42A00`; off by 640 KB, the last partial chunk).
+- `packed=0xE42500` = 14,951,168 sectors ≈ **7.13 GiB** (I predicted
+  `0xE42A00`; off by 640 KB, the last partial chunk).
 
-- No read/write failures. And the map is internally consistent: last entry `packed=0x1642480 + len=0x80 = 0x1642500`, exactly `0x800000 + 0xE42500`. The packed offsets tie out end to end.
+- No read/write failures. And the map is internally consistent: last entry
+  `packed=0x1642480 + len=0x80 = 0x1642500`, exactly `0x800000 + 0xE42500`. The
+  packed offsets tie out end to end.
 
 
 Let me see whether `dump-from-sd` already split the packed region, and if the
@@ -16286,7 +18140,7 @@ two out; it'll notify me).
 **The sparse dump worked, and it matches the scan exactly:**
 
 
-| | scan (prior run) | sparse dump |
+| | scan (prior run) | sparse dump | 
 
 |---|---|---|
 
@@ -16303,7 +18157,12 @@ pieces total `7,655,260,160` bytes — byte-for-byte equal to `packed × 512`.
 Nothing was lost in the split.
 
 
-**Right now:** `reconstruct-emmc` is reassembling the three pieces off the USB drive (~150 MB/s, hence the wait), then it replays all 742 runs into a sparse 29 GiB image in `output/`. When it lands I'll run `fdisk -l` / `strings` on it — if a real GPT and partition names show up, that's the end-to-end proof (device → SD → split → USB → reassemble → map replay), and I'll commit the whole toolchain. Standing by for it to finish.
+**Right now:** `reconstruct-emmc` is reassembling the three pieces off the USB
+drive (~150 MB/s, hence the wait), then it replays all 742 runs into a sparse 29
+GiB image in `output/`. When it lands I'll run `fdisk -l` / `strings` on it —
+if a real GPT and partition names show up, that's the end-to-end proof (device
+→ SD → split → USB → reassemble → map replay), and I'll commit the
+whole toolchain. Standing by for it to finish.
 
 
 --------------------------------------------------------------------------------
@@ -16337,16 +18196,17 @@ a real eMMC?
 Reconstruction ran, and there's real signal — but also a bug I need to chase.
 
 
-**Good:** `file` sees a **GPT protective MBR** (partition ID `0xEE`) — that's a genuine GPT disk. The image is 29 GiB apparent / 5.1 G real (sparse worked).
+**Good:** `file` sees a **GPT protective MBR** (partition ID `0xEE`) — that's
+a genuine GPT disk. The image is 29 GiB apparent / 5.1 G real (sparse worked).
 
 
 **Two problems:**
 
 1. **Only 114 of 742 runs were placed** (`Done: 114 runs, 5154 MiB` — but the
-map has 742 runs / 7.13 GiB). The reconstruction is *incomplete*.
+   map has 742 runs / 7.13 GiB). The reconstruction is *incomplete*.
 
 2. **The 6.3 G reassembly temp wasn't cleaned up** — my cleanup trap can't see
-`RECON_TMP` because it's set inside a `$(...)` subshell.
+   `RECON_TMP` because it's set inside a `$(...)` subshell.
 
 
 Let me diagnose #1 before anything else:
@@ -16357,9 +18217,12 @@ Found it — the map itself is torn in the log. 10 of 742 lines are truncated
 dense `0x00E7xxxx` region. Two failures compound:
 
 
-- **emit_map crashes at the first torn line** — sed passes it through unchanged, `$(("[dump]"))` errors, `set -e` kills the parse → only 114 of 742 survive.
+- **emit_map crashes at the first torn line** — sed passes it through
+  unchanged, `$(("[dump]"))` errors, `set -e` kills the parse → only 114 of
+  742 survive.
 
-- **The 10 torn lines are real data loss** — those runs can't be placed at all.
+- **The 10 torn lines are real data loss** — those runs can't be placed at
+  all.
 
 
 The tearing is the root cause, and it's in the debug log, not the dump. Let me
@@ -16442,20 +18305,44 @@ present.
 Here's the whole story and where we are:
 
 
-**Root cause.** The debug log flushes to SD at 75% full and zero-pads the rest of the page. A map record was written as *seven* `debug_write` calls (`"MAP orig="`, hex, `" packed="`, hex, …). When the flush landed *between* those calls, the record split across two zero-padded pages — and `strings(1)` on readback treats a run of zeros as a line break, so the record came back torn in two. 10 of 742 records hit that, and the old parser then *crashed* on the first torn line (`set -e` on `$(("[dump]"))`), which is why only 114 runs were placed.
+**Root cause.** The debug log flushes to SD at 75% full and zero-pads the rest
+of the page. A map record was written as *seven* `debug_write` calls (`"MAP
+orig="`, hex, `" packed="`, hex, …). When the flush landed *between* those
+calls, the record split across two zero-padded pages — and `strings(1)` on
+readback treats a run of zeros as a line break, so the record came back torn in
+two. 10 of 742 records hit that, and the old parser then *crashed* on the first
+torn line (`set -e` on `$(("[dump]"))`), which is why only 114 runs were placed.
 
 
 **Fixes (all in, none committed yet):**
 
-- **Kernel** — each map record and the summary line are now built into one buffer and emitted with a **single `debug_write`**. A record is ≤61 chars and `pos` is always <3072 at the start of a write, so it can't cross a page boundary; the flush can only fall at the trailing newline, *between* records. No more tearing.
+- **Kernel** — each map record and the summary line are now built into one
+  buffer and emitted with a **single `debug_write`**. A record is ≤61 chars
+  and `pos` is always <3072 at the start of a write, so it can't cross a page
+  boundary; the flush can only fall at the trailing newline, *between* records.
+  No more tearing.
 
-- **reconstruct-emmc** — three fixes: `grep -oE` extracts only complete records (a torn one is skipped, not crashed on — recovers **732** from the current torn log instead of 114); an **integrity check** warns loudly if placed runs/sectors don't match the dump's own `ranges=`/`packed=` summary; and the 7 GiB reassembly temp now actually gets cleaned up (it was set in a `$(...)` subshell the trap couldn't see).
+- **reconstruct-emmc** — three fixes: `grep -oE` extracts only complete
+  records (a torn one is skipped, not crashed on — recovers **732** from the
+  current torn log instead of 114); an **integrity check** warns loudly if
+  placed runs/sectors don't match the dump's own `ranges=`/`packed=` summary;
+  and the 7 GiB reassembly temp now actually gets cleaned up (it was set in a
+  `$(...)` subshell the trap couldn't see).
 
 
-**Where that leaves the data:** the packed *bytes* on the SD are fine — the tearing only hit the map in the log. But 10 map records are unrecoverable (some lost their `orig`, which isn't derivable), so the clean path is a re-dump: with the atomic fix the map will come back 742/742, and the integrity check will confirm it. The current `output/emmc-20260630-192724.img` is the incomplete 114-run one — ignore/delete it.
+**Where that leaves the data:** the packed *bytes* on the SD are fine — the
+tearing only hit the map in the log. But 10 map records are unrecoverable (some
+lost their `orig`, which isn't derivable), so the clean path is a re-dump: with
+the atomic fix the map will come back 742/742, and the integrity check will
+confirm it. The current `output/emmc-20260630-192724.img` is the incomplete
+114-run one — ignore/delete it.
 
 
-**Next:** `push-to-usb` → `flash-sd` → run → `dump-from-sd` (splits as before) → carry back → `reconstruct-emmc emmc-packed-<stamp>.part`. This time watch for `Integrity OK: 742/742` in the reconstruct log — that's the green light, and then `gzip` the image as the archive. I'll commit the whole toolchain once you see that line.
+**Next:** `push-to-usb` → `flash-sd` → run → `dump-from-sd` (splits as
+before) → carry back → `reconstruct-emmc emmc-packed-<stamp>.part`. This
+time watch for `Integrity OK: 742/742` in the reconstruct log — that's the
+green light, and then `gzip` the image as the archive. I'll commit the whole
+toolchain once you see that line.
 
 
 --------------------------------------------------------------------------------
@@ -16475,7 +18362,9 @@ No need to forgive — it's the right question, and the honest answer is that
 you're basically correct.
 
 
-**Reading the eMMC *is* "sector 0 to sector max."** That part is trivial, and it's exactly what the very first full dump did — the one that ran partially before you cancelled it. No map, no tearing, dead simple.
+**Reading the eMMC *is* "sector 0 to sector max."** That part is trivial, and
+it's exactly what the very first full dump did — the one that ran partially
+before you cancelled it. No map, no tearing, dead simple.
 
 
 The complexity is *entirely* from the sparse optimization **I** talked us into
@@ -16495,11 +18384,12 @@ function with no reconstruction cleverness at all — I'd happily fall back to
 it.
 
 
-**Parallel work while you flash (nothing that touches the image you're flashing or the USB drive):**
+**Parallel work while you flash (nothing that touches the image you're flashing
+or the USB drive):**
 
 1. **Audit both lab scripts** for more latent footguns like the two that already
-bit us (a var set in a subshell, a `set -e` crash on bad input) — so the
-reconstruct works first try when your clean dump lands.
+   bit us (a var set in a subshell, a `set -e` crash on bad input) — so the
+   reconstruct works first try when your clean dump lands.
 
 2. **Write up the design + the tearing lesson** as documentation.
 
@@ -16514,9 +18404,12 @@ behavior before I "fix" non-bugs, because it determines several findings:
 The empirical test settles it — and it's a subtle one:
 
 
-- **`x="$(failing pipeline)"` at top level → triggers `set -e`** (test 1 died).
+- **`x="$(failing pipeline)"` at top level → triggers `set -e`** (test 1
+  died).
 
-- **But the same inside a function called via `$(...)` does *not*** — because bash doesn't inherit `errexit` into command substitutions by default (test 2 reached its clean `die`).
+- **But the same inside a function called via `$(...)` does *not*** — because
+  bash doesn't inherit `errexit` into command substitutions by default (test 2
+  reached its clean `die`).
 
 
 That distinction acquits most of my suspects: `image_sectors` is called via
@@ -16590,28 +18483,29 @@ your eMMC's real layout:
 
 |---|------|------|-----------|
 
-| 1–6 | security, uboot, trust, misc, dtbo, vbmeta | ~17 MiB | bootloader +
-secure-boot chain |
+| 1–6 | security, uboot, trust, misc, dtbo, vbmeta | ~17 MiB | bootloader + secure-boot chain |
 
 | 7–8 | boot, recovery | 160 MiB | kernel/ramdisk + recovery |
 
-| 9–13 | backup, cache, metadata, frp, baseparameter | ~830 MiB | Android
-housekeeping |
+| 9–13 | backup, cache, metadata, frp, baseparameter | ~830 MiB | Android housekeeping |
 
-| **14** | **super** | **6.1 GiB** | the OS — system + vendor + product
-(Android dynamic partitions) |
+| **14** | **super** | **6.1 GiB** | the OS — system + vendor + product (Android dynamic partitions) |
 
-| **15** | **userdata** | **22.0 GiB** | user partition — **empty
-(factory-fresh)** |
+| **15** | **userdata** | **22.0 GiB** | user partition — **empty (factory-fresh)** |
 
 
 It's a bog-standard **stock Rockchip Android** install, untouched. And look how
 cleanly it explains everything:
 
 
-- **Your "mostly zeroes" hunch was exactly right** — it's the **22 GiB `userdata`**, which is empty because nobody's set the device up. That's the ~75% zero.
+- **Your "mostly zeroes" hunch was exactly right** — it's the **22 GiB
+  `userdata`**, which is empty because nobody's set the device up. That's the
+  ~75% zero.
 
-- The real data is **`super` (6.1 GiB) + the ~1 GiB boot chain ≈ 7.1 GiB** — which *matches `packed=0xE42500` (7.13 GiB) to the megabyte.* The sparse dump captured precisely the live partitions and skipped precisely the empty userdata.
+- The real data is **`super` (6.1 GiB) + the ~1 GiB boot chain ≈ 7.1 GiB** —
+  which *matches `packed=0xE42500` (7.13 GiB) to the megabyte.* The sparse dump
+  captured precisely the live partitions and skipped precisely the empty
+  userdata.
 
 
 So the sparse call wasn't unreasonable after all — the card genuinely *is*
@@ -16666,7 +18560,12 @@ Ah — that's my fault, and it's exactly the 4 GiB FAT32 limit biting again, but
 in a place I didn't anticipate.
 
 
-**What it is:** `emmc-20260630-192724.img` is the **reconstructed eMMC image** I built in `output/` to read the partition table. It's a *sparse* file — 5 GiB of real data but **29 GiB "apparent" size** (holes where the zeros are). `push-to-usb` syncs all of `output/` to the USB drive, and rsync copies by apparent size → 29 GiB → FAT32 rejects anything over 4 GiB → "File too large."
+**What it is:** `emmc-20260630-192724.img` is the **reconstructed eMMC image** I
+built in `output/` to read the partition table. It's a *sparse* file — 5 GiB
+of real data but **29 GiB "apparent" size** (holes where the zeros are).
+`push-to-usb` syncs all of `output/` to the USB drive, and rsync copies by
+apparent size → 29 GiB → FAT32 rejects anything over 4 GiB → "File too
+large."
 
 
 So the thing pushing >4 GiB is the analysis artifact I dropped in the wrong
@@ -16710,7 +18609,12 @@ Fixed and verified — `reconstruct-emmc` now writes to `dumps/` (line
 is out of `output/`.
 
 
-**So, the answer to your question:** the >4 GiB file was the **reconstructed eMMC image I built** to read the partition table. The subtlety is that it's a *sparse* file — only ~5 GiB of real data on disk, but **29 GiB of "apparent" size** because the zero regions are holes. rsync copies by apparent size, so it tried to write 29 GiB onto the FAT32 drive and hit the 4 GiB-per-file wall. A "5 GiB" file that's really "29 GiB with holes" — that's what fooled it.
+**So, the answer to your question:** the >4 GiB file was the **reconstructed
+eMMC image I built** to read the partition table. The subtlety is that it's a
+*sparse* file — only ~5 GiB of real data on disk, but **29 GiB of "apparent"
+size** because the zero regions are holes. rsync copies by apparent size, so it
+tried to write 29 GiB onto the FAT32 drive and hit the 4 GiB-per-file wall. A "5
+GiB" file that's really "29 GiB with holes" — that's what fooled it.
 
 
 The mistake was mine: `reconstruct-emmc` wrote it into `output/`, which is
@@ -16718,7 +18622,8 @@ precisely the directory `push-to-usb` rsyncs to the drive. Now:
 
 - Moved the preview image to `dumps/` (out of the push path).
 
-- `reconstruct-emmc` writes there permanently — `dumps/` is gitignored and never synced.
+- `reconstruct-emmc` writes there permanently — `dumps/` is gitignored and
+  never synced.
 
 
 `output/` now holds only `bootable-sd.img` (272 M), `kernel.img` (76 K), and
@@ -16734,10 +18639,10 @@ push now — it's fine, just noting it's why the sync moves ~2 GB each time.)
 
 ### User Request 189
 
-output/ now holds only bootable-sd.img (272 M), kernel.img (76 K), and your
+  output/ now holds only bootable-sd.img (272 M), kernel.img (76 K), and your
 
-rocknix-rg-ds-dtb.img (2.05 G) — all under the cap. Re-run push-to-usb and
-it'll go through.
+  rocknix-rg-ds-dtb.img (2.05 G) — all under the cap. Re-run push-to-usb and
+  it'll go through.
 
 
 why do we have that rocknix-rg-ds-dtb.img file? what does it do?
@@ -16766,9 +18671,14 @@ and simultaneously answer your scripts question:
 Good questions — and the second one surfaced something worth fixing.
 
 
-**What `rocknix-rg-ds-dtb.img` is:** a **ROCKNIX** SD-card image. ROCKNIX is a community Linux that already boots on the RG DS, so its image carries the Rockchip pre-kernel boot chain we can't practically write from scratch. `extract-sd-image-parts` carves three blobs out of it into `libs/sd-image-parts/`:
+**What `rocknix-rg-ds-dtb.img` is:** a **ROCKNIX** SD-card image. ROCKNIX is a
+community Linux that already boots on the RG DS, so its image carries the
+Rockchip pre-kernel boot chain we can't practically write from scratch.
+`extract-sd-image-parts` carves three blobs out of it into
+`libs/sd-image-parts/`:
 
-- **idbloader** (sector 64) — the IDBlock the RK3568 BootROM loads, plus the miniloader that brings up DRAM;
+- **idbloader** (sector 64) — the IDBlock the RK3568 BootROM loads, plus the
+  miniloader that brings up DRAM;
 
 - **u-boot.itb** — U-Boot packaged with ARM Trusted Firmware (BL31);
 
@@ -16783,10 +18693,21 @@ dtb is just handed to U-Boot's `booti` (our kernel ignores it and probes
 hardware itself).
 
 
-**But the 2 GiB file itself is dead weight.** I verified: the build uses the small extracted blobs in `libs/sd-image-parts/` (present, committed) — **not** the full image — and *nothing* references `rocknix-rg-ds-dtb.img` by name. The extract script's own header even says the donor image should live in ephemeral `tmp/`, not `output/`. So it's been silently adding ~2 GiB to every `push-to-usb` for nothing, and it's fully reproducible (`extract-sd-image-parts` re-downloads + re-carves it). **Want me to remove it?** The committed blobs are all the build needs.
+**But the 2 GiB file itself is dead weight.** I verified: the build uses the
+small extracted blobs in `libs/sd-image-parts/` (present, committed) — **not**
+the full image — and *nothing* references `rocknix-rg-ds-dtb.img` by name. The
+extract script's own header even says the donor image should live in ephemeral
+`tmp/`, not `output/`. So it's been silently adding ~2 GiB to every
+`push-to-usb` for nothing, and it's fully reproducible (`extract-sd-image-parts`
+re-downloads + re-carves it). **Want me to remove it?** The committed blobs are
+all the build needs.
 
 
-**"Don't we need scripts?" — yes, and push-to-usb already sends them.** It does *two* rsyncs: `output/` → drive `output/`, **and** `scripts/lab-side/` → drive `scripts/` (line 218). So `flash-sd`, `dump-from-sd`, and my `reconstruct-emmc`/`dump-from-sd` fixes all ride to the lab laptop on the next push — I just hadn't mentioned that second sync. Nothing to add there.
+**"Don't we need scripts?" — yes, and push-to-usb already sends them.** It
+does *two* rsyncs: `output/` → drive `output/`, **and** `scripts/lab-side/`
+→ drive `scripts/` (line 218). So `flash-sd`, `dump-from-sd`, and my
+`reconstruct-emmc`/`dump-from-sd` fixes all ride to the lab laptop on the next
+push — I just hadn't mentioned that second sync. Nothing to add there.
 
 
 --------------------------------------------------------------------------------
@@ -16841,9 +18762,12 @@ as it needing to be this complicated.
 
 Your call, and I'll just do it, no more improvising:
 
-- **Finish the sparse path** — it's genuinely one flash away, I touch nothing else.
+- **Finish the sparse path** — it's genuinely one flash away, I touch nothing
+  else.
 
-- **Rip it out for the dead-simple full dump** — read sector 0→max, write to SD, split, `cat` + `gzip` on this end. No map, nothing to tear. What you asked for at the start.
+- **Rip it out for the dead-simple full dump** — read sector 0→max, write to
+  SD, split, `cat` + `gzip` on this end. No map, nothing to tear. What you asked
+  for at the start.
 
 
 I lean toward finishing, only because it's a flash from done and ripping it out
@@ -16944,9 +18868,13 @@ checking. Let me get the actual ground truth instead of asserting:
 Checked, and here's my exact screwup: I conflated two different drives.
 
 
-- Your **256 GB SD card** — where the dump actually gets written, in the handheld. Room to spare.
+- Your **256 GB SD card** — where the dump actually gets written, in the
+  handheld. Room to spare.
 
-- The **28.9 GB USB stick** labeled `SOREN-FLASH` (`/dev/sdd1`, mounted at `/mnt/generic`) — a *separate* little drive that `dump-from-sd` has been dropping the pulled pieces onto. That 28.9 GB is real, but it's the wrong thing to design around.
+- The **28.9 GB USB stick** labeled `SOREN-FLASH` (`/dev/sdd1`, mounted at
+  `/mnt/generic`) — a *separate* little drive that `dump-from-sd` has been
+  dropping the pulled pieces onto. That 28.9 GB is real, but it's the wrong
+  thing to design around.
 
 
 I latched onto that 28.9 GB stick as the bottleneck and kept piling on
@@ -16989,12 +18917,17 @@ wired *both* ways to get the 29 GB back. So it's down to one thing about your
 physical setup:
 
 
-**After the dump, can you pull the SD card out and plug it into this machine** (or anything with ~30 GB free)?
+**After the dump, can you pull the SD card out and plug it into this machine**
+(or anything with ~30 GB free)?
 
 
-- **Yes** → simplest by far: skip the stick entirely. `dd` the dump region straight off the card into `/mnt/mtwo` (836 GB free), gzip it if you want an archive. One command, no split, no reassembly.
+- **Yes** → simplest by far: skip the stick entirely. `dd` the dump region
+  straight off the card into `/mnt/mtwo` (836 GB free), gzip it if you want an
+  archive. One command, no split, no reassembly.
 
-- **No — the 28.9 GB stick is the only bridge back here** → `dump-from-sd` now gzips the pull on the way out (the 22 GB of zeros collapse to almost nothing, so it fits the stick), and you `cat | gunzip` it here.
+- **No — the 28.9 GB stick is the only bridge back here** → `dump-from-sd`
+  now gzips the pull on the way out (the 22 GB of zeros collapse to almost
+  nothing, so it fits the stick), and you `cat | gunzip` it here.
 
 
 The dump itself is identical either way — flash it and let it run. Which pull

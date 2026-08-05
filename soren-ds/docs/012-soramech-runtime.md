@@ -42,12 +42,20 @@ gathering function before the task is queued) and its own unique
 return slot for output, but the box function's own internal
 state is the author's problem.
 
-This is the one place Soren DS diverges from soramech proper's
-runtime. Soramech proper has a single-spawn invariant that
-serialises fires of the same box; we don't. The reason is
-parallelism: gating a hot box on its previous fire bottlenecks
-exactly the boxes that most need to run in parallel. The cost is
-on box authors, who write thread-safe code. We accept the cost.
+This used to be the one place Soren DS diverged from soramech
+proper's runtime, and it is no longer a divergence: as of
+2026-07-26 soramech proper adopted the same rule and retired its
+single-spawn invariant outright. Both runtimes now say the same
+thing.
+
+The reason is parallelism: gating a hot box on its previous fire
+bottlenecks exactly the boxes that most need to run in parallel.
+Soramech proper had also found that the gate does not stay simple
+— it needed an exemption for iterator routing and everything
+downstream of it, which cost a load-time marker walk, a second
+slot shape for the exempt boxes, and a rule for where the two
+shapes meet. The cost of dropping it is on box authors, who write
+thread-safe code. Both projects accept the cost.
 
 The **firing rule** matches phase 2's gathering function exactly.
 A box's gathering critical section sits behind one box-level

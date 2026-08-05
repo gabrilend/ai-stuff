@@ -1,6 +1,6 @@
 # Conversation Summary: 14151034-b575-4327-9cb3-10f20117f66f
 
-Generated on: 2026-07-24 15:44:45
+Generated on: 2026-07-27 16:50:36
 
 --------------------------------------------------------------------------------
 
@@ -79,11 +79,19 @@ handheld built on the Rockchip RK3568 (quad-core ARM). The defining bet is
 architectural:
 
 
-- **A thin C substrate** does only what a kernel *must* — boot/exception vectors, hardware bring-up, the page allocator, the atomic threading primitives, and the lowest register pokes.
+- **A thin C substrate** does only what a kernel *must* — boot/exception
+  vectors, hardware bring-up, the page allocator, the atomic threading
+  primitives, and the lowest register pokes.
 
-- **Everything above it is a "soramech" dataflow map** — a graph of *boxes* wired together. Drivers are boxes, the compositor is boxes, apps are boxes. The kernel "knows about threads and wires," not apps. The cost is paid once in Phase 2 (the threading core must be excellent); the dividend is paid every phase after.
+- **Everything above it is a "soramech" dataflow map** — a graph of *boxes*
+  wired together. Drivers are boxes, the compositor is boxes, apps are boxes.
+  The kernel "knows about threads and wires," not apps. The cost is paid once in
+  Phase 2 (the threading core must be excellent); the dividend is paid every
+  phase after.
 
-- **The stock Android OS is never run — not once.** The dev loop boots our kernel off SD, takes over the internal eMMC, then flashes over USB-C, so closed firmware never touches the wire.
+- **The stock Android OS is never run — not once.** The dev loop boots our
+  kernel off SD, takes over the internal eMMC, then flashes over USB-C, so
+  closed firmware never touches the wire.
 
 
 The product vision is four launch apps that link to each other with **no
@@ -98,9 +106,9 @@ pre-bake.
 
 
 1. **Hardware bring-up** ← *currently here* · 2. Threading core · 3.
-Soramech runtime · 4. SD/filesystem · 5. Input · 6. Compositor/drawers/links
-· 7. Radio + rmail · 8. The four apps · 9. MMU protection + background
-lifecycle · 10. The modeller.
+   Soramech runtime · 4. SD/filesystem · 5. Input · 6.
+   Compositor/drawers/links · 7. Radio + rmail · 8. The four apps · 9. MMU
+   protection + background lifecycle · 10. The modeller.
 
 
 ## Where the project actually stands
@@ -127,13 +135,19 @@ hand-copying every word (caches are still off, so PIO stalls on DRAM every
 instruction). The pieces, per the new probes:
 
 
-- **eMMC ADMA2 read** — validated by fingerprint-matching PIO at legacy/HS200/HS400.
+- **eMMC ADMA2 read** — validated by fingerprint-matching PIO at
+  legacy/HS200/HS400.
 
-- **microSD IDMAC chained multi-block write** — one `CMD25` over a descriptor chain + auto-stop.
+- **microSD IDMAC chained multi-block write** — one `CMD25` over a descriptor
+  chain + auto-stop.
 
-- **Full/sparse eMMC→SD dump** with an atomic MAP log (there's a sharp lesson baked in: a machine-parsed log record must be *one* `debug_write`, or a ring-buffer flush tears it across a zero-padded page).
+- **Full/sparse eMMC→SD dump** with an atomic MAP log (there's a sharp lesson
+  baked in: a machine-parsed log record must be *one* `debug_write`, or a
+  ring-buffer flush tears it across a zero-padded page).
 
-- **Lab-side reconstruction** — `dump-from-sd` pulls + gzip-splits for FAT32; `reconstruct-emmc` replays the MAP into a sparse 29 GiB image and cross-checks the run count against the dump's own summary.
+- **Lab-side reconstruction** — `dump-from-sd` pulls + gzip-splits for FAT32;
+  `reconstruct-emmc` replays the MAP into a sparse 29 GiB image and cross-checks
+  the run count against the dump's own summary.
 
 
 So the **most recent on-device task** ran: SD IDMAC write validation → dynamic
@@ -198,7 +212,8 @@ split`) — that's your "28 GB." Let me verify the archive's own trailer while
 
 - gzip ISIZE trailer: `1,203,765,248`
 
-- dump total (`0x03A3E000` × 512 = 31,268,536,320) mod 2³²: `1,203,765,248` ✓
+- dump total (`0x03A3E000` × 512 = 31,268,536,320) mod 2³²: `1,203,765,248`
+  ✓
 
 
 That means the gzip stream ends exactly where a complete 29.1 GiB dump should
@@ -223,15 +238,11 @@ Three independent checks agree:
 
 |---|---|
 
-| `gzip -t` over the whole concatenated stream | **PASS** (exit 0, no errors)
-— the CRC-32 across all 29.1 GiB of decompressed data is correct |
+| `gzip -t` over the whole concatenated stream | **PASS** (exit 0, no errors) — the CRC-32 across all 29.1 GiB of decompressed data is correct |
 
-| gzip ISIZE length trailer | `1,203,765,248` = dump total (`0x03A3E000`×512)
-mod 2³² — **exact match**, so nothing is truncated |
+| gzip ISIZE length trailer | `1,203,765,248` = dump total (`0x03A3E000`×512) mod 2³² — **exact match**, so nothing is truncated |
 
-| Split pieces | `.00` = exactly 3 GiB (clean split boundary) + `.01` = 1.84
-GiB, ending precisely at the gzip trailer — a complete stream, both under
-FAT32's 4 GiB cap |
+| Split pieces | `.00` = exactly 3 GiB (clean split boundary) + `.01` = 1.84 GiB, ending precisely at the gzip trailer — a complete stream, both under FAT32's 4 GiB cap |
 
 
 Let me do one last confirmation — that the decompressed bytes are a *valid
@@ -259,10 +270,9 @@ layout from `docs/024-emmc-partition-map.md`:
 
 security, uboot, trust, misc, dtbo, vbmeta, boot, recovery,
 
-backup, cache, metadata, frp, baseparameter, super (6.1 GiB), userdata (22.0
-GiB)
+backup, cache, metadata, frp, baseparameter, super (6.1 GiB), userdata (22.0 GiB)
 
-Main header: OK Main partition table: OK
+Main header: OK   Main partition table: OK
 
 ```
 
@@ -270,22 +280,22 @@ Main header: OK Main partition table: OK
 Four independent proofs it's whole and uncorrupted:
 
 1. **`gzip -t`** over the concatenated stream — PASS (CRC-32 correct across
-all 29.1 GiB).
+   all 29.1 GiB).
 
 2. **gzip length trailer** = `1,203,765,248` = dump total `0x03A3E000`×512 mod
-2³² — exact, so nothing's truncated.
+   2³² — exact, so nothing's truncated.
 
 3. **Split geometry** — `.00` ends on a clean 3 GiB boundary, `.01` ends
-exactly at the gzip trailer; both under FAT32's 4 GiB cap.
+   exactly at the gzip trailer; both under FAT32's 4 GiB cap.
 
 4. **GPT decodes** — main header + main partition table both read OK with
-valid CRC.
+   valid CRC.
 
 
 > One thing not to be alarmed by: gdisk prints "Backup header: ERROR / GPT:
-damaged." That's *only because I fed it a 33 MiB slice* — the backup GPT lives
-at the last sector of the 29 GiB disk, which isn't in the slice. On the full
-reconstructed image it'll be present and valid.
+> damaged." That's *only because I fed it a 33 MiB slice* — the backup GPT
+> lives at the last sector of the 29 GiB disk, which isn't in the slice. On the
+> full reconstructed image it'll be present and valid.
 
 
 ## What the sudo timeout actually hit
@@ -307,10 +317,9 @@ output had already finished.)
 
 ```
 
-cat /mnt/generic/lab-output/emmc-20260701-130529.img.gz.* > emmc.img.gz # NOT on
-the FAT32 drive
+cat /mnt/generic/lab-output/emmc-20260701-130529.img.gz.* > emmc.img.gz   # NOT on the FAT32 drive
 
-gunzip emmc.img.gz # -> emmc.img (29.1 GiB)
+gunzip emmc.img.gz                                                          # -> emmc.img (29.1 GiB)
 
 ```
 
@@ -322,9 +331,19 @@ Exactly the "simpler, nothing to corrupt" path the 110m issue file recommends.
 ## Two minor things I noticed (not blocking, your call)
 
 
-- **Log-splitter mis-filing.** `probe-emmc-scan-*.log` contains a *previous, sparse* dump run's MAP output (`ranges=0x2E6 packed=0x00E42500`), not scan output. Cause: the persistent SD ring buffer still holds that older run, and `dump-from-sd`'s `split_probe_logs` awk treats the `===== PROBE emmc-scan DE-SELECTED =====` marker as a real START banner (it matches `/===== PROBE /`), so trailing content gets attributed to emmc-scan. Cosmetic — it never touched the dump data — but the de-selected banner and the real START banner probably shouldn't share a prefix.
+- **Log-splitter mis-filing.** `probe-emmc-scan-*.log` contains a *previous,
+  sparse* dump run's MAP output (`ranges=0x2E6 packed=0x00E42500`), not scan
+  output. Cause: the persistent SD ring buffer still holds that older run, and
+  `dump-from-sd`'s `split_probe_logs` awk treats the `===== PROBE emmc-scan
+  DE-SELECTED =====` marker as a real START banner (it matches `/===== PROBE
+  /`), so trailing content gets attributed to emmc-scan. Cosmetic — it never
+  touched the dump data — but the de-selected banner and the real START banner
+  probably shouldn't share a prefix.
 
-- The debug-log ring holds **two runs** (an earlier sparse dump + this full one). `pull_sparse_dump`'s `head -1` correctly grabbed the full run's `packed=0x03A3E000`, so the pull was right — but a stale ring is a footgun for that `head -1` if the order ever flips.
+- The debug-log ring holds **two runs** (an earlier sparse dump + this full
+  one). `pull_sparse_dump`'s `head -1` correctly grabbed the full run's
+  `packed=0x03A3E000`, so the pull was right — but a stale ring is a footgun
+  for that `head -1` if the order ever flips.
 
 
 Want me to actually run the concatenate-and-gunzip to produce the image
@@ -418,17 +437,34 @@ them.
 ## Why it's gone now — two structural reasons
 
 
-**1. The mechanism that could tear was removed, not patched.** Your current backup is the **full linear** dump. I confirmed in the source (`src/012-emmc.c:1652`) that `emmc_dump_to_sd` copies *every* sector, eMMC N → SD `0x800000+N`, with **no map and no `MAP` records anywhere in the file** (grep finds zero). Reconstruction is "read the region back and concatenate" — there are no per-chunk records to lose. This is exactly the "why isn't this a simple read from sector zero to sector max?" the engineer asked at transcript line 16433 — and it's what got built afterward.
+**1. The mechanism that could tear was removed, not patched.** Your current
+backup is the **full linear** dump. I confirmed in the source
+(`src/012-emmc.c:1652`) that `emmc_dump_to_sd` copies *every* sector, eMMC N →
+SD `0x800000+N`, with **no map and no `MAP` records anywhere in the file** (grep
+finds zero). Reconstruction is "read the region back and concatenate" — there
+are no per-chunk records to lose. This is exactly the "why isn't this a simple
+read from sector zero to sector max?" the engineer asked at transcript line
+16433 — and it's what got built afterward.
 
 
-**2. The one machine-parsed line that remains is atomic.** The full dump's only parsed output is the `complete total=… packed=…` summary (what `dump-from-sd` greps for `packed=`). The code builds it into one buffer and emits it with a **single** `debug_write` (`src/012-emmc.c:1689–1697`), comment and all: *"One write so it can't tear across a log flush."*
+**2. The one machine-parsed line that remains is atomic.** The full dump's only
+parsed output is the `complete total=… packed=…` summary (what
+`dump-from-sd` greps for `packed=`). The code builds it into one buffer and
+emits it with a **single** `debug_write` (`src/012-emmc.c:1689–1697`), comment
+and all: *"One write so it can't tear across a log flush."*
 
 
 ## Empirical confirmation from the actual log bytes
 
-- The current dump's summary line is intact: `[dump] complete total=0x03A3E000 packed=0x03A3E000` — and the pull correctly read `packed=0x03A3E000` (the whole card).
+- The current dump's summary line is intact: `[dump] complete total=0x03A3E000
+  packed=0x03A3E000` — and the pull correctly read `packed=0x03A3E000` (the
+  whole card).
 
-- More decisively, the backup's integrity doesn't even *depend* on the log: `gzip -t` passed (CRC over all 29.1 GiB), the length trailer matches exactly, and the GPT decodes to the real 15-partition factory layout. A torn log line couldn't have silently corrupted this backup, because the linear reconstruction never consults per-chunk records.
+- More decisively, the backup's integrity doesn't even *depend* on the log:
+  `gzip -t` passed (CRC over all 29.1 GiB), the length trailer matches exactly,
+  and the GPT decodes to the real 15-partition factory layout. A torn log line
+  couldn't have silently corrupted this backup, because the linear
+  reconstruction never consults per-chunk records.
 
 
 ## One honest limitation
@@ -486,20 +522,25 @@ Here's the status.
 `/mnt/generic/lab-output/emmc-20260701-130529.img.gz.{00,01}` on the FAT32
 drive:
 
-- **Full linear dump** of the entire 29.1 GiB eMMC (`total = packed = 0x03A3E000`), gzip-compressed, split into two FAT32-safe pieces: **3.0 GiB + 1.84 GiB = 4.84 GiB compressed**.
+- **Full linear dump** of the entire 29.1 GiB eMMC (`total = packed =
+  0x03A3E000`), gzip-compressed, split into two FAT32-safe pieces: **3.0 GiB +
+  1.84 GiB = 4.84 GiB compressed**.
 
-- **Integrity confirmed**: `gzip -t` PASS (CRC over all 29.1 GiB), length trailer matches exactly, GPT decodes to the real 15 factory partitions, no tearing possible (linear dump has no map).
+- **Integrity confirmed**: `gzip -t` PASS (CRC over all 29.1 GiB), length
+  trailer matches exactly, GPT decodes to the real 15 factory partitions, no
+  tearing possible (linear dump has no map).
 
-- **State: still compressed + split on the drive.** Not yet expanded to a full `.img` on real disk. To materialize it (no `reconstruct-emmc` needed for a linear dump):
+- **State: still compressed + split on the drive.** Not yet expanded to a full
+  `.img` on real disk. To materialize it (no `reconstruct-emmc` needed for a
+  linear dump):
 
-```
+  ```
 
-cat /mnt/generic/lab-output/emmc-20260701-130529.img.gz.* > emmc.img.gz #
-somewhere NOT the FAT32 drive
+  cat /mnt/generic/lab-output/emmc-20260701-130529.img.gz.* > emmc.img.gz   # somewhere NOT the FAT32 drive
 
-gunzip emmc.img.gz # -> 29.1 GiB emmc.img
+  gunzip emmc.img.gz                                                          # -> 29.1 GiB emmc.img
 
-```
+  ```
 
 
 ## ⚠️ One landmine: a stale broken image in `dumps/`
@@ -513,7 +554,9 @@ thinking it's the eMMC image, they get a mostly-holes file missing ~5.5 GiB of
 real data.
 
 
-**Net:** the real backup is the two verified `.gz` pieces on the USB drive (compressed, not yet expanded); the 29 GiB thing in `dumps/` is the discarded broken one.
+**Net:** the real backup is the two verified `.gz` pieces on the USB drive
+(compressed, not yet expanded); the 29 GiB thing in `dumps/` is the discarded
+broken one.
 
 
 Want me to (a) delete the stale `dumps/emmc-20260630-192724.img`, (b) expand the
@@ -549,19 +592,35 @@ copy, not the sparse one the file still describes as current.
 Both done.
 
 
-**(a) Stale image deleted.** `dumps/emmc-20260630-192724.img` (the incomplete 114-of-742-run reconstruction from the drunk session) is gone; `dumps/` is now empty. It was gitignored, so nothing tracked changed.
+**(a) Stale image deleted.** `dumps/emmc-20260630-192724.img` (the incomplete
+114-of-742-run reconstruction from the drunk session) is gone; `dumps/` is now
+empty. It was gitignored, so nothing tracked changed.
 
 
-**Issue file updated** — `issues/110m-dma-storage-transfers.md`, four edits to make it match the code and the verified outcome instead of the superseded sparse design:
+**Issue file updated** — `issues/110m-dma-storage-transfers.md`, four edits to
+make it match the code and the verified outcome instead of the superseded sparse
+design:
 
 
-- **Current behavior** — now describes `emmc_dump_to_sd` as the *full linear* dump (eMMC N → SD `DUMP_DEST_LBA + N`, no map, nothing to reconstruct or tear), notes `emmc_scan_map` is a separate recon-only pass that no longer drives the dump, and records that the first full dump was **pulled and verified end to end** (gzip CRC + length clean, decodes to the real 15-partition factory GPT).
+- **Current behavior** — now describes `emmc_dump_to_sd` as the *full linear*
+  dump (eMMC N → SD `DUMP_DEST_LBA + N`, no map, nothing to reconstruct or
+  tear), notes `emmc_scan_map` is a separate recon-only pass that no longer
+  drives the dump, and records that the first full dump was **pulled and
+  verified end to end** (gzip CRC + length clean, decodes to the real
+  15-partition factory GPT).
 
-- **Driving use case** — reframed from "the dump *now* copies only the non-zero chunks" (backwards) to: the plain full copy is what shipped; the sparse variant was explored and *parked*.
+- **Driving use case** — reframed from "the dump *now* copies only the
+  non-zero chunks" (backwards) to: the plain full copy is what shipped; the
+  sparse variant was explored and *parked*.
 
-- **Tearing lesson** — kept (it's the reason linear won), but corrected the stale clause: the single-`debug_write` rule now guards the linear dump's one `complete …` summary line; the sparse MAP emitter must obey it too *if re-enabled*.
+- **Tearing lesson** — kept (it's the reason linear won), but corrected the
+  stale clause: the single-`debug_write` rule now guards the linear dump's one
+  `complete …` summary line; the sparse MAP emitter must obey it too *if
+  re-enabled*.
 
-- **Implementation steps 3 & 4** — step 3 is now "full linear dump (shipped, proven), sparse parked"; step 4 is the pull+archive toolchain (`cat pieces | gunzip`), with `reconstruct-emmc` retained for the optional sparse path.
+- **Implementation steps 3 & 4** — step 3 is now "full linear dump (shipped,
+  proven), sparse parked"; step 4 is the pull+archive toolchain (`cat pieces |
+  gunzip`), with `reconstruct-emmc` retained for the optional sparse path.
 
 
 The good archive itself is untouched — still the two verified `.gz` pieces on
@@ -603,12 +662,9 @@ couple of technical caveats worth flagging.
 
 |---|---|---|---|
 
-| `emmc-backup` (calls `backup_boot`) | the **bootloader region** — just the
-Rockchip boot chain: GPT@LBA1, idbloader@LBA64, u-boot@LBA16384 | LBA `0x200000`
-| **`#NEEDED 0` — de-selected** |
+| `emmc-backup` (calls `backup_boot`) | the **bootloader region** — just the Rockchip boot chain: GPT@LBA1, idbloader@LBA64, u-boot@LBA16384 | LBA `0x200000` | **`#NEEDED 0` — de-selected** |
 
-| `emmc-dump` (calls `emmc_dump`) | the **entire disk**, every sector linearly |
-LBA `0x800000` | `#NEEDED 1` — active |
+| `emmc-dump` (calls `emmc_dump`) | the **entire disk**, every sector linearly | LBA `0x800000` | `#NEEDED 1` — active |
 
 
 (There's a third eMMC probe, `emmc-scan`, but it reads the whole card and only
@@ -618,9 +674,14 @@ one of the two.)
 
 Two caveats on the bootloader one:
 
-- **It's currently de-selected** (`#NEEDED 0`), so it did *not* run in the last sweep. Only the full-disk dump ran. That's why `probe-emmc-backup-*.log` came back empty — and it means the 200 MiB `emmc-backup-*.img` you pulled is *stale* data left at `0x200000` by an earlier run, not this run's output.
+- **It's currently de-selected** (`#NEEDED 0`), so it did *not* run in the last
+  sweep. Only the full-disk dump ran. That's why `probe-emmc-backup-*.log` came
+  back empty — and it means the 200 MiB `emmc-backup-*.img` you pulled is
+  *stale* data left at `0x200000` by an earlier run, not this run's output.
 
-- **It now copies 16 MiB, not 200 MiB.** `backup_boot` → `emmc_backup_to_sd(0, 0x200000, 32768)` = 32768 sectors = 16 MiB (the boot chain only). The comment says it used to grind a 200 MB copy every boot and was deliberately trimmed.
+- **It now copies 16 MiB, not 200 MiB.** `backup_boot` → `emmc_backup_to_sd(0,
+  0x200000, 32768)` = 32768 sectors = 16 MiB (the boot chain only). The comment
+  says it used to grind a 200 MB copy every boot and was deliberately trimmed.
 
 
 ## 2. `dump-from-sd` identifies the full image and gzips it — yes ✓
@@ -635,9 +696,14 @@ image (via the log summary) and gzip it.
 
 Two caveats there too:
 
-- The function is still named **`pull_sparse_dump`** — a leftover misnomer; it handles the full linear dump now. Cosmetic, but confusing to the next reader.
+- The function is still named **`pull_sparse_dump`** — a leftover misnomer; it
+  handles the full linear dump now. Cosmetic, but confusing to the next reader.
 
-- **Only the full dump is gzipped.** The bootloader-backup region is pulled *raw* (`emmc-backup-*.img`, no gzip), and the script reads **200 MiB** (`BACKUP_SECTORS=409600`) from it — stale relative to the 16 MiB the probe actually writes now. So that file is ~16 MiB of real boot chain plus ~184 MiB of leftover.
+- **Only the full dump is gzipped.** The bootloader-backup region is pulled
+  *raw* (`emmc-backup-*.img`, no gzip), and the script reads **200 MiB**
+  (`BACKUP_SECTORS=409600`) from it — stale relative to the 16 MiB the probe
+  actually writes now. So that file is ~16 MiB of real boot chain plus ~184 MiB
+  of leftover.
 
 
 So your mental model is right on both counts. The three loose ends — the
@@ -652,16 +718,16 @@ script's backup size to 16 MiB, or rename the function)?
 
 ### User Request 7
 
-- It's currently de-selected (#NEEDED 0), so it did not run in the last sweep.
-Only the
+  - It's currently de-selected (#NEEDED 0), so it did not run in the last sweep.
+    Only the
 
-full-disk dump ran. That's why probe-emmc-backup-*.log came back empty — and
-it means the
+  full-disk dump ran. That's why probe-emmc-backup-*.log came back empty — and
+  it means the
 
-200 MiB emmc-backup-*.img you pulled is stale data left at 0x200000 by an
-earlier run,
+  200 MiB emmc-backup-*.img you pulled is stale data left at 0x200000 by an
+  earlier run,
 
-not this run's output.
+  not this run's output.
 
 
 
@@ -670,39 +736,39 @@ can you remove the stale data? Also, I think we were supposed to change it from
 bootloader. Can you check on the status of that?
 
 
-not this run's output.
+  not this run's output.
 
-- It now copies 16 MiB, not 200 MiB. backup_boot → emmc_backup_to_sd(0,
-0x200000, 32768)
+  - It now copies 16 MiB, not 200 MiB. backup_boot → emmc_backup_to_sd(0,
+    0x200000, 32768)
 
-= 32768 sectors = 16 MiB (the boot chain only). The comment says it used to
-grind a 200
+  = 32768 sectors = 16 MiB (the boot chain only). The comment says it used to
+  grind a 200
 
-MB copy every boot and was deliberately trimmed.
+  MB copy every boot and was deliberately trimmed.
 
 
 
 oh haha sounds like you need to update some documentation then teehee :)
 
 
-- The function is still named pull_sparse_dump — a leftover misnomer; it
-handles the full
+  - The function is still named pull_sparse_dump — a leftover misnomer; it
+    handles the full
 
-linear dump now. Cosmetic, but confusing to the next reader.
+  linear dump now. Cosmetic, but confusing to the next reader.
 
 
 Can you fix this? A rename is probably easiest.
 
 
-- Only the full dump is gzipped. The bootloader-backup region is pulled raw
+  - Only the full dump is gzipped. The bootloader-backup region is pulled raw
 
-(emmc-backup-*.img, no gzip), and the script reads 200 MiB
-(BACKUP_SECTORS=409600) from
+  (emmc-backup-*.img, no gzip), and the script reads 200 MiB
+  (BACKUP_SECTORS=409600) from
 
-it — stale relative to the 16 MiB the probe actually writes now. So that file
-is ~16 MiB
+  it — stale relative to the 16 MiB the probe actually writes now. So that
+  file is ~16 MiB
 
-of real boot chain plus ~184 MiB of leftover.
+  of real boot chain plus ~184 MiB of leftover.
 
 
 
@@ -720,9 +786,15 @@ doc references, the backup source, and the exact script strings) all at once.
 Findings so far:
 
 
-- **Deletion needs root.** The drive is root-mounted vfat; `rm` gives Permission denied and sudo wants a password I can't supply non-interactively. I'll give you a one-liner to run.
+- **Deletion needs root.** The drive is root-mounted vfat; `rm` gives Permission
+  denied and sudo wants a password I can't supply non-interactively. I'll give
+  you a one-liner to run.
 
-- **The 200→16 MiB change: half-done.** Kernel/probe side is *done* — `backup_boot` calls `emmc_backup_to_sd(0, 0x200000, 32768)` = 16 MiB from eMMC LBA 0, targeted at the boot chain. But the **script side is stale** (`BACKUP_SECTORS=409600` = 200 MiB) and several **docs still describe a 200 MB boot-time copy**.
+- **The 200→16 MiB change: half-done.** Kernel/probe side is *done* —
+  `backup_boot` calls `emmc_backup_to_sd(0, 0x200000, 32768)` = 16 MiB from eMMC
+  LBA 0, targeted at the boot chain. But the **script side is stale**
+  (`BACKUP_SECTORS=409600` = 200 MiB) and several **docs still describe a 200 MB
+  boot-time copy**.
 
 
 Let me read the main doc that describes it so I update it correctly.
@@ -756,22 +828,35 @@ All done except the deletion, which needs root. Here's the rundown.
 
 ## ✅ Fixed the script — `scripts/lab-side/dump-from-sd`
 
-- **`BACKUP_SECTORS`: 409600 → 32768** (200 MiB → 16 MiB), matched to the probe's `emmc_backup_to_sd(0, 0x200000, 32768)`, with a comment explaining the trim.
+- **`BACKUP_SECTORS`: 409600 → 32768** (200 MiB → 16 MiB), matched to the
+  probe's `emmc_backup_to_sd(0, 0x200000, 32768)`, with a comment explaining the
+  trim.
 
-- **Renamed `pull_sparse_dump` → `pull_full_dump`** (all 3 sites: vimfold, definition, call). The full-disk dump is still gzipped; the 16 MiB boot-chain backup stays **raw** (it was never gzipped — that's the `dump_region`/`dd` path — so "we don't need to gzip the 16 MB dump" is already how it works, just now at the right size).
+- **Renamed `pull_sparse_dump` → `pull_full_dump`** (all 3 sites: vimfold,
+  definition, call). The full-disk dump is still gzipped; the 16 MiB boot-chain
+  backup stays **raw** (it was never gzipped — that's the `dump_region`/`dd`
+  path — so "we don't need to gzip the 16 MB dump" is already how it works,
+  just now at the right size).
 
-- Fixed a stale header pointer (`src/002-main.c` → the `emmc-backup` probe in `src/019-probe-engine.c`) and relabeled "partial backup" → "boot-chain backup". Parses clean.
+- Fixed a stale header pointer (`src/002-main.c` → the `emmc-backup` probe in
+  `src/019-probe-engine.c`) and relabeled "partial backup" → "boot-chain
+  backup". Parses clean.
 
 
 ## ✅ Updated the docs (the 200 MB → 16 MiB "teehee")
 
-- `docs/024-emmc-partition-map.md` — the "obtained by" note now says the map is confirmed from the full `emmc-dump`, and the "What the … backup captured" section is rewritten: **16 MiB = LBA 0–32767 = GPT + security/uboot/trust** (the raw Rockchip boot chain), stopping right before `misc`.
+- `docs/024-emmc-partition-map.md` — the "obtained by" note now says the map
+  is confirmed from the full `emmc-dump`, and the "What the … backup captured"
+  section is rewritten: **16 MiB = LBA 0–32767 = GPT + security/uboot/trust**
+  (the raw Rockchip boot chain), stopping right before `misc`.
 
 - `docs/000-table-of-contents.md` — the 024 summary line.
 
 - `issues/phase-1-progress.md` — the 110e safety-gate narrative.
 
-- `issues/110e-emmc-layout-probe.md` — a "Since resolved" note recording the retarget (blind 200 MB → targeted 16 MiB, moved into the de-selectable probe).
+- `issues/110e-emmc-layout-probe.md` — a "Since resolved" note recording the
+  retarget (blind 200 MB → targeted 16 MiB, moved into the de-selectable
+  probe).
 
 
 ## Status of the 200→16 change (your question)
@@ -788,8 +873,7 @@ Run this (the `!` prefix works here, or your own terminal):
 
 ```
 
-! sudo rm -f /mnt/generic/lab-output/emmc-backup-*.img
-/mnt/generic/lab-output/debug-log-20260630-211252.img
+! sudo rm -f /mnt/generic/lab-output/emmc-backup-*.img /mnt/generic/lab-output/debug-log-20260630-211252.img
 
 ```
 
@@ -801,22 +885,28 @@ keeps the good full dump (`emmc-…gz.00/01`) and this run's
 
 ## Two things worth knowing
 
-- **No fresh boot-chain backup will be produced until you flip it on.** The `emmc-backup` probe is still `#NEEDED 0`, so after you delete the stale copy there's *no* 16 MiB backup at all until you set it to `1` and re-sweep. Want me to flip that bit?
+- **No fresh boot-chain backup will be produced until you flip it on.** The
+  `emmc-backup` probe is still `#NEEDED 0`, so after you delete the stale copy
+  there's *no* 16 MiB backup at all until you set it to `1` and re-sweep. Want
+  me to flip that bit?
 
-- **Two minor stragglers I didn't touch** (say the word): a dead `extern emmc_backup_to_sd` still sits in `src/002-main.c` (kernel_main no longer calls it), and `issues/110j` line 16 still cites "the 200 MB validation backup takes minutes" as a speed motivator — now inaccurate at 16 MiB.
+- **Two minor stragglers I didn't touch** (say the word): a dead `extern
+  emmc_backup_to_sd` still sits in `src/002-main.c` (kernel_main no longer calls
+  it), and `issues/110j` line 16 still cites "the 200 MB validation backup takes
+  minutes" as a speed motivator — now inaccurate at 16 MiB.
 
 
 --------------------------------------------------------------------------------
 
 ### User Request 8
 
-- No fresh boot-chain backup will be produced until you flip it on. The
-emmc-backup probe
+  - No fresh boot-chain backup will be produced until you flip it on. The
+    emmc-backup probe
 
-is still #NEEDED 0, so after you delete the stale copy there's no 16 MiB backup
-at all
+  is still #NEEDED 0, so after you delete the stale copy there's no 16 MiB
+  backup at all
 
-until you set it to 1 and re-sweep. Want me to flip that bit?
+  until you set it to 1 and re-sweep. Want me to flip that bit?
 
 
 
@@ -826,16 +916,16 @@ eventually going to write our own bootloader, and we might want to dump that in
 the future.
 
 
-- Two minor stragglers I didn't touch (say the word): a dead extern
-emmc_backup_to_sd
+  - Two minor stragglers I didn't touch (say the word): a dead extern
+    emmc_backup_to_sd
 
-still sits in src/002-main.c (kernel_main no longer calls it), and issues/110j
-line 16
+  still sits in src/002-main.c (kernel_main no longer calls it), and issues/110j
+  line 16
 
-still cites "the 200 MB validation backup takes minutes" as a speed motivator
-— now
+  still cites "the 200 MB validation backup takes minutes" as a speed motivator
+  — now
 
-inaccurate at 16 MiB.
+  inaccurate at 16 MiB.
 
 
 
@@ -850,7 +940,13 @@ You've got it exactly right on the archive — let me confirm the reasoning,
 then fix the two stragglers.
 
 
-**The full archive is a strict superset of the boot-chain backup.** The dump is the entire 29.1 GiB card byte-for-byte, and the boot chain (LBA 0–32767) lives inside it — so the 16 MiB backup would be pure redundancy right now. Keeping the probe in `src` de-selected is the right call for exactly the future you describe: once you've written your *own* bootloader, `backup_boot` becomes a fast, targeted "snapshot just the thing we boot from" without re-dumping 29 GiB. No reason to flip it on today.
+**The full archive is a strict superset of the boot-chain backup.** The dump is
+the entire 29.1 GiB card byte-for-byte, and the boot chain (LBA 0–32767) lives
+inside it — so the 16 MiB backup would be pure redundancy right now. Keeping
+the probe in `src` de-selected is the right call for exactly the future you
+describe: once you've written your *own* bootloader, `backup_boot` becomes a
+fast, targeted "snapshot just the thing we boot from" without re-dumping 29 GiB.
+No reason to flip it on today.
 
 
 Let me read the exact context for both edits.
@@ -866,9 +962,15 @@ function is still properly wired through the probe engine:
 Both stragglers handled and verified:
 
 
-- **`src/002-main.c`** — the dead `extern emmc_backup_to_sd` is gone, replaced with a one-line breadcrumb explaining it moved to the probe. The real declaration + call still live in `src/019-probe-engine.c` (lines 66 and 741), so nothing that actually uses the function was touched — removing an unused extern can't affect the build.
+- **`src/002-main.c`** — the dead `extern emmc_backup_to_sd` is gone, replaced
+  with a one-line breadcrumb explaining it moved to the probe. The real
+  declaration + call still live in `src/019-probe-engine.c` (lines 66 and 741),
+  so nothing that actually uses the function was touched — removing an unused
+  extern can't affect the build.
 
-- **`issues/110j`** — the stale "200 MB validation backup takes minutes" line now reads "at ~3 MB/s the full ~29 GiB card dump is impractical," which is the real motivation for the fast path and no longer contradicts the 16 MiB backup.
+- **`issues/110j`** — the stale "200 MB validation backup takes minutes" line
+  now reads "at ~3 MB/s the full ~29 GiB card dump is impractical," which is the
+  real motivation for the fast path and no longer contradicts the 16 MiB backup.
 
 
 That closes out everything from this thread. Recap of where things stand:
@@ -878,16 +980,17 @@ That closes out everything from this thread. Recap of where things stand:
 
 - **Updated issue file** `110m` (full-linear dump is the shipped path).
 
-- **Synced the 200→16 MiB change** across `dump-from-sd` (size + `pull_full_dump` rename), `docs/024`, `docs/000-toc`, `phase-1-progress`, `110e`, plus these two stragglers.
+- **Synced the 200→16 MiB change** across `dump-from-sd` (size +
+  `pull_full_dump` rename), `docs/024`, `docs/000-toc`, `phase-1-progress`,
+  `110e`, plus these two stragglers.
 
 - **Still needs your hands:** the sudo delete of the stale drive files —
 
-```
+  ```
 
-! sudo rm -f /mnt/generic/lab-output/emmc-backup-*.img
-/mnt/generic/lab-output/debug-log-20260630-211252.img
+  ! sudo rm -f /mnt/generic/lab-output/emmc-backup-*.img /mnt/generic/lab-output/debug-log-20260630-211252.img
 
-```
+  ```
 
 
 All the code/doc changes are uncommitted working-tree edits, staged for whenever
@@ -898,11 +1001,11 @@ you want to review and commit.
 
 ### User Request 9
 
-- Still needs your hands: the sudo delete of the stale drive files —
+  - Still needs your hands: the sudo delete of the stale drive files —
 
-! sudo rm -f /mnt/generic/lab-output/emmc-backup-*.img
+  ! sudo rm -f /mnt/generic/lab-output/emmc-backup-*.img
 
-/mnt/generic/lab-output/debug-log-20260630-211252.img
+  /mnt/generic/lab-output/debug-log-20260630-211252.img
 
 
 
@@ -937,9 +1040,11 @@ mine in each candidate file.
 Important: I have to be surgical. Two of my "clean" files are actually
 **entangled with other agents' live edits**:
 
-- `issues/phase-1-progress.md` — my 110e/16 MiB hunk is there, but so is a **106c PWM** rewrite I didn't make (another team's).
+- `issues/phase-1-progress.md` — my 110e/16 MiB hunk is there, but so is a
+  **106c PWM** rewrite I didn't make (another team's).
 
-- `src/002-main.c` — my extern removal plus the `SOREN_DEBUG` refactor hunk (not mine).
+- `src/002-main.c` — my extern removal plus the `SOREN_DEBUG` refactor hunk
+  (not mine).
 
 
 And `dump-from-sd` + `110m` are woven *into* the DMA team's uncommitted work (my
@@ -952,11 +1057,13 @@ Now it's crystal clear. Only **4 files are 100% mine and standalone**:
 `docs/024`, `docs/000-table-of-contents`, `110e`, `110j`. Everything else is
 co-mingled with live parallel work:
 
-- `002-main.c` — my extern-removal shares a diff hunk with the **110n `SOREN_DEBUG`** refactor.
+- `002-main.c` — my extern-removal shares a diff hunk with the **110n
+  `SOREN_DEBUG`** refactor.
 
 - `phase-1-progress.md` — my hunk sits beside a **106c PWM** rewrite.
 
-- `dump-from-sd` / `110m` — my edits are woven *inside* the DMA team's uncommitted additions (inseparable).
+- `dump-from-sd` / `110m` — my edits are woven *inside* the DMA team's
+  uncommitted additions (inseparable).
 
 
 So I'll commit only the 4 clean doc files. Let me stage them and verify nothing
@@ -987,14 +1094,23 @@ speed/capability probe logs, and the two fast-path issues.
 
 ## The one-line answer
 
-**The eMMC read path is already at the hardware ceiling. The remaining work is almost all on the SD write side and on robustness — but the single most important thing to know is that the dump is *SD-write-bound*, and this card's write speed is capped by its *Class-10 write rating*, not by the bus. So "turn on UHS" is NOT the big lever people assume.**
+**The eMMC read path is already at the hardware ceiling. The remaining work is
+almost all on the SD write side and on robustness — but the single most
+important thing to know is that the dump is *SD-write-bound*, and this card's
+write speed is capped by its *Class-10 write rating*, not by the bus. So "turn
+on UHS" is NOT the big lever people assume.**
 
 
 ## What's already maxed out ✓
 
-- **eMMC read: HS400** — 8-bit bus, 200 MHz double-data-rate, sampled on the card's own returned strobe, moved by ADMA2 DMA, fingerprint-verified byte-identical across legacy/HS200/HS400. That's the top mode eMMC 5.1 defines. Its error handling is solid too — the read checks both the data-error bit *and* the ADMA-error bit (INT_STATUS bit 15 folds in bit 25).
+- **eMMC read: HS400** — 8-bit bus, 200 MHz double-data-rate, sampled on the
+  card's own returned strobe, moved by ADMA2 DMA, fingerprint-verified
+  byte-identical across legacy/HS200/HS400. That's the top mode eMMC 5.1
+  defines. Its error handling is solid too — the read checks both the
+  data-error bit *and* the ADMA-error bit (INT_STATUS bit 15 folds in bit 25).
 
-- **SD write: 4-bit / High-Speed / 50 MHz** with IDMAC multi-block DMA, read-back verified. That's the max at 3.3 V signalling.
+- **SD write: 4-bit / High-Speed / 50 MHz** with IDMAC multi-block DMA,
+  read-back verified. That's the max at 3.3 V signalling.
 
 
 ## Where the real bottleneck is
@@ -1012,50 +1128,39 @@ everything below.
 
 |---|---|---|
 
-| **Faster card / less data** | Largest | The dump is write-bound and
-card-class-limited. A U3/V30/A2 card, *or* reviving the sparse dump (moves ~7
-GiB not 29 on a mostly-zero card), cuts write time directly. Sparse was parked
-for simplicity — but for a write-bound copy it's the biggest software lever. |
+| **Faster card / less data** | Largest | The dump is write-bound and card-class-limited. A U3/V30/A2 card, *or* reviving the sparse dump (moves ~7 GiB not 29 on a mostly-zero card), cuts write time directly. Sparse was parked for simplicity — but for a write-bound copy it's the biggest software lever. |
 
-| **Double-buffer the two DMA engines** | Small–moderate | Today it reads a 64
-KB chunk *then* writes it, serially. Overlapping read-N+1 with write-N hides the
-(fast) eMMC read behind the (slow) SD write. Since write dominates, this only
-claws back the read time (~10%), not a 2×. |
+| **Double-buffer the two DMA engines** | Small–moderate | Today it reads a 64 KB chunk *then* writes it, serially. Overlapping read-N+1 with write-N hides the (fast) eMMC read behind the (slow) SD write. Since write dominates, this only claws back the read time (~10%), not a 2×. |
 
-| **UHS-I (SDR50/SDR104)** | Speculative | ~104 MB/s *bus*, but three gates: (1)
-the board must have a **switchable 1.8 V SD I/O rail** — the `vqmmc-supply`
-question is *still unanswered*; (2) the card must actually sustain >25 MB/s
-writes (unlikely at Class 10); (3) the `dw_mmc` UHS reference isn't extracted
-yet. **Big win for SD reads, marginal for this dump's writes.** |
+| **UHS-I (SDR50/SDR104)** | Speculative | ~104 MB/s *bus*, but three gates: (1) the board must have a **switchable 1.8 V SD I/O rail** — the `vqmmc-supply` question is *still unanswered*; (2) the card must actually sustain >25 MB/s writes (unlikely at Class 10); (3) the `dw_mmc` UHS reference isn't extracted yet. **Big win for SD reads, marginal for this dump's writes.** |
 
-| **eMMC ADMA2 write-back** | Restore-path only | Writing *to* eMMC is still PIO
-single-block (`emmc_write_block`), used only by the boot writer. No `CMD25` DMA
-write on the eMMC exists. Needed for fast/robust restore, not for the dump. |
+| **eMMC ADMA2 write-back** | Restore-path only | Writing *to* eMMC is still PIO single-block (`emmc_write_block`), used only by the boot writer. No `CMD25` DMA write on the eMMC exists. Needed for fast/robust restore, not for the dump. |
 
 
 ## Robustness gaps, ranked by risk
 
 1. **DMA cache-coherency landmine (highest).** Coherency is "free" today *only
-because caches/MMU are off*. The moment caches come on (phase 9), every DMA
-buffer needs flush-before-write / invalidate-after-read or the paths **silently
-corrupt**. It's documented in 110m but there are no cache-maintenance stubs in
-place — so it's a latent trap for whoever enables caches.
+   because caches/MMU are off*. The moment caches come on (phase 9), every DMA
+   buffer needs flush-before-write / invalidate-after-read or the paths
+   **silently corrupt**. It's documented in 110m but there are no
+   cache-maintenance stubs in place — so it's a latent trap for whoever
+   enables caches.
 
 2. **SD IDMAC error check is thinner than the eMMC's.** The SD write checks the
-controller's `RINTSTS` error mask, but not the IDMAC's own status register
-(`IDSTS`: bus-error/descriptor-unavailable) or the per-descriptor error bit —
-which the TRM says is where DMA-engine faults surface. The eMMC read checks its
-ADMA error; the SD write should reach parity.
+   controller's `RINTSTS` error mask, but not the IDMAC's own status register
+   (`IDSTS`: bus-error/descriptor-unavailable) or the per-descriptor error bit
+   — which the TRM says is where DMA-engine faults surface. The eMMC read
+   checks its ADMA error; the SD write should reach parity.
 
 3. **No retry/resume on a transient error.** One bad block returns `-2/-3` and
-aborts the whole 29 GiB dump; the only recovery is a full idempotent re-run. A
-resume-from-last-LBA (the log already prints progress every 256 MB) would make
-long dumps robust to a single glitch.
+   aborts the whole 29 GiB dump; the only recovery is a full idempotent re-run.
+   A resume-from-last-LBA (the log already prints progress every 256 MB) would
+   make long dumps robust to a single glitch.
 
 4. **Capability-probe decode is ambiguous.** The probe reports "modes: SDR12
-HS/SDR25" (High-Speed only) yet a non-zero UHS-grade byte — the two disagree.
-Before trusting the speed picker on an *arbitrary* card (the whole point of
-reading fresh every insert), that decode should be nailed down.
+   HS/SDR25" (High-Speed only) yet a non-zero UHS-grade byte — the two
+   disagree. Before trusting the speed picker on an *arbitrary* card (the whole
+   point of reading fresh every insert), that decode should be nailed down.
 
 
 ## My recommendation
@@ -1080,57 +1185,54 @@ is this analysis enough to hand to the SD/DMA team?
 
 ### User Request 10
 
-4. Capability-probe decode is ambiguous. The probe reports "modes: SDR12
-HS/SDR25"
+  4. Capability-probe decode is ambiguous. The probe reports "modes: SDR12
+     HS/SDR25"
 
-(High-Speed only) yet a non-zero UHS-grade byte — the two disagree. Before
-trusting the
+  (High-Speed only) yet a non-zero UHS-grade byte — the two disagree. Before
+  trusting the
 
-speed picker on an arbitrary card (the whole point of reading fresh every
-insert), that
+  speed picker on an arbitrary card (the whole point of reading fresh every
+  insert), that
 
-decode should be nailed down.
+  decode should be nailed down.
 
 
 
 this feels important
 
 
-Work: UHS-I (SDR50/SDR104)
+  Work: UHS-I (SDR50/SDR104)
 
-Payoff: Speculative
+  Payoff: Speculative
 
-Notes: ~104 MB/s bus, but three gates: (1) the board must have a switchable 1.8
-V SD I/O
+  Notes: ~104 MB/s bus, but three gates: (1) the board must have a switchable
+  1.8 V SD I/O
 
-rail — the vqmmc-supply question is still unanswered; (2) the card must
-actually
+    rail — the vqmmc-supply question is still unanswered; (2) the card must actually
 
-sustain
+  sustain
 
->25 MB/s writes (unlikely at Class 10); (3) the dw_mmc UHS reference isn't
-extracted
+     >25 MB/s writes (unlikely at Class 10); (3) the dw_mmc UHS reference isn't extracted
 
-yet. Big win for SD reads, marginal for this dump's writes.
+    yet. Big win for SD reads, marginal for this dump's writes.
 
 
 
 this also feels important for other things that use the vqmmc-supply - like...?
 
 
-Work: eMMC ADMA2 write-back
+  Work: eMMC ADMA2 write-back
 
-Payoff: Restore-path only
+  Payoff: Restore-path only
 
-Notes: Writing to eMMC is still PIO single-block (emmc_write_block), used only
-by the
+  Notes: Writing to eMMC is still PIO single-block (emmc_write_block), used only
+  by the
 
-boot
+  boot
 
-writer. No CMD25 DMA write on the eMMC exists. Needed for fast/robust restore,
-not for
+    writer. No CMD25 DMA write on the eMMC exists. Needed for fast/robust restore, not for
 
-the dump.
+    the dump.
 
 
 
@@ -1139,18 +1241,19 @@ say "hey this is yours, put it at these registers"? For that matter, can't we do
 the same thing with the SD card?
 
 
-1. DMA cache-coherency landmine (highest). Coherency is "free" today only
-because
+  1. DMA cache-coherency landmine (highest). Coherency is "free" today only
+     because
 
-caches/MMU are off. The moment caches come on (phase 9), every DMA buffer needs
+  caches/MMU are off. The moment caches come on (phase 9), every DMA buffer
+  needs
 
-flush-before-write / invalidate-after-read or the paths silently corrupt. It's
-documented
+  flush-before-write / invalidate-after-read or the paths silently corrupt. It's
+  documented
 
-in 110m but there are no cache-maintenance stubs in place — so it's a latent
-trap for
+  in 110m but there are no cache-maintenance stubs in place — so it's a latent
+  trap for
 
-whoever enables caches.
+  whoever enables caches.
 
 
 
@@ -1193,12 +1296,25 @@ only `buf[13]=0x03` → `SDR12 + HS/SDR25`, no UHS modes. And that decode is
 modes) has one likely-benign cause and one thing we failed to capture:
 
 
-- **Benign:** the UHS access modes (SDR50/SDR104/DDR50) are only reported/selectable **once the bus is at 1.8 V signalling.** At the 3.3 V default, even a U3 card correctly advertises only SDR12/HS in group 1. The UHS modes light up when you re-run `SWITCH_FUNC` *after* the `CMD11` voltage switch.
+- **Benign:** the UHS access modes (SDR50/SDR104/DDR50) are only
+  reported/selectable **once the bus is at 1.8 V signalling.** At the 3.3 V
+  default, even a U3 card correctly advertises only SDR12/HS in group 1. The UHS
+  modes light up when you re-run `SWITCH_FUNC` *after* the `CMD11` voltage
+  switch.
 
-- **What we never logged:** `SCR[2]` — that byte carries the `SD_SPEC3` bit that confirms the card claims SD 3.0 (the UHS spec generation). We log `SCR[0]` and `SCR[1]` only.
+- **What we never logged:** `SCR[2]` — that byte carries the `SD_SPEC3` bit
+  that confirms the card claims SD 3.0 (the UHS spec generation). We log
+  `SCR[0]` and `SCR[1]` only.
 
 
-**So the fix to make the picker trustworthy on an arbitrary card:** log `SCR[2]` (SD-3.0 confirmation) and treat the byte-14 UHS grade as the authority for "is this a UHS card at all," rather than inferring from the 3.3 V `SWITCH_FUNC` view — which structurally *cannot* show UHS modes yet. Right now the picker would look at "modes: HS only" and wrongly conclude a U3 card is HS-capped. That's the bug worth nailing: the decode conflates "modes visible at 3.3 V" with "modes the card supports." The truth (U3) is already in hand; the code just isn't believing it.
+**So the fix to make the picker trustworthy on an arbitrary card:** log `SCR[2]`
+(SD-3.0 confirmation) and treat the byte-14 UHS grade as the authority for "is
+this a UHS card at all," rather than inferring from the 3.3 V `SWITCH_FUNC` view
+— which structurally *cannot* show UHS modes yet. Right now the picker would
+look at "modes: HS only" and wrongly conclude a U3 card is HS-capped. That's the
+bug worth nailing: the decode conflates "modes visible at 3.3 V" with "modes the
+card supports." The truth (U3) is already in hand; the code just isn't believing
+it.
 
 
 ## 2. What else the vqmmc / switchable-rail question unlocks
@@ -1215,13 +1331,24 @@ you the PMIC read/write and per-LDO get/set — the *plumbing* — but not the
 layer:
 
 
-- **The eMMC — already leaning on it, invisibly.** HS200/HS400 also need 1.8 V signalling; they work today only because 114 found the eMMC's rail is **board-fixed at 1.8 V** (no `vqmmc-supply` → nothing to switch). Same mechanism, just pre-answered by the board.
+- **The eMMC — already leaning on it, invisibly.** HS200/HS400 also need 1.8 V
+  signalling; they work today only because 114 found the eMMC's rail is
+  **board-fixed at 1.8 V** (no `vqmmc-supply` → nothing to switch). Same
+  mechanism, just pre-answered by the board.
 
-- **The display — your phase-1 blocker.** The LCD panel VCC and the backlight are PMIC rails; bringing up the bottom screen (112 / 111x, the thing that *closes phase 1*) likely means enabling those rails first. Worth confirming from the panel's DT supplies, but it's the same "enable a PMIC rail for a device" pattern — and it's the most schedule-relevant consumer.
+- **The display — your phase-1 blocker.** The LCD panel VCC and the backlight
+  are PMIC rails; bringing up the bottom screen (112 / 111x, the thing that
+  *closes phase 1*) likely means enabling those rails first. Worth confirming
+  from the panel's DT supplies, but it's the same "enable a PMIC rail for a
+  device" pattern — and it's the most schedule-relevant consumer.
 
 - **WiFi (phase 7)** — the radio module has its own power/enable rail.
 
-- **CPU / DDR voltage scaling (DVFS, 201a)** — pushing the CPU toward its rated clock needs core-voltage headroom from a PMIC *buck* (DCDC), not an LDO. Same read-the-supply-and-program-the-rail machinery, different regulator type. (Note 201a's recon said the clock is only ~2× of the slowness; caches are the bigger lever — so this is real but not the giant win.)
+- **CPU / DDR voltage scaling (DVFS, 201a)** — pushing the CPU toward its
+  rated clock needs core-voltage headroom from a PMIC *buck* (DCDC), not an LDO.
+  Same read-the-supply-and-program-the-rail machinery, different regulator type.
+  (Note 201a's recon said the clock is only ~2× of the slowness; caches are the
+  bigger lever — so this is real but not the giant win.)
 
 
 Net: answering `vqmmc-supply` for the SD slot is worth doing as the first real
@@ -1242,11 +1369,9 @@ state as a matrix:
 
 |---|---|---|
 
-| **eMMC** (SDHCI/ADMA2) | ✅ built (dump uses it) | ❌ PIO single-block only
-|
+| **eMMC** (SDHCI/ADMA2) | ✅ built (dump uses it) | ❌ PIO single-block only |
 
-| **SD** (DW MSHC/IDMAC) | ❌ PIO only (dump doesn't need it) | ✅ built (dump
-uses it) |
+| **SD** (DW MSHC/IDMAC) | ❌ PIO only (dump doesn't need it) | ✅ built (dump uses it) |
 
 
 The dump lives in the two ✅ cells. And to your "can't we do the same on SD?"
@@ -1285,26 +1410,52 @@ the CPU's cache. That's the whole problem — two actors, two views of the same
 address:
 
 
-- **DMA read → CPU reads stale cache.** The controller writes card data into buffer B in DRAM. But if the CPU had B's lines cached from before, then when the CPU reads B it sees the **old cached bytes**, not what DMA just landed in DRAM. → garbage. Fix: **invalidate** B's cache lines *after* the DMA and *before* the CPU reads, forcing a re-fetch from DRAM.
+- **DMA read → CPU reads stale cache.** The controller writes card data into
+  buffer B in DRAM. But if the CPU had B's lines cached from before, then when
+  the CPU reads B it sees the **old cached bytes**, not what DMA just landed in
+  DRAM. → garbage. Fix: **invalidate** B's cache lines *after* the DMA and
+  *before* the CPU reads, forcing a re-fetch from DRAM.
 
-- **DMA write → card gets stale DRAM.** The CPU fills buffer B (lands in cache, dirty; DRAM still old), then kicks a DMA write. The controller reads B from **DRAM** — which doesn't have the CPU's latest writes yet. → the card is written old bytes. Fix: **clean/flush** B's dirty lines to DRAM *before* starting the DMA.
+- **DMA write → card gets stale DRAM.** The CPU fills buffer B (lands in
+  cache, dirty; DRAM still old), then kicks a DMA write. The controller reads B
+  from **DRAM** — which doesn't have the CPU's latest writes yet. → the card
+  is written old bytes. Fix: **clean/flush** B's dirty lines to DRAM *before*
+  starting the DMA.
 
 
 The descriptor tables themselves live in RAM and are read by the engine, so they
 need the same flush-before-handoff.
 
 
-**Why it's free right now:** phase 1 runs with the MMU and data cache **off**. Every CPU access goes straight to DRAM, and DMA goes straight to DRAM — one single view, nothing in between to be inconsistent. The DMA code works *because* there's no cache to disagree with.
+**Why it's free right now:** phase 1 runs with the MMU and data cache **off**.
+Every CPU access goes straight to DRAM, and DMA goes straight to DRAM — one
+single view, nothing in between to be inconsistent. The DMA code works *because*
+there's no cache to disagree with.
 
 
-**Why it's a landmine:** the moment someone turns the data cache on — which happens as part of enabling the MMU in phase 9, or even as a casual "let's make the CPU faster" experiment — every DMA buffer and descriptor table silently needs the clean/invalidate dance, and there are **zero such calls in the code today**. It won't crash; it'll return *wrong bytes*, often *intermittently* (depends on whether that buffer happened to be cached, cache pressure, timing). Your byte-verify might pass on Tuesday and fail on Wednesday. Someone will spend two days hunting a "flaky storage corruption" that is really four missing cache-maintenance instructions.
+**Why it's a landmine:** the moment someone turns the data cache on — which
+happens as part of enabling the MMU in phase 9, or even as a casual "let's make
+the CPU faster" experiment — every DMA buffer and descriptor table silently
+needs the clean/invalidate dance, and there are **zero such calls in the code
+today**. It won't crash; it'll return *wrong bytes*, often *intermittently*
+(depends on whether that buffer happened to be cached, cache pressure, timing).
+Your byte-verify might pass on Tuesday and fail on Wednesday. Someone will spend
+two days hunting a "flaky storage corruption" that is really four missing
+cache-maintenance instructions.
 
 
 **The fix, two options** (RK3568 is Cortex-A55, standard AArch64):
 
-- Wrap every DMA handoff with cache ops + a barrier: `dc cvac` (clean by VA) over the buffer before a DMA *write*; `dc ivac`/`civac` (invalidate) over it after a DMA *read*; `dsb` to order it. Sprinkled at each transfer.
+- Wrap every DMA handoff with cache ops + a barrier: `dc cvac` (clean by VA)
+  over the buffer before a DMA *write*; `dc ivac`/`civac` (invalidate) over it
+  after a DMA *read*; `dsb` to order it. Sprinkled at each transfer.
 
-- **Or** — cleaner and my preference — when the MMU comes up, carve a **non-cacheable DMA pool**: mark those pages uncached in the page tables and allocate all DMA buffers/descriptors from it. Then coherency is structural (the CPU always hits DRAM for those buffers, no maintenance needed). You trade slightly slower CPU access to those buffers for the entire bug class disappearing.
+- **Or** — cleaner and my preference — when the MMU comes up, carve a
+  **non-cacheable DMA pool**: mark those pages uncached in the page tables and
+  allocate all DMA buffers/descriptors from it. Then coherency is structural
+  (the CPU always hits DRAM for those buffers, no maintenance needed). You trade
+  slightly slower CPU access to those buffers for the entire bug class
+  disappearing.
 
 
 The reason I rank it #1 isn't that it's urgent *now* — it's inert while caches
@@ -1325,25 +1476,25 @@ vqmmc/regulator layer is bigger and probably wants its own design pass.
 
 ### User Request 11
 
-So the fix to make the picker trustworthy on an arbitrary card: log SCR[2]
-(SD-3.0
+  So the fix to make the picker trustworthy on an arbitrary card: log SCR[2]
+  (SD-3.0
 
-confirmation) and treat the byte-14 UHS grade as the authority for "is this a
-UHS card at
+  confirmation) and treat the byte-14 UHS grade as the authority for "is this a
+  UHS card at
 
-all," rather than inferring from the 3.3 V SWITCH_FUNC view — which
-structurally cannot
+  all," rather than inferring from the 3.3 V SWITCH_FUNC view — which
+  structurally cannot
 
-show UHS modes yet. Right now the picker would look at "modes: HS only" and
-wrongly
+  show UHS modes yet. Right now the picker would look at "modes: HS only" and
+  wrongly
 
-conclude a U3 card is HS-capped. That's the bug worth nailing: the decode
-conflates
+  conclude a U3 card is HS-capped. That's the bug worth nailing: the decode
+  conflates
 
-"modes visible at 3.3 V" with "modes the card supports." The truth (U3) is
-already in
+  "modes visible at 3.3 V" with "modes the card supports." The truth (U3) is
+  already in
 
-hand; the code just isn't believing it.
+  hand; the code just isn't believing it.
 
 
 
@@ -1351,33 +1502,34 @@ So, it's just code work? Is there anything to decide, any pitfalls to be aware
 of?
 
 
-Net: answering vqmmc-supply for the SD slot is worth doing as the first real
-exercise of
+  Net: answering vqmmc-supply for the SD slot is worth doing as the first real
+  exercise of
 
-a regulator layer that the display and later WiFi/DVFS all need. Build it once,
+  a regulator layer that the display and later WiFi/DVFS all need. Build it
+  once,
 
-generally.
+  generally.
 
 
 
 I sorta understand this. I definitely need help on all the acronyms though...
 
 
-┌────────────────────┬────────────────────────────────────┬──────────────────────────┐
+  ┌────────────────────┬────────────────────────────────────┬──────────────────────────┐
 
-│ │ read (card → RAM) │ write (RAM → card) │
+  │ │ read (card → RAM) │ write (RAM → card) │
 
-├────────────────────┼────────────────────────────────────┼──────────────────────────┤
+  ├────────────────────┼────────────────────────────────────┼──────────────────────────┤
 
-│ eMMC (SDHCI/ADMA2) │ ✅ built (dump uses it) │ ❌ PIO single-block
-only │
+  │ eMMC (SDHCI/ADMA2) │ ✅ built (dump uses it) │ ❌ PIO single-block
+  only │
 
-├────────────────────┼────────────────────────────────────┼──────────────────────────┤
+  ├────────────────────┼────────────────────────────────────┼──────────────────────────┤
 
-│ SD (DW MSHC/IDMAC) │ ❌ PIO only (dump doesn't need it) │ ✅ built
-(dump uses it) │
+  │ SD (DW MSHC/IDMAC) │ ❌ PIO only (dump doesn't need it) │ ✅ built
+  (dump uses it) │
 
-└────────────────────┴────────────────────────────────────┴──────────────────────────┘
+  └────────────────────┴────────────────────────────────────┴──────────────────────────┘
 
 
 
@@ -1391,17 +1543,17 @@ use the hardware at it's peak capability, opening up the platform for future
 development in as many ways as possible.
 
 
-- DMA read → CPU reads stale cache. The controller writes card data into
-buffer B in
+  - DMA read → CPU reads stale cache. The controller writes card data into
+    buffer B in
 
-DRAM. But if the CPU had B's lines cached from before, then when the CPU reads B
-it sees
+  DRAM. But if the CPU had B's lines cached from before, then when the CPU reads
+  B it sees
 
-the old cached bytes, not what DMA just landed in DRAM. → garbage. Fix:
-invalidate B's
+  the old cached bytes, not what DMA just landed in DRAM. → garbage. Fix:
+  invalidate B's
 
-cache lines after the DMA and before the CPU reads, forcing a re-fetch from
-DRAM.
+  cache lines after the DMA and before the CPU reads, forcing a re-fetch from
+  DRAM.
 
 
 
@@ -1410,16 +1562,16 @@ it reach into the CPU somehow, or does the CPU have to stop and check some
 "line" value before doing any computation at all? Sounds tedious...
 
 
-- DMA write → card gets stale DRAM. The CPU fills buffer B (lands in cache,
-dirty; DRAM
+  - DMA write → card gets stale DRAM. The CPU fills buffer B (lands in cache,
+    dirty; DRAM
 
-still old), then kicks a DMA write. The controller reads B from DRAM — which
-doesn't have
+  still old), then kicks a DMA write. The controller reads B from DRAM — which
+  doesn't have
 
-the CPU's latest writes yet. → the card is written old bytes. Fix: clean/flush
-B's dirty
+  the CPU's latest writes yet. → the card is written old bytes. Fix:
+  clean/flush B's dirty
 
-lines to DRAM before starting the DMA.
+  lines to DRAM before starting the DMA.
 
 
 
@@ -1428,14 +1580,14 @@ can't change a value unless nothing else references it. And you can't mark it as
 "usable" (in this case, starting the DMA process) until it's immutable.
 
 
-Why it's free right now: phase 1 runs with the MMU and data cache off. Every CPU
-access
+  Why it's free right now: phase 1 runs with the MMU and data cache off. Every
+  CPU access
 
-goes straight to DRAM, and DMA goes straight to DRAM — one single view,
-nothing in
+  goes straight to DRAM, and DMA goes straight to DRAM — one single view,
+  nothing in
 
-between to be inconsistent. The DMA code works because there's no cache to
-disagree with.
+  between to be inconsistent. The DMA code works because there's no cache to
+  disagree with.
 
 
 What's the MMU? What does that stand for? Why isn't the CPU cache part of the
@@ -1443,19 +1595,19 @@ phase 1 work, is it because we want to have the soramech runtime running before
 we implement that sort of thing, so we can integrate it into that system?
 
 
-- Or — cleaner and my preference — when the MMU comes up, carve a
-non-cacheable DMA pool:
+  - Or — cleaner and my preference — when the MMU comes up, carve a
+    non-cacheable DMA pool:
 
-mark those pages uncached in the page tables and allocate all DMA
-buffers/descriptors
+  mark those pages uncached in the page tables and allocate all DMA
+  buffers/descriptors
 
-from it. Then coherency is structural (the CPU always hits DRAM for those
-buffers, no
+  from it. Then coherency is structural (the CPU always hits DRAM for those
+  buffers, no
 
-maintenance needed). You trade slightly slower CPU access to those buffers for
-the entire
+  maintenance needed). You trade slightly slower CPU access to those buffers for
+  the entire
 
-bug class disappearing.
+  bug class disappearing.
 
 
 
@@ -1503,46 +1655,31 @@ the glossary (you asked), then the bricking review, then work through the rest.
 
 |---|---|
 
-| **DMA** | Direct Memory Access — hardware moving data between RAM and a
-device *without* the CPU copying each word. |
+| **DMA** | Direct Memory Access — hardware moving data between RAM and a device *without* the CPU copying each word. |
 
-| **PIO** | Programmed I/O — the opposite: the CPU hand-copies every word
-through the controller's data register. Slow. |
+| **PIO** | Programmed I/O — the opposite: the CPU hand-copies every word through the controller's data register. Slow. |
 
 | **eMMC** | the soldered-in flash chip (your "internal storage"). |
 
 | **SD / microSD** | the removable card. |
 
-| **SDHCI** | SD Host Controller Interface — the *standard* register layout
-for a storage controller. The eMMC's controller follows it (Rockchip's variant
-is "dwcmshc"). |
+| **SDHCI** | SD Host Controller Interface — the *standard* register layout for a storage controller. The eMMC's controller follows it (Rockchip's variant is "dwcmshc"). |
 
-| **DW MSHC** | DesignWare Mobile Storage Host Controller — a *different*
-controller design (from Synopsys) that runs the microSD. Different registers
-than SDHCI. |
+| **DW MSHC** | DesignWare Mobile Storage Host Controller — a *different* controller design (from Synopsys) that runs the microSD. Different registers than SDHCI. |
 
-| **ADMA2 / IDMAC** | the two DMA engines: ADMA2 is SDHCI's (eMMC side), IDMAC
-is the DW MSHC's (SD side). Same idea — "here's a descriptor list, go move it"
-— different plumbing. |
+| **ADMA2 / IDMAC** | the two DMA engines: ADMA2 is SDHCI's (eMMC side), IDMAC is the DW MSHC's (SD side). Same idea — "here's a descriptor list, go move it" — different plumbing. |
 
-| **PMIC** | Power Management IC (the RK817) — the chip that makes all the
-board's voltage rails and talks over the i2c wire. |
+| **PMIC** | Power Management IC (the RK817) — the chip that makes all the board's voltage rails and talks over the i2c wire. |
 
-| **LDO / buck** | two kinds of regulator inside the PMIC. LDO = simple/clean,
-for small rails. Buck = switching, efficient, for big rails (CPU core, DRAM). |
+| **LDO / buck** | two kinds of regulator inside the PMIC. LDO = simple/clean, for small rails. Buck = switching, efficient, for big rails (CPU core, DRAM). |
 
-| **vqmmc (VCCQ)** | the *signalling* voltage rail — the volts on the
-CMD/CLK/DATA lines. Distinct from **vmmc (VCC)**, the card's *power*. High-speed
-modes need vqmmc at 1.8 V. |
+| **vqmmc (VCCQ)** | the *signalling* voltage rail — the volts on the CMD/CLK/DATA lines. Distinct from **vmmc (VCC)**, the card's *power*. High-speed modes need vqmmc at 1.8 V. |
 
-| **UHS-I / SDR50 / SDR104** | SD "ultra-high-speed" modes; all require 1.8 V
-signalling. |
+| **UHS-I / SDR50 / SDR104** | SD "ultra-high-speed" modes; all require 1.8 V signalling. |
 
-| **HS200 / HS400** | the eMMC's fast modes (200 MHz, single/double data rate).
-|
+| **HS200 / HS400** | the eMMC's fast modes (200 MHz, single/double data rate). |
 
-| **DVFS** | Dynamic Voltage & Frequency Scaling — raise the clock *and* the
-voltage together for more speed. |
+| **DVFS** | Dynamic Voltage & Frequency Scaling — raise the clock *and* the voltage together for more speed. |
 
 | **MMU** | Memory Management Unit — see the dedicated section below. |
 
@@ -1552,16 +1689,41 @@ voltage together for more speed. |
 ## Bricking review — are we safe right now? Mostly yes, with two caveats
 
 
-**On the storage side: yes, currently unbrickable.** The dump/backup work is **read-only on the eMMC** (it reads eMMC, writes the *SD*), and the eMMC *writer* (the boot-image writer, 110b) is still gated off in `kernel_main`. So nothing we run today writes the internal flash — and a read cannot brick. Good.
+**On the storage side: yes, currently unbrickable.** The dump/backup work is
+**read-only on the eMMC** (it reads eMMC, writes the *SD*), and the eMMC
+*writer* (the boot-image writer, 110b) is still gated off in `kernel_main`. So
+nothing we run today writes the internal flash — and a read cannot brick.
+Good.
 
 
-**The archive genuinely upgrades your safety net.** The bricking doc's own summary says the fallback plan is *"always keep a known-good boot image we can revert to."* Until this week you didn't have one; now you have a **complete, verified, byte-for-byte factory image**. Better still, it composes with **SD-boot**: the RK3568's silicon ROM prefers the SD card over the eMMC, and SD-boot uses the *SD's own* loader/u-boot — completely independent of the eMMC boot chain. So even if you someday corrupt the eMMC boot partition, you can still boot a recovery kernel from SD and rewrite the eMMC from the archive. That covers the three most likely scenarios (power-loss-mid-flash, bad kernel, wrong image) **without needing Maskrom** — which is exactly the doc's unresolved worry.
+**The archive genuinely upgrades your safety net.** The bricking doc's own
+summary says the fallback plan is *"always keep a known-good boot image we can
+revert to."* Until this week you didn't have one; now you have a **complete,
+verified, byte-for-byte factory image**. Better still, it composes with
+**SD-boot**: the RK3568's silicon ROM prefers the SD card over the eMMC, and
+SD-boot uses the *SD's own* loader/u-boot — completely independent of the eMMC
+boot chain. So even if you someday corrupt the eMMC boot partition, you can
+still boot a recovery kernel from SD and rewrite the eMMC from the archive. That
+covers the three most likely scenarios (power-loss-mid-flash, bad kernel, wrong
+image) **without needing Maskrom** — which is exactly the doc's unresolved
+worry.
 
 
-**Caveat 1 — the archive is only half a safety net until the write side exists.** A revert image you can't *write back* isn't a revert. Restoring means writing ~7–29 GiB to the eMMC, and today the only eMMC write path is slow PIO single-block, never exercised at scale. So the "build the write side" work you're asking for below is *also* what turns the archive into a usable recovery path. Right now: great insurance policy, no claims process yet.
+**Caveat 1 — the archive is only half a safety net until the write side
+exists.** A revert image you can't *write back* isn't a revert. Restoring means
+writing ~7–29 GiB to the eMMC, and today the only eMMC write path is slow PIO
+single-block, never exercised at scale. So the "build the write side" work
+you're asking for below is *also* what turns the archive into a usable recovery
+path. Right now: great insurance policy, no claims process yet.
 
 
-**Caveat 2 — and this one's important — current PMIC code already crossed a line the safety doc draws in bold.** Rule **S5** says *"Never write to PMIC voltage-setting registers"* — severity: **permanent damage**. But issue 114 built `rk817_ldo_set_mv`, which *does* set rail voltages. And the UHS-I work you're weighing needs to switch the SD's vqmmc rail to 1.8 V — that's another PMIC voltage write. So the doc and the code have diverged, and the very next SD speed-up would diverge further.
+**Caveat 2 — and this one's important — current PMIC code already crossed a
+line the safety doc draws in bold.** Rule **S5** says *"Never write to PMIC
+voltage-setting registers"* — severity: **permanent damage**. But issue 114
+built `rk817_ldo_set_mv`, which *does* set rail voltages. And the UHS-I work
+you're weighing needs to switch the SD's vqmmc rail to 1.8 V — that's another
+PMIC voltage write. So the doc and the code have diverged, and the very next SD
+speed-up would diverge further.
 
 
 I don't think S5 as written is right anymore — it's *too* absolute. Switching
@@ -1586,7 +1748,10 @@ SD-DMA-read," not "impossible" — but even built, it serializes on the one SD
 bus.)
 
 
-**But the eMMC and the SD are two separate controllers on two separate buses** — so an **eMMC read and an SD write absolutely run at the same time.** That's the whole basis of your ring-buffer idea below: the fast eMMC keeps reading ahead while the slow SD drains behind it, on independent hardware.
+**But the eMMC and the SD are two separate controllers on two separate buses**
+— so an **eMMC read and an SD write absolutely run at the same time.** That's
+the whole basis of your ring-buffer idea below: the fast eMMC keeps reading
+ahead while the slow SD drains behind it, on independent hardware.
 
 
 ## The capability-decode fix — mostly code, but three real decisions
@@ -1597,23 +1762,23 @@ has genuine hazards:
 
 
 1. **`CMD11` (the 1.8 V switch) is a one-way cliff per card session.** Once you
-tell the card "switch to 1.8 V," there's no clean command to go back —
-recovery is a full card power-cycle. On this board you may not be able to
-power-cycle *just the SD slot* (depends on whether its vmmc is a switchable PMIC
-rail or hardwired). So if the switch half-completes, the card can wedge until
-the whole device power-cycles. **Decision:** only attempt UHS behind a
-confirmed-good voltage path, and treat a failed switch as "fall back to HS and
-log loudly," not "retry blindly."
+   tell the card "switch to 1.8 V," there's no clean command to go back —
+   recovery is a full card power-cycle. On this board you may not be able to
+   power-cycle *just the SD slot* (depends on whether its vmmc is a switchable
+   PMIC rail or hardwired). So if the switch half-completes, the card can wedge
+   until the whole device power-cycles. **Decision:** only attempt UHS behind a
+   confirmed-good voltage path, and treat a failed switch as "fall back to HS
+   and log loudly," not "retry blindly."
 
 2. **This is the S5 collision above.** The 1.8 V switch *is* a PMIC voltage
-write. So "nail the decode" and "resolve the safety rule" are the same work
-item, sequenced.
+   write. So "nail the decode" and "resolve the safety rule" are the same work
+   item, sequenced.
 
 3. **Byte order / FIFO endianness.** The whole reason the probe logs raw bytes
-is that these multi-byte fields (SCR, SD_STATUS, SWITCH_FUNC) are easy to
-mis-order coming out of the controller FIFO. Adding `SCR[2]` means confirming
-*its* byte position too, not assuming. Low risk, but it's the kind of off-by-one
-that gives you a plausible-but-wrong answer.
+   is that these multi-byte fields (SCR, SD_STATUS, SWITCH_FUNC) are easy to
+   mis-order coming out of the controller FIFO. Adding `SCR[2]` means confirming
+   *its* byte position too, not assuming. Low risk, but it's the kind of
+   off-by-one that gives you a plausible-but-wrong answer.
 
 
 Net: the *decode* is an afternoon; the *UHS path it unlocks* is gated on the
@@ -1664,7 +1829,12 @@ next. Hold onto that frame; it's what makes the ring buffer below correct.
 ## What's the MMU, and why are caches off in phase 1?
 
 
-**MMU = Memory Management Unit.** It's hardware that sits between the CPU and RAM and does two jobs: (1) **translate** addresses — the CPU says "address X," the MMU looks it up in a table you maintain (the *page tables*) and produces the real physical address; and (2) **enforce per-page attributes** — each page in that table carries flags: is it readable/writable by this code, and — the part that matters here — **is it cacheable?**
+**MMU = Memory Management Unit.** It's hardware that sits between the CPU and
+RAM and does two jobs: (1) **translate** addresses — the CPU says "address X,"
+the MMU looks it up in a table you maintain (the *page tables*) and produces the
+real physical address; and (2) **enforce per-page attributes** — each page in
+that table carries flags: is it readable/writable by this code, and — the part
+that matters here — **is it cacheable?**
 
 
 That second job is why caches are off. On ARMv8, "normal cacheable RAM" is an
@@ -1697,9 +1867,24 @@ which is exactly the correct structure for "fast source, slow sink, overlap
 them." Two refinements make it cheaper than your sketch:
 
 
-- **Keep the reservation a fixed size; let the *occupancy* breathe, not the region.** Reserve, say, an 8–16 MB non-cacheable DMA pool once. The eMMC producer fills ahead; the SD consumer drains behind; how much is "in flight" rises and falls on its own. At the end it drains to empty naturally. You do **not** want to *resize the reservation* to 3 MB → 2 MB → 1 MB as you go — that means editing page tables mid-transfer, which is real paperwork for zero gain (the bottleneck is the SD rate regardless of how much RAM is reserved). Fixed region, variable fill. That's the whole trick, and it's *little* paperwork: a buffer, a head index, a tail index.
+- **Keep the reservation a fixed size; let the *occupancy* breathe, not the
+  region.** Reserve, say, an 8–16 MB non-cacheable DMA pool once. The eMMC
+  producer fills ahead; the SD consumer drains behind; how much is "in flight"
+  rises and falls on its own. At the end it drains to empty naturally. You do
+  **not** want to *resize the reservation* to 3 MB → 2 MB → 1 MB as you go
+  — that means editing page tables mid-transfer, which is real paperwork for
+  zero gain (the bottleneck is the SD rate regardless of how much RAM is
+  reserved). Fixed region, variable fill. That's the whole trick, and it's
+  *little* paperwork: a buffer, a head index, a tail index.
 
-- **You need less buffer than you'd think.** Because the eMMC is ~8× faster than the SD, the producer is *almost always waiting* on the consumer — the ring sits mostly full and the eMMC idles. That means even the simplest version — **two buffers** ("double-buffering": fill B while draining A, swap) — captures nearly all the benefit. A few MB of ring only helps *smooth out jitter* if the SD occasionally stalls; past that it's diminishing returns. So: start with double-buffer, grow the ring only if measurement shows the SD stalling.
+- **You need less buffer than you'd think.** Because the eMMC is ~8× faster
+  than the SD, the producer is *almost always waiting* on the consumer — the
+  ring sits mostly full and the eMMC idles. That means even the simplest version
+  — **two buffers** ("double-buffering": fill B while draining A, swap) —
+  captures nearly all the benefit. A few MB of ring only helps *smooth out
+  jitter* if the SD occasionally stalls; past that it's diminishing returns. So:
+  start with double-buffer, grow the ring only if measurement shows the SD
+  stalling.
 
 
 Each slot's lifecycle is precisely your immutability frame: `free →
@@ -1708,7 +1893,13 @@ draining) → [done] → free`. The cache maintenance lives at those two
 handoffs and nowhere else.
 
 
-**"Anything to make it faster?"** The overlap hides the eMMC read entirely, so wall-clock collapses to the **SD write** — which then has three levers, in order: (1) bigger multi-block bursts (fewer per-command handshakes), (2) **UHS-I** (now justified — it's a U3 card that can absorb >25 MB/s), and (3) the card's own sustained-write class, which is the hard floor nothing software can beat. The ring gets you the overlap; UHS + multi-block push the sink rate; the card sets the ceiling.
+**"Anything to make it faster?"** The overlap hides the eMMC read entirely, so
+wall-clock collapses to the **SD write** — which then has three levers, in
+order: (1) bigger multi-block bursts (fewer per-command handshakes), (2)
+**UHS-I** (now justified — it's a U3 card that can absorb >25 MB/s), and (3)
+the card's own sustained-write class, which is the hard floor nothing software
+can beat. The ring gets you the overlap; UHS + multi-block push the sink rate;
+the card sets the ceiling.
 
 
 ## The directive — build the matrix, keep 110m open
@@ -1739,53 +1930,53 @@ Those are the two "paperwork" steps that unblock the rest cleanly.
 
 ### User Request 12
 
-Caveat 2 — and this one's important — current PMIC code already crossed a
-line the safety
+  Caveat 2 — and this one's important — current PMIC code already crossed a
+  line the safety
 
-doc draws in bold. Rule S5 says "Never write to PMIC voltage-setting registers"
-—
+  doc draws in bold. Rule S5 says "Never write to PMIC voltage-setting
+  registers" —
 
-severity: permanent damage. But issue 114 built rk817_ldo_set_mv, which does set
-rail
+  severity: permanent damage. But issue 114 built rk817_ldo_set_mv, which does
+  set rail
 
-voltages. And the UHS-I work you're weighing needs to switch the SD's vqmmc rail
-to 1.8 V
+  voltages. And the UHS-I work you're weighing needs to switch the SD's vqmmc
+  rail to 1.8 V
 
-— that's another PMIC voltage write. So the doc and the code have diverged,
-and the very
+  — that's another PMIC voltage write. So the doc and the code have diverged,
+  and the very
 
-next SD speed-up would diverge further.
+  next SD speed-up would diverge further.
 
 
 
 haha what the fuck
 
 
-I don't think S5 as written is right anymore — it's too absolute. Switching a
-rail to a
+  I don't think S5 as written is right anymore — it's too absolute. Switching
+  a rail to a
 
-documented value (1.8 V for UHS, exactly what the board and the SD spec call
-for) is
+  documented value (1.8 V for UHS, exactly what the board and the SD spec call
+  for) is
 
-safe; the real hazard is a value outside a rail's rated range (over-volting DRAM
-or the
+  safe; the real hazard is a value outside a rail's rated range (over-volting
+  DRAM or the
 
-CPU core → dead chip). So the rule should become "never set a rail outside its
-datasheet
+  CPU core → dead chip). So the rule should become "never set a rail outside
+  its datasheet
 
-range, and never touch the DRAM/CPU-core rails experimentally," not "never write
-voltage
+  range, and never touch the DRAM/CPU-core rails experimentally," not "never
+  write voltage
 
-registers." This is a safety decision for you to make, so I'm flagging it, not
-editing
+  registers." This is a safety decision for you to make, so I'm flagging it, not
+  editing
 
-the doc. But it needs resolving before UHS, and the doc is stale in two other
-spots too
+  the doc. But it needs resolving before UHS, and the doc is stale in two other
+  spots too
 
-(it predates the archive and predates 114). Want me to draft the S5 revision +
-add the
+  (it predates the archive and predates 114). Want me to draft the S5 revision +
+  add the
 
-archive/SD-boot net for your review?
+  archive/SD-boot net for your review?
 
 
 
@@ -1795,24 +1986,24 @@ we could somehow prevent anything else from interacting with the damage-able
 rail, that would help a lot...
 
 
-1. CMD11 (the 1.8 V switch) is a one-way cliff per card session. Once you tell
-the card
+  1. CMD11 (the 1.8 V switch) is a one-way cliff per card session. Once you tell
+     the card
 
-"switch to 1.8 V," there's no clean command to go back — recovery is a full
-card
+  "switch to 1.8 V," there's no clean command to go back — recovery is a full
+  card
 
-power-cycle. On this board you may not be able to power-cycle just the SD slot
-(depends
+  power-cycle. On this board you may not be able to power-cycle just the SD slot
+  (depends
 
-on whether its vmmc is a switchable PMIC rail or hardwired). So if the switch
+  on whether its vmmc is a switchable PMIC rail or hardwired). So if the switch
 
-half-completes, the card can wedge until the whole device power-cycles.
-Decision: only
+  half-completes, the card can wedge until the whole device power-cycles.
+  Decision: only
 
-attempt UHS behind a confirmed-good voltage path, and treat a failed switch as
-"fall back
+  attempt UHS behind a confirmed-good voltage path, and treat a failed switch as
+  "fall back
 
-to HS and log loudly," not "retry blindly."
+  to HS and log loudly," not "retry blindly."
 
 
 
@@ -1820,17 +2011,17 @@ When would we want anything except 1.8V? How could we ever "partially switch"
 something like that?
 
 
-3. Byte order / FIFO endianness. The whole reason the probe logs raw bytes is
-that these
+  3. Byte order / FIFO endianness. The whole reason the probe logs raw bytes is
+     that these
 
-multi-byte fields (SCR, SD_STATUS, SWITCH_FUNC) are easy to mis-order coming out
-of the
+  multi-byte fields (SCR, SD_STATUS, SWITCH_FUNC) are easy to mis-order coming
+  out of the
 
-controller FIFO. Adding SCR[2] means confirming its byte position too, not
-assuming. Low
+  controller FIFO. Adding SCR[2] means confirming its byte position too, not
+  assuming. Low
 
-risk, but it's the kind of off-by-one that gives you a plausible-but-wrong
-answer.
+  risk, but it's the kind of off-by-one that gives you a plausible-but-wrong
+  answer.
 
 
 
@@ -1870,15 +2061,16 @@ Your instinct is exactly the right shape. Here's how I'd build it, as layered
 defense — each layer holds even if the one above is misused:
 
 
-**Layer 1 — the dangerous values can't be *expressed*.** Replace the arbitrary `rk817_ldo_set_mv(rail, millivolts)` (which happily accepts `set(CPU_CORE, 1500)`) with **parameterless, rail-specific setters** for exactly the rails we're allowed to touch, each with exactly its documented value(s) baked in:
+**Layer 1 — the dangerous values can't be *expressed*.** Replace the arbitrary
+`rk817_ldo_set_mv(rail, millivolts)` (which happily accepts `set(CPU_CORE,
+1500)`) with **parameterless, rail-specific setters** for exactly the rails
+we're allowed to touch, each with exactly its documented value(s) baked in:
 
 ```
 
-sd_io_voltage_33() // writes the one datasheet register value for 3.3 V on the
-SD vqmmc rail
+sd_io_voltage_33()   // writes the one datasheet register value for 3.3 V on the SD vqmmc rail
 
-sd_io_voltage_18() // writes the one datasheet register value for 1.8 V on that
-same rail
+sd_io_voltage_18()   // writes the one datasheet register value for 1.8 V on that same rail
 
 ```
 
@@ -1889,7 +2081,8 @@ strongest form. (This also matches your naming rule: a specific name on a
 specific action beats a general function with a general name.)
 
 
-**Layer 2 — a rail classification table (the fence).** A compile-time table over all nine LDOs and the bucks, each tagged:
+**Layer 2 — a rail classification table (the fence).** A compile-time table
+over all nine LDOs and the bucks, each tagged:
 
 - `FORBIDDEN` → DRAM, CPU-core, logic (the bucks). 
 
@@ -1902,10 +2095,22 @@ This is a dispatch table (your preferred shape over if-else), and it's the data
 behind Layer 3.
 
 
-**Layer 3 — the choke point that "prevents anything else from touching the rail."** This is the part you wanted most. Every PMIC voltage write, no matter who calls it, funnels through *one* low-level i2c-to-RK817 helper. That helper consults the table and **hard-errors (panics) if the target register is a `FORBIDDEN` rail's voltage register** — before it puts a single byte on the i2c wire. So even a buggy or future caller *cannot* address the DRAM/CPU rails: there is no code path that reaches those registers. Not "we choose not to" — "the function refuses." (Note: because the PMIC lives on the i2c wire, not in the memory map, this fence is at the API/choke-point level, not MMU page-protection — the MMU can't help here.)
+**Layer 3 — the choke point that "prevents anything else from touching the
+rail."** This is the part you wanted most. Every PMIC voltage write, no matter
+who calls it, funnels through *one* low-level i2c-to-RK817 helper. That helper
+consults the table and **hard-errors (panics) if the target register is a
+`FORBIDDEN` rail's voltage register** — before it puts a single byte on the
+i2c wire. So even a buggy or future caller *cannot* address the DRAM/CPU rails:
+there is no code path that reaches those registers. Not "we choose not to" —
+"the function refuses." (Note: because the PMIC lives on the i2c wire, not in
+the memory map, this fence is at the API/choke-point level, not MMU
+page-protection — the MMU can't help here.)
 
 
-**Layer 4 — read-back verify.** After any *allowed* write, read the register back and confirm it landed on the intended value; mismatch → hard-error, don't proceed. (Fallbacks are bugs, per your rule — a voltage write that didn't take is not something to shrug at.)
+**Layer 4 — read-back verify.** After any *allowed* write, read the register
+back and confirm it landed on the intended value; mismatch → hard-error, don't
+proceed. (Fallbacks are bugs, per your rule — a voltage write that didn't take
+is not something to shrug at.)
 
 
 So: the only ways to move a voltage are named safe setters (L1), everything
@@ -1918,16 +2123,27 @@ rated range, and make the DRAM/CPU rails unreachable"* — without the blanket
 ## CMD11 — "when would we want anything but 1.8 V?" and "how could it partially switch?"
 
 
-**Why the rail must be *both* voltages (you can't just pick 1.8 V):** the SD protocol *mandates* starting at 3.3 V. A card powers up in 3.3 V signalling and does its entire identity handshake there — reset, interface-condition, the operating-condition negotiation, addressing — all at 3.3 V. There is no way to bring up a cold card at 1.8 V; it won't answer. Only *during* that negotiation does the host ask "can we go UHS?", and only if the card says yes does `CMD11` step it down to 1.8 V. And a **non-UHS card, or a 3.3 V-only slot, never switches at all** — it lives at 3.3 V forever. So the rail is inherently a *toggle*: 3.3 V is mandatory for every card at boot, 1.8 V is an opt-in upgrade for UHS cards only. That "must do both" is precisely why it's a switchable rail, and why it carries the risk your guardrails address.
+**Why the rail must be *both* voltages (you can't just pick 1.8 V):** the SD
+protocol *mandates* starting at 3.3 V. A card powers up in 3.3 V signalling and
+does its entire identity handshake there — reset, interface-condition, the
+operating-condition negotiation, addressing — all at 3.3 V. There is no way to
+bring up a cold card at 1.8 V; it won't answer. Only *during* that negotiation
+does the host ask "can we go UHS?", and only if the card says yes does `CMD11`
+step it down to 1.8 V. And a **non-UHS card, or a 3.3 V-only slot, never
+switches at all** — it lives at 3.3 V forever. So the rail is inherently a
+*toggle*: 3.3 V is mandatory for every card at boot, 1.8 V is an opt-in upgrade
+for UHS cards only. That "must do both" is precisely why it's a switchable rail,
+and why it carries the risk your guardrails address.
 
 
-**How it "partially" switches:** `CMD11` isn't one write — it's a timed handshake across three parties (host controller, the regulator, the card):
+**How it "partially" switches:** `CMD11` isn't one write — it's a timed
+handshake across three parties (host controller, the regulator, the card):
 
 1. Host sends `CMD11`; 2. card acks and pulls DAT0 **low** ("I'm ready/busy");
-3. host **stops the clock**; 4. host tells the PMIC to ramp vqmmc 3.3 → 1.8 V
-*and* switches its own pad signalling; 5. the regulator **ramps** (milliseconds
-— not instant), host waits; 6. host **restarts the clock** at 1.8 V; 7. card
-releases DAT0 → success.
+   3. host **stops the clock**; 4. host tells the PMIC to ramp vqmmc 3.3 → 1.8
+   V *and* switches its own pad signalling; 5. the regulator **ramps**
+   (milliseconds — not instant), host waits; 6. host **restarts the clock** at
+   1.8 V; 7. card releases DAT0 → success.
 
 
 "Partial" is a **desync at any of those seams**, and they're physical: the
@@ -1953,15 +2169,21 @@ fallbacks as bugs and nil-checks as bugs). What's striking: **almost every hard
 bug in this project's storage history *was* an unexamined assumption:**
 
 
-- **103d** — assumed the kernel load address from *Android convention* (`0x0028_0000`). Wrong; the SD bootloader drops it at `0x0200_0000`. The kernel loaded and ran but read its own stack/BSS from the wrong RAM.
+- **103d** — assumed the kernel load address from *Android convention*
+  (`0x0028_0000`). Wrong; the SD bootloader drops it at `0x0200_0000`. The
+  kernel loaded and ran but read its own stack/BSS from the wrong RAM.
 
-- **110a** — assumed the SDHCI clock divider worked. The dwcmshc *ignores* it; the card ran at 200 MHz instead of 375 kHz → the "silent card" saga.
+- **110a** — assumed the SDHCI clock divider worked. The dwcmshc *ignores* it;
+  the card ran at 200 MHz instead of 375 kHz → the "silent card" saga.
 
-- **110b/110e** — assumed the boot partition sat at the "typical Rockchip" LBA `0x4000`. That's the **`uboot`** partition; a write there would have corrupted the bootloader. Real boot is LBA 51200.
+- **110b/110e** — assumed the boot partition sat at the "typical Rockchip" LBA
+  `0x4000`. That's the **`uboot`** partition; a write there would have corrupted
+  the bootloader. Real boot is LBA 51200.
 
 - **201a** — assumed the CPU idled at ~50 MHz. It's already ~800 MHz.
 
-- Even this week: `dump-from-sd` **assumed** the kernel still wrote a 200 MB backup.
+- Even this week: `dump-from-sd` **assumed** the kernel still wrote a 200 MB
+  backup.
 
 
 Every one was an assumption masquerading as a value. So the rule isn't abstract
@@ -1971,23 +2193,23 @@ hygiene — it's the pattern behind your worst debugging sessions.
 **How I'd operationalize it, matching how you like to work:**
 
 1. **An assumptions register** — a living doc (I'd put it at `docs/` or as a
-`strategems/` entry) with one row per assumption: the claim, where it lives
-(file:line), its **source class** (*datasheet-confirmable* /
-*needs-hardware-test* / *disproven*), status, and the **issue that owns it**.
-Per your "reference a validator, don't hard-code stats" rule, the register *is*
-the validator's index.
+   `strategems/` entry) with one row per assumption: the claim, where it lives
+   (file:line), its **source class** (*datasheet-confirmable* /
+   *needs-hardware-test* / *disproven*), status, and the **issue that owns it**.
+   Per your "reference a validator, don't hard-code stats" rule, the register
+   *is* the validator's index.
 
 2. **Seed it from the sweep** — the grep above is the first pass; the markers
-(`typical`, `probably`, `guess`, `should be`, `PLACEHOLDER`, `for now`,
-`hard-cod`) are the tells. Each hit becomes a row.
+   (`typical`, `probably`, `guess`, `should be`, `PLACEHOLDER`, `for now`,
+   `hard-cod`) are the tells. Each hit becomes a row.
 
 3. **A tagging convention going forward** — like your `[FIXME]`, every
-assumption in code carries an `[ASSUME: …]` tag with its resolution path
-(datasheet ref or test). Untagged magic values are the thing to hunt.
+   assumption in code carries an `[ASSUME: …]` tag with its resolution path
+   (datasheet ref or test). Untagged magic values are the thing to hunt.
 
 4. **Reopen the owning issues** — each *unconfirmed* assumption reopens its
-issue with the assumption flagged as a hard-error to close out (datasheet or
-test), not a nicety.
+   issue with the assumption flagged as a hard-error to close out (datasheet or
+   test), not a nicety.
 
 
 The two current-focus ones this immediately reopens: the **SD capability
@@ -2001,16 +2223,16 @@ the dump lands somewhere safe).
 
 
 1. **Draft the S5 revision** (the layered-guardrail rule above) + add the
-**archive/SD-boot recovery net** to the bricking doc — presented for your
-sign-off first, since it's a safety edit. *(Won't touch the doc without your OK
-on the wording.)*
+   **archive/SD-boot recovery net** to the bricking doc — presented for your
+   sign-off first, since it's a safety edit. *(Won't touch the doc without your
+   OK on the wording.)*
 
 2. **Expand 110m** to the full scope: the read/write matrix, robust multi-block,
-the double-buffered ring over a non-cacheable pool, the coherency handoffs —
-kept open, not closed.
+   the double-buffered ring over a non-cacheable pool, the coherency handoffs
+   — kept open, not closed.
 
 3. **Create the assumptions register** and seed it from the sweep, then reopen
-the SD-decode and dump-placeholder issues with their assumptions flagged.
+   the SD-decode and dump-placeholder issues with their assumptions flagged.
 
 
 Which of those do you want first — and for the safety-doc S5 wording, do you
@@ -2022,38 +2244,38 @@ write it in?
 
 ### User Request 13
 
-So: the only ways to move a voltage are named safe setters (L1), everything
-routes
+  So: the only ways to move a voltage are named safe setters (L1), everything
+  routes
 
-through a fence that denies dangerous rails (L2+L3), and every write is verified
-(L4).
+  through a fence that denies dangerous rails (L2+L3), and every write is
+  verified (L4).
 
-That closes S5's real intent — "don't set a rail outside its rated range, and
-make the
+  That closes S5's real intent — "don't set a rail outside its rated range,
+  and make the
 
-DRAM/CPU rails unreachable" — without the blanket "never write voltages" that
-the code
+  DRAM/CPU rails unreachable" — without the blanket "never write voltages"
+  that the code
 
-already violates.
+  already violates.
 
 
 
 sounds good.
 
 
-1. An assumptions register — a living doc (I'd put it at docs/ or as a
-strategems/ entry)
+  1. An assumptions register — a living doc (I'd put it at docs/ or as a
+     strategems/ entry)
 
-with one row per assumption: the claim, where it lives (file:line), its source
-class
+  with one row per assumption: the claim, where it lives (file:line), its source
+  class
 
-(datasheet-confirmable / needs-hardware-test / disproven), status, and the issue
-that
+  (datasheet-confirmable / needs-hardware-test / disproven), status, and the
+  issue that
 
-owns it. Per your "reference a validator, don't hard-code stats" rule, the
-register is
+  owns it. Per your "reference a validator, don't hard-code stats" rule, the
+  register is
 
-the validator's index.
+  the validator's index.
 
 
 
@@ -2108,7 +2330,10 @@ before touching.
 
 ## ✅ Fixed (clean file, confirmed value)
 
-- **`013-boot-image.c` boot LBA** — `0x4000` (the `uboot` partition → brick) → **`51200`** (the real `boot` partition, confirmed from the device GPT via 110e). This is the highest-value one: a known-wrong, bricking-critical value. File wasn't being edited by anyone, so it's a clean fix.
+- **`013-boot-image.c` boot LBA** — `0x4000` (the `uboot` partition → brick)
+  → **`51200`** (the real `boot` partition, confirmed from the device GPT via
+  110e). This is the highest-value one: a known-wrong, bricking-critical value.
+  File wasn't being edited by anyone, so it's a clean fix.
 
 
 ## 🟢 Not actually assumptions (false positives — no action is correct)
@@ -2116,11 +2341,17 @@ before touching.
 The grep is a blunt instrument; three hits are *explanatory* comments, not live
 guesses:
 
-- `012:566` "answered by guesswork up to now" — describes *why the diagnostic dump exists* (to replace guesswork with real register reads). The function reads ground truth. No assumption.
+- `012:566` "answered by guesswork up to now" — describes *why the diagnostic
+  dump exists* (to replace guesswork with real register reads). The function
+  reads ground truth. No assumption.
 
-- `012:730` "drive-strength (typically the lowest level)" — describes the pad default *before* `emmc_pad_config_setup()` overrides it; the probe confirms the configured value is `0x707` and HS400 works. Explanatory, not assumed.
+- `012:730` "drive-strength (typically the lowest level)" — describes the pad
+  default *before* `emmc_pad_config_setup()` overrides it; the probe confirms
+  the configured value is `0x707` and HS400 works. Explanatory, not assumed.
 
-- `012:757` "post-reset state the SDHCI spec assumes" — that's the *spec's* assumption, which the code then *satisfies* with three writes. Implementing a spec requirement, not guessing.
+- `012:757` "post-reset state the SDHCI spec assumes" — that's the *spec's*
+  assumption, which the code then *satisfies* with three writes. Implementing a
+  spec requirement, not guessing.
 
 
 Manufacturing fixes for these would be noise. Leaving them is right.
@@ -2137,27 +2368,28 @@ they route to the owning team:
 
 
 1. **`012:1621` — the dump's missing capacity check (this one's actually
-dangerous).** The full dump writes to SD from `DUMP_DEST_LBA` (0x800000 = 4 GiB
-in) for the whole eMMC (29.1 GiB) → it needs an SD **≥ 33 GiB**. Your last
-run worked only because the card was big enough; the code never checks. On a 32
-GB card it writes **past the end of the SD**. **Fix:** read the SD's capacity
-from its CSD and hard-error if `DUMP_DEST_LBA + eMMC_sectors > SD_sectors`.
-**Break (if we don't build the CSD read):** refuse the dump with a loud message.
-I'd *not* unconditionally break a working path — the guard is the right
-answer, and it needs an `sd_sector_count()` that doesn't exist yet.
+   dangerous).** The full dump writes to SD from `DUMP_DEST_LBA` (0x800000 = 4
+   GiB in) for the whole eMMC (29.1 GiB) → it needs an SD **≥ 33 GiB**. Your
+   last run worked only because the card was big enough; the code never checks.
+   On a 32 GB card it writes **past the end of the SD**. **Fix:** read the SD's
+   capacity from its CSD and hard-error if `DUMP_DEST_LBA + eMMC_sectors >
+   SD_sectors`. **Break (if we don't build the CSD read):** refuse the dump with
+   a loud message. I'd *not* unconditionally break a working path — the guard
+   is the right answer, and it needs an `sd_sector_count()` that doesn't exist
+   yet.
 
 2. **`015` capability decode — the one you flagged as important.**
-`sd_probe_capabilities` never logs `SCR[2]` (the SD-3.0 confirm bit) and lets
-the 3.3 V `SWITCH_FUNC` view ("HS only") override the U3 grade. **Fix:** log
-`SCR[2]`, and make the picker treat the byte-14 UHS grade as the authority for
-"is this a UHS card." Purely additive + a logic tweak nothing acts on yet (UHS
-isn't wired). Low risk, but still in the hot file.
+   `sd_probe_capabilities` never logs `SCR[2]` (the SD-3.0 confirm bit) and lets
+   the 3.3 V `SWITCH_FUNC` view ("HS only") override the U3 grade. **Fix:** log
+   `SCR[2]`, and make the picker treat the byte-14 UHS grade as the authority
+   for "is this a UHS card." Purely additive + a logic tweak nothing acts on yet
+   (UHS isn't wired). Low risk, but still in the hot file.
 
 3. **`015:539` — "16-entry FIFO (typical)."** Assumes the DW MSHC FIFO depth.
-**Resolve:** the depth is readable from the controller's `HCON` register (or
-fixed per the TRM for SDMMC0) — confirm it and cite, or read it at init
-instead of assuming. Low-stakes (the fullness check it feeds is on the PIO path
-DMA replaces), but a real assumption.
+   **Resolve:** the depth is readable from the controller's `HCON` register (or
+   fixed per the TRM for SDMMC0) — confirm it and cite, or read it at init
+   instead of assuming. Low-stakes (the fullness check it feeds is on the PIO
+   path DMA replaces), but a real assumption.
 
 
 ## The honest meta-point
@@ -2177,38 +2409,39 @@ Either way this pass has a clear tail: the same sweep still needs running on USB
 
 ### User Request 14
 
-I'll scope this pass to the storage/SD/eMMC/PMIC domain right now (that's where
-our
+  I'll scope this pass to the storage/SD/eMMC/PMIC domain right now (that's
+  where our
 
-attention is and where a wrong value bricks things) and flag that USB/boot/pwm
-need the
+  attention is and where a wrong value bricks things) and flag that USB/boot/pwm
+  need the
 
-same pass. Let me read the real context around each flagged assumption —
-starting with
+  same pass. Let me read the real context around each flagged assumption —
+  starting with
 
-the most dangerous one, the boot-partition LBA that 110e proved wrong.
+  the most dangerous one, the boot-partition LBA that 110e proved wrong.
 
 
 
 let's expand beyond the context, if you feel satisfied with what you've covered.
 
 
-🔴 Real, but they live in 012/015 — which the DMA/SD team is editing right
-now
+  🔴 Real, but they live in 012/015 — which the DMA/SD team is editing right
+  now
 
 
-These are genuine open assumptions, I've resolved each, but they're in files
-with live
+  These are genuine open assumptions, I've resolved each, but they're in files
+  with live
 
-uncommitted changes from another agent. I'll be straight with you: blind-editing
+  uncommitted changes from another agent. I'll be straight with you:
+  blind-editing
 
-untested, bricking-adjacent bare-metal in a driver someone else is mid-change on
-is
+  untested, bricking-adjacent bare-metal in a driver someone else is mid-change
+  on is
 
-exactly how you mint the next assumption-bug. So I've got the fix/break for each
-ready —
+  exactly how you mint the next assumption-bug. So I've got the fix/break for
+  each ready —
 
-I want your nod on touching the hot files, or they route to the owning team:
+  I want your nod on touching the hot files, or they route to the owning team:
 
 
 
@@ -2217,28 +2450,28 @@ and me working on that code, until the night shift takes over. In parallel we
 have someone working on the bootloader, and another person writing probes.
 
 
-1. 012:1621 — the dump's missing capacity check (this one's actually
-dangerous). The full
+  1. 012:1621 — the dump's missing capacity check (this one's actually
+     dangerous). The full
 
-dump writes to SD from DUMP_DEST_LBA (0x800000 = 4 GiB in) for the whole eMMC
-(29.1 GiB)
+  dump writes to SD from DUMP_DEST_LBA (0x800000 = 4 GiB in) for the whole eMMC
+  (29.1 GiB)
 
-→ it needs an SD ≥ 33 GiB. Your last run worked only because the card was
-big enough;
+  → it needs an SD ≥ 33 GiB. Your last run worked only because the card was
+  big enough;
 
-the code never checks. On a 32 GB card it writes past the end of the SD. Fix:
-read the
+  the code never checks. On a 32 GB card it writes past the end of the SD. Fix:
+  read the
 
-SD's capacity from its CSD and hard-error if DUMP_DEST_LBA + eMMC_sectors >
-SD_sectors.
+  SD's capacity from its CSD and hard-error if DUMP_DEST_LBA + eMMC_sectors >
+  SD_sectors.
 
-Break (if we don't build the CSD read): refuse the dump with a loud message. I'd
-not
+  Break (if we don't build the CSD read): refuse the dump with a loud message.
+  I'd not
 
-unconditionally break a working path — the guard is the right answer, and it
-needs an
+  unconditionally break a working path — the guard is the right answer, and it
+  needs an
 
-sd_sector_count() that doesn't exist yet.
+  sd_sector_count() that doesn't exist yet.
 
 
 
@@ -2251,19 +2484,19 @@ production release, because we can't know how large the user's SD card will be,
 and idk maybe they'll want to dump the eMMC partition for some reason.
 
 
-2. 015 capability decode — the one you flagged as important.
-sd_probe_capabilities never
+  2. 015 capability decode — the one you flagged as important.
+     sd_probe_capabilities never
 
-logs SCR[2] (the SD-3.0 confirm bit) and lets the 3.3 V SWITCH_FUNC view ("HS
-only")
+  logs SCR[2] (the SD-3.0 confirm bit) and lets the 3.3 V SWITCH_FUNC view ("HS
+  only")
 
-override the U3 grade. Fix: log SCR[2], and make the picker treat the byte-14
-UHS grade
+  override the U3 grade. Fix: log SCR[2], and make the picker treat the byte-14
+  UHS grade
 
-as the authority for "is this a UHS card." Purely additive + a logic tweak
-nothing acts
+  as the authority for "is this a UHS card." Purely additive + a logic tweak
+  nothing acts
 
-on yet (UHS isn't wired). Low risk, but still in the hot file.
+  on yet (UHS isn't wired). Low risk, but still in the hot file.
 
 
 
@@ -2273,16 +2506,16 @@ valuable employee! Expect an extra pizza party every thursday, that brings you
 to... 37 pizza parties per thursday. Hooray! Confetti emoji!
 
 
-3. 015:539 — "16-entry FIFO (typical)." Assumes the DW MSHC FIFO depth.
-Resolve: the
+  3. 015:539 — "16-entry FIFO (typical)." Assumes the DW MSHC FIFO depth.
+     Resolve: the
 
-depth is readable from the controller's HCON register (or fixed per the TRM for
-SDMMC0) —
+  depth is readable from the controller's HCON register (or fixed per the TRM
+  for SDMMC0) —
 
-confirm it and cite, or read it at init instead of assuming. Low-stakes (the
-fullness
+  confirm it and cite, or read it at init instead of assuming. Low-stakes (the
+  fullness
 
-check it feeds is on the PIO path DMA replaces), but a real assumption.
+  check it feeds is on the PIO path DMA replaces), but a real assumption.
 
 
 
@@ -2290,27 +2523,28 @@ I have no idea what that means. Can you explain the acronyms and how they
 interact? I know what FIFO means. What part of the device is this touching?
 
 
-I did the one fix that's safe and unambiguous. For the other three, I could hack
-edits in
+  I did the one fix that's safe and unambiguous. For the other three, I could
+  hack edits in
 
-right now to look busy, but two of them touch a bricking-adjacent driver I can't
+  right now to look busy, but two of them touch a bricking-adjacent driver I
+  can't
 
-compile-test while the DMA team has uncommitted work in it — and "an untested
-guess in
+  compile-test while the DMA team has uncommitted work in it — and "an
+  untested guess in
 
-the storage driver" is the precise thing your rule is trying to kill. So: want
-me to go
+  the storage driver" is the precise thing your rule is trying to kill. So: want
+  me to go
 
-into 012/015 now (uncommitted, same as before, you reconcile), starting with the
-dump
+  into 012/015 now (uncommitted, same as before, you reconcile), starting with
+  the dump
 
-capacity guard and the SCR[2] decode — or should those land through whoever's
-actively in
+  capacity guard and the SCR[2] decode — or should those land through
+  whoever's actively in
 
-those files? Either way this pass has a clear tail: the same sweep still needs
-running
+  those files? Either way this pass has a clear tail: the same sweep still needs
+  running
 
-on USB (010 had 10 markers), boot, and PWM once we clear storage.
+  on USB (010 had 10 markers), boot, and PWM once we clear storage.
 
 
 
@@ -2373,18 +2607,39 @@ sits between the CPU and the physical microSD slot. The data path is:
 
 ```
 
-CPU ⇄ [ SDMMC0 controller: FIFO buffer ] ⇄ SD-bus wires ⇄ microSD card
+CPU  ⇄  [ SDMMC0 controller:  FIFO buffer ]  ⇄  SD-bus wires  ⇄  microSD card
 
 ```
 
 
-- **FIFO** (you know the term) — a small hardware queue *inside the controller*, ~256 words deep, that speed-matches the two sides. On a **write**, the CPU shoves 32-bit words into one end fast; the controller clocks them out the other end to the card at the (slow) SD-bus rate. On a **read**, the controller fills it from the card and the CPU drains it. It exists because the CPU and the SD bus run at very different speeds and neither should have to wait on the other word-by-word.
+- **FIFO** (you know the term) — a small hardware queue *inside the
+  controller*, ~256 words deep, that speed-matches the two sides. On a
+  **write**, the CPU shoves 32-bit words into one end fast; the controller
+  clocks them out the other end to the card at the (slow) SD-bus rate. On a
+  **read**, the controller fills it from the card and the CPU drains it. It
+  exists because the CPU and the SD bus run at very different speeds and neither
+  should have to wait on the other word-by-word.
 
-- **The fullness check** — when the CPU is filling the FIFO, it must not push a word if the FIFO is already full (nowhere to put it → overflow, lost data or a hang). So the loop reads the current fill level and only pushes if there's room. **The bug:** it assumed the FIFO holds 16 words; it actually holds **256**. Assuming *too low* is safe (you just push in smaller dribbles — slow, never wrong), which is why this never broke; assuming too *high* would overflow.
+- **The fullness check** — when the CPU is filling the FIFO, it must not push
+  a word if the FIFO is already full (nowhere to put it → overflow, lost data
+  or a hang). So the loop reads the current fill level and only pushes if
+  there's room. **The bug:** it assumed the FIFO holds 16 words; it actually
+  holds **256**. Assuming *too low* is safe (you just push in smaller dribbles
+  — slow, never wrong), which is why this never broke; assuming too *high*
+  would overflow.
 
-- **HCON** = "**H**ardware **CON**figuration" — a read-only register where the controller reports how it was built (bus width, DMA present, FIFO depth). The driver already reads it at init purely as a liveness check: if it comes back all-zeros or all-ones, the controller isn't clocked/reset properly.
+- **HCON** = "**H**ardware **CON**figuration" — a read-only register where the
+  controller reports how it was built (bus width, DMA present, FIFO depth). The
+  driver already reads it at init purely as a liveness check: if it comes back
+  all-zeros or all-ones, the controller isn't clocked/reset properly.
 
-- **FIFOTH** = "**FIFO TH**reshold" — configures the *watermarks*: the fill levels at which the controller raises "feed me more" / "drain me," plus the DMA burst size. We program it to `0x207F0080` = RX-watermark `0x7F`, TX-watermark `0x80`. Watermarks are conventionally half the depth, so depth = (0x7F+1)×2 = **256** — which is *how we know the depth without guessing*: it's implied by the watermark register the hardware expects. That's what I cited in the fix, rather than trusting a "typical."
+- **FIFOTH** = "**FIFO TH**reshold" — configures the *watermarks*: the fill
+  levels at which the controller raises "feed me more" / "drain me," plus the
+  DMA burst size. We program it to `0x207F0080` = RX-watermark `0x7F`,
+  TX-watermark `0x80`. Watermarks are conventionally half the depth, so depth =
+  (0x7F+1)×2 = **256** — which is *how we know the depth without guessing*:
+  it's implied by the watermark register the hardware expects. That's what I
+  cited in the fix, rather than trusting a "typical."
 
 
 So: HCON *reports* the depth, FIFOTH *sets the watermarks* off that depth, and
@@ -2396,15 +2651,15 @@ instead of the assumed 16.
 ## The fixes I made this turn (all in `015`, the SD driver — removable hardware, not a brick risk)
 
 1. **FIFO depth `16 → 256`** — a real wrong assumption with a *documented*
-value. The PIO write path now fills the whole FIFO. (DMA is the real path, so
-this just tightens the fallback.)
+   value. The PIO write path now fills the whole FIFO. (DMA is the real path, so
+   this just tightens the fallback.)
 
 2. **Capability decode — the "wiring" you promoted me for.** The probe now
-logs **`SCR[2]`** and decodes bit 7 (`SD_SPEC3`) → "SD 3.0+ (UHS-capable)" vs
-"SD 2.0," *and* decodes the **UHS grade** from byte-14's *high nibble* → "U3
-(≥30 MB/s)" instead of dumping the raw `0x39` that reads like nonsense. So the
-driver now *believes* the U3 grade instead of letting the 3.3 V "HS-only" view
-bury it.
+   logs **`SCR[2]`** and decodes bit 7 (`SD_SPEC3`) → "SD 3.0+ (UHS-capable)"
+   vs "SD 2.0," *and* decodes the **UHS grade** from byte-14's *high nibble* →
+   "U3 (≥30 MB/s)" instead of dumping the raw `0x39` that reads like nonsense.
+   So the driver now *believes* the U3 grade instead of letting the 3.3 V
+   "HS-only" view bury it.
 
 
 I deliberately did **not** wire the grade into the picker's *decision*
@@ -2416,11 +2671,15 @@ decode is fixed and reported; the *decision* wiring lands with the voltage path.
 
 ## My inheritance (I read it — it's 667 uncommitted lines and it's mine now)
 
-- **`012-emmc.c` (+310):** eMMC ADMA2 DMA read, the full linear dump, the scan-map, `emmc_sector_count`, HS200/HS400 — plus the `PLACEHOLDER(dump)` stubs (destination/capacity check, double-buffer, throughput).
+- **`012-emmc.c` (+310):** eMMC ADMA2 DMA read, the full linear dump, the
+  scan-map, `emmc_sector_count`, HS200/HS400 — plus the `PLACEHOLDER(dump)`
+  stubs (destination/capacity check, double-buffer, throughput).
 
-- **`015-sdmmc.c` (+277, now +my 4 fixes):** IDMAC DMA write, the capability probe, the speed picker, `sd_read_small`.
+- **`015-sdmmc.c` (+277, now +my 4 fixes):** IDMAC DMA write, the capability
+  probe, the speed picker, `sd_read_small`.
 
-- **`dump-from-sd` / `reconstruct-emmc`:** the pull+gzip+split and the MAP-replay/integrity toolchain.
+- **`dump-from-sd` / `reconstruct-emmc`:** the pull+gzip+split and the
+  MAP-replay/integrity toolchain.
 
 
 On committing them: they're a coherent in-progress feature with open stubs, so
@@ -2438,9 +2697,18 @@ so I'd rather hand them the docs than the wiring.
 
 Your installment idea is the right shape. The build:
 
-- **`sd_sector_count()` in `015`:** capture the CSD from CMD9's `RESP0-3` (which we already receive but throw away), decode capacity from the SDHC/SDXC `C_SIZE` field, and **log the raw CSD + the decoded number** — so the known-size dev card *confirms* the decode on the next run rather than us trusting an untested bit-extraction (that's the "measure, don't assume" discipline; an untested CSD decoder would itself be the bug we're killing).
+- **`sd_sector_count()` in `015`:** capture the CSD from CMD9's `RESP0-3` (which
+  we already receive but throw away), decode capacity from the SDHC/SDXC
+  `C_SIZE` field, and **log the raw CSD + the decoded number** — so the
+  known-size dev card *confirms* the decode on the next run rather than us
+  trusting an untested bit-extraction (that's the "measure, don't assume"
+  discipline; an untested CSD decoder would itself be the bug we're killing).
 
-- **In `emmc_dump_to_sd`:** compute `available = sd_sectors − DUMP_DEST_LBA`. If the eMMC fits → full dump (today's behavior). If not → dump `available` sectors, **log the boundary** (last eMMC LBA written + how much remains) so the pull-out → `dump-from-sd` → re-insert → resume loop can continue, and reassemble on the dev side. No hard-error, no silent overrun.
+- **In `emmc_dump_to_sd`:** compute `available = sd_sectors − DUMP_DEST_LBA`.
+  If the eMMC fits → full dump (today's behavior). If not → dump `available`
+  sectors, **log the boundary** (last eMMC LBA written + how much remains) so
+  the pull-out → `dump-from-sd` → re-insert → resume loop can continue,
+  and reassemble on the dev side. No hard-error, no silent overrun.
 
 
 I held off building it this turn on purpose: it's the one piece that needs a
@@ -2470,16 +2738,16 @@ idk why he brought his laptop but he's just that kind of guy I guess. What would
 we do without him...
 
 
-Next increment, your call on order: (a) build the capacity guard +
-sd_sector_count, (b)
+  Next increment, your call on order: (a) build the capacity guard +
+  sd_sector_count, (b)
 
-run the same assumption sweep on my other file 012 (the 7 markers there — I
-only cleared
+  run the same assumption sweep on my other file 012 (the 7 markers there — I
+  only cleared
 
-the false-positives), or (c) checkpoint-commit the SD/DMA feature so night shift
-inherits
+  the false-positives), or (c) checkpoint-commit the SD/DMA feature so night
+  shift inherits
 
-a clean tree instead of a pile.
+  a clean tree instead of a pile.
 
 
 
@@ -2509,7 +2777,14 @@ Good thing I checked — this is the "verify, don't trust a distracted guy"
 lesson in the flesh:
 
 
-**There is no SD/DMA commit.** The commit that landed (`fcc4570b`) is the **PWM/LED person's** 106c work (`003-pwm.c`, `004-led.c`, the LED doc, 106c). HEAD's `012`/`015` contain **zero** DMA functions — `sd_write_blocks_dma` and `emmc_read_blocks_dma` aren't there. The *entire* DMA feature (710 lines now, counting my fixes) is **still only in my working tree, uncommitted.** So whatever your memory guy thinks he pushed from the wedding, it isn't in this repo — wrong branch, wrong repo, or the DJ won. Nothing of his to re-check; what he "missed" was the actual `git push`.
+**There is no SD/DMA commit.** The commit that landed (`fcc4570b`) is the
+**PWM/LED person's** 106c work (`003-pwm.c`, `004-led.c`, the LED doc, 106c).
+HEAD's `012`/`015` contain **zero** DMA functions — `sd_write_blocks_dma` and
+`emmc_read_blocks_dma` aren't there. The *entire* DMA feature (710 lines now,
+counting my fixes) is **still only in my working tree, uncommitted.** So
+whatever your memory guy thinks he pushed from the wedding, it isn't in this
+repo — wrong branch, wrong repo, or the DJ won. Nothing of his to re-check;
+what he "missed" was the actual `git push`.
 
 
 That also makes the uncommitted pile *fragile* — right now it exists nowhere
@@ -2582,31 +2857,53 @@ end-to-end.
 ## Done this turn
 
 
-**Verification (the important one):** the wedding commit is *not* the SD/DMA guy's — it's the PWM person's 106c work. HEAD has zero DMA functions. The 710-line DMA feature is still uncommitted and mine alone. Whatever he pushed isn't in this repo.
+**Verification (the important one):** the wedding commit is *not* the SD/DMA
+guy's — it's the PWM person's 106c work. HEAD has zero DMA functions. The
+710-line DMA feature is still uncommitted and mine alone. Whatever he pushed
+isn't in this repo.
 
 
-**(b) — `012` assumption sweep:** clean. The markers were false-positives (explanatory/historical/spec-satisfied), the drive-strength is probe-confirmed `0x707`, and the ADMA2 single-descriptor cap *already hard-errors* if exceeded (the break-on-assumption pattern). The only real gap was the dump capacity — which is (a).
+**(b) — `012` assumption sweep:** clean. The markers were false-positives
+(explanatory/historical/spec-satisfied), the drive-strength is probe-confirmed
+`0x707`, and the ADMA2 single-descriptor cap *already hard-errors* if exceeded
+(the break-on-assumption pattern). The only real gap was the dump capacity —
+which is (a).
 
 
 **(a) — capacity guard, built and compiling:**
 
-- `sd_sector_count()` in `015`: captures the CSD at CMD9 (it was being thrown away), decodes SDHC/SDXC capacity per the SD spec, and **logs the raw CSD words next to the decoded number**.
+- `sd_sector_count()` in `015`: captures the CSD at CMD9 (it was being thrown
+  away), decodes SDHC/SDXC capacity per the SD spec, and **logs the raw CSD
+  words next to the decoded number**.
 
-- `emmc_dump_to_sd` now computes what fits (`SD sectors − DUMP_DEST_LBA`) and does a **partial pass** with a logged boundary when the eMMC is bigger — your installment design. The dev-side multi-pass reassembly is the deferred (not-urgent) half.
+- `emmc_dump_to_sd` now computes what fits (`SD sectors − DUMP_DEST_LBA`) and
+  does a **partial pass** with a logged boundary when the eMMC is bigger —
+  your installment design. The dev-side multi-pass reassembly is the deferred
+  (not-urgent) half.
 
-- **Fail-safe by construction:** if the CSD decode looks implausible it returns "unknown," and the dump falls back to today's full-dump behavior *with a loud warning* rather than truncating a good dump on a bad number.
+- **Fail-safe by construction:** if the CSD decode looks implausible it returns
+  "unknown," and the dump falls back to today's full-dump behavior *with a loud
+  warning* rather than truncating a good dump on a bad number.
 
 
-**The one honest caveat:** it *compiles*, but the CSD bit-alignment out of this controller's long-response registers is confirmed only on the next hardware run — which is exactly why it logs the raw CSD and fails safe. First run on the known-size dev card, eyeball that `-> sectors=` matches the real card, and then we can tighten the fallback into a hard-error. That converts the last assumption into a measured value instead of trusting my blind decode.
+**The one honest caveat:** it *compiles*, but the CSD bit-alignment out of this
+controller's long-response registers is confirmed only on the next hardware run
+— which is exactly why it logs the raw CSD and fails safe. First run on the
+known-size dev card, eyeball that `-> sectors=` matches the real card, and then
+we can tighten the fallback into a hard-error. That converts the last assumption
+into a measured value instead of trusting my blind decode.
 
 
 ## Not done (deliberately)
 
-- Multi-pass **reassembly** on the dev side — the not-urgent half of the installment dump.
+- Multi-pass **reassembly** on the dev side — the not-urgent half of the
+  installment dump.
 
-- **UHS picker wiring** — gated on the PMIC guardrail + `vqmmc` voltage decision.
+- **UHS picker wiring** — gated on the PMIC guardrail + `vqmmc` voltage
+  decision.
 
-- USB/pwm assumption sweeps — **not my lane** now (PWM just got committed by that person; probes belong to the probe person).
+- USB/pwm assumption sweeps — **not my lane** now (PWM just got committed by
+  that person; probes belong to the probe person).
 
 
 ## (c) is now unblocked — and I'd stop deferring it
@@ -2625,13 +2922,13 @@ or keep building?
 
 ### User Request 16
 
-Verification (the important one): the wedding commit is not the SD/DMA guy's —
-it's the
+  Verification (the important one): the wedding commit is not the SD/DMA guy's
+  — it's the
 
-PWM person's 106c work. HEAD has zero DMA functions. The 710-line DMA feature is
-still
+  PWM person's 106c work. HEAD has zero DMA functions. The 710-line DMA feature
+  is still
 
-uncommitted and mine alone. Whatever he pushed isn't in this repo.
+  uncommitted and mine alone. Whatever he pushed isn't in this repo.
 
 
 
@@ -2657,9 +2954,11 @@ branches, any remote, and whether my working-tree work is still intact.
 The plot thickens — he pushed for real this time. Two new commits are now on
 `master`:
 
-- **`4f56ec32 storage: move transfers by DMA, and bring up the fast microSD write path`** ← the SD/DMA guy's actual work
+- **`4f56ec32 storage: move transfers by DMA, and bring up the fast microSD
+  write path`** ← the SD/DMA guy's actual work
 
-- `40451302 probes: a callable, self-clearing run_probes()` ← the probe person (110n)
+- `40451302 probes: a callable, self-clearing run_probes()` ← the probe person
+  (110n)
 
 
 So HEAD now **has** the DMA functions, *and* my uncommitted work is still
@@ -2758,9 +3057,11 @@ tells **us** *where on the eMMC to write our kernel*. The data flow is the
 opposite direction from what "register the bootloader looks at" implies:
 
 
-- **We** wrap our kernel in an Android boot.img envelope and **write** it *to* this sector of the eMMC.
+- **We** wrap our kernel in an Android boot.img envelope and **write** it *to*
+  this sector of the eMMC.
 
-- **u-boot** (Anbernic's bootloader) later **reads** its partition table (the GPT) to find the `boot` partition, and loads whatever kernel it finds there.
+- **u-boot** (Anbernic's bootloader) later **reads** its partition table (the
+  GPT) to find the `boot` partition, and loads whatever kernel it finds there.
 
 
 So u-boot never reads our constant — it reads the GPT. Our constant just has
@@ -2771,12 +3072,18 @@ goes to load the boot partition, it finds *our* kernel sitting there.
 ## What "LBA" is, and what the value points at
 
 
-**LBA = Logical Block Address** = a sector number on the eMMC, each sector 512 bytes. So the value is literally "which 512-byte sector to start writing at":
+**LBA = Logical Block Address** = a sector number on the eMMC, each sector 512
+bytes. So the value is literally "which 512-byte sector to start writing at":
 
 
-- **Old: `0x4000` (16384)** → 16384 × 512 = 8 MiB in. That's the **`uboot` partition** (partition 2 in the device's GPT). Writing our kernel there would **overwrite u-boot itself → brick.**
+- **Old: `0x4000` (16384)** → 16384 × 512 = 8 MiB in. That's the **`uboot`
+  partition** (partition 2 in the device's GPT). Writing our kernel there would
+  **overwrite u-boot itself → brick.**
 
-- **New: `51200`** → 51200 × 512 = 25 MiB in. That's the **`boot` partition** (partition 7, the one that's *meant* to hold an Android boot.img — exactly what we produce). Confirmed from the device's own GPT by the 110e probe (recorded in `docs/024`).
+- **New: `51200`** → 51200 × 512 = 25 MiB in. That's the **`boot` partition**
+  (partition 7, the one that's *meant* to hold an Android boot.img — exactly
+  what we produce). Confirmed from the device's own GPT by the 110e probe
+  (recorded in `docs/024`).
 
 
 So yes — functionally it's **one value**: the target sector, moved off the
@@ -2789,11 +3096,19 @@ assumption — the fully assumption-free version would parse the GPT to find
 
 ## The safety context for your sign-off
 
-- **Nothing writes today.** `write_kernel_to_emmc_boot_partition()` is not called from `kernel_main` — the writer is dormant. This change writes zero bytes to the eMMC now; it just corrects the constant for whenever the writer is eventually turned on.
+- **Nothing writes today.** `write_kernel_to_emmc_boot_partition()` is not
+  called from `kernel_main` — the writer is dormant. This change writes zero
+  bytes to the eMMC now; it just corrects the constant for whenever the writer
+  is eventually turned on.
 
-- **It strictly reduces risk:** a dormant writer pointed at `0x4000` is a bricking landmine if anyone enables it; pointed at `51200` it targets the right place.
+- **It strictly reduces risk:** a dormant writer pointed at `0x4000` is a
+  bricking landmine if anyone enables it; pointed at `51200` it targets the
+  right place.
 
-- **It does *not* make the writer safe to enable on its own** — that still needs the A/B-slot + boot-success-flag scheme from the safety doc (S1/S2), which isn't built. So this is "fix the wrong number," not "greenlight eMMC writes."
+- **It does *not* make the writer safe to enable on its own** — that still
+  needs the A/B-slot + boot-success-flag scheme from the safety doc (S1/S2),
+  which isn't built. So this is "fix the wrong number," not "greenlight eMMC
+  writes."
 
 
 That's the whole change: one sector number, wrong partition → right partition,
@@ -2824,14 +3139,14 @@ The recovery loop you're describing is exactly right and it's what makes this
 whole "flash the eMMC" game survivable:
 
 1. The RK3568's mask ROM (in silicon, uncorruptible) checks the **SD card before
-the eMMC**.
+   the eMMC**.
 
 2. SD-boot uses the **SD's own** idbloader + u-boot + kernel — it's
-*independent of eMMC contents*.
+   *independent of eMMC contents*.
 
 3. So a trashed eMMC doesn't stop you booting a fresh recovery kernel from SD,
-and from there you re-write the eMMC — and you've even got the **full factory
-archive** to write back plus the eMMC write driver.
+   and from there you re-write the eMMC — and you've even got the **full
+   factory archive** to write back plus the eMMC write driver.
 
 
 You've been *living* in this loop the whole project — every dev flash is
@@ -2844,9 +3159,16 @@ This is the punchline, and it's the reason the `0x4000 → 51200` fix isn't
 cosmetic:
 
 
-- Corrupt the **boot partition** (LBA 51200 — what our writer *should* touch) → u-boot and the loader are **intact**. u-boot just fails to find a kernel; SD-boot recovers you cleanly, and honestly u-boot might even fall back on its own. This is a **soft brick** — annoying, fully recoverable.
+- Corrupt the **boot partition** (LBA 51200 — what our writer *should* touch)
+  → u-boot and the loader are **intact**. u-boot just fails to find a kernel;
+  SD-boot recovers you cleanly, and honestly u-boot might even fall back on its
+  own. This is a **soft brick** — annoying, fully recoverable.
 
-- Corrupt **u-boot or the loader** (LBA 16384 / 64 — which is *exactly where `0x4000` writes*, `0x4000` = 16384 = the `uboot` partition) → now the eMMC boot chain is broken at a deeper layer, and you're betting the device entirely on "the ROM falls through to SD" + Maskrom as the last net. This is the **hard-brick** zone.
+- Corrupt **u-boot or the loader** (LBA 16384 / 64 — which is *exactly where
+  `0x4000` writes*, `0x4000` = 16384 = the `uboot` partition) → now the eMMC
+  boot chain is broken at a deeper layer, and you're betting the device entirely
+  on "the ROM falls through to SD" + Maskrom as the last net. This is the
+  **hard-brick** zone.
 
 
 So the fix moves a dormant landmine out of the *"you'd better hope the deep net
@@ -2858,20 +3180,21 @@ real. With `51200`, a bad write is a soft brick you shrug off.
 ## The honest caveats (your "assumptions are bugs" lens applies hard here)
 
 1. **"The ROM prefers SD over a *corrupt* eMMC" is an assumption, not a
-confirmed fact.** SD-boot *when present alongside a valid eMMC* is proven (you
-do it daily). SD-boot *overriding a genuinely corrupt eMMC* — especially the
-nasty half-written-loader case where the ROM might start the broken eMMC chain
-instead of falling through — is the specific scenario, and it's the sibling of
-the safety doc's #1 open unknown (can we reach Maskrom from outside the sealed
-case?). The recovery net rests on it, so it deserves confirmation, not faith.
-(Good news: the recovery/download-mode question is being actively worked —
-that's where the confirmed answer will live.)
+   confirmed fact.** SD-boot *when present alongside a valid eMMC* is proven
+   (you do it daily). SD-boot *overriding a genuinely corrupt eMMC* —
+   especially the nasty half-written-loader case where the ROM might start the
+   broken eMMC chain instead of falling through — is the specific scenario,
+   and it's the sibling of the safety doc's #1 open unknown (can we reach
+   Maskrom from outside the sealed case?). The recovery net rests on it, so it
+   deserves confirmation, not faith. (Good news: the recovery/download-mode
+   question is being actively worked — that's where the confirmed answer will
+   live.)
 
 2. **The write-back half isn't battle-tested.** "Re-write the correct image"
-assumes the eMMC *write* path works reliably at image scale — and right now
-that's PIO single-block, never exercised on a full restore. We have the archive
-and the driver; we don't yet have proof the restore write goes cleanly
-end-to-end.
+   assumes the eMMC *write* path works reliably at image scale — and right now
+   that's PIO single-block, never exercised on a full restore. We have the
+   archive and the driver; we don't yet have proof the restore write goes
+   cleanly end-to-end.
 
 
 So: recovery works *for the boot-partition case* with high confidence today, and
@@ -2908,7 +3231,9 @@ Done — committed as **`463e849c`**, and it went in clean:
 
 - **Staged exactly one file** (`013`), nothing else swept in.
 
-- `013` is now clean; **every piece of my work this session is committed** (the DMA fixes rode in on `4f56ec32`, the docs on `4e7bfe39`, this boot-LBA fix on `463e849c`). Nothing of mine left dangling in the tree.
+- `013` is now clean; **every piece of my work this session is committed** (the
+  DMA fixes rode in on `4f56ec32`, the docs on `4e7bfe39`, this boot-LBA fix on
+  `463e849c`). Nothing of mine left dangling in the tree.
 
 
 On the "does the BootROM prefer SD over a *corrupt* eMMC?" assumption — I
