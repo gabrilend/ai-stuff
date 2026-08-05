@@ -2514,11 +2514,12 @@ end
 -- }}}
 
 -- {{{ local function generate_download_links
--- Generates download links for full-corpus exports (.txt and .html archive)
+-- Generates download links for the exports of this poem's ordering.
 -- poem_id: the anchor poem's ID (used for unique filename)
 -- page_type: "similar" or "different"
+-- total_pages: how many pages this ordering was split into; decides the plural
 -- Returns: HTML string with download links
-local function generate_download_links(poem_id, page_type)
+local function generate_download_links(poem_id, page_type, total_pages)
     -- Generate unique filename ID (with category prefix)
     local unique_id = string.format("%04d", poem_id)
 
@@ -2526,8 +2527,16 @@ local function generate_download_links(poem_id, page_type)
     local txt_file = string.format("%s/%s.txt", page_type, unique_id)
     local html_archive_file = string.format("%s/%s-archive.html", page_type, unique_id)
 
+    -- The label counts pages, so it has to agree with the pagination the reader
+    -- is actually looking at rather than assume either case. Missing or zero
+    -- page counts read as one page, because a page the reader is standing on
+    -- always exists -- there is no such thing as "download these 0 pages".
+    local page_count = total_pages or 1
+    if page_count < 1 then page_count = 1 end
+    local label = (page_count > 1) and "Download these pages:" or "Download this page:"
+
     local links = {}
-    table.insert(links, "Download full collection:")
+    table.insert(links, label)
     table.insert(links, string.format(' [<a href="%s">.txt</a>]', txt_file))
     table.insert(links, string.format(' [<a href="%s">.html</a>]', html_archive_file))
 
@@ -2594,7 +2603,7 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
     local padded_id = string.format("%04d", starting_poem_id)
 
     -- Generate download links for full-corpus exports
-    local download_links = generate_download_links(starting_poem_id, page_type)
+    local download_links = generate_download_links(starting_poem_id, page_type, total_pages)
 
     -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
     -- Issue 16-010: Added FONT_STYLE for Hack Nerd Font font-stack
