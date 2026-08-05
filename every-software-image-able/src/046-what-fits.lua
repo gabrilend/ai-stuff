@@ -57,6 +57,23 @@ end
 local shapes = dofile(DIR .. "/src/034-model-shapes.lua")
 local budget = dofile(DIR .. "/src/045-memory-budget.lua")
 
+-- What a stored weight costs is the format's to say, and this asks it rather
+-- than holding a second answer. Four files used to describe that one fact.
+local format = dofile(DIR .. "/src/024-blob-format.lua")
+
+-- WHAT THE ENGINE CAN ACTUALLY READ, which is not everything the format can
+-- describe. The arithmetic reads plain thirty-two bit floats and nothing
+-- else -- the other forms exist in the format and the engine has never
+-- implemented them, because the unpacking step goes in the hottest loop in
+-- the machine and that is assembly nobody has written three times yet
+-- (`108`).
+--
+-- Stated here, beside the numbers, because a tool that plans in a currency
+-- the engine does not accept should say so on the same line rather than in
+-- another file. Every "fits" below is otherwise an answer to a question
+-- nobody asked.
+local ENGINE_READS = { f32 = true }
+
 -- Model shapes spanning the range that might plausibly be carried. None of
 -- these is chosen; they are reference points so the shape of the constraint is
 -- visible. Which model an image carries is decided by whoever builds one.
@@ -84,14 +101,25 @@ say("  what a thinking machine costs")
 say("  " .. string.rep("-", 66))
 say("")
 say("  weights stored as " .. precision
-    .. " (" .. budget.PRECISION_BYTES[precision] .. " bytes per number)")
+    .. " (" .. budget.bytes_per_weight(precision, format)
+    .. " bytes per number)")
 say("  the cache always in f32, because it is written and read every step")
+if not ENGINE_READS[precision] then
+  say("")
+  say("  NOTE: the engine cannot read " .. precision .. " yet. Every number")
+  say("  below is what a machine WOULD cost, not what one costs -- the")
+  say("  arithmetic reads f32 only, and at f32 these weights are "
+      .. string.format("%.1f", budget.bytes_per_weight("f32", format)
+                       / budget.bytes_per_weight(precision, format))
+      .. " times")
+  say("  larger than shown. Closing that is 108.")
+end
 say("")
 
 for _, shape in ipairs(candidates) do
   local context = context_override or shape.context
   local parts = budget.total({
-    shape = shape, shapes_module = shapes, precision = precision,
+    shape = shape, shapes_module = shapes, format_module = format, precision = precision,
     context = context, engine_bytes = 2 * 1048576,
   })
 
@@ -107,7 +135,7 @@ for _, shape in ipairs(candidates) do
 
   for _, board in ipairs(boards) do
     local strategy, needed, resident = budget.strategy({
-      shape = shape, shapes_module = shapes, precision = precision,
+      shape = shape, shapes_module = shapes, format_module = format, precision = precision,
       context = context, engine_bytes = 2 * 1048576,
     }, board.memory)
 
@@ -115,7 +143,7 @@ for _, shape in ipairs(candidates) do
       -- asked with the same strategy the machine would actually be running,
       -- or the two disagree and the answer describes a different machine.
       local thought = budget.longest_thought({
-        shape = shape, shapes_module = shapes, precision = precision,
+        shape = shape, shapes_module = shapes, format_module = format, precision = precision,
         engine_bytes = 2 * 1048576,
       }, board.memory, resident)
       say(string.format("      on %-30s %s", board.name, strategy))
@@ -148,7 +176,7 @@ local function check(what, ok, detail)
 end
 
 local shape = candidates[3]
-local options = { shape = shape, shapes_module = shapes, precision = "f16",
+local options = { shape = shape, shapes_module = shapes, format_module = format, precision = "f16",
                   engine_bytes = 0 }
 
 -- The cache is linear in the length of a thought. If it is not, something is
@@ -163,10 +191,10 @@ check("the cache grows in step with the thought", hundred == one * 100,
 -- first long thought, which is the worst moment to find out.
 local available = 3 * 1073741824
 local longest = budget.longest_thought(options, available)
-local at_limit = budget.total({ shape = shape, shapes_module = shapes,
+local at_limit = budget.total({ shape = shape, shapes_module = shapes, format_module = format,
                                 precision = "f16", context = longest,
                                 engine_bytes = 0 }).total
-local past_limit = budget.total({ shape = shape, shapes_module = shapes,
+local past_limit = budget.total({ shape = shape, shapes_module = shapes, format_module = format,
                                   precision = "f16", context = longest + 1,
                                   engine_bytes = 0 }).total
 check("the longest thought that fits, fits", at_limit <= available,
@@ -190,10 +218,60 @@ check("more memory never chooses a slower strategy",
 
 -- The block-quantised format must actually be smaller than the plain one, or
 -- there is no reason to carry the complication into the inner loop.
-local plain = budget.weights(shape, "f32", shapes)
-local packed = budget.weights(shape, "q40", shapes)
+local plain = budget.weights(shape, "f32", shapes, format)
+local packed = budget.weights(shape, "q40", shapes, format)
 check("the compact format is smaller than the plain one", packed < plain / 4,
       readable_bytes(packed) .. " against " .. readable_bytes(plain))
+
+-- {{{ one description of what a weight costs, and only one
+--
+-- This is the check that would have caught the defect that produced it. Four
+-- files described this fact: the format carried a `bytes` field that was zero
+-- for the block-quantised form, the packer had a special case spelling the
+-- real cost out, this tool held a table of its own, and the engine behaved as
+-- though only the plain form existed. The three that had numbers agreed. The
+-- one that could be multiplied by a count gave nothing, and nothing noticed,
+-- because no test ever put two of them side by side.
+--
+-- So they are put side by side. The exact size of a real run of weights and
+-- the average used for budgeting have to agree with each other, for every
+-- form the format describes -- which they can only do if there is one
+-- description underneath both.
+local costs_agree, cost_trouble = true, nil
+for name in pairs(format.PRECISION) do
+  local block = format.block_of(name)
+  -- a whole number of blocks, so the exact answer is defined
+  local count = block * 1000
+  local exact = format.bytes_for(name, count)
+  local averaged = budget.bytes_per_weight(name, format) * count
+  if exact ~= averaged then
+    costs_agree = false
+    cost_trouble = cost_trouble or string.format(
+      "%s: %d bytes exactly, %g by the average", name, exact, averaged)
+  end
+end
+check("what a weight costs is one description, not several",
+      costs_agree, cost_trouble)
+
+-- And the field that used to give zero is gone rather than corrected, so
+-- anything still reaching for it fails loudly instead of quietly costing
+-- nothing.
+local stale = false
+for name, precision in pairs(format.PRECISION) do
+  if precision.bytes ~= nil then stale = name end
+end
+check("and nothing can still ask for it in bytes-per-number",
+      stale == false,
+      tostring(stale) .. " still carries a plain bytes field, which is the "
+      .. "shape that gave zero for a form that costs more than half a byte")
+
+-- A count that is not a whole number of blocks is refused rather than
+-- averaged, because a partial block has nowhere to keep its scale and the
+-- tensor after it would begin in the middle of one.
+local partial = pcall(format.bytes_for, "q40", format.block_of("q40") + 1)
+check("a partial block is refused rather than rounded", not partial,
+      "it returned a size for a run of weights that cannot be stored")
+-- }}}
 -- }}}
 
 say("")

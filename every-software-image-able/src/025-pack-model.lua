@@ -72,26 +72,31 @@ end
 
 -- {{{ local function tensor_bytes(tensor, format)
 local function tensor_bytes(tensor, format)
-  -- how many bytes a tensor's numbers occupy, from its shape and precision.
-  local precision = format.PRECISION[tensor.precision]
-    or die("tensor '" .. tensor.name .. "' asks for unknown precision '"
-           .. tostring(tensor.precision) .. "'")
+  -- How many bytes a tensor's numbers occupy, ASKED RATHER THAN WORKED OUT.
+  --
+  -- This used to hold its own copy: a special case for the block-quantised
+  -- form spelling out that thirty-two weights share a two-byte scale, plus
+  -- its own divisibility check repeating the block size, plus a multiply by
+  -- a `bytes` field for everything else. Three files described that one fact
+  -- in three shapes and the field this read gave zero for the very form the
+  -- special case existed to handle -- so the special case was load-bearing
+  -- and nothing said so.
+  --
+  -- The format decides what a stored number is, so the format decides what it
+  -- costs. Both the size and the refusal of a partial block come from there.
+  if not format.PRECISION[tensor.precision] then
+    die("tensor '" .. tensor.name .. "' asks for unknown precision '"
+        .. tostring(tensor.precision) .. "'")
+  end
 
   local count = 1
   for _, extent in ipairs(tensor.shape) do count = count * extent end
 
-  if tensor.precision == "q40" then
-    -- block-quantised: 32 weights share one 2-byte scale, and each weight
-    -- takes half a byte. The block size is part of the format rather than a
-    -- per-tensor choice, so a reader never has to be told it.
-    if count % 32 ~= 0 then
-      die("tensor '" .. tensor.name .. "' has " .. count
-          .. " weights, which is not a whole number of 32-weight blocks")
-    end
-    return (count / 32) * (16 + 2)
+  local ok, bytes = pcall(format.bytes_for, tensor.precision, count)
+  if not ok then
+    die("tensor '" .. tensor.name .. "': " .. tostring(bytes))
   end
-
-  return count * precision.bytes
+  return bytes
 end
 -- }}}
 
