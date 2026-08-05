@@ -275,6 +275,119 @@ matrix_vector_fast:
 ]],
   -- }}}
 
+  -- {{{ matrix_vector_quantised -- weights at four bits, unpacked as it goes
+  --
+  -- void matrix_vector_quantised(float *out, const unsigned char *matrix,
+  --                              const float *input, int rows, int columns)
+  --
+  -- out rdi, matrix rsi, input rdx, rows ecx, columns r8d.
+  --
+  -- A FOURTH SPECIFICATION, not a smaller version of any of the three above.
+  -- The weights it reads have already lost information and its answer is
+  -- different on purpose, so it is never compared against the exact product.
+  -- It is held to `123`, the readable specification, bit for bit -- and to
+  -- the other two architectures, which is the same claim said twice.
+  --
+  -- THE SCALE IS UNPACKED IN WHOLE-NUMBER ARITHMETIC rather than by a
+  -- conversion instruction, on all three architectures, and that is a
+  -- deliberate choice rather than an oversight. This processor's half-float
+  -- conversion is an optional extension that a given chip may not have; the
+  -- third architecture's base instruction set has no half-precision at all.
+  -- Borrowing an instruction here would make the engine refuse to run on
+  -- machines it otherwise fits, and would make one architecture's answer
+  -- depend on hardware the others do not have.
+  --
+  -- The unpacking, and it is the same three lines everywhere: shift the
+  -- pattern up thirteen places so its mantissa lands where a single
+  -- precision mantissa goes, add the difference between the two exponent
+  -- biases, and -- only when the exponent field was zero -- take one step
+  -- into the normal range and subtract it off again, which turns a
+  -- subnormal into the number it stands for without any counting of leading
+  -- zeroes. A scale is never negative and never infinite here, because the
+  -- quantiser takes a magnitude and saturates, so neither case is written.
+  --
+  -- TWO WEIGHTS PER PASS, and not for speed. Choosing a half of a byte by
+  -- testing the low bit of an index would put a branch in the innermost
+  -- loop of the machine; taking the low half and then the high half needs no
+  -- test at all, and the order it produces is exactly the order the
+  -- specification names.
+  matrix_vector_quantised = [[
+  .globl matrix_vector_quantised
+  .type matrix_vector_quantised, @function
+matrix_vector_quantised:
+  pushq %rbx
+  pushq %r12
+  testl %ecx, %ecx
+  jle 9f                        # no rows: nothing to do, and not an error
+  xorl %r9d, %r9d               # row = 0
+1:
+  xorps %xmm0, %xmm0            # running total for this row
+  movl %r8d, %eax
+  shrl $5, %eax                 # blocks in a row: columns / 32
+  imull %r9d, %eax              # rows of blocks before this one
+  imull $18, %eax               # and eighteen bytes to a block
+  leaq (%rsi,%rax), %r11        # where this row's bytes begin
+  xorl %r10d, %r10d             # column = 0
+  testl %r8d, %r8d
+  jle 5f                        # a row of no columns totals zero
+2:
+  # the scale, out of two bytes and into a single precision register
+  movzwl (%r11), %eax
+  shll $13, %eax
+  movl %eax, %ebx
+  andl $0x0f800000, %ebx        # the exponent field, where it now sits
+  addl $0x38000000, %eax        # the two biases differ by this much
+  testl %ebx, %ebx
+  jnz 3f
+  addl $0x00800000, %eax        # a step into the normal range
+  movd %eax, %xmm1
+  movl $0x38800000, %eax        # and the same step, taken back off
+  movd %eax, %xmm2
+  subss %xmm2, %xmm1
+  jmp 4f
+3:
+  movd %eax, %xmm1
+4:
+  xorl %ebx, %ebx               # which byte of the sixteen
+6:
+  movzbl 2(%r11,%rbx), %eax     # two weights
+  movl %eax, %r12d
+
+  andl $15, %eax                # the earlier one is the low half
+  subl $8, %eax                 # eight stands for nothing
+  cvtsi2ssl %eax, %xmm2
+  mulss %xmm1, %xmm2            # times the block's scale
+  mulss (%rdx,%r10,4), %xmm2    # times what it meets
+  addss %xmm2, %xmm0            # ascending order, as everywhere else
+  incq %r10
+
+  shrl $4, %r12d                # and the later one is the high half
+  subl $8, %r12d
+  cvtsi2ssl %r12d, %xmm2
+  mulss %xmm1, %xmm2
+  mulss (%rdx,%r10,4), %xmm2
+  addss %xmm2, %xmm0
+  incq %r10
+
+  incl %ebx
+  cmpl $16, %ebx
+  jl 6b
+
+  addq $18, %r11                # the next block
+  cmpl %r8d, %r10d
+  jl 2b
+5:
+  movss %xmm0, (%rdi,%r9,4)
+  incl %r9d
+  cmpl %ecx, %r9d
+  jl 1b
+9:
+  popq %r12
+  popq %rbx
+  retq
+]],
+  -- }}}
+
   -- {{{ rms_normalise
   --
   -- void rms_normalise(float *out, const float *input, const float *weight,
@@ -754,6 +867,7 @@ add_into:
 -- {{{ M.names -- what exists, so a test can ask rather than be told
 M.names = {
   "matrix_vector_plain", "matrix_vector_wide", "matrix_vector_fast",
+  "matrix_vector_quantised",
   "rms_normalise",
   "exp_one", "softmax", "swiglu",
   "rotate", "attention_scores", "attention_mix", "add_into",
