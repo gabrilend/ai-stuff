@@ -25,9 +25,39 @@ costing and that at what the engine does read these weights are 7.1 times
 larger than shown. Every "fits" it prints was previously an answer to a
 question nobody had asked.
 
-What remains is the routine itself: a matrix-vector product that unpacks a
-block, applies the shared scale, and proceeds -- on all three architectures
-as one piece of work, with its own recorded answers.
+**The readable specification of the small form now exists too** -- `src/123`,
+checked by `src/124`, 15 of 15. The format said how large a block is and not
+what was in it, which is the difference between a size and a format: two
+programs can agree exactly on how many bytes a tensor takes and disagree
+completely about what they mean, and nothing notices until the numbers come
+out wrong. The layout is now written down -- the scale first as a 16-bit
+float, low byte first, then two weights per byte with the earlier one in the
+low half, and eight as the zero point.
+
+**One decision changed while being tested, and it is the interesting one.**
+The scale was first specified as the largest magnitude in a block over
+eight. Four bits with a zero point of eight run from minus eight to plus
+seven, so a weight at the positive extreme wants index sixteen, which does
+not exist, and clips. The test caught it immediately at nearly double the
+predicted error.
+
+Clipping is not a rounding error. It is unbounded by the step size and it
+lands on the largest weight in the block, which is the one that matters
+most. So the divisor is seven: index zero goes unused, every weight lands
+between one and fifteen, and nothing ever clips. The cost is one level of
+sixteen. The gain is that the error bound is a bound rather than a hope --
+which measured better in practice anyway, 0.147 against 0.250 on the same
+matrix, because one seventh of a half beats one eighth of one and a half.
+
+The usual arrangement elsewhere divides by minus eight and clips in the
+other direction. That trade is finer steps for a lost guarantee, and a
+guarantee is worth more here: this project holds three implementations to
+identical answers, and an unbounded case is exactly where three
+implementations stop agreeing.
+
+What remains is the assembly: a matrix-vector product that unpacks a block,
+applies the shared scale, and proceeds -- on all three architectures as one
+piece of work, held to `123`'s answers.
 
 ---
 
