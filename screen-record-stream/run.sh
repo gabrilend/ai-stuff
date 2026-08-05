@@ -57,6 +57,7 @@ Options:
   --peer=HOST       Peer's IP address to connect to
   --peer-port=PORT  Peer's port (default: 8080)
   --quality=N       JPEG quality 1-100 (default: 80)
+  --fps=N           Target frames per second (default: 10)
   --display=DISP    X11 display (default: :0)
   --dir=PATH        Project directory
   --help            Show this help
@@ -64,16 +65,21 @@ Options:
 Examples:
   $0                                    # Start server only
   $0 --peer=192.168.1.100               # Connect to peer
-  $0 --port=9000 --peer=192.168.1.100   # Custom port + peer
+  $0 --port=9000 --fps=5                # Custom port + lower FPS
 
 Once running, open http://localhost:8080/ in your browser.
 
-Endpoints:
+Phase 1 Endpoints (single frame):
   /         - Index page
   /screen   - Current screenshot (JPEG)
   /bytes    - Hex dump of screenshot bytes
   /stats    - Transfer statistics
-  /live     - Auto-refreshing live view
+  /live     - Auto-refreshing live view (polling)
+
+Phase 2 Endpoints (streaming):
+  /live-stream   - Live stream viewer with SSE (recommended)
+  /stream        - Raw SSE event stream
+  /stream-stats  - Streaming and change detection statistics
 
 EOF
 }

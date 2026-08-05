@@ -34,6 +34,11 @@ local config = {
     poll_interval = 1.0,       -- Seconds between fetching peer's screen
     capture_interval = 0.5,    -- Seconds between captures
 
+    -- Streaming settings (Phase 2)
+    target_fps = 10,           -- Target frames per second
+    keyframe_interval = 30,    -- Force keyframe every N frames
+    stream_timeout = 60,       -- Max seconds for streaming connection
+
     -- Paths
     tmp_dir = DIR .. "tmp/",
     output_dir = DIR .. "output/",
@@ -69,6 +74,8 @@ function config.parse_args(args)
             config.capture_quality = tonumber(value)
         elseif key == "display" then
             config.capture_display = value
+        elseif key == "fps" then
+            config.target_fps = tonumber(value)
         elseif key == "dir" then
             config.DIR = value
             if config.DIR:sub(-1) ~= "/" then
