@@ -36,6 +36,25 @@
 -- was never written, and the second hands back one that is off the end of
 -- everything.
 
+-- WHY THE HEADER'S SIXTY-FOUR BIT FIELDS ARE READ IN HALVES. Three of them
+-- sit at offsets that are not multiples of eight -- the header grew by
+-- four-byte counts and eight-byte offsets in whatever order made sense to a
+-- reader, and nothing ever needed them aligned before, because the host reads
+-- them with a language that does not care.
+--
+-- A processor may or may not care, and that is the problem. The first
+-- architecture loads an unaligned eight bytes without comment. The other two
+-- are permitted to fault on it, and whether they do depends on a bit the
+-- FIRMWARE sets before handing over -- so the same instructions can work on
+-- one board and raise an exception with no handler on another of the same
+-- kind. This project has met that shape of difference before and writes it
+-- down rather than discovering it: `notes/023`.
+--
+-- Measured, so the claim is not louder than the evidence: the boards here
+-- tolerate it, and this was changed on principle rather than after a fault.
+-- Both halves are loaded as four bytes each and joined. It costs one
+-- instruction and removes the dependency on what firmware decided.
+
 local M = {}
 
 -- {{{ M.HEADER_AT and M.ENTRY_AT -- computed from the format, not written
@@ -142,9 +161,13 @@ function M.aarch64(format)
   line("  cmp x3, x2")
   line("  b.lt ft_too_few")
 
-  line("  ldr x4, [x0, #" .. header.tensor_table .. "]")
+  line("  ldr w4, [x0, #" .. header.tensor_table .. "]")
+  line("  ldr w9, [x0, #" .. (header.tensor_table + 4) .. "]")
+  line("  orr x4, x4, x9, lsl #32")         -- in halves; see the header
   line("  add x4, x4, x0")                  -- where the entries begin
-  line("  ldr x5, [x0, #" .. header.blob_bytes .. "]")
+  line("  ldr w5, [x0, #" .. header.blob_bytes .. "]")
+  line("  ldr w9, [x0, #" .. (header.blob_bytes + 4) .. "]")
+  line("  orr x5, x5, x9, lsl #32")
   line("  mov x6, xzr")                     -- which tensor
 
   line("ft_loop:")
@@ -190,9 +213,15 @@ function M.riscv64(p, format)
   p:op("lwu t0, " .. header.tensor_count .. "(a0)")
   p:branch("blt", "t0", "a2", "ft_too_few")
 
-  p:op("ld t1, " .. header.tensor_table .. "(a0)")
+  p:op("lwu t1, " .. header.tensor_table .. "(a0)")
+  p:op("lwu t5, " .. (header.tensor_table + 4) .. "(a0)")
+  p:op("slli t5, t5, 32")
+  p:op("or t1, t1, t5")                     -- in halves; see the header
   p:op("add t1, t1, a0")                    -- where the entries begin
-  p:op("ld t2, " .. header.blob_bytes .. "(a0)")
+  p:op("lwu t2, " .. header.blob_bytes .. "(a0)")
+  p:op("lwu t5, " .. (header.blob_bytes + 4) .. "(a0)")
+  p:op("slli t5, t5, 32")
+  p:op("or t2, t2, t5")
   p:op("mv t3, zero")                       -- which tensor
 
   p:label("ft_loop")

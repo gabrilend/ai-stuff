@@ -101,6 +101,7 @@ if [ -z "${QUICK}" ]; then
   run_test "saying something, on all three"       "129-test-say-elsewhere.lua"
   run_test "finding the weights, on all three"    "132-test-find-tensors.lua"
   run_test "dividing the memory, on all three"    "134-test-lay-out.lua"
+  run_test "setting a machine up from nothing"    "136-test-fill-the-plan.lua"
 else
   printf '\n=== skipped: the discipline, held and broken (--quick) ===\n'
   printf '\n=== skipped: the machine'"'"'s arithmetic, against the host'"'"'s (--quick) ===\n'

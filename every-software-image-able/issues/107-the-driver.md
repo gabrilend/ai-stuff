@@ -44,6 +44,39 @@ checked against each other directly, and the host's own answer is checked
 that way before it is used as the standard, since three machines agreeing
 about a wrong layout is the worst outcome available.
 
+**Step four -- telling the conducting where everything is -- is written and
+proved as well**: `src/135`, checked by `src/136`, 10 of 10. And on the first
+architecture the whole chain was run for real: find the weights, divide the
+memory, fill the plan, **and think** -- with the answer held to the recorded
+one.
+
+That last check is the point. Comparing a plan against a plan says only that
+two programs agree; running the engine with it says the plan is *usable*, and
+every wrong slot becomes a wrong score. The slot-by-slot comparison is kept
+too, because it says WHICH slot is wrong -- one answers "does it work", the
+other answers "what is broken", and a setup routine wants both.
+
+**Steps one through four are therefore done.** A machine can find its own
+weights, divide its own memory, and write down where all of it is, with no
+linker, no allocator and nothing underneath it.
+
+**Three things cost time, and all three are the same shape.** The setup was
+appended after the kernel emitter's output, which ends by switching to the
+section marking the stack non-executable -- so the new routines landed
+*there*, in a library that built without a murmur, and calling into them
+faulted. A division on the first architecture needs one particular register
+pair, and one of them is where an argument arrives, so dividing destroyed the
+tensor list and every address after it was read from a remainder. And a
+payload reserved the whole hundred and twenty-eight kilobytes of stack the
+specification guarantees, leaving the pointer at the bottom, so the first
+call back into firmware pushed past the end.
+
+The third of those is now `notes/023` entry sixteen, along with the thing
+that made it slow: two probes that read a routine's answer *after* saying
+something, and firmware hands back its own status in the register an answer
+arrives in. A diagnostic that runs through the firmware has already changed
+what it is measuring.
+
 **It refuses rather than trims, and the refusal is the shortfall.** A board
 short of room is told how many bytes it was short by, because "needs four
 thousand more bytes than this has" is something a person can act on and
