@@ -13,7 +13,7 @@ paid once, by people, before any of these machines exist.
 |---|---|---|
 | `401` | The second and third tongues | **in progress** — a whole thought runs end to end in assembly on all three architectures, and all three produce the same 192 scores bit for bit over the same weights; what remains is the hands, which are ported nowhere |
 | `402` | Waking on the right foot | **completed** — the selection proved on all three architectures, the within-architecture detection written and proved by booting two different processors and requiring them to disagree, 18 of 18 |
-| `403` | The rest of the engine, elsewhere | **not started** — the tokenizer and the console exist in assembly on the first architecture only, and the driver calls both on every turn |
+| `403` | The tokenizer and the console, on all three at once | **in progress** — the tokenizer now exists on all three and agrees over the awkward corpus in both directions, 9 of 9; the console is still first-architecture only |
 
 ## Where the risk is
 
@@ -47,9 +47,12 @@ a relocation on a branch to a label in its own file, which the word emitter
 What is left of `401` is the half that is not a translation at all: the
 hands. x86 reaches devices through a separate address space with its own
 instructions and the other two are memory-mapped throughout, so that hand
-changes shape rather than detail. Everything above the arithmetic and the
-conducting is still first-tongue only — the sampler, the tokenizer, the
-thinking loop, and every hand.
+changes shape rather than detail — and the hands are still the readable kind
+of code on *every* architecture including the first, so they are `107`'s
+work rather than a port.
+
+Above the arithmetic and the conducting, the sampler and the tokenizer now
+exist on all three as well. What does not is the console, which is `403`.
 
 The demo this phase names is now possible for the first time, and was not
 before: the same measurement across all three architectures side by side

@@ -97,6 +97,7 @@ if [ -z "${QUICK}" ]; then
   run_test "choosing the same word, second tongue" "119-test-sampler-aarch64.lua"
   run_test "choosing the same word, third tongue"  "122-test-sampler-riscv64.lua"
   run_test "four-bit weights, on all three"       "125-test-quantised-kernels.lua"
+  run_test "the same words, on all three"         "127-test-tokenizer-elsewhere.lua"
 else
   printf '\n=== skipped: the discipline, held and broken (--quick) ===\n'
   printf '\n=== skipped: the machine'"'"'s arithmetic, against the host'"'"'s (--quick) ===\n'
