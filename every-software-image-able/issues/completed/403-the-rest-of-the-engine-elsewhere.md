@@ -61,9 +61,34 @@ The decode half is checked as hard as the encode half, and that is not
 symmetry for its own sake -- a tokenizer whose two halves are wrong in
 matching ways round-trips perfectly while saying something else entirely.
 
-**What remains here is the console**, on the second and third architectures.
-That is what a failing machine uses to say why it stopped, and until it
-exists a machine that stops on either of those two says nothing at all.
+**And the console is done on all three, the same day.** Saying something is
+now a routine anything can call rather than words spelled out inline when a
+payload is built -- which is the form an engine needs, because an engine says
+whatever a model produces and cannot know it in advance. 9 of 9 in `src/129`,
+on real emulated machines of both kinds.
+
+Three things are checked beyond "something appeared", each of which a routine
+that merely looked right would fail: a message several times longer than the
+scratch it is given, so the chunking is exercised rather than assumed; the
+pieces required to arrive in order and joined, so a routine that returned
+early or restarted is caught; and bytes that are not letters, since widening
+is where a routine that sign-extends rather than zero-extends turns anything
+past 127 into a different character entirely.
+
+**One thing had to be shuffled on the first architecture and not the other
+two.** Firmware there is called by a different convention than the rest of
+that architecture's code uses -- arguments in c, d, r8, r9 rather than di,
+si, d, c -- and it expects thirty-two bytes left below the return address
+that it may use and this routine never reads. On the other two, firmware is
+called exactly the way everything else is.
+
+**What this ticket does not cover, deliberately: the screen.** Drawing
+letters as pictures exists on the first architecture only, and a board may
+have no display at all -- which `601` names as a case to meet rather than
+assume away. The wire is the channel that always exists, and it is the one
+that matters while something is going wrong.
+
+**This ticket is complete.**
 
 ---
 
