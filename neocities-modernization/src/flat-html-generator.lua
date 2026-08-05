@@ -2514,18 +2514,25 @@ end
 -- }}}
 
 -- {{{ local function generate_download_links
--- Generates download links for the exports of this poem's ordering.
--- poem_id: the anchor poem's ID (used for unique filename)
--- page_type: "similar" or "different"
+-- Generates download links for the exports sitting beside this page.
+-- starting_poem: the anchor poem -- the export filenames are derived from it
 -- total_pages: how many pages this ordering was split into; decides the plural
 -- Returns: HTML string with download links
-local function generate_download_links(poem_id, page_type, total_pages)
-    -- Generate unique filename ID (with category prefix)
-    local unique_id = string.format("%04d", poem_id)
+local function generate_download_links(starting_poem, total_pages)
+    -- The exports are WRITTEN under get_unique_poem_filename_id, which prefixes
+    -- the category to dodge cross-category id collisions (Issue 8-019). The file
+    -- on disk is "fediverse-4355.txt". This used to build the name from a bare
+    -- %04d of the poem index instead -- "4355.txt" -- naming a file that was
+    -- never written. Read the name from the same function the writer uses, so
+    -- the two cannot drift apart again.
+    local unique_id = get_unique_poem_filename_id(starting_poem)
 
-    -- Full-corpus export filenames (not paginated)
-    local txt_file = string.format("%s/%s.txt", page_type, unique_id)
-    local html_archive_file = string.format("%s/%s-archive.html", page_type, unique_id)
+    -- Bare filenames, no directory. These links are document-relative and this
+    -- page ALREADY lives inside similar/ or different/, so naming the directory
+    -- again resolved to similar/similar/fediverse-4355.txt. The export is a
+    -- sibling of this page, not a child of it.
+    local txt_file = string.format("%s.txt", unique_id)
+    local html_archive_file = string.format("%s-archive.html", unique_id)
 
     -- The label counts pages, so it has to agree with the pagination the reader
     -- is actually looking at rather than assume either case. Missing or zero
@@ -2538,7 +2545,15 @@ local function generate_download_links(poem_id, page_type, total_pages)
     local links = {}
     table.insert(links, label)
     table.insert(links, string.format(' [<a href="%s">.txt</a>]', txt_file))
-    table.insert(links, string.format(' [<a href="%s">.html</a>]', html_archive_file))
+
+    -- The .html archive is only written when generate_html_archives is on, and
+    -- it ships off (config.lua: "redundant with paginated pages"). Offering the
+    -- link regardless put a permanently dead download on every page. Advertise
+    -- what was actually produced -- see Issue 10-055's rule for the source
+    -- browser: skip it, do not emit a dead link.
+    if PAGINATION_CONFIG.generate_html_archives then
+        table.insert(links, string.format(' [<a href="%s">.html</a>]', html_archive_file))
+    end
 
     return table.concat(links, " ")
 end
@@ -2603,7 +2618,7 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
     local padded_id = string.format("%04d", starting_poem_id)
 
     -- Generate download links for full-corpus exports
-    local download_links = generate_download_links(starting_poem_id, page_type, total_pages)
+    local download_links = generate_download_links(starting_poem, total_pages)
 
     -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
     -- Issue 16-010: Added FONT_STYLE for Hack Nerd Font font-stack
@@ -4500,14 +4515,20 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 end
             end
 
-            -- Generate TXT version (full corpus export - not paginated)
+            -- Generate TXT version. NOT a full-corpus export, despite what this comment
+            -- used to claim: it receives the SAME ranked list the pages are built
+            -- from, already trimmed, so it holds what the reader is looking at
+            -- (~90 entries), unsplit by page. The old wording sent a reader
+            -- looking for a whole-collection download that is not produced here.
             local similar_txt = generate_similarity_txt_file(poem_data, similar_ranking,
                                                            string.format("%s/similar/%s.txt", output_dir, unique_id))
             if similar_txt then
                 table.insert(results.txt_files, similar_txt)
             end
 
-            -- Generate HTML archive version (full corpus export with images - not paginated)
+            -- Generate HTML archive version: the same ranked list as the pages, with
+            -- images, in one unsplit file. Off by default, which is why the page
+            -- only advertises it when generate_html_archives is on.
             -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
             if PAGINATION_CONFIG.generate_html_archives then
                 local similar_archive = generate_similarity_html_archive(poem_data, similar_ranking,
@@ -4540,14 +4561,20 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 end
             end
 
-            -- Generate TXT version (full corpus export - not paginated)
+            -- Generate TXT version. NOT a full-corpus export, despite what this comment
+            -- used to claim: it receives the SAME ranked list the pages are built
+            -- from, already trimmed, so it holds what the reader is looking at
+            -- (~90 entries), unsplit by page. The old wording sent a reader
+            -- looking for a whole-collection download that is not produced here.
             local diverse_txt = generate_diversity_txt_file(poem_data, diverse_sequence,
                                                           string.format("%s/different/%s.txt", output_dir, unique_id))
             if diverse_txt then
                 table.insert(results.txt_files, diverse_txt)
             end
 
-            -- Generate HTML archive version (full corpus export with images - not paginated)
+            -- Generate HTML archive version: the same ranked list as the pages, with
+            -- images, in one unsplit file. Off by default, which is why the page
+            -- only advertises it when generate_html_archives is on.
             -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
             if PAGINATION_CONFIG.generate_html_archives then
                 local diverse_archive = generate_diversity_html_archive(poem_data, diverse_sequence,
