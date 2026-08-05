@@ -339,6 +339,48 @@ The mechanical properties the *shape* enforces:
   by the build's skip shortcut, by `--dry-run`, and by the audit's convergence
   test.
 
+### Declaring each side once (the stronger form of the same component)
+
+Look closely at the canonical shape above and one thing is written twice: the OLD text
+appears in `patch_` and again in `unpatch_`, and so does the NEW text. Two copies of the
+same string in two functions is a drift risk — edit the forward transformation, forget
+the inverse, and you have a patch that applies and will not reverse. The markers and the
+round-trip assertion catch it *after the fact*; the shape itself does not prevent it.
+
+The stronger form makes the drift unrepresentable: **an edit declares each side exactly
+once, and both directions are derived from those declarations.**
+
+```bash
+before_<id>() { cat <<'EOF'          # upstream's lines, verbatim
+<OLD text>
+EOF
+}
+block_<id>()  { cat <<'EOF'          # what goes there instead
+<NEW text>
+EOF
+}
+```
+
+The driver reads both and does the rest: apply swaps `before`→`block`, unapply swaps
+`block`→`before`, the presence guard asks whether `block` is there. Three consumers, two
+declarations, no second copy anyone can forget. Two further properties fall out:
+
+- **Insertion becomes a special case rather than a different mechanism.** Adding lines is
+  a swap whose `before` survives inside its `block`; a patch that declares no `before` at
+  all is an insertion keyed on an anchor. Which kind a patch is need not be recorded
+  anywhere — *declaring a `before` is the registration*, the same
+  dispatch-by-convention the orchestrator already uses for function names.
+- **Substrate quirks get exactly one home.** Line endings, encodings, tabs-versus-spaces:
+  convert in the one place that produces both the bytes you search for and the bytes you
+  put back, and a reversal cannot restore something subtly different from what it took
+  away. Convert in the declarations instead and every author has to remember; convert in
+  two places and they disagree eventually.
+
+This does not retire the markers — they solve a different problem (a stable handle when
+upstream reflows *around* your block, and a witness the audit can probe). Use both where
+the substrate allows comments; use single-declaration where it does not, which is common
+in structured formats that only permit comments in some positions.
+
 ### The generator and the verifier replace the "add a patch" checklist
 
 Adding a patch is not a remembered procedure; it is **a generator that stamps the
@@ -691,9 +733,11 @@ components; the guarantees emerge from how they connect.
   drivers, and `audit_patches`. Dispatch by naming convention so there is no
   manifest to maintain.
 - **The standard component:** patches as guarded, anchored, marker-wrapped,
-  exact-inverse pairs with a witness probe and header fields. The substrate (any
-  language, any config DSL) is irrelevant — anchored `sed`/`awk` operate on any
-  text tree; non-textual patches swap the tool and keep the contract.
+  exact-inverse pairs with a witness probe and header fields — or, where you want drift
+  made unrepresentable rather than merely detected, as single-declaration before/block
+  pairs the driver reads in both directions. The substrate (any language, any config DSL)
+  is irrelevant — anchored `sed`/`awk` operate on any text tree; non-textual patches swap
+  the tool and keep the contract.
 - **The generators and the gate:** `scaffold-patch` (emits components),
   `gen-registry` (recomputes the registry from headers), `verify-patches` (asserts
   round-trip + match-count and blocks the build on failure).
@@ -725,6 +769,20 @@ forecloses it":
 - **Silent corruption from a loose pattern.** An unanchored pattern matching two
   sites edits the wrong one. *Foreclosed by* the `MATCHES` field + `verify-patches`,
   which fail any patch whose anchor count isn't exactly as declared.
+- **Timid edits.** A system that only ever ADDS lines, because "reversible" got read as
+  "non-destructive." Whole classes of customization then look impossible: you cannot
+  change a line upstream wrote, only append near it — and the impossibility is invisible,
+  because everything that *does* get built still passes every check. *Foreclosed by*
+  remembering that pristine is guaranteed by re-clone/re-extract, not by timidity — so
+  replacement is as legitimate as insertion, and the round-trip proof covers both
+  identically. If a patch system has no way to state "these lines of theirs become these
+  lines of ours," that is a missing feature, not a law of nature.
+- **A copy of upstream's text going stale in your patch.** A replacement necessarily
+  quotes upstream in your repo, which is the classic way a fork rots. *Foreclosed by*
+  treating the quote as a **requirement rather than a record**: it must match exactly
+  once or the run stops and names the patch. Staleness becomes a stopped build instead of
+  a wrong artifact — which is why quoting upstream is safe here and unsafe in a system
+  that merely remembers what upstream said.
 - **A fragile inverse.** Reverting by re-matching content breaks when upstream
   reflows around the block. *Foreclosed by* the unique `{{{ <ID> }}}` markers,
   which give the inverse a stable handle and double as the witness.
