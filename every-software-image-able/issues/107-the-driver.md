@@ -2,6 +2,38 @@
 
 ## Current behavior
 
+**Started, 2026-08-04. The first piece exists on all three machines.**
+
+Step two of the ten below -- finding the model and locating every tensor --
+is written and proved: `src/131`, checked by `src/132`, 14 of 14. All three
+processors walk a real packed model and arrive at the same place for every
+one of its tensors, and all three refuse the two failures that are otherwise
+silent.
+
+It was written first because its failure is silence in the purest form. An
+address computed slightly wrong is not an error. It is a number, which the
+arithmetic multiplies happily while the machine thinks about nothing -- or it
+points into the engine's own instructions, and the next write there stops the
+machine permanently.
+
+**It walks by index and never reads a name.** Every entry carries a
+thirty-two byte name, and matching those would mean string comparison in the
+one routine that must not be clever. The packer writes tensors in the order
+`034` decides, so the third tensor of the fourth layer is at an index
+arithmetic can find. That is a real dependency: **if the packing order
+changes, this reads the wrong tensors and says nothing** -- so the test
+compares the order against the names, which is the only place names are read.
+
+**Two refusals, with distinct numbers.** A model holding fewer tensors than
+the engine expects, and a tensor claiming bytes past the end of the blob.
+Both are cheap here and impossible to notice later. The numbers differ
+because to somebody reading a serial port they mean different things: the
+wrong model, or half of one.
+
+---
+
+**What remains, and what the rest of this ticket was written about.**
+
 **Nothing runs on a bare machine after the waking code says "handing over."**
 The next instruction is a halt, followed by a jump back to that halt, and
 that is where a flashed machine stops today.
