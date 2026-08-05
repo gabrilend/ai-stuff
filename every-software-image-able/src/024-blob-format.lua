@@ -80,13 +80,77 @@ end
 -- formats are much smaller and put a dequantise step inside it, which is
 -- assembly nobody wants to write three times -- so the format permits them
 -- and the engine decides what it supports.
+-- THERE IS NO `bytes` FIELD, AND THAT IS THE POINT. There used to be, and the
+-- block-quantised form carried a zero in it, meaning "no fixed per-number
+-- size" -- sitting beside three entries where the number was literal. Two
+-- other files then wrote the real cost out for themselves, in different
+-- shapes, and a fourth behaved as though only the plain form existed. One
+-- fact, four descriptions, and the only one a reader could multiply by a
+-- count gave nothing at all.
+--
+-- So the cost is stated as what it actually is -- bits per weight, how many
+-- weights share a scale, and how large that scale is -- and asking for it
+-- goes through the functions below, which cannot be accidentally multiplied.
+-- A form where a weight is not a whole number of bytes is a real thing and
+-- the description has to be able to say so.
 M.PRECISION = {
-  f32 = { code = 1, bytes = 4, note = "plain 32-bit float; simplest inner loop" },
-  f16 = { code = 2, bytes = 2, note = "16-bit float; half the size, same loop shape" },
-  i8  = { code = 3, bytes = 1, note = "8-bit integer with a whole-tensor scale" },
-  q40 = { code = 4, bytes = 0, note = "block-quantised: 32 weights share a scale; "
-                                  .. "needs a dequantise step in the inner loop" },
+  f32 = { code = 1, bits_per_weight = 32, block = 1, scale_bits = 0,
+          note = "plain 32-bit float; simplest inner loop" },
+  f16 = { code = 2, bits_per_weight = 16, block = 1, scale_bits = 0,
+          note = "16-bit float; half the size, same loop shape" },
+  -- the scale here is one per tensor rather than one per block, so it does
+  -- not appear per weight; on any tensor worth quantising it rounds to
+  -- nothing against the weights themselves.
+  i8  = { code = 3, bits_per_weight = 8, block = 1, scale_bits = 0,
+          note = "8-bit integer with a whole-tensor scale" },
+  q40 = { code = 4, bits_per_weight = 4, block = 32, scale_bits = 16,
+          note = "block-quantised: 32 weights share a scale; "
+              .. "needs a dequantise step in the inner loop" },
 }
+-- }}}
+
+-- {{{ M.block_of(name) -- how many weights share one scale
+function M.block_of(name)
+  local precision = M.PRECISION[name]
+    or error("024-blob-format: unknown precision '" .. tostring(name) .. "'")
+  return precision.block
+end
+-- }}}
+
+-- {{{ M.bytes_for(name, weight_count) -- exact bytes, refusing a partial block
+--
+-- What a run of weights actually occupies. A count that is not a whole number
+-- of blocks is refused rather than rounded, because a partial block has
+-- nowhere to keep its scale and the tensor after it would begin in the middle
+-- of one.
+function M.bytes_for(name, weight_count)
+  local precision = M.PRECISION[name]
+    or error("024-blob-format: unknown precision '" .. tostring(name) .. "'")
+  if weight_count % precision.block ~= 0 then
+    error(string.format(
+      "024-blob-format: %d weights is not a whole number of %d-weight blocks, "
+      .. "which '%s' stores them in. A partial block has nowhere to put its "
+      .. "scale.", weight_count, precision.block, name))
+  end
+  local blocks = weight_count / precision.block
+  local bits = blocks * (precision.bits_per_weight * precision.block
+                         + precision.scale_bits)
+  return bits / 8
+end
+-- }}}
+
+-- {{{ M.bytes_per_weight(name) -- the average, for budgeting
+--
+-- Not a whole number for the block-quantised form, and deliberately not
+-- rounded: a budget for a large model drifts if it is. Anything wanting the
+-- real size of a real run of weights asks `bytes_for` instead, which refuses
+-- the counts this one would quietly average over.
+function M.bytes_per_weight(name)
+  local precision = M.PRECISION[name]
+    or error("024-blob-format: unknown precision '" .. tostring(name) .. "'")
+  return (precision.bits_per_weight * precision.block + precision.scale_bits)
+         / precision.block / 8
+end
 -- }}}
 
 -- {{{ M.precision_by_code(code)
