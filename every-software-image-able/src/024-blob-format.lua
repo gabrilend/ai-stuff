@@ -109,6 +109,60 @@ M.PRECISION = {
 }
 -- }}}
 
+-- {{{ M.BLOCK_LAYOUT -- what is actually inside a block, and in what order
+--
+-- The table above says how LARGE a block is. It did not say what is in it,
+-- which is the difference between a size and a format -- two programs can
+-- agree exactly on how many bytes a tensor occupies and disagree completely
+-- about what they mean, and nothing would notice until the numbers came out
+-- wrong.
+--
+-- ONE BLOCK OF THE QUANTISED FORM, in the order the bytes appear:
+--
+--   the scale     two bytes, a 16-bit float, low byte first
+--   the weights   sixteen bytes, two weights per byte
+--
+-- Each weight is a four-bit number from 0 to 15, and the value it stands for
+-- is `(weight - 8) * scale`. The subtraction is what lets the form carry
+-- negative numbers without spending a sign bit: eight is the zero point, so
+-- the range is minus eight to plus seven scales.
+--
+-- WHICH HALF OF A BYTE IS WHICH. The earlier weight is the LOW four bits.
+-- This is a genuine choice and the only reason to write it down is that both
+-- are equally reasonable and a reader who guesses has a fifty percent chance
+-- of a tensor that is entirely shuffled -- which produces numbers, not an
+-- error.
+--
+-- WHY THE SCALE IS A 16-BIT FLOAT rather than a 32-bit one. Two bytes across
+-- thirty-two weights is half a bit each; four bytes would be a whole bit,
+-- which is a quarter of the four bits a weight gets. The precision given up
+-- is in the scale's mantissa, and a scale is a magnitude rather than a value
+-- -- it is multiplied by something already rounded to one part in sixteen.
+--
+-- THE UNPACKING IS ARITHMETIC AND THEREFORE PART OF THE ANSWER. Where the
+-- subtraction of eight happens, and whether the scale is applied to the
+-- integer or to the product, decide the last bits. See `108`: this is a
+-- separate specification from the plain product, not a smaller version of it.
+M.BLOCK_LAYOUT = {
+  q40 = {
+    scale_bytes = 2,
+    scale_kind = "f16",
+    weights_per_byte = 2,
+    zero_point = 8,
+    low_nibble_first = true,
+    order = "scale, then weights",
+  },
+}
+-- }}}
+
+-- {{{ M.block_bytes(name) -- how many bytes one whole block occupies
+function M.block_bytes(name)
+  local precision = M.PRECISION[name]
+    or error("024-blob-format: unknown precision '" .. tostring(name) .. "'")
+  return (precision.bits_per_weight * precision.block + precision.scale_bits) / 8
+end
+-- }}}
+
 -- {{{ M.block_of(name) -- how many weights share one scale
 function M.block_of(name)
   local precision = M.PRECISION[name]
