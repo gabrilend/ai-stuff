@@ -2,12 +2,43 @@
 
 ## Current behavior
 
-**Three files hold the same fact and none of them agree.**
+**The first three steps are done, 2026-08-04. The dequantising routine is
+not.**
+
+There is now one description of what a weight costs, in the format, stated as
+what it actually is: bits per weight, how many weights share a scale, and how
+large that scale is. The packer asks it. The budget tool asks it. The plain
+`bytes` field is gone rather than corrected, so anything still reaching for
+it fails loudly instead of quietly costing nothing.
+
+Three checks were added, and the first is the one that would have caught
+this: the exact size of a real run of weights and the average used for
+budgeting are computed for every form the format describes and required to
+agree, which they can only do if there is one description underneath both.
+The second refuses to let the flattened field come back. The third requires a
+count that is not a whole number of blocks to be refused rather than
+averaged, since a partial block has nowhere to keep its scale.
+
+**And the tool that plans now says what it is planning in.** It reports, on
+the same line as its numbers, that the engine cannot read the form it is
+costing and that at what the engine does read these weights are 7.1 times
+larger than shown. Every "fits" it prints was previously an answer to a
+question nobody had asked.
+
+What remains is the routine itself: a matrix-vector product that unpacks a
+block, applies the shared scale, and proceeds -- on all three architectures
+as one piece of work, with its own recorded answers.
+
+---
+
+**The state that produced this ticket. Four files held the same fact and
+none of them agreed.**
 
 | Where | What one weight of the smallest carried form costs |
 |---|---|
 | the packed-model format | `bytes = 0` |
 | the memory budget tool | `(16 + 2) / 32` — 0.5625 bytes |
+| the packer | `(count / 32) * (16 + 2)`, as a special case beside its own divisibility check |
 | the engine | four, because it reads nothing else |
 
 The format's zero means "no fixed per-number size, it is block-quantised."

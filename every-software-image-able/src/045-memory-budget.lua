@@ -21,25 +21,37 @@
 
 local M = {}
 
--- {{{ M.PRECISION_BYTES -- how much one number costs, per storage format
+-- {{{ M.bytes_per_weight(precision, format_module)
 --
--- The block-quantised format shares one scale across thirty-two weights, so a
--- weight costs half a byte plus a share of the scale. It is not a whole number
--- of bytes per weight and is written as a fraction rather than rounded, so a
--- budget for a large model does not drift.
-M.PRECISION_BYTES = {
-  f32 = 4,
-  f16 = 2,
-  i8 = 1,
-  q40 = (16 + 2) / 32,
-}
+-- ASKED, NOT HELD. There was a table here listing what a weight costs in each
+-- storage form, and it was one of four descriptions of that fact in this
+-- project -- the packer had its own, the format had a field that gave zero
+-- for the very form this table existed to price, and the engine behaved as
+-- though only the plain form existed.
+--
+-- The numbers here were right. That was not enough: every answer this tool
+-- produced about whether a machine fits was computed in a currency nothing
+-- else agreed to, and no test could notice, because the tool and the thing it
+-- was describing never met.
+--
+-- The format decides what a stored number is, so it decides what one costs.
+-- This asks. `format_module` is required rather than optional, because a
+-- default would put the second copy back.
+function M.bytes_per_weight(precision, format_module)
+  if not format_module then
+    error("045-memory-budget: no format module was given. What a weight "
+          .. "costs is the format's to say, and this tool keeping its own "
+          .. "answer is how it came to disagree with the packer, the format "
+          .. "and the engine at once.")
+  end
+  return format_module.bytes_per_weight(precision)
+end
 -- }}}
 
--- {{{ M.weights(shape, precision, shapes_module)
+-- {{{ M.weights(shape, precision, shapes_module, format_module)
 -- What the model itself costs, at a given storage format.
-function M.weights(shape, precision, shapes_module)
-  local per_number = M.PRECISION_BYTES[precision]
-    or error("045-memory-budget: unknown precision '" .. tostring(precision) .. "'")
+function M.weights(shape, precision, shapes_module, format_module)
+  local per_number = M.bytes_per_weight(precision, format_module)
   return math.floor(shapes_module.weight_count(shape) * per_number)
 end
 -- }}}
@@ -92,7 +104,8 @@ function M.total(options)
 
   local parts = {
     engine = options.engine_bytes or 0,
-    weights = M.weights(shape, precision, options.shapes_module),
+    weights = M.weights(shape, precision, options.shapes_module,
+                        options.format_module),
     cache = M.cache(shape, context, cache_width),
     working = M.working(shape, 4),
   }
@@ -128,7 +141,8 @@ end
 function M.longest_thought(options, available_bytes, resident_weight_bytes)
   local shape = options.shape
   local weights = resident_weight_bytes
-    or M.weights(shape, options.precision or "f32", options.shapes_module)
+    or M.weights(shape, options.precision or "f32", options.shapes_module,
+                 options.format_module)
   local fixed = (options.engine_bytes or 0) + weights + M.working(shape, 4)
 
   if fixed >= available_bytes then return 0 end
@@ -157,7 +171,8 @@ function M.strategy(options, available_bytes)
   -- the test that compares its arithmetic to this one (055) must ask this
   -- function the same question the machine asked itself.
   local weights = options.weights_bytes
-    or M.weights(shape, options.precision or "f32", options.shapes_module)
+    or M.weights(shape, options.precision or "f32", options.shapes_module,
+                 options.format_module)
   local cache = M.cache(shape, options.context or shape.context,
                         options.cache_bytes_per_number or 4)
   local working = M.working(shape, 4)

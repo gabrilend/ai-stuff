@@ -43,7 +43,7 @@ not yet above it.
 | `105a` | The tokenizer | **completed** — reference 21 of 21; assembly agrees on the whole awkward corpus, 17 of 17 |
 | `106` | Measure the engine | **completed** — 1.36 G multiply-adds/s conducted end to end; three boards timed from power to their own memory report; results kept as data |
 | `107` | The driver, and what a machine cannot be told | **not started** — the program the firmware enters and never leaves; last in the phase because it drives everything above it |
-| `108` | What a weight costs, said once | **not started** — three files describe it and none agree; decides which machines the seed can run on at all |
+| `108` | What a weight costs, said once | **in progress** — one description now, asked by the packer and the budget tool, with the planning tool saying out loud that the engine cannot read what it plans in; the dequantising routine is not written |
 
 ## Where the risk was, and what it turned out to be
 
