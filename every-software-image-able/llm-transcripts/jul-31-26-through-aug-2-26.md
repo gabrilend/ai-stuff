@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-02 05:00:40
+Generated on: 2026-08-04 21:53:59
 
 --------------------------------------------------------------------------------
 
@@ -6136,3 +6136,268 @@ first-light commit onward it's Fable.
 
 
 --------------------------------------------------------------------------------
+
+### User Request 53
+
+Okay can we add the rest of the phases to your to-do list and keep working until
+its done? You keep stopping, but you don't need to. Just keep working, it'll get
+done bit-by-bit. : )
+
+
+If you need to flag something for me, then that's fine. We'll take the questions
+at the end.
+
+
+If you have a choice to make, make both options. We can prune when we're done
+and ready. Code is cheap, time is expensive, so use all the time that you can,
+because it's what you're budgeted for. You're doing great!
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 53
+
+Understood — I'll keep going and save questions for the end. Two decisions
+ahead where I'll build both rather than pick.
+
+
+Starting with something that removes a whole class of imprecision: the position
+rotation currently needs sine and cosine, which differ between implementations
+and force a tolerance. It doesn't have to.
+
+
+Now the exponential — the last function standing between us and an
+exactly-comparable forward pass. Making it part of the specification rather than
+whatever each side's library happens to do.
+
+
+Relative error around 1e-6 to 1e-7, which is roughly single-precision
+resolution. But you said build both options when there's a choice — so let me
+add a longer series and measure rather than guess which to specify.
+
+
+Seven terms is ten times better in the range that matters most, so the
+measurement settles it. Now wiring both into the forward pass.
+
+
+Now the fixture model has to carry a real rotation table rather than random
+numbers.
+
+
+All seven invariants still hold — including position-sensitivity, which is the
+one the carried rotation table could have broken. Now the exponential in
+assembly.
+
+
+One constant is wrong — I wrote `0x3a83b8ac` for 1/720 where it should be
+`0x3ab60b61`. That's precisely the silent class again: it would have produced
+slightly wrong answers forever.
+
+
+The structural fix is to stop hand-writing them.
+
+
+Now generating the exponential's constants from the reference instead of
+transcribing them.
+
+
+I closed the first text block too early. Fixing the boundary.
+
+
+The exponential agrees exactly — that's the piece that mattered. Softmax is
+broken, and the cause is worth naming: I saved registers *below* the stack
+pointer, and `call` writes its return address exactly there.
+
+
+Crashed on the first gate test after 31 passes. Isolating it.
+
+
+Survives zero but crashes on one. Disassembling what was actually generated.
+
+
+`subq $0x20` on the way in, `addq $0x8` on the way out — I fixed softmax's
+epilogue and missed the gate's. The stack pointer never came back, so it
+returned to garbage.
+
+
+Notably this one *did* crash, which is rare here.
+
+
+**37 of 37, all bit-exact.** Every function in a forward pass now agrees between
+the reference and assembly — including the exponential across its entire
+range, softmax, and the gate. There is no tolerance anywhere.
+
+
+Recording the two new findings and committing.
+
+
+Now the remaining kernels, so a complete forward pass can run on assembly
+arithmetic.
+
+
+The `rotate` kernel references a register I never set up. Rewriting it properly.
+
+
+Now a forward pass whose every arithmetic operation is the assembly kernel,
+checked against the same fixture.
+
+
+One difference, of 3.7e-09, and only from step 2 onward — step 1 is exact.
+That pattern is diagnostic: at position 0 softmax of a single score is 1.0
+regardless, so the attention scale never shows. **The assembly caught a bug in
+the reference.**
+
+
+The reference computes its scale as a double and lets it into single-precision
+arithmetic unrounded — violating its own specification.
+
+
+Still there — because I made the two sides compute the scale differently: one
+rounds the square root before dividing, the other rounds only the final result.
+Making them agree.
+
+
+Not the scale. Position 0 is exact and rotation is the identity there, so the
+divergence starts with something that only acts from position 1. Checking the
+attention accumulation.
+
+
+Found it — the reference accumulates the weighted values in one rounding,
+where the assembly rounds the product and the sum separately.
+
+
+**A complete forward pass, entirely on assembly arithmetic, bit-identical to the
+recorded answer.** Every score, every step, both matrix kernels, plus all the
+invariants.
+
+
+Verifying everything else still holds, then committing.
+
+
+Now the other half of the feasibility question — speed. There's a working
+forward pass to measure.
+
+
+Real numbers now, and one of them is a significant finding: **reading four at a
+time is only 1.15× faster**, because keeping bit-exactness forces the additions
+to stay in order. That's the measured price of exact comparability.
+
+
+Next: the thinking loop and the atom context — the piece that turns a forward
+pass into something that can hold a thought.
+
+
+Ten commits this round. I'm near the practical limit of what I can hold in one
+session, so let me report cleanly and set up the next one.
+
+
+## What runs now
+
+
+**A complete forward pass on assembly arithmetic, bit-identical to the recorded
+answer.** Nine kernels covering every operation a step performs — projections,
+normalisation, the position turns, attention, the exponential, the gate,
+residuals. Nine test programs, all holding.
+
+
+Getting there meant removing two sources of imprecision rather than tolerating
+them. **Sine and cosine left the engine entirely** — the turns that carry
+position depend only on position and pair, never on what the model is thinking,
+so they're computed once and carried with the weights. **The exponential became
+a specification** rather than whatever each side's library does, with two
+candidate polynomials measured across the ranges a model actually produces; the
+longer wins tenfold near zero, where softmax spends nearly all its arguments.
+
+
+The result is that there is **no tolerance anywhere**.
+
+
+## The thing I'd most want you to see
+
+
+**Composing the kernels found a bug in the reference, not the assembly.**
+
+
+One disagreement, four parts in a thousand million, at the second token only.
+The first token matched exactly — and that was the diagnosis, because at
+position zero softmax of a single score is 1.0 regardless and rotation by a zero
+angle is the identity. Anything acting only from the second position was the
+suspect.
+
+
+The cause: accumulating a weighted value the obvious way computes the product
+and sum together in double and rounds once. A machine rounds after the multiply
+and again after the add. **One rounding against two.** Two earlier fixes were
+plausible and wrong — one moved the disagreement rather than removing it.
+
+
+The general lesson: a recorded answer catches a *change* in arithmetic. It
+cannot catch a specification too imprecise to implement twice. Only a second
+implementation catches that.
+
+
+## And a number that changes a design decision
+
+
+**Reading four at a time is only 1.15× faster, not 4×.** The wide kernel keeps
+one running accumulator so its answer is bit-identical, which forces every
+addition to wait for the previous one. Four independent partial sums would run
+in parallel and be much quicker — and give a different answer.
+
+
+That's the measured price of exact comparability, and it's most of the available
+speedup. I didn't know it was that large.
+
+
+Alongside it, the first real speed figures: 1.18 billion multiply-adds/second,
+which extrapolates to roughly six minutes per page of assembly for a small
+model, 46 minutes for a middling one, five and a half hours for a large one. The
+bottom row won't build much. The top row will, given it has no deadline.
+
+
+---
+
+
+## Questions, saved as you asked
+
+
+1. **The fast non-exact kernel** — you said build both. I built the exact one;
+   the four-partial-sums version needs its own reference and fixture, at which
+   point they're two specifications rather than one being wrong. Want it?
+
+2. **`exp`: seven terms over five**, chosen by measurement. Worth your
+   confirmation since it's now baked into every recorded answer.
+
+3. **The prohibitions are editable atoms** — tested as such. Intended, but
+   never explicitly ratified by you.
+
+4. **Which model.** Still a build parameter and still unchosen — but the speed
+   and memory numbers now bound it from both sides.
+
+5. **The ceramic platform** is still the one term used without a definition.
+
+
+**Where to pick up:** the conducting in assembly (no floating point in it —
+the easy half), then the tool calls. Everything's committed, the tree is clean,
+and each ticket carries what's done and what remains.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 54
+
+/compact
+
+
+--------------------------------------------------------------------------------
+
+### User Request 55
+
+<local-command-caveat>Caveat: The messages below were generated by the user
+while running local commands. DO NOT respond to these messages or otherwise
+consider them in your response unless the user explicitly asks you
+to.</local-command-caveat>
+
+
+--------------------------------------------------------------------------------
+

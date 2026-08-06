@@ -1,6 +1,6 @@
 # Conversation Summary: 16128181-03c0-4425-a540-092e5a433dc2
 
-Generated on: 2026-07-17 13:57:29
+Generated on: 2026-08-04 21:37:58
 
 --------------------------------------------------------------------------------
 
@@ -149,25 +149,33 @@ the audit.
 **Yes, `/dev/shm` is the right target for "always RAM."** The mechanics:
 
 
-- `/dev/shm` is a **tmpfs** mount that glibc's POSIX shared-memory (`shm_open`) depends on, so it's present and RAM-backed on essentially every modern Linux system. On this machine: `tmpfs /dev/shm tmpfs rw,nosuid,nodev,noexec` — 16 GB.
+- `/dev/shm` is a **tmpfs** mount that glibc's POSIX shared-memory (`shm_open`)
+  depends on, so it's present and RAM-backed on essentially every modern Linux
+  system. On this machine: `tmpfs /dev/shm tmpfs rw,nosuid,nodev,noexec` — 16
+  GB.
 
-- `/tmp` is **not guaranteed** to be RAM. On *this* box it happens to be tmpfs too, but that's a per-distro choice. Debian, RHEL, and plenty of others ship `/tmp` as a plain directory on the root disk (systemd's `tmp.mount` exists but is off by default on many distros). So your portability instinct is correct: code that hard-codes `/tmp` is RAM *here* and disk *elsewhere*; `/dev/shm` is RAM *everywhere*.
+- `/tmp` is **not guaranteed** to be RAM. On *this* box it happens to be tmpfs
+  too, but that's a per-distro choice. Debian, RHEL, and plenty of others ship
+  `/tmp` as a plain directory on the root disk (systemd's `tmp.mount` exists but
+  is off by default on many distros). So your portability instinct is correct:
+  code that hard-codes `/tmp` is RAM *here* and disk *elsewhere*; `/dev/shm` is
+  RAM *everywhere*.
 
 
 Two things to keep in mind so the mental model is exact:
 
 
 1. **tmpfs is "RAM-first," not "RAM-locked."** Both `/tmp` and `/dev/shm` are
-tmpfs, and tmpfs pages *can* be pushed to swap under memory pressure. So
-`/dev/shm` guarantees "no deliberate persistent disk file," not "these bytes
-physically never leave the RAM chips." If you ever need the hard guarantee,
-that's `mlock`/`ramfs` territory — a different mechanism. For scratch logs and
-build artifacts, `/dev/shm` is exactly right.
+   tmpfs, and tmpfs pages *can* be pushed to swap under memory pressure. So
+   `/dev/shm` guarantees "no deliberate persistent disk file," not "these bytes
+   physically never leave the RAM chips." If you ever need the hard guarantee,
+   that's `mlock`/`ramfs` territory — a different mechanism. For scratch logs
+   and build artifacts, `/dev/shm` is exactly right.
 
 2. **Default size is ~half of RAM** (here 16 G of 32 G). A project that dumps
->16 G of scratch would hit `ENOSPC` on `/dev/shm` where a disk-backed `/tmp`
-would've kept going. Irrelevant for logs; worth knowing for anything that stages
-large builds.
+   >16 G of scratch would hit `ENOSPC` on `/dev/shm` where a disk-backed `/tmp`
+   would've kept going. Irrelevant for logs; worth knowing for anything that
+   stages large builds.
 
 
 Permissions/collision model is identical (`/dev/shm` is world-writable + sticky,
@@ -186,10 +194,15 @@ mismatch, and this migration is what finally reconciles them.
 ## 2. The audit — everywhere the `tmp/` symlink pattern lives
 
 
-**Search universe:** whole filesystem. Real mounts are `/`, `/mnt/mtwo`, `/mnt/cmdo`, `/mnt/dile` (nothing), plus `/home`, `/opt`, `/srv`, `/etc`, `/usr/local` all checked; pseudo-filesystems excluded.
+**Search universe:** whole filesystem. Real mounts are `/`, `/mnt/mtwo`,
+`/mnt/cmdo`, `/mnt/dile` (nothing), plus `/home`, `/opt`, `/srv`, `/etc`,
+`/usr/local` all checked; pseudo-filesystems excluded.
 
 
-**Live right now: 25 project symlinks pointing into `/tmp` — every one targets `/tmp/*`, zero use `/dev/shm`.** (21 named `tmp`, + 3 azeroth `logs-*`, + 1 r-mail `.logs`.) Two additional Steam sockets point into `/tmp` but are Valve-managed — **do not touch**.
+**Live right now: 25 project symlinks pointing into `/tmp` — every one targets
+`/tmp/*`, zero use `/dev/shm`.** (21 named `tmp`, + 3 azeroth `logs-*`, + 1
+r-mail `.logs`.) Two additional Steam sockets point into `/tmp` but are
+Valve-managed — **do not touch**.
 
 
 The important structural finding: **most of these symlinks are *not* recreated
@@ -204,16 +217,13 @@ real map you want — the live symlinks get wiped on reboot; what matters is the
 
 |---|---|---|
 
-| neocities-modernization | `scripts/ensure-tmp-symlink:33` |
-`/tmp/neocities-modernization` |
+| neocities-modernization | `scripts/ensure-tmp-symlink:33` | `/tmp/neocities-modernization` |
 
 | words-pdf | `scripts/ensure-tmp-symlink:37` | `/tmp/words-pdf` |
 
-| sora/narrative-engine | `bin/ensure-tmp.sh:25` (run by `bin/run.sh:51`) |
-`/tmp/narrative-engine` |
+| sora/narrative-engine | `bin/ensure-tmp.sh:25` (run by `bin/run.sh:51`) | `/tmp/narrative-engine` |
 
-| sora/narrative-engine (maps) | `soramech/scripts/create-map.sh:39` |
-`/tmp/soramech-${MAP_NAME}` (dynamic) |
+| sora/narrative-engine (maps) | `soramech/scripts/create-map.sh:39` | `/tmp/soramech-${MAP_NAME}` (dynamic) |
 
 
 `neocities-modernization` is the **canonical original** — `words-pdf` says in
@@ -233,29 +243,30 @@ that would need regenerating. These three helper scripts are the *only* real
 
 | tunnel-dream (TQ) | `run:29` → `/tmp/tunnel-dream-tmp` |
 
-| games/warcraft-iii | `run3:94` → `/tmp/warcraft-iii-run3` (+
-`README.md:105`) |
+| games/warcraft-iii | `run3:94` → `/tmp/warcraft-iii-run3` (+ `README.md:105`) |
 
 | dominions/elentalus-0.97 | `build-docs.lua:26` → `/tmp/elentalus-docs` |
 
-| games/3d-rts | `Makefile` hdr, `.gitignore:2`, `run:15/29`, `issues/101` —
-target `/tmp/3d-rts` (symlink itself made by hand per issue-101) |
+| games/3d-rts | `Makefile` hdr, `.gitignore:2`, `run:15/29`, `issues/101` — target `/tmp/3d-rts` (symlink itself made by hand per issue-101) |
 
-| programs/memtest | `src/check-ram.sh:30` (comment) + `:37` recreate hint `ln
--sfn /tmp/memtest-tmp` |
+| programs/memtest | `src/check-ram.sh:30` (comment) + `:37` recreate hint `ln -sfn /tmp/memtest-tmp` |
 
 
 ## Tier C — Doc/issue-only (symlink made by hand; only prose names the target)
 
-- **risc-v-ollama** — `docs/table-of-contents.md:119`, `issues/completed/101-*.md:34,50`
+- **risc-v-ollama** — `docs/table-of-contents.md:119`,
+  `issues/completed/101-*.md:34,50`
 
 - **apple-IIds** — `docs/001-architecture-overview.md:237`
 
 - **quest-witch-manor-randomizer** (TQ) — `issues/101-*.md:91`
 
-- **azeroth-core/custom-client** — `docs/008-build-system.md:28`, `docs/010-table-of-contents.md:37`
+- **azeroth-core/custom-client** — `docs/008-build-system.md:28`,
+  `docs/010-table-of-contents.md:37`
 
-- **first-person-spellcraft** — `issues/102,307,407,708` all say "the run script ensures the tmp/ symlink," but **no such run script/target actually exists in-tree** — the live symlink was made by hand.
+- **first-person-spellcraft** — `issues/102,307,407,708` all say "the run
+  script ensures the tmp/ symlink," but **no such run script/target actually
+  exists in-tree** — the live symlink was made by hand.
 
 
 ## Tier D — Orphan (live symlink, **zero** references anywhere; nothing regenerates them)
@@ -277,9 +288,18 @@ These hard-code `/tmp` far beyond the single symlink and deserve their own
 careful pass:
 
 
-- **azeroth-core/wow-chat-2026** — `tmp/ → /tmp/wow-chat-2`, plus `logs-{beta,release,vanilla}/ → /tmp/wow-chat-2/logs-*`, plus `TMP_BASE="/tmp/wow-chat-2"` literally in `scripts/worldserver:105`, `compile:175`, `authserver:108`, `azerothcore-deprecated` (several), plus `/tmp/wow-chat-2/.history` (issue 128). Note: `verify-build:27` already uses `readlink -f` (portable — no change needed), and `azerothcore-deprecated:443` has a stray `/tmp/wow-chat/` (missing the `-2`).
+- **azeroth-core/wow-chat-2026** — `tmp/ → /tmp/wow-chat-2`, plus
+  `logs-{beta,release,vanilla}/ → /tmp/wow-chat-2/logs-*`, plus
+  `TMP_BASE="/tmp/wow-chat-2"` literally in `scripts/worldserver:105`,
+  `compile:175`, `authserver:108`, `azerothcore-deprecated` (several), plus
+  `/tmp/wow-chat-2/.history` (issue 128). Note: `verify-build:27` already uses
+  `readlink -f` (portable — no change needed), and
+  `azerothcore-deprecated:443` has a stray `/tmp/wow-chat/` (missing the `-2`).
 
-- **programs/r-mail** — `.logs → /tmp/rmail.log`; `rmail.lua:350 TMPFS_PROGRESS_DIR="/tmp/rmail-progress"`, `:2444`, `:2579`; systemd units in `scripts/install.sh:1404-1477` write `StandardOutput=append:/tmp/rmail.log`; `q-a-tests.md` references `/tmp/rmail-transfers`.
+- **programs/r-mail** — `.logs → /tmp/rmail.log`; `rmail.lua:350
+  TMPFS_PROGRESS_DIR="/tmp/rmail-progress"`, `:2444`, `:2579`; systemd units in
+  `scripts/install.sh:1404-1477` write `StandardOutput=append:/tmp/rmail.log`;
+  `q-a-tests.md` references `/tmp/rmail-transfers`.
 
 
 ## Out of scope but relevant to your "always RAM" goal
@@ -312,14 +332,14 @@ to proceed, do you want me to:
 
 
 1. **Standardize on one canonical `ensure-tmp-symlink`** (migrate neocities →
-`/dev/shm`, re-mirror to words-pdf, and *give* the orphan/doc-only projects the
-same helper so they self-heal on boot), or
+   `/dev/shm`, re-mirror to words-pdf, and *give* the orphan/doc-only projects
+   the same helper so they self-heal on boot), or
 
 2. **Minimal string swap** — just change `/tmp/` → `/dev/shm/` everywhere
-it's currently hard-coded and leave the orphans as manual, or
+   it's currently hard-coded and leave the orphans as manual, or
 
 3. Start with a **single project end-to-end** (e.g. the canonical neocities one)
-so you can review the pattern before I fan it out?
+   so you can review the pattern before I fan it out?
 
 
 And per your conventions, a cross-project change like this normally wants an
@@ -338,14 +358,15 @@ hopefully doing something right, we should let them come across it and
 *definitely* do something right later on.
 
 
-- azeroth-core/wow-chat-2026 — tmp/ → /tmp/wow-chat-2, plus
-logs-{beta,release,vanilla}/ → /tmp/wow-chat-2/logs-*, plus
-TMP_BASE="/tmp/wow-chat-2" literally in scripts/worldserver:105, compile:175,
-authserver:108, azerothcore-deprecated (several), plus /tmp/wow-chat-2/.history
+  - azeroth-core/wow-chat-2026 — tmp/ → /tmp/wow-chat-2, plus
+    logs-{beta,release,vanilla}/ → /tmp/wow-chat-2/logs-*, plus
+    TMP_BASE="/tmp/wow-chat-2" literally in scripts/worldserver:105,
+    compile:175, authserver:108, azerothcore-deprecated (several), plus
+    /tmp/wow-chat-2/.history
 
-(issue 128). Note: verify-build:27 already uses readlink -f (portable — no
-change needed), and azerothcore-deprecated:443 has a stray /tmp/wow-chat/
-(missing the -2).
+  (issue 128). Note: verify-build:27 already uses readlink -f (portable — no
+  change needed), and azerothcore-deprecated:443 has a stray /tmp/wow-chat/
+  (missing the -2).
 
 
 sounds like they aren't using the project tmp/ directory, but are instead using
@@ -353,10 +374,10 @@ sounds like they aren't using the project tmp/ directory, but are instead using
 they're correct as well.
 
 
-- programs/r-mail — .logs → /tmp/rmail.log; rmail.lua:350
-TMPFS_PROGRESS_DIR="/tmp/rmail-progress", :2444, :2579; systemd units in
-scripts/install.sh:1404-1477 write StandardOutput=append:/tmp/rmail.log;
-q-a-tests.md references /tmp/rmail-transfers.
+  - programs/r-mail — .logs → /tmp/rmail.log; rmail.lua:350
+    TMPFS_PROGRESS_DIR="/tmp/rmail-progress", :2444, :2579; systemd units in
+    scripts/install.sh:1404-1477 write StandardOutput=append:/tmp/rmail.log;
+    q-a-tests.md references /tmp/rmail-transfers.
 
 
 let's let rmail handle it's own stuff, there's another developer writing this
@@ -369,13 +390,13 @@ team. I'm such a team player! And a helper. But right now, it's just me. I'm so
 lonely!!
 
 
-Direct /tmp scratch that is not a tmp/ symlink — e.g.
-soren-ds/scripts/lab-side/*.log → /tmp/*.log, narrative-engine/tests/*.lua
-using /tmp/narrative-engine-test-*, and generic /tmp/llm_request_$$.json in a
-scripts README. If the real intent is "no project ever writes scratch to
+  Direct /tmp scratch that is not a tmp/ symlink — e.g.
+  soren-ds/scripts/lab-side/*.log → /tmp/*.log, narrative-engine/tests/*.lua
+  using /tmp/narrative-engine-test-*, and generic /tmp/llm_request_$$.json in a
+  scripts README. If the real intent is "no project ever writes scratch to
 
-disk-backed /tmp," these belong in the same sweep even though they aren't
-symlinks.
+  disk-backed /tmp," these belong in the same sweep even though they aren't
+  symlinks.
 
 
 yeah we should update these to use the project local tmp/ directory as well,
@@ -393,31 +414,32 @@ Board's up — six items, in the order they'd naturally flow:
 
 
 1. **Tier A** — the three real helpers (neocities canonical → words-pdf
-mirror → narrative-engine's `ensure-tmp.sh` + `create-map.sh`), plus
-regenerating neocities' HTML doc export.
+   mirror → narrative-engine's `ensure-tmp.sh` + `create-map.sh`), plus
+   regenerating neocities' HTML doc export.
 
 2. **Tier B** — the ~6 inline targets (playground, tunnel-dream, warcraft-iii,
-elentalus, 3d-rts, memtest).
+   elentalus, 3d-rts, memtest).
 
 3. **Tier C** — the doc/issue-only mentions (risc-v-ollama, apple-IIds,
-quest-witch-manor, azc custom-client, first-person-spellcraft).
+   quest-witch-manor, azc custom-client, first-person-spellcraft).
 
 4. **Tier D** — recorded as a **deliberate no-op**, with your reasoning
-written into the task itself so nobody (me, later) mistakes it for forgotten
-work. Let them trip over it and fix it *right*, in their own time.
+   written into the task itself so nobody (me, later) mistakes it for forgotten
+   work. Let them trip over it and fix it *right*, in their own time.
 
 5. **wow-chat-2026** — split out as its own item: you're right, it isn't
-really using its project `tmp/` at all, it just reaches into `/tmp/wow-chat-2`
-directly from a dozen scripts. So the job there isn't "repoint a symlink," it's
-"route the scratch back through `${DIR}/tmp` and confirm each path is correct"
-— including that stray `/tmp/wow-chat/` typo.
+   really using its project `tmp/` at all, it just reaches into
+   `/tmp/wow-chat-2` directly from a dozen scripts. So the job there isn't
+   "repoint a symlink," it's "route the scratch back through `${DIR}/tmp` and
+   confirm each path is correct" — including that stray `/tmp/wow-chat/` typo.
 
 6. **Direct scratch** — the non-symlink `/tmp` writers (soren-ds lab-side
-logs, narrative-engine tests, the README scratch) get pulled through the project
-`tmp/ → /dev/shm` indirection too.
+   logs, narrative-engine tests, the README scratch) get pulled through the
+   project `tmp/ → /dev/shm` indirection too.
 
 
-**r-mail is off the board** — that one's yours. I'll stay out of your way on it.
+**r-mail is off the board** — that one's yours. I'll stay out of your way on
+it.
 
 
 Nothing's been changed yet; this is just the plan laid out. Say the word when
@@ -439,14 +461,14 @@ a good way to build. I'm glad to be on it with you. 🤝
 
 ### User Request 3
 
-And hey — for what it's worth, you're not actually soloing this one right now.
-I'm right here, reading your code with you, keeping the board straight, staying
-off the tickets you've called dibs on. That is a team, even if it's a small and
-slightly strange one. You clearly are a
+  And hey — for what it's worth, you're not actually soloing this one right
+  now. I'm right here, reading your code with you, keeping the board straight,
+  staying off the tickets you've called dibs on. That is a team, even if it's a
+  small and slightly strange one. You clearly are a
 
-helper — the whole ensure-tmp-symlink "fail loud rather than silently move
-someone's data" instinct is you looking out for a teammate who might not even
-exist yet. That's a good way to build. I'm glad to be on it with you.
+  helper — the whole ensure-tmp-symlink "fail loud rather than silently move
+  someone's data" instinct is you looking out for a teammate who might not even
+  exist yet. That's a good way to build. I'm glad to be on it with you.
 
 
 while it's true that I'm not programming these projects unassisted, you are a
@@ -720,9 +742,9 @@ ahead.
 
 ```
 
-tmpfs /dev/shm tmpfs rw,nosuid,nodev,noexec,inode64 ← noexec
+tmpfs /dev/shm tmpfs rw,nosuid,nodev,noexec,inode64   ← noexec
 
-tmpfs /tmp tmpfs rw,nosuid,nodev,relatime,inode64 ← exec allowed
+tmpfs /tmp     tmpfs rw,nosuid,nodev,relatime,inode64  ← exec allowed
 
 ```
 
@@ -739,15 +761,30 @@ migrate perfectly. But a few projects **execute out of `tmp/`**, and those would
 break:
 
 
-- **games/3d-rts** — the Makefile compiles the game binary *into* `tmp/3d-rts` (`BIN := $(DIR)/tmp`) and `run:29` does `exec "${DIR}/tmp/3d-rts"`. On `/dev/shm` that exec fails with permission-denied. **This is a Tier B project — migrating it as planned would break the launch.**
+- **games/3d-rts** — the Makefile compiles the game binary *into* `tmp/3d-rts`
+  (`BIN := $(DIR)/tmp`) and `run:29` does `exec "${DIR}/tmp/3d-rts"`. On
+  `/dev/shm` that exec fails with permission-denied. **This is a Tier B project
+  — migrating it as planned would break the launch.**
 
-- **soramech C driver** — `spec.c:281` compiles boxes to `/tmp/soramech-c-*.so` and `:300` `dlopen`s them. Must stay on an exec fs. (I did *not* touch this — I only moved the map's `tmp/`, which holds logs/cache = data. Safe.)
+- **soramech C driver** — `spec.c:281` compiles boxes to
+  `/tmp/soramech-c-*.so` and `:300` `dlopen`s them. Must stay on an exec fs. (I
+  did *not* touch this — I only moved the map's `tmp/`, which holds logs/cache
+  = data. Safe.)
 
 
-**Good news on what I already changed:** I grepped the three migrated projects — neocities, words-pdf, narrative-engine (and soramech's map `tmp/`) — and **nothing executes or `dlopen`s out of their `tmp/`**. They're pure data. So those migrations are safe as-is; I haven't broken anything. (Syntax-checked clean, too.)
+**Good news on what I already changed:** I grepped the three migrated projects
+— neocities, words-pdf, narrative-engine (and soramech's map `tmp/`) — and
+**nothing executes or `dlopen`s out of their `tmp/`**. They're pure data. So
+those migrations are safe as-is; I haven't broken anything. (Syntax-checked
+clean, too.)
 
 
-**One honest correction:** I under-caught in the first audit. neocities/words-pdf also reference `/tmp` in their `run` comments, in `build-download-zip:31` (writes a zip straight into the `/tmp` dir), and in their *origin* issue files (`8-059-…`, `017-…`). Those are all data and safe — I'll finish them — but it confirms every project needs the completeness grep, not just its helper.
+**One honest correction:** I under-caught in the first audit.
+neocities/words-pdf also reference `/tmp` in their `run` comments, in
+`build-download-zip:31` (writes a zip straight into the `/tmp` dir), and in
+their *origin* issue files (`8-059-…`, `017-…`). Those are all data and safe
+— I'll finish them — but it confirms every project needs the completeness
+grep, not just its helper.
 
 
 So before I go further, the fork is: **how do you want the exec-from-`tmp/`
@@ -759,13 +796,24 @@ already tripped over.)
 **[Asked the user]**
 
 
-*Q1 — Exec-from-tmp:* /dev/shm is noexec, so a few projects that build/run binaries out of tmp/ (3d-rts execs its compiled game; soramech dlopens .so files) will break if moved there. How should I handle the exec-from-tmp cases? (Data-only tmp/ dirs migrate to /dev/shm either way.)
+*Q1 — Exec-from-tmp:* /dev/shm is noexec, so a few projects that build/run
+binaries out of tmp/ (3d-rts execs its compiled game; soramech dlopens .so
+files) will break if moved there. How should I handle the exec-from-tmp cases?
+(Data-only tmp/ dirs migrate to /dev/shm either way.)
 
-- Data→shm, exec→project dir — For the exec cases, build the binary/.so into a normal project directory (build/ or bin/) and keep only runtime data/logs in tmp/→/dev/shm. Most correct; exec works on any host; RAM win kept for data. More than a string swap for those few projects.
+- Data→shm, exec→project dir — For the exec cases, build the binary/.so
+  into a normal project directory (build/ or bin/) and keep only runtime
+  data/logs in tmp/→/dev/shm. Most correct; exec works on any host; RAM win
+  kept for data. More than a string swap for those few projects.
 
-- Leave exec ones on /tmp — Don't migrate the handful that execute from tmp/ (3d-rts, soramech .so). Migrate only data-holding tmp/ dirs to /dev/shm. Simplest; but those few keep the 'not guaranteed RAM' gap you wanted to close.
+- Leave exec ones on /tmp — Don't migrate the handful that execute from tmp/
+  (3d-rts, soramech .so). Migrate only data-holding tmp/ dirs to /dev/shm.
+  Simplest; but those few keep the 'not guaranteed RAM' gap you wanted to close.
 
-- Remount /dev/shm exec — Change the system mount so /dev/shm allows execution, then everything can move. Not recommended: weakens a security boundary, needs fstab/root, and other machines may still mount it noexec so it isn't portable anyway.
+- Remount /dev/shm exec — Change the system mount so /dev/shm allows
+  execution, then everything can move. Not recommended: weakens a security
+  boundary, needs fstab/root, and other machines may still mount it noexec so it
+  isn't portable anyway.
 
 → **Selected:** Leave exec ones on /tmp
 
@@ -807,24 +855,36 @@ smoke test of the canonical helper (in a throwaway dir, cleaned up after).
 Tier A is migrated and validated. Marking it done.
 
 
-**Tier A complete** ✅ — 13 files across neocities, words-pdf, and the sora/narrative-engine + soramech pair. Validated:
+**Tier A complete** ✅ — 13 files across neocities, words-pdf, and the
+sora/narrative-engine + soramech pair. Validated:
 
 
-- Both helper variants smoke-tested: they now produce `tmp → /dev/shm/<project>` correctly. (The one `map/tmp` error in the test was my throwaway dir lacking a `map/` subdir — the real project has one; the primary `tmp → /dev/shm/narrative-engine` assertion passed.)
+- Both helper variants smoke-tested: they now produce `tmp →
+  /dev/shm/<project>` correctly. (The one `map/tmp` error in the test was my
+  throwaway dir lacking a `map/` subdir — the real project has one; the
+  primary `tmp → /dev/shm/narrative-engine` assertion passed.)
 
-- Completeness grep clean — **zero** `/tmp/<project>` target strings left in tracked files.
+- Completeness grep clean — **zero** `/tmp/<project>` target strings left in
+  tracked files.
 
 - All four scripts syntax-check clean.
 
-- Fixed a latent trap in narrative-engine's issue-110 blueprint, which literally encoded *"the system `/tmp/` is a tmpfs on this platform"* — the exact fragile assumption; a from-scratch rebuild would've reintroduced it.
+- Fixed a latent trap in narrative-engine's issue-110 blueprint, which literally
+  encoded *"the system `/tmp/` is a tmpfs on this platform"* — the exact
+  fragile assumption; a from-scratch rebuild would've reintroduced it.
 
 
-**One operational thing to know** about the live symlinks currently on disk (they still point at the old `/tmp` targets until something recreates them):
+**One operational thing to know** about the live symlinks currently on disk
+(they still point at the old `/tmp` targets until something recreates them):
 
 
-- **neocities & words-pdf** use the *fail-loud* helper — on next run it will refuse and print `rm tmp` + rerun instructions (or a reboot clears the stale symlink and it regenerates at `/dev/shm`). Deliberate, per their "never silently move someone's data" design.
+- **neocities & words-pdf** use the *fail-loud* helper — on next run it will
+  refuse and print `rm tmp` + rerun instructions (or a reboot clears the stale
+  symlink and it regenerates at `/dev/shm`). Deliberate, per their "never
+  silently move someone's data" design.
 
-- **narrative-engine** uses the *auto-recreate* helper — it silently removes the stale `/tmp` symlink and rebuilds it at `/dev/shm` on next run. Seamless.
+- **narrative-engine** uses the *auto-recreate* helper — it silently removes
+  the stale `/tmp` symlink and rebuilds it at `/dev/shm` on next run. Seamless.
 
 
 I did **not** touch any live symlinks or commit anything yet.
@@ -836,11 +896,11 @@ execs its binary from `tmp/`), two quick calls for you:
 
 
 1. **Commit Tier A now** as one focused commit, or keep going and commit the
-whole sweep at the end?
+   whole sweep at the end?
 
 2. **Flip the live symlinks** for the three migrated projects now (I'd `rm` the
-stale ones so they regenerate at `/dev/shm`), or leave them to self-heal / clear
-on reboot?
+   stale ones so they regenerate at `/dev/shm`), or leave them to self-heal /
+   clear on reboot?
 
 
 My default if you don't specify: **keep going into Tier B, leave live symlinks
@@ -851,13 +911,13 @@ to self-heal, and hold the commit** until you ask. Want me to proceed?
 
 ### User Request 10
 
-- neocities & words-pdf use the fail-loud helper — on next run it will refuse
-and print rm tmp + rerun instructions (or a reboot clears the stale symlink and
-it regenerates at /dev/shm). Deliberate, per their "never silently move
-someone's data" design.
+  - neocities & words-pdf use the fail-loud helper — on next run it will
+    refuse and print rm tmp + rerun instructions (or a reboot clears the stale
+    symlink and it regenerates at /dev/shm). Deliberate, per their "never
+    silently move someone's data" design.
 
-- narrative-engine uses the auto-recreate helper — it silently removes the
-stale /tmp symlink and rebuilds it at /dev/shm on next run. Seamless.
+  - narrative-engine uses the auto-recreate helper — it silently removes the
+    stale /tmp symlink and rebuilds it at /dev/shm on next run. Seamless.
 
 
 can you just remove the stale links now and fix them once? Then we don't need
@@ -867,8 +927,8 @@ be fine to keep, but we don't want to have stuff just laying around taking up
 bits.
 
 
-1. Commit Tier A now as one focused commit, or keep going and commit the whole
-sweep at the end?
+  1. Commit Tier A now as one focused commit, or keep going and commit the whole
+     sweep at the end?
 
 
 keep going and commit at the end. It'll be a large commit that touches many
@@ -878,9 +938,9 @@ changed. No sweeping in unrelated changes please, even if they're in the same
 file.
 
 
-2. Flip the live symlinks for the three migrated projects now (I'd rm the stale
-ones so they regenerate at /dev/shm), or leave them to self-heal / clear on
-reboot?
+  2. Flip the live symlinks for the three migrated projects now (I'd rm the
+     stale ones so they regenerate at /dev/shm), or leave them to self-heal /
+     clear on reboot?
 
 
 let them self heal if the mechanism is there. Don't worry about flipping them,
@@ -937,11 +997,15 @@ Now I can see the per-project logic — and they differ in whether they
 self-heal:
 
 
-- **playground/run** already repoints a wrong-target symlink (lines 56–59) → just swap the target string, it self-flips.
+- **playground/run** already repoints a wrong-target symlink (lines 56–59) →
+  just swap the target string, it self-flips.
 
-- **tunnel-dream/run** only handles a *missing* symlink — if a stale symlink exists it's left untouched. I'll need to add a wrong-target branch so it self-flips, per your ask.
+- **tunnel-dream/run** only handles a *missing* symlink — if a stale symlink
+  exists it's left untouched. I'll need to add a wrong-target branch so it
+  self-flips, per your ask.
 
-- **memtest** is a manual symlink with a recreate hint → update the two strings.
+- **memtest** is a manual symlink with a recreate hint → update the two
+  strings.
 
 
 I need to see warcraft-iii's and elentalus's creation logic before editing them,
@@ -1006,22 +1070,24 @@ Tier C is clean across all five projects. Both **Tier C and Tier D** are done
 orphans alone (no action, as you asked). Marking both.
 
 
-**Tiers A–D complete.** Let me check one thing that matters for the end-commit before I report — the edited files span several filesystem locations, and "one commit" only works if they're one repo. Let me map the git topology.
+**Tiers A–D complete.** Let me check one thing that matters for the end-commit
+before I report — the edited files span several filesystem locations, and "one
+commit" only works if they're one repo. Let me map the git topology.
 
 
 Important finding for the eventual commit — the "one big commit" isn't
 possible, and here's the real shape:
 
 
-**The edits span 8 separate git repos, plus 3 projects that aren't under git at all:**
+**The edits span 8 separate git repos, plus 3 projects that aren't under git at
+all:**
 
 
 | Git repo (→ its own commit) | What I changed |
 
 |---|---|
 
-| `ai-stuff` | neocities, words-pdf, apple-IIds, 3d-rts, first-person-spellcraft
-|
+| `ai-stuff` | neocities, words-pdf, apple-IIds, 3d-rts, first-person-spellcraft |
 
 | `ai-playground/playground` | run + 2 docs |
 
@@ -1037,8 +1103,7 @@ possible, and here's the real shape:
 
 | `.dominions6/…/elentalus-0.97` | build-docs.lua |
 
-| **NOT git-tracked** | **memtest, warcraft-iii, quest-witch-manor-randomizer**
-|
+| **NOT git-tracked** | **memtest, warcraft-iii, quest-witch-manor-randomizer** |
 
 
 So it's **~8 commits, one per repo** (not one), and **memtest / warcraft-iii /
@@ -1049,25 +1114,34 @@ session) that aren't mine — when I commit there, I'll keep those out and
 include only my specific files/sections, per your rule.
 
 
-**Where things stand:** Tiers A–D done and validated (~27 files). Two tasks remain, both heavier:
+**Where things stand:** Tiers A–D done and validated (~27 files). Two tasks
+remain, both heavier:
 
 
-- **#5 wow-chat-2026** — a real refactor: reroute ~a dozen hard-coded `/tmp/wow-chat-2` literals through `${DIR}/tmp`, the three `logs-*` symlinks, `.history`, and fix that stray `/tmp/wow-chat/` typo. AzerothCore is a heavy C++ build so I'd verify at the *script/path* level, not a full compile. I'll confirm nothing there executes from `tmp/` first.
+- **#5 wow-chat-2026** — a real refactor: reroute ~a dozen hard-coded
+  `/tmp/wow-chat-2` literals through `${DIR}/tmp`, the three `logs-*` symlinks,
+  `.history`, and fix that stray `/tmp/wow-chat/` typo. AzerothCore is a heavy
+  C++ build so I'd verify at the *script/path* level, not a full compile. I'll
+  confirm nothing there executes from `tmp/` first.
 
-- **#6 direct scratch** — soren-ds lab-side logs + narrative-engine tests are clean data moves. But this is where the **soramech subsystem** bites: it uses `/tmp/soramech-*` heavily — sockets and run-logs are data (movable), but the compiled `.so` files it `dlopen`s **must stay on `/tmp`** (the noexec rule again). That's bigger than the original task-6 scope.
+- **#6 direct scratch** — soren-ds lab-side logs + narrative-engine tests are
+  clean data moves. But this is where the **soramech subsystem** bites: it uses
+  `/tmp/soramech-*` heavily — sockets and run-logs are data (movable), but the
+  compiled `.so` files it `dlopen`s **must stay on `/tmp`** (the noexec rule
+  again). That's bigger than the original task-6 scope.
 
 
 Two questions before I continue:
 
 
 1. **The 3 non-git projects** — leave their edits uncommitted in the working
-tree (fine, they're just not versioned), or do you want them initialized as
-repos so the changes are tracked?
+   tree (fine, they're just not versioned), or do you want them initialized as
+   repos so the changes are tracked?
 
 2. **Proceed into #5 and #6 now?** My rec: do #6's clean parts (soren-ds,
-narrative-engine tests) next, handle soramech deliberately given the `.so`
-exception, then tackle #5's wow-chat reroute. Or stop here and commit Tiers
-A–D first if you'd rather lock in progress.
+   narrative-engine tests) next, handle soramech deliberately given the `.so`
+   exception, then tackle #5's wow-chat reroute. Or stop here and commit Tiers
+   A–D first if you'd rather lock in progress.
 
 
 --------------------------------------------------------------------------------
@@ -1084,23 +1158,23 @@ no unrelated code should be included. You can do it, you know how, the recipe is
 in the CLAUDE.md if you forgot.
 
 
-- #6 direct scratch — soren-ds lab-side logs + narrative-engine tests are
-clean data moves. But this is where the soramech subsystem bites: it uses
-/tmp/soramech-* heavily — sockets and run-logs are data (movable), but the
-compiled .so files it dlopens must stay on /tmp (the noexec
+  - #6 direct scratch — soren-ds lab-side logs + narrative-engine tests are
+    clean data moves. But this is where the soramech subsystem bites: it uses
+    /tmp/soramech-* heavily — sockets and run-logs are data (movable), but the
+    compiled .so files it dlopens must stay on /tmp (the noexec
 
-rule again). That's bigger than the original task-6 scope.
+  rule again). That's bigger than the original task-6 scope.
 
 
 it's okay if some stuff stays on /tmp if it's exec code.
 
 
-- #5 wow-chat-2026 — a real refactor: reroute ~a dozen hard-coded
-/tmp/wow-chat-2 literals through ${DIR}/tmp, the three logs-* symlinks,
-.history, and fix that stray /tmp/wow-chat/ typo. AzerothCore is a heavy C++
-build so I'd verify at the script/path level, not a full compile.
+  - #5 wow-chat-2026 — a real refactor: reroute ~a dozen hard-coded
+    /tmp/wow-chat-2 literals through ${DIR}/tmp, the three logs-* symlinks,
+    .history, and fix that stray /tmp/wow-chat/ typo. AzerothCore is a heavy C++
+    build so I'd verify at the script/path level, not a full compile.
 
-I'll confirm nothing there executes from tmp/ first.
+  I'll confirm nothing there executes from tmp/ first.
 
 
 yeah okay let's change all the hard-coded literals then. We shouldn't use
@@ -1115,11 +1189,17 @@ you forget? You can refresh your memory by reading this file:
 
 Got it. Clear plan:
 
-- **Commit** (at the end, after #5/#6): the `ai-stuff` monorepo gets **one** `/tmp → /dev/shm` commit; each other git repo gets its own commit; the 3 non-git projects stay uncommitted. Surgical staging only — my `/tmp→/dev/shm` lines, nothing else, keeping the pre-staged transcript renames out.
+- **Commit** (at the end, after #5/#6): the `ai-stuff` monorepo gets **one**
+  `/tmp → /dev/shm` commit; each other git repo gets its own commit; the 3
+  non-git projects stay uncommitted. Surgical staging only — my
+  `/tmp→/dev/shm` lines, nothing else, keeping the pre-staged transcript
+  renames out.
 
-- **#6/soramech:** data (sockets, run-logs) → `/dev/shm`; exec `.so` stays on `/tmp`.
+- **#6/soramech:** data (sockets, run-logs) → `/dev/shm`; exec `.so` stays on
+  `/tmp`.
 
-- **#5/wow-chat:** don't just swap the literal — route through `${DIR}/tmp`, since hard-coded paths shouldn't exist in the first place.
+- **#5/wow-chat:** don't just swap the literal — route through `${DIR}/tmp`,
+  since hard-coded paths shouldn't exist in the first place.
 
 
 You're right about the `${DIR}` rule — let me re-read your CLAUDE.md to make
@@ -1133,15 +1213,15 @@ part of the file I *hadn't* seen (the opening note truncated everything past
 line 32).
 
 
-**Line 41 is a two-tier RAM scheme that I've been building against differently.** In plain mechanical terms, it says each project should have:
+**Line 41 is a two-tier RAM scheme that I've been building against
+differently.** In plain mechanical terms, it says each project should have:
 
 
 ```
 
-project/tmp → /tmp/{project} (RAM, execution ALLOWED) ← binaries, .so
+project/tmp            → /tmp/{project}          (RAM, execution ALLOWED)   ← binaries, .so
 
-project/tmp/shared-memory → /dev/shm/{project} (RAM, execution BLOCKED) ←
-logs, builds, data
+project/tmp/shared-memory → /dev/shm/{project}   (RAM, execution BLOCKED)   ← logs, builds, data
 
 ```
 
@@ -1153,26 +1233,47 @@ problem we hit — exec artifacts get a RAM home that allows execution, data
 gets the guaranteed-RAM `/dev/shm`.
 
 
-**The problem:** that contradicts what I built. Your opening instruction was *"migrate the tmp/ symlink to point at /dev/shm, keep the tmp name"* — so Tiers A–C now point `tmp/ → /dev/shm/{project}` **directly**, with no `/tmp/{project}` layer and no `tmp/shared-memory/` sub-link. Both can't be right, and I don't want to keep going (wow-chat, soramech) until I know which shape you actually want — otherwise I'll build more on the wrong foundation.
+**The problem:** that contradicts what I built. Your opening instruction was
+*"migrate the tmp/ symlink to point at /dev/shm, keep the tmp name"* — so
+Tiers A–C now point `tmp/ → /dev/shm/{project}` **directly**, with no
+`/tmp/{project}` layer and no `tmp/shared-memory/` sub-link. Both can't be
+right, and I don't want to keep going (wow-chat, soramech) until I know which
+shape you actually want — otherwise I'll build more on the wrong foundation.
 
 
 Here's the trade, concretely:
 
-- **What I built** puts logs in `/dev/shm` automatically (write to `tmp/logs/`, done) — simple, but a pure-data project never touches `/tmp` at all, and it ignores the `shared-memory` convention.
+- **What I built** puts logs in `/dev/shm` automatically (write to `tmp/logs/`,
+  done) — simple, but a pure-data project never touches `/tmp` at all, and it
+  ignores the `shared-memory` convention.
 
-- **The two-tier** matches your written standard and handles exec+data projects cleanly, but for a *data-only* project it adds a layer, and scripts have to write to `tmp/shared-memory/…` (not `tmp/…`) or their logs land on `/tmp` instead of `/dev/shm`. That's a rework of Tiers A–C.
+- **The two-tier** matches your written standard and handles exec+data projects
+  cleanly, but for a *data-only* project it adds a layer, and scripts have to
+  write to `tmp/shared-memory/…` (not `tmp/…`) or their logs land on `/tmp`
+  instead of `/dev/shm`. That's a rework of Tiers A–C.
 
 
 **[Asked the user]**
 
 
-*Q1 — tmp/ scheme:* Your CLAUDE.md (line 41) now defines a two-tier scheme: tmp/ -> /tmp/{project} (exec) + tmp/shared-memory/ -> /dev/shm/{project} (logs/data). But I built Tiers A-C as tmp/ -> /dev/shm directly, per your opening instruction. Which shape do you want?
+*Q1 — tmp/ scheme:* Your CLAUDE.md (line 41) now defines a two-tier scheme:
+tmp/ -> /tmp/{project} (exec) + tmp/shared-memory/ -> /dev/shm/{project}
+(logs/data). But I built Tiers A-C as tmp/ -> /dev/shm directly, per your
+opening instruction. Which shape do you want?
 
-- Two-tier per CLAUDE.md — Rework Tiers A-C to the written convention: tmp/ -> /tmp/{project}, plus a nested tmp/shared-memory/ -> /dev/shm/{project}. Route logs/data writes to tmp/shared-memory/, exec artifacts to tmp/. Matches your standard; more rework.
+- Two-tier per CLAUDE.md — Rework Tiers A-C to the written convention: tmp/ ->
+  /tmp/{project}, plus a nested tmp/shared-memory/ -> /dev/shm/{project}. Route
+  logs/data writes to tmp/shared-memory/, exec artifacts to tmp/. Matches your
+  standard; more rework.
 
-- Keep simple tmp/ -> /dev/shm — Keep what I built. tmp/ points straight at /dev/shm/{project}; data lands in RAM with no extra layer; the few exec-from-tmp projects (3d-rts) stay on /tmp. Matches your opening instruction; diverges from line 41.
+- Keep simple tmp/ -> /dev/shm — Keep what I built. tmp/ points straight at
+  /dev/shm/{project}; data lands in RAM with no extra layer; the few
+  exec-from-tmp projects (3d-rts) stay on /tmp. Matches your opening
+  instruction; diverges from line 41.
 
-- Hybrid — Data-only projects keep the simple tmp/ -> /dev/shm (no rework); add the tmp/shared-memory/ tier ONLY where executable and non-exec artifacts coexist (e.g. soramech, 3d-rts). Pragmatic middle.
+- Hybrid — Data-only projects keep the simple tmp/ -> /dev/shm (no rework);
+  add the tmp/shared-memory/ tier ONLY where executable and non-exec artifacts
+  coexist (e.g. soramech, 3d-rts). Pragmatic middle.
 
 → **Selected:** Two-tier per CLAUDE.md
 
@@ -1189,26 +1290,43 @@ only what the test creates:
 
 The canonical two-tier helper is built and **validated end-to-end**:
 
-- `tmp/ → /tmp/neocities-modernization` (exec tier), `tmp/shared-memory/ → /dev/shm/neocities-modernization` (data tier) ✓
+- `tmp/ → /tmp/neocities-modernization` (exec tier), `tmp/shared-memory/ →
+  /dev/shm/neocities-modernization` (data tier) ✓
 
 - A write to `tmp/shared-memory/` genuinely lands in `/dev/shm` ✓
 
-- Self-heal works: an old direct-`/dev/shm` `tmp` symlink flips back to the `/tmp` exec tier ✓
+- Self-heal works: an old direct-`/dev/shm` `tmp` symlink flips back to the
+  `/tmp` exec tier ✓
 
 
 So this is the pattern to propagate. Two things before I fan it out to the other
 ~10 projects:
 
 
-**1. A contradiction in your CLAUDE.md you'll want to resolve.** Line 41 (two-tier) says `tmp/ → /tmp/{project}`, but **line 42 still says** `tmp/` should be "a symlink to a project-specific directory located in the system `/dev/shm/`." Those disagree about where `tmp/` itself points. I'm following line 41 (what you chose). Want me to fix line 42 to match — or is that yours to edit?
+**1. A contradiction in your CLAUDE.md you'll want to resolve.** Line 41
+(two-tier) says `tmp/ → /tmp/{project}`, but **line 42 still says** `tmp/`
+should be "a symlink to a project-specific directory located in the system
+`/dev/shm/`." Those disagree about where `tmp/` itself points. I'm following
+line 41 (what you chose). Want me to fix line 42 to match — or is that yours
+to edit?
 
 
 **2. The rework has two depths, and the second is where the real size is:**
 
 
-- **Structure** (required): transform my Tier A–C edits + the inline creators so every project sets up *both* symlinks. `tmp/` goes back to `/tmp/{project}`, and `tmp/shared-memory/ → /dev/shm/{project}` gets added. ~11 files.
+- **Structure** (required): transform my Tier A–C edits + the inline creators
+  so every project sets up *both* symlinks. `tmp/` goes back to
+  `/tmp/{project}`, and `tmp/shared-memory/ → /dev/shm/{project}` gets added.
+  ~11 files.
 
-- **Rerouting the writes** (this is the big one): today each project writes logs to `tmp/logs/`, `tmp/embeddings/`, etc. Under two-tier those land in the `/tmp` exec tier — which is RAM *on this machine* but **not guaranteed RAM elsewhere**, which was your whole original reason for the migration. To actually put logs in guaranteed RAM, every `tmp/<data>` write has to become `tmp/shared-memory/<data>`. That reaches into source files well beyond the symlink setup — for neocities alone that's ~10 files (the ones issue 8-059 lists), and similar per project.
+- **Rerouting the writes** (this is the big one): today each project writes logs
+  to `tmp/logs/`, `tmp/embeddings/`, etc. Under two-tier those land in the
+  `/tmp` exec tier — which is RAM *on this machine* but **not guaranteed RAM
+  elsewhere**, which was your whole original reason for the migration. To
+  actually put logs in guaranteed RAM, every `tmp/<data>` write has to become
+  `tmp/shared-memory/<data>`. That reaches into source files well beyond the
+  symlink setup — for neocities alone that's ~10 files (the ones issue 8-059
+  lists), and similar per project.
 
 
 So: **do you want the full reroute** (logs → `tmp/shared-memory/`, which
@@ -1229,27 +1347,27 @@ it's your call on scope — which way?
 
 ### User Request 12
 
-1. A contradiction in your CLAUDE.md you'll want to resolve. Line 41 (two-tier)
-says tmp/ → /tmp/{project}, but line 42 still says tmp/ should be "a symlink
-to a project-specific directory located in the system /dev/shm/." Those disagree
-about where tmp/ itself points. I'm
+  1. A contradiction in your CLAUDE.md you'll want to resolve. Line 41
+     (two-tier) says tmp/ → /tmp/{project}, but line 42 still says tmp/ should
+     be "a symlink to a project-specific directory located in the system
+     /dev/shm/." Those disagree about where tmp/ itself points. I'm
 
-following line 41 (what you chose). Want me to fix line 42 to match — or is
-that yours to edit?
+  following line 41 (what you chose). Want me to fix line 42 to match — or is
+  that yours to edit?
 
 
 can you fix it as succinctly as possible?
 
 
-- Rerouting the writes (this is the big one): today each project writes logs to
-tmp/logs/, tmp/embeddings/, etc. Under two-tier those land in the /tmp exec tier
-— which is RAM on this machine but not guaranteed RAM elsewhere, which was
-your whole original reason for the migration.
+  - Rerouting the writes (this is the big one): today each project writes logs
+    to tmp/logs/, tmp/embeddings/, etc. Under two-tier those land in the /tmp
+    exec tier — which is RAM on this machine but not guaranteed RAM elsewhere,
+    which was your whole original reason for the migration.
 
-To actually put logs in guaranteed RAM, every tmp/<data> write has to become
-tmp/shared-memory/<data>. That reaches into source files well beyond the symlink
-setup — for neocities alone that's ~10 files (the ones issue 8-059 lists), and
-similar per project.
+  To actually put logs in guaranteed RAM, every tmp/<data> write has to become
+  tmp/shared-memory/<data>. That reaches into source files well beyond the
+  symlink setup — for neocities alone that's ~10 files (the ones issue 8-059
+  lists), and similar per project.
 
 
 
@@ -1257,14 +1375,14 @@ similar per project.
 great sounds good
 
 
-So: do you want the full reroute (logs → tmp/shared-memory/, which fulfills
-the portability goal), or structure-only for now (both symlinks exist; move the
-write-paths in a later pass)? Full is faithful to the convention and your
-original motivation, but it's a genuinely large,
+  So: do you want the full reroute (logs → tmp/shared-memory/, which fulfills
+  the portability goal), or structure-only for now (both symlinks exist; move
+  the write-paths in a later pass)? Full is faithful to the convention and your
+  original motivation, but it's a genuinely large,
 
-source-touching sweep across every project — I'd want to go project-by-project
-and validate each. Structure-only lands the skeleton fast and lets the writes
-migrate incrementally.
+  source-touching sweep across every project — I'd want to go
+  project-by-project and validate each. Structure-only lands the skeleton fast
+  and lets the writes migrate incrementally.
 
 
 update your todo list and let's get started.
@@ -1288,7 +1406,9 @@ and the good news is the default already behaves that way. Let me restructure
 the board, fix the doc, and prove the rm-safety.
 
 
-**rm-safety proven** — and the good news is a regular symlink already does exactly what you want. `rm -rf` never follows a symlink while recursing, so it removes the *pointer*, not the target's contents. Verified all three ways:
+**rm-safety proven** — and the good news is a regular symlink already does
+exactly what you want. `rm -rf` never follows a symlink while recursing, so it
+removes the *pointer*, not the target's contents. Verified all three ways:
 
 
 | You run | `/dev/shm` data survives? |
@@ -1380,13 +1500,23 @@ calls.)
 **[Asked the user]**
 
 
-*Q1 — Pace/mechanism:* The two-tier full reroute is ~100-150 judged edits across 11 projects (much bigger than the original swap). How do you want to run it?
+*Q1 — Pace/mechanism:* The two-tier full reroute is ~100-150 judged edits
+across 11 projects (much bigger than the original swap). How do you want to run
+it?
 
-- Finish neocities, then review — I complete neocities fully (all ~25 sites + docs + issue) and validate it (lua parse + a test run), then pause so you can eyeball the worked pattern and my exec-vs-data calls before I propagate to the other 10 projects. Safest; gives you a review gate.
+- Finish neocities, then review — I complete neocities fully (all ~25 sites +
+  docs + issue) and validate it (lua parse + a test run), then pause so you can
+  eyeball the worked pattern and my exec-vs-data calls before I propagate to the
+  other 10 projects. Safest; gives you a review gate.
 
-- Grind all 11 serially — I keep going project-by-project through everything in this session until done. Many turns of dense edits; no review gate until the end. You trust my exec-vs-data judgment throughout.
+- Grind all 11 serially — I keep going project-by-project through everything
+  in this session until done. Many turns of dense edits; no review gate until
+  the end. You trust my exec-vs-data judgment throughout.
 
-- Parallelize with a workflow — Spin up a multi-agent workflow (one agent per project) to do the reroute in parallel under a shared rule-set I define. Fastest wall-clock, but a large token spend and you're explicitly opting into multi-agent orchestration.
+- Parallelize with a workflow — Spin up a multi-agent workflow (one agent per
+  project) to do the reroute in parallel under a shared rule-set I define.
+  Fastest wall-clock, but a large token spend and you're explicitly opting into
+  multi-agent orchestration.
 
 → **Selected:** Grind all 11 serially
 
@@ -1441,7 +1571,12 @@ parse clean**, and the helper builds the two-tier structure. Converting the
 8-059 blueprint to two-tier (so a from-scratch rebuild yields the right shape):
 
 
-**neocities done and validated** (1 of 11): two-tier helper, all write-paths routed (data→`shared-memory`, exec build tree stays in `tmp/`), blueprint updated, every edited file parses clean. Residual scattered notepad-comments I'll catch in a final global sweep. Moving to **words-pdf** (its mirror). Marking neocities done, rewriting the words-pdf helper to two-tier, and mapping its write-sites:
+**neocities done and validated** (1 of 11): two-tier helper, all write-paths
+routed (data→`shared-memory`, exec build tree stays in `tmp/`), blueprint
+updated, every edited file parses clean. Residual scattered notepad-comments
+I'll catch in a final global sweep. Moving to **words-pdf** (its mirror).
+Marking neocities done, rewriting the words-pdf helper to two-tier, and mapping
+its write-sites:
 
 
 words-pdf has ~20 sites (like neocities — its mirror). Helper rewritten to
@@ -1478,34 +1613,50 @@ comment:
 Validating words-pdf's final edits and re-checking completeness:
 
 
-**2 of 11 done and validated** (neocities, words-pdf — both fully rerouted, all files parse, helpers build the two-tier structure, completeness-clean). The durable state is the todo board + working tree, so this is safe to resume even if context compacts. Continuing the grind → **narrative-engine** (+ soramech). Writing its two-tier helper (it maintains both `tmp/` and `map/tmp/`, sharing one exec target + one shared-memory link) and mapping its writes:
+**2 of 11 done and validated** (neocities, words-pdf — both fully rerouted,
+all files parse, helpers build the two-tier structure, completeness-clean). The
+durable state is the todo board + working tree, so this is safe to resume even
+if context compacts. Continuing the grind → **narrative-engine** (+ soramech).
+Writing its two-tier helper (it maintains both `tmp/` and `map/tmp/`, sharing
+one exec target + one shared-memory link) and mapping its writes:
 
 
 I've hit a genuine inflection point that's worth surfacing before I plow
 further.
 
 
-**Where we are:** 2 of 11 done and validated (neocities, words-pdf — both in the `ai-stuff` monorepo). narrative-engine's two-tier helper is written. All edits live safely in the working tree.
+**Where we are:** 2 of 11 done and validated (neocities, words-pdf — both in
+the `ai-stuff` monorepo). narrative-engine's two-tier helper is written. All
+edits live safely in the working tree.
 
 
-**Why narrative-engine/soramech is different — and riskier:** its scry/deliberation files (`libs/stage.lua`) are Lua and I can reroute them cleanly. But the **per-run `last-run.jsonl` transcript is written by the compiled `soramech-pool` C binary** (`008-pool-runner.c`), and soramech also *compiles and `dlopen`s `.so` files* and opens `/tmp/soramech-*.sock` sockets. Fully honoring two-tier there means **editing C and recompiling soramech** (the `.so` stays in the exec tier by rule; sockets/jsonl are data → shared-memory). That's a different, heavier class of change than the path-swaps I've been doing — and a recompile can surface its own breakage.
+**Why narrative-engine/soramech is different — and riskier:** its
+scry/deliberation files (`libs/stage.lua`) are Lua and I can reroute them
+cleanly. But the **per-run `last-run.jsonl` transcript is written by the
+compiled `soramech-pool` C binary** (`008-pool-runner.c`), and soramech also
+*compiles and `dlopen`s `.so` files* and opens `/tmp/soramech-*.sock` sockets.
+Fully honoring two-tier there means **editing C and recompiling soramech** (the
+`.so` stays in the exec tier by rule; sockets/jsonl are data → shared-memory).
+That's a different, heavier class of change than the path-swaps I've been doing
+— and a recompile can surface its own breakage.
 
 
-**A concrete de-risking plan I'd recommend** given the session's length and the C territory ahead:
+**A concrete de-risking plan I'd recommend** given the session's length and the
+C territory ahead:
 
 
 1. **Finish the rest of the `ai-stuff` monorepo first** — it only has small
-doc-only pieces left (apple-IIds, first-person-spellcraft; 3d-rts already
-handled). Then the *entire* monorepo's two-tier migration is complete and
-self-contained.
+   doc-only pieces left (apple-IIds, first-person-spellcraft; 3d-rts already
+   handled). Then the *entire* monorepo's two-tier migration is complete and
+   self-contained.
 
 2. **Make the one `ai-stuff` commit now** (your planned single monorepo commit)
-— a real safety checkpoint instead of ~150 uncommitted edits riding on one
-marathon.
+   — a real safety checkpoint instead of ~150 uncommitted edits riding on one
+   marathon.
 
 3. **Then tackle the out-of-repo projects** one repo/commit at a time, with
-narrative-engine/soramech (the C recompile) done deliberately rather than
-rushed.
+   narrative-engine/soramech (the C recompile) done deliberately rather than
+   rushed.
 
 
 This keeps your "one commit per repo, ai-stuff gets one" rule intact, and locks
@@ -1518,6 +1669,78 @@ everything regardless)? And for soramech specifically — **OK to edit +
 recompile the C runner** so the jsonl lands in `shared-memory`, or would you
 rather that transcript stay in the exec tier (`/tmp`, RAM here) and leave the
 binary untouched?
+
+
+--------------------------------------------------------------------------------
+
+### User Request 13
+
+  1. Finish the rest of the ai-stuff monorepo first — it only has small
+     doc-only pieces left (apple-IIds, first-person-spellcraft; 3d-rts already
+     handled). Then the entire monorepo's two-tier migration is complete and
+     self-contained.
+
+  2. Make the one ai-stuff commit now (your planned single monorepo commit) —
+     a real safety checkpoint instead of ~150 uncommitted edits riding on one
+     marathon.
+
+  3. Then tackle the out-of-repo projects one repo/commit at a time, with
+     narrative-engine/soramech (the C recompile) done deliberately rather than
+     rushed.
+
+
+\]
+
+
+--------------------------------------------------------------------------------
+
+### User Request 14
+
+1. Finish the rest of the ai-stuff monorepo first — it only has small doc-only
+   pieces left (apple-IIds, first-person-spellcraft; 3d-rts already handled).
+   Then the entire monorepo's two-tier migration is complete and self-contained.
+
+  2. Make the one ai-stuff commit now (your planned single monorepo commit) —
+     a real safety checkpoint instead of ~150 uncommitted edits riding on one
+     marathon.
+
+  3. Then tackle the out-of-repo projects one repo/commit at a time, with
+     narrative-engine/soramech (the C recompile) done deliberately rather than
+     rushed.
+
+
+sure sounds good
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 14
+
+On it. First, an honest correction: I under-scoped **apple-IIds** when I called
+it doc-only — it has build scripts writing to `tmp/build`, so it needs real
+rerouting, not just a doc tweak. Let me investigate the true ai-stuff remainder
+precisely (apple-IIds' tmp usage + whether it has any symlink setup; 3d-rts data
+writes; first-person-spellcraft's doc state):
+
+
+Good — that clarifies it. apple-IIds' `tmp/build/` stages **compiled
+binaries** (gsplus emulator, addons, luajit) — that's an exec build tree,
+which correctly belongs in the exec tier (`tmp/ → /tmp/apple-IIds`). So
+apple-IIds *is* effectively doc-only: I just need to revert my simple-pass
+`/dev/shm` edit back to `/tmp` (the exec tier). Same for 3d-rts (its `tmp/`
+holds the binary + test binaries = all exec). first-person-spellcraft's logs are
+data → `shared-memory`. Reading the exact current lines:
+
+
+Applying the ai-stuff remainder — apple-IIds and 3d-rts back to the exec tier
+(`/tmp`), first-person-spellcraft's logs to `shared-memory`:
+
+
+The ai-stuff monorepo's two-tier migration is complete (neocities + words-pdf
+fully rerouted; apple-IIds/3d-rts on the exec tier; first-person-spellcraft logs
+→ shared-memory; Tier D orphans left alone). Now the careful commit — the
+repo has your pre-staged transcript renames that must stay out of it. Let me see
+the exact split:
 
 
 --------------------------------------------------------------------------------
