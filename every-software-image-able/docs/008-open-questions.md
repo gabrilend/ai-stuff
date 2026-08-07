@@ -153,6 +153,58 @@ set of possible requests is a function of the hardware map. `003`.
 
 ## Open, and blocking
 
+**Two, added 2026-08-07.**
+
+**23 — How does a driver find the image's regions on a real card?**
+
+The builder lays down five regions on a raw medium — the waking code, the
+engine, the model, the text, the carried randomness — each on a block
+boundary, and it refuses to build if those offsets disagree with what the
+engine expects (`502`). Every board this project has boots through UEFI, where
+firmware opens **one file** on a FAT filesystem and hands over a pointer to
+that file's contents in memory. The other four regions are not at a knowable
+distance from anything the driver can see.
+
+The payload that reached first light on 2026-08-07 carries the model, the text
+and the randomness inside itself, sixty-four kilobytes past its own first
+instruction, and reaches each by measuring from where it is standing. That
+works, it is honest, and it is what `029` already does for the memory report.
+It is also not what a card with a hundred-megabyte model would do, because a
+payload is loaded whole and a model that size should be read as it is needed.
+
+The alternative is for the machine to open the medium it booted from and read
+the regions by offset — which is a storage driver, and `107` lists storage
+driver under the machine's job rather than the seed's, on the grounds that its
+failure is a wrong answer rather than silence. That reasoning still holds, and
+it leaves a gap: the machine cannot write a storage driver until it can think,
+and on this arrangement it cannot think until it has read the regions.
+
+It blocks `502`, which cannot close while the only image it has produced
+contains no engine, and it is the last structural question between here and a
+card that boots.
+
+**24 — Is the tokenizer's preparation paid at startup or at build time?**
+
+Resolving one merge rule means finding the token whose text is two other
+tokens' texts joined. There is no hash and nothing to build one with, so it is
+a walk over the vocabulary per rule: merge count times vocabulary size times
+token length. On the fixture that is nothing. On a real model with thirty
+thousand of each it is on the order of tens of billions of byte comparisons,
+once, before the machine says its first word.
+
+`024` says the token table is "read once at startup to build whatever lookup
+the engine wants," which settles it — but that sentence was written before
+anybody had counted the comparisons. The alternative is for the builder to
+prepare the tables and carry them on the image, which trades a wait at every
+boot for a new seam between the builder and the engine's internal layout, and
+takes away the machine's ability to re-prepare after it changes its own
+vocabulary.
+
+Nobody has measured it on a real model, and the honest form of this question is
+that it should not be answered until somebody has.
+
+---
+
 **One, added 2026-08-04.**
 
 **22 — Where does the operation table live?**
