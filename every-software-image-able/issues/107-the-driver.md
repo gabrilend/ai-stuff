@@ -2,6 +2,9 @@
 
 ## Current behavior
 
+**Steps one through eight of the ten below are done on the first
+architecture, and one through four on all three. Step nine remains.**
+
 **Started, 2026-08-04. The first piece exists on all three machines.**
 
 Step two of the ten below -- finding the model and locating every tensor --
@@ -84,28 +87,32 @@ thousand more bytes than this has" is something a person can act on and
 overlapping two things that are rarely both live -- is how a machine ends up
 subtly wrong in a way that only shows under load.
 
+**Steps five through eight are done too, on the first architecture, as of
+2026-08-07.** That is the sub-ticket `107a`: reading the text, tokenising it,
+running the engine, drawing a word, saying it, and going round again.
+
+A computer with no operating system now reaches first light, thinks, and says
+six words -- the same six the readable loop says from the same starting text
+with the same carried randomness, token for token. `src/137` builds the
+tokenizer's tables from the model's own word-lists, and `src/139` is the loop.
+Everything they call, they call through a pointer held in a plan, because
+there is no linker and a call by name is a note for one.
+
 ---
 
-**What remains, and what the rest of this ticket was written about.**
+**What remains.**
 
-**Nothing runs on a bare machine after the waking code says "handing over."**
-The next instruction is a halt, followed by a jump back to that halt, and
-that is where a flashed machine stops today.
+**Step nine: noticing that what was said is a request, and carrying it out.**
+This is the hands, it is the part `107` predicted would want its own ticket
+once its shape was known, and it does -- recognising a request means comparing
+byte strings against a catalogue, which is a different kind of work from
+anything above it. The catalogue, the parser, the answering and every hand
+exist and are proved, all of them readable-only.
 
-Every part it would hand over to exists and is proved. The arithmetic, the
-conducting and the sampler are assembly on all three architectures and agree
-with each other bit for bit. The tokenizer and the console are assembly on
-the first architecture. What does not exist is anything that ties them
-together into one program the firmware can enter.
-
-**The thing that ties them together today runs on the development machine.**
-The loop that turns text into numbers, runs the numbers through the engine,
-draws a word and puts it back is written in a readable language and reaches
-the assembly through a foreign-function interface. So are the assembler, the
-hands, and the context. They are the readable half of the project's usual
-method -- write it plainly, record what it produces, then write the assembly
-and require it to reproduce those answers -- and the assembly half was
-written for the arithmetic and has not been written above it.
+**The forever-loop around a turn waits for it, and should.** A machine with no
+hands and no channel that has finished a thought has nothing to think about
+next -- it would draw from the same scores again. What makes a finished turn
+into something worth having is what the machine can do between turns.
 
 **The image has a region for the engine and nothing fills it.** The builder
 lays down five regions in order -- the waking code, the engine, the model,
@@ -114,6 +121,15 @@ checks that the offsets it writes are the offsets the engine will look for,
 and refuses to build if they disagree. The engine's bytes arrive as a
 parameter. One caller supplies that parameter and it is a test, and it passes
 two thousand copies of a single letter.
+
+There are now real bytes to hand it. What is not settled is how the driver
+reaches the model, the text and the randomness once they are laid down as
+regions of a medium rather than carried inside the payload -- `107a`'s first
+open question, and `502` cannot close without an answer to it.
+
+**Nothing has changed for a flashed card yet.** The waking code still says
+"handing over" and halts; what it would hand over to is proved and not yet
+joined to it.
 
 ## Intended behavior
 

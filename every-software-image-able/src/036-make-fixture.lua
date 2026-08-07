@@ -131,15 +131,34 @@ local function write_description(path, shape, tensors)
 
   lines[#lines + 1] = "  },"
 
-  -- a vocabulary, so the blob is complete even though the fixture does not
-  -- exercise the tokenizer. A blob missing a section is a blob that tests a
-  -- reader less thoroughly than a real one would.
+  -- a vocabulary, so the blob is complete even though the arithmetic fixture
+  -- does not exercise the tokenizer. A blob missing a section is a blob that
+  -- tests a reader less thoroughly than a real one would.
+  --
+  -- IT IS A VOCABULARY THAT CAN ACTUALLY BE PREPARED, and it was not until
+  -- 2026-08-07. It used to hold the placeholder names t1 through t48 with two
+  -- merge rules joining texts no token held -- three sections each well-formed
+  -- alone and unusable together, which nothing noticed because the only test
+  -- that tokenizes builds its own vocabulary in memory and never asks the blob
+  -- for one. The first program that needed all of them at once (107a) found it
+  -- immediately, which is the usual way.
+  --
+  -- The shape of it: every token but the last two says one byte, counting up
+  -- from zero, so a prompt written in low bytes tokenizes. The last two say
+  -- two bytes each, and they are exactly what the two merge rules produce --
+  -- so the merge path is exercised rather than skipped, and a preparation that
+  -- silently resolved no rules would be caught.
+  local byte_tokens = shape.vocabulary - 2
   lines[#lines + 1] = "  tokens = {"
-  for slot = 1, shape.vocabulary do
-    lines[#lines + 1] = string.format("    %q,", "t" .. slot)
+  for slot = 1, byte_tokens do
+    lines[#lines + 1] = string.format("    %q,", string.char(slot - 1))
   end
+  lines[#lines + 1] = string.format("    %q,", string.char(1) .. string.char(2))
+  lines[#lines + 1] = string.format("    %q,", string.char(3) .. string.char(4))
   lines[#lines + 1] = "  },"
-  lines[#lines + 1] = "  merges = { {3, 4}, {5, 6} },"
+  -- rank is position: joining tokens 1 and 2 makes the first of the pair
+  -- above, joining 3 and 4 makes the second.
+  lines[#lines + 1] = string.format("  merges = { {1, 2}, {3, 4} },")
   lines[#lines + 1] = "}"
 
   local handle = io.open(path, "w") or die("cannot write " .. path)
