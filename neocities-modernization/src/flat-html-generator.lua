@@ -1709,11 +1709,33 @@ end
 
 -- {{{ function apply_markdown_formatting
 local function apply_markdown_formatting(text)
-    -- Handle *\*text*\* (italics with asterisks)
-    text = text:gsub("%*\\%*([^%*]+)%*\\%*", "<em>*%1*</em>")
+    -- Issue 4-003 (August 2026): emphasis renders styled AND keeps the typed
+    -- delimiters visible ("both", per user) -- *love* shows as italic *love*.
+    -- Delimiters already consumed into output are re-emitted as \1 sentinels
+    -- so the narrower single-asterisk pass cannot re-match inside a bold span;
+    -- escape_html strips control bytes beforehand, so \1 cannot collide with
+    -- poem content. Sentinels become literal asterisks at the end.
 
-    -- Handle *text* (simple italics)
-    text = text:gsub("%*([^%*]+)%*", "<em>%1</em>")
+    -- Handle *\*text*\* (legacy escaped-italics convention, kept first so the
+    -- plain passes below never half-consume its backslash form)
+    text = text:gsub("%*\\%*([^%*]+)%*\\%*", "<em>\1%1\1</em>")
+
+    -- Handle **text** (bold) before *text* so the pair is not split in two
+    text = text:gsub("%*%*([^%*]+)%*%*", "<strong>\1\1%1\1\1</strong>")
+
+    -- Handle *text* (italics). The content must start and end on non-space
+    -- and stay on one line: "2 * 3 * 4" and asterisk bullet lists are not
+    -- emphasis. (Two passes because Lua patterns have no alternation: one
+    -- for 2+ character spans, one for the single-character *x* case.)
+    text = text:gsub("%*([^%s%*][^%*\n]-[^%s%*])%*", "<em>\1%1\1</em>")
+    text = text:gsub("%*([^%s%*])%*", "<em>\1%1\1</em>")
+
+    -- Handle ~~text~~ (strikethrough) and `text` (inline code)
+    text = text:gsub("~~([^~]+)~~", "<del>~~%1~~</del>")
+    text = text:gsub("`([^`\n]+)`", "<code>`%1`</code>")
+
+    -- Sentinels back to the asterisks the author typed
+    text = text:gsub("\1", "*")
 
     return text
 end
