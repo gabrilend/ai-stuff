@@ -151,3 +151,22 @@ Phase 4 successfully addressed critical data quality issues and infrastructure g
 - **4-004**: Verify and Resolve Cross-Category ID Mapping ✅ (2025-12-14)
 
 **Phase 4 is now 100% complete with all issues archived.**
+
+---
+
+## 🔁 August 2026 Re-open: 4-003 Character Counting (Resolved)
+
+A parity anomaly in the character count distribution (poems piling up at
+1022/1020 but not 1023/1021) revealed that the server renders inline markdown:
+the compose box counted the `*emphasis*` delimiters the author typed, but the
+archive stores `<em>` tags and the extraction cleaner discarded them. A new
+shared library reconstructs typed text (delimiters restored, for display and
+counting both) and counts exactly the way the compose box counted: characters
+not bytes, URLs at a flat 23, mentions at their local part, emoji as one.
+
+**Result**: golden poems rose from 431 to **675**, and the count now respects
+the physical limit — no archived post exceeds 1024, where 13 previously
+"did". Emphasis also returns to displayed poems (`*love*` shows italic with
+its asterisks), which the site had been silently stripping.
+
+**Last Updated**: August 7, 2026

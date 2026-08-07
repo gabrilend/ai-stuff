@@ -203,5 +203,110 @@ The validator (`poem-validator.lua`) should use the pre-calculated `metadata.gol
 - **After fix**: 431 golden poems at exactly 1024 characters
 - Golden poem count now matches what Mastodon counts: text content + @mentions + CW text
 
+### 🚨 **CRITICAL DISCOVERY - AUGUST 2026**: Markdown Delimiter Loss (RE-OPENED)
+
+An audit of the character count distribution found a parity fingerprint: 129 poems
+at 1022 characters and 67 at 1020, versus only 29 at 1023 and 13 at 1021. Even
+counts just below 1024 were five to ten times more common than odd counts. Poem
+lengths have no natural reason to prefer even numbers — something was removing
+characters two at a time.
+
+**Root Cause Found**:
+The server (tech.lgbt) renders inline markdown. When the user types `*love*`,
+the compose box counts six characters, but the ActivityPub archive stores the
+rendered HTML `<em>love</em>` — the asterisks are consumed into tags. The
+`clean_html()` step in the fediverse extraction strips emphasis tags and puts
+nothing back, so every emphasized word silently loses its two delimiter
+characters (four for bold). All markdown inline delimiters are even-width
+(`*x*`=2, `**x**`=4, `~~x~~`=4, backtick pairs=2), which is exactly why only
+even deficits spike.
+
+**Ground truth**: the raw note file `words-pdf/input/notes/explosions-in-space`
+contains `I'd *love* to talk` while the same poem posted (fediverse id 4129,
+counted 1022) stores `I'd <em>love</em> to talk`. Restoring the two asterisks
+lands it exactly on 1024.
+
+**Validation at scale**: re-pricing every near-golden poem by adding back the
+delimiters implied by its formatting tags promotes 215 poems to exactly 1024 —
+including all 122 formatted poems at 1022 — while zero poems in the odd buckets
+promote. Random near-misses could not produce that pattern.
+
+**Additional divergences from what the compose box counts** (~9 poems):
+- Byte length vs character length: the count used Lua byte length, but the
+  compose box counts characters. Curly quotes and other multi-byte characters
+  each overcount by 1-3.
+- URLs: the compose box prices every URL at a flat 23 characters; the cleaner
+  kept the full URL text.
+- The cleaner also deleted typed backslashes before quotes (15 poems contain
+  intentional programming-style `\"` sequences) and, separately, destroyed the
+  user's emphasis in *displayed* poems, not just in the count.
+
+**Confirmed with user (August 2026)**:
+- Display should show BOTH the typed asterisks and rendered italics:
+  `<em>*love*</em>`.
+- Counting should adopt the full compose-box model (characters not bytes,
+  URLs = 23, delimiters restored). This promotes ~6 more poems and demotes
+  ~3 current false-goldens.
+- Remaining near-misses with no formatting are accepted as genuine near-misses;
+  the account no longer exists, so the server's stored original text cannot be
+  consulted.
+
+**Implementation Plan**:
+1. New shared library `libs/mastodon-typed-text.lua`: reconstructs typed text
+   from stored HTML (delimiter restoration, entity decoding, tag stripping,
+   backslash preservation) and counts it the way the compose box does
+   (UTF-8 characters, URL = 23, mention anchors and hashtags at visible text).
+   Colocated test file and .info.md per project convention.
+2. `scripts/extract-fediverse.lua` uses the library for display content,
+   golden content, and `golden_poem_character_count`.
+3. `src/flat-html-generator.lua` markdown formatting keeps delimiters visible
+   inside the emphasis tags and gains bold/strikethrough/code handling.
+4. Re-extract, re-validate, confirm golden count rises from 431 to ~650 and
+   the 1022/1020 spikes collapse into 1024.
+
+**Relevant tools**: audit scripts preserved in session scratchpad
+(audit-golden-deficit.lua, blank-line-collapse-test.lua,
+formatting-tag-census.lua) — they model the compose box independently of the
+pipeline and can re-verify any future counting change.
+
+### ✅ **RESOLUTION - AUGUST 2026**
+
+**Implemented**:
+1. New shared library `libs/mastodon-typed-text.lua` (with colocated test and
+   info.md) reconstructs typed text from archive HTML and counts it the way
+   the compose box counted. The extraction script now uses it for display
+   content and for `golden_poem_character_count`.
+2. Two further counting rules surfaced during verification, each caught
+   because it left poems "impossibly" above the 1024 typing limit:
+   - Plain-text mentions the server never linkified (`@user@domain` stored as
+     bare text) are priced at `@user` — the domain rides free in the composer.
+   - Emoji count as one character each: astral-plane characters are one, and
+     the invisible variation selectors / zero-width joiners that emoji carry
+     are zero. Byte counting had charged up to 4 for a single visible glyph.
+3. `apply_markdown_formatting` in the flat HTML generator now renders
+   emphasis styled AND keeps the typed delimiters visible (`<em>*love*</em>`),
+   adds bold/strikethrough/inline-code, and no longer false-matches spaced
+   asterisks ("2 * 3 * 4") or asterisk bullet lists.
+
+**Verification**:
+- 26 unit tests pass, including five archive poems hand-verified during the
+  audit that recount to exactly 1024 from raw HTML.
+- After re-extraction: **675 golden poems** (was 431). The 1022/1020 spikes
+  collapsed (129→19 and 67→11) and the even/odd parity bias vanished.
+- Global invariant holds: the maximum compose-box count across all 5,977
+  archived fediverse posts is now exactly 1024 with zero poems above it —
+  matching the physical typing limit. Before the fix, 13 poems "exceeded"
+  the limit; every excess was a measurable model error.
+- Remaining near-misses (44 at 1023, 19 at 1022) show normal magnitude
+  falloff with no parity bias: genuine human near-misses, accepted as-is
+  (the account no longer exists, so original typed text is unrecoverable).
+
+**Deferred / follow-up**:
+- Embeddings were generated from display content that lacked the restored
+  delimiters; poems with emphasis now differ slightly from their embedded
+  text. Regeneration is GPU-expensive and pending user decision.
+- Site HTML regeneration will pick up restored asterisks and the new
+  emphasis rendering on the next build.
+
 ## Implementation Priority
 **High** - Core functionality affecting similarity engine and HTML generation priorities

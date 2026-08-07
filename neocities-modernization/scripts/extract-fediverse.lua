@@ -81,6 +81,9 @@ local DIR = setup_dir_path(parsed_dir)
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
 local exclusion_filter = require("exclusion-filter")
+-- Issue 4-003 (August 2026): typed-text reconstruction and compose-box
+-- counting live in a shared, tested library instead of an inline cleaner
+local typed_text = require("mastodon-typed-text")
 
 -- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
@@ -375,7 +378,7 @@ local function extract_boost_content(announce_activity)
         -- Cache entries with empty content should fall back to "External post:" format
         if cached and cached.content and cached.content ~= "" then
             -- Use cached scraped content instead of placeholder
-            -- The cached content is HTML that will be processed by clean_html later
+            -- The cached content is HTML; typed-text restoration processes it later
             return {
                 type = "cached_external_boost",
                 uri = boosted_object,
@@ -453,26 +456,12 @@ local function extract_boost_content(announce_activity)
 end
 -- }}}
 
--- {{{ local function clean_html
-local function clean_html(content)
-    -- Clean HTML markup to get plain text (what Mastodon counts)
-    local clean = content:gsub("<p>", "\n\n")
-    -- Issue 6-032: Handle all BR tag variants (<br>, <br/>, <br />)
-    -- Mastodon uses XHTML-style <br /> which was causing words to run together
-    clean = clean:gsub("<br%s*/?>", "\n")
-    clean = clean:gsub("&amp;", "&")
-    clean = clean:gsub("&#39;", "'")
-    clean = clean:gsub("&quot;", "\"")
-    clean = clean:gsub("&lt;", "<")
-    clean = clean:gsub("&gt;", ">")
-    clean = clean:gsub("\\\"", "\"")
-    clean = clean:gsub(" _^", "^_^")
-    clean = clean:gsub("^^_^", "^_^")
-    clean = clean:gsub("<[^>]+>", "")
-    clean = clean:gsub("^\n+", ""):gsub("\n+$", "") -- Trim newlines
-    return clean
-end
--- }}}
+-- HTML-to-text now lives in libs/mastodon-typed-text.lua (issue 4-003).
+-- The old inline clean_html stripped emphasis tags without restoring the
+-- markdown delimiters the author typed (<em>love</em> was *love* in the
+-- compose box), silently shaving 2-4 characters off hundreds of poems and
+-- disqualifying them from golden status. The library restores delimiters
+-- for display AND counts the way the compose box counted.
 
 -- {{{ function process_fediverse_content
 local function process_fediverse_content(raw_content, cw, privacy_mode)
@@ -481,17 +470,15 @@ local function process_fediverse_content(raw_content, cw, privacy_mode)
    -- Process mentions for privacy BEFORE HTML cleaning to preserve structure
    local privacy_processed_content, original_content = process_mentions_for_privacy(raw_content, privacy_mode)
 
-   -- Clean HTML for display content (after anonymization)
-   local clean_content = clean_html(privacy_processed_content)
-
-   -- Clean HTML for golden poem calculation (before anonymization, preserves @mentions)
-   local golden_poem_content = clean_html(original_content)
+   -- Reconstruct typed text for display content (after anonymization)
+   local clean_content = typed_text.restore(privacy_processed_content)
 
    return {
        content = clean_content,
        raw_content = raw_content,
+       -- pre-anonymization HTML: golden counting must price the real
+       -- @mentions the author typed, not the anonymized replacements
        original_content = original_content,
-       golden_poem_content = golden_poem_content,  -- HTML-cleaned, pre-anonymization (for 1024 char count)
        content_warning = (cw and cw ~= "") and cw or nil,
        privacy_applied = (privacy_mode == "clean")
    }
@@ -514,16 +501,14 @@ end
 -- }}}
 
 -- {{{ function generate_poem_metadata
-local function generate_poem_metadata(content, cw, source_data, golden_poem_content)
-    -- Golden poem calculation: HTML-cleaned content (before anonymization) + content warning text
-    -- This matches what Mastodon counts: text content + @mentions + CW text
-    local golden_content = golden_poem_content or content
-    local golden_poem_length = string.len(golden_content)
-
-    -- Add content warning text to golden poem calculation (exclude "CW: " prefix as per 6-027)
-    if cw and cw ~= "" then
-        golden_poem_length = golden_poem_length + string.len(cw)
-    end
+local function generate_poem_metadata(content, cw, source_data, original_html)
+    -- Golden poem calculation (issue 4-003): count what the author watched in
+    -- the compose box, not what the archive stores. The library reconstructs
+    -- typed text from pre-anonymization HTML (markdown delimiters restored,
+    -- real @mentions priced at visible text, URLs at a flat 23), measures in
+    -- UTF-16 units like the compose box did, and adds the CW text without
+    -- any "CW: " prefix (per 6-027).
+    local golden_poem_length = typed_text.compose_box_count(original_html or content, cw)
 
     local metadata = {
         character_count = string.len(content), -- Display content length (post-privacy)
@@ -623,7 +608,7 @@ for key, activity in pairs(data.orderedItems) do
                 content_warning = processed_content.content_warning,
                 content = processed_content.content,
                 raw_content = processed_content.raw_content,
-                metadata = generate_poem_metadata(processed_content.content, cw, activity, processed_content.golden_poem_content)
+                metadata = generate_poem_metadata(processed_content.content, cw, activity, processed_content.original_content)
             }
 
             -- Add privacy metadata
