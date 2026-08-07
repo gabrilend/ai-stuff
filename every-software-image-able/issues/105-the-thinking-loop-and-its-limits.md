@@ -2,6 +2,20 @@
 
 ## Current behavior
 
+**The assembly twin exists on the first architecture as of 2026-08-07, and
+this ticket is waiting on the other two.**
+
+What was asked for below has happened: the readable loop is now a reference
+that something is measured against rather than the only thing there is.
+`src/139` is the loop in x86-64 instructions, and `src/140` requires it to
+say the same words this one says from the same starting text with the same
+carried randomness -- on the development machine, and then on an emulated
+computer with no operating system underneath it. Thirty-three checks, all
+holding.
+
+This ticket closes when the other two architectures have the same twin, which
+is `403`'s kind of work rather than this one's.
+
 **Reopened on 2026-08-04. The loop exists and does not run on the machine
 it was built for.**
 
