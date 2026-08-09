@@ -38,11 +38,22 @@ poems are in their journey. A file written in phase 8 can belong to stage 3.
 
 ```
 src/
+  main.lua                   <- the orchestrator, outside the numbered dirs
   1/   update-words          2/   extract           3/   parse
   4/   validate              5/   catalog-images    6/   embeddings
   7/   similarity            8/   diversity         9/   html
   10/  wordcloud
 ```
+
+`main.lua` sits BESIDE the stage directories rather than inside one. It belongs
+to no stage because it belongs to all of them: its job is to call into each in
+turn. Putting it in `src/3/` because that is the earliest stage it serves would
+have been the rule applied where it does not fit — the rule is for modules that
+a stage USES, and main.lua is not used by a stage, it uses them.
+
+It pulls each stage in when that stage runs, rather than requiring everything at
+load time. See "Unloading as an encapsulation test" below for what that buys
+beyond load time.
 
 A reader who wants to know what stage 6 does lists `src/6/`. A reader who wants
 to know what stage 6 depends on looks at which other directories its files
@@ -55,6 +66,75 @@ Two rules govern placement:
    The later stage reaches backward, which is legible; a module in stage 9 that
    stage 6 needs would be a reach forward, which is not.
 2. **Tests follow their subject** into the same directory.
+
+## Unloading as an Encapsulation Test
+
+The orchestrator loads a stage when it runs. The idea worth keeping is what
+happens at the other end: **release the stage when it finishes, and treat any
+later use of it as a bug report.** If stage 3 breaks because stage 2 was
+released, that is not an unloading problem — it is stage 3 telling you the
+encapsulation is not real. The unload is a falsification test, not an
+optimisation.
+
+Lua does not provide this for free. Measured 2026-08-08:
+
+| Method | Result |
+|---|---|
+| `package.loaded[name] = nil` | **Silent.** The next `require` re-executes the module and returns it. Nothing errors. |
+| Replace the entry with a poisoned table (metatable erroring on `__index`) | **Fails loudly** — but only on a `require` issued AFTER the seal. |
+| A `local` captured before the seal | **Not catchable at runtime.** The variable holds the table; nothing can revoke it. |
+
+Which matters depends on where the requires are, and in this codebase they are
+mostly at the top:
+
+| Requires in `src/` and `libs/` | Count |
+|---|---|
+| At file scope, captured when the file loads | 134 |
+| Inside a function, resolved when called | 42 |
+
+So a runtime seal would catch roughly the lazy quarter and miss the rest. It is
+worth having, but it is not the main instrument.
+
+**The main instrument is the directory layout itself.** Once a file lives in
+`src/6/`, a dependency on another stage is a `require` naming a different
+number — visible in the text, greppable exhaustively, and it catches both the
+file-scope and the lazy cases because it does not depend on execution order at
+all. A single command audits the whole tree, and it works on code that never
+runs during a given build.
+
+The two are complementary rather than competing: the static check is complete
+but only sees what it can name, and the runtime seal catches a computed or
+indirect require that a grep would miss.
+
+There is also a happy interaction with the orchestrator design. Moving the
+stage requires OUT of file scope and INTO main.lua's dispatch converts
+file-scope requires into lazy ones — which is precisely the category the runtime
+seal can see. The lazier the loading, the more the runtime test covers.
+
+A sketch of the seal, for when it is built:
+
+```lua
+-- Replace a finished stage's modules with a table that errors on any access,
+-- naming the stage and the field. Catches a require issued after the stage
+-- ended; cannot catch a reference captured before the seal.
+local function seal_stage(n)
+    for name in pairs(package.loaded) do
+        if name:match("^" .. n .. "%.") then
+            package.loaded[name] = setmetatable({}, {
+                __index = function(_, key)
+                    error(("stage %d module %q used after its stage ended (field %q)")
+                          :format(n, name, tostring(key)), 2)
+                end
+            })
+        end
+    end
+end
+```
+
+Worth running under a flag rather than always: a legitimate reach backward
+(stage 10 using stage 9's HTML generator, which is expected and allowed by the
+earliest-stage rule) would trip it. The point is to SEE those reaches, not to
+forbid them.
 
 ## The Value, Stated Plainly
 
@@ -109,7 +189,7 @@ Measured 2026-08-08. Every claim here is checkable with the command beside it.
 | Existing subdirectory | `src/html-generator/` (groups by component, not stage) |
 | Test files | ~11, in three naming conventions |
 
-## §2 — The hard case: `main.lua` is four stages in one file
+## §2 — `main.lua` — RESOLVED: it lives beside the directories
 
 `src/main.lua` dispatches on mode (`src/main.lua:945-952`):
 
@@ -120,16 +200,18 @@ Measured 2026-08-08. Every claim here is checkable with the command beside it.
 | `catalog_only` | 5 |
 | `html_only` | 9 |
 
-The earliest-stage rule puts it in `src/3/`. Stages 4, 5 and 9 then invoke their
-entry point out of stage 3's directory — technically fine, and it would be
-*honest*, since that is genuinely what happens today. But it means three of the
-ten directories do not contain their own entry point, which is the one thing a
-reader will most expect to find there.
+Resolved 2026-08-08: it stays at `src/main.lua`, beside the numbered
+directories rather than inside one, as the orchestrator. The earliest-stage rule
+does not apply to it, because that rule governs modules a stage USES and
+main.lua is the thing doing the using.
 
-The alternative is splitting `main.lua` into four thin entry points over shared
-internals. That is a bigger change than this issue proposes and would want its
-own issue. **This is the decision that most shapes the outcome, and it is not
-mine to make.**
+This also avoids the outcome the rule would have produced — main.lua in `src/3/`
+with stages 4, 5 and 9 reaching into stage 3 for their entry point, leaving three
+directories without one.
+
+It should pull each stage in at dispatch rather than requiring everything up
+front. That is not primarily about load time; see "Unloading as an encapsulation
+test" above for what lazy loading makes observable.
 
 ## §3 — Shared modules and where the earliest-stage rule sends them
 
@@ -185,23 +267,22 @@ runtime `require` resolution with no compile-time check, in a codebase where
 shell scripts embed Lua as strings. That is manageable with per-stage commits and
 a real run after each.
 
-The genuinely open question is §2 — whether `main.lua` is placed by the rule and
-three directories go without an entry point, or whether it is split first. Every
-other decision follows from that one.
+With §2 settled, the shape is clear: an orchestrator beside ten directories, each
+holding the code for one step of the journey, with every cross-stage reach
+visible as a path. The remaining questions are about scope (what `libs/` does,
+where tests go), not about structure.
 
 ## Open Questions
 
-1. **`main.lua`**: place it in `src/3/` by the earliest-stage rule, or split it
-   into four entry points first? (§2)
-2. **Stages 6.5, 6.7 and 6b** — semantic colours, image augmentation, word
+1. **Stages 6.5, 6.7 and 6b** — semantic colours, image augmentation, word
    embeddings — are sub-stages of 6 in `run.sh`'s dispatch, not stages of their
    own. Do they fold into `src/6/`, or does the directory scheme grow to match
    what the pipeline actually runs?
-3. **`libs/`** is untouched by this proposal, but contains pipeline-specific code
+2. **`libs/`** is untouched by this proposal, but contains pipeline-specific code
    (`inference-server-config`, `progress-display`, `runtime-overrides`). Does the
    stage scheme extend there, or does `libs/` stay the home for
    stage-independent code?
-4. **Tests**: follow their subject into the stage directory, or gather into one
+3. **Tests**: follow their subject into the stage directory, or gather into one
    `src/tests/`? Following the subject is assumed above; it also means the three
    existing naming conventions become visible side by side, which may be worth
    settling at the same time.
