@@ -224,9 +224,11 @@ end
 --          interactive: prompt the user to choose default or exit.
 --          non-interactive: hard-error with a message that names the
 --          offending --server=<name> and points at the fix.
---   2. If no --server was passed, delegate to get_default_server, which
---      either returns a resolved default or errors loudly if the default
---      itself is missing or unresolvable.
+--   2. If this run recorded a --server on the shared notepad, use that
+--      (Issue 10-065; see the block below for why).
+--   3. Otherwise delegate to get_default_server, which either returns a
+--      resolved default or errors loudly if the default itself is missing
+--      or unresolvable.
 --
 -- This function deliberately never falls back silently. A typoed --server
 -- used to print a stderr warning and continue against the default, which
@@ -248,6 +250,43 @@ function M.get_selected_server()
             .. "Fix the name on the CLI, add a matching entry to inference_servers, "
             .. "or pass -I to enable interactive selection.",
             selected_server))
+    end
+
+    -- Issue 10-065: read the run's notepad, mirroring exactly what
+    -- get_selected_model does one function below. Without this, a --server
+    -- reached only the children run.sh remembered to hand it to on argv, and
+    -- every other child silently resolved default_inference_server instead.
+    --
+    -- Why that mattered more than "wrong hostname": a server entry also carries
+    -- embedding_prompt_prefix, the text prepended to every input before it is
+    -- embedded (see format_embedding_prompt). So the server choice selects an
+    -- embedding SPACE, not just an endpoint. The live symptom was inside a
+    -- single stage: run.sh passed --server to the poem-embedding step but
+    -- src/generate-word-pages.lua, which has no --server flag, resolved the
+    -- config default -- so poem and word embeddings could be produced against
+    -- different hosts with different prefixes, and the word pages then ranked
+    -- words against poems by cosine similarity across two different spaces.
+    --
+    -- load_config() first: it is what resolves project_root, which the notepad
+    -- reader needs in order to find tmp/shared-memory/run-overrides.lua.
+    load_config()
+    local overrides = require("runtime-overrides")
+    overrides.set_project_root(project_root)
+    local override_server = overrides.get("server")
+    if override_server then
+        local server = M.get_server_by_name(override_server)
+        if server then
+            return server
+        end
+        -- A name on the notepad that does not resolve gets the same hard error
+        -- a bad --server gets, and for the same reason: the notepad IS this
+        -- run's --server. Falling through to the config default here would
+        -- reintroduce the silent substitution this whole function refuses.
+        error(string.format(
+            "inference-server-config: this run recorded --server=%s, which does not match "
+            .. "any entry in inference_servers (config.lua).\n"
+            .. "Fix the name on the run.sh command line, or add a matching entry.",
+            override_server))
     end
 
     return M.get_default_server()

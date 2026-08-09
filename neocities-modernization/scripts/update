@@ -90,6 +90,15 @@ while [[ $# -gt 0 ]]; do
             INCLUDE_BOOSTS=true
             shift
             ;;
+        # Issue 10-065: accept the explicit negative. run.sh no longer has
+        # defaults, so it must be able to SAY "no boosts" rather than say
+        # nothing and rely on this script's own INCLUDE_BOOSTS=false above.
+        # Silence and refusal look identical on a command line; only one of them
+        # survives someone later changing what silence means.
+        --no-boosts|--exclude-boosts)
+            INCLUDE_BOOSTS=false
+            shift
+            ;;
         -*)
             echo "Unknown option: $1" >&2
             exit 1

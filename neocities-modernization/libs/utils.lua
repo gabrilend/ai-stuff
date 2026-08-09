@@ -106,13 +106,27 @@ function M.parse_interactive_args(args)
     local interactive = false
     local dir_override = nil
 
-    for i, arg in ipairs(args or {}) do
-        if arg == "-I" then
+    -- Issue 10-065: index-based loop, so "--dir PATH" can be consumed as a pair.
+    -- Same reasoning as parse_cli_args above: --dir names the ASSETS root and is
+    -- read by init_assets_root(); letting its value fall through to the bare-token
+    -- branch would set dir_override, which callers assign to the PROJECT root.
+    -- Fixed here pre-emptively -- this function has the same shape as the one
+    -- that broke stage 3, and nothing currently passes it --dir only by luck.
+    args = args or {}
+    local i = 1
+    while i <= #args do
+        local a = args[i]
+        if a == "-I" then
             interactive = true
-        elseif not arg:match("^%-") then
+        elseif a == "--dir" then
+            i = i + 1  -- skip the flag's value; it is not a project root
+        elseif a:match("^%-%-dir=") then
+            -- Nothing to skip: the value rides on the same token.
+        elseif not a:match("^%-") then
             -- Non-flag argument, treat as directory override
-            dir_override = arg
+            dir_override = a
         end
+        i = i + 1
     end
 
     return interactive, dir_override
@@ -189,11 +203,32 @@ function M.parse_cli_args(args)
             i = i + 1
         elseif arg:match("^--seed=") then
             options.seed = tonumber(arg:match("^--seed=(%d+)"))
+        -- Issue 10-065: consume "--dir PATH" as a PAIR.
+        --
+        -- The value is deliberately DISCARDED here. --dir names the ASSETS root
+        -- and is read by init_assets_root(), which parses `arg` itself; it must
+        -- never become dir_override, which main.lua assigns to DIR -- the
+        -- PROJECT root. Those are different directories and conflating them
+        -- breaks path resolution downstream.
+        --
+        -- What went wrong without this: the old comment below said "--dir
+        -- handled elsewhere", and the parser did skip the FLAG -- but not its
+        -- VALUE. The path then fell through to the bare-token branch and became
+        -- dir_override, so main.lua set the project root to the assets
+        -- directory. Stage 3 then looked for input/ and compiled.txt underneath
+        -- assets/ and reported "No valid input found". Same shape of bug as the
+        -- three child parsers fixed alongside this one: skipping a flag is not
+        -- the same as skipping a flag and its argument.
+        elseif arg == "--dir" then
+            i = i + 1
+        elseif arg:match("^%-%-dir=") then
+            -- Nothing to skip: the value rides on the same token.
         elseif not arg:match("^%-") then
-            -- Non-flag argument, treat as directory override
+            -- Non-flag argument, treat as directory override (the PROJECT root)
             options.dir_override = arg
         end
-        -- Skip unknown flags (--dir handled elsewhere)
+        -- Skip remaining unknown flags. A flag that TAKES a value needs its own
+        -- branch above, or its value lands in dir_override.
 
         i = i + 1
     end
@@ -479,15 +514,34 @@ end
 --                    currently selected and use that"; pass an explicit
 --                    string only if you need a different model's directory.
 -- @return: full path to that model's embeddings directory
--- Issue 10-054: movable, regenerable caches live in RAM (tmp/shared-memory/, the /dev/shm tier)
--- to spare SSD write endurance. Only diversity_cache.json stays on disk (it costs
--- ~45-50 min to recompute) via embeddings_dir_disk(); everything else is RAM.
+-- WHERE THE CACHES LIVE, and the history of that answer.
 --
--- There is no switch any more: the project ALWAYS caches in RAM. The earlier
--- on/off flag only invited "half the writers still point at disk" desyncs. With
--- one unconditional location, every reader and writer that goes through this
--- function agrees by construction. The single rule: movable caches ->
--- embeddings_dir() (RAM); the one reboot-must-survive cache -> embeddings_dir_disk().
+-- Now: on DISK, under assets/embeddings/<model>/. Both this function and
+-- embeddings_dir_disk() resolve there.
+--
+-- Issue 10-054 moved the movable, regenerable caches into RAM
+-- (tmp/shared-memory/, the /dev/shm tier) to spare SSD write endurance, keeping
+-- only diversity_cache.json on disk because it is the expensive one to
+-- recompute. It removed the earlier CACHE_IN_RAM on/off flag rather than
+-- flipping it, on the reasoning that one unconditional location cannot desync
+-- the way a half-applied switch had twice before.
+--
+-- Issue 10-065 (question 10) then found the fact that decision was missing.
+-- "RAM until reboot" was not true on this host: elogind runs with RemoveIPC at
+-- its default of yes, which deletes every IPC object a user owns -- POSIX shared
+-- memory, i.e. the contents of /dev/shm -- when that user's LAST LOGIN SESSION
+-- ends. Closing the last terminal is enough. (/tmp is not an IPC object, which
+-- is why the exec tier survives when the shared-memory tier does not.)
+--
+-- Observed: /dev/shm/neocities-modernization was emptied overnight on a machine
+-- with two days of uptime, taking a 120 MB embeddings.json with it.
+--
+-- So the caches were being discarded per SESSION, not per reboot, and the
+-- ~20-minute rebuild (per .stage-timings) was being paid that often. Reversed
+-- accordingly: see the note on embeddings_dir below.
+--
+-- The rule is unchanged in shape, only in destination: movable caches ->
+-- embeddings_dir(); the one that must never be volatile -> embeddings_dir_disk().
 local function safe_model(model_name)
     if not model_name then
         model_name = require("inference-server-config").get_selected_model()
@@ -496,15 +550,41 @@ local function safe_model(model_name)
     return model_name:gsub("[^%w%-_.]", "_")
 end
 
+-- REVERSED 2026-08-08 (Issue 10-065, question 11): this returns the DISK path
+-- again. It read "M.DIR .. /tmp/shared-memory/cache/embeddings/ .." -- the RAM
+-- tier -- from Issue 10-054 until the finding in question 10 undercut the
+-- premise that change rested on.
+--
+-- 10-054 traded durability for SSD write endurance, on the understanding that
+-- what it gave up was survival across a REBOOT. That was wrong about this host.
+-- elogind runs here with RemoveIPC at its default of yes, so /dev/shm is emptied
+-- when the operator's last login session ends -- closing the last terminal is
+-- enough. The caches were not surviving until the next reboot; they were
+-- surviving until the next logout, and a 20-minute rebuild (per .stage-timings)
+-- was being paid per session rather than per reboot. A cache with that lifetime
+-- is a per-session scratch buffer, and paying twenty minutes an evening to avoid
+-- roughly 4 GB of writes per full regeneration is the wrong side of the trade.
+--
+-- The reversal is one line ONLY because 10-054 did the hard part: it routed
+-- every reader AND every writer of a movable cache through this function (that
+-- was the work its own history records as failing twice before it stuck). With
+-- one resolution point, moving the tier is changing one return value. The value
+-- of that centralization is exactly this -- that the decision it encodes can be
+-- revisited cheaply when the facts change.
 function M.embeddings_dir(model_name)
-    return M.DIR .. "/tmp/shared-memory/cache/embeddings/" .. safe_model(model_name)
+    return M.asset_path("embeddings/" .. safe_model(model_name))
 end
 -- }}}
 
 -- {{{ function M.embeddings_dir_disk
--- The on-DISK embeddings dir (assets/). Use ONLY for caches that must survive a
--- reboot -- currently just diversity_cache.json. Everything else uses
--- embeddings_dir() (RAM by default).
+-- The on-DISK embeddings dir (assets/). Kept as a SEPARATE function even though
+-- it now returns exactly what embeddings_dir() returns, because the distinction
+-- it draws is real and worth keeping legible: its callers
+-- (diversity_cache.json, in flat-html-generator, main.lua and
+-- pipeline-validator) are the ones that must NEVER be moved to volatile storage,
+-- whatever embeddings_dir does next. Collapsing them would erase the record of
+-- which caches are cheap to lose and which are not -- and that record is the
+-- thing that made the reversal above safe to reason about.
 function M.embeddings_dir_disk(model_name)
     return M.asset_path("embeddings/" .. safe_model(model_name))
 end

@@ -704,7 +704,7 @@ cleanup_and_exit() {
     echo -e "${BLUE}Total runtime: ${total_minutes}m${NC}"
     
     # Cleanup progress file
-    rm -f "${DIR}/tmp/embedding_progress_${USER}.txt" 2>/dev/null
+    rm -f "${DIR}/tmp/shared-memory/embedding_progress_${USER}.txt" 2>/dev/null
     
     exit 0
 }
@@ -719,7 +719,19 @@ monitor_progress() {
     local current_poem=0
     local start_time=$(date +%s)
     local percent=0
-    local progress_file="${DIR}/tmp/embedding_progress_${USER}.txt"
+    # Issue 10-065: this path must match the WRITER's exactly. It read
+    # "${DIR}/tmp/..." while src/similarity-engine.lua (lines ~583 and ~599)
+    # writes "${DIR}/tmp/shared-memory/..." -- one directory apart, so this
+    # monitor watched a file nobody ever created.
+    #
+    # The failure mode is the quiet kind: the bar sits at 0% while the embedding
+    # run proceeds perfectly underneath it, because nothing here depends on the
+    # file except the display. Issue 8-059 moved the writer into the tmpfs tier
+    # and updated the COMMENT above (line ~379, "the progress file we share with
+    # similarity-engine.lua now lives there") but not the three paths that read
+    # and delete it. A comment saying where a file lives cannot keep the code
+    # that opens it honest.
+    local progress_file="${DIR}/tmp/shared-memory/embedding_progress_${USER}.txt"
     local last_progress_time=0
     # EMBED_PID is set in the calling scope before monitor_progress is started
     local target_pid=$EMBED_PID
@@ -1012,7 +1024,7 @@ echo -e "${CYAN}================================================================
 if [ -z "${NEOCITIES_LOG_DIR:-}" ]; then
     rm -f "$TEMP_LOG"
 fi
-rm -f "${DIR}/tmp/embedding_progress_${USER}.txt" 2>/dev/null
+rm -f "${DIR}/tmp/shared-memory/embedding_progress_${USER}.txt" 2>/dev/null
 
 # Propagate the embedding result as this script's exit code so run.sh's
 # `generate-embeddings.sh ... || exit 1` actually fires on failure. Previously

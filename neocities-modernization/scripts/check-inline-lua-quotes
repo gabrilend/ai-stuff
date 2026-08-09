@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+
+# check-inline-lua-quotes
+# Verify that no stray double quote appears inside a shell script's inline Lua
+# chunks, because one there silently corrupts the program it is embedded in.
+#
+# General description (for a CEO): parts of this pipeline hand a snippet of one
+# programming language to another by wrapping it in quotation marks. Put a
+# quotation mark inside the snippet and the wrapper ends early -- the rest of the
+# snippet stops being a program and becomes a list of loose words, which the
+# receiving program then mistakes for instructions. Nothing reports an error; it
+# simply does the wrong thing. This tool reads the scripts and reports any
+# snippet whose quotation marks do not balance, so the mistake is caught by
+# running one command instead of by a stage failing an hour into a build.
+#
+# The failure that prompted it (Issue 10-065): a comment inside one such chunk
+# read `-- to be guarded by "if INFERENCE_SERVER is not empty", and an`. The
+# shell ended the chunk at the first quote and passed `if INFERENCE_SERVER is not
+# empty...` to luajit as arguments. A module that infers the project root from
+# its first argument then took the word "is" as the root, and the stage died on
+# "Failed to load config from is/config.lua". `bash -n` sees nothing wrong,
+# because the script IS still valid shell -- it just means something else now.
+#
+# Usage:
+#   scripts/check-inline-lua-quotes [FILE]...     # defaults to the known callers
+# Exit status: 0 when every chunk balances, 1 when any does not.
+
+set -u
+
+# {{{ DIR resolution
+# Hard-coded project root with first-argument override is the project convention,
+# but this tool takes FILES as arguments, so the root is resolved from the script
+# location instead and any arguments are treated as files to check.
+DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+# }}}
+
+# {{{ default file list
+# The scripts known to embed Lua. A file with no inline chunks passes trivially,
+# so over-listing is harmless and under-listing is the real risk.
+if [ "$#" -gt 0 ]; then
+    FILES=("$@")
+else
+    FILES=(
+        "${DIR}/run.sh"
+        "${DIR}/generate-embeddings.sh"
+        "${DIR}/scripts/update"
+        "${DIR}/scripts/start-llamacpp-server.sh"
+    )
+fi
+# }}}
+
+# {{{ check_file()
+# Walk a file, and for every line that opens an inline chunk, count double quotes
+# until the line that closes it. A correct chunk has exactly two: the opener and
+# the closer. Any other count means a quote inside the Lua source.
+#
+# The opening pattern is assembled from pieces rather than written out, so this
+# checker does not flag its own source when pointed at itself.
+check_file() {
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo "check-inline-lua-quotes: no such file: $file" >&2
+        return 1
+    fi
+    awk -v fname="$file" '
+        BEGIN { open_pat = "luajit -e " "\""; bad = 0 }
+        index($0, open_pat) > 0 && !inblock {
+            # Only a chunk that CONTINUES past this line is worth tracking. An
+            # odd count of unescaped quotes means the string is still open at
+            # end of line; an even count means it opened and closed here, as in
+            # `luajit -e "$LUA_EMBED_PROGRAM"`, where the Lua lives in a shell
+            # variable and this tool has nothing to say about it.
+            openline = $0
+            gsub(/\\"/, "", openline)
+            if (gsub(/"/, "\"", openline) % 2 == 1) {
+                inblock = 1; start = FNR; q = 1
+            }
+            next
+        }
+        inblock {
+            # The CLOSING line is checked first, and contributes exactly one
+            # quote -- the closer. Everything after that quote is ordinary shell
+            # (redirections, a || fallback, another quoted string) and has
+            # nothing to do with the Lua chunk. Counting the whole closing line
+            # was the first bug in this very tool: it reported two working blocks
+            # in generate-embeddings.sh as broken, because their closing line
+            # carries a redirection and a fallback string after the closer.
+            #
+            # Note for editors: this awk program is itself wrapped in SINGLE
+            # quotes, so an apostrophe in these comments would end it early --
+            # the same mistake, one language further down. Avoid apostrophes here.
+            if ($0 ~ /^[[:space:]]*"/) {
+                q += 1
+                if (q != 2) {
+                    printf "%s:%d: inline Lua chunk has %d double quotes, expected 2\n", fname, start, q
+                    bad = 1
+                }
+                inblock = 0
+                next
+            }
+            # Count only UNESCAPED quotes. A backslash-quote inside the chunk is
+            # correct and common: it puts a literal quote into the Lua source
+            # without ending the shell string, which is exactly how a Lua error
+            # message quotes a model name. Strip those from a copy of the line
+            # before counting, so the tool flags the dangerous form and stays
+            # quiet about the safe one.
+            line = $0
+            gsub(/\\"/, "", line)
+            q += gsub(/"/, "\"", line)
+        }
+        END {
+            if (inblock) {
+                printf "%s:%d: inline Lua chunk never closes\n", fname, start
+                bad = 1
+            }
+            exit bad
+        }
+    ' "$file"
+}
+# }}}
+
+status=0
+for f in "${FILES[@]}"; do
+    check_file "$f" || status=1
+done
+
+if [ "$status" -eq 0 ]; then
+    echo "check-inline-lua-quotes: all inline Lua chunks balance"
+fi
+exit "$status"

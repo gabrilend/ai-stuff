@@ -60,12 +60,23 @@ local function parse_args(args)
         elseif a:match("^--chrono%-per%-page=") then
             chrono_per_page = tonumber(a:match("=(.+)$"))
             i = i + 1
+        -- Issue 10-065: consume "--dir PATH" as a PAIR. This parser does not use
+        -- the value (utils.init_assets_root reads --dir out of `arg` itself), but
+        -- it must still swallow it: the branch below claims any token that does
+        -- not start with "-" as the positional project directory, so an
+        -- unconsumed PATH would silently REPLACE the project root -- and since
+        -- package.path is built from that root, the program would then fail to
+        -- find its own libraries. Skipping a flag is not the same as skipping a
+        -- flag and its argument.
+        elseif a == "--dir" then
+            i = i + 2
         elseif not a:match("^%-") then
             -- Positional argument (DIR)
             dir = a
             i = i + 1
         else
-            -- Skip unknown flags
+            -- Skip unknown flags (value-less ones; a flag that TAKES a value
+            -- needs its own branch above, or its value lands in `dir`).
             i = i + 1
         end
     end

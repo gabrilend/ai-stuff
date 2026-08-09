@@ -1,0 +1,17 @@
+Inbox for raw issue notes. Write anything here; it gets sorted into
+issues/ and this file gets emptied.
+
+Last sorted 2026-08-08:
+  - poem-date histograms (by month, by quarter) on the explore page
+      -> issues/11-008-writing-cadence-histograms-on-the-explore-page.md
+  - backgrounds should be pure black for OLED; audit which pages are wrong
+      -> issues/11-009-pure-black-backgrounds-for-oled.md
+      (audit result: only the 9 source-browser pages are wrong. All 17,258
+       poem pages, the gallery and the explore pages are already #000000.)
+  - "where can I easily edit the explore page?"
+      -> answered, no issue needed: page-templates/explore.txt and
+         page-templates/explore-math.txt. Those are the canonical,
+         version-controlled copies; run.sh's stage 9 calls
+         scripts/sync-page-templates to copy them into input/pages/ before
+         generating, because input/ is wiped and re-synced every run. Edit
+         page-templates/, never input/pages/ (Issue 11-005).
