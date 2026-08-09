@@ -25,6 +25,46 @@ Verified STILL LIVE (do NOT delete -- checked because they looked adjacent):
 - `src/diversity-chaining.lua` -- called by `src/main.lua:895`
   (`generate_diversity_chain`). Its test `src/test-diversity-chaining.lua` stays.
 
+### Added 2026-08-08 (found during Issue 10-065's progress-bar audit)
+
+Every item below is now marked in the source with the tag
+`[DEPRECATED / DEAD CODE / PRUNE CANDIDATE]`, chosen so that grepping for any of
+"dead", "prune", or "deprecated" finds all of them.
+
+**Dead FILE, no referencers anywhere:**
+- `src/triangular-similarity-matrix.lua` -- verified across Lua `require`s, the
+  inline `luajit -e` blocks in the .sh scripts, and run.sh's dispatch. The only
+  textual hits for the name are a similarly-named FUNCTION inside
+  `similarity-engine.lua`, which is a different thing.
+
+**Dead FUNCTIONS inside a LIVE file -- the case this issue's cautionary note is
+about, in reverse.** `src/similarity-engine.lua` must not be deleted: it is the
+embedding generator behind stage 6. But three of its functions are unreachable
+from any live entry point, being the CPU similarity route that Issue 10-057
+removed (run.sh now hard-errors on a missing `libvkcompute.so` rather than
+falling back to CPU):
+- `calculate_similarity_matrix` (~line 930)
+- `calculate_full_similarity_matrix` (~line 1079)
+- `calculate_triangular_similarity_matrix` (~line 1215)
+
+They are reachable only from this module's own standalone `M.main()` menu and
+from `generate_all_model_similarity_matrices`, neither of which the pipeline
+invokes. What the live pipeline DOES call into that module, verified by grepping
+`generate-embeddings.sh` (the only shell script that requires it):
+`generate_all_embeddings`, `flush_embeddings_cache`, `list_available_models`,
+`show_all_model_status`.
+
+The lesson to carry forward, which is the mirror of the one above: liveness has
+FILE granularity and FUNCTION granularity, and they differ. Last time a live file
+was deleted for containing dead-looking code. Pruning these means removing
+functions, not the file.
+
+**Reachable but off the pipeline (classify before pruning, not dead):**
+- `src/model-comparison.lua` -- referenced by `similarity-engine.lua` and
+  `scripts/start-llamacpp-server.sh`. A diagnostic tool, not pipeline code.
+  Deliberately NOT marked, because "not in the pipeline" is not the same as
+  "unreachable" and this issue is about the latter.
+
 ## Cautionary context (why this issue is careful, not aggressive)
 
 This cleanup runs right after a near-identical mistake in the opposite direction:

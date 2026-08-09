@@ -923,10 +923,29 @@ end
 -- }}}
 
 -- {{{ function M.calculate_similarity_matrix
--- DEPRECATED (Issue 8-029): This function generates a top-N array format that is incompatible
--- with the HTML generator. Use calculate_full_similarity_matrix() instead, which generates
--- the full pairwise format required by flat-html-generator.lua and other consumers.
--- Kept for reference and potential future use cases where top-N is sufficient.
+-- [DEPRECATED / DEAD CODE / PRUNE CANDIDATE] -- Issue 10-060.
+--
+-- READ THIS BEFORE DELETING ANYTHING IN THIS FILE. similarity-engine.lua is
+-- LIVE: it is the embedding generator behind generate-embeddings.sh (stage 6).
+-- A previous cleanup deleted the whole file as "CPU similarity code" and the
+-- next full regeneration failed at stage 6. The FUNCTIONS below are dead; the
+-- FILE is not. Prune at function granularity here, never at file granularity.
+--
+-- What the live pipeline actually calls into this module (verified 2026-08-08 by
+-- grepping generate-embeddings.sh, the only .sh that requires it):
+--     generate_all_embeddings, flush_embeddings_cache,
+--     list_available_models, show_all_model_status
+--
+-- This function and the two CPU matrix builders below it are reachable ONLY from
+-- M.main() -- this module's own standalone interactive menu -- and from
+-- generate_all_model_similarity_matrices, which nothing outside the file calls.
+-- The CPU similarity route they implement was removed from the pipeline by Issue
+-- 10-057: run.sh hard-errors when libvkcompute.so is absent rather than falling
+-- back to CPU. Stage 7 is GPU-only.
+--
+-- Prior note, still true and now subsumed by the above (Issue 8-029): this
+-- generates a top-N array format incompatible with the HTML generator; the full
+-- pairwise format came from calculate_full_similarity_matrix().
 function M.calculate_similarity_matrix(embeddings_file, output_file, top_n, force_regenerate)
     top_n = top_n or 10
     force_regenerate = force_regenerate or false
@@ -1076,6 +1095,11 @@ end
 -- }}}
 
 -- {{{ function M.calculate_full_similarity_matrix
+-- [DEPRECATED / DEAD CODE / PRUNE CANDIDATE] -- Issue 10-060. CPU similarity,
+-- superseded by the GPU path (Issue 10-057). Reachable only from this module's
+-- own M.main() menu and generate_all_model_similarity_matrices. See the longer
+-- note on calculate_similarity_matrix above -- in particular, that this FILE is
+-- live (it is stage 6's embedding generator) even though this function is not.
 function M.calculate_full_similarity_matrix(embeddings_file, output_file, force_regenerate)
     force_regenerate = force_regenerate or false
 
@@ -1212,6 +1236,11 @@ end
 -- }}}
 
 -- {{{ function M.calculate_triangular_similarity_matrix
+-- [DEPRECATED / DEAD CODE / PRUNE CANDIDATE] -- Issue 10-060. CPU similarity,
+-- superseded by the GPU path (Issue 10-057). Not to be confused with
+-- src/triangular-similarity-matrix.lua, which is a separate and entirely
+-- unreferenced FILE, also marked. See the note on calculate_similarity_matrix
+-- above: this file is live, these functions are not.
 function M.calculate_triangular_similarity_matrix(embeddings_file, output_file, force_regenerate)
     utils.log_info("🔍 Generating TRIANGULAR similarity matrix (optimized storage)...")
     
