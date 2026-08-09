@@ -79,11 +79,22 @@ local function parse_args(args)
         elseif a:match("^--chrono%-per%-page=") then
             chrono_per_page = tonumber(a:match("^--chrono%-per%-page=(.+)$"))
             i = i + 1
+        -- Issue 10-065: consume "--dir PATH" as a PAIR. This parser does not use
+        -- the value (utils.init_assets_root reads --dir out of `arg` itself), but
+        -- it must still swallow it: the branch below claims any token that does
+        -- not start with "-" as the positional project directory, so an
+        -- unconsumed PATH would silently REPLACE the project root -- and since
+        -- package.path is built from that root, the program would then fail to
+        -- find its own libraries. Skipping a flag is not the same as skipping a
+        -- flag and its argument.
+        elseif a == "--dir" then
+            i = i + 2
         elseif a:sub(1, 1) ~= "-" then
             dir = a
             i = i + 1
         else
-            -- Skip unknown flags
+            -- Skip unknown flags (value-less ones; a flag that TAKES a value
+            -- needs its own branch above, or its value lands in `dir`).
             i = i + 1
         end
     end
@@ -110,6 +121,11 @@ local unified_config = config_loader.load()
 -- Shared box/bar drawing so word-cloud poem pages can't drift from the
 -- similar/different + chronological pages (they had a third, divergent copy).
 local poem_bars = require("poem-bars")
+-- Issue 10-065: the shared progress renderer, so this stage's bar obeys the same
+-- rules as every other stage's -- animated on a TTY, newline-terminated lines
+-- under --debug, silent when piped. It used to hand-roll a "\r" line instead;
+-- see the loop below for what that cost.
+local progress = require("progress-display")
 -- Shared chronological mapping (sort order + page numbers + timeline progress).
 -- Reused here so the word-page "chronological" links resolve to the SAME page
 -- and anchor the chronological pages actually emit (Issue 10-049 follow-up).
@@ -1016,10 +1032,25 @@ function M.generate_word_html(options)
     -- Generate pages for each word
     local pages_generated = 0
     for i, word in ipairs(words) do
+        -- Issue 10-065: update OUTSIDE the has-an-embedding test below, so the
+        -- bar tracks position in the word list rather than only the words that
+        -- happened to produce a page -- otherwise it stalls silently through any
+        -- run of words with no embedding.
+        --
+        -- Replaces a hand-rolled io.write("\r...") that bypassed this library.
+        -- Three things were wrong with that. It emitted NO newlines, so under
+        -- --debug -- where stdout is a pipe to scripts/fsync-logger, which reads
+        -- line by line -- a whole run's progress accumulated into one enormous
+        -- unterminated line instead of the durable per-line history --debug
+        -- exists to produce. It drew unconditionally when piped, where every
+        -- other stage stays quiet. And it looked nothing like the other bars.
+        local step = (progress.mode() == 2) and 100 or 25
+        if i % step == 0 or i == #words then
+            progress.update("   🔤 Word pages", i, #words, word)
+        end
+
         local word_embedding = word_embeddings[word]
         if word_embedding then
-            io.write(string.format("\rGenerating word page %d/%d: %s          ", i, #words, word))
-            io.flush()
 
             -- Issue 8-050b: Build candidate pool with embeddings preserved
             -- Phase 1: Rank ALL poems by word similarity
@@ -1103,7 +1134,10 @@ function M.generate_word_html(options)
             utils.log_warn(string.format("Missing embedding for word '%s', skipping", word))
         end
     end
-    print("")  -- Newline after progress
+    -- Close the animated line. progress.finish() is a no-op in verbose and quiet
+    -- modes, unlike the bare print("") this replaced, which emitted a stray blank
+    -- line into every piped log.
+    progress.finish()
 
     utils.log_info(string.format("Generated %d word similarity pages in %s/wordcloud/", pages_generated, output_dir))
     return pages_generated

@@ -1,5 +1,25 @@
 #!/usr/bin/env luajit
 
+-- [DEPRECATED / DEAD CODE / PRUNE CANDIDATE] -- whole file. Issue 10-060.
+--
+-- Nothing references this module. Verified 2026-08-08 by grepping every entry
+-- point the project has -- Lua `require`s, the inline `luajit -e` blocks inside
+-- the .sh scripts, and run.sh's stage dispatch -- across the entire tree. The
+-- only hits for the name are a SIMILARLY-NAMED FUNCTION living inside
+-- src/similarity-engine.lua (`calculate_triangular_similarity_matrix`), which is
+-- a different thing and is itself marked dead there.
+--
+-- Superseded by the GPU similarity path (Issue 10-057), which removed the CPU
+-- route entirely: run.sh now hard-errors when libvkcompute.so is missing rather
+-- than falling back to CPU code like this.
+--
+-- Before deleting, re-run that same exhaustive grep. Issue 10-060 records why
+-- that matters: a previous cleanup deleted similarity-engine.lua as "CPU
+-- similarity code" without noticing it was ALSO the embedding generator, and the
+-- next full regeneration failed at stage 6.
+--
+-- Original description follows.
+--
 -- Triangular Similarity Matrix Generator (Issue 5-025)
 -- Generates space-efficient triangular similarity matrix
 -- Only stores upper triangle: for i < j, store matrix[i][j]
