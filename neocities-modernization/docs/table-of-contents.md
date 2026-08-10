@@ -13,6 +13,15 @@ This document provides a hierarchical view of all project documentation.
 - `/PHASE-1-COMPLETION-SUMMARY.md` - Phase 1 foundation and data preparation results
 - `/docs/phase-2-completion-summary.md` - Phase 2 similarity engine development results
 
+### 🕰️ Process and Reading
+Documents about HOW the work happened, rather than what it produced. Kept because
+the reasoning behind a decision decays faster than the decision, and because some
+of what the code does is only visible from outside it.
+- `/notes/development-cadence-aug-7-through-9-2026` - The shape of three days:
+  message timing and silences, the three registers the work is spoken in, and a
+  reading of the words that meant two things (the copula that became a
+  directory, the dry run that was wet, the bar too wide to reach its own start)
+
 ### 🔧 Technical Guides
 - `/docs/config-reference.md` - Complete reference for config.lua structure and field usage (Issue 10-019)
 - `/docs/data-flow-architecture.md` - Complete data flow architecture and seven-stage pipeline documentation
