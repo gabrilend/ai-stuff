@@ -367,7 +367,14 @@ end
 --              If NOTHING embedded at all (every request failed — i.e. the
 --              server looks down), returns (nil, "all_requests_failed") so the
 --              caller's network-backoff/threshold logic still triggers.
-function M._embed_with_chunking_impl(texts, batch_fn, count_fn, max_tokens, strategy)
+--   on_progress: OPTIONAL function(done_chunks, total_chunks), called after each
+--              request completes. Added last and optional so every existing
+--              five-argument caller -- including all of
+--              libs/embed-chunking-test.lua -- keeps working untouched.
+--              Progress counts CHUNKS, not input texts, because chunks are what
+--              the requests are made of. A caller embedding single words gets
+--              one chunk per word, so for them the two are the same number.
+function M._embed_with_chunking_impl(texts, batch_fn, count_fn, max_tokens, strategy, on_progress)
    -- 1. chunk each text and flatten, recording each text's slice of the flat list.
    --    chunk_text_by_tokens hands back the EXACT token count of every chunk, so
    --    request packing below never has to estimate — one source of truth.
@@ -417,6 +424,15 @@ function M._embed_with_chunking_impl(texts, batch_fn, count_fn, max_tokens, stra
            for k = 1, #sub do
                flat_vectors[sub_start + k - 1] = vectors[k]
            end
+       end
+       -- Report after each request rather than after each chunk: a request is
+       -- the unit of waiting here (one network round trip covering up to
+       -- BATCH_SIZE chunks), so it is also the only moment at which anything
+       -- has actually changed. Reported even when the request FAILED, because
+       -- those chunks are done being attempted and a bar that stalls on failure
+       -- tells the operator the wrong thing.
+       if on_progress then
+           on_progress(idx - 1, #flat)
        end
    end
 
@@ -482,7 +498,10 @@ function M.embed_texts_with_chunking(texts, model, opts)
        end,
        count_fn,
        max_tokens,
-       opts.strategy)
+       opts.strategy,
+       -- Issue 10-065: opts.on_progress lets a caller draw a bar while a long
+       -- batch runs. Optional; without it this behaves exactly as before.
+       opts.on_progress)
 end
 -- }}}
 
