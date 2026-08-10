@@ -864,10 +864,20 @@ function M.generate_word_embeddings(options)
 
     if #missing > 0 then
         utils.log_info(string.format("Embedding %d missing words (batched)...", #missing))
+        -- Issue 10-065: this is minutes of network round trips with nothing on
+        -- screen -- the longest silent stretch in the pipeline. The batch
+        -- embedder now takes a progress callback, invoked once per request, so
+        -- the wait has a bar like every other stage. Throttling is unnecessary
+        -- here: a callback fires per REQUEST (dozens to hundreds of words each),
+        -- not per word, so the redraw rate is already low.
         local vectors = fuzzy.embed_texts_with_chunking(missing, CONFIG.model_name, {
             endpoint = endpoint,
-            format_fn = inference_config.format_embedding_prompt
+            format_fn = inference_config.format_embedding_prompt,
+            on_progress = function(done, total)
+                progress.update("   🔡 Word embeddings", done, total)
+            end
         })
+        progress.finish()
         if vectors then
             for k, word in ipairs(missing) do
                 local embedding = vectors[k]

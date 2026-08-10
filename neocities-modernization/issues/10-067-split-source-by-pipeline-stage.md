@@ -136,6 +136,79 @@ Worth running under a flag rather than always: a legitimate reach backward
 earliest-stage rule) would trip it. The point is to SEE those reaches, not to
 forbid them.
 
+## What Counts As A Stage
+
+The ten stage numbers were not chosen against the measured shape of the work, and
+the pipeline has been quietly disagreeing with them. `.stage-timings` records
+**14** separately-timed steps; `run.sh` offers **10** selectors. Four steps are
+measured individually and cannot be run individually.
+
+Measured durations (mean of the last five runs, from `.stage-timings` — re-read
+it rather than trusting these):
+
+| Step | Selector | Time |
+|---|---|---|
+| update-words | `--stage 1` | ~10 s |
+| extract | `--stage 2` | ~15 s |
+| strip-excluded | *(rides on 2)* | <1 s |
+| parse | `--stage 3` | ~2 s |
+| validate | `--stage 4` | ~1 s |
+| catalog-images | `--stage 5` | ~104 s |
+| **generate-embeddings** | `--stage 6` | **~10 min** |
+| generate-semantic-colors | *(rides on 6)* | ~13 s |
+| augment-images | *(rides on 7)* | ~19 s |
+| **generate-word-embeddings** | *(rides on 6)* | **~10 min** |
+| generate-similarity | `--stage 7` | ~17 s |
+| generate-diversity | `--stage 8` | ~40 min |
+| generate-html | `--stage 9` | ~48 s |
+| wordcloud | `--stage 10` | ~5-13 min |
+
+Two observations fall straight out of the table.
+
+**Stage 6 hides two ten-minute jobs.** Poem embeddings and word embeddings are
+each about as long as everything in stages 1-5 and 7 and 9 combined, they hit the
+network independently, and neither can be asked for on its own. Re-running word
+embeddings today means re-running poem embeddings too. That is the strongest case
+in the table for splitting.
+
+**Four steps are near-instant.** parse (~2 s), validate (~1 s), strip-excluded
+(<1 s) and, at a stretch, extract (~15 s). Whether these deserve their own
+numbers is a fair question — but note what smushing would cost: `--validate` is
+useful precisely because it is a one-second check you can run against an existing
+corpus without touching it. Merging it into parse would make the cheap check
+require the expensive step.
+
+### Directories and selectors need not be the same granularity
+
+This is the resolution, and it dissolves most of the tension. The two things have
+been treated as one because they currently line up, but they answer different
+questions:
+
+- A **directory** answers "where does this code live?" — an organisational fact.
+- A **selector** answers "what can I ask to run?" — an operational one.
+
+Nothing requires a 1:1 mapping. `src/6/` can hold four sub-steps while `run.sh`
+offers `--stage 6` for all of them plus finer flags for each, which is precisely
+the requirement of choosing exactly what to execute. Equally, two directories can
+share a selector where nobody would ever run one without the other.
+
+So the split can follow the *code's* natural seams while the selectors follow the
+*operator's*, and neither has to distort for the other.
+
+### The renumbering hazard
+
+Any change to the numbers is not free:
+
+- `--stage N` is muscle memory and appears in scripts, notes and transcripts.
+- `.stage-timings` is keyed by step NAME, not number — so it survives renumbering
+  but NOT renaming. Rename a step and its measured history silently resets to
+  "no data", and the pre-flight estimates go back to coarse magnitude words.
+- Issue 10-065's requirements table maps values to stage numbers; those entries
+  move with any renumbering.
+
+None is a blocker. All argue for deciding the taxonomy ONCE, before moving files,
+rather than discovering it during the move.
+
 ## The Value, Stated Plainly
 
 The win is not tidiness. It is that a cross-stage dependency becomes **visible as
@@ -272,17 +345,33 @@ holding the code for one step of the journey, with every cross-stage reach
 visible as a path. The remaining questions are about scope (what `libs/` does,
 where tests go), not about structure.
 
+## Settled Decisions
+
+- **`main.lua` lives beside the numbered directories**, as the orchestrator, and
+  loads each stage at dispatch. (§2)
+- **`libs/` keeps no stage numbers.** It stays the home for code that is not a
+  stage — including the pipeline-specific-but-stage-independent modules
+  (`inference-server-config`, `progress-display`, `runtime-overrides`). The
+  scheme applies to `src/` only.
+- **Tests follow their subject** into the stage directory, and adopt one naming
+  convention while they move. Three are currently in use — `X.test.lua`,
+  `test-X.lua`, `X-test.lua` — and the move puts them side by side in the same
+  directory, where the inconsistency stops being invisible. `X.test.lua` is the
+  one to keep: it sorts next to `X.lua`, so a directory listing shows a module
+  and its test adjacent, which is the property that matters when the point of the
+  exercise is reading a directory to learn what a stage does.
+
 ## Open Questions
 
-1. **Stages 6.5, 6.7 and 6b** — semantic colours, image augmentation, word
-   embeddings — are sub-stages of 6 in `run.sh`'s dispatch, not stages of their
-   own. Do they fold into `src/6/`, or does the directory scheme grow to match
-   what the pipeline actually runs?
-2. **`libs/`** is untouched by this proposal, but contains pipeline-specific code
-   (`inference-server-config`, `progress-display`, `runtime-overrides`). Does the
-   stage scheme extend there, or does `libs/` stay the home for
-   stage-independent code?
-3. **Tests**: follow their subject into the stage directory, or gather into one
-   `src/tests/`? Following the subject is assumed above; it also means the three
-   existing naming conventions become visible side by side, which may be worth
-   settling at the same time.
+1. **The stage taxonomy itself.** See "What counts as a stage" above. The two
+   substantive candidates: split stage 6, which currently hides two ten-minute
+   jobs behind one selector; and decide whether the near-instant steps keep
+   their own numbers. Decide before moving files, because renaming a step resets
+   its measured timing history.
+2. **Do stages 9 and 10 merge?** Raised because stage 10 requires stage 9's HTML
+   generator, so the split would show a permanent backward reach. Worth weighing
+   against the fact that they are separately useful — 9 is ~48 s and 10 is
+   5-13 min, and regenerating the word cloud without rebuilding every poem page
+   is a thing one would want. The reach may be better *broken* than hidden by
+   merging: 10 needs a handful of rendering helpers from 9, not the 224 KB
+   generator entire.
