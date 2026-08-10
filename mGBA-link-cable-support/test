@@ -1,0 +1,302 @@
+#!/usr/bin/env bash
+# test — proves update, install and run behave, without downloading or compiling mGBA.
+#
+# A real check of these three scripts would mean a few hundred megabytes of clone and
+# several minutes of compiler, which is too slow to run often and too slow to run
+# after a one-line change. So this builds a git repository the size of a postage
+# stamp that behaves like mGBA from the outside — it has a commit history, a cmake
+# file, and something that installs into bin/ — points copies of the three scripts at
+# it, and checks the claims that actually matter:
+#
+#   the second update fast-forwards instead of cloning again;
+#   a patch is present in the compiled result but gone from the source afterwards;
+#   a compile that fails still hands the source tree back clean;
+#   a compile that fails does NOT take the last working emulator with it;
+#   the previous emulator lands in RAM in one piece, not in the bin;
+#   a missing library is downloaded and built, and a present one is left alone;
+#   the settings file is created and linked into the project root;
+#   run finds the newest game and passes the emulator's own switches through.
+#
+# The libraries are faked the same way the emulator is — a local git repository that
+# installs a pkg-config file — so this never reaches the network and never spends ten
+# minutes compiling somebody else's compression code to learn that a loop works.
+#
+# Everything happens inside the project's RAM tier and is removed at the end.
+#
+# Usage: ./test [directory]
+set -euo pipefail
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/mGBA-link-cable-support}"
+
+if [[ -z "${DIR}" ]]; then
+    echo "test: no directory given, and no default set at the top of this script." >&2
+    exit 1
+fi
+
+PROJECT="$(basename "${DIR}")"
+WORK="/tmp/${PROJECT}/harness"      # RAM: a clone, a build and an install, all fake
+FAKE="${WORK}/fake-upstream"        # the stand-in for github.com/mgba-emu/mgba
+FAKELIB="${WORK}/fake-library"      # the stand-in for libzip and its neighbours
+PROJ="${WORK}/harness-project"      # a throwaway copy of this project
+
+# The copy is named separately from this project so the RAM tiers install creates for
+# it are somebody else's directories, and can be swept up afterwards without risk.
+mkdir -p "/tmp/${PROJECT}"
+rm -rf "${WORK}" /tmp/harness-project /dev/shm/harness-project
+mkdir -p "${FAKE}"
+
+# {{{ build_fake_upstream()
+# Small enough to clone instantly, real enough that cmake, git and the install step
+# all take it seriously — it has to have a history for update's fast-forward to mean
+# anything, and an install rule for the patched result to be observable at the end.
+build_fake_upstream() {
+    git -C "${FAKE}" init -q
+    git -C "${FAKE}" config user.email harness@example.com
+    git -C "${FAKE}" config user.name harness
+    printf '%s\n' \
+        'cmake_minimum_required(VERSION 3.10)' \
+        'project(fakemgba NONE)' \
+        'install(PROGRAMS mgba-stub.sh DESTINATION bin RENAME mgba)' \
+        > "${FAKE}/CMakeLists.txt"
+    printf '%s\n' \
+        '#!/usr/bin/env bash' \
+        'echo "serial port: stock, single console only"' \
+        'echo "args: $*"' \
+        > "${FAKE}/mgba-stub.sh"
+    chmod +x "${FAKE}/mgba-stub.sh"
+    git -C "${FAKE}" add -A
+    git -C "${FAKE}" commit -qm "fake upstream mgba"
+}
+# }}}
+
+# {{{ install_scripts_under_test()
+# The scripts are copied rather than run in place for one reason: the upstream URL is
+# hard-coded, and the copy can have it swung at the fake repository while the real
+# scripts stay untouched and keep pointing at the actual emulator project.
+install_scripts_under_test() {
+    mkdir -p "${PROJ}/patches" "${PROJ}/libs"
+    cp "${DIR}/update" "${DIR}/install" "${DIR}/run" "${PROJ}/"
+    cp "${DIR}/patches/patches.sh" "${PROJ}/patches/"
+    # The orchestrator is the part under test; the real library recipes are left
+    # behind deliberately and replaced with fakes, so no download can happen here.
+    cp "${DIR}/libs/dependencies.sh" "${PROJ}/libs/"
+    sed -i "s|^UPSTREAM=.*|UPSTREAM=\"file://${FAKE}\"|" "${PROJ}/update"
+}
+# }}}
+
+# {{{ build_fake_library()
+# Stands in for libzip or libedit: a repository that compiles to nothing at all and
+# installs one pkg-config file, which is exactly the thing the probe looks for. That
+# makes the whole fetch-build-verify loop observable without a compiler doing work.
+build_fake_library() {
+    mkdir -p "${FAKELIB}"
+    git -C "${FAKELIB}" init -q
+    git -C "${FAKELIB}" config user.email harness@example.com
+    git -C "${FAKELIB}" config user.name harness
+    printf '%s\n' \
+        'cmake_minimum_required(VERSION 3.10)' \
+        'project(fakelib NONE)' \
+        'install(FILES fakelib.pc DESTINATION lib/pkgconfig)' \
+        > "${FAKELIB}/CMakeLists.txt"
+    printf '%s\n' \
+        'Name: fakelib' \
+        'Description: a library that exists only to be found' \
+        'Version: 1.0' \
+        'Libs: -lfakelib' \
+        > "${FAKELIB}/fakelib.pc"
+    git -C "${FAKELIB}" add -A
+    git -C "${FAKELIB}" commit -qm "fake library"
+}
+# }}}
+
+# {{{ write_test_dependencies()
+# Two libraries: one this machine will never have, and one that is certainly already
+# here. Between them they cover both halves of the decision the orchestrator makes.
+write_test_dependencies() {
+    cat > "${PROJ}/libs/D001-fakelib.sh" <<PATCH
+#!/usr/bin/env bash
+# A library the machine does not have: must be fetched, built, and then found.
+dep_D001_fakelib_present() { pkg-config --exists fakelib; }
+dep_D001_fakelib_fetch() {
+    local dir="\${LIBS_SOURCE}/fakelib"
+    [[ -d "\${dir}/.git" ]] || git clone -q "${FAKELIB}" "\${dir}"
+    git -C "\${dir}" fetch --quiet origin
+    git -C "\${dir}" reset --hard origin/HEAD --quiet
+}
+dep_D001_fakelib_build() {
+    local dir="\${LIBS_SOURCE}/fakelib"
+    cmake -S "\${dir}" -B "\${dir}/build" -DCMAKE_INSTALL_PREFIX="\${LIBS_PREFIX}" > /dev/null
+    cmake --install "\${dir}/build" > /dev/null
+}
+PATCH
+    cat > "${PROJ}/libs/D002-zlib.sh" <<'PATCH'
+#!/usr/bin/env bash
+# A library the machine certainly has: must be recognised and left entirely alone.
+dep_D002_zlib_present() { pkg-config --exists zlib; }
+dep_D002_zlib_fetch() { echo "zlib fetch should never run"; exit 1; }
+dep_D002_zlib_build() { echo "zlib build should never run"; exit 1; }
+PATCH
+}
+# }}}
+
+# {{{ write_test_patch()
+# Shaped exactly like the real link cable patch will be: guarded, so applying twice
+# does nothing the second time; wrapped in markers, so the reverse can find its own
+# work and could never match something upstream happened to write the same way.
+write_test_patch() {
+    cat > "${PROJ}/patches/P001-serial-link.sh" <<'PATCH'
+#!/usr/bin/env bash
+# TARGET:   mgba-stub.sh :: the startup banner
+# SYMPTOM:  upstream announces a single console with no serial partner
+# CHANGE:   announce the link cable instead, so the patch is visible in the result
+# ANCHOR:   serial port: stock, single console only
+# WITNESS:  P001-serial-link
+
+# {{{ patch_P001_serial_link()
+patch_P001_serial_link() {
+    local FILE="${SRC}/mgba-stub.sh"
+    [[ -f "${FILE}" ]] || return 0
+    grep -q "P001-serial-link" "${FILE}" && return 0
+    sed -i 's|echo "serial port: stock, single console only"|# {{{ P001-serial-link\necho "serial port: link cable attached"\n# }}} P001-serial-link|' "${FILE}"
+}
+# }}}
+
+# {{{ unpatch_P001_serial_link()
+unpatch_P001_serial_link() {
+    local FILE="${SRC}/mgba-stub.sh"
+    [[ -f "${FILE}" ]] || return 0
+    grep -q "P001-serial-link" "${FILE}" || return 0
+    sed -i -z 's|# {{{ P001-serial-link\necho "serial port: link cable attached"\n# }}} P001-serial-link|echo "serial port: stock, single console only"|' "${FILE}"
+}
+# }}}
+PATCH
+}
+# }}}
+
+# {{{ check()
+# A failing check stops the run then and there, because every section after it builds
+# on the state the last one left behind — carrying on would report noise, not results.
+check() {
+    if [[ "$2" == "$3" ]]; then
+        echo "  PASS  $1"
+    else
+        echo "  FAIL  $1"
+        echo "        expected: $3"
+        echo "        actual:   $2"
+        exit 1
+    fi
+}
+# }}}
+
+build_fake_upstream
+build_fake_library
+install_scripts_under_test
+write_test_patch
+write_test_dependencies
+
+echo "== update: first run clones =="
+"${PROJ}/update" "${PROJ}" > "${WORK}/update1.log" 2>&1
+check "source tree exists" "$([[ -d ${PROJ}/source/.git ]] && echo yes || echo no)" "yes"
+check "first run said cloning" "$(grep -c 'cloning' "${WORK}/update1.log")" "1"
+
+echo "== update: missing libraries are downloaded, present ones are not =="
+check "the missing library was fetched" "$([[ -d ${PROJ}/libs/source/fakelib ]] && echo yes || echo no)" "yes"
+check "the present library was skipped" "$(grep -c 'zlib already on this machine' "${WORK}/update1.log")" "1"
+check "one library was downloaded" "$(grep -c '1 dependency source tree' "${WORK}/update1.log")" "1"
+
+echo "== update: second run recognises the existing checkout =="
+"${PROJ}/update" "${PROJ}" > "${WORK}/update2.log" 2>&1
+check "second run said already current" "$(grep -c 'already current' "${WORK}/update2.log")" "1"
+
+echo "== update: a new upstream commit fast-forwards =="
+printf '%s\n' '# upstream moved on' >> "${FAKE}/CMakeLists.txt"
+git -C "${FAKE}" commit -qam "upstream change"
+"${PROJ}/update" "${PROJ}" > "${WORK}/update3.log" 2>&1
+check "third run reported a hash change" "$(grep -cE '[0-9a-f]{8} -> [0-9a-f]{8}' "${WORK}/update3.log")" "1"
+
+echo "== install: patch reaches the compiler, then leaves the source =="
+"${PROJ}/install" "${PROJ}" > "${WORK}/install1.log" 2>&1
+check "patch was applied" "$(grep -c 'applied P001' "${WORK}/install1.log")" "1"
+check "patch was reverted" "$(grep -c 'reverted P001' "${WORK}/install1.log")" "1"
+check "source tree is clean" "$(git -C "${PROJ}/source" status --porcelain | wc -l)" "0"
+check "source has no witness left" "$(grep -c 'P001-serial-link' "${PROJ}/source/mgba-stub.sh" || true)" "0"
+check "installed binary carries the patch" "$(grep -c 'link cable attached' "${PROJ}/files/bin/mgba")" "1"
+check "upstream-lock records the commit" "$(cat "${PROJ}/.upstream-lock")" "$(git -C "${PROJ}/source" rev-parse HEAD)"
+
+echo "== install: the missing library is built, the present one is left alone =="
+check "the missing library was built" "$([[ -f ${PROJ}/libs/prefix/lib/pkgconfig/fakelib.pc ]] && echo yes || echo no)" "yes"
+check "the present library was not built" "$(grep -c 'zlib already usable' "${WORK}/install1.log")" "1"
+check "one library was built" "$(grep -c '1 dependency/dependencies built' "${WORK}/install1.log")" "1"
+
+echo "== install: settings are created and linked into the project root =="
+check "portable marker exists" "$([[ -f ${PROJ}/portable.ini ]] && echo yes || echo no)" "yes"
+check "portable marker points at config" "$(grep -c '^path=config$' "${PROJ}/portable.ini")" "1"
+check "settings file exists" "$([[ -f ${PROJ}/config/config.ini ]] && echo yes || echo no)" "yes"
+check "root holds a symlink to it" "$(readlink "${PROJ}/config.ini")" "config/config.ini"
+check "the symlink resolves" "$([[ -f ${PROJ}/config.ini ]] && echo yes || echo no)" "yes"
+
+echo "== install: a second run does not disturb hand-edited settings =="
+printf '%s\n' '[ports.medusa]' 'volume=42' >> "${PROJ}/config/config.ini"
+"${PROJ}/install" "${PROJ}" > "${WORK}/install-again.log" 2>&1
+check "hand-edited setting survived" "$(grep -c '^volume=42$' "${PROJ}/config/config.ini")" "1"
+check "the library was not rebuilt" "$(grep -c 'fakelib already usable' "${WORK}/install-again.log")" "1"
+
+echo "== install: a later run parks the old build in RAM =="
+"${PROJ}/install" "${PROJ}" > "${WORK}/install2.log" 2>&1
+check "old build was parked" "$(grep -c 'parked in RAM' "${WORK}/install2.log")" "1"
+check "backup lives on tmpfs" "$(findmnt -no FSTYPE -T "$(readlink -f "${PROJ}/tmp/backups/latest")")" "tmpfs"
+check "backup is a real copy" "$(grep -c 'link cable attached' "${PROJ}/tmp/backups/latest/bin/mgba")" "1"
+check "new build is in place" "$([[ -x ${PROJ}/files/bin/mgba ]] && echo yes || echo no)" "yes"
+
+echo "== install: a failing compile still reverts, and keeps the last emulator =="
+git -C "${FAKE}" rm -q CMakeLists.txt
+git -C "${FAKE}" commit -qm "break the build"
+"${PROJ}/update" "${PROJ}" > "${WORK}/update4.log" 2>&1
+set +e
+"${PROJ}/install" "${PROJ}" > "${WORK}/install3.log" 2>&1
+FAILED=$?
+set -e
+check "install reported failure" "$([[ ${FAILED} -ne 0 ]] && echo yes || echo no)" "yes"
+check "trap reverted the patch anyway" "$(grep -c 'reverted P001' "${WORK}/install3.log")" "1"
+check "source tree clean after failure" "$(git -C "${PROJ}/source" status --porcelain | wc -l)" "0"
+# The reason install parks the old build after compiling rather than before it: the
+# first version moved the emulator aside first, so a patch that would not compile
+# took the last working emulator with it — at exactly the moment you want one.
+check "working emulator survived" "$([[ -x ${PROJ}/files/bin/mgba ]] && echo yes || echo no)" "yes"
+check "nothing was parked on failure" "$(grep -c 'parked in RAM' "${WORK}/install3.log" || true)" "0"
+
+echo "== run: picks the newest game and passes arguments through =="
+mkdir -p "${PROJ}/roms"
+printf 'older' > "${PROJ}/roms/pokemon-red.gb"
+sleep 0.05
+printf 'newer' > "${PROJ}/roms/pokemon-crystal.gbc"
+RUNOUT="$(MGBA_LINK_DIR="${PROJ}" "${PROJ}/run" --fullscreen 2>&1)"
+check "chose the newest rom" "$(grep -c '^run: mgba <- pokemon-crystal.gbc$' <<< "${RUNOUT}")" "1"
+check "the emulator itself started" "$(grep -c 'link cable attached' <<< "${RUNOUT}")" "1"
+check "passed the switch through" "$(grep -c -- '^args: .*--fullscreen$' <<< "${RUNOUT}")" "1"
+RUNOUT2="$(MGBA_LINK_DIR="${PROJ}" "${PROJ}/run" "${PROJ}/roms/pokemon-red.gb" 2>&1)"
+check "named rom overrides recency" "$(grep -c '^run: mgba <- pokemon-red.gb$' <<< "${RUNOUT2}")" "1"
+
+# Asking the emulator about itself has to work before any game exists, because it is
+# the first thing you type when nothing is set up and you want to know what is.
+rm -f "${PROJ}"/roms/*
+RUNOUT3="$(MGBA_LINK_DIR="${PROJ}" "${PROJ}/run" --help 2>&1)"
+check "--help works with no games at all" "$(grep -c -- '^args: --help$' <<< "${RUNOUT3}")" "1"
+check "--help did not demand a game" "$(grep -c 'no games in' <<< "${RUNOUT3}" || true)" "0"
+
+echo "== guards: missing pieces error instead of guessing =="
+mkdir -p "${WORK}/empty"
+set +e
+"${PROJ}/install" "${WORK}/empty" > "${WORK}/guard1.log" 2>&1
+G1=$?
+MGBA_LINK_DIR="${WORK}/empty" "${PROJ}/run" > "${WORK}/guard2.log" 2>&1
+G2=$?
+set -e
+check "install without source errors" "${G1}" "1"
+check "install says to run update" "$(grep -c 'Run ./update first' "${WORK}/guard1.log")" "1"
+check "run without emulator errors" "${G2}" "1"
+check "run says to run install" "$(grep -c 'Run ./install first' "${WORK}/guard2.log")" "1"
+
+rm -rf "${WORK}" /tmp/harness-project /dev/shm/harness-project /tmp/empty
+echo
+echo "all checks passed"
