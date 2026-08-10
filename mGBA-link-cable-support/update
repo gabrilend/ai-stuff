@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# update — puts mGBA's source on disk, along with the libraries it will need.
+#
+# The first run clones the emulator and downloads whichever outside libraries this
+# machine is missing; later runs fast-forward both. Nothing is compiled or customized
+# here — install stamps our changes on and peels them off, so this tree stays theirs.
+#
+# Usage: ./update [directory]
+set -euo pipefail
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/mGBA-link-cable-support}"
+UPSTREAM="https://github.com/mgba-emu/mgba.git"
+SRC="${DIR}/source"
+LIBS="${DIR}/libs"
+
+# No directory means no safe guess: this downloads a few hundred megabytes somewhere.
+if [[ -z "${DIR}" ]]; then
+    echo "update: no directory given, and no default set at the top of this script." >&2
+    exit 1
+fi
+
+# {{{ clone_upstream()
+clone_upstream() {
+    echo "update: nothing at ${SRC} yet — cloning ${UPSTREAM}"
+    mkdir -p "${DIR}"
+    git clone --recurse-submodules "${UPSTREAM}" "${SRC}"
+}
+# }}}
+
+# {{{ pull_upstream()
+pull_upstream() {
+    local before after
+    before="$(git -C "${SRC}" rev-parse HEAD)"
+    # Reset before pulling: install hands the tree back pristine, but a build killed
+    # outright leaves changes stamped in, and a pull folds them into their history.
+    git -C "${SRC}" reset --hard HEAD --quiet
+    git -C "${SRC}" pull --ff-only --recurse-submodules
+    after="$(git -C "${SRC}" rev-parse HEAD)"
+    if [[ "${before}" == "${after}" ]]; then echo "update: already current at ${after:0:8}"
+    else echo "update: ${before:0:8} -> ${after:0:8}"; fi
+}
+# }}}
+
+# A checkout already here is something to advance; no checkout is something to fetch.
+if [[ -d "${SRC}/.git" ]]; then pull_upstream; else clone_upstream; fi
+
+# The libraries arrive at the same time, so everything the compiler will ask for is on
+# disk before install starts. Which ones are needed is settled by asking this machine.
+source "${LIBS}/dependencies.sh"
+fetch_dependencies

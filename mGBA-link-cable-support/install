@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+# install — turns the downloaded source into a working emulator, then covers its tracks.
+#
+# The order is the whole design: park the previous build in RAM so it can be put
+# back, drive the source tree to exactly what upstream published, stamp our link
+# cable changes onto it, compile, install the result into files/, and then peel
+# every change back off so the tree is byte-identical to what update fetched.
+#
+# The peel-off is wired to the script exiting rather than to reaching the end, so a
+# compile that dies halfway through still leaves clean source behind. That is what
+# makes running this twice in a row do the same thing as running it once.
+#
+# Usage: ./install [directory]
+set -euo pipefail
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/mGBA-link-cable-support}"
+
+# Same guard as update: with no directory there is no safe guess to make.
+if [[ -z "${DIR}" ]]; then
+    echo "install: no directory given, and no default set at the top of this script." >&2
+    exit 1
+fi
+
+PROJECT="$(basename "${DIR}")"
+SRC="${DIR}/source"             # upstream's code — disposable, never committed
+LIBS="${DIR}/libs"              # outside libraries this machine does not supply
+BUILD="${DIR}/build"            # object files and compiler scratch
+FILES="${DIR}/files"            # where the finished emulator ends up
+CONFIG="${DIR}/config"          # settings the emulator reads and writes
+BACKUP="${DIR}/tmp/backups"     # the previous emulator, held in RAM until reboot
+LOGS="${DIR}/tmp/shared-memory" # build output, also in RAM
+STAMP="$(date +%Y%m%d-%H%M%S)"
+
+# {{{ ensure_ram_tiers()
+# Two tiers of RAM-backed scratch, reached through symlinks so no path inside the
+# project has to know about /tmp or /dev/shm. Backups go in the /tmp tier and not
+# the /dev/shm one because /dev/shm is mounted noexec here: a restored emulator has
+# to be runnable, and something you cannot execute is not a backup of a program.
+ensure_ram_tiers() {
+    mkdir -p "/tmp/${PROJECT}" "/dev/shm/${PROJECT}"
+    if [[ ! -e "${DIR}/tmp" ]]; then
+        ln -s "/tmp/${PROJECT}" "${DIR}/tmp"
+    fi
+    if [[ ! -e "${DIR}/tmp/shared-memory" ]]; then
+        ln -s "/dev/shm/${PROJECT}" "${DIR}/tmp/shared-memory"
+    fi
+    mkdir -p "${BACKUP}" "${LOGS}"
+}
+# }}}
+
+# {{{ park_previous_build()
+# A finished emulator is worth keeping until its replacement proves itself, and not
+# worth keeping any longer than that — so it moves to RAM, where it lasts exactly
+# until the machine reboots. Moving rather than copying also guarantees the new
+# install starts from an empty directory instead of layering over stale binaries.
+park_previous_build() {
+    if [[ ! -d "${FILES}" ]]; then
+        return 0
+    fi
+    local dest="${BACKUP}/files-${STAMP}"
+    mv "${FILES}" "${dest}"
+    ln -sfn "${dest}" "${BACKUP}/latest"
+    echo "install: previous build parked in RAM at ${dest}"
+    echo "install:   put it back with: cp -a '${dest}' '${FILES}'"
+}
+# }}}
+
+LOG="${LOGS}/install-${STAMP}.log"
+
+# {{{ compile()
+# Out-of-tree build, for two reasons that both matter here: the source tree stays
+# clean enough that reverting our patches is a question about text and nothing else,
+# and the object files survive on disk so the next compile after a one-line patch
+# change takes seconds instead of rebuilding the emulator from scratch.
+#
+# No frontend is forced on or off — cmake looks for Qt and SDL and builds whichever
+# it finds, so the machine's actual libraries decide, not a guess written down here.
+# The install prefix is set once and never varies, because mGBA writes it into the
+# finished binary as the place to look for its own shared library; building for one
+# prefix and landing in another produces an emulator that cannot start.
+#
+# That same mechanism is why the link path setting matters. mGBA records one library
+# directory in the binary, its own, and knows nothing about the private prefix we put
+# libedit and libzip in. Turning this on tells cmake to add the directories of every
+# library it actually linked, so the emulator can still find them at run time.
+compile() {
+    echo "install: build output is being written to ${LOG}"
+    {
+        cmake -S "${SRC}" -B "${BUILD}" -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_INSTALL_PREFIX="${FILES}" \
+            -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
+        cmake --build "${BUILD}" --parallel
+    } 2>&1 | tee "${LOG}"
+}
+# }}}
+
+# {{{ install_into_files()
+install_into_files() {
+    cmake --install "${BUILD}" 2>&1 | tee -a "${LOG}"
+}
+# }}}
+
+# {{{ ensure_config()
+# mGBA decides where its settings live by looking for a file called portable.ini in
+# whatever directory it was started from. Ours says "put the settings in config/",
+# which keeps every knob this emulator turns inside the project — instead of in
+# ~/.config/mgba, where it would mix with, and overwrite, the settings of whatever
+# other mGBA is on this machine. That separation is worth more here than usual: a
+# half-finished link cable build should not be able to corrupt a working emulator's
+# configuration, and two copies of this project can hold two different setups.
+#
+# The settings file itself is then linked back into the project root, because the
+# root is where you look first and a settings file three directories down is a
+# settings file nobody edits. It is seeded empty rather than with defaults: mGBA
+# writes its own defaults on first save, and guessing at them here would mean
+# shipping a config that quietly disagrees with the emulator that reads it.
+ensure_config() {
+    mkdir -p "${CONFIG}"
+    if [[ ! -f "${DIR}/portable.ini" ]]; then
+        printf '%s\n' '[portable]' 'path=config' > "${DIR}/portable.ini"
+    fi
+    if [[ ! -f "${CONFIG}/config.ini" ]]; then
+        printf '%s\n' \
+            '; mGBA settings for this project. Written by the emulator, editable by hand.' \
+            '; Anything set here is read on start; run ./run --help for the switches' \
+            '; that can override it for a single session.' > "${CONFIG}/config.ini"
+    fi
+    ln -sfn "config/config.ini" "${DIR}/config.ini"
+}
+# }}}
+
+ensure_ram_tiers
+ensure_config
+
+# Downloading is update's job, not this script's. Doing it here as a convenience
+# would mean a failed clone showing up as a mysterious compile error later on.
+if [[ ! -d "${SRC}/.git" ]]; then
+    echo "install: no source tree at ${SRC}. Run ./update first." >&2
+    exit 1
+fi
+
+source "${DIR}/patches/patches.sh"
+source "${LIBS}/dependencies.sh"
+
+# The libraries come first because cmake decides which of the emulator's features to
+# compile in by looking for them; a library that arrives after the configure step has,
+# as far as the build is concerned, not arrived at all. Anything this machine already
+# supplies is skipped here, so on a well-stocked machine this step does nothing.
+build_dependencies
+
+# Reset before anything else, always. The exit trap below reverts what this run
+# applies, but nothing can catch a kill signal or a power cut, so the only way to
+# actually know the tree is upstream's is to drive it there instead of assuming.
+reset_source_tree
+
+# From here to the explicit revert further down, whatever happens — a compile error,
+# a Ctrl-C, a missing library — the changes come back off on the way out, and the
+# next run starts from the same pristine tree this one did.
+trap 'unapply_patches' EXIT
+apply_patches
+compile
+
+# Only now, with a compiled emulator in hand, is the working one moved aside. Doing
+# this any earlier — before the compile rather than after it — meant that a build
+# broken by a half-finished patch took the last working emulator away with it, which
+# is precisely the moment you most want to fall back to something that runs.
+park_previous_build
+install_into_files
+
+trap - EXIT
+unapply_patches
+
+# Written last and only on success, so this file always names a commit that actually
+# produced a working emulator, never one that failed partway through building.
+git -C "${SRC}" rev-parse HEAD > "${DIR}/.upstream-lock"
+echo "install: emulator installed under ${FILES}"
