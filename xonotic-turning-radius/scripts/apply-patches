@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+#
+# apply-patches — the control panel for stamping our customizations onto the
+# borrowed copy of Xonotic, and for peeling them back off.
+#
+# This is the one deliberately hand-operated tool in the system. Everything
+# else -- when changes go on, when they come off, whether they still match --
+# is wired to happen on its own during a build. This exists for the times you
+# want to look at a customized tree with your own eyes, or hand one to someone
+# who is not going to run the build.
+#
+# Usage:
+#   apply-patches --dry-run     say which changes WOULD be applied, change nothing
+#   apply-patches --apply       stamp them on and leave them on
+#   apply-patches --revert      take them back off
+#   apply-patches --reset       discard everything and return to what upstream shipped
+#
+#   --profile NAME              build variant to act on (default: read from .profile)
+#   --dir PATH                  project directory, if not the hard-coded default
+
+set -uo pipefail
+
+# {{{ paths and arguments
+DIR="/mnt/mtwo/programming/ai-stuff/xonotic-turning-radius"
+ACTION=""
+PROFILE_OVERRIDE=""
+
+while (( $# > 0 )); do
+    case "$1" in
+        --dry-run) ACTION="dry-run" ;;
+        --apply)   ACTION="apply" ;;
+        --revert)  ACTION="revert" ;;
+        --reset)   ACTION="reset" ;;
+        --profile) PROFILE_OVERRIDE="$2"; shift ;;
+        --dir)     DIR="$2"; shift ;;
+        *)
+            echo "ERROR: unrecognized argument '$1'." >&2
+            echo "Run with --dry-run, --apply, --revert or --reset." >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+if [[ -z "${ACTION}" ]]; then
+    # No default action. Guessing between "apply" and "revert" on a tree whose
+    # state we have not been told about is exactly the kind of silent wrong
+    # choice this project is built to avoid.
+    echo "ERROR: no action given. Choose --dry-run, --apply, --revert or --reset." >&2
+    exit 1
+fi
+
+export DIR
+[[ -n "${PROFILE_OVERRIDE}" ]] && export PROFILE="${PROFILE_OVERRIDE}"
+
+source "${DIR}/patches/patches.sh"
+# }}}
+
+# {{{ do_dry_run()
+# Reports what each customization's own probe says about the current tree.
+# Nothing is written, so this is safe to run against a tree in any state.
+do_dry_run() {
+    local id fn
+    echo "Profile: ${PROFILE}"
+    echo
+    for id in ${PREBUILD_PATCHES[${PROFILE}]:-}; do
+        fn="$(patch_function_for "patch_needs_applying" "${id}")"
+        if [[ -z "${fn}" ]]; then
+            echo "  ${id}  -- NO PROBE FOUND (patch file missing or malformed)"
+        elif "${fn}"; then
+            echo "  ${id}  would be applied"
+        else
+            echo "  ${id}  already present, would be skipped"
+        fi
+    done
+}
+# }}}
+
+# {{{ main
+case "${ACTION}" in
+    dry-run)
+        do_dry_run
+        ;;
+
+    apply)
+        # Reset first, unconditionally. The alternative -- applying onto
+        # whatever happens to be there -- means the result depends on history
+        # nobody recorded.
+        reset_source_trees || exit 1
+        apply_patches_prebuild || exit 1
+        echo
+        echo "The copy under source/ is now customized and will STAY customized."
+        echo "Run --revert or --reset before fetching upstream again."
+        ;;
+
+    revert)
+        unapply_patches_prebuild
+        ;;
+
+    reset)
+        # Goes to a recorded commit rather than reversing our edits, so it
+        # cannot invent changes that were never ours. This is the safe option
+        # whenever the state of the tree is uncertain.
+        reset_source_trees || exit 1
+        echo "Both trees returned to what upstream shipped."
+        ;;
+esac
+# }}}

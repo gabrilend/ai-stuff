@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+#
+# gen-registry — rewrites the index of every customization from the
+# customizations themselves.
+#
+# The problem it removes: any hand-maintained index of "what we changed and
+# why" is a second place to update, and a second place to update is a place to
+# forget. An index that is 80% accurate is worse than none, because the missing
+# 20% looks exactly like the present 80%.
+#
+# So the index is not maintained. It is recomputed, by reading the descriptive
+# header at the top of each customization and rewriting the document from
+# scratch. It cannot drift from what the customizations actually do, because it
+# has no independent existence.
+#
+# Never edit the output by hand. Edit the patch headers and run this.
+#
+# Usage:  gen-registry [project-directory]
+
+set -uo pipefail
+
+# {{{ paths
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/xonotic-turning-radius}"
+export DIR
+
+source "${DIR}/patches/patches.sh"
+
+OUT="${DIR}/docs/patches/patch-registry.md"
+# }}}
+
+# {{{ header_field()
+#   $1  patch file    $2  field name
+header_field() {
+    grep -m1 "^# ${2}:" "$1" | sed "s/^# ${2}:[[:space:]]*//"
+}
+# }}}
+
+# {{{ continuation_lines()
+# Header fields wrap across lines. A continuation is a comment line that is
+# indented and carries no "FIELD:" label of its own, so it can be recognized
+# without the writer having to mark it.
+#   $1  patch file    $2  field name
+continuation_lines() {
+    awk -v field="# $2:" '
+        index($0, field) == 1 { collecting = 1; next }
+        collecting {
+            if ($0 !~ /^#[[:space:]][[:space:]]+/) { collecting = 0; next }
+            if ($0 ~ /^#[[:space:]]+[A-Z]+:/)      { collecting = 0; next }
+            sub(/^#[[:space:]]+/, "")
+            print
+        }
+    ' "$1"
+}
+# }}}
+
+# {{{ tier_name()
+# The identifier prefix says when a change fires. One prefix per moment, so a
+# filename glob selects a moment.
+tier_name() {
+    case "$1" in
+        P*) echo "before build — edits Xonotic source we do not own" ;;
+        I*) echo "after build — sets up what we installed" ;;
+        *)  echo "unknown" ;;
+    esac
+}
+# }}}
+
+# {{{ main
+mkdir -p "$(dirname "${OUT}")"
+
+{
+    echo "# Patch Registry"
+    echo
+    echo "Every customization this project makes to Xonotic, and why."
+    echo
+    echo "**This document is generated.** It is rewritten from the headers of the"
+    echo "patch scripts themselves by \`scripts/gen-registry\`. Editing it by hand"
+    echo "accomplishes nothing, because the next run overwrites the edit. To change"
+    echo "what appears here, change the header of the patch it describes."
+    echo
+    echo "To see which of these a given build variant selects, read the profile"
+    echo "table in \`patches/patches.sh\` — that table is the declaration, and this"
+    echo "document is only the description."
+    echo
+
+    for id in $(list_all_patch_ids); do
+        file="$(ls "${DIR}/patches/${id}-"*.sh 2>/dev/null | head -1)"
+        [[ -z "${file}" ]] && continue
+
+        echo "---"
+        echo
+        echo "## ${id} — $(basename "${file}" .sh | cut -d- -f2- | tr '-' ' ')"
+        echo
+        echo "*Fires $(tier_name "${id}").*"
+        echo
+        echo "**Target.** $(header_field "${file}" "TARGET")"
+        echo
+
+        echo "**What upstream does today.**"
+        echo
+        echo "$(header_field "${file}" "SYMPTOM")"
+        continuation_lines "${file}" "SYMPTOM"
+        echo
+
+        echo "**What we change, and why.**"
+        echo
+        echo "$(header_field "${file}" "CHANGE")"
+        continuation_lines "${file}" "CHANGE"
+        echo
+
+        echo "**How it is located.** $(header_field "${file}" "ANCHOR")"
+        continuation_lines "${file}" "ANCHOR"
+        echo
+        echo "**How we know it is applied.** $(header_field "${file}" "WITNESS")"
+        echo
+        echo "**Expected matches.** $(header_field "${file}" "MATCHES")"
+        echo
+        echo "Source: \`patches/$(basename "${file}")\`"
+        echo
+    done
+} > "${OUT}"
+
+echo "Wrote ${OUT}"
+# }}}

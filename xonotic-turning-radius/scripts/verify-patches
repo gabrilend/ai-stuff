@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+#
+# verify-patches — the quality gate every customization must pass before it is
+# allowed anywhere near a build.
+#
+# The risk this exists to remove: a change that goes on cleanly but does not
+# come back off cleanly. Such a change leaves residue behind in the copy of
+# Xonotic we borrowed, and that residue then shows up during the NEXT build,
+# far from where it came from and long after anyone remembers why. Debugging
+# that costs hours; preventing it costs this script.
+#
+# It checks each customization against a freshly reset copy and asserts four
+# things: that the change is genuinely absent to begin with, that applying it
+# actually alters something, that the change reports itself as present
+# afterwards, and -- the important one -- that removing it returns the copy to
+# a state version control considers byte-for-byte identical to what Xonotic's
+# authors shipped.
+#
+# A change failing any of the four is not reported as a warning. It is refused.
+#
+# Usage:  verify-patches [project-directory]
+
+set -uo pipefail
+
+# {{{ paths
+# Hard-coded default so the script runs from any working directory; overridable
+# as the first argument for a checkout living somewhere else.
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/xonotic-turning-radius}"
+export DIR
+
+if [[ ! -f "${DIR}/patches/patches.sh" ]]; then
+    echo "ERROR: no patch switchboard at ${DIR}/patches/patches.sh" >&2
+    exit 1
+fi
+
+source "${DIR}/patches/patches.sh"
+
+LOG_DIR="${DIR}/tmp/shared-memory"
+mkdir -p "${LOG_DIR}"
+# }}}
+
+# {{{ header_field()
+# Reads one labelled value out of a patch file's header block. The header is
+# treated as a data structure rather than as a comment, because three separate
+# tools read it: this gate, the registry generator, and the staleness auditor.
+#   $1  patch file
+#   $2  field name, e.g. MATCHES
+header_field() {
+    grep -m1 "^# ${2}:" "$1" | sed "s/^# ${2}:[[:space:]]*//"
+}
+# }}}
+
+# {{{ trees_are_clean()
+# Asks version control whether either upstream tree differs from the commit it
+# was fetched at. This is the strictest available statement of "we gave it back
+# exactly as we found it" -- it counts modified files and files we created and
+# failed to remove.
+trees_are_clean() {
+    local tree out
+    for tree in "${SRC_TREES[@]}"; do
+        out="$(git -C "${tree}" status --porcelain)"
+        [[ -n "${out}" ]] && return 1
+    done
+    return 0
+}
+# }}}
+
+# {{{ verify_one()
+# Runs the four assertions against a single patch. Every failure is reported
+# rather than stopping at the first, so one run tells the whole truth about a
+# patch instead of revealing its problems one build at a time.
+#   $1  patch identifier, e.g. P001
+verify_one() {
+    local id="$1"
+    local file failures=0
+    local apply_fn unapply_fn probe_fn
+    local before_status
+
+    file="$(ls "${DIR}/patches/${id}-"*.sh 2>/dev/null | head -1)"
+    if [[ -z "${file}" ]]; then
+        echo "  FAIL  ${id}: no patch file found"
+        return 1
+    fi
+
+    apply_fn="$(patch_function_for "patch" "${id}")"
+    unapply_fn="$(patch_function_for "unpatch" "${id}")"
+    probe_fn="$(patch_function_for "patch_needs_applying" "${id}")"
+
+    if [[ -z "${apply_fn}" || -z "${unapply_fn}" || -z "${probe_fn}" ]]; then
+        echo "  FAIL  ${id}: incomplete triplet (apply/unapply/probe)"
+        return 1
+    fi
+
+    # Assertion 1 -- the change must be absent from pristine upstream.
+    # A patch that reports itself already present against untouched source is
+    # either redundant (upstream adopted it) or its probe is wrong. Both need a
+    # human, and neither should silently build.
+    if ! "${probe_fn}"; then
+        echo "  FAIL  ${id}: probe says already applied on a pristine tree"
+        echo "        (upstream may have adopted this change -- consider retiring it)"
+        failures=$((failures + 1))
+    fi
+
+    # Assertion 2 -- applying must actually change something.
+    # A patch that edits nothing is a patch whose anchor stopped matching. It
+    # would otherwise fail silently and forever.
+    before_status="$(tree_fingerprint)"
+    "${apply_fn}"
+    if [[ "$(tree_fingerprint)" == "${before_status}" ]]; then
+        echo "  FAIL  ${id}: applying changed nothing (anchor no longer matches?)"
+        failures=$((failures + 1))
+    fi
+
+    # Assertion 3 -- the change must report itself present once applied.
+    # This is what keeps the probe and the inverse agreeing about what
+    # "applied" means. They are used by different callers and would otherwise
+    # drift apart.
+    if "${probe_fn}"; then
+        echo "  FAIL  ${id}: probe still says not-applied after applying"
+        failures=$((failures + 1))
+    fi
+
+    # Assertion 4 -- the round trip must be exact. This is the load-bearing one.
+    "${unapply_fn}"
+    if ! trees_are_clean; then
+        echo "  FAIL  ${id}: round trip left residue behind:"
+        local tree
+        for tree in "${SRC_TREES[@]}"; do
+            git -C "${tree}" status --porcelain | sed 's/^/          /'
+        done
+        failures=$((failures + 1))
+        # Leave nothing behind for the next patch to trip over. Reset goes to a
+        # commit, so unlike an inverse it cannot invent changes of its own.
+        reset_source_trees
+    fi
+
+    if (( failures == 0 )); then
+        echo "  ok    ${id}  $(header_field "${file}" "TARGET")"
+        return 0
+    fi
+    return 1
+}
+# }}}
+
+# {{{ main
+echo "Verifying patches against a freshly reset copy of upstream."
+echo
+
+if ! reset_source_trees; then
+    echo "ERROR: could not reset the source trees." >&2
+    exit 1
+fi
+
+total=0
+failed=0
+for id in $(list_all_patch_ids); do
+    total=$((total + 1))
+    verify_one "${id}" || failed=$((failed + 1))
+done
+
+echo
+if (( failed == 0 )); then
+    echo "${total} patch(es) verified: all round-trip exactly."
+    exit 0
+fi
+
+echo "${failed} of ${total} patch(es) FAILED. Refusing to treat these as usable."
+exit 1
+# }}}

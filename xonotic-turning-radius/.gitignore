@@ -1,0 +1,20 @@
+# The cloned upstream tree is a disposable build artifact, never a tracked file.
+# What is versioned here is the *intent* — the apply/unapply patch scripts under
+# patches/ — not the *result*. The result is a deterministic function of
+# (upstream HEAD + patches), regenerated on demand by scripts/redownload-source.
+#
+# A surviving modification to Xonotic source inside this repository's history
+# would be, by construction, a bug: either a failed unapply or a hand edit that
+# should have been written as a patch. This line is what makes that impossible.
+source/
+
+# RAM-backed working tiers, both symlinks out of the project:
+#   tmp/                -> /tmp/xonotic-turning-radius        (executable scratch)
+#   tmp/shared-memory/  -> /dev/shm/xonotic-turning-radius    (logs, build output)
+tmp
+
+# Built QuakeC bytecode and packaged data. Products, not sources.
+build/
+*.dat
+*.lno
+*.pk3
