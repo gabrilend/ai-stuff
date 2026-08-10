@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+#
+# redownload-source — throws away our copy of Xonotic and fetches it again.
+#
+# This is the lever that makes the whole arrangement safe. Because every
+# customization lives in a separate script rather than in the copy itself,
+# nothing of ours is lost by deleting the copy. "The source tree is in a strange
+# state" therefore stops being an investigation and becomes one command.
+#
+# Two trees are fetched, and they are separate projects:
+#   the engine     -- the C program that draws the world and reads the keyboard
+#   the game data  -- the game's own code, in QuakeC, plus its configuration
+#
+# Both are fetched at a single revision rather than with their full history.
+# The engine's history is small; the game data's is very large and consists
+# almost entirely of revisions to artwork and sound this project never reads.
+#
+# Usage:  redownload-source [project-directory]
+#         redownload-source --engine-only [project-directory]
+
+set -uo pipefail
+
+# {{{ paths
+ENGINE_ONLY=0
+if [[ "${1:-}" == "--engine-only" ]]; then
+    ENGINE_ONLY=1
+    shift
+fi
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/xonotic-turning-radius}"
+
+SOURCE_DIR="${DIR}/source"
+ENGINE_DIR="${SOURCE_DIR}/darkplaces"
+DATA_DIR="${SOURCE_DIR}/xonotic-data.pk3dir"
+
+ENGINE_URL="https://gitlab.com/xonotic/darkplaces.git"
+DATA_URL="https://gitlab.com/xonotic/xonotic-data.pk3dir.git"
+
+LOG_DIR="${DIR}/tmp/shared-memory"
+mkdir -p "${LOG_DIR}"
+mkdir -p "${SOURCE_DIR}"
+# }}}
+
+# {{{ refetch()
+# Removes one tree and clones it again at a single revision.
+#   $1  destination directory
+#   $2  remote address
+#   $3  human-readable name for the log
+refetch() {
+    local dest="$1" url="$2" name="$3"
+
+    # Deleting a directory is the one operation here that cannot be undone, so
+    # it refuses to run anywhere except inside this project's source directory.
+    # A mistyped project path should fail, not erase something else.
+    case "${dest}" in
+        "${SOURCE_DIR}"/*) : ;;
+        *)
+            echo "ERROR: refusing to delete ${dest} -- it is not inside ${SOURCE_DIR}" >&2
+            return 1
+            ;;
+    esac
+
+    if [[ -d "${dest}" ]]; then
+        echo "Removing existing ${name} tree."
+        rm -rf "${dest}"
+    fi
+
+    echo "Fetching ${name} from ${url}"
+    git clone --depth 1 "${url}" "${dest}"
+}
+# }}}
+
+# {{{ main
+refetch "${ENGINE_DIR}" "${ENGINE_URL}" "engine" || exit 1
+
+if (( ENGINE_ONLY == 0 )); then
+    # Roughly three gigabytes, almost all of it artwork. The --engine-only
+    # switch exists for iterating on engine changes without paying that cost.
+    refetch "${DATA_DIR}" "${DATA_URL}" "game data" || exit 1
+else
+    echo "Skipping the game data tree (--engine-only)."
+fi
+
+echo
+echo "Fetched. Nothing of ours was lost: every customization lives in patches/,"
+echo "not in the copy. Run scripts/verify-patches to confirm they still apply."
+# }}}
