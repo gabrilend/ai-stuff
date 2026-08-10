@@ -1,0 +1,20 @@
+# The source tree is somebody else's code, downloaded on demand and thrown away on
+# demand. Tracking it would make our changes and upstream's indistinguishable, which
+# is the exact failure the patches/ directory exists to avoid. Everything ignored
+# here is regenerable from update + install; nothing ignored here is a source of truth.
+source/
+build/
+files/
+roms/
+tmp
+
+# Same reasoning one level down: the recipe for each outside library is tracked, the
+# library's own source and the compiled result are not.
+libs/source/
+libs/prefix/
+
+# Settings belong to whoever is sitting at the machine, not to the project. What is
+# tracked is the fact that install creates them; what they end up saying is personal.
+config/
+config.ini
+portable.ini

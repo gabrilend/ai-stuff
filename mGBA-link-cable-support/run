@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# run — starts the emulator we built, on the most recent game sitting in roms/.
+#
+# Everything after the game is handed straight to mGBA, so the emulator's own
+# switches keep working through this script. Given no game at all it picks whichever
+# ROM in roms/ was modified most recently, which is the one you just put there —
+# copying a file in stamps it with the current time, so recency and intent agree.
+# Run it with --help to see what the emulator itself accepts.
+#
+# The emulator is started from the project root, and that is load-bearing rather than
+# tidiness: mGBA looks for a file named portable.ini in the directory it was started
+# from, and finding ours is what sends its settings to config/ instead of to
+# ~/.config/mgba. The consequence to know about is that any other relative path in
+# the arguments is read relative to the project root, not to where you were standing.
+# The game itself is exempt — it is resolved to a full path before the move.
+#
+# Usage: ./run [rom] [emulator arguments...]
+#        MGBA_LINK_DIR=/elsewhere ./run
+set -euo pipefail
+
+DIR="${MGBA_LINK_DIR:-/mnt/mtwo/programming/ai-stuff/mGBA-link-cable-support}"
+
+# The directory arrives by environment here rather than as the first argument,
+# because the first argument is already spoken for by the game being started.
+if [[ -z "${DIR}" ]]; then
+    echo "run: no directory set — pass one as MGBA_LINK_DIR, or edit the top of this script." >&2
+    exit 1
+fi
+
+BIN="${DIR}/files/bin"
+ROMS="${DIR}/roms"
+
+# The frontends mGBA can install, best first: the Qt one is the full desktop window
+# with menus and settings, the SDL one is a bare framebuffer that builds on a
+# machine with no Qt installed. Whichever the compile actually produced is the one
+# that will be sitting there, so this list is a preference order, not a guess.
+FRONTENDS=(mgba-qt mgba-sdl mgba)
+
+# {{{ find_emulator()
+find_emulator() {
+    local name
+    for name in "${FRONTENDS[@]}"; do
+        if [[ -x "${BIN}/${name}" ]]; then
+            printf '%s\n' "${BIN}/${name}"
+            return 0
+        fi
+    done
+    echo "run: no emulator in ${BIN}. Run ./install first." >&2
+    return 1
+}
+# }}}
+
+# {{{ newest_rom()
+# The awk at the end takes the first line without closing the pipe early; head would
+# do the same job but can kill sort mid-write, which this script reads as a failure.
+newest_rom() {
+    local newest
+    newest="$(find "${ROMS}" -maxdepth 1 -type f \
+        \( -iname '*.gba' -o -iname '*.gb' -o -iname '*.gbc' -o -iname '*.zip' \) \
+        -printf '%T@ %p\n' | sort -nr | awk 'NR==1 { sub(/^[^ ]+ /, ""); print }')"
+    if [[ -z "${newest}" ]]; then
+        echo "run: no games in ${ROMS}. Put one there, or name one as the first argument." >&2
+        return 1
+    fi
+    printf '%s\n' "${newest}"
+}
+# }}}
+
+# {{{ asks_about_the_emulator()
+# --help and --version are questions about the emulator itself, not about any
+# particular cartridge. Demanding a game for those would mean the one command you
+# reach for before anything is set up is the one command that refuses to run.
+asks_about_the_emulator() {
+    local arg
+    for arg in "$@"; do
+        case "${arg}" in
+            -h|--help|--version) return 0 ;;
+        esac
+    done
+    return 1
+}
+# }}}
+
+mkdir -p "${ROMS}"
+EMULATOR="$(find_emulator)"
+
+if asks_about_the_emulator "$@"; then
+    cd "${DIR}"
+    exec "${EMULATOR}" "$@"
+fi
+
+# A first argument that names a real file is the game; anything else — a switch like
+# --fullscreen, or nothing at all — leaves the choice of game to recency and gets
+# passed along to the emulator untouched.
+if [[ $# -gt 0 && -f "$1" ]]; then
+    ROM="$(readlink -f "$1")"
+    shift
+else
+    ROM="$(newest_rom)"
+fi
+
+echo "run: ${EMULATOR##*/} <- ${ROM##*/}"
+
+# The move into the project root is what puts portable.ini under the emulator's nose;
+# see the note at the top. It happens last, after every path this script cares about
+# has already been resolved, so nothing here changes meaning underneath itself.
+cd "${DIR}"
+exec "${EMULATOR}" "${ROM}" "$@"
