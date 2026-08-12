@@ -20,8 +20,9 @@ tour; jump in by topic if you already know where you're going.
 - `001-architecture-overview.md` — the system at a glance.
 - `002-roadmap.md` — ten phases, lowest layer first. Nine for the
   launch system, one more for the first post-launch app.
-- `003-threading-model.md` — task firing, ring buffers, atomics,
-  memory ordering on ARM.
+- `003-threading-model.md` — stations and ports, the one firing
+  rule, the claim that takes no lock, what this chip requires,
+  and how a program ends.
 - `004-input-model.md` — touch screens, buttons, handedness,
   radial menu, drawers, inter-app links.
 - `005-display-and-compositor.md` — two framebuffers, per-screen

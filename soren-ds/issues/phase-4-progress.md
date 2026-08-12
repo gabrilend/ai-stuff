@@ -15,6 +15,23 @@ on the RAM-backed symlink and registers each new generation with
 the descriptor table. The hot-swap is a single atomic store on
 the descriptor's `fn` field.
 
+
+## The engine beneath this phase changed
+
+Phases 2 and 3 were rewritten against the ceramic design; the old
+issues are in `issues/superseded/`, with a README explaining what
+moved where. In this phase, 406, 407, 409, 410, 411, 412 still describe the older
+engine and have not been converted yet. Read them knowing that the box
+catalogue is generated from box sources rather than being a table
+filesystem boxes are added to; rebuilding a box replaces each running
+station's call pointer rather than swapping a shared descriptor, and
+the old code is released by a per-core pass counter rather than by
+reference counting.
+
+A reference to an issue numbered 2xx or 3xx in those files points at
+the superseded issue of that number, not at the one holding that
+number today.
+
 ## The story of the phase
 
 1. `401-sd-card-block-driver.md` — speak the SDHC/SDXC command

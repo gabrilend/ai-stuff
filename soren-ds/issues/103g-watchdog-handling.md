@@ -94,7 +94,7 @@ runtime has frozen.
 - *Implement the periodic task mechanism.* The mechanism is a
   soramech-runtime concern — its design includes scheduler
   integration, prioritization, the Generic Timer interrupt
-  path, and the wake-from-WFE machinery in 210. This issue's
+  path, and the wake-from-WFE machinery in 206. This issue's
   phase-2 portion uses the mechanism but does not provide it.
 - *Replace the watchdog with a software equivalent.* The
   watchdog hardware works fine; nothing about its silicon
@@ -171,7 +171,7 @@ The phase-2-or-3 portion is blocked by the soramech runtime
 having a periodic-task scheduling mechanism. The specific
 sub-issue that brings that mechanism up does not exist yet;
 its scope will be defined when soramech's broader bring-up
-(issues 201-211) starts.
+(issues 201-215) starts.
 
 ## Closes when
 

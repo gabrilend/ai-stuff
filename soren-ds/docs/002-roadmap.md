@@ -32,28 +32,48 @@ mode, streams the debug output over USB, and confirms a visible
 pixel on each screen. Everything later in the project is iterated
 against this loop.
 
-## Phase 2 — Threading core
+## Phase 2 — The ceramic core engine
 
-The scheduler, the worker pool, the ring-buffered task struct with
-unique return slots, the atomic gathering primitive that decides
-when a box is ready to fire, the release/acquire memory ordering
-that makes the firing decision safe on ARM. This is the foundation
-everything above leans on, and the most important phase in the
-project. The demo is a torture test: spin up millions of tiny tasks
-across all cores and prove zero races, zero lost fires, zero
-double-fires. Not visual but load-bearing.
+The whole engine, not just the pool underneath it. Phase 2 turns the
+caches on — which on this chip is the same act as turning the memory
+management unit on, and is what makes the atomic instructions the
+design rests on defined at all — then wakes the other three cores,
+gives each one memory it owns, and builds the task ring, the run loop,
+and the sleeping rule. On top of that it builds the station layer: the
+table of placed boxes, the input ports whose cells each carry their own
+state, the readiness check and the claim that takes no lock, the task,
+and the delivery walk that carries a returned value to the next box.
+It closes with a way to build a map by hand, since the file format and
+the build path that reads box sources are phase 3.
+
+Two things belong here that the earlier plan had nowhere for. Programs
+on this device end because they were **asked** to, never because work
+ran out — so stopping and parking is designed here rather than
+inherited. And a box that cannot continue takes itself out of service
+and lets everything else keep running, which is what makes authoring on
+the device survivable.
+
+This is the foundation everything above leans on, and the most
+important phase in the project. The demo is an endurance test: an
+ordinary map run for as long as somebody lets it, reporting nothing
+lost, nothing wrong, nothing doubled, every core busy, and memory flat
+after warm-up. Its numbers are what every later phase paces against.
 
 ## Phase 3 — Soramech runtime
 
 The runtime comes right after the threading core because every
 driver, every middle layer, every app above this point is a
-soramech map; the runtime is what lets those maps exist. Phase 3
-builds the box descriptor table, the box loader, the wire
-connector, the encapsulation splicer that flattens sub-maps at
-load time, the task instantiator that turns a fired box into a
-task struct on the phase 2 thread pool's work queue, and the
-gathering function that decides when a box is ready to fire. The
-initial box library is statically linked into the kernel image
+soramech map; the runtime is what lets those maps exist. Phase 2
+can already run a map that somebody assembled by calling into the
+engine; phase 3 is everything that lets a map be *written down*.
+It builds the box catalogue — read out of the box sources
+themselves rather than maintained by hand — the map file format
+and its loader, the wire connector, the routing kinds, and the
+encapsulation splicer that flattens sub-maps at load time. The
+loader calls the same place-configure-wire operations phase 2
+built, so there is one way a station comes into existence rather
+than two. The initial box library is statically linked into the
+kernel image
 — the routing-kind boxes (`plain`, `comparator`, `iterator`,
 `randomizer`, `weighted`, `distributor`, `nonlinearity`), the
 debug-write box that wraps `110`'s CDC-ACM channel, and a small

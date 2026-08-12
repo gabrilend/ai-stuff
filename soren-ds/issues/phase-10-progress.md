@@ -18,6 +18,20 @@ union with anchor vertex identification. The launch system's
 encapsulation splicer flattens models the same way it flattens
 any other sub-map.
 
+
+## The engine beneath this phase changed
+
+Phases 2 and 3 were rewritten against the ceramic design; the old
+issues are in `issues/superseded/`, with a README explaining what
+moved where. In this phase, 1007 still describe the older
+engine and have not been converted yet. Read them knowing that
+flattening a map placed inside another is mostly naming now, because
+there is one station table and nothing to merge into.
+
+A reference to an issue numbered 2xx or 3xx in those files points at
+the superseded issue of that number, not at the one holding that
+number today.
+
 ## The story of the phase
 
 1. `1001-vertex-grid-representation.md` — the data structure
