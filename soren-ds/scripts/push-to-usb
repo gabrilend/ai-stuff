@@ -130,6 +130,16 @@ ensure_workspace() {
     if [[ ! -L "$TMP_DIR" ]] && [[ ! -d "$TMP_DIR" ]]; then
         die "${TMP_DIR} does not exist. Project convention requires tmp/ as a RAM-backed directory."
     fi
+    # tmp/ is a symlink into /tmp, which the system clears on every
+    # reboot — so the link outlives its target and the first run after
+    # a restart finds it dangling. A plain `mkdir -p "$TMP_DIR"` cannot
+    # repair that: the symlink itself exists, so mkdir stops at "File
+    # exists" without ever following it. Resolving to the real path
+    # first is what makes the work directory reappear. Safe when the
+    # path is an ordinary directory too — readlink -f returns it
+    # unchanged — and the check above has already refused the case
+    # where tmp/ is missing entirely.
+    mkdir -p "$(readlink -f "$TMP_DIR")"
     mkdir -p "$OUTPUT_DIR"
 }
 # }}}
