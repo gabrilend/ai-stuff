@@ -1,0 +1,663 @@
+#!/usr/bin/env bash
+# build-and-flash — build on the dev machine over the network, pull the image here, write it to a microSD card
+#
+# General description: this is the networked replacement for the
+# carry-a-USB-drive-across-the-room workflow. It runs on the lab
+# laptop and drives the whole round trip from one keyboard: it opens
+# a single ssh connection to the dev machine, runs the compile and
+# the image-assembly steps there, copies the finished bootable SD
+# image back over that same connection, checks that what arrived is
+# byte-identical to what was built, and then hands the image to the
+# existing flash script, which does the SD-card safety checks and
+# the write.
+#
+# The dev machine is addressed as a required argument — nothing about
+# which machine to build on is baked into this file, so the same copy
+# works against a laptop on the bench or a workstation across a VPN.
+#
+# The image never touches this laptop's disk. It lands in RAM under
+# /dev/shm/soren-ds, which means the flash reads from memory, and it
+# means a stale image cannot survive a reboot and get written to a
+# card by accident. The cost is that every fresh boot re-downloads;
+# rsync's compression takes most of the sting out of that, because
+# the 272 MiB image is mostly zeroes.
+#
+# Nothing here needs sudo. The one privileged step — writing the raw
+# device — belongs to the flash script, which asks for its own.
+#
+# Getting this file onto the lab laptop the first time is a one-shot
+# manual copy (scp it from the dev machine, or take it off the old
+# air-gap USB drive). After that it keeps itself and its sibling
+# lab-side tools current on every run.
+#
+# Visible output is deliberately terse: a few headline lines, then a
+# progress line per stage ending in a green "done" or a red "error"
+# followed by the actual error text. The blow-by-blow record, and the
+# full output of the remote build, land in the log file under
+# /dev/shm/soren-ds/tmp/.
+
+set -euo pipefail
+
+# {{{ defaults — every one of these is overridable by a command-line flag
+# The staging root on THIS laptop. /dev/shm is a tmpfs, so this is
+# real RAM: the project convention puts non-executable artifacts
+# (images, logs) on the shared-memory tier and executable code on the
+# /tmp tier, because some hardened installs mount /dev/shm noexec and
+# a script staged there would refuse to run.
+DIR="/dev/shm/soren-ds"
+
+# Where the lab-side helper scripts land. The /tmp tier, for the
+# noexec reason above.
+EXEC_DIR="/tmp/soren-ds/tmp"
+
+# The project root on the DEV machine, as that machine sees it. Only
+# needs changing if the checkout moves over there.
+REMOTE_DIR="/mnt/mtwo/programming/ai-stuff/soren-ds"
+
+# Which lab-side tools to carry across. retired/ is excluded for the
+# same reason push-to-usb excludes it — superseded SD-catalog tools
+# kept only for the record, of no use on the lab side.
+REMOTE_LAB_SIDE_DIR="${REMOTE_DIR}/scripts/lab-side"
+
+BUILD_DEBUG=0
+DO_BUILD=1
+DO_FLASH=1
+SD_DEVICE=""
+SSH_TARGET=""
+
+# One ssh connection, reused by every remote command and by rsync.
+# Without this, a password-authenticated setup would prompt five
+# separate times in one run, and each remote command would pay the
+# full handshake cost. ControlPersist keeps the socket alive briefly
+# after the last use so a quick re-run is instant. %C is a hash of
+# the connection parameters, which keeps the socket path short enough
+# to stay under the ~108-byte limit on Unix socket names.
+SSH_CONTROL_DIR="/tmp/soren-ds"
+SSH_OPTS="-o ConnectTimeout=10 -o ControlMaster=auto -o ControlPath=${SSH_CONTROL_DIR}/ssh-control-%C -o ControlPersist=120"
+
+# Filled in by derive_paths() once the flags have been parsed, because
+# all of them hang off DIR and DIR itself is overridable.
+OUTPUT_DIR=""
+LOG_FILE=""
+GOODBYE_FILE=""
+LOCAL_IMG=""
+REMOTE_IMG=""
+# }}}
+
+# {{{ colors — only emit ANSI when stderr is a real terminal
+if [[ -t 2 ]]; then
+    COLOR_GREEN=$'\033[32m'
+    COLOR_RED=$'\033[31m'
+    COLOR_RESET=$'\033[0m'
+else
+    COLOR_GREEN=''
+    COLOR_RED=''
+    COLOR_RESET=''
+fi
+# }}}
+
+# {{{ usage() — what this does, how to reach it, and the one required argument
+usage() {
+    cat <<'EOF'
+build-and-flash — build SoreOS on the dev machine over ssh, pull the image, flash a microSD card.
+
+Runs on the lab laptop. Replaces the carry-a-USB-drive step of the old workflow
+(push-to-usb on the dev machine, then flash-sd here) with a network copy, so the
+whole round trip happens from one keyboard.
+
+What it does, in order:
+  1. opens one ssh connection to the dev machine and holds it open for the run
+  2. runs the compile step and the image-assembly step over there
+  3. records the size and SHA-256 of the image the dev machine just built
+  4. copies the lab-side helper scripts here, so this laptop stays current
+  5. rsyncs the image into RAM at /dev/shm/soren-ds/output/
+  6. re-checks the SHA-256 locally and refuses to flash a mismatch
+  7. hands off to flash-sd, which does the SD-card safety checks and the write
+
+Usage:
+  build-and-flash [OPTIONS] user@host
+  build-and-flash --help
+
+Arguments:
+  user@host          The dev machine, as this laptop can reach it. Required.
+                     Any form ssh accepts works, including an alias from
+                     ~/.ssh/config.
+
+Options:
+  --debug            Forwarded to the dev machine's build, which bakes the probe
+                     battery into the kernel and compiles in the extra
+                     diagnostic logging. Without this flag you get the lean
+                     production kernel with no probe code in it at all. The
+                     debug build is never picked for you — being at the lab
+                     laptop does not imply it. Whichever variant is being built
+                     is named on the "compiling" line while it runs.
+  --no-build         Skip the remote build. Transfers whatever image is already
+                     sitting in the dev machine's output directory.
+  --no-flash         Pull and verify the image, then stop. Useful for staging a
+                     build before the card is in hand.
+  --device PATH      Flash this block device instead of auto-detecting the card
+                     by watching for a new device to appear. e.g. /dev/sdb
+  --dir PATH         Staging root on this laptop. Default: /dev/shm/soren-ds
+  --exec-dir PATH    Where the lab-side helpers land. Default: /tmp/soren-ds/tmp
+  --remote-dir PATH  Project root on the dev machine.
+                     Default: /mnt/mtwo/programming/ai-stuff/soren-ds
+  -h, --help         Show this and exit without touching anything.
+
+Getting logs back the other way:
+  This script only goes one direction. After the device has run and the card is
+  back in this laptop, dump-from-sd reads the log off it into lab-output/ under
+  the staging root, and one rsync sends it home:
+
+    /tmp/soren-ds/tmp/dump-from-sd /dev/shm/soren-ds
+    ssh DEVHOST mkdir -p /tmp/soren-ds/logs
+    rsync -av /dev/shm/soren-ds/lab-output/ DEVHOST:/tmp/soren-ds/logs/
+
+  The mkdir line is not optional. /tmp is cleared on every reboot, so after the
+  dev machine restarts BOTH /tmp/soren-ds and logs/ underneath it are gone, and
+  rsync creates only the last missing level of a destination path — it fails
+  with "mkdir failed: No such file or directory" when two levels are missing.
+
+Requires on this laptop: ssh, rsync, sha256sum, df. Requires on the dev machine:
+rsync, and a working checkout with its cross-toolchain in place.
+EOF
+}
+# }}}
+
+# {{{ audit_log() — append a structured line to the log file only (no terminal output)
+# Tolerates LOG_FILE being empty, because option parsing can fail
+# before derive_paths() has decided where the log lives.
+audit_log() {
+    local message="$1"
+    if [[ -z "$LOG_FILE" ]]; then
+        return 0
+    fi
+    local stamp
+    stamp="$(date -Iseconds)"
+    printf '%s [build-and-flash] %s\n' "$stamp" "$message" >> "$LOG_FILE"
+}
+# }}}
+
+# {{{ say() — print to stderr without a prefix and mirror to the log file with one
+say() {
+    local message="$1"
+    printf '%s\n' "$message" >&2
+    audit_log "$message"
+}
+# }}}
+
+# {{{ die() — log an error and exit non-zero
+die() {
+    local message="$1"
+    printf '%s\n' "$message" >&2
+    audit_log "ERROR: $message"
+    exit 1
+}
+# }}}
+
+# {{{ progress_start() — open a progress line with a step label, no newline
+progress_start() {
+    local label="$1"
+    printf '%s...' "$label" >&2
+    audit_log "STEP start: $label"
+}
+# }}}
+
+# {{{ progress_continue() — extend an open progress line with another step label
+progress_continue() {
+    local label="$1"
+    printf ' %s...' "$label" >&2
+    audit_log "STEP continue: $label"
+}
+# }}}
+
+# {{{ progress_done() — close an open progress line with a green "done" newline
+progress_done() {
+    printf ' %sdone%s\n' "$COLOR_GREEN" "$COLOR_RESET" >&2
+    audit_log "STEP done"
+}
+# }}}
+
+# {{{ progress_error() — close an open progress line with red "error" then print the detail
+progress_error() {
+    local detail="$1"
+    printf ' %serror%s\n' "$COLOR_RED" "$COLOR_RESET" >&2
+    printf '%s\n' "$detail" >&2
+    audit_log "STEP error: $detail"
+}
+# }}}
+
+# {{{ option handlers — one function per flag, looked up by name rather than branched through
+# A lookup table instead of a case statement: the flag string is the
+# key, the handler's name is the value, and adding a flag means adding
+# one row and one function rather than editing a branch. Each handler
+# receives whatever followed its flag as $1 and sets OPTION_CONSUMED to
+# 1 if it actually used that argument, 0 if the flag stands alone.
+OPTION_CONSUMED=0
+
+option_debug()      { OPTION_CONSUMED=0; BUILD_DEBUG=1; }
+option_no_build()   { OPTION_CONSUMED=0; DO_BUILD=0; }
+option_no_flash()   { OPTION_CONSUMED=0; DO_FLASH=0; }
+option_help()       { OPTION_CONSUMED=0; usage; exit 0; }
+option_device()     { OPTION_CONSUMED=1; require_value "--device" "${1:-}"; SD_DEVICE="$1"; }
+option_dir()        { OPTION_CONSUMED=1; require_value "--dir" "${1:-}"; DIR="$1"; }
+option_exec_dir()   { OPTION_CONSUMED=1; require_value "--exec-dir" "${1:-}"; EXEC_DIR="$1"; }
+option_remote_dir() { OPTION_CONSUMED=1; require_value "--remote-dir" "${1:-}"; REMOTE_DIR="$1"; }
+
+declare -A OPTION_HANDLERS=(
+    [--debug]=option_debug
+    [--no-build]=option_no_build
+    [--no-flash]=option_no_flash
+    [--device]=option_device
+    [--dir]=option_dir
+    [--exec-dir]=option_exec_dir
+    [--remote-dir]=option_remote_dir
+    [-h]=option_help
+    [--help]=option_help
+)
+# }}}
+
+# {{{ require_value() — a flag that takes a value must have been given one
+require_value() {
+    local flag="$1"
+    local value="$2"
+    if [[ -z "$value" ]]; then
+        die "${flag} needs a value after it. Run --help for the list."
+    fi
+}
+# }}}
+
+# {{{ parse_options() — walk the command line through the handler table, leaving the ssh target
+parse_options() {
+    while [[ $# -gt 0 ]]; do
+        local arg="$1"
+        # Only leading-dash arguments are looked up in the table. This
+        # is not just tidiness: bash gives the subscripts @ and * a
+        # special meaning inside array references, so feeding an
+        # arbitrary argument straight into the lookup would misread a
+        # bare glob as a whole-array expansion. Options start with a
+        # dash; the ssh target never does.
+        if [[ "$arg" == -* ]]; then
+            local handler="${OPTION_HANDLERS[$arg]:-}"
+            if [[ -z "$handler" ]]; then
+                die "unrecognized option: ${arg}. Run --help for the list."
+            fi
+            shift
+            "$handler" "${1:-}"
+            if [[ "$OPTION_CONSUMED" -eq 1 ]]; then
+                shift
+            fi
+            continue
+        fi
+        if [[ -n "$SSH_TARGET" ]]; then
+            die "two targets given (${SSH_TARGET} and ${arg}). This script builds on exactly one dev machine."
+        fi
+        SSH_TARGET="$arg"
+        shift
+    done
+    if [[ -z "$SSH_TARGET" ]]; then
+        die "no dev machine given. Usage: build-and-flash [OPTIONS] user@host  (see --help)"
+    fi
+    # --debug picks a build variant, so it is meaningless when there is
+    # no build. Rather than silently ignore it and hand back a lean
+    # kernel to someone who asked for the probe battery, refuse.
+    if [[ "$BUILD_DEBUG" -eq 1 ]] && [[ "$DO_BUILD" -eq 0 ]]; then
+        die "--debug and --no-build contradict each other: --debug selects a build variant, --no-build skips the build. Pick one."
+    fi
+}
+# }}}
+
+# {{{ derive_paths() — compute every path that hangs off DIR, once the flags have settled
+derive_paths() {
+    OUTPUT_DIR="${DIR}/output"
+    LOG_FILE="${DIR}/tmp/build-and-flash.log"
+    GOODBYE_FILE="${OUTPUT_DIR}/goodbye.log"
+    LOCAL_IMG="${OUTPUT_DIR}/bootable-sd.img"
+    REMOTE_LAB_SIDE_DIR="${REMOTE_DIR}/scripts/lab-side"
+    # bootable-sd.img specifically, never "any .img in output/". The
+    # dev machine's output directory also holds kernel.img (the raw
+    # kernel, with no partition table and no boot chain in front of
+    # it) and a multi-gigabyte ROCKNIX reference image. Only
+    # bootable-sd.img is a thing the BootROM can start from, and only
+    # bootable-sd.img is small enough to want to move over a network.
+    REMOTE_IMG="${REMOTE_DIR}/output/bootable-sd.img"
+}
+# }}}
+
+# {{{ ensure_workspace() — create both memory tiers and the conventional symlink between them
+# Two tiers, mirroring the layout the dev machine's project root uses:
+# /tmp/soren-ds is the executable tier (the helper scripts), and
+# /dev/shm/soren-ds is the artifact tier (the image and the logs).
+# The shared-memory symlink inside the /tmp tier is there so anyone
+# poking around on this laptop finds the same shape they know from the
+# project root.
+ensure_workspace() {
+    mkdir -p "$OUTPUT_DIR"
+    mkdir -p "${DIR}/tmp"
+    mkdir -p "$EXEC_DIR"
+    mkdir -p "$SSH_CONTROL_DIR"
+    # Tested with -L rather than -e, because -e follows the link and
+    # reports false for a symlink whose target is gone. That is the
+    # normal state after a reboot on any machine where /tmp is
+    # disk-backed but /dev/shm is not, or after a run with a different
+    # --dir: the link survives, its target does not. Testing with -e
+    # there would decide the link is absent and then fail to create it
+    # because the link is in fact present. Anything at that path that
+    # is not a symlink is somebody else's, and we say so rather than
+    # writing through it.
+    local shared_link="${SSH_CONTROL_DIR}/shared-memory"
+    if [[ -e "$shared_link" ]] && [[ ! -L "$shared_link" ]]; then
+        die "${shared_link} exists and is not a symlink. This script expects to own it as the pointer to the shared-memory tier. Move it aside and re-run."
+    fi
+    ln -sfn "$DIR" "$shared_link"
+    # flash-sd creates a lab-output/ directory for the dump tools and
+    # reaches for sudo to do it, because on the old USB drive the root
+    # was owned by whoever auto-mounted it. Here the staging root is
+    # ours, so making it up front keeps that sudo branch from ever
+    # firing and keeps the directory user-owned.
+    mkdir -p "${DIR}/lab-output"
+}
+# }}}
+
+# {{{ require_local_tools() — fail before touching the network if this laptop is missing something
+require_local_tools() {
+    local tool
+    for tool in ssh rsync sha256sum df; do
+        if ! command -v "$tool" > /dev/null; then
+            die "${tool} is not installed on this laptop. It is needed to ${tool} — install it and re-run."
+        fi
+    done
+}
+# }}}
+
+# {{{ close_ssh_master() — silent trap target; drop the shared ssh connection however we exit
+# Leaving the master socket alive past the run would keep an
+# authenticated channel to the dev machine open on a laptop that is
+# deliberately the less-trusted of the two machines. ControlPersist
+# would eventually reap it; this reaps it now.
+#
+# Guarded by a flag rather than by suppressing the error, because
+# "there was no connection to close" and "closing the connection
+# failed" are different events and only the first one is expected.
+SSH_MASTER_UP=0
+close_ssh_master() {
+    if [[ "$SSH_MASTER_UP" -eq 0 ]]; then
+        return 0
+    fi
+    # shellcheck disable=SC2086
+    ssh $SSH_OPTS -O exit "$SSH_TARGET" || say "note: could not close the shared ssh connection to ${SSH_TARGET}; it will time out on its own within two minutes."
+}
+# }}}
+
+# {{{ remote_run() — run one command on the dev machine over the shared connection, capturing its output
+# Returns the command's output on stdout and its exit status as our
+# own, so callers decide what a failure means. Everything it captures
+# goes to the log regardless of outcome, which is what makes a failed
+# remote build readable after the fact.
+remote_run() {
+    local command_line="$1"
+    local out
+    local status=0
+    # shellcheck disable=SC2086
+    out="$(ssh $SSH_OPTS "$SSH_TARGET" "$command_line" 2>&1)" || status=$?
+    audit_log "remote: ${command_line}"
+    if [[ -n "$out" ]]; then
+        audit_log "remote output: ${out}"
+    fi
+    printf '%s' "$out"
+    return "$status"
+}
+# }}}
+
+# {{{ check_dev_machine() — one round trip that proves the connection, the checkout, and rsync all exist
+# Done up front so a typo in the hostname or a moved checkout costs a
+# few seconds rather than being discovered halfway through a build.
+check_dev_machine() {
+    local err
+    progress_start "reaching ${SSH_TARGET}"
+    if ! err="$(remote_run "test -d '${REMOTE_DIR}'")"; then
+        progress_error "${err:-could not reach ${SSH_TARGET}, or ${REMOTE_DIR} is not a directory there. Check the hostname, that sshd is running on the dev machine, and --remote-dir.}"
+        exit 1
+    fi
+    # That call is what established the shared connection; from here
+    # on there is a master socket worth closing when we exit.
+    SSH_MASTER_UP=1
+    progress_continue "checking its rsync"
+    if ! err="$(remote_run "command -v rsync")"; then
+        progress_error "rsync is not installed on ${SSH_TARGET}. The image cannot be copied without it on both ends."
+        exit 1
+    fi
+    progress_done
+}
+# }}}
+
+# {{{ remote_build() — compile the kernel and assemble the bootable image, both on the dev machine
+# Two separate remote commands rather than one chained line, so a
+# failure names which half failed. The compile step reads its project
+# root from a DIR environment variable while the assembly step takes
+# it as a positional argument — that asymmetry lives in those two
+# scripts, and is reproduced here rather than papered over.
+remote_build() {
+    local debug_flag=""
+    local variant="lean production kernel"
+    if [[ "$BUILD_DEBUG" -eq 1 ]]; then
+        debug_flag=" --debug"
+        variant="diagnostic kernel, probe battery baked in"
+    fi
+    local out
+    progress_start "compiling on ${SSH_TARGET} (${variant})"
+    if ! out="$(remote_run "DIR='${REMOTE_DIR}' '${REMOTE_DIR}/scripts/build'${debug_flag}")"; then
+        progress_error "$out"
+        exit 1
+    fi
+    progress_continue "assembling the SD image"
+    if ! out="$(remote_run "'${REMOTE_DIR}/scripts/build-bootable-sd' '${REMOTE_DIR}'")"; then
+        progress_error "$out"
+        exit 1
+    fi
+    progress_done
+}
+# }}}
+
+# {{{ remote_image_facts() — read the size and the SHA-256 of the image the dev machine holds
+# The hash is taken at the source, before the image moves. Comparing
+# it against a hash taken here after the move is what turns "rsync
+# exited zero" into "the bytes on this laptop are the bytes that were
+# built". rsync's own integrity check covers the wire; this also
+# covers the memory the image landed in.
+REMOTE_IMG_BYTES=0
+REMOTE_IMG_SHA=""
+remote_image_facts() {
+    local out
+    progress_start "measuring the image"
+    if ! out="$(remote_run "stat -c '%s' '${REMOTE_IMG}'")"; then
+        progress_error "no image at ${REMOTE_IMG} on ${SSH_TARGET}. ${out}"
+        exit 1
+    fi
+    REMOTE_IMG_BYTES="$out"
+    progress_continue "hashing it at the source"
+    if ! out="$(remote_run "sha256sum '${REMOTE_IMG}'")"; then
+        progress_error "$out"
+        exit 1
+    fi
+    REMOTE_IMG_SHA="${out%% *}"
+    progress_done
+    audit_log "remote image: ${REMOTE_IMG_BYTES} bytes, sha256 ${REMOTE_IMG_SHA}"
+}
+# }}}
+
+# {{{ check_local_space() — refuse to start a transfer that cannot finish
+# The staging root is RAM. Filling it does not just fail the copy, it
+# squeezes every other process on the laptop, so this checks against
+# the image's full nominal size even though the sparse transfer below
+# will usually occupy far less.
+check_local_space() {
+    local avail
+    avail="$(df -B1 --output=avail "$DIR" | awk 'NR==2 {print $1}')"
+    if [[ -z "$avail" ]]; then
+        die "could not read free space on ${DIR}. Does it exist and is df able to see it?"
+    fi
+    if [[ "$avail" -lt "$REMOTE_IMG_BYTES" ]]; then
+        die "not enough room on ${DIR}: the image is ${REMOTE_IMG_BYTES} bytes and only ${avail} bytes are free. On a tmpfs, free space is free RAM — close something, or point --dir at a disk-backed directory."
+    fi
+}
+# }}}
+
+# {{{ sync_lab_scripts() — refresh this laptop's copy of the lab-side tools from the dev machine
+# The old workflow shipped these tools on the USB drive; the network
+# path ships them the same way, so the laptop still needs nothing
+# installed on it beyond this one script.
+#
+# Overwriting a script while bash is reading it would be a real
+# hazard, and this sync can include the copy of build-and-flash that
+# is running. It is safe because rsync writes a temporary file and
+# renames it over the target: the running shell keeps reading through
+# its open descriptor on the old inode, which rename does not
+# disturb. Do not add --inplace here — that would edit the running
+# file underneath the interpreter.
+#
+# -p carries the permission bits across, which is what keeps the
+# executable bit on the helpers. The old USB-drive push could not do
+# this — FAT32 has no Unix permission bits at all, so push-to-usb had
+# to settle for -rt — but the destination here is an ordinary
+# filesystem, so the scripts arrive runnable and need no chmod after.
+sync_lab_scripts() {
+    local err
+    progress_start "refreshing the lab-side tools"
+    # shellcheck disable=SC2086
+    if ! err="$(rsync -rtp --delete --exclude=retired -e "ssh ${SSH_OPTS}" "${SSH_TARGET}:${REMOTE_LAB_SIDE_DIR}/" "${EXEC_DIR}/" 2>&1)"; then
+        progress_error "$err"
+        exit 1
+    fi
+    progress_done
+}
+# }}}
+
+# {{{ report_self_update() — say so if this script just replaced itself
+# The running process is still executing the old copy (see the rename
+# note above), so a change takes effect on the next run. Silence here
+# would mean quietly running yesterday's logic against today's tools.
+report_self_update() {
+    local running
+    running="$(readlink -f "$0")"
+    local fetched="${EXEC_DIR}/$(basename "$running")"
+    if [[ "$running" == "$fetched" ]]; then
+        return 0
+    fi
+    if [[ ! -f "$fetched" ]]; then
+        return 0
+    fi
+    local running_sha fetched_sha
+    running_sha="$(sha256sum "$running" | awk '{print $1}')"
+    fetched_sha="$(sha256sum "$fetched" | awk '{print $1}')"
+    if [[ "$running_sha" != "$fetched_sha" ]]; then
+        say "note: ${fetched} is a newer copy of this script than the one running (${running}). This run uses the old logic; re-run from the new copy to pick up the change."
+    fi
+}
+# }}}
+
+# {{{ pull_image() — copy the bootable image from the dev machine into RAM here
+# rsync rather than plain scp, for three reasons that all matter on
+# this particular file:
+#   -z    the image is 272 MiB of mostly zeroes, so it compresses to a
+#         small fraction of that on the wire. Over lab wifi this is
+#         the difference between a minute and a moment.
+#   --sparse  writes the runs of zeroes as holes instead of real
+#         pages, so the staging tmpfs only spends RAM on the bytes
+#         that are actually set.
+#   delta transfer  a second build in the same session only moves the
+#         blocks that changed against the copy already here, which is
+#         usually just the kernel and the FAT metadata.
+# rsync owns its own output for this stage — it is the long one, and a
+# silent minute reads like a hang. Its progress goes to stderr along
+# with everything else this script prints, so that stdout stays empty
+# and the whole run can be piped somewhere without collecting a
+# self-overwriting progress bar.
+pull_image() {
+    say "pulling ${REMOTE_IMG} (${REMOTE_IMG_BYTES} bytes) into ${LOCAL_IMG}"
+    # shellcheck disable=SC2086
+    rsync -tz --sparse --partial --info=progress2 -e "ssh ${SSH_OPTS}" "${SSH_TARGET}:${REMOTE_IMG}" "$LOCAL_IMG" >&2
+    audit_log "rsync completed into ${LOCAL_IMG}"
+}
+# }}}
+
+# {{{ verify_image() — the bytes here must be the bytes that were built there
+verify_image() {
+    local local_sha
+    progress_start "verifying the copy"
+    if [[ ! -s "$LOCAL_IMG" ]]; then
+        progress_error "${LOCAL_IMG} is missing or empty after the transfer."
+        exit 1
+    fi
+    local_sha="$(sha256sum "$LOCAL_IMG" | awk '{print $1}')"
+    if [[ "$local_sha" != "$REMOTE_IMG_SHA" ]]; then
+        progress_error "SHA-256 mismatch. ${SSH_TARGET} built ${REMOTE_IMG_SHA}, this laptop received ${local_sha}. Nothing was flashed. Re-run to transfer again."
+        exit 1
+    fi
+    printf '%s  %s\n' "$local_sha" "$(basename "$LOCAL_IMG")" > "${LOCAL_IMG}.sha256"
+    progress_done
+    say "sha256: ${local_sha}"
+}
+# }}}
+
+# {{{ flash() — hand the verified image to the existing SD-card writer
+# Deliberately delegated rather than reimplemented. flash-sd owns the
+# rules about what is safe to write to — the before-and-after block
+# device diff, the removable-or-MMC-transport gate that keeps an
+# internal SSD out of reach, the typed YES confirmation. Those rules
+# were learned against real hardware and belong in exactly one place.
+flash() {
+    local flash_script="${EXEC_DIR}/flash-sd"
+    if [[ ! -x "$flash_script" ]]; then
+        die "${flash_script} is missing or not executable. It should have arrived with the lab-side tool refresh — check that ${REMOTE_LAB_SIDE_DIR} on ${SSH_TARGET} still holds flash-sd."
+    fi
+    printf '\n' >&2
+    if [[ -n "$SD_DEVICE" ]]; then
+        "$flash_script" "$DIR" "$SD_DEVICE"
+    else
+        "$flash_script" "$DIR"
+    fi
+}
+# }}}
+
+# {{{ write_goodbye() — append the conventional last-thing-a-program-does line
+write_goodbye() {
+    local stamp
+    stamp="$(date -Iseconds)"
+    printf '%s build-and-flash: goodbye\n' "$stamp" >> "$GOODBYE_FILE"
+}
+# }}}
+
+# {{{ main() — orchestration
+main() {
+    parse_options "$@"
+    derive_paths
+    ensure_workspace
+    require_local_tools
+    trap close_ssh_master EXIT
+    say "dev machine: ${SSH_TARGET}:${REMOTE_DIR}"
+    say "staging here: ${DIR}"
+    check_dev_machine
+    if [[ "$DO_BUILD" -eq 1 ]]; then
+        remote_build
+    else
+        say "skipping the remote build (--no-build); transferring whatever ${REMOTE_IMG} currently holds"
+    fi
+    remote_image_facts
+    check_local_space
+    sync_lab_scripts
+    report_self_update
+    pull_image
+    verify_image
+    if [[ "$DO_FLASH" -eq 0 ]]; then
+        write_goodbye
+        printf '\n' >&2
+        printf 'Image staged and verified at %s. Not flashed (--no-flash).\n' "$LOCAL_IMG" >&2
+        printf 'To write it when the card is in hand: %s/flash-sd %s\n' "$EXEC_DIR" "$DIR" >&2
+        return 0
+    fi
+    flash
+    write_goodbye
+}
+# }}}
+
+main "$@"

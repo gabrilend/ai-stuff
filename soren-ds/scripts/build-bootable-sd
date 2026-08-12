@@ -6,9 +6,13 @@
 # extract-sd-image-parts pulled out of ROCKNIX (the Rockchip
 # idbloader, the u-boot FIT, the RG DS device tree), and stitches
 # them together into a single bootable SD card image at
-# output/bootable-sd.img. The flash workflow (push-to-usb +
-# lab-side/flash-sd) carries that image across the air gap and
-# writes it to a microSD card.
+# output/bootable-sd.img. Two flash workflows carry that image to a
+# microSD card, and both end in the same lab-side/flash-sd: the
+# air-gapped one (push-to-usb here, then flash-sd on the lab laptop
+# off the drive) and the networked one (lab-side/build-and-flash,
+# driven from the lab laptop, which calls this script over ssh and
+# copies the result back). Either way this script's job ends at
+# output/bootable-sd.img.
 #
 # The layout matches ROCKNIX's at the byte level for the boot
 # chain pieces — idbloader at sector 64, u-boot FIT at sector
@@ -60,8 +64,10 @@ Arguments:
 Options:
   -h, --help  Show this help and exit without building.
 
-After a successful build: scripts/push-to-usb, then on the lab laptop
-scripts/flash-sd.
+After a successful build, either carry the image across the air gap
+(scripts/push-to-usb here, then scripts/flash-sd on the lab laptop) or let the
+lab laptop drive the whole round trip over the network with
+scripts/lab-side/build-and-flash, which runs this script over ssh for you.
 EOF
 }
 # }}}
@@ -302,7 +308,7 @@ main() {
     write_goodbye
     printf '\n' >&2
     printf 'Built %s (%d bytes)\n' "$OUTPUT_IMG" "$IMAGE_TOTAL_BYTES" >&2
-    printf 'Ready for push-to-usb then lab-side/flash-sd.\n' >&2
+    printf 'Ready for push-to-usb then lab-side/flash-sd, or for lab-side/build-and-flash over the network.\n' >&2
 }
 # }}}
 

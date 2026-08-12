@@ -65,11 +65,11 @@ require_sudo() {
 # from.
 find_image() {
     if [[ ! -d "$OUTPUT_DIR" ]]; then
-        die "no output directory at ${OUTPUT_DIR}. Did push-to-usb run on the main machine?"
+        die "no output directory at ${OUTPUT_DIR}. The image gets here one of two ways: push-to-usb on the main machine writing to the air-gap drive, or build-and-flash pulling it over the network. Neither appears to have run."
     fi
     local img="${OUTPUT_DIR}/bootable-sd.img"
     if [[ ! -f "$img" ]]; then
-        die "no bootable-sd.img in ${OUTPUT_DIR}. Run scripts/build-bootable-sd on the main machine, then push-to-usb."
+        die "no bootable-sd.img in ${OUTPUT_DIR}. Either run scripts/build-bootable-sd on the main machine then push-to-usb, or run build-and-flash from here to do the whole round trip over the network."
     fi
     printf '%s' "$img"
 }
