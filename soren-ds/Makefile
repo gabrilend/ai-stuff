@@ -29,11 +29,25 @@ OUTPUT_DIR := $(DIR)/output
 # different -D flags. A normal build defines nothing and produces a
 # probe-free production image. (--probes is a deprecated alias for
 # --debug; see issue 110n.)
-GEN_DIR := $(DIR)/tmp/build/generated
+# tmp/ in the project root is a symlink into /tmp, and the system
+# clears /tmp on every reboot — so the link outlives its target, and
+# the first build after any restart finds it dangling. `mkdir -p` on a
+# path that runs through a dangling symlink cannot repair that: the
+# symlink itself exists, so mkdir stops at "File exists" without ever
+# following it, and every object-file directory below fails with it.
+# Resolving to the real path once here, and hanging the work
+# directories off that, is what lets the recipes' own `mkdir -p` bring
+# the whole tree back by itself.
+TMP_REAL := $(shell readlink -f $(DIR)/tmp)
+ifeq ($(TMP_REAL),)
+$(error cannot resolve $(DIR)/tmp — the project expects tmp/ to be a symlink to its RAM-backed work directory)
+endif
+
+GEN_DIR := $(TMP_REAL)/build/generated
 ifeq ($(DEBUG),1)
-BUILD_DIR := $(DIR)/tmp/build/kernel-debug
+BUILD_DIR := $(TMP_REAL)/build/kernel-debug
 else
-BUILD_DIR := $(DIR)/tmp/build/kernel
+BUILD_DIR := $(TMP_REAL)/build/kernel
 endif
 
 LINKER_SCRIPT := $(SRC_DIR)/kernel.ld

@@ -24,6 +24,26 @@ contains exactly the instructions we wrote.
 The Makefile fails loudly if `libs/cross/bin/aarch64-elf-gcc`
 isn't installed — no silent fallback to the host toolchain.
 
+The build re-creates its own work directory rather than assuming
+one is there. `tmp/` in the project root is a symlink into
+`/tmp`, and the system clears `/tmp` on every reboot, so the link
+routinely outlives its target: the first build after any restart
+finds it dangling. This is worth stating precisely because the
+obvious repair does not work. `mkdir -p` on a path that runs
+through a dangling symlink does *not* follow the link and create
+the target — the symlink itself exists, so `mkdir` stops at
+"File exists", and every object-file directory below it fails
+with the same error. The path has to be resolved to its real
+location first, which the Makefile does once at parse time and
+hangs `tmp/build/generated` and `tmp/build/kernel[-debug]` off
+the result. `scripts/build-bootable-sd`, `scripts/push-to-usb`,
+and `scripts/extract-sd-image-parts` do the same thing for their
+own use of `tmp/`, each immediately after the check that refuses
+to run when `tmp/` is missing altogether. That check stays: a
+missing `tmp/` means the RAM-backed convention was never set up
+and should be an error, while a dangling one means the machine
+merely rebooted and should be repaired in place.
+
 ## Intended behavior
 
 A build system rooted at the project directory that:
