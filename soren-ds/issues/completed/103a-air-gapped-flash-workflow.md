@@ -2,7 +2,23 @@
 
 ## Current behavior
 
-The workflow is in place. `scripts/push-to-usb` runs on the main
+There are now two routes from a built image to a written microSD
+card, and they share their last step.
+
+The original route — the one this issue was opened for — carries
+the image across a physical air gap on a dedicated USB drive. It
+is described in full below and has been exercised end-to-end
+against real hardware.
+
+The second route, `scripts/lab-side/build-and-flash`, replaces the
+drive with a network copy and is described under "The networked
+route" further down. It is written and its transfer logic has been
+exercised against the real 285 MiB image with a stubbed ssh, but it
+has **not yet been run against the real lab laptop, a real ssh
+connection, or a real SD card**. Until that happens the air-gapped
+route remains the one to trust for anything that matters.
+
+`scripts/push-to-usb` runs on the main
 machine, identifies the dedicated USB drive by a hard-coded UUID,
 confirms sudo before any destructive step, mounts the drive at
 the project's own `/mnt/soren-ds`, rsyncs `output/` and the
@@ -127,6 +143,107 @@ standard utilities (`lsblk`, `dd`, `sync`, `mount`, `umount`,
 including the Gentoo install on the lab laptop. No project-
 specific dependencies travel through the air gap, and the script
 remains readable to anyone inspecting the drive.
+
+## The networked route
+
+`scripts/lab-side/build-and-flash` collapses the whole round trip
+into one command typed on the lab laptop. It opens a single ssh
+connection to the dev machine and reuses it for every step; runs
+the compile step and the image-assembly step over there; reads the
+size and SHA-256 of the image at the source; copies the lab-side
+helper scripts to this laptop so it stays current; rsyncs the image
+across; re-hashes it locally and refuses to continue on a mismatch;
+and then hands off to `flash-sd`, which is unchanged and still owns
+every rule about what is safe to write to.
+
+The dev machine is a required argument rather than a hard-coded
+value. Unlike the USB drive's UUID — which belongs to a piece of
+hardware this project owns and which changes only when the drive is
+reformatted — the route from the lab laptop to the dev machine is a
+property of whatever network they are both sitting on that day. A
+baked-in hostname would be stale the first time either machine
+moved, and a stale hostname in a script that builds and flashes is
+worse than no hostname at all.
+
+The image stages in RAM at `/dev/shm/soren-ds`, following the
+project's two-tier convention: artifacts on the shared-memory tier,
+executable code on the `/tmp` tier (some hardened installs mount
+`/dev/shm` `noexec`, and a helper script staged there would refuse
+to run). Two consequences follow. A stale image cannot survive a
+reboot and be written to a card by mistake. And the transfer must
+be cheap enough to repeat after every reboot — which it is, because
+the image is mostly zeroes: rsync's compression shrinks it on the
+wire, and `--sparse` writes the zero runs as holes, so the 272 MiB
+image occupies under 2 MiB of actual RAM.
+
+Only `bootable-sd.img` crosses the network, never the whole output
+directory. The USB route could afford `rsync --delete` across all of
+`output/` because the drive is large and the copy is local to the
+machine; over a network the same rsync would drag a multi-gigabyte
+ROCKNIX reference image along with it for no purpose.
+
+Hashing at both ends is new to this route rather than inherited
+from the USB one. The physical drive's failure modes are visible —
+you know whether you unplugged it early. A network transfer into a
+tmpfs has quieter ones, and the check costs about a second against
+a transfer measured in tens of seconds.
+
+The script keeps its sibling lab-side tools up to date on every run,
+including its own copy. Replacing a script while bash is reading it
+would be a genuine hazard; it is safe here only because rsync writes
+a temporary file and renames it over the target, so the running
+shell keeps reading its original inode through an open descriptor.
+This is why the helper sync must never gain `--inplace`. A run that
+replaces its own copy says so and keeps going with the old logic,
+because that is the logic the developer actually invoked.
+
+## The return trip, and why it stays two commands
+
+`build-and-flash` only goes one direction. Reading a log back off
+the card stays what it already was — `dump-from-sd` writes
+timestamped files into `lab-output/` under the staging root, and a
+plain `rsync` sends them to the dev machine. Deliberately not
+wrapped in a script: the dump step is occasional rather than
+per-iteration, it is already one command, and a wrapper would have
+to guess which of several dump shapes the developer wanted.
+
+The one part that is not obvious is that the destination has to be
+made first:
+
+    dump-from-sd <staging root>
+    ssh <dev machine> mkdir -p /tmp/soren-ds/logs
+    rsync -av <staging root>/lab-output/ <dev machine>:/tmp/soren-ds/logs/
+
+`rsync` creates only the *last* missing level of a destination
+path. After the dev machine reboots, `/tmp/soren-ds` and `logs/`
+under it are both gone — two levels — and the transfer fails with
+`mkdir "…/logs" failed: No such file or directory` before sending
+anything. This is the same reboot-clears-`/tmp` problem the build
+system handles for its own work directory (see 103); it applies to
+the far end of the return trip for exactly the same reason, and
+the fix is the same one-line `mkdir -p` in front of the use.
+
+## What the networked route costs
+
+This route connects two machines that the air-gapped route
+deliberately kept apart. The paragraph under "Why two scripts rather
+than one" describes that separation as a property of the project;
+with this script present it is a property of *which route the
+developer picks*, and that is worth stating plainly rather than
+leaving the older paragraph to imply otherwise.
+
+What the air gap bought was that a compromise of the lab laptop
+could not reach the dev machine, and vice versa. The networked route
+spends exactly that. It is the right trade when the cost being paid
+is a walk across the room on every one-line kernel change, and the
+wrong trade when the lab laptop has been anywhere untrusted. Both
+scripts stay in the tree so the choice stays available; neither
+deletes the other.
+
+Note also that the connection is opened *from* the lab laptop, so
+the dev machine is the one running sshd and the laptop is the one
+holding a key to it. That is the direction that puts the credential
+on the machine that is easier to re-image.
 
 ## Drive identification — by UUID, never by device path
 
