@@ -224,8 +224,8 @@ sleep timeouts, and time-of-day. It has no clock-gate or pinmux
 to set up; every aarch64 chip exposes it from the moment the
 CPU runs its first instruction.
 
-Phase 2 will bring this up in soramech for scheduler ticks
-(issue 209 territory) and for the watchdog petting task (issue
+Phase 2 will bring this up for the idle path's deadline wake
+(issue 206 territory) and for the watchdog petting task (issue
 103g's phase-2 portion). No phase-1 issue currently needs the
 Generic Timer.
 
