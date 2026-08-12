@@ -17,6 +17,21 @@ space with the kernel with nothing between them; after this
 phase, the kernel survives buggy user code and the user can
 recover from their mistakes in place.
 
+
+## The engine beneath this phase changed
+
+Phases 2 and 3 were rewritten against the ceramic design; the old
+issues are in `issues/superseded/`, with a README explaining what
+moved where. In this phase, 902, 906, 907, 908, 909 still describe the older
+engine and have not been converted yet. Read them knowing that there
+is no map object to drop, no gathering function to check a flag
+inside, and a station is suppressed by giving its input no source —
+the same mechanism parking and error-removal both use.
+
+A reference to an issue numbered 2xx or 3xx in those files points at
+the superseded issue of that number, not at the one holding that
+number today.
+
 ## The story of the phase
 
 1. `901-mmu-protection-mode.md` — turn the MMU on, configure it

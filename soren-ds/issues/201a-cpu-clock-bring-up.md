@@ -65,10 +65,10 @@ practical cost; every other phase-1 feature works correctly
 at the inherited bootloader clock, just slowly. Phase 2 — the
 soramech runtime bring-up — is where the speed actually
 starts to matter. The threading system's scheduler, the
-multi-core bring-up (the work that 201 itself describes),
+multi-core bring-up (the work that 202 describes),
 and any application code that runs on top of soramech all
 benefit hugely from running at full speed. Folding the CPU
-clock bring-up into 201's pre-bring-up setup means the multi-
+clock bring-up into the pre-bring-up setup means the multi-
 core work happens at the right clock from the first
 instruction, rather than having to recalibrate constants
 midway through.
@@ -118,31 +118,37 @@ midway through.
   any other runtime clock changes are a much larger piece
   of work (DVFS — dynamic voltage and frequency scaling)
   and not in scope here.
-- *Bring up the secondary cores.* That work lives in 201
-  proper; this sub-issue makes the first instruction of 201
-  execute at the right speed but does not itself touch
+- *Bring up the secondary cores.* That work lives in 202;
+  this sub-issue makes the first instruction each core
+  executes run at the right speed but does not itself touch
   cores 1-3.
+- *Turn the caches on.* That is 201, and the recon note
+  above concluded it is the larger of the two levers by far.
+  This one is the clock only.
 
 ## Related documents
 
 - `docs/016-physical-memory-map.md` — main CRU base address.
 - `docs/017-clocks-and-timers.md` — the CRU register layout
   and the broader catalogue of clocking infrastructure.
+- `issues/201-the-memory-map-that-turns-the-caches-on.md` —
+  the cache half of the same problem, and the parent this
+  sub-issue now hangs from.
 
 ## Blocked by
 
 Nothing. Phase 1 closing is not a hard dependency; the issue
-can land as the first phase-2 work, before the rest of 201
-runs.
+can land as the first phase-2 work.
 
 ## Blocks
 
-The multi-core bring-up (201 itself) — for the multi-core
-work to be useful, the cores need to be at full speed.
-Anything that depends on soramech's scheduler running fast
-also blocks on this — the scheduler design assumes a CPU
-running at its rated speed.
+The multi-core bring-up (202) — for the multi-core work to be
+useful, the cores need to be at full speed. Anything that
+depends on the engine's scheduling running fast also blocks
+on this.
 
 ## Parent
 
-201.
+201 — the caches. The phase-2 renumbering moved the parent
+from the multi-core bring-up to the cache bring-up, which is
+where this issue's own recon note said the real story was.

@@ -1,291 +1,203 @@
-# Soramech runtime — the Soren DS subset
+# The runtime — the Soren DS subset
 
-The userland above the kernel is a soramech map running across
-the phase 2 thread pool. The full soramech runtime described in
-the parent project's docs at `/home/ritz/programs/sora/soramech/`
-is rich — three languages, on-disk JSONL transcripts, an
-encapsulation system, a reference-counted artifact cache. The
-Soren DS runtime is a strict subset of that, shaped to fit on a
-handheld and tied to the threading core we already built.
+Below the waterline, Soren DS is a small C kernel. Above it, everything
+is a program made of boxes. `003-threading-model.md` describes the
+engine that runs one. This document describes what sits on top: how a
+box gets to exist, how a program gets written down, and how the two
+halves of the device meet.
 
-This doc describes which pieces of soramech we keep, which we
-defer, and how the kept pieces attach to the kernel below.
+The design is the one built and measured in
+`/home/ritz/programming/ai-playground/minimal-soramech/`, narrowed to
+fit a handheld.
 
-## What we keep
+## Two halves that meet in one table
 
-The **map model** — boxes connected by wires — is identical to
-soramech proper. A box has input ports on its left and one output
-on its right. Wires live on the producer's `connections[]` array.
-When every required input slot has a value, the box fires, its
-function runs, and the output is pushed along the wires to
-downstream consumers.
-
-The **routing kinds** are all kept: `plain`, `comparator`,
-`iterator`, `randomizer`, `weighted`, `distributor`,
-`nonlinearity`. They are pure routing logic — they don't depend on
-any runtime feature that a desktop has and a handheld doesn't.
-
-The **slot store** is kept: per-port input slots, each with a
-small ring buffer of cells. The unique-return-slot rule that
-phase 2's threading core relies on is the same rule the slot
-store enforces.
-
-**All boxes are multi-spawn.** A box that is currently running
-can be fired again from another thread; the runtime never gates
-re-entry. Box authors are responsible for thread safety inside
-their box functions — atomics for shared counters, no
-unsynchronized static mutable state, careful synchronization for
-anything that crosses the function-call boundary, or pure
-functions that share nothing. The runtime guarantees that each
-fire has its own input values (popped from the slots by the
-gathering function before the task is queued) and its own unique
-return slot for output, but the box function's own internal
-state is the author's problem.
-
-This used to be the one place Soren DS diverged from soramech
-proper's runtime, and it is no longer a divergence: as of
-2026-07-26 soramech proper adopted the same rule and retired its
-single-spawn invariant outright. Both runtimes now say the same
-thing.
-
-The reason is parallelism: gating a hot box on its previous fire
-bottlenecks exactly the boxes that most need to run in parallel.
-Soramech proper had also found that the gate does not stay simple
-— it needed an exemption for iterator routing and everything
-downstream of it, which cost a load-time marker walk, a second
-slot shape for the exempt boxes, and a rule for where the two
-shapes meet. The cost of dropping it is on box authors, who write
-thread-safe code. Both projects accept the cost.
-
-The **firing rule** matches phase 2's gathering function exactly.
-A box's gathering critical section sits behind one box-level
-atomic; the gather decides the fire, the rest happens outside the
-lock. This is not a coincidence — the threading core was built to
-serve this runtime.
-
-**Encapsulated sub-maps** are kept. A sub-map appears as a single
-box on its parent's canvas with its own input ports (from
-`external`-marked read boxes inside it) and its own output ports
-(from `external`-marked write boxes). The load-time splice
-machinery flattens nested encaps into the parent graph and
-prefix-renames the sub-map's box ids. The four launch apps are
-flat as their first cut, but the compositor, the input router,
-the soramech runtime itself, and the modeller from phase 10 all
-have natural sub-map structure that the encapsulation mechanism
-expresses cleanly. Without it, every kernel-level map past about
-four boxes deep becomes unmaintainable.
-
-**The compile pipeline** is kept. A compile takes a map's source
-(its `meta.json`, `boxes/*.json`, and `src/*.c` files) and
-produces a runnable artifact — on Soren DS, a small directory
-under `tmp/compiled/<map>/<generation>/` containing the compiled
-box code and a manifest that lists which box names map to which
-loaded function pointers. The compile pipeline is what makes
-on-device authoring possible: the user edits a box's C source in
-the editor, the editor saves the file, the runtime compiles it,
-and the running map picks up the new box at its next quiescence
-point. Phase 4 builds the in-tree compile path on top of the filesystem
-that lands in the same phase; phase 6 wires it to the editor's
-save action; phase 9 hardens it against the user writing a box
-that crashes the system. Without the compile
-pipeline, on-device authoring is impossible — the kernel image
-would be the only universe of boxes, and the user would have no
-way to add to it without rebuilding and reflashing.
-
-**Reference-counted artifacts** are kept. A long-running app — the
-messenger holding open a peer connection, the editor with unsaved
-buffers — holds a reference on the specific compiled generation
-its tasks are running against. When the user edits one of the
-app's boxes and the compile pipeline rebuilds, the new build goes
-to the next generation. The old generation stays alive until its
-reference count drops to zero. This is what makes the rebuild
-non-destructive to the running app: in-flight tasks finish using
-old code, the slot store stays intact, and new fires pick up the
-new code via the hot-swap mechanism described below.
-
-## What we cut
-
-- **Lua and Bash boxes.** Box functions are C only at launch. A
-  later phase can add a userland language layer above the
-  kernel; the kernel itself doesn't host a Lua runtime, a Bash
-  helper process, or anything similar. See
-  `009-deferred-work.md`.
-- **Cross-language wires.** With one language, the slot store
-  carries one representation. No JSON serialisation across the
-  wire, no dual-ring per slot, no per-cell tag.
-- **On-disk JSONL transcripts.** The transcript model is kept,
-  but the transcript lives in a fixed-size RAM ring buffer and
-  is consulted only for crash diagnosis. The handheld's storage
-  is too small and too write-precious to absorb the full audit
-  trail. See `009-deferred-work.md`.
-
-## How boxes are implemented
-
-A box that runs on Soren DS is a C function plus a small
-descriptor. Two paths can produce one:
-
-1. **Statically linked at kernel build time.** The launch system
-   ships a curated library of boxes compiled into the kernel
-   image — every box the four launch apps require, plus the
-   routing kinds, plus the filesystem boxes from
-   `011-filesystem.md`, plus the input event boxes from
-   `004-input-model.md`, plus the display surface boxes from
-   `005-display-and-compositor.md`. The kernel keeps a flat array
-   of every descriptor compiled in.
-2. **Compiled on-device into the artifact tree.** New boxes the
-   user writes go through the compile pipeline described above.
-   The output is loaded into a generation directory under
-   `tmp/compiled/<map>/<generation>/` and registered with the
-   runtime at the same descriptor shape as a statically-linked
-   one. From the runtime's view, the two paths produce
-   indistinguishable descriptors.
-
-A box descriptor looks roughly like:
-
-```c
-typedef struct {
-    const char *name;                    // "read-path", "comparator", ...
-    const port_t *inputs;                // declared input ports
-    int n_inputs;
-    routing_kind_t routing;              // plain, comparator, iterator, ...
-    int (*fn)(box_args_t *args);         // the actual function
-    int generation;                      // which build of this box
-    int refcount;                        // live tasks holding it
-} box_descriptor_t;
+```
+   the C half                                the written half
+   ──────────                                ────────────────
+   box sources                               map files
+   compiled, typed, checked                  text, names, arrows
+        │                                          │
+        │  read by the generator                   │  read by the loader
+        ▼                                          ▼
+   ┌───────────────────────────────────────────────────────┐
+   │                     the catalogue                     │
+   │   name │ call site │ each input's type and size │     │
+   │        │ return type and size │ exact task size       │
+   └───────────────────────────────────────────────────────┘
 ```
 
-The loader looks up boxes by name when reading a map's JSON. If a
-named box has more than one generation alive (the user just
-rebuilt a box that a running app still uses an older version of),
-the loader resolves to the highest-generation one for new fires
-while older generations stay reachable to the in-flight tasks
-that already chose them.
+**The catalogue is the only place both halves are described**, and it is
+derived entirely from the C, which is what actually runs. A map file
+therefore never mentions a type: the loader knows both ends of every
+wire already, and a file that declared them would be a second source of
+truth able to disagree with the first — always losing, because the
+compiler enforces the C and nothing enforces the file.
 
-A map on the SD card looks identical to soramech proper's map
-directory format — `meta.json`, `boxes/*.json`, and `src/*.c`
-files for the box source. The compile pipeline reads the source,
-produces the compiled function, registers a new descriptor, and
-the runtime picks it up.
+## What we keep and what we cut
 
-The static-linking path is a launch-time bootstrap, not the
-end-state. As more of the system migrates up into soramech maps
-— the compositor, the input router, eventually the device
-drivers — the bottom of the kernel keeps shrinking and the
-compiled-on-device tree keeps growing. The static-linked library
-is what the user starts with; the on-device authoring is how
-they extend it.
+| kept | why |
+|---|---|
+| the map model — boxes, wires, one firing rule | it is the whole idea |
+| ways of choosing an exit | pure routing; nothing about them needs a desktop |
+| a map placed inside a map | without it, any program past a dozen stations stops being readable |
+| the compile pipeline | on-device authoring is impossible without it |
+| generations of a box coexisting | what makes rebuilding safe under a running app |
 
-## Hot-swap
+| cut | why |
+|---|---|
+| boxes written in Lua or Bash | C only at launch. The kernel hosts no other language. |
+| wires that cross languages | one language means one representation, no tagging per value |
+| the on-disk transcript | the storage is small and write-precious. In RAM, in debug builds. |
+| the pull path | nothing is ever pulled. See below. |
 
-A box's function pointer can be replaced atomically while the
-map containing the box is running. This is the mechanism that
-makes on-device authoring safe under live apps:
+**There is no pull path**, and it is worth naming because the parent
+project had one. Nothing reaches upstream to produce a value on demand;
+every value arrives because something pushed it. What used to be pulled
+is now written into a fixed-value port by an ordinary arrow, and writing
+one runs the readiness check on its station. The cost is that no value
+is ever fresh at the instant it is used — a box that needs the current
+time asks for the current time inside itself.
 
-1. The user edits a box's C source in the editor and saves.
-2. The compile pipeline reads the new source, compiles it, and
-   produces a new function pointer at a new generation in the
-   artifact tree.
-3. The runtime publishes the new descriptor with a single atomic
-   store: the box's named entry in the descriptor table now
-   points at the new generation. The store uses release ordering
-   so any worker thread that picks up the new descriptor sees
-   every byte of the new function's code.
-4. In-flight tasks that already entered the box keep running on
-   the old generation. The old generation's reference count holds
-   them. When they finish, they decrement the count. When the
-   count reaches zero, the old generation is eligible for
-   unmapping.
-5. New fires of the box use the new generation. Because every
-   box is multi-spawn, multiple in-flight tasks may already be
-   running the old generation when the swap happens; they finish
-   on old code, and only fires that begin after the swap pick up
-   new code. The slot store mediates value flow between in-flight
-   tasks of different generations through plain pointers — neither
-   side has to know the other exists.
+## How a box gets to exist
 
-This is not a feature the launch system uses directly. Phase 8
-ships the four apps without any hot-swap happening; they all run
-statically-linked boxes for their first release. Phase 9 hardens
-the MMU so a buggy user-compiled box cannot scribble over the
-kernel. The first place hot-swap actually matters is the
-on-device authoring loop — the user edits, saves, sees the
-change immediately, without any app losing state.
+**A box is a C function.** Not a function plus a description of it —
+just the function. The generator reads the box sources, emits one call
+site per box, and emits the catalogue with every size as a `sizeof`
+expression the compiler computes. Nothing is written down twice, so
+nothing can disagree.
 
-## How a map runs
+Two paths produce a box, and the catalogue cannot tell them apart:
 
-The runner is not a separate executable as it is in soramech
-proper. The launch flow:
+| path | when |
+|---|---|
+| compiled into the kernel image | the launch library, and everything phases 3 through 8 ship |
+| compiled on the device | anything somebody writes at the touchscreen (phase 4) |
 
-1. The user follows an inter-app link to "run this map" — or the
-   compositor restores a backgrounded app whose map was already
-   loaded.
-2. The runtime asks the filesystem for the map's
-   `meta.json` and `boxes/*.json`. The file boxes from
-   `011-filesystem.md` do the actual reads.
-3. The graph loader walks the JSON, looks up each box descriptor
-   in the kernel library, attaches input slots, and stitches
-   wires onto the producers' connections lists. This is a single
-   pass — there are no encapsulations to splice.
-4. Cycle detection runs on the assembled graph. A cycle is a
-   load-time error; the load fails cleanly and the calling app
-   gets the error back through the inter-app link's value
-   channel.
-5. The entry box is submitted to the per-app task queue
-   described in `013-background-app-lifecycle.md`. The phase 2
-   thread pool picks it up. The pool's gathering function fires
-   downstream boxes as their inputs become ready.
-6. When the work queue for this map is empty and no task is
-   in-flight and no slot has queued values, the map has reached
-   **quiescence**. A foreground map at quiescence sits there
-   waiting for the user's next input event to push a value into
-   its input boxes. A backgrounded map at quiescence is just
-   idle — see `013-background-app-lifecycle.md` for what that
-   does to the per-app queue.
+The static path is a bootstrap, not the end state. As more of the system
+moves up into programs — the compositor, the input router, eventually
+the drivers — the C bottom keeps shrinking and the on-device tree keeps
+growing.
 
-## How a map produces visible output
+## How a program gets written down
 
-The four launch apps each compose a map that ends in display
-surface boxes. A display surface box is a `write`-shaped sink
-that hands its input bytes to the compositor as the new contents
-of the named surface (see `005-display-and-compositor.md`). The
-surface marks itself dirty; the compositor's next damage scan
-copies the pixels into the appropriate screen's framebuffer; the
-display controller's scan-out makes them visible.
+One text file, line-oriented, first word dispatching.
 
-Apps do not call into the compositor directly. They wire a
-display surface box into their map. The runtime delivers the
-output value to the surface box's input; the surface box pokes
-the compositor; the compositor takes it from there. This is the
-same shape as the filesystem boxes: apps express their intent in
-the map, and the runtime translates that into kernel calls.
+```
+   greeting   constant      plain          ← name, box, how it picks an exit
+   shout      to-upper      plain
+   speak      say           plain
 
-## The RAM transcript ring
+   in greeting.0 = "world"                 ← a port holding a fixed value
 
-A fixed-size ring buffer in RAM records the last N events from
-the running maps: task submits, task starts, task ends, fire
-decisions, push results. The buffer is overwritten in place as
-new events arrive. When the kernel panics, the panic handler
-dumps the ring through the USB CDC-ACM stream (phase 1's
-`110-usb-cdc-acm-debug.md`) so the developer sees the last few
-hundred events leading up to the crash. The buffer's size is
-tuned so the cost of writing it is invisible to the runtime —
-the ring is a circular array, the writes are a single increment
-and a single store per event.
+   out greeting.0 -> shout.0               ← an arrow
+   out shout.0    -> speak.0
+```
 
-This is the entire on-device debugging story for runtime issues.
-A user holding the device who has not connected a laptop sees
-the LEDs (`106-led-earliest-boot-signal.md`) and whatever the
-panicking app last drew. A developer with a laptop attached sees
-the transcript through the serial port.
+No types, because the catalogue has them. No buffer sizes, because ports
+grow on their own. No grammar and no nesting.
+
+**The loader is a caller, not a mechanism.** It turns each line into one
+of the three operations the engine already exposes — place a station,
+configure a port, draw a wire — which are the same three a person calls
+while editing a running program. There is no state a file can reach that
+a person cannot, and none a person can reach that a file cannot.
+
+## How a program runs
+
+```
+   place every station        nothing runs yet
+        │
+   draw every arrow           nothing runs yet
+        │
+   write the fixed values ──→ ✦ running
+```
+
+**There is no fourth step.** Writing a fixed value runs the ordinary
+readiness check on its station; a station whose inputs are all fixed
+values is ready the moment the last one lands. So the writes that finish
+building a program are the writes that set it going. No entry-station
+list, no submit call, nothing that has to be told what goes first.
+
+**Nothing polls, ever.** The readiness check runs as the tail of a
+write, on exactly one station — the one just written to. A station whose
+inputs have not changed cannot have become ready.
+
+**A program ends because it was asked to.** Running out of work is not
+an ending on a handheld; it means the user has not pressed anything yet.
+The tail of a pipeline is a station whose input has no source, so it can
+never become ready and costs nothing while it waits. Parking releases
+its buffers back to the allocator with a checksum remembered, so
+restarting resumes in place if nobody needed the pages and rebuilds
+loudly if somebody did.
+
+**A loop is not an error.** A box cannot remember anything between calls
+— two cores can be inside it at once — so routing an output back around
+to an input is the only way a program carries state. Counting to ten is
+a loop. There is no cycle detection and there must not be.
+
+## Rebuilding a box while it is running
+
+This is what makes on-device authoring safe under live apps.
+
+| step | what happens |
+|---|---|
+| 1 | somebody saves an edited box source |
+| 2 | the pipeline compiles it and produces a new call site |
+| 3 | every station running that box has its call pointer replaced, one atomic store each |
+| 4 | tasks already built still carry the old pointer, and finish on old code |
+| 5 | the old code is released once no task built before the swap can still exist |
+
+**Step 5 needs no reference counting.** A task is built, run, and freed
+inside one pass of a worker's loop, so once every core has passed
+through its loop after the swap, nothing anywhere still holds the old
+pointer. One counter per core and one comparison — the same shape as
+releasing an old destination array after rewiring, and worth being the
+same code.
+
+Nothing in the launch system uses this. The four apps ship running boxes
+compiled into the image. It matters first in the authoring loop: edit,
+save, see the change, without any app losing what it was holding.
+
+## How a program produces visible output
+
+Each app composes a program ending in display-surface boxes. A
+display-surface box is a sink — a box that returns nothing — which hands
+its input bytes to the compositor as the new contents of a named
+surface. The surface marks itself dirty, the compositor's damage scan
+copies pixels into the right screen's framebuffer, and scan-out makes
+them visible.
+
+Apps never call the compositor. They draw an arrow to a box that does.
+Same shape as the filesystem boxes: a program expresses intent as
+wiring, and the boxes at the edges turn it into kernel work.
+
+## What the device remembers
+
+| always | in debug builds |
+|---|---|
+| one error slot per station — the kind, a count, one detail word | the same, plus a timestamp |
+| the first occurrence of each error, out the serial line | a rolling ring of recent events, dumped on a crash |
+| | a saved return point before every box call, so a fault can name its station and remove it |
+
+**Errors are counted in place, never appended.** The same failure a
+million times is one slot reading a million — not a million records, not
+a growing buffer that eventually becomes the actual problem.
+
+**A box that cannot continue takes itself out of service.** Its inputs
+are set to no source, so it can never become ready. Nothing is deleted;
+the hole is visible when the running program is written back out. Then
+somebody writes the box better and wires it back.
 
 ## What's next
 
-Phase 3 builds the loader, the wire connector, the encapsulation
-splicer, and the task instantiator. The threading core under it
-comes from phase 2. The filesystem boxes it reads maps through —
-and the artifact tree it stores compiled boxes under — come from
-phase 4. The display surfaces it speaks to come from phase 6.
+| phase | what it adds here |
+|---|---|
+| 3 | the generator, the map file, the loader, ways of choosing an exit, maps inside maps |
+| 4 | the filesystem under map files, the compile pipeline, the artifact tree |
+| 5 | the polled input programs, fed by the engine's own idle wake |
+| 6 | the display surfaces this speaks to, and the editor that calls the loader's operations directly |
+| 9 | the memory protection that turns a stray write from silent corruption into a trap |
 
-`013-background-app-lifecycle.md` is the doc that describes how
-a running map can be paused without being killed, and how a paused
-map wakes up when something requires it.
+`013-background-app-lifecycle.md` describes how a running program is
+parked without being killed, and what wakes it.
