@@ -4,7 +4,7 @@
 
 An app can sit in foreground, background, or (since 908) asleep,
 but there's no path that fully exits it — frees its RAM, frees
-its memory region (902), drops its descriptor cache. Without
+its memory region (902), and stops its stations running. Without
 that, every app the user opens accumulates in RAM until reboot.
 
 ## Intended behavior
@@ -22,9 +22,18 @@ performs an orderly teardown:
 4. Free the app's memory region (902) and reset its page table
    entries to kernel-only (901). Any held-but-not-currently-
    in-use memory the app accumulated is reclaimed.
-5. Drop the app's map_t from the runtime's loaded-maps table.
-6. Decrement the artifact reference count (410) on any
-   user-compiled boxes the app held.
+5. Give every one of the app's stations no source on every input,
+   so none of them can ever become ready again. **They are not
+   removed** — an index is a position and reclaiming one means
+   either a hole every walk must skip or a renumbering that
+   invalidates every arrow at once (207). An unwired station
+   costs nothing while inactive, but the table does not shrink,
+   and a device opened and closed all day accumulates them. That
+   is the strongest argument anybody has for making stations
+   removable, and it belongs here where the cost is visible.
+6. Nothing to decrement. Code compiled on the device is reclaimed
+   by the sweep (410) once no core can be inside it, which needs
+   no count and no cooperation from this path.
 7. Remove the app's per-app queue from the worker round-robin
    list.
 8. Emit an `app-closed` event into the transcript ring.

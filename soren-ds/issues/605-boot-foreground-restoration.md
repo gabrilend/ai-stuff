@@ -19,9 +19,11 @@ runtime are up but before the compositor's first tick:
    the app the bottom screen should foreground.
 2. Read `/settings/last-foreground-top`. Default to `messenger`
    if first-boot.
-3. For each named app, load its map from `/apps/<name>/`
-   through the map loader (303). Submit its entry tasks to
-   start it (308). The app begins running in the background.
+3. For each named app, load its program from `/apps/<name>/`
+   through the loader (306). Loading *is* starting: the last thing
+   the loader does is write the fixed values, and writing one runs
+   the readiness check on its station. There is no separate submit.
+   The app begins running in the background.
 4. Once the apps have loaded, call `screen_set_foreground(bottom,
    "editor")` and `screen_set_foreground(top, "messenger")`
    (or whichever names came from settings).

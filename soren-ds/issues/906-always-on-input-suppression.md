@@ -9,46 +9,65 @@ per always-on input box — has not been built.
 
 ## Intended behavior
 
-Every box descriptor (208) gains an `always_on_input` flag. Box
-authors set it true on boxes that should fire only when the app
-is foreground — the button event consumers, the touch consumers,
-the radial-menu chord receiver. Box authors leave it false on
-boxes that fire regardless of foreground state — inter-app
-linkage entries, peer message arrival boxes, timer-fire boxes,
-file-write completion boxes.
+**An app stops receiving input by having the arrow taken away, not by
+having a flag consulted.**
 
-Each box instance (301) gains a `suppressed` byte. The byte is
-atomic for safe cross-worker reads. The byte is set when the app
-transitions to background, cleared when the app transitions
-back to foreground.
+The old plan put a `suppressed` byte on every box that consumes input
+and had the firing decision check it. There is no firing decision to
+put a check inside — the readiness check runs as the tail of a write,
+on one station, and adding a per-box condition to it would put a branch
+on the hottest path in the system to answer a question that changes
+four times an hour.
 
-The gathering function (206) checks the byte before deciding
-whether to fire. If suppressed, the gather skips this box for
-this round. Values that arrived on suppressed boxes' input slots
-queue up; when the byte clears, the next gathering attempt
-catches up by firing for each queued value.
+Instead, the input router's arrows into a backgrounded app are
+**detached**, in a batch, and reattached when it comes forward.
 
-The check is a single acquire load on the hot path — cheap
-enough to not measure under load.
+```
+   foreground    input router ──→ [ way in ] ──→ the app
+   background    input router      [ way in ]      the app
+                        │
+                        └─→ nothing wired here. the value is discarded
+                            at the source, by the ordinary rule that an
+                            exit wired to nothing discards.
+```
 
-When an app transitions to background, the state-change
-mechanism walks every box instance in the app's map, identifies
-those with `always_on_input` set, and sets their `suppressed`
-byte. The transition back clears the bytes in one pass.
+| | the old plan | this |
+|---|---|---|
+| cost while foreground | one load per firing decision | nothing |
+| cost while background | one load per firing decision | nothing |
+| what happens to input meanwhile | queues up in the app's ports | discarded where it was produced |
+| what it costs to switch | a walk setting a byte per box | one batch rewire per app |
 
-This is the entire foreground/background distinction. No
-separate event tables, no thread suspension, no shared mutable
-state under a lock. One bit per always-on input box per app.
+**Discarding rather than queueing is the correction, not a compromise.**
+The old plan had a backgrounded app accumulate every button press,
+every touch, every stick reading, and then replay all of them the
+instant the user switched back — an app that had been in the background
+for ten minutes would come forward and act out ten minutes of input.
+That is a bug the mechanism was going to deliver on purpose.
+
+**Which arrows come off is a property of the wiring, not of the box.**
+The old plan needed a flag per box because it had to know which boxes
+were input-driven. Here the question answers itself: the arrows that
+come off are the ones running from the input router to this app. An
+arrow from the transport layer, or from a timer, or from another app's
+link, was never one of them and needs no marking.
+
+**Batching matters here for the reason it always does.** Detach the
+arrows one at a time and the app receives a partial frame — buttons but
+not the stick — for however long the loop takes. One batch means every
+arrow stops at the same instant, and starts again at the same instant.
 
 ## Suggested implementation steps
 
-1. `always_on_input` flag on `box_descriptor_t`.
-2. `suppressed` byte on `box_instance_t`.
-3. Suppressed-check on the gathering function in 206.
-4. Walk-and-set-suppressed pass at state transition.
-5. Update the launch utility boxes (309) and the
-   filesystem/input/transport boxes to set the flag on the
-   relevant ones.
+1. Record, per app, which arrows run from the input router into it —
+   which is the same "what belongs to this app" question parking (213)
+   and closing (909) both need, and the third place asking for it.
+2. Detach and reattach as batch rewires (207).
+3. A test that a backgrounded app receives nothing, and that coming
+   forward does not replay anything that happened while it was away.
+4. A test that an arrow from a timer or from another app's link still
+   arrives while backgrounded, since that is the distinction the whole
+   mechanism exists to draw.
 
 ## Related documents
 
@@ -56,7 +75,7 @@ state under a lock. One bit per always-on input box per app.
 
 ## Blocked by
 
-206, 208, 301, 905.
+207 (batch rewiring), 905.
 
 ## Blocks
 

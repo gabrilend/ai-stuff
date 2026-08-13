@@ -34,6 +34,27 @@ wire already, and a file that declared them would be a second source of
 truth able to disagree with the first — always losing, because the
 compiler enforces the C and nothing enforces the file.
 
+**A wire is legal when both sides count the same number of bytes.**
+Nothing else is consulted. Names ride along for the message — *"returns
+a colour, slot takes a point — 16 bytes against 12"* — but the decision
+is one number against another, because that number is what the engine
+actually runs on: cells are that wide, a delivery copies that many, a
+task is allocated for exactly that.
+
+The cost is stated rather than discovered: **two types of the same width
+are interchangeable, silently and completely.** A 32-bit float into a
+32-bit integer slot arrives as a very large integer, with no error
+anywhere. Two structs with the same fields in a different order wire and
+scramble. What is bought is that C somebody already had goes through
+unchanged, and that nobody ever writes a box that takes one type,
+returns another, and does nothing.
+
+**The generator is a C program with no dependency on the engine.** That
+is what lets the device call it — a build tool written in a scripting
+language is a build tool forever, and phase 4 needs the same parser
+reachable at runtime. A second parser would eventually disagree with the
+first about what a box is.
+
 ## What we keep and what we cut
 
 | kept | why |
@@ -42,7 +63,7 @@ compiler enforces the C and nothing enforces the file.
 | ways of choosing an exit | pure routing; nothing about them needs a desktop |
 | a map placed inside a map | without it, any program past a dozen stations stops being readable |
 | the compile pipeline | on-device authoring is impossible without it |
-| generations of a box coexisting | what makes rebuilding safe under a running app |
+| old code outliving the boxes that used it | what makes rebuilding safe under a running app |
 
 | cut | why |
 |---|---|
@@ -136,28 +157,91 @@ loudly if somebody did.
 to an input is the only way a program carries state. Counting to ten is
 a loop. There is no cycle detection and there must not be.
 
-## Rebuilding a box while it is running
+## A program's outside
 
-This is what makes on-device authoring safe under live apps.
+A program declares two doors, and both are ordinary stations with a
+designation on them rather than a new kind of thing.
+
+| the way in | the way out |
+|---|---|
+| its input ports are the program's input ports | its output port is the program's output port |
+| says where the outside is allowed to deliver | says where results come from |
+| a box here may check or reshape arguments | a box here may shape results for whoever receives them |
+
+The only behaviour a designation adds is at the way out: when nothing is
+wired beyond it, values are **held** rather than discarded. Everywhere
+else an exit wired to nothing discards, which is right for an unwired
+comparator branch and wrong for a program's results.
+
+**A map is a box.** Once a program has doors, placing one inside another
+is wiring to those two stations — no splicing, no flattening pass, no
+renaming a sub-program's stations into a parent's namespace, and nothing
+that has to detect when a sub-program is finished. The parent cannot
+tell whether the thing behind the port is a graph or a C function, and
+has no reason to care.
+
+**A box returns one value, so a station has one output port, so a
+program taking several unrelated arguments has several doors in.** The
+alternative needs a C function returning several things, which does not
+exist; faking it with a struct that something downstream takes apart
+means writing a function to satisfy the engine, which is what nobody
+adopting this should ever have to do. Fan-out is free and separate: one
+door's output port feeds as many interior stations as you wire it to.
+
+**Two values arriving at two ports of one station are not a pair.** A
+door with an object port and a colour port, fed by two callers, may pair
+the first caller's object with the second caller's colour. Values may
+leave a port in a different order than they arrived, so correspondence
+across two ports is certainly not promised. **Anything that must arrive
+as a unit is one struct on one port** — which the engine supports all
+the way down, since the generator emits a field table per struct and the
+reader lays out brace text using offsets the compiler computed.
+
+## Writing a box while the program runs
+
+This is what makes on-device authoring possible, and the shape of it is
+not what an earlier draft of this document said.
+
+**A station's box cannot be changed, and a station cannot be removed.**
+An index is a position; reclaiming one means either a hole every walk
+must learn to skip or a renumbering that invalidates every wire at once.
+So there is no swapping a new function in underneath a running station.
+
+What happens instead uses only operations that already exist:
 
 | step | what happens |
 |---|---|
 | 1 | somebody saves an edited box source |
-| 2 | the pipeline compiles it and produces a new call site |
-| 3 | every station running that box has its call pointer replaced, one atomic store each |
-| 4 | tasks already built still carry the old pointer, and finish on old code |
-| 5 | the old code is released once no task built before the swap can still exist |
+| 2 | the generator runs over it — the same generator, which is why it is a C program |
+| 3 | a compiler turns that into loadable code; **there is no version of this that skips the compiler**, because sizes and offsets are what the engine runs on and only a compiler computes them |
+| 4 | a row is added to the catalogue, which grows by adding a block rather than by moving what is there |
+| 5 | a **new station** is placed running the new box, and the arrows are moved to it |
+| 6 | the old station is left unwired — it can never become ready, so it never runs again |
 
-**Step 5 needs no reference counting.** A task is built, run, and freed
-inside one pass of a worker's loop, so once every core has passed
-through its loop after the swap, nothing anywhere still holds the old
-pointer. One counter per core and one comparison — the same shape as
-releasing an old destination array after rewiring, and worth being the
-same code.
+Step 6 is the same *no source* state that parks a program and that a
+failing box uses to take itself out of service. Three different needs,
+one mechanism.
 
-Nothing in the launch system uses this. The four apps ship running boxes
-compiled into the image. It matters first in the authoring loop: edit,
-save, see the change, without any app losing what it was holding.
+**A box arriving late asks nothing the type system cannot answer.** It
+reports the width of each input and of its output, by the same `sizeof`
+the compiler computes for every other box. So it introduces no new kind
+of error — two same-width structs with different layouts already wire at
+build time, and a box compiled later only makes that likelier, not
+different.
+
+**Unloading the old code** waits until no core can still be inside it.
+Each core keeps a private counter bumped at the start and end of a whole
+task, so it reads odd while inside one and even while not; retiring code
+files it with a snapshot of all four; a later sweep frees it once every
+core reads even or differs from its snapshot. A core with nothing to do
+is asleep and therefore even, so an idle device does not stall the
+sweep. This is the same mechanism that reclaims an old destination array
+after rewiring, and it is deliberately one mechanism rather than two.
+
+Nothing in the launch system uses any of this. The four apps ship boxes
+compiled into the image. It matters first in the authoring loop: write a
+box, place it, wire it in, watch it run — without the device restarting
+and without anything else losing what it was holding.
 
 ## How a program produces visible output
 
@@ -194,7 +278,7 @@ somebody writes the box better and wires it back.
 | phase | what it adds here |
 |---|---|
 | 3 | the generator, the map file, the loader, ways of choosing an exit, maps inside maps |
-| 4 | the filesystem under map files, the compile pipeline, the artifact tree |
+| 4 | the filesystem under map files, the generator and a compiler running on the device, and the sweep that frees code nobody placed |
 | 5 | the polled input programs, fed by the engine's own idle wake |
 | 6 | the display surfaces this speaks to, and the editor that calls the loader's operations directly |
 | 9 | the memory protection that turns a stray write from silent corruption into a trap |

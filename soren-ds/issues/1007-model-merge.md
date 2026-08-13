@@ -34,10 +34,11 @@ The commit:
   current model's vertex.
 - Adds the auxiliary's faces to the current model's face list.
 
-This is graph union with one vertex identified. The
-encapsulation splicer (305) does the same operation when one
-soramech map encapsulates another with an external port; the
-modeller uses the same logic on its own data.
+This is graph union with one vertex identified. The runtime no longer
+does anything of the kind — a program placed inside another is wired to
+its two doors rather than folded into it (309) — so the modeller owns
+this operation outright rather than sharing it. Worth knowing, because
+the old plan expected to borrow the code.
 
 Optionally, before commit, the user opens the interior detail
 options (1008) to choose whether interior vertices and faces

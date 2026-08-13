@@ -58,7 +58,8 @@ filesystem doc.
    wrappers.
 4. Compile against the kernel-image-side libc subset (the same
    that other box source compiles against, per 409).
-5. The three high-level boxes wired into 208's descriptor table.
+5. The three high-level boxes as ordinary box sources, catalogued by
+   the generator because of where they live.
 
 ## Related documents
 

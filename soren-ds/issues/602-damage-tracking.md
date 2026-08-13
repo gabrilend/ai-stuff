@@ -28,10 +28,15 @@ damage is fine; the per-region version becomes worth building
 when a surface gets large (the editor's text panels at full
 double-width are candidates).
 
-The damage bit is multi-spawn-safe: even with multiple workers
-writing to a surface, the mark-dirty is idempotent — all writers
-race to set it to one, the compositor reads one regardless of
-who won.
+The damage bit survives two cores writing to one surface at once,
+which is the ordinary case rather than a special one: marking dirty is
+idempotent, so every writer races to set the same bit and the
+compositor reads it as set regardless of who won.
+
+This is a bit on a surface rather than state inside a box, which is why
+it is allowed at all — a box may not remember anything between calls,
+but the surface it writes to is a thing in the world, like a register
+or a screen.
 
 ## Suggested implementation steps
 

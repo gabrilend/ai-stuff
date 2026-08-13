@@ -32,11 +32,12 @@ A wake signal arrives in one of three shapes:
   target's queue state and pushes the tick value.
 
 Each wake shape is a small wrapper around `app_queue_set_state`
-(905) plus the same `slot_push` (205) the equivalent
-non-asleep path uses. The kernel doesn't track the difference
-between "delivered to an awake app" and "woke an asleep app"
-beyond the state byte; both code paths look the same to
-gathering functions.
+(905) plus the same ordinary delivery into the app's way in (309)
+that the non-asleep path uses. The kernel doesn't track the
+difference between "delivered to an awake app" and "woke an
+asleep app" beyond the state byte; the delivery is the same
+delivery either way, running the same readiness check on the same
+station.
 
 A way to put an app to sleep manually exists too, for use cases
 that want the explicit control:

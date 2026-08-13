@@ -62,7 +62,7 @@ differently.
 | what a box is | a JSON file naming a C function | the C function itself. Nothing is written twice. |
 | where shapes come from | maintained by hand beside each box | `sizeof` expressions the compiler computes |
 | what a map is | a directory of files, one per box | one text file, line-oriented |
-| types in a map | declared in the file | never mentioned; the catalogue knows both ends |
+| types in a map | declared in the file | never mentioned; the catalogue knows both ends, and compares them by width |
 | the loader | built maps its own way | calls the same three operations a person calls |
 | starting a program | submit a task per entry box, then watch for quiescence | write the fixed values. That is the whole of it. |
 | ending a program | quiescence, detected by polling three conditions | being asked (phase 2's 213) |
@@ -76,7 +76,7 @@ differently.
 | 302 box source format | 301 — what a box source is, and 305 — the map file |
 | 303 map loader | 306 — the loader |
 | 304 wire connector | absorbed into 306 and phase 2's wire operation |
-| 305 encapsulation splicer | 309 — a map that is one station |
+| 305 encapsulation splicer | **deleted.** 309 — the two doors — replaces it: a map is a box, wired to rather than folded in. |
 | 306 cycle detector | **deleted.** 307 says why. |
 | 307 routing dispatcher | 308 — the kinds that pick an exit |
 | 308 map execution and quiescence | **deleted.** Phase 2's 209 starts a program and 213 stops one. |
@@ -89,22 +89,22 @@ Nothing in the old set corresponds to 302 (the generator), 303 (types),
 Those exist because the shape of a box stopped being something a person
 maintains.
 
-## Still to convert
+## Everything downstream is converted
 
 Phases 4 through 10 lean on the engine and were written against the old
-one. Their content is superseded in the same way these files are, so
-their references have deliberately **not** been renumbered — pointing a
-stale sentence at a new file would make it look converted when it is
-not. Each phase's progress file carries a note saying so.
+one. They have been converted rather than annotated: the numbers, the
+sentences, and the concepts now describe the ceramic design, so nothing
+in the working tree points at a file in this directory.
 
-| phase | issues describing the old engine | what changed under them |
-|---|---|---|
-| 4 | 406, 407, 409, 410, 411, 412 | boxes come from a generated catalogue, not a table things are added to; rebuilding a box replaces each running station's call pointer, and old code is released by a per-core pass counter rather than reference counts |
-| 5 | 501, 502, 505 | there is no quiescence — a program ends when asked; every station is already safe to run twice at once, so that stops being a property some boxes have |
-| 6 | 602, 610 | a value is delivered into a cell whose own state is the lock; there is no gathering function |
-| 7 | 709, 710 | the box catalogue is generated |
-| 9 | 902, 906, 907, 908, 909 | there is no map object; a station is suppressed by giving its input no source, which is the same mechanism as parking and as a box removing itself |
-| 10 | 1007 | flattening a placed map is mostly naming now |
+Four downstream issues changed more than their wording, because the
+thing they described stopped existing:
+
+| was | is |
+|---|---|
+| reference-counted artifacts | code retired, swept, and freed by the same per-core counters that reclaim old arrows |
+| hot-swapping a box's function pointer | a new station, the arrows moved, the old one left unwired — a station's box cannot change, because its ports were sized to it |
+| a suppression flag checked inside the firing decision | the input router's arrows detached in a batch, so nothing queues and nothing replays |
+| the modeller borrowing the encapsulation splicer | it owns the operation outright; a program placed inside another is wired to its doors |
 
 ## Two deletions worth reading
 

@@ -18,8 +18,8 @@ A region's shape:
 
 - A starting physical address.
 - A size in bytes (typically a few megabytes per app at launch
-  — enough for the app's map, its slot store, its surfaces, and
-  reasonable working memory).
+  — enough for the app's stations and the cells its ports hold,
+  its surfaces, and reasonable working memory).
 - A page-permission tag the MMU uses to determine access from
   this app's worker contexts.
 
@@ -29,10 +29,11 @@ Region assignment:
    declared size. The region allocator (a small subsystem
    inside the page allocator) picks contiguous free space and
    sets its permissions in the page table from 901.
-2. Subsequent allocations the app makes for itself —
-   surfaces, slot store, etc. — go through
-   `page_alloc_for_app`. The pages come from inside the app's
-   region.
+2. Subsequent allocations the app makes for itself — surfaces,
+   the pages a port adds as it grows, the blocks its tasks come
+   from — go through `page_alloc_for_app`. The pages come from
+   inside the app's region, which means the striping from 203
+   becomes per-region as well as per-core.
 3. At app unload time (909), every page in the app's region is
    freed, the region itself is returned to the pool, and the
    page table entries are reset to kernel-only.

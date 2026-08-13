@@ -9,6 +9,33 @@
 **It runs before the compiler, every time, and a failing run leaves the
 previous output untouched.**
 
+**And it is a C program, not a script.** That decides more than it
+looks like it does. A generator written in a scripting language means
+every machine that builds this needs that language installed, even
+though none of it runs on the device — and, more importantly here, it
+means the generator is a *build tool* rather than something the kernel
+can call. Written in C with no dependency on the engine it feeds, it is
+compiled by the same compiler that will compile its output, and it is
+callable at runtime.
+
+So the build gains one stage rather than one step:
+
+```
+   compile the generator ──→ run it ──→ compile everything else
+```
+
+There is no bootstrap problem, because the generator depends on nothing
+it generates.
+
+The honest majority of that work is not the parsing. A scripting
+language supplies growable strings, hash lookup, and pattern matching;
+C supplies none of them. A few hundred lines of support underneath —
+a growable output buffer, an arena so nothing has to be freed one piece
+at a time, and a string scanner — is the difference between a
+translation and a thicket, and each deserves its own test, because
+everything above assumes they are right and a bug there surfaces as
+garbled C hundreds of lines away.
+
 ```
    box sources changed?
         │
@@ -64,14 +91,17 @@ both flavours compile against it.
 
 ## Open questions
 
-- *Does the device rebuild its own catalogue?* Phase 4's compile
-  pipeline lets somebody write a box at a touchscreen, and that box
-  needs a call site and a catalogue row like any other. Either the
-  generator runs on the device — it is a text-reading program, so it
-  could — or on-device boxes reach the engine by a second route, and a
-  second route is exactly what phase 2 spent an issue eliminating.
-  Leaning strongly toward the generator running on the device, and it
-  wants deciding before phase 4 rather than during it.
+- *Where does the on-device build put its output?* The generator runs
+  on the device in phase 4, which means it writes C somewhere and a
+  compiler reads it. The RAM-backed tier is the obvious home and it is
+  also the one that empties on reboot, which is the right lifetime for
+  something regenerable. Phase 4 owns the answer; this issue owes it the
+  property that a failed run leaves nothing loadable, which matters far
+  more there than here.
+- *Does the on-device path use the same describe mode?* It should —
+  a second way of reporting what the parser saw is a second thing that
+  can disagree — but the laptop reads a terminal and the device has a
+  touchscreen, and nobody has decided what that looks like.
 
 ## Blocked by
 
