@@ -9,7 +9,8 @@ symlink creation.
 
 ## Intended behavior
 
-Four more box descriptors get added to 208's table:
+Four more boxes join the library, by the same route as 406's two —
+ordinary C functions the generator finds and catalogues:
 
 - **`list-directory`** — input port `path` (string), output is a
   list-of-strings value containing the names of every entry in
@@ -34,16 +35,22 @@ Four more box descriptors get added to 208's table:
   by `target_path` as a null-terminated string. Subsequent path
   resolutions through `link_path` will follow the link per 405.
 
-All four boxes are statically linked alongside `read-path` and
-`write-path`. The pattern matches across all six: the box
-function is a thin wrapper that calls the lower-level FS layer
-and surfaces success-or-error back through the output value.
+All four sit alongside `read-path` and `write-path`. The pattern
+matches across all six: the box function is a thin wrapper that calls
+the lower-level filesystem layer and surfaces success-or-error back
+through its return value.
+
+**A box that refuses rather than returning an error value** is the
+other shape available now (214), and the six split between them: a
+missing file is a result the caller may reasonably want to handle, so
+it rides in the return value; a path that cannot be parsed at all is a
+refusal.
 
 ## Suggested implementation steps
 
 1. `list_directory_box()`, `delete_path_box()`,
    `path_exists_box()`, `make_symlink_box()`.
-2. Descriptor entries for each.
+2. Nothing to register — the generator finds them by location.
 3. The output bytes shape for the list-of-strings result —
    pinned now so consumers can parse it (length-prefix per name,
    null terminator per name, count prefix).
@@ -54,7 +61,7 @@ and surfaces success-or-error back through the output value.
 
 ## Blocked by
 
-208, 403, 404, 405, 406 (for the bytes-output convention).
+301, 302, 403, 404, 405, 406 (for the bytes-output convention).
 
 ## Blocks
 

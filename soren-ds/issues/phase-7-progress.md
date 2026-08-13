@@ -17,19 +17,6 @@ All three use cases drop onto the abstraction layer this phase
 builds.
 
 
-## The engine beneath this phase changed
-
-Phases 2 and 3 were rewritten against the ceramic design; the old
-issues are in `issues/superseded/`, with a README explaining what
-moved where. In this phase, 709, 710 still describe the older
-engine and have not been converted yet. Read them knowing that boxes
-come from a generated catalogue rather than a hand-maintained
-descriptor table.
-
-A reference to an issue numbered 2xx or 3xx in those files points at
-the superseded issue of that number, not at the one holding that
-number today.
-
 ## The story of the phase
 
 1. `701-wifi-controller-bring-up.md` — clocks, power, register

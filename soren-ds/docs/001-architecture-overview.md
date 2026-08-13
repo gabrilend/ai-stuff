@@ -32,11 +32,11 @@ has to be excellent. The dividend is paid in every phase after.
 
 The C kernel covers exactly the things soramech cannot host
 itself: hardware bring-up, the boot and exception vectors, the
-threading core's atomic primitives, the gathering function that
-makes box firing safe on ARM, the page allocator that hands out
-memory the boxes will live in, and the absolute lowest USB-C and
-display register pokes that have to happen before anything else
-can. That set is the substrate soramech runs on; trying to express
+threading core's atomic primitives, the per-cell state machine
+that makes a value's arrival safe on ARM, the page allocator that
+hands out memory the boxes will live in, and the absolute lowest
+USB-C and display register pokes that have to happen before
+anything else can. That set is the substrate soramech runs on; trying to express
 it in soramech would be circular.
 
 Everything else is a soramech map from launch. The device
@@ -45,12 +45,12 @@ above the block driver, the input router that turns polled
 button states into events, the compositor that owns surfaces, the
 filesystem boxes, the four launch apps — all maps. The kernel
 image at boot includes the statically-linked C functions for the
-leaf boxes (register pokes, atomic ops, etc.); the maps that wire
-them together live as JSON box files the runtime reads at boot
-and after. The compile pipeline lets the user write new boxes
-on-device and the hot-swap mechanism in `012-soramech-runtime.md`
-lets the new boxes take over from the old without restarting the
-app that depends on them.
+leaf boxes (register pokes, atomic ops, etc.); the programs that
+wire them together live as text files the runtime reads at boot
+and after. Compiling on the device lets the user write new boxes
+there, and `012-soramech-runtime.md` describes how one takes over
+from another — a new station, the arrows moved to it, the old one
+left inert — without restarting the app that depends on it.
 
 We do not write a C kernel and migrate it to soramech later.
 Designing the form correctly the first time is cheaper than

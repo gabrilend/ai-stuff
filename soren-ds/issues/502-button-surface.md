@@ -30,12 +30,16 @@ snapshot:
   per-button suppression (apps that don't care subscribe to a
   filtered version that emits only the buttons they listed).
 
-The button event boxes are pure C functions that operate on the
-input bitmap and a small per-button history struct. They are
-multi-spawn — multiple workers may fire them concurrently for
-adjacent frames if the polling timer fires faster than
-consumers drain — and they use atomics for the history struct's
-updates.
+The button event boxes are ordinary C functions taking the input
+bitmap and the previous frame's state, and returning this frame's.
+
+**The history cannot live inside the box.** Two cores can be inside one
+box function at the same instant, so anything it kept would be shared
+between them — the rule every box obeys, not a hazard particular to
+these. The previous frame's state therefore travels on a wire: the box
+returns it and an arrow carries it back around to its own input, which
+is the engine's only mechanism for state and is exactly what it is for
+(307).
 
 The output of each event box is a small struct value (button id,
 frame number, optional duration) that consumer maps in later

@@ -23,31 +23,38 @@ currently-edited map:
   laptop is editing, the device shows "laptop browsing".
 
 When the user (on the laptop) clicks "Run", the POST
-`/map/<name>/run` route fires `map_run` (308) on the device. The
-output flows back through the HTTP response and into the laptop
-editor's run panel. The device's own canvas updates with the
+`/map/<name>/run` route writes a value into the program's way in
+(309) on the device — there is no separate run call, because writing
+is what starts a program. The output comes back out of the program's
+way out, through the HTTP response, into the laptop editor's run
+panel. The device's own canvas updates with the
 same output.
 
 The programming environment's drawers:
 
-- **Left:** map menu — "new map", "open map", "save map", "fork
-  to new generation" (uses 410's artifact tree).
+- **Left:** map menu — "new map", "open map", "save map", "branch"
+  (writes the running program out as text under a new name, which is
+  the only kind of fork there is — code has no generations).
 - **Right:** exits — "to editor" (open a box's source in the
   text editor), "to files" (browse the map's files).
 
 The app's `links.json` declares the two exits. The `entries.json`
 declares one entry: `from-editor` accepts a text-typed value
-representing edited source for a named box, recompiles it
-through 409, hot-swaps via 411, returns confirmation.
+representing edited source for a named box, compiles it through 409,
+places a station on the result and moves the arrows to it via 411,
+and returns confirmation naming both the new station and the old one
+it left unwired — because the old one is still there, and putting the
+arrows back is how a person undoes this.
 
 ## Suggested implementation steps
 
 1. The on-device map view rendering.
-2. The Run wire-up: HTTP route → `map_run` → response.
+2. The Run wire-up: HTTP route → a write into the program's way in →
+   the way out → response.
 3. Drawer content sub-maps.
 4. `links.json`, `entries.json`.
-5. The fork-to-new-generation operation invokes 410's artifact
-   tree.
+5. Branching, which writes the running program out under a new name
+   and needs nothing from the code side.
 
 ## Related documents
 

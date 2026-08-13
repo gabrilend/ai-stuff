@@ -9,7 +9,10 @@ expose the filesystem to them.
 
 ## Intended behavior
 
-Two box descriptors get added to the table from 208:
+Two boxes join the library. Both are ordinary box sources — C
+functions in the box source directory — so the generator picks them up
+and writes their catalogue rows with everything the engine needs (301,
+302). There is no table anybody adds to by hand:
 
 - **`read-path`** — input port `path` (a string). Output is a
   bytes value with the entire file's contents. For files larger
@@ -32,9 +35,9 @@ Two box descriptors get added to the table from 208:
   of `write-path` sees either the new file or the old file,
   never a half-written one.
 
-Both boxes are statically linked into the kernel image. Their
-function pointers go into 208's descriptor table at
-phase-4-build time.
+Both are compiled into the kernel image, which is the ordinary path
+for a box in this phase; from here on, a box written on the device
+arrives by the same route through the same generator (409).
 
 ## Suggested implementation steps
 
@@ -42,7 +45,8 @@ phase-4-build time.
 2. `write_path_box()` — temp-and-rename pattern using
    `chain_allocate`, `chain_write`, parent-dir-entry update,
    `chain_free` on the old.
-3. Descriptor entries for both.
+3. Nothing to register — the generator finds them because of where
+   they live.
 
 ## Related documents
 
@@ -50,7 +54,8 @@ phase-4-build time.
 
 ## Blocked by
 
-208, 401, 402, 403, 404, 405.
+301, 302 (the generator that catalogues them), 401, 402, 403, 404,
+405.
 
 ## Blocks
 

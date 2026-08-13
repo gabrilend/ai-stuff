@@ -17,9 +17,11 @@ the link-transition handler:
 2. Looks up the target's entry box from the exit's
    `entry_box` field (or, if unspecified, defaults to the
    target's `default-entry` box from its `entries.json`).
-3. Pushes the carried value into the target's entry box's input
-   slot via `slot_push` (205). The push uses release ordering
-   so the target's gathering function sees the value.
+3. Delivers the carried value to the target program's way in (309) —
+   an ordinary write into an ordinary port, which runs the ordinary
+   readiness check on that station. The caller names the program's
+   door rather than reaching inside for a station by name, which is
+   the whole reason a program declares one.
 4. Calls `screen_set_foreground(source_screen, target_app)`
    from 604. The compositor's next tick paints the target's
    surfaces; the source app's surfaces stop being composited.

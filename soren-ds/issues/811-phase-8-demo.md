@@ -36,8 +36,9 @@ Two handhelds, one laptop, scripted in
   response: "Hello, world!" appears in the laptop UI and in
   the on-device map view.
 - The user edits the formatter to return a different greeting;
-  saves; the hot-swap mechanism (411) replaces the running
-  generation; the next Run shows the new greeting.
+  saves; a station on the new box is placed and the arrows move to
+  it (411); the next Run shows the new greeting, and the map view
+  shows the old station still sitting there with no source.
 - The script asserts each step.
 
 ### 3. The messenger (text first)

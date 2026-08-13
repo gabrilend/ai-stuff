@@ -24,11 +24,10 @@ map that makes the transitions cheap.
   being handed text from another app) still fire — they enter
   through the inter-app linkage entry boxes, which are
   always-eligible. Routine input polling does not.
-- **Asleep.** The app's queue is suspended. No tasks fire at all.
-  The map is still in RAM with its slot store intact. The app
-  wakes when something pushes a value into one of its
-  always-eligible entry boxes — the same boxes that fire while
-  it was background. From the outside, asleep looks like
+- **Asleep.** The app's queue is suspended. No tasks run at all.
+  Its stations are still in the table with whatever their ports
+  were holding. The app wakes when something delivers to its way
+  in — the same door that receives while it is background. From the outside, asleep looks like
   background that has paid the additional cost of being told
   "don't even bother."
 

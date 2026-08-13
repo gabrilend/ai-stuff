@@ -18,9 +18,10 @@ have to land first.
 - **The soramech runtime.** A model is a small soramech map of
   vertex boxes connected by face wires. Merging two models — for
   equipment, for lego-style construction, for joining a sword to a
-  hand — is a graph operation on the two maps. The runtime that
-  makes graph operations safe and fast is phase 3, and the
-  encapsulation splicer the merge leans on lives there.
+  hand — is a graph operation on the two programs. The runtime that
+  makes a program composable is phase 3; the union itself is the
+  modeller's own, since the runtime wires programs together at
+  their doors rather than folding one into the other.
 - **The compositor.** The modeller draws to both screens at once —
   perspective view on one, an inspector on the other. Phase 6.
 - **The radial menu.** Already provided by the editor in phase 8.

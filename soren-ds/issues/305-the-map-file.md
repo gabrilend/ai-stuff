@@ -42,10 +42,18 @@ arrows.
 | `in station.port = value` | that port holds a fixed value rather than a queue |
 | `in station.port = -` | that port has no source yet, so the station can never run |
 | `out station.exit -> station.port` | an arrow |
+| `way in station` | this station's input ports are the program's (309) |
+| `way out station` | this station's output port is the program's (309) |
 | `# anything` | a comment, to the end of the line |
 
-**No grammar, no nesting, no indentation that means anything.** Four
+**No grammar, no nesting, no indentation that means anything.** Six
 entries in a dispatch table. Indentation is for whoever is reading.
+
+**A program with doors can be placed inside another**, which is what
+the last two lines buy. The parent writes an ordinary station line
+naming a map file instead of a box, and wires to its doors like any
+other station — there is no separate syntax for it, because there is no
+separate mechanism.
 
 **No types anywhere.** The catalogue knows both ends of every wire
 (303). A file that declared types would be a second source of truth,
@@ -114,6 +122,7 @@ Nothing — this is the shape 306 reads.
 ## Related
 
 - [306 — The loader](306-the-loader.md), which builds from this
-- [309 — A map that is one station on somebody else's canvas](309-a-map-that-is-one-station.md)
+- [309 — The two doors](309-the-two-doors.md), which the last two
+  line forms exist for
 - [212 — Maps built by hand](212-maps-built-by-hand.md), the operations
   the loader will call

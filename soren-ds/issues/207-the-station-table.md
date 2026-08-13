@@ -93,6 +93,16 @@ one and swaps the address in a single atomic write. A delivery reads
 the address once and walks whatever it got, which nobody will ever
 modify. No lock, no copy, and no chance of seeing a half-edited set.
 
+**Arrows are drawn in batches, and the reason is fairness rather than
+tidiness.** Attach one wire out of a station and values start going
+down it immediately; attach the second a moment later and it has
+already missed everything the first one received. Attaching a whole
+port's worth at once means every destination starts from the same
+instant. It also closes the only window that would have needed output
+buffering — a station wired in during a build could otherwise start
+running before its own outgoing arrows existed, and its results would
+go nowhere.
+
 ```
    exit ──→ ┌──────────────────────────────┐
             │ {station 7, port 0}          │
@@ -138,16 +148,53 @@ both parking a program and removing a broken box.
 6. A test that several cores adding stations at once all succeed, no
    two sharing an index.
 
-## Open questions
+### Old arrays go to a scrapyard, not a bin
 
-- *When can the old destination array be freed?* A walker may still be
-  inside it when rewiring swaps the address. Freeing immediately is a
-  use-after-free; never freeing leaks. The cheapest answer on a device
-  with no interrupts: a core is only ever inside such an array between
-  taking a task and finishing its delivery, so once every core has
-  passed through the run loop once, no walker can still hold the old
-  address. That needs a counter per core and one comparison, and it
-  wants writing down properly rather than being assumed here.
+A walker may still be inside the old array when rewiring swaps the
+address. Freeing it then is reading memory somebody is still inside;
+never freeing it leaks one array per rewire.
+
+**Do the simple thing first: retire, don't free.** The old array goes
+on a list and stays there until the program is torn down. A program
+that rewires a few dozen times leaks a few kilobytes and nobody
+notices. Three lines, and enough for everything in phase 2.
+
+**Then, for a program that rewires continuously** — a control loop
+turning knobs forever — they have to come back:
+
+| | |
+|---|---|
+| each core keeps a **private counter**, on its own cache line, written by nobody else | one uncontended write, no coordination at all |
+| it is bumped at the **start and end of a whole task** — run the box, deliver, free | so it reads **odd while inside** and **even while not** |
+| retiring an array files it alongside a snapshot of every core's counter | |
+| a later rewire sweeps: a core whose counter is now **even**, or **differs from the snapshot**, cannot be holding it | when all four pass, free it |
+
+Nothing waits and nothing spins. A core with no work is asleep and
+therefore even, so it passes without ever having to move — which is
+what would otherwise deadlock the sweep against an idle device. The
+counters are wide enough that one cannot wrap all the way back to its
+snapshot and read as unchanged.
+
+**The window is the whole task, not just the delivery.** A counter
+around the walk alone would be tighter, and phase 4 needs the wider one
+anyway to answer whether a core is inside a *box* — earlier in the same
+task — before unloading code somebody just recompiled. One mechanism
+answering both beats two that drift apart.
+
+**The scrapyard owns a lock, and it is against double-freeing rather
+than against tearing.** Two things touch it and only one is obvious: a
+sweep, and teardown. Take the lock, confirm the array is still filed,
+unfile it, free it — all under one hold, so a second arrival simply
+does not find it. **The lock is a leaf: nothing else may be acquired
+while it is held.** Written as a rule here rather than left to be
+inferred, because a lock-ordering cycle is exactly the thing somebody
+builds later having had no way to know.
+
+This takes back nothing. The lock being removed is the one on the
+delivery walk; the scrapyard is touched when wiring changes and when a
+program ends, and never in between.
+
+## Open questions
 - *Does a station keep its name at runtime?* Writing the running set
   back out as something a person can read requires it, and so does any
   error message worth reading. Costs one pointer per station. Almost

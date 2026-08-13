@@ -42,8 +42,9 @@ foreground's.
 
 1. `drawer_load_content(drawer, app)` — loads the sub-map and
    wires it into the drawer's surface.
-2. Encapsulation splice (305) is the mechanism that flattens
-   the drawer-content sub-map into the parent's graph.
+2. The drawer content is a program with its own two doors (309), and
+   the drawer wires to them. Nothing is flattened into anything —
+   which also means unloading one is unwiring rather than unpicking.
 3. App-side: a convention that each app's map directory
    contains `drawers/left-bottom.json`, etc.
 4. Default empty drawer-content for apps that don't declare

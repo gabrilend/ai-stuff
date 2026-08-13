@@ -139,7 +139,7 @@ learn it.
 
 - [211 — The delivery walk](211-the-delivery-walk.md), whose first step
   this fills in
-- [303 — Types, by name and by width](303-types-by-name-and-by-width.md),
+- [303 — Types compared by width](303-types-compared-by-width.md),
   where orderings come from
 - [307 — Everything wrong with a map, said at once](307-everything-wrong-with-a-map-said-at-once.md),
   which explains why the loop above is allowed

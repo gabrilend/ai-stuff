@@ -2,11 +2,10 @@
 
 ## Current behavior
 
-Issues 401 through 411 produce a working filesystem, the
-persistence convention is wired, and the compile pipeline plus
-hot-swap can replace a running box's function pointer under a
-live reference count. Phase 4 needs a demo that exercises every
-piece end to end.
+Issues 401 through 411 produce a working filesystem, the persistence
+convention is wired, and a box written on the device can be compiled,
+placed, and wired into a program that is already running. Phase 4 needs
+a demo that exercises every piece end to end.
 
 ## Intended behavior
 
@@ -23,41 +22,36 @@ This proves the FAT layer correctly persists data to the
 physical SD card and that the temp-and-rename pattern in
 `write-path` survives a fresh boot.
 
-### 2. Box source edit and hot-swap
+### 2. A box written on the device, put to work
 
-The kernel statically embeds a tiny map with one box whose
-function returns a constant integer. The map is running and
-emitting that integer through `debug-write` once per second.
-The demo:
+The image carries a small program with one box that returns a constant,
+running and saying that constant once a second.
 
-- Writes new source for the box to
-  `/programs/swap-demo/src/the-box.c`. The new source returns a
-  different constant.
-- Invokes the compile pipeline on the new source.
-- Watches the running map. Asserts the box's output integer
-  changes from the old constant to the new constant at the
-  next fire after the hot-swap.
+| the demo does | and asserts |
+|---|---|
+| writes new source to the card, returning a different constant | — |
+| runs the generator and the compiler over it | a catalogue row appears for the new box |
+| places a station on it, moves the arrows, unwires the old | the said number changes at the first run afterwards, and never mid-value |
+| writes the running program back out | the file shows the new station wired and the old one with no source |
 
-This proves the compile pipeline, the artifact tree, and the
-atomic descriptor update all work as a system.
+This proves the generator on the device, the compiler, the growable
+catalogue, and the four construction operations working as one system.
 
-### 3. Reference-count proof
+### 3. Old code goes away, and only when it can
 
-A long-running task is started against the old generation
-deliberately — the test harness holds an extra reference. The
-demo then issues another hot-swap. The new generation takes
-over for new fires, but the old generation's reference count
-stays at one. The test harness asserts:
+The demo compiles a box **and never places it**, then compiles a second
+one and places that. It asserts:
 
-- The old generation's directory under `tmp/compiled/` still
-  exists.
-- The artifact sweep does not reclaim it.
-- After the test harness releases its reference, the next
-  sweep pass reclaims the old generation and removes its
-  directory.
+- the unplaced box's page is filed rather than freed immediately
+- a sweep frees it while the device stays saturated with work
+- the *placed* box's page is never freed, and the sweep says why rather
+  than skipping it silently
+- a core parked with nothing to do does not stall the sweep — which is
+  the property the whole counter scheme exists for, and the one a
+  naive check-in scheme would deadlock on
 
-The script asserts each movement's expected state and reports
-pass or fail.
+The script asserts each movement's expected state and reports pass or
+fail.
 
 ## Suggested implementation steps
 
@@ -65,8 +59,8 @@ pass or fail.
    read, assert.
 2. The swap-demo embedded map plus the box source on the SD
    card.
-3. The reference-count test harness — a small helper that
-   `artifact_acquire`s and releases on signal.
+3. The reclamation harness — compile without placing, compile and
+   place, then sweep under load.
 4. The shell script wrapping build / flash / orchestration.
 
 ## Related documents
