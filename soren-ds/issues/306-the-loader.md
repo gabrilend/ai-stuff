@@ -63,6 +63,10 @@ than per program — which is what lets somebody drawing a wire on a
 running device get the same check, from the same code, with the same
 message.
 
+The check is **one number against another**: both sides must count the
+same bytes (303). Both type names go into the refusal, because the
+widths alone do not tell anybody why they disagree.
+
 ## Suggested implementation steps
 
 1. Pass one: each station line becomes a place call. Look the box up in

@@ -109,11 +109,11 @@ print what it saw rather than by staring at what it emitted.
 
 ## Open questions
 
-- *What language is the generator written in?* The house language for
-  build tooling is Lua, and it runs on the development machine rather
-  than the device, so nothing about the kernel constrains it. Worth
-  stating explicitly somewhere, because "it is part of the build" and
-  "it is part of the kernel" have very different rules.
+- *Is the describe mode worth its weight on the device?* The generator
+  has to run there eventually (304), and printing what it saw is how a
+  build problem gets diagnosed by reading findings rather than emitted
+  C. On a laptop that is free; on a handheld it is a screen somebody
+  has to read it on.
 - *Type names are carried as text for error messages — how much text?*
   Enough to say "returns a 32-bit integer, slot takes a 64-bit float",
   which four-bytes-versus-eight cannot say. That is a size on the

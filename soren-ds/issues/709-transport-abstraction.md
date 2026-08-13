@@ -45,7 +45,8 @@ notification; outgoing messages just keep flowing.
    reachability per peer.
 2. `transport_send()`, `transport_receive_box()`.
 3. Priority resolution helper (USB-C first when reachable).
-4. Wire the box surface into 208's descriptor table.
+4. Nothing to register — the transport boxes are box sources like any
+   others, catalogued by the generator because of where they live.
 
 ## Related documents
 

@@ -19,9 +19,12 @@ suppression mechanism, and the queue's state byte:
   app's per-app queue state to `background` (905).
 - **background → foreground.** Triggered by the link transition
   when the user follows a link back to this app. The transition
-  (a) sets the app's queue state to `foreground`, (b) walks the
-  app's box instances and clears the `suppressed` bytes. The
-  gathering function will catch up on any queued values.
+  (a) sets the app's queue state to `foreground`, (b) reattaches
+  the input router's arrows into the app as one batch (906).
+  Nothing is caught up on, because nothing was queued — input
+  produced while the app was away was discarded where it was
+  produced, which is what the user expects and what the old
+  suppression plan would have got wrong.
 - **foreground → asleep.** Not in scope at launch. The launch
   system never auto-sleeps; only user-initiated close (909)
   takes an app out of running state.

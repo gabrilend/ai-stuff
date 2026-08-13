@@ -18,10 +18,13 @@ timer-60hz ──→ read-buttons ──→ button-events
             └→ read-touch    ──→ touch-events
 ```
 
-`timer-60hz` is a self-arming timer from 309. Its interval is
-exactly 1/60 second. It fires sixteen-point-six milliseconds
-after the previous fire, regardless of how long the consuming
-boxes took. The wire from the timer to each read box carries the
+`timer-60hz` is not a box. When every core has run out of work the
+idle path arms the chip's timer and parks; at the deadline a core wakes
+and writes a fixed value, which runs the readiness check on the station
+holding it, which builds the frame's first task (206). No interrupt
+handler runs and nothing self-arms. The interval is exactly 1/60
+second, measured from the previous deadline rather than from whenever
+the consuming boxes finished. The wire from the timer to each read box carries the
 frame number as the value — useful for the event boxes that
 compute "how long has this button been held" by subtracting the
 press-frame from the current frame.
@@ -31,10 +34,11 @@ This issue establishes the timer, the map structure, and the
 wires; the read boxes are stubbed at first with no-ops that
 return an empty state.
 
-Because the input-poll map runs forever, it never reaches
-quiescence in the one-shot sense. The runtime's quiescence
-detector (308) sees its self-arming pattern and keeps the map
-in the "long-running" state.
+The map runs forever, and nothing anywhere needs to know that. There
+is no quiescence to detect and no long-running state to be kept in — a
+program ends when it is asked to (213) and never because it ran out of
+work. Every core asleep with an armed timer is the ordinary idle
+condition of this device, not a program finishing.
 
 The handedness and drawer-swap settings (507) interpose between
 the raw event boxes and any consumers; this issue commits only

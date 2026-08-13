@@ -11,26 +11,17 @@ through the radial menu; save models to `/models/` as their own
 kind of soramech map; load saved models; and merge two models
 into a third with control over interior detail.
 
-The modeller is the first app that uses encapsulated sub-maps
-(305) for actual application logic. Each model is a sub-map of
-vertex boxes wired by face wires; merging two models is a graph
-union with anchor vertex identification. The launch system's
-encapsulation splicer flattens models the same way it flattens
-any other sub-map.
+The modeller is the first app that composes programs out of programs
+(309) for actual application logic. Each model is a program of vertex
+boxes wired by face wires; merging two models is a graph union with
+anchor vertex identification.
 
+**That union is the modeller's own operation, not a borrowed one.** The
+runtime does not fold one program into another — a program placed
+inside another is wired to its two doors and the parent cannot tell
+what is behind them. So the merge is written here, on the modeller's
+own data, rather than leaning on machinery that no longer exists.
 
-## The engine beneath this phase changed
-
-Phases 2 and 3 were rewritten against the ceramic design; the old
-issues are in `issues/superseded/`, with a README explaining what
-moved where. In this phase, 1007 still describe the older
-engine and have not been converted yet. Read them knowing that
-flattening a map placed inside another is mostly naming now, because
-there is one station table and nothing to merge into.
-
-A reference to an issue numbered 2xx or 3xx in those files points at
-the superseded issue of that number, not at the one holding that
-number today.
 
 ## The story of the phase
 

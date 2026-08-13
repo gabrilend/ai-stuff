@@ -36,10 +36,15 @@ scope at launch; the launch system has no three-button chord
 anywhere. If a future feature needs one, the same `chord-of`
 shape generalises.
 
-The chord-of box is multi-spawn-safe — multiple frames may be
-in-flight in different workers; the ring buffer uses atomics and
-the per-frame event set is captured by value at the time the box
-fires, so an interleaved scan can't see a partial frame.
+Two cores may be inside the chord box at once, for adjacent frames, so
+it keeps nothing: the window of recent frames arrives as one value on
+one wire and leaves as one value on one wire.
+
+**One value, because the frames in a window must stay together.** Two
+values arriving at two ports of a station are not a pair — the engine
+pairs whatever is at the head of each port, in whatever order the cores
+produced them. Anything that must arrive as a unit is a single struct
+on a single port, which is what the window is.
 
 ## Suggested implementation steps
 

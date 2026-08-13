@@ -16,21 +16,6 @@ registers; the maps that wire them together fire on the
 runtime's schedule.
 
 
-## The engine beneath this phase changed
-
-Phases 2 and 3 were rewritten against the ceramic design; the old
-issues are in `issues/superseded/`, with a README explaining what
-moved where. In this phase, 501, 502, 505 still describe the older
-engine and have not been converted yet. Read them knowing that there
-is no quiescence to detect — a program ends when asked, not when it
-runs out of work — and "multi-spawn" is simply how every station
-behaves, so a box needing to be safe under it is the ordinary rule
-rather than a property some boxes have.
-
-A reference to an issue numbered 2xx or 3xx in those files points at
-the superseded issue of that number, not at the one holding that
-number today.
-
 ## The story of the phase
 
 1. `501-polling-loop-map-structure.md` — the 60Hz frame-driven

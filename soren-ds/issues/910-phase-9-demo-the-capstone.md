@@ -56,9 +56,9 @@ reboot. Other apps' surfaces did not flicker.
 The user follows the link from the banner back into the
 programming environment, which received the fault context from
 904. The fault context highlights the offending box. The user
-edits the source, fixes the bug, saves. The compile pipeline
-(409) builds the new generation; the hot-swap (411) replaces
-the function pointer.
+edits the source, fixes the bug, saves. The compile pipeline (409)
+compiles it and adds a catalogue row; 411 places a station on it and
+moves the arrows across.
 
 ### 5. Run it cleanly
 
@@ -83,8 +83,10 @@ demo cleanly returns the screens to their original layout.
   fix, run again.
 - The lifecycle transitions (close, open) reclaim and re-
   allocate cleanly.
-- The compile pipeline, hot-swap, and reference counts all
-  function under live load.
+- Compiling on the device, replacing a box by rewiring, and freeing
+  the code nobody placed all function under live load — including the
+  part that matters most, that a core parked with nothing to do does
+  not stall the sweep.
 
 ## Suggested implementation steps
 

@@ -68,18 +68,19 @@ can already run a map that somebody assembled by calling into the
 engine; phase 3 is everything that lets a map be *written down*.
 It builds the box catalogue — read out of the box sources
 themselves rather than maintained by hand — the map file format
-and its loader, the wire connector, the routing kinds, and the
-encapsulation splicer that flattens sub-maps at load time. The
-loader calls the same place-configure-wire operations phase 2
-built, so there is one way a station comes into existence rather
-than two. The initial box library is statically linked into the
-kernel image
-— the routing-kind boxes (`plain`, `comparator`, `iterator`,
-`randomizer`, `weighted`, `distributor`, `nonlinearity`), the
-debug-write box that wraps `110`'s CDC-ACM channel, and a small
-set of testing boxes. The compile pipeline and hot-swap
-mechanism follow once the filesystem exists in phase 4 so that
-compile output has somewhere to land.
+and its loader, the routing kinds, and the two doors that let one
+program be placed inside another. The loader calls the same
+place-configure-wire operations phase 2 built, so there is one
+way a station comes into existence rather than two.
+
+The initial box library is compiled into the kernel image — the
+box that says something down the serial line, the two that read
+the chip's clock and its random number generator, the pair that
+replaced the routing kind which was never routing, and a small
+set for testing. Six ways of picking an exit are rows in one
+table rather than boxes. Compiling a box on the device follows
+once the filesystem exists in phase 4, so that a source file has
+somewhere to live.
 
 The demo wires a few statically-linked boxes into a small map
 and runs it through the runtime, with the output flowing out the
@@ -96,17 +97,25 @@ The six filesystem box kinds described in `011-filesystem.md`
 library. Persistent state becomes possible — the device can
 remember which app was last open on each screen.
 
-This is also the phase where the compile pipeline lands, because
-the artifact tree needs the filesystem to exist (artifacts live
-under `tmp/compiled/<map>/<generation>/` on the RAM-backed
-symlink, but the source they compile from lives on the SD card).
-The reference-counted artifact system and the hot-swap mechanism
-both come up here.
+This is also the phase where compiling a box on the device
+lands, because the source it compiles from has to live somewhere.
+The same generator the build runs is run here, which is why phase
+3 makes it a C program with no dependency on the engine rather
+than a build script.
+
+A box is not swapped in underneath a running station — a
+station's ports were sized to its box, and may be holding values.
+Replacing one is a new station, the arrows moved to it in a
+batch, and the old station left with no source. The old code is
+freed once no core can still be inside it, by the same per-core
+counters that reclaim an old set of arrows, so nothing anywhere
+counts references.
 
 The demo writes a file through `write-path`, reboots the device,
-reads it back through `read-path`, then edits a box's source
-through a tiny test harness, recompiles, and watches the running
-map pick up the new code without losing its state.
+reads it back through `read-path`, then writes a new box's source
+through a tiny test harness, compiles it, places it, moves the
+arrows, and watches the running program's output change at the
+first run afterwards.
 
 ## Phase 5 — Input drivers
 
