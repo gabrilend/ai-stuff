@@ -148,9 +148,10 @@ function write-transcripts-to-project-directory(){ # {{{
          continue
       fi
 
-      # Idempotency: if this conversation already owns a transcript, reuse it,
-      # re-placing it only when the span (hence the base) grew - e.g. the
-      # conversation continued into a new day.
+      # Name idempotency: if this conversation already owns a transcript,
+      # reuse it, re-placing it only when the span (hence the base) grew -
+      # e.g. the conversation continued into a new day. Whether that file's
+      # *contents* then need rewriting is a separate question, asked below.
       local claim dest claim_base
       claim=$(transcript_find_claim "$TRANSCRIPT_DIR" "$conversation_id" || true)
       if [ -n "$claim" ]; then
@@ -162,6 +163,41 @@ function write-transcripts-to-project-directory(){ # {{{
          fi
       else
          dest=$(transcript_pick_free_name "$TRANSCRIPT_DIR" "$base")
+      fi
+
+      # Content idempotency (the other half of the name idempotency above).
+      # The parser stamps a fresh "Generated on:" wall clock into everything
+      # it writes, so re-exporting a conversation nobody had added a word to
+      # still produced a file differing by that one line - and this runs from
+      # a Stop hook, after every single assistant turn. The result was a
+      # treadmill: every transcript in a project went dirty again seconds
+      # after being committed, so a project's `git status` could never be
+      # clean and could never be read for which transcripts had actually
+      # grown. Measured in minimal-soramech before this guard existed: 116 of
+      # the first 145 transcript changes recorded in git history were that
+      # line and nothing else - 80% of the churn.
+      #
+      # So ask what was actually said, and when only the stamp would move,
+      # keep the file already on disk exactly as it is. An unchanged
+      # conversation is now a genuine no-op.
+      #
+      # Only the overwrite-in-place case may be skipped. When dest and claim
+      # differ, the conversation has crossed into a new day and the file has
+      # to be re-placed under its new span name - a real change, however
+      # little the prose grew.
+      if [ "$dest" = "$claim" ] && transcript_same_content "$temp_file" "$dest"; then
+         rm -f "$temp_file"
+         # The mtime is still re-derived on this path. It is a projection of
+         # the session log in exactly the way the filename is, so it gets
+         # enforced on every run whether or not the prose moved - that is
+         # what repairs a file whose timestamp a checkout, a copy, or a
+         # restore has scrambled. Nothing in git watches an mtime, so
+         # re-stamping here buys back the churn this branch just avoided.
+         if [ -n "$final_timestamp" ] && [ "$final_timestamp" -gt 0 ]; then
+            touch -d "@$final_timestamp" "$dest" 2>/dev/null || true
+         fi
+         echo "Unchanged: $dest"
+         continue
       fi
 
       # Move content into place, retire any stale prior name, stamp the mtime

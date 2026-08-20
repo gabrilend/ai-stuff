@@ -40,9 +40,10 @@ Useful for documenting how AI assistance was used during development.
 - **Prose Preservation**: Keeps every assistant text block between user turns, joined into one response section. Skips only tool_use blocks (and any internal thinking blocks).
 - **Markdown Formatting**: Outputs clean, readable markdown summaries
 - **Text Wrapping**: Wraps long lines at 80 characters while preserving markdown structure
-- **Timestamp Preservation**: Sets file modification times to match the conversation's final timestamp
+- **Timestamp Preservation**: Sets file modification times to match the conversation's final timestamp. The log's UTC clock fields are read verbatim for both this and the filename's date, so the two always agree with each other — at the cost of sitting one UTC offset away from local wall time. That trade is recorded at `to_date_string()` in `libs/conversation-parser.lua`.
 - **Date-Range Naming**: Names each file by the span of dates the conversation covers (see *File Naming* below)
-- **Idempotent**: Re-running reuses each conversation's existing file (matched by its header id), renaming it only when the conversation continues into a new day
+- **Idempotent in name**: Re-running reuses each conversation's existing file (matched by its header id), renaming it only when the conversation continues into a new day
+- **Idempotent in content**: A conversation nobody has added a word to is left entirely alone — same bytes, same inode, same `Generated on:` stamp it was first written with. Only the mtime is still re-derived, because that is a projection of the session log in the way the filename is, and re-deriving it repairs a file some checkout or copy has scrambled. Without this the Stop hook re-dirtied every transcript in a project after every single assistant turn, so `git status` could never be read for which transcripts had actually grown
 
 ## File Naming
 
@@ -112,6 +113,12 @@ Generated on: {date}
 --------------------------------------------------------------------------------
 ```
 
+The `Generated on:` line records when that file was first written, not when
+the exporter last looked at it. A re-export that finds nothing new to say
+leaves the file untouched and prints `Unchanged: <path>` where it would
+otherwise print `Created: <path>`. Nothing in the toolchain reads the line —
+the date consumers sort the corpus by is the file's mtime.
+
 ## Output Location
 
 - Standard projects: `{project-dir}/llm-transcripts/`
@@ -129,8 +136,7 @@ The script defines several functions that can be sourced:
 
 ## Dependencies
 
-- Python 3 (for JSONL parsing)
-- Optional: `fuzzy-computing` for descriptive filename generation
+- Lua (LuaJIT-compatible) — the JSONL reading and markdown rendering both live in `libs/conversation-parser.lua`. Without `lua` on the path the tool prints a notice and writes nothing.
 
 ## Related Scripts
 
