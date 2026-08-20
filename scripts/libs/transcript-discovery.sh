@@ -222,3 +222,43 @@ transcript_find_claim() {
    return 1
 }
 # }}}
+
+# The one line inside a transcript that moves on every regeneration even when
+# the conversation did not: the parser stamps it with the wall clock at the
+# moment it writes. Nothing in the toolchain reads it - the date that matters
+# is the file's mtime, which the producer sets from the conversation's last
+# message - so any comparison asking "did the conversation change?" has to
+# step over this line. Issue 018 had already recorded that this stamp is not a
+# usable date; this constant is where that finding finally does some work.
+TRANSCRIPT_VOLATILE_PREFIX="Generated on: "
+
+# {{{ transcript_body_fingerprint()
+# Reduce a transcript to one short string standing for everything it says,
+# with the volatile stamp left out of the reckoning. Two transcripts with the
+# same fingerprint contain the same conversation, whenever they were written.
+transcript_body_fingerprint() {
+   local file="$1"
+   [ -f "$file" ] || return 1
+   local summed
+   summed=$(grep -v "^${TRANSCRIPT_VOLATILE_PREFIX}" -- "$file" | md5sum) || return 1
+   printf '%s\n' "${summed%% *}"
+}
+# }}}
+
+# {{{ transcript_same_content()
+# True when two transcripts say the same thing. This is what lets the producer
+# leave an untouched conversation's file alone instead of rewriting it with a
+# fresh stamp after every assistant turn. Compared by fingerprint rather than
+# by a full diff so the cost is one short string per file however large the
+# transcripts get - the corpus runs to hundreds of kilobytes apiece.
+transcript_same_content() {
+   local left="$1"
+   local right="$2"
+   [ -f "$left" ] && [ -f "$right" ] || return 1
+
+   local left_print right_print
+   left_print=$(transcript_body_fingerprint "$left") || return 1
+   right_print=$(transcript_body_fingerprint "$right") || return 1
+   [ "$left_print" = "$right_print" ]
+}
+# }}}

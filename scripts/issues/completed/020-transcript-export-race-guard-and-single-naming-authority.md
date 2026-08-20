@@ -1,13 +1,19 @@
 # 020 - Transcript export race guard and single naming authority
 
-**Status: completed 2026-07-25.** Both guards live in the exporter and are
-covered by `tests/test-transcript-export-guards.sh` (fixture sessions, no
-real data touched). The two production husks were retired on first run —
-one of them out from under a date-name a stray rename had given it — and
-the storyline shelf reports zero exclusions. The guard also immediately
-flagged one genuine ends-with-user conversation in soren-ds (frozen history,
-exported as-is with the warning). The migrator is `-done`, pending removal
-after one commit.
+**Status: completed 2026-07-25. Amended 2026-08-20.** Both guards live in the
+exporter and are covered by `tests/test-transcript-export-guards.sh` (fixture
+sessions, no real data touched). The two production husks were retired on
+first run — one of them out from under a date-name a stray rename had given
+it — and the storyline shelf reports zero exclusions. The guard also
+immediately flagged one genuine ends-with-user conversation in soren-ds
+(frozen history, exported as-is with the warning). The migrator is `-done`,
+pending removal after one commit.
+
+The 2026-08-20 amendment closes a gap this issue left open. The idempotency
+built here made a transcript's *filename* a function of the session log but
+left its *contents* out of that promise, so every export still rewrote every
+transcript under a fresh generation stamp. Item 4 of *Intended behavior* and
+step 6 below carry the missing half.
 
 ## Current behavior (as found before this issue)
 
@@ -66,6 +72,19 @@ summarizers — reads names through the shared rulebook and writes none.
    removed after one commit. References to it in other tools' hint text are
    updated to point at the exporter instead.
 
+4. **A re-export says nothing when nothing was said**: the exporter re-derives
+   a transcript's *name* from the session log on every run, and must re-derive
+   its *contents* on the same terms — writing only where they actually differ.
+   The obstacle is the exporter's own output: the parser stamps a fresh
+   "Generated on:" wall clock into every file it produces, so comparing bytes
+   against what is already on disk answers "did anything change?" with a
+   permanent yes. The comparison steps over that one line, and where only the
+   stamp would move, the file on disk is left exactly as it is. The mtime is
+   deliberately exempt from the skip: it is a projection of the log in the same
+   way the name is, so it is enforced on every run whether or not the prose
+   moved — which is also what repairs a file some checkout or copy scrambled.
+   Nothing in git watches an mtime, so enforcing it costs no churn.
+
 ## Suggested implementation steps
 
 1. `libs/conversation-parser.lua` — compute "ends with an unanswered user
@@ -98,6 +117,26 @@ summarizers — reads names through the shared rulebook and writes none.
    third name-writer; amend it so its rename step goes through the rulebook
    and the exporter preserves summarized names (see Notes).
 
+6. `libs/transcript-discovery.sh` — name the volatile header line in a
+   constant, add a fingerprint of a transcript's body computed with that line
+   excluded, and a same-content predicate over two fingerprints. Comparing by
+   fingerprint rather than by diff keeps the cost one short string per file;
+   the corpus runs to hundreds of kilobytes apiece.
+   `backup-conversations` — after the destination is chosen and before the temp
+   file is moved into place: when the destination *is* the conversation's
+   existing file and the two say the same thing, delete the temp, re-stamp the
+   mtime anyway, print "Unchanged:" instead of "Created:", and move on. Only
+   the overwrite-in-place case may be skipped; a destination that differs from
+   the claim means the conversation crossed into a new day and the file has to
+   be re-placed under its new span name.
+   Tests in `tests/test-transcript-export-guards.sh`: (d) a second pass over
+   settled fixtures leaves a transcript byte-identical *and on the same inode*
+   — the inode is what distinguishes "left alone" from "rewritten with the
+   same words", which the mtime cannot, since the writing path stamps the
+   mtime back from the log either way; (e) a pass after appending an exchange
+   still rewrites the file, so the skip cannot over-fire; (f) a hand-scrambled
+   mtime is restored without the contents being rewritten.
+
 ## Related files
 
 - `backup-conversations`, `libs/conversation-parser.lua` (the authority)
@@ -125,3 +164,15 @@ summarizers — reads names through the shared rulebook and writes none.
   That comparison lives in one place (the exporter's claim check); 056 should
   widen it there, through the rulebook, rather than adding a competing
   renamer.
+- The name/content asymmetry survived three weeks unnoticed because it hides
+  well: every individual transcript reads correctly, every mtime is correct
+  (stamped back from the log), and only `git status` disagrees — where it looks
+  like ordinary pending work rather than a fault. In minimal-soramech, 116 of
+  the first 145 transcript changes ever committed were the stamp line and
+  nothing else, 80% of the churn, and one commit message had already named the
+  phenomenon in passing — "seven files just restamp" — without anyone following
+  it back to the cause. The general shape is worth keeping: a tool that
+  re-derives an artifact from a source on every run is only idempotent if
+  *everything* it derives is a function of that source. One wall-clock reading
+  in the output is enough to break it, and the breakage is invisible until
+  something outside the tool starts keeping score.

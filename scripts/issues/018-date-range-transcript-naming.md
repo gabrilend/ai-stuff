@@ -103,5 +103,10 @@ skipped, so the migration is safe to re-run.
   the transcript folders do.
 - `Generated on:` inside a file is NOT a usable date — a bulk regeneration
   rewrote it to the regen time on many files. mtime is the trustworthy signal.
+  (2026-08-20: that finding is now enforced rather than merely recorded. The
+  exporter treats the line as volatile, compares transcripts with it excluded,
+  and leaves a file alone when it is the only difference — see issue 020,
+  item 4. Until then the line re-dirtied every transcript in every project
+  after every assistant turn.)
 - Same-repo, single git tree; subprojects are plain directories, not submodules,
   so one migration pass with `git mv` covers everything.
