@@ -1,0 +1,11 @@
+What if on a pair of shoes they were "laced" or rather "secured" with a belt buckle that had two buckles, one on each end. The holes would be placed such that an increase in tightness on one side would be a 0.5x increase in tightness in the other. So, they'd be alternating in tightness - for example:
+
+Left:   right:
+0.5   |      1 
+1.5   |      2 
+2.5   |      3 
+3.5   |      4 
+
+Etc 
+
+This might allow for increased customization of fit. Tighten loosely with one side, make snug with the other. Or vice versa, in reverse.
