@@ -1,0 +1,3 @@
+No deterministic system can solve arbitrary problems with perfect solutions.
+
+Hence, subjectivity.

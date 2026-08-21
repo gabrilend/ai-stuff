@@ -1,0 +1,18 @@
+what if we just didn't compute temperature and accepted the
+fully deterministic nature of the LLM output?
+
+arbitrary mappings are world-changing, regardless of intelligence.
+
+"artificial intelligence? why don't you just use your own?"
+
+we could process the entire page of text at once if we could just put it in as
+it's own input pairs. then, without determinism or probability, it simply
+resolved to the fully combined next-state of the output.
+
+but... that might just cast you in a random direction. hence, why you need the
+response from the user to help re-align. oh, and if you encourage it to aim
+toward a resolution text like "and that's how I resolved this and that. Do you
+have any questions? When you'd like to move on, please let me know. Otherwise,
+I'll remain for you." and when it hits that it finishes at the end of the output.
+
+
