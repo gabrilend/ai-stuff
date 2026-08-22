@@ -125,7 +125,7 @@ part of it while thinking about something else.
 | `provided_by` | string | which piece of software provides it |
 | `does` | string | what it does, phrased so a request can match it |
 | `needs` | table | array of `capability_id` it depends on |
-| `aspects` | table | array of `{aspect = integer, value = number}` — how it performs, per kind |
+| `measured` | table | array of `{kind = string, value = number}` — how it performs, per quantity |
 | `used_at` | integer | when it was last actually needed |
 
 `used_at` is maintained continuously rather than computed on demand, because rung
@@ -135,15 +135,28 @@ measuring.
 
 ## Rung two — alter what is here
 
-Changing a piece of software requires knowing everything that depends on it. This
-is the concrete cost of being, as the request that produced this design put it,
-*thoroughly attached to and enmeshed with the reality that you're part of and
-want to contribute to.*
+**Softened 2026-08-21, and the softening is the design rather than a concession.**
+This used to say that changing a piece of software *requires* knowing everything
+that depends on it, and specified an index running the opposite direction — for each
+thing, what uses it — on the grounds that without it every modification is a coin
+flip on whether something unrelated stops working.
 
-So there is a second index running the opposite direction: for each thing, what
-uses it. Without it every modification is a coin flip on whether something
-unrelated stops working, and the machine has no way to find out except by
-breaking it and waiting to notice.
+It is a coin flip, and that turns out to be acceptable.
+
+> If the shared functionality changes, it'll probably break one or the other end,
+> and that's fine, it'll fix it when it tries to run the program again, sees that
+> it's broken, and thinks "oh huh I should fix that".
+
+**Breakage is discovered by running rather than prevented by bookkeeping.** A
+machine with nobody waiting on it can afford to find out the expensive way: the cost
+of a broken program is that the machine notices and fixes it, and the cost of
+preventing every breakage is an index that has to be right about everything forever.
+
+The reverse index below is therefore a **good idea rather than a precondition** —
+worth building when a machine finds itself breaking things it did not expect to,
+and not something that has to exist before anything may be changed. It is still the
+thing that turns *this change is risky* into *this change threatens these four
+particular assumptions*, which is why it is described rather than dropped.
 
 **Dependency**
 

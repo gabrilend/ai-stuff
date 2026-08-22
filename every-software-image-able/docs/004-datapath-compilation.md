@@ -15,130 +15,122 @@ only just finished measuring (`003`).
 After that the chain keeps improving, but the reason it started improvable is
 that it started with nothing to be fixed *to*.
 
-## When the machine looks for a better way
+## This is not an optimiser, and that was the mistake
 
-Not continuously. **Nothing is measured until a demand arrives from somewhere
-else that needs performance of a particular kind.** There is no background
-watching, no standing comparison, no speculative generation of alternatives. The
-examination is the expensive part and it is triggered rather than scheduled.
+**Rewritten 2026-08-21.** What was here described a machine that measures itself,
+raises a demand naming which axis is short, iterates over approaches to that one
+constraint until the ideas run out, and keeps every approach it ever tried so it can
+select among them by situation. It was careful, it was consistent, and it was
+apparatus for a kind of machine this is not.
 
-This is not a reluctance to switch — it is not looking at all until asked.
+> the system is supposed to be improving itself in whatever order it pleases. So, we
+> shouldn't be strict about guiding it. It should just wander around and do whatever.
+> Like we very explicitly are not trying to optimize here, we're trying to be
+> organic.
 
-**Demand**
+So there is no metric, no demand record, no objective, and nothing that decides what
+the machine should be working on. It works on whatever it is working on.
 
-| Field | Type | Meaning |
-|---|---|---|
-| `demand_id` | integer | which demand |
-| `aspect` | integer | which kind of performance is short — the colour (`006`) |
-| `origin` | integer | which part of the machine is constrained |
-| `target` | string | which piece of software is being asked to improve |
-| `raised_at` | integer | when |
+**What is wanted instead is organisation, which is a different thing.** A machine
+that wanders and forgets what it has built wanders in circles. A machine that
+wanders and can find what it has built goes somewhere.
 
-The aspect is load-bearing. "Make this better" has no direction; "this is short
-on the aspect that reads as *this colour*" names both what is wrong and which
-axis to vary along. The machine already tags every status it emits with an
-aspect, so a demand costs nothing extra to describe.
+## What is encouraged, and it is three habits
 
-## What gets optimised
+**Build indexes.** Of what exists, of what it does, of where it is. Not one index
+imposed by this document — whatever indexes turn out to be worth having, built by
+the machine, for the way that machine ended up organised.
 
-Whatever is holding the machine back. There is no fixed metric and no weighted
-sum of metrics — there are many parameters, and the one that matters is the one
-currently furthest from ordinary.
+**Look at what you already built before building something.** Most problems a
+machine meets are ones it has met, and the difference between a machine that knows
+that and one that does not is whether it can find the earlier answer. This is rung
+one in `005`, and it is the rung that matters most because it is the one the other
+three exist to avoid.
 
-That measurement already exists. `006` describes a magnitude that every program
-reports after everything it does, on an axis where fifty is ordinary and distance
-in either direction means attention is warranted. The parameter furthest from
-fifty is the one the compiler should be working on. **One reading, two
-consumers:** it trips the intercession when it goes far enough, and it names the
-objective when a demand arrives.
+**Reuse it when you find it.** Take the thing that already works rather than writing
+a second thing that does the same job. That is what keeps the machine integrated with
+itself rather than becoming a pile of unrelated programs that happen to share a
+drive.
 
-## Trying a different way before moving on
+## What that costs, and why it is acceptable
 
-When a constraint is being worked, the machine tries **different approaches to
-that same constraint** before it is permitted to go work somewhere else. The loop
-iterates over approaches to one problem, not over problems.
+**It goes monolithic.** Everything using the same pieces means the pieces have many
+users, and a machine that reuses aggressively ends up with a small number of things
+that everything leans on. That is a real cost and it is accepted rather than
+designed around.
 
-This removes the failure that a threshold-based rule would have needed to guard
-against. A machine that switches targets whenever another parameter looks worse
-ping-pongs between two constraints forever, relieving each one just enough to make
-the other binding, and never properly solving either. Staying until the ideas run
-out cannot ping-pong.
+**And things break.** Change something shared and one of the things leaning on it
+stops working. The design used to require this be prevented — know every dependent
+before changing anything, with an index recording what each one relies on. It is not
+required any more.
 
-What it costs instead is grinding — spending attempts on a constraint whose space
-of approaches is genuinely empty. So the number that matters is not a threshold
-but **how many different ways are tried before moving on**, and it is not chosen
-yet.
+> If the shared functionality changes, it'll probably break one or the other end,
+> and that's fine, it'll fix it when it tries to run the program again, sees that
+> it's broken, and thinks "oh huh I should fix that".
 
-**Approach** — one way of doing something, kept.
+**Which is a real position and worth stating as one.** Breakage is discovered by
+running rather than prevented by bookkeeping. A machine with nobody waiting on it can
+afford to find out the expensive way, because the cost of a broken program is that
+the machine notices and fixes it, and the cost of preventing every breakage is an
+index that has to be right about everything forever.
 
-| Field | Type | Meaning |
-|---|---|---|
-| `approach_id` | integer | which approach |
-| `target` | string | what it is an approach to |
-| `aspect_favoured` | integer | which kind of performance it is good for |
-| `situation` | string | when it should be preferred |
-| `measured` | table | array of `{aspect = integer, value = number}` |
-| `superseded_by` | integer | another approach, or -1 |
+The reverse index in `005` is still a good idea and it is now an *idea* — something a
+machine may build if it finds itself breaking things it did not expect to. Not a
+precondition for changing anything.
 
-Approaches are not discarded when a better one is found, because "better" was
-measured under one demand and the next demand may come with a different colour.
-The machine keeps several ways of doing the same thing and selects among them by
-situation.
+## Writing things down
 
-## Every step carries a picture
+**Not a rule, and not a mechanism.** An earlier draft made this a duty — every
+choice explained, with a chart, showing every alternative at its measured position,
+because a chart with one bar carries no clarity. That was written when this document
+described an optimiser, and it went out with the optimiser.
 
-The machine explains why something was built the way it was, with statistics and
-graphs, and picks the one that best solves the problem. The explanation is not a
-report written afterward — it is the mechanism by which the choice is made
-legible, and it lands in the bootstrap rather than in a late phase, because a
-machine that cannot draw cannot justify anything it does.
+What is left is a suggestion and it is short. **Write down your thoughts sometimes.
+Explain what things do.** How much, how often, in what form, and whether anything
+gets drawn at all, is the machine's business.
 
-Clarity has a definition here, and it is precise:
+There is a good definition of clarity underneath it, kept because it is worth having
+and not because anything requires it:
 
 > distance from alternatives when more accurate to the truth than alternatives
 
 Two parts, and the second is what makes it a real quantity rather than a feeling.
 Distance alone is not clarity — being far from every alternative while wrong is
-isolation. Clarity is margin *in the correct direction*.
+isolation. Clarity is margin *in the correct direction*. Which gives a picture a rule
+if a machine wants one: show the field, not the winner, because the margin is the
+thing worth seeing and it is invisible in a chart with one bar.
 
-That gives the drawing a rule with consequences: **a picture must show the field,
-not the winner.** A chart with one bar carries no clarity by this definition,
-because the distance is not visible in it. The approaches that lost stay on the
-page, at their measured positions, so the margin is something a reader can see
-rather than something the machine asserts.
+The machine has nobody to explain itself to for a long time, so anything it writes it
+writes for its later self. That is a reason to bother, not an obligation to.
 
-**Justification**
+## When there is nothing to vary
 
-| Field | Type | Meaning |
-|---|---|---|
-| `justification_id` | integer | which one |
-| `demand_id` | integer | what prompted the examination |
-| `approaches` | table | array of `approach_id` — every one considered, not only the chosen |
-| `chosen` | integer | which won |
-| `margin` | number | distance from the runner-up, along the demanded aspect |
-| `picture` | string | where the drawing lives |
-
-## When there is no approach to vary
-
-Fitting for what would have had to be different searches over the values of code
+Working out what would have had to be different searches over the values of code
 that exists. If the machine did not reach the state it wanted because of a case
-nobody handled — a branch that was never written — no fit will find it, because
-there is no parameter to move.
+nobody handled — a branch that was never written — no amount of searching finds it,
+because there is no parameter to move.
 
-That is not a silent failure. **It is the trigger.** Having nothing to vary is
-precisely how the machine detects that the software it needs does not exist yet,
-which hands the problem to rung three (`005`) and is, in the seed page's terms,
-the whole point of the project.
+That is not a silent failure. **It is how the machine notices it needs to build
+something.** Having nothing to vary is precisely the discovery that the software
+does not exist yet, which hands the problem to rung three (`005`) and is, in the
+seed page's terms, the whole point of the project.
 
 ## Open questions
 
-- **How many different ways before moving on?** Named above; unchosen. It decides
-  whether the machine converges or grinds.
+- ~~How many different ways before moving on?~~ **Dissolved 2026-08-21.** It was a
+  question about an optimiser, and there is no optimiser. The machine tries things
+  for as long as it feels like trying them.
 - ~~What draws the picture before there is a display?~~ **Answered.** The
   firmware hands over a linear framebuffer — an address, a geometry and a pixel
   format — so writing bytes changes pixels with no driver involved. The machine
   can draw from its first instant, and a chart showing what a choice was made
   against is available immediately rather than in a late phase (`202`).
-- **Does an approach ever get deleted?** Rung four condenses duplication, and two
-  approaches to the same thing look exactly like duplication from the outside
-  while being the thing that makes situational selection possible.
+- **Does a second way of doing something ever get deleted?** Rung four condenses
+  duplication, and two ways of doing one job look exactly like duplication from the
+  outside. Sometimes they are, and sometimes one of them is better on this hardware
+  and the other is better on the hardware the machine has not met yet.
+- **What makes a machine look at what it already built?** The habit is encouraged
+  and nothing enforces it. A machine that forgets to look writes the same thing
+  twice, notices later or never, and the only cost is room — which is exactly the
+  cost rung four exists to reclaim, so the failure is self-limiting rather than
+  compounding.
