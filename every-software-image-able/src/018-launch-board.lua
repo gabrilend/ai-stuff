@@ -9,12 +9,14 @@
 --
 -- For a general: point it at a board, give it something to boot, and it
 -- starts that computer. The computer's serial wire lands in a log file in
--- RAM, or in your terminal if you ask.
+-- RAM, or in your terminal if you ask -- and its screen appears in a window,
+-- if you ask for that too.
 --
 -- usage:
 --   luajit 018-launch-board.lua <board> [--payload FILE] [--disk FILE]
 --                               [--memory small|plenty|SIZE] [--seconds N]
 --                               [--stdio] [--gdb] [--accel] [--dry-run]
+--                               [--watch [gtk|sdl|curses]]
 --                               [--dir PROJECT_ROOT]
 --
 --   <board> is the short name from a src/*-board-<name>.lua file,
@@ -64,7 +66,7 @@ local function parse_arguments(argv)
                     memory = "small", seconds = nil,
                     screenshot = nil, capture_after = 3, monitor_port = 4444,
                     stdio = false, gdb = false, accel = false,
-                    dry_run = false }
+                    watch = nil, dry_run = false }
   -- one handler per flag: a dispatch table rather than an if-chain.
   local takes_value = {
     ["--payload"] = "payload", ["--disk"] = "disk",
@@ -76,10 +78,28 @@ local function parse_arguments(argv)
     ["--stdio"] = "stdio", ["--gdb"] = "gdb",
     ["--accel"] = "accel", ["--dry-run"] = "dry_run",
   }
+  -- --watch is the one option whose value is optional, so it sits in neither
+  -- table: bare, it means "choose for me"; followed by a backend name, it
+  -- means that one. Anything else after it is the next option, not a value.
+  local WATCHABLE = { gtk = true, sdl = true, curses = true }
   local index = 1
   while index <= #argv do
     local word = argv[index]
-    if takes_value[word] then
+    if word == "--watch" then
+      local following = argv[index + 1]
+      if following and WATCHABLE[following] then
+        options.watch = following
+        index = index + 1
+      elseif following and following:sub(1, 2) ~= "--" and options.board ~= nil then
+        -- a word that is not a backend and not another option, in the place a
+        -- backend would go. Refusing beats guessing: "--watch vga" silently
+        -- becoming a window is exactly the kind of quiet wrong answer this
+        -- project keeps finding.
+        die("--watch takes gtk, sdl or curses, not " .. following)
+      else
+        options.watch = "choose"
+      end
+    elseif takes_value[word] then
       index = index + 1
       if index > #argv then die("missing value after " .. word) end
       if word == "--dir" then
@@ -288,6 +308,48 @@ local function host_architecture()
 end
 -- }}}
 
+-- {{{ local function resolve_watch(options)
+-- Which display backend a --watch actually becomes, and what that costs the
+-- serial line. Returns the backend name and, when something had to give way,
+-- a sentence saying so -- because this file's habit is to decline out loud
+-- rather than fall back quietly (see --accel below).
+--
+-- WHY "choose" IS NOT SIMPLY gtk. A window needs a display server, and a
+-- machine reached over a connection with none is exactly where somebody most
+-- wants to watch a boot. Asking the environment is one variable lookup and it
+-- turns an obscure emulator failure into a picture in the terminal.
+--
+-- WHY curses AND --stdio CANNOT BOTH HAVE THE TERMINAL. The in-terminal
+-- rendering draws the guest's screen over the whole terminal; serial-to-stdio
+-- writes the machine's words to the same place. Together they overwrite each
+-- other and neither is readable. The screen wins, because the person asked to
+-- watch, and the words go to the log file where they are never lost.
+local function resolve_watch(options)
+  if not options.watch then return nil, nil end
+
+  local backend = options.watch
+  local note = nil
+  if backend == "choose" then
+    local windowed = os.getenv("DISPLAY") or os.getenv("WAYLAND_DISPLAY")
+    if windowed and windowed ~= "" then
+      backend = "gtk"
+    else
+      backend = "curses"
+      note = "note: --watch found no display server, so the machine's screen "
+          .. "is drawn in this terminal instead of a window"
+    end
+  end
+
+  if backend == "curses" and options.stdio then
+    options.stdio = false
+    note = "note: --watch curses draws over this terminal, so --stdio was "
+        .. "declined; the serial line is in its log file"
+  end
+
+  return backend, note
+end
+-- }}}
+
 -- {{{ local function build_command(board, options, serial_log)
 local function build_command(board, options, serial_log)
   local argv = { board.emulator }
@@ -308,10 +370,15 @@ local function build_command(board, options, serial_log)
   argv[#argv + 1] = "-m"
   argv[#argv + 1] = memory
 
-  -- no window; the framebuffer device still exists and can be inspected
-  -- through the monitor later. Serial is the early truth channel.
+  -- No window by default, and that default is load-bearing: every test in this
+  -- project boots machines unattended, and a window nobody asked for on a build
+  -- machine is a hang rather than a picture. The framebuffer device still
+  -- exists either way and can be inspected through the monitor afterwards;
+  -- `none` only means nobody is watching live. --watch is how somebody does.
+  local watching, watch_note = resolve_watch(options)
+  if watch_note then say(watch_note) end
   argv[#argv + 1] = "-display"
-  argv[#argv + 1] = "none"
+  argv[#argv + 1] = watching or "none"
   if board.framebuffer and board.framebuffer.kind ~= "vga" then
     -- virt machines have no display until one is plugged in; the pc
     -- machine has its VGA already.
