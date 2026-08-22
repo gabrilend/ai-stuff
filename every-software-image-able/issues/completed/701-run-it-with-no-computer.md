@@ -52,6 +52,21 @@ answer, so the question came back as part of the reply. And both helpers looped
 forever at end of input, which turned a piped run into a spinning terminal — a
 wrong answer repeated is indistinguishable from a hang.
 
+**The machine has a disk now, and keeps it.** One sparse file per board on the
+RAM tier, reused every run, with a prompt offering a blank one instead. Per board
+because two machines sharing a drive would each find the other's work and neither
+would be reproducing anything.
+
+That is the difference between watching a program run and watching a machine live
+somewhere. Without it every boot is the machine's first, and the thing this
+project is actually about — writing yourself somewhere and coming back to find
+it — cannot happen at all. The disk is what makes `602` observable rather than
+theoretical.
+
+It is RAM-backed, which is fast and does not survive the host being switched
+off. Correct for something you are watching and wrong for something you are
+keeping, and worth knowing which of those you are doing.
+
 **Step four is not done and is deliberately left.** Two boards still describe
 their display identically while one is characters in memory and the other is
 real pixels. Nothing reads that distinction yet, and adding a field nothing
