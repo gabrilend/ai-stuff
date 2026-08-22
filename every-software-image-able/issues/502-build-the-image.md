@@ -26,6 +26,29 @@ what it produces is the thing `503` puts on a card and `601` switches on.
 **This closes again when `107` hands it real bytes** and the layout check
 becomes a check between two things that both exist.
 
+## Done 2026-08-22 — there is a way to make a seed now
+
+**One command.** `145` takes a recipe, a board and a model, and produces an
+image, a manifest and an identity. The image boots on real firmware and the
+machine inside it reads what it was told, thinks, and says words.
+
+That closes this ticket's remaining blocker in a way the ticket did not
+anticipate. It said the seam becomes real when `107` hands the builder real
+engine bytes — and nothing was ever going to hand them over, because the thing
+that assembles a machine lived **inside a test** and the builder was a library
+with no command line, whose own usage note described one that did not exist. So
+the two could not meet, and the builder invented an arrangement of its own.
+
+The machine assembler is `144` now. `140` calls it and checks what comes back —
+including that it read the same model the test read and divided the memory to
+the same byte, which is two independent readings of one model agreeing. And the
+seam check compares the builder's layout against the descriptions the machine
+itself reads rather than against numbers typed a second time.
+
+**The engine bytes are real.** The two thousand copies of the letter E remain in
+`090`, where they belong: a builder test needs some bytes, and what matters is
+that the arrangement around them is the one that ships. It is.
+
 ## Fixed 2026-08-22 — the image is a medium now, and firmware opens it
 
 **A firmware has opened what this builder produces, on all three
