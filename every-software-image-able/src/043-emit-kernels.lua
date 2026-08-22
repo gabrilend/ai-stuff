@@ -874,6 +874,46 @@ M.names = {
 }
 -- }}}
 
+-- {{{ M.READ_BY -- which kernel reads weights stored in which precision
+-- The blob format (024) can DESCRIBE more precisions than the arithmetic can
+-- read, and the gap is not obvious from either file alone. A planner deciding
+-- whether a model fits in a currency the engine does not accept is answering a
+-- question nobody asked, so the mapping is stated here, beside the kernels,
+-- because this is the file that knows.
+--
+-- ASK THIS, DO NOT COPY IT. 046 held its own list saying the engine read f32
+-- and nothing else. That was true when written and stayed on the page after
+-- the quantised kernel landed on all three architectures, so every weight
+-- figure in that report was scaled by a caveat that had stopped being true.
+--
+-- It is the same defect 401 paid for and named: a hand-kept table of what
+-- exists, and a check that agreed with it because it was reading the same
+-- stale copy. The remedy there was to ask the port what it has rather than
+-- remember. Same remedy here.
+--
+-- A precision absent from this table is one the arithmetic cannot read. A
+-- precision present but whose kernel is missing from M.names is also
+-- unreadable, and is worked out rather than restated -- so deleting a kernel
+-- withdraws the claim automatically.
+M.READ_BY = {
+  f32 = "matrix_vector_plain",
+  q40 = "matrix_vector_quantised",
+}
+-- }}}
+
+-- {{{ M.reads(precision)
+-- Whether the arithmetic can read weights stored this way. Derived from the
+-- kernel list rather than asserted, for the reason above.
+function M.reads(precision)
+  local kernel = M.READ_BY[precision]
+  if not kernel then return false end
+  for _, name in ipairs(M.names) do
+    if name == kernel then return true end
+  end
+  return false
+end
+-- }}}
+
 -- {{{ M.source(arch)
 -- Everything for one architecture, in one assembler file.
 function M.source(arch, specification)

@@ -55,6 +55,26 @@ machine — which it did, reporting a thought of zero beside a strategy that wou
 have worked. It now takes that figure and the caller passes what the strategy
 chose.
 
+## What the engine can read is asked, not remembered
+
+`046` plans in whatever precision it is told, and the format (`024`) describes
+more precisions than the arithmetic implements — so the report says on the same
+line as its numbers when it is costing a currency the engine will not accept.
+
+**That claim used to be a literal list here, and it went stale.** It said f32 and
+nothing else, which was true when written and was still on the page long after
+the quantised kernel landed on all three architectures — so every weight figure
+in the report carried a warning that it was seven times too small, while the
+engine was reading those weights correctly. Fixed on 2026-08-08 by asking
+`043-emit-kernels` instead, through `reads(precision)`, which resolves a
+precision to the kernel that reads it and confirms that kernel is actually in
+the emitted list. Deleting a kernel now withdraws the claim by itself.
+
+This is the same defect `401` paid for and named — a hand-kept table of what
+exists, and a check that agreed with it because both were reading the same stale
+copy. It is worth expecting in any file that describes another file's
+capabilities.
+
 ## Checks in `046`
 
 The cache is linear in thought length, so nothing is counted per layer that
@@ -66,6 +86,10 @@ never selects a slower rung. And the compact storage format is genuinely
 smaller than the plain one, or there is no reason to carry its complication
 into the inner loop.
 
-## Result on 2026-08-02
+## Result on 2026-08-08
 
-6 of 6.
+9 of 9. It read 6 of 6 here from 2026-08-02 until checks were added without
+anyone coming back to this line — the same drift that put a stale claim about
+the engine's precisions in the report itself. A dated record of a run is fine to
+write down; a live claim about what another file can do is not, and should be
+asked for instead.
