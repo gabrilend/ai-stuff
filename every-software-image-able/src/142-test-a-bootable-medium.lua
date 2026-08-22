@@ -239,6 +239,64 @@ else
 end
 -- }}}
 
+-- {{{ the whole way through, from a recipe to a machine that thinks
+-- The front door, run the way somebody would run it. Everything before this
+-- checks a piece; this checks that the pieces meet -- which is the check that
+-- was missing when the builder described an arrangement nothing read and the
+-- machine lived inside a test.
+local fixture = DIR .. "/tmp/shared-memory/fixture/fixture-model.blob"
+local have_fixture = io.open(fixture, "rb")
+if have_fixture then have_fixture:close() end
+
+if not have_fixture then
+  unable("a recipe and a board become an image",
+         "the fixture model has not been made; run src/036-make-fixture.lua")
+else
+  local image_at = DIR .. "/tmp/shared-memory/images/end-to-end.img"
+  local made_it = run_one("luajit " .. DIR .. "/src/145-make-an-image.lua"
+    .. " --board qemu-uefi-x86-64 --to " .. image_at
+    .. " --dir " .. DIR .. " >/dev/null 2>&1")
+  check("a recipe and a board become an image", made_it)
+
+  if made_it then
+    local manifest = io.open(image_at .. ".manifest", "r")
+    local said = manifest and manifest:read("*a") or ""
+    if manifest then manifest:close() end
+    check("and it says what went into it",
+          said:find("at: model") ~= nil and said:find("at: waking") ~= nil,
+          said:sub(1, 120))
+    check("and where the offsets are measured from",
+          said:find("offsets%-measured%-from: the%-code") ~= nil)
+
+    if have("sgdisk") then
+      local told = output_of("sgdisk -v " .. image_at .. " 2>&1") or ""
+      check("and it is a medium a partition tool finds no fault with",
+            told:find("No problems found") ~= nil, told:sub(1, 160))
+    else
+      unable("and it is a medium a partition tool finds no fault with",
+             "sgdisk is not installed")
+    end
+
+    if QUICK then
+      say("  (the machine was not booted; --quick)")
+    else
+      local serial = DIR .. "/tmp/shared-memory/logs/qemu-uefi-x86-64-serial.log"
+      run_one("rm -f " .. serial)
+      run_one("luajit " .. DIR .. "/src/018-launch-board.lua qemu-uefi-x86-64"
+        .. " --medium " .. image_at .. " --memory plenty --seconds 120"
+        .. " --dir " .. DIR .. " >/dev/null 2>&1")
+      local log = io.open(serial, "r")
+      local spoke = log and log:read("*a") or ""
+      if log then log:close() end
+      check("and a machine built that way thinks and says words",
+            spoke:find("first light", 1, true) ~= nil
+            and spoke:find("finished", 1, true) ~= nil,
+            "the machine said nothing this program would recognise")
+    end
+  end
+end
+-- }}}
+
 say("")
 say("  " .. string.rep("-", 58))
 say("  " .. passed .. " of " .. (passed + failed) .. " as expected"
