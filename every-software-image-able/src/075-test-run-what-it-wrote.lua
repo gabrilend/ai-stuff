@@ -101,18 +101,18 @@ local memory = touch.new({
   read = read, write = write,
 })
 
--- the machine-wide magnitude, and the room programs go in
-local MAGNITUDE = BASE + 0x200
+-- where a program's loop count is kept, and the room programs go in
+local LOOP_COUNT = BASE + 0x200
 local PROGRAMS = BASE + 0x1000
 -- }}}
 
 -- {{{ how this machine transfers control
 -- A stepped call rather than a plain one. The written program is not called
--- directly -- it is called, and between its loop iterations the magnitude is
+-- directly -- it is called, and between its loop iterations the loop count is
 -- looked at, which is the whole escape.
 --
 -- On this host that means running it in short bursts: the emission the
--- assembler inserted increments the magnitude, and a small watcher
+-- assembler inserted increments the loop count, and a small watcher
 -- instruction sequence is what actually stops it. Here the watching is done
 -- by patching the program's own emission target, which stands in for the
 -- interrupt this machine does not have.
@@ -122,15 +122,15 @@ local function transfer(at, arguments, runner)
   local first = arguments[1] or 0
   local second = arguments[2] or 0
 
-  -- The escape: the emission writes the magnitude, and the program is only
-  -- allowed to run while it stays near ordinary. A processor with an
+  -- The escape: the emission adds to the loop count, and the program is only
+  -- allowed to run while the count is under its allowance. A processor with an
   -- interrupt would check between instructions; here the emission itself is
   -- made to stop the program, by having the assembler count up to a value
   -- the program's own loop condition cannot pass.
   --
   -- Rather than pretend to interrupt, the count is checked afterwards: a
-  -- program that ran away is one whose magnitude crossed the threshold, and
-  -- crossing it is what the stopping would have acted on. What this cannot
+  -- program that ran away is one whose loop count passed its allowance, and
+  -- passing it is what the stopping would have acted on. What this cannot
   -- show on a host is the taking of control itself, which needs the bare
   -- machine -- and that is said in the summary rather than glossed.
   local callable = ffi.cast("written_program", ffi.cast("void *", at))
@@ -146,15 +146,15 @@ local runner = runner_module.new({
   memory = memory,
   somewhere = PROGRAMS,
   room = SIZE - 0x1000,
-  magnitude_at = MAGNITUDE,
+  count_at = LOOP_COUNT,
   run = transfer,
-  threshold = 15,
+  allowance = 40,
 })
 -- }}}
 
 -- {{{ something small and verifiable, end to end
 -- A function that adds two numbers, before anything depends on this working.
-local adder = assembler.new({ emit_at = MAGNITUDE })
+local adder = assembler.new({ count_at = LOOP_COUNT })
 adder:instruct("move", "a", "di")       -- the first argument
 adder:instruct("add", "a", "si")        -- plus the second
 adder:instruct("return")
@@ -177,7 +177,7 @@ check("a program with no loop is watched nowhere",
 -- {{{ a loop that ends
 -- Counts down from a number and returns zero. A real loop, so a real
 -- back-edge, so a real emission -- and it must still return.
-local counter = assembler.new({ emit_at = MAGNITUDE })
+local counter = assembler.new({ count_at = LOOP_COUNT })
 counter:instruct("move", "a", "di")
 counter:label("again")
 counter:instruct("add_number", "a", -1)
@@ -195,20 +195,40 @@ local counter_at = runner_module.place(runner, "count down", counter_bytes,
                                        "a loop that ends")
 local counted, count_trouble, how = runner_module.call(runner, counter_at, { 5 })
 check("a loop that ends still ends", counted == 0, count_trouble)
-check("and the magnitude moved while it ran, by one per turn",
-      how ~= nil and how.magnitude == runner_module.ORDINARY + 5,
-      how and tostring(how.magnitude))
+check("and the count moved while it ran, by one per turn",
+      how ~= nil and how.spent == 5, how and tostring(how.spent))
+
+-- The defect this replaced: the count used to be the machine-wide status
+-- magnitude, with fifty as ordinary and a stop at fifteen away -- so any
+-- loop of fifteen or more turns was a runaway. Nothing caught it because
+-- every loop in this file counted down from five. This one does not.
+local long = assembler.new({ count_at = LOOP_COUNT })
+long:instruct("move", "a", "di")
+long:label("round")
+long:instruct("add_number", "a", -1)
+long:instruct("compare_number", "a", 0)
+long:jump("if_greater", "round")
+long:instruct("return")
+local long_bytes = assembler.assemble(long)
+local long_at = runner_module.place(runner, "count down from thirty",
+                                    long_bytes, "a loop that is merely long")
+local long_result, long_trouble, long_how =
+  runner_module.call(runner, long_at, { 30 })
+check("a loop that is merely long is not a runaway",
+      long_result == 0, long_trouble)
+check("and it is allowed to spend more than the old bound ever permitted",
+      long_how ~= nil and long_how.spent == 30, long_how and tostring(long_how.spent))
 -- }}}
 
 -- {{{ the one that matters: a loop that does not end
--- The magnitude crosses the threshold, and that crossing is what a machine
+-- The count passes the allowance, and that passing is what a machine
 -- with somewhere to take control back to would act on.
 -- Bounded rather than truly endless, because a host cannot be rescued from
 -- a genuine infinite loop and a test that hangs proves nothing. The bound is
--- far past the threshold, so the magnitude crosses long before the loop's
+-- far past the allowance, so the count passes it long before the loop's
 -- own condition would end it -- which is exactly the situation the escape
 -- exists for.
-local runaway = assembler.new({ emit_at = MAGNITUDE })
+local runaway = assembler.new({ count_at = LOOP_COUNT })
 runaway:instruct("set", "a", 0)
 runaway:label("forever")
 runaway:instruct("add_number", "a", 1)
@@ -222,13 +242,14 @@ local runaway_at = runner_module.place(runner, "far too long", runaway_bytes,
 local ran, why = runner_module.call(runner, runaway_at, {})
 check("a program that runs away is caught",
       ran == nil and why:find("did not come back") ~= nil, why)
-check("and the machine says how far from ordinary it got",
-      why ~= nil and why:find("from ordinary") ~= nil, why)
+check("and the machine says how much it spent and what it was allowed",
+      why ~= nil and why:find("went round") ~= nil
+      and why:find("it was allowed") ~= nil, why)
 check("and counts that it had to stop one", runner.stopped == 1)
 -- }}}
 
 -- {{{ what escapes the emission, and is said rather than hidden
-local unwatched = assembler.new({})       -- no magnitude to write to
+local unwatched = assembler.new({})       -- no count to write to
 unwatched:instruct("set", "a", 1)
 unwatched:label("spin")
 unwatched:jump("always", "spin")

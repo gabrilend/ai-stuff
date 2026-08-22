@@ -15,9 +15,24 @@
 -- is the first thing the machine builds that outlives the thought that made
 -- it (docs/006 on what a machine writes down).
 --
--- THE ESCAPE, AND ITS HOLES. Every loop this assembler built reports, so a
--- loop that will not end pushes the magnitude past a threshold and is
--- stopped. What escapes it: code that did not come through our assembler,
+-- THE ESCAPE, AND ITS HOLES. Every loop this assembler built spends from an
+-- allowance, so a loop that will not end runs out of allowance and is
+-- stopped.
+--
+-- CORRECTED 2026-08-21, AND IT WAS A REAL DEFECT. The spending used to be
+-- done against the machine-wide status magnitude -- fifty as ordinary, stop
+-- at fifteen away -- which meant ANY LOOP OF FIFTEEN OR MORE ITERATIONS was
+-- declared a runaway. Copying a hundred bytes. Summing twenty numbers.
+-- Clearing a page, several hundred times over. The test suite missed it
+-- because its loops count down from five.
+--
+-- The cause was two instruments welded into one. The two digits on the lamps
+-- are POST codes -- breadcrumbs saying WHERE a program got to, in a
+-- vocabulary that program owns, last writer wins (079, docs/006). They are
+-- not a measurement and nothing accumulates in them. What stops a runaway is
+-- a plain count with a large allowance, and it is PER PROGRAM, because
+-- anything worth running is worth running on more than one thread and two
+-- threads looping at once would both push a number neither of them owns. What escapes it: code that did not come through our assembler,
 -- and a loop built out of something the assembler does not recognise as a
 -- back-edge. For those, an instruction budget stepped one at a time is the
 -- slow fallback -- it cannot be escaped, and it is worth having even if it
@@ -26,12 +41,16 @@
 
 local M = {}
 
--- {{{ M.ORDINARY -- where the magnitude sits when nothing is happening
+-- {{{ M.ALLOWANCE -- how many times a loop may go round before somebody looks
 --
--- Fifty, from docs/006, and the same number for every program on the machine
--- rather than a private count each one keeps -- so the picture is comparable
--- across everything running at once.
-M.ORDINARY = 50
+-- A million. Not a tuned number -- an obviously-generous one, chosen so that
+-- no correct program meets it by accident, since the whole failure this
+-- replaced was a bound so tight that correct programs met it immediately.
+--
+-- It is spent per program and starts at zero for every run, so it is a
+-- private count rather than a shared dial. Programs that legitimately need
+-- more say so when they are run.
+M.ALLOWANCE = 1000000
 -- }}}
 
 -- {{{ M.new(options)
@@ -40,13 +59,13 @@ M.ORDINARY = 50
 --   memory       a memory (071), for placing and for the magnitude
 --   somewhere    an address in usable memory that is not ours, with room
 --   room         how many bytes are free there
---   magnitude_at an address holding the machine-wide magnitude
+--   count_at     an address holding this program's loop count
 --   run          function(address, arguments) -> value; how this machine
 --                actually transfers control
 --   stop         function() -> nil; how it takes control back, or nil where
 --                nothing can. Absent means a runaway is fatal, which is
 --                said out loud rather than hoped about.
---   threshold    how far from ordinary is far enough (default fifteen)
+--   allowance    how many turns of a loop are enough (default a million)
 function M.new(options)
   return {
     memory = options.memory,
@@ -58,10 +77,10 @@ function M.new(options)
       .. "/src/071-touch-memory.lua"),
     somewhere = options.somewhere,
     room = options.room,
-    magnitude_at = options.magnitude_at,
+    count_at = options.count_at,
     run = options.run,
     stop = options.stop,
-    threshold = options.threshold or 15,
+    allowance = options.allowance or M.ALLOWANCE,
     placed = {},        -- everything ever placed, with its text
     used = 0,
     runs = 0,
@@ -123,24 +142,24 @@ function M.call(runner, at, arguments)
     return nil, "this machine has no way to transfer control to what it wrote"
   end
 
-  -- the magnitude starts ordinary, so what the run does to it is the run's
-  -- own record rather than the previous one's.
-  runner.memory.write(runner.magnitude_at, 8, M.ORDINARY)
+  -- the count starts at zero, so what the run spends is the run's own record
+  -- rather than the previous one's.
+  runner.memory.write(runner.count_at, 8, 0)
   runner.runs = runner.runs + 1
 
   local value, trouble = runner.run(at, arguments or {}, runner)
 
-  local reached = runner.memory.read(runner.magnitude_at, 8)
-  local distance = math.abs(reached - M.ORDINARY)
+  local spent = runner.memory.read(runner.count_at, 8)
 
   if trouble == "ran away" then
     runner.stopped = runner.stopped + 1
-    return nil, "it did not come back. The magnitude reached " .. reached
-      .. ", which is " .. distance .. " from ordinary, and control was taken."
+    return nil, "it did not come back. Its loops went round " .. spent
+      .. " times, which is past the " .. runner.allowance
+      .. " it was allowed, and control was taken."
   end
   if trouble then return nil, trouble end
 
-  return value, nil, { magnitude = reached, distance = distance }
+  return value, nil, { spent = spent, allowance = runner.allowance }
 end
 -- }}}
 
@@ -149,8 +168,8 @@ end
 -- still worth waiting for. Exposed because the answer belongs to the runner
 -- and the asking belongs to whatever transfers control.
 function M.watch(runner)
-  local reached = runner.memory.read(runner.magnitude_at, 8)
-  return math.abs(reached - M.ORDINARY) < runner.threshold, reached
+  local spent = runner.memory.read(runner.count_at, 8)
+  return spent < runner.allowance, spent
 end
 -- }}}
 
@@ -165,7 +184,7 @@ function M.offer(catalogue, hands, runner, assembler)
     note = "turns written assembly into instructions and puts them somewhere",
     does = function(arguments)
       local name, text = arguments[1], arguments[2]
-      local program = assembler.new({ emit_at = runner.magnitude_at })
+      local program = assembler.new({ count_at = runner.count_at })
 
       -- The text is read line by line, one instruction each, because a
       -- machine writing assembly writes lines. A line it cannot read is a
