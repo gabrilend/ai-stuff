@@ -324,6 +324,11 @@ end
 -- writes the machine's words to the same place. Together they overwrite each
 -- other and neither is readable. The screen wins, because the person asked to
 -- watch, and the words go to the log file where they are never lost.
+local function attached_to_a_terminal()
+  local ok, _, code = os.execute("test -t 1")
+  return ok == true or ok == 0 or code == 0
+end
+
 local function resolve_watch(options)
   if not options.watch then return nil, nil end
 
@@ -338,6 +343,22 @@ local function resolve_watch(options)
       note = "note: --watch found no display server, so the machine's screen "
           .. "is drawn in this terminal instead of a window"
     end
+  end
+
+  -- A window in a tiling window manager is whatever size the tile is, and a
+  -- guest screen that ignores that is a small picture in the corner of a large
+  -- window. Scaling to the window makes the emulated machine behave like a
+  -- monitor somebody plugged in: it fills whatever it was given.
+  if backend == "gtk" then backend = "gtk,zoom-to-fit=on" end
+
+  -- The in-terminal rendering needs a real terminal to draw on. Without one
+  -- the emulator refuses with four words about terminal output and stops, which
+  -- reads like the machine failing rather than the option being wrong. Say
+  -- which it is.
+  if backend == "curses" and not attached_to_a_terminal() then
+    die("--watch curses draws the machine's screen on a terminal, and this "
+        .. "output is not one (redirected, or piped). Use --watch gtk for a "
+        .. "window, or drop --watch and read the serial log")
   end
 
   if backend == "curses" and options.stdio then

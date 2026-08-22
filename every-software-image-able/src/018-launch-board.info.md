@@ -44,6 +44,13 @@ luajit src/018-launch-board.lua <board> [options]
   asked for, and the words go to the log file where they are never lost.
 - `--watch` followed by a word that is not a backend is refused rather than
   guessed at, so `--watch vga` does not quietly become a window.
+- **`--watch curses` refuses when output is redirected or piped**, because the
+  emulator's own refusal is four words about terminal output and reads like the
+  machine failing rather than the option being wrong.
+- **A window scales to its window.** `--watch gtk` asks the emulator to fit the
+  guest's screen to whatever size the window ends up, so under a tiling window
+  manager the emulated machine fills its tile the way a monitor fills itself,
+  rather than sitting small in a corner.
 - A `--seconds` run that uses its whole allotment reports "ran its full Ns" —
   the machine surviving, not failing. Exit code 124 is that, not an error.
 - `-no-reboot` is always passed: a triple-faulting x86 payload would
