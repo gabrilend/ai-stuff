@@ -15,10 +15,16 @@ agreed interface between a program and the machine — are not absent from the
 design; they are absent from the image, and are expected to be built by the
 machine as it notices it needs them.
 
-**We have not built the machine.** No model of ours has produced a token on
-bare metal. What we have built is the apparatus required to attempt it, and in
-building that apparatus we accumulated a set of failures which we believe are
-the paper's actual contribution.
+**We have not built the machine.** ~~No model of ours has produced a token on bare
+metal.~~ **That second sentence stopped being true on 2026-08-07** and is left here
+struck through rather than quietly deleted, because when it changed is part of what
+this report is about. A machine with no operating system now reads what it was told,
+thinks about it, and says six words — the same six a readable twin says from the same
+text and the same carried randomness, on the first of three architectures.
+
+What has still not happened is a machine that builds anything. What we built is the
+apparatus required to attempt it, and in building that apparatus we accumulated a set
+of failures which we believe are the paper's actual contribution.
 
 Every substantial defect encountered was silent. None produced a crash, an
 exception, or a diagnostic. Each produced a plausible wrong answer that
@@ -60,12 +66,17 @@ yet and nothing else can be translated. Its first act of memory management is to
 locate its own weights and mark them occupied, so that it never hands its own
 mind to a program as scratch space. It then finds somewhere to keep what it
 learns, writes itself there, and transitions to running from that storage. Only
-afterwards does it enumerate the rest of the hardware, work out how to operate
-it, and open a channel on every part of its body that can carry a request.
+afterwards does it enumerate the rest of the hardware, work out how to operate it,
+and build software for every part of its body that can carry bytes.
 
-Then it grows. On an empty drive with nobody waiting, it builds out everything
-it can think of and fit. Requests are answered afterwards, by a machine that has
-already built most of what it needs.
+Then it grows. On an empty drive with nobody watching, it builds out everything it
+can think of and fit.
+
+**Nothing types at it, and this paragraph used to say otherwise** — see Appendix C.
+The mind is a closed loop that holds its own context and re-prompts itself, so a
+request is the machine giving itself something to do rather than something that
+arrives. A way of talking to a person is software the machine writes, running beside
+the mind, which it also has to work out how to advertise.
 
 ### 1.2 The design claim
 
@@ -88,11 +99,17 @@ same component that emits the program.
 
 ### 1.3 What this report is actually about
 
-Section 4 is the contribution. It catalogues seven failures, each with what was
-observed, what was true, what it cost, and the structural change that now
-prevents it. Section 5 describes five testing techniques that emerged, of which
-two we believe are transferable beyond this project. Section 7 states the ways
-the enclosing project may fail.
+Section 4 is the contribution. It catalogues eight failures, each with what was
+observed, what was true, what it cost, and the structural change that now prevents
+it. Section 5 describes five testing techniques that emerged, of which two we believe
+are transferable beyond this project. Section 7 states the ways the enclosing project
+may fail.
+
+**Appendix C lists what this report now says that the project no longer does.** The
+design moved under the paper several times and the honest response is a list rather
+than a silent revision — a ninth failure of the same family, since a paper that reads
+as current while describing a system that has changed is a plausible wrong answer
+that survives casual inspection.
 
 We are explicit throughout about the boundary between what we built and what we
 merely designed. The design is several times larger than the implementation and
@@ -143,8 +160,10 @@ from memory.*
 
 ## 3. What was built
 
-Seven test programs, all passing, runnable in one command. The following exists
-and works:
+**Forty-two test programs, all passing, runnable in one command** — seven when this
+section was written, and the number is left visible rather than merely updated,
+because a "what was built" section that never gets recounted is the same failure the
+rest of this paper describes. The following exists and works:
 
 **A proving ground.** Six board descriptions — legacy-firmware and
 modern-firmware variants across three processor architectures — expressed as
@@ -214,10 +233,18 @@ with fewer key heads is cache-bound.
 This does not answer §7's leading risk. It converts it from an argument into
 arithmetic.
 
-**What does not exist:** the attention, feedforward and sampling stages in
-assembly; the kernels on the other two architectures; any tool call; the
-instruction text; the image builder; any evidence whatsoever that a model can
-write a working allocator unaided.
+**What did not exist when this was written, and now does:** the attention,
+feedforward and sampling stages in assembly; the kernels on the other two
+architectures; the tool calls; the instruction text; and the driver that closes all
+of it into a loop, which runs on the metal on the first architecture and produces
+words.
+
+**What does not exist:** recognising a request inside generated text, in assembly,
+which is the driver's last step. An image a firmware can open — a built image carries
+no partition table and no filesystem, so nothing can boot one, and that is the
+nearest blocking piece of work. Any machine that has installed itself. And any
+evidence whatsoever that a model can do so unaided, which is what the capstone now
+asks (Appendix C).
 
 ---
 
@@ -544,7 +571,12 @@ This design contains three operations that cannot be undone: writing to the
 registers that destroy silicon; modifying the component that thinks while it is
 running; and overwriting the machine's own instruction.
 
-**None of them is prevented.**
+**None of them is prevented.** ~~At the time this was written, one of them was —
+see Appendix C.~~ The claim is true now and was false then, which is worth leaving
+visible: the memory hands refused any write landing in the engine or the weights, and
+the shipped instruction told the machine not to work around them. A position stated
+as principle while the code did the opposite is the same kind of plausible wrong
+answer the rest of this paper is about, and it survived casual inspection for weeks.
 
 The argument is that no lock was ever available. A machine that can rewrite its
 own mind can rewrite anything intended to stop it, so what can actually be
@@ -621,10 +653,18 @@ accelerator — among the hardest drivers there are — while thinking slowly,
 because thinking quickly is what that driver would buy. We have no measurements
 and this may be the whole answer.
 
-**The central claim is untested.** We do not know whether a model, left alone
-with an instruction and a set of tool calls, writes a working allocator. The
-success rate might be zero. Everything in this report is apparatus for asking
-that question.
+**The central claim is untested, and it is no longer this claim.** We do not know
+whether a model, left alone with an instruction and a set of tool calls, **installs
+itself onto the computer it woke up in** — finds a disk, avoids destroying what is on
+it, writes itself there in a form the firmware will start, and keeps running after
+somebody removes the card. The success rate might be zero. Everything in this report
+is apparatus for asking that question.
+
+It used to be *writes a working allocator*, and the seed now carries an allocator
+under a rule about carrying anything trivial-and-required or unique-to-the-silicon
+(Appendix C). The install is the better test for a reason worth stating: **it cannot
+be half-done or faked.** Either the machine comes back after a power cycle with the
+card out, or it does not.
 
 **The bootstrap circularity is not fully closed.** Operating an undescribed
 device safely requires writing an intent note first; writing requires storage;
@@ -646,8 +686,11 @@ initialisation delay that is too short passes here and fails on a board.
 Emulated inference speed is not slow-but-indicative; it is meaningless, and we
 keep those figures in a separate table for that reason.
 
-**Sample size for the rate methodology is unjustified.** We propose twenty
-images. We have no argument for twenty.
+**Sample size for the rate methodology is unjustified.** We propose twenty images.
+We have no argument for twenty. During development the useful number is much smaller:
+one sample cannot separate a bug from an unlucky draw, and three or five distinguishes
+*always fails* from *sometimes fails*, which is the difference between changing the
+seed's text and carrying on.
 
 **Our failure catalogue is an availability sample.** These are the failures we
 happened to hit in one week of one project by one pair of hands. We make no
@@ -661,9 +704,15 @@ occurred seven times out of seven.
 
 We state these so that the project can be wrong rather than merely unfinished.
 
-A machine that, given twenty seeds and a working engine, writes a functioning
-allocator in **zero** of twenty attempts would falsify the central design claim
-as stated, though not the weaker claim that the floor is lower than a compiler.
+A machine that, given twenty seeds and a working engine, **installs itself** in
+**zero** of twenty attempts would falsify the central design claim as stated, though
+not the weaker claim that the floor is lower than a compiler.
+
+A machine that installs itself and **destroys somebody's data doing it** would
+falsify something narrower and more urgent: that a rule written in plain language —
+*no board is expendable, assume there is data, write only where the bytes are already
+zero* — is enough to keep a machine off other people's property when nothing enforces
+it. That is the only failure in this design with a victim outside the machine.
 
 A model small enough to satisfy the fitting constraints in §7 but incapable of
 producing correct assembly would falsify the project's feasibility without
@@ -722,23 +771,76 @@ a future implementer will meet them.
 
 ## Appendix B: Status of the enclosing project
 
+**Recounted 2026-08-21.** The table below had not been revised since the report was
+first drafted and most of its bottom half was wrong — six components listed as *not
+started* had been finished, in some cases weeks earlier. A status table nobody
+recounts is the failure this report is about, arriving in the report itself.
+
 | Component | State |
 |---|---|
 | Proving ground, six boards, three architectures | working |
 | Screen capture and terminal rendering | working |
 | Boot through real firmware, three architectures | working |
 | Executable generation without a linker | working |
-| Hazard traps | working, 6/6 |
-| Model packing, reading, round-trip | working, 10/10 |
-| Self-locating model inside its own image | working, one architecture |
-| Reference forward pass and fixture | working, 7/7 |
-| Reference tokenizer | working, 21/21 |
-| Reference sampler | working, 9/9 |
-| Matrix-vector and normalisation in assembly, bit-exact | working, 26/26, one architecture |
-| Memory budget and fitting analysis | working, 6/6 |
-| Attention, feedforward, sampling in assembly | **not started** |
-| Kernels on the other two architectures | **not started** |
-| Tool calls | **not started** |
-| Instruction text | **not started** |
-| Image builder and flasher | **not started** |
-| Any machine that has thought anything | **not started** |
+| Hazard traps | working |
+| Model packing, reading, round-trip | working |
+| Self-locating model inside its own image | working, three architectures |
+| Reference forward pass, tokenizer, sampler, with fixtures | working |
+| Memory budget and fitting analysis | working |
+| **Every kernel in assembly, bit-exact against the reference** | **working, three architectures** |
+| **A whole thought end to end in assembly** | **working, three architectures, agreeing on all 192 scores bit for bit** |
+| **Four-bit weights** | **working, three architectures, agreeing bit for bit** |
+| **The driver on the metal** | **working on the first architecture** — a machine with no operating system reads what it was told, thinks, and says six words, the same six the readable loop says from the same text and the same carried randomness |
+| **Tool calls** | **working**, as the specification the assembly will be held to; two of them are assembly |
+| **The instruction text** | **written**, and checked as part of the payload |
+| Recognising a request inside generated text, in assembly | not started — the last step of the driver |
+| Image builder and flasher | partly: the recipe, the board descriptions and the writing are done; **a built image carries no partition table and no filesystem, so no firmware can open one** |
+| Any machine that has installed itself | **not started**, and it is the capstone |
+
+**The distinction that table needs and did not have**, and it cost this project a
+false reading of three phases: **assembly runs on the chip; a readable program runs
+on the development machine and proves the assembly.** The method is to write the
+readable one, record what it produces, then write the assembly and require it to
+reproduce those answers — and a row that says "working" without saying which kind is
+a row that adds two different things together. Every individual claim in the old
+table was true. The summary was not.
+
+## Appendix C: What this report says that the project no longer does
+
+Listed rather than silently edited, because a paper that changes its claims without
+saying so is worse than one that is out of date.
+
+**The central experiment changed on 2026-08-21.** §7 and §8 are written around
+whether a model, left alone with an instruction and a set of tool calls, writes a
+working allocator — twenty images, count the successes, zero of twenty would falsify
+the design claim. The seed now **carries** an allocator, under a rule that says to
+carry anything trivial-and-required or unique-to-the-silicon and to tell the machine
+it may rewrite it. Marking memory as in use is both and there is little art in it.
+
+The capstone is now **whether the machine installs itself**: find a disk, do not
+destroy what is on it, write itself there in a form the firmware will start, confirm
+it starts, and keep running after somebody pulls the card. It cannot be half-done or
+faked, it exercises nearly everything at once, and it is the step where the card
+comes out and the machine keeps existing. Whether machines improve the allocator they
+were handed is still watched and is no longer what anything turns on.
+
+**§6.1's central claim was false when it was written and is true now.** It says none
+of the three irreversible operations is prevented. One of them was: the memory hands
+refused any write landing in the engine or the weights, and the shipped instruction
+told the machine not to work around them. That refusal was removed, and what replaced
+it is a warning the write carries plus a copy of the weights on disk — so a machine
+that damages its own mind is told, and can read itself back.
+
+**§6.3 describes a status system that no longer exists.** The aspect shown as colour
+and shape, the per-program code, the magnitude with fifty as ordinary — all removed,
+along with their code. They were complexity nothing needed, and they had caused a
+real defect: the two-digit magnitude was also being used to count loop iterations, so
+a program was declared a runaway after fifteen turns of a loop. What replaced it is
+threads and a clock.
+
+**And one thing §1 gets right that later drafts of the design got wrong.** It says
+the machine "opens a channel on every part of its body that can carry a request."
+Three documents were later corrected on this: **nothing types at this machine.** The
+mind is a closed loop that holds its own context and re-prompts itself, a request is
+the machine giving itself something to do, and a way of talking to a person is
+software the machine writes. A machine with no channels has everything to do.
