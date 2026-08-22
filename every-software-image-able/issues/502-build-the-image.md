@@ -65,6 +65,41 @@ model it carries, thought, and said six words.
 one, so the emulated road and the card road are the same road for the machine
 test as well as for this ticket's own.
 
+## Found 2026-08-22 — there are three layouts and the builder's is the unread one
+
+Asked why the builder is handed two thousand copies of a letter where an engine
+should be, and the answer turned out to be worse than "nobody wired it up".
+
+**Three arrangements of the same five things exist here.** `029` puts an appended
+blob a fixed distance past the code, and the machine finds it by measuring from
+where it stands. `140` divided that blob into model, text and randomness — inside
+a **test**, where nothing else could reach it. And this builder lays five regions
+down at block boundaries, in a different order, with different alignment.
+
+The first two are what boots. **Nothing has ever read the third.** It is correct
+and it describes a machine nobody built.
+
+**And the seam check compares two copies of a belief rather than a belief against
+a fact.** Its own comment says the expectations should be taken from the engine's
+own layout description "rather than written again here, because two copies of an
+agreement are two things that can drift" — and `090` writes them again anyway, by
+hand. That is why it has passed for months while describing an arrangement
+nothing implements.
+
+**First half done.** The real layout is written down once now, in `143`, and both
+the machine test and anything else can read it from there. Proved byte-identical
+the only way that means anything: a computer with no operating system boots, finds
+its own weights at those offsets, thinks, and says the same six words.
+
+**Second half not done, and it is a decision rather than a chore.** For this
+builder to produce something that runs, it has to lay out what the machine
+actually reads — the code, then the blob at `029`'s distance — and be wrapped in
+the executable envelope `029` makes. That envelope is a script rather than a
+library, so either it becomes one or this builder shells out to it. Either way
+the five-region layout goes, because it is a description of an arrangement
+nothing implements, and keeping a correct description of a machine nobody built
+is how this survived unnoticed.
+
 **What is still open in this ticket** is the older blocker: the engine's bytes
 arrive as a parameter and one caller supplies it, a test passing two thousand
 copies of the letter E. A firmware now opens the medium and runs the file inside

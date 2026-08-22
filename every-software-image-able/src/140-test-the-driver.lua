@@ -475,15 +475,13 @@ if not quick then
   pipe:close()
 
   -- {{{ what rides along, and where
-  local APPEND, append_at = {}, 0
-  local function append_reserve(name, bytes)
-    APPEND[name] = append_at
-    append_at = append_at + bytes
-    if append_at % 16 ~= 0 then append_at = append_at + (16 - append_at % 16) end
-  end
-  append_reserve("model", #blob)
-  append_reserve("text", #BOOT_TEXT)
-  append_reserve("randomness", #carried * 4)
+  -- MOVED OUT OF HERE 2026-08-22. This arrangement -- model, then text, then
+  -- randomness, each on sixteen bytes -- used to be worked out in this test and
+  -- nowhere else, which meant the layout the machine actually boots with lived
+  -- somewhere nothing but this test could reach. Meanwhile the image builder
+  -- laid down a different arrangement that nothing has ever read. It is in 143
+  -- now, and both read it from there.
+  local rides = dofile(DIR .. "/src/143-what-rides-inside.lua")
 
   local carried_bytes = {}
   for _, number in ipairs(carried) do
@@ -491,15 +489,14 @@ if not quick then
       number % 256, math.floor(number / 256) % 256,
       math.floor(number / 65536) % 256, math.floor(number / 16777216) % 256)
   end
-  local appended = {}
-  local function append_part(name, text)
-    appended[#appended + 1] = string.rep("\0", APPEND[name] - #table.concat(appended))
-    appended[#appended + 1] = text
-  end
-  append_part("model", blob)
-  append_part("text", BOOT_TEXT)
-  append_part("randomness", table.concat(carried_bytes))
-  local riding = table.concat(appended)
+
+  local riding_plan = rides.plan({
+    model = blob,
+    text = BOOT_TEXT,
+    randomness = table.concat(carried_bytes),
+  })
+  local APPEND = riding_plan.at
+  local riding = riding_plan.bytes
   -- }}}
 
   -- {{{ the work area, divided before a single instruction is emitted
