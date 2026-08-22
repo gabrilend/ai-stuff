@@ -62,17 +62,21 @@ local budget = dofile(DIR .. "/src/045-memory-budget.lua")
 local format = dofile(DIR .. "/src/024-blob-format.lua")
 
 -- WHAT THE ENGINE CAN ACTUALLY READ, which is not everything the format can
--- describe. The arithmetic reads plain thirty-two bit floats and nothing
--- else -- the other forms exist in the format and the engine has never
--- implemented them, because the unpacking step goes in the hottest loop in
--- the machine and that is assembly nobody has written three times yet
--- (`108`).
+-- describe. A tool that plans in a currency the engine does not accept should
+-- say so on the same line as the numbers rather than in another file, because
+-- every "fits" below is otherwise an answer to a question nobody asked.
 --
--- Stated here, beside the numbers, because a tool that plans in a currency
--- the engine does not accept should say so on the same line rather than in
--- another file. Every "fits" below is otherwise an answer to a question
--- nobody asked.
-local ENGINE_READS = { f32 = true }
+-- ASKED, NOT REMEMBERED. This used to be a literal list here saying f32 and
+-- nothing else. It was true when written, and it stayed on the page after the
+-- quantised kernel landed on all three architectures (`108`, and `125` proves
+-- it agrees to the last bit on real ARM and RISC-V machines) -- so this report
+-- spent time telling everyone that every weight figure in it was seven times
+-- too small, while the engine was reading those weights fine.
+--
+-- The remedy is 401's: ask the thing that knows. The kernels declare which
+-- precision each of them reads, and a claim is withdrawn automatically when
+-- its kernel goes away.
+local kernels = dofile(DIR .. "/src/043-emit-kernels.lua")
 
 -- Model shapes spanning the range that might plausibly be carried. None of
 -- these is chosen; they are reference points so the shape of the constraint is
@@ -104,15 +108,15 @@ say("  weights stored as " .. precision
     .. " (" .. budget.bytes_per_weight(precision, format)
     .. " bytes per number)")
 say("  the cache always in f32, because it is written and read every step")
-if not ENGINE_READS[precision] then
+if not kernels.reads(precision) then
   say("")
-  say("  NOTE: the engine cannot read " .. precision .. " yet. Every number")
-  say("  below is what a machine WOULD cost, not what one costs -- the")
-  say("  arithmetic reads f32 only, and at f32 these weights are "
+  say("  NOTE: the engine cannot read " .. precision .. ". Every number")
+  say("  below is what a machine WOULD cost, not what one costs -- and at")
+  say("  f32, which it does read, these weights are "
       .. string.format("%.1f", budget.bytes_per_weight("f32", format)
                        / budget.bytes_per_weight(precision, format))
-      .. " times")
-  say("  larger than shown. Closing that is 108.")
+      .. " times larger")
+  say("  than shown. The kernel that would read " .. precision .. " is not written.")
 end
 say("")
 
