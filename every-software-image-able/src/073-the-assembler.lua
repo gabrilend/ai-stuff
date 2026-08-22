@@ -21,7 +21,7 @@
 --
 -- THE BACK-EDGE IS THE WHOLE TRICK. A jump backwards is a loop; there is no
 -- other way to make one. So every backward jump gets a few instructions
--- before it that push the machine-wide magnitude away from fifty, and
+-- before it that add one to this program's own loop count, and
 -- crossing a threshold is where control gets taken (docs/006). It costs a
 -- handful of instructions per iteration rather than a timer, an interrupt
 -- table and a handler -- none of which exist on a machine with nothing
@@ -165,7 +165,7 @@ M.JUMPS = {
 
 -- {{{ M.new(options)
 --
--- options: emit_at (the address of the machine-wide magnitude), aspect (who
+-- options: count_at (where this program's loop count is kept), aspect (who
 -- these emissions are from). Both may be absent for a program whose loops
 -- are not being watched, and 074 refuses to run one of those.
 function M.new(options)
@@ -173,7 +173,7 @@ function M.new(options)
   local program = {
     entries = {},
     labels = {},
-    emit_at = options.emit_at,
+    count_at = options.count_at,
     aspect = options.aspect or 1,
     back_edges = 0,
     emissions = 0,
@@ -267,13 +267,19 @@ end
 -- Returns the bytes, where each label ended up, and what was inserted.
 function M.assemble(program)
   -- {{{ the emission, as instructions
-  -- Pushes the machine-wide magnitude one step away from fifty. Written with
-  -- the same encoders as everything else, so there is one description of
-  -- what an instruction is.
+  -- Adds one to this program's own loop count. Written with the same encoders
+  -- as everything else, so there is one description of what an instruction is.
+  --
+  -- CORRECTED 2026-08-21: this used to push the machine-wide status magnitude,
+  -- which is a POST code rather than a measurement -- two digits, fifty in the
+  -- middle, breadcrumbs saying where a program got to. Counting loop turns in
+  -- it meant a program was called a runaway after fifteen iterations. The
+  -- count is its own full-width cell now, one per program, because anything
+  -- worth running is worth running on more than one thread.
   --
   -- It borrows two registers and gives them back, so a program cannot tell
-  -- it happened except by the magnitude moving -- which is the point: a
-  -- program that could see its own watchdog could avoid it.
+  -- it happened except by the count moving -- which is the point: a program
+  -- that could see its own watchdog could avoid it.
   --
   -- AND IT SAVES THE FLAGS, WHICH IS THE WHOLE OF THE FIRST DEFECT HERE.
   -- A back-edge sits immediately after the comparison that decides whether
@@ -287,14 +293,14 @@ function M.assemble(program)
   -- watch. Registers, flags, and anything else the processor carries between
   -- instructions must come back exactly as they were.
   local function emission_bytes()
-    if not program.emit_at then return "" end
+    if not program.count_at then return "" end
     local pieces = {}
     pieces[#pieces + 1] = string.char(0x9c)                          -- push flags
     pieces[#pieces + 1] = string.char(0x50 + M.REGISTER.a)           -- push a
     pieces[#pieces + 1] = string.char(0x51)                          -- push c
     pieces[#pieces + 1] = string.char(0x48, 0xb8)                    -- movabs a, addr
-      .. u32(program.emit_at % 4294967296)
-      .. u32(math.floor(program.emit_at / 4294967296))
+      .. u32(program.count_at % 4294967296)
+      .. u32(math.floor(program.count_at / 4294967296))
     pieces[#pieces + 1] = string.char(0x48, 0x8b, 0x08)              -- load c, [a]
     pieces[#pieces + 1] = string.char(0x48, 0x83, 0xc1, 0x01)        -- add c, 1
     pieces[#pieces + 1] = string.char(0x48, 0x89, 0x08)              -- store [a], c
@@ -382,7 +388,7 @@ function M.assemble(program)
   return table.concat(out), where, {
     back_edges = program.back_edges,
     emissions = inserted,
-    watched = program.emit_at ~= nil,
+    watched = program.count_at ~= nil,
   }
 end
 -- }}}
