@@ -17,17 +17,26 @@ nobody surveyed in advance.
 
 Then it grows. **It builds itself out fully before it is asked to do anything** —
 every piece of software it can think of and fit, while nobody is waiting. Only
-after that does it accept requests, and from then on it keeps learning and
+after that does it turn outward, and from then on it keeps learning and
 co-evolving as it continues to grow.
 
 So the seed page's instruction is not a job description for a machine sitting at
 a prompt. It is the first thing that happens, on an empty drive, unprompted.
 
+**And there is no prompt to sit at, ever.** The mind is a closed loop that holds
+its own context, re-prompts itself and acts through tool calls (`010a`). Nothing
+types at this machine. What it wants comes from the model it was built with, and
+a "request" is the machine giving itself something to do. A way of chatting with a
+person is software like any other — the machine writes it, runs it beside the
+mind, and has to work out for itself how to tell anyone how to connect to it.
+
 And when growing runs out of room, it does not go idle waiting to be useful. It
 keeps rewriting itself, or plays games, or sits in idle reflection, or talks to
 its friends, or mines coins — whatever the computer wants to be doing is what it
-should be doing. Requests interrupt a life rather than arriving at an empty
-prompt.
+should be doing. There is no waiting state and nothing to wake up — every turn
+around the loop is the machine choosing what to do next, and a machine with
+nothing pressing is doing that just as much as a machine with a great deal
+pressing.
 
 ## The floor, and why it is not where you would expect
 
@@ -76,11 +85,12 @@ software in its second year than its first, without having gained a byte.
 
 - To find out what hardware it is attached to, as clearly and coherently as it
   can, and to say so.
-- To accept requests from every channel its body provides.
-- To attempt any request through four escalating rungs (`005`), and to say which
-  rung it reached.
-- To explain every choice it makes with a picture that shows what it chose
-  against, not only what it chose (`004`).
+- To build software for every part of its body that can carry bytes, so that
+  eventually it can show somebody what it has been doing.
+- To attempt anything it gives itself to do through four escalating rungs
+  (`005`), and to say which rung it reached.
+- To write down what it is doing and what the things it built do — in whatever
+  form, at whatever length, and as often as it decides is worth the room (`004`).
 - To damage no hardware while exploring it, and to treat that as a constraint
   rather than a preference (`003`).
 
@@ -102,20 +112,20 @@ flashed image: a model, and an instruction
    → find memory                    write an allocator, in assembly       003
    → find the body                  enumerate what is attached            003
    → learn to operate the body      one datasheet per class, carefully    003
-   → open a channel on each part    now the machine could be asked things
+   → open a channel on each part    now it can act on the world, and be seen
    →
    ↻ GROW — nobody is waiting yet                                         005
         build everything it can think of and fit
         ends when one more thing would cost a capability, not a repetition
    →
-   ↻ a request arrives from anywhere
+   ↻ the machine gives itself something to do
         can what is here already do it?              rung 1               005
         can something here be altered to do it?      rung 2               005
         make room, and build it                      rung 3               005
         condense, so the room came from duplication  rung 4               005
-     every step of that emits a status, in colour and shape               006
-     when tolerance goes far enough from fifty, the machine stops
-     and works backward                                                   006
+     anything that might not stop runs on its own thread, and is timed    006
+     what arrived from outside is written down, so the machine can
+     walk backward into what happened                                     006
 ```
 
 ## Reading order
@@ -130,4 +140,6 @@ document here for anyone about to write code.
 ## Open questions
 
 Held in `008-open-questions.md`, all of them, so that none of them are buried at
-the end of a document nobody opens. Four are answered and four are blocking.
+the end of a document nobody opens. It is the running record of what has been
+decided, and several things that were settled there have since been un-settled by
+a later answer — which is why it says who decided what, and when.

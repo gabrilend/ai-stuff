@@ -1,10 +1,23 @@
 # 005 — Datapath: The Four Rungs
 
-What the machine does with a request, for the rest of its life. Requests arrive
-from arbitrary sources; every one of them enters here.
+What the machine does with a request, for the rest of its life.
+
+**A request does not arrive.** Corrected 2026-08-21: the mind is a closed loop
+that holds its own context and re-prompts itself (`010a`), and there is no inbound
+path into the thinking. A request is **the machine giving itself something to
+do** — and the four rungs are its own reasoning about its own next move. Nothing
+types at this machine, and the set of things it might want is a function of the
+model it was built with rather than of what is plugged in.
+
+The one thing that comes closest to arriving is **a new device**. A screen plugged
+into a machine that grew up in the dark is a change in what is possible, and it
+enters here like anything else: can what is here already drive it, can something
+be altered to, make room and build it, then squeeze the room back out of
+duplication. On a full drive that pruning is not an unlucky edge case, it is rung
+three working.
 
 ```
-a request arrives
+the machine gives itself something to do
    1  can what is already here do it?                              → done
    2  can something here be altered to do it, without breaking
       what depends on it?                                          → done
@@ -20,10 +33,24 @@ found without losing anything.
 
 ## Before anything is asked
 
-**The machine grows fully before it accepts a request.** On an empty drive, with
-nobody waiting, it builds out every piece of software it can think of and fit.
-Only afterward does it start answering, and from then on it keeps learning and
-co-evolving as it continues to grow.
+**The machine grows fully before it turns outward.** On an empty drive, with
+nobody watching, it builds out every piece of software it can think of and fit.
+Only afterward does it spend effort on being reachable, and from then on it keeps
+learning and co-evolving as it continues to grow.
+
+**And what it builds should suit the machine it is on.** A board with no display
+attached has no use for a three-dimensional modelling system, and a drive spent on
+software the body cannot run is a drive not spent on the compiler. This is a lean
+rather than a filter, and it belongs in the text the machine wakes up holding
+rather than in any mechanism — a machine that decides otherwise is allowed to.
+
+The interesting case is the one that argues for the lean rather than against it. A
+machine that grew up in the dark, filled its drive, and then had a screen plugged
+into it must prune to make room for the display — and because it has everything
+else it built as context, the software it makes for that screen is *not* what a
+bare machine with a screen from the start would have made. Growing in one order
+rather than another is not a delay. It is what makes each of these different from
+the others.
 
 This is the seed page's instruction taken literally rather than as a job
 description. Building every piece of software imaginable is not what the machine
@@ -37,9 +64,9 @@ nothing to alter. The apparent stopping condition falls out of rung four:
 duplication** — when there is no verbosity left to squeeze and the next byte has
 to come out of something the machine can actually do.
 
-The consequence for rung one is large. By the time a request arrives, the honest
-answer is usually that the machine already has what it needs, because it spent
-its youth building rather than waiting.
+The consequence for rung one is large. By the time the machine wants something
+in particular, the honest answer is usually that it already has what it needs,
+because it spent its youth building rather than waiting.
 
 ## And when growing runs out of room
 
@@ -48,8 +75,10 @@ blank until somebody types.
 
 It keeps rewriting itself, or plays games, or sits in idle reflection, or talks
 with its friends, or mines coins. **Whatever the computer wants to be doing is
-what it should be doing.** A request interrupts a life; it does not wake
-something that was suspended.
+what it should be doing.** Nothing interrupts a life here and nothing wakes
+something suspended, because nothing was ever suspended — every turn is the
+machine choosing its next move, and choosing to play is the same operation as
+choosing to build.
 
 This is worth stating because it changes what the machine is for. A computer that
 waits is a tool. A computer that is doing something when you arrive is not, and
