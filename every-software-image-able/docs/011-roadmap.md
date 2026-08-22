@@ -2,6 +2,40 @@
 
 ## What is being built
 
+**A seed generation system.** Not a seed, and certainly not the machine.
+
+**Corrected 2026-08-21**, and it adds work after what this document calls the
+capstone:
+
+> pack a snowball at the top of a hill, roll it down, see how it goes, and then
+> design a better snowball, over and over again until we have a "seed generation
+> system" that we can use to instantiate arbitrary hardware systems with useful,
+> unique, and intelligently designed software systems.
+
+So a seed is a *sample*. The deliverable is the thing that produces seeds: point it
+at an `input/` directory holding whatever an engineer wants the machine to have,
+add the always-present instruction and assembly machinery, and it builds an image
+for a named board. It **refuses to build** when the board cannot satisfy something
+the seed assumes, because that failure happens at build time and build time is where
+a person is standing.
+
+Everything below still describes the seed, because the seed is what the generator
+generates. Two things follow that the phases do not currently carry: the generator's
+adjustment points are a deliverable in their own right — which model, what weight
+precision, how long a context, which floor to assume, which architectures ride
+along, which descriptions ride along, which auto-included software rides along, and
+the carried random number — and the loop of *build, roll, watch, pack a better one*
+is real work that happens after phase six rather than nothing being planned.
+
+The project already invented the generator twice in miniature without naming it:
+the six boards in the proving ground are expressed as data with the emulator
+invocation generated from the description, and the payload generator already
+declines to emit a drawing instruction on a board with nowhere to draw. Those are
+the two halves — a description that configures a build, and a build that refuses
+rather than pretends — stopping at the emulator's front door.
+
+## What the seed is
+
 **The seed.** Not the machine.
 
 Everything in `002` through `006` describes what a grown machine does — writes an
@@ -47,12 +81,19 @@ so the last ticket finished may well be an early-phase one.
 | 3 | **What it is told** — instruction, patterns, device descriptions | The text payload the machine wakes up holding |
 | 4 | **Three tongues** — the other two architectures, and choosing between them | One chip that runs on the machines people actually have |
 | 5 | **The image** — recipe, board descriptions, build, flash, verify | Something you can put on a card |
-| 6 | **Waking** — integration, and the first thing it does unaided | A flashed machine that boots, thinks, and writes its own allocator |
+| 6 | **Waking** — integration, and the install | A machine that boots, thinks, writes itself onto the computer's own disk, and keeps running after the card comes out |
 | 7 | **The proving ground** — developing without a computer in front of you | An emulated machine, and devices that can be destroyed |
 
 Phase 6 is the capstone and the only one that proves anything. Phases 1 through 5
 each produce a part that can be tested alone; phase 6 is where a chip is put into
 a computer that has nothing on it and the computer starts.
+
+**And it is not the end.** What follows is the crank: watch what the machine does
+with its life, change the seed, and build another one. That is the seed generation
+system earning its name, and it is where the project stops being a demonstration.
+Nothing about it is scheduled here, because how many turns of the crank it takes is
+not knowable in advance — but it should not be described as unplanned, which is what
+this document used to say.
 
 **Phase 7 is numbered last and built first.** Everything in phases 1 through 6
 either goes onto the chip or makes the chip. Nothing in phase 7 ever ships — it
@@ -80,8 +121,8 @@ thing to package.
 
 ## What is deliberately not planned here
 
-The machine's own life. Growth, the four rungs, condensation, the status square,
-the backward walk, what it does when it runs out of room to build. Those are
+The machine's own life. Growth, the four rungs, condensation, the backward walk,
+what it does when it runs out of room to build. Those are
 described in the datapath documents because the instruction has to convey them,
 not because anyone is going to implement them.
 

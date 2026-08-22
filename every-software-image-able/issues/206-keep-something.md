@@ -157,7 +157,17 @@ and so the intent notes of `205` have somewhere to land.
    machine exists in two places or neither is the one failure this design cannot
    help with, so it should be as short as the medium allows and its boundaries
    should be obvious in the code.
-5. Do not build a filesystem. The machine can build one if it wants one. What the
+5. Do not build a filesystem — and note what that leaves to the machine, which was
+   clarified 2026-08-21. **Installing itself so the card can come out is exactly the
+   case this defers**, not an exception to it. Firmware starts a machine by finding
+   a partition table, a filesystem it understands, and a file at one fixed name; the
+   machine writes those when it is ready to, using knowledge assumed of the model
+   the same way assembly encoding is assumed (`301`), and preferring a boot
+   partition that already exists over creating one, because a wrong partition table
+   loses every partition on the disk at once. Full shape in `docs/003`, under *who
+   writes the bootable installation*.
+
+   The original point stands unchanged: the machine can build one if it wants one. What the
    seed needs is blocks, an extent it owns, and the ability to find that extent
    again on the next boot.
 
