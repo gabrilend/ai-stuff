@@ -20,6 +20,12 @@
 #
 # Everything is asked rather than passed. Press enter to take the default shown
 # in brackets. Nothing here is used by any test; it exists to be watched.
+#
+# THE MACHINE HAS A DISK, AND KEEPS IT. One file per board, on the RAM tier,
+# reused every run unless you ask for a fresh one. That is the difference between
+# watching a program run and watching a machine live somewhere: without it every
+# boot is the machine's first, and the thing this project is actually about --
+# writing yourself somewhere and coming back to find it -- cannot happen at all.
 
 # {{{ DIR -- the project root, hard-coded, overridable by an argument
 DIR="/mnt/mtwo/programming/ai-stuff/every-software-image-able"
@@ -129,7 +135,9 @@ board=$(choose "which machine?" "${BOARDS[@]}")
 mapfile -t CHOICES < <(payloads_for "$board")
 payload=$(choose "what should it run?" "${CHOICES[@]}")
 
-arch=$(sed -n 's/^  arch = "\(.*\)",/\1/p' "${DIR}"/src/*-board-"${board}".lua | head -1)
+description="${DIR}"/src/*-board-"${board}".lua
+arch=$(sed -n 's/^  arch = "\(.*\)",/\1/p' $description | head -1)
+board_id=$(sed -n 's/^  board_id = "\(.*\)",/\1/p' $description | head -1)
 
 # The payload has to exist before a machine can be pointed at it, and building
 # it is quick. Built every time rather than cached: a stale binary that boots
@@ -152,6 +160,44 @@ if [ "$payload" != "none" ]; then
   fi
   payload_argument=(--payload "$built")
 fi
+
+# {{{ the disk, which is the whole point of keeping anything
+# One file per board, because two machines sharing a drive would each find the
+# other's work and neither would be reproducing anything. It lives on the RAM
+# tier with the rest of this project's working artifacts, which means it is fast
+# and it does not survive the host being switched off -- correct for something
+# you are watching, wrong for something you are keeping, and worth knowing which
+# of those you are doing.
+#
+# Sparse: the file claims its full size and occupies only the blocks something
+# has actually written, so an untouched disk costs nothing and a busy one costs
+# what it used.
+DISKS="${DIR}/tmp/shared-memory/disks"
+mkdir -p "$DISKS"
+disk="${DISKS}/${board_id}.img"
+disk_size="512M"
+
+echo ""
+if [ -f "$disk" ]; then
+  # plain du reports blocks ACTUALLY allocated, which for a sparse file is what
+  # the machine has written rather than what the file claims to be. That is the
+  # number worth showing: a disk nothing has touched reads zero.
+  used=$(du -h "$disk" | cut -f1)
+  echo "  this machine already has a disk, holding ${used} of written blocks."
+  fresh=$(ask "start it fresh instead? (y/N)" "n")
+  case "$fresh" in
+    y|Y|yes)
+      rm -f "$disk"
+      echo "  wiped. It will get a blank one."
+      ;;
+  esac
+fi
+
+if [ ! -f "$disk" ]; then
+  truncate -s "$disk_size" "$disk"
+  echo "  gave it a blank ${disk_size} disk: ${disk}"
+fi
+# }}}
 
 echo ""
 if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
@@ -207,12 +253,29 @@ echo "  stop it with ctrl-a then x, or ctrl-c."
 echo "  ------------------------------------------------------------"
 echo ""
 
+# {{{ afterwards() -- said however the machine stops
+# On an exit trap rather than after the launcher, because the usual way to stop
+# a machine you are watching is ctrl-c, and that kills this script too. Printed
+# from the trap, the summary survives being interrupted -- which is the case it
+# most needs to survive, since a machine you stopped on purpose is one you were
+# watching and want to go and look at.
+afterwards() {
+  local touched
+  touched=$(du -h "$disk" | cut -f1)
+  echo ""
+  echo "  the machine stopped."
+  echo "    what it said:   ${DIR}/tmp/shared-memory/logs/${board_id}-serial.log"
+  echo "    what it wrote:  ${disk}"
+  echo "                    ${touched} of blocks touched"
+  echo ""
+  echo "  the disk is still there. Run this again and the machine finds it."
+  echo ""
+}
+trap afterwards EXIT
+# }}}
+
 luajit "${DIR}/src/018-launch-board.lua" "$board" \
-  "${payload_argument[@]}" "${watch_argument[@]}" \
+  "${payload_argument[@]}" --disk "$disk" "${watch_argument[@]}" \
   "${serial_argument[@]}" "${gdb_argument[@]}" --dir "$DIR"
 
-echo ""
-echo "  the machine stopped. What it said is kept at:"
-echo "    ${DIR}/tmp/shared-memory/logs/"
-echo ""
 # }}}
