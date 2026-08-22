@@ -91,7 +91,25 @@ the machine test and anything else can read it from there. Proved byte-identical
 the only way that means anything: a computer with no operating system boots, finds
 its own weights at those offsets, thinks, and says the same six words.
 
-**Second half not done, and it is a decision rather than a chore.** For this
+**Second half done 2026-08-22, and the decision was the obvious one.** The
+executable envelope is a library now as well as a command, so nothing has to
+start a process to reach the one piece of the boot path that could only be
+reached that way. The builder lays out what the machine reads — code first, then
+everything it thinks with at the distance past the code that `029` owns — and
+its check derives the expectations from those same two descriptions rather than
+from numbers typed out a second time.
+
+The five-region arrangement is gone. Keeping a correct description of a machine
+nobody built is how this survived unnoticed.
+
+> the entire point of tests is that they test the system that we're using. They
+> don't run in a vacuum using their own code, they should use the system.
+
+Which is what the tests do now. `140` reads the layout from the description
+rather than working it out again; `090` derives what it expects from the same
+place. One dataflow, and everything on it is the thing that ships.
+
+**Superseded — kept for the reasoning.** What this said before it was done: For this
 builder to produce something that runs, it has to lay out what the machine
 actually reads — the code, then the blob at `029`'s distance — and be wrapped in
 the executable envelope `029` makes. That envelope is a script rather than a
