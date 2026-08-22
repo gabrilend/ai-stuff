@@ -195,12 +195,45 @@ Sorted by that rule:
 | the storage driver | a wrong answer, or a device that stops answering | the machine's |
 | what to think about next, and what to build | a bad conversation | the machine's |
 
+**The machine gets a storage driver on loan before it writes its own.** The last
+two rows were read as a circle -- the machine cannot write a storage driver until
+it can think, and cannot think until it has read regions off the medium. There is
+no circle. This program is entered *by the firmware*, as a program the firmware
+called, and the firmware's service table is still alive underneath it; `069`
+already reaches the display through it and nothing here ever leaves it.
+
+That same table offers a block reader: hand it a block number and a byte count,
+get those bytes in memory. It is a storage driver, already written, already
+debugged against the real controller on the real board. The loan covers exactly
+the window this ticket lives in -- read the regions through the firmware, think,
+write a real driver *with thinking available*, move to a disk, and only then take
+the firmware's one-way exit and stand alone. The rows above are unchanged: the
+driver the machine keeps is still the machine's to write, and for the reason
+stated. `docs/008` question 23.
+
 ## What it must do, in order
 
-1. **Work out where it is standing.** There is no linker and no loader, so it
-   cannot refer to anything by name. Every address it needs is computed from
-   the address of its own first instruction. This is the single most common
-   source of the silent failures above.
+1. **Work out where it is standing, and read the table of contents.** There is
+   no linker and no loader, so it cannot refer to anything by name. Every
+   address it needs is computed from the address of its own first instruction.
+   This is the single most common source of the silent failures above.
+
+   **Measuring from itself is correct while everything fits.** Firmware loads
+   the boot file whole before the first instruction runs, so regions riding
+   inside it are already in memory. That stops being enough when `045` chooses
+   a strategy keeping only part of the model resident -- "the hot parts in
+   memory, the rest read in place" -- and at that point step one also reads a
+   table of contents and fetches regions off the medium through the firmware.
+   `docs/008` question 23 is how; `107b` is when.
+
+   **Two things belong here regardless.** Keep the image handle, which arrives
+   in a register at entry and is currently discarded at the first instruction of
+   every payload -- everything the firmware can ever be asked about *this
+   program* starts from it. And **turn the watchdog off**: the firmware arms a
+   five-minute timer before entering, and a machine that thinks for longer
+   resets with no message and no pattern.
+
+   All of this half of step one is `107b`.
 2. **Find the model and locate every tensor.** Read the packed model's header,
    walk its table of contents, record where each weight table begins. `102`
    already does the finding on all three architectures; what is missing is
