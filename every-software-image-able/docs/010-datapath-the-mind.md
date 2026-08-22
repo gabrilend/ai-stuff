@@ -99,12 +99,66 @@ The `strategems/` directory is the same object at an earlier stage: portable
 patterns found to work in many places. What ships on the chip is that directory,
 grown up.
 
+## The floor is the hardware, and the firmware is part of it
+
+**Decided 2026-08-21.** The machine runs on hardware, and hardware is a floor it
+cannot leave except by moving to another machine — which it may do, and may also
+split or mirror itself across several, since those are things a machine can do
+that a person cannot. There must always be hardware. **The vendor's firmware is
+treated as part of that hardware**, and edited only if the machine is confident it
+both can and should.
+
+That decides a question the design had been leaving to the machine: whether to
+call the firmware's one-way exit and stand entirely alone. By default it does not.
+The service table stays underneath, and everything on it stays borrowed — the
+allocator, the microsecond delay, the block reader, the display, and the fault
+handlers the firmware installed.
+
+**And the reason that is a good decision is a performance one nobody had noticed.**
+Address translation is left on by the firmware with a flat map, which is what keeps
+the caches on. On one of the three architectures, running with translation off does
+not mean flat and fast — it means every data access is treated as device memory,
+uncacheable and strongly ordered, which for a matrix product is somewhere between
+ten and a hundred times slower. On another, sixty-four-bit mode requires
+translation and it cannot be turned off at all. So a machine that leaves the
+firmware does not become simpler; on two boards out of three it becomes an order of
+magnitude stupider per second.
+
+Replacing the firmware needs no new rule. Writing a board's firmware is writing
+non-volatile configuration that holds a part's identity, which is item four on the
+denied list in `003a` — the bricking kind, where the part may never announce itself
+again. The floor is protected by the same sentence that protects the voltage
+regulator.
+
+Two things still have to be done even while borrowing. **The watchdog**: the
+firmware arms a five-minute timer before calling the entry point, and a machine
+that thinks for six minutes resets with no message, so the timer is disarmed by
+one call at startup and thinking is never on a clock again. **The stack**: the one
+the firmware provides is small and has nothing below it to catch an overrun, so a
+forward pass with large working vectors wants a stack of the machine's own, which
+is one register write.
+
 ## Thinking speed, and the driver problem
 
 The engine runs on the processor. If the machine has an accelerator attached and
 wants its thinking sped up, it has to write a driver for that accelerator — which
 is among the hardest drivers there are, and it has to write it while thinking
 slowly, because thinking quickly is what the driver would buy.
+
+**There is a much cheaper lever and it is inside the floor.** A modern board has
+four to sixty-four processor cores and the firmware starts exactly one of them.
+The rest are powered and parked, and the firmware's service table on most
+multiprocessor boards includes a protocol whose whole job is *hand this routine to
+the other cores and run it*. A matrix-by-vector product is the easiest thing in
+computing to split: each core takes a slice of the rows, nobody writes where
+anybody else reads, and no coordination is needed. That is a larger speedup than
+most accelerator drivers deliver, for a protocol lookup and a loop.
+
+The catch is exactly the shape the work wants. **Firmware is not
+multiprocessor-safe**, so a core that is not the boot processor must not call back
+into the service table — it can compute and it cannot talk. Which is precisely the
+contract a numeric kernel already satisfies, since a kernel touches only the memory
+handed to it and speaks to nobody.
 
 Two honest options, and the choice is about values rather than engineering:
 
