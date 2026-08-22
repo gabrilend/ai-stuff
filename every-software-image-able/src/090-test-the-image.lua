@@ -46,6 +46,10 @@ say("")
 
 local describe = dofile(DIR .. "/src/088-the-recipe.lua")
 local builder = dofile(DIR .. "/src/089-build-the-image.lua")
+-- The thing that turns laid-out regions into a medium a firmware will open
+-- (141). Handed in rather than reached for, so the builder stays a thing that
+-- decides WHERE bytes go and not a thing that knows what a partition table is.
+local medium_module = dofile(DIR .. "/src/141-a-bootable-medium.lua")
 local sampler = dofile(DIR .. "/src/040-reference-sampler.lua")
 local budget = dofile(DIR .. "/src/045-memory-budget.lua")
 
@@ -142,6 +146,7 @@ check("a board invented this second is a valid board",
 local model_bytes = string.rep("W", 4096)
 local built, trouble = builder.build({
   recipe = recipe, board = invented, describe = describe, sampler = sampler,
+  medium_module = medium_module,
   waking_bytes = string.rep("K", 300),
   engine_bytes_content = string.rep("E", 2000),
   model_bytes = model_bytes,
@@ -171,6 +176,7 @@ check("and the randomness is baked in, from the recorded seed",
 -- {{{ reproducible in the plain sense
 local again = builder.build({
   recipe = recipe, board = invented, describe = describe, sampler = sampler,
+  medium_module = medium_module,
   waking_bytes = string.rep("K", 300),
   engine_bytes_content = string.rep("E", 2000),
   model_bytes = model_bytes,
@@ -184,6 +190,7 @@ check("and the same identity", again.identity == built.identity)
 -- nothing at all
 local different = builder.build({
   recipe = recipe, board = invented, describe = describe, sampler = sampler,
+  medium_module = medium_module,
   waking_bytes = string.rep("K", 300),
   engine_bytes_content = string.rep("E", 2000),
   model_bytes = string.rep("X", 4096),
@@ -223,6 +230,7 @@ local wrong_arch = { board_id = "another-kind", arch = "sparc64",
   verified_against = "invented" }
 local no_engine = select(2, builder.build({
   recipe = recipe, board = wrong_arch, describe = describe, sampler = sampler,
+  medium_module = medium_module,
 }))
 check("a board this recipe has no engine for is refused",
       no_engine ~= nil and no_engine:find("boots and stops") ~= nil, no_engine)
@@ -230,6 +238,7 @@ check("a board this recipe has no engine for is refused",
 -- a model too large for the board, refused with the three numbers said
 local too_large = select(2, builder.build({
   recipe = recipe, board = invented, describe = describe, sampler = sampler,
+  medium_module = medium_module,
   model_bytes = string.rep("W", 64),
   shape = { layers = 32, hidden = 4096, heads = 32, head_width = 128,
             kv_heads = 8, feedforward = 14336, vocabulary = 128256,
@@ -272,10 +281,21 @@ local function pretend_card(where, bytes, removable, read_only)
                    read_only = read_only, contents = "" }
   return cards[where]
 end
-pretend_card("/pretend/card-one", 1048576, true, false)
-pretend_card("/pretend/card-two", 1048576, true, false)
-pretend_card("/pretend/finished", 1048576, true, true)
-pretend_card("/pretend/somebodys-computer", 1048576, false, false)
+-- SIXTEEN MEGABYTES RATHER THAN ONE, since 2026-08-21. These were a megabyte
+-- each, which was ample when an image was five regions laid end to end. An
+-- image is now a MEDIUM -- a partition table, a filesystem, and the regions
+-- inside a file in it -- and the smallest one the filesystem format permits is
+-- about four megabytes, because a FAT16 filesystem is only FAT16 above roughly
+-- four thousand clusters.
+--
+-- Worth keeping as a comment rather than a silent number: the floor came from
+-- the format and not from anything this project chose, and a test whose pretend
+-- hardware is smaller than the smallest real image tests nothing.
+local PRETEND_CARD = 16 * 1024 * 1024
+pretend_card("/pretend/card-one", PRETEND_CARD, true, false)
+pretend_card("/pretend/card-two", PRETEND_CARD, true, false)
+pretend_card("/pretend/finished", PRETEND_CARD, true, true)
+pretend_card("/pretend/somebodys-computer", PRETEND_CARD, false, false)
 pretend_card("/pretend/tiny", 64, true, false)
 
 local function look(where) return cards[where] or { path = where } end
@@ -283,7 +303,7 @@ local function look(where) return cards[where] or { path = where } end
 local image = built.image
 
 -- a card whose size the operator got right
-local right = flasher.check({ where = "/pretend/card-one", size = 1048576 },
+local right = flasher.check({ where = "/pretend/card-one", size = PRETEND_CARD },
                             #image, look("/pretend/card-one"))
 check("a card the operator described correctly is accepted", right == true)
 
@@ -295,13 +315,13 @@ check("a card the operator described wrongly is refused",
         ~= nil, mistaken and mistaken[1])
 
 local unwritable = select(2, flasher.check(
-  { where = "/pretend/finished", size = 1048576 }, #image, look("/pretend/finished")))
+  { where = "/pretend/finished", size = PRETEND_CARD }, #image, look("/pretend/finished")))
 check("a read-only medium is refused, and called the preferred kind",
       unwritable ~= nil and unwritable[1]:find("preferred kind") ~= nil,
       unwritable and unwritable[1])
 
 local fixed = select(2, flasher.check(
-  { where = "/pretend/somebodys-computer", size = 1048576 }, #image,
+  { where = "/pretend/somebodys-computer", size = PRETEND_CARD }, #image,
   look("/pretend/somebodys-computer")))
 check("a disk that is not removable is objected to loudly",
       fixed ~= nil and fixed[1]:find("somebody is standing at") ~= nil,
@@ -323,9 +343,9 @@ check("and every objection is said at once",
 local results = flasher.run({
   image = image, identity = built.identity, look = look, dry_run = true,
   targets = {
-    { where = "/pretend/card-one", size = 1048576 },
-    { where = "/pretend/card-two", size = 1048576 },
-    { where = "/pretend/finished", size = 1048576 },
+    { where = "/pretend/card-one", size = PRETEND_CARD },
+    { where = "/pretend/card-two", size = PRETEND_CARD },
+    { where = "/pretend/finished", size = PRETEND_CARD },
   },
 })
 check("many cards are written in one run", #results == 3)
