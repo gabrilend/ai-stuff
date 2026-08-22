@@ -137,7 +137,43 @@ function M.build(options)
   place("text", options.text_bytes or "")
   place("randomness", carried_randomness)
 
-  local image = table.concat(parts)
+  local boot_file = table.concat(parts)
+  -- }}}
+
+  -- {{{ wrap it in something a firmware will open
+  -- ADDED 2026-08-21, AND ITS ABSENCE MADE EVERY IMAGE THIS EVER BUILT
+  -- UNBOOTABLE. What is above lays five regions down in the order the firmware
+  -- meets them, on block boundaries, checked against what the engine looks for.
+  -- All of that was right and none of it was findable: a computer starting up
+  -- does not read a medium from the beginning. It looks for a partition table,
+  -- opens the partition marked as the one to start from, expects a filesystem
+  -- inside it, and opens ONE FILE at one fixed name.
+  --
+  -- So the five regions are the boot FILE, and the image is a medium with that
+  -- file in it at the path the board description already names. Everything
+  -- rides inside, which is not a compromise: firmware loads that file whole
+  -- before the first instruction runs, so a model inside it is simply in memory
+  -- when the machine wakes. The offsets recorded below stay relative to the
+  -- file's own beginning, which is exactly what the engine measures from.
+  local image = boot_file
+  local medium = nil
+  if board.payload and board.payload.kind == "uefi-esp" then
+    local wrap = options.medium_module
+    if not wrap then
+      return nil, "this board boots through firmware, which needs the image "
+        .. "wrapped in a partition table and a filesystem, and no module to do "
+        .. "that was handed in"
+    end
+    local made, why_not = wrap.medium({
+      bytes = boot_file,
+      path = board.payload.boot_path,
+      identity = describe.identity(describe.manifest(recipe, board, options.components)),
+      label = "SEED",
+    })
+    if not made then return nil, "the medium: " .. why_not end
+    image = made.image
+    medium = made
+  end
   -- }}}
 
   -- {{{ the manifest and the identity
@@ -152,12 +188,21 @@ function M.build(options)
                                                     entry.name, entry.at, entry.bytes)
   end
   manifest = manifest .. table.concat(layout_lines, "\n") .. "\n"
+  -- Where the offsets above are measured FROM is part of the account. On a
+  -- board that boots through firmware they are inside the boot file, and the
+  -- image around it is a medium; on one that does not, the image is the
+  -- regions themselves and the two are the same thing.
+  manifest = manifest .. "offsets-measured-from: "
+    .. ((board.payload and board.payload.kind == "uefi-esp") and "boot-file" or "image")
+    .. "\n"
 
   local identity = describe.identity(manifest)
   -- }}}
 
   return {
     image = image,
+    boot_file = boot_file,
+    medium = medium,
     manifest = manifest,
     identity = identity,
     layout = layout,

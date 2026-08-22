@@ -22,6 +22,16 @@ Issue `705` is the blueprint for this file.
 
 ### The emulator fabricates the filesystem the firmware reads
 
+**Paid, 2026-08-22.** The launcher can now be handed a whole medium rather than
+a directory, and the image builder produces one — a partition table, a
+filesystem, and the boot file inside it. Real firmware opens it on all three
+architectures. The difference below is still real and still worth reading,
+because it is what let the gap survive for months; what changed is that the
+emulated road and the card road are now the same road, so nothing else can hide
+in that gap.
+
+
+
 **What emulation shows.** Every board on the firmware road boots. Real firmware
 opens a real file at the architecture's own path, hands over a pointer to it, and
 the payload runs. Six boards across three architectures, all the way to first

@@ -103,6 +103,7 @@ if [ -z "${QUICK}" ]; then
   run_test "dividing the memory, on all three"    "134-test-lay-out.lua"
   run_test "setting a machine up from nothing"    "136-test-fill-the-plan.lua"
   run_test "a machine that reads, thinks and speaks" "140-test-the-driver.lua"
+  run_test "a medium a firmware will open"         "142-test-a-bootable-medium.lua"
 else
   printf '\n=== skipped: the discipline, held and broken (--quick) ===\n'
   printf '\n=== skipped: the machine'"'"'s arithmetic, against the host'"'"'s (--quick) ===\n'
