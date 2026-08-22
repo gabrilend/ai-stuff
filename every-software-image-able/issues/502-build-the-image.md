@@ -26,6 +26,48 @@ what it produces is the thing `503` puts on a card and `601` switches on.
 **This closes again when `107` hands it real bytes** and the layout check
 becomes a check between two things that both exist.
 
+**Found on 2026-08-08, and larger than the blocker above: the image this builder
+produces cannot be booted by any firmware.** It lays down five regions at block
+boundaries and writes nothing else -- no partition table, no filesystem, no file.
+UEFI firmware opens **one file on a FAT filesystem** at an architecture-specific
+path, and there is no such file in a built image.
+
+Nothing noticed because the seam this builder checks is the one against the
+*engine*: it compares the offsets it writes against the offsets the engine looks
+for, and both are right. **The engine is not what has to find the first byte.**
+The firmware is, and it was never asked. Meanwhile the emulated boards boot from
+a directory the emulator synthesises into a filesystem (`018`), so the image this
+builder produces has never been the thing under test -- `notes/023`.
+
+**So this ticket's near work is a medium something can boot from**: a partition
+table, a FAT partition, and the waking code written into it at the path the board
+description already names. That is strictly more than "hand it real engine
+bytes," and it is now the piece standing between here and `601`.
+
+**Everything else rides inside that one file, and that is not a compromise.**
+Firmware loads the boot file whole before the first instruction runs, so a model
+riding inside it is simply in memory when the machine wakes -- which is what the
+payload does today and what said six words on 2026-08-07. No table of contents,
+no block numbers, no reading. `docs/008` question 23 answers how regions get
+found when they stop riding along; `107b` records when that is, and it is
+arithmetic rather than judgement: `045` chooses a strategy per model and board,
+and the sentence that opens that work is **"the hot parts in memory, the rest
+read in place."** Until a build selects a partial strategy, riding inside is
+fewer moving parts doing the same job.
+
+**Which gives this builder a refusal worth writing.** It already refuses a model
+that does not fit at all, with the three numbers said out loud. It should equally
+refuse to build a riding-inside image when the strategy chosen is a partial one,
+because that image would boot, load a fraction of its weights, and think with
+whatever the rest of memory happened to contain. That turns "somebody must
+remember which arrangement this model needs" into something the build says.
+
+**The prepared tokenizer tables ride along too.** `docs/008` question 24 moved
+their preparation to build time, so the four arrays ship rather than being
+rebuilt at every boot. Inside the one file they need no new machinery at all --
+just the layout written down where formats are described, since the builder and
+`137` now have to agree about it.
+
 ---
 
 **Done, and tested** -- `src/089`, checked by `src/090`, 34 of 34 on
@@ -97,6 +139,28 @@ inputs.
 6. Keep the build reproducible in the plain sense: same inputs, same output bytes.
    Timestamps and build paths leaking into the image are the usual reason this
    fails.
+### Added by the 2026-08-08 finding
+
+7. **Write a medium firmware can boot**: a partition table, a FAT partition, and
+   the waking code written into it at the path the board description names. This
+   is the piece whose absence made every image so far unbootable, and it is
+   required no matter where the other regions eventually live.
+8. **Ask the firmware, not the engine, whether the image is findable.** The
+   existing seam check compares this builder's offsets against the engine's
+   expectations and both were always right. Add the check that was missing: boot
+   what was built. A test that produces an image and never asks a firmware to
+   open it is the test that let this through.
+9. **Let everything else ride inside the boot file** while the model fits, since
+   firmware loads that file whole and the data is then simply in memory.
+10. **Refuse to build a riding-inside image when `045` chose a partial
+    strategy.** Such an image boots, loads a fraction of its weights, and thinks
+    with whatever else was in memory -- a wrong answer with nothing to notice it.
+    The builder already refuses a model that does not fit at all; this is the
+    same refusal one rung up.
+11. **Feed the boards a built image rather than a served directory.** `018` hands
+    the emulator a host directory it synthesises into a filesystem, which is why
+    none of this was caught. Booting what the builder produced makes the emulated
+    path and the card path the same path.
 
 ## Blocks
 
@@ -104,7 +168,12 @@ inputs.
 
 ## Blocked by
 
-`501`.
+`501`. And `107`, for the engine bytes that turn the layout check into a check
+between two things that both exist.
+
+Not blocked by `docs/008` question 23 any more. That answer stands for the day
+regions stop riding inside the boot file, and `107b` records that the day is
+chosen by arithmetic rather than by preference.
 
 ## Related documents
 

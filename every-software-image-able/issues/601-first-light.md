@@ -5,6 +5,27 @@
 Every part of the seed has been built and tested alone. Nothing has been tested
 as a seed.
 
+**And as of 2026-08-08 there is a named reason it cannot be, which is better than
+the general unease above.** A built image carries five regions at block
+boundaries and no partition table, no filesystem and no file — while firmware
+opens *one file on a FAT filesystem*. So there is nothing on a built image for a
+firmware to find, and the switch cannot be thrown yet no matter what else is
+ready. That is `502`'s near work.
+
+The reason it went unnoticed is the thing this ticket was written to expect. Its
+table below predicts failures in the *seams* rather than the parts, because every
+part was tested alone under emulation. This is one of those seams, and it was
+invisible for the reason the table gives: both halves were right about their own
+half. The builder's layout matched what the engine looks for exactly. Nobody
+asked the firmware, which is the component that has to find the first byte, and
+the emulated boards never needed it to — they boot from a host directory the
+emulator turns into a filesystem (`018`), so a built image has never been the
+thing under test.
+
+**What that changes about the plan below: the first light attempt gets one step
+earlier than step one.** Before watching a serial port, build an image and
+require a firmware to open it. If that fails, nothing downstream is diagnosable.
+
 ## Intended behavior
 
 A card goes into a computer with nothing on it. Power arrives. The machine says

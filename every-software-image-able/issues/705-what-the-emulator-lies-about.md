@@ -11,12 +11,17 @@ disagrees with the emulator, and marking it done would mean claiming the
 disagreements had stopped. It is in its correct state when it is current, not
 when it is finished.
 
-**The list is at `notes/023-what-the-emulator-lies-about.md`** and now holds
-fifteen entries, each with a price beside it, plus five expected-but-unpaid
-ones written down before being met. A list of differences is interesting; a
-list of differences with costs attached is the argument for how often to stop
-developing against emulation and go put something on a card. That argument
-gets made on feeling otherwise.
+**The list is at `notes/023-what-the-emulator-lies-about.md`**, each entry with a
+price beside it, plus a section of expected-but-unpaid ones written down before
+being met. A list of differences is interesting; a list of differences with costs
+attached is the argument for how often to stop developing against emulation and
+go put something on a card. That argument gets made on feeling otherwise.
+
+**The count is not written here**, because it was written here twice and was
+wrong both times — it said fifteen on 2026-08-08 while the file held seventeen,
+having drifted every time somebody added an entry without coming back. Count the
+`###` headings under "Paid for already" if the number is wanted. A ticket that
+states a total it does not own will always eventually lie about it.
 
 What has been added since the ticket was written, all paid for rather than
 predicted: no framebuffer without UEFI; three firmwares handed over three
@@ -25,9 +30,26 @@ another; every symbol reference becoming a silent zero with no linker;
 offsets counted by hand producing numbers that look like numbers; a fixture
 with an unstated precision; the two RAM tiers; a transcribed constant; the
 stack pointer's small region; where a rounding happens; the one failure that
-was loud; and — most recently — that **the emulated processor is not the
-host's processor**, which cost a test written on a wrong premise and returned
-a better test than the original.
+was loud; that **the emulated processor is not the host's processor**, which
+cost a test written on a wrong premise and returned a better test than the
+original; and — most recently — that **the emulator fabricates the filesystem
+the firmware reads**.
+
+That last one is the largest so far and the only one found before it was paid
+for. The boards are handed a host directory which the emulator synthesises into
+a FAT filesystem on demand, so no disk image exists at any point in a run that
+boots real firmware to first light. What it concealed was not a subtle
+difference in behaviour but a missing component: **the image `502` builds has no
+partition table and no filesystem, and therefore cannot be booted by anything**,
+and six boards across three architectures reached first light without that ever
+mattering.
+
+It is the strongest argument this file contains for its own existence, and it
+sharpens what the file is for. The other entries are differences between a real
+board and an emulated one. This one is a difference between the *road* to the
+machine and the road a card takes — the payload was delivered by a mechanism no
+card has — and a road that is not the real road can carry a machine all the way
+to working while a required piece is simply absent.
 
 The three the ticket was seeded with, paid for during `701` and `702a`:
 

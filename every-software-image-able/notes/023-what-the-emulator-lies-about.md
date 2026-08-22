@@ -20,6 +20,44 @@ Issue `705` is the blueprint for this file.
 
 ## Paid for already
 
+### The emulator fabricates the filesystem the firmware reads
+
+**What emulation shows.** Every board on the firmware road boots. Real firmware
+opens a real file at the architecture's own path, hands over a pointer to it, and
+the payload runs. Six boards across three architectures, all the way to first
+light and six spoken words.
+
+**What is actually happening.** `018` hands the emulator `fat:rw:<directory>` —
+the emulator **synthesises** a FAT filesystem out of a host directory as the
+firmware asks for it. No disk image is ever built. The comment there says why,
+and the reason was good: it avoids rebuilding a disk image for something that
+changes on every build.
+
+**What it hides.** Everything about a medium's actual layout. There is no
+partition table, no filesystem the builder wrote, and no stable block number for
+anything. So:
+
+- **The image `089` builds has never been booted, and cannot be.** It lays down
+  five regions at block boundaries and writes no partition table and no
+  filesystem, so firmware has nothing to open. The builder's own seam check
+  compares its layout against what the *engine* expects, and the engine is not
+  the thing that must find the first byte — the firmware is, and nobody asked it.
+- **A table of contents holding block numbers cannot be tested here**, because
+  the blocks it names are whatever the synthesiser decided that run, and they
+  move when anything in the directory changes.
+
+**What it cost.** Found on 2026-08-08 while writing `107b`, by asking what a
+block number would actually name — before any code was written against the
+assumption, which is the cheapest this class of discovery gets. What it changed
+is scope rather than code: `502` has to learn to write a partition table and a
+filesystem, and the boards need a road that boots a built image rather than a
+served directory.
+
+**The general shape, worth keeping.** The convenience that made testing cheap
+was the same convenience that removed the thing being tested. A board that boots
+from a directory proves the firmware can load a file; it proves nothing about
+the medium, and the medium is what a card is.
+
 ### Traps cover only the addresses somebody wrote down
 
 **What emulation shows.** A clean sweep of the trap matrix (`src/022`): every
