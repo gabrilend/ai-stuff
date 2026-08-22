@@ -52,8 +52,16 @@ rather than sampling four thousand bits of a state nobody set.
 **It never found the text region.** The payload carries the model, the
 starting text and the carried randomness sixty-four kilobytes past its own
 first instruction and reaches each by measuring from where it is standing.
-See the first open question: that is honest for a payload and is not how a
-shipped card will do it.
+**And it turns out that is how a shipped card will do it too, while the model
+fits.** Firmware loads the boot file whole before the first instruction runs, so
+regions riding inside it are in memory when the machine wakes -- no table of
+contents, no block numbers, nothing to read. That holds until `045` chooses a
+strategy keeping only part of the model resident, at which point the regions move
+onto the medium and are fetched through the firmware (`docs/008` question 23 for
+how, `107b` for when).
+
+What a card does need, and no image has ever had, is a partition table and a
+filesystem, because firmware opens a *file* rather than a medium. That is `502`.
 
 **A defect this uncovered, in the fixture, now fixed.** The packed model
 carried a token table of placeholder names — `t1` through `t48` — and two
@@ -169,26 +177,38 @@ fails it says nothing about where.
 
 ## Open questions
 
-1. **How does a driver find the image's regions on a real card?** The builder
-   lays down five regions at block boundaries on a raw medium. The boards
-   this project has boot through UEFI, where firmware reads one file off a
-   FAT filesystem and hands over a pointer to that file's contents in memory
-   — so the other four regions are not at a known offset from anything the
-   driver can see. Carrying them inside the payload works and is what this
-   ticket does. Reading them off the medium means a storage driver, which is
-   listed in `107` as the machine's job rather than the seed's. Nobody has
-   decided which of those the shipped arrangement is, and `502` cannot close
-   without an answer.
-2. **Is the merge resolution paid at startup or at build time?** See above.
-   The blob format's own note says the token table is "read once at startup
-   to build whatever lookup the engine wants," which settles it for now, but
-   that note was written before anybody had counted the comparisons.
-3. **What does the driver do when the context fills?** It stops and says so,
-   which is honest and is also the machine being unable to think any more
-   without help. The readable loop has the same limit and the same answer.
-   Whether the seed should carry a last-resort behaviour — dropping the
-   oldest text, say — or whether stopping is genuinely correct until the
-   machine writes its own answer, is not decided.
+**None left, as of 2026-08-08.** All three were answered and moved to `docs/008`
+as questions 23, 24 and 26. The work each answer creates belongs elsewhere — the
+table of contents to `107` and `502`, the build-time tokenizer tables to `502`,
+the compaction policy to `304`, reopened — so what is left in this ticket is what
+it already proved on 2026-08-07.
+
+**Answered, 2026-08-08.**
+
+**What does the driver do when the context fills?** It compacts, and stopping
+survives as the last resort rather than the first response. At 80% of the
+manageable budget the machine sweeps its own resident atoms and compacts to 60%,
+or as low as 40%, ranking each on relevance and on worth-keeping and then
+keeping, summarising, merging, splitting, writing out or dropping it. The
+workspace is the top 20% of the same context rather than a second one. When a
+sweep ends still above the wall, the machine says so and stops — which is what
+this ticket does today, now in its correct position in the order rather than
+first. `docs/008` question 26, `docs/013`, and `304`.
+
+**How does a driver find the image's regions on a real card?** A table of
+contents inside the one file the firmware opens, holding a block number and a
+byte length per region, with the regions themselves read off the medium through
+the firmware's own block reader. The circle this seemed to sit in — no storage
+driver without thinking, no thinking without reading the medium — was drawn on
+the belief that the machine leaves the firmware before it thinks, and it does
+not. Nothing in this project calls the firmware's one-way exit; every boot so
+far has run with the service table alive. `docs/008` question 23, and `502`,
+which the answer unblocks.
+
+**Is the merge resolution paid at startup or at build time?** Build time. The
+prepared tables ship as their own region, and this ticket's preparation routine
+stays aboard for the machine that rewrites its own vocabulary. `docs/008`
+question 24.
 
 ## Blocks
 
