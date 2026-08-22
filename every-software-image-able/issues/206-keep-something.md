@@ -2,8 +2,103 @@
 
 ## Current behavior
 
-**Done, and tested with `205`** — `src/076` keeps, `src/078` checks, 28 of
-28 on 2026-08-02 across both tickets, because they only work together.
+**Reopened 2026-08-08. It can keep something. It cannot yet do so without
+risking somebody else's data, and it does not know what kind of medium it is
+writing to.**
+
+Everything below this section holds and is tested. Three things were added on
+top of it, and the first is a rule the rest follow from.
+
+### Preserve by default; overwrite only when asked
+
+**Data that was already on a device is never overwritten unless somebody
+specifically asks for that.** Not a preference and not a courtesy — there is no
+hardware limitation that forces destruction, so destroying is a choice, and a
+choice made silently is the wrong one. The capability to overwrite exists, is
+listed, and is named; it is simply never the default.
+
+This closes `docs/008` question 28. `076` already refuses to adopt a claim mark
+naming a different machine. What it lacked was any notion of a disk with **no**
+mark, which it treated as available — and an unmarked disk is not an empty disk.
+It is a disk this project has never seen.
+
+### Find out what is there before deciding anything
+
+The machine reads the medium's partition table and the filesystems inside it,
+well enough to answer *which blocks are spoken for*. Every filesystem keeps that
+answer somewhere — FAT in its allocation table, ext in its block bitmaps, NTFS in
+its bitmap file — and reading one is far less work than writing one.
+
+**This does not contradict step 5 below.** The seed still does not *build* a
+filesystem, and still does not organise its own storage as one, for the reason
+given there: that would decide on the grown machine's behalf how it organises
+itself. Reading somebody else's filesystem is a different act with a different
+purpose — not to use it, but to avoid destroying it.
+
+### Three ways to get space, in order of how much they respect
+
+| | How | What it costs | What it risks |
+|---|---|---|---|
+| Ask the firmware | while boot services live, have the firmware create a file and write into it | nothing — the firmware does the bookkeeping | FAT partitions only, and only before the machine leaves the firmware |
+| Ask the filesystem | write the metadata to allocate a file, then use its blocks | writing filesystem structures correctly, which is where corruption comes from | getting the metadata wrong destroys the volume |
+| Take unallocated space | parse the allocation map, write to blocks nothing has claimed | reading metadata only, which is much less code and much safer to get wrong | **the claim is invisible; anything that later mounts the volume will allocate over it** |
+
+The third is the cheapest and the most dangerous, and the danger is worth stating
+exactly, because it is not a corruption bug — it is a race with no lock.
+Unallocated space is not free space. It is space nobody has claimed **yet**. The
+filesystem does not know the machine is there, so the next operating system to
+mount that volume will hand those blocks out, and the loss is silent on both
+sides: the machine's data is gone, and the file that got allocated there holds
+the machine's bytes.
+
+It is legitimate on a volume nothing else ever mounts, and it should say out loud
+that this is what it assumed.
+
+**The first way deserves attention because it is nearly free.** The firmware can
+already create and write files on the boot partition, correctly, and the machine
+is standing inside it with boot services alive (`docs/003`, step zero). Borrowing
+that is the same move as borrowing the display and the block reader — a durable,
+visible claim with no filesystem-writing code at all.
+
+### Where things go, by what the medium is made of
+
+**Generated artifacts and frequently modified data go on rotating disks.
+Flash — the delivery card, an M.2 drive — is kept for what is read often and
+written rarely.**
+
+The reason is wear, and it is arithmetic rather than taste. A flash cell endures
+a bounded number of erase cycles before it stops holding charge — order of a
+thousand for dense cells, order of a hundred thousand for the sparse kind. A
+rotating disk has no equivalent write limit; it wears from spinning and seeking,
+not from how many times a sector is rewritten. So a machine that continuously
+rewrites its context, its logs and its notes will destroy a cheap flash device in
+a bounded and predictable time, and will not harm a disk at all.
+
+**The existing design already obeys this rule, and this explains why.** The
+delivery medium is read-only by design (`docs/003`) — frequently accessed,
+because the model is read from it, and never modified. That is exactly the
+read-often, write-rarely case, and it was arrived at for a different reason.
+
+The churn this policy is really about is named elsewhere: **the context
+compaction** (`304`) writes atoms out whenever the machine sweeps its own
+resident set, which is the most write-heavy thing the machine does that is not
+moving in. Those writes belong on a disk.
+
+### What this asks of enumeration
+
+Knowing the medium's kind is now part of finding it, and the firmware's media
+description does not say. It gives block size, block count, removable, read-only
+— nothing about what the cells are made of. `107b` carries the enumeration and
+this ticket carries what the answer is for.
+
+The honest way to tell is to **measure rather than ask**: time reads at scattered
+addresses. A rotating disk has to move a head, so its latency depends on how far
+apart the addresses are; flash does not care. That is a physical property nothing
+can misreport, it needs no protocol beyond reading blocks, and it is the same
+method this project already used to find out whether a board's vector hardware
+was real rather than trusting the board's name (`notes/023`).
+
+---
 
 Blocks and an extent, with no filesystem: the machine can build one if it
 wants one, and building one into the seed would decide on its behalf how it
@@ -66,13 +161,40 @@ and so the intent notes of `205` have somewhere to land.
    seed needs is blocks, an extent it owns, and the ability to find that extent
    again on the next boot.
 
+### Added by the reopening, 2026-08-08
+
+6. **Refuse to write to any device whose contents are not accounted for.** Make
+   this the default in `076`, not a caller's responsibility. An unmarked device
+   is refused with what was found on it, the way `077` refuses a destroying
+   register with what that register does — a refusal that does not explain itself
+   teaches nothing and gets worked around.
+7. **Read partition tables and filesystem allocation maps**, enough to answer
+   which blocks are spoken for. Read only. Getting this wrong should produce a
+   refusal, never a write.
+8. **Prefer having the firmware create the file** while boot services are alive.
+   It is the only route that makes a durable, visible claim with no
+   filesystem-writing code, and the machine is already inside the firmware.
+9. **Classify each device as rotating or solid-state by measuring it**, and put
+   churn on the rotating ones. Time reads at scattered addresses and see whether
+   latency depends on distance; a head has to move and a flash cell does not.
+10. **Say what was assumed, every time.** A machine writing to unallocated space
+    is assuming nothing else will ever mount that volume. That assumption is
+    frequently true and never checkable, so it belongs in the note beside the
+    write rather than in somebody's head.
+11. **Test against a device holding something.** Every existing check runs against
+    blank files. The case that matters is a device with a real partition table and
+    a real filesystem holding real files, where the requirement is that the files
+    are all still there afterwards, byte for byte.
+
 ## Blocks
 
-`205`, and all of phase 6.
+`205`, and all of phase 6. `602` in particular: a machine cannot choose where to
+move in until it can tell what it would be moving onto.
 
 ## Blocked by
 
-`203`.
+`203`. And `107b` for the enumeration itself, which is where the firmware hands
+over the list of devices this ticket then has to judge.
 
 ## Related documents
 
