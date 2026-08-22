@@ -1,7 +1,10 @@
 #!/usr/bin/env luajit
 -- 072-test-touch-memory.lua
 --
--- Checks the memory hands, and most of all the one refusal: that a machine
+-- Checks the memory hands. It used to check one refusal above all -- that a
+-- machine could not overwrite itself. That refusal is gone; what is checked
+-- now is that the write happens AND that the machine is told, which is what
+-- lets it reload itself from disk. Formerly: that a machine
 -- cannot write over its own mind. Everything else here is recoverable by
 -- writing more software; that one is not.
 --
@@ -133,28 +136,52 @@ check("an unaligned touch is refused, saying why it matters",
       unaligned)
 -- }}}
 
--- {{{ the one refusal
-local into_engine = select(2, touch.poke(memory, ENGINE.base + 0x40, 4, 0))
-check("writing into the engine is refused",
-      into_engine ~= nil and into_engine:find("goes quiet") ~= nil, into_engine)
+-- {{{ the write that is not refused, and says so
+--
+-- Rewritten 2026-08-21. These four checks used to require that a write into
+-- the engine or the weights be REFUSED. It is not refused any more -- the
+-- only things worth restricting are the ones that damage hardware, and a
+-- machine is entitled to do something stupid to itself. What is required
+-- instead is that the write LANDS and that the hand SAYS SO, because a
+-- damaged mind cannot notice it is damaged, and a machine that cannot notice
+-- cannot decide to read itself back from the copy on disk.
+--
+-- So the test that matters is the third return, and the fact that the bytes
+-- actually changed. A silent write here would be the failure now.
+local wrote, refusal, warned =
+  touch.poke(memory, ENGINE.base + 0x40, 4, 0)
+check("writing into the engine is allowed",
+      wrote ~= nil and refusal == nil, refusal)
+check("and the machine is told, in a sentence it can act on",
+      warned ~= nil and warned:find("your own mind") ~= nil
+      and warned:find("copy on disk") ~= nil, warned)
 
-local into_weights = select(2, touch.poke(memory, WEIGHTS.base, 8, 0))
-check("writing into the weights is refused",
-      into_weights ~= nil and into_weights:find("weights") ~= nil, into_weights)
+local _, _, weights_warned = touch.poke(memory, WEIGHTS.base, 8, 0)
+check("writing into the weights is allowed, and named as the weights",
+      weights_warned ~= nil and weights_warned:find("weights") ~= nil,
+      weights_warned)
 
--- a write that begins outside and ends inside is still a write inside
-local straddling = select(2,
-  touch.poke(memory, ENGINE.base - 4, 8, 0))
-check("a write that only clips the engine is refused too", straddling ~= nil,
-      "a straddling write was allowed")
+-- A write that begins outside and ends inside is still a write inside, and
+-- still worth saying so about. This has to be a bulk form: a single touch is
+-- aligned to its own width and the engine begins on an aligned boundary, so
+-- no single touch can straddle it. The old version of this check used an
+-- unaligned eight-byte poke and was passing on the ALIGNMENT refusal rather
+-- than on the overlap -- it never tested what its name said.
+local _, _, straddling = touch.copy(memory, BASE + 0x200, ENGINE.base - 16, 32)
+check("a write that only clips the engine is called out too",
+      straddling ~= nil, "a straddling write said nothing")
 
--- and a bulk write that would cross into it is refused BEFORE any of it
--- happens, rather than halfway through
+-- and a bulk write that crosses into it goes through, whole, and warns once
 local before = region[ENGINE.base - BASE - 4]
-local bulk = select(2, touch.fill(memory, ENGINE.base - 0x40, 4, 64, 0xff))
-check("a bulk write that would reach it is refused whole",
-      bulk ~= nil and region[ENGINE.base - BASE - 4] == before,
-      "part of the range was written before the refusal")
+local filled, _, bulk_warned = touch.fill(memory, ENGINE.base - 0x40, 4, 64, 0xff)
+check("a bulk write that reaches it is written whole, and reported",
+      filled == 64 and bulk_warned ~= nil
+      and region[ENGINE.base - BASE - 4] ~= before,
+      "the bulk write did not land, or landed without saying anything")
+
+check("and the machine keeps a count of how often it has done this",
+      memory.warnings >= 4 and memory.last_warning ~= nil,
+      tostring(memory.warnings) .. " warnings recorded")
 
 -- reading its own mind is allowed, and is how 204 checks what it placed
 local read_own = touch.peek(memory, ENGINE.base, 4)
@@ -225,11 +252,12 @@ local asked = hands.answer(catalogue, hands.find(catalogue,
 check("the machine can ask to write", asked.ok and asked.text == "0x99",
       asked.text)
 
-local asked_refused = hands.answer(catalogue, hands.find(catalogue,
+local asked_over_itself = hands.answer(catalogue, hands.find(catalogue,
   string.format("<call poke 0x%x 4 0>", ENGINE.base)))
-check("and asking to write over itself comes back as a sentence",
-      not asked_refused.ok and asked_refused.text:find("goes quiet") ~= nil,
-      asked_refused.text)
+check("and asking to write over itself works, and comes back with a warning",
+      asked_over_itself.ok
+      and asked_over_itself.text:find("your own mind") ~= nil,
+      asked_over_itself.text)
 
 local not_a_number = hands.answer(catalogue, hands.find(catalogue,
   "<call peek somewhere 4>"))

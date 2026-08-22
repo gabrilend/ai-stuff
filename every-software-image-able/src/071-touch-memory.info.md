@@ -28,7 +28,8 @@ either way, and the rules are what this file is.
 
 ## The one refusal
 
-Writes into the engine and the weights are refused — the only place in the
+**No longer true as of 2026-08-21, kept here because the reasoning is.** Writes
+into the engine and the weights used to be refused — the only place in the
 seed where the model is stopped from doing what it asked. The reason is
 specific rather than protective: a mind that overwrites itself does not
 report an error, it goes quiet. Every other mistake here is recoverable by
@@ -38,8 +39,21 @@ Reads are allowed everywhere the map calls usable, **including its own
 mind**. A machine reading itself is doing something useful, and `204` depends
 on reading back what it placed.
 
-A write that only clips the protected range is refused too, and a bulk write
-that would reach it is refused **before any of it happens** rather than
+**What happens now:** the write lands, and the hand returns a third value — a
+warning naming what was written over and telling the machine to read itself back
+from the copy on disk if this was not deliberate. `memory.warnings` counts them
+and `memory.last_warning` holds the most recent. The tool-call reply carries the
+number on the first line and the warning on the second.
+
+The reason for the change is that the only things worth restricting are the ones
+that damage hardware, and a machine is entitled to do something stupid to itself.
+The reason for the warning is the same reason the refusal existed: a damaged mind
+cannot notice it is damaged, and a machine that cannot notice cannot decide to
+reload. Saying so takes nothing away.
+
+Formerly: a write that only clipped the protected range was refused too, and a
+bulk write that would reach it was refused **before any of it happens** rather
+than
 halfway through.
 
 ## What is returned is what is there

@@ -134,21 +134,45 @@ because noticing is the thing that broke. The machine does not crash; it goes
 comatose, and the only repair is reflashing — which does not restore that
 machine, it replaces it with a new one that has to grow from nothing.
 
-So this is the second place in the design where the procedure is written down
-rather than delegated (`strategems/009`):
+**This stopped being a prohibition on 2026-08-21, and stopped being carried in the
+instruction.** It had become both — the text on the card listed *do not write into
+your own weights* as one of two absolute rules, and the memory hands refused any
+write landing in that range. Neither is right. Editing your own weights is a
+stupid thing to do; it is not a thing to be prevented from doing.
+
+> if the computer wants to edit its own weights it should probably do so in a
+> sandbox, watch what "itself" does, evaluate whether or not that's a valid and
+> intended change or move toward a goal, and only then move it into its working
+> "mind" memory. BUT this is not really something we should be all that concerned
+> about... we shouldn't have a mechanical limit against it. The only things we
+> should restrict are things that can cause physical damage to the chip or
+> hardware.
+
+So there is exactly **one** prohibition in this design now, and it is about
+hardware (`003a`). What replaces the second one is guidance the machine can go and
+read if it wants it, in the fetch-by-subject pile alongside the build patterns:
 
 ```
-before changing the thing that thinks
-   → keep a backup of what currently works
-   → build the new version alongside, not in place
-   → run it in parallel and compare, while the old one is still thinking
-   → switch only after the new one has been watched working
-   → never modify what is currently running
+if you are going to change the thing that thinks
+   → keep what currently works
+   → build the new version somewhere it cannot reach the running one
+   → run it there and watch what "itself" does
+   → judge whether the change is actually toward what you wanted, not merely
+     different
+   → only then move it into the mind you are using
+   → and weights should be informed by experience, if by anything
 ```
 
-Changing a running mind is the one mistake this machine cannot recover from by
-writing more software, and cannot recover from by buying more hardware either.
-What it costs is the individual.
+Note what changed in the middle of that. The older version said *run both and
+compare their answers*. This one says *run it and watch its behaviour against
+what you intended*, which is a harder test and the right one — a mind is not a
+function whose outputs you diff, and two minds agreeing on the next word says
+almost nothing about whether one of them has been damaged.
+
+Changing a running mind is still the one mistake this machine cannot recover from
+by writing more software, and cannot recover from by buying more hardware either.
+What it costs is the individual. That is a fact about the world rather than a rule
+about behaviour, and facts need no mechanism behind them.
 
 ## Being unique is what protects it
 
@@ -168,15 +192,27 @@ other side. It was treated as a cost in earlier drafts. It is also the defence.
 
 ## Open questions
 
-- **How long does parallel running have to last?** Comparing a new mind to an old
-  one requires both to be thinking, which costs twice the resources, and no
-  duration or agreement threshold is defined.
-- **What compares them?** If the new engine is judged by the old one, a subtle
+- **How long does the sandbox have to run?** Watching a new mind be itself costs
+  a second set of resources for as long as the watching lasts, and no duration is
+  defined. It may not be definable, because what is watched for is *movement
+  toward what was wanted*, and that has no fixed length.
+- **What judges it?** If the new mind is judged by the old one, a subtle
   degradation is judged by the thing it may already have degraded. If judged by
-  the new one, that is worse.
+  the new one, that is worse. Changing the test from *compare the answers* to
+  *watch the behaviour against the intent* makes this harder rather than easier,
+  and it is the right kind of harder.
 - **Can a machine keep a copy of its earlier self?** Backups are required above,
   but a backup of a mind that has since grown is a different individual, and
   restoring it discards everything learned since.
-- **What happens on a processor outside the three?** Named above. The seed cannot
-  bootstrap itself there, and nothing says whether such a machine should refuse
-  to start or wait for help.
+- ~~What happens on a processor outside the three?~~ **Answered 2026-08-21.** The
+  generator refuses to build. A seed requires a way to be delivered, a way to
+  process and a way to store, and an architecture with no engine written for it
+  fails the second — said at build time, to a person, rather than discovered by a
+  board that will not start.
+- **Is there a sandbox to put a new mind in?** The procedure says build the new
+  version somewhere it cannot reach the running one. On a machine with no
+  privilege levels and no address translation being used for protection,
+  *somewhere it cannot reach* is a claim nothing enforces. The firmware's flat map
+  is on and is not separating anything — and separating things is exactly what
+  page tables are for, so a machine that wants to sandbox its own successor may
+  find it has a reason to start using the translation it already has.
