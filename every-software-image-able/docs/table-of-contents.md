@@ -26,10 +26,11 @@ every-software-image-able/
 │   ├── 003a-datapath-careful-exploration.md  learning hardware without destroying it
 │   ├── 004-datapath-compilation.md ... text to source to runnable, and the picture that justifies it
 │   ├── 005-datapath-the-four-rungs.md  use it, alter it, build it, condense it
-│   ├── 006-datapath-status-and-tolerance.md  the colourshape, the square, and walking backward
+│   ├── 006-datapath-runaway-programs.md  threads, a clock, and walking backward
 │   │
 │   ├── 008-open-questions.md ........ every question, closed and open, in one place
 │   ├── 010-datapath-the-mind.md ..... what arrives rather than being built, and changing it
+│   ├── 010a-datapath-the-loop.md .... what drives it, and why nothing can type at it
 │   ├── 011-roadmap.md ............... seven phases; what people build, not what it becomes
 │   ├── 012-datapath-the-proving-ground.md  testing it without a computer, and what that hides
 │   ├── 013-datapath-the-context.md .. atoms; what the machine is thinking with, and its choosing
@@ -59,17 +60,32 @@ every-software-image-able/
 ## Reading orders
 
 **To understand the design:** `001`, then `005` for what the machine does with
-its life, then `003` and `003a` for how it gets far enough to do it. `002` and
-`006` are the two mechanisms everything stands on and can be read in either
-order.
+its life, then `003` and `003a` for how it gets far enough to do it. `002` is the
+mechanism most of it stands on; `006` is short and is about the one thing that can
+go wrong that the machine cannot write its way out of.
 
 **To understand one mechanism:** go straight to its datapath document. Each names
 its data down to primitives and ends with what is still open about it.
 
-**Before writing any code:** `008`, then `strategems/009`. Nothing is blocking.
-What remains open are the things whoever writes the code will meet while writing
-it, and three of the answered questions came out the same way — handed to the
+**To understand what actually runs the mind:** `010a`. It is the newest document
+and the one everything else quietly assumed — the loop that holds the context,
+re-prompts itself, and acts through tool calls. Nothing types at these machines.
+
+**Before writing any code:** `008`, then `strategems/009`. One question is
+blocking — **what a row of the operation table receives** — and it blocks the
+interpreter alone, which is far enough off that it should be decided when the
+interpreter is written rather than before, because the machine writing it will
+have opinions the seed does not.
+
+Everything else open is what whoever writes the code will meet while writing it,
+and several of the answered questions came out the same way — handed to the
 machine rather than settled by a rule written here.
+
+**Two of the answers are rules about other people's property**, which nothing
+else in this project is, and they are worth reading before touching storage: data
+already on a device is never overwritten unless somebody asks, and where the
+machine puts things depends on what the medium is made of, because flash wears
+out and disks do not.
 
 **To find out what was deliberately not decided:** `notes/007-deferred.md`. The
 canvas, the people, the game, the mail between machines, and the cheap backward
@@ -80,8 +96,9 @@ what would un-park each.
 
 ## The phases
 
-Defined in `011-roadmap.md`. They organise the work of building **the seed** —
-not the machine, which builds itself. Lower numbers are more foundational, so the
+Defined in `011-roadmap.md`. They organise the work of building **one seed** — not
+the machine, which builds itself, and not the generator, which is what the seeds
+come out of. Lower numbers are more foundational, so the
 last ticket finished may well be an early-phase one.
 
 | Phase | Cluster |
@@ -91,11 +108,13 @@ last ticket finished may well be an early-phase one.
 | 3 | What it is told — instruction, patterns, device descriptions |
 | 4 | Three tongues — the other two architectures, and choosing between them |
 | 5 | The image — recipe, board descriptions, build, flash, verify |
-| 6 | Waking — first light, and the first thing it makes unaided |
+| 6 | Waking — first light, and the machine installing itself |
 | 7 | The proving ground — an emulated computer, and devices that can be destroyed |
 
 Phase 6 is the capstone and the only one that proves anything. What happens after
-it is not planned, on purpose.
+it is the crank: watch what the machine does with its life, change the seed, and
+build another one. That is the seed generation system earning its name, and it is
+the actual deliverable — a seed is a sample.
 
 Phase 7 is numbered last and built first: nothing in it ever ships, which is what
 its number means. `701` is where the other twenty-two tickets get developed.
@@ -108,20 +127,32 @@ numbering.
 
 ## The story in one line
 
-Find memory, find the body, learn to work the body, open every channel the body
-provides — then answer whatever arrives through them, by using what is here, or
-altering what is here, or making room and building it, and afterward squeezing
-out the duplication so the room came from verbosity rather than from capability.
+Find memory, find somewhere to keep things, find the body, learn to work the body,
+open every channel the body provides — then keep giving yourself things to do, by
+using what is here, or altering what is here, or making room and building it, and
+afterward squeezing out the duplication so the room came from verbosity rather
+than from capability. Nobody asks. Nothing arrives. The wanting comes from
+inside.
 
 ---
 
 ## Not yet written
 
-- **Any code at all.** Twenty-two tickets describe the seed and none of them have
-  been started.
+**This list was written before any code existed and was not revised as code
+appeared. Corrected 2026-08-21.** There are now well over a hundred source files
+and the progress notes in `issues/` are the honest account of what runs; this page
+should not be read as a status.
+
+- **The seed generation system itself.** The deliverable is the thing that makes
+  seeds from an `input/` directory and a board description, and refuses to build
+  when the board cannot carry what the seed assumes. The pieces exist in miniature —
+  board descriptions as data, a payload generator that already declines to draw on
+  a board with nowhere to draw — and have never been joined up or named.
+- **A fault handler that prints.** Named on 2026-08-21 as the highest-value thing
+  not on the chip: about a hundred instructions per architecture that turn this
+  project's dominant failure mode from silence into a sentence.
 - **The demos**, and the runner in the project root that asks which phase to
   show. Blocked on there being a completed phase.
-- **The HTML build** at `docs/HTML/`, cross-linked, with the status square as
-  something you can move around in and the four rungs as something you can watch
-  a request descend.
+- **The HTML build** at `docs/HTML/`, cross-linked, with the four rungs as
+  something you can watch a request descend.
 - **`*.info.md` files**, one per source file, once source exists.
