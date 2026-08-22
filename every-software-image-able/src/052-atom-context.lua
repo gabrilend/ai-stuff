@@ -207,6 +207,36 @@ end
 --
 -- Dropping for want of room is a FALLBACK. It is what happens when the machine
 -- did not choose in time, and it is announced rather than done quietly.
+--
+-- WHAT "IN TIME" MEANS, decided 2026-08-08 and not built yet (304, reopened;
+-- design in docs/013; thresholds in docs/balance-updates.md). The machine sweeps
+-- its own resident set at 80% of the MANAGEABLE budget -- total minus the atoms
+-- carried on the chip, which are outside the arithmetic so the floor is always
+-- reachable -- and compacts to 60%, or as low as 40%. Each atom is ranked on two
+-- independent axes, relevance to current work and worth keeping at all, and then
+-- kept, summarised, merged with another, split in two, written out, or dropped.
+--
+-- What is written below stays as the floor beneath that: oldest-first with no
+-- judgement is what happens when even the sweep did not run.
+--
+-- ORDER THE SWEEP BY POSITION, NOT BY BADNESS. This is the one thing about the
+-- real version that is not obvious and will be got wrong by anyone optimising
+-- for the wrong quantity. The cache is valid only as a prefix: 061's replay
+-- keeps the longest common prefix of what it holds and what the context now is,
+-- then re-runs the engine from the first divergence to the end. So the bill for
+-- touching an atom at position N is (final length - N) forward passes, and it
+-- does not matter how many other atoms are touched at or after N.
+--
+-- Two consequences, both backwards from intuition. Removing ONE stale atom from
+-- early in the context costs the same replay as clearing half of it, so removals
+-- want batching into one sweep rather than being taken as noticed. And once the
+-- earliest hole is paid for, compacting further is free -- going to 40% instead
+-- of 60% SUBTRACTS replay, because what survives is shorter.
+--
+-- The expensive half is generation instead: summarising, splitting and merging
+-- each write new text and scale with how many atoms are rewritten. A compaction
+-- reached by dropping is nearly free; one reached by rewriting is the costliest
+-- thing the machine does that is not answering somebody.
 function M.make_room(context, wanted)
   local freed = {}
   while M.room_left(context) < wanted and #context.order > 0 do

@@ -39,10 +39,17 @@ owns the boundary in its content.
 | `find(topic)` | the index, resident or not |
 | `room_left`, `make_room` | running low as a condition rather than a wall |
 
-## Three decisions worth keeping
+## Four decisions worth keeping
 
-**A dropped atom stays findable.** One that cannot be found again was lost,
-whatever it was called.
+**A dropped atom is gone, and leaves no record.** This reverses what this file
+said until 2026-08-08, which was that a dropped atom stays findable — written
+when there was no storage, so "findable" meant an index entry pointing at
+nothing. Now that there is somewhere to put things, the two acts are separated:
+**write out** preserves and stops carrying, **drop** does not preserve. Choosing
+between them is a judgement about worth, made separately from the judgement
+about relevance. The accepted cost is a machine that drops something, later
+wants it, and never learns it once had it; the rejected alternative was an index
+filling with markers for things nobody can retrieve. `docs/013`.
 
 **A merged-away atom's number is never reused.** Anything referring to it would
 otherwise point at a different subject, which is worse than pointing at
@@ -51,6 +58,11 @@ nothing. This is the answer to the fourth open question in `docs/013`.
 **An edited atom keeps its number.** Whatever referred to it meant the subject
 rather than the wording.
 
+**A split atom's number is retired, and both parts get new ones.** The same rule
+as merge, run backwards, and for the same reason: afterwards the parent's subject
+is two subjects, so nothing may still resolve to it as one. The parent is
+recorded as what the parts came from.
+
 ## Dropping for want of room is a fallback
 
 It is what happens when the machine did not choose in time, so it is announced
@@ -58,6 +70,19 @@ and counted, and it never takes the atoms carried on the chip — those include
 the instruction and the explanation of this mechanism. When everything left is
 undroppable, nothing is dropped and the room left says zero, rather than a
 machine believing it made room and overrunning.
+
+**What "in time" means was decided on 2026-08-08, and is not built here yet.**
+The machine sweeps its own resident set at 80% of the manageable budget and
+compacts to 60%, or as low as 40%. `make_room` as written is the crude version of
+that — oldest-first, no judgement, no summarising, no splitting — and it stays as
+the floor beneath the real one. The design is in `docs/013`, the thresholds are in
+`docs/balance-updates.md`, and the work is `304`, reopened.
+
+Two things this module will need for it: **room-left has to report two numbers**,
+manageable and furniture, because the percentages are taken over the droppable set
+alone; and **the sweep must be ordered by position, not by how bad an atom is**,
+because the cache is a prefix and the replay cost is set by the earliest atom
+touched rather than by how many are touched.
 
 ## The uncomfortable property, tested
 
