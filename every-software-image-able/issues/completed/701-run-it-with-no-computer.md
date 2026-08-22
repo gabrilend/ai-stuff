@@ -1,5 +1,77 @@
 # 701 — Run it with no computer
 
+## Reopened 2026-08-21 — nobody can watch the machine
+
+Everything below this section works and stays. What it lacks is the plainest
+thing anybody would ask of a proving ground: **a screen you can look at while the
+machine is running.**
+
+### Current behavior
+
+The launcher passes `-display none` and always has. The comment beside it is
+honest about the consequence -- *the framebuffer device still exists and can be
+inspected through the monitor later; only nobody is watching live.* So a machine
+can be photographed and the photograph rendered as text, which proves what was
+drawn and cannot show it happening.
+
+The serial wire can already come to the terminal, and that is the channel the
+machine speaks on before it can do anything else. What is missing is only the
+picture.
+
+### Intended behavior
+
+`--watch` opens a window on the running machine, and the serial line keeps
+working exactly as it does now. Watching and reading happen at once, in the way
+somebody debugging a computer expects: a screen on one side, words on the other.
+
+Three backends exist on this host — a window, a second kind of window, and one
+that draws the guest's screen **inside the terminal**. The last matters more than
+it looks: half the boards here run in eighty-by-twenty-five text mode, where a
+terminal rendering is not a poor substitute for a window but a better thing than
+one, and it works over a connection with no display at all.
+
+### Done 2026-08-21, except the last step
+
+`--watch` exists and takes an optional backend. Bare, it opens a window where
+the host has a display server and draws in the terminal where it does not,
+saying which it chose. Asking for the in-terminal rendering together with
+serial-to-terminal declines the second and says so. A word that is not a
+backend is refused rather than guessed at. Every board still defaults to no
+window, checked across all six.
+
+**Step four is not done and is deliberately left.** Two boards still describe
+their display identically while one is characters in memory and the other is
+real pixels. Nothing reads that distinction yet, and adding a field nothing
+consults is the speculative work this project keeps arguing against. It becomes
+worth doing the moment something wants to advise a backend per board rather than
+per host.
+
+### Suggested implementation steps
+
+1. `--watch` with an optional value naming the backend. No value picks a window
+   when the host has a display server and the in-terminal rendering when it does
+   not, **announced either way** — the same shape as `--accel`, which declines out
+   loud rather than falling back quietly.
+2. Refuse to guess where two options want the same terminal. The in-terminal
+   rendering owns the terminal, and so does serial-to-terminal; asking for both
+   sends the serial line to its log file instead, and says so.
+3. Leave `-display none` as the default. Every test in the project boots
+   machines without a window and must keep doing so, because a window nobody
+   asked for on a build machine is a hang rather than a picture.
+4. Say what a board's screen actually is. Two boards describe their display
+   identically while one is characters in memory and the other is real pixels,
+   so a description cannot pick a backend for itself. Whichever way that is
+   resolved, the fact belongs in the board description rather than in the
+   launcher's judgement.
+
+### What this does not cover
+
+Watching a machine and stepping it in a debugger at the same time. Both are
+available separately and nothing has tried them together.
+
+---
+
+
 ## Current behavior
 
 **In progress.** The harness exists and all three architectures have produced
