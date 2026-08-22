@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+#
+# watch-a-machine -- boot one of the emulated computers and sit and watch it.
+#
+# For a general: this project develops a computer that has nothing on it, and
+# every check it runs boots such a computer invisibly and inspects the wreckage
+# afterwards. This does the opposite. It asks which machine you want, what you
+# want it to run, and then starts it with a screen you can look at and its words
+# arriving in this terminal as it says them -- the way it would be if you had
+# plugged a monitor and a serial cable into a real board.
+#
+# Two windows, deliberately. The terminal you launched from carries what the
+# machine SAYS. A second window carries what the machine DRAWS. They are
+# different channels on a real computer and they are different channels here:
+# the words work from the machine's first instruction, and the picture needs a
+# firmware that hands over a screen.
+#
+# usage:
+#   ./watch-a-machine [PROJECT_ROOT]
+#
+# Everything is asked rather than passed. Press enter to take the default shown
+# in brackets. Nothing here is used by any test; it exists to be watched.
+
+# {{{ DIR -- the project root, hard-coded, overridable by an argument
+DIR="/mnt/mtwo/programming/ai-stuff/every-software-image-able"
+if [ -n "$1" ] && [ -d "$1" ]; then DIR="$1"; shift; fi
+# }}}
+
+# {{{ ask(prompt, default) -- one question, with a default you can enter through
+ask() {
+  local prompt="$1" fallback="$2" answer
+  # The prompt goes to stderr because the ANSWER goes to stdout, and a caller
+  # reads this through command substitution. The first version printed both to
+  # stdout, so the question came back as part of the reply.
+  printf '  %s [%s] ' "$prompt" "$fallback" >&2
+  # A failed read is end-of-input, not an empty answer: somebody piped into
+  # this, or pressed ctrl-d. Taking the default is right; looping is not.
+  if ! read -r answer; then printf '%s' "$fallback"; return; fi
+  if [ -z "$answer" ]; then printf '%s' "$fallback"; else printf '%s' "$answer"; fi
+}
+# }}}
+
+# {{{ choose(prompt, ...) -- a numbered list, answered by number
+# Returns the chosen line on stdout. Everything the caller wants to show goes
+# in the line itself, so this function never has to know what is being chosen
+# between -- boards and payloads go through it unchanged.
+choose() {
+  local prompt="$1"; shift
+  local -a items=("$@")
+  local index=0 item
+  echo "" >&2
+  for item in "${items[@]}"; do
+    index=$((index + 1))
+    printf '  %2d  %s\n' "$index" "${item#*|}" >&2
+  done
+  echo "" >&2
+  local pick
+  while true; do
+    printf '  %s [1-%d] ' "$prompt" "$index" >&2
+    # End of input ends the question rather than asking it again forever. The
+    # first version looped here, so piping anything into this script spun the
+    # terminal -- a wrong answer repeated is indistinguishable from a hang.
+    if ! read -r pick; then
+      echo "" >&2
+      echo "  nothing more to read; stopping." >&2
+      exit 1
+    fi
+    case "$pick" in
+      ''|*[!0-9]*) echo "  a number, please" >&2 ; continue ;;
+    esac
+    if [ "$pick" -ge 1 ] && [ "$pick" -le "$index" ]; then break; fi
+    echo "  there are $index of them" >&2
+  done
+  printf '%s' "${items[$((pick - 1))]%%|*}"
+}
+# }}}
+
+# {{{ the boards, with what makes each of them different
+# Read from the descriptions rather than listed here, so a board added to the
+# project appears in this list without anybody remembering to add it -- the
+# same reason the test runner reads them rather than naming them.
+BOARDS=()
+for description in "${DIR}"/src/*-board-*.lua; do
+  [ -e "$description" ] || continue
+  short=$(basename "$description" .lua)
+  short=${short#*-board-}
+  arch=$(sed -n 's/^  arch = "\(.*\)",/\1/p' "$description" | head -1)
+  firmware="its own firmware"
+  case "$short" in
+    *uefi*) firmware="modern firmware, hands over a screen" ;;
+    qemu-x86-64) firmware="old firmware, text memory only" ;;
+    *) firmware="no firmware at all" ;;
+  esac
+  BOARDS+=("${short}|$(printf '%-20s %-10s %s' "$short" "$arch" "$firmware")")
+done
+# }}}
+
+# {{{ what a board can be asked to run
+# Which payloads suit which firmware is a real constraint rather than a
+# preference: a board with no firmware has no screen to draw on until something
+# plugs one in, and a modern-firmware board looks for a file with a name no
+# boot-sector payload has. Offering the wrong one produces a machine that sits
+# there, which looks exactly like a machine that broke.
+payloads_for() {
+  case "$1" in
+    *uefi*)
+      echo "draw-on-firmware|draw-on-firmware   letters drawn onto the screen the firmware handed over"
+      echo "uefi-hello|uefi-hello         speaks through the firmware's own console"
+      echo "blob-report|blob-report        carries a model inside itself and reads its header aloud"
+      echo "waking|waking             says which processor it woke up on, then hands over"
+      echo "none|none               nothing -- just the firmware, which will drop to its own shell"
+      ;;
+    *)
+      echo "first-light|first-light        says 'first light' over the serial line and sleeps"
+      echo "draw-something|draw-something     writes letters straight into text memory"
+      echo "none|none               nothing -- an empty machine with nowhere to go"
+      ;;
+  esac
+}
+# }}}
+
+# {{{ main
+echo ""
+echo "  a computer with nothing on it, and somewhere to watch it from."
+echo ""
+
+board=$(choose "which machine?" "${BOARDS[@]}")
+
+mapfile -t CHOICES < <(payloads_for "$board")
+payload=$(choose "what should it run?" "${CHOICES[@]}")
+
+arch=$(sed -n 's/^  arch = "\(.*\)",/\1/p' "${DIR}"/src/*-board-"${board}".lua | head -1)
+
+# The payload has to exist before a machine can be pointed at it, and building
+# it is quick. Built every time rather than cached: a stale binary that boots
+# is worse than a missing one that does not, and this project has been bitten
+# by exactly that already.
+payload_argument=()
+if [ "$payload" != "none" ]; then
+  echo ""
+  echo "  building ${payload} for ${arch}..."
+  if ! luajit "${DIR}/src/019-build-payload.lua" --payload "$payload" --arch "$arch" --dir "$DIR"; then
+    echo ""
+    echo "  that payload could not be built for this machine. Nothing was started."
+    exit 1
+  fi
+  built=$(ls -1 "${DIR}"/tmp/shared-memory/payloads/"${payload}-${arch}".efi \
+                "${DIR}"/tmp/shared-memory/payloads/"${payload}-${arch}".bin 2>/dev/null | head -1)
+  if [ -z "$built" ]; then
+    echo "  it built nothing this launcher can attach. Nothing was started."
+    exit 1
+  fi
+  payload_argument=(--payload "$built")
+fi
+
+echo ""
+if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+  screen_default="window"
+else
+  screen_default="terminal"
+fi
+echo "  where should the machine's SCREEN go?"
+echo "    window    -- a second window, scaled to whatever size your window manager gives it"
+echo "    terminal  -- drawn over this terminal, which suits the text-mode boards"
+echo "    nowhere   -- no picture; the words alone"
+screen=$(ask "screen?" "$screen_default")
+
+watch_argument=()
+serial_argument=(--stdio)
+case "$screen" in
+  window)   watch_argument=(--watch gtk) ;;
+  terminal) watch_argument=(--watch curses) ; serial_argument=() ;;
+  nowhere)  : ;;
+  *) echo "  '$screen' is not one of those; taking nowhere" ; screen="nowhere" ;;
+esac
+
+# Freezing at the first instruction is the only way to read assembly nobody has
+# source for, and it is useless without a second terminal to drive it from --
+# so it is offered with the command to paste there rather than assumed.
+echo ""
+freeze=$(ask "freeze at the first instruction and wait for a debugger? (y/N)" "n")
+gdb_argument=()
+case "$freeze" in
+  y|Y|yes) gdb_argument=(--gdb) ;;
+esac
+
+echo ""
+echo "  ------------------------------------------------------------"
+if [ "$screen" = "window" ]; then
+  echo "  a window is about to open. This terminal keeps the machine's words."
+elif [ "$screen" = "terminal" ]; then
+  echo "  the machine's screen will take over this terminal."
+  echo "  its words go to the log instead; the path is printed below."
+else
+  echo "  no picture. Everything the machine says arrives here."
+fi
+if [ "${#gdb_argument[@]}" -gt 0 ]; then
+  echo ""
+  echo "  it will freeze before its first instruction. In another terminal:"
+  echo ""
+  echo "      gdb -ex 'target remote :1234'"
+  echo ""
+  echo "  and 'continue' there to let it go."
+fi
+echo ""
+echo "  stop it with ctrl-a then x, or ctrl-c."
+echo "  ------------------------------------------------------------"
+echo ""
+
+luajit "${DIR}/src/018-launch-board.lua" "$board" \
+  "${payload_argument[@]}" "${watch_argument[@]}" \
+  "${serial_argument[@]}" "${gdb_argument[@]}" --dir "$DIR"
+
+echo ""
+echo "  the machine stopped. What it said is kept at:"
+echo "    ${DIR}/tmp/shared-memory/logs/"
+echo ""
+# }}}
