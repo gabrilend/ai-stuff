@@ -16,7 +16,7 @@
 --   luajit 018-launch-board.lua <board> [--payload FILE] [--disk FILE]
 --                               [--memory small|plenty|SIZE] [--seconds N]
 --                               [--stdio] [--gdb] [--accel] [--dry-run]
---                               [--watch [gtk|sdl|curses]]
+--                               [--watch [gtk|sdl|curses]] [--medium FILE]
 --                               [--dir PROJECT_ROOT]
 --
 --   <board> is the short name from a src/*-board-<name>.lua file,
@@ -62,7 +62,7 @@ end
 
 -- {{{ local function parse_arguments(argv)
 local function parse_arguments(argv)
-  local options = { board = nil, payload = nil, disk = nil,
+  local options = { board = nil, payload = nil, disk = nil, medium = nil,
                     memory = "small", seconds = nil,
                     screenshot = nil, capture_after = 3, monitor_port = 4444,
                     stdio = false, gdb = false, accel = false,
@@ -72,6 +72,7 @@ local function parse_arguments(argv)
     ["--payload"] = "payload", ["--disk"] = "disk",
     ["--memory"] = "memory", ["--seconds"] = "seconds", ["--cpu"] = "cpu",
     ["--screenshot"] = "screenshot", ["--capture-after"] = "capture_after",
+    ["--medium"] = "medium",
     ["--dir"] = "dir",
   }
   local is_switch = {
@@ -177,6 +178,35 @@ end
 -- arrive on whatever controller the board says it has.
 local attach_storage
 
+-- {{{ local function attach_firmware(board, argv)
+-- The board's own firmware, however that board carries it. Lifted out of the
+-- payload attacher on 2026-08-21 because a second thing now needs it: booting
+-- a MEDIUM this project built, rather than a directory the emulator pretends
+-- is one. Both roads need firmware and only one of them needs a directory.
+local function attach_firmware(board, argv)
+  if board.payload.firmware_code then
+    -- presented as flash chips, the way a real board carries firmware.
+    argv[#argv + 1] = "-drive"
+    argv[#argv + 1] = "if=pflash,format=raw,unit=0,readonly=on,file="
+      .. board.payload.firmware_code
+
+    if board.payload.firmware_vars then
+      -- the variable store is written to, so each machine gets its own copy.
+      -- Sharing one would let a run change what the next one sees.
+      local vars = DIR .. "/tmp/vars-" .. board.board_id .. ".fd"
+      run_one("cp -f " .. board.payload.firmware_vars .. " " .. vars)
+      argv[#argv + 1] = "-drive"
+      argv[#argv + 1] = "if=pflash,format=raw,unit=1,file=" .. vars
+    end
+
+  elseif board.payload.firmware then
+    -- boards whose firmware is handed over whole rather than as flash.
+    argv[#argv + 1] = "-bios"
+    argv[#argv + 1] = board.payload.firmware
+  end
+end
+-- }}}
+
 -- {{{ attach_payload -- one attacher per way a firmware finds its payload
 local attach_payload = {
 
@@ -190,7 +220,8 @@ local attach_payload = {
   end,
   -- }}}
 
-  -- {{{ ["uefi-esp"] = function(board, path, argv)
+
+-- {{{ ["uefi-esp"] = function(board, path, argv)
   ["uefi-esp"] = function(board, path, argv)
     -- The firmware road, and the only one that matches how a real computer
     -- starts. Firmware looks on a FAT filesystem for a file whose name says
@@ -201,26 +232,7 @@ local attach_payload = {
     -- making a disk image for something that changes on every build.
     local root = DIR .. "/tmp/esp-" .. board.board_id
 
-    if board.payload.firmware_code then
-      -- presented as flash chips, the way a real board carries firmware.
-      argv[#argv + 1] = "-drive"
-      argv[#argv + 1] = "if=pflash,format=raw,unit=0,readonly=on,file="
-        .. board.payload.firmware_code
-
-      if board.payload.firmware_vars then
-        -- the variable store is written to, so each machine gets its own
-        -- copy. Sharing one would let a run change what the next one sees.
-        local vars = DIR .. "/tmp/vars-" .. board.board_id .. ".fd"
-        run_one("cp -f " .. board.payload.firmware_vars .. " " .. vars)
-        argv[#argv + 1] = "-drive"
-        argv[#argv + 1] = "if=pflash,format=raw,unit=1,file=" .. vars
-      end
-
-    elseif board.payload.firmware then
-      -- boards whose firmware is handed over whole rather than as flash.
-      argv[#argv + 1] = "-bios"
-      argv[#argv + 1] = board.payload.firmware
-    end
+    attach_firmware(board, argv)
 
     local boot_directory = root .. "/" .. board.payload.boot_path:match("^(.*)/[^/]+$")
     run_one("rm -rf " .. root)
@@ -415,7 +427,27 @@ local function build_command(board, options, serial_log)
     argv[#argv + 1] = "file:" .. serial_log
   end
 
-  if options.payload then
+  -- {{{ a medium this project built, rather than one the emulator pretends into
+  -- Added 2026-08-21, and it is the check that was missing for months. Every
+  -- emulated boot until now took a payload FILE and let the emulator synthesise
+  -- a filesystem around it, so the thing the image builder produces was never
+  -- the thing under test -- and it turned out no firmware could open it.
+  --
+  -- This road hands the firmware a whole medium: partition table, filesystem,
+  -- boot file and all, exactly the bytes that would go on a card. If the
+  -- firmware finds it, the builder is right. If not, the builder is wrong, and
+  -- that is a sentence somebody can act on rather than a boot that silently
+  -- does nothing.
+  if options.medium then
+    attach_firmware(board, argv)
+    local attacher = attach_storage[board.storage.controller]
+    if not attacher then
+      die("board declares storage controller '" .. board.storage.controller
+          .. "', which nothing knows how to attach")
+    end
+    attacher(board, options.medium, argv)
+
+  elseif options.payload then
     local attacher = attach_payload[board.payload.kind]
     if not attacher then die("board declares unknown payload kind: " .. board.payload.kind) end
     attacher(board, options.payload, argv)
@@ -495,6 +527,9 @@ local serial_log = DIR .. "/tmp/shared-memory/logs/" .. board.board_id .. "-seri
 
 if options.payload and not file_exists(options.payload) then
   die("payload does not exist: " .. options.payload)
+end
+if options.medium and not file_exists(options.medium) then
+  die("medium does not exist: " .. options.medium)
 end
 if options.disk and not file_exists(options.disk) then
   die("disk does not exist: " .. options.disk)

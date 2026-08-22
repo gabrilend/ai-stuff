@@ -26,6 +26,41 @@ what it produces is the thing `503` puts on a card and `601` switches on.
 **This closes again when `107` hands it real bytes** and the layout check
 becomes a check between two things that both exist.
 
+## Fixed 2026-08-22 — the image is a medium now, and firmware opens it
+
+**A firmware has opened what this builder produces, on all three
+architectures.** `141` wraps the laid-out regions into a partition table, a
+FAT16 partition, and the boot file at the path the board description already
+names; `142` checks it three ways and the third is the one that counts.
+
+The other two are worth keeping because the third is slow. Tools written by
+people with no stake in this being right read the partition table and the
+filesystem and agree with them. And the checksum a partition table makes of
+itself is checked against a published answer before anything else here is
+trusted — which caught this file's own first version, written with addition
+where the algorithm needs exclusive-or. That produced a plausible number for
+every input and the wrong one for all of them, and a table whose check fails is
+ignored **in silence**.
+
+**The third architecture disproved a claim made from the first.** The medium
+writer originally refused long filenames, with a comment saying every path a
+firmware looks for fits the eight-and-three naming FAT has always had. The
+RISC-V path is `EFI/BOOT/BOOTRISCV64.EFI` — eleven characters in the stem. It is
+the same mistake this project has already written down about assembly, arriving
+in a filesystem: one machine looked at, and generalised from.
+
+**And the smallest image is megabytes now**, because a FAT16 filesystem is only
+FAT16 above about four thousand clusters. The floor comes from the format rather
+than from anything chosen here, and the flasher's tests were carrying pretend
+cards smaller than the smallest real image.
+
+**What is still open in this ticket** is the older blocker: the engine's bytes
+arrive as a parameter and one caller supplies it, a test passing two thousand
+copies of the letter E. A firmware now opens the medium and runs the file inside
+it. Whether that file is a machine is a different claim and `107` still owns it.
+
+---
+
 **Found on 2026-08-08, and larger than the blocker above: the image this builder
 produces cannot be booted by any firmware.** It lays down five regions at block
 boundaries and writes nothing else -- no partition table, no filesystem, no file.
