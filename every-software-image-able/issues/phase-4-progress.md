@@ -11,7 +11,7 @@ paid once, by people, before any of these machines exist.
 
 | | | Status |
 |---|---|---|
-| `401` | The second and third tongues | **in progress** — a whole thought runs end to end in assembly on all three architectures, and all three produce the same 192 scores bit for bit over the same weights; what remains is the hands, which are ported nowhere |
+| `401` | The second and third tongues | **in progress** — a whole thought runs end to end in assembly on all three architectures, and all three produce the same 192 scores bit for bit over the same weights; what remains is the hands, and — as of 2026-08-08 — the thinking loop and driver, which turned out to be owned by no ticket while `105` sat waiting on them |
 | `402` | Waking on the right foot | **completed** — the selection proved on all three architectures, the within-architecture detection written and proved by booting two different processors and requiring them to disagree, 18 of 18 |
 | `403` | The tokenizer and the console, on all three at once | **completed** — the tokenizer agrees over the awkward corpus in both directions, 9 of 9; and saying something is a callable routine on all three, chunked and checked in order, 9 of 9 |
 
