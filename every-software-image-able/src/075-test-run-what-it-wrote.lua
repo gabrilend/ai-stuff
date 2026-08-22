@@ -241,16 +241,25 @@ check("a program assembled without a watch says it has none",
 -- {{{ the rules of 203 still hold underneath
 local onto_the_engine = runner_module.new({
   memory = memory, somewhere = BASE + 0x40, room = 0x100,
-  magnitude_at = MAGNITUDE, run = transfer,
+  count_at = LOOP_COUNT, run = transfer,
 })
-local blocked, blocked_why = runner_module.place(onto_the_engine, "over itself",
-                                                 adder_bytes, "")
-check("placing a program on top of the engine is refused",
-      blocked == nil and blocked_why:find("goes quiet") ~= nil, blocked_why)
+-- Rewritten 2026-08-21. This used to require that placing a program on top of
+-- the engine be REFUSED, because the memory hand refused every write there.
+-- The hand warns now instead of refusing (071), so this does too: the bytes
+-- land, and the machine is told what it just wrote over. Putting a program on
+-- top of your own mind is almost certainly a mistake and is still yours to
+-- make; the only thing that would make it fatal is not being told.
+local landed, landed_why, landed_warning =
+  runner_module.place(onto_the_engine, "over itself", adder_bytes, "")
+check("placing a program on top of the engine is allowed",
+      landed ~= nil and landed_why == nil, landed_why)
+check("and the machine is told what it just wrote over",
+      landed_warning ~= nil and landed_warning:find("your own mind") ~= nil,
+      landed_warning)
 
 local too_big = runner_module.new({
   memory = memory, somewhere = PROGRAMS, room = 4,
-  magnitude_at = MAGNITUDE, run = transfer,
+  count_at = LOOP_COUNT, run = transfer,
 })
 local no_room = select(2, runner_module.place(too_big, "big", adder_bytes, ""))
 check("and a program with nowhere to go says how much room there was",

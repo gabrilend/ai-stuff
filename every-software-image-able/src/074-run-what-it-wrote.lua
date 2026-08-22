@@ -84,21 +84,30 @@ function M.place(runner, name, bytes, text)
       .. " bytes left where programs go, and this one is " .. #bytes
   end
 
+  -- Changed 2026-08-21. Placing used to be refused outright when the bytes
+  -- would land on the engine or the weights, because the memory hand refused
+  -- any such write. The hand does not refuse any more (071), so neither does
+  -- this -- what it does instead is carry the warning back out, once, from
+  -- whichever byte first said something. Placing a program on top of your own
+  -- mind is almost certainly a mistake; it is still yours to make, and the
+  -- only thing that would make it fatal is not being told.
+  local warned
   for offset = 0, #bytes - 1 do
-    local ok, why = runner.touch.poke_byte(runner.memory, at + offset,
-                                           bytes:byte(offset + 1))
+    local ok, why, said = runner.touch.poke_byte(runner.memory, at + offset,
+                                                 bytes:byte(offset + 1))
     if not ok then
       return nil, "could not place it: " .. tostring(why)
     end
+    warned = warned or said
   end
 
   runner.used = runner.used + #bytes
   -- kept in the order they were made, because that order is the machine's
   -- own history of what it built and when.
   runner.placed[#runner.placed + 1] = {
-    name = name, at = at, bytes = #bytes, text = text,
+    name = name, at = at, bytes = #bytes, text = text, warned = warned,
   }
-  return at
+  return at, nil, warned
 end
 -- }}}
 
