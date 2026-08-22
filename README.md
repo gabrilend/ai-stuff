@@ -496,4 +496,4 @@ The following directives govern development. Priority indicates enforcement leve
 
 ---
 
-License: Individual projects may have their own licenses. See each project's directory for details.
+License: GNU Affero General Public License, version 3 or later. The full license text is in LICENSE; COPYRIGHT explains what it covers, which subdirectories hold vendored third-party code under their own terms, and what the Affero clause adds on top of the ordinary GPL.
