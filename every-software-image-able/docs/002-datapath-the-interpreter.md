@@ -39,7 +39,11 @@ of questions, everything is decided by using a number as an index.
 ## The three kernel jobs, done here
 
 **Taking control back.** The countdown is spent inside the fetch, one per
-instruction. A program cannot avoid it, cannot disable it, and cannot write a
+instruction. **It is a full-width count, private to the program spending it, and
+nothing displays it.** An earlier draft had it sharing a cell with a two-digit
+status display, and building it that way meant a program was called a runaway after
+fifteen turns of a loop; the display is gone entirely now (`006`) and the count is
+just a count. A program cannot avoid it, cannot disable it, and cannot write a
 loop that outruns it, because the spending happens one layer below anything a
 program is able to express. This is the same trick Erlang uses to keep thousands
 of processes fair without a timer chip, and it is why this machine can survive a
@@ -73,7 +77,6 @@ loop reads.
 | `name` | string | what it is called, for people and for search |
 | `arity` | integer | how many numbers follow it in the program |
 | `cost` | integer | how much countdown it spends; not always one |
-| `aspect` | integer | which colour this operation's failures report under (`006`) |
 | `added_at` | integer | which build of the machine introduced it |
 
 `cost` is not always one because some operations are not one thing. An operation
@@ -120,10 +123,14 @@ resolution is not written yet. It is question 9 in `008`.
 - **What decides an operation is worth a row?** Any sequence used often enough
   could become one. Never promoting anything leaves the machine slow; promoting
   freely makes the table enormous. Nothing measures this yet.
-- **Where does the countdown's mark live?** `006` says a magnitude far enough
-  from fifty stops the machine and starts a backward walk. Whether the
-  interpreter checks against one mark or several on the way out, and whether the
-  marks are per-program or per-machine, is undecided.
+- ~~Is the countdown needed at all any more?~~ **Not ours to answer.** This whole
+  document describes something the machine *writes*, so whether the interpreter it
+  builds spends a countdown in its fetch is its own business. Two answers to one
+  question now exist — `006`'s threads and a clock, which needs nothing inserted into
+  a program but needs a spare core, and this countdown, which needs neither. A
+  machine with several cores may want neither; a machine with one may want both. Who
+  chooses a program's allowance is the same kind of question and gets the same
+  answer.
 - **Can a program add an operation?** If yes, the door widens from inside and the
   machine can extend itself while running. If no, adding one means rebuilding the
   interpreter, which means the machine cannot learn a new trick without stopping.
