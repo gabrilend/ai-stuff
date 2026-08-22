@@ -39,6 +39,19 @@ serial-to-terminal declines the second and says so. A word that is not a
 backend is refused rather than guessed at. Every board still defaults to no
 window, checked across all six.
 
+**And there is a front door for it**: `watch-a-machine` in the project root asks
+which board, what to run on it, where the screen should go and whether to freeze
+for a debugger, then builds the payload and starts the machine. It reads the
+board descriptions rather than listing them, so a board added to the project
+appears in it without anybody remembering. Nothing in the test suite uses it; it
+exists to be watched.
+
+Two defects were found in it by driving it with piped input rather than by
+typing at it. The question helper wrote its prompt to the same stream as its
+answer, so the question came back as part of the reply. And both helpers looped
+forever at end of input, which turned a piped run into a spinning terminal — a
+wrong answer repeated is indistinguishable from a hang.
+
 **Step four is not done and is deliberately left.** Two boards still describe
 their display identically while one is characters in memory and the other is
 real pixels. Nothing reads that distinction yet, and adding a field nothing
