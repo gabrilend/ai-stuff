@@ -115,10 +115,28 @@ boot knows exactly which experiment did not survive, and does not repeat it.
 ```
 about to try something that might not return
    → write the intent: device, register, value, what is expected
+   → arm the board's reset timer, briefly                  (added 2026-08-21)
    → perform the write
+   → disarm the timer
    → observe
    → write the outcome, which retires the intent
 ```
+
+**The two middle steps are new and they cost nothing.** The firmware arms a reset
+timer before the machine's first instruction and the machine turns it off, because
+thinking must never be on a clock. That call may be made again — so a machine can arm
+it for a few seconds around a probe and turn it off afterwards.
+
+It matters because this ticket's gravestone was designed for probes that *destroy*
+hardware, and there is a second failure with the same shape: a probe that **hangs**.
+A read from an address nothing answers on stops the processor inside the instruction,
+where no amount of timing helps because the machine's own code is not running to do
+the timing (`003`). With the reset timer armed, the board comes back and finds a note
+with no outcome beside it. Without it, the board sits stopped until somebody walks
+over to it.
+
+Nobody had noticed the two failures were the same shape. The mechanism needed no
+change to cover both.
 
 A note with no outcome beside it is a gravestone. It is the only way this machine
 learns from the experiments that killed it.
@@ -127,6 +145,62 @@ This is where a permanent, append-only note earns its place in the design — no
 imported from anywhere, but required by the fact that the writer can die
 mid-sentence. Everything about how far back that store reaches and what else goes
 into it is question 10 in `008`.
+
+## When the description is not enough, ask a person
+
+**Added 2026-08-21, and it changes what this document is for.** Confirming a
+description is the machine's own route into the denied list and it stays. What was
+missing is what happens when there is no description to confirm, or the
+confirmation fails, and the machine still cannot get on with anything else.
+
+It asks somebody. Not for permission in the sense of a gate — there is no gate
+anywhere in this design — but because a person can pick up a screwdriver, read a
+datasheet, or simply say *no, don't*. The machine explains three things: what it is
+worried about, why it wants the change, and how it would be done. That is the same
+instrument the machine already uses to justify every other choice it makes
+(`004`), pointed at a person instead of at a chart.
+
+**It cannot do this for a long time.** Asking requires a way of reaching somebody,
+and a channel is software the machine has to build. Until then, and this is the
+whole of what the seed can offer:
+
+```
+stuck: needs a dangerous write, cannot work around it, cannot defer it,
+       and has nothing else worth doing
+   → if there is a way to reach a person, ask, explaining concern, reason, method
+   → if not, write a note that says HELP I'M STUCK, and go do something else
+   → if there is any output at all but no conversation, blink S.O.S. on it
+   → or demolish what was being built and start again, aiming to miss the pitfall
+```
+
+That last one costs work already done and is sometimes the cheapest way forward.
+It is also the only move in this design that spends capability on purpose, which
+is the exact opposite of what rung four does (`005`), and it is worth noticing
+that both are correct.
+
+## Who writes the carried descriptions
+
+Nothing said. Tier two of the knowledge table in `003` is *a description carried on
+the image, in our own format*, and the only thing written about it is that it costs
+drive space and must be written before shipping.
+
+**They are generated at build time and validated by a person.** A model on the
+development machine reads the part's documentation and produces a description in
+our format — including, and this is the part that matters, the **read-only
+predictions** the machine will later use to confirm it: which registers are
+read-only and what they should read as, which are reserved and what pattern they
+hold, which revisions the description covers. The engineer checks it before the
+image is built.
+
+Which gives the confirmation ceremony a symmetry it did not have. **The engineer
+confirms a description against documentation at build time; the machine confirms
+the same description against the silicon at boot.** The same act, twice, and the
+person is present for the half that only documentation can answer.
+
+It also puts a bound on what documentation is needed to build a seed at all. Two
+things: **which registers on this exact part destroy it**, and **the operating
+sequence for any device with no governing standard.** Everything else the machine
+finds out by asking the hardware.
 
 ## Time
 
