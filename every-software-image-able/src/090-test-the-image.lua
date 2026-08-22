@@ -50,6 +50,13 @@ local builder = dofile(DIR .. "/src/089-build-the-image.lua")
 -- (141). Handed in rather than reached for, so the builder stays a thing that
 -- decides WHERE bytes go and not a thing that knows what a partition table is.
 local medium_module = dofile(DIR .. "/src/141-a-bootable-medium.lua")
+-- What rides inside the boot file, and the envelope that carries it. Handed in
+-- rather than reinvented here: this test used to state the expected layout in
+-- its own words, which meant it checked the builder against a second opinion
+-- rather than against the machine. One dataflow -- the builder, the machine
+-- test and this all read the same description now.
+local rides = dofile(DIR .. "/src/143-what-rides-inside.lua")
+local envelope = dofile(DIR .. "/src/029-wrap-uefi.lua")
 local sampler = dofile(DIR .. "/src/040-reference-sampler.lua")
 local budget = dofile(DIR .. "/src/045-memory-budget.lua")
 
@@ -146,6 +153,7 @@ check("a board invented this second is a valid board",
 local model_bytes = string.rep("W", 4096)
 local built, trouble = builder.build({
   recipe = recipe, board = invented, describe = describe, sampler = sampler,
+  rides = rides, envelope = envelope,
   medium_module = medium_module,
   waking_bytes = string.rep("K", 300),
   engine_bytes_content = string.rep("E", 2000),
@@ -176,6 +184,7 @@ check("and the randomness is baked in, from the recorded seed",
 -- {{{ reproducible in the plain sense
 local again = builder.build({
   recipe = recipe, board = invented, describe = describe, sampler = sampler,
+  rides = rides, envelope = envelope,
   medium_module = medium_module,
   waking_bytes = string.rep("K", 300),
   engine_bytes_content = string.rep("E", 2000),
@@ -190,6 +199,7 @@ check("and the same identity", again.identity == built.identity)
 -- nothing at all
 local different = builder.build({
   recipe = recipe, board = invented, describe = describe, sampler = sampler,
+  rides = rides, envelope = envelope,
   medium_module = medium_module,
   waking_bytes = string.rep("K", 300),
   engine_bytes_content = string.rep("E", 2000),
@@ -203,13 +213,29 @@ check("and different inputs give a different identity",
 -- }}}
 
 -- {{{ the seam with the engine
-local agrees = builder.check_the_seam(built, {
-  waking = { at = 0 },
-  model = { after = "engine" },
-  text = { after = "model" },
-})
-check("the builder and the engine agree about the image", agrees == true,
-      select(2, builder.check_the_seam(built, { waking = { at = 0 } })))
+-- DERIVED, NOT TYPED, since 2026-08-22. This used to state the expected layout
+-- in its own words -- waking at zero, model after engine, text after model --
+-- which made the check compare two copies of a belief rather than a belief
+-- against a fact. It passed for months while the builder described an
+-- arrangement nothing read.
+--
+-- The expectations now come from the same two descriptions the machine itself
+-- reads: what rides inside the boot file (143) and how far past the code it
+-- begins (029). If either changes, the builder and this move together; if the
+-- builder's own arithmetic drifts, this catches it.
+local expected = { waking = { at = 0 } }
+for name, offset in pairs(built.riding.at) do
+  expected[name] = { at = envelope.BLOB_OFFSET + offset }
+end
+
+local agrees = builder.check_the_seam(built, expected)
+check("the builder puts things where the machine reads them", agrees == true,
+      select(2, builder.check_the_seam(built, expected)))
+
+check("and the expectations came from the machine's own description",
+      expected.model ~= nil and expected.model.at == envelope.BLOB_OFFSET
+      and expected.model.at > 0,
+      "the model was expected at " .. tostring(expected.model and expected.model.at))
 
 local disagrees = select(2, builder.check_the_seam(built, {
   model = { at = 999999 },
@@ -230,6 +256,7 @@ local wrong_arch = { board_id = "another-kind", arch = "sparc64",
   verified_against = "invented" }
 local no_engine = select(2, builder.build({
   recipe = recipe, board = wrong_arch, describe = describe, sampler = sampler,
+  rides = rides, envelope = envelope,
   medium_module = medium_module,
 }))
 check("a board this recipe has no engine for is refused",
@@ -238,6 +265,7 @@ check("a board this recipe has no engine for is refused",
 -- a model too large for the board, refused with the three numbers said
 local too_large = select(2, builder.build({
   recipe = recipe, board = invented, describe = describe, sampler = sampler,
+  rides = rides, envelope = envelope,
   medium_module = medium_module,
   model_bytes = string.rep("W", 64),
   shape = { layers = 32, hidden = 4096, heads = 32, head_width = 128,
