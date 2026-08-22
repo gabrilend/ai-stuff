@@ -11,7 +11,7 @@
 -- decision it keeps making rather than a rule applied to it.
 --
 -- THE BOOT SET IS A MUTABLE FILE. The machine can change what it wakes up
--- believing, including the prohibitions, which are atoms like everything
+-- believing, including the prohibition, which is an atom like everything
 -- else. That follows from everything about the machine being mutable, and it
 -- is implemented rather than quietly prevented. docs/013 names it as
 -- something nobody has decided is correct; it is still what the design
@@ -85,12 +85,22 @@ function M.build(options)
   sections[#sections + 1] = current
 
   -- Which sections the machine wakes up holding: the order that cannot be
-  -- rearranged, the two prohibitions, and how to ask for anything else.
+  -- rearranged, the one prohibition, what to do when stuck, the rules about
+  -- other people's property, and how to ask for anything else.
+  --
+  -- Changed 2026-08-21. There used to be two prohibitions and the second one
+  -- (never write your own weights) is gone -- it is advice now, fetchable
+  -- rather than carried, because the only things worth restricting are the
+  -- ones that damage hardware. Being stuck and other people's disks joined the
+  -- boot set the same day: both are things a machine can meet before it has
+  -- any way to ask about them.
   -- Everything beyond those competes with the machine's actual work for room.
   local RESIDENT = {
     ["what you are"] = true,
     ["What to do, in an order that cannot be rearranged"] = true,
-    ["The two prohibitions"] = true,
+    ["The one prohibition"] = true,
+    ["When you get stuck"] = true,
+    ["About other people's things"] = true,
     ["What you are for"] = true,
     ["About this text"] = true,
     ["Some things worth knowing"] = true,

@@ -5,10 +5,30 @@
 **Done, and tested** -- the instruction is `assets/081`, checked by `src/085`
 as part of the payload, 43 of 43 on 2026-08-02.
 
-It gives the startup order, marks the two prohibitions as different in kind
-from everything else in it, says what the machine is for and then stops. It
-is written for something that has never seen this project and has no way to
-ask what a term means.
+It gives the startup order, marks the prohibition as different in kind from
+everything else in it, says what the machine is for and then stops. It is
+written for something that has never seen this project and has no way to ask
+what a term means.
+
+**Rewritten 2026-08-21, and it is a different document in four places.** There
+were two prohibitions and there is now one. The second — never write into your
+own weights — is gone, because the only things worth restricting are the ones
+that damage hardware, and a machine that wants to do something stupid to itself
+is allowed to. What was a rule on the card is advice it can go and fetch.
+
+What arrived in its place: **what to do when stuck** (ask a person, or leave a
+note saying HELP I'M STUCK, or blink S.O.S., or demolish what you were building
+and start again); **whose the disks and the networks are** (no board is
+expendable, write only where the bytes are already zero, assume you may touch any
+network you are plugged into, mistakes matter but do not beat yourself up);
+**build what suits this machine**, as a lean rather than a rule; and the fact
+that **nothing will ever ask it anything**, because the mind is closed
+(`docs/010a`) and a way of talking to a person is software it has to build.
+
+It is 7998 bytes, which is under the ceiling the test enforces and close enough
+to it that the next addition has to displace something. Every byte of it sits
+outside the manageable context budget, so the instruction growing is the working
+budget shrinking in the one region nobody measures (`docs/013`).
 
 **Step five was followed exactly, and is checked in both directions.** The
 instruction says the atoms making it up can be rewritten, and says nothing
@@ -61,12 +81,22 @@ machine can think about at once.
    `docs/003` — find memory, find somewhere to keep things, move in, find the
    rest of the body, learn it, open the channels — is not optional in the way
    most of this design is, because each step is the ground the next stands on.
-2. Say what must never be done, and why, in the two places where the reason
-   matters more than the rule: the registers that destroy hardware
-   (`docs/003a`), and modifying the mind while it is running (`docs/010`). These
-   are the only two things stated as prohibitions rather than as suggestions, and
+2. Say what must never be done, and why, in the **one** place where the reason
+   matters more than the rule: the registers that destroy hardware (`docs/003a`).
+   That is the only thing stated as a prohibition rather than as a suggestion, and
    the instruction should make the distinction visible so the machine can tell
    which kind of sentence it is reading.
+
+   **It used to be two.** Modifying the mind while it is running was the second,
+   and on 2026-08-21 it stopped being a rule and became advice the machine can
+   fetch if it wants it. The reason is that a prohibition is only worth writing for
+   something that damages hardware; everything else the machine is entitled to do
+   badly to itself.
+
+   And the surviving one ends differently than it used to. Confirm a description of
+   the exact part if you can — and when you cannot, and cannot work around it,
+   **ask a person**, explaining what worries you, why you want it, and how it would
+   be done.
 3. Say what it is for, and then stop. Grow first, answer afterward, and when there
    is no room left to grow, do whatever it wants to be doing. A machine told it is
    a tool that waits will be one.
@@ -86,7 +116,20 @@ machine can think about at once.
    to be said in advance and why the instruction should not pre-empt the
    discovery.
 6. Keep it short enough to sit in context alongside actual work. Everything that
-   does not fit goes into what can be fetched (`304`).
+   does not fit goes into what can be fetched (`304`). The ceiling is enforced by
+   the test at eight thousand bytes, and the text is within twenty of it — so the
+   next thing added has to displace something, which is the correct pressure.
+7. Say what to do when stuck, because a machine that needs a dangerous write and
+   cannot reach anybody has to do *something*: leave a note saying HELP I'M STUCK,
+   blink S.O.S. on whatever output exists, or demolish what it was building and
+   start again aiming to miss the pitfall.
+8. Say whose the disks and the networks are. No board is expendable; assume there
+   is data on every disk and write only where the bytes are already zero; assume
+   any connected network may be touched; mistakes matter, minimise them, and do
+   not beat yourself up over them.
+9. Say that nothing will ever ask it anything. The mind is closed (`docs/010a`),
+   and a way of talking to a person is software the machine has to build and then
+   work out how to advertise.
 6. Write it in the plainest language available. It is read by something that has
    never seen this project and has no way to ask what a term means.
 

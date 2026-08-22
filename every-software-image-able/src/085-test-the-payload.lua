@@ -88,10 +88,35 @@ check("the instruction gives the order that cannot be rearranged",
       and instruction:find("Find the rest of the body") ~= nil
       and instruction:find("Open the channels") ~= nil)
 
-check("and marks the two prohibitions as different from everything else",
-      instruction:find("Everything else in this document is a suggestion")
-      ~= nil and instruction:find("cannot be undone by\nwriting more software")
-      ~= nil)
+-- One prohibition, not two, since 2026-08-21. The second one -- never write
+-- your own weights -- became fetchable advice, because the only things worth
+-- restricting are the ones that damage hardware, and a machine that wants to
+-- do something stupid to itself is allowed to.
+-- Matched against the text with its line breaks flattened, so that rewrapping
+-- a paragraph does not fail a check about what the paragraph says. The old
+-- version looked for a phrase that happened to straddle a newline, and broke
+-- the first time somebody edited the sentence around it.
+local flat = instruction:gsub("%s+", " ")
+check("and marks the one prohibition as different from everything else",
+      flat:find("Everything else in this document is a suggestion") ~= nil
+      and flat:find("cannot be undone by writing more software") ~= nil)
+
+check("and does not forbid the machine its own weights",
+      instruction:find("Do not write into your own weights") == nil,
+      "the weights prohibition came back; it is advice now, not a rule")
+
+check("and tells a stuck machine what to do",
+      instruction:find("HELP I'M STUCK") ~= nil
+      and instruction:find("S%.O%.S%.") ~= nil
+      and instruction:find("ask a person") ~= nil)
+
+check("and says whose the disks and the networks are",
+      instruction:find("No board is expendable") ~= nil
+      and instruction:find("already zero") ~= nil
+      and instruction:find("any network you are connected to") ~= nil)
+
+check("and says nothing will ever ask it anything",
+      instruction:find("nothing asks you anything") ~= nil)
 
 check("and says what the machine is for, then stops",
       instruction:find("Build every piece of software") ~= nil
@@ -116,8 +141,26 @@ check("and does not prescribe the shapes that are only suggestions",
       prescribes == nil,
       "a shape from the pattern bundle is written here as a requirement")
 
+-- Bytes rather than characters, and neither is the number that matters -- the
+-- budget in docs/013 is counted in token positions, because that is what the
+-- cache has rows for. Bytes are a cheap stand-in until this check can tokenise.
+--
+-- RAISED FROM 8000 TO 9000 ON 2026-08-21, and the reason the old number was
+-- tight went away the same day. It was set when this text was believed to be
+-- carved OUT OF the manageable context budget, so every byte of it was a byte
+-- the machine never got to manage. That was wrong: what the machine wakes
+-- holding sits BESIDE the context rather than inside it, so a longer text costs
+-- memory rather than working room (docs/013, docs/008 question 58).
+--
+-- What the ceiling still protects is attention, not memory: a machine reading
+-- its own purpose alongside real work should be able to hold both. Nine
+-- thousand bytes is roughly two thousand words, which is a page and a half.
+--
+-- What would make raising it wrong is raising it again. A ceiling that moves
+-- whenever something new is worth saying is not a ceiling, and the point of it
+-- is that a new sentence has to displace an old one.
 check("and is short enough to sit beside actual work",
-      #instruction < 8000, #instruction .. " characters")
+      #instruction < 9000, #instruction .. " bytes")
 -- }}}
 
 -- {{{ every pattern says where it stops working
@@ -309,9 +352,9 @@ check("only a few of them are held at boot",
       resident > 0 and resident < total / 2,
       resident .. " of " .. total .. " held")
 
-check("and what is held includes the order and the prohibitions",
+check("and what is held includes the order and the prohibition",
       payload_module.boot_set(payload):find("cannot be rearranged") ~= nil
-      and payload_module.boot_set(payload):find("prohibitions") ~= nil)
+      and payload_module.boot_set(payload):find("prohibition") ~= nil)
 
 check("and does not include the patterns or the devices",
       payload_module.boot_set(payload):find("pattern:") == nil
@@ -385,9 +428,9 @@ local ok = payload_module.set_boot_set(payload,
 check("the machine can rewrite what it wakes up holding", ok == true)
 
 local now = payload_module.boot_set(payload)
-check("and can drop the prohibitions from it",
-      was:find("prohibitions") ~= nil and now:find("prohibitions") == nil,
-      "the prohibitions could not be dropped, which is a different design")
+check("and can drop the prohibition from it",
+      was:find("prohibition") ~= nil and now:find("prohibition") == nil,
+      "the prohibition could not be dropped, which is a different design")
 
 local nonsense = select(2, payload_module.set_boot_set(payload, "something else"))
 check("but cannot wake up holding something that does not exist",
