@@ -871,11 +871,36 @@ if not quick then
       .. base .. ".riding > /dev/null")
     check("and is wrapped in the envelope firmware opens", wrapped)
 
+    -- {{{ onto a medium, and in through the door a real card comes in by
+    -- CHANGED 2026-08-22. This used to hand the emulator the payload FILE and
+    -- let it synthesise a filesystem around it, which is a road no card has.
+    -- The machine now goes onto a medium this project built -- partition
+    -- table, filesystem, and the file at the path the board names -- so what
+    -- boots here is what would boot off a card, and the two roads stopped
+    -- being different ones.
+    local medium = dofile(DIR .. "/src/141-a-bootable-medium.lua")
+    local carried = read_file(base .. ".efi") or ""
+    local made, why_not = medium.medium({
+      bytes = carried,
+      path = "EFI/BOOT/BOOTX64.EFI",
+      identity = "first-light-x86_64",
+      label = "SEED",
+    })
+    check("and goes onto a medium a firmware can open", made ~= nil, why_not)
+    if made then
+      local where = DIR .. "/tmp/shared-memory/payloads/first-light-x86_64.img"
+      local out = io.open(where, "wb")
+      out:write(made.image)
+      out:close()
+
+      local serial = DIR .. "/tmp/shared-memory/logs/qemu-uefi-x86-64-serial.log"
+      run_one("rm -f " .. serial)
+      run_one("luajit " .. DIR .. "/src/018-launch-board.lua qemu-uefi-x86-64"
+        .. " --medium " .. where .. " --memory plenty --seconds " .. seconds
+        .. " --dir " .. DIR .. " > /dev/null 2>&1")
+    end
+    -- }}}
     local serial = DIR .. "/tmp/shared-memory/logs/qemu-uefi-x86-64-serial.log"
-    run_one("rm -f " .. serial)
-    run_one("luajit " .. DIR .. "/src/018-launch-board.lua qemu-uefi-x86-64"
-      .. " --payload " .. base .. ".efi --seconds " .. seconds
-      .. " --dir " .. DIR .. " > /dev/null 2>&1")
     local spoken_aloud = read_file(serial) or ""
 
     check("a computer with nothing on it reaches first light",

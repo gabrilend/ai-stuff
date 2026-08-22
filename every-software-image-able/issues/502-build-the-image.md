@@ -54,6 +54,17 @@ FAT16 above about four thousand clusters. The floor comes from the format rather
 than from anything chosen here, and the flasher's tests were carrying pretend
 cards smaller than the smallest real image.
 
+**And a thinking machine has booted off one.** The driver's whole payload — the
+routine a bare machine enters, with a model riding inside it — was wrapped in a
+medium and handed to firmware, which found the partition table, mounted the
+filesystem, opened the file and ran it. The machine reached first light, found
+every one of its own weights, divided its memory, built its word tables from the
+model it carries, thought, and said six words.
+
+`140` goes down that road permanently now rather than the synthesised-directory
+one, so the emulated road and the card road are the same road for the machine
+test as well as for this ticket's own.
+
 **What is still open in this ticket** is the older blocker: the engine's bytes
 arrive as a parameter and one caller supplies it, a test passing two thousand
 copies of the letter E. A firmware now opens the medium and runs the file inside

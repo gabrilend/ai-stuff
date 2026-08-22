@@ -1,5 +1,29 @@
 # Phase 5 — The image
 
+**2026-08-22 — the image the builder makes can be booted, and a machine has
+booted off one.**
+
+The near work named on 2026-08-08 is done. `141` turns laid-out regions into a
+medium a firmware will open — a partition table, a FAT16 partition, and the boot
+file at the path each board description already names — and `142` checks it three
+ways: its own arithmetic, then tools written by people with no stake in it being
+right, then real firmware on all three architectures.
+
+Then the whole driver payload went through it and a machine with nothing on it
+read what it was told, thought, and spoke, having been found by firmware on a
+medium this project wrote.
+
+Two things this cost. The smallest image is megabytes rather than kilobytes,
+because a FAT16 filesystem is only FAT16 above about four thousand clusters — a
+floor the format imposes. And the third architecture disproved a claim made from
+the first: its boot path is eleven characters, which does not fit the naming FAT
+has always had, so long names had to be written after a comment had said they
+would never be needed.
+
+What is still open here is the older blocker, unchanged: the engine's bytes
+arrive as a parameter whose only caller is a test passing two thousand copies of
+a letter.
+
 **Goal.** Something you can put on a card. A recipe saying what the seed is, a
 board description saying what it runs on, neither naming the other, and the
 tooling that turns them into bytes on a medium.
