@@ -257,8 +257,31 @@ M.MAX_RANK = 8
 -- it (issue 105a).
 --
 -- token table: one entry per token -- a length byte then that many bytes.
---   Variable-length, walked in order, because it is read once at startup to
---   build whatever lookup the engine wants rather than seeked into.
+--   Variable-length and walked in order rather than seeked into, because
+--   nothing reads a single entry out of the middle of it: it is read whole,
+--   once, to build the four prepared arrays the engine actually uses.
+--
+--   This comment used to say that reading happened "at startup," and that
+--   sentence was load-bearing for longer than it deserved -- it settled a
+--   question nobody had done the arithmetic for. The arithmetic: resolving
+--   one merge rule means finding the token whose text is two other tokens'
+--   texts joined, with no hash and nothing to build one with, so it is a walk
+--   over the vocabulary per rule. Merge count times vocabulary size times
+--   token length. On the fixture that is nothing. On a real model with thirty
+--   thousand of each it is tens of billions of byte comparisons before the
+--   machine says its first word, once per boot, forever.
+--
+--   So preparation happens at BUILD time and the four arrays ship as their own
+--   region on the card (docs/008 question 24, answered 2026-08-08). The
+--   preparation routine still travels on the machine -- 137, running on the
+--   metal -- because a machine that rewrites its own vocabulary has to be able
+--   to prepare tables for the new one. Build it early, and keep the tool.
+--
+--   What that costs, and what has to be maintained here: the builder now
+--   writes those four arrays in the layout the engine reads, so this file and
+--   137 have to agree about that layout. Change one without the other and the
+--   engine reads a correctly-sized table of wrong numbers, which is the silent
+--   kind of failure rather than the loud kind.
 --
 -- merge table: one entry per rule -- two 32-bit token numbers, highest rank
 --   first. Encoding repeatedly joins the highest-ranked adjacent pair until

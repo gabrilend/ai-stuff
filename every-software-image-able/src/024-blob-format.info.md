@@ -69,8 +69,19 @@ what each integer *means* without saying which string it *is*. That mapping is
 separate data, published beside the model, and it travels with it.
 
 **Token table**: one entry per token — a length byte then that many bytes.
-Variable-length and walked in order, because it is read once at startup to
-build whatever lookup the engine wants rather than seeked into.
+Variable-length and walked in order rather than seeked into, because nothing
+reads a single entry out of the middle of it: it is read whole, once, to build
+the four prepared arrays the engine actually uses.
+
+**When "once" happens is build time, not startup.** Resolving one merge rule
+means finding the token whose text is two other tokens' texts joined, with no
+hash and nothing to build one with — a walk over the vocabulary per rule. On a
+real model that is tens of billions of byte comparisons before the first word,
+paid on every boot. The prepared arrays therefore ship as their own region on
+the card, while the preparation routine still travels on the machine (`137`) for
+the machine that rewrites its own vocabulary. `docs/008` question 24, answered
+2026-08-08. The seam this creates: the builder writes those arrays in the layout
+the engine reads, so this format and `137` have to agree about that layout.
 
 **Merge table**: two token numbers per rule, highest rank first. Encoding
 repeatedly joins the highest-ranked adjacent pair until no rule applies, so
