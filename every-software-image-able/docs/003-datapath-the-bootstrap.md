@@ -272,3 +272,57 @@ does not know about itself.
   in two places, or in neither. A machine that dies inside it is the one case
   this design cannot help, because the thing that survives crashes is the thing
   being installed.
+## Step zero: how the machine is started at all
+
+**Added 2026-08-08, because its absence cost a component.** Everything below this
+section describes a machine that is already running. Nothing described how it got
+there, so nothing described what the medium has to look like — and the image
+builder wrote a medium no firmware could open, for months, while six boards
+across three architectures reached first light on a delivery road no card has.
+
+What the firmware does, before one instruction of ours runs:
+
+1. **It brings up the board** — memory controller, buses, storage controller —
+   and builds the tables step one below will read.
+2. **It looks for a filesystem on the boot medium.** Specifically a FAT
+   filesystem, in a partition marked as the system partition by the medium's
+   partition table. FAT because the specification names FAT; nothing else is
+   guaranteed to be understood.
+3. **It opens exactly one file**, at a fixed path whose name says which
+   architecture it is for — `EFI/BOOT/BOOTX64.EFI`, `BOOTAA64.EFI`,
+   `BOOTRISCV64.EFI`. That naming *is* the architecture selection: nothing
+   detects a processor, each firmware simply declines to open an envelope
+   addressed to somebody else.
+4. **It loads that file whole into memory** it allocated, and calls the entry
+   point with two arguments: a handle naming this loaded program, and a pointer
+   to the system table.
+
+**Three consequences, and all three are load-bearing.**
+
+**A medium must carry a partition table and a FAT partition, or nothing
+happens.** Not a convention — the firmware has no other way in. An image that is
+a well-ordered run of regions with no filesystem on it is a pile of bytes that
+boots nothing, however correct every region is.
+
+**Anything inside that one file is in memory for free.** The file is loaded
+whole before the first instruction, so a model riding inside the program that
+runs it needs no reading, no filesystem knowledge and no storage driver — it is
+simply *there*, reachable by measuring from where the code is standing. This is
+what the machine does today. It stops being enough when the model is too large to
+want resident all at once (`045` decides that, per model and per board), and at
+that point the regions move onto the medium and get fetched.
+
+**The firmware does not go away when our code starts.** The system table leads to
+a table of function pointers — memory allocation, protocol lookup, block reads,
+file reads, a timer, and a one-way exit. They stay valid until that exit is
+called, and nothing in this project calls it. So a machine that cannot yet write
+a storage driver can *borrow* one, along with a display, for exactly the window
+in which it cannot write its own. It writes its own afterwards, with thinking
+already available, and leaves the firmware behind when it no longer needs
+anything from it.
+
+That last consequence dissolves what looked like a circle: the machine cannot
+write a storage driver until it can think, and cannot think until it has read its
+regions. It never had to. It was standing inside a program the firmware called,
+with the firmware's drivers still under it, the whole time.
+
