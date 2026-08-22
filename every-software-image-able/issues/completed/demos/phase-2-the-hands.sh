@@ -47,7 +47,6 @@ ln -sfn /dev/shm/every-software-image-able /tmp/every-software-image-able/shared
 luajit "${DIR}/src/065-test-the-hands.lua" --dir "${DIR}"
 luajit "${DIR}/src/075-test-run-what-it-wrote.lua" --dir "${DIR}"
 luajit "${DIR}/src/078-test-keep-and-touch.lua" --dir "${DIR}"
-luajit "${DIR}/src/080-test-emit-a-status.lua" --dir "${DIR}"
 
 if [ -z "${QUICK}" ]; then
   luajit "${DIR}/src/070-test-say.lua" --dir "${DIR}"

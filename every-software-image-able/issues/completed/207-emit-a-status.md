@@ -1,5 +1,40 @@
 # 207 — Emit a status
 
+## Retired 2026-08-21
+
+**The status system was removed from the design and its code was deleted.** What
+this ticket built — three numbers after every action, an aspect shown as a colour
+and a shape, a per-program code, a magnitude with fifty as ordinary, a dispatch
+table of meanings each machine builds for itself, and a display that falls back
+from lamps to a screen to a wire — all of it is gone.
+
+> I think we should remove the post-code system from the design entirely, it seems
+> a little arbitrary and out of place. Like I like the vision of it, but... we want
+> to make minimal software that just works, and this is introducing something that
+> is complex for no reason.
+
+**What replaced it** is in `docs/006`, which is a different document under the same
+number now: the mind runs on its own thread, anything that might not stop runs on
+another, the machine times them, and it deals with the ones that take too long.
+Nothing is emitted, nothing is displayed, and nothing has to be looked up.
+
+**Why it is worth reading anyway.** The mechanism this ticket built was load-bearing
+in a way nobody intended: the two-digit magnitude was also being used to count loop
+iterations, so a program was declared a runaway after fifteen turns of a loop —
+copying a hundred bytes, summing twenty numbers. That defect is the strongest
+argument for the removal, and it happened because one number was serving a picture.
+
+**What was kept.** The three ways a machine can speak — lamps, a screen, a wire —
+and the refusal to believe it spoke when nothing took the message. Those live in the
+say-something work (`202`) and were never really about statuses.
+
+**The ticket stays here** because tickets are never deleted, and because a reader
+recreating this project from the completed directory needs to know that this step
+existed, what it cost, and that it should not be built.
+
+---
+
+
 ## Current behavior
 
 **Done, and tested** — `src/079` emits, `src/080` checks it, 24 of 24 on
