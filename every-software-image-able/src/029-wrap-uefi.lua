@@ -134,8 +134,11 @@ local function wrap(code, machine, entry_offset, blob)
   local content = code
   if blob then
     if #code > BLOB_OFFSET then
-      die("the code is " .. #code .. " bytes, past the " .. BLOB_OFFSET
-          .. " where an appended payload begins")
+      -- Returned rather than fatal, since 2026-08-22: this is a library now as
+      -- well as a command, and something that ends the process cannot be called
+      -- by a builder that has other things to say first.
+      return nil, "the code is " .. #code .. " bytes, past the " .. BLOB_OFFSET
+        .. " where an appended payload begins"
     end
     content = code .. string.rep("\0", BLOB_OFFSET - #code) .. blob
   end
@@ -218,7 +221,28 @@ local function wrap(code, machine, entry_offset, blob)
 end
 -- }}}
 
--- {{{ main
+-- {{{ M -- the same thing, for callers rather than for a terminal
+--
+-- MADE CALLABLE 2026-08-22, and its absence was doing damage. This was the one
+-- piece of the boot path that could only be reached by starting a process, so
+-- everything that needed an executable envelope either shelled out to it or --
+-- worse -- built its own arrangement and drifted. The image builder ended up
+-- describing a layout nothing read, and the layout that was real lived inside a
+-- test. One dataflow means one of these, callable.
+local M = {
+  BLOB_OFFSET = BLOB_OFFSET,
+  MACHINE = MACHINE,
+  wrap = wrap,
+}
+-- }}}
+
+-- {{{ main, when this is the program rather than a part of one
+-- Compared by name rather than by a flag, because a caller should not have to
+-- know it is loading something that might run. Loaded with dofile, arg[0] is
+-- whoever was started; run as a command, it is this file.
+local started_directly = arg and arg[0] and arg[0]:find("029%-wrap%-uefi")
+if not started_directly then return M end
+
 local from_path, to_path, arch, entry_offset, append_path = nil, nil, nil, 0, nil
 local index = 1
 while index <= #arg do
@@ -284,3 +308,5 @@ if blob then
                     #blob, BLOB_OFFSET))
 end
 -- }}}
+
+return M

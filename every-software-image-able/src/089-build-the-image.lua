@@ -110,69 +110,73 @@ function M.build(options)
   local carried_randomness = table.concat(randomness)
   -- }}}
 
-  -- {{{ lay the medium out
-  -- Where the starting code goes, where the engine goes, where the weights
-  -- go, where the text goes -- in the order the firmware will meet them.
-  local parts = {}
-  local layout = {}
-  local at = 0
-
-  local function place(name, bytes)
-    if #bytes == 0 then return end
-    -- everything starts on a block boundary, because a medium is written in
-    -- blocks and a part that straddles one cannot be replaced alone.
-    local padding = (512 - at % 512) % 512
-    if padding > 0 then
-      parts[#parts + 1] = string.rep("\0", padding)
-      at = at + padding
-    end
-    layout[#layout + 1] = { name = name, at = at, bytes = #bytes }
-    parts[#parts + 1] = bytes
-    at = at + #bytes
+  -- {{{ lay it out the way the machine actually reads it
+  --
+  -- REWRITTEN 2026-08-22, and what was here was a description of a machine
+  -- nobody built. It laid five regions down at block boundaries, in an order
+  -- and an alignment of its own, and checked them against expectations typed
+  -- out again by hand in its own test -- so it compared two copies of a belief
+  -- rather than a belief against a fact, and passed for months while nothing
+  -- read the arrangement it described.
+  --
+  -- What the machine actually reads: its own code first, then everything it
+  -- thinks with at a fixed distance past that code, found by measuring from
+  -- where the code is standing (029, and step one of 107). One arrangement,
+  -- described in one place, used by the builder and by the machine test alike.
+  local rides = options.rides                    -- 143, what sits inside
+  local envelope = options.envelope              -- 029, the executable wrapper
+  if not rides or not envelope then
+    return nil, "the builder needs the description of what rides inside and "
+      .. "the envelope that carries it; neither is its own business to invent"
   end
 
-  place("waking", options.waking_bytes or "")
-  place("engine", options.engine_bytes_content or "")
-  place("model", options.model_bytes or "")
-  place("text", options.text_bytes or "")
-  place("randomness", carried_randomness)
+  local code = (options.waking_bytes or "") .. (options.engine_bytes_content or "")
+  if #code == 0 then
+    return nil, "there is no code in this image: nothing would run"
+  end
 
-  local boot_file = table.concat(parts)
-  -- }}}
+  local riding = rides.plan({
+    model = options.model_bytes,
+    text = options.text_bytes,
+    randomness = carried_randomness,
+  })
 
-  -- {{{ wrap it in something a firmware will open
-  -- ADDED 2026-08-21, AND ITS ABSENCE MADE EVERY IMAGE THIS EVER BUILT
-  -- UNBOOTABLE. What is above lays five regions down in the order the firmware
-  -- meets them, on block boundaries, checked against what the engine looks for.
-  -- All of that was right and none of it was findable: a computer starting up
-  -- does not read a medium from the beginning. It looks for a partition table,
-  -- opens the partition marked as the one to start from, expects a filesystem
-  -- inside it, and opens ONE FILE at one fixed name.
-  --
-  -- So the five regions are the boot FILE, and the image is a medium with that
-  -- file in it at the path the board description already names. Everything
-  -- rides inside, which is not a compromise: firmware loads that file whole
-  -- before the first instruction runs, so a model inside it is simply in memory
-  -- when the machine wakes. The offsets recorded below stay relative to the
-  -- file's own beginning, which is exactly what the engine measures from.
-  local image = boot_file
-  local medium = nil
-  if board.payload and board.payload.kind == "uefi-esp" then
-    local wrap = options.medium_module
-    if not wrap then
-      return nil, "this board boots through firmware, which needs the image "
-        .. "wrapped in a partition table and a filesystem, and no module to do "
-        .. "that was handed in"
+  -- Every offset is measured from the code's first byte, because that is what
+  -- the engine measures from. The layout is DERIVED from where things went
+  -- rather than asserted alongside them, which is the whole difference between
+  -- a check and a restatement.
+  local layout = {
+    { name = "waking", at = 0, bytes = #(options.waking_bytes or "") },
+  }
+  if #(options.engine_bytes_content or "") > 0 then
+    layout[#layout + 1] = { name = "engine",
+                            at = #(options.waking_bytes or ""),
+                            bytes = #options.engine_bytes_content }
+  end
+  for _, name in ipairs(rides.ORDER) do
+    if riding.at[name] then
+      layout[#layout + 1] = {
+        name = name,
+        at = envelope.BLOB_OFFSET + riding.at[name],
+        bytes = #(name == "randomness" and carried_randomness or options[name .. "_bytes"]),
+      }
     end
-    local made, why_not = wrap.medium({
-      bytes = boot_file,
-      path = board.payload.boot_path,
-      identity = describe.identity(describe.manifest(recipe, board, options.components)),
-      label = "SEED",
-    })
-    if not made then return nil, "the medium: " .. why_not end
-    image = made.image
-    medium = made
+  end
+
+  local boot_file = code
+  if board.payload and board.payload.kind == "uefi-esp" then
+    local machine = envelope.MACHINE[board.arch]
+    if not machine then
+      return nil, "no executable envelope is written for " .. tostring(board.arch)
+    end
+    local wrapped, why_not = envelope.wrap(code, machine, 0, riding.bytes)
+    if not wrapped then return nil, "the envelope: " .. why_not end
+    boot_file = wrapped
+  else
+    -- A board with no firmware takes raw bytes at an address rather than a
+    -- file, so there is no envelope and the appendix follows the code at the
+    -- same distance it would have anyway.
+    boot_file = code .. string.rep("\0", envelope.BLOB_OFFSET - #code) .. riding.bytes
   end
   -- }}}
 
@@ -188,21 +192,49 @@ function M.build(options)
                                                     entry.name, entry.at, entry.bytes)
   end
   manifest = manifest .. table.concat(layout_lines, "\n") .. "\n"
-  -- Where the offsets above are measured FROM is part of the account. On a
-  -- board that boots through firmware they are inside the boot file, and the
-  -- image around it is a medium; on one that does not, the image is the
-  -- regions themselves and the two are the same thing.
-  manifest = manifest .. "offsets-measured-from: "
-    .. ((board.payload and board.payload.kind == "uefi-esp") and "boot-file" or "image")
-    .. "\n"
+  -- Where the offsets are measured FROM is part of the account, and it is the
+  -- same answer on every board: the code's first byte, because that is what the
+  -- engine measures from. The image around it may be a medium or may be the
+  -- bytes themselves; neither changes what the machine reads.
+  manifest = manifest .. "offsets-measured-from: the-code\n"
 
   local identity = describe.identity(manifest)
+  -- }}}
+
+  -- {{{ and onto a medium a firmware will open
+  -- The boot file above is what runs. This is what you put on a card: a
+  -- partition table, a filesystem, and that file at the path the board
+  -- description already names. Without it the bytes are correct and no
+  -- computer on earth looks at them (141, and the finding on 2026-08-08).
+  local image = boot_file
+  local medium = nil
+  if board.payload and board.payload.kind == "uefi-esp" then
+    local wrap = options.medium_module
+    if not wrap then
+      return nil, "this board boots through firmware, which needs the image "
+        .. "wrapped in a partition table and a filesystem, and no module to do "
+        .. "that was handed in"
+    end
+    local made, why_not = wrap.medium({
+      bytes = boot_file,
+      path = board.payload.boot_path,
+      identity = identity,
+      label = "SEED",
+    })
+    if not made then return nil, "the medium: " .. why_not end
+    image = made.image
+    medium = made
+  end
   -- }}}
 
   return {
     image = image,
     boot_file = boot_file,
     medium = medium,
+    -- Where the carried things sit inside the boot file, so a caller can check
+    -- the layout against the description that produced it rather than against
+    -- numbers typed out a second time.
+    riding = riding,
     manifest = manifest,
     identity = identity,
     layout = layout,
