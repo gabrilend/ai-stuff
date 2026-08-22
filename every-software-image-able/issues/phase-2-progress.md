@@ -47,7 +47,7 @@ pleasant work remaining in the project.
 | `203` | Touch memory | **completed** — six hands, the one refusal holding in every form, and what is read is what is there, 22 of 22 |
 | `204` | Run what it wrote | **completed** — an assembler that watches its own loops, real instructions run on a real processor, and a runaway caught, 18 of 18 |
 | `205` | Touch the hardware | **completed** — the body found, the five destroying kinds refused until confirmed, the note written before every probe |
-| `206` | Keep something | **completed** — blocks, an extent that survives a forgetting, and a read-only medium that refuses rather than pretending; 28 of 28 across both |
+| `206` | Keep something | **reopened 2026-08-08** — blocks, an extent that survives a forgetting, and a read-only medium that refuses rather than pretending, 28 of 28 across both, all of it against files. Its device list has never been filled by real hardware, it treated an unmarked disk as available when an unmarked disk is somebody's data, and it has no notion of what a medium is made of |
 | `207` | Emit a status | **completed** — colour and shape together, shown somewhere or refused, on the same dial the written code pushes, 24 of 24 |
 
 ## Where the risk was, and what it turned out to be
