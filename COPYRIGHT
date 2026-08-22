@@ -1,0 +1,129 @@
+Copyright and licensing for this monorepo
+=========================================
+
+Copyright (C) 2025-2026 gabrilend <gabrilend@gmail.com>
+
+Everything in this repository that I wrote is licensed under the GNU Affero
+General Public License, version 3 or (at your option) any later version. The
+full text of that license is in the file named LICENSE, sitting next to this
+one. That text is the Free Software Foundation's, reproduced exactly; it is not
+mine to edit, so anything I have to say about how it applies here lives in this
+file instead.
+
+What the AGPL actually does, mechanically
+-----------------------------------------
+
+The AGPL is the GNU General Public License version 3 with one additional
+requirement bolted on, and it is worth stating plainly what that requirement
+is, because it is the entire reason to pick this license over any other.
+
+Under an ordinary copyleft license like the GPL, the obligation to hand over
+source code is triggered by *distribution* -- by giving somebody a copy of the
+program. This means a company can take GPL code, modify it, run the modified
+version on their own servers, sell access to it over a network, and never
+distribute a single copy to anyone. No copies changed hands, so no obligation
+was ever triggered. The users get the service and never get the source.
+
+Section 13 of the AGPL closes that. If somebody modifies this code and then
+lets people interact with it remotely over a network, that interaction itself
+triggers the obligation: they must offer those users the corresponding source
+of their modified version, through the network, at no charge. Running it as a
+service is treated the same as handing out copies.
+
+The other terms are the standard GPLv3 ones. Anybody may run, read, modify, and
+redistribute this. If they redistribute it, or run a modified version as a
+network service, they must do so under this same license, with source
+available. They cannot add restrictions on top. There is no warranty. Their
+patent rights in what they contribute pass along with the code.
+
+The practical effect is that this work stays open in every direction it can
+travel. Someone can build on it, including commercially; what they cannot do is
+close it, or wrap it in a service and keep the improvements to themselves.
+
+Work in this repository that I did not write
+--------------------------------------------
+
+I cannot license code I did not write, and I am not going to pretend otherwise.
+
+Anything in these directories that came from somewhere else is covered by
+whatever license its original author gave it, not by mine. Where a directory
+carries its own license file, that file governs that directory and this one
+does not reach inside it. This applies to vendored dependencies, upstream
+checkouts, downloaded art assets, toolchains, and anything else that arrived
+here already licensed -- including cases where the original terms are
+proprietary and could not be combined with the AGPL even if I wanted to.
+
+It also applies to a few of my own projects that carry a different license of
+their own choosing. Those are mine either way, so there is no conflict; the
+subdirectory license simply wins where one exists.
+
+The rule is: look for the nearest license file, walking up from whatever you
+are holding, and read the file's own header while you are at it -- plenty of
+single-file libraries carry their entire grant inline as a comment and never
+ship a separate license file at all. If you find terms before you reach this
+directory, those are the ones that apply. If you get all the way here without
+finding anything, the work is mine and it is AGPL-3.0-or-later.
+
+One correction to that rule, and it matters more than the rule does: a missing
+license file does not make somebody else's work mine. If a vendored library or
+a downloaded asset landed here without its license attached, that is a bug in
+how I stored it, not a transfer of ownership. It stays under whatever terms its
+author actually granted, and the fix is to go put the license file where it
+belongs. Nothing in this document is a claim over work I did not do.
+
+Where the source lives, and why it is a mirror and not a link
+--------------------------------------------------------------
+
+Section 13 wants users of a network service to be able to get the source of the
+version they are actually talking to. The conventional way to do that is a
+"Source" link somewhere in the running program's interface.
+
+I do not trust that shape. The link is served by the very system whose source
+is in question, which means it proves nothing -- a system that has something to
+hide can serve whatever source it likes behind its own link, and the user has
+no way to tell. Self-attestation is not evidence.
+
+So the mechanism here is a public mirror at a fixed, known address instead:
+
+    https://github.com/gabrilend/ai-stuff
+
+That address is independently reachable. Anybody can check it without going
+through the running service, compare it against what the service claims, and
+notice a discrepancy. It has to stay publicly readable for this to work; if it
+ever goes private, the source needs to surface somewhere else public and this
+file needs to say where.
+
+Note that section 13's obligation binds whoever modifies this code and runs it
+as a service. That is mostly other people, not me. Someone who takes this,
+changes it, and puts it online owes their users the source of *their* version,
+by the same standard -- a real, reachable, independently checkable copy.
+
+Per-file license notices
+------------------------
+
+The AGPL's closing section suggests putting a short notice at the top of every
+source file, so a file that gets copied out of here still says what it is. That
+is a suggestion, not an obligation -- a license file at the root is enough to
+license the work, and nothing in this repository is out of compliance for
+lacking headers. The only thing skipping them costs is that a lone file, torn
+out of context and mailed to somebody, arrives carrying no evidence of its own
+terms.
+
+If that ever matters, the notice to paste, in the comment syntax of whatever
+language the file is written in, is:
+
+    This file is part of gabrilend's monorepo.
+    Copyright (C) 2026 gabrilend
+
+    This program is free software: you can redistribute it and/or modify it
+    under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or (at your
+    option) any later version.
+
+    This program is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License
+    for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <https://www.gnu.org/licenses/>.
