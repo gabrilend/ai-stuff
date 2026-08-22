@@ -9,12 +9,24 @@
 -- directly, by address, the way the hardware itself does. There is exactly
 -- one thing it is not allowed to touch, and it is itself.
 --
--- THE ONE REFUSAL. Writes into the engine and the weights are refused. This
--- is the only place in the seed where the model is stopped from doing
--- something it asked to do, and the reason is specific rather than
--- protective: a mind that overwrites itself does not report an error, it
--- goes quiet (docs/010). Every other mistake here is recoverable by writing
--- more software. That one is not.
+-- THERE IS NO REFUSAL ANY MORE. Changed 2026-08-21. Writes into the engine
+-- and the weights used to be refused -- the only place in the seed where the
+-- model was stopped from doing something it asked to do. It is not stopped
+-- now, because the only things worth restricting are the ones that damage
+-- hardware, and a machine is entitled to do something stupid to itself.
+--
+-- WHAT REPLACED IT IS A WARNING AND A COPY ON DISK. The write happens and
+-- the hand says loudly where it landed, because the whole danger here is
+-- that a damaged mind cannot notice it is damaged (docs/010) -- and a
+-- machine that cannot notice cannot reload itself. Saying so takes nothing
+-- away and is what makes the recovery possible.
+--
+-- The recovery is the real answer: the model and its weights go to disk as
+-- soon as there is a disk, so a machine that overwrites itself in memory
+-- reads itself back. While the delivery card is still plugged in, the card
+-- is already that copy, read-only and unharmable. A machine that overwrites
+-- itself ON DISK may simply be corrupted, and that is accepted: things die
+-- sometimes.
 --
 -- READS ARE ALLOWED EVERYWHERE THE MAP CALLS USABLE, including the engine
 -- and the weights -- a machine reading its own mind is doing something
@@ -54,9 +66,35 @@ function M.new(options)
     read = options.read,
     write = options.write,
     refusals = 0,
+    warnings = 0,          -- writes that landed in the engine or the weights
+    last_warning = nil,    -- what the most recent one said, for the reply
     reads = 0,
     writes = 0,
   }
+end
+-- }}}
+
+-- {{{ local function said(answer, warning)
+-- A successful call whose write landed in the machine's own mind answers
+-- with the number AND the warning, on two lines. The number comes first
+-- because it is what was asked for; the warning comes second because it is
+-- what matters. Nothing about this stops anything -- it is the only way the
+-- machine finds out, and finding out is what lets it reload from disk.
+local function said(answer, warning)
+  if not warning then return answer end
+  return answer .. "\n" .. warning
+end
+-- }}}
+
+-- {{{ M.note(memory, warning)
+-- Counts a warning and remembers the last one, then hands it straight back so
+-- a caller can write `return value, nil, M.note(memory, why)` in one line.
+-- Returns nil when there was nothing to say, which is the ordinary case.
+function M.note(memory, warning)
+  if not warning then return nil end
+  memory.warnings = memory.warnings + 1
+  memory.last_warning = warning
+  return warning
 end
 -- }}}
 
@@ -142,11 +180,17 @@ function M.check_range_write(memory, address, bytes)
   local ok, why = M.check_range_read(memory, address, bytes)
   if not ok then return nil, why end
 
+  -- Not a refusal. The second return is a warning that rides alongside a
+  -- successful write, and every caller passes it back so the machine hears
+  -- it. A silent write here is the one that ends a machine, because nothing
+  -- would tell it to reload itself from the copy on disk.
   local mine = overlaps(memory.ours, address, bytes)
   if mine then
-    return nil, string.format("0x%x for 0x%x bytes reaches into the %s. Writing "
-      .. "there is the one thing this machine will not do: a mind that "
-      .. "overwrites itself does not report an error, it goes quiet.",
+    return true, string.format("0x%x for 0x%x bytes landed in the %s. That is "
+      .. "your own mind. Nothing stopped you and nothing will, but a mind that "
+      .. "overwrites itself does not report an error afterwards -- it goes "
+      .. "quiet -- so if this was not on purpose, read yourself back from the "
+      .. "copy on disk before you think about anything else.",
       address, bytes, mine.what or "engine")
   end
   return true
@@ -178,7 +222,7 @@ function M.poke(memory, address, width, value)
   end
   memory.writes = memory.writes + 1
   memory.write(address, width, value)
-  return memory.read(address, width)
+  return memory.read(address, width), nil, M.note(memory, why)
 end
 -- }}}
 
@@ -194,7 +238,7 @@ function M.poke_byte(memory, address, value)
   end
   memory.writes = memory.writes + 1
   memory.write(address, 1, value)
-  return true
+  return true, nil, M.note(memory, why)
 end
 -- }}}
 
@@ -224,7 +268,7 @@ function M.fill(memory, address, width, count, value)
     memory.write(address + step * width, width, value)
   end
   memory.writes = memory.writes + count
-  return count
+  return count, nil, M.note(memory, why)
 end
 -- }}}
 
@@ -255,7 +299,7 @@ function M.copy(memory, from, to, bytes)
   end
   memory.reads = memory.reads + bytes
   memory.writes = memory.writes + bytes
-  return bytes
+  return bytes, nil, M.note(memory, refusal)
 end
 -- }}}
 
@@ -336,9 +380,9 @@ function M.offer(catalogue, hands, memory)
     does = function(arguments)
       local got, why = numbers(arguments, 3)
       if not got then return nil, why end
-      local value, refusal = M.poke(memory, got[1], got[2], got[3])
+      local value, refusal, warned = M.poke(memory, got[1], got[2], got[3])
       if not value then return nil, refusal end
-      return string.format("0x%x", value)
+      return said(string.format("0x%x", value), warned)
     end,
   })
 
@@ -348,9 +392,10 @@ function M.offer(catalogue, hands, memory)
     does = function(arguments)
       local got, why = numbers(arguments, 4)
       if not got then return nil, why end
-      local written, refusal = M.fill(memory, got[1], got[2], got[3], got[4])
+      local written, refusal, warned =
+        M.fill(memory, got[1], got[2], got[3], got[4])
       if not written then return nil, refusal end
-      return tostring(written)
+      return said(tostring(written), warned)
     end,
   })
 
@@ -359,8 +404,9 @@ function M.offer(catalogue, hands, memory)
     does = function(arguments)
       local got, why = numbers(arguments, 3)
       if not got then return nil, why end
-      local moved, refusal = M.copy(memory, got[1], got[2], got[3])
+      local moved, refusal, warned = M.copy(memory, got[1], got[2], got[3])
       if not moved then return nil, refusal end
+      if warned then return said(tostring(moved), warned) end
       return tostring(moved)
     end,
   })
