@@ -95,6 +95,29 @@ That is survivable only because the machine reads its catalogue rather than
 being told it, and it means the instruction (`301`) must not assume any
 particular hand exists.
 
+**Where those three went, sorted out 2026-08-08.** They were named together and
+then drifted apart, and one of them was left owned by nobody:
+
+| | Owner | State |
+|---|---|---|
+| the tokenizer, and the console | `403` | done -- agrees over the awkward corpus both ways on all three, and saying something is a callable routine on all three |
+| the hands | this ticket | not begun anywhere but the first tongue |
+| the thinking loop and the driver | **this ticket, as of 2026-08-08** | not begun anywhere but the first tongue |
+
+The loop was the unowned one. `105` waits on it and describes it as "`403`'s kind
+of work rather than this one's" -- which is true about the *genre*, and was read
+for a while as though it named an owner. `403` is closed and covered different
+routines. `107a` proved the loop on the metal and is scoped to the first
+architecture. So nothing claimed it, and a ticket waiting on work no ticket owns
+is a ticket that waits forever.
+
+It belongs here, because this ticket's subject is exactly the engine's routines
+written again in the other two tongues, and the loop is one of them. Expect it to
+be easier than the hands and harder than the conducting: like the conducting it
+touches no floating point, so a difference cannot change an answer -- but unlike
+the conducting it calls into firmware, and the three firmwares hand over three
+different ways and are reached by three different calling conventions.
+
 **The third architecture is written and proved, arithmetic and conducting
 both.** All eleven routines agree one at a time -- 279 of 279 matrix values
 and 133 of 133 normalisation values -- and a whole forward pass conducted in

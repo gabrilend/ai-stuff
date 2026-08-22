@@ -16,6 +16,16 @@ holding.
 This ticket closes when the other two architectures have the same twin, which
 is `403`'s kind of work rather than this one's.
 
+**And "kind of work" was doing too much, corrected 2026-08-08.** That sentence
+describes a genre, and was read as naming an owner. `403` is closed and carried
+the tokenizer and the console across; nothing carried the loop. `107a` proved it
+on the metal and is scoped to the first architecture, and `401` listed it among
+what it did not cover. So this ticket sat waiting on work that belonged to no
+ticket at all.
+
+It is `401`'s now, named there explicitly. **This ticket is waiting rather than
+in progress**, and the thing it waits for finally has somewhere to happen.
+
 **Reopened on 2026-08-04. The loop exists and does not run on the machine
 it was built for.**
 
