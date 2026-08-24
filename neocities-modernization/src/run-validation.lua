@@ -133,8 +133,19 @@ function interactive_mode()
         io.write("Embeddings file: ")
         embeddings_file = io.read()
     else
-        similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
-        embeddings_file = DIR .. "/assets/embeddings/embeddinggemma_latest/embeddings.json"
+        -- The selected model's directory, not a name typed in. The old default
+        -- read "embeddinggemma_latest", a folder renamed away long ago, so the
+        -- default path was wrong before anything even looked at it.
+        --
+        -- Note that similarity_matrix.json is itself a RETIRED format: the
+        -- similarity data now lives as per-poem files under similarities/ plus
+        -- similarity_rankings_cache.json. Resolving the directory correctly makes
+        -- the remaining failure honest -- "that file does not exist here" rather
+        -- than "that directory does not exist" -- but this validator still needs
+        -- porting to the current storage before it can run.
+        local model_dir = require("utils").embeddings_dir()
+        similarity_file = model_dir .. "/similarity_matrix.json"
+        embeddings_file = model_dir .. "/embeddings.json"
     end
     
     return {

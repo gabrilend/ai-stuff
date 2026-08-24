@@ -166,6 +166,9 @@ local text_formatter = require("text-formatter")
 -- text-size lock). Four generators used to keep four copies of the font stack
 -- and none of them declared a viewport.
 local page_head = require("page-head")
+-- How this project prepares vectors before comparing them, and the note that
+-- says which preparation a cache was built with (libs/embedding-space.lua).
+local embedding_space = require("embedding-space")
 
 utils.init_assets_root(arg)
 -- }}}
@@ -245,48 +248,36 @@ end
 -- }}}
 
 -- {{{ local function compute_corpus_mean
--- Averages every poem embedding into one vector: the direction they all share.
--- Returns nil for an empty corpus, which callers treat as "skip the correction"
--- rather than as an error, since a corpus of zero poems has no mean to speak of.
+-- The direction every poem vector shares, from the shared module so that the
+-- word pages, the similarity matrix and the diversity cache all subtract the
+-- SAME thing. Three private copies of this arithmetic would be three chances to
+-- drift, and a drift here is invisible: each page would still be complete and
+-- ordered, just ordered against a slightly different centre.
+--
+-- Adapts the lookup (keyed by poem_index) into the array-of-records shape the
+-- shared function takes, rather than duplicating the averaging.
 local function compute_corpus_mean(poem_lookup)
-    local mean, dims, n = nil, 0, 0
+    local entries = {}
     for _, emb in pairs(poem_lookup) do
-        if type(emb) == "table" and #emb > 0 then
-            if not mean then
-                dims = #emb
-                mean = {}
-                for i = 1, dims do mean[i] = 0 end
-            end
-            -- A vector of a different length than the first one cannot be summed
-            -- into the same mean; that means two models' output got mixed into
-            -- one file, which is worth stopping over rather than averaging past.
-            if #emb ~= dims then
-                utils.log_error(string.format(
-                    "Embedding dimension mismatch: expected %d, found %d -- embeddings.json mixes models",
-                    dims, #emb))
-                return nil
-            end
-            for i = 1, dims do mean[i] = mean[i] + emb[i] end
-            n = n + 1
-        end
+        entries[#entries + 1] = { embedding = emb }
     end
-    if not mean or n == 0 then return nil end
-    for i = 1, dims do mean[i] = mean[i] / n end
+    local mean, detail = embedding_space.corpus_mean(entries)
+    if not mean then
+        -- detail carries the reason. Reported, not swallowed: without a mean the
+        -- ranking silently reverts to the uncentred behaviour, which is the thing
+        -- this correction exists to replace.
+        utils.log_error("Could not centre the embedding space: " .. tostring(detail))
+        return nil
+    end
     return mean
 end
 -- }}}
 
 -- {{{ local function centered
--- Subtracts the shared direction from a vector, leaving only what distinguishes
--- it. Returns the vector untouched when there is no mean to subtract, so a
--- missing corpus mean degrades to the old behaviour instead of to zeros.
+-- Subtracts the shared direction from one vector. Thin alias for the shared
+-- module, kept because the two call sites below read better with a bare name.
 local function centered(vec, mean)
-    if not mean or not vec or #vec ~= #mean then
-        return vec
-    end
-    local out = {}
-    for i = 1, #vec do out[i] = vec[i] - mean[i] end
-    return out
+    return embedding_space.centered(vec, mean)
 end
 -- }}}
 
