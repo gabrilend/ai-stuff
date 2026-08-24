@@ -137,10 +137,29 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
     local output_dir = utils.embeddings_dir(model_name) .. "/similarities"
     os.execute("mkdir -p " .. output_dir)
 
-    -- Check if we can skip (files already exist and not forcing)
+    -- Check if we can skip (files already exist, built in the SAME space, and not
+    -- forcing).
+    --
+    -- The space check is not optional. Similarity files carry no record of how
+    -- the vectors were prepared, and a set built before centring looks exactly
+    -- like one built after: same filenames, same count, same shape, a complete
+    -- and ordered list of neighbours for every poem. It is simply a different set
+    -- of neighbours -- about 42% different. Existence alone cannot tell them
+    -- apart, so the directory carries a note saying which space it was built in
+    -- and an unmarked or mismatched directory is rebuilt rather than trusted.
+    local embedding_space_check = require("embedding-space")
+    local cache_dir = utils.embeddings_dir(model_name)
+    local space_ok = embedding_space_check.is_current(cache_dir)
+    if not force and not space_ok then
+        local found = embedding_space_check.read_fingerprint(cache_dir)
+        print(string.format(
+            "[GPU SIMILARITY] Existing similarity cache was built in a different vector space (%s, want %s) -- rebuilding",
+            found and found or "unmarked", embedding_space_check.SPACE_VERSION))
+    end
+
     local first_file = string.format("%s/poem_index_1.json", output_dir)
     local last_file = string.format("%s/poem_index_%d.json", output_dir, num_poems)
-    if not force and utils.file_exists(first_file) and utils.file_exists(last_file) then
+    if not force and space_ok and utils.file_exists(first_file) and utils.file_exists(last_file) then
         print("[GPU SIMILARITY] Similarity files already exist, checking cache...")
         local cache_file = utils.embeddings_dir(model_dir) .. "/similarity_rankings_cache.json"
         if utils.file_exists(cache_file) then
@@ -161,13 +180,34 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
         print("[GPU SIMILARITY] Cache missing or empty, regenerating on the GPU...")
     end
 
-    -- Convert embeddings to flat C array
+    -- Convert embeddings to flat C array, with the shared direction removed.
+    --
+    -- This is the only place the poem-to-poem numbers are produced, so it is the
+    -- only place the correction has to be applied -- the triangular matrix, the
+    -- per-poem files and the rankings cache all descend from this buffer and
+    -- inherit it for free. See libs/embedding-space.lua for what it costs not to:
+    -- one poem in eighteen appeared in nobody's similar list at all.
+    --
+    -- Safe to feed the shader centred vectors: similarity_full.comp computes both
+    -- norms itself rather than assuming unit length, so subtracting the mean
+    -- changes the direction it measures without breaking the arithmetic.
     print("[GPU SIMILARITY] Preparing embeddings for GPU...")
+    local embedding_space = require("embedding-space")
+    local mean, mean_count = embedding_space.corpus_mean(embeddings_data.embeddings)
+    if not mean then
+        -- mean_count carries the reason on failure. Stop rather than fall back to
+        -- uncentred: a silent fallback would produce a complete, plausible, wrong
+        -- set of neighbours and stamp it with a fingerprint claiming otherwise.
+        error("[GPU SIMILARITY ERROR] " .. tostring(mean_count))
+    end
+    print(string.format("[GPU SIMILARITY] Centring on the mean of %d vectors (%s)",
+        mean_count, embedding_space.SPACE_VERSION))
+
     local flat_embeddings = ffi.new("float[?]", num_poems * embedding_dim)
     for i, poem in ipairs(embeddings_data.embeddings) do
         local base = (i - 1) * embedding_dim
-        for j, val in ipairs(poem.embedding) do
-            flat_embeddings[base + j - 1] = val
+        for j = 1, embedding_dim do
+            flat_embeddings[base + j - 1] = poem.embedding[j] - mean[j]
         end
     end
 
@@ -273,6 +313,18 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
     if cache_result ~= 0 then
         local error_str = ffi.string(vklib.vkc_get_error_string(cache_result))
         error("[GPU SIMILARITY ERROR] Cache generation failed: " .. error_str)
+    end
+
+    -- Stamp the directory with the space these files were built in, LAST -- after
+    -- every file is on disk. Written earlier, the note would survive a crash
+    -- partway through and mark a half-built cache as current.
+    local stamped, stamp_err = embedding_space.write_fingerprint(utils.embeddings_dir(model_name))
+    if not stamped then
+        -- Not fatal: the cache itself is correct. But say so loudly, because
+        -- without the note the next run cannot tell this cache from one built
+        -- before centring, and will rebuild it needlessly -- or worse, a future
+        -- change will not be able to tell it is stale.
+        print("[GPU SIMILARITY] WARNING: " .. tostring(stamp_err))
     end
 
     print("[GPU SIMILARITY] ✅ All similarity generation complete!")

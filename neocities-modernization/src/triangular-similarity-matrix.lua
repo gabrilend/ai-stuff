@@ -272,8 +272,17 @@ end
 
 -- Command line execution
 if arg and arg[0] then
-    local embeddings_file = arg[1] or "assets/embeddings/embeddinggemma_latest/embeddings.json"
-    local output_file = arg[2] or "assets/embeddings/embeddinggemma_latest/similarity_matrix_triangular.json"
+    -- Defaults resolve the SELECTED model rather than naming a directory.
+    -- They used to read "assets/embeddings/embeddinggemma_latest/...", a folder
+    -- that has not existed since the model directories were renamed -- so running
+    -- this with no arguments failed on a path whose only problem was its age,
+    -- with an error that pointed at a missing file rather than at a stale
+    -- default. embeddings_dir() asks the run notepad and then config.lua, the
+    -- same question every other stage asks, so the answer moves with the project.
+    local utils = require("utils")
+    local model_dir = utils.embeddings_dir()
+    local embeddings_file = arg[1] or (model_dir .. "/embeddings.json")
+    local output_file = arg[2] or (model_dir .. "/similarity_matrix_triangular.json")
     local force = arg[3] == "--force"
 
     print("Triangular Similarity Matrix Generator")

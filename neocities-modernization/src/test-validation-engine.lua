@@ -107,8 +107,13 @@ function test_validation_with_real_data()
     print("============================================")
     
     -- Check if real data files exist
-    local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
-    local embeddings_file = DIR .. "/assets/embeddings/embeddinggemma_latest/embeddings.json"
+    -- Selected model's directory. The old literal named a folder renamed away
+    -- long ago; similarity_matrix.json is also a retired format (see
+    -- src/run-validation.lua for the same note), so this validator needs porting
+    -- to the per-poem similarities/ storage before it can run.
+    local model_dir = require("utils").embeddings_dir()
+    local similarity_file = model_dir .. "/similarity_matrix.json"
+    local embeddings_file = model_dir .. "/embeddings.json"
     
     local similarity_exists = utils.file_exists(similarity_file)
     local embeddings_exists = utils.file_exists(embeddings_file)
