@@ -157,6 +157,36 @@ We could patch `similarity-engine.lua` to store/lookup by array index consistent
 - Use `poem_index` for stable internal references
 - These are orthogonal concerns
 
+## The Rule This Issue Establishes
+
+**Any table that maps a poem to its embedding is keyed on `poem_index`, on both
+the write side and the read side. Never on `id`.**
+
+This is the whole point of the issue and it applies to every builder, including
+ones written long after this issue closed. `id` is a per-category number that
+restarts at 1 five times over — bluesky, fediverse, fediverse_boost, messages,
+notes — so five different poems answer to `id = 1`. Building a lookup on it does
+two kinds of damage at once, and neither one announces itself:
+
+1. **Last-write-wins silently discards embeddings.** 8,415 entries collapse into
+   5,997 distinct keys, so roughly 29% of the corpus is thrown away before any
+   ranking happens.
+2. **The survivors attach to the wrong poems.** A table written with `id` and
+   read with `poem_index` looks consistent — every lookup succeeds — but the
+   embedding found under key 939 belongs to whichever poem was written last, not
+   to poem 939.
+
+There is no nil, no warning, and no crash. The output is a full page of plausible
+poems in descending score order, every score computed correctly and every score
+printed against the wrong poem. That is what makes this rule worth stating
+separately from the migration steps below: the failure is invisible from the
+outside, so it can only be prevented at the point where the lookup is built.
+
+A third consequence is worth naming because it is easy to miss: keying on `id`
+caps the reachable corpus at the largest `id` value. Nothing numbered above it
+can ever be looked up, so entire categories become unreachable — `messages` and
+`notes` could not appear on a word page at all.
+
 ## Files to Modify
 
 | File | Changes |
@@ -167,6 +197,25 @@ We could patch `similarity-engine.lua` to store/lookup by array index consistent
 | `src/flat-html-generator.lua` | Use poem_index for output files |
 | `scripts/generate-html-parallel` | Use poem_index for output files |
 | `libs/utils.lua` | Add poem_index validation helper |
+| `src/generate-word-pages.lua` | Key the word-page embedding lookup on poem_index |
+| `src/centroid-html-generator.lua` | Key the centroid embedding lookup on poem_index, both sides |
+
+The last two are page builders added during Phase 8 and later. Both were written
+against `id` and both exhibited the failure described above until corrected —
+which is the reason the rule now leads this section rather than being implied by
+the steps.
+
+## Where an Embedding Lookup May Still Be Wrong
+
+A quick way to check any builder: the write and the read must name the same
+field, and that field must be `poem_index`.
+
+```
+lookup[tostring(entry.poem_index)] = entry.embedding     -- write
+local emb = lookup[tostring(poem.poem_index)]            -- read
+```
+
+If either line says `id`, the builder is wrong even when it appears to work.
 
 ## Testing Strategy
 

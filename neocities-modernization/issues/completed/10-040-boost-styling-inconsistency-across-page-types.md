@@ -36,16 +36,60 @@ Boosts on chronological pages use the same styling as regular posts, while simil
 
 ## Intended Behavior
 
-Boost entries should use the distinctive [BOOST] box styling consistently across ALL page types:
+Boost entries use the distinctive [BOOST] box styling on **every** page type that
+renders a poem. There are four, and none of them is optional:
+
 - Chronological pages
 - Similar pages
 - Different pages
-- Word pages (if boosts appear there)
+- **Word-cloud pages** — boosts do appear there, so this is a requirement, not a
+  contingency. Stated flatly because the earlier wording ("if boosts appear
+  there") read as permission to skip it, and the word-page builder did: it
+  contained no mention of boosts at all, and rendered every reshare as an
+  ordinary poem showing the raw `External post: <url>` placeholder with the URL
+  not even hyperlinked.
 
 The special boost styling serves to:
 1. Visually distinguish shared content from original posts
 2. Indicate the content is from another author
 3. Provide consistent visual language across the entire site
+
+Point 2 is why this is a correctness matter and not a decorative one. A reshare
+rendered as an ordinary post silently attributes someone else's words to the
+author of the collection.
+
+## The Rule: One Module Draws the Frame
+
+Every render path calls `src/boost-bars.lua`. No page builder draws boost
+geometry itself, and no page builder keeps its own copy of the boost palette —
+the palette is exported from the main HTML generator so there is exactly one.
+
+This rule was learned the expensive way: three hand-copied versions of the frame
+had already drifted into misaligned walls, wrong junction columns and corrupted
+corner characters. A fourth builder that renders boosts without going through
+the shared module is the same mistake, whether it drifts or simply omits.
+
+A boost entry is composed in this order, matching the other page types:
+
+1. The ` -> file: <category>/<id>` source line
+2. The frame, from `boost_bars.format_boost(...)`
+
+The source line matters and is easy to lose: a builder that returns the frame
+early, before the point where it composes that line, produces a boost with no
+provenance while every other page type shows one.
+
+## Content Handling Inside the Frame
+
+Three cases, in the order they must be tested:
+
+- **Blank content** — the scrape never captured the original. Fall back to
+  `External post: <original_uri>` from the metadata, or `(Boost content
+  unavailable)` if even that is absent. Never render an empty frame.
+- **An uncached boost** (`External post: <url>` and nothing else) — wrap the URL
+  across the box lines at `boost_bars.CONTENT_WIDTH`, with every line anchored to
+  the whole URL, so a long address stays inside the frame and stays clickable.
+- **Cached content** — wrap each line to `boost_bars.CONTENT_WIDTH`, preserving
+  indentation.
 
 ## Investigation Notes
 

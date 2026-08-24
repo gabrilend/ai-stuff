@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+#
+# install-fonts -- put the site's monospace font where the generated pages expect
+# to find it.
+#
+# In one line: copies fonts/*.ttf into output/fonts/ so that every poem
+# page renders its box-drawing grid from a font we shipped, rather than from
+# whatever the visitor's device happens to own.
+#
+# Why this exists at all: the poem pages draw their frames, bars and navigation
+# boxes entirely out of Unicode box-drawing characters, and a phone's default
+# monospace font does not contain them -- Android's contains none of the twenty
+# the layout uses. The browser then borrows those glyphs from a proportional
+# font whose characters are a different width, and every frame tears out of
+# alignment. Shipping the font removes the guesswork.
+#
+# Usage:
+#   scripts/install-fonts            # uses the DIR below
+#   scripts/install-fonts /some/path # treat /some/path as the project root
+#
+# Exit status is non-zero if a font is missing, because a page that references a
+# font that is not there falls silently back to the broken rendering -- the
+# failure looks like nothing at all, so the build must be the thing that notices.
+
+set -euo pipefail
+
+DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+if [ $# -ge 1 ]; then
+    DIR="$1"
+fi
+
+SOURCE_DIR="${DIR}/fonts"
+TARGET_DIR="${DIR}/output/fonts"
+
+# The files the generated pages name in their @font-face rules. Both weights are
+# required: every progress bar is bold across its filled portion and regular
+# across the rest, and a browser-synthesized bold does not reliably keep the same
+# advance width -- so a missing bold face tears each bar at the colour boundary.
+FONT_FILES=(
+    "HackNerdFont-Regular.ttf"
+    "HackNerdFont-Bold.ttf"
+)
+
+if [ ! -d "${SOURCE_DIR}" ]; then
+    echo "install-fonts: no font source directory at ${SOURCE_DIR}" >&2
+    exit 1
+fi
+
+mkdir -p "${TARGET_DIR}"
+
+installed=0
+for font in "${FONT_FILES[@]}"; do
+    src="${SOURCE_DIR}/${font}"
+    if [ ! -f "${src}" ]; then
+        echo "install-fonts: missing ${src}" >&2
+        echo "install-fonts: pages will silently fall back to the device font and lose column alignment" >&2
+        exit 1
+    fi
+    cp "${src}" "${TARGET_DIR}/${font}"
+    installed=$((installed + 1))
+done
+
+# Ship the provenance note alongside the binaries so a deployed copy carries its
+# own licence trail rather than depending on this repository staying reachable.
+if [ -f "${SOURCE_DIR}/LICENSE-Hack.md" ]; then
+    cp "${SOURCE_DIR}/LICENSE-Hack.md" "${TARGET_DIR}/LICENSE-Hack.md"
+fi
+
+echo "install-fonts: installed ${installed} font files to ${TARGET_DIR}"

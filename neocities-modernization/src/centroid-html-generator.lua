@@ -99,11 +99,15 @@ local function build_embeddings_lookup(embeddings_data)
         return lookup
     end
 
-    -- Handle array format: [{id: 1, embedding: [...]}, {id: 2, embedding: [...]}, ...]
+    -- Keyed by poem_index, the GLOBAL identifier -- never by id, which restarts
+    -- at 1 in every source category and so collides five ways (Issue 8-019).
+    -- Keying on id here silently discarded ~29% of the embeddings to
+    -- last-write-wins and mis-attached the rest, ranking every centroid page
+    -- against the wrong poems.
     if type(embeddings_data.embeddings) == "table" then
         for _, entry in ipairs(embeddings_data.embeddings) do
-            if entry.id and entry.embedding then
-                lookup[tostring(entry.id)] = entry.embedding
+            if entry.poem_index and entry.embedding then
+                lookup[tostring(entry.poem_index)] = entry.embedding
             end
         end
     end
@@ -127,22 +131,41 @@ function M.generate_centroid_similarity_ranking(centroid_data, poems_data, embed
 
     local ranked_poems = {}
 
-    -- Calculate similarity for each poem
-    for poem_id, poem in ipairs(poems_data.poems) do
-        if poem.id then
-            local poem_embedding = embeddings_lookup[tostring(poem.id)]
+    -- Calculate similarity for each poem.
+    --
+    -- Looked up by poem_index to match how the lookup is keyed above. Reading
+    -- with poem.id while the table was built on entry.id LOOKED consistent, but
+    -- both sides were the colliding per-category number, so a hit was as likely
+    -- to be another category's poem as this one's.
+    local missing = 0
+    for _, poem in ipairs(poems_data.poems) do
+        if poem.poem_index then
+            local poem_embedding = embeddings_lookup[tostring(poem.poem_index)]
 
+            -- A poem with no embedding used to score 0 and sink to the bottom of
+            -- the ranking, indistinguishable from a poem that is genuinely
+            -- unrelated to the centroid. Count them and report once, so a broken
+            -- embedding file announces itself instead of quietly degrading every
+            -- centroid page.
             local similarity = 0
             if poem_embedding and type(poem_embedding) == "table" and #poem_embedding > 0 then
                 similarity = cosine_similarity(centroid_embedding, poem_embedding)
+            else
+                missing = missing + 1
             end
 
             table.insert(ranked_poems, {
                 id = poem.id,
+                poem_index = poem.poem_index,
                 poem = poem,
                 similarity = similarity
             })
         end
+    end
+    if missing > 0 then
+        utils.log_warn(string.format(
+            "Centroid ranking: %d of %d poems had no embedding and scored 0",
+            missing, #poems_data.poems))
     end
 
     -- Sort by similarity (descending = most similar first)

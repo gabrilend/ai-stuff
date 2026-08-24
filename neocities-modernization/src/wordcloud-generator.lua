@@ -115,6 +115,9 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
 local utils = require("utils")
+-- Shared <head> contents: viewport, the shipped monospace font, the text-size
+-- lock. One owner, so this menu cannot drift from the poem pages.
+local page_head = require("page-head")
 -- Shared chronological mapping so the poem-ID jump links here resolve to the
 -- SAME paginated page the chronological pages emit (a third inline copy used to
 -- drift -- see Issue 10-049 follow-up).
@@ -524,11 +527,15 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
     local poem_index = generate_poem_index(poems_data)
 
     -- Generate HTML page
-    -- Issue 16-010: Added font style for Hack Nerd Font font-stack
+    -- Issue 16-010: shared head block -- viewport + shipped monospace font.
+    -- Base path is "." because this menu is written to the site ROOT, unlike the
+    -- poem pages one directory below; getting that wrong 404s the font and drops
+    -- the page silently back to whatever monospace the device happens to own.
     -- Same centering CSS as the poem pages: the <pre> poem-ID list centers as an
     -- inline-block (text stays left) so it sits on the page centerline.
-    local font_style = [[<style>body, pre { font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono', 'Courier New', monospace; }
-td { text-align: center; } pre { display: inline-block; text-align: left; margin: 0 auto; } img, video, audio { margin-left: auto; margin-right: auto; }</style>]]
+    local head_block = page_head.style_block(".",
+        "td { text-align: center; } pre { display: inline-block; text-align: left; margin: 0 auto; }\n"
+        .. "img, video, audio { margin-left: auto; margin-right: auto; }")
     local html = string.format([[<!DOCTYPE html>
 <!-- Issue 10-058: word order shuffled with master seed %d. Re-run with
      --seed %d (or set randomization.seed in config.lua) to reproduce this exact
@@ -536,9 +543,10 @@ td { text-align: center; } pre { display: inline-block; text-align: left; margin
 <html>
 <head>
 <meta charset="UTF-8">
+%s
 <title>Menu - Poetry Collection</title>
 %s</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">]], MASTER_SEED, MASTER_SEED, font_style) .. string.format([[
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">]], MASTER_SEED, MASTER_SEED, page_head.viewport_meta(), head_block) .. string.format([[
 
 <center>
 <h1>Menu</h1>
