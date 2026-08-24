@@ -1,0 +1,511 @@
+#!/usr/bin/env bash
+# quarantine-stale-output
+# Move files that no generated page points at out of output/ and into a
+# restorable holding area -- and put them back on demand. Nothing is deleted.
+#
+# General description (for a CEO): the site build writes into output/, and the
+# upload step ships whatever it finds sitting there. Over months, output/ collects
+# files nothing links to any more: exports written by a code path that no longer
+# runs, debug dumps, rendered copies of source files that were deleted in spring.
+# They cost upload time and bandwidth, and they are invisible -- the build's own
+# cleanup sweeps only the file types it was told about, so anything else simply
+# accumulates. This tool asks one question of every candidate file, "does any page
+# we just generated point at this?", moves the answer-no files into a holding
+# area, and can move them all back if the answer was wrong.
+#
+# Why it exists (Aug 2026): output/similar/ and output/different/ each held 7,904
+# .txt exports written by the single-threaded build path, which has not run since
+# 29 June -- the threaded path (--threads > 1, i.e. every real run) never writes
+# them, and the --force cleanup in run.sh removes only *.html, so they survived
+# every rebuild untouched. 1.8 GB that no page linked to. An upload counts them;
+# phase-demo.sh, which filters on *.html, did not -- which is how the two numbers
+# came to disagree and the pile went unnoticed for six weeks.
+#
+# THE SAFETY RULE, because this tool moves things: a file is a candidate only if
+# its name appears NOWHERE in the generated HTML. False positives (deciding
+# something is referenced when it is not) merely leave a stale file in place --
+# harmless. False negatives (deciding something is unreferenced when it is not)
+# would move a live file off the site. So every ambiguity is resolved toward
+# KEEPING the file, and the reference scan is deliberately over-generous: it reads
+# every HTML file under output/, not a sampled subset, and it counts a match
+# anywhere in the page, including inside poem text.
+#
+# WHERE THINGS GO: tmp/shared-memory/quarantine/, which is /dev/shm -- RAM. Per
+# the tier rule in scripts/ensure-tmp-symlink, things you RUN live in tmp/ and
+# things you WRITE live in tmp/shared-memory/; held files are written data.
+# Being RAM, THE HOLDING AREA DOES NOT SURVIVE A REBOOT. That is the accepted
+# trade for an instant, disk-free hold. --status says how long it has been held.
+#
+# Modes (exactly one; --plan if none given):
+#   --plan      list what WOULD move, grouped, with counts and sizes. Touches nothing.
+#   --move      move candidates into the holding area
+#   --restore   move everything in the holding area back where it came from
+#   --status    report what is currently held, and since when
+#
+# Options:
+#   --group NAME   restrict --plan/--move/--restore to one group (repeatable)
+#   --quiet        suppress per-file listing in --plan
+#
+# Usage:
+#   scripts/quarantine-stale-output --plan
+#   scripts/quarantine-stale-output --move
+#   scripts/quarantine-stale-output --restore --group media-flat-layout-orphans
+#   scripts/quarantine-stale-output --plan /path/to/other/project/root
+#
+# DIR defaults to the hard-coded project root below; pass it as a bare argument
+# to point the tool at a different checkout.
+
+set -eu
+
+# {{{ paths and mode
+DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+MODE="plan"
+QUIET=false
+ONLY_GROUPS=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --plan)    MODE="plan";    shift ;;
+        --move)    MODE="move";    shift ;;
+        --restore) MODE="restore"; shift ;;
+        --status)  MODE="status";  shift ;;
+        --quiet)   QUIET=true;     shift ;;
+        --group)
+            # Repeatable. Stored space-padded so a substring test cannot match a
+            # group whose name merely starts with another group's name.
+            if [ $# -lt 2 ]; then
+                echo "Error: --group needs a group name" >&2
+                exit 1
+            fi
+            ONLY_GROUPS="${ONLY_GROUPS} $2 "
+            shift 2
+            ;;
+        -h|--help)
+            sed -n '2,58p' "$0"
+            exit 0
+            ;;
+        -*)
+            echo "Error: unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            DIR="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ ! -d "$DIR/output" ]; then
+    echo "Error: no output/ under project root: $DIR" >&2
+    exit 1
+fi
+
+OUT="$DIR/output"
+HOLD="$DIR/tmp/shared-memory/quarantine"
+WORK=""
+# }}}
+
+# {{{ cleanup_work
+# The scratch directory holds the reference index and per-group file lists. It is
+# derived data with no value after the run, so it goes away on every exit path --
+# including a failure, where leaving a half-built index behind would tempt a later
+# run into trusting it.
+cleanup_work() {
+    if [ -n "$WORK" ] && [ -d "$WORK" ]; then
+        rm -rf "$WORK"
+    fi
+}
+trap cleanup_work EXIT
+# }}}
+
+# {{{ ensure_holding_area
+# The holding area lives in RAM under tmp/shared-memory/. That symlink chain is
+# built by scripts/ensure-tmp-symlink, which is idempotent -- calling it here means
+# this tool works on a freshly-booted machine where /dev/shm is still empty. A
+# missing helper is a hard error rather than a silent mkdir: creating a plain
+# directory named tmp/ where a symlink belongs would quietly put 2 GB on the disk
+# the user was trying to spare.
+ensure_holding_area() {
+    if [ ! -x "$DIR/scripts/ensure-tmp-symlink" ]; then
+        echo "Error: scripts/ensure-tmp-symlink not found or not executable." >&2
+        echo "       It builds the tmp/ -> RAM symlinks this tool writes into." >&2
+        exit 1
+    fi
+    "$DIR/scripts/ensure-tmp-symlink" "$DIR" >/dev/null
+    mkdir -p "$HOLD"
+}
+# }}}
+
+# {{{ urldecode_stream
+# Reads percent-encoded paths on stdin, writes decoded paths on stdout. The HTML
+# writes an apostrophe as %27, so "Statua-di-Sant%27Azraphel.png" in a page and
+# "Statua-di-Sant'Azraphel.png" on disk are the same file. Skipping this step
+# would report every such image as unreferenced -- exactly the false negative the
+# safety rule forbids.
+urldecode_stream() {
+    sed -E 's/%([0-9A-Fa-f]{2})/\\x\1/g' | while IFS= read -r line; do
+        printf '%b\n' "$line"
+    done
+}
+# }}}
+
+# {{{ build_reference_index
+# One pass over every generated page, producing the two lookup sets the collectors
+# consult. Reading ~1.4 GB of HTML takes a little while; it is done once and
+# reused, because doing it per-group would multiply the cost by the group count
+# for an identical answer.
+#
+# Writes into $WORK:
+#   names.txt  -- every filename-with-extension token seen anywhere, basename only.
+#                 Used for "is this export linked from anything?", where the file
+#                 lives beside the pages and a bare name is how it would be written.
+#   media.txt  -- every token containing media/, with that prefix stripped, so the
+#                 comparison keeps the subdirectory. This distinguishes the current
+#                 my-art/about-face-2.png from the January flat-layout duplicate
+#                 about-face-2.png; a basename-only test would conflate them and
+#                 wrongly report the live one as the dead one.
+build_reference_index() {
+    printf '   scanning generated pages for references...\n' >&2
+
+    # The token pattern deliberately admits far more than real filenames -- URLs
+    # inside poems, ".txt" mentioned in prose. Every spurious token can only cause
+    # a file to be KEPT, which is the safe direction.
+    find "$OUT" -name '*.html' -type f -print0 \
+        | xargs -0 grep -hoE "[^\"'<> ()]+\.[A-Za-z0-9]{1,6}" \
+        | sort -u \
+        | urldecode_stream \
+        | sort -u > "$WORK/tokens.txt"
+
+    sed -E 's|.*/||' "$WORK/tokens.txt" | sort -u > "$WORK/names.txt"
+
+    grep -F 'media/' "$WORK/tokens.txt" \
+        | sed -E 's|.*media/||' \
+        | sort -u > "$WORK/media.txt" || true
+
+    printf '   %s distinct tokens, %s media paths\n' \
+        "$(wc -l < "$WORK/names.txt")" "$(wc -l < "$WORK/media.txt")" >&2
+}
+# }}}
+
+# {{{ collect_unreferenced_txt
+# Shared by the similar/ and different/ groups: the .txt exports sit beside the
+# pages, so a live one would be linked by bare filename. Anything whose name the
+# page corpus never mentions is an export from a build path that no longer runs.
+# $1 is the directory name under output/.
+collect_unreferenced_txt() {
+    local sub="$1"
+    [ -d "$OUT/$sub" ] || return 0
+    find "$OUT/$sub" -maxdepth 1 -name '*.txt' -type f -printf '%f\n' \
+        | sort -u > "$WORK/cand.txt"
+    comm -23 "$WORK/cand.txt" "$WORK/names.txt" \
+        | sed -E "s|^|output/$sub/|"
+}
+
+collect_similar_txt()   { collect_unreferenced_txt "similar"; }
+collect_different_txt() { collect_unreferenced_txt "different"; }
+# }}}
+
+# {{{ collect_source_orphans
+# The source browser writes one page per project file plus an index that links
+# them all. When a project file is deleted, the next build simply stops emitting
+# its page -- but the previously-emitted page stays on disk, now unreachable. The
+# index is therefore the authority on what the browser currently contains, and
+# anything on disk it does not list is a rendering of a file that no longer exists.
+collect_source_orphans() {
+    local idx="$OUT/source/index.html"
+    [ -f "$idx" ] || return 0
+    grep -oE 'href="[^"]+\.html"' "$idx" \
+        | sed -E 's/href="(.*)"/\1/' \
+        | urldecode_stream \
+        | sort -u > "$WORK/src-linked.txt"
+    ( cd "$OUT/source" && find . -name '*.html' -type f -printf '%P\n' ) \
+        | sort -u > "$WORK/src-disk.txt"
+    # index.html itself is the entry point and links nothing to itself.
+    comm -23 "$WORK/src-disk.txt" "$WORK/src-linked.txt" \
+        | grep -v '^index\.html$' \
+        | sed -E 's|^|output/source/|' || true
+}
+# }}}
+
+# {{{ collect_media_orphans
+# Top level of output/media/ ONLY, and the reason is a layout change: until
+# January the art lived flat as media/about-face.png; since 26 June it lives in
+# per-source subdirectories as media/my-art/about-face.png. Both copies are on
+# disk and only the subdirectory one is linked, so the flat copies are duplicates
+# of files the site still serves.
+#
+# The subdirectories are deliberately NOT swept. A handful of images inside them
+# are unreferenced too, but in the CURRENT layout -- which reads as the gallery
+# failing to list them rather than the files being stale. Those want a person to
+# look, not a mover; see the open question in the accompanying report.
+collect_media_orphans() {
+    [ -d "$OUT/media" ] || return 0
+    find "$OUT/media" -maxdepth 1 -type f -printf '%f\n' | sort -u > "$WORK/media-cand.txt"
+    comm -23 "$WORK/media-cand.txt" "$WORK/media.txt" \
+        | sed -E 's|^|output/media/|'
+}
+# }}}
+
+# {{{ collect_debug_logs
+# Server and run logs from June, sitting in the directory that gets uploaded.
+# Logs belong in tmp/shared-memory/ per the project convention; these predate it.
+collect_debug_logs() {
+    [ -d "$OUT/debug-logs" ] || return 0
+    find "$OUT/debug-logs" -type f -printf 'output/debug-logs/%P\n'
+}
+# }}}
+
+# {{{ collect_debug_binary
+# The GPU diversity stage writes this only when handed --save-binary, a debug
+# flag no scheduled run passes. The copy on disk is from January and is 243 MB.
+collect_debug_binary() {
+    local f="$OUT/diversity-cache-gpu-batch.bin"
+    [ -f "$f" ] && printf 'output/diversity-cache-gpu-batch.bin\n'
+    return 0
+}
+# }}}
+
+# {{{ collect_src_tempfile
+# An editor or generator left a .tmp.PID.HASH copy of a source file behind. It is
+# not under output/, so it never reaches the site -- it is swept here because it
+# is the same class of thing: a file nothing refers to, kept by nobody's decision.
+collect_src_tempfile() {
+    [ -d "$DIR/src" ] || return 0
+    find "$DIR/src" -maxdepth 1 -name '*.tmp.*' -type f -printf 'src/%P\n'
+}
+# }}}
+
+# {{{ group table
+# Name -> collector, and name -> the one-line reason a human needs when deciding
+# whether to restore. A dispatch table rather than a case chain: adding a category
+# is one function and two entries, and no control flow anywhere else changes.
+GROUP_NAMES=(
+    similar-txt-exports
+    different-txt-exports
+    source-browser-orphans
+    media-flat-layout-orphans
+    debug-logs
+    diversity-debug-binary
+    stray-src-tempfile
+)
+
+declare -A GROUP_COLLECTOR=(
+    [similar-txt-exports]=collect_similar_txt
+    [different-txt-exports]=collect_different_txt
+    [source-browser-orphans]=collect_source_orphans
+    [media-flat-layout-orphans]=collect_media_orphans
+    [debug-logs]=collect_debug_logs
+    [diversity-debug-binary]=collect_debug_binary
+    [stray-src-tempfile]=collect_src_tempfile
+)
+
+declare -A GROUP_WHY=(
+    [similar-txt-exports]="txt exports beside similar/ pages that no page links to"
+    [different-txt-exports]="txt exports beside different/ pages that no page links to"
+    [source-browser-orphans]="rendered source pages for project files since deleted"
+    [media-flat-layout-orphans]="pre-June flat-layout image copies, superseded by media/<source>/"
+    [debug-logs]="llama.cpp and run logs that belong in tmp/shared-memory/, not output/"
+    [diversity-debug-binary]="GPU diversity dump written only under --save-binary"
+    [stray-src-tempfile]="editor/generator leftover in src/"
+)
+
+# {{{ group_selected
+# True when a group should be acted on: every group unless --group narrowed it.
+group_selected() {
+    [ -z "$ONLY_GROUPS" ] && return 0
+    case "$ONLY_GROUPS" in
+        *" $1 "*) return 0 ;;
+        *)        return 1 ;;
+    esac
+}
+# }}}
+# }}}
+
+# {{{ human_size
+# Bytes as something a person reads. Only ever used for reporting.
+human_size() {
+    numfmt --to=iec-i --suffix=B --format='%.1f' "$1" 2>/dev/null || printf '%s bytes' "$1"
+}
+# }}}
+
+# {{{ sum_sizes
+# Total bytes of the newline-separated DIR-relative paths in file $1. Uses a NUL
+# handoff because these names contain spaces, ampersands and apostrophes
+# ("D&D Sheet.pdf"), which any word-splitting approach would tear in half.
+sum_sizes() {
+    local list="$1" total=0
+    [ -s "$list" ] || { printf '0\n'; return 0; }
+    total=$( cd "$DIR" && tr '\n' '\0' < "$list" \
+        | xargs -0 -r stat -c '%s' 2>/dev/null \
+        | awk '{s+=$1} END {printf "%d", s+0}' )
+    printf '%s\n' "${total:-0}"
+}
+# }}}
+
+# {{{ do_plan
+# Report only. Runs the same collectors --move runs, so what it prints is exactly
+# what would move; there is no second code path to drift out of agreement.
+do_plan() {
+    build_reference_index
+    local grand_files=0 grand_bytes=0 name fn count bytes
+
+    printf '\n'
+    for name in "${GROUP_NAMES[@]}"; do
+        group_selected "$name" || continue
+        fn="${GROUP_COLLECTOR[$name]}"
+        "$fn" > "$WORK/list-$name" || true
+        count=$(wc -l < "$WORK/list-$name")
+        [ "$count" -eq 0 ] && continue
+        bytes=$(sum_sizes "$WORK/list-$name")
+        grand_files=$((grand_files + count))
+        grand_bytes=$((grand_bytes + bytes))
+        printf '  %-28s %7s files  %10s   %s\n' \
+            "$name" "$count" "$(human_size "$bytes")" "${GROUP_WHY[$name]}"
+        if ! $QUIET && [ "$count" -le 40 ]; then
+            sed 's/^/        /' "$WORK/list-$name"
+        fi
+    done
+    printf '  %-28s %7s files  %10s\n\n' "TOTAL" "$grand_files" "$(human_size "$grand_bytes")"
+    if [ "$grand_files" -gt 0 ]; then
+        printf 'Nothing has moved. Run with --move to hold these in RAM at:\n  %s\n' "$HOLD"
+    fi
+}
+# }}}
+
+# {{{ do_move
+# Moves each group into $HOLD/<group>/, mirroring the path relative to the project
+# root. That mirroring is what makes restore trivial and manifest-independent: the
+# holding area IS the map, so a restore cannot be desynchronised from a bookkeeping
+# file someone edited. The manifest exists for a human to read, not for the machine
+# to depend on.
+#
+# rsync rather than a mv loop because this is a cross-filesystem move -- disk to
+# RAM -- so every file is a copy-then-unlink regardless, and rsync does the bulk
+# far faster than several thousand individual mv processes. -a preserves mtimes,
+# so a restored tree looks untouched to anything that compares timestamps.
+do_move() {
+    ensure_holding_area
+    build_reference_index
+    local name fn count bytes moved_files=0 moved_bytes=0 stamp
+    stamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+    printf '\n'
+    for name in "${GROUP_NAMES[@]}"; do
+        group_selected "$name" || continue
+        fn="${GROUP_COLLECTOR[$name]}"
+        "$fn" > "$WORK/list-$name" || true
+        count=$(wc -l < "$WORK/list-$name")
+        [ "$count" -eq 0 ] && continue
+        bytes=$(sum_sizes "$WORK/list-$name")
+
+        mkdir -p "$HOLD/$name"
+        printf '  holding %-28s %7s files  %10s ...' "$name" "$count" "$(human_size "$bytes")"
+        rsync -a --relative --remove-source-files \
+              --files-from="$WORK/list-$name" \
+              "$DIR/" "$HOLD/$name/"
+        printf ' done\n'
+
+        # The manifest records what this group was and why, for whoever finds the
+        # holding area later without this conversation in front of them.
+        {
+            printf '# group: %s\n' "$name"
+            printf '# reason: %s\n' "${GROUP_WHY[$name]}"
+            printf '# held-at: %s\n' "$stamp"
+            printf '# restore: scripts/quarantine-stale-output --restore --group %s\n' "$name"
+            printf '# paths below are relative to the project root\n'
+            cat "$WORK/list-$name"
+        } > "$HOLD/$name/MANIFEST.txt"
+
+        moved_files=$((moved_files + count))
+        moved_bytes=$((moved_bytes + bytes))
+    done
+
+    # rsync --remove-source-files unlinks the files but leaves the directories it
+    # emptied. output/debug-logs/ is the only group that empties a whole directory,
+    # and leaving the empty shell behind would make --status ambiguous about
+    # whether the group was held.
+    find "$OUT" -mindepth 1 -type d -empty -delete 2>/dev/null || true
+
+    printf '\n  %s files (%s) now held in RAM at:\n    %s\n' \
+        "$moved_files" "$(human_size "$moved_bytes")" "$HOLD"
+    printf '  Restore with: scripts/quarantine-stale-output --restore\n'
+    printf '  NOTE: /dev/shm is RAM. A reboot discards the holding area.\n'
+}
+# }}}
+
+# {{{ do_restore
+# Walks the holding area and moves everything back to the path it came from. No
+# manifest is consulted -- the mirrored tree under each group directory already
+# encodes every original location, so restore stays correct even if a manifest was
+# lost or hand-edited.
+do_restore() {
+    if [ ! -d "$HOLD" ]; then
+        echo "Nothing held: $HOLD does not exist." >&2
+        echo "If the machine rebooted, the RAM holding area is gone." >&2
+        exit 1
+    fi
+    local name count restored=0
+    printf '\n'
+    for name in "${GROUP_NAMES[@]}"; do
+        group_selected "$name" || continue
+        [ -d "$HOLD/$name" ] || continue
+        count=$(find "$HOLD/$name" -type f ! -name 'MANIFEST.txt' | wc -l)
+        [ "$count" -eq 0 ] && continue
+        printf '  restoring %-28s %7s files ...' "$name" "$count"
+        rsync -a --remove-source-files \
+              --exclude 'MANIFEST.txt' \
+              "$HOLD/$name/" "$DIR/"
+        printf ' done\n'
+        rm -f "$HOLD/$name/MANIFEST.txt"
+        find "$HOLD/$name" -mindepth 1 -type d -empty -delete 2>/dev/null || true
+        rmdir "$HOLD/$name" 2>/dev/null || true
+        restored=$((restored + count))
+    done
+    rmdir "$HOLD" 2>/dev/null || true
+    printf '\n  %s files restored to %s\n' "$restored" "$DIR"
+}
+# }}}
+
+# {{{ do_status
+# What is held right now, and for how long. Reads only the holding area, so it is
+# instant -- no reference scan.
+do_status() {
+    if [ ! -d "$HOLD" ]; then
+        printf '\n  Nothing held. (%s does not exist.)\n\n' "$HOLD"
+        return 0
+    fi
+    local name count bytes held total_files=0 total_bytes=0
+    printf '\n  Holding area: %s\n\n' "$HOLD"
+    for name in "${GROUP_NAMES[@]}"; do
+        [ -d "$HOLD/$name" ] || continue
+        count=$(find "$HOLD/$name" -type f ! -name 'MANIFEST.txt' | wc -l)
+        [ "$count" -eq 0 ] && continue
+        bytes=$(du -sb "$HOLD/$name" | cut -f1)
+        held="unknown"
+        if [ -f "$HOLD/$name/MANIFEST.txt" ]; then
+            held=$(grep '^# held-at:' "$HOLD/$name/MANIFEST.txt" | cut -d' ' -f3-)
+        fi
+        printf '  %-28s %7s files  %10s   held %s\n' \
+            "$name" "$count" "$(human_size "$bytes")" "$held"
+        total_files=$((total_files + count))
+        total_bytes=$((total_bytes + bytes))
+    done
+    printf '  %-28s %7s files  %10s\n\n' "TOTAL" "$total_files" "$(human_size "$total_bytes")"
+    printf '  This is RAM. A reboot discards it.\n\n'
+}
+# }}}
+
+# {{{ main
+WORK=$(mktemp -d -t quarantine-stale-output.XXXXXX)
+
+case "$MODE" in
+    plan)    do_plan ;;
+    move)    do_move ;;
+    restore) do_restore ;;
+    status)  do_status ;;
+    *)
+        echo "Error: unreachable mode: $MODE" >&2
+        exit 1
+        ;;
+esac
+# }}}

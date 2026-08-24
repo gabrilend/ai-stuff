@@ -1,5 +1,7 @@
 How the similarity actually works.
 
+This is an AI generated description of the math behind this project.
+
 EMBEDDINGS
   Every poem is run through a sentence-embedding model
   ({EMBEDDING_MODEL}) that turns its text into a fixed-length list
@@ -15,19 +17,12 @@ COSINE SIMILARITY
   the same as 'unrelated noise'.
 
 THE MOOD COLOR MAP
-  Poems are clustered into semantic 'moods' around centroids (average
-  points), and each mood gets a color. That is why the progress bars and
-  word colors carry meaning instead of being decorative.
-
-DIVERSITY SEQUENCES
-  The 'different' ordering is precomputed so that CONSECUTIVE poems stay
-  maximally spread out -- a walk that keeps surprising you rather than
-  drifting into one corner of the space.
-
-THE TRIANGULAR SIMILARITY MATRIX
-  Similarity is symmetric (A to B equals B to A), so only the upper
-  triangle is stored -- about half the memory -- and addressed with a
-  little index arithmetic instead of a full square.
+  The colors of each poem are determined by comparing the centroid of the poem
+  to the embedding of each color, alongside some "theme" words that help
+  "red" not be next to "blue" just because they were colors. So, the color
+  of the word on the wordcloud page and the color of the "progress bars" of
+  each poem are supposed to reflect the theme. Whether they did or not is
+  often unpredictable, but... I don't care :)
 
 THE WORD CLOUD ON THE MENU
   The menu's word cloud sizes each word by how often it shows up, on a
@@ -36,26 +31,13 @@ THE WORD CLOUD ON THE MENU
   flatten almost everything to the smallest tier; the log stretches the
   small counts back out. Frequency decides SIZE, and nothing else.
 
-  WHERE each word lands is not computed at all. The words go out as one
-  plain run of links and the browser flows them left to right, wrapping
-  the way a paragraph does -- no coordinates, no spiral, no overlap test.
-  The 'cloud' impression comes from the mix of sizes, not from packing
-  shapes together.
-
   Left in size order the big words would all bunch at the front, so the
   list is shuffled first with a Fisher-Yates pass: walk it from the last
   word back to the first, and swap each word with a randomly chosen one at
   or before it. A single sweep, and every possible ordering is equally
-  likely. The shuffle draws from the build's master seed (Issue 10-058),
-  recorded in output/generation-metadata.json -- so the SAME seed always
-  produces the SAME arrangement, and the order only changes when the seed
-  does. The sizes and the colors stay fixed regardless of the seed.
+  likely.
 
-  (Placing related words NEAR each other -- a layout driven by the same
-  embeddings the rest of this page describes -- is something the cloud
-  does not do today.)
-
-THE SHAPE OF THIS CORPUS (counted at build time)
+THE SHAPE OF THIS COLLECTION (counted at build time)
 
   Poems per source (of {TOTAL_POEMS} total):
 {SOURCE_BARS}
@@ -63,9 +45,5 @@ THE SHAPE OF THIS CORPUS (counted at build time)
   Poem length (characters):
 {LENGTH_BARS}
 {YEAR_SECTION}
-
-  (Similarity-score distributions live in the precomputed matrix that
-   this page does not load; they are a planned addition -- see issue
-   11-004.)
 
 <a href="explore.html">Back to Explore</a>
