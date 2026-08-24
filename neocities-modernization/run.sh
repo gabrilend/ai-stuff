@@ -2245,6 +2245,18 @@ run_generate_wordcloud() {
         rm -f "$OUTPUT_DIR/wordcloud/"*.html
     fi
 
+    # Every generated page's stylesheet points at output/fonts/, so the font has
+    # to be there before the pages that reference it are served. Fatal on failure:
+    # a missing font file does not error in a browser, it silently falls back to
+    # the device's own monospace -- which on a phone lacks the box-drawing
+    # characters this entire layout is built from, and the frames shear apart.
+    # A silent visual regression is exactly what the build should refuse to ship.
+    log_info "   Installing site fonts..."
+    "$DIR/scripts/install-fonts" "$DIR" || {
+        echo "Error: font installation failed" >&2
+        exit 1
+    }
+
     # The word cloud IS the site's menu (and carries the live poem index), so a
     # failure here is fatal, not a warning -- there is no usable entry page without it.
     log_info "   Generating word cloud menu..."
