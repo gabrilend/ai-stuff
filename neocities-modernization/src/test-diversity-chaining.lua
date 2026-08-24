@@ -3,6 +3,12 @@
 -- Test script for diversity chaining algorithm
 -- Validates algorithm functionality with real poetry data
 
+-- NOTE: the four similarity_file paths below resolve the SELECTED model's
+-- directory. They used to name "embeddinggemma_latest", a folder renamed away
+-- long ago. similarity_matrix.json is also a RETIRED format -- similarity now
+-- lives as per-poem files under similarities/ plus similarity_rankings_cache.json
+-- -- so this file needs porting to that storage before it can run. Nothing
+-- currently invokes it.
 local DIR = DIR or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
 -- Set up path for module loading
@@ -16,7 +22,7 @@ local diversity = require('diversity-chaining')
 local function run_basic_tests()
     utils.log_info("🧪 Running basic diversity chaining tests...")
     
-    local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
+    local similarity_file = require("utils").embeddings_dir() .. "/similarity_matrix.json"
     local poems_file = DIR .. "/assets/poems.json"
     
     -- Test 1: Basic chain generation
@@ -64,7 +70,7 @@ end
 local function run_performance_tests()
     utils.log_info("⚡ Running performance tests...")
     
-    local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
+    local similarity_file = require("utils").embeddings_dir() .. "/similarity_matrix.json"
     local poems_file = DIR .. "/assets/poems.json"
     
     -- Load data once
@@ -98,7 +104,7 @@ end
 local function run_diversity_analysis_tests()
     utils.log_info("📊 Running diversity analysis tests...")
     
-    local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
+    local similarity_file = require("utils").embeddings_dir() .. "/similarity_matrix.json"
     local poems_file = DIR .. "/assets/poems.json"
     
     local similarity_data = diversity.load_similarity_data(similarity_file)
@@ -148,7 +154,7 @@ end
 local function run_batch_generation_test()
     utils.log_info("🔄 Running batch generation test...")
     
-    local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
+    local similarity_file = require("utils").embeddings_dir() .. "/similarity_matrix.json"
     local poems_file = DIR .. "/assets/poems.json"
     
     local similarity_data = diversity.load_similarity_data(similarity_file)

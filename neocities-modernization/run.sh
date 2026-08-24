@@ -2749,6 +2749,31 @@ validate_supplied_values
 # requires no model, created a stray `cache/embeddings/similarities/` one level
 # above where any similarity file belongs. Found by noticing that exact directory
 # on this machine and matching its timestamp to a --validate --dry-run.
+# Catch a mistyped --model HERE, before a single directory is created.
+#
+# The check itself is not new -- stages 9 and 10 already refuse to build a site
+# against embeddings that do not exist, and say which models do have them. What
+# was wrong was the ORDER. The cache directories below were created first, so a
+# typo left an empty assets/embeddings/<typo>/ tree behind before the error
+# arrived, and running the same typo twice littered twice. Checking first means a
+# typo changes nothing at all.
+#
+# Only for stages that CONSUME embeddings. Stage 6 is the stage that produces
+# them, so it must be allowed to start with none on disk -- that is its whole
+# job -- and any run that includes it will have them by the time the later stages
+# look. A run of 6 alone, or 6 followed by others, is therefore exempt.
+if [ -n "$MODEL_NAME" ] && ! $GENERATE_EMBEDDINGS; then
+    if $GENERATE_SIMILARITY; then
+        require_embeddings_for_model "stage 7 (generate-similarity)"
+    elif $GENERATE_DIVERSITY; then
+        require_embeddings_for_model "stage 8 (generate-diversity)"
+    elif $GENERATE_HTML; then
+        require_embeddings_for_model "stage 9 (generate-html)"
+    elif $GENERATE_WORDCLOUD; then
+        require_embeddings_for_model "stage 10 (generate-wordcloud)"
+    fi
+fi
+
 if [ -n "$MODEL_NAME" ]; then
     _ram_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --model "$MODEL_NAME")"
     _disk_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --model "$MODEL_NAME" --disk)"

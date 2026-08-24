@@ -145,7 +145,17 @@ local function main()
     -- binary FP16 file next to embeddings.json so subsequent runs skip
     -- the (slow) JSON parse and FP32->FP16 conversion. The binary is
     -- considered fresh if its mtime is at least as new as embeddings.json.
-    local fp16_file = embeddings_file:gsub("%.json$", "_fp16.bin")
+    --
+    -- The vector space is part of the FILENAME, not a note beside it. This cache
+    -- holds prepared vectors rather than raw model output -- the shared direction
+    -- has been subtracted (see libs/embedding-space.lua) -- and a cache of
+    -- prepared vectors is only valid for the preparation that made it. Encoding
+    -- that in the name means an older cache is never opened at all rather than
+    -- being opened and found plausible: both files are the right length, the
+    -- right shape, and full of believable numbers. Only the answers differ.
+    local embedding_space = require("embedding-space")
+    local fp16_file = embeddings_file:gsub("%.json$",
+        "_" .. embedding_space.SPACE_VERSION .. "_fp16.bin")
     local function file_mtime(path)
         local f = io.open(path, "rb")
         if not f then return nil end
@@ -218,6 +228,18 @@ local function main()
         local total_values = num_poems * embedding_dim
         print(string.format("[Loading] Converting %d FP32 values to FP16...", total_values))
 
+        -- Subtract the direction every vector shares, before anything else
+        -- touches them. Diversity is the mirror of similarity -- it picks the
+        -- poem LEAST like what came before -- so it inherits the same distortion
+        -- from the same source, and has to be corrected in the same space or the
+        -- two halves of the site disagree about what "far apart" means.
+        local mean, mean_count = embedding_space.corpus_mean(embeddings_data.embeddings)
+        if not mean then
+            error("[Loading] " .. tostring(mean_count))
+        end
+        print(string.format("[Loading] Centring on the mean of %d vectors (%s)",
+            mean_count, embedding_space.SPACE_VERSION))
+
         -- Stage FP32 values into a flat FFI buffer (much faster than
         -- a Lua table because each element is a typed write, not a
         -- tagged-value allocation).
@@ -227,8 +249,8 @@ local function main()
             if not poem.embedding or #poem.embedding ~= embedding_dim then
                 error(string.format("Invalid embedding for poem_index %d", poem.poem_index))
             end
-            for _, value in ipairs(poem.embedding) do
-                fp32_buf[idx] = value
+            for j = 1, embedding_dim do
+                fp32_buf[idx] = poem.embedding[j] - mean[j]
                 idx = idx + 1
             end
         end
