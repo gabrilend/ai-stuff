@@ -1,0 +1,6 @@
+One demo per completed phase, named phase-N-demo and executable. Run them from
+the project root with ./run-phase-demo.
+
+They are not development scrap. They are part of what this project delivers, they
+are kept working, and each shows the earlier phases recombined into something
+none of them could do alone.
