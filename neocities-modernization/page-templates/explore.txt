@@ -1,8 +1,59 @@
-Welcome to the Poetry Collection.
+Similar Different
 
-This is a corpus of poems and posts you can read in several different
-orders -- by time, by what a poem resembles, by what contrasts with it,
-by the words it shares with others, or just by wandering.
+This is a poetry collection I made. The poems are displayed in chronological
+order, if you want to read from start to finish. You can click "similar" to see
+poems that are similar to that particular poem, and you can click "different" to
+see poems that are different. Go figure.
+
+The similar pages show you all the poems that are most similar to the poem you
+picked. It shows the first most similar, then second, then third, etc.
+
+The different pages however show the poems that are most different to each poem
+that comes before it - meaning, the second poem is the most different to the
+first, but the third poem is different from both the first and second, triangle
+style. The fourth poem takes into account the first, second, and third poem.
+
+There's also a wordcloud, which looks at each occurence of every word in all the
+poems and then finds the poems that are most similar to that word. Also there's
+an image gallery for some pictures I either made or found on the internet, and
+an index at the bottom of the image gallery if you want to jump to a specific
+poem in the chronological pages.
+
+What does it mean to be "similar" or "different"?
+
+Computers see text as just a long string of numbers. It doesn't mean anything
+unless we build meaning into it. We could go through and build out a massive
+tree of word synergies and antonyms and such, but that's a lot of work. Besides,
+someone has already done that for us!
+
+There's this thing called a "word embedding" which is used in modern AI, with
+Large Language Models specifically. It's like the first 20% of the process, and
+I took that system and used it to sort my words. Here's how it works:
+
+First, each word is turned into numbers. These numbers hold not just the shape
+of the word (like, first there's an A, then an N, then A, then R, then C, then
+H, then Y) but also the semantic meaning of the word. This semantic meaning is
+not just randomly assigned, during the process of building these statistical
+models they shuffle words around to sit next to other words that mean the same
+thing. So "anarchy" probably sits next to "liberation" if I had to guess, but
+also probably right next to "pearl clutching" which is two words but you get
+the idea.
+
+Anyway the system I made takes the "embedding" of each of the words in my poem,
+then combines it into one single number. The neat thing about these embeddings
+is that they're additive - meaning, you can get an average "meaning" of a poem
+just by looking at the combined average of the embeddings of each word. Of
+course, this isn't very accurate at all, because you might start out a poem
+talking about the weather, spending the rest of it describing a cute girl, and
+then it's revealed at the end that it was all a dream or whatever - the poem
+would probably focus on the girl and less on the weather or the dream. That's...
+fine. The system isn't perfect, but I wanted a way to put words that had similar
+concepts next to each other, and I wanted people who felt like they were viewing
+themselves into a rut to have a way to jump out and see things that were totally
+different, for maximum diversity. To let them explore in a non random, yet fully
+unpredictable way.
+
+I used AI to make this. I am utterly unrepentant, I don't believe it's wrong.
 
 WHAT IS HERE (counted at build time)
   {TOTAL_POEMS} poems across {SOURCE_COUNT} sources
@@ -11,20 +62,6 @@ WHAT IS HERE (counted at build time)
 
   sources:
 {SOURCE_LIST}
-
-WAYS TO EXPLORE
-  chronological  -- read the collection in time order, start to finish.
-  similar        -- from any poem, rank every other poem by how much it
-                    resembles it. Most alike first. Find more of what
-                    resonates.
-  different      -- from any poem, rank every other poem by maximum
-                    contrast. Most unlike first. Discover the unexpected.
-  word-cloud     -- jump in by a word; see the poems that lean on it.
-  gallery        -- the images, packed together to browse by eye.
-  maze           -- wander the corpus, choosing a direction at each step.
-
-Every poem carries 'similar' and 'different' links; each view shows the
-WHOLE collection, only re-sorted around the poem you started from.
 
 LINKS
   <a href="chronological/01.html">Start reading (chronological)</a>
