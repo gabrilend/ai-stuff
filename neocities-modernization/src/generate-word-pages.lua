@@ -38,6 +38,10 @@ local function parse_args(args)
     local max_words = nil  -- nil means use config default
     local poems_per_page = nil  -- Issue 8-050d: nil means use config default
     local chrono_per_page = nil  -- nil means fall back to config (never a literal)
+    -- Which embedding space to read. nil means "whatever run.sh's notepad or
+    -- config.lua says"; a value here overrides both (see the --model branch).
+    local model = nil
+    local server = nil
     local i = 1
 
     while i <= #(args or {}) do
@@ -89,6 +93,27 @@ local function parse_args(args)
         -- flag and its argument.
         elseif a == "--dir" then
             i = i + 2
+        -- Issue 10-065, same trap as --dir above: these take a VALUE, and the
+        -- branch below claims any token not starting with "-" as the project
+        -- directory. Left unconsumed, `--model embeddinggemma-300m` made
+        -- "embeddinggemma-300m" the project root; package.path was built from it
+        -- and the script died unable to find its own JSON library.
+        --
+        -- They are HONOURED, not merely swallowed. Under run.sh the choice
+        -- arrives on the shared notepad in RAM and this stage reads it there, but
+        -- that notepad lives in /tmp and does not survive a reboot -- so a
+        -- standalone run afterwards silently resolves config.lua's default
+        -- instead, which on this project is a different model with a months-old
+        -- embeddings file. Accepting the flag and ignoring it would leave the
+        -- operator no way to say which model they meant.
+        elseif a == "--model" then
+            model = args[i + 1]; i = i + 2
+        elseif a:match("^%-%-model=") then
+            model = a:match("^%-%-model=(.+)$"); i = i + 1
+        elseif a == "--server" then
+            server = args[i + 1]; i = i + 2
+        elseif a:match("^%-%-server=") then
+            server = a:match("^%-%-server=(.+)$"); i = i + 1
         elseif a:sub(1, 1) ~= "-" then
             dir = a
             i = i + 1
@@ -99,11 +124,12 @@ local function parse_args(args)
         end
     end
 
-    return dir, mode, all_words, max_words, poems_per_page, chrono_per_page
+    return dir, mode, all_words, max_words, poems_per_page, chrono_per_page, model, server
 end
 -- }}}
 
-local parsed_dir, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE, CLI_CHRONO_PER_PAGE = parse_args(arg)
+local parsed_dir, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE, CLI_CHRONO_PER_PAGE,
+      CLI_MODEL, CLI_SERVER = parse_args(arg)
 local DIR = setup_dir_path(parsed_dir)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
@@ -175,6 +201,12 @@ end
 -- here through inference-server-config means a model swap propagates to this script
 -- automatically; we no longer need to remember to update a hardcoded string.
 inference_config.set_project_root(DIR)
+-- A --server/--model typed on THIS command wins over the run notepad and over
+-- config.lua, in that order of authority. Applied before anything asks which
+-- model is selected, because embeddings_dir() is derived from that answer and a
+-- late change would leave earlier readers pointing at a different directory.
+if CLI_SERVER then inference_config.set_selected_server(CLI_SERVER) end
+if CLI_MODEL then inference_config.set_selected_model(CLI_MODEL) end
 local CONFIG = {
     model_name = inference_config.get_selected_model(),
     max_poems_per_page = 100,        -- Poems per word page
