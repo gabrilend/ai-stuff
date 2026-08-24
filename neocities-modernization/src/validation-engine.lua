@@ -47,31 +47,183 @@ function ValidationEngine:set_calculator(calculator)
 end
 -- }}}
 
+-- {{{ function ValidationEngine:load_embeddings_by_index
+-- Turn embeddings.json into a plain map: poem_index -> embedding array.
+--
+-- The file is { embeddings = [ {poem_index=, embedding=, ...}, ... ] }, but the
+-- comparison below wants to look a poem up by number. The old code indexed the
+-- decoded file DIRECTLY by id, which finds nothing at all -- so every pair was
+-- counted as "missing embedding" and the accuracy figure was computed over an
+-- empty set. A validator that reports on nothing, confidently, is worse than one
+-- that refuses to start.
+--
+-- Keyed on poem_index, never id: id restarts at 1 in every source category, so
+-- five different poems answer to it (Issue 8-019).
+function ValidationEngine:load_embeddings_by_index(embeddings_file)
+    local data = utils.read_json_file(embeddings_file)
+    if not data or not data.embeddings then
+        return nil, "could not read embeddings: " .. tostring(embeddings_file)
+    end
+
+    local by_index, n = {}, 0
+    for _, entry in ipairs(data.embeddings) do
+        if entry.poem_index and entry.embedding then
+            by_index[entry.poem_index] = entry.embedding
+            n = n + 1
+        end
+    end
+    if n == 0 then
+        return nil, "embeddings file contained no usable entries"
+    end
+    return by_index, n, data.embeddings
+end
+-- }}}
+
+-- {{{ function ValidationEngine:collect_pairs_from_store
+-- Read stored similarity scores out of the per-poem files.
+--
+-- Similarity used to live in ONE file holding every poem against every other,
+-- and this validator read it with a nested loop. Issue 8-033 replaced that with
+-- one file per poem under similarities/ -- scalable, resumable, and not requiring
+-- gigabytes of RAM to answer a single question. The validator was never moved
+-- across, so it has been opening a filename nothing has written since. It ran,
+-- failed to find the file, and concluded the algorithm needed review.
+--
+-- Sampling happens WHILE reading, not after. The full store is roughly 9,000
+-- files of 9,000 comparisons each -- on the order of eighty million pairs, which
+-- cannot be collected first and thinned later. So: take a sample of poems, read
+-- only those files, and take a sample of comparisons from each.
+--
+-- Returns an array of { poem_a, poem_b, stored_score }.
+function ValidationEngine:collect_pairs_from_store(similarities_dir, want_pairs)
+    local pairs_out = {}
+
+    -- Which poem files exist. Listed rather than assumed contiguous: a resumed
+    -- or partial generation leaves gaps, and walking 1..N blindly would report
+    -- those gaps as validation failures rather than as missing files.
+    local listing = io.popen(string.format(
+        "find %q -name 'poem_index_*.json' -type f 2>/dev/null | sort", similarities_dir))
+    if not listing then
+        return nil, "could not list " .. similarities_dir
+    end
+    local files = {}
+    for line in listing:lines() do files[#files + 1] = line end
+    listing:close()
+
+    if #files == 0 then
+        return nil, string.format(
+            "no per-poem similarity files in %s -- run stage 7 (--generate-similarity) first",
+            similarities_dir)
+    end
+
+    -- How many files to open, and how many comparisons to take from each. Spread
+    -- the budget across files rather than draining a few: a discrepancy caused by
+    -- one bad file is easy to miss if the sample only ever looks at ten of them.
+    local max_files = math.min(#files, 200)
+    local per_file = math.max(1, math.ceil(want_pairs / max_files))
+    local stride = math.max(1, math.floor(#files / max_files))
+
+    local opened = 0
+    for i = 1, #files, stride do
+        if #pairs_out >= want_pairs then break end
+        local data = utils.read_json_file(files[i])
+        if data and data.similarities and data.metadata and data.metadata.poem_index then
+            opened = opened + 1
+            local a = data.metadata.poem_index
+            local entries = data.similarities
+            -- Sample across the whole ranked list, not just its head: the top of
+            -- the list is where any scoring is most likely to look right, so
+            -- checking only the top would flatter a broken one.
+            local inner_stride = math.max(1, math.floor(#entries / per_file))
+            for j = 1, #entries, inner_stride do
+                local e = entries[j]
+                if e and e.id and e.similarity then
+                    pairs_out[#pairs_out + 1] = {
+                        poem_a = a,
+                        poem_b = tonumber(e.id),
+                        stored_score = tonumber(e.similarity),
+                    }
+                    if #pairs_out >= want_pairs then break end
+                end
+            end
+        end
+    end
+
+    print(string.format("Read %d stored pairs from %d of %d per-poem files",
+        #pairs_out, opened, #files))
+    return pairs_out
+end
+-- }}}
+
 -- {{{ function ValidationEngine:validate_similarity_matrix
-function ValidationEngine:validate_similarity_matrix(similarity_file, embeddings_file)
+-- Check that the similarity scores on disk match what recomputing them gives.
+--
+-- similarity_source: the similarities/ DIRECTORY (a path to the retired single
+--                    matrix file is rejected with a message saying so, rather
+--                    than failing on "not found" and blaming the algorithm).
+-- embeddings_file:   embeddings.json for the same model.
+function ValidationEngine:validate_similarity_matrix(similarity_source, embeddings_file)
     if not self.calculator then
         error("Similarity calculator must be set before validation")
     end
-    
+
     self.validation_results.start_time = os.time()
-    print(string.format("Starting validation: %s vs %s", similarity_file, embeddings_file))
-    
-    -- Load data
-    local similarity_data = utils.read_json_file(similarity_file)
-    local embeddings_data = utils.read_json_file(embeddings_file)
-    
-    if not similarity_data or not embeddings_data then
-        error("Failed to load validation data files")
+    print(string.format("Starting validation: %s vs %s", similarity_source, embeddings_file))
+
+    if similarity_source:match("%.json$") then
+        error(string.format(
+            "validate_similarity_matrix expects the similarities/ DIRECTORY, not a file.\n"
+            .. "  Got: %s\n"
+            .. "  The single-file similarity matrix was retired in Issue 8-033; scores now\n"
+            .. "  live as one file per poem under <model>/similarities/.", similarity_source))
     end
-    
-    -- Create validation sample
-    local validation_pairs = self:create_validation_sample(similarity_data, embeddings_data)
-    
+
+    local embeddings_by_index, count_or_err, raw_entries =
+        self:load_embeddings_by_index(embeddings_file)
+    if not embeddings_by_index then
+        error("Failed to load embeddings: " .. tostring(count_or_err))
+    end
+    print(string.format("Loaded %d embeddings", count_or_err))
+
+    -- Recompute in the SAME vector space the stored scores were built in.
+    --
+    -- Without this every score would appear wrong -- not slightly, but by more
+    -- than any tolerance -- and the validator would report total corruption of a
+    -- perfectly good matrix. The shared direction is subtracted before comparison
+    -- everywhere else in the project (libs/embedding-space.lua); a checker that
+    -- skipped it would be checking a different question than the one asked.
+    local embedding_space = require("embedding-space")
+    local mean, mean_detail = embedding_space.corpus_mean(raw_entries)
+    if not mean then
+        error("Could not centre the embedding space for validation: " .. tostring(mean_detail))
+    end
+    self.centered_embeddings = {}
+    for idx, vec in pairs(embeddings_by_index) do
+        self.centered_embeddings[idx] = embedding_space.centered(vec, mean)
+    end
+    print(string.format("Recomputing in the %s space", embedding_space.SPACE_VERSION))
+
+    -- Say whether the store claims the same space. A mismatch does not stop the
+    -- run -- the numbers are the real evidence -- but it explains a wall of
+    -- discrepancies before the reader starts hunting for a cause.
+    local store_root = similarity_source:gsub("/similarities/?$", "")
+    local stamped = embedding_space.read_fingerprint(store_root)
+    if stamped ~= embedding_space.SPACE_VERSION then
+        print(string.format(
+            "  NOTE: the stored scores are marked '%s' but this check recomputes in '%s'."
+            .. " Expect discrepancies until stage 7 is re-run.",
+            stamped or "unmarked", embedding_space.SPACE_VERSION))
+    end
+
+    local want = self.sample_size or 5000
+    local validation_pairs, collect_err = self:collect_pairs_from_store(similarity_source, want)
+    if not validation_pairs then
+        error("Failed to read stored similarities: " .. tostring(collect_err))
+    end
+
     print(string.format("Validating %d similarity pairs...", #validation_pairs))
-    
-    -- Validate each pair
+
     local progress_interval = math.max(1, math.floor(#validation_pairs / 20))
-    
     for i, pair in ipairs(validation_pairs) do
         if i % progress_interval == 0 then
             print(string.format("Progress: %d/%d (%.1f%%)", i, #validation_pairs, (i/#validation_pairs)*100))
@@ -79,26 +231,44 @@ function ValidationEngine:validate_similarity_matrix(similarity_file, embeddings
                 self.progress_callback(i, #validation_pairs)
             end
         end
-        
-        self:validate_similarity_pair(pair, embeddings_data)
+        self:validate_similarity_pair(pair, self.centered_embeddings)
     end
-    
+
     self.validation_results.end_time = os.time()
-    
     return self:generate_validation_report()
 end
 -- }}}
 
 -- {{{ function ValidationEngine:validate_similarity_pair
-function ValidationEngine:validate_similarity_pair(pair, embeddings_data)
+-- One stored score against one recomputed score.
+--
+-- embeddings_by_index is keyed by NUMBER (poem_index), matching what
+-- load_embeddings_by_index builds and what the per-poem files record. The old
+-- code looked up tostring(id) in the raw decoded file, which matched nothing.
+function ValidationEngine:validate_similarity_pair(pair, embeddings_by_index)
     local poem_a_id, poem_b_id, stored_score = pair.poem_a, pair.poem_b, pair.stored_score
-    
+
     self.validation_results.total_comparisons = self.validation_results.total_comparisons + 1
-    
-    -- Get embeddings
-    local embedding_a = embeddings_data[tostring(poem_a_id)]
-    local embedding_b = embeddings_data[tostring(poem_b_id)]
-    
+
+    -- A stored score that is not a number at all -- a string, a null, a missing
+    -- field. tonumber() gave nil upstream and the comparison below would try
+    -- arithmetic on it and take the whole run down. Recorded as a data fault and
+    -- carried past: a validator that dies on the first malformed record cannot
+    -- tell you how many malformed records there are, which is the one question
+    -- worth asking once you know there is one.
+    if type(stored_score) ~= "number" then
+        table.insert(self.validation_results.errors, {
+            type = "malformed_stored_score",
+            poem_a = poem_a_id,
+            poem_b = poem_b_id,
+            error = "stored similarity is not a number"
+        })
+        return
+    end
+
+    local embedding_a = embeddings_by_index[poem_a_id]
+    local embedding_b = embeddings_by_index[poem_b_id]
+
     if not embedding_a or not embedding_b then
         self.validation_results.missing_embeddings = self.validation_results.missing_embeddings + 1
         table.insert(self.validation_results.errors, {
@@ -109,25 +279,23 @@ function ValidationEngine:validate_similarity_pair(pair, embeddings_data)
         })
         return
     end
-    
-    -- Calculate actual similarity
+
     local success, calculated_score = pcall(function()
         return self.calculator:calculate(embedding_a, embedding_b)
     end)
-    
+
     if not success then
         table.insert(self.validation_results.errors, {
             type = "calculation_error",
             poem_a = poem_a_id,
             poem_b = poem_b_id,
-            error = calculated_score  -- This will contain the error message
+            error = calculated_score
         })
         return
     end
-    
-    -- Compare scores
+
     local difference = math.abs(calculated_score - stored_score)
-    
+
     if difference <= self.tolerance then
         self.validation_results.accurate_scores = self.validation_results.accurate_scores + 1
     else
@@ -140,50 +308,6 @@ function ValidationEngine:validate_similarity_pair(pair, embeddings_data)
             difference = difference,
             relative_error = math.abs(stored_score) > 0 and (difference / math.abs(stored_score)) or 0
         })
-    end
-end
--- }}}
-
--- {{{ function ValidationEngine:create_validation_sample
-function ValidationEngine:create_validation_sample(similarity_data, embeddings_data)
-    local all_pairs = {}
-    
-    -- Extract all similarity pairs from data
-    for poem_a_id, similarities in pairs(similarity_data) do
-        if type(similarities) == "table" then
-            for poem_b_id, score in pairs(similarities) do
-                table.insert(all_pairs, {
-                    poem_a = tonumber(poem_a_id),
-                    poem_b = tonumber(poem_b_id), 
-                    stored_score = tonumber(score)
-                })
-            end
-        end
-    end
-    
-    print(string.format("Found %d total similarity pairs", #all_pairs))
-    
-    -- Apply sampling if requested
-    if self.sample_size and self.sample_size < #all_pairs then
-        print(string.format("Sampling %d pairs for validation", self.sample_size))
-        
-        -- Random sampling
-        local sampled_pairs = {}
-        local used_indices = {}
-        
-        math.randomseed(os.time())
-        
-        while #sampled_pairs < self.sample_size do
-            local random_index = math.random(1, #all_pairs)
-            if not used_indices[random_index] then
-                table.insert(sampled_pairs, all_pairs[random_index])
-                used_indices[random_index] = true
-            end
-        end
-        
-        return sampled_pairs
-    else
-        return all_pairs
     end
 end
 -- }}}
