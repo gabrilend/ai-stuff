@@ -1,0 +1,267 @@
+#!/usr/bin/env luajit
+-- {{{ measure-centering-effect
+-- Does subtracting the corpus mean improve POEM-to-POEM neighbour lists, the way
+-- it demonstrably improves word-to-poem ones?
+--
+-- General description (for a CEO): the machine that turns writing into numbers
+-- gives almost every piece a large common component, regardless of what it says.
+-- Removing that shared part before comparing is cheap and reversible, but it
+-- changes which poems the site calls "similar", so it should be measured rather
+-- than argued about. This runs the comparison both ways over a sample and reports
+-- what actually differs.
+--
+-- Usage:
+--   scripts/measure-centering-effect [MODEL] [SAMPLE]
+--     MODEL   embeddings directory name (default embeddinggemma-300m)
+--     SAMPLE  how many poems to compare all-against-all (default 2500)
+--
+-- Cost grows with the square of SAMPLE. 2000 takes a couple of minutes; 4000
+-- takes roughly four times that. The published figures were stable between the
+-- two, so there is little reason to go higher.
+--
+-- Three measurements, because "better" needs more than one witness:
+--
+--   [A] HUBNESS. Count how often each poem turns up in somebody else's top-K.
+--       A handful of poems appearing in hundreds of lists are hubs -- they flood
+--       the similar pages and crowd out real neighbours. This is the pathology
+--       centring is supposed to relieve, so it is the first thing to check.
+--   [B] DISPLACEMENT. How much do the neighbour lists change at all? If they
+--       barely move, the question is moot regardless of [A] and [C].
+--   [C] LEXICAL AGREEMENT. A weak but independent signal: do the neighbours share
+--       distinctive vocabulary with the query? Rare shared words are evidence two
+--       texts are about the same thing, arrived at without the model's help.
+--       Used only to COMPARE two scorings of the same corpus, never as truth.
+-- }}}
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+local MODEL = arg[1] or "embeddinggemma-300m"
+local SAMPLE = tonumber(arg[2]) or 2500   -- corpus sample for the all-pairs work
+local K = 20                              -- "similar page" size
+local SEED = 20260824
+
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+local ffi = require("ffi")
+local utils = require("utils")
+utils.init_assets_root({})
+
+math.randomseed(SEED)
+
+local function read_all(p)
+    local f = assert(io.open(p, "rb")); local s = f:read("*a"); f:close(); return s
+end
+
+-- {{{ load vectors + the poem text they belong to
+local base = DIR .. "/assets/embeddings/" .. MODEL
+local raw = read_all(base .. "/embeddings.json")
+local first = raw:match('"embedding":%[([^%]]*)%]')
+local D = 0
+for _ in first:gmatch("[^,]+") do D = D + 1 end
+
+local all_vec, all_idx = {}, {}
+for body, pi in raw:gmatch('"embedding":%[([^%]]*)%].-"poem_index":(%d+)') do
+    local v = ffi.new("double[?]", D)
+    local k = 0
+    for num in body:gmatch("[^,]+") do
+        v[k] = tonumber(num); k = k + 1
+        if k >= D then break end
+    end
+    all_vec[#all_vec + 1] = v
+    all_idx[#all_idx + 1] = tonumber(pi)
+end
+raw = nil; collectgarbage()
+
+local poems = utils.read_json_file(utils.asset_path("poems.json"))
+local text_of = {}
+for _, p in ipairs(poems.poems) do
+    if p.poem_index then text_of[p.poem_index] = p.content or "" end
+end
+-- }}}
+
+-- Sample: only poems that HAVE text, so the lexical measure is meaningful.
+local pool = {}
+for i = 1, #all_vec do
+    local t = text_of[all_idx[i]]
+    if t and #t > 20 then pool[#pool + 1] = i end
+end
+for i = #pool, 2, -1 do
+    local j = math.random(i); pool[i], pool[j] = pool[j], pool[i]
+end
+local N = math.min(SAMPLE, #pool)
+print(string.format("model %s: %d vectors, %d dims -- sampling %d with usable text",
+    MODEL, #all_vec, D, N))
+
+local V, IDX = {}, {}
+for i = 1, N do V[i] = all_vec[pool[i]]; IDX[i] = all_idx[pool[i]] end
+all_vec = nil; collectgarbage()
+
+-- corpus mean over the SAMPLE (what a centred build would subtract)
+local mean = ffi.new("double[?]", D)
+for i = 0, D - 1 do mean[i] = 0 end
+for _, v in ipairs(V) do for i = 0, D - 1 do mean[i] = mean[i] + v[i] end end
+for i = 0, D - 1 do mean[i] = mean[i] / N end
+
+-- {{{ build unit-length copies so cosine is a plain dot product
+-- Two sets: as-is, and mean-subtracted. Normalising up front turns the inner
+-- loop into one multiply-add per dimension instead of three.
+local function unit_set(subtract_mean)
+    local out = {}
+    for a = 1, N do
+        local src = V[a]
+        local u = ffi.new("double[?]", D)
+        local s = 0
+        for i = 0, D - 1 do
+            local x = subtract_mean and (src[i] - mean[i]) or src[i]
+            u[i] = x; s = s + x * x
+        end
+        s = math.sqrt(s)
+        if s > 0 then for i = 0, D - 1 do u[i] = u[i] / s end end
+        out[a] = u
+    end
+    return out
+end
+-- }}}
+
+-- {{{ top-K neighbour lists for one vector set
+local function neighbours(U)
+    local lists = {}
+    local score = ffi.new("double[?]", N)
+    for a = 1, N do
+        local ua = U[a]
+        for b = 1, N do
+            if b == a then
+                score[b - 1] = -2
+            else
+                local ub = U[b]
+                local dot = 0
+                for i = 0, D - 1 do dot = dot + ua[i] * ub[i] end
+                score[b - 1] = dot
+            end
+        end
+        -- partial selection of the top K (K is small; a full sort would cost far
+        -- more than N*K comparisons)
+        local top = {}
+        for slot = 1, K do
+            local bi, bs = nil, -3
+            for b = 1, N do
+                if score[b - 1] > bs then bs, bi = score[b - 1], b end
+            end
+            top[slot] = bi
+            score[bi - 1] = -3
+        end
+        lists[a] = top
+    end
+    return lists
+end
+-- }}}
+
+io.write("computing raw neighbours... "); io.flush()
+local raw_lists = neighbours(unit_set(false))
+print("done")
+io.write("computing centred neighbours... "); io.flush()
+local cen_lists = neighbours(unit_set(true))
+print("done")
+
+-- {{{ [A] hubness
+local function hub_stats(lists)
+    local occ = {}
+    for a = 1, N do occ[a] = 0 end
+    for a = 1, N do
+        for _, b in ipairs(lists[a]) do occ[b] = occ[b] + 1 end
+    end
+    local sum, mx = 0, 0
+    for a = 1, N do sum = sum + occ[a]; if occ[a] > mx then mx = occ[a] end end
+    local m = sum / N
+    local var, m3 = 0, 0
+    for a = 1, N do
+        local d = occ[a] - m
+        var = var + d * d; m3 = m3 + d * d * d
+    end
+    var = var / N; m3 = m3 / N
+    local skew = (var > 0) and (m3 / (var ^ 1.5)) or 0
+    -- share of all top-K slots taken by the 1% most-listed poems
+    local sorted = {}
+    for a = 1, N do sorted[a] = occ[a] end
+    table.sort(sorted, function(x, y) return x > y end)
+    local top1pct = math.max(1, math.floor(N / 100))
+    local head = 0
+    for i = 1, top1pct do head = head + sorted[i] end
+    local orphans = 0
+    for a = 1, N do if occ[a] == 0 then orphans = orphans + 1 end end
+    return { skew = skew, max = mx, head_share = head / sum, orphans = orphans }
+end
+-- }}}
+
+-- {{{ [C] lexical agreement
+-- Weight a shared word by how rare it is in the corpus sample, so "the" counts
+-- for nothing and "kubernetes" counts for a lot. Sum over shared words, average
+-- over the K neighbours.
+local STOP = {}
+for w in ("the a an and or but if then than that this these those of to in on at for with from by as is are was were be been being it its i you he she they we me my your our their not no so just like about into over under out up down do does did have has had will would can could should there here what when where who how all any some more most other new now also very really"):gmatch("%S+") do
+    STOP[w] = true
+end
+local function words_of(txt)
+    local set = {}
+    for w in txt:lower():gmatch("[%a][%a'-]+") do
+        if #w > 3 and not STOP[w] then set[w] = true end
+    end
+    return set
+end
+local wordset, docfreq = {}, {}
+for a = 1, N do
+    local s = words_of(text_of[IDX[a]] or "")
+    wordset[a] = s
+    for w in pairs(s) do docfreq[w] = (docfreq[w] or 0) + 1 end
+end
+local function lexical_score(lists)
+    local total, counted = 0, 0
+    for a = 1, N do
+        local qa = wordset[a]
+        local acc = 0
+        for _, b in ipairs(lists[a]) do
+            local qb = wordset[b]
+            for w in pairs(qa) do
+                if qb[w] then
+                    -- rarer shared word => larger contribution
+                    acc = acc + math.log(N / (docfreq[w] or 1))
+                end
+            end
+        end
+        total = total + acc / K
+        counted = counted + 1
+    end
+    return total / counted
+end
+-- }}}
+
+-- {{{ [B] displacement
+local function overlap(l1, l2)
+    local total = 0
+    for a = 1, N do
+        local set = {}
+        for _, b in ipairs(l1[a]) do set[b] = true end
+        local hit = 0
+        for _, b in ipairs(l2[a]) do if set[b] then hit = hit + 1 end end
+        total = total + hit / K
+    end
+    return total / N
+end
+-- }}}
+
+local hr, hc = hub_stats(raw_lists), hub_stats(cen_lists)
+print("")
+print(string.format("[A] HUBNESS over %d poems, top-%d lists", N, K))
+print("                        as-is      centred")
+print(string.format("  skew of appearances  %7.3f    %7.3f   (lower = fewer poems flooding lists)", hr.skew, hc.skew))
+print(string.format("  most-listed poem     %7d    %7d   (out of %d possible)", hr.max, hc.max, N))
+print(string.format("  top 1%% take          %6.1f%%     %6.1f%%   (share of all neighbour slots)", 100*hr.head_share, 100*hc.head_share))
+print(string.format("  never a neighbour    %7d    %7d   (poems no list contains)", hr.orphans, hc.orphans))
+
+print("")
+print(string.format("[B] DISPLACEMENT"))
+print(string.format("  average top-%d overlap between the two: %.1f%%", K, 100 * overlap(raw_lists, cen_lists)))
+
+local lr, lc = lexical_score(raw_lists), lexical_score(cen_lists)
+print("")
+print("[C] LEXICAL AGREEMENT (rare shared words with the query, per neighbour)")
+print(string.format("  as-is   %.3f", lr))
+print(string.format("  centred %.3f   (%+.1f%%)", lc, 100 * (lc - lr) / lr))
