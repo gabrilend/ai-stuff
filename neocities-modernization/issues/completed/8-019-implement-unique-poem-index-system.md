@@ -217,6 +217,31 @@ local emb = lookup[tostring(poem.poem_index)]            -- read
 
 If either line says `id`, the builder is wrong even when it appears to work.
 
+## The Other Reason a Poem Can Be Unreachable
+
+A correct key gets a poem as far as the lookup. It does not conjure an embedding
+that was never generated. These are two different failures with the same
+symptom — the poem never appears anywhere — and they must be told apart before
+either is chased.
+
+Run `scripts/measure-embedding-spread`. Its coverage section resolves the model
+**through the project's own selection** rather than a typed path, lists how many
+poems have no embedding, and breaks that count down by category. A whole category
+missing there is a stale embeddings file, not a keying bug.
+
+This distinction was not obvious in practice. After the key was corrected, the
+`notes` category still failed to appear on any word page, which looked like the
+fix being incomplete. It was not: the selected model's embeddings file covers
+`poem_index` 1–7904 while the collection runs to 8510, and `notes` occupies
+8041–8510 — entirely outside the embedded range. 606 poems (470 notes, 136
+messages) have no embedding at all under the current model and cannot appear
+until the embeddings are regenerated.
+
+The lesson for this issue: **the reachability ceiling has two possible causes.**
+Under the `id` bug it is the largest `id` value. Under a stale embeddings file it
+is the highest embedded `poem_index`. Both present as "everything above N is
+invisible", and the fix differs completely.
+
 ## Testing Strategy
 
 1. [ ] Extract poems and verify poem_index assigned correctly

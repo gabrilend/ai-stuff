@@ -388,6 +388,93 @@ local function compute_word_colors(word_embeddings)
 end
 -- }}}
 
+-- {{{ local function spread_colors_across_page
+-- Rearranges an already-chosen, already-ranked list so the seven semantic
+-- colours alternate down the page instead of arriving in clumps.
+--
+-- It does NOT choose who appears. The caller hands over exactly the top N by
+-- similarity and gets back the same N; only their order changes. An earlier
+-- version of this (Issue 8-050b) picked FROM a larger pool, which let colour
+-- balancing displace strong matches with weaker colour-diverse ones -- a search
+-- for "god" surfaced unrelated poems. Selection and presentation are kept apart
+-- here for that reason.
+--
+-- The colour is READ from poem_colors.json, never recomputed. That table is
+-- built from the colour ANCHORS -- each one the mean of a hand-written
+-- association list (red = fire, blood, passion, rage...) rather than the bare
+-- colour word -- and then z-scored, so a poem takes the colour it sits furthest
+-- ABOVE that colour's baseline for. Both halves matter. Comparing against the
+-- bare word "red" gives a generic point that swallows a third of everything
+-- (config.lua records that experiment). And comparing without the z-score turns
+-- the contest into a measurement of genericness rather than meaning: rank the
+-- seven anchors by closeness to the AVERAGE poem and you have predicted their
+-- raw win rates almost exactly -- on the model in use, purple sits nearest at
+-- cosine 0.9242 and wins 48.2% of the corpus, red sits furthest at 0.8992 and
+-- wins 4.3%. The stored z-scored verdict is even instead: 12.1% to 17.2%.
+--
+-- So: anchors from wordlists, standardised by z-score, computed once, read here.
+--
+-- Method: stratified spacing, not a round-robin. A round-robin deals one poem
+-- per colour per cycle, which drains the small buckets first and leaves the tail
+-- of the page a solid run of whatever colour was most plentiful. Instead each
+-- colour's poems are spaced evenly across the FULL page length in proportion to
+-- how many there are -- a colour holding 8 of 333 slots appears about every 42
+-- positions, one holding 131 appears about every 2.5 -- so no colour clumps at
+-- either end. Within a colour the more relevant poem still comes first.
+local function spread_colors_across_page(ranked, poem_colors)
+    local n = #ranked
+    if n < 2 then return ranked end
+
+    -- Bucket by stored colour, preserving the incoming (relevance) order.
+    local buckets, order = {}, {}
+    for _, entry in ipairs(ranked) do
+        local idx = entry.poem and entry.poem.poem_index
+        local stored = idx and poem_colors and poem_colors[idx]
+        -- No stored colour means the bar renders gray, so bucket it as gray too;
+        -- the two must agree or the page disperses on a colour nobody can see.
+        local color = (stored and stored.color) or "gray"
+        if not buckets[color] then
+            buckets[color] = {}
+            order[#order + 1] = color
+        end
+        table.insert(buckets[color], entry)
+    end
+
+    -- One colour only: spacing is a no-op, and doing the work would just risk
+    -- perturbing an order that is already correct.
+    if #order < 2 then return ranked end
+
+    -- Give every poem a target position on a 0..n scale. The j-th of m poems in
+    -- a colour lands at (j - 0.5) * n / m -- the midpoint of its share -- which
+    -- is what spaces each colour evenly over the whole page regardless of m.
+    local placed = {}
+    for _, color in ipairs(order) do
+        local bucket = buckets[color]
+        local m = #bucket
+        for j, entry in ipairs(bucket) do
+            placed[#placed + 1] = {
+                entry = entry,
+                target = (j - 0.5) * n / m,
+                -- Tie-break by relevance so that when two colours want the same
+                -- slot, the better match takes it. Without this the winner would
+                -- depend on table iteration order, which is not stable in Lua and
+                -- would make two builds of the same data differ.
+                rank = entry.word_similarity or 0,
+            }
+        end
+    end
+
+    table.sort(placed, function(a, b)
+        if a.target ~= b.target then return a.target < b.target end
+        return a.rank > b.rank
+    end)
+
+    local out = {}
+    for i, p in ipairs(placed) do out[i] = p.entry end
+    return out
+end
+-- }}}
+
 -- {{{ local function compute_centroid
 -- Issue 8-050e: Compute the centroid (average embedding) of selected poems
 -- Returns nil if no valid embeddings found
@@ -851,7 +938,7 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poems similar to: <i><font color="%s">%s</font></i></h1>
-<p>Top %d poems ranked by semantic similarity (progress bar shows chronological position)</p>
+<p>The %d poems closest in meaning to this word, arranged to spread the colours (progress bar shows chronological position)</p>
 <!-- Issue 16-010: Changed main.html to wordcloud.html (main.html doesn't exist) -->
 <p><a href="%s/wordcloud.html">Menu</a> │ <a href="%s">Chronological</a></p>
 </center>
@@ -1000,22 +1087,26 @@ function M.generate_word_html(options)
     -- The direction every embedding shares, subtracted before any comparison.
     --
     -- The model does not spread its output over the whole sphere. Measured on
-    -- this corpus, the average of all poem vectors has length 0.827 while the
-    -- vectors themselves have length 1.0 -- so about 83% of every poem vector is
-    -- one direction common to all of them, and cosine similarity spends most of
-    -- its resolution measuring that shared part instead of the meaning. It is a
-    -- property of the model, not of these poems: single dictionary words carry
-    -- an even stronger shared component (0.947), and the mean directions of the
-    -- poems, the single words and the colour anchors all agree to cosine 0.94+.
+    -- the selected model (nomic-embed-text-v1.5), the average of all poem vectors
+    -- has length 0.766 while the vectors themselves have length 1.0 -- so roughly
+    -- three quarters of every poem vector is one direction common to all of them,
+    -- and cosine similarity spends most of its resolution measuring that shared
+    -- part instead of the meaning.
+    --
+    -- It is a property of the model, not of these poems: isolated dictionary
+    -- words carry a STRONGER shared component than the poems do (0.829), and the
+    -- mean direction of the words agrees with the mean direction of the poems to
+    -- cosine 0.940 despite being an entirely different population of text.
     --
     -- Poem-against-poem comparison survives it, because the offset is near
     -- constant WITHIN one population and shifts every score alike. Word-against-
-    -- poem does not: the word side carries 0.947 and the poem side 0.827, so the
+    -- poem does not: the word side carries 0.829 and the poem side 0.766, so the
     -- offset differs across the comparison and distorts the ordering. That is
     -- why this correction lives here and not in the similar/different pages.
     --
-    -- Effect on poems that literally contain their word: ranks 1601 -> 59,
-    -- 3795 -> 151, 7015 -> 347. Score spread widens from 0.090 to 0.164.
+    -- Re-measure with scripts/measure-embedding-spread after any model change --
+    -- these numbers are properties of the model in use, and the first set taken
+    -- for this comment came from a directory that was not the selected model.
     local corpus_mean = compute_corpus_mean(poem_lookup)
 
     -- Load word embeddings (must exist from Stage 6)
@@ -1059,17 +1150,16 @@ function M.generate_word_html(options)
     -- assigns each WORD its colour, which has no precomputed table to read from.
 
     -- Issue 8-043c: Load color configuration from unified config
-    local color_config = unified_config.colors or {
-        red = "#FF6B6B",
-        orange = "#FFA94D",
-        yellow = "#FFE066",
-        green = "#69DB7C",
-        cyan = "#38D9A9",
-        blue = "#74C0FC",
-        indigo = "#748FFC",
-        violet = "#DA77F2",
-        gray = "#868E96"
-    }
+    -- The site's one palette, shared with the chronological and
+    -- similar/different pages and derived there from config.lua's
+    -- semantic_colors. This page used to keep its own copy, and that copy listed
+    -- a generic spectrum -- red, orange, yellow, green, cyan, blue, indigo,
+    -- violet, gray -- rather than the seven names the colour calculator actually
+    -- assigns. "purple" was missing entirely, so every purple poem rendered in a
+    -- hardcoded off-palette grey; purple is the biggest bucket in the stored
+    -- distribution, so that was about one poem in six. The others rendered in
+    -- hexes no other page type used.
+    local color_config = flat_html.COLOR_CONFIG
 
     -- Issue 8-043c: Compute chronological mapping for progress bars
     -- This maps poem_index → {position, total_poems} for timeline orientation
@@ -1157,35 +1247,21 @@ function M.generate_word_html(options)
                 end
             end
 
-            -- Sorted by similarity, and SHOWN in that order.
+            -- Most relevant first, then spread the colours across that page.
             --
-            -- A colour round-robin used to reorder the top N here (Issue 8-050b)
-            -- to spread the seven semantic colours down the page. It is gone, for
-            -- two reasons.
-            --
-            -- One: it made the page disagree with its own heading. The reader was
-            -- told "ranked by semantic similarity" and shown the 53rd-best match
-            -- in slot 3 and the 251st in slot 8, while the second-best waited
-            -- until slot 10.
-            --
-            -- Two: the colours it sorted on were not the site's colours. It
-            -- re-derived each poem's colour by nearest raw cosine to the colour
-            -- anchors, while poem_colors.json -- which draws the very progress
-            -- bars on this page -- holds a z-scored, hubness-corrected verdict.
-            -- The two disagreed on a third of the page. Raw nearness is not a
-            -- contest about meaning: ranking the seven anchors by closeness to
-            -- the AVERAGE poem reproduces their win rates almost exactly
-            -- (purple sits nearest and takes 30.9% of the corpus, orange sits
-            -- furthest and takes 3.9%), so the round-robin was spreading the
-            -- page across a measurement of genericness.
-            --
-            -- The colour variety survives without it: each poem's bar is still
-            -- drawn in its own stored colour, and that colour is now the same one
-            -- the rest of the site uses.
+            -- The selection is pure relevance: the top N by similarity, nothing
+            -- displaced. Only the ORDER of those N is rearranged, so that walking
+            -- down the page shows a changing colour rather than a long run of one.
+            -- This is a word-page treatment only; the similar/different pages
+            -- deliberately stay in strict similarity order.
             table.sort(candidates, function(a, b)
                 return a.word_similarity > b.word_similarity
             end)
-            local ranked_poems = candidates
+            local top_n = {}
+            for j = 1, math.min(#candidates, CONFIG.poems_per_word_page) do
+                top_n[j] = candidates[j]
+            end
+            local ranked_poems = spread_colors_across_page(top_n, poem_colors)
 
             -- Issue 8-050c: Get word's semantic color for header
             local word_color_entry = word_colors[word]
