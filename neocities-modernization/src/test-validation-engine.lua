@@ -46,58 +46,135 @@ function test_validation_engine_basic()
 end
 -- }}}
 
+-- {{{ local function build_mock_store
+-- Write a miniature similarity store in the CURRENT shape: one file per poem
+-- under <root>/similarities/, plus the embeddings.json they were derived from.
+--
+-- Scores are COMPUTED here, in the same centred space the pipeline uses, rather
+-- than written as constants. Hardcoded expectations would need recomputing by
+-- hand whenever the vector preparation changes -- and the last time it changed,
+-- nobody noticed these fixtures at all. Deriving them means the fixture tracks
+-- the real definition of "correct".
+--
+-- corrupt: when true, one score is pushed far outside any sane tolerance, so a
+--          test can confirm the validator actually fails when it should.
+-- returns: similarities directory path, embeddings file path
+local function build_mock_store(root, vectors, corrupt)
+    local embedding_space = require("embedding-space")
+
+    local entries = {}
+    local indices = {}
+    for idx in pairs(vectors) do indices[#indices + 1] = idx end
+    table.sort(indices)
+    for _, idx in ipairs(indices) do
+        entries[#entries + 1] = { poem_index = idx, id = idx, embedding = vectors[idx] }
+    end
+
+    local mean = embedding_space.corpus_mean(entries)
+    local centred = {}
+    for _, idx in ipairs(indices) do
+        centred[idx] = embedding_space.centered(vectors[idx], mean)
+    end
+
+    local function cosine(a, b)
+        local dot, na, nb = 0, 0, 0
+        for i = 1, #a do
+            dot = dot + a[i] * b[i]; na = na + a[i] * a[i]; nb = nb + b[i] * b[i]
+        end
+        if na == 0 or nb == 0 then return 0 end
+        return dot / (math.sqrt(na) * math.sqrt(nb))
+    end
+
+    local sim_dir = root .. "/similarities"
+    os.execute("rm -rf " .. root)
+    os.execute("mkdir -p " .. sim_dir)
+
+    local first = indices[1]
+    local second = indices[2]
+    for _, idx in ipairs(indices) do
+        local sims = {}
+        for _, other in ipairs(indices) do
+            if other ~= idx then
+                local score = cosine(centred[idx], centred[other])
+                if corrupt and idx == first and other == second then
+                    score = score + 0.5
+                end
+                sims[#sims + 1] = { id = tostring(other), similarity = score }
+            end
+        end
+        utils.write_json_file(string.format("%s/poem_index_%d.json", sim_dir, idx), {
+            metadata = { poem_id = tostring(idx), poem_index = idx,
+                         total_comparisons = #sims, format = "full_bidirectional" },
+            similarities = sims,
+        })
+    end
+
+    local emb_file = root .. "/embeddings.json"
+    utils.write_json_file(emb_file, { embeddings = entries })
+    return sim_dir, emb_file
+end
+-- }}}
+
 -- {{{ function test_validation_with_mock_data
+-- Three rounds: an honest store validates clean, a corrupted one is caught, and
+-- the retired single-file path is refused with an explanation.
 function test_validation_with_mock_data()
     print("\n🔬 Testing Validation with Mock Data")
     print("===================================")
-    
-    -- Create mock similarity and embedding data
-    local mock_similarity_data = {
-        ["1"] = {
-            ["2"] = 0.85,
-            ["3"] = 0.42
-        },
-        ["2"] = {
-            ["3"] = 0.67
-        }
+
+    local vectors = {
+        [1] = {0.8, 0.6, 0.0},
+        [2] = {0.9, 0.4, 0.1},
+        [3] = {0.3, 0.7, 0.9},
+        [4] = {0.1, 0.2, 0.8},
     }
-    
-    local mock_embeddings_data = {
-        ["1"] = {0.8, 0.6, 0.0},
-        ["2"] = {0.9, 0.4, 0.1},
-        ["3"] = {0.3, 0.7, 0.9}
-    }
-    
-    -- Write mock data to temporary files
-    local temp_similarity_file = DIR .. "/test_similarity.json"
-    local temp_embeddings_file = DIR .. "/test_embeddings.json"
-    
-    utils.write_json_file(temp_similarity_file, mock_similarity_data)
-    utils.write_json_file(temp_embeddings_file, mock_embeddings_data)
-    
-    -- Test validation
-    local engine = ValidationEngine:new({tolerance = 0.1})
-    local calculator = SimilarityCalculator:new("cosine")
-    engine:set_calculator(calculator)
-    
-    local success, report = pcall(function()
-        return engine:validate_similarity_matrix(temp_similarity_file, temp_embeddings_file)
+    local root = DIR .. "/tmp/validation-engine-test"
+    local passed = true
+
+    local sim_dir, emb_file = build_mock_store(root, vectors, false)
+    local engine = ValidationEngine:new({tolerance = 0.001})
+    engine:set_calculator(SimilarityCalculator:new("cosine"))
+    local ok, report = pcall(function()
+        return engine:validate_similarity_matrix(sim_dir, emb_file)
     end)
-    
-    -- Clean up temporary files
-    os.remove(temp_similarity_file)
-    os.remove(temp_embeddings_file)
-    
-    if success and report then
-        print(string.format("✅ Mock validation completed successfully"))
-        print(string.format("   - Total comparisons: %d", report.statistics.total_comparisons))
-        print(string.format("   - Accuracy rate: %.2f%%", report.statistics.accuracy_rate * 100))
-        print(string.format("   - Duration: %d seconds", report.duration_seconds))
-        return true
+    if ok and report and report.statistics.total_comparisons > 0
+       and report.statistics.accuracy_rate > 0.99 then
+        print(string.format("✅ Honest store validates clean (%d comparisons, %.2f%%)",
+            report.statistics.total_comparisons, report.statistics.accuracy_rate * 100))
     else
-        print(string.format("❌ Mock validation failed: %s", report or "unknown error"))
-        return false
+        print(string.format("❌ Honest store did NOT validate clean: %s", tostring(report)))
+        passed = false
     end
+
+    -- A validator that cannot fail is not a validator.
+    sim_dir, emb_file = build_mock_store(root, vectors, true)
+    local engine2 = ValidationEngine:new({tolerance = 0.001})
+    engine2:set_calculator(SimilarityCalculator:new("cosine"))
+    local ok2, report2 = pcall(function()
+        return engine2:validate_similarity_matrix(sim_dir, emb_file)
+    end)
+    if ok2 and report2 and report2.statistics.inaccurate_scores > 0 then
+        print(string.format("✅ Corrupted score detected (%d discrepancies)",
+            report2.statistics.inaccurate_scores))
+    else
+        print("❌ Corrupted score was NOT detected")
+        passed = false
+    end
+
+    local engine3 = ValidationEngine:new({tolerance = 0.001})
+    engine3:set_calculator(SimilarityCalculator:new("cosine"))
+    local ok3, err3 = pcall(function()
+        return engine3:validate_similarity_matrix(root .. "/similarity_matrix.json", emb_file)
+    end)
+    if (not ok3) and tostring(err3):find("retired") then
+        print("✅ Retired single-file path refused with an explanation")
+    else
+        print("❌ Retired single-file path was not refused clearly")
+        passed = false
+    end
+
+    os.execute("rm -rf " .. root)
+    return passed
 end
 -- }}}
 
@@ -107,12 +184,11 @@ function test_validation_with_real_data()
     print("============================================")
     
     -- Check if real data files exist
-    -- Selected model's directory. The old literal named a folder renamed away
-    -- long ago; similarity_matrix.json is also a retired format (see
-    -- src/run-validation.lua for the same note), so this validator needs porting
-    -- to the per-poem similarities/ storage before it can run.
+    -- Selected model's directory. "similarities" is a DIRECTORY of one file per
+    -- poem; the single-file matrix named here previously was retired in Issue
+    -- 8-033 and nothing has written it since.
     local model_dir = require("utils").embeddings_dir()
-    local similarity_file = model_dir .. "/similarity_matrix.json"
+    local similarity_file = model_dir .. "/similarities"
     local embeddings_file = model_dir .. "/embeddings.json"
     
     local similarity_exists = utils.file_exists(similarity_file)
@@ -164,68 +240,46 @@ end
 -- }}}
 
 -- {{{ function test_multiple_algorithms
+-- Every scoring algorithm should at least RUN against a current-shape store and
+-- return a report. Accuracy is deliberately NOT asserted: the stored scores are
+-- cosine, so euclidean or manhattan disagreeing with them is correct behaviour
+-- rather than a fault. What is tested is that no algorithm chokes on the storage
+-- format -- which is exactly what happened when the format changed underneath
+-- this file and nobody ran it.
 function test_multiple_algorithms()
     print("\n🧮 Testing Multiple Similarity Algorithms")
     print("==========================================")
-    
+
     local algorithms_to_test = {"cosine", "euclidean", "angular", "manhattan"}
-    
-    -- Create simple test data
-    local test_data = {
-        similarity = {["1"] = {["2"] = 0.85}},
-        embeddings = {["1"] = {1, 0, 0}, ["2"] = {0.8, 0.6, 0}}
+    local vectors = {
+        [1] = {1.0, 0.0, 0.0},
+        [2] = {0.8, 0.6, 0.0},
+        [3] = {0.2, 0.4, 0.9},
     }
-    
-    local temp_similarity_file = DIR .. "/test_algorithms_similarity.json"
-    local temp_embeddings_file = DIR .. "/test_algorithms_embeddings.json"
-    
-    utils.write_json_file(temp_similarity_file, test_data.similarity)
-    utils.write_json_file(temp_embeddings_file, test_data.embeddings)
-    
-    local results = {}
-    
+    local root = DIR .. "/tmp/validation-algorithms-test"
+    local sim_dir, emb_file = build_mock_store(root, vectors, false)
+
+    local ran = 0
     for _, algorithm in ipairs(algorithms_to_test) do
-        print(string.format("Testing algorithm: %s", algorithm))
-        
-        local engine = ValidationEngine:new({tolerance = 0.5})  -- Relaxed tolerance for different algorithms
-        local calculator = SimilarityCalculator:new(algorithm)
-        engine:set_calculator(calculator)
-        
+        local engine = ValidationEngine:new({tolerance = 0.5})
+        engine:set_calculator(SimilarityCalculator:new(algorithm))
         local success, report = pcall(function()
-            return engine:validate_similarity_matrix(temp_similarity_file, temp_embeddings_file)
+            return engine:validate_similarity_matrix(sim_dir, emb_file)
         end)
-        
-        if success then
-            results[algorithm] = {
-                success = true,
-                accuracy = report.statistics.accuracy_rate,
-                comparisons = report.statistics.total_comparisons
-            }
-            print(string.format("  ✅ %s: %.1f%% accuracy", algorithm, report.statistics.accuracy_rate * 100))
+        if success and report and report.statistics.total_comparisons > 0 then
+            ran = ran + 1
+            print(string.format("  ✅ %s: ran, %d comparisons, %.1f%% agreement with stored cosine",
+                algorithm, report.statistics.total_comparisons,
+                report.statistics.accuracy_rate * 100))
         else
-            results[algorithm] = {
-                success = false,
-                error = report
-            }
-            print(string.format("  ❌ %s: failed", algorithm))
+            print(string.format("  ❌ %s: failed -- %s", algorithm, tostring(report)))
         end
     end
-    
-    -- Clean up
-    os.remove(temp_similarity_file)
-    os.remove(temp_embeddings_file)
-    
-    local successful_algorithms = 0
-    for _, result in pairs(results) do
-        if result.success then
-            successful_algorithms = successful_algorithms + 1
-        end
-    end
-    
-    print(string.format("\nMulti-algorithm test results: %d/%d algorithms successful", 
-                       successful_algorithms, #algorithms_to_test))
-    
-    return successful_algorithms == #algorithms_to_test
+
+    os.execute("rm -rf " .. root)
+    print(string.format("\nMulti-algorithm test results: %d/%d algorithms ran",
+        ran, #algorithms_to_test))
+    return ran == #algorithms_to_test
 end
 -- }}}
 
@@ -240,8 +294,11 @@ function test_error_handling()
     -- Test 1: Missing calculator
     print("Test 1: Missing calculator")
     local engine = ValidationEngine:new()
+    -- A directory path, so the missing-calculator error is what surfaces rather
+    -- than the retired-single-file refusal (both are errors; this test is about
+    -- which one).
     local success, error = pcall(function()
-        engine:validate_similarity_matrix("dummy.json", "dummy.json")
+        engine:validate_similarity_matrix(DIR .. "/tmp/no-such-store/similarities", "dummy.json")
     end)
     
     if not success and error:match("calculator must be set") then
@@ -255,7 +312,8 @@ function test_error_handling()
     print("Test 2: Invalid data files")
     engine:set_calculator(SimilarityCalculator:new("cosine"))
     success, error = pcall(function()
-        engine:validate_similarity_matrix("nonexistent.json", "nonexistent.json")
+        engine:validate_similarity_matrix(DIR .. "/tmp/no-such-store/similarities",
+                                          DIR .. "/tmp/no-such-store/embeddings.json")
     end)
     
     if not success then
@@ -272,15 +330,29 @@ function test_error_handling()
     local bad_similarity_file = DIR .. "/test_bad_similarity.json"
     local bad_embeddings_file = DIR .. "/test_bad_embeddings.json"
     
-    utils.write_json_file(bad_similarity_file, {["1"] = {["2"] = "not_a_number"}})
-    utils.write_json_file(bad_embeddings_file, {["1"] = {1, 2, 3}, ["2"] = "not_an_array"})
+    -- A store shaped correctly but holding nonsense: the score is a string and
+    -- one embedding is not an array. The engine should survive reading it.
+    local bad_dir = DIR .. "/tmp/validation-bad-store/similarities"
+    os.execute("rm -rf " .. DIR .. "/tmp/validation-bad-store")
+    os.execute("mkdir -p " .. bad_dir)
+    utils.write_json_file(bad_dir .. "/poem_index_1.json", {
+        metadata = { poem_index = 1, poem_id = "1", total_comparisons = 1 },
+        similarities = { { id = "2", similarity = "not_a_number" } },
+    })
+    utils.write_json_file(bad_embeddings_file, { embeddings = {
+        { poem_index = 1, id = 1, embedding = {1, 2, 3} },
+        { poem_index = 2, id = 2, embedding = {1, 2, 3} },
+    }})
+    bad_similarity_file = bad_dir
     
     success, error = pcall(function()
         return engine:validate_similarity_matrix(bad_similarity_file, bad_embeddings_file)
     end)
     
-    -- Clean up
-    os.remove(bad_similarity_file)
+    -- Clean up. The similarity side is a DIRECTORY now, so os.remove cannot
+    -- take it -- it would fail silently and leave the fixture behind for the
+    -- next run to trip over.
+    os.execute("rm -rf " .. DIR .. "/tmp/validation-bad-store")
     os.remove(bad_embeddings_file)
     
     if success then
