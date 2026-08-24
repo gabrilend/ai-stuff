@@ -30,6 +30,10 @@ local function parse_args(args)
     local max_words = nil  -- nil means use config default
     local chrono_per_page = nil  -- nil means fall back to config (never to a literal)
     local seed = nil  -- Issue 10-058: master seed for the shuffle; nil => auto at startup
+    -- Which embedding space to read the word colours from. nil defers to run.sh's
+    -- notepad, then config.lua; a value here overrides both.
+    local model = nil
+    local server = nil
     local i = 1
     while i <= #(args or {}) do
         local a = args[i]
@@ -70,6 +74,20 @@ local function parse_args(args)
         -- flag and its argument.
         elseif a == "--dir" then
             i = i + 2
+        -- Same trap as --dir above (Issue 10-065): these carry a VALUE, and the
+        -- branch below claims any bare token as the project directory -- so an
+        -- unconsumed model name became the project root and package.path was
+        -- built from it. Consumed AND honoured: the run notepad that normally
+        -- carries this choice lives in /tmp and does not survive a reboot, after
+        -- which a standalone run silently resolves config.lua's default instead.
+        elseif a == "--model" then
+            model = args[i + 1]; i = i + 2
+        elseif a:match("^%-%-model=") then
+            model = a:match("^%-%-model=(.+)$"); i = i + 1
+        elseif a == "--server" then
+            server = args[i + 1]; i = i + 2
+        elseif a:match("^%-%-server=") then
+            server = a:match("^%-%-server=(.+)$"); i = i + 1
         elseif not a:match("^%-") then
             -- Positional argument (DIR)
             dir = a
@@ -80,11 +98,12 @@ local function parse_args(args)
             i = i + 1
         end
     end
-    return dir, all_words, max_words, chrono_per_page, seed
+    return dir, all_words, max_words, chrono_per_page, seed, model, server
 end
 -- }}}
 
-local provided_dir, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE, CLI_SEED = parse_args(arg)
+local provided_dir, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE, CLI_SEED,
+      CLI_MODEL, CLI_SERVER = parse_args(arg)
 local DIR = setup_dir_path(provided_dir)
 
 -- {{{ Issue 10-058: resolve + apply the master seed ONCE at startup
@@ -128,6 +147,14 @@ utils.init_assets_root(arg)
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()
+
+-- A --server/--model typed on THIS command outranks the run notepad and
+-- config.lua. Applied before anything reads word_colors.json, whose directory is
+-- derived from the selected model.
+local inference_config = require("inference-server-config")
+inference_config.set_project_root(DIR)
+if CLI_SERVER then inference_config.set_selected_server(CLI_SERVER) end
+if CLI_MODEL then inference_config.set_selected_model(CLI_MODEL) end
 
 -- {{{ resolve_chrono_per_page()
 -- The chronological page size used to map each poem ID to the page it lives on.
