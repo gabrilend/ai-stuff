@@ -1,0 +1,10 @@
+The last thing any program in this project does is write here. Specifically, it
+writes goodbye.
+
+Nothing has run yet, so this is the placeholder version of that.
+
+What a real goodbye will carry: which match just ended, how long it took, who
+won, the world hash at the final tick, and where the replay was written. Enough
+that somebody reading only this file knows what happened and can go and watch it.
+
+goodbye
