@@ -2727,6 +2727,42 @@ validate_supplied_values
 # already skips empty values (an absent key means "no override"), so passing them
 # through unguarded is safe here; the cache-directory block below is where an
 # empty model was NOT safe. See its comment.
+# Catch a mistyped --model HERE, before this run records ANY state.
+#
+# The check itself is not new -- stages 9 and 10 already refuse to build a site
+# against embeddings that do not exist, and say which models do have them. What
+# was wrong was the ORDER, and it was wrong twice.
+#
+# It first sat after the cache-directory block below, so a typo left an empty
+# assets/embeddings/<typo>/ tree behind before the error arrived. Moving it above
+# that fixed the folders and missed the worse one: the notepad immediately below
+# records this run's model where EVERY later stage reads it, and it lives in
+# /tmp, so it outlives the failed run. A rejected typo was still written down,
+# and the next stage anyone ran on its own -- hours later, no run.sh involved --
+# resolved that typo as its model and looked for embeddings in a folder named
+# after a mistake. Found exactly that way: a validation tool reported a missing
+# file under a model name that had only ever existed in a deliberately-failed
+# test run minutes earlier.
+#
+# So: reject before recording. A run that is going to refuse must leave nothing
+# of itself behind, in RAM or on disk.
+#
+# Only for stages that CONSUME embeddings. Stage 6 is the stage that produces
+# them, so it must be allowed to start with none on disk -- that is its whole
+# job -- and any run that includes it will have them by the time the later stages
+# look. A run of 6 alone, or 6 followed by others, is therefore exempt.
+if [ -n "$MODEL_NAME" ] && ! $GENERATE_EMBEDDINGS; then
+    if $GENERATE_SIMILARITY; then
+        require_embeddings_for_model "stage 7 (generate-similarity)"
+    elif $GENERATE_DIVERSITY; then
+        require_embeddings_for_model "stage 8 (generate-diversity)"
+    elif $GENERATE_HTML; then
+        require_embeddings_for_model "stage 9 (generate-html)"
+    elif $GENERATE_WORDCLOUD; then
+        require_embeddings_for_model "stage 10 (generate-wordcloud)"
+    fi
+fi
+
 "$DIR/scripts/write-run-overrides" "$DIR" \
     --model "$MODEL_NAME" \
     --server "$INFERENCE_SERVER" || {
@@ -2749,31 +2785,6 @@ validate_supplied_values
 # requires no model, created a stray `cache/embeddings/similarities/` one level
 # above where any similarity file belongs. Found by noticing that exact directory
 # on this machine and matching its timestamp to a --validate --dry-run.
-# Catch a mistyped --model HERE, before a single directory is created.
-#
-# The check itself is not new -- stages 9 and 10 already refuse to build a site
-# against embeddings that do not exist, and say which models do have them. What
-# was wrong was the ORDER. The cache directories below were created first, so a
-# typo left an empty assets/embeddings/<typo>/ tree behind before the error
-# arrived, and running the same typo twice littered twice. Checking first means a
-# typo changes nothing at all.
-#
-# Only for stages that CONSUME embeddings. Stage 6 is the stage that produces
-# them, so it must be allowed to start with none on disk -- that is its whole
-# job -- and any run that includes it will have them by the time the later stages
-# look. A run of 6 alone, or 6 followed by others, is therefore exempt.
-if [ -n "$MODEL_NAME" ] && ! $GENERATE_EMBEDDINGS; then
-    if $GENERATE_SIMILARITY; then
-        require_embeddings_for_model "stage 7 (generate-similarity)"
-    elif $GENERATE_DIVERSITY; then
-        require_embeddings_for_model "stage 8 (generate-diversity)"
-    elif $GENERATE_HTML; then
-        require_embeddings_for_model "stage 9 (generate-html)"
-    elif $GENERATE_WORDCLOUD; then
-        require_embeddings_for_model "stage 10 (generate-wordcloud)"
-    fi
-fi
-
 if [ -n "$MODEL_NAME" ]; then
     _ram_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --model "$MODEL_NAME")"
     _disk_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --model "$MODEL_NAME" --disk)"
