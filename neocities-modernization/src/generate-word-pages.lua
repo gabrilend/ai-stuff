@@ -130,6 +130,16 @@ local progress = require("progress-display")
 -- Reused here so the word-page "chronological" links resolve to the SAME page
 -- and anchor the chronological pages actually emit (Issue 10-049 follow-up).
 local flat_html = require("flat-html-generator")
+-- Shared boost frame + text wrapping, so a reshared post looks the same here as
+-- it does on the chronological and similar/different pages. Word pages used to
+-- render boosts as plain poems, which is the only place on the site where the
+-- frame went missing.
+local boost_bars = require("boost-bars")
+local text_formatter = require("text-formatter")
+-- One owner for what every page's <head> contains (viewport, shipped font,
+-- text-size lock). Four generators used to keep four copies of the font stack
+-- and none of them declared a viewport.
+local page_head = require("page-head")
 
 utils.init_assets_root(arg)
 -- }}}
@@ -199,6 +209,52 @@ local function cosine_similarity(vec1, vec2)
     end
 
     return dot_product / (norm1 * norm2)
+end
+-- }}}
+
+-- {{{ local function compute_corpus_mean
+-- Averages every poem embedding into one vector: the direction they all share.
+-- Returns nil for an empty corpus, which callers treat as "skip the correction"
+-- rather than as an error, since a corpus of zero poems has no mean to speak of.
+local function compute_corpus_mean(poem_lookup)
+    local mean, dims, n = nil, 0, 0
+    for _, emb in pairs(poem_lookup) do
+        if type(emb) == "table" and #emb > 0 then
+            if not mean then
+                dims = #emb
+                mean = {}
+                for i = 1, dims do mean[i] = 0 end
+            end
+            -- A vector of a different length than the first one cannot be summed
+            -- into the same mean; that means two models' output got mixed into
+            -- one file, which is worth stopping over rather than averaging past.
+            if #emb ~= dims then
+                utils.log_error(string.format(
+                    "Embedding dimension mismatch: expected %d, found %d -- embeddings.json mixes models",
+                    dims, #emb))
+                return nil
+            end
+            for i = 1, dims do mean[i] = mean[i] + emb[i] end
+            n = n + 1
+        end
+    end
+    if not mean or n == 0 then return nil end
+    for i = 1, dims do mean[i] = mean[i] / n end
+    return mean
+end
+-- }}}
+
+-- {{{ local function centered
+-- Subtracts the shared direction from a vector, leaving only what distinguishes
+-- it. Returns the vector untouched when there is no mean to subtract, so a
+-- missing corpus mean degrades to the old behaviour instead of to zeros.
+local function centered(vec, mean)
+    if not mean or not vec or #vec ~= #mean then
+        return vec
+    end
+    local out = {}
+    for i = 1, #vec do out[i] = vec[i] - mean[i] end
+    return out
 end
 -- }}}
 
@@ -332,90 +388,6 @@ local function compute_word_colors(word_embeddings)
 end
 -- }}}
 
--- {{{ local function balanced_color_select
--- Issue 8-050b: Selects N poems using cumulative-similarity-balanced round-robin
--- Ensures roughly equal color representation while maintaining word relevance
--- Uses cumulative totals to prevent high-affinity colors from dominating
-local function balanced_color_select(candidates, color_embeddings, color_names, N)
-    -- Phase 2: Compute color affinities for each candidate
-    for _, candidate in ipairs(candidates) do
-        local best_color = "gray"
-        local best_color_sim = -1
-        candidate.color_sims = {}
-        for _, color_name in ipairs(color_names) do
-            local color_emb = color_embeddings[color_name]
-            if color_emb then
-                local sim = cosine_similarity(color_emb, candidate.embedding)
-                candidate.color_sims[color_name] = sim
-                if sim > best_color_sim then
-                    best_color_sim = sim
-                    best_color = color_name
-                end
-            end
-        end
-        candidate.best_color = best_color
-        candidate.best_color_sim = best_color_sim
-    end
-
-    -- Phase 3: Build color buckets (sorted by word_similarity descending)
-    local buckets = {}
-    for _, color_name in ipairs(color_names) do
-        buckets[color_name] = {}
-    end
-    for _, candidate in ipairs(candidates) do
-        table.insert(buckets[candidate.best_color], candidate)
-    end
-    for _, color_name in ipairs(color_names) do
-        table.sort(buckets[color_name], function(a, b)
-            return a.word_similarity > b.word_similarity
-        end)
-    end
-
-    -- Phase 4: Balanced round-robin selection
-    -- Give priority to colors with lowest cumulative color-similarity totals
-    local cumulative = {}
-    local bucket_idx = {}  -- next pick index per color
-    for _, color_name in ipairs(color_names) do
-        cumulative[color_name] = 0
-        bucket_idx[color_name] = 1
-    end
-
-    local selected = {}
-    while #selected < N do
-        -- Find color with lowest cumulative score that still has candidates
-        local pick_color = nil
-        local lowest_cum = math.huge
-        local most_remaining = -1
-        for _, color_name in ipairs(color_names) do
-            local remaining = #buckets[color_name] - bucket_idx[color_name] + 1
-            if remaining > 0 then
-                local cum = cumulative[color_name]
-                -- Tiebreak: prefer color with more remaining candidates
-                if cum < lowest_cum or (cum == lowest_cum and remaining > most_remaining) then
-                    lowest_cum = cum
-                    pick_color = color_name
-                    most_remaining = remaining
-                end
-            end
-        end
-
-        if not pick_color then break end  -- all buckets exhausted
-
-        -- Pop top candidate from this color's bucket
-        local idx = bucket_idx[pick_color]
-        local poem = buckets[pick_color][idx]
-        bucket_idx[pick_color] = idx + 1
-
-        -- Track cumulative color similarity (high-affinity colors "spend" budget faster)
-        cumulative[pick_color] = cumulative[pick_color] + poem.best_color_sim
-
-        table.insert(selected, poem)
-    end
-
-    return selected
-end
--- }}}
-
 -- {{{ local function compute_centroid
 -- Issue 8-050e: Compute the centroid (average embedding) of selected poems
 -- Returns nil if no valid embeddings found
@@ -540,16 +512,45 @@ end
 -- }}}
 
 -- {{{ local function build_poem_embeddings_lookup
+-- Keyed by poem_index -- the GLOBAL identifier -- never by id.
+--
+-- `id` restarts at 1 inside every source category, so five poems share id=1
+-- (bluesky/1, fediverse/48, fediverse_boost/6025, messages/6483, notes/8041).
+-- Keying on it did two silent kinds of damage: last-write-wins threw away 2,418
+-- of 8,415 embeddings, and the survivors were then read back through a table
+-- keyed on poem_index, so each score was printed against a DIFFERENT poem than
+-- the one it was computed from. A word page for "linux" led with a poem about
+-- publishing etiquette because it had inherited poem 7421's score -- 7421 being
+-- "oh see yeah now it's running on linux", the true second-best match.
+--
+-- The damage was invisible because a collision looks exactly like a hit: no nil,
+-- no warning, a full page of plausible poems in descending score order. It also
+-- capped the reachable corpus at the largest id (6458), so `messages` and
+-- `notes` could never appear on any word page at all -- 2,662 of 8,510 poems
+-- were all the word cloud could ever show.
+--
+-- See Issue 8-019, which established poem_index for exactly this reason.
 local function build_poem_embeddings_lookup(embeddings_data)
     local lookup = {}
     if not embeddings_data or not embeddings_data.embeddings then
         return lookup
     end
 
+    local skipped = 0
     for _, entry in ipairs(embeddings_data.embeddings) do
-        if entry.id and entry.embedding then
-            lookup[tostring(entry.id)] = entry.embedding
+        if entry.poem_index and entry.embedding then
+            lookup[tostring(entry.poem_index)] = entry.embedding
+        else
+            -- An embedding with no poem_index cannot be attached to a poem at
+            -- all. Count it and say so rather than dropping it quietly -- the
+            -- quiet drop is what hid the collision bug for as long as it did.
+            skipped = skipped + 1
         end
+    end
+    if skipped > 0 then
+        utils.log_warn(string.format(
+            "%d embeddings had no poem_index and were skipped -- regenerate embeddings (Issue 8-019)",
+            skipped))
     end
 
     return lookup
@@ -602,6 +603,73 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
     -- Issue 10-036: Use chrono_page_map for correct paginated link (index.html is redirect that loses anchors)
     local chrono_page = chrono_page_map and chrono_page_map[poem_idx] or "01"
     local chrono_link = string.format("<a href='%s/chronological/%s.html#%s'>chronological</a>", base_path, chrono_page, anchor_id)
+
+    -- Which source file this poem came from, shown above every entry so a reader
+    -- can find the original. Computed HERE, above the boost branch, because that
+    -- branch returns early -- when this lived further down, boosts on word pages
+    -- came out with no source line at all while every other page type had one.
+    -- Format: " -> file: fediverse/1234" or " -> file: notes/myfile".
+    local category = poem.category or "unknown"
+    local filename
+    if category == "notes" and poem.metadata and poem.metadata.source_file then
+        filename = poem.metadata.source_file
+    else
+        filename = tostring(poem.id or "unknown")
+    end
+    local poem_identifier = " -> file: " .. category .. "/" .. filename
+
+    -- A boost is a reshared post, and it gets its own nested frame: red arrows
+    -- into the corners, a blue outer wall, a teal inner box, the borrowed text in
+    -- yellow (Issue 8-057). Word pages used to skip this entirely -- this file
+    -- contained no mention of boosts at all -- so a reshare rendered as an
+    -- ordinary poem showing the raw "External post: <url>" placeholder, with the
+    -- URL not even clickable, while the same poem on a chronological page showed
+    -- the framed, cached content. The frame is drawn by the shared module rather
+    -- than redrawn here, which is the whole point of that module existing:
+    -- three hand-copied versions had already drifted into misaligned walls.
+    if poem.metadata and poem.metadata.is_boost then
+        local text = (poem.content or ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+
+        -- An empty boost means the scrape never captured the original. Say which
+        -- post is missing rather than printing an empty frame.
+        if text == "" or text:match("^%s*$") then
+            local original_uri = poem.metadata.original_uri
+            if original_uri then
+                text = "External post: " .. original_uri:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+            else
+                text = "(Boost content unavailable)"
+            end
+        end
+
+        -- An uncached boost is just a link. Wrap it ACROSS the box lines with
+        -- every line anchored to the whole URL, so a long address stays inside
+        -- the frame and stays clickable instead of overflowing the right wall.
+        local external_url = text:match("^External post: (https?://[^%s]+)$")
+        if external_url then
+            text = text_formatter.wrap_external_url(
+                "External post: ", external_url, boost_bars.CONTENT_WIDTH)
+        else
+            local rewrapped = {}
+            for line in (text .. "\n"):gmatch("(.-)\n") do
+                for _, w in ipairs(text_formatter.wrap_preserving_indent(line, boost_bars.CONTENT_WIDTH)) do
+                    table.insert(rewrapped, w)
+                end
+            end
+            text = table.concat(rewrapped, "\n")
+        end
+
+        local boost_lines = {}
+        for line in (text .. "\n"):gmatch("(.-)\n") do
+            table.insert(boost_lines, line)
+        end
+
+        boost_bars.configure(flat_html.BOOST_COLOR_CONFIG)
+        -- Source line first, then the frame -- the same order the chronological
+        -- pages use, so a boost reads identically wherever it is encountered.
+        return poem_identifier .. "\n" .. boost_bars.format_boost(
+            boost_lines, progress_pct / 100,
+            similar_link, different_link, chrono_link, true) .. "\n"
+    end
 
     -- Word-wrap content to 80 chars
     local content = poem.content or ""
@@ -708,17 +776,6 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
     local bottom_line = poem_bars.progress_dashes(
         { percentage = progress_pct }, semantic_color, is_golden, "bottom", true).visual
 
-    -- Generate poem identifier (same format as similar/different pages)
-    -- Format: " -> file: fediverse/1234" or " -> file: notes/myfile"
-    local category = poem.category or "unknown"
-    local filename
-    if category == "notes" and poem.metadata and poem.metadata.source_file then
-        filename = poem.metadata.source_file
-    else
-        filename = tostring(poem.id or "unknown")
-    end
-    local poem_identifier = " -> file: " .. category .. "/" .. filename
-
     -- Build final output
     local output = {}
     table.insert(output, colored_progress)
@@ -774,20 +831,23 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
     local base_path = ".."
     local chrono_link = chrono_center_link or (base_path .. "/chronological/index.html")
 
-    -- Generate HTML
-    -- Issue 16-010: Added font style for Hack Nerd Font font-stack
-    -- Same centering CSS the similar/different/chronological pages use: each
-    -- <pre> centers as an inline-block (text stays left), so the poem column
-    -- lands on the page centerline even when an attached image is wider.
-    local font_style = [[<style>body, pre { font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono', 'Courier New', monospace; }
-td { text-align: center; } pre { display: inline-block; text-align: left; margin: 0 auto; } img, video, audio { margin-left: auto; margin-right: auto; }</style>]]
+    -- Generate HTML.
+    -- The <head> -- charset, mobile viewport, shipped monospace font, text-size
+    -- lock -- comes from the shared page-head module, so this page cannot drift
+    -- away from the similar/different/chronological pages the way it had.
+    -- Same centering CSS those pages use: each <pre> centers as an inline-block
+    -- (text stays left), so the poem column lands on the page centerline even
+    -- when an attached image is wider.
+    local head = page_head.head({
+        title = "Poems similar to: " .. word,
+        base_path = base_path,
+        extra_css = "td { text-align: center; } pre { display: inline-block; text-align: left; margin: 0 auto; }\n"
+                 .. "img, video, audio { margin-left: auto; margin-right: auto; }",
+    })
     local html_parts = {}
     table.insert(html_parts, string.format([[<!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
-<title>Poems similar to: %s</title>
-%s</head>
+%s
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poems similar to: <i><font color="%s">%s</font></i></h1>
@@ -798,7 +858,7 @@ td { text-align: center; } pre { display: inline-block; text-align: left; margin
 <hr>
 <table align="center"><tr><td>
 <pre>
-]], word, font_style, header_color, word, #top_poems, base_path, chrono_link))
+]], head, header_color, word, #top_poems, base_path, chrono_link))
 
     -- Add ranked poems using box-drawing format
     -- Issue 10-036: Pass chrono_page_map for correct per-poem pagination links
@@ -937,6 +997,27 @@ function M.generate_word_html(options)
     end
     local poem_lookup = build_poem_embeddings_lookup(embeddings_data)
 
+    -- The direction every embedding shares, subtracted before any comparison.
+    --
+    -- The model does not spread its output over the whole sphere. Measured on
+    -- this corpus, the average of all poem vectors has length 0.827 while the
+    -- vectors themselves have length 1.0 -- so about 83% of every poem vector is
+    -- one direction common to all of them, and cosine similarity spends most of
+    -- its resolution measuring that shared part instead of the meaning. It is a
+    -- property of the model, not of these poems: single dictionary words carry
+    -- an even stronger shared component (0.947), and the mean directions of the
+    -- poems, the single words and the colour anchors all agree to cosine 0.94+.
+    --
+    -- Poem-against-poem comparison survives it, because the offset is near
+    -- constant WITHIN one population and shifts every score alike. Word-against-
+    -- poem does not: the word side carries 0.947 and the poem side 0.827, so the
+    -- offset differs across the comparison and distorts the ordering. That is
+    -- why this correction lives here and not in the similar/different pages.
+    --
+    -- Effect on poems that literally contain their word: ranks 1601 -> 59,
+    -- 3795 -> 151, 7015 -> 347. Score spread widens from 0.090 to 0.164.
+    local corpus_mean = compute_corpus_mean(poem_lookup)
+
     -- Load word embeddings (must exist from Stage 6)
     local word_embeddings = load_word_embeddings_cache()
     local word_count = 0
@@ -971,16 +1052,11 @@ function M.generate_word_html(options)
         utils.log_warn("No word colors found - run --embeddings-only to generate them")
     end
 
-    -- Issue 8-050b: Load color embeddings for balanced color selection
-    local color_embeddings = load_color_embeddings()
-    local use_balanced_selection = color_embeddings ~= nil
-    if not use_balanced_selection then
-        utils.log_warn("No color embeddings found - using pure similarity ranking")
-    end
-
-    -- Issue 8-050b: Get ordered color names from config
-    local color_names = unified_config.color_names
-        or {"red", "blue", "green", "purple", "orange", "yellow", "gray"}
+    -- No colour embeddings are loaded here any more. Poem colours are READ from
+    -- poem_colors.json above, already z-scored; re-deriving them from the anchors
+    -- at display time is what let this page disagree with its own progress bars.
+    -- The anchors are still loaded where they belong -- by the routine that
+    -- assigns each WORD its colour, which has no precomputed table to read from.
 
     -- Issue 8-043c: Load color configuration from unified config
     local color_config = unified_config.colors or {
@@ -1062,14 +1138,16 @@ function M.generate_word_html(options)
         local word_embedding = word_embeddings[word]
         if word_embedding then
 
-            -- Issue 8-050b: Build candidate pool with embeddings preserved
-            -- Phase 1: Rank ALL poems by word similarity
+            -- Rank every poem against the word, both sides mean-centered so the
+            -- shared direction described above cannot outvote the meaning.
+            local centered_word = centered(word_embedding, corpus_mean)
             local candidates = {}
-            for poem_id_str, poem_embedding in pairs(poem_lookup) do
-                local poem_id = tonumber(poem_id_str)
-                local poem = poems_by_index[poem_id]
+            for poem_index_str, poem_embedding in pairs(poem_lookup) do
+                local poem_index = tonumber(poem_index_str)
+                local poem = poems_by_index[poem_index]
                 if poem and poem_embedding then
-                    local word_sim = cosine_similarity(word_embedding, poem_embedding)
+                    local word_sim = cosine_similarity(
+                        centered_word, centered(poem_embedding, corpus_mean))
                     table.insert(candidates, {
                         poem = poem,
                         embedding = poem_embedding,
@@ -1079,31 +1157,35 @@ function M.generate_word_html(options)
                 end
             end
 
-            -- Sort by word similarity (descending)
+            -- Sorted by similarity, and SHOWN in that order.
+            --
+            -- A colour round-robin used to reorder the top N here (Issue 8-050b)
+            -- to spread the seven semantic colours down the page. It is gone, for
+            -- two reasons.
+            --
+            -- One: it made the page disagree with its own heading. The reader was
+            -- told "ranked by semantic similarity" and shown the 53rd-best match
+            -- in slot 3 and the 251st in slot 8, while the second-best waited
+            -- until slot 10.
+            --
+            -- Two: the colours it sorted on were not the site's colours. It
+            -- re-derived each poem's colour by nearest raw cosine to the colour
+            -- anchors, while poem_colors.json -- which draws the very progress
+            -- bars on this page -- holds a z-scored, hubness-corrected verdict.
+            -- The two disagreed on a third of the page. Raw nearness is not a
+            -- contest about meaning: ranking the seven anchors by closeness to
+            -- the AVERAGE poem reproduces their win rates almost exactly
+            -- (purple sits nearest and takes 30.9% of the corpus, orange sits
+            -- furthest and takes 3.9%), so the round-robin was spreading the
+            -- page across a measurement of genericness.
+            --
+            -- The colour variety survives without it: each poem's bar is still
+            -- drawn in its own stored colour, and that colour is now the same one
+            -- the rest of the site uses.
             table.sort(candidates, function(a, b)
                 return a.word_similarity > b.word_similarity
             end)
-
-            -- Issue 8-050b (revised): relevance first, THEN color spread.
-            -- The page always shows the top-N MOST RELEVANT poems by similarity;
-            -- balanced_color_select is handed exactly those N (not a 7N pool),
-            -- so it keeps the whole relevant set and only REORDERS it to spread
-            -- the colors across the page. The earlier 7N-pool version let color
-            -- balancing DISPLACE strong matches with weaker color-diverse ones,
-            -- which is why a "god" search surfaced unrelated poems.
-            local ranked_poems
-            if use_balanced_selection then
-                local pool_size = math.min(#candidates, CONFIG.poems_per_word_page)
-                local pool = {}
-                for j = 1, pool_size do pool[j] = candidates[j] end
-
-                -- Reorder the top-N relevant poems for color spread (keeps all N).
-                ranked_poems = balanced_color_select(
-                    pool, color_embeddings, color_names, CONFIG.poems_per_word_page)
-            else
-                -- Fallback: pure similarity ranking (no color data available)
-                ranked_poems = candidates
-            end
+            local ranked_poems = candidates
 
             -- Issue 8-050c: Get word's semantic color for header
             local word_color_entry = word_colors[word]

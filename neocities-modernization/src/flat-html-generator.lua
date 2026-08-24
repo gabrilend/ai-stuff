@@ -109,31 +109,49 @@ local BOOST_COLOR_CONFIG = {
 -- corruption). See src/boost-bars.lua + src/boost-bars.test.lua.
 local boost_bars = require("boost-bars")
 boost_bars.configure(BOOST_COLOR_CONFIG)
+-- Exported so the word-page generator can dress the same frame in the same
+-- colours without keeping a second copy of the palette. It renders boosts too,
+-- and a private copy here is exactly how the earlier three drifted apart.
+M.BOOST_COLOR_CONFIG = BOOST_COLOR_CONFIG
 
 -- {{{ Issue 16-010: Monospace font enforcement
--- Font stack prioritizes Hack Nerd Font (user's preference), then falls back
--- to other popular monospace fonts for consistent rendering across browsers.
--- Uses CSS font-stack approach (no external font files required).
-local FONT_STYLE = [[
-<style>
-body, pre {
-    font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono',
-                 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono',
-                 'Courier New', monospace;
-}
-/* True page-centering for the poem column. The old <table align="center">
-   shrink-wrapped to its WIDEST line -- and an attached image (up to 800px) is
-   wider than the ~84-char text frame, so the cell stretched and the frames
-   hugged the left of that wide cell, landing the whole column left-of-center.
-   Fix: the cell centers its children, each <pre> is an inline-block that
-   centers as a block (text stays left-aligned inside), and media centers via
-   auto margins. Now a vertical line down the page bisects every poem AND image,
-   regardless of how wide any single image is. */
+-- The font is now SHIPPED, not merely named. A CSS font-stack was enough on a
+-- desktop where one of those faces is installed and nothing on a phone, where
+-- none of them are: the generic monospace Android falls back to contains none of
+-- the twenty box-drawing characters this layout is built from, so the browser
+-- substituted them one glyph at a time from a proportional font and every frame
+-- sheared. See src/page-head.lua and fonts/LICENSE-Hack.md.
+--
+-- The page-specific centering rules stay here; the font, viewport and text-size
+-- rules come from the shared module so all four generators cannot disagree.
+local page_head = require("page-head")
+
+-- {{{ POEM_PAGE_CSS
+-- True page-centering for the poem column. The old <table align="center">
+-- shrink-wrapped to its WIDEST line -- and an attached image (up to 800px) is
+-- wider than the ~84-char text frame, so the cell stretched and the frames
+-- hugged the left of that wide cell, landing the whole column left-of-center.
+-- Fix: the cell centers its children, each <pre> is an inline-block that
+-- centers as a block (text stays left-aligned inside), and media centers via
+-- auto margins. Now a vertical line down the page bisects every poem AND image,
+-- regardless of how wide any single image is.
+local POEM_PAGE_CSS = [[
 td { text-align: center; }
 pre { display: inline-block; text-align: left; margin: 0 auto; }
-img, video, audio { margin-left: auto; margin-right: auto; }
-</style>
-]]
+img, video, audio { margin-left: auto; margin-right: auto; }]]
+-- }}}
+
+-- Poem pages all live one directory below the site root (output/similar/,
+-- output/different/, output/chronological/), so the route back to the fonts is
+-- always "..". A page emitted at the root must build its own head with ".".
+--
+-- This carries the viewport declaration as well as the stylesheet, because the
+-- two are useless apart: shipping a font that renders the grid correctly does
+-- nothing if the phone is still laying the page out for a 980-pixel screen and
+-- then shrinking the result. Every template below drops this in immediately
+-- after its <title>, so adding it in one place adds it to all of them.
+local PAGE_HEAD_BLOCK = page_head.viewport_meta() .. "\n"
+    .. page_head.style_block("..", POEM_PAGE_CSS)
 -- }}}
 
 -- Pagination configuration defaults
@@ -2468,13 +2486,13 @@ function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poem
     -- Template uses pure HTML without CSS (except Issue 16-010 font-stack)
     -- Content is pre-wrapped to 80 chars, <pre> provides monospace formatting
     -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
-    -- Issue 16-010: Added FONT_STYLE for Hack Nerd Font font-stack
+    -- Issue 16-010: shared head block -- viewport + shipped monospace font
     local template = [[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Poems sorted by %s to: %s</title>
-]] .. FONT_STYLE .. [[</head>
+]] .. PAGE_HEAD_BLOCK .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
@@ -2643,13 +2661,13 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
     local download_links = generate_download_links(starting_poem, total_pages)
 
     -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
-    -- Issue 16-010: Added FONT_STYLE for Hack Nerd Font font-stack
+    -- Issue 16-010: shared head block -- viewport + shipped monospace font
     local template = [[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Poems sorted by %s to: %s (Page %d of %d)</title>
-]] .. FONT_STYLE .. [[</head>
+]] .. PAGE_HEAD_BLOCK .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
@@ -2881,7 +2899,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 
         -- Template with optional pagination navigation
         -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
-        -- Issue 16-010: Added FONT_STYLE for Hack Nerd Font font-stack
+        -- Issue 16-010: shared head block -- viewport + shipped monospace font
         local template
         if chronological_paginated and total_pages > 1 then
             template = string.format([[<!DOCTYPE html>
@@ -2904,14 +2922,14 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 </td></tr></table>
 <center>%s</center>
 </body>
-</html>]], page_num, total_pages, FONT_STYLE, page_nav_html, page_nav_html)
+</html>]], page_num, total_pages, PAGE_HEAD_BLOCK, page_nav_html, page_nav_html)
         else
             template = [[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Poetry Collection - Chronological Order</title>
-]] .. FONT_STYLE .. [[</head>
+]] .. PAGE_HEAD_BLOCK .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
@@ -3135,7 +3153,7 @@ local function explore_page_shell(title, heading, body)
 <head>
 <meta charset="UTF-8">
 <title>%s</title>
-]] .. FONT_STYLE .. [[</head>
+]] .. PAGE_HEAD_BLOCK .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>%s</h1>
@@ -4257,12 +4275,18 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     -- Build HTML content with full formatting
                     -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
-                    -- Issue 16-010: Added inline font style for Hack Nerd Font font-stack
-                    local font_style = [[<style>body, pre { font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono', 'Courier New', monospace; }</style>]]
+                    -- Issue 16-010: shared head block -- viewport + shipped monospace font.
+                    -- This path had the THINNEST head of the four: the bare font
+                    -- stack, no viewport, and none of the centering rules the
+                    -- chronological pages carry. That last omission is why an
+                    -- attached image pulls the poem column off-centre here but
+                    -- not there; the shared block ends all three divergences at
+                    -- once, since these pages sit one level below the root just
+                    -- like the chronological ones.
                     local html_parts = {
                         '<!DOCTYPE html><html><head><meta charset="UTF-8">',
                         '<title>Poems by ' .. type_label .. ' to poem ' .. poem_idx_str .. ' (page ' .. page_num .. ')</title>',
-                        font_style,
+                        PAGE_HEAD_BLOCK,
                         '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
                     }
 

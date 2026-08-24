@@ -5,16 +5,72 @@ Low (Visual Consistency)
 
 ## Current Behavior
 
-Generated HTML pages use browser default fonts or basic CSS font-family declarations. Font rendering varies across systems — Windows users see Consolas, macOS users see Monaco, Linux users see Liberation Mono or whatever they've configured.
-
-There's no guarantee of visual consistency across devices viewing the same content.
+Every generated page ships with the font it renders in. `fonts/` holds Hack Nerd
+Font in both weights; `scripts/install-fonts` copies them into `output/fonts/`
+before any page is built; `src/page-head.lua` writes the `@font-face` rules, the
+viewport declaration and the text-size lock into every `<head>`. One module owns
+all of it, so the four generators cannot disagree.
 
 ## Intended Behavior
 
-Enforce a specific monospaced font across all generated HTML pages, ensuring:
-1. Consistent visual appearance regardless of user's system
-2. Readable code/poetry rendering
-3. Proper character alignment (important for ASCII art or formatted text)
+Guarantee that a frame drawn 83 columns wide is 83 columns wide on every device,
+by shipping the font rather than naming fonts and hoping.
+
+1. Consistent visual appearance regardless of the visitor's system
+2. Readable poetry rendering
+3. **Exact character alignment** — this is the requirement the others serve
+
+## Why Alignment Is the Whole Requirement
+
+This is not a preference for a nicer-looking font. The poem pages draw their
+frames, progress bars and navigation boxes entirely out of the Unicode Box
+Drawing block — over 72,000 such characters on a single word page, against 12
+emoji and nothing else. If those glyphs do not occupy exactly one monospace cell,
+the layout does not look slightly worse; it comes apart.
+
+Three separate things have to hold, and a font stack alone delivers none of them
+on a phone.
+
+### 1. The glyphs must exist in the font that actually renders
+
+A CSS stack names fonts and hopes one is installed. A phone has none of them, so
+it falls back to generic `monospace` — which on Android resolves to Droid Sans
+Mono. Measured directly from that font's character map: it contains **none** of
+the twenty box-drawing characters this layout uses. Not some. All twenty are
+missing. The browser then substitutes them one glyph at a time from a
+proportional fallback whose advance width differs from the monospace cell, and
+every frame shears. This is why only the box characters drift while the poem text
+stays put.
+
+### 2. The glyphs must be the same width as the letters
+
+Coverage is necessary and not sufficient: a font can contain box-drawing
+characters and still give them a different advance. Verify before deploying.
+Both shipped weights were checked — every character the layout depends on has
+advance width **1233**, identical to the letter `A` and to the space character.
+
+### 3. Bold and regular must share that width
+
+Every horizontal bar is bold across its filled portion and regular across the
+rest, so the two faces meet mid-line. A browser-synthesized bold does not
+reliably preserve advance width. Shipping a real bold face is therefore not
+optional, and its advance was verified to match at 1233.
+
+## The Mobile Requirements a Font Cannot Satisfy
+
+Shipping the font fixes the glyphs. Two page-level declarations have to
+accompany it or the grid still breaks, and both were absent from every
+poem-facing page.
+
+- **`<meta name="viewport" content="width=device-width, initial-scale=1">`** —
+  without it a mobile browser assumes a 980-pixel desktop viewport, lays the page
+  out for that, then scales the result down to the physical screen. The site
+  arrives unreadably small. The tag also switches off the browser's automatic
+  text inflation.
+- **`text-size-adjust: 100%`** — iOS Safari and Chrome-on-Android inflate the
+  font size of blocks they judge to be body copy, and they compute the factor
+  **per block**. Two blocks at two sizes is two cell widths, and the frames stop
+  lining up with each other even when every character is correct.
 
 ## Font Options
 
@@ -194,12 +250,39 @@ pyftsubset iosevka-regular.ttf \
 
 This can reduce font size from ~200KB to ~30KB.
 
-## Decision Points
+## Decision Points — Resolved
 
-1. **Which font?** — Iosevka (narrow, readable) vs JetBrains Mono (popular) vs other
-2. **Which weights?** — Regular only, or Regular + Bold?
-3. **Which method?** — Self-hosted (recommended) vs stack-only vs inline
-4. **Subset?** — Full character set vs ASCII subset
+1. **Which font?** — **Hack Nerd Font.** Operator preference, and it satisfies the
+   two hard requirements: full box-drawing coverage, and every needed glyph at the
+   same advance as a letter in both weights.
+2. **Which weights?** — **Regular and Bold, both required.** See requirement 3
+   above; this is not a quality choice, a missing bold face tears every progress
+   bar at its colour boundary.
+3. **Which method?** — **Self-hosted (Approach A).** The stack-only approach that
+   was originally implemented is what produced the mobile failure, for the reason
+   given above: no phone has any font in the stack.
+4. **Subset?** — **No.** The two files are ~2.6 MB each, which sounds
+   disqualifying and is not: the font is one file per weight for the entire site,
+   fetched once and cached, not embedded per page across ~30,000 pages. Subsetting
+   would trade a one-time transfer for a build dependency (`fonttools`, which is
+   Python and was in fact broken on the build machine when this was decided).
+   Revisit only if the one-time cost proves to matter in practice.
+
+### On declaring the font under a private name
+
+The `@font-face` family is `PoemGrid`, not `Hack Nerd Font`. If the declared name
+matched a font the visitor already has installed, the browser is free to prefer
+that local copy — possibly an older version with different coverage. Naming it
+something no system ships guarantees every visitor renders from the file that was
+measured.
+
+### On failing loudly
+
+`scripts/install-fonts` exits non-zero if a font file is missing, and `run.sh`
+treats that as fatal. This is deliberate. A page referencing a font that is not
+there does not error in a browser; it silently falls back to the device font and
+the layout quietly breaks again. The build has to be the thing that notices,
+because the visitor's browser never will.
 
 ## Suggested Implementation Steps
 
