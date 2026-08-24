@@ -1,0 +1,72 @@
+Data-flow patterns that turned out to be right in more than one place. Proven
+useful, therefore worth reaching for first the next time something looks similar.
+
+--
+
+## Generate, then view. Never both at once.
+
+The simulation produces data; something else draws it. The headless runner
+produces a match; something else reports on it. The batch runner produces ten
+thousand lines; something else reads them. The Markdown is the data; the HTML is
+a view of it.
+
+Every time this split exists, a bug has a side, and the search space halves. Every
+time it does not, a wrong pixel and a wrong rule look identical.
+
+## Stamp once, read many.
+
+A soldier's upgrades are copied in at spawn and never re-read. A tower's are read
+live, because a tower is rare and long-lived while a soldier is common and brief.
+The rule generalises: **copy at the boundary between something that changes
+rarely and something that is read constantly.**
+
+The design consequence -- a placement takes effect one wave later -- was an accident
+of the performance decision and turned out to be the mechanism that makes
+placements worth arguing about. Look for that. Fast and right often agree.
+
+## A small integer beats a measurement.
+
+Milestones, not distances. Push depth, not position. Ticks, not seconds. Every
+time this design reached for a real-valued measurement it got the wrong answer to
+a question about *progress*, and every time it reached for an ordinal it got the
+right one.
+
+The general shape: if the question is "which of these is further along," the
+answer is an index into a list somebody authored, not arithmetic on coordinates.
+
+## Dispatch tables, not branches.
+
+Soldier states, command verbs, upgrade behaviours, abilities, phases, and the
+tick order itself. In every case the value already knows what it means, and the
+table says what knowing that means. Adding a case is adding a row.
+
+The real payoff is not speed. It is that the **order of the simulation became a
+piece of readable data** instead of something buried in a function body.
+
+## Buffer, then resolve.
+
+Damage is written into an array and applied in a second pass. This bought three
+things at once: simultaneous deaths that are fair, a pass that can be sliced
+across a thread pool, and an ordering that does not depend on which slot happened
+to be free. Whenever two things must be able to happen at the same instant, write
+both down first and settle them afterwards.
+
+## Zero is a sentinel. Nil is a question.
+
+Nothing in the simulation is ever nil. Empty means the integer zero, which has a
+meaning. A nil check asks whether some earlier code did its job, and that question
+belongs in a validator that runs once, not in a loop that runs a thousand times a
+tick.
+
+## Refuse loudly, in words.
+
+Every rejected command carries a reason, and the reason is a sentence. This is
+not politeness -- it is the game's only teaching mechanism, because nobody reads a
+rules screen. The same applies to every validator in the project: a failure names
+what was missing and where, and never substitutes a default.
+
+## Make the tool, not the thing.
+
+The map is generated, never hand-edited. The documentation's HTML is generated.
+The demos are regenerated. Anything hand-tweaked is a thing nobody dares change
+afterwards.

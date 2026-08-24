@@ -1,0 +1,19 @@
+The first thing any program in this project does is read this directory.
+
+Right now there is nothing to configure, because nothing has been built. When
+there is, this is where the match parameters live: the seed, the map's shape
+parameters, the team size, which commanders each player brought, and which
+catalogue tables to load.
+
+The reason this is a directory of files rather than a wall of command-line flags:
+a match is a small number of decisions made before it starts, and they should be
+readable, diffable, and copyable. A replay header is nearly the same set of
+fields. Anything you would want to pin down and hand to somebody else so they can
+run the same match belongs here.
+
+What goes here eventually:
+    seed              -- the match seed, one integer
+    map               -- field size, lane spacing, connector length
+    teams             -- how many players per side
+    commanders        -- one line per player
+    catalogues        -- which upgrade, boon, and unit tables to load

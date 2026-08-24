@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+#
+# validate-documentation -- checks that the written half of this project still
+# hangs together.
+#
+# There is no source code yet; what this project has is documents and issue
+# files, and they reference each other constantly. This script is the equivalent
+# of a compiler for them. It finds four kinds of rot:
+#
+#   1. Broken links       -- a document points at a file that is not there.
+#   2. Malformed issues   -- an issue missing a section it is supposed to have,
+#                            or absent from its phase's progress tracker, or
+#                            named as a blocker while having no file.
+#   3. Roadmap drift      -- the roadmap and the issue files disagree about
+#                            which issues exist, or about their titles.
+#   4. Stale questions    -- an issue cites an open question that has since been
+#                            answered, or one that does not exist.
+#
+# The fourth is the one that catches real design rot. Answering a question means
+# editing the document it changes, and it is easy to leave a dozen issue files
+# still claiming to be waiting on it.
+#
+# Usage:
+#   ./validate-documentation              -- check the hard-coded project root
+#   ./validate-documentation /path/to/prj -- check a checkout elsewhere
+#
+# Exits non-zero if anything is wrong, so it can be wired into a build.
+
+DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+if [ ! -d "${DIR}/issues" ]; then
+    echo "No issues directory at ${DIR}/issues -- wrong project root?"
+    exit 1
+fi
+
+python3 - "${DIR}" <<'PY'
+import re, sys, pathlib
+
+root   = pathlib.Path(sys.argv[1])
+docs   = root / "docs"
+issues = root / "issues"
+bad    = 0
+
+def fail(msg):
+    global bad
+    print(msg)
+    bad += 1
+
+# -- 1. every relative markdown link resolves ------------------------------
+for f in list(docs.rglob("*.md")) + list(issues.rglob("*.md")):
+    for link in re.findall(r"\]\(([0-9a-zA-Z./_-]+\.md)\)", f.read_text()):
+        if not (f.parent / link).exists():
+            fail(f"broken link: {f.name} -> {link}")
+
+# -- 2. issue files are well formed ---------------------------------------
+required = ("## Current behavior", "## Intended behavior",
+            "## Suggested implementation steps")
+issue_files = sorted(issues.glob("[0-9]*.md"))
+for f in issue_files:
+    text = f.read_text()
+    for section in required:
+        if section not in text:
+            fail(f"missing section: {f.name} -> {section}")
+    ident = f.name[:3]
+    progress = issues / f"phase-{ident[0]}-progress.md"
+    if not progress.exists():
+        fail(f"no progress file for phase {ident[0]}")
+    elif f"| {ident} |" not in progress.read_text():
+        fail(f"not in progress file: {f.name}")
+
+have = {f.name[:3] for f in issue_files}
+for f in issue_files:
+    row = re.search(r"^\| Block(?:s|ed by) \| ([0-9, ]+)\|", f.read_text(), re.M)
+    for block in re.findall(r"^\| Block(?:s|ed by) \| ([0-9, ]+)\|", f.read_text(), re.M):
+        for ref in re.findall(r"\d{3}", block):
+            if ref not in have:
+                fail(f"dangling blocker: {f.name} names issue {ref}, which has no file")
+
+# -- 3. the roadmap agrees with the files ---------------------------------
+roadmap = (docs / "019-roadmap.md").read_text()
+listed  = dict(re.findall(r"^\| (\d{3}) \| ([^|]+?) *\|", roadmap, re.M))
+if set(listed) != have:
+    for missing in sorted(have - set(listed)):
+        fail(f"roadmap missing issue {missing}")
+    for extra in sorted(set(listed) - have):
+        fail(f"roadmap lists issue {extra}, which has no file")
+for f in issue_files:
+    ident = f.name[:3]
+    if ident not in listed:
+        continue
+    title = f.read_text().split("\n", 1)[0]
+    title = re.sub(r"^# \d{3} — ", "", title).lower()
+    want  = re.sub(r" — \*\*capstone\*\*$", "", listed[ident]).lower()
+    if title != want:
+        fail(f"title mismatch {ident}: file '{title}' vs roadmap '{want}'")
+
+# -- 4. cited open questions are real, and still open ----------------------
+oq       = (docs / "020-open-questions.md").read_text()
+answered = set(re.findall(r"^## ([A-E]\d+[a-z-]*)\..*(?:ANSWERED|MOOT|DIRECTION SET)", oq, re.M))
+known    = set(re.findall(r"^## ([A-E]\d+[a-z-]*)\.", oq, re.M))
+known   |= set(re.findall(r"^- \*\*(B\d+)\.\*\*", oq, re.M))
+for f in issue_files:
+    row = re.search(r"^\| Open questions \| (.+?) \|$", f.read_text(), re.M)
+    if not row:
+        continue
+    for ref in re.findall(r"\b([A-E]\d+[a-z-]*)\b", row.group(1)):
+        if ref in answered:
+            fail(f"stale question: {f.name} cites {ref}, which is answered")
+        elif ref not in known:
+            fail(f"unknown question: {f.name} cites {ref}, which is not on the page")
+
+still_open = sorted(known - answered)
+print(f"{len(issue_files)} issues, {len(known)} questions, {len(answered)} answered.")
+print("still open: " + " ".join(still_open))
+print(f"problems: {bad}")
+sys.exit(1 if bad else 0)
+PY

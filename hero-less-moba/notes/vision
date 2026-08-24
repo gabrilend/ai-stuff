@@ -1,0 +1,83 @@
+okay picture a moba like dota or AoS and then subtract the heroes and the jungle
+and the items and what's left? A bunch of units walking toward one another, and
+fighting in the middle, barely moving the frontlines at all. That's not ideal,
+so let's make it a roguelike, and let two teams share the upgrades they gather
+to create powerful waves that overcome the enemy.
+
+How are the upgrades gathered?
+
+How are the upgrades shared?
+
+How are the upgrades more interesting than heroes?
+
+good points. Let's say that whenever a wave is fully defeated, an upgrade goes
+into the pool for a team. It's randomly selected. It's just a big treasure chest
+that has all the upgrades you've gathered. They can be dynamically re-assigned
+to each lane, but if a player wants to they can lock an upgrade in place so that
+their allies don't move it around - they've got a thing going, y'see. The allies
+can "ping" an upgrade to ask it to be unlocked, and if both of them do so then
+it automatically unlocks. Every once in a while, there's a "siege-surge" which
+is a silly name but whatever, and in this mode there's a continuous stream of
+units emitted from both bases instead of waves, and all the upgrades get put
+back into the pool. The players have to quickly re-assign them to re-create the
+strategies they were using, or create new ones quickly to throw off their foes.
+During a siege-surge, a player can't place an upgrade in the same lane twice in
+a row, to help ensure they don't just take ownership over a lane and go blind to
+what's happening in the others. At the end of the siege-surge, of which there
+are three over the course of a full game, the players gain a powerful boon that
+helps them overcome a challenge that appears. After the challenge, both teams
+get to keep their boon. This upgrade is applied to all three lanes at once. The
+challenge is a large, powerful monster that appears in the center lane, two of
+them, and each marches toward the opposite team's base. If they don't defeat it
+in time, well, game over, but the good news is all three lanes spawn their units
+in the center lane until the challenge is defeated.
+
+There's also a resource gained when units are slain that is personal to each
+player - these resources are used to spawn hero units that fight until they die.
+Each player selects a character to play as, their commander, and each one will
+have a different resource, like gold or mana. Some commanders might share a
+resource but that's just visual flair, it's mechanically the same thing. These
+resources are used to spawn hero units, which are strong powerful units that are
+chosen to walk down a lane and fight enemies. However at the junctions, when the
+path turns, they can be told to switch lanes. The player can configure this by
+clicking a sign-post in the world that points where the heroes will be routed to
+when they walk past. These hero units are unique to each commander character,
+and there's at least three per commander, ideally five. They behave like regular
+units so we better make sure that our unit AI is top notch.
+
+Each path has guard-towers, which deal damage to enemies and spawn guards that
+walk around in the area around the tower. If the tower is destroyed, the team
+that destroyed it gets three unit upgrades as a reward. There's two towers per
+lane, and three more in the base itself. The guards in the base will move to
+attack any invaders no matter which lane they came from, but the range on their
+arrows is such that they probably will only be able to hit the units that came
+from a single lane - it's just a radius around them.
+
+players are allowed to put all their upgrades in one lane. This is fine.
+
+There is a central building called a "library" and if it is destroyed, then the
+team that did so wins the game. There is one library per base, and it is placed
+behind the guard towers. It has about as much health as 1.5 guard towers. Each
+guard tower is the same strength, and some upgrades can be applied to the guard
+towers instead of the wave units. To do so, they slot them into one of the
+towers in the lane, and then all of the guard towers in that lane receive the
+effect of that upgrade. If an upgrade is slotted into a guard tower, then it
+also affects the three towers in the base - which means if the left flank is
+faltering enough that the enemy is in your base, and you have upgrades in the
+center and right guard towers, those upgrades will affect the guard tower that
+is covering the left side of the base as well as the center lane (for the
+upgrades slotted into the center lane's towers) and the right lane (for the
+upgrades slotted into the right lane's towers). However, upgrades cannot be
+slotted into the guard towers in the base itself - instead, you can slot them
+into the library, which will apply them to the base's guard towers only. This is
+rare and usually only occurs if all the lane towers are destroyed. Not ideal!
+
+Hero units are about as powerful as 2.5 wave units, but they have abilities
+while the wave units do not. A player can select a wave to spawn a unit on, and
+it will spawn immediately. Hero units can be spawned on any guard tower, unless
+enemy units are within a certain radius - then they have to be spawned one tower
+back. Units can also be spawned on the library, in which case they will pick the
+lane to move toward that has enemy units that are closest to the library - not
+in terms of distance as-the-crow-flies, but rather in terms of milestones thru
+the map - "this lane is past the first guard tower" is closer than "this lane
+we've pushed into their base" of course.
