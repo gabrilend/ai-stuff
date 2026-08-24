@@ -1,26 +1,53 @@
-# Issue 8-050b: Colour on Word Pages — Read the Stored Verdict, Rank by Relevance
+# Issue 8-050b: Colour on Word Pages — Select by Relevance, Present by Colour
 
 ## Priority
 Medium
 
 ## Current Behavior
 
-Each word page lists the poems closest in meaning to one word, in descending order
-of that closeness, and draws each poem's progress bar in that poem's semantic
-colour. The colour is **read** from the precomputed per-poem table; it is not
-re-derived at display time. Ordering and colour are independent: colour decorates
-the page, it does not decide who appears on it or in what order.
+Each word page selects the poems closest in meaning to one word, then arranges
+those poems so the seven semantic colours alternate down the page rather than
+arriving in clumps. Each poem's progress bar is drawn in its own colour, **read**
+from the precomputed per-poem table rather than re-derived at display time.
+
+Selection and presentation are separate concerns and stay that way: colour never
+decides *who* appears, only *where* on the page they appear.
+
+This is a word-page treatment only. The similar/different pages stay in strict
+similarity order.
 
 ## Intended Behavior
 
-Two rules, and the second is the one this issue exists to record.
+Three rules. The second and third are the ones this issue exists to record.
 
-### 1. The page is ordered by relevance and says so truthfully
+### 1. Selection is pure relevance
 
-The heading tells the reader the poems are ranked by semantic similarity, so they
-are. Slot 1 holds the best match. Nothing reorders the list after it is sorted.
+The top N by similarity, nothing displaced. An earlier version selected from a
+pool of 7N so that colour balancing could reach past the best matches for
+colour-diverse ones — a search for "god" surfaced unrelated poems as a result.
+The pool is exactly N now, and the arrangement step returns all N.
 
-### 2. A poem's colour comes from `poem_colors.json`, never from a fresh cosine
+### 2. Presentation spreads the colours across the whole page
+
+Not a round-robin. A round-robin deals one poem per colour per cycle, which
+drains the small buckets first and leaves the tail of the page a solid run of
+whatever colour was most plentiful.
+
+Instead, **stratified spacing**: the j-th of a colour's m poems is given a target
+position of `(j - 0.5) × N / m` — the midpoint of its share of the page — and the
+whole set is sorted by target. A colour holding 8 of 333 slots therefore appears
+about every 42 positions; one holding 131 appears about every 2.5. Neither
+clumps, at either end. Within a colour, the more relevant poem still comes first,
+and ties are broken by relevance so two builds of the same data agree.
+
+Measured on the word "linux" at N=333: seven distinct colours, longest run of a
+single colour is **3**, and slot 1 still holds the best match.
+
+Because the order is no longer strictly descending, the page heading says what it
+actually does — "the N poems closest in meaning to this word, arranged to spread
+the colours" — rather than claiming a ranking it does not present.
+
+### 3. A poem's colour comes from `poem_colors.json`, never from a fresh cosine
 
 The colour a poem carries is decided once, by the semantic colour calculator, and
 stored. Every consumer reads that stored verdict. A page that recomputes the
@@ -36,27 +63,36 @@ This is the substance of the issue, and it is measurable.
 
 Ranking the seven colour anchors by how close each one sits to the **average
 poem** reproduces, almost exactly, how often each one wins a raw nearest-cosine
-contest across the corpus:
+contest across the corpus. Measured on the selected model
+(`nomic-embed-text-v1.5`) — run `scripts/measure-embedding-spread` to refresh:
 
-| anchor | cosine to corpus mean | share of corpus won (raw) |
-|--------|----------------------|---------------------------|
-| purple | 0.9423 | 30.9% |
-| blue   | 0.9397 | 17.2% |
-| red    | 0.9391 | 20.4% |
-| yellow | 0.9378 | 14.6% |
-| gray   | 0.9369 | 5.8% |
-| green  | 0.9356 | 7.2% |
-| orange | 0.9332 | 3.9% |
+| anchor | cosine to average poem | share of corpus won (raw) |
+|--------|-----------------------|---------------------------|
+| purple | 0.9242 | **48.2%** |
+| yellow | 0.9129 | 16.2% |
+| green  | 0.9099 | 12.1% |
+| blue   | 0.9090 | 10.7% |
+| orange | 0.9051 | 5.4% |
+| gray   | 0.9026 | 3.1% |
+| red    | 0.8992 | 4.3% |
 
-A spread of 0.9% in "how generic is this anchor" produces an eightfold spread in
-how often it wins. Under raw nearness the contest is not about what a poem means;
-it is about which anchor happens to sit nearest the middle of everything. That is
-the same anisotropy the model imposes on every vector it produces, surfacing in a
-second place.
+The two columns rank the same way, with one adjacent swap. A spread of 0.025 in
+"how generic is this anchor" produces an elevenfold spread in how often it wins,
+and the single most generic anchor takes nearly half the corpus. Under raw
+nearness the contest is not about what a poem means; it is about which anchor
+happens to sit nearest the middle of everything — the same anisotropy the model
+imposes on every vector it produces, surfacing in a second place.
 
-The z-scored assignment removes it. The stored distribution across 8,510 poems is
-even — roughly 12% to 19% per colour — where raw nearness gives one colour a
-third of the corpus.
+The z-scored assignment removes it. The stored distribution is even — 12.1% to
+17.2% per colour — where raw nearness gives one colour nearly half.
+
+**A note on where these numbers come from.** The first set written into this
+document was measured against `assets/embeddings/embeddinggemma-300m/`, which is
+not the selected model; the build resolves `nomic-embed-text-v1.5`. The finding
+survived the correction and got stronger, but the lesson is that a hand-typed
+embeddings path is a trap. `scripts/measure-embedding-spread` resolves the model
+through the project's own selection for exactly that reason, and is the right way
+to refresh any figure in this document.
 
 `config.lua` already records the first half of this lesson, in the comment above
 `color_associations`: the *bare word* "red" embeds to a generic point that
@@ -66,50 +102,70 @@ than the colour word alone. The z-scoring is the second half of the same lesson.
 Good anchors are necessary and not sufficient; the comparison has to be
 standardised too.
 
-## Why the Colour Round-Robin Was Removed
+## What Changed From the Original Specification
 
-An earlier version of this issue specified a cumulative-similarity-balanced
-round-robin: bucket the top N poems by colour, then deal them back out choosing
-whichever colour had the lowest running total, so the page would show all seven
-colours spread evenly down its length. It was implemented, then walked back once
-(it had been allowed to *displace* strong matches with weaker colour-diverse
-ones — a "god" search surfaced unrelated poems), and has now been removed
-entirely. Two reasons:
+The original specification here was a *cumulative-similarity-balanced
+round-robin*: bucket the top N by colour, then deal them back out choosing
+whichever colour had the lowest running total of colour-similarity. Two things
+about it were wrong, and both are worth recording because the intent was right.
 
-**It made the page contradict its own heading.** Measured on the word "linux"
-with a 333-poem page: the 53rd-best match landed in slot 3, the 251st in slot 8,
-and the second-best match waited until slot 10. A reader told the list is ranked
-by similarity was reading something else.
+**It sorted on colours that were not the site's colours.** It re-derived each
+poem's colour by raw nearest cosine while the progress bar beside it was drawn
+from the stored z-scored verdict. The two disagreed on a third of any page. So
+the arrangement was spreading the page across a measurement of genericness, and
+doing it in colours the reader could not see. Reading the stored verdict fixes
+this, and is rule 3 above.
 
-**It sorted on colours that were not the site's colours.** The round-robin
-re-derived each poem's colour by raw nearest cosine while the progress bar beside
-it was drawn from the stored z-scored verdict. The two disagreed on 33% of a
-page. So the reorder was spreading the page across a measurement of genericness,
-and doing it in colours the reader could not see.
+**Its running total reintroduced the same bias.** The "cumulative" budget was
+accumulated from raw colour-similarity scores, which are precisely the quantity
+shown above to track genericness rather than meaning. Stratified spacing needs no
+budget at all — position is a function of bucket size, nothing else.
 
-The visual variety the round-robin was meant to produce survives without it: each
-bar is still drawn in its own poem's colour, and that colour is now the same one
-every other page type uses.
+A third problem was structural rather than numerical: a round-robin exhausts
+small buckets early, so the far end of a long page degenerates into a run of the
+most common colour. Stratified spacing has no tail behaviour because every
+colour's share is laid out across the full length from the start.
 
 ## Suggested Implementation Steps
 
-1. Rank every poem against the word by cosine similarity, sort descending, take
-   the top N. Show them in that order.
+1. Rank every poem against the word by cosine similarity (mean-centred — see
+   Issue 8-019's neighbour note and `scripts/measure-embedding-spread`), sort
+   descending, take the top N.
 2. Read `poem_colors.json` positionally — the array position **is** the
    `poem_index`; entries carry `color` and `similarity` but no index field.
-3. Pass the stored colour to the bar renderer. Do not load the colour anchors in
-   the page builder at all; the only routine that needs them is the one assigning
-   colours to **words**, which has no precomputed table to read from.
-4. Delete any bucket-and-deal selection step.
+3. Bucket the N by stored colour, preserving relevance order within each bucket.
+   A poem with no stored colour buckets as gray, because gray is what its bar
+   will render as; bucketing it anywhere else disperses on a colour nobody sees.
+4. Give the j-th of a colour's m poems a target position of `(j - 0.5) × N / m`,
+   sort by target, break ties by relevance. Return all N.
+5. Draw each bar from the site's shared palette, not a private copy — see the
+   palette note below.
+6. Do not load the colour anchors in the page builder. The only routine that
+   needs them is the one assigning colours to **words**, which has no
+   precomputed table to read from.
+
+### On the shared palette
+
+The bar colour is looked up by name in a hex table. That table must be the site's
+one palette, derived from `config.lua`'s `semantic_colors` and shared with the
+other page builders. The word page previously kept its own copy listing a generic
+spectrum — red, orange, yellow, green, cyan, blue, indigo, violet, gray — which
+are not the seven names the colour calculator assigns. `purple` was absent, so
+every purple poem fell through to a hardcoded `#888888` that was not even that
+table's gray, and purple is the largest stored bucket at 17.2%. About one poem in
+six on every word page rendered in an off-palette grey, and the remainder
+rendered in hexes no other page type used.
 
 ## Validation
 
 - The first poem on a word page is the highest-scoring poem for that word.
 - A poem's bar colour on a word page matches its colour on the chronological and
-  similar/different pages.
-- No colour appears on more than roughly a third of any page, because the stored
-  distribution is already even — but this is an observation, not a target to
-  enforce.
+  similar/different pages, and is one of the seven configured hexes — a bar
+  drawn `#888888` means a colour name is missing from the palette.
+- Colours alternate: the longest run of a single colour on a full page should be
+  small (measured at 3 for "linux" at N=333), and every colour present in the
+  selection should appear spread across the page rather than bunched.
+- The page heading describes an arrangement, not a strict ranking.
 
 ## Related Documents
 

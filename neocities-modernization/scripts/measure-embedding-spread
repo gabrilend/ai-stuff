@@ -1,0 +1,314 @@
+#!/usr/bin/env luajit
+-- {{{ measure-embedding-spread
+-- Reports how much of each embedding is shared with every other embedding, how
+-- generic each colour anchor is, and which poems the current model has not
+-- embedded at all.
+--
+-- General description (for a CEO): the machine that turns writing into numbers
+-- has a habit -- almost everything it produces points the same direction,
+-- regardless of what was written. This measures how strong that habit is, so
+-- that the corrections built on top of it can be checked rather than trusted,
+-- and so the figures quoted in the source comments can be refreshed instead of
+-- going quietly stale after a model change.
+--
+-- It resolves the model the SAME way the build does, through the project's own
+-- configuration. That is deliberate and is the main reason this exists as a
+-- tool: the numbers first written into the source comments were measured by
+-- reading an embeddings directory by name, and it was not the selected model's
+-- directory. Reading the selection rather than typing a path removes that whole
+-- class of mistake.
+--
+-- Usage:
+--   scripts/measure-embedding-spread                 # the selected model
+--   scripts/measure-embedding-spread /some/project   # a different project root
+--   scripts/measure-embedding-spread --model NAME    # force a model directory
+--
+-- What each section answers:
+--   [1] Is cosine similarity mostly measuring meaning, or mostly measuring the
+--       direction every vector already shares?
+--   [2] Do the colour anchors win by meaning, or by sitting near the average?
+--   [3] Does the stored (z-scored) colour verdict come out balanced?
+--   [4] Which poems does this model have no embedding for?
+-- }}}
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+local forced_model = nil
+do
+    local i = 1
+    while i <= #arg do
+        local a = arg[i]
+        if a == "--model" then
+            forced_model = arg[i + 1]; i = i + 2
+        elseif a:match("^%-%-model=") then
+            forced_model = a:match("^%-%-model=(.+)$"); i = i + 1
+        elseif a:sub(1, 1) ~= "-" then
+            DIR = a; i = i + 1
+        else
+            i = i + 1
+        end
+    end
+end
+
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+local utils = require("utils")
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local unified_config = config_loader.load()
+utils.init_assets_root({})
+
+local base = forced_model
+    and (DIR .. "/assets/embeddings/" .. forced_model)
+    or utils.embeddings_dir()
+
+print("model directory: " .. base)
+if not forced_model then
+    print("  (resolved through the project's model selection, not typed by hand)")
+end
+print("")
+
+local ffi = require("ffi")
+
+-- {{{ local function read_vectors
+-- Streams the embedding arrays out of a JSON file without building a Lua table
+-- per number. A general JSON decode of a 100MB+ file spends its whole runtime on
+-- bookkeeping this tool does not need; the numbers go straight into FFI doubles.
+local function read_vectors(path, dims_out)
+    local f = io.open(path, "rb")
+    if not f then return nil, "cannot open " .. path end
+    local raw = f:read("*a")
+    f:close()
+
+    local first = raw:match('"embedding":%[([^%]]*)%]')
+    if not first then return nil, "no embeddings found in " .. path end
+    local dims = 0
+    for _ in first:gmatch("[^,]+") do dims = dims + 1 end
+    dims_out.dims = dims
+
+    local vecs, idxs = {}, {}
+    for body, pi in raw:gmatch('"embedding":%[([^%]]*)%].-"poem_index":(%d+)') do
+        local v = ffi.new("double[?]", dims)
+        local k = 0
+        for num in body:gmatch("[^,]+") do
+            v[k] = tonumber(num); k = k + 1
+            if k >= dims then break end
+        end
+        vecs[#vecs + 1] = v
+        idxs[#idxs + 1] = tonumber(pi)
+    end
+
+    -- The pattern above pairs each vector with the poem_index that FOLLOWS it.
+    -- An entry that orders its fields differently is skipped, and a skipped entry
+    -- would quietly shrink the coverage report -- turning "this poem has no
+    -- embedding" into a statement about this parser rather than about the data.
+    -- Count the arrays independently and say so when the two disagree.
+    local present = select(2, raw:gsub('"embedding":%[', ""))
+    if present ~= #vecs then
+        dims_out.unparsed = present - #vecs
+        dims_out.present = present
+    end
+    return vecs, idxs
+end
+-- }}}
+
+-- {{{ vector helpers
+local function norm(v, d)
+    local s = 0
+    for i = 0, d - 1 do s = s + v[i] * v[i] end
+    return math.sqrt(s)
+end
+
+local function cosine(a, b, d)
+    local dot, na, nb = 0, 0, 0
+    for i = 0, d - 1 do
+        dot = dot + a[i] * b[i]; na = na + a[i] * a[i]; nb = nb + b[i] * b[i]
+    end
+    if na == 0 or nb == 0 then return 0 end
+    return dot / (math.sqrt(na) * math.sqrt(nb))
+end
+
+local function mean_vector(list, d)
+    local m = ffi.new("double[?]", d)
+    for i = 0, d - 1 do m[i] = 0 end
+    for _, v in ipairs(list) do
+        for i = 0, d - 1 do m[i] = m[i] + v[i] end
+    end
+    for i = 0, d - 1 do m[i] = m[i] / #list end
+    return m
+end
+-- }}}
+
+local meta = {}
+local pvecs, pidxs = read_vectors(base .. "/embeddings.json", meta)
+if not pvecs then
+    io.stderr:write("measure-embedding-spread: " .. tostring(pidxs) .. "\n")
+    os.exit(1)
+end
+local D = meta.dims
+local pmean = mean_vector(pvecs, D)
+local pavg = 0
+for _, v in ipairs(pvecs) do pavg = pavg + norm(v, D) end
+pavg = pavg / #pvecs
+
+print("[1] SHARED DIRECTION")
+print(string.format("  poems: %d vectors, %d dims", #pvecs, D))
+print(string.format("  mean vector length %.4f / average vector length %.4f = %.3f",
+    norm(pmean, D), pavg, norm(pmean, D) / pavg))
+print("  (a ratio near 1.0 means every vector points essentially the same way,")
+print("   and cosine similarity is mostly measuring that rather than meaning)")
+
+-- Single words: a different population of text entirely. If they share the same
+-- direction, the habit belongs to the model and not to the poems.
+do
+    local wf = io.open(base .. "/word_embeddings.json", "rb")
+    if wf then
+        local raw = wf:read("*a"); wf:close()
+        local wvecs, taken = {}, 0
+        for _, body in raw:gmatch('"([%w_%-]+)":%[([^%]]*)%]') do
+            taken = taken + 1
+            -- Sample rather than load all of them; the ratio is stable well
+            -- before the full set and the file is ~100MB.
+            if taken % 7 == 0 and #wvecs < 1200 then
+                local v = ffi.new("double[?]", D)
+                local k = 0
+                for num in body:gmatch("[^,]+") do
+                    v[k] = tonumber(num); k = k + 1
+                    if k >= D then break end
+                end
+                wvecs[#wvecs + 1] = v
+            end
+        end
+        if #wvecs > 0 then
+            local wmean = mean_vector(wvecs, D)
+            local wavg = 0
+            for _, v in ipairs(wvecs) do wavg = wavg + norm(v, D) end
+            wavg = wavg / #wvecs
+            print(string.format("  single words (%d sampled): %.4f / %.4f = %.3f",
+                #wvecs, norm(wmean, D), wavg, norm(wmean, D) / wavg))
+            print(string.format("  poem-mean vs word-mean: cos = %.4f", cosine(pmean, wmean, D)))
+            print("  (words carrying MORE shared direction than poems is why the")
+            print("   word pages centre before comparing and the poem-to-poem pages do not)")
+        end
+    else
+        print("  word_embeddings.json absent -- word-vs-poem comparison skipped")
+    end
+end
+
+print("")
+print("[2] COLOUR ANCHORS -- genericness vs raw win share")
+local COLORS = unified_config.color_names
+    or {"red", "blue", "green", "purple", "orange", "yellow", "gray"}
+do
+    local cf = io.open(base .. "/color_embeddings.json", "rb")
+    if not cf then
+        print("  color_embeddings.json absent -- skipped")
+    else
+        local raw = cf:read("*a"); cf:close()
+        local cvec = {}
+        for _, c in ipairs(COLORS) do
+            local b = raw:match('"' .. c .. '":%[([^%]]*)%]')
+            if b then
+                local v = ffi.new("double[?]", D)
+                local k = 0
+                for num in b:gmatch("[^,]+") do
+                    v[k] = tonumber(num); k = k + 1
+                    if k >= D then break end
+                end
+                cvec[c] = v
+            end
+        end
+        local wins = {}
+        for _, c in ipairs(COLORS) do wins[c] = 0 end
+        for _, v in ipairs(pvecs) do
+            local best, bs = nil, -2
+            for _, c in ipairs(COLORS) do
+                if cvec[c] then
+                    local s = cosine(cvec[c], v, D)
+                    if s > bs then bs, best = s, c end
+                end
+            end
+            if best then wins[best] = wins[best] + 1 end
+        end
+        local rows = {}
+        for _, c in ipairs(COLORS) do
+            if cvec[c] then
+                rows[#rows + 1] = { c = c, north = cosine(cvec[c], pmean, D), w = wins[c] }
+            end
+        end
+        table.sort(rows, function(a, b) return a.north > b.north end)
+        print("  colour    cos-to-average-poem   raw-nearest wins")
+        for _, r in ipairs(rows) do
+            print(string.format("  %-9s %.4f %17d (%.1f%%)",
+                r.c, r.north, r.w, 100 * r.w / #pvecs))
+        end
+        print("  (if these two columns rank the same way, raw nearest-cosine is")
+        print("   choosing by genericness, not by meaning -- which is why the")
+        print("   stored verdict is z-scored before a colour is assigned)")
+    end
+end
+
+print("")
+print("[3] STORED (z-scored) COLOUR DISTRIBUTION")
+do
+    local sf = io.open(base .. "/poem_colors.json", "rb")
+    if not sf then
+        print("  poem_colors.json absent -- skipped")
+    else
+        local raw = sf:read("*a"); sf:close()
+        local dist, total = {}, 0
+        for c in raw:gmatch('"color":"(%a+)"') do
+            dist[c] = (dist[c] or 0) + 1; total = total + 1
+        end
+        print(string.format("  %d entries", total))
+        for _, c in ipairs(COLORS) do
+            local n = dist[c] or 0
+            print(string.format("  %-9s %6d (%.1f%%)", c, n, total > 0 and 100 * n / total or 0))
+        end
+        print("  (an even spread here is the z-score doing its job; a colour")
+        print("   taking a third or more means the correction is not being applied)")
+    end
+end
+
+print("")
+print("[4] CORPUS COVERAGE")
+do
+    local poems = utils.read_json_file(utils.asset_path("poems.json"))
+    if not poems or not poems.poems then
+        print("  poems.json unreadable -- skipped")
+    else
+        local have = {}
+        local maxi = 0
+        for _, pi in ipairs(pidxs) do
+            have[pi] = true
+            if pi > maxi then maxi = pi end
+        end
+        local missing_by_cat, missing_total = {}, 0
+        for _, p in ipairs(poems.poems) do
+            if p.poem_index and not have[p.poem_index] then
+                local c = p.category or "unknown"
+                missing_by_cat[c] = (missing_by_cat[c] or 0) + 1
+                missing_total = missing_total + 1
+            end
+        end
+        print(string.format("  poems in collection: %d", #poems.poems))
+        print(string.format("  poems with an embedding: %d", #pidxs))
+        print(string.format("  highest embedded poem_index: %d", maxi))
+        if meta.unparsed then
+            print(string.format("  WARNING: %d of %d embedding arrays could not be paired with a",
+                meta.unparsed, meta.present))
+            print("           poem_index by this tool's reader -- the counts below may")
+            print("           overstate the gap by that many. Inspect embeddings.json.")
+        end
+        if missing_total == 0 then
+            print("  every poem is embedded")
+        else
+            print(string.format("  NOT EMBEDDED: %d -- these can never appear on any page", missing_total))
+            local names = {}
+            for c in pairs(missing_by_cat) do names[#names + 1] = c end
+            table.sort(names)
+            for _, c in ipairs(names) do
+                print(string.format("    %-18s %d", c, missing_by_cat[c]))
+            end
+            print("  (regenerate embeddings to close this gap)")
+        end
+    end
+end

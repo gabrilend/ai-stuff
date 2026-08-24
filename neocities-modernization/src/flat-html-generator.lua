@@ -84,16 +84,41 @@ local MOCK_POEM_COLORS = {
     [4624] = "green" -- Hope/future themes
 }
 
--- Color configuration for progress bars
-local COLOR_CONFIG = {
-    red = "#dc3c3c",
-    blue = "#3c78dc",
-    green = "#3cb45a",
-    purple = "#8c3cc8",
-    orange = "#e68c3c",
-    yellow = "#c8b428",
-    gray = "#787878"
-}
+-- {{{ COLOR_CONFIG -- the site's one progress-bar palette
+-- Derived from config.lua's semantic_colors rather than restated, so the hex a
+-- bar is drawn in and the hex the colour is DEFINED as cannot drift apart.
+--
+-- It is also exported (below), because the word-page generator kept its own
+-- palette and that palette was wrong in a way nobody could see: it listed
+-- red/orange/yellow/green/cyan/blue/indigo/violet/gray -- names from a generic
+-- spectrum, not the seven semantic colour names this project actually assigns.
+-- "purple" was absent, so every purple poem fell through to a hardcoded #888888
+-- that is not even this palette's gray. Purple is the LARGEST bucket in the
+-- stored distribution (17.2% of the corpus), so roughly one poem in six on every
+-- word page was rendering in an off-palette grey, and the rest were rendering in
+-- a different set of hexes from the chronological and similar/different pages.
+--
+-- One table, read from config, shared by every renderer.
+local COLOR_CONFIG = {}
+do
+    local semantic = unified_config.semantic_colors
+    if not semantic then
+        error("config.lua is missing semantic_colors -- there is no palette to draw bars with")
+    end
+    for name, spec in pairs(semantic) do
+        -- Each entry is { rgb = {...}, hex = "#rrggbb", name = "..." }. The hex is
+        -- what the renderers want; a missing one is a config error, not something
+        -- to paper over with a default, because a silently substituted colour is
+        -- indistinguishable from a correctly-assigned one.
+        if type(spec) ~= "table" or not spec.hex then
+            error(string.format("config.lua semantic_colors.%s has no hex value", tostring(name)))
+        end
+        COLOR_CONFIG[name] = spec.hex
+    end
+end
+-- Exported so the word-page generator draws from the same table (see above).
+M.COLOR_CONFIG = COLOR_CONFIG
+-- }}}
 
 -- Issue 8-057: Boost visual formatting color scheme
 -- Based on /notes/boost post image style.png design reference
