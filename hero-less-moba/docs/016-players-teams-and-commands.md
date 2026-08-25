@@ -179,7 +179,7 @@ everything downstream follows through the normal path.
 ### Presence — every player's cursor, continuously
 
 Each player's mouse position is synced to their **teammates**. This is a few
-bytes and it is not a nicety: it is one of the five verbs a team has for talking
+bytes and it is not a nicety: it is one of the six verbs a team has for talking
 about the chest, and one of the two that are involuntary. A cursor hovering over
 an upgrade says *I am about to touch this*, before anybody has committed to
 anything. Expect teams to lock less because of it, since most of what a lock

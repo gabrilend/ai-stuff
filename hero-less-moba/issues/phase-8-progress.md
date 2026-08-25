@@ -14,6 +14,7 @@ lobby to library, on separate machines, recorded and replayed.
 | 803 | A bot that places upgrades | not started |
 | 804 | Ten thousand matches overnight | not started |
 | 805 | A full match, end to end — **capstone** | not started |
+| 806 | Three people can finally talk | not started |
 
 **Blocking:** nothing.
 

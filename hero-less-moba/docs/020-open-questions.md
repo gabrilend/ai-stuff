@@ -1519,7 +1519,7 @@ to find — and the entry here names what it supersedes. When the two disagree,
 Superseded by this group: **A6, A6b, A6b-i, A18** in part, **D3** in part,
 **D4** in part, **E2c**, **B4**, and the boon arithmetic in **A8** and **A15**.
 
-## F1. Are a tower's guards stamped with its upgrades, or do they read live? — **ANSWERED**
+## F1. Are a tower's guards stamped with its upgrades, or do they read live? — **ANSWERED, then SUPERSEDED by F23**
 
 **Answer: they read live. Nothing about a guard is stamped.**
 
@@ -2265,6 +2265,142 @@ not.
 
 Nothing is blocked. The catalogue is not written yet and the affinity field can
 be added to it whichever way this goes.
+
+## F23. Stamped or read live? — **ANSWERED, and it reverses F1**
+
+**Answer: everything is stamped. Nothing is ever read through a reference. When
+the source changes, the affected bodies are cleared and re-stamped by an explicit
+sweep.**
+
+F1 said guards read their tower live. That is withdrawn. The reasoning there —
+that a guard belongs to something standing still, so reading through costs one
+indirection — was true and beside the point. What it bought was the ability to
+change your mind; what it cost was a reference in the swing path, and this design
+has spent a great deal of effort making sure the swing path touches nothing but
+the body's own slot.
+
+So the rule is one rule for every flavour:
+
+> **Clear, then re-stamp.** A body's upgrade counts are a copy it owns. When the
+> thing it was copied from changes, every affected body has its vector **cleared
+> and rebuilt from the current truth** — not patched, not adjusted, rebuilt.
+
+Three moments trigger a sweep, and only three:
+
+| When | Which bodies |
+| --- | --- |
+| An upgrade arrives at or leaves a **lane's towers** — at a wave spawn, not the instant it is queued | every guard in that lane |
+| A **boon is chosen** | every living body that team owns; during a calm that is the heroes waiting at the library and nothing else |
+| A body **spawns** | that body, from its lane or its tower, plus its team's boons |
+
+**Wave units are never swept**, which is not an exception to the rule but the
+point of it: a wave unit keeps what it was born with, an upgrade leaving a lane
+does not weaken the soldiers already walking in it, and that delay is what makes
+a placement a bet worth arguing about.
+
+**Guards are swept and wave units are not.** Both call sites want a comment,
+because each looks like a bug from the other one. The difference is that a wave
+unit walks away from its lane and dies somewhere else, while a guard stands at
+the thing it copied from for its entire life — so a guard whose tower has changed
+and whose vector has not is a visible lie, and a wave unit whose lane has changed
+is a design feature.
+
+### Why rebuild rather than adjust
+
+An incremental adjustment has to know what changed, apply the delta, and be
+correct about the order things happened in. A rebuild reads the current state and
+writes it. The first is faster and drifts; the second is slower and cannot.
+Sweeps happen at wave spawns and at boon picks — a handful of times a minute at
+most, over the bodies in one lane — so the slower one is free.
+
+The general shape, which belongs in `strategems/`: **copy at the boundary, and
+when the boundary moves, recopy everything downstream of it rather than trying to
+remember what the difference was.**
+
+**Changed:** [004](004-a-unit-and-what-it-carries.md), [007](007-guard-towers-and-their-guards.md), [009](009-the-shared-upgrade-pool.md), [010](010-upgrades-slotted-into-stone.md), [006](006-combat-and-damage.md), F1, issues 303, 405, 605.
+
+## F24. What does a hero do while it waits? — **ANSWERED**
+
+**Answer: a sixth brain state, and it is the only place in the game with room for
+personality.**
+
+A17 established that a hero bought during the calm exists, stands at the library,
+and marches out when spawning resumes. That needs a state, and the state is a new
+one — the brain is six states, not five, and issue 203's title is now slightly
+wrong.
+
+The deliberate asymmetry, which is worth a comment: **walking home at the start of
+a calm is not a state.** It reuses leashing, with the leash set to the team's own
+library. Leaving the map is something the brain already knows how to do. Standing
+still with intent is not.
+
+**What a waiting hero should do: meander, idle, and turn to look at the other
+bodies standing near it.** None of it may touch the world, none of it is
+mechanical, and none of it may be skipped for being decoration. This is the only
+moment in the entire match when a body a player paid for is visible, alive, and
+has nothing at stake — every other second of a hero's life it is walking toward
+something or dying to it. If a player is ever going to feel anything about a body
+rather than about the decision that bought it, it is here, in the thirty seconds
+before it walks out.
+
+**Changed:** [004](004-a-unit-and-what-it-carries.md), [012](012-hero-units.md), issues 203, 503, 605.
+
+## F25. What does the Golem do to what it walks into? — **OPEN**
+
+The shape is settled and the specifics are not.
+
+**Settled:** it kills melee and ranged bodies differently. Anything that closed to
+swinging distance is **grabbed and crushed**. Anything standing off is answered
+**at range** — something thrown, or something worse. The point of the split is
+that there is no distance at which a team farms it safely: close is lethal and
+back is not safe either, which is what makes sustaining the damage check hard,
+because the bodies doing the damage keep dying.
+
+**Not settled:** what the ranged answer actually is. Thrown debris, a beam, a
+shockwave along the lane. This is one of the few places in the design where the
+answer is aesthetic before it is mechanical, and it is the last thing anybody
+sees before a match ends, so it is worth more than a shrug.
+
+Whatever it is, it wants to obey the existing rules: an entry in the ability
+dispatch table, firing on a condition, writing into the same pending-damage
+buffer as an ordinary swing.
+
+## F26. What does a chat channel do to the argument for locks? — **OPEN**
+
+Created by the decision to build one (issue 806), and worth watching rather than
+pre-empting.
+
+[The shared upgrade pool](009-the-shared-upgrade-pool.md) introduces the lock and
+objection system with the line **"three people share one chest and mostly cannot
+talk about it in words."** That was true and is now a design decision that was
+reversed. The immediate cause was the boon pick — the one moment where nothing
+being decided is on the board yet, so all five verbs are useless and a team has
+to coordinate blind.
+
+The question is what the lock system is *for* once words exist.
+
+The answer that looks right, and it should be written down and then tested
+against people: **chat is persuasion, a lock is enforcement.** A message asks; a
+lock refuses. A lock persists without anyone remembering it, works on a teammate
+who was not reading, and cannot be argued with in the moment. None of that is
+true of a sentence.
+
+If that holds, a team that talks well locks less, and the lock becomes what it
+was always described as — *"I am doing something here"* said to somebody who did
+not ask — rather than the only channel that existed.
+
+What would falsify it: locks going unused entirely, or the two-objection rule
+never firing because disputes get settled in text before anybody objects. Either
+would mean the negotiation layer was carrying communication rather than
+enforcement, and that a chunk of phase 4 exists to route around a missing feature.
+
+The opposite failure is also possible and is worth naming: **chat becoming the
+whole game**, with the board reduced to executing what was agreed in text. That
+would be a different game from the one described here, where a placement is a
+statement and a lock is an argument.
+
+Issue 804's numbers cannot see any of this. It is a question about six people in
+a room, and it gets answered the first time six people are in one.
 ---
 
 ## How this list is meant to be used

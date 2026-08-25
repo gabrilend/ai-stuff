@@ -16,7 +16,7 @@ shows them. Refused commands vanish.
 ## Intended behavior
 
 Three people share one chest and mostly cannot talk about it in words. Everything
-they can say to each other is five verbs — the canonical list is in
+they can say to each other is six verbs — the canonical list is in
 [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md):
 
 | | Says | Opt-in? | Drawn by |
@@ -51,7 +51,7 @@ from the lock verb, which is now **object**; the reasoning is in
 
 It does **not** replace the synced cursor. A cursor is always somewhere and
 therefore never means anything by being somewhere; **a ping is the deliberate,
-persistent version.** It is also the only one of the five verbs not about the
+persistent version.** It is also the only one of the six verbs not about the
 chest.
 
 ### Refusals

@@ -13,16 +13,42 @@ a view of it.
 Every time this split exists, a bug has a side, and the search space halves. Every
 time it does not, a wrong pixel and a wrong rule look identical.
 
-## Stamp once, read many.
+## Copy at the boundary. Never hold a reference across it.
 
-A soldier's upgrades are copied in at spawn and never re-read. A tower's are read
-live, because a tower is rare and long-lived while a soldier is common and brief.
-The rule generalises: **copy at the boundary between something that changes
-rarely and something that is read constantly.**
+Every body in this game carries its own copy of what modifies it. Nothing in the
+swing path dereferences a lane, a tower, or a team record to find out how strong
+something is. **Copy at the boundary between something that changes rarely and
+something that is read constantly**, and then let the fast side touch only itself.
 
 The design consequence -- a placement takes effect one wave later -- was an accident
 of the performance decision and turned out to be the mechanism that makes
 placements worth arguing about. Look for that. Fast and right often agree.
+
+### And when the boundary moves, recopy. Do not adjust.
+
+An earlier version of this note said "stamp once, read many," with a carve-out
+for towers, which were read live because they are rare and long-lived. That
+carve-out was withdrawn: it put a reference back into the hot path to buy
+something that a sweep buys for free.
+
+The rule that replaced it: **when a source changes, clear every copy downstream
+of it and rebuild from the current truth.** Not patch, not apply a delta --
+clear and rebuild. An incremental adjustment has to know what changed, apply the
+difference, and be right about the order things happened in; a rebuild reads what
+is true now and writes it. The first is faster and drifts. The second is slower
+and cannot.
+
+It is only affordable because the sources change rarely -- a placement, a boon
+pick -- and the copies downstream of any one source are few. Check that before
+reaching for this, because the same pattern over a source that changes every tick
+is the slowest thing in the program.
+
+The exception is deliberate and worth stating wherever it appears: **some copies
+are never corrected on purpose.** A wave unit keeps what it was born with even
+after the lane changes, because the delay is the mechanic. A stale copy that
+somebody chose is a feature; a stale copy that nobody chose is the bug this
+pattern exists to prevent, and the two look identical in the source. Comment
+both.
 
 ## A small integer beats a measurement.
 

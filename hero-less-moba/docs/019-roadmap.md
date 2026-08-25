@@ -8,8 +8,10 @@ turns out to be heavier than expected.
 
 The ordering rule: **lower numbers are more foundational**, not earlier in time.
 A phase-6 issue has more blockers standing in front of it than a phase-2 issue.
-The final issue of phase 8 is the capstone — a full match, six players, start to
-finish.
+Issue 805 is the capstone — a full match, six players, start to finish. It is not
+the highest number in phase 8 and does not need to be; numbers rise with how much
+has to be standing before an issue can be built, and 806 arrived later in time
+while resting on less.
 
 Each phase ends with a **demo** in `issues/completed/demos/`, runnable from a
 script at the project root that asks which phase you want to see. The demos are
@@ -177,6 +179,7 @@ times to find out whether any of it is balanced.
 | 803 | A bot that places upgrades |
 | 804 | Ten thousand matches overnight |
 | 805 | A full match, end to end — **capstone** |
+| 806 | Three people can finally talk |
 
 ---
 

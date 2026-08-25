@@ -308,11 +308,11 @@ lock or an objection, it is **not opt-in.** You cannot move an upgrade quietly.
 Your teammates get a wave's notice, which is exactly enough time to say something
 about it.
 
-### The five verbs of the team's conversation
+### The six verbs of the team's conversation
 
-Three people share one chest and mostly cannot talk about it in words. Everything
-they can say to each other is in this table, and it is worth keeping the list
-short and the meanings distinct.
+Three people share one chest, and almost everything they say about it they say by
+doing something to it. Everything they can say to each other is in this table,
+and it is worth keeping the list short and the meanings distinct.
 
 | | Says | Opt-in? | Costs |
 | --- | --- | --- | --- |
@@ -321,15 +321,33 @@ short and the meanings distinct.
 | **Cursor** | *I am about to touch this.* | **no** — always on | nothing |
 | **Marked-to-move** | *This is going there.* | **no** — automatic | a wave |
 | **Ping** | *Look at this place.* | yes | rate-limited |
+| **Chat** | *anything at all* | yes | rate-limited; team only |
 
-Two of the five are involuntary, and those two are the load-bearing ones. A
+Two of the six are involuntary, and those two are the load-bearing ones. A
 player's cursor is synced continuously and a placement announces itself for a
 whole wave, which together mean **you can see a teammate reaching for something
 before they touch it, and see what they did for a wave after.** Locks and
 objections are for the cases that survive all that visibility and still need
 settling.
 
-A ping is the only one of the five that is not about the chest at all.
+A ping is the only one of the six that is not about the chest at all.
+
+**Chat is the newest and the one that changes the others.** An earlier draft of
+this document opened this section with *"three people share one chest and mostly
+cannot talk about it in words,"* and built the lock system partly on that. Words
+exist now — see issue 806 — and they arrived because of a specific hole: **when a
+boon is chosen, nothing being decided is on the board yet**, so all five of the
+other verbs are useless and a team has to coordinate blind.
+
+The distinction to hold on to, because the whole negotiation layer rests on it
+now: **chat is persuasion, a lock is enforcement.** A message asks. A lock
+refuses. A lock persists without anybody remembering it, works on a teammate who
+was not reading, and cannot be argued with in the moment; a sentence is none of
+those things. **A team that talks well will lock less**, and that is the system
+working rather than the system being redundant.
+
+Whether that survives six people in a room is
+[open questions](020-open-questions.md), F26.
 
 ### A move can be called back, freely, until it lands
 

@@ -58,19 +58,27 @@ soldiers with no purpose, and cleaning them up is cleaner than explaining them.
 
 ## Settled
 
-**A guard is not stamped. It reads its tower, live** — `tower_count[lane]` for a
-lane tower, `base_tower_count` for a base tower. When an upgrade arrives at that
-tower the guards standing there have it; when it leaves, they do not.
+**A guard is stamped, like everything else — and unlike a wave unit, it is
+re-stamped when its tower changes.** It carries its own copy of
+`tower_count[lane]`, or `base_tower_count` for a base tower. Nothing in the swing
+path holds a reference to a tower.
 
-This is the **only** place in the combat loop where a body's modifiers are a
-lookup rather than a copy taken at birth, and it needs a comment saying why:
-every other soldier is brief and common and gets stamped, but a guard belongs to
-something that stands still for the whole match, so reading through costs one
-indirection and buys the ability to change your mind.
+**Clear, then re-stamp.** When an upgrade arrives at or leaves a lane's towers,
+every guard in that lane has its counts **cleared and rebuilt from what the tower
+now holds** — not patched with a delta. A rebuild from current truth cannot
+drift; an incremental adjustment can, and will, in whichever direction nobody
+wrote a test for. Sweeps are rare and small, so the slower one is free.
 
 **The switch happens at a wave spawn.** An upgrade queued to move somewhere else
 keeps applying where it is until the next wave spawns, then moves; the guards at
-both ends change together, on the same instant that stamps the outgoing wave.
+both ends are swept on that same tick, which is also the instant that stamps the
+outgoing wave.
+
+**A wave unit is never swept and a guard always is**, and both call sites want a
+comment, because from either one the other looks like a bug. A wave unit walks
+away from its lane; a guard stands at its tower for life, so a guard whose tower
+changed and whose numbers did not is something a player can see and be right to
+call broken.
 
 **During a siege-surge a tower has nothing on it**, so its guards have nothing
 either, and no new guards are produced at all.
