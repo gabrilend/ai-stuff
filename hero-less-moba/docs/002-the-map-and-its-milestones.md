@@ -87,6 +87,33 @@ its upgrades into the top lane is playing a game about *quality*, because the to
 lane will only ever let three of them fight. A team that has stacked the center
 is playing a game about *quantity*.
 
+### Which lane is the wide one, when there is no middle
+
+The lane count follows the team size, so a map does not always have a middle
+lane to widen. **The builder picks the innermost lane; when there are two
+innermost lanes, it assigns one to each team, mirrored.** *Settled; see
+[open questions](020-open-questions.md), F20.*
+
+| Lanes | The wide one |
+| --- | --- |
+| 1 | that lane, shared |
+| 2 | one each, opposite |
+| 3 | the middle lane, shared |
+| 4 | the two interior lanes, one each, opposite |
+| 5 | the middle lane, shared |
+
+Assigning one to each team does **not** introduce an asymmetry, which was the
+worry: rotate the field half a turn and it is the same field, which is the only
+symmetry this design has ever needed. Both teams have a wide lane and neither has
+an advantage — they simply have different ones.
+
+What it does change is the endgame. On an odd map both challenge monsters walk
+the same corridor in opposite directions, past each other, never meeting. On an
+even map **each team's monster walks its own lane**, which is two separate sieges
+rather than one shared corridor. That is a different-feeling match, and it is a
+reason 3v3 is the shape the prototype is balanced against rather than merely its
+default size.
+
 The width feeds two things and nothing else: how many bodies the frontline queue
 lets stand abreast (see
 [a unit and what it carries](004-a-unit-and-what-it-carries.md)), and how wide

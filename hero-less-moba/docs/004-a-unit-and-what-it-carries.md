@@ -13,10 +13,38 @@ The four flavours differ only in the values in their fields:
 
 | Flavour | How it differs |
 | --- | --- |
-| **wave unit** | The baseline. Ability slot empty. Spawned by wave or surge timers. |
+| **wave unit** | The baseline. Ability slot empty. Spawned by wave or surge timers. **Three archetypes** — see below. |
 | **hero unit** | Roughly 2.5× a wave unit's combat weight, carries abilities, obeys **one** sign-post in its life and then goes straight on forever after, bought with personal resource. |
 | **guard** | Spawned by a guard tower. Patrols near its tower instead of walking the lane, and will not leave its leash. |
 | **challenge monster** | Very large numbers, walks the centre lane, ignores everything a normal soldier would stop for. On its own third team, hostile to both sides, and assigned to whichever team it is a test for. |
+
+### A wave is three kinds of body
+
+`flavour = 1` covers three archetypes, and a wave contains all of them.
+*Settled; see [open questions](020-open-questions.md), F22.*
+
+| | Health | Damage | Reach |
+| --- | --- | --- | --- |
+| **melee** | 1× | 1× | a small nonzero number |
+| **ranged** | 1× | 1× | stands off |
+| **captain** | **2.5×** | **1.5×** | melee *or* ranged, depending on the captain |
+
+All three are ordinary wave units with different rows in the unit catalogue, all
+three spawn with the wave, and **all three are stamped with the lane's
+upgrades** — which is what separates a captain from a hero. A hero is roughly
+2.5× combat weight with abilities and **no lane upgrades, ever**. A captain is
+2.5× health and 1.5× damage *plus* everything sitting in its lane.
+
+So in a lane carrying a dozen upgrades the captain walking out of it is enormous
+and the hero beside it is not. That is not an oversight — it is the chest economy
+out-scaling the wallet economy in a lane somebody committed to, which is the
+right relationship, since the chest is the slow accumulating layer and should win
+a long game. What a hero brings instead is **abilities and timing**: it arrives
+where and when you choose, and does something a wave unit cannot do at all.
+
+The reach difference is the part with teeth. **Ranged bodies stop further back
+than melee bodies**, which the frontline queue at the end of this document was
+not written for. See issue 206.
 
 Having one body type is a design constraint with teeth: any behaviour worth
 giving a hero has to be expressible as a field on the common record, which keeps
@@ -232,6 +260,31 @@ fights, the ranks behind stack up along the lane and step forward as the front
 rank dies. This is what makes a wave read as a *wave* rather than a smear, and
 it is what makes a lane upgrade legible — a stronger front rank visibly holds
 its ground while the enemy queue backs up.
+
+### Ranged bodies do not queue
+
+**A rank is a melee thing.** *See [open questions](020-open-questions.md), F22.*
+The rule above was written when every body wanted the same place — the front —
+and everything behind was waiting its turn to get there. A ranged body does not
+want the front and never did.
+
+So the queue has two behaviours rather than one:
+
+- **Melee bodies form the rank.** Front rank fights, the ones behind stop short
+  and step forward as it thins. Unchanged.
+- **Ranged bodies hold at their own reach behind the rank** and shoot over it.
+  They are not queuing for a place they will eventually take, so treating them as
+  ranks-in-waiting pushes them into melee range and deletes the distinction
+  entirely.
+
+A captain does whichever its own reach says, which is the whole of what makes a
+melee captain and a ranged captain different bodies.
+
+The consequence for how a frontline reads: **a lane's depth is now informative.**
+A wave that has lost its melee rank but kept its ranged bodies is a wave that is
+about to evaporate, and it looks different from one that has lost everything —
+which is a thing a player can see and act on from across the map, without a
+number anywhere.
 
 Related: [the map](002-the-map-and-its-milestones.md) ·
 [combat and damage](006-combat-and-damage.md) ·

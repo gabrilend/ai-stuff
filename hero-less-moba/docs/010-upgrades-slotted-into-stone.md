@@ -11,7 +11,7 @@ player picks which:
 
 | Slot | Who receives it |
 | --- | --- |
-| **the lane** | Every wave unit this team spawns into that lane from now on. |
+| **the lane** | Wave units this team spawns into that lane — the melee ones, the ranged ones, or both, according to the upgrade. |
 | **the lane's towers** | Both guard towers standing on that lane — *and* all three towers inside the base. |
 
 An upgrade is in one slot or the other, never both. Slotting into stone is
@@ -19,22 +19,33 @@ therefore a real trade: soldiers that walk forward and die, or stone that stays
 put and does not. A team with an early lead wants the former; a team that has
 lost its outer towers wants the latter.
 
-### The tower slot has two audiences
+### Both slots have two audiences
 
-An upgrade slotted into a lane's towers is not delivered to one recipient. It is
-delivered to two, and they are shaped differently. *Settled; see
-[open questions](020-open-questions.md), F21.*
+An upgrade is never delivered to one recipient. Each slot feeds two things that
+are shaped differently, and **the upgrade's own shape decides which of them
+actually gets it.** *Settled; see [open questions](020-open-questions.md), F21
+and F22.*
 
-- **The guards are melee.** They walk, they close, they swing.
-- **The tower is ranged.** It stands still and shoots.
-
-So the upgrade applies according to what it is:
-
-| The upgrade is | The guards get it | The tower gets it |
+| The upgrade is | In a lane it reaches | In a lane's towers it reaches |
 | --- | --- | --- |
-| **melee** | **yes** | no |
-| **ranged** | no | **yes** |
-| **common** — health, armour, and the like | **yes** | **yes** |
+| **melee** | the melee bodies and melee captains | the guards |
+| **ranged** | the ranged bodies and ranged captains | the tower |
+| **common** — health, armour, and the like | everything the lane spawns | both |
+
+**This is the same rule twice**, which is why it is one field on the catalogue
+rather than two. A slot has a melee audience and a ranged audience; an upgrade
+speaks to one or to both.
+
+The consequence a player will feel: **a placement can be wrong rather than merely
+suboptimal.** An upgrade in the right lane and the wrong half of it does a
+fraction of its work, and nothing refuses it or warns. That is new — until wave
+units came in three kinds, every placement was somewhere on a scale from useful
+to less useful, and none of them missed.
+
+### And what that means for the tower slot in particular
+
+The two audiences here are **the guards, who are melee** — they walk, they close,
+they swing — and **the tower, which is ranged**: it stands still and shoots.
 
 That is why an upgrade in this slot applies to the guards and *possibly* the
 tower. A melee damage upgrade slotted here is not wasted and is not refused; it
@@ -123,9 +134,11 @@ that slotted the same kind into two different lanes' towers gets both copies in
 the base. That follows directly from stacking, and it makes the base meaningfully
 stronger than the old rule did.
 
-**A tower's guards read through the tower**, so they carry whatever it currently
-has — they are not stamped. See
-[guard towers](007-guard-towers-and-their-guards.md), F1.
+**A tower's guards each carry their own copy**, cleared and re-stamped from the
+tower whenever its slot changes — see
+[guard towers](007-guard-towers-and-their-guards.md) and F23. Nothing in the
+swing path follows a reference to a tower; the sweep is what keeps the copies
+honest.
 
 The consequence is that a tower upgrade takes effect **immediately** on
 placement, while a lane upgrade takes effect on the **next wave**. That asymmetry

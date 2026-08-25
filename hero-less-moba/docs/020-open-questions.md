@@ -576,7 +576,7 @@ means rerolling gets cheaper in real terms as a match runs.
 
 **Changed:** [009](009-the-shared-upgrade-pool.md), issue 411.
 
-## A11b-iii. Does this make the hero snowball worse? — **NEW**
+## A11b-iii. Does this make the hero snowball worse? — **ANSWERED**
 
 A team that is winning earns more, so it can both field more heroes **and** reroll
 more. Resource has two sinks and a winning team can afford both. Recorded against
@@ -760,7 +760,7 @@ late costs more than the same mistake early.
 
 **Changed:** [011](011-commanders-and-personal-resource.md), issue 503.
 
-## A16c. Does the rising ceiling make rerolling cheaper over time? — **NEW**
+## A16c. Does the rising ceiling make rerolling cheaper over time? — **ANSWERED**
 
 The ceiling grows and a reroll's price is **flat** (A11b-ii), so rerolling gets
 cheaper in real terms the longer a match runs, and late chests end up better
@@ -1043,26 +1043,77 @@ clock. The escalation is the point: the first two can be beaten, and then the
 third one cannot.
 
 **Changed:** [015](015-boons-and-the-challenge.md), [001](001-what-this-game-is.md), issue 606.
-## C3. Is the surge the only comeback mechanism?
+## C3. Is the surge the only comeback mechanism? — **ANSWERED**
 
-Under the current rules, a losing team gets exactly two things: the surge
-resetting the board, and the boon. **Everything else compounds toward the
-winner**, and there are now two snowballs rather than one:
+**Answer: yes, and that is the design. Nothing brakes the hero economy, nothing
+is going to, and the snowball is the game showing you who played better.**
 
-- **The chest.** A1 was answered as "the killing team draws," so winning a lane
-  means drawing more upgrades and winning it harder. The surge brakes this one,
-  by destroying the arrangement rather than the upgrades.
-- **The wallet.** A2 was answered as "every kill your team lands pays every
-  player on your team," so a team that is winning lanes is killing more and
-  fielding more heroes. **Nothing brakes this one at all.** The surge empties the
-  chest; it does not touch anybody's wallet.
+No floor, no catch-up term, no rubber band, no cheap hero priced against a losing
+team's income. The three options this entry was holding open — bless it, price a
+floor, brake it at the surge — resolve to the first.
 
-That second snowball is new — it did not exist under the working ruling, where
-only a player's own heroes earned. It may be fine: heroes die permanently, so a
-hero advantage does not persist the way a placement does. It may also mean the
-hero economy wants a floor, a catch-up term, or a cheap hero priced specifically
-against what a losing team's income looks like. Issue 804 is where it gets
-measured, and it should be one of the first things that run.
+The reasoning is not that the snowball is harmless. It is that **a competitive
+game is supposed to illustrate strength**, and a mechanism that pulls a losing
+team back toward a winning one is a mechanism that makes the first ten minutes
+not matter. Every system in this design has been built so that a team that is
+ahead is ahead *because of decisions* — the shared deck, the symmetric map, the
+visible surge clock, one pair of boons offered to everybody. Having removed every
+source of undeserved advantage, adding an undeserved rescue would be strange.
+
+Two things make it survivable, and they are already in the design rather than
+being added to answer this:
+
+**Heroes do not persist.** A hero advantage is spent the moment the bodies die,
+which is ninety seconds. A placement advantage compounds; a wallet advantage
+converts into bodies that stop existing. The two snowballs are not the same shape
+even though they have the same cause.
+
+**The surge still brakes the half that compounds.** The chest — the thing that
+actually accumulates — has its arrangement suspended three times a match. The
+wallet does not, and does not need to, because it does not accumulate anything
+that outlives a fight.
+
+### The condition attached, which is a requirement and not a hope
+
+Blessing the snowball is only correct **if there are early-game and late-game
+strategies that pay off differently depending on what a team drew and where it
+put it.** Without that, "no comeback mechanism" quietly becomes "whoever wins the
+first two minutes wins," which is not strength being illustrated — it is a race
+that ended before anybody noticed.
+
+So this answer puts a **design requirement on the upgrade catalogue**, and it
+belongs with B7 rather than being left as a hope:
+
+- The catalogue must contain kinds whose value **changes across a match** — some
+  strong immediately and fading as bodies get bigger, some weak on a bare wave
+  unit and enormous on a captain in a stacked lane.
+- A team that is behind must have **a shape of chest that beats a team that is
+  ahead**, available to it, reachable by placement rather than by being handed
+  anything.
+- If every upgrade is worth the same at minute two and minute twenty, this answer
+  is wrong and a floor is needed after all.
+
+That is the thing issue 804 measures. Not "does the leader win too often" — the
+leader is supposed to win. **Does a team that fell behind and then out-placed its
+opponent ever come back?** If the answer is never, the catalogue is flat, and the
+catalogue is the fix.
+
+### The two entries underneath it
+
+**A11b-iii** asked whether the reroll makes it worse, since a winning team can
+afford both sinks. It does, slightly, and it is blessed for the same reason —
+rerolling is how a team *changes the shape of its chest*, which is precisely the
+mechanism the condition above depends on. A losing team that spends its smaller
+income on rerolls instead of bodies is doing the thing that can win it the game.
+
+**A16c** asked about a flat reroll price against a rising ceiling, which makes
+rerolling cheaper in real terms as a match runs. Also blessed, and for a sharper
+reason than before: **late rerolling is the main way two teams holding the same
+cards end up holding different ones**, and with a shared deck it is the only
+source of chest divergence in the whole design. It getting cheaper late is the
+curve that makes a long match interesting rather than a curve nobody chose.
+
+**Changed:** [011](011-commanders-and-personal-resource.md), [006](006-combat-and-damage.md), [009](009-the-shared-upgrade-pool.md), issues 401, 804, and A11b-iii and A16c, which are answered with it.
 ## C4. How many commanders, and can two teammates pick the same one? — **ANSWERED**
 
 **Answer: a handful — four or five to start — and no two players on a team may
@@ -1084,18 +1135,49 @@ commanders so that tests and bot runs can set up whatever they like.
 
 **Changed:** issues 501, 802.
 
-## C4b. How many is "a handful"? — **NEW**
+## C4b. How many is "a handful"? — **ANSWERED**
 
-Four or five to start, but issue 509's roster design has to hold across all of
-them: a second commander should **reshuffle the jobs** rather than reskin them,
-and doing that badly gives every commander the same five heroes with different
-names.
+**Answer: as many as there are designs for. It is not a number and it was wrong
+to ask for one.**
 
-There is also an interaction with no-duplicates that is easy to miss. With a
-handful of commanders and three per team, the number of possible team
-compositions is small, and **players will explore all of them quickly.** A
-five-commander roster gives ten distinct team compositions. That is a week, not a
-year.
+A commander is not a slot to be filled to a target count. It is a roster of
+heroes that has to **reshuffle the jobs** rather than reskin them — something that
+holds a frontline, something that kills a frontline, something that kills stone,
+recombined so that a second commander answers those needs in a different order
+and at different prices. A commander that cannot do that should not ship, and a
+commander that can should, however many there already are.
+
+So the constraint is **design effort, not a cap**, and the right question is not
+"how many" but "what makes one worth adding." Issue 509 owns that, and it owns it
+for every commander rather than for the first.
+
+### The composition arithmetic stops being frightening
+
+The worry recorded here was that with no duplicates per team, a small roster
+gives a small number of team compositions — five commanders and three a side is
+ten distinct teams, which is a week of exploration rather than a year.
+
+That worry was real and it dissolves as the roster grows, quickly, because the
+count is a combination rather than a product:
+
+| Commanders | Distinct 3-player teams |
+| --- | --- |
+| 5 | 10 |
+| 6 | 20 |
+| 8 | 56 |
+| 10 | 120 |
+| 12 | 220 |
+
+Doubling the roster does not double the compositions, it multiplies them by
+twenty. **Two more commanders is the difference between ten teams and fifty-six**,
+which is the strongest argument available for treating the roster as open-ended
+rather than picking four and stopping.
+
+The uniqueness rule that caused the worry is also what causes the payoff — without
+it the count would be far larger and far duller, because most teams would be
+somebody's favourite commander three times.
+
+**Changed:** issues 501, 509, 802.
 ---
 
 # Group D — What the player sees and touches
@@ -1641,16 +1723,59 @@ the consequence: **the milestone system must stop assuming nine**, and the count
 becomes something the map validator reports rather than something the rest of the
 code may rely on.
 
-## E7. How good does the bot need to be?
+## E7. How good does the bot need to be? — **ANSWERED**
 
-Issue 803's bot exists to generate balance data, and "good enough to produce
-meaningful numbers" is a much smaller job than "good enough to be worth beating."
+**Answer: good enough to be worth beating. This ships single-player, and that is
+a phase rather than a corner of one.**
 
-If the game ever ships single-player, the second is the requirement, and it
-probably deserves its own phase rather than a corner of phase 8. Worth deciding
-before the committed-strategy bot is written, because a bot built to be a
-measuring instrument and a bot built to be an opponent are not the same program.
+The entry was right that a bot built to be a measuring instrument and a bot built
+to be an opponent are not the same program. The answer is that **the project
+wants both**, and they stay separate:
 
+| | Issue 803, phase 8 | Phase 9 |
+| --- | --- | --- |
+| Exists to | produce balance numbers | be played against |
+| Good enough when | it plays consistently enough that ten thousand matches mean something | a person would rather play it than not |
+| May be dull | yes | no |
+| Must be fast | **yes** — it runs ten thousand times overnight | no |
+
+Those requirements pull in opposite directions, which is exactly why one program
+cannot serve both. A measuring bot wants to be cheap, deterministic, and boring.
+An opponent wants to be varied, surprising, and occasionally wrong in the way a
+person is wrong.
+
+### The thing that makes this bot unusual
+
+**Single-player in a 3v3 is not one bot. It is five, and two of them are on your
+side.**
+
+A person playing alone has two bot **teammates** sharing their chest. Those bots
+have to place upgrades into lanes the human is also placing into, respect locks
+the human sets, decide whether to object to them, and — since issue 806 — say
+something. A teammate bot that trampled a human's arrangement every wave would be
+worse than no teammate at all, and a teammate bot that never touched anything
+would make the shared chest single-player.
+
+**That is the hard problem in this phase, and it does not exist in the games this
+one is subtracted from.** An opponent bot only has to play well. A teammate bot
+has to play well *and* read what a person is trying to do from the only evidence
+available — where they placed, what they locked, where their cursor is — and then
+not get in the way of it. It is the negotiation layer, played from the other
+side.
+
+### It cannot cheat, and that falls out for free
+
+Under F7 the enemy's chest, wallets, and sign-post directions are **not on your
+machine**. A bot opponent running in the same process is subject to the same
+thing: there is no privileged path to information a human would not have, because
+the information is not there to read.
+
+So **difficulty cannot come from information or from bonuses**, only from
+decision quality. That is a harder bar and an honest one, and it is worth
+enforcing structurally rather than by discipline — the bot should be handed the
+same viewer frame a human's screen is drawn from, and nothing else.
+
+**Changed:** [019](019-roadmap.md) gains a ninth phase, issue 803's scope is narrowed to the measuring instrument, and the opponent becomes phase 9.
 ---
 
 # Group F — Answered in the review of 2026-08-24
@@ -2292,41 +2417,40 @@ are the ones that were already standing there when it began.
 
 **Changed:** [the siege-surge](014-the-siege-surge.md) and its phase table, [guard towers](007-guard-towers-and-their-guards.md), issues 602 and 603.
 
-## F20. Which lane is the wide centre when there is no middle one? — **OPEN**
+## F20. Which lane is the wide centre when there is no middle one? — **ANSWERED**
 
-Created by F10, which made the lane count follow the team size.
+**Answer: the map builder picks the innermost lane. When there are two innermost
+lanes, each team is assigned one, mirrored.**
 
-A three-lane map has an obvious centre: the diagonal, the wide one, the one every
-challenge funnels into, the one the connectors reach. A **four-lane** map has two
-middle lanes and a **two-lane** map has none, and three separate systems ask for
-a centre by name:
+| Lanes | The wide one |
+| --- | --- |
+| 1 | that lane, shared |
+| 2 | one each — team 1 funnels into one, team 2 into the other, mirrored |
+| 3 | the middle lane, shared |
+| 4 | the two interior lanes, one assigned to each team, mirrored |
+| 5 | the middle lane, shared |
 
-- **The challenge.** Every lane's production funnels into "the centre" and both
-  monsters walk down it. With two candidates it is unclear which; with none it is
-  unclear whether a challenge is possible at all.
-- **The width rule.** The centre is topographically wider so that a monster can
-  fight a whole team at once rather than a queue. That is the only real
-  difference between the three lanes and it wants somewhere to live.
-- **The connectors.** Each side lane's junction reaches the centre, which is what
-  lets a hero change lanes at all. With no centre there is nothing to reach, and
-  the sign-posts have nothing to point at except along.
+**Odd counts have a shared centre. Even counts give each team its own**, chosen
+from the two interior lanes and assigned so that the map stays symmetric under a
+half-turn — which is the only symmetry this design has ever needed, since the
+bases sit at opposite corners.
 
-Three shapes, none obviously right:
+That last part is the piece worth noticing. The obvious worry about an even map
+was that nominating a lane would introduce an asymmetry into a design that has
+removed every asymmetry that is not a decision. Assigning **one to each team,
+opposite each other**, does not: rotate the field half a turn and it is the same
+field. Both teams have a wide lane, both teams' challenges funnel into one, and
+neither has an advantage — they simply have different ones.
 
-1. **An odd lane count only.** 3v3 and 5v5 work, 2v2 and 4v4 are not supported.
-   Cheapest, and it makes the prototype's number a rule rather than a default.
-2. **A dedicated centre that is not a lane.** The wide corridor exists on every
-   map, nothing spawns into it during normal play, and challenges use it. Costs a
-   piece of map that is idle most of the match.
-3. **Nominate one.** On an even map the builder picks a lane to be the wide one,
-   which makes the map asymmetric in a design that has removed every other
-   asymmetry that is not a decision. Probably wrong for that reason alone.
+The consequence for an even map is that **the two teams' challenges no longer
+happen in the same corridor.** On a three-lane map both monsters walk the same
+middle lane in opposite directions, past each other, never meeting. On a
+four-lane map each team's monster walks its own. That is a different-feeling
+endgame — two separate sieges rather than one shared corridor — and it is a
+reason 3v3 is the shape the prototype is built and balanced against rather than
+merely the default size.
 
-Nothing is blocked by this: 3v3 is what gets built. It is written down so that
-the map builder is not quietly designed around an assumption it will have to
-break later.
-
-
+**Changed:** [002](002-the-map-and-its-milestones.md), [015](015-boons-and-the-challenge.md), issue 101.
 ## F21. What does a slot actually deliver, and to whom? — **ANSWERED**
 
 **Answer: nothing is ever consumed, and the tower slot feeds two different kinds
@@ -2390,31 +2514,122 @@ melee, the question does not arise. Recorded as **F22**.
 
 **Changed:** [009](009-the-shared-upgrade-pool.md)'s catalogue record, [010](010-upgrades-slotted-into-stone.md) (the "meaningless on a building" argument, which is wrong), [007](007-guard-towers-and-their-guards.md), issues 401, 408, 303.
 
-## F22. Are there ranged wave units, and does the lane slot need an affinity? — **OPEN**
+## F22. Are there ranged wave units? — **ANSWERED**
 
-Created by F21.
+**Answer: yes. A wave is made of three kinds of body — melee, ranged, and a
+captain, which is one or the other.**
 
-The tower slot now delivers melee upgrades to guards and ranged upgrades to the
-tower, because those two recipients are shaped differently. The lane slot
-delivers to wave units, and nothing has yet said whether wave units are all one
-shape.
+| | Health | Damage | Reach |
+| --- | --- | --- | --- |
+| **melee** | 1× | 1× | a small nonzero number |
+| **ranged** | 1× | 1× | stands off |
+| **captain** | **2.5×** | **1.5×** | melee *or* ranged, depending on the captain |
 
-- **If every wave unit is melee**, the lane slot needs no affinity test at all,
-  and "melee versus ranged" is a rule about the tower slot only.
-- **If a lane can spawn ranged wave units** — an archer archetype alongside a
-  swordsman — then a lane's upgrades need the same three-way table, and placing a
-  ranged upgrade into a lane of melee bodies becomes a real mistake a player can
-  make.
+All three are `flavour = 1`. They are ordinary wave units with different rows in
+the unit catalogue, they spawn with the wave, and **all three are stamped with
+the lane's upgrades**.
 
-The second is the more interesting game and the more expensive one. It gives a
-lane an internal composition to think about, which is a second axis under the
-chest; it also means the frontline queue has to handle bodies that stop at
-different distances, and issue 206's ranks-behind-the-front logic assumes they do
-not.
+This is what the question was asking and the answer costs more than a row in a
+table. Four things follow.
 
-Nothing is blocked. The catalogue is not written yet and the affinity field can
-be added to it whichever way this goes.
+### The lane slot needs the affinity split too
 
+F21 gave the tower slot a three-way delivery — melee upgrades to the guards,
+ranged to the tower, common to both — because that slot has two audiences. **The
+lane slot now has two audiences as well**, so it works the same way: a melee
+upgrade reaches the melee bodies and the melee captains, a ranged upgrade reaches
+the ranged bodies and the ranged captains, and common upgrades reach everything.
+
+So the catalogue's `shape` field is not a tower-slot detail. It is a property of
+every upgrade in the game, and **placing a ranged upgrade into a lane is never
+wasted but is never fully used either** — it lands on part of the wave.
+
+### A lane has an internal composition, and it is a second axis
+
+Before this, a lane was a quantity — how many upgrades sit in it. Now it also has
+a **shape**: how much of what you placed there matches what walks out of it. Two
+teams with identical chests and identical placements still differ if one of them
+stacked melee upgrades into a lane and the other stacked ranged.
+
+That is the second axis under the chest that the question was worried about, and
+it is worth having. It also means a placement can be **wrong** rather than merely
+suboptimal, which the design did not previously allow: an upgrade in the right
+lane and the wrong half of it is doing a fraction of its work, and nothing refuses
+it or warns.
+
+### The frontline queue has to be rewritten around it
+
+Issue 206 builds the queue on the assumption that bodies stop at the same
+distance — front rank fights, ranks behind stack up and step forward as the front
+rank dies. **Ranged bodies break that.** They stop further back, they do not want
+the front rank, and a queue that treats them as ranks-in-waiting will push them
+into melee range and delete the distinction.
+
+What the queue has to become: the melee bodies form the rank, and the ranged
+bodies **hold at their own reach behind it** rather than queuing for a place in
+it. That is a real change to the phase-2 work and it belongs in issue 206 now
+rather than being discovered in phase 4.
+
+### The captain is the sharpest body in the game, and it is not a hero
+
+Worth stating plainly because it is easy to miss and it changes what heroes are
+for.
+
+**A captain gets the lane's upgrades. A hero does not** (A14, and it is
+load-bearing — the two economies must not multiply). A captain is 2.5× health and
+1.5× damage *before* upgrades; a hero is roughly 2.5× combat weight with
+abilities and **nothing else, ever.**
+
+So in a lane carrying a dozen upgrades, **the captain walking out of it is
+enormous and the hero standing next to it is not.** That is not a bug. It is the
+chest economy visibly out-scaling the wallet economy in a lane somebody committed
+to, which is the correct relationship — the chest is the slow accumulating layer
+and it should win a long game. What a hero brings instead is **abilities and
+timing**: it arrives when you choose, where you choose, and does something a
+wave unit cannot do at all.
+
+But it needs watching, and it is the thing issue 804 should measure first: if a
+stacked lane's captain makes heroes feel pointless rather than different, the
+hero roster is the problem and not the captain.
+
+### What is still open
+
+**Nobody has decided whether a wave's composition is fixed or chosen** — how many
+melee, how many ranged, whether a captain is in every wave or only some, and
+whether players can influence any of it. The design's instinct says fixed:
+players place upgrades, they do not compose armies, and giving them a second
+production decision competes with the chest for the same attention. Recorded as
+**F27**.
+
+**Changed:** [004](004-a-unit-and-what-it-carries.md), [005](005-waves-and-when-one-is-finished.md), [009](009-the-shared-upgrade-pool.md), [010](010-upgrades-slotted-into-stone.md), issues 201, 206, 207, 401, 405.
+
+## F27. Is a wave's composition fixed, or chosen? — **OPEN**
+
+Created by F22.
+
+A wave now contains melee bodies, ranged bodies, and a captain. Nothing has said
+how many of each, whether every wave carries a captain, or whether a player can
+change the mix.
+
+**The instinct is fixed**, and it is a strong one: this design has been careful
+that a player's hands are busy with **placement** and nothing else. A production
+decision would compete directly with the chest for the same attention, at the
+same moments, and the chest is the thing that replaced heroes. Two economies are
+already enough.
+
+**The argument against** is that composition is the natural partner to the
+affinity split. If a lane can hold ranged upgrades and a wave's ranged share is
+fixed, then the correct ratio of ranged upgrades in a lane is also fixed, and a
+whole axis collapses back into arithmetic somebody solves once.
+
+A middle shape exists and nobody has argued it yet: composition is fixed but
+**differs by lane**, set by the map builder — the wide centre spawning more melee
+because bodies get into contact there, the side lanes more ranged because only
+the front rank ever fights. That would make the three lanes different in a second
+way, for free, with no new player decision at all.
+
+The numbers themselves are B1's problem. This is the question of whether anybody
+gets to touch them.
 ## F23. Stamped or read live? — **ANSWERED, and it reverses F1**
 
 **Answer: everything is stamped. Nothing is ever read through a reference. When
@@ -2494,26 +2709,35 @@ before it walks out.
 
 **Changed:** [004](004-a-unit-and-what-it-carries.md), [012](012-hero-units.md), issues 203, 503, 605.
 
-## F25. What does the Golem do to what it walks into? — **OPEN**
+## F25. What does the Golem do to what it walks into? — **ANSWERED, flavour provisional**
 
-The shape is settled and the specifics are not.
+**The mechanic is settled. The flavour is a placeholder and is recorded as one.**
 
-**Settled:** it kills melee and ranged bodies differently. Anything that closed to
-swinging distance is **grabbed and crushed**. Anything standing off is answered
-**at range** — something thrown, or something worse. The point of the split is
-that there is no distance at which a team farms it safely: close is lethal and
-back is not safe either, which is what makes sustaining the damage check hard,
-because the bodies doing the damage keep dying.
+It kills melee and ranged bodies differently. Anything that closed to swinging
+distance is **grabbed and crushed**. Anything standing off is answered **at
+range**. The point of the split is that there is no distance at which a team
+farms it safely — close is lethal and back is not safe either — which is what
+makes sustaining the damage check hard, because the bodies doing the damage keep
+dying. With F22 confirming that a wave contains both melee and ranged bodies,
+this is not a hypothetical: every wave sent at the Golem is losing bodies at both
+ranges, in different ways.
 
-**Not settled:** what the ranged answer actually is. Thrown debris, a beam, a
-shockwave along the lane. This is one of the few places in the design where the
-answer is aesthetic before it is mechanical, and it is the last thing anybody
-sees before a match ends, so it is worth more than a shrug.
+Mechanically both are entries in the **ability dispatch table**, firing on a
+condition, writing into the same pending-damage buffer as an ordinary swing.
+Nothing about the Golem is a second damage system.
 
-Whatever it is, it wants to obey the existing rules: an entry in the ability
-dispatch table, firing on a condition, writing into the same pending-damage
-buffer as an ordinary swing.
+What the ranged answer *is*, in the author's own words and preserved verbatim
+because this project keeps those:
 
+> throws things at ranged units or uses laser beams or something idk
+
+**"Lazer beams or something idk" is the standing answer.** It is a placeholder
+and it is allowed to stay one — the Golem's arithmetic does not care what the
+projectile looks like, and nothing downstream is blocked. But it is the last
+thing anybody sees before a match ends, so it is worth coming back to once there
+is a screen to look at rather than settling it now on paper.
+
+**Changed:** [015](015-boons-and-the-challenge.md), issue 606.
 ## F26. What does a chat channel do to the argument for locks? — **AWAITING EVIDENCE**
 
 Created by the decision to build one (issue 806), and worth watching rather than

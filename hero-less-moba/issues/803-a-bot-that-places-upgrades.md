@@ -6,7 +6,7 @@
 | Blocked by | 108, 502, 509 |
 | Blocks | 804, 805 |
 | Reads | [players, teams, and commands](../docs/016-players-teams-and-commands.md) |
-| Open questions | E7 |
+| Open questions | none |
 
 ## Current behavior
 
@@ -21,6 +21,17 @@ special access.** It reads snapshots and writes commands, exactly like a viewer
 with no window, which is the sharpest possible test of whether the command
 interface is complete: anything the bot cannot express is something a human
 cannot express either.
+
+**This is the measuring instrument, and only that.** *Settled; see
+[open questions](../docs/020-open-questions.md), E7.* Its job is to make ten
+thousand matches mean something, which means it wants to be **cheap,
+deterministic, and dull** — it runs overnight, and every quality that would make
+it interesting to play against makes it slower and noisier as a measurement.
+
+The bot built to be **played against** is a different program and lives in phase
+9. The two are kept apart deliberately and neither should grow into the other: a
+measuring bot that started making surprising choices would ruin the numbers, and
+an opponent that was perfectly consistent would be no fun at all.
 
 Three levels, because they answer different questions:
 
