@@ -6,7 +6,7 @@
 | Blocked by | 501, 801 |
 | Blocks | 805 |
 | Reads | [commanders and personal resource](../docs/011-commanders-and-personal-resource.md), [players, teams, and commands](../docs/016-players-teams-and-commands.md) |
-| Open questions | C4b — how many commanders |
+| Open questions | none |
 
 ## Current behavior
 

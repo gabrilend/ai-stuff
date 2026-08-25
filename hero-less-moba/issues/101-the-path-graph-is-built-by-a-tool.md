@@ -6,7 +6,7 @@
 | Blocked by | — |
 | Blocks | 102, 103, 202, 301, 305, 508 |
 | Reads | [the map and its milestones](../docs/002-the-map-and-its-milestones.md) |
-| Open questions | F20 — which lane is the wide centre when the lane count is even |
+| Open questions | none |
 
 ## Current behavior
 

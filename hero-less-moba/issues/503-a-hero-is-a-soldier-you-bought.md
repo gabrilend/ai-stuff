@@ -6,7 +6,7 @@
 | Blocked by | 201, 501, 502 |
 | Blocks | 504, 505, 506, 507, 509 |
 | Reads | [hero units](../docs/012-hero-units.md), [commanders and personal resource](../docs/011-commanders-and-personal-resource.md) |
-| Open questions | A16c |
+| Open questions | none |
 
 ## Current behavior
 
