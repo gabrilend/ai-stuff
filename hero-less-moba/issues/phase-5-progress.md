@@ -2,7 +2,7 @@
 
 **The goal:** the fast layer. A private wallet filled by every kill the team
 lands, bodies bought with it that never come back, abilities that fire on their
-own, and four sign-posts that steer them.
+own, and the sign-posts that steer them — three per team, one per lane.
 
 **Ends with:** a match where one side's chest sits half-empty while its players
 win on hero purchases alone, against a side doing the opposite. Two economies,

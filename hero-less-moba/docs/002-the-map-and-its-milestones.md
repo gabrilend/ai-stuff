@@ -27,22 +27,37 @@ shape parameters below and emits the node array.
 
 ## The shape
 
-Two bases at opposite corners of a square field. Three lanes join them:
+Two bases at opposite corners of a square field, and **one lane per player on a
+team** — three of them at the size this prototype targets. See
+[players, teams, and commands](016-players-teams-and-commands.md), and F10 in
+[open questions](020-open-questions.md): the lane count, and therefore the tower
+count and the milestone count, are all derived from the team size rather than
+written down as constants.
 
-- **Lane 1 (top)** leaves team 1's base heading up, turns right at the top-left
-  corner, runs along the top edge, turns down at the top-right corner, and enters
-  team 2's base.
-- **Lane 2 (center)** runs corner to corner in a straight diagonal. It has no
-  turns and therefore no junctions of its own.
-- **Lane 3 (bottom)** mirrors lane 1 along the bottom and right edges.
+With team 1's base at the bottom-left and team 2's at the top-right:
 
-The two corners on each side lane are **junctions**. Four junctions exist in
-total. Each junction is joined to the center lane by a short **connector** edge —
-this is the ground that used to be jungle, with everything that made it jungle
-taken out of it. Nothing spawns on a connector, nothing camps there, and no
-tower covers it. It exists so that a hero can change its mind about which lane
-it is fighting in. Side lanes do not connect to each other; the only way from
-top to bottom is through the center.
+- **Lane 1 (top)** leaves team 1's base heading up the left edge, **bends once at
+  the top-left corner**, runs along the top edge, and enters team 2's base.
+- **Lane 2 (center)** runs corner to corner in a straight diagonal.
+- **Lane 3 (bottom)** mirrors lane 1 along the bottom and right edges, bending
+  once at the bottom-right corner.
+
+**There are three junctions, not four**, and they sit on the field's *other*
+diagonal: the top-left corner, the middle of the field, and the bottom-right
+corner. Each side lane bends once, at its own corner; the centre lane's junction
+is its midpoint, which is a plain point on a straight line rather than a bend.
+
+A short **connector** edge joins each side lane's junction to the middle. That
+diagonal is the ground that used to be jungle, with everything that made it
+jungle taken out of it. Nothing spawns on a connector, nothing camps there, and
+no tower covers it. Side lanes do not touch each other; the only way from top to
+bottom is through the centre.
+
+Giving the centre lane a junction of its own is what makes the middle a place a
+body can leave. The earlier four-junction layout put every junction on a side
+lane, so anything that walked into the centre was committed to it permanently —
+which was never a decision anybody made. See
+[sign-posts and lane routing](013-signposts-and-lane-routing.md).
 
 ## Lanes have a width, and the center's is greater
 
@@ -103,12 +118,18 @@ and the code stores one number per team per lane rather than trying to keep a
 single signed value.
 
 **Living**, not a high-water mark — so push depth can go down. It creeps up as
-soldiers advance, and it collapses when they die. It collapses completely twice a
-match, during **the calm** after a challenge, when every soldier on the field
-turns around and walks home. That is the one moment where maintaining the number
-incrementally is not enough and a full recompute is needed, and it is worth a
-comment at the call site saying so. See
-[boons and the challenge](015-boons-and-the-challenge.md).
+soldiers advance, and it collapses when they die. It collapses completely at each
+**calm**, when every soldier on the field turns around and walks home. That is
+the one moment where maintaining the number incrementally is not enough and a
+full recompute is needed, and it is worth a comment at the call site saying so.
+See [boons and the challenge](015-boons-and-the-challenge.md).
+
+**And it is ignored outright during a challenge.** *Settled; see
+[open questions](020-open-questions.md), F17.* Every lane's production goes into
+the middle for the duration, so the only bodies left standing in the side lanes
+are each team's own tower guards, sitting at their own towers — the number would
+read a team's stone back at it and mean nothing. Nothing consults push depth
+while a challenge runs, including the rule below that picks a lane for a hero.
 
 Every question the game asks about lane state is a comparison of these small
 integers. In particular: when a hero is spawned on the library and has to pick a
@@ -133,7 +154,7 @@ Fields are given down to the primitive.
 | `lane` | integer | 1 top, 2 center, 3 bottom. **0** if the node belongs to no lane — connectors and base interiors. |
 | `milestone` | integer | 0–8 if this node is a milestone; **0** otherwise. Read together with `kind`, never alone. |
 | `team` | integer | 0 neutral, 1, or 2. Which half of the field the node sits in. |
-| `neighbour` | integer[] | Node ids reachable in one step. Length 2 for plain lane points, 3 for junctions. |
+| `neighbour` | integer[] | Node ids reachable in one step. Length 2 for plain lane points, 3 for junctions — the centre lane's midpoint is a junction too, so it has three. |
 | `structure` | integer | Id of the tower or library standing here, or **0** for none. |
 
 There are no nil fields anywhere in this structure. A node with no structure
@@ -148,7 +169,7 @@ validator, not in the movement loop that runs a thousand times a tick.
 | `id` | integer | 1, 2, or 3. |
 | `path` | integer[] | Node ids in order from team 1's library to team 2's library. |
 | `milestone_node` | integer[9] | Node id for each milestone index 0–8. |
-| `junction` | integer[] | Node ids on this lane that carry a sign-post. Empty for the center lane. |
+| `junction` | integer[] | Node ids on this lane that carry a sign-post. Exactly one per lane, the centre included. |
 | `length` | double | Total path length in paces. Cached because the renderer wants it constantly. |
 | `width` | double | How many paces across. The center lane's is greater. Feeds the frontline queue and the renderer, nothing else. |
 

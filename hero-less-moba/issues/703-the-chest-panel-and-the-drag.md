@@ -33,7 +33,6 @@ may legally drop there right now: **anything already in transit greyed out, kind
 that cannot enter stone greyed out, and everything greyed out during a surge.** A
 rule you discover by being refused feels arbitrary; a rule you can see before
 acting is a constraint you play around.
-acting is a constraint you play around.
 
 Hero purchasing lives in the same panel. Affordable heroes are distinguished from
 unaffordable at a glance, and the three spawn destinations — a wave, a tower, the

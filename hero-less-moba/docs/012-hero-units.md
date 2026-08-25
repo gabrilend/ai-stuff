@@ -31,6 +31,18 @@ becoming the thing the player pilots. You cannot form an attachment to a body
 that has a life expectancy of ninety seconds. What you form an attachment to is
 the *decision* — when to spend, where to put it.
 
+**With one exception: a hero that survives a challenge is refunded.** *Settled;
+see [open questions](020-open-questions.md), F14.* When a challenge monster dies,
+that team's bodies walk home; the wave units disappear and the heroes hand back
+what they cost.
+
+So a hero bought for a challenge is only *spent* if it fails. That is deliberate
+and it is narrow — it applies to nothing else, and a hero lost in ordinary play
+is lost the ordinary way. What it buys is that throwing everything you have at a
+monster is the correct move rather than a gamble against your own next three
+minutes. The one fight in the game that is designed to be fought all-in is the
+one fight you are allowed to go all-in on.
+
 ## Abilities
 
 One or two per hero, each an entry in an ability dispatch table, each firing
@@ -50,8 +62,9 @@ not a focus-this, not a manually triggered ability. *Settled; see
 
 Once a hero is bought and its spawn destination chosen, the only influence a
 player has over it is the sign-post standing at a junction it has not reached
-yet — and sign-posts can only be set in your own half of the map, so a hero past
-the midpoint is entirely beyond reach.
+yet — and each body obeys at most one sign-post in its life, after which it goes
+straight on at every junction. So a hero that has already turned once is beyond
+reach entirely. See [sign-posts and lane routing](013-signposts-and-lane-routing.md).
 
 This is the rule that protects everything else. "Heroes behave like regular
 units" is the constraint that keeps the soldier brain the *only* brain, and in a
@@ -112,9 +125,12 @@ the enemy's damage already is.
 ### 2. Onto a guard tower
 
 The player picks any of their own living guard towers and the hero appears at its
-node — **unless enemy soldiers are within a threshold radius of that tower**, in
-which case the spawn is refused and the player is directed to spawn one tower
-further back.
+node — **unless an enemy stands inside that tower's command radius**, in which
+case the spawn is refused and the player is directed to a tower further back.
+
+It is the same circle that decides whether the tower may replace its guards, and
+it is drawn for both teams. One radius, both jobs. See
+[guard towers](007-guard-towers-and-their-guards.md).
 
 This rule is the whole texture of hero spawning. It means you cannot reinforce
 the tower that is actually under attack; you reinforce the one behind it and walk
@@ -122,9 +138,17 @@ the hero up. A tower under pressure is a tower whose reinforcements arrive late,
 by design, which is what makes the outer towers worth defending *before* they are
 in trouble rather than after.
 
-"One tower back" is resolved by milestone: from the refused tower's milestone
-index, step toward the player's own library until a tower is found whose radius
-is clear. If none is, the library itself is the fallback, which is destination 3.
+**The spawn is refused, not redirected.** The refusal names the nearest tower
+behind it whose command radius *is* clear — found by stepping from the refused
+tower's milestone index toward the player's own library — and if there is none,
+it names the library. But the player has to issue the command again. Nothing
+puts a body somewhere the player did not ask for it to go: a silent redirect is a
+fallback, and a fallback in a game where a hero costs a minute of income is a
+purchase you did not make.
+
+That is also why the radius is drawn for both teams. A refusal a player could
+have seen coming is a rule they learn once; a refusal out of nowhere is a bug as
+far as they are concerned.
 
 ### 3. Onto the library
 

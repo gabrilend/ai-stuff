@@ -113,6 +113,9 @@ these words and not synonyms.
 | **chest** | A team's shared pool of upgrades. Also called the upgrade pool. |
 | **upgrade** | A modifier drawn into the chest and placed into a lane or slotted into towers. |
 | **slot** | A named place an upgrade can sit: a lane, a lane's towers, or the library. |
+| **stone** | Guard towers, spoken of as a material rather than as objects. "Slotting into stone" is putting an upgrade on a lane's towers instead of on its soldiers. The word exists so that one sentence works: an upgrade goes either on bodies that walk forward and die, or on stone that stays put and does not. |
+| **the two slots** | Shorthand for the choice at a lane: **the lane** (every wave unit spawned into it) or **the lane's towers** (both towers on it, and all three base towers). One or the other, never both. |
+| **command radius** | The circle of ground around a guard tower. While an enemy stands inside it the tower replaces no guards and no hero may be spawned there. The only thing in the game both teams can see the shape of. |
 | **lock** | A claim one player puts on a placement so teammates cannot move it. |
 | **objection** | A request to release a lock. Two objections from two different teammates force it. |
 | **ping** | A marker a player drops on the map to point at a place. Nothing to do with locks — see **objection**. |

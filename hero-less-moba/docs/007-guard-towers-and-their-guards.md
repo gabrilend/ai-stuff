@@ -7,14 +7,20 @@ knocking one down.
 ## Where they stand
 
 Every guard tower is the same strength as every other guard tower. There are no
-tiers, no inner-tower-is-tougher rule. Eight per team:
+tiers, no inner-tower-is-tougher rule. **Three towers per lane**, so nine per team
+in a three-lane match:
 
-- **Two on each lane**, at milestone indices 2 and 3 counted from that team's own
-  library — an inner and an outer.
-- **Three inside the base**, at milestone index 1 of each lane. These are the
-  base guard towers. They are ordinary towers in every respect except that they
-  cannot be slotted with upgrades directly; see
+- **Two standing on the lane itself**, at milestone indices 2 and 3 counted from
+  that team's own library — an inner and an outer.
+- **One inside the base at that lane's mouth**, at milestone index 1. These are
+  the base guard towers. They are ordinary towers in every respect except that
+  they cannot be slotted with upgrades directly; see
   [upgrades slotted into stone](010-upgrades-slotted-into-stone.md).
+
+The count follows the lanes, and the lanes follow the team size: a two-lane match
+has six towers a side, a four-lane match has twelve. Nothing anywhere should
+write the number nine down as a constant. See
+[players, teams, and commands](016-players-teams-and-commands.md).
 
 Keeping all towers identical is what makes tower upgrades interesting. If towers
 already differed, a slotted upgrade would be a small adjustment to an existing
@@ -37,8 +43,10 @@ decision visible from across the map.
 | `range` | double | In paces. A plain radius — it does not know what a lane is. |
 | `cooldown`, `cooldown_max` | integer | Ticks between arrows. |
 | `target` | integer | Soldier id, or **0**. |
+| `command_radius` | double | In paces. The circle that gates guard replacement and hero spawning, and the one value both teams can see. |
+| `guard_cap` | integer | How many guards this tower may hold at once. Raised by stone upgrades, so it is read live rather than stored per guard. |
 | `guard_slot` | integer[] | Soldier ids of its living guards. Zeros for empty slots. |
-| `guard_timer` | integer | Ticks until the next guard is put on the ground. |
+| `guard_timer` | integer | Ticks until the next guard is put on the ground, and only counting down while the command radius is clear. |
 | `alive` | integer | 1 or 0. A felled tower stays in the array as rubble. |
 
 ## What a tower shoots
@@ -54,9 +62,8 @@ A tower cannot attack a structure and has nothing to say about them.
 
 ## Guards
 
-Each tower keeps a small standing patrol. On a timer, if it has an empty guard
-slot, it puts a soldier on the ground at its own node. That soldier is an
-ordinary body — same record, same brain — with two differences:
+Each tower keeps a standing patrol. That soldier is an ordinary body — same
+record, same brain — with two differences:
 
 - `leash_node` is set to the tower's node. The guard will engage anything that
   comes inside its acquisition range, but the moment its target dies or it drifts
@@ -70,30 +77,74 @@ lane. They are area denial: the reason a lone hero cannot walk past a tower and
 keep going, and the reason the ground *around* a tower is dangerous rather than
 just the tower's tile.
 
-### Guards carry their tower's upgrades
+### The command radius, and when a tower reinforces
 
-**A guard is stamped at spawn with the stone upgrades of the lane its tower
-stands on** — `tower_mask[lane]` for a lane tower, and `base_tower_mask` for a
-base tower, which is the union of all three lanes' stone plus the library.
-*Settled; see [open questions](020-open-questions.md), A18.*
+Every tower carries a **command radius** — a plain circle of ground around it,
+and the one piece of information in this game that both teams can see.
 
-Stamped at spawn, like a wave unit, and for the same reason: a guard is a
-short-lived body and the mask is read on every swing. Unlike the tower itself,
-which stands for the whole match and reads its mask live.
+**A tower fills its patrol back up to a cap, and only while no enemy stands
+inside that radius.** *Settled; see [open questions](020-open-questions.md), F2.*
 
-This means **slotting an upgrade into a lane's stone buys bodies as well as
-arrows.** It is a larger purchase than it looks, and it compounds with A5 — an
-investment the enemy already cannot take away now also puts stronger soldiers on
-the ground.
+That is the opposite of what a tower usually does, and the inversion is the whole
+mechanic. A tower under attack does not reinforce itself. A tower with clear
+ground around it does. So the way to make a tower approachable is to **reach**
+it — get a body inside the circle and hold it there, and the patrol stops being
+replaced. Grinding the guards down from outside the radius achieves nothing,
+because they come straight back.
 
-Which is exactly why the balance work has to be careful here. The running
-instruction from A5 was that stone must be *worse at pushing a frontline* than
-soldiers are, by enough to be obvious. This answer pushes in the opposite
-direction, because guards are bodies and bodies fight. The reconciliation is that
-guards are **leashed** — they hold ground and cannot take any. A stone upgrade
-buys you a better wall; it still cannot buy you a step forward. That distinction
-is the whole reason the two slots stay meaningfully different, and if leashing
-were ever loosened, this would be the rule that broke first.
+**The cap is a stat, and upgrades can raise it.** Slotting the right thing into a
+lane's stone does not only make its towers shoot harder; it lets them hold more
+bodies. That makes the guard count a multiplier on stone investment rather than a
+fixed cost of owning a tower.
+
+**The same radius decides where a hero may appear.** A player may put a hero down
+at one of their own guard towers only while its command radius is clear. One
+circle, both jobs, drawn once — see [hero units](012-hero-units.md).
+
+Both teams see it because both teams have to reason about it at the same moment.
+The attacker needs to know how far in they must get to shut the reinforcements
+off; the defender needs to know how far out they must push to turn them back on.
+Everything else in this design is hidden until it walks into you — the enemy's
+chest, their arrangement, where their heroes are routed. This is the exception,
+and it is deliberate: the most tactical ground on the map would be unreadable to
+the people standing on it otherwise.
+
+### Guards read their tower's upgrades live
+
+**A guard is not stamped.** It carries whatever is slotted into its own tower at
+this instant — `tower_count[lane]` for a lane tower, and `base_tower_count` for a
+base tower, which is the union of every lane's stone plus the library. When an
+upgrade arrives, the guards standing there have it. When it leaves, they do not.
+*Settled; see [open questions](020-open-questions.md), F1.*
+
+This is the one place where a body's modifiers are a lookup rather than a copy,
+and it needs a comment at the call site saying why. Every other soldier in the
+game is stamped at birth because it is brief and common and the modifiers are
+read on every swing; a guard is brief and common too, but it belongs to something
+that stands still for the whole match, so reading through to the tower costs one
+indirection and buys the ability to change your mind.
+
+**The switch happens at a wave spawn, not immediately.** An upgrade queued to
+move to another lane or another tower keeps applying where it is until the next
+wave spawns, at which point it physically moves and the guards at both ends
+change together. That is the same instant that stamps the outgoing wave — there
+is exactly one moment in the match's rhythm when anything changes hands. See
+[the shared upgrade pool](009-the-shared-upgrade-pool.md).
+
+**And during a siege-surge, a tower has nothing on it**, so its guards have
+nothing either. *Settled; see [open questions](020-open-questions.md), F19.* No
+upgrade applies to stone for the length of a surge; they all apply to the bodies
+coming off the spawn points instead. Since towers also stop replacing guards for
+the duration, the only guards on the ground during a surge are whichever ones
+were already standing when it began, fighting at baseline.
+
+So **slotting an upgrade into a lane's stone buys bodies as well as arrows**, and
+it is a larger purchase than it looks. But unlike the older stamped design, it is
+a purchase you can take back: move the upgrade out and the guards are ordinary
+again on the next wave. That is what keeps stone from being the unlosable side of
+the trade, and it is what lets A5's balance instruction stand — stone should be
+worse at pushing a frontline than soldiers are, and a wall you can dismantle is
+easier to price than one you cannot.
 
 ### The base is different
 
@@ -120,12 +171,12 @@ For the duration of a surge, and only then:
 
 | | Normally | During a siege-surge |
 | --- | --- | --- |
-| Shoots | yes, with its stone upgrades | **yes, at baseline** — its upgrades are feeding the stream instead |
+| Shoots | yes, with whatever is slotted into its lane | **yes, at bare catalogue values** — no upgrade applies to stone for the duration |
 | Can be destroyed | yes | **no** |
-| Spawns guards | yes, at its own node | **no** |
-| Its guards | patrol the tower | **spawn from the base as ordinary stream bodies** |
+| Replaces guards | yes, up to its cap, while its command radius is clear | **no, never** |
+| Its guards | patrol the tower, carrying its upgrades | **whatever was already standing, at baseline** — and new production comes out of the base as ordinary stream bodies |
 
-*Settled; see [open questions](020-open-questions.md), A6c.*
+*Settled; see [open questions](020-open-questions.md), A6c and F19.*
 
 **Invulnerability is what stops a surge being a siege window.** A team with the
 stronger stream would otherwise use the phase to take stone cheaply while
@@ -140,9 +191,10 @@ defence goes to meet the fight instead of waiting at home for it, and the ground
 around your towers — normally the most dangerous ground on the map — is briefly
 empty.
 
-Those guards spawn as ordinary stream bodies and are stamped like ordinary stream
-bodies: a **share of the chest dealt across the three bodies spawning that instant**, not the stone upgrades they would
-carry in any other phase. See [the siege-surge](014-the-siege-surge.md).
+Those guards spawn as ordinary stream bodies and are dealt to like ordinary
+stream bodies — **a share of everything the team owns, split across the bodies
+spawning that instant** — rather than reading their tower the way a guard does in
+any other phase. See [the siege-surge](014-the-siege-surge.md).
 
 ## Felling a tower pays three upgrades
 

@@ -4,28 +4,51 @@
 
 ## The four phases, in one place
 
-Because the differences between them are the shape of the whole match:
+This is the project's **one** phase table. The challenge and the calm are written
+up in [boons and the challenge](015-boons-and-the-challenge.md) and the data
+version is built by issue 601, but neither of those restates the grid — a table
+copied into three documents is a table that will disagree with itself, and this
+one already did.
 
 | | **Normal** | **Siege-surge** | **Challenge** | **The calm** |
 | --- | --- | --- | --- | --- |
-| How much of the match | the majority | three short stretches | three stretches | **twice, 30–60s each** |
+| How much of the match | the majority | three stretches | three stretches | after each slain monster |
 | Spawn shape | **waves**, a batch per lane on a long interval | **a stream**, one body per lane on one shared timer | **waves**, normal interval | **nothing spawns; everyone walks home** |
-| Spawn destination | its own lane | its own lane | **the center, all three lanes' worth** | — |
-| Who decides upgrades | the players, by placing | **nobody — the whole chest is dealt across the three bodies spawning that instant** | the players, by placing | the players, freely |
-| Towers | shoot, can be felled, spawn guards | **shoot, cannot be felled, spawn nothing** | shoot, can be felled, spawn guards | as normal |
+| Spawn destination | its own lane | its own lane | **the center, every lane's worth** | — |
+| What a body carries | its lane's placed upgrades | **a share of everything the team owns, dealt across the bodies spawning that instant** | its **spawning** lane's placed upgrades | — |
+| Placing upgrades | free | **free — it changes nothing now, and everything next** | free | free |
+| Towers | shoot with their slotted upgrades, can be felled, spawn guards | **shoot at bare catalogue values, cannot be felled, spawn nothing** | as normal | as normal |
+| Boons | — | — | — | **each player picks one of two, after a slain monster** |
 | Guards | patrol their tower | **spawn from the base as stream bodies** | patrol their tower | as normal |
-| Chest grows on | wave wipes, tower kills | **nothing** | wave wipes, tower kills, the monster | — |
-| Also | | | | **each player picks a boon** |
+| Chest grows on | wave wipes, tower kills | **nothing** | wave wipes, tower kills | — |
+| Push depth | maintained | maintained | **ignored** | recomputed on leaving |
 
-Read down the "siege-surge" column and the phase has one idea in it: **everything
-that was a decision becomes a rate.** Waves become a stream, placement becomes a
-random draw, towers become terrain, and patrols become more stream. For the
-duration, the only things a player still decides are which hero to buy and where
-to point a sign-post.
+Read down the siege-surge column and the phase has one idea in it: **arrangement
+stops mattering, without anything being taken away.** Waves become a stream, and
+what a body carries stops being a decision and becomes a deal. Placement stays
+open the entire time — it simply has no effect until the surge ends, which is
+exactly when the challenge starts and a completely different kind of fight needs
+a completely different board.
 
-The calm happens **twice, not three times** — after the Pillar Orc and after the
-Field Dragon. It never comes after the Eternal Golem, because the Golem is never
-slain. See [boons and the challenge](015-boons-and-the-challenge.md).
+Two of those rows were open until recently and are worth reading twice, because
+both were argued the other way first.
+
+**Towers shoot at bare catalogue values during a surge.** *See
+[open questions](020-open-questions.md), F19.* Nothing applies to them, and
+nothing applies through them to their guards. The deal being described as
+"assigned, not removed" seemed to argue that a tower ought to keep firing fully
+upgraded — but that phrase is a promise about **the chest not being
+confiscated**, not a promise that every slot keeps working. Towers are already
+invulnerable for the duration; leaving them fully upgraded as well would make a
+surge a free minute for whoever is behind, and it would leave half a team's board
+untouched by the one thing in this design meant to disturb what a team built. **A
+surge suspends arrangement — all of it.**
+
+**Boons arrive twice a match, in the calm after a slain monster**, and each player
+picks one of two. *See F6.* Not at the end of a surge, and therefore not three
+times. See [boons and the challenge](015-boons-and-the-challenge.md).
+
+Durations are balance values and live in `docs/balance-updates.md`, not here.
 
 ## The stream
 
@@ -49,28 +72,43 @@ the ground; its guard production is redirected to the base and emerges as
 ordinary stream bodies. The defence walks out to meet the fight instead of
 waiting at home for it.
 
-## The chest is dealt across the three, every time
+## Everything the team owns, dealt across the bodies spawning that instant
 
-**Upgrades cannot be placed, moved, or withdrawn while a surge is running.**
+**Nothing is taken, moved, emptied, or held back.** *Settled; see
+[open questions](020-open-questions.md), F11.* Whatever a team has slotted into
+the top lane stays slotted into the top lane for the whole surge. The chest is
+not dumped out. Placements are not disturbed. **Upgrades are never moved except
+by a player's own hand**, and a surge is the place that rule is worth stating,
+because an earlier draft of this document had the surge confiscating the board
+and handing it back afterwards. Watching your arrangement come apart without
+touching it was frustrating in a way that nothing bought back.
 
-Instead, at every spawn the team's **entire chest is dealt out across the three
-new bodies**, like a hand of cards:
+What the surge does instead is **stop reading slots.** At every spawn:
 
-1. Pick a **random starting lane** from the `surge` stream.
-2. Walk the chest in random order, handing each upgrade to the next lane's body
-   in rotation — starting lane, next, next, back to the first — until every
-   upgrade has been dealt.
-3. Spawn the three bodies with what they were dealt.
+1. Pick a **random one of the new bodies** to start with.
+2. Take a **random upgrade from everything the team owns** — placed, slotted,
+   unplaced, it makes no difference — and assign it to that body.
+3. Move to the next body in rotation and repeat, until every upgrade the team
+   owns has been assigned.
+4. Send them on their way, stamped with what they were dealt.
 
-*Settled; see [open questions](020-open-questions.md), A6b.*
+Half a second later it happens again, from scratch, over the whole holding,
+starting somewhere else.
 
-So each body gets ⌊N/3⌋ or ⌈N/3⌉ upgrades, **every upgrade you own is on the
-field at every instant**, and no two of the three are carrying the same one.
+The upgrades are **assigned, not removed.** An upgrade sitting unplaced in the
+chest is on the field during a surge exactly as much as one slotted into a lane,
+which is a real change from ordinary play, where an unplaced upgrade is doing
+nothing for anybody.
 
-The random starting lane matters for one specific reason: when the chest does not
-divide by three, somebody gets one fewer. Starting the deal at a random lane each
-time means **which lane comes up short rotates**, rather than the top lane being
-permanently a little poorer than the others for the whole surge.
+So each body gets ⌊N/L⌋ or ⌈N/L⌉ upgrades for N upgrades across L lanes,
+**every upgrade the team owns is on the field at every instant**, and no two of
+the bodies spawning together carry the same copy.
+
+The **random starting body** matters for one specific reason: when the holding
+does not divide evenly, somebody gets one fewer. Starting the deal somewhere new
+each time means **which lane comes up short rotates**, rather than the top lane
+being permanently a little poorer for the whole surge. A real fairness bug,
+avoided by one call into a stream.
 
 ### What this actually does to a team
 
@@ -107,17 +145,18 @@ changed every team's upgrade draws forever after. See
 
 While a surge runs:
 
-- Towers **still shoot**, at their baseline catalogue values. Their stone upgrades
-  are among the ones being scattered across the stream for the duration, so the
-  stone fights the surge with nothing on it.
 - Towers **cannot be destroyed.** No tower falls during a surge, and therefore no
   three-upgrade tower reward is paid.
-- Towers **spawn no guards.** That production goes to the base instead, as
-  described above.
+- Towers **spawn no guards.** That production goes to the base instead and comes
+  out as ordinary stream bodies, as described above.
+- Towers **still shoot, at their bare catalogue values.** *Settled; see
+  [open questions](020-open-questions.md), F19.* No upgrade applies to a tower
+  for the length of a surge, and since a tower's guards read through it, none
+  applies to them either. The stone fights the surge with nothing on it.
 
 Combined with there being no wave wipes to detect — the stream produces no
 discrete groups to finish off — **the chest does not grow at all during a
-siege-surge.** It is the one stretch of the match where nothing is earned.
+siege-surge.** It is the one stretch of the match where no upgrade is earned.
 
 Towers being invulnerable is what stops a surge from being a siege window. A team
 with a stronger stream would otherwise use the phase to take stone cheaply while
@@ -126,13 +165,24 @@ rather than a disruption of it.
 
 ## What players actually do during a surge
 
-Buy heroes, and point sign-posts. That is the whole list.
+Everything they normally do, and one thing more.
 
-This is a deliberate hole in the game's main activity, and it is worth naming as
-a design property rather than an absence: for two or three stretches a match, the
-chest is out of your hands and the only thing you have is the fast layer. A
-player who has been banking personal resource has a use for it; a player who has
-been ignoring the second economy has nothing to do but watch.
+They place, move, withdraw, lock, and object exactly as they always can — *see
+[open questions](020-open-questions.md), F12* — and none of it changes what the
+stream is carrying, because the deal does not look at slots. They buy heroes.
+They point sign-posts.
+
+What makes the phase different is **what all that arranging is now for.** A surge
+is followed immediately by a challenge, and a challenge is one enormous body
+where a wave is a great many small ones. Range, splash, and rate of fire are
+worth different amounts against those two things, and a board built for grinding
+a frontline is usually the wrong board for a monster.
+
+So a surge is the window in which a team **retools for what is walking out of the
+middle next**, while the fighting carries on without waiting for them to finish
+deciding. The phase used to be a hole in the game's main activity — buy heroes,
+point sign-posts, that was the list — and it is now the one stretch where the
+main activity is entirely about the future.
 
 ## How it ends
 
@@ -140,19 +190,29 @@ On the tick a surge ends:
 
 1. The stream stops and ordinary wave spawning resumes — redirected to the center,
    because a challenge starts on the same tick.
-2. Towers become destructible again and resume spawning guards.
-3. **Every upgrade is dumped into the chest, unplaced**, where it does nothing.
+2. Towers become destructible again and resume spawning guards, subject to their
+   command radius being clear.
+3. **The board goes back to meaning something.** Nothing moves and nothing is
+   dumped; the slots simply start being read again, so whatever the team arranged
+   during the surge is what the first wave into the center carries.
 4. **The challenge begins** — a named monster per team, in the center lane.
 
-**No boon is handed out here.** A boon is payment for *slaying* a challenge
-monster, and it is chosen in the quiet minute afterwards. See
-[boons and the challenge](015-boons-and-the-challenge.md).
-So a surge does not end in a reward. It ends in a monster and an empty board, and
-the scramble the vision describes — "the players have to quickly re-assign them to
-re-create the strategies they were using" — happens **under** that monster, with
-something enormous walking down the middle while three people rebuild the board.
+**No boon is handed out here.** *Settled; see
+[open questions](020-open-questions.md), F6.* A boon is payment for *slaying* a
+challenge monster, and it is chosen in the quiet afterwards. The vision has one
+arriving at this moment instead, as equipment for the fight ahead; that reading
+was rejected, because a menu opening as something enormous starts walking is not
+a reward, and because equipment picked against a monster you have not met is a
+guess. See [boons and the challenge](015-boons-and-the-challenge.md).
 
-The reward comes after, if you earn it, and there is a calm to enjoy it in.
+So a surge does not end in a reward. What it ends in is **a monster, and a board
+you have spent
+the last minute rebuilding for it.** The scramble the vision describes — "the
+players have to quickly re-assign them to re-create the strategies they were
+using" — has already happened, during the surge, while the stream was running.
+That is the trade this design makes: the panic is moved earlier, into a phase
+where nothing you do can go wrong, and what is left when the monster appears is a
+board you chose.
 
 Related: [waves](005-waves-and-when-one-is-finished.md) ·
 [the shared upgrade pool](009-the-shared-upgrade-pool.md) ·

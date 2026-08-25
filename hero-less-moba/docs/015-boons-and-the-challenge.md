@@ -3,26 +3,26 @@
 **Datapath document.** Covers the three named things that come out of the middle,
 what you are given for killing two of them, and the quiet minute afterwards.
 
-## The four phases of a match
+## Where this sits in the shape of a match
 
-Because the boon's timing only makes sense inside the whole shape:
+The phase grid — what spawns, where it goes, what it carries, what the towers are
+doing — is in [the siege-surge](014-the-siege-surge.md), and it is not repeated
+here. It used to be, in three places at once, and the three copies had already
+drifted apart from each other by the time anybody read them together.
 
-| | **Normal** | **Siege-surge** | **Challenge** | **The calm** |
-| --- | --- | --- | --- | --- |
-| Spawn shape | waves, long interval | a stream, one body per lane | waves, normal interval | **nothing spawns; everyone walks home** |
-| Destination | own lane | own lane | **the center, all three** | — |
-| Upgrades | placed by the players | **the chest dealt across the three** | placed, by spawning lane | **re-placed freely** |
-| What players do | place, buy, point | buy, point | place, buy, point | **choose a boon** |
-
-The calm is short and it happens **three times minus one** — after the Pillar Orc
-and after the Field Dragon. It never comes after the Eternal Golem, because the
-Golem is never slain.
+What matters for this document: a challenge begins on the tick a surge ends, it
+runs on ordinary waves rather than the surge's stream, and every lane's
+production goes into the middle for the duration.
 
 ## The challenge phase
 
-On the tick a surge ends, the whole chest is dumped out unplaced and a monster
-appears at the midpoint of the center lane for each team, walking toward that
-team's base. They do not fight each other and never meet.
+On the tick a surge ends, a monster appears at the midpoint of the centre lane
+for each team, walking toward that team's base. They do not fight each other and
+never meet.
+
+Nothing happens to the chest. Whatever a team arranged during the surge is what
+its first wave into the centre carries — see
+[the siege-surge](014-the-siege-surge.md).
 
 **There are three challenges in a match and they are always the same three, in
 the same order:**
@@ -59,7 +59,6 @@ strengthening one of three groups converging on the middle, and a team that had
 invested heavily in one lane does not watch that investment evaporate for the
 duration. The cost is legibility: three soldiers walking side by side can have
 wildly different strength, and there is no obvious way to draw it.
-have wildly different strength, and there is no obvious way to draw it.
 
 ### The center lane is wider
 
@@ -78,11 +77,35 @@ and it is one number in the map builder. See
 A soldier record with `flavour = 4` and very large numbers. Same movement, same
 targeting, same combat. Three behavioural differences, all fields:
 
-- **Ignores sign-posts.** Nothing reroutes it out of the center lane.
+- **Ignores sign-posts.** Nothing reroutes it out of the centre lane.
 - **Small acquisition range relative to its size**, so it wades through a
   frontline toward the base rather than parking in it.
 - **Targets structures at soldier priority** rather than below it, so it does not
   walk past a tower to be shot in the back.
+
+### A monster is on nobody's side
+
+**Monsters are a third team.** *Settled; see
+[open questions](020-open-questions.md), F13.* Not team 1's, not team 2's,
+allied with nobody and hostile to everything. That matters because during a
+challenge both teams' waves are walking down the same corridor as both monsters,
+and without a third team a monster aimed at team 1's base would be functionally
+an ally of team 2 for the whole phase — fighting alongside them, in their
+direction, at no cost to them. That is not a thing anybody designed and it is
+what falls out of a two-team world by default.
+
+Each monster is nevertheless **assigned** to one player-team: the one whose base
+it is walking at, and whose test it is. The assignment is bookkeeping rather than
+allegiance, and it decides one thing — **the assigned team receives the boon when
+that monster dies, no matter who landed the killing blow.** A team cannot reach
+into the middle, finish off the enemy's monster, and take their reward, and
+nobody has to position a hero to steal or protect a last hit.
+
+Which connects to something worth stating once, in the document where the
+temptation is strongest: **there is no last-hit accounting anywhere in this
+game.** Resource is paid to a team rather than to a player, there is no
+experience, and no rule reads who struck last. A body dies and the opposing team
+is paid.
 
 ### The deadline is the walk
 
@@ -94,11 +117,33 @@ A timer is a number on a panel; a monster walking down the center lane is a thin
 you can see. A player who has never read a rules screen knows exactly how long is
 left, because the time left is *distance*.
 
-Killing one pays an enormous amount to every player on the team that landed the
-last blow — the largest single payout in the game, and worth positioning a hero
-for.
+Killing one pays an enormous amount to every player on the **assigned** team —
+the largest single payout in the game, and it cannot be stolen.
 
-## The calm, and the boons
+## Dying, waiting, and the calm
+
+Three stages, and the middle one is the surprising one.
+
+**1. Your monster dies, and your side goes home.** Your wave units and your
+heroes turn around and walk back. The wave units simply disappear when they
+arrive. **The heroes refund what they cost.** *Settled; see
+[open questions](020-open-questions.md), F14.*
+
+That refund changes what a hero is, in this one context. Heroes still die
+permanently in ordinary play and the resource dies with them — nothing about that
+has moved. But a hero bought *for a challenge* is only spent if it fails, which
+is what makes throwing everything you have at a monster the correct move rather
+than a gamble against your own next three minutes. The commander economy is
+allowed to go all-in on the thing that is designed to be fought all-in.
+
+**2. You wait.** Until the other team has finished theirs, there is nothing to do
+but watch them fight. No push, no free ground, no tempo — your bodies have
+already left the field. **This answers A8c**, and it answers it in the least
+generous direction available: finishing first buys time to think, and nothing
+else.
+
+**3. The calm.** Once both monsters are down and both sides are walking home, the
+quiet window opens.
 
 **The challenge ends when both monsters are dead, and then everyone goes home.**
 
@@ -110,11 +155,52 @@ The calm lasts **somewhere between thirty seconds and a minute** — a balance
 value, and one that has to be found by watching people use it rather than by
 reasoning. In that window:
 
-- **Each player chooses a boon, from three offered.** One per player, three per
-  team, chosen rather than handed over.
-- **The chest gets re-placed.** Everything dumped out when the surge ended is
-  still sitting there doing nothing, and this is when it goes back onto the
-  board.
+- **Each player chooses a boon, from two offered.** *Settled; see
+  [open questions](020-open-questions.md), F5 and F6.* One pick per player, made
+  independently, so a three-player team gains three boons at once and each of
+  them applies to everything the team fields.
+- **The same two are offered to everybody.** One pair is drawn per event and all
+  six players see it — not per player, not per team, per *match*. Nobody is ever
+  handed a better menu than anybody else.
+- **The board can be rearranged**, as it can in every other phase. Nothing was
+  dumped and nothing needs rebuilding; this is simply an unhurried minute in
+  which to do it.
+
+**This is the only moment a boon ever arrives**, and it happens **twice a match**
+— after the Pillar Orc and after the Field Dragon, never after the Eternal Golem,
+which is never slain.
+
+The rejected alternative was the vision's own timing: a boon at the end of each
+surge, before the challenge, as equipment for fighting it. Three events instead
+of two. It is rejected because a boon issued then is a menu opening while
+something enormous starts walking — three players reading two lists each, with a
+deadline, at the most frightening point in the match — and because equipment
+chosen against a monster you have not met yet is a guess rather than a read.
+Payment for the kill, in the quiet afterwards, is a reward with room to enjoy it,
+and that is the whole reason the calm exists as a phase.
+
+### One pair, six players, and the argument you cannot have
+
+Everybody is offered the same two. That is the shared-deck principle arriving
+somewhere new — **remove every source of asymmetry that is not a decision** — and
+it has three consequences worth designing toward rather than discovering.
+
+**A team can take three of the same boon.** Duplicates stack, so three players who
+all pick the left-hand option are running it at triple strength. Nothing forbids
+it, and choosing between concentrating and spreading is the actual decision.
+
+**It is the one negotiation with no channel underneath it.** Three teammates look
+at the same two cards, each guessing what the others will take. There is nothing
+on the board to lock, object to, mark, or point at — the five verbs a team has for
+talking about the chest are all useless here, because the thing being decided is
+not on the map yet. It is the only moment in the match where a team has to
+coordinate blind, and it lasts under a minute.
+
+**The enemy's boons are legible without an interface.** They chose from the same
+pair you did, so after a calm you know their three are some split of two kinds you
+are holding yourself. What you do not know is the split. Which is the same shape
+as every other information rule in this design: you know *what*, never *how much
+of which*.
 
 Then spawning resumes and normal play starts again.
 
@@ -139,6 +225,14 @@ push depth back to the base. The system that maintains them incrementally needs 
 full recompute at the end of a calm — the one moment in a match where the
 frontline moves backwards for everybody at once. See
 [the map](002-the-map-and-its-milestones.md).
+
+**During the challenge itself, push depth is ignored entirely.** *Settled; see
+[open questions](020-open-questions.md), F17.* Every lane's production is in the
+middle and the side lanes are empty, so the only bodies left standing in them are
+each team's own tower guards, sitting at their own towers. The number would read
+each team's stone back at them and mean nothing. Nothing consults it while a
+challenge runs, and the rule that picks a lane for a hero spawned on the library
+does not apply either, because there is only one lane anything is walking down.
 
 ### Why a boon is paid for the kill
 
@@ -168,13 +262,33 @@ That last row is new and it matters. Everything else in the chest belongs to the
 whole team and can be moved by any of them. **A boon is the one thing in the game
 that is yours** — chosen by you, permanent, unmovable, and applying to everything
 your team puts on the field. In a design built almost entirely out of shared
-property and negotiation, each player gets exactly two moments of sole ownership
-per match.
+property and negotiation, a boon is a player's only moment of sole ownership.
 
-Two challenges are survivable, so **six boons per team** by the end: three players
-× two kills. By then both sides are running six permanent lane-wide upgrades
-nobody can move, and soldiers late in a match are simply bigger than soldiers
-early in one. That accumulating floor is the match's arc.
+**And a boon reaches heroes.** *Settled; see
+[open questions](020-open-questions.md), F4.* A lane's upgrades never do — that
+is A14, and it exists so that stacking one lane and buying heroes into it cannot
+compound. A boon is not in a lane. It has no slot, it cannot be aimed, and it is
+best understood as **a buff on the commander that radiates out to everything that
+team puts on the field.** There is no placement decision for it to multiply with,
+which is exactly why it is allowed where a lane upgrade is not.
+
+**How many accumulate**, in one table, because the numbers are easy to state
+wrongly and this document has done so before:
+
+| | Per event | Over a match |
+| --- | --- | --- |
+| Boon events | — | **two** — after the Orc, after the Dragon |
+| Offered to each player | two | 2 + 2 |
+| Chosen by each player | one | **two boons per player** |
+| Gained by a three-player team | three | **3, then 6 — six per team** |
+
+So both sides finish a match running six permanent, team-wide upgrades nobody can
+move and nothing can take away, and soldiers late in a match are simply bigger
+than soldiers early in one. **That accumulating floor is the match's arc.**
+
+And each player gets exactly **two moments of sole ownership** in a design
+otherwise built entirely out of shared property and negotiation — both of them
+paid for by killing something enormous.
 
 ---
 
@@ -222,16 +336,27 @@ lurch, slow, lurch, each lurch a little closer to somebody's library.
 
 ### It pays nothing, and there is no calm afterwards
 
-**No last-blow payout, no personal resource for damaging it, and no boon.** There
-is no last blow because there is no death, and there is nothing left to spend
-resource on: every upgrade the team owns is already on the wave units in the
-center, every soldier the bases can make is already walking into the middle, and
-the entire effort of both teams is spent on one thing.
+**No boon, and no payout for the kill, because there is no kill.** The Golem
+cannot die, so there is nothing to be paid for killing it and nothing to
+position a hero for. It is the one thing on the map that gives back nothing at
+all.
 
-So the third challenge is **the one stretch of a match with no economy in it at
-all.** Nothing is earned and nothing new can be bought. Whatever a team banked
-before the third surge is the last thing it will ever field, which turns the
-run-up to that surge into a spend-it-all-now moment.
+**Everything else still pays.** *Settled; see
+[open questions](020-open-questions.md), F9.* Waves keep spawning into the
+centre at the normal interval, bodies keep dying, and every death still pays
+every player on the opposing team. An earlier draft of this document called the
+third challenge "the one stretch of a match with no economy in it at all," which
+took a true statement about the Golem and made it a false one about the phase.
+
+What is genuinely gone is the *other* economy and the future. There is no calm
+coming, so no boon and no raise to the wallet's ceiling; and every upgrade the
+team owns is already applying to the wave units in the centre, so there is
+nothing left to arrange. The chest has stopped being a decision.
+
+So the endgame is the stretch where **personal resource is the only live
+variable.** Heroes are the only thing a team can still add to the corridor, they
+are bought out of a wallet that will never be raised again, and how long a team
+holds its Golem back is very largely how well it spends.
 
 ### It advances until a library falls
 

@@ -14,9 +14,9 @@ The four flavours differ only in the values in their fields:
 | Flavour | How it differs |
 | --- | --- |
 | **wave unit** | The baseline. Ability slot empty. Spawned by wave or surge timers. |
-| **hero unit** | Roughly 2.5× a wave unit's combat weight, carries abilities, obeys sign-posts at junctions, bought with personal resource. |
+| **hero unit** | Roughly 2.5× a wave unit's combat weight, carries abilities, obeys **one** sign-post in its life and then goes straight on forever after, bought with personal resource. |
 | **guard** | Spawned by a guard tower. Patrols near its tower instead of walking the lane, and will not leave its leash. |
-| **challenge monster** | Very large numbers, walks the center lane, ignores everything a normal soldier would stop for. |
+| **challenge monster** | Very large numbers, walks the centre lane, ignores everything a normal soldier would stop for. On its own third team, hostile to both sides, and assigned to whichever team it is a test for. |
 
 Having one body type is a design constraint with teeth: any behaviour worth
 giving a hero has to be expressible as a field on the common record, which keeps
@@ -37,16 +37,16 @@ cluster in memory.
 | --- | --- | --- |
 | `alive` | integer | 1 or 0. Dead slots are reused; ids are recycled with a generation counter. |
 | `generation` | integer | Bumped each time a slot is reused, so a stale id can be detected instead of pointing at a stranger. |
-| `team` | integer | 1 or 2. |
+| `team` | integer | 1 or 2 — or **3**, the monsters' team, which is allied with nobody and hostile to everything. *See F13.* |
 | `flavour` | integer | 1 wave, 2 hero, 3 guard, 4 monster. |
-| `owner` | integer | Player number 1–6 that paid for this body, or **0** if the team spawned it. |
+| `owner` | integer | Player number that paid for this body, or **0** if the team spawned it. Numbers run 1 to twice the team size; six is not a constant. *See F10.* |
 | `archetype` | integer | Row in the unit table: which hero, which monster, which guard. |
 
 ### Place
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `lane` | integer | 1–3, or **0** while crossing a connector. |
+| `lane` | integer | 1 to the lane count, or **0** while crossing a connector. |
 | `node_from`, `node_to` | integer | The edge currently being walked. |
 | `progress` | double | 0 to 1 along that edge. |
 | `x`, `y` | double | Derived each move pass from the above. The renderer reads these; nothing else does. |
@@ -79,27 +79,49 @@ cluster in memory.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `upgrade_mask` | integer | Bit set of the upgrades on this body, stamped at spawn. **Always 0 for a hero unit.** |
+| `upgrade_count` | integer[kinds] | How many copies of each catalogue kind this body carries. One small integer per kind, not a bit set — duplicates stack, and a bit set cannot count. *See [open questions](020-open-questions.md), F3.* |
 
-The mask is stamped **once, at spawn**, and never recomputed. This is the single
-most important performance decision in the unit system and it has a design
-consequence worth stating plainly: **moving an upgrade out of a lane does not
-weaken the soldiers already walking in it.** They keep what they were born with
-until they die. Players should be told this outright, because it turns every
+**What is in that vector depends entirely on the flavour**, and the four cases
+are genuinely different from each other. This table is the whole of it:
+
+| Flavour | Its lane's upgrades | Its tower's upgrades | Boons |
+| --- | --- | --- | --- |
+| **wave unit** | **stamped at spawn**, from the lane it was spawned for | — | yes |
+| **hero unit** | **never, at any strength** | — | yes |
+| **guard** | — | **read live through its tower**, never stamped | yes |
+| **challenge monster** | never | — | **no** — it is on nobody's team |
+
+Three rules are packed in there and each needs its own comment at the call site,
+because each of them looks like an inconsistency to somebody fixing the others.
+
+**Wave units are stamped once, at spawn, and never recomputed.** This is the
+single most important performance decision in the unit system, and it has a
+design consequence worth stating plainly: **moving an upgrade out of a lane does
+not weaken the soldiers already walking in it.** They keep what they were born
+with until they die. Players should be told this outright, because it turns every
 reassignment into a decision with a delay, and a delay is what makes a
 reassignment worth arguing about.
 
-**Only wave units are ever stamped.** A hero unit's mask is zero and stays zero;
-so is a guard's and a monster's. Lane upgrades reach wave units and nothing else.
-*Settled; see [open questions](020-open-questions.md), A14.* The reason is that
-the two economies must not multiply — if a lane's upgrades also pumped the heroes
-standing in it, a team could stack one lane, buy every hero into that lane, and
-get a compounding payoff for a decision it made once. See
-[the shared upgrade pool](009-the-shared-upgrade-pool.md) for the full argument.
+**Guards are the exception, and they read live.** *See F1.* A guard carries
+whatever is slotted into its own tower at this instant — gaining it the moment it
+arrives and losing it the moment it leaves. It is the only place in the combat
+loop where a body's modifiers are a lookup rather than a copy, and the reason is
+that a guard belongs to something that stands still for the whole match: reading
+through costs one indirection and buys the ability to change your mind. Note also
+that a lane's tower slot delivers **melee** upgrades to the guards and **ranged**
+upgrades to the tower, with common ones going to both — see F21.
 
-Practically this means step 4 of the swing — walking the mask — is a branch that
-is not taken for three of the four flavours, which is worth a comment at the call
-site so nobody later "fixes" the apparent inconsistency.
+**Lane upgrades never touch heroes.** *See A14.* A hero walking through a lane
+stacked with every upgrade the team owns fights at exactly its catalogue values,
+because the two economies must not multiply: if a lane's upgrades also pumped the
+heroes standing in it, a team could stack one lane, buy every hero into it, and
+compound a decision it only had to make once.
+
+**Boons are the thing that reaches everybody.** *See F4.* They are not in a lane
+and have no slot, so there is no placement decision for them to multiply with —
+which is exactly why they are allowed where a lane upgrade is not. A boon is best
+understood as a modifier on the commander that radiates out to everything that
+team fields, heroes included. Monsters get none, having no team to belong to.
 
 ## The brain
 

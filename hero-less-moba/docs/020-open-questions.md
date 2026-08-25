@@ -82,7 +82,11 @@ frontline is no longer thereby poorer.
   per player, which triples a team's real income compared with the other reading.
   That is a ruling, not part of the answer.
 - **The hero economy is now a second snowball with no brake on it.** See C3.
-## A3. How many players per team?
+## A3. How many players per team? — **ANSWERED**
+
+**A variable, three per side for the prototype, and the map is derived from it.**
+See F10: lanes equal players per team, and guard towers equal lanes times three.
+
 
 **Vision:** "the allies can ping an upgrade to ask it to be unlocked, and if
 **both** of them do so then it automatically unlocks."
@@ -213,7 +217,6 @@ disrupt** — the right shape for the design's only brake on a snowball.
 Boons are the exception: no slot, never scattered, on every body in every phase.
 They are the only thing that stays coherent through a surge.
 
-When the surge ends, everything is dumped into the chest unplaced, and the
 When the surge ends, everything is dumped into the chest unplaced, and the
 scramble to re-place it happens under the challenge with a monster walking.
 
@@ -379,7 +382,12 @@ phase in the game whose entire purpose is to be comfortable**, which makes it th
 easiest one to ruin by trimming it for pacing.
 
 **Changed:** [015](015-boons-and-the-challenge.md), [014](014-the-siege-surge.md), [002](002-the-map-and-its-milestones.md), issue 605.
-## A8c. What if one team's monster dies long before the other's? — **NEW**
+## A8c. What if one team's monster dies long before the other's? — **ANSWERED**
+
+**They wait, and they get nothing for it.** See F14: a team whose monster dies
+sends its bodies home immediately, so there is no free push up the centre to be
+had. Finishing first buys time, not tempo.
+
 
 The challenge ends when *both* are dead, so the faster team waits. Their reward
 for finishing first is a free push up the center while the enemy is still busy,
@@ -661,9 +669,10 @@ are paid for by killing something enormous.
 Mechanically that means an upgrade instance gains an `owner` field for the first
 time — set only on boons, 0 on everything else.
 
-Offers are drawn **per player**, not per team, so two teammates can be offered
-the same boon and have to decide between them who takes it. One more small
-negotiation, and it costs nothing to allow.
+**Superseded on the offer question by F5.** This entry originally drew offers
+**per player**, so that two teammates seeing the same boon was a happy accident.
+One pair is now drawn per *event* and every player on both teams is offered that
+same pair, for parity — see F5. Everything else here stands.
 
 **Changed:** [015](015-boons-and-the-challenge.md), [014](014-the-siege-surge.md), issue 605 (rewritten and renamed), phase-6 progress.
 ## A16. Is there a limit on how many heroes one player can have alive? — **ANSWERED**
@@ -862,7 +871,14 @@ interruption cannot.
 
 **Changed:** [014](014-the-siege-surge.md), issue 601, phase-6 progress.
 
-## C1b. Does a visible clock let a team dodge the chest-emptying? — **NEW**
+## C1b. Does a visible clock let a team dodge the chest-emptying? — **MOOT**
+
+The question assumed a surge empties the chest. After F11 it does not empty
+anything, and the deal reads every upgrade a team owns whether it is placed or
+not — so holding upgrades back before a surge buys nothing at all. The original
+reasoning is kept below because the pre-surge hold was a real behaviour to think
+about, and it may come back if the deal ever stops reading unplaced instances.
+
 
 Created by C1's answer, not settled by it.
 
@@ -1455,15 +1471,26 @@ and serialise. The snapshot format probably wants to be FFI regardless.
 
 ## E5. Where do replays live, and how are they versioned?
 
-A replay is a seed plus a command list, which is tiny — but it is only replayable
-against the exact rules that recorded it. A rules-version stamp in the header is
-the minimum.
+A replay is a seed, a command list, and the accepted position-and-health
+snapshots — see E2, which corrected the older claim that a seed and a command
+list were enough. The snapshots are what make a replay heavy, so storage is a
+real question rather than a formality. A replay is also only replayable against
+the exact rules that recorded it; a rules-version stamp in the header is the
+minimum.
 
-## E6. Does the map builder need to make anything other than the standard map?
+## E6. Does the map builder need to make anything other than the standard map? — **ANSWERED**
 
-Everything assumes three lanes, four junctions, two bases. If that is permanent,
-the builder can be much simpler. If not, the milestone system needs to stop
-assuming nine.
+**Yes, and it is not an option.** The lane count follows the team size, so a
+two-lane and a four-lane map are ordinary output rather than variants. See F10.
+The nine-milestone assumption becomes a thing the map validator checks rather
+than a thing the rest of the code relies on.
+
+
+Superseded by F10 — the builder scales with team size, so a two-lane and a
+four-lane map are ordinary output rather than special cases. What remains here is
+the consequence: **the milestone system must stop assuming nine**, and the count
+becomes something the map validator reports rather than something the rest of the
+code may rely on.
 
 ## E7. How good does the bot need to be?
 
@@ -1475,6 +1502,769 @@ probably deserves its own phase rather than a corner of phase 8. Worth deciding
 before the committed-strategy bot is written, because a bot built to be a
 measuring instrument and a bot built to be an opponent are not the same program.
 
+---
+
+# Group F — Answered in the review of 2026-08-24
+
+A read-through of every document against every other one turned up a set of
+disagreements between pages that were each individually well-formed, which is
+why nothing here was caught by `./validate-documentation`. The answers below
+came out of that session.
+
+**Several of these reverse an earlier entry.** Where they do, the older entry is
+left standing with its reasoning intact — the road not taken is worth being able
+to find — and the entry here names what it supersedes. When the two disagree,
+**Group F is the current design.**
+
+Superseded by this group: **A6, A6b, A6b-i, A18** in part, **D3** in part,
+**D4** in part, **E2c**, **B4**, and the boon arithmetic in **A8** and **A15**.
+
+## F1. Are a tower's guards stamped with its upgrades, or do they read live? — **ANSWERED**
+
+**Answer: they read live. Nothing about a guard is stamped.**
+
+A guard receives whatever is slotted into its own guard tower **the moment that
+upgrade arrives**, and loses it the moment the upgrade physically leaves. It is
+not a copy taken at birth; it is the tower's current holding, read through.
+
+The queue still applies, and it is the same queue an upgrade uses everywhere
+else: a player can queue an upgrade to move to a lane or to a different guard
+tower, and **the guards keep their existing buffs until the next wave spawns and
+the upgrade physically switches.** The wave spawn is the moment of the switch,
+for stone and for guards alike, which means there is exactly one instant in the
+match's rhythm where anything changes hands.
+
+This supersedes **A18**, which said a guard was stamped at spawn like a wave
+unit, and it corrects
+[a unit and what it carries](004-a-unit-and-what-it-carries.md), which says a
+guard's modifier set is permanently zero, and
+[guard towers](007-guard-towers-and-their-guards.md), which says it is stamped.
+All three were describing different rules.
+
+What it costs: a guard's modifiers are now a lookup through its tower rather
+than a number it carries, so the swing arithmetic for a guard is not the same
+shape as the swing arithmetic for a wave unit. That is acceptable — guards are
+few and towers are fixed — but it means "one soldier record, one combat routine"
+now has one genuine branch in it, and the branch needs a comment saying why.
+
+What it buys: the A5/A18 tension disappears. A5's balance instruction was that
+stone must be worse at pushing a frontline than soldiers are. A18 pushed against
+that by making a stone upgrade quietly buy bodies as well as arrows, and the
+reconciliation was leashing. Live reading keeps the bodies but makes the
+investment reversible — move the upgrade out and the guards are ordinary again
+on the next wave — so stone is no longer the unlosable side of the trade.
+
+**Changed:** [007](007-guard-towers-and-their-guards.md), [004](004-a-unit-and-what-it-carries.md) *(pending the soldier walkthrough)*, [010](010-upgrades-slotted-into-stone.md), issues 303, 401, 405.
+
+## F2. What is a command radius? — **ANSWERED, and it is new**
+
+A guard tower carries a **command radius**: a plain circle of ground around it,
+and the only thing in the game that both teams can see the shape of.
+
+It does two jobs.
+
+**It gates the tower's own guard production.** A tower puts guards on the ground
+up to a **cap**, and only while **no enemy stands inside its command radius**. A
+tower under pressure does not reinforce itself; a tower with clear ground around
+it fills back up. That inverts the usual behaviour and it is the point — guards
+are what makes the ground around a tower dangerous, so the way to make a tower
+approachable is to reach it, not to grind its patrol down and outlast the timer.
+
+**The cap is a stat, and upgrades can raise it.** Slotting the right upgrade
+into a lane's stone does not only make the towers shoot harder; it lets them
+hold more bodies.
+
+**It gates hero spawning.** A player may put a hero down at one of their own
+guard towers only while the command radius is clear of enemies — the same test,
+the same circle. This replaces the loose "threshold radius" that
+[hero units](012-hero-units.md) referred to and **B4** was holding a number for;
+there is one radius per tower and it does both jobs.
+
+**Both teams can see it.** This is a deliberate exception to the rule that runs
+through the rest of the design — sign-post directions are hidden, the enemy
+chest is hidden, and what you know about an opponent is what has physically
+reached you. The command radius is drawn for everybody, because it is the one
+piece of information that both attacker and defender have to reason about at the
+same moment: the attacker needs to know how far in they have to get to shut the
+reinforcements off, and the defender needs to know how far out they have to push
+to turn them back on. Hiding it would make the most tactical ground on the map
+unreadable to the side standing on it.
+
+**Changed:** [007](007-guard-towers-and-their-guards.md), [012](012-hero-units.md), [001](001-what-this-game-is.md)'s vocabulary, issues 303, 304, 506, and B4 and B10, which now hold numbers for one radius and one cap rather than two unrelated ones.
+
+## F3. Can the same upgrade kind stack, and what stores it? — **ANSWERED**
+
+**Answer: yes, duplicates stack, and the store is a count vector rather than a
+bit set.**
+
+**A11** already said duplicates stack and three instances of one kind can sit in
+three lanes or pile into one. What nothing noticed is that the thing carrying
+them — one integer, one bit per kind — cannot count. Two copies of a kind and one
+copy of that kind produce the same integer, so as written the stacking rule had
+no way to take effect.
+
+So what a body carries is **an array of small integers, one per catalogue kind,
+holding how many copies of that kind it has.** A lane's holding is the same
+shape. The swing arithmetic changes from walking set bits to walking the vector
+and multiplying each modifier by its count.
+
+Three things follow.
+
+**The catalogue is no longer capped at the width of an integer.** The `bit` field
+in the upgrade catalogue exists only to pack kinds into a mask, and LuaJIT's bit
+library is thirty-two wide, so the old design silently limited the whole game to
+thirty-two upgrade kinds — including boons. Nobody had written that number down
+anywhere. With a count vector the limit is memory, and **B7** is free to pick a
+catalogue size on its merits.
+
+**Stamping costs more.** A bit set is one integer copied; a count vector is an
+array copied per body. It is still a flat copy of a small fixed-size array into
+preallocated space, which is the cheap kind, but the "one integer" line in
+several documents is no longer true.
+
+**Something has to decide how a duplicate composes.** Two copies of a flat
+addition presumably add twice. Two copies of a multiplier are the open half —
+multiply twice, or add the excess once. That belongs with **B7** and the
+catalogue, and it should be one rule for every kind rather than a per-kind field.
+
+**Changed:** [009](009-the-shared-upgrade-pool.md), [006](006-combat-and-damage.md), [010](010-upgrades-slotted-into-stone.md), [004](004-a-unit-and-what-it-carries.md) *(pending the soldier walkthrough)*, issues 401, 402, 405.
+
+## F4. Do boons reach hero units? — **ANSWERED**
+
+**Answer: yes. A boon is on every body the team fields, heroes included.**
+
+**A14** stands unchanged and is about something else: a **lane's** upgrades reach
+wave units and nothing else, so that stacking a lane and buying heroes into it
+cannot compound. A boon is not in a lane. It is not in any slot, it cannot be
+moved, and it is not a thing a player aims — it is described best as **a buff on
+the commander that radiates out to everything that team puts on the field.**
+
+That is why it is allowed to touch heroes when a lane upgrade is not: there is no
+placement decision for it to multiply with. Nobody can stack boons into one lane,
+because a boon has no lane.
+
+**Changed:** [015](015-boons-and-the-challenge.md), [009](009-the-shared-upgrade-pool.md), [012](012-hero-units.md), [004](004-a-unit-and-what-it-carries.md) *(pending the soldier walkthrough)*, issue 605.
+
+## F5. How many boons, offered how many at a time? — **ANSWERED**
+
+**Answer: two offered, one chosen, by each player independently.**
+
+Not three offered, and not one boon handed to a team. Every player makes their
+own pick, so a three-player team gains three boons at each boon event, and every
+one of those three applies to everything the team fields.
+
+### The two offers are the same two for everybody
+
+**One pair is drawn per event, and all six players are offered that same pair.**
+Not per player, not per team — per *match*. This supersedes the earlier ruling in
+A15, which drew offers per player and treated two teammates seeing the same boon
+as a happy accident.
+
+It is the shared-deck argument again, arriving somewhere else: **remove every
+source of asymmetry that is not a decision.** The map is symmetric, the spawn
+intervals are identical, the surge is on a visible clock, both teams draw the
+same upgrade kinds in the same order — and now both teams are offered the same
+two boons at the same moment. Nobody is ever handed a better menu.
+
+Three consequences, and the second is the one worth designing toward.
+
+**A team can take three of the same boon.** Duplicates stack (F3), so three
+players who all pick the left-hand option are running that boon at triple
+strength. Nothing forbids it and it is a real strategy: concentrate, or spread
+across both.
+
+**It is a negotiation with no communication channel.** Three teammates are
+looking at the same two cards and each has to guess what the others will take.
+Spreading two-and-one is probably right and everybody piling onto the strong one
+is a coordination failure — which makes this the only moment in the game where
+the team's five verbs do not help at all, because there is nothing on the board to
+lock, object to, or point at.
+
+**The enemy's boons are legible without any interface.** They chose from the same
+two you did, so after a calm you know their three boons are some split of a pair
+you are holding yourself. What you do not know is the split. That is exactly the
+shape of every other information rule here: you know *what*, never *how much of
+which*.
+
+The full arithmetic is in F6, which settles how many events there are.
+
+**Changed:** [015](015-boons-and-the-challenge.md), issue 605.
+
+## F6. When does a boon arrive, and how many times? — **ANSWERED**
+
+**Answer: twice a match, in the calm after a slain monster.** The reading that
+had them arriving at the end of each surge is rejected.
+
+The whole of it, in one table, because the numbers are easy to state wrongly and
+this document has already done so once:
+
+| | Per event | Over a match |
+| --- | --- | --- |
+| Boon events | — | **two** — after the Pillar Orc, after the Field Dragon |
+| Offered to each player | **two** | 2 + 2 |
+| Chosen by each player | **one** | **1 + 1 — two boons per player** |
+| Gained by a three-player team | **three** | **3 then 6 — six per team** |
+
+**There is no third boon event.** The Eternal Golem is never slain, so nothing
+pays for it, and the third surge is followed by a challenge that ends the match
+rather than by a calm.
+
+### Why payment rather than equipment
+
+The vision has a boon arriving at the end of each siege-surge, as something that
+"helps them overcome a challenge that appears" — equipment issued before the
+fight. That is three events, and it was a live reading right up until this was
+settled. It is rejected for two reasons.
+
+**A boon issued before the fight is a menu opening while something enormous
+starts walking.** Three players reading two lists each, with a deadline, at the
+most frightening moment in the match. Paid for the kill, in the quiet afterwards,
+it is a reward with room to enjoy it — and that is the entire reason the calm
+exists as a phase at all.
+
+**Equipment for a fight you have not had yet cannot be chosen well.** You would
+be picking against a monster you have not met, which makes the choice a guess
+rather than a read. Picking afterwards, with the next stretch of normal play in
+front of you, is a decision about a board you can see.
+
+So a boon is **payment for slaying a challenge monster**, and the shape of the
+match is: surge, then monster, then reward. Tension, then release, twice.
+
+### What it settles elsewhere
+
+- **The wallet's ceiling rises twice**, at each calm, alongside the boons —
+  confirming the working ruling in A16b rather than making it three.
+- **A team finishes on six boons**, so the accumulating floor under a match is
+  six permanent team-wide upgrades nobody can move, not nine.
+- **Each player gets exactly two moments of sole ownership** in a design
+  otherwise built entirely out of shared property, and both are paid for by
+  killing something enormous.
+
+**Changed:** [015](015-boons-and-the-challenge.md), [014](014-the-siege-surge.md)'s phase table, [011](011-commanders-and-personal-resource.md), issues 601, 605.
+
+## F7. What actually crosses the wire, and to whom? — **ANSWERED**
+
+**Answer: between teams, unit positions and health and nothing else. Everything
+else is a small immediate message inside one team.**
+
+This supersedes **E2c**, which said positions and health full stop, and it
+resolves the collision where the word *snapshot* was naming two different
+objects. There are three flows, not one:
+
+| Flow | Who sees it | Carries |
+| --- | --- | --- |
+| **The viewer's snapshot** | never leaves the machine | everything the renderer needs — a local read-only copy per tick |
+| **Team traffic** | that team's machines only | placements, queued moves, locks, objections, sign-posts, purchases, boon picks |
+| **Cross-team sync** | everybody | positions and health of bodies, projectiles, and structures |
+
+**The enemy's chest is not merely undrawn — it is not on your machine.** The
+previous model had every peer simulating the whole world from a shared seed,
+which meant both teams' chests, slots, and sign-post directions were sitting in
+memory on every client and were secret only because the viewer declined to draw
+them. They are now genuinely absent, which is the only version of hidden
+information that survives a modified client.
+
+**One constraint comes out of it.** Because a placement is authoritative from the
+person who made it and is never rolled back, two teammates can still contradict
+each other across a bad connection. So **an upgrade's queued destination cannot
+be changed inside a window of the worst ping among that team's connected
+players, plus fifteen percent.** Within that window the destination is frozen and
+a change is refused with a reason. Outside it, everyone has already seen it.
+
+**Changed:** [016](016-players-teams-and-commands.md), [017](017-the-viewing-layer.md), [003](003-the-simulation-tick.md), issues 107, 801, and E2c.
+
+## F8. How is cheating caught, if the teams no longer share a world? — **ANSWERED**
+
+**Answer: by auditing what the enemy could possibly have, against what they are
+observed to have.**
+
+**E2b** answered the physical half — a health change larger than anything in
+range could have caused is a claim about something that could not have happened.
+This is the economic half, and it is what the split in F7 makes necessary: your
+machine no longer simulates the enemy's chest or wallet, so it has to **infer**
+them and check the inference.
+
+Both halves work the same way. Watch what arrives, ask whether it is explicable.
+
+- **An upgrade shows up on an enemy frontline body that you have not seen come
+  out of the shared deck.** The innocent explanation is that they paid to reroll
+  and are further along the sequence than you are, and that explanation is
+  checkable — it costs resource, and resource is bounded.
+- **The enemy fields heroes costing more than they could feasibly have earned by
+  that tick.** There is no innocent explanation for that one. Income is a
+  function of kills, kills are visible, and the ceiling is known.
+
+A single discrepancy is not an accusation; the checker's first job is to **try to
+explain it**, and most of the time it can. What is not tolerated is
+**accumulation.** One unexplained upgrade is a reroll you did not see. A dozen,
+plus a hero roster nobody could afford, is not anything else.
+
+This is the same principle as E2b's causality check and for the same reason: it
+catches the impossible rather than the improbable, so it never produces a false
+accusation against somebody with a bad connection.
+
+**Changed:** [016](016-players-teams-and-commands.md), issue 801.
+
+## F9. Is there an economy during the third challenge? — **ANSWERED**
+
+**Answer: yes. Resource keeps flowing. What the Golem does not pay is a boon.**
+
+[commanders and personal resource](011-commanders-and-personal-resource.md) and
+[boons and the challenge](015-boons-and-the-challenge.md) both said the third
+challenge had "no income at all" and was "the one stretch of a match with no
+economy in it." That generalised a narrower fact — that the Golem itself pays
+nothing for being damaged and nothing for being killed, because it cannot be
+killed — into a claim the combat rules contradict. Waves still spawn, bodies
+still die, and every death still pays.
+
+So the endgame is not a stretch with the wallet switched off. It is a stretch
+where **the wallet is the only thing still moving**: no more boons, no more
+draws worth arranging, and personal resource buying the heroes that are the only
+variable left in how long a team holds its Golem back.
+
+**Changed:** [011](011-commanders-and-personal-resource.md), [015](015-boons-and-the-challenge.md), and the entry above titled "Does damaging the Eternal Golem pay anything?", which was right about the Golem and wrong about the phase.
+
+## F10. How many players, and how much of the map follows from it? — **ANSWERED**
+
+**Answer: it is a variable everywhere, three per side is what the prototype
+targets, and the map is derived from it.**
+
+The relationships, which nothing had written down:
+
+- **Lanes = players per team.** Three players, three lanes.
+- **Guard towers per team = lanes × 3** — two standing on each lane, one at each
+  lane's mouth inside the base. Two lanes gives six a side, three gives nine,
+  four gives twelve.
+
+So a 2v2 and a 4v4 are not variants of the standard map; they are what the map
+builder emits when it is handed a different team size. That **answers E6** in the
+affirmative — the builder must scale — and it retires the fixed nine-milestone
+assumption as a thing to check rather than a thing to rely on.
+
+It also contradicts something
+[players, teams, and commands](016-players-teams-and-commands.md) says outright:
+that three lanes and three players is "a tidy coincidence and nothing more" and
+"nothing in the rules assumes one player per lane." The map now assumes it
+structurally. That does not mean a player owns a lane — the whole design pushes
+against that — but the shape of the field is derived from the size of the team.
+
+The fixed player-number mapping in that document — players 1 to 3 are team 1,
+4 to 6 are team 2, "a fixed mapping and not a lookup" — has to go with it.
+
+**This closes A3** as a design question. What remains is the prototype's scope:
+3v3 is what gets built and played first.
+
+**Changed:** [016](016-players-teams-and-commands.md), [002](002-the-map-and-its-milestones.md), [007](007-guard-towers-and-their-guards.md), [003](003-the-simulation-tick.md)'s world record, issues 101, 102, 802, and E6.
+
+## F11. What exactly does a siege-surge do to a team's upgrades? — **ANSWERED**
+
+**Answer: nothing. It reads them where they sit and deals them out to the bodies
+coming off the spawn points.**
+
+This supersedes **A6**, **A6b**, and **A6b-i** in their mechanism, though not in
+what they were reaching for.
+
+Every roughly half a second, **one body spawns at each lane's start point inside
+the base** — three bodies in a three-lane match, mirrored on the other side. At
+each of those spawns:
+
+1. Pick a random one of the three new bodies to start with.
+2. Take a **random upgrade from everything the team owns** and assign it to that
+   body.
+3. Move to the next body in rotation and repeat, until every upgrade the team
+   owns has been assigned.
+4. Send the three on their way, stamped.
+
+Then half a second later it happens again, from scratch, over the team's whole
+holding, starting at a fresh random body.
+
+**The upgrades are assigned, not removed.** They are not taken out of anything.
+Whatever is slotted into the top lane is still slotted into the top lane the
+whole time the surge runs — the surge simply ignores where things sit and reads
+the team's holding as one flat list.
+
+That kills three things the older answers had built:
+
+- **Nothing is dumped into the chest** when a surge starts, so nothing has to be
+  remembered and restored when it ends, and the "scramble to re-place a chest
+  that was emptied" is gone. Upgrades in this game are **never moved except by a
+  player's own hand.** Watching your arrangement come apart without touching it
+  was frustrating in a way that nothing bought back.
+- **The chest is not the source.** The deal reads everything the team holds,
+  placed or not, so an upgrade sitting unplaced is on the field during a surge
+  exactly as much as a placed one is. There is no pre-surge hold to be clever
+  about, which **retires C1b**.
+- **The surge is not a freeze.** See F12.
+
+What survives, and it is the part that mattered: for the length of the surge a
+team's arrangement does not decide anything. Every upgrade is on the field at
+every instant, spread across three bodies at a time, and never twice in the same
+combination. **The surge does not take strength. It suspends arrangement.**
+
+**Changed:** [014](014-the-siege-surge.md), [009](009-the-shared-upgrade-pool.md), [005](005-waves-and-when-one-is-finished.md), [001](001-what-this-game-is.md), issues 602, 603, and C1b.
+
+## F12. Can players touch upgrades during a surge? — **ANSWERED**
+
+**Answer: yes, freely. Place, move, withdraw, lock, object — all of it.**
+
+The older rule refused every placement for the duration and left players with
+nothing to do but buy heroes and point sign-posts, which
+[the siege-surge](014-the-siege-surge.md) described as "a deliberate hole in the
+game's main activity." It was a hole.
+
+It is also unnecessary now. Since the deal ignores where an upgrade sits (F11),
+rearranging during a surge changes nothing about the surge — so there is no
+reason to forbid it, and one good reason to encourage it: **what you are
+arranging is the challenge.** A monster is one enormous body and a wave is many
+small ones, and the build that was right for the second is usually wrong for the
+first. The surge becomes the window in which a team retools for the thing walking
+out of the middle next, while the fighting continues without waiting for them.
+
+The same freedom holds during the calm.
+
+**Changed:** [014](014-the-siege-surge.md), [009](009-the-shared-upgrade-pool.md), [016](016-players-teams-and-commands.md)'s refusal table, issues 404, 602, 603.
+
+## F13. Whose side is a challenge monster on? — **ANSWERED**
+
+**Answer: its own. Monsters are a third team, and each one is assigned to the
+player-team it is a test for.**
+
+A monster is hostile to everything and allied with nobody, so no configuration of
+the map turns it into somebody's temporary ally. The assignment is bookkeeping,
+not allegiance: **the team a monster is assigned to receives the boon when it
+dies, no matter who landed the killing blow.** A team cannot steal another team's
+challenge reward by reaching into the middle and finishing their monster off, and
+nobody has to position a hero for a last hit.
+
+That connects to a simplification worth stating on its own. **There is no
+last-hit accounting in this game at all.** Resource is paid to a team, not to a
+player, there is no experience, and no rule anywhere reads who struck last. The
+`last_hit_by` field that
+[combat and damage](006-combat-and-damage.md) and
+[commanders and personal resource](011-commanders-and-personal-resource.md)
+both describe can come out.
+
+**Changed:** [015](015-boons-and-the-challenge.md), [006](006-combat-and-damage.md), [011](011-commanders-and-personal-resource.md), [004](004-a-unit-and-what-it-carries.md) *(pending the soldier walkthrough)*, issues 205, 502, 606.
+
+## F14. What happens between a monster dying and normal play resuming? — **ANSWERED**
+
+**Answer: three stages, and the middle one is a wait.**
+
+1. **Your monster dies.** Your wave units and your heroes turn around and go
+   home. The wave units simply disappear when they arrive. **The heroes refund
+   what they cost**, so a hero that survived a challenge was rented rather than
+   spent.
+2. **You wait.** Until the other team has finished theirs, there is nothing for
+   you to do but watch them fight. Finishing first buys time, not tempo.
+3. **The calm.** Once both monsters are down and both sides' bodies are walking
+   home, the quiet window opens: boons are chosen, upgrades are rearranged
+   freely, and then normal play resumes.
+
+The refund is the significant half and it changes what a hero is. Heroes still
+die permanently and the resource still dies with them — that is unchanged during
+ordinary play. But a hero bought *for a challenge* is only spent if it fails,
+which is what makes throwing everything at a monster the correct move rather than
+a gamble against your own next few minutes.
+
+**This answers A8c**, which asked what happens when one team's monster dies long
+before the other's, and it answers it in the least generous direction available:
+the faster team gets no free push, because their bodies have already left.
+
+**Changed:** [015](015-boons-and-the-challenge.md), [012](012-hero-units.md), [011](011-commanders-and-personal-resource.md), [014](014-the-siege-surge.md), issues 605, 606, 503, and A8c.
+
+## F15. Where do sign-posts stand, and what do they do? — **ANSWERED IN PART**
+
+**Answer: three of them, one per lane, standing on the anti-diagonal — and each
+one is worth exactly one lane change.**
+
+With team A's base at the bottom-left and team B's at the top-right, the three
+sign-posts stand at the **top-left corner**, the **middle of the field**, and the
+**bottom-right corner**. Those are the three points where the three lanes are
+closest to each other, and the connectors between them run along that diagonal.
+
+| Sign-post | Default | Alternative |
+| --- | --- | --- |
+| top-left | toward the enemy base | toward the centre |
+| centre | toward the enemy base | toward the top-left, or toward the bottom-right |
+| bottom-right | toward the enemy base | toward the centre |
+
+A click toggles it. A unit arriving at a sign-post continues in the direction it
+points — **and then goes straight on at every junction afterwards**, whatever the
+next sign says. One diversion per body, and no more.
+
+So the whole apparatus amounts to **the ability to swap a body into a neighbouring
+lane, once, with a delay** — the delay being however long it takes to walk to the
+corner. It is not a routing system and it cannot build a loop.
+
+This replaces the earlier design of four sign-posts sitting at the near corners
+of the two side lanes, two per team's own half, which had a structural problem
+underneath it: the centre lane had no junction of its own, so anything that
+walked into the middle could never walk out of it. Putting a sign-post in the
+middle of the field fixes that by construction.
+
+Three things are still open and are **F16**.
+
+**Changed:** [013](013-signposts-and-lane-routing.md) (rewritten), [002](002-the-map-and-its-milestones.md), [012](012-hero-units.md), issues 101, 508, 705, and D4.
+
+## F16. Who obeys a sign-post, who owns it, and who can see it — **ANSWERED**
+
+Three questions, three answers, and together they say that a sign-post is a
+private standing order rather than a piece of shared terrain.
+
+### Heroes obey. Wave units do not.
+
+**Only hero units read sign-posts.** Wave units ignore them completely and always
+continue along their own lane, exactly as under the four-post design.
+
+The reason is unchanged and it is load-bearing: if waves could be rerouted, a
+team could feed two lanes into one and the lane structure of the map would be
+decorative. **Waves are the map's skeleton; heroes are the thing that moves
+across it.** The new posts are weaker than the old ones — they sit at the far
+corners rather than outside your own base, and a body obeys at most one in its
+life — but "weaker" was never the objection. Collapsing two lanes into one at the
+midpoint is still collapsing two lanes into one.
+
+Guards never reach a junction, being leashed. Challenge monsters ignore them.
+
+### There are six, three per team.
+
+**Each team has its own set of three.** Every junction carries two sign-posts —
+yours and theirs, standing in the same place, pointing wherever each team last
+set them. Six in total on a three-lane map.
+
+So setting a sign-post is **only** an order to your own heroes. It is never an
+act against the enemy, and nothing in this game lets one team touch an object the
+other team is also using. The alternative — three shared posts, where turning one
+redirects the enemy's heroes as well as your own — was the stranger idea and it
+was rejected: it would be the only mechanic in the design where two teams act on
+the same object, and it would make routing an attack rather than a plan.
+
+Any player on a team may set any of that team's three, at any time, with **no
+lock and no objection** — see D5. The three of them share one set of standing
+orders, and every hero any of them buys obeys it.
+
+### The enemy cannot see yours.
+
+**Sign-posts are invisible to the other team**, which confirms D4 on new ground.
+The old ruling drew the enemy's posts as objects with no direction shown, because
+they stood as physical things in your own half. With one post per team per
+junction, co-located, there is nothing to draw: **you see your three, and you do
+not see theirs at all.**
+
+That is cleaner than the old compromise and it lands the same way as everything
+else in this design. **You learn where their heroes go by watching heroes
+arrive**, not by reading a sign. A team that has quietly pointed all three of its
+junctions at the centre has committed every future hero purchase to the middle,
+and the other side finds out when heroes start turning up there — several
+purchases late, with the commitment already a wave or two deep. The fog is made
+of walking.
+
+Implementation note, carried over from D4 and now stronger: the viewer's frame
+contains **no entry at all** for the enemy's sign-posts — not a hidden field the
+renderer declines to draw, an absent one. Under F7 the enemy's routing is not on
+your machine in the first place, which is what makes the secrecy real rather than
+polite.
+
+### And the count follows the lanes
+
+One post per lane per team, so **team size decides this too** (F10): a two-lane
+match has four sign-posts, a three-lane match six, a four-lane match eight. The
+map builder emits them with the junctions.
+
+**Changed:** [013](013-signposts-and-lane-routing.md), [012](012-hero-units.md), [017](017-the-viewing-layer.md), [016](016-players-teams-and-commands.md), issues 101, 508, 705.
+
+## F17. Is push depth meaningful during a challenge? — **ANSWERED**
+
+**Answer: no. It is ignored for the duration.**
+
+During a challenge every lane's production goes to the middle and the side lanes
+empty, so the only bodies left standing in them are each team's own tower guards,
+sitting at their own towers. Push depth measures the deepest milestone a team's
+living soldiers have reached, so it would read each team's own stone back at them
+and mean nothing.
+
+Nothing consults it while a challenge runs. The rule that picks a lane for a hero
+spawned on the library does not apply either, because there is only one lane
+anything is walking down.
+
+**Changed:** [002](002-the-map-and-its-milestones.md), [008](008-the-base-and-the-library.md), [015](015-boons-and-the-challenge.md), issues 102, 507, 607.
+
+
+## F18. What does the one-wave transit actually look like? — **ANSWERED, unchanged**
+
+**D3** is confirmed rather than superseded, and this entry exists because the
+mechanism is easy to state wrongly.
+
+A player queues an upgrade to move. Then:
+
+- **The next wave to spawn is stamped at the upgrade's old slot.** It walks out
+  carrying it.
+- **The upgrade physically moves at that spawn.**
+- **The wave after that is stamped at the new slot.**
+
+So a placement lands two waves after the command, with one wave of unchanged
+behaviour in between, and the moment of the switch is a wave spawn rather than a
+tick on a timer. The same instant switches a lane's stone and therefore what its
+guards are reading (**F1**).
+
+During a challenge this is unchanged — waves spawn into the centre at the normal
+interval, and the normal placement rules apply to all of it. **The chest is not
+reshuffled during a challenge.** That only ever happened during a surge, and
+after **F11** it does not happen there either.
+
+**Changed:** nothing. Recorded because [the shared upgrade pool](009-the-shared-upgrade-pool.md) and issue 404 state it correctly and should not be edited toward something simpler.
+## F19. Does a tower keep its own upgrades while a surge runs? — **ANSWERED**
+
+**Answer: no. A tower keeps shooting, and it shoots at its bare catalogue
+values.** No upgrades apply to it for the length of the surge.
+
+The question came out of F11's phrasing. The deal *assigns* upgrades rather than
+removing them, which seemed to argue that nothing had left the tower and it ought
+to keep firing fully upgraded. That reasoning was too clever. "Assigned, not
+removed" is a statement about **the chest not being confiscated** — nobody's
+placements get shuffled and nothing has to be rebuilt afterwards. It is not a
+promise that every slot keeps working while a surge runs.
+
+So the rule is flat and needs no derivation: **during a surge, upgrades apply to
+the bodies coming off the spawn points and to nothing else.** Not to towers, not
+through towers to their guards.
+
+That is also the version that keeps the phase honest. Towers are already
+invulnerable for the duration; leaving them fully upgraded as well would make a
+surge a free minute for whoever is behind, and it would leave the tower half of a
+team's board completely untouched by the one thing in this design that is
+supposed to disturb what a team built. **A surge suspends arrangement — all of
+it**, not the soldier half only.
+
+The guards inherit the same answer for free, since they read through their tower
+(F1): during a surge a tower has nothing on it, so its guards carry nothing. And
+towers spawn no guards during a surge anyway, so the only guards on the ground
+are the ones that were already standing there when it began.
+
+**Changed:** [the siege-surge](014-the-siege-surge.md) and its phase table, [guard towers](007-guard-towers-and-their-guards.md), issues 602 and 603.
+
+## F20. Which lane is the wide centre when there is no middle one? — **OPEN**
+
+Created by F10, which made the lane count follow the team size.
+
+A three-lane map has an obvious centre: the diagonal, the wide one, the one every
+challenge funnels into, the one the connectors reach. A **four-lane** map has two
+middle lanes and a **two-lane** map has none, and three separate systems ask for
+a centre by name:
+
+- **The challenge.** Every lane's production funnels into "the centre" and both
+  monsters walk down it. With two candidates it is unclear which; with none it is
+  unclear whether a challenge is possible at all.
+- **The width rule.** The centre is topographically wider so that a monster can
+  fight a whole team at once rather than a queue. That is the only real
+  difference between the three lanes and it wants somewhere to live.
+- **The connectors.** Each side lane's junction reaches the centre, which is what
+  lets a hero change lanes at all. With no centre there is nothing to reach, and
+  the sign-posts have nothing to point at except along.
+
+Three shapes, none obviously right:
+
+1. **An odd lane count only.** 3v3 and 5v5 work, 2v2 and 4v4 are not supported.
+   Cheapest, and it makes the prototype's number a rule rather than a default.
+2. **A dedicated centre that is not a lane.** The wide corridor exists on every
+   map, nothing spawns into it during normal play, and challenges use it. Costs a
+   piece of map that is idle most of the match.
+3. **Nominate one.** On an even map the builder picks a lane to be the wide one,
+   which makes the map asymmetric in a design that has removed every other
+   asymmetry that is not a decision. Probably wrong for that reason alone.
+
+Nothing is blocked by this: 3v3 is what gets built. It is written down so that
+the map builder is not quietly designed around an assumption it will have to
+break later.
+
+
+## F21. What does a slot actually deliver, and to whom? — **ANSWERED**
+
+**Answer: nothing is ever consumed, and the tower slot feeds two different kinds
+of recipient with different halves of the same upgrade.**
+
+### Nothing is consumed, in either slot
+
+An upgrade placed at a lane is **affixed there**. It stays. It is stamped onto
+every wave unit that lane spawns from then on, and stamping does not use it up —
+the same upgrade stamps the next wave, and the one after, for as long as it sits
+there. An upgrade slotted into a lane's towers is the same: it applies
+continuously, to everything that reads through those towers, and moving it away
+is the only thing that ever stops it.
+
+This was never in doubt, but it was also never written in one place, and the
+surge's deal made it worth saying out loud: **an upgrade is a standing property of
+a slot, not a resource that gets spent into bodies.**
+
+### The tower slot has two audiences, and they are shaped differently
+
+A lane's towers are two things at once:
+
+- **The guard units, which are melee.** They walk, they close, they swing.
+- **The guard tower itself, which is ranged.** It stands still and shoots.
+
+So an upgrade slotted there does not simply "apply to the towers." It applies
+according to what it *is*:
+
+| The upgrade is | The guards get it | The tower gets it |
+| --- | --- | --- |
+| a **melee** upgrade | **yes** | no |
+| a **ranged** upgrade | no | **yes** |
+| **common** — health, armour, and the like | **yes** | **yes** |
+
+That is why the phrasing is "and *possibly* the tower itself." A melee damage
+upgrade in a lane's towers is not wasted and is not refused; it buys a harder
+patrol and does nothing for the arrows.
+
+### What this breaks, and it needs correcting
+
+[upgrades slotted into stone](010-upgrades-slotted-into-stone.md) currently says
+**"Speed and health upgrades on an immobile building are meaningless"**, and uses
+that to justify refusing them at the tower slot. That reasoning is dead. The slot
+feeds bodies that walk, so a movement-speed upgrade slotted into a lane's towers
+makes its guards patrol faster and answer a breach sooner, which is a real
+purchase.
+
+The refusal test has to change with it: **a placement into the tower slot is
+refused only when the upgrade helps neither the guards nor the tower.** Which,
+given that guards are ordinary soldiers, is a much smaller set than the old rule
+assumed — possibly empty.
+
+### What it opens
+
+**Does the same affinity split apply at the lane slot?** Wave units have a
+`range` and melee is described as "a small nonzero number, not a special case,"
+which leaves room for ranged wave units to exist as a different archetype. If
+they do, a ranged upgrade affixed to a lane full of melee soldiers is doing
+nothing, and the lane slot needs the same three-way table. If every wave unit is
+melee, the question does not arise. Recorded as **F22**.
+
+**Changed:** [009](009-the-shared-upgrade-pool.md)'s catalogue record, [010](010-upgrades-slotted-into-stone.md) (the "meaningless on a building" argument, which is wrong), [007](007-guard-towers-and-their-guards.md), issues 401, 408, 303.
+
+## F22. Are there ranged wave units, and does the lane slot need an affinity? — **OPEN**
+
+Created by F21.
+
+The tower slot now delivers melee upgrades to guards and ranged upgrades to the
+tower, because those two recipients are shaped differently. The lane slot
+delivers to wave units, and nothing has yet said whether wave units are all one
+shape.
+
+- **If every wave unit is melee**, the lane slot needs no affinity test at all,
+  and "melee versus ranged" is a rule about the tower slot only.
+- **If a lane can spawn ranged wave units** — an archer archetype alongside a
+  swordsman — then a lane's upgrades need the same three-way table, and placing a
+  ranged upgrade into a lane of melee bodies becomes a real mistake a player can
+  make.
+
+The second is the more interesting game and the more expensive one. It gives a
+lane an internal composition to think about, which is a second axis under the
+chest; it also means the frontline queue has to handle bodies that stop at
+different distances, and issue 206's ranks-behind-the-front logic assumes they do
+not.
+
+Nothing is blocked. The catalogue is not written yet and the affinity field can
+be added to it whichever way this goes.
 ---
 
 ## How this list is meant to be used

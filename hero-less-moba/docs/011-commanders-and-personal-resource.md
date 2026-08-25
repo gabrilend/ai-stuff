@@ -51,11 +51,13 @@ see [open questions](020-open-questions.md), A2.*
 
 It does not matter what did the killing. A wave unit, a tower guard, a guard
 tower's arrow, somebody else's hero, a challenge monster being finished off — the
-reap pass reads `last_hit_by`, takes that body's **team**, and credits all three
-players on it. The killer's `owner` field is not consulted. The payout figure in
+reap pass reads **the dead body's own team** and credits every player on the
+other one. There is no last-hit tracking and nothing walks back to a killer —
+see [combat and damage](006-combat-and-damage.md) and F13. The payout figure in
 the catalogue is **per player**, not a pot to be divided, so a team's total income
-is three times what any one player sees. *That last detail is a ruling rather than
-something the answer settled; see the open questions page.*
+scales with the team's size — three times what any one player sees, at three a
+side. *That last detail is a ruling rather than something the answer settled; see
+the open questions page.*
 
 The payout per kill scales with what was killed. A wave unit is worth a small
 amount, a hero unit a large one, a challenge monster an enormous one. The exact
@@ -80,7 +82,7 @@ The cost of this, and it is real: **a team's income now tracks its map position.
 A team that is winning lanes is killing more, so it earns more, so it fields more
 heroes, so it wins lanes harder. That is the same snowball the upgrade economy
 has, running alongside it — and unlike the upgrade economy, nothing interrupts
-this one. A siege-surge sweeps every upgrade into the library; it does not touch
+this one. A siege-surge deals every upgrade out across the stream; it does not touch
 anybody's wallet.
 Whether that needs a floor is on the [open questions](020-open-questions.md) page
 as a question this answer created.
@@ -133,18 +135,34 @@ spending almost constantly and overflowing the moment you hesitate. By the end o
 a match it is large enough that a deliberate spike is a real play — bank for a
 minute and put four bodies on the ground at once.
 
-**Working ruling on when it rises: at each calm**, alongside the boons. Two
-calms, two raises. That ties the wallet's growth to the same events that grow
-everything else, so a match escalates in one rhythm rather than three — and it
+**It rises at each calm**, alongside the boons — **two calms, two raises.**
+*Settled; see [open questions](020-open-questions.md), A16b, and F6 for why there
+are exactly two.* That ties the wallet's growth to the same events that grow
+everything else, so a match escalates in one rhythm rather than three, and it
 means the ceiling steps up in front of the player rather than creeping. The
 alternative, continuous growth with the match clock, is smoother and much harder
 to notice happening.
 
-The interaction with the endgame is worth seeing early. **The third challenge has
-no income at all**, so whatever a team banked before the third surge is the last
-resource it will ever have — and by then the ceiling is at its highest. The
-run-up to the final surge becomes a fill-the-tank moment, and the Eternal Golem is
-fought with a wallet that will never be topped up again.
+The two economies therefore step together and step twice: at each calm a player
+picks a boon and their wallet gets deeper. By the third surge both are at their
+maximum and neither will move again.
+
+The interaction with the endgame is worth seeing early. **The third challenge is
+the last thing the wallet is ever for.** *Settled; see
+[open questions](020-open-questions.md), F9.* There are no more boons to be
+chosen and no more calms to raise the ceiling, so the ceiling reached before the
+third surge is the ceiling a team finishes on — at its highest, and permanent.
+
+Income does **not** stop. Waves keep spawning into the centre, bodies keep dying,
+and every death still pays every player on the opposing team. An earlier draft of
+this document said the third challenge had "no income at all," which generalised
+a narrower fact — the Golem itself pays nothing, for damage or for a kill it
+cannot suffer — into a claim the combat rules contradict.
+
+So the endgame is not a stretch with the wallet switched off. It is the stretch
+where **the wallet is the only thing still moving.** No draws worth arranging, no
+boons to come, and personal resource buying the heroes that are the only variable
+left in how long a team holds its Golem back.
 
 It also matches what the boons are already doing. Both economies accumulate a
 floor as a match runs, so the late game is simply bigger than the early game on
@@ -188,7 +206,6 @@ up unused and heroes they are not fielding. A player who only buys heroes is
 leaving upgrades sitting unplaced where their teammates can see them. Both are
 visible failures, to teammates and to the player themselves, and both have an
 obvious fix.
-teammates and to the player themselves, and both have an obvious fix.
 
 Related: [hero units](012-hero-units.md) ·
 [combat and damage](006-combat-and-damage.md) ·
