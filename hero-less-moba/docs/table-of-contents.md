@@ -34,7 +34,7 @@ hero-less-moba/
 │   │
 │   ├── ── The world ──
 │   ├── 002-the-map-and-its-milestones ........ The path graph, the three lanes, the
-│   │                                           four junctions, and the nine
+│   │                                           three junctions, and the
 │   │                                           milestones that measure a push.
 │   ├── 003-the-simulation-tick ............... The heartbeat: order of operations,
 │   │                                           named random streams, where the

@@ -23,7 +23,7 @@ statement about a group, and a pile of unrelated bodies has no groups in it.
 | `living_count` | integer | How many are still alive. Decremented in the reap pass. |
 | `killed_any` | integer | 1 once at least one member has been killed by the enemy, else 0. |
 | `settled` | integer | 1 once the wave has been accounted for and can be forgotten. |
-| `upgrade_mask` | integer | The lane's upgrade set at the instant of spawn, copied here for the record. |
+| `upgrade_count` | integer[kinds] | The lane's upgrade counts at the instant of spawn, copied here for the record. |
 
 Waves accumulate; they are not freed the moment they empty. A settled wave stays
 in the array until the end of the match so that the post-match report can say

@@ -3,24 +3,39 @@
 **Datapath document.** Covers how many people are playing, and the single narrow
 door through which everything a person does enters the simulation.
 
-## Six players, two teams of three
+## Team size is a variable, and the map is derived from it
 
-The working assumption is **three players per team**. It comes from the vision's
-description of the objection rule — "the allies can ping an upgrade to ask it to be
-unlocked, and if both of them do so then it automatically unlocks." *Both* of
-them means exactly two allies besides the locker, which means three per team.
+**Three players per team is what the prototype targets. It is not a constant
+anywhere.** *Settled; see [open questions](020-open-questions.md), F10.*
 
-Three also lines up with three lanes, which is a tidy coincidence and nothing
-more. Nothing in the rules assumes one player per lane, and nothing forbids it.
+Three comes from the vision's description of the objection rule — "the allies can
+ping an upgrade to ask it to be unlocked, and if both of them do so then it
+automatically unlocks." *Both* of them means exactly two allies besides the
+locker, which means three a side.
 
-Everything in the code is written against a team size constant, not the literal
-number three, and the lock rule is written as "everyone but the locker has
-objected" rather than "two people have objected," so that changing team size is
-changing a number. Whether the game should support 1v1 and 2v2 at all is on the
-[open questions](020-open-questions.md) page.
+What is new, and what an earlier draft of this document got backwards, is that
+**three lanes and three players is not a coincidence.** The map is generated from
+the team size:
 
-Player numbers 1, 2, 3 are team 1. Player numbers 4, 5, 6 are team 2. This is a
-fixed mapping and not a lookup.
+- **Lanes = players per team.** Three players, three lanes.
+- **Guard towers per team = lanes × 3** — two standing on each lane, one at each
+  lane's mouth inside the base. Two lanes gives six a side, three gives nine,
+  four gives twelve.
+
+So 2v2 and 4v4 are not variants to be supported later; they are what the map
+builder emits when it is handed a different number. That is the whole of the
+answer to E6, and it means the nine-milestone assumption is something the map
+validator checks rather than something the rest of the code may rely on.
+
+**This does not mean a player owns a lane.** Nothing assigns one, the shared
+chest and the base guards' shared radius both exist to punish exactly that habit,
+and a team is free to spend all three of its attentions on one lane. What follows
+from the team size is the *shape of the field*, not who looks at what.
+
+Player numbers run 1 to `players_per_team × 2`, the first half being team 1 and
+the second half team 2. That is arithmetic on a variable, not a table — and the
+lock rule is written as "everyone but the locker has objected" rather than "two
+people have objected" for the same reason.
 
 ## The command queue
 
@@ -36,9 +51,13 @@ Three things come from this and each of them is worth the indirection on its own
    produces the same match, tick for tick. That is the project's best regression
    test and it is what lets a whole match be described in a text file. It does
    *not* mean two machines agree — see the networking section below.
-2. **Fairness.** Two players issuing conflicting commands on the same tick are
-   resolved by player number, always, rather than by whose packet arrived first —
-   which is to say, by whose connection is better.
+2. **A stable order, on one machine.** Two commands landing in the same tick are
+   resolved by player number, always, rather than by which was appended first.
+   Note what this does *not* claim: across six machines a command really is
+   applied when its packet arrives, so two teammates on different connections
+   can genuinely see a different order. That is what the freeze window below is
+   for, and it is why the fairness argument lives in the networking section
+   rather than here.
 3. **Testability.** A test is a seed and a list of commands. The whole of a match
    can be described in a text file and replayed at full speed with nothing drawn.
 
@@ -49,16 +68,17 @@ the game lets you do, and any feature proposal has to add a row.
 
 | Command | Arguments | Refused when |
 | --- | --- | --- |
-| `place_upgrade` | instance, slot kind, lane | Locked by another; kind cannot enter that slot; already in transit; a surge is running |
-| `withdraw_upgrade` | instance | Locked by another |
+| `place_upgrade` | instance, slot kind, lane | Locked by another; kind cannot enter that slot; already in transit; destination is where it already is; inside the freeze window |
+| `withdraw_upgrade` | instance | Locked by another; inside the freeze window |
+| `choose_boon` | offer index | Not in a boon window; this player has already chosen |
 | `lock_upgrade` | instance | Already locked; instance is unplaced |
 | `unlock_upgrade` | instance | Not locked by this player |
 | `object_upgrade` | instance | Not locked; locked by this player; already objected by this player |
 | `cancel_move` | instance | Not in transit; locked by another |
 | `ping_map` | x, y | Rate-limited |
-| `set_signpost` | sign-post, facing, branch | Sign-post is in enemy territory |
-| `spawn_hero` | roster row, destination kind, destination id | Not enough resource; tower has enemies within the threshold radius; destination is not yours |
-| `reroll_upgrade` | instance | Not enough resource; locked by another; a siege-surge is running |
+| `set_signpost` | sign-post, branch | The sign-post is not this player's team's |
+| `spawn_hero` | roster row, destination kind, destination id | Not enough resource; enemies inside that tower's command radius; destination is not yours |
+| `reroll_upgrade` | instance | Not enough resource; locked by another |
 
 Every refusal produces a **reason code**, and the viewer shows it. A command that
 silently does nothing is the worst possible outcome — the player learns nothing
@@ -73,7 +93,7 @@ objects, points, and buys.
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `tick` | integer | The tick this command is to be applied on. |
-| `player` | integer | 1–6. |
+| `player` | integer | 1 to twice the team size. |
 | `verb` | integer | Row in the command dispatch table. |
 | `a`, `b`, `c` | integer | Arguments, meaning determined by `verb`. |
 
@@ -86,91 +106,124 @@ The `verb` field indexes a dispatch table of handler functions rather than
 selecting a branch in a conditional chain. Adding a verb is adding a row and a
 function.
 
-## Networking: peer-to-peer with a rotating authority
+## Networking: three flows, and only one of them crosses the front line
 
-**Three channels, carrying three different kinds of thing, with different
-guarantees.** *Settled; see [open questions](020-open-questions.md), E1 and E2.*
+*Settled; see [open questions](020-open-questions.md), E1, E2, E2b, F7, F8.*
 
-### 1. Choices — immediate, reliable, never rolled back
+The single most important thing about this model, and the thing an earlier draft
+had wrong: **the two teams do not simulate the same world.** Your machine does
+not hold the enemy's chest, their slot assignments, their wallets, or which way
+their sign-posts point. Those are not fields your viewer politely declines to
+draw — they are not on your computer. That is the only version of hidden
+information that survives somebody running a modified client.
+
+| Flow | Who receives it | What it carries |
+| --- | --- | --- |
+| **The viewer's copy** | nobody — it never leaves the machine | everything the renderer needs, stamped once per tick |
+| **Team traffic** | that team's machines only | placements, queued moves, locks, objections, sign-posts, purchases, boon picks |
+| **Cross-team sync** | everybody | positions and health of bodies, projectiles, and structures |
+
+### Team traffic — immediate, sanity-checked, never rolled back
 
 The moment a player places, locks, objects, points, or buys, their machine sends
-that command to every other machine over TCP. It is applied on arrival.
+that command **to their teammates** over TCP. Each of them checks quickly that it
+is a legal move, then applies it and updates their interface.
 
 **A choice is authoritative from the person who made it, and no choice is ever
-rolled back.** There is no scheduling window, no waiting for acknowledgement, and
-no rollback-and-replay. If a player placed an upgrade, that upgrade is placed, on
-every machine, as soon as the packet lands.
+rolled back.** No scheduling window, no waiting for acknowledgement, no
+rollback-and-replay. A rollback is a lie the game told you: you saw your upgrade
+go into the top lane, you made three more decisions on the strength of that, and
+then the game took it back. In a game whose entire subject is placement decisions
+negotiated between three people, an untrustworthy placement is fatal. **Positions
+may lie a little. Choices may not lie at all.**
 
-This is the most important property in the whole networking design and it is
-worth being explicit about why. A rollback is a lie the game told you: you saw
-your upgrade go into the top lane, you made three more decisions on the strength
-of that, and then the game took it back. In a game whose entire subject is
-placement decisions negotiated between three people, an untrustworthy placement
-is fatal. Positions can lie a little. **Choices cannot lie at all.**
+The cost is that two teammates on different connections apply the same command a
+few ticks apart, which is fine for everything except a destination that is about
+to be read. So:
 
-The cost is that two machines apply the same command a few ticks apart, so the
-wave that spawned in between may be stamped differently on different machines.
-That is a real divergence and it is corrected by channel 2.
+> **An upgrade's queued destination cannot be changed inside a window of the
+> worst ping among that team's connected players, plus fifteen percent.**
 
-### 2. Continuous state — a rotating authority, about once a second
+Inside the window the destination is frozen and a change is refused, with a
+reason. Outside it, everybody has already seen it. Fifteen percent is headroom
+for a connection getting worse while you are looking at it rather than a tuned
+figure, and the window is per team, because a team with three good connections
+should not be slowed down by an opponent with a bad one.
 
-Everything that is *not* a choice — where each body is, how much health it has,
-what is in flight — drifts between machines, because it is floating-point
-arithmetic being run independently on different processors.
+### Cross-team sync — positions and health, and nothing else
 
-**It is corrected on a cycle, by one peer at a time, and whose turn it is
-rotates.** Each cycle, the machine whose turn it is publishes the last second or
-so of continuous state; everybody else accepts it, without argument.
+Everything that is not a choice — where each body is and how much health it has —
+drifts, because it is floating-point arithmetic run independently on different
+processors. It is corrected on a cycle, by one peer at a time, with **whose turn
+it is rotating**, and everybody else accepting without argument.
 
-There is no permanent host. The rotation matters for two reasons:
+There is no permanent host. In a competitive match a fixed host's view is always
+the true one and their machine is the one with no correction latency, which is a
+fixed advantage; and publishing means uploading to everybody else, so rotating
+turns *one player needing a good connection* into *all of them needing a mediocre
+one*.
 
-- **Nobody's machine decides outcomes.** In a competitive game between six
-  people, a fixed host is a fixed advantage — their view is always the true one
-  and theirs is the machine with no correction latency. Rotating removes that.
-- **The upload cost is shared.** Publishing a snapshot means sending it to five
-  peers. Doing that once every six cycles rather than every cycle is the
-  difference between one player needing a good connection and all of them
-  needing a mediocre one.
+**Positions and health is close to the minimum that still works**, and it works
+because of a chain: health determines deaths, deaths determine wave wipes, wave
+wipes determine draws, draws determine the chest. Two machines that agree on
+every health value agree on everything downstream without any of it crossing the
+wire. It also means a modified client has very little to lie about — it can move
+bodies and adjust health, and it cannot invent an upgrade, hand itself resource,
+or claim a wave it did not kill, because none of those are in the message.
 
-Corrections should be small, because every machine is running the same code from
-the same seed and only diverging by floating-point rounding and a few ticks of
-command latency. They are not guaranteed small, and a body can visibly snap.
+One implementation consequence worth writing into the code: applying an incoming
+value must **not** raise a death, a wipe, or a draw as a side effect. Health is
+written; the ordinary resolve pass notices the zero on the next tick and
+everything downstream follows through the normal path.
 
-### 3. Presence — every player's cursor, continuously
+### Presence — every player's cursor, continuously
 
-Each player's mouse position is synced, so everyone can see what everyone else is
-looking at.
-This is a few bytes and it is not a nicety. **It is one of the five verbs a team
-has for talking about the chest**, and one of the two that are involuntary — a
-cursor hovering over an upgrade says *I am about to touch this*, before anybody
-has to commit to anything. A team that can see each other's attention will lock
-less, because most of what a lock prevents is two people reaching for the same
-thing without knowing it. The full list is in
-[the shared upgrade pool](009-the-shared-upgrade-pool.md).
-prevents is two people reaching for the same thing without knowing it.
+Each player's mouse position is synced to their **teammates**. This is a few
+bytes and it is not a nicety: it is one of the five verbs a team has for talking
+about the chest, and one of the two that are involuntary. A cursor hovering over
+an upgrade says *I am about to touch this*, before anybody has committed to
+anything. Expect teams to lock less because of it, since most of what a lock
+prevents is two people reaching for the same thing without knowing it. The full
+list is in [the shared upgrade pool](009-the-shared-upgrade-pool.md).
 
-Whether enemy cursors are visible is a separate question and almost certainly no.
+Enemy cursors are not sent.
 
-### Accepting a snapshot: does anything explain it?
+### Checking what arrives: could anything have done this?
 
-A peer does not accept an incoming value blindly. **Only values that differ from
-the local simulation are examined at all** — the machines are running the same
-code from the same seed, so most bodies agree and cost nothing to verify. For
-each one that differs, the receiving machine looks at the units in range of that
-body on its own view and asks whether the difference is **explicable** by them: a
-health drop larger than every attacker in range could have dealt in the elapsed
-ticks is not a correction but a claim about something that could not have
-happened. Values that fail are rejected, the local ones kept, and the rejection
-logged.
+A peer does not accept an incoming value blindly, and the test is the same on
+both sides of the front line: **watch what arrives, and ask whether it is
+explicable.**
 
-This is a **causality check, not a tolerance**, and that is what makes it worth
-having. A magnitude tolerance asks "is this change big?", which is a tuning
-question that always gets the edge cases wrong. This asks "could anything have
-done this?" — a question the simulation already knows the answer to, because
-knowing what is in range of what is the retarget pass's whole job.
+**Within a team, and for the shared bodies**, this is a causality check.
+*Settled; see E2b.* Only values that differ from the local simulation are looked
+at, since the machines agree about most bodies for free. For each one that
+differs, the receiving machine finds the units in range of that body on its own
+view and asks whether the difference is explicable by them. A health drop larger
+than every attacker in range could have dealt in the elapsed ticks is not a
+correction; it is a claim about something that could not have happened. A health
+gain with nothing capable of healing in range is the same, and nothing in this
+game heals. What fails is rejected, the local value kept, the rejection logged.
 
-It catches the impossible, not the improbable, and that is the right place to
-stop.
+**Across teams, it is an accounting check.** *Settled; see F8.* Because your
+machine no longer simulates the enemy's chest or their wallets, it has to
+**infer** them from what walks into you, and then check the inference:
+
+- **An upgrade appears on an enemy frontline body that you have not seen come out
+  of the shared deck.** There is an innocent explanation — they paid to reroll and
+  are further along the sequence than you are — and it is checkable, because a
+  reroll costs resource and resource is bounded by kills you can see.
+- **The enemy fields heroes costing more than they could feasibly have earned by
+  this tick.** There is no innocent explanation for that one.
+
+A single discrepancy is not an accusation, and the checker's first job is to
+**try to explain it** — most of the time it can. What is not tolerated is
+**accumulation.** One unexplained upgrade is a reroll you did not watch for. A
+dozen of them, plus a roster nobody could afford, is not anything else.
+
+Both halves catch **the impossible rather than the improbable**, which is the
+right place to stop. Catching the improbable means statistical thresholds and a
+stream of false accusations against people with bad connections, in defence of a
+game played peer-to-peer among six people who chose to play together.
 
 ### What this model is not
 
@@ -184,7 +237,7 @@ Two consequences follow that are easy to miss:
 - **A replay is no longer just a seed and a command list.** That claim was true
   only under lockstep. Under a rotating authority the world is periodically
   overwritten from outside, so replaying commands against a seed reproduces *a*
-  match rather than *the* match. See issue 107, which has been corrected.
+  match rather than *the* match. See issue 107.
 
 Related: [the simulation tick](003-the-simulation-tick.md) ·
 [the shared upgrade pool](009-the-shared-upgrade-pool.md) ·

@@ -39,8 +39,16 @@ see the roadmap's list of what is deliberately absent.)*
   tower reward; no discrete waves, so no wipes.
 - **Guard production moves to the base** during a surge and joins the stream.
 - **A boon is payment for slaying a monster, not for surviving a surge**, chosen
-  one per player from three, in **the calm** — a phase where nothing spawns and
-  every soldier walks home. It happens **twice**, never after the Golem.
+  **one per player from two offered**, in **the calm** — a phase where nothing
+  spawns and every soldier walks home. It happens **twice**, never after the
+  Golem: two per player, six per three-player team. A boon reaches every body the
+  team fields, heroes included.
+- **The surge takes nothing.** It reads everything a team owns, wherever it sits,
+  and deals it across the bodies spawning each instant. Placements are never
+  disturbed and players may rearrange freely throughout — what they are arranging
+  is the challenge that follows, not the surge.
+- **Towers fire at bare catalogue values during a surge**, and so do the guards
+  already standing, since guards read through their tower.
 - **The calm resets the frontlines to nothing**, so a match has three fresh
   starts: territory resets, stone and chest do not. Push depths need a **full
   recompute** at its end.

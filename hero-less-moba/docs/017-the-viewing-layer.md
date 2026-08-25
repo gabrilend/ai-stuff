@@ -27,17 +27,37 @@ simulating.
 
 ## Snapshots
 
-At the end of each tick the simulation stamps a **snapshot**: a flat, read-only
-copy of everything the viewer needs. Not the whole world — the viewer has no use
-for cooldown timers, target generations, or pending damage.
+Two different objects have been called a snapshot in this project and they are
+not the same thing. Naming them apart, because the collision already produced two
+documents that flatly contradicted each other:
 
-| Snapshot contains | Why |
+- **The viewer's frame** — what this section is about. Stamped locally at the end
+  of every tick, read by the renderer, never sent anywhere.
+- **The accepted sync** — positions and health only, published to every other
+  machine about once a second by whichever peer's turn it is. Described in
+  [players, teams, and commands](016-players-teams-and-commands.md).
+
+The rest of this section is about the first one.
+
+At the end of each tick the simulation stamps a **viewer frame**: a flat,
+read-only copy of everything the viewer needs. Not the whole world — the viewer
+has no use for cooldown timers, target generations, or pending damage.
+
+It holds **your own team's** chest, slots, wallets, and sign-posts, and the
+enemy's only as bodies on the ground. That is not the viewer being discreet: the
+enemy's chest is not on this machine at all. See
+[open questions](020-open-questions.md), F7.
+
+| The viewer frame contains | Why |
 | --- | --- |
 | `tick` | To interpolate against. |
 | Per soldier: x, y, facing, team, flavour, archetype, health fraction, alive | Everything drawn about a body. |
-| Per structure: health fraction, alive | Towers and libraries. |
-| Per team: chest contents, slot assignments, lock and objection state, push depths, boons | The panel. |
-| Per player: resource, hero count, last surge lane | The player's own bar. |
+| Per soldier: the upgrades it was stamped with | Reading an enemy's build off their frontline is the only way to learn their arrangement. Enemy bodies carry this; enemy *chests* do not exist here. |
+| Per structure: health fraction, alive, command radius | Towers and libraries. The radius is drawn for both teams — see [guard towers](007-guard-towers-and-their-guards.md). |
+| **Own team only**: chest contents, slot assignments, transit marks, lock and objection state, boons | The panel. |
+| Per lane: push depth, both teams' | The lane-pressure read. Ignored during a challenge. |
+| **Own team only**, per player: resource, ceiling, hero count, teammate cursors | The player's own bar, and the presence channel. |
+| **Own team only**, per sign-post: position and direction | Each team has its own three. The enemy's are absent from the frame entirely — not hidden, not present. See [sign-posts](013-signposts-and-lane-routing.md), F16. |
 | Phase, surge timer, challenge state | The banner across the top. |
 | Events raised this tick | Draws, kills, refusals, tower falls. Fires the popups. |
 

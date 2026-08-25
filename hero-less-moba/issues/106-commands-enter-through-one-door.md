@@ -6,7 +6,7 @@
 | Blocked by | 104 |
 | Blocks | 107, 404, 406, 407, 505, 508, 801 |
 | Reads | [players, teams, and commands](../docs/016-players-teams-and-commands.md) |
-| Open questions | A3 |
+| Open questions | none |
 
 ## Current behavior
 
