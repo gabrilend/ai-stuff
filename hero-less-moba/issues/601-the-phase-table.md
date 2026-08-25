@@ -6,7 +6,7 @@
 | Blocked by | 104, 207, 307 |
 | Blocks | 602, 603, 605, 606, 607 |
 | Reads | [the siege-surge](../docs/014-the-siege-surge.md), [boons and the challenge](../docs/015-boons-and-the-challenge.md) |
-| Open questions | C1b — the pre-surge hold |
+| Open questions | none |
 
 ## Current behavior
 

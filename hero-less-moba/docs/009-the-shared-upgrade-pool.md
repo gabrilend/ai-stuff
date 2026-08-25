@@ -17,8 +17,9 @@ Two records, and keeping them apart matters.
 | `id` | integer | Row in the catalogue. |
 | `name` | string | Shown to players. |
 | `weight` | integer | Relative likelihood of being drawn. |
-| `bit` | integer | Which bit this kind occupies in a soldier's `upgrade_mask`. |
-| `applies_to` | integer | Bit set: 1 = wave units, 2 = towers. There is no hero bit — see below. |
+| `index` | integer | Which slot this kind occupies in a body's upgrade count vector. |
+| `applies_to` | integer | Bit set: 1 = wave units, 2 = a lane's towers. There is no hero bit — see below. |
+| `shape` | integer | 1 melee, 2 ranged, 3 common. Decides which half of a tower slot's audience receives it — the guards, the tower, or both. See [open questions](020-open-questions.md), F21. |
 | `add` | double[] | Flat additions, one per modifiable stat. |
 | `mul` | double[] | Multipliers, one per modifiable stat. |
 | `behaviour` | integer | Index into a behaviour dispatch table, or **0** for a pure stat change. |
@@ -79,8 +80,39 @@ rate between the two economies, it runs one way, and it has to be earned.
 
 The important thing about this split: **there is no such thing as "the team's
 Sharpened Blades upgrade."** A team can hold three instances of the same kind and
-put them in three different lanes. Duplicates stack. The catalogue is small; the
-instance array grows all match.
+put them in three different lanes, or pile all three into one. **Duplicates
+stack.** The catalogue is fixed; the instance array grows all match.
+
+### Which is why a body carries counts, not a bit set
+
+**What a soldier carries is an array of small integers — one slot per catalogue
+kind, holding how many copies of that kind it has.** *Settled; see
+[open questions](020-open-questions.md), F3.*
+
+This is worth stating where the stacking rule is stated, because an earlier draft
+had a body carry a **bit set**: one integer, one bit per kind. A bit set cannot
+count. Two copies of a kind and one copy of that kind produce exactly the same
+integer, so the stacking rule above had no way to take effect and nobody noticed
+for the length of a whole design.
+
+Two consequences fall out of the change and both are improvements.
+
+**The catalogue is no longer capped at the width of an integer.** LuaJIT's bit
+library is thirty-two wide, so a bit set silently limited the entire game to
+thirty-two upgrade kinds — boons included — and that number was written down
+nowhere. With a count vector the limit is memory, and the catalogue's size is
+free to be chosen on its merits.
+
+**Applying upgrades is a walk with a multiply in it.** The old arithmetic walked
+set bits; the new one walks the vector and multiplies each modifier by its count.
+Slightly more work per swing, and it is still a flat pass over a small fixed-size
+array with no pointer chasing, which is the cheap kind.
+
+One thing it does **not** settle, and it belongs with the catalogue rather than
+here: **how a duplicate composes.** Two copies of a flat addition presumably add
+twice. Two copies of a multiplier could multiply twice or add the excess once,
+and those are very different curves at four copies. That is one rule for every
+kind in the catalogue, not a per-kind field.
 
 ## Drawing: one deck, both teams, same order
 
@@ -171,37 +203,65 @@ Full mechanics in issue 411.
 Draws are never automatically placed. An upgrade in the chest is doing nothing
 for anybody, which is the pressure that makes a team look at the chest.
 
-## During a siege-surge, nobody places anything
+## During a siege-surge, arrangement stops mattering — but you can still arrange
 
-**Upgrades cannot be placed, moved, or withdrawn while a surge is running.** They
-are all in effect and none of them are aimed.
+Two rules, and they are easier to hold together than they look.
 
-Instead, **every body the stream spawns is stamped with a randomly selected third
-of the team's upgrades**, drawn from a dedicated `surge` random stream.
+**Nothing is taken away, moved, or emptied.** *Settled; see
+[open questions](020-open-questions.md), F11.* Whatever is slotted into the top
+lane is still slotted into the top lane for the whole surge. The chest is not
+dumped. Placements are not disturbed. **Upgrades in this game are never moved
+except by a player's own hand**, and a surge is not an exception to that — it is
+the reason the rule is worth stating.
 
-So the stream is not a column of identical soldiers. It is a shuffled deck walking
-down a lane: this one carries a third of your chest, the one behind it carries a
-different third, and neither is the combination you spent the match assembling.
+**Instead, the surge reads everything the team owns as one flat list** and deals
+it out to the bodies coming off the spawn points. Every half a second or so, one
+body appears at each lane's start point; the deal picks a random one of them to
+begin with, takes a random upgrade from the team's whole holding, assigns it to
+that body, moves to the next body in rotation, and keeps going until every
+upgrade the team owns has been assigned. Then it happens again at the next spawn,
+from scratch, starting somewhere else.
 
-That is a better expression of what a surge is for than confiscation would be. It
-does not make you weaker — a third of a large chest is still large. **It makes you
-incoherent.** The three upgrades that worked together in your top lane are all
-still on the field, just never on the same soldier twice running. What the surge
-takes is not strength; it is the *arrangement*, which is the only thing in this
-game you actually built.
+The upgrades are **assigned, not removed.** A placed upgrade and an unplaced one
+are equally on the field during a surge, because the deal does not look at slots
+at all.
 
-It is also self-balancing in a way a flat penalty is not: a team with twelve
-upgrades has a great deal disturbed by being scattered, and a team with three has
+So the stream is not a column of identical soldiers. It is your entire chest
+walking down three lanes at once, split three ways, in a different arrangement
+every half second. It does not make you weaker — nothing is held back, and every
+upgrade you own is on the field at every instant. **It makes you incoherent.**
+The three upgrades that worked together in your top lane are all still out there,
+just never on the same body twice running. What the surge suspends is not
+strength; it is *arrangement*, which is the only thing in this game you actually
+built.
+
+It is self-balancing in a way a flat penalty is not: a team with twelve upgrades
+has a great deal disturbed by being dealt three ways, and a team with three has
 almost nothing. **The surge disrupts in proportion to how much there was to
-disrupt** — which is exactly the right shape for the design's only brake on a
-snowball.
+disrupt** — the right shape for the design's only brake on a snowball.
 
-Boons are the exception. They have no slot, are not scattered, and sit on every
-body in every phase. See [boons and the challenge](015-boons-and-the-challenge.md).
+### And placement stays open the whole time
 
-When a surge ends, everything is dumped into the chest, unplaced, doing nothing —
-and the scramble to re-place it happens under the challenge, with a monster
-walking. See [the siege-surge](014-the-siege-surge.md).
+**Players may place, move, withdraw, lock, and object freely during a surge.**
+*Settled; see [open questions](020-open-questions.md), F12.*
+
+There is no reason to forbid it. Rearranging during a surge changes nothing about
+the surge, because the deal ignores where things sit — so a refusal would be a
+rule with no purpose that also left players with nothing to do for a minute at a
+time.
+
+What it does change is **what comes next.** A surge is followed immediately by a
+challenge, and a challenge is one enormous body where a wave is many small ones.
+The build that was right for grinding a frontline is usually wrong for a monster.
+So the surge becomes the window in which a team retools for the thing walking out
+of the middle, while the fighting carries on without waiting for them to finish
+thinking.
+
+The same freedom holds during the calm.
+
+Boons sit outside all of this. They have no slot, they are not dealt, and they
+are on every body the team fields in every phase — heroes included. See
+[boons and the challenge](015-boons-and-the-challenge.md).
 
 ## Placing, and the wave it takes to move
 
@@ -212,9 +272,13 @@ viewer can show — if any of these hold:
 - The instance is locked by a different player.
 - The destination is a tower slot and the upgrade's `applies_to` does not include
   towers.
-- The instance is already in transit.
-- A siege-surge is running. Nothing may be placed at all; see
-  [the siege-surge](014-the-siege-surge.md).
+- The instance is already in transit — cancel it first.
+- The destination is where it already is.
+- The instance is in the freeze window before a queued destination takes effect;
+  see [players, teams, and commands](016-players-teams-and-commands.md).
+
+A siege-surge is **not** on this list. Placement stays open in every phase; see
+above.
 
 ### Moving takes one full wave
 
@@ -313,7 +377,6 @@ for other reasons — stamp-at-birth, the transit wave, and the length of a lane
 Nothing had to be hidden deliberately. **The fog is made of walking.**
 
 ## Locking, objecting, and the two-key rule
-## Locking, objecting, and the two-key rule
 
 Any player may lock any of their own team's placed instances. A locked instance
 cannot be moved by a teammate. The point, in the vision's words, is that the
@@ -365,16 +428,26 @@ not started talking to each other yet.
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `instance` | array of upgrade instances | Everything this team has ever drawn. |
-| `lane_mask` | integer[3] | Cached bit set per lane, rebuilt whenever a placement changes. Read at spawn. |
-| `tower_mask` | integer[3] | Same, for upgrades slotted into each lane's towers. |
-| `library_mask` | integer | Upgrades slotted into the library. |
-| `base_tower_mask` | integer | The union of all three `tower_mask` entries and `library_mask`. What the three base towers fire with — see [upgrades slotted into stone](010-upgrades-slotted-into-stone.md). |
+| `lane_count` | integer[lanes][kinds] | Cached count vector per lane — how many copies of each kind sit there. Rebuilt whenever a placement changes; read at spawn. |
+| `tower_count` | integer[lanes][kinds] | The same, for upgrades slotted into each lane's towers. |
+| `library_count` | integer[kinds] | Upgrades slotted into the library. |
+| `base_tower_count` | integer[kinds] | The sum of every `tower_count` row and `library_count`. What the base towers fire with, and what their guards read — see [upgrades slotted into stone](010-upgrades-slotted-into-stone.md). |
+| `all_count` | integer[kinds] | Every upgrade the team owns, placed or not. What a siege-surge deals from, and nothing else reads it. |
 | `deck_index` | integer | How far this team has drawn into the shared deck. The gap between the two teams' indices is the whole of the economy's asymmetry. |
 | `unplaced_count` | integer | How many instances are sitting in the chest doing nothing. Shown large, on purpose. |
 
-The masks are caches. They are rebuilt on placement, which is rare, and read on
-spawn, which is constant. The alternative — walking the instance array at every
-spawn — is the same answer computed hundreds of times more often.
+These are caches, and the word matters: they are **sums over the instance array**,
+rebuilt on placement, which is rare, and read on spawn, which is constant. The
+alternative — walking every instance at every spawn — is the same answer computed
+hundreds of times more often. A validator should check them against the instance
+array at load and after every phase change, because a stale cache here is an
+upgrade that silently stops working.
+
+Note that `base_tower_count` sums rather than unions. Under a bit set the base
+towers merged three lanes' stone and lost the duplicates; with counts, a team
+that slotted the same kind into two different lanes' towers gets both copies in
+the base. That is a real change in what the base is worth and it follows directly
+from stacking.
 
 Related: [waves](005-waves-and-when-one-is-finished.md) ·
 [upgrades slotted into stone](010-upgrades-slotted-into-stone.md) ·

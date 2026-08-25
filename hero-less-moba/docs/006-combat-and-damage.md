@@ -29,32 +29,44 @@ worker is writing.
    `range`. This is the *only* place in the game that uses as-the-crow-flies
    distance; everything about progress and lanes uses milestones.
 3. **Base damage.** The attacker's `damage`.
-4. **Upgrades.** The attacker's `upgrade_mask` is walked and each set bit's
-   modifier is applied, additive terms first, then multiplicative. The mask was
-   stamped at spawn and is not re-read from the lane, so the arithmetic is a
-   handful of table lookups with no pointer chasing back into team state.
+4. **Upgrades.** The attacker's **upgrade count vector** is walked — one small
+   integer per catalogue kind, saying how many copies of that kind this body
+   carries — and each nonzero entry's modifier is applied that many times,
+   additive terms first, then multiplicative. *Settled; see
+   [open questions](020-open-questions.md), F3.* For a wave unit the vector was
+   stamped at spawn and is not re-read from the lane. For a **guard** it is read
+   live through its tower, which is the one place in the combat loop where a
+   body's modifiers are a lookup rather than a copy, and it wants a comment
+   saying so — see [guard towers](007-guard-towers-and-their-guards.md), F1.
 5. **Armour.** The defender's `armour` is subtracted, and the result is floored
    at a small positive minimum so that a heavily upgraded defender is very hard
    to kill but never literally immune. Immunity in a lane-pusher means a
    permanent stalemate, which is the exact failure this whole game is built to
    avoid.
-6. **Write.** The result is added into `pending_damage[target]`, and the
-   attacker's id is written into `last_hit_by[target]`, overwriting whatever was
-   there. Last hit, not most damage, decides who gets paid.
+6. **Write.** The result is added into `pending_damage[target]`. Nothing records
+   who dealt it.
 7. **Reset.** `cooldown` is set to `cooldown_max`.
 
-## Kill attribution
+## Kill attribution: there isn't any
 
-When the resolve pass finds a soldier at zero health it reads `last_hit_by`,
-identifies the killer's **team**, and pays **every player on that team**.
-*Settled; see [open questions](020-open-questions.md), A2.*
+**When a body dies, the opposing team is paid. That is the whole rule.**
+*Settled; see [open questions](020-open-questions.md), A2 and F13.*
 
-It does not matter what killed it. A wave unit, a tower guard, a guard tower's
-arrow, a hero unit, a challenge monster — every kill your team lands pays every
-player on your team the full listed amount. The killer's `owner` field is **not**
-consulted for payment. It still exists, and it still decides who owns a hero for
-the purposes of the spawn rules and the post-match report, but it has nothing to
-do with who is paid.
+The resolve pass finds a soldier at zero health, reads **the dead body's own
+team**, and pays every player on the other one. It does not ask what killed it,
+because it does not need to — a body only ever takes damage from the other side
+or from a challenge monster, and a monster's kills pay the team opposite the one
+it is assigned to, which is the same answer.
+
+So **there is no last-hit accounting in this game at all.** An earlier draft of
+this document had every swing write the attacker's id into a `last_hit_by` array
+so the reap pass could walk back to a killer. That array is gone. There is no
+experience, resource is paid to a team rather than to a player, and no rule
+anywhere reads who struck last — which also means there is nothing to steal, and
+no reason to position a hero for a finishing blow.
+
+The `owner` field still exists on a body and still decides who owns a hero for
+the spawn rules and the post-match report. It has nothing to do with who is paid.
 
 Three consequences worth stating outright, because they shape how the second
 economy feels:

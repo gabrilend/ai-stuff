@@ -19,10 +19,44 @@ therefore a real trade: soldiers that walk forward and die, or stone that stays
 put and does not. A team with an early lead wants the former; a team that has
 lost its outer towers wants the latter.
 
-Not every upgrade can go into stone. The catalogue's `applies_to` field says
-which destinations a kind accepts, and a placement into a slot the kind does not
-accept is refused. Speed and health upgrades on an immobile building are
-meaningless; damage, range, and rate of fire are not.
+### The tower slot has two audiences
+
+An upgrade slotted into a lane's towers is not delivered to one recipient. It is
+delivered to two, and they are shaped differently. *Settled; see
+[open questions](020-open-questions.md), F21.*
+
+- **The guards are melee.** They walk, they close, they swing.
+- **The tower is ranged.** It stands still and shoots.
+
+So the upgrade applies according to what it is:
+
+| The upgrade is | The guards get it | The tower gets it |
+| --- | --- | --- |
+| **melee** | **yes** | no |
+| **ranged** | no | **yes** |
+| **common** — health, armour, and the like | **yes** | **yes** |
+
+That is why an upgrade in this slot applies to the guards and *possibly* the
+tower. A melee damage upgrade slotted here is not wasted and is not refused; it
+buys a harder patrol and does nothing for the arrows. A player who slots one is
+buying bodies, and a player who slots a ranged one is buying arrows, out of the
+same slot.
+
+**An earlier version of this document had this wrong**, and the wrongness is
+worth recording because the reasoning was plausible: it said "speed and health
+upgrades on an immobile building are meaningless" and refused them here. That
+holds only if the slot feeds a building. It feeds a patrol as well — so a
+movement-speed upgrade slotted into a lane's towers makes its guards cover their
+ground faster and answer a breach sooner, which is a real purchase and one of the
+more interesting ones in the slot.
+
+**So the refusal test is narrow: a placement into the tower slot is refused only
+when the upgrade helps neither the guards nor the tower.** Given that guards are
+ordinary soldiers with ordinary stats, that set is small and may well be empty.
+
+Nothing is consumed by any of this. An upgrade sitting in a slot is a **standing
+property of that slot**, not a resource spent into bodies — it applies for as long
+as it sits there, and moving it away is the only thing that stops it.
 
 ## The base inherits everything
 
@@ -76,18 +110,33 @@ last stand is allowed to be total.
 
 Towers, unlike soldiers, are **not** stamped once. A soldier is born, carries
 what it was born with, and dies; a tower stands for the whole match, so it reads
-its mask live:
+its counts live:
 
-- A lane tower on lane L reads `tower_mask[L]`.
-- A base tower reads `tower_mask[1] | tower_mask[2] | tower_mask[3] | library_mask`
-  — the union, precomputed into a single `base_tower_mask` integer whenever any
-  placement changes.
+- A lane tower on lane L reads `tower_count[L]`.
+- A base tower reads the **sum** of every lane's `tower_count` row and
+  `library_count`, precomputed into `base_tower_count` whenever any placement
+  changes.
+
+Note that it sums rather than unions. Under the old bit set the base towers
+merged three lanes' stone and silently lost the duplicates; with counts, a team
+that slotted the same kind into two different lanes' towers gets both copies in
+the base. That follows directly from stacking, and it makes the base meaningfully
+stronger than the old rule did.
+
+**A tower's guards read through the tower**, so they carry whatever it currently
+has — they are not stamped. See
+[guard towers](007-guard-towers-and-their-guards.md), F1.
 
 The consequence is that a tower upgrade takes effect **immediately** on
 placement, while a lane upgrade takes effect on the **next wave**. That asymmetry
 is not an inconsistency to be smoothed out; it is the reason a player under
 pressure reaches for the stone. Stone is the fast option and soldiers are the
 slow one.
+
+One caveat on "immediately," and it is the one that touches guards: an upgrade
+**queued to move** does not leave until the next wave spawns, so a tower and its
+guards keep what they have until that instant and then change together. There is
+exactly one moment in the match's rhythm when anything changes hands.
 
 ## When the stone falls
 

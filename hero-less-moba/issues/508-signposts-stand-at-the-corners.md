@@ -15,28 +15,36 @@ walk the lane they were spawned into and cannot be steered.
 
 ## Intended behavior
 
-Four sign-posts, one at each junction — the two bends on each side lane. Each is
-a piece of the world with a position, not an entry in a menu.
+**Six sign-posts on a three-lane map: three junctions, and each team has one at
+each.** The junctions are the top-left corner, the middle of the field, and the
+bottom-right corner — the three points where the lanes come closest, joined by
+connectors along that diagonal. One post per lane per team, so the count follows
+the team size.
 
-The record, the two-entry `direction` field, and the reasoning for all of the
-below are in
+The record and the reasoning for all of the below are in
 [sign-posts and lane routing](../docs/013-signposts-and-lane-routing.md).
 
 **Who obeys: heroes, and only heroes.** Wave units, guards, and monsters ignore
-them entirely. If waves could be rerouted, a team could feed all three lanes into
-one and the three-lane structure of the map would be decorative.
+them entirely. If waves could be rerouted, a team could feed two lanes into one
+and the lane structure of the map would be decorative.
 
-**Who may set: only the team whose half the junction sits in.** Two each. You
-cannot reroute at the far corners, so once a hero crosses the midpoint it is
-committed — which is what makes routing a prediction rather than a correction.
+**One turn per body, ever.** A hero that has followed a sign-post goes straight on
+at every junction for the rest of its life. The whole feature is the ability to
+move a body into a neighbouring lane once, with the walk to the corner as the
+delay. It is not a routing system and it cannot build a loop.
 
-**No locks and no objections.** Any player may set any of their team's two, at any
-time. Sign-posts are instant and reversible, and a negotiation layer over
-something undoable in one click would be ceremony with nothing under it.
+**Who may set: any player, any of their own team's three, at any time.** The two
+teams' posts are separate objects standing at the same junctions, so setting one
+is only ever an order to your own heroes and never an act against the enemy.
 
-**Hidden from the enemy.** You cannot read the opponent's standing orders. The
-same rule as everything else: you learn where their heroes go by watching heroes
-arrive.
+**No locks and no objections.** Sign-posts are instant and reversible, and a
+negotiation layer over something undoable in one click would be ceremony with
+nothing under it. What the viewer owes instead is a loud signal when a teammate
+changes one, since it silently redirects every hero they have inbound.
+
+**Hidden from the enemy — absent, not undrawn.** You cannot read the opponent's
+standing orders, and under the networking model their posts are not on your
+machine at all. You learn where their heroes go by watching heroes arrive.
 
 The default is **straight on**, so a player who never touches one gets the
 behaviour they would expect from a game with no sign-posts in it.
@@ -44,18 +52,23 @@ behaviour they would expect from a game with no sign-posts in it.
 ## Suggested implementation steps
 
 1. Write the sign-post array, populated by the map builder from the junction
-   nodes.
+   nodes — one entry per junction per team, each carrying its `team`.
 2. Replace the junction stub in the move pass with the lookup, guarded on flavour
-   so only heroes read it.
-3. Write the `set_signpost` handler with the territory check.
-4. Put **your own** sign-posts' directions into the snapshot. Put the enemy's in
-   as objects with **no direction field** — not a hidden field the viewer declines
-   to draw, an absent one. A viewer cannot leak what it was never sent, and this
-   is the only place in the snapshot where a field is withheld by team.
-5. Write a test that a team's snapshot contains no direction data for the enemy's
-   two sign-posts.
-6. Write a test: set a sign-post toward the connector, spawn a hero up that lane,
-   assert it ends up in the center lane and that a wave unit behind it does not.
+   so only heroes read it, and on the body's own team so it reads its own team's
+   post.
+3. Give a body a "has already turned" flag and check it before consulting a post
+   at all. This is the rule most likely to be forgotten, because nothing breaks
+   visibly without it — heroes simply become steerable twice, and the lane
+   structure quietly stops meaning anything.
+4. Write the `set_signpost` handler, refusing any post that is not the issuing
+   player's team's.
+5. Put **your own team's** sign-posts into the viewer's frame. The enemy's are not
+   in it at all — not a hidden field the renderer declines to draw, an absent one.
+6. Write a test that a team's frame contains no entry whatsoever for the enemy's
+   three sign-posts.
+7. Write a test: set a sign-post toward the connector, spawn a hero up that lane,
+   assert it ends up in the centre lane, that a wave unit behind it does not, and
+   that the same hero ignores the centre post it reaches afterwards.
 
 ## Related documents and tools
 

@@ -34,9 +34,17 @@ tower's timer still fires, but the body appears at the library node facing
 outward with no leash instead of at the tower node with one. The defence walks
 out to meet the fight instead of waiting at home for it.
 
-Those bodies are stamped like every other stream body — a share of the chest,
-dealt three ways, not the stone upgrades they would carry in any other phase.
-owns that.
+Those bodies are dealt to like every other stream body — a share of everything
+the team owns, split across the bodies spawning that instant — rather than
+reading their tower the way a guard does in any other phase. Issue 603 owns the
+deal itself.
+
+**Towers shoot at bare catalogue values for the duration.** No upgrade applies to
+a tower while a surge runs, and since guards read through their tower, none
+applies to the guards already standing either. Combined with towers being
+invulnerable and producing no replacements, a surge is the one stretch where a
+team's stone is inert: it cannot be lost, it cannot be reinforced, and it is not
+carrying anything.
 
 ### Why the stream
 

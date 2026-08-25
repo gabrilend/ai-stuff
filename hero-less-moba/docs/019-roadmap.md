@@ -137,7 +137,6 @@ library falls.
 Ends with: a full-length match containing all three surges and all three
 challenges, with a timeline showing where each team's frontlines were before and
 after each one — and terminating, because the Golem arrived somewhere.
-after each one.
 
 | Issue | |
 | --- | --- |

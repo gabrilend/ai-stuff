@@ -58,16 +58,32 @@ soldiers with no purpose, and cleaning them up is cleaner than explaining them.
 
 ## Settled
 
-**A guard is stamped at spawn with its tower's stone upgrades** — `tower_mask[lane]`
-for a lane tower, `base_tower_mask` for a base tower. Stamped, not read live, for
-the same reason a wave unit is; the *tower* reads live. Those two rules sit next
-to each other in the same file and each needs a comment saying why it is not the
-other one.
+**A guard is not stamped. It reads its tower, live** — `tower_count[lane]` for a
+lane tower, `base_tower_count` for a base tower. When an upgrade arrives at that
+tower the guards standing there have it; when it leaves, they do not.
 
-So slotting into stone buys **bodies as well as arrows**. What stops that
-dominating is already in this issue and in 304: **guards are leashed.** A stone
-upgrade buys a better wall; it cannot buy a step forward. **If leashing is ever
-loosened, this is the rule that breaks first** — say so above the leash check.
+This is the **only** place in the combat loop where a body's modifiers are a
+lookup rather than a copy taken at birth, and it needs a comment saying why:
+every other soldier is brief and common and gets stamped, but a guard belongs to
+something that stands still for the whole match, so reading through costs one
+indirection and buys the ability to change your mind.
+
+**The switch happens at a wave spawn.** An upgrade queued to move somewhere else
+keeps applying where it is until the next wave spawns, then moves; the guards at
+both ends change together, on the same instant that stamps the outgoing wave.
+
+**During a siege-surge a tower has nothing on it**, so its guards have nothing
+either, and no new guards are produced at all.
+
+So slotting into a lane's towers buys **bodies as well as arrows**. Two things
+stop that dominating. **Guards are leashed** — a tower upgrade buys a better
+wall and cannot buy a step forward; if leashing is ever loosened, this is the
+rule that breaks first, so say so above the leash check. And **the purchase is
+reversible** — move the upgrade out and the guards are ordinary again on the next
+wave, which is what stops stone being the unlosable side of the trade.
+
+**Guards are replaced only while the command radius is clear**, up to a cap that
+stone upgrades can raise. See issue 304 and the tower document.
 
 See [guard towers and their guards](../docs/007-guard-towers-and-their-guards.md).
 
