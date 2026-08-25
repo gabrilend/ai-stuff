@@ -6,7 +6,7 @@
 | Blocked by | 207, 601 |
 | Blocks | 603, 605, 607 |
 | Reads | [the siege-surge](../docs/014-the-siege-surge.md) |
-| Open questions | B2, E3 |
+| Open questions | B2 — surge length and stream rate |
 
 ## Current behavior
 
@@ -36,15 +36,16 @@ out to meet the fight instead of waiting at home for it.
 
 Those bodies are dealt to like every other stream body — a share of everything
 the team owns, split across the bodies spawning that instant — rather than
-reading their tower the way a guard does in any other phase. Issue 603 owns the
-deal itself.
+carrying the tower's upgrades the way a guard does in any other phase. Issue 603
+owns the deal itself.
 
 **Towers shoot at bare catalogue values for the duration.** No upgrade applies to
-a tower while a surge runs, and since guards read through their tower, none
-applies to the guards already standing either. Combined with towers being
-invulnerable and producing no replacements, a surge is the one stretch where a
-team's stone is inert: it cannot be lost, it cannot be reinforced, and it is not
-carrying anything.
+a tower while a surge runs, so entering the phase sweeps every standing guard
+back to baseline and leaving it sweeps them forward again — the ordinary
+clear-then-re-stamp from issue 303, fired by a phase change rather than by a
+placement. Combined with towers being invulnerable and producing no replacements,
+a surge is the one stretch where a team's stone is inert: it cannot be lost, it
+cannot be reinforced, and it is not carrying anything.
 
 ### Why the stream
 
@@ -91,6 +92,8 @@ wipe detector stays ignorant of phases entirely.
 
 ## Still open
 
-How long does a surge last, and how fast is the stream relative to the wave rate?
-Together those decide the peak body count, which decides the soldier store's
-capacity and whether the thread pool is worth having.
+**B2 — how long does a surge last, and how fast is the stream relative to the
+wave rate?** Awaiting evidence rather than undecided: it is found by watching one
+run, not by argument. Together those two decide the peak body count, which is the
+number the soldier store's fixed capacity is sized against (E3), and which
+decides whether the thread pool is worth having at all.

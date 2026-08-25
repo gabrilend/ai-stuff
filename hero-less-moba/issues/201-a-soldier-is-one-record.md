@@ -6,7 +6,7 @@
 | Blocked by | 103 |
 | Blocks | 202, 203, 204, 303, 503, 606 |
 | Reads | [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md) |
-| Open questions | E4 |
+| Open questions | none |
 
 ## Current behavior
 

@@ -101,7 +101,7 @@ for f in issue_files:
 oq       = (docs / "020-open-questions.md").read_text()
 answered = set(re.findall(r"^## ([A-F]\d+[a-z-]*)\..*(?:ANSWERED|MOOT|DIRECTION SET)", oq, re.M))
 known    = set(re.findall(r"^## ([A-F]\d+[a-z-]*)\.", oq, re.M))
-known   |= set(re.findall(r"^- \*\*(B\d+)\.\*\*", oq, re.M))
+known   |= set(re.findall(r"^- \*\*(B\d+)\.", oq, re.M))
 for f in issue_files:
     row = re.search(r"^\| Open questions \| (.+?) \|$", f.read_text(), re.M)
     if not row:
@@ -112,9 +112,18 @@ for f in issue_files:
         elif ref not in known:
             fail(f"unknown question: {f.name} cites {ref}, which is not on the page")
 
-still_open = sorted(known - answered)
-print(f"{len(issue_files)} issues, {len(known)} questions, {len(answered)} answered.")
-print("still open: " + " ".join(still_open))
+# A question can be open in three different ways and the difference matters more
+# than the count does. "Awaiting evidence" is not indecision -- it is a question
+# that cannot be settled by argument at all, only by running the thing and
+# looking. Lumping those in with real undecided design questions made the open
+# list read as a backlog when most of it was a to-measure list.
+awaiting = set(re.findall(r"^## ([A-F]\d+[a-z-]*)\..*AWAITING EVIDENCE", oq, re.M))
+awaiting |= set(re.findall(r"^- \*\*(B\d+)\.[^\n]*[Aa]waiting evidence", oq, re.M))
+undecided = sorted(known - answered - awaiting)
+print(f"{len(issue_files)} issues, {len(known)} questions, "
+      f"{len(answered)} answered, {len(awaiting)} awaiting evidence.")
+print("awaiting evidence: " + " ".join(sorted(awaiting)))
+print("needs a decision: " + " ".join(undecided))
 print(f"problems: {bad}")
 sys.exit(1 if bad else 0)
 PY
