@@ -33,11 +33,14 @@ worker is writing.
    integer per catalogue kind, saying how many copies of that kind this body
    carries — and each nonzero entry's modifier is applied that many times,
    additive terms first, then multiplicative. *Settled; see
-   [open questions](020-open-questions.md), F3.* For a wave unit the vector was
-   stamped at spawn and is not re-read from the lane. For a **guard** it is read
-   live through its tower, which is the one place in the combat loop where a
-   body's modifiers are a lookup rather than a copy, and it wants a comment
-   saying so — see [guard towers](007-guard-towers-and-their-guards.md), F1.
+   [open questions](020-open-questions.md), F3.*
+
+   **The vector is always the body's own copy.** Nothing here dereferences a
+   lane, a tower, or a team record; the swing path touches the attacker's slot,
+   the defender's slot, and the catalogue. When a slot's contents change, the
+   bodies that copied from it are cleared and re-stamped by a sweep outside this
+   loop — see F23. That is what keeps this step a flat walk over a small array
+   with no pointer chasing anywhere in it.
 5. **Armour.** The defender's `armour` is subtracted, and the result is floored
    at a small positive minimum so that a heavily upgraded defender is very hard
    to kill but never literally immune. Immunity in a lane-pusher means a

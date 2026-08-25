@@ -44,7 +44,7 @@ decision visible from across the map.
 | `cooldown`, `cooldown_max` | integer | Ticks between arrows. |
 | `target` | integer | Soldier id, or **0**. |
 | `command_radius` | double | In paces. The circle that gates guard replacement and hero spawning, and the one value both teams can see. |
-| `guard_cap` | integer | How many guards this tower may hold at once. Raised by stone upgrades, so it is read live rather than stored per guard. |
+| `guard_cap` | integer | How many guards this tower may hold at once. A property of the tower, recomputed whenever its slot changes — the cap is a question about the tower, not about any guard. |
 | `guard_slot` | integer[] | Soldier ids of its living guards. Zeros for empty slots. |
 | `guard_timer` | integer | Ticks until the next guard is put on the ground, and only counting down while the command radius is clear. |
 | `alive` | integer | 1 or 0. A felled tower stays in the array as rubble. |
@@ -109,42 +109,52 @@ chest, their arrangement, where their heroes are routed. This is the exception,
 and it is deliberate: the most tactical ground on the map would be unreadable to
 the people standing on it otherwise.
 
-### Guards read their tower's upgrades live
+### Guards are stamped, and re-stamped when their tower changes
 
-**A guard is not stamped.** It carries whatever is slotted into its own tower at
-this instant — `tower_count[lane]` for a lane tower, and `base_tower_count` for a
-base tower, which is the union of every lane's stone plus the library. When an
-upgrade arrives, the guards standing there have it. When it leaves, they do not.
-*Settled; see [open questions](020-open-questions.md), F1.*
+**A guard carries a copy of its tower's upgrades, in its own slot.** Not a
+reference, not a lookup — a copy, exactly like a wave unit's. *Settled; see
+[open questions](020-open-questions.md), F23.*
 
-This is the one place where a body's modifiers are a lookup rather than a copy,
-and it needs a comment at the call site saying why. Every other soldier in the
-game is stamped at birth because it is brief and common and the modifiers are
-read on every swing; a guard is brief and common too, but it belongs to something
-that stands still for the whole match, so reading through to the tower costs one
-indirection and buys the ability to change your mind.
+The difference from a wave unit is not *how* it carries them. It is **when the
+copy gets corrected**:
 
-**The switch happens at a wave spawn, not immediately.** An upgrade queued to
-move to another lane or another tower keeps applying where it is until the next
-wave spawns, at which point it physically moves and the guards at both ends
-change together. That is the same instant that stamps the outgoing wave — there
-is exactly one moment in the match's rhythm when anything changes hands. See
-[the shared upgrade pool](009-the-shared-upgrade-pool.md).
+> When an upgrade arrives at or leaves a lane's towers, **every guard in that
+> lane has its upgrade counts cleared and rebuilt from scratch.** Not patched —
+> cleared and rebuilt from what the tower currently holds.
+
+**A wave unit is never corrected.** It keeps what it was born with until it dies,
+which is the rule that makes a placement a bet: moving an upgrade out of a lane
+does not weaken the soldiers already walking in it.
+
+Both of those want a comment at the call site, because from either one the other
+looks like a bug. The difference is what the body's relationship to the slot is.
+A wave unit **walks away** from its lane and dies somewhere else, so what it was
+born with is a fact about its birth. A guard **stands at its tower for its entire
+life**, so a guard whose tower has changed and whose numbers have not is a
+visible lie — the player can see the upgrade sitting in the slot and see the body
+standing under it, not benefiting.
+
+**The correction happens at a wave spawn, not the instant you queue it.** An
+upgrade queued to move keeps applying where it is until the next wave spawns,
+then physically moves, and the guards at both ends are re-stamped on that same
+tick. There is exactly one moment in the match's rhythm when anything changes
+hands.
 
 **And during a siege-surge, a tower has nothing on it**, so its guards have
-nothing either. *Settled; see [open questions](020-open-questions.md), F19.* No
-upgrade applies to stone for the length of a surge; they all apply to the bodies
-coming off the spawn points instead. Since towers also stop replacing guards for
-the duration, the only guards on the ground during a surge are whichever ones
-were already standing when it began, fighting at baseline.
+nothing either. *See F19.* No upgrade applies to stone for the length of a surge;
+they all apply to the bodies coming off the spawn points instead. Since towers
+also stop replacing guards for the duration, the only guards on the ground during
+a surge are whichever were already standing when it began, fighting at baseline.
 
-So **slotting an upgrade into a lane's stone buys bodies as well as arrows**, and
-it is a larger purchase than it looks. But unlike the older stamped design, it is
-a purchase you can take back: move the upgrade out and the guards are ordinary
-again on the next wave. That is what keeps stone from being the unlosable side of
-the trade, and it is what lets A5's balance instruction stand — stone should be
-worse at pushing a frontline than soldiers are, and a wall you can dismantle is
-easier to price than one you cannot.
+So **slotting an upgrade into a lane's towers buys bodies as well as arrows**,
+and it is a larger purchase than it looks — but a reversible one. Move the upgrade
+out and the guards are ordinary again on the next wave. That is what stops stone
+being the unlosable side of the trade, and it is what lets A5's balance
+instruction stand.
+
+Note that the slot delivers **melee** upgrades to the guards and **ranged**
+upgrades to the tower itself, with common ones going to both — see F21 and
+[upgrades slotted into stone](010-upgrades-slotted-into-stone.md).
 
 ### The base is different
 
