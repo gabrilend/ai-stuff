@@ -6,7 +6,7 @@
 | Blocked by | 301, 303, 304 |
 | Blocks | 307, 409, 410 |
 | Reads | [the base and the library](../docs/008-the-base-and-the-library.md), [guard towers and their guards](../docs/007-guard-towers-and-their-guards.md) |
-| Open questions | A4 |
+| Open questions | none |
 
 ## Current behavior
 
