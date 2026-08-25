@@ -4,6 +4,32 @@
 game know a wave has been wiped out, and the moment that turns a wipe into a draw
 from the chest.
 
+## A wave is three kinds of body
+
+A wave is not a column of identical soldiers. It carries **melee bodies, ranged
+bodies, and a captain** that is one or the other. *Settled; see
+[open questions](020-open-questions.md), F22.*
+
+| | Health | Damage | Reach |
+| --- | --- | --- | --- |
+| **melee** | 1× | 1× | small, nonzero |
+| **ranged** | 1× | 1× | stands off |
+| **captain** | **2.5×** | **1.5×** | whichever the captain is |
+
+All three are `flavour = 1`, all three spawn together, and all three are stamped
+with the lane's upgrades — including the captain, which is what makes it a
+different thing from a hero. See
+[a unit and what it carries](004-a-unit-and-what-it-carries.md).
+
+Two consequences land in this document specifically. **The frontline is no longer
+one queue** — melee bodies form ranks and ranged bodies hold behind them at their
+own reach, which is issue 206's problem. And **a lane's upgrades only reach the
+half of a wave they match**, so placing into a lane is a decision about
+composition and not only about quantity.
+
+**How many of each, and whether every wave carries a captain, is not settled.**
+The numbers belong to B1; whether anybody gets to choose them is **F27**.
+
 ## A wave is a group with a name
 
 Ordinary soldiers are not spawned as loose individuals. A **wave** is a record,

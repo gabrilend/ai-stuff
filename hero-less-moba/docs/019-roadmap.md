@@ -1,6 +1,6 @@
 # 019 — Roadmap
 
-Eight phases. They are **clusters of functionality**, not a schedule. Nothing here
+Nine phases. They are **clusters of functionality**, not a schedule. Nothing here
 is time-gated and nothing here is a progress bar. It is entirely normal for the
 last issue completed in this project to belong to phase 1, because phase 1 holds
 the foundations and foundations get revisited when the thing standing on them
@@ -8,10 +8,14 @@ turns out to be heavier than expected.
 
 The ordering rule: **lower numbers are more foundational**, not earlier in time.
 A phase-6 issue has more blockers standing in front of it than a phase-2 issue.
-Issue 805 is the capstone — a full match, six players, start to finish. It is not
-the highest number in phase 8 and does not need to be; numbers rise with how much
-has to be standing before an issue can be built, and 806 arrived later in time
-while resting on less.
+Issue 805 is phase 8's capstone — a full match, six players, start to finish. It
+is not the highest number in its phase and does not need to be; numbers rise with
+how much has to be standing before an issue can be built, and 806 arrived later
+in time while resting on less.
+
+**Phase 9 is the last one and it is optional in a way none of the others are.**
+Everything through phase 8 is the game. Phase 9 is an opponent to play it against
+when there are not five other people, and the project is complete without it.
 
 Each phase ends with a **demo** in `issues/completed/demos/`, runnable from a
 script at the project root that asks which phase you want to see. The demos are
@@ -180,6 +184,38 @@ times to find out whether any of it is balanced.
 | 804 | Ten thousand matches overnight |
 | 805 | A full match, end to end — **capstone** |
 | 806 | Three people can finally talk |
+
+## Phase 9 — An Opponent Worth Playing
+
+Single-player, which is a different program from the measuring bot in phase 8 and
+is kept apart from it deliberately. A bot built to produce balance numbers wants
+to be cheap, deterministic and dull; a bot built to be played against wants to be
+varied, surprising, and occasionally wrong in the way a person is wrong. Issue
+803 is the first. This phase is the second.
+
+**The hard problem here is not the opponent.** Playing alone in a 3v3 means five
+bots, and **two of them are on your side, sharing your chest.** A teammate bot has
+to place into lanes a person is also placing into, respect their locks, decide
+whether to object, and — since issue 806 — say something about it. Too eager and
+it tramples the human's arrangement every wave; too passive and the shared chest
+becomes single-player. That is the negotiation layer played from the other side,
+and it does not exist in the games this one is subtracted from.
+
+It also **cannot cheat**, and that falls out of the networking model rather than
+from discipline: under F7 the enemy's chest and wallets are not on the machine at
+all, so difficulty has to come from decision quality and from nothing else.
+
+Ends with: a person playing a full match alone — two bot teammates, three bot
+opponents — and wanting to play another one.
+
+| Issue | |
+| --- | --- |
+| 901 | What a bot is allowed to see |
+| 902 | Reading a board into a handful of numbers |
+| 903 | A teammate that does not trample you |
+| 904 | Buying bodies and pointing them |
+| 905 | Difficulty without cheating |
+| 906 | One person, five bots — **capstone** |
 
 ---
 

@@ -19,7 +19,7 @@ Two records, and keeping them apart matters.
 | `weight` | integer | Relative likelihood of being drawn. |
 | `index` | integer | Which slot this kind occupies in a body's upgrade count vector. |
 | `applies_to` | integer | Bit set: 1 = wave units, 2 = a lane's towers. There is no hero bit — see below. |
-| `shape` | integer | 1 melee, 2 ranged, 3 common. Decides which half of a tower slot's audience receives it — the guards, the tower, or both. See [open questions](020-open-questions.md), F21. |
+| `shape` | integer | 1 melee, 2 ranged, 3 common. **Both slots have two audiences**, so this decides who actually receives it: in a lane, the melee bodies or the ranged ones; in a lane's towers, the guards or the tower. Common reaches everything. See [open questions](020-open-questions.md), F21 and F22. |
 | `add` | double[] | Flat additions, one per modifiable stat. |
 | `mul` | double[] | Multipliers, one per modifiable stat. |
 | `behaviour` | integer | Index into a behaviour dispatch table, or **0** for a pure stat change. |

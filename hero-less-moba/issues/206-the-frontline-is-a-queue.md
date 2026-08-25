@@ -34,6 +34,41 @@ and a wider middle with no special case. Why the center is wider, and what it
 means that the middle is where numbers matter most, is in
 [the map and its milestones](../docs/002-the-map-and-its-milestones.md).
 
+### A rank is a melee thing, and ranged bodies do not join one
+
+*Settled; see [open questions](../docs/020-open-questions.md), F22.* **This
+changes the shape of this issue and it arrived after the first draft of it, so
+read this section before implementing the one above.**
+
+A wave contains melee bodies, ranged bodies, and a captain that is one or the
+other. The queue above was written on the assumption that every body wants the
+same place — the front — and that everything behind it is waiting its turn to get
+there. **A ranged body does not want the front and never will.**
+
+So there are two behaviours, not one:
+
+- **Melee bodies form the rank.** Exactly as above: stop short, fill to the
+  lane's width, form the next rank behind.
+- **Ranged bodies stop at their own reach behind the rank** and shoot over it.
+  They are not queuing for a place they intend to take, and treating them as
+  ranks-in-waiting walks them into melee range and deletes the archetype.
+
+The check is the same one either way — *would this move end me inside somebody's
+personal space* — but the **target position differs**: a melee body wants the
+front rank, a ranged body wants the deepest position still inside its own
+`range` of the front rank. Implement it as one function with the desired standoff
+as a parameter rather than as two, or the two will drift.
+
+A **captain** follows whichever its own reach implies. That is the entire
+difference between a melee captain and a ranged captain at the level of this
+issue.
+
+**What it buys, beyond correctness:** a lane's depth becomes informative. A wave
+that has lost its melee rank but still has ranged bodies standing behind is a
+wave about to evaporate, and it looks different from a wave that has lost
+everything. That is a thing a player can read from across the map with no number
+anywhere, which is the same job the queue was already doing for upgrades.
+
 ### Why this is not cosmetic
 
 1. **A wave reads as a wave** rather than a smear — the difference between a

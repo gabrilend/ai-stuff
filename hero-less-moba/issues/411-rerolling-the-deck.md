@@ -6,7 +6,7 @@
 | Blocked by | 106, 402, 403, 502 |
 | Blocks | 703, 803 |
 | Reads | [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md) |
-| Open questions | A16c, A11b-iii |
+| Open questions | none |
 
 ## Current behavior
 

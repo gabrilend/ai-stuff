@@ -6,7 +6,7 @@
 | Blocked by | 108, 209, 403, 405, 803 |
 | Blocks | 805 |
 | Reads | [the shape of the code](../docs/018-the-shape-of-the-code.md), [roadmap](../docs/019-roadmap.md) |
-| Open questions | B11, C3 |
+| Open questions | B11 — does the frontline actually move |
 
 ## Current behavior
 

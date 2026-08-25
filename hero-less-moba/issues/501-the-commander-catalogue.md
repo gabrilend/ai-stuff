@@ -6,7 +6,7 @@
 | Blocked by | 201 |
 | Blocks | 502, 503, 509, 802 |
 | Reads | [commanders and personal resource](../docs/011-commanders-and-personal-resource.md) |
-| Open questions | C4b |
+| Open questions | none |
 
 ## Current behavior
 

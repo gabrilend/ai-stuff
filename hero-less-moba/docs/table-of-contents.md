@@ -89,11 +89,11 @@ hero-less-moba/
 │   ├── 018-the-shape-of-the-code ............. House style. Numbering, folds,
 │   │                                           companions, dispatch tables, and the
 │   │                                           rule against fallbacks.
-│   ├── 019-roadmap ........................... Eight phases, sixty-three issues, and
-│   │                                           what is deliberately absent.
-│   ├── 020-open-questions .................... Every unresolved decision, grouped,
-│   │                                           with the working ruling stated where
-│   │                                           one is being used.
+│   ├── 019-roadmap ........................... Nine phases, the issues under them,
+│   │                                           and what is deliberately absent.
+│   ├── 020-open-questions .................... Every decision made and unmade,
+│   │                                           in three states: answered, awaiting
+│   │                                           evidence, and needing a decision.
 │   ├── 021-nobody-remembers-why .............. The setting. An automated war nobody
 │   │                                           started, two archives nobody has read,
 │   │                                           and the one thing that remembers.
@@ -139,4 +139,5 @@ more foundational, not earlier in time.
 | 5 | Commanders and Heroes | The second economy, the bodies it buys, and the sign-posts that steer them. |
 | 6 | The Surge and the Challenge | The layer that takes the board apart three times a match. |
 | 7 | Watching It Happen | The real viewer, and the documentation as browsable HTML. |
-| 8 | Six Players | Networking, a lobby, a bot, batch balance runs, and the capstone match. |
+| 8 | Six Players | Networking, a lobby, a measuring bot, batch balance runs, and the capstone match. |
+| 9 | An Opponent Worth Playing | Single-player: a bot built to be played against rather than measured with, including the two that share your chest. The only optional phase. |

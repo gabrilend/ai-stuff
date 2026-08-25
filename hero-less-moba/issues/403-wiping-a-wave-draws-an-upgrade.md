@@ -6,7 +6,7 @@
 | Blocked by | 105, 208, 306, 402 |
 | Blocks | 404, 804 |
 | Reads | [waves, and when one is finished](../docs/005-waves-and-when-one-is-finished.md), [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md) |
-| Open questions | A11b-iii, C3 |
+| Open questions | B7 — whether the catalogue has kinds whose value changes across a match |
 
 ## Current behavior
 
