@@ -75,13 +75,20 @@ and it is one number in the map builder. See
 ### What a monster is
 
 A soldier record with `flavour = 4` and very large numbers. Same movement, same
-targeting, same combat. Three behavioural differences, all fields:
+combat, same buffered damage. For the **Pillar Orc and the Field Dragon**, three
+behavioural differences, all of them values in fields rather than special cases:
 
 - **Ignores sign-posts.** Nothing reroutes it out of the centre lane.
-- **Small acquisition range relative to its size**, so it wades through a
+- **`acquire_range` is small relative to its size**, so it wades through a
   frontline toward the base rather than parking in it.
 - **Targets structures at soldier priority** rather than below it, so it does not
   walk past a tower to be shot in the back.
+
+**The Eternal Golem is not like this.** It does not acquire targets at all — it
+walks at the library in a straight line and attacks what it walks into. It never
+enters the closing or fighting states, and it is the only body in the game whose
+behaviour is not the five-state brain. See below, and
+[a unit and what it carries](004-a-unit-and-what-it-carries.md).
 
 ### A monster is on nobody's side
 
@@ -189,12 +196,16 @@ it has three consequences worth designing toward rather than discovering.
 all pick the left-hand option are running it at triple strength. Nothing forbids
 it, and choosing between concentrating and spreading is the actual decision.
 
-**It is the one negotiation with no channel underneath it.** Three teammates look
+**It is the one negotiation with no board underneath it.** Three teammates look
 at the same two cards, each guessing what the others will take. There is nothing
-on the board to lock, object to, mark, or point at — the five verbs a team has for
-talking about the chest are all useless here, because the thing being decided is
-not on the map yet. It is the only moment in the match where a team has to
-coordinate blind, and it lasts under a minute.
+to lock, object to, mark, or point at, because the thing being decided is not on
+the map yet — every verb a team has for talking *about the chest* works by doing
+something to the chest, and here there is nothing to do.
+
+**This is the moment that bought the game a chat channel.** *See issue 806.* It
+is the only decision in a match where a team has to coordinate in advance rather
+than react to each other, and words were the only way to do it. Everything else a
+team says, it says by acting.
 
 **The enemy's boons are legible without an interface.** They chose from the same
 pair you did, so after a calm you know their three are some split of two kinds you
@@ -302,30 +313,75 @@ something after the third one a match has no escalation left and could grind
 indefinitely. The Golem is that something, and it is not a timer or a scoring
 rule — it is a body, walking, that nobody can stop.
 
-### Damage is a brake, not a wound
+### Health *is* speed, and the wound heals faster the deeper it is
 
-The Golem has no health to remove. Damage dealt to it **slows it down** instead.
+The Golem needs no new systems and almost no new numbers. It has ordinary health,
+takes ordinary damage through the ordinary buffered pass, and two rules do the
+rest:
 
-- The more damage it takes, the slower it moves.
-- **It recovers speed rapidly.** A team that stops hitting it watches it
-  accelerate within seconds.
-- Keeping it slow therefore requires **continuous** damage, not a burst.
+1. **Its speed is a function of its health fraction.** Full health is full speed.
+   The more damaged it is, the slower it walks.
+2. **Its health regenerates, and regenerates faster the lower it is.** A Golem at
+   a sliver heals ferociously. A Golem near full barely heals at all.
 
-Every other fight in this game is an accumulation: you chip a thing down and the
-progress you made is progress you keep. **The Golem is the one fight where
-progress is not kept.** You are not reducing something, you are holding something
-back, and the moment you stop holding, it is exactly as fast as it was before you
-started.
+Those two together are the whole endgame, and they produce three things nobody
+had to design separately.
 
-That single inversion is the whole endgame and it needs no new systems — the same
-damage arithmetic, the same soldiers, the same upgrades, pointed at a number that
-heals.
+**It cannot be killed, and not by a rule saying so.** The regeneration curve
+climbs as the health falls, so the damage required to push it the last stretch
+toward zero rises without limit. Nothing needs an immunity flag or a special case
+in the resolve pass. **It is unkillable arithmetically**, which is a much better
+kind of unkillable than a checkbox — a team can watch themselves failing to do it
+and understand exactly why.
 
-### It fights on the move
+**It finds an equilibrium.** For any sustained damage output there is a health
+level where incoming damage and regeneration cancel, and therefore a speed the
+Golem settles at. A team is not chipping something down; **they are holding a
+needle at a number.** Push harder and the needle moves and stays moved. Slack off
+for ten seconds and it snaps back, because low health means fast healing.
 
-Unlike the Orc and the Dragon, the Golem never stops. It attacks while walking.
-There is no configuration of bodies that parks it, no way to make it safe, and
-the only variable is **how fast**.
+**Progress is never kept.** Every other fight in this game is an accumulation —
+you chip a thing down and what you did stays done. The Golem is the one fight
+where it does not. You are not reducing something, you are holding something
+back, and the moment you stop holding, it returns to exactly where it was before
+you started, quickly.
+
+So it is, explicitly, a **damage check on a timer**: the two teams are running
+the same test side by side, and the one that sustains more damage output holds
+its needle lower for longer. That is the whole of what the endgame measures.
+
+For the viewer, this has a consequence that is either a problem or a gift: **the
+Golem's health bar is a speedometer.** It is the only body in the game where that
+bar does not mean "how close to dead" — it means "how fast is it coming." Drawing
+it as an ordinary health bar would be an active lie, so it should not be one.
+
+### It does not path. It walks at the library.
+
+**The Golem does not acquire targets and does not go around anything.** It walks
+the centre lane in a straight line toward the library and never deviates. There
+is no closing state and no fighting state for it — the frontline is not something
+it engages, it is something that happens to it on the way.
+
+That is what makes the fight legible from any distance. Nothing a team does
+changes *where* it is going or whether it will stop, because it will not stop.
+The only variable in the entire endgame is **how fast**, and a player can read
+that off the map without a number anywhere.
+
+### What it does to what it walks into
+
+It is not harmless while it walks. It kills what it meets, and it kills melee and
+ranged bodies differently:
+
+- **Melee bodies it reaches, it grabs and crushes.** Anything that closed to
+  swinging distance is inside its arms.
+- **Ranged bodies standing off, it answers at range** — something thrown, or
+  something worse.
+
+What exactly the ranged answer is has not been decided and is **F25**. What is
+decided is the shape: **standing close to it is lethal, and standing back is not
+safe either**, so there is no distance at which a team is farming it for free.
+Its damage is what makes sustaining the damage check hard, because the bodies
+doing the damage keep dying.
 
 ### The waves are its rhythm
 

@@ -41,6 +41,8 @@ cluster in memory.
 | `flavour` | integer | 1 wave, 2 hero, 3 guard, 4 monster. |
 | `owner` | integer | Player number that paid for this body, or **0** if the team spawned it. Numbers run 1 to twice the team size; six is not a constant. *See F10.* |
 | `archetype` | integer | Row in the unit table: which hero, which monster, which guard. |
+| `wave` | integer | The wave this body was spawned with, or **0** for anything not in a wave. Heroes, guards, monsters, and **every body a siege-surge puts on the ground** carry zero — a surge emits a stream, not countable groups, which is why no wipe can be detected during one. The reap pass decrements this wave's living count and nothing else scans. |
+| `assigned_team` | integer | **Monsters only.** Which team this monster is a test for, and therefore which team is paid its boon regardless of who lands the killing blow. **0** on everything else. |
 
 ### Place
 
@@ -61,6 +63,7 @@ cluster in memory.
 | `damage` | double | Per swing, before upgrades. |
 | `armour` | double | Flat subtraction, floored so a hit never heals. |
 | `range` | double | In paces. Melee is a small nonzero number, not a special case. |
+| `acquire_range` | double | In paces, and wider than `range`, so a body commits to a fight slightly before it can hit. Copied from the archetype row like every other body value, because it varies by archetype — a challenge monster's is deliberately **small relative to its size** so that it wades through a frontline instead of parking in it. |
 | `speed` | double | Paces per tick. |
 | `cooldown`, `cooldown_max` | integer | Ticks until the next swing is allowed. |
 
@@ -68,7 +71,7 @@ cluster in memory.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `state` | integer | 1 walking, 2 closing, 3 fighting, 4 leashing home, 5 dying. |
+| `state` | integer | 1 walking, 2 closing, 3 fighting, 4 leashing home, 5 dying, **6 waiting**. |
 | `target` | integer | Soldier id, or **0** for none. Structures are targeted through a separate field. |
 | `target_structure` | integer | Structure id, or **0**. |
 | `target_generation` | integer | Checked against the target's generation before every use. |
@@ -86,30 +89,54 @@ are genuinely different from each other. This table is the whole of it:
 
 | Flavour | Its lane's upgrades | Its tower's upgrades | Boons |
 | --- | --- | --- | --- |
-| **wave unit** | **stamped at spawn**, from the lane it was spawned for | — | yes |
+| **wave unit** | **yes**, from the lane it was spawned for | — | yes |
 | **hero unit** | **never, at any strength** | — | yes |
-| **guard** | — | **read live through its tower**, never stamped | yes |
+| **guard** | — | **yes**, from the tower it belongs to | yes |
 | **challenge monster** | never | — | **no** — it is on nobody's team |
 
-Three rules are packed in there and each needs its own comment at the call site,
-because each of them looks like an inconsistency to somebody fixing the others.
+### Everything is stamped. Nothing is ever read through a reference.
 
-**Wave units are stamped once, at spawn, and never recomputed.** This is the
-single most important performance decision in the unit system, and it has a
-design consequence worth stating plainly: **moving an upgrade out of a lane does
-not weaken the soldiers already walking in it.** They keep what they were born
-with until they die. Players should be told this outright, because it turns every
+**Every body's vector is a copy it owns.** *Settled; see
+[open questions](020-open-questions.md), F23.* Nothing in the swing path
+dereferences a lane, a tower, or a team record to find out how strong a body is.
+The vector is right there, in the body's own slot, and applying it is a flat walk
+over a small array.
+
+That is the whole performance argument, and it is also a correctness argument:
+there is no such thing as a stale reference to a slot that moved, because nothing
+holds a reference to a slot.
+
+**The price is that the copies have to be corrected when the source changes**,
+and that is done by an explicit sweep rather than by anybody re-reading anything:
+
+> **Clear, then re-stamp.** When the thing a body's vector was copied from
+> changes, every affected body has its vector cleared and rebuilt from scratch.
+> Not patched — cleared. A rebuild from the current truth cannot drift; an
+> incremental adjustment can, and will, in the direction nobody tests.
+
+There are exactly three moments that trigger a sweep:
+
+| When | Which bodies are swept |
+| --- | --- |
+| An upgrade **arrives at or leaves a lane's towers** — which happens at a wave spawn, not the instant it is queued | every guard in that lane |
+| A **boon is chosen** | every living body that team owns, which during a calm means the heroes waiting at the library and nothing else |
+| A body **spawns** | that body, from its lane or its tower, plus its team's boons |
+
+**Wave units are never swept.** They are stamped at birth and keep what they were
+born with until they die — which is not an oversight, it is the design consequence
+that makes the whole chest worth arguing about: **moving an upgrade out of a lane
+does not weaken the soldiers already walking in it.** They finish their lives
+carrying it. Players should be told this outright, because it turns every
 reassignment into a decision with a delay, and a delay is what makes a
 reassignment worth arguing about.
 
-**Guards are the exception, and they read live.** *See F1.* A guard carries
-whatever is slotted into its own tower at this instant — gaining it the moment it
-arrives and losing it the moment it leaves. It is the only place in the combat
-loop where a body's modifiers are a lookup rather than a copy, and the reason is
-that a guard belongs to something that stands still for the whole match: reading
-through costs one indirection and buys the ability to change your mind. Note also
-that a lane's tower slot delivers **melee** upgrades to the guards and **ranged**
-upgrades to the tower, with common ones going to both — see F21.
+**Guards are swept, and wave units are not**, and the difference is worth a
+comment at both call sites so that nobody later "fixes" the inconsistency. A wave
+unit walks away from its lane and dies somewhere else; a guard stands at the
+thing it copied from for its whole life, so a guard whose tower has changed and
+whose vector has not is a visible lie. Note also that a lane's tower slot
+delivers **melee** upgrades to the guards and **ranged** upgrades to the tower
+itself, with common ones going to both — see F21.
 
 **Lane upgrades never touch heroes.** *See A14.* A hero walking through a lane
 stacked with every upgrade the team owns fights at exactly its catalogue values,
@@ -148,8 +175,39 @@ to a visibly limp frontline.
 **Leashing.** Guards only. Walk back toward the leash node, refusing to acquire
 anything on the way.
 
-**Dying.** One tick of bookkeeping: pay every player on the killer's team, decrement the wave's
-living count, free the slot.
+**Dying.** One tick of bookkeeping: pay every player on the opposing team,
+decrement this body's wave's living count, free the slot.
+
+**Waiting.** A hero bought during the calm, standing at its own library until
+spawning resumes. It does not advance, does not acquire, and cannot be hurt by
+anything, because by then the map is empty in both directions. On the tick the
+calm ends it goes to walking and marches out with the first wave of the new
+phase. *Settled; see [open questions](020-open-questions.md), A17 and F24.*
+
+This is the sixth state and it is the only one in the game where a body is doing
+nothing useful — which makes it the only place in the game where a body can have
+a personality. A waiting hero should **meander, idle, and turn to look at the
+other bodies standing around it.** Nothing about that is mechanical and none of
+it may touch the world; it is the one moment a player watches a body they paid
+for and nothing is at stake. Spend it.
+
+Note the deliberate asymmetry with walking home at the *start* of a calm, which
+is **not** a state — it reuses leashing, with the leash set to the team's own
+library. Leaving the map is a thing the brain already knows how to do. Standing
+still with intent is not.
+
+### The Golem does not use this
+
+The Eternal Golem never enters closing and never enters fighting. **It walks, and
+it attacks whatever it walks into, and it does not stop for either.** There is no
+target acquisition, because it is not going anywhere except the library — it
+walks the centre lane in a straight line and the frontline is something that
+happens to it on the way.
+
+That makes it the one body in the game whose brain is not the five-state machine,
+and the exception has to be written where somebody will find it rather than
+discovered by whoever wonders why the Golem parks. See
+[boons and the challenge](015-boons-and-the-challenge.md).
 
 ### Choosing a target
 
