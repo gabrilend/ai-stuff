@@ -6,7 +6,7 @@
 | Blocked by | 101 |
 | Blocks | 104, 107, 201, 209, 301 |
 | Reads | [the simulation tick](../docs/003-the-simulation-tick.md), [the shape of the code](../docs/018-the-shape-of-the-code.md) |
-| Open questions | E3, E4 |
+| Open questions | none |
 
 ## Current behavior
 

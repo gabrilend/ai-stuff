@@ -100,21 +100,36 @@ and 2v2 be supported at all, or is this strictly a 3v3 game?
 
 **Changes:** [016](016-players-teams-and-commands.md), [009](009-the-shared-upgrade-pool.md), issues 406, 407, 802.
 
-## A4. "The guards in the base" — soldiers, or towers?
+## A4. "The guards in the base" — soldiers, or towers? — **ANSWERED**
 
 **Vision:** "The guards in the base will move to attack any invaders no matter
 which lane they came from, but the range on their arrows is such that they
 probably will only be able to hit the units that came from a single lane — it's
 just a radius around them."
 
-**Working ruling:** both halves are true of different things. The base's guard
-*soldiers* are unleashed and answer any lane; the base *towers* shoot a plain
-radius that in practice covers one lane mouth.
+**Answer: both halves are true, of different things, and the sentence is not
+ambiguous once you notice it names two.** "Will move to attack" is a soldier.
+"The range on their arrows" is a tower. The vision put them in one clause because
+in the world they are one thing — the defence of a base — and in the record they
+are two.
 
-**Why it matters:** "will move to attack" is a soldier and "the range on their
-arrows" is a tower, and the sentence puts them in one clause. If it means only
-towers, base guards do not exist and a base breach is much easier. If it means
-only soldiers, base towers cover everything and a breach is much harder.
+So: the base's guard **soldiers** are unleashed and answer any lane, because the
+interior of a base is one open room. The base's **towers** shoot a plain radius
+which in practice reaches the mouth of the one lane each sits at. **Bodies flow
+across the base freely; arrows do not.**
+
+This sat as a working ruling for a long time on the grounds that it was "not a
+decision, both readings are implemented." That was a dodge. Both readings being
+implemented *is* the answer, and the reason it is the right one is worth stating:
+the two halves produce the behaviour the vision describes only when they are
+both true. Towers alone and there are no bodies to meet a breach. Soldiers alone
+and a base covers every lane at once, which makes splitting a push pointless and
+takes away the one shove toward attacking two lanes at once.
+
+The consequence to tell players: **pushing into a base means fighting every guard
+in it, but only under the arrows of the one tower you walked past.** Splitting a
+push across two lanes into the same base is therefore meaningfully better than
+doubling up on one.
 
 **Changes:** [007](007-guard-towers-and-their-guards.md), [008](008-the-base-and-the-library.md), issue 305.
 
@@ -815,26 +830,84 @@ walk past.
 # Group B — Numbers nobody has picked yet
 
 None of these belong in prose; they belong in catalogue tables with a validator.
-But they have to be *chosen*, and several of them determine whether the game
-works at all.
+And **none of them is answered by thinking** — they are found by running the
+thing and looking at what happened, which is why every entry below is marked
+*awaiting evidence* rather than open. They are not a backlog of decisions nobody
+has made. They are a list of measurements nobody has taken.
 
-- **B1.** Wave interval, and how many bodies per wave.
-- **B2.** How long a surge lasts, and the stream's rate compared to the wave rate.
-- **B3.** ~~The reassignment cooldown.~~ **Gone** — replaced by the one-wave
-  transit from D3. There is no cooldown to tune; the wave *is* the cost. What
-  remains here is how long the calm lasts (A8b says 30–60 seconds) and what a
-  reroll costs (A11b-ii).
-- **B4.** The radius around a tower within which enemies block a hero spawn.
-- **B5.** Resource paid per kill, per flavour of thing killed.
-- **B6.** How long a full match should take, and therefore how many waves fall
-  before the first surge.
-- **B7.** How many kinds in the upgrade catalogue, and their weights.
-- **B8.** How many boons, and how much stronger than an ordinary upgrade.
-- **B9.** A challenge monster's health, expressed against what a team can
-  realistically field at that point in the match.
-- **B10.** Guard patrol size per tower, and how fast a felled guard is replaced.
+What thinking *can* do, and what the rest of this section now does, is decide
+**what each number is measured against.** A figure chosen against another figure
+moves with it and stays coherent; nine figures chosen independently drift apart
+the first time one of them is retuned, and then nobody can say why the game feels
+wrong. The project already does this in three places — a library is one and a half
+towers, a hero is two and a half wave units, a reroll is one cheap hero — and the
+rest should follow the same discipline.
 
-## B11. Does the frontline actually move?
+So each entry below names an **anchor**. The first run picks one absolute number
+per cluster and derives the rest.
+
+### The anchors
+
+**The wave is the clock.** Everything about pacing is expressed in waves, because
+a wave is the thing a player can see arriving. Ticks are the unit underneath and
+seconds are never used.
+
+**A wave unit is the unit of strength.** Everything that fights is priced in wave
+units — a hero is 2.5 of them, a tower is some number of them, a monster is a
+great many. One archetype's numbers are chosen and the rest are ratios.
+
+- **B1. Wave interval and wave size.** *Awaiting evidence.* The interval is the
+  anchor for all pacing and should be picked first, from watching a frontline
+  form. Wave size follows from lane width: a wave should be **wider than the lane
+  can fit abreast**, so that ranks queue and the frontline reads as a wave rather
+  than a line. If it is not, the frontline queue from issue 206 does nothing
+  visible.
+- **B2. Surge length and stream rate.** *Awaiting evidence.* Anchored to B1 as a
+  **ratio, not a figure**: the stream should put bodies down often enough that the
+  lull between waves disappears entirely, since that is the whole feel of the
+  phase. The current estimate is roughly twenty to thirty times the wave rate, one
+  body at a time — see `docs/balance-updates.md`. Surge length is anchored to B6:
+  long enough that a team's arrangement genuinely stops mattering, short enough
+  that nobody is bored.
+- **B3.** ~~The reassignment cooldown.~~ **Gone**, and what remains is *awaiting evidence* — replaced by the one-wave
+  transit from D3. The wave *is* the cost. What remains is *awaiting evidence*:
+  the calm's length, anchored to how long it actually takes three people to read
+  two boons and re-place a chest, which is a stopwatch question and nothing else.
+  The reroll price is already derived (A11b-ii, the cheapest hero).
+- **B4. The command radius.** *Awaiting evidence.* Now one circle doing two jobs
+  (F2), so it is anchored to **the distance a wave covers between spawns** — the
+  radius should be small enough that reaching it is an act and large enough that
+  standing in it is not accidental.
+- **B5. Resource per kill, by flavour.** *Awaiting evidence.* Anchored to the
+  hero roster: **a player's income across one wave-and-a-half of ordinary trading
+  should buy the cheapest hero.** That single relation sets the pace of the whole
+  second economy, and every other payout is a multiple of the wave-unit figure.
+- **B6. Match length, and waves before the first surge.** *Awaiting evidence.*
+  The top anchor. Everything about escalation — three surges, two calms, two
+  ceiling raises — divides this number, so it is chosen first in wall-clock terms
+  and then expressed in waves via B1.
+- **B7. Catalogue size and weights.** *Awaiting evidence.* No longer capped by an
+  integer's width (F3), so this is chosen on **legibility**: few enough that a
+  player recognises what is on an enemy soldier at a glance, since reading the
+  frontline is the only way to learn an opponent's arrangement.
+- **B8. Boon count and strength.** *Awaiting evidence*, with one design
+  constraint that is not a number and belongs here anyway: because every player
+  on both teams is offered the same pair (F5), **an imbalanced pair is not a dull
+  choice, it is a null event** — all six players correctly take the same one and
+  nothing distinguishes anybody. The catalogue must be flat enough that the pick
+  is about *fit* rather than about which is stronger. That is a harder bar than
+  an ordinary upgrade catalogue has to clear.
+- **B9. Challenge monster health.** *Awaiting evidence.* Anchored to what a team
+  can field at that point in the match rather than to an absolute — which means
+  it cannot be chosen before B5 and B6 are, and it is different for each of the
+  three. The Golem has no health figure at all (F19 era: health is speed), so
+  what it needs instead is a **regeneration curve**, anchored so that the
+  equilibrium speed under a full team's sustained output is slow but not zero.
+- **B10. Guard cap and replacement rate.** *Awaiting evidence.* The cap matters
+  more than it did: guard count is a **multiplier on every stone upgrade** (F21),
+  so this is not only a question about how hard a tower is to walk past.
+
+## B11. Does the frontline actually move? — **AWAITING EVIDENCE**
 
 Not a number, but it is answered by numbers, and it is the question the whole
 project exists to answer. The vision's premise is that a subtracted lane-pusher
@@ -1459,24 +1532,100 @@ written; the ordinary resolve pass notices the zero on the next tick and
 everything downstream follows through the normal path.
 
 **Changed:** issue 801, [016](016-players-teams-and-commands.md).
-## E3. How many soldiers on the map at once?
+## E3. How many soldiers on the map at once? — **ANSWERED**
 
-Drives everything about storage and threading. A continuous surge stream in three
-lanes for both teams could be a few hundred or a few thousand depending on B2.
+**Answer: a hard configured maximum, preallocated at match start, and exceeding
+it is an error rather than a reallocation.**
 
-## E4. FFI struct arrays or Lua tables for the soldier store?
+The question asked what the number *is*. The better answer is that nothing should
+ever need to know, because the store is allocated once and never grows.
 
-FFI is faster and gives exact control over layout; Lua tables are easier to debug
-and serialise. The snapshot format probably wants to be FFI regardless.
+That follows the rule this project already uses everywhere else: **assign the
+memory first, then hand out slices of it.** A store that can grow is a store that
+can reallocate mid-tick, which invalidates every index a worker thread is holding
+and turns the thread pool from an optimisation into a hazard. A fixed store makes
+slicing a pair of integer bounds forever.
 
-## E5. Where do replays live, and how are they versioned?
+**Running out is a real failure and is treated as one.** Not a silent drop, not a
+grow-and-continue — an error that names the phase, the tick, and the spawn that
+could not be satisfied. A fallback here would be a match that quietly stops
+spawning and a balance run that quietly lies.
 
-A replay is a seed, a command list, and the accepted position-and-health
-snapshots — see E2, which corrected the older claim that a seed and a command
-list were enough. The snapshots are what make a replay heavy, so storage is a
-real question rather than a formality. A replay is also only replayable against
-the exact rules that recorded it; a rules-version stamp in the header is the
-minimum.
+The estimate that sizes it, so the first value is not a guess in the dark: the
+worst case is a siege-surge, where both teams emit one body per lane on a short
+timer. Bodies alive is roughly **spawn rate × how long a body lives**, plus the
+standing guards, plus heroes. With the current estimates in
+`docs/balance-updates.md` that lands in the **low hundreds**, not thousands — so
+the cap is set well above it, and the validator reports the high-water mark of
+every batch run so the headroom is a measured number rather than a hope.
+
+**Changed:** [003](003-the-simulation-tick.md)'s world record, issues 103, 201, 209, 804.
+
+## E4. FFI struct arrays or Lua tables for the soldier store? — **ANSWERED**
+
+**Answer: FFI struct arrays for the soldier store and the snapshot. Lua tables
+for everything else.**
+
+The split is not a compromise, it is a line drawn at a real boundary: **FFI for
+what is both large and hot; Lua tables for what is rare, long-lived, or
+inspected.**
+
+| | Store | Why |
+| --- | --- | --- |
+| Soldiers | **FFI** | Thousands of them, touched every pass of every tick, sliced across the pool. This is the only thing in the game with that shape. |
+| The upgrade count vector | **FFI**, alongside the soldier store | One small integer array per body, walked on every swing. It is part of the same hot record and should live in the same allocation. |
+| Snapshots | **FFI** | Flat, written once a tick, delta-encoded, and shipped over a wire. |
+| Structures, waves, upgrade instances, players, teams | **Lua tables** | Dozens, not thousands. Touched rarely. Read constantly by humans. |
+
+[The shape of the code](018-the-shape-of-the-code.md) already leaned this way —
+"where a hot array of numbers is needed, an FFI struct array is preferred" — and
+this settles where the boundary sits rather than leaving it to taste.
+
+The cost is accepted and worth naming, because it will be felt on a bad day:
+**an FFI array is worse to debug.** No `pairs`, no printing a body by name, no
+poking at it from a live prompt. The mitigation is not to avoid FFI; it is to
+write the inspector early — one function that prints a soldier as a readable
+record — and to treat it as part of the store rather than as a debugging
+afterthought somebody adds under pressure.
+
+**Changed:** [018](018-the-shape-of-the-code.md), issues 103, 107, 201.
+
+## E5. Where do replays live, and how are they versioned? — **ANSWERED**
+
+**Answer: two grades of replay, because there are two different things people
+want back, and only one of them is heavy.**
+
+| | Carries | Reproduces | Size |
+| --- | --- | --- | --- |
+| **Light** | seed, match parameters, command list | *a* match — the one those commands produce on one machine | tiny |
+| **Full** | the above, plus the accepted position-and-health snapshots | *the* match six people actually played | large |
+
+E2 established that a seed and a command list are not enough under a rotating
+authority, because the world is periodically overwritten from another machine. It
+did not follow that every replay must be heavy. **A light replay is still exactly
+right for the thing replays are mostly for** — a batch run, a regression test, a
+bug somebody wants to re-enter — because all of those happen on one machine,
+where the simulation *is* deterministic and nothing overwrites anything.
+
+The full grade exists for one purpose: watching back a networked game as it
+actually happened, with the corrections in place. It is recorded only when the
+match was networked, and the snapshot stream is delta-encoded against the last
+accepted one.
+
+**Where they live:** written to `tmp/shared-memory/` while a match runs, since
+that is RAM and a match writes continuously; moved to a durable directory only
+when kept. Nothing ephemeral goes in the repository.
+
+**Versioning:** a **rules-version stamp in the header**, checked on load, and a
+refusal — not a warning, not a best-effort — when it does not match the binary.
+A replay run against rules it was not recorded under does not produce a slightly
+wrong match; it produces a confidently wrong one, which is worse than no replay,
+because somebody will believe it.
+
+The stamp is a hash of the catalogue tables and the phase table, not a hand-typed
+version number, so it changes when the rules change and cannot be forgotten.
+
+**Changed:** [003](003-the-simulation-tick.md), [018](018-the-shape-of-the-code.md), issues 107, 801, 804.
 
 ## E6. Does the map builder need to make anything other than the standard map? — **ANSWERED**
 
@@ -2365,7 +2514,7 @@ Whatever it is, it wants to obey the existing rules: an entry in the ability
 dispatch table, firing on a condition, writing into the same pending-damage
 buffer as an ordinary swing.
 
-## F26. What does a chat channel do to the argument for locks? — **OPEN**
+## F26. What does a chat channel do to the argument for locks? — **AWAITING EVIDENCE**
 
 Created by the decision to build one (issue 806), and worth watching rather than
 pre-empting.
