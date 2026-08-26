@@ -426,11 +426,18 @@ was fine, and moved on will not be told it never happened. So the notice a
 transit gives is a *statement of intent*, not a promise — which is exactly what
 a lock is for when you want the stronger thing.
 
-**There is no cap on how many upgrades a lane can hold.** The vision says so
+**There is no cap on how many stones a lane can hold.** The vision says so
 outright: "players are allowed to put all their upgrades in one lane. This is
 fine." Stacking everything in one lane is a real strategy with a real cost — the
 other two lanes are then running on nothing, and the base guards will be meeting
 whatever walks out of them.
+
+**It is also the failure mode most worth watching**, and there is a difference
+between *allowed* and *correct*. If concentration turns out to be simply better,
+a match stops being three strategies and becomes one, decided early. The forces
+already pushing against it, what would show it happening, and what to do about it
+if it does — including the tempting fix that would make it worse — are set out in
+[ways this could go wrong](023-ways-this-could-go-wrong.md).
 
 ## What the enemy can see
 
