@@ -89,7 +89,11 @@ local BIOMES = {
     polarity = "dark_ink",
     words = { "mountain", "peak", "hill", "cliff", "stone", "rock", "valley",
               "cave", "ridge", "slope", "steep", "summit", "boulder" },
-    pieces = { "山", "石", "厂", "阝", "谷", "穴", "岩" },
+    -- Two numbers for the same shape: the form that stands alone and the form
+    -- written on the left of another character look identical and are different
+    -- characters. Holding only one of them cost three of the five hundred
+    -- commonest characters their world.
+    pieces = { "山", "石", "厂", "阝", "⻖", "谷", "穴", "岩" },
     roles = {
       horizontal = "a ledge running across the face",
       vertical = "a vertical fissure in the rock",
@@ -130,7 +134,8 @@ local BIOMES = {
     words = { "house", "home", "roof", "room", "dwell", "live", "family",
               "door", "window", "shelter", "building", "wall", "floor",
               "residence", "inn", "hall" },
-    pieces = { "宀", "广", "戸", "疒", "冖", "爿", "匚", "匸", "門" },
+    pieces = { "宀", "广", "戸", "疒", "冖", "爿", "匚", "匸", "門",
+               "用", "入" },
     roles = {
       horizontal = "a roof beam running the width of the room",
       vertical = "a pillar of dark cedar",
@@ -151,7 +156,7 @@ local BIOMES = {
               "village", "ward", "district", "trade", "buy", "sell", "money",
               "price", "public", "crowd", "section", "region", "border",
               "limit", "boundary", "wall", "province", "county" },
-    pieces = { "囗", "冂", "門", "貝", "里", "丨", "冋", "阝", "邑", "部" },
+    pieces = { "囗", "冂", "門", "貝", "里", "丨", "冋", "邑", "部" },
     roles = {
       horizontal = "a shop awning stretching across the lane",
       vertical = "a banner hanging down the frontage",
@@ -172,7 +177,7 @@ local BIOMES = {
               "rain", "snow", "weather", "day", "light", "bright", "shine",
               "storm", "thunder", "season", "spring", "summer", "autumn",
               "winter", "morning", "noon" },
-    pieces = { "日", "雨", "一", "彡", "电", "光", "𠦝" },
+    pieces = { "日", "雨", "一", "彡", "电", "光", "𠦝", "西" },
     roles = {
       horizontal = "a band of cloud lying across the sky",
       vertical = "a column of rain reaching down",
@@ -211,7 +216,8 @@ local BIOMES = {
     words = { "metal", "gold", "iron", "steel", "sword", "blade", "knife",
               "tool", "machine", "cut", "needle", "nail", "hammer", "copper",
               "silver", "weapon", "arrow", "bow", "sharp" },
-    pieces = { "金", "刀", "刂", "戈", "弓", "矢", "斤", "工", "殳", "𢦏" },
+    pieces = { "金", "刀", "刂", "戈", "弓", "矢", "斤", "工", "殳", "𢦏",
+               "王", "玉" },
     roles = {
       horizontal = "a blade lying flat on the bench",
       vertical = "a chisel standing on end",
@@ -237,7 +243,8 @@ local BIOMES = {
               "hear", "feel", "breathe", "life", "birth", "live", "die" },
     pieces = { "人", "亻", "儿", "女", "子", "目", "口", "耳", "心", "忄",
                "扌", "又", "足", "首", "頁", "士", "父", "寸", "卩",
-               "大", "小", "立", "見", "自", "身", "手", "老", "羽", "良" },
+               "大", "小", "立", "見", "自", "身", "手", "老", "羽", "良",
+               "長", "求" },
     roles = {
       horizontal = "an outstretched arm crossing the frame",
       vertical = "a standing figure",
@@ -361,7 +368,7 @@ local BIOMES = {
               "learn", "study", "think", "know", "mean", "letter", "poem",
               "number", "count", "law", "rule", "name", "record", "story",
               "question", "answer", "teach", "school", "wisdom", "truth" },
-    pieces = { "言", "文", "聿", "冊" },
+    pieces = { "言", "文", "聿", "冊", "二", "八" },
     roles = {
       horizontal = "a scroll unrolled flat across the desk",
       vertical = "a hanging scroll",

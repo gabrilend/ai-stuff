@@ -40,4 +40,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `035-test-the-machine`.
+Used by `031-make-them-all`, `035-test-the-machine`.

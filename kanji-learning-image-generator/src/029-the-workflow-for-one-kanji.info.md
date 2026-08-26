@@ -40,4 +40,4 @@ There is no picture program on this machine. The model and the control net are n
 
 ## Where it sits
 
-Used by `030-make-one-kanji`, `035-test-the-machine`.
+Used by `030-make-one-kanji`, `031-make-them-all`, `035-test-the-machine`.

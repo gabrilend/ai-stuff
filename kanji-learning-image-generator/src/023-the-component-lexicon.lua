@@ -260,6 +260,25 @@ local WRITTEN = {
   { "走", "a figure running",                "road",    "abstract" },
   { "髟", "long hair falling",               "person",  "catalogue" },
   { "鬥", "two figures grappling",           "person",  "shape" },
+
+  -- Found by running the whole set and reading the failures. Every row below
+  -- was a character that could not be pictured at all, and most of them are
+  -- among the five hundred commonest.
+  { "王", "a polished jade disc",             "metal",   "abstract" },
+  { "玉", "a jewel on a cord",                "metal",   "abstract" },
+  -- The left-hand form of the bank radical has a *different number* from the
+  -- one that stands alone, and looks identical. Three common characters had no
+  -- world because the lists held one of the two.
+  { "⻖", "a steep bank",                     "mountain","shape" },
+  { "阝", "a steep bank",                     "mountain","shape" },
+  { "西", "the western sky where the sun goes down", "sky", "abstract" },
+  { "用", "a wooden pail with a handle",      "dwelling","abstract" },
+  { "長", "an elder with long hair",          "person",  "abstract" },
+  { "入", "the mouth of a doorway",           "dwelling","abstract" },
+  { "二", "two marks tallied",                "word",    "abstract" },
+  { "八", "two marks drawing apart",          "word",    "abstract" },
+  { "求", "a hand reaching for something",    "person",  "abstract" },
+  { "見", "an eye above a pair of legs",      "person",  "abstract" },
 }
 
 local BY_CHARACTER = {}

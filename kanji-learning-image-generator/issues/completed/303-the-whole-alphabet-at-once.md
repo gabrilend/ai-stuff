@@ -2,8 +2,30 @@
 
 ## Current behavior
 
-One character can be made into a directory. There are several thousand
-characters.
+Done. `src/031-make-them-all.lua`:
+
+```
+luajit src/031-make-them-all.lua --grade 1
+luajit src/031-make-them-all.lua --frequent 500
+luajit src/031-make-them-all.lua --all
+```
+
+**Workers are started by opening a pipe to each and waited for by reading each
+pipe to its end.** No shell backgrounding, no chained commands, no polling — a
+pipe cannot reach its end until the process writing it has finished, so reading
+one is the wait.
+
+**The report found the gaps it was built to find, on its first real run.** Ten
+of the five hundred commonest characters could not be made, and they had one
+cause between them: their meaning-bearing half was a piece with no entry. Three
+of them shared the jade radical. Three more failed on a left-hand form of the
+bank radical that has a *different Unicode number* from the one that stands
+alone and looks identical — the lists held one of the two. Fixed in `023` and
+`024`; all five hundred now succeed, and across the whole archive the characters
+that match no world dropped from a hundred and twenty-three to thirty-five.
+
+**How many workers is now `307`'s business**, because taking every core drove
+the processor to the top of its thermal range.
 
 ## Intended behavior
 
