@@ -175,12 +175,60 @@ local function test_the_structure_field(t)
 end
 -- }}}
 
+-- {{{ test_the_component_lexicon(t)
+local function test_the_component_lexicon(t)
+  local lexicon = project.load("023-the-component-lexicon")
+  local store = project.load("019-the-kanji-record").store()
+
+  -- The rule that separates a gloss about the world from a gloss about the
+  -- writing system. Without it the commonest pieces in the archive all resolve
+  -- to their catalogue entries and every scene is about the naming of radicals.
+  t.ok(lexicon.is_paintable("tree"), "a thing is paintable")
+  t.ok(lexicon.is_paintable("mouth"), "so is another one")
+  t.ok(not lexicon.is_paintable("radical number 9"), "a catalogue number is not")
+  t.ok(not lexicon.is_paintable("kettle lid radical (no. 8)"), "nor a radical name")
+  t.ok(not lexicon.is_paintable("katakana no radical (no. 4)"), "nor a kana name")
+  t.ok(not lexicon.is_paintable("counter for small animals"), "nor a counter")
+
+  local tree = lexicon.look_up({ element = "\230\156\168", depth = 2 }, store)
+  t.ok(tree ~= nil, "a piece that is a character resolves")
+  t.same(tree.depicts, "a tree", "to something that can be in a picture")
+
+  -- The squeezed form of a character has its own dictionary entry, and that
+  -- entry is its catalogue number. The archive says what it is a squeezed form
+  -- *of*, and that is where the meaning is.
+  local person_form = lexicon.look_up(
+    { element = "\228\186\187", depth = 2, original = "\228\186\186" }, store)
+  t.ok(person_form ~= nil, "a squeezed form resolves too")
+  t.ok(person_form.depicts:find("figure") or person_form.depicts:find("person"),
+       "to a person rather than to a radical number", person_form.depicts)
+
+  local nothing = lexicon.look_up({ element = "\239\191\189", depth = 2 }, store)
+  t.same(nothing, nil, "and something with no answer returns none, rather than a guess")
+
+  -- Coverage is measured and printed, not asserted against a threshold. A
+  -- number turned into a threshold is a number somebody adjusts; a number
+  -- printed is a number somebody looks at.
+  local found = lexicon.coverage(store)
+  local resolved = found.total - (found.by_source.nothing or 0)
+  t.ok(found.total > 10000, "coverage is measured across the whole archive")
+  t.ok(resolved > 0, "and some of it resolves")
+  t.note(string.format("%d of %d component appearances resolve (%.1f%%), from %d written rows",
+         resolved, found.total, resolved / found.total * 100, lexicon.written_count()))
+  if #found.queue > 0 then
+    t.note(string.format("commonest piece with no picture: %s, %d times",
+           found.queue[1].element, found.queue[1].count))
+  end
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
   local groups = {
     { "measuring a stroke", test_measuring_a_stroke },
     { "the structure field", test_the_structure_field },
+    { "the component lexicon", test_the_component_lexicon },
   }
   local all_passed = true
   for _, group in ipairs(groups) do
