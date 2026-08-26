@@ -11,7 +11,7 @@ This is where the project stops being a drawing program.
 
 | | | Status |
 |---|---|---|
-| `201` | What a stroke is shaped like | not started |
+| `201` | What a stroke is shaped like | **completed** — every boundary measured off the archive, and the thing that measured them kept |
 | `202` | The field the illusion rides on | not started |
 | `203` | What the pieces mean | not started |
 | `204` | The place the meaning makes | not started |
@@ -36,3 +36,17 @@ this project to be broadly wrong while appearing to work.
 **The second is the unglossable component.** `203` counts them and `303` reports
 them because a component that silently contributes nothing makes an image that is
 quietly about less than it should be.
+
+## What `201` turned up
+
+**A claim that sounded like an engineering judgement and was an untested
+assumption.** The plan stated that a hook cannot be seen by measurement, on the
+reasoning that a hook barely moves a stroke's endpoint — which is true, and does
+not imply the conclusion. A hook barely moves the endpoint and swings the
+direction hard. The two populations turn out to be cleanly separated with
+nothing in between.
+
+The lesson is not about hooks. It is that every boundary in this phase is a
+claim about a dataset, and the difference between a guessed boundary and a
+measured one is invisible until somebody looks. So the thing that measured them
+is a mode of the file it configures, not a script that was deleted afterwards.

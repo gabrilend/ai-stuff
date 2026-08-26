@@ -2,7 +2,35 @@
 
 ## Current behavior
 
-A stroke is a run of points. Points do not say what a stroke *is*.
+Done. `src/021-the-shape-of-a-stroke.lua` measures a stroke, and the report that
+step 4 asked for is a mode of that same file rather than a throwaway:
+
+```
+luajit src/021-the-shape-of-a-stroke.lua --calibrate
+```
+
+**Every boundary in the file was set from that report rather than guessed**, and
+the report is kept because the numbers are claims about a dataset that gets new
+releases. Three things came out differently from the plan.
+
+**Hooks are measured, not read.** The plan said geometry could not see a hook,
+because a hook barely moves a stroke's endpoint. True, and the conclusion was
+wrong: a hook barely moves the endpoint and swings the *direction* hard, and
+direction is the easiest thing here to measure. The classes the archive labels
+as hooked average a terminal turn above seventy-five degrees; the rest stay
+under twenty-six, with nothing in between. The measurement agrees with the label
+wherever there is one, and unlike the label it also covers the strokes the
+archive left unlabelled or marked ambiguous.
+
+**Size is measured apart from direction**, which the plan folded together. A dot
+and a long sweeping stroke travel in the same direction and are not the same
+thing; bucketing by angle alone would have put a bird and a river in the same
+place. There is now a size — dot, short, long — beside the direction.
+
+**A sixth direction had to be named: reversing**, for a stroke that ends left of
+or above where it began. There are eight in the whole archive. Naming it rather
+than folding it into a neighbour means a scene asking for an object to lie along
+one is told something unusual is there.
 
 ## Intended behavior
 
@@ -24,14 +52,12 @@ and is asymmetric by design.
 length. Their ratio is curvature, and it is the cheapest description of shape
 there is: a ratio near one is a straight stroke, and well above one is a bend.
 
-**Hookedness comes from the calligraphic class, not from geometry**, and this is
-the one place where the archive knows something measurement cannot. A hook is a
-short flick at the end of a stroke. It barely moves the endpoint, it barely
-changes the arc length, and it is invisible to every statistic above — but a
-hooked vertical and a plain vertical are different strokes to a reader and want
-different objects laid along them. `kvg:type` states it (`docs/002`), so it is
-read rather than inferred, and a stroke with no class recorded is reported as
-unmeasurable in that one respect rather than assumed straight.
+**Hookedness is how far the stroke swings in its last fifth.** A hooked vertical
+and a plain vertical are different strokes to a reader and want different objects
+laid along them, so the distinction has to survive. It is measured rather than
+read out of `kvg:type`, and `--calibrate` is what settled that: the two
+populations do not overlap, and measurement also covers the strokes the archive
+labelled ambiguously or not at all.
 
 **Place** is which ninth of the frame the stroke's midpoint falls in. Coarse on
 purpose: the scene grammar wants *low and to the left*, not coordinates, and a
