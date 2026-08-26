@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Everything this has ever made</title>
+<style>:root {
+  --paper: #f4f1ea; --ink: #23201b; --faint: #8a8377;
+  --rule: #d9d4c8; --accent: #b8860b; --card: #fbf9f4;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 16px/1.65 Georgia, "Times New Roman", serif;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+header {
+  padding: 2.5rem 2rem 1.5rem; border-bottom: 1px solid var(--rule);
+}
+header h1 { margin: 0 0 .3rem; font-size: 1.7rem; font-weight: normal; }
+header p { margin: 0; color: var(--faint); }
+main { padding: 1.5rem 2rem 5rem; max-width: 1400px; margin: 0 auto; }
+.controls {
+  display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
+  padding: 1rem 0 1.5rem; border-bottom: 1px solid var(--rule);
+  margin-bottom: 1.5rem; position: sticky; top: 0; background: var(--paper);
+  z-index: 5;
+}
+.controls label { color: var(--faint); font-size: .85rem; }
+.controls select, .controls input, .controls button {
+  font: inherit; font-size: .9rem; padding: .3rem .5rem;
+  border: 1px solid var(--rule); background: var(--card); color: var(--ink);
+  border-radius: 2px;
+}
+.controls button { cursor: pointer; }
+.controls button.on { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+.count { margin-left: auto; color: var(--faint); font-size: .85rem; }
+.grid {
+  display: grid; gap: 1.2rem;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+}
+.tile {
+  background: var(--card); border: 1px solid var(--rule); border-radius: 3px;
+  padding: .6rem; text-align: center;
+}
+.tile .glyph {
+  font-size: 2.1rem; line-height: 1.1;
+  font-family: "Noto Serif CJK JP", "Hiragino Mincho ProN", serif;
+}
+.tile .shots { position: relative; margin: .35rem 0; }
+.tile img { width: 100%; display: block; border-radius: 2px; image-rendering: auto; }
+.tile img.over { position: absolute; inset: 0; }
+.tile .world { color: var(--faint); font-size: .72rem; letter-spacing: .04em; }
+.tile .gloss { font-size: .78rem; color: var(--ink); min-height: 2.2em; }
+.card {
+  background: var(--card); border: 1px solid var(--rule); border-radius: 3px;
+  padding: 1.4rem; margin-bottom: 1.6rem;
+  display: grid; grid-template-columns: 300px 1fr; gap: 1.6rem;
+}
+.card .shots { position: relative; }
+.card .shots img { width: 100%; display: block; border-radius: 2px; }
+.card .shots img.over { position: absolute; inset: 0; }
+.card .sizes { display: flex; gap: .8rem; align-items: flex-start; }
+.card .small { width: 96px; flex: none; }
+.card h2 {
+  margin: 0 0 .2rem; font-weight: normal; font-size: 1.15rem;
+}
+.card h2 .glyph {
+  font-size: 2.6rem; vertical-align: -.35em; margin-right: .5rem;
+  font-family: "Noto Serif CJK JP", "Hiragino Mincho ProN", serif;
+}
+.card .facts { color: var(--faint); font-size: .85rem; margin: 0 0 1rem; }
+.card dl { display: grid; grid-template-columns: 8.5rem 1fr; gap: .3rem 1rem;
+  margin: 0 0 1rem; font-size: .9rem; }
+.card dt { color: var(--faint); }
+.card dd { margin: 0; }
+.prompt {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .8rem;
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 2px;
+  padding: .7rem .8rem; white-space: pre-wrap; line-height: 1.5;
+}
+.prompt.refused { color: var(--faint); }
+table.strokes { border-collapse: collapse; font-size: .82rem; width: 100%; }
+table.strokes th { text-align: left; color: var(--faint); font-weight: normal;
+  border-bottom: 1px solid var(--rule); padding: .25rem .5rem .25rem 0; }
+table.strokes td { padding: .18rem .5rem .18rem 0; border-bottom: 1px solid var(--rule); }
+table.strokes tr.named td { color: var(--ink); }
+table.strokes tr:not(.named) td { color: var(--faint); }
+.pager { display: flex; gap: .5rem; flex-wrap: wrap; padding: 1.5rem 0; }
+.pager a, .pager span {
+  padding: .25rem .6rem; border: 1px solid var(--rule); border-radius: 2px;
+  font-size: .85rem; background: var(--card);
+}
+.pager span.here { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+.missing { color: #a33; font-size: .8rem; }
+.tiers { display: flex; gap: .2rem; justify-content: center; margin-top: .4rem; }
+.tiers .tier {
+  flex: 1; font: inherit; font-size: .8rem; padding: .15rem 0; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--paper); color: var(--faint);
+  border-radius: 2px;
+}
+.tiers .tier:hover { border-color: var(--accent); color: var(--ink); }
+.tiers .tier.on { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+.basket { }
+.basket.on {
+  background: var(--card); border: 1px solid var(--accent); border-radius: 3px;
+  padding: .9rem 1rem; margin-bottom: 1.2rem;
+}
+.basket pre {
+  white-space: pre-wrap; word-break: break-all; font-size: .78rem;
+  background: var(--paper); border: 1px solid var(--rule); padding: .5rem;
+  border-radius: 2px; margin: .5rem 0;
+}
+.basket button {
+  font: inherit; font-size: .85rem; padding: .25rem .7rem; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--paper); border-radius: 2px;
+}
+@media (max-width: 800px) { .card { grid-template-columns: 1fr; } }
+</style>
+</head><body>
+<header><h1>Everything this has ever made</h1><p>Every picture kept, good and bad. Click a number under one to say what you think of it &mdash; 5 is <em>reach for this first</em> and 1 is <em>no</em>. Nothing is ever deleted; a low tier is the record of what missed.</p></header>
+<main>
+<div class="controls">
+<label>world</label><select id="world">
+<option value="">every world</option><option value="fire">fire</option><option value="forest">forest</option><option value="mountain">mountain</option><option value="shrine">shrine</option><option value="sky">sky</option><option value="water">water</option><option value="word">word</option>
+</select>
+<label>at least</label><select id="floor">
+<option value="">any tier</option><option value="5">5</option>
+<option value="4">4</option><option value="3">3</option>
+<option value="2">2</option><option value="1">1</option></select>
+<label><input type="checkbox" id="byperson"> only what a person rated</label>
+<span class="count" id="count"></span>
+</div>
+<div id="basket" class="basket"></div>
+<div class="grid" id="grid"></div>
+<script>
+const POOL = [
+{"s":"0000706B-火-6dd7ef","p":"/mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator/pool/fire/0000706B-火-6dd7ef.png","c":"火","w":"fire","k":"character","t":3,"h":null,"y":"machine:squint 0.577","m":"fire","e":0},{"s":"00004F11-休-3d157c","p":"/mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator/pool/forest/00004F11-休-3d157c.png","c":"休","w":"forest","k":"character","t":2,"h":null,"y":"machine:squint 0.545","m":"rest, day off, retire, sleep","e":0},{"s":"00006728-木-a1ba2a","p":"/mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator/pool/forest/00006728-木-a1ba2a.png","c":"木","w":"forest","k":"character","t":3,"h":null,"y":"machine:squint 0.645","m":"tree, wood","e":0},{"s":"00009B31-鬱-4d35b4","p":"/mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator/pool/forest/00009B31-鬱-4d35b4.png","c":"鬱","w":"forest","k":"character","t":2,"h":null,"y":"machine:squint 0.362","m":"gloom, depression, melancholy, luxuriant","e":0},{"s":"00005C71-山-38c564","p":"/mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator/pool/mountain/00005C71-山-38c564.png","c":"山","w":"mountain","k":"character","t":3,"h":null,"y":"machine:squint 0.685","m":"mountain","e":0},{"s":"00006642-時-ca6407","p":"/mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator/pool/shrine/00006642-時-ca6407.png","c":"時","w":"shrine","k":"character","t":3,"h":null,"y":"machine:squint 0.560","m":"time, hour","e":0},{"s":"00004E00-一-144e69","p":"/mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator/pool/sky/00004E00-一-144e69.png","c":"一","w":"sky","k":"character","t":2,"h":null,"y":"machine:squint 0.536","m":"one, one radical (no.1)","e":0},{"s":"00005DDD-川-19ced2","p":"/mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator/pool/water/00005DDD-川-19ced2.png","c":"川","w":"water","k":"character","t":4,"h":null,"y":"machine:squint 0.760","m":"stream, river, river or three-stroke river radical (no. 47)","e":0},{"s":"00008A9E-語-d73095","p":"/mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator/pool/word/00008A9E-語-d73095.png","c":"語","w":"word","k":"character","t":4,"h":null,"y":"machine:squint 0.752","m":"word, speech, language","e":0}
+];
+const RATER = "luajit /mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator/src/046-two-ways-of-saying-it-is-good.lua --rate";
+const grid = document.getElementById('grid');
+const count = document.getElementById('count');
+const basket = document.getElementById('basket');
+const mine = {};
+
+function shown() {
+  const world = document.getElementById('world').value;
+  const floor = parseInt(document.getElementById('floor').value, 10);
+  const byperson = document.getElementById('byperson').checked;
+  return POOL.filter(e =>
+    (!world || e.w === world) &&
+    (!floor || ((byperson ? e.h : e.t) || 0) >= floor) &&
+    (!byperson || e.h !== null));
+}
+
+function showBasket() {
+  const keys = Object.keys(mine);
+  if (!keys.length) { basket.innerHTML = ''; basket.className = 'basket'; return; }
+  const line = RATER + ' ' + keys.map(k => k + '=' + mine[k]).join(' ');
+  basket.className = 'basket on';
+  basket.textContent = '';
+  const said = document.createElement('div');
+  said.innerHTML = '<strong>' + keys.length + ' rated.</strong> This page cannot ' +
+    'write to the pool &mdash; it is a viewer. Run this to apply them:';
+  const box = document.createElement('pre');
+  box.textContent = line;
+  const copy = document.createElement('button');
+  copy.textContent = 'copy';
+  copy.addEventListener('click', () => navigator.clipboard.writeText(line));
+  const forget = document.createElement('button');
+  forget.textContent = 'forget them';
+  forget.addEventListener('click', () => {
+    for (const key of Object.keys(mine)) delete mine[key];
+    showBasket(); draw();
+  });
+  basket.append(said, box, copy, document.createTextNode(' '), forget);
+}
+
+// One listener on the grid rather than an attribute on every button. An inline
+// handler runs in the global scope, where nothing declared in this script is
+// visible -- so it would have been unable to see the ratings it was adding to.
+grid.addEventListener('click', event => {
+  const button = event.target.closest('button.tier');
+  if (!button) return;
+  mine[button.dataset.stem] = Number(button.dataset.tier);
+  showBasket();
+  draw();
+});
+
+function draw() {
+  const list = shown();
+  count.textContent = list.length + ' of ' + POOL.length;
+  grid.textContent = '';
+  for (const entry of list) {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+
+    const shots = document.createElement('div');
+    shots.className = 'shots';
+    const picture = document.createElement('img');
+    picture.loading = 'lazy';
+    picture.src = entry.p;
+    picture.alt = '';
+    shots.append(picture);
+
+    const glyph = document.createElement('div');
+    glyph.className = 'glyph';
+    glyph.textContent = entry.c;
+
+    const world = document.createElement('div');
+    world.className = 'world';
+    world.textContent = entry.w +
+      (entry.t !== null ? ' \u00b7 tier ' + entry.t : ' \u00b7 unrated') +
+      (entry.h !== null ? ' \u00b7 you said ' + entry.h : '') +
+      (entry.e ? ' \u00b7 ' + entry.e + ' extra' : '');
+
+    const gloss = document.createElement('div');
+    gloss.className = 'gloss';
+    gloss.textContent = entry.m;
+
+    const tiers = document.createElement('div');
+    tiers.className = 'tiers';
+    for (const tier of [1, 2, 3, 4, 5]) {
+      const button = document.createElement('button');
+      button.className = 'tier' + (mine[entry.s] === tier ? ' on' : '');
+      button.textContent = tier;
+      button.dataset.stem = entry.s;
+      button.dataset.tier = tier;
+      tiers.append(button);
+    }
+
+    tile.append(shots, glyph, world, gloss, tiers);
+    grid.append(tile);
+  }
+}
+
+draw();
+draw();
+
+</script>
+</main>
+</body></html>
