@@ -12,35 +12,35 @@ Described by `405`.
 |---|---|---|---|---|
 | `sp_hillock` | um | given | 0.4 um | least spacing between a power conductor and a signal conductor at the top metal level, so that a hillock cannot bridge them |
 | `n_yr_life` | 1 | given | 10 | years the conductors must survive at the design current, from 086 |
-| `T_em_quoted` | K | given | 350 K | temperature the current density limit in 011 is quoted at |
-| `A_req_die` | um^2 | derived | unresolved | cross-section one die's logic current needs |
-| `A_grid_avail` | um^2 | derived | 4.32e+07 um^2 | cross-section the top metal actually provides across the die's width |
-| `m_grid` | 1 | derived | unresolved | margin at the binding case |
-| `A_req_island` | um^2 | derived | unresolved | cross-section the via islands need |
+| `T_em_quoted` | K | given | 319 K | temperature the current density limit in 011 is quoted at. It was three hundred and fifty, which is where the conductors were assumed to run before 025's chain closed; they run cooler, and a limit quoted hot is conservative rather than wrong -- but a limit quoted at the wrong temperature at all is how this goes wrong silently |
+| `A_req_die` | um^2 | derived | 73706.4 um^2 | cross-section one die's logic current needs |
+| `A_grid_avail` | um^2 | derived | 2.88e+08 um^2 | cross-section the top metal actually provides across the die's width |
+| `m_grid` | 1 | derived | 3907.4 | margin at the binding case |
+| `A_req_island` | um^2 | derived | 6565.82 um^2 | cross-section the via islands need |
 | `A_isl_avail` | um^2 | derived | 2.82743e+13 um^2 | cross-section they provide, taking a pad as a quarter of its pitch in radius |
-| `m_island` | 1 | derived | unresolved | margin there, which is the number that showed the islands are not the problem |
+| `m_island` | 1 | derived | 4.30629e+09 | margin there, which is the number that showed the islands are not the problem |
 | `A_req_pillar` | um^2 | derived | 31411 um^2 | cross-section the inward core supply needs at one radial interface |
 | `A_pil_avail` | um^2 | derived | unresolved | cross-section the power pillars provide |
 | `m_pillar` | 1 | derived | unresolved | margin there |
 | `m_worst` | 1 | derived | unresolved | the binding case across all three |
-| `j_grid` | mA/um^2 | derived | unresolved | actual current density in the die power grid, which is the number a process engineer will ask for |
+| `j_grid` | mA/um^2 | derived | 0.000255925 mA/um^2 | actual current density in the die power grid, which is the number a process engineer will ask for |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `I_core_face` | `028` | 31.411 A | one face's share of it, sent inward through the same interface the data uses |
-| `I_die_logic` | `028` | unresolved | logic current into one compute die, which is the number the power grid in 030 is sized by |
-| `I_face_supply` | `028` | unresolved | and per face, which is what a port field connector has to carry |
+| `I_die_logic` | `028` | 73.7064 A | logic current into one compute die, which is the number the power grid in 030 is sized by |
+| `I_face_supply` | `028` | 6.56582 A | and per face, which is what a port field connector has to carry |
 | `L_die` | `012` | 24 mm | edge of one compute die; two thirds of a reticle field, and half its area is the slice in 047 |
-| `T_j_peak` | `025` | unresolved | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
+| `T_j_peak` | `025` | 318.883 K | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
 | `d_radial_pad` | **nothing declares this** | — | — |
-| `f_grid_metal` | `030` | 0.6 | share of that layer given to power rather than signal |
+| `f_grid_metal` | `030` | 0.75 | share of that stack given to power rather than signal |
 | `j_em_cu` | `011` | 1 mA/um^2 | electromigration current density limit for copper at 350 K over a ten year life |
 | `n_island_pad` | `014` | 3600 | conductors that can cross the cold plate, in total |
 | `n_pillar_pwr` | `030` | unresolved | radial pillars carrying current inward rather than data |
 | `p_island_pad` | `014` | 0.2 mm | pad pitch inside a via island |
-| `t_grid_metal` | `030` | 3 um | thickness of the top metal layer a die's power grid is built in |
+| `t_grid_metal` | `030` | 16 um | thickness of the thick metal stack a die's power grid is built in. Three microns was tried and put a hundred millivolts across the die at seventy amperes, which is four times the whole droop allowance |
 
 ## What consumes it
 

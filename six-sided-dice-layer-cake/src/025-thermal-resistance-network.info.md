@@ -10,26 +10,25 @@ Described by `306`.
 
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
-| `f_engine_area` | 1 | given | 0.104 | share of a compute die given to the multiplier array, from 041's floorplan |
-| `f_engine_power` | 1 | given | 0.7 | share of a die's heat the array makes |
+| `dT_margin_min` | K | given | 20 K | the least margin the hottest transistor must keep against its limit, given that the hot spot term rests on a floorplan that could still move |
 | `dT_conv_max` | K | given | 4 K | the most 022's convection term may take of the budget between the coolant and the silicon |
 | `T_room` | K | given | 295 K | air the radiator rejects into |
 | `R_die` | K/W | derived | 6.57618e-05 K/W | one-dimensional conduction through all twenty-four dies in parallel |
 | `R_plate_base` | K/W | derived | 0.000560337 K/W | through the base of the six cold plates |
-| `dT_die` | K | derived | unresolved | the drop across the dies |
-| `dT_plate` | K | derived | unresolved | the drop across the plate bases |
+| `dT_die` | K | derived | 0.0917077 K | the drop across the dies |
+| `dT_plate` | K | derived | 1.05957 K | the drop across the plate bases |
 | `A_wet_engine` | mm^2 | derived | 428.486 mm^2 | heated channel area lying above one die's multiplier array |
-| `dT_conv_local` | K | derived | unresolved | convection rise directly over the array, where a tenth of the area carries seventy per cent of the heat |
-| `dT_hotspot` | K | derived | unresolved | how much hotter the array is than the face average; this is what 005 calls the hot spot term |
+| `dT_conv_local` | K | derived | 11.9314 K | convection rise directly over the array, where a tenth of the area carries seventy per cent of the heat |
+| `dT_hotspot` | K | derived | 9.80003 K | how much hotter the array is than the face average; this is what 005 calls the hot spot term |
 | `dT_fluid_mean` | K | derived | 3.9 K | the coolant's own rise at the mean point along its path |
-| `T_j_peak` | K | derived | unresolved | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
-| `T_j_mean` | K | derived | unresolved | and the same for an average die in the middle of the coolant path |
-| `margin_thermal` | K | derived | unresolved | how far the hottest transistor is from what the silicon is qualified to |
-| `fix_point_err` | 1 | derived | unresolved | how far 020's assumed leakage temperature is from what this chain produces |
-| `s_hotspot` | 1 | derived | unresolved | the hot spot's share of everything above the inlet |
-| `s_conv` | 1 | derived | unresolved | the channel wall's share |
-| `s_fluid` | 1 | derived | unresolved | the coolant's own share |
-| `s_solid` | 1 | derived | unresolved | everything conducted through solid |
+| `T_j_peak` | K | derived | 318.883 K | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
+| `T_j_mean` | K | derived | 304.97 K | and the same for an average die in the middle of the coolant path |
+| `margin_thermal` | K | derived | 59.1173 K | how far the hottest transistor is from what the silicon is qualified to |
+| `fix_point_err` | 1 | derived | 5.42016e-05 | how far 020's assumed leakage temperature is from what this chain produces |
+| `s_hotspot` | 1 | derived | 0.469289 | the hot spot's share of everything above the inlet |
+| `s_conv` | 1 | derived | 0.102065 | the channel wall's share |
+| `s_fluid` | 1 | derived | 0.373515 | the coolant's own share |
+| `s_solid` | 1 | derived | 0.0551308 | everything conducted through solid |
 
 ## What it consumes
 
@@ -39,16 +38,18 @@ Described by `306`.
 | `A_die_total` | `012` | 13824 mm^2 | total compute die area, which 083 turns into a yield problem |
 | `A_plate` | `012` | 2704 mm^2 | area of one face plate |
 | `A_wet_face` | `022` | 19341.4 mm^2 | heated area of one face's field before deration |
-| `P_die` | `020` | unresolved | everything one compute die dissipates at the design point |
-| `P_dies` | `020` | unresolved | all twenty-four compute dies |
-| `P_heat` | `020` | unresolved | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
+| `P_die` | `020` | 58.106 W | everything one compute die dissipates at the design point |
+| `P_dies` | `020` | 1394.54 W | all twenty-four compute dies |
+| `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
 | `T_coolant_in` | `021` | 298 K | temperature the coolant enters at. This is the parameter that decides whether the loop in 027 needs a refrigeration plant or a radiator and a fan |
-| `T_j_assumed` | `020` | 314 K | junction temperature the leakage term is evaluated at; the answer of a fixed-point iteration that C-020-1 checks against what 025 derives |
+| `T_j_assumed` | `020` | 318.9 K | junction temperature the leakage term is evaluated at; the answer of a fixed-point iteration that C-020-1 checks against what 025 derives |
 | `T_si_max` | `011` | 378 K | highest junction temperature the silicon is qualified to, 105 degrees |
-| `dT_conv` | `022` | unresolved | the temperature the coolant sits below the channel walls |
-| `dT_conv_worst` | `024` | unresolved | the convection rise at the worst-served face, which is what 025 must use rather than the mean |
+| `dT_conv` | `022` | 1.91826 K | the temperature the coolant sits below the channel walls |
+| `dT_conv_worst` | `024` | 2.1314 K | the convection rise at the worst-served face, which is what 025 must use rather than the mean |
 | `dT_rise` | `021` | 7.8 K | design temperature rise of the coolant across the cube; a choice, and the one that sets the flow |
 | `eta_surface` | `022` | 0.702826 | overall surface efficiency, base and fins together |
+| `f_engine_area` | `041` | 0.104 | and the share of its area, under the name 025 uses |
+| `f_engine_power` | `041` | 0.789509 | share of a die's heat the array makes, which 025's local term needs |
 | `h_conv` | `022` | 12767.3 W/(m^2*K) | convection coefficient at the channel wall |
 | `h_uchan` | `012` | 1 mm | depth of the same channel, limited by fin efficiency rather than by etching |
 | `k_si` | `011` | 110 W/(m*K) | thermal conductivity of silicon at 350 K, a third below the room-temperature figure |
@@ -62,8 +63,7 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `f_engine_area` | `025`, `026` |
-| `f_engine_power` | `025`, `026` |
+| `dT_margin_min` | `025` |
 | `dT_conv_max` | `022`, `025`, `036` |
 | `T_room` | `027` |
 | `R_die` | `025` |
@@ -72,7 +72,7 @@ Change one of these and the blueprints beside it are what break.
 | `dT_plate` | `025` |
 | `A_wet_engine` | `025` |
 | `dT_conv_local` | `025`, `026` |
-| `dT_hotspot` | `025`, `026` |
+| `dT_hotspot` | `025`, `026`, `041` |
 | `dT_fluid_mean` | `025` |
 | `T_j_peak` | `025`, `026`, `027`, `032` |
 | `T_j_mean` | `025` |
@@ -88,7 +88,7 @@ Change one of these and the blueprints beside it are what break.
 | tag | relation | because |
 |---|---|---|
 | `C-025-1` | `T_j_peak < T_si_max` | the hottest transistor on the worst die on the worst-served face must stay under what the silicon is qualified to. The one constraint the whole phase exists for |
-| `C-025-2` | `margin_thermal > 20.0` | and by at least twenty kelvin, because the hot spot term rests on a floorplan that 041 has not finished and could move |
+| `C-025-2` | `margin_thermal > dT_margin_min` | and by at least twenty kelvin, because the hot spot term rests on a floorplan that 041 has not finished and could move |
 | `C-025-3` | `dT_conv_worst < dT_conv_max` | the channel wall's share must stay inside its allowance |
 | `C-025-4` | `s_hotspot > s_conv` | the hot spot must be the largest term. Asserted not because it is desirable but because it is true, and a design change that made the coolant dominant instead would mean something had gone badly wrong in 022 |
 | `C-025-5` | `s_hotspot + s_conv + s_fluid + s_solid ~= 1` | the four shares account for everything between the inlet and the junction, with nothing unattributed |

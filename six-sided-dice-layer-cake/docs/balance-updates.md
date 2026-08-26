@@ -187,3 +187,53 @@ Each was a dimensionless literal and therefore silent: the first made the core a
 thousand times too small, the other two between them made a tier's temperature
 rise a thousand times too large. This is the failure mode the whole notation
 exists to prevent and it still took a checker to find them.
+
+**2026-08-26 — die power grid, 3 µm of metal to 16 µm; regulators moved to 1.2 mm.**
+`030`. Seventy amperes across a twenty-four millimetre die through three microns
+of top metal is a hundred millivolts, which is four times the whole droop
+allowance. A thick metal stack at sixteen microns, three quarters of it given to
+power, with the regulators directly beneath the dies they feed, brings it to
+about six. The intermediate planes went from two to four for the same reason.
+
+**2026-08-26 — static drop given its own budget, separate from transient droop.**
+`030`, `029`. The first constraint asked the accumulated static drop to fit
+inside the droop allowance, which is the budget for transients. Static drop is
+always present, so spending the transient allowance on it leaves the rail out of
+specification the moment anything switches. Two per cent of nominal for static,
+three for transient.
+
+**2026-08-26 — antiresonant peak factor, 3 to 1.5.** `031`. An undamped two-stage
+decoupling network peaks at about three times its target impedance, and that does
+not fit inside the rail's five per cent tolerance band. Damping is therefore a
+requirement rather than a refinement, and the figure records what a damped
+network has to achieve.
+
+**2026-08-26 — hold-up capacitance became a component rather than a derivation.**
+`033`. It had been derived from what it needed to achieve, which meant the
+constraint checking it was checking its own definition. Three hundred microfarads
+is a capacitor somebody buys; the constraint now checks that choice against the
+longest write in flight, and passes with about twice the margin.
+
+**2026-08-26 — electromigration limit re-quoted from 350 K to 319 K.** `032`.
+Three hundred and fifty was where the conductors were assumed to run before
+`025`'s chain closed. They run cooler. A limit quoted hot is conservative rather
+than wrong, but a limit quoted at the wrong temperature at all is exactly how
+this goes wrong silently, so the constraint requiring the two to match is what
+found it.
+
+**2026-08-26 — sensors per die, 8 to 16.** `049`. Eight was a round number chosen
+before `041` scattered the multiplier array into sixty-four tiles. At eight,
+three quarters of the hot regions have no sensor near them.
+
+**2026-08-26 — the leakage fixed point took one more turn.** `020`. The junction
+temperature the leakage term is evaluated at was three hundred and fourteen
+kelvin; `025`'s chain produces three hundred and eighteen point nine. The
+constraint requiring the two to agree within a per cent is the iteration, and
+this is the iteration converging.
+
+**2026-08-26 — two more hand-written unit conversions removed.** `039`, and one
+found earlier in `020`. A worst-case wait in seconds multiplied by a thousand
+million to make nanoseconds, in a field already declared in nanoseconds, turned
+nineteen nanoseconds into six and a half seconds. That is now five of these
+found by the checker across four phases; they are the most common defect in this
+project by a wide margin.

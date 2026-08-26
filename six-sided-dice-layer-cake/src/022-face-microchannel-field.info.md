@@ -29,7 +29,7 @@ Described by `303`.
 | `A_wet_total` | mm^2 | derived | 109856 mm^2 | heated area of all six fields, derated |
 | `UA_face` | W/K | derived | 164.294 W/K | conductance of one face's field |
 | `UA_total` | W/K | derived | 985.766 W/K | conductance of all six together |
-| `dT_conv` | K | derived | unresolved | the temperature the coolant sits below the channel walls |
+| `dT_conv` | K | derived | 1.91826 K | the temperature the coolant sits below the channel walls |
 | `A_wet_rails` | mm^2 | derived | 3931.2 mm^2 | heated area the rail channels present, if they were the cooling |
 | `h_conv_rail` | W/(m^2*K) | derived | 1197.69 W/(m^2*K) | convection coefficient in a rail, at the laminar Nusselt number for a duct this shape |
 | `UA_rails` | W/K | derived | 4.70837 W/K | what the corners and edges alone would remove per kelvin |
@@ -43,8 +43,8 @@ Described by `303`.
 | `L_island` | `014` | 3 mm | edge of one square via island |
 | `L_plate` | `012` | 52 mm | edge of a face plate, once the edge rails are taken off |
 | `L_rail` | `016` | 36 mm | length of a rail between the two corner blocks it joins |
-| `P_heat` | `020` | unresolved | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
-| `Re_uchan` | `024` | unresolved | Reynolds number there; laminar by a wide margin, which every correlation in 022 depends on |
+| `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
+| `Re_uchan` | `024` | 168.411 | Reynolds number there; laminar by a wide margin, which every correlation in 022 depends on |
 | `ar_uchan` | `012` | 6.66667 | aspect ratio of one microchannel |
 | `dT_conv_max` | `025` | 4 K | the most 022's convection term may take of the budget between the coolant and the silicon |
 | `d_filter` | `027` | 25 um | absolute rating of the filter; the largest particle it passes |

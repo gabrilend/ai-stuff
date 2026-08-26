@@ -64,10 +64,11 @@ of the interposer is copper, which decides its thickness, which feeds back into
 
 ```symbols
 t_plane_mid   | mm | given | 0.070 | thickness of one interposer plane carrying the intermediate rail
-n_plane_mid   | 1  | given | 2     | such planes, one out and one back
-t_grid_metal  | um | given | 3.0   | thickness of the top metal layer a die's power grid is built in
-f_grid_metal  | 1  | given | 0.60  | share of that layer given to power rather than signal
-L_reg_to_die  | mm | given | 3.0   | distance from a regulator's output to the microbumps it feeds
+ir_frac       | 1  | given | 0.02  | fraction of nominal the static drop may take. Separate from the transient droop allowance in 029, because static drop is always present and spending the whole allowance on it would leave the rail out of specification the moment anything switched
+n_plane_mid   | 1  | given | 4     | such planes, two out and two back
+t_grid_metal  | um | given | 16.0  | thickness of the thick metal stack a die's power grid is built in. Three microns was tried and put a hundred millivolts across the die at seventy amperes, which is four times the whole droop allowance
+f_grid_metal  | 1  | given | 0.75  | share of that stack given to power rather than signal
+L_reg_to_die  | mm | given | 1.2   | distance from a regulator's output to the microbumps it feeds. Regulators sit directly beneath the dies they serve, because this length multiplies the drop
 n_pillar_pwr  | 1  | derived | n_radial_pad * f_radial_power | radial pillars carrying current inward rather than data
 i_pad_max     | mA | given | 5.0   | current one twenty-micron copper pillar carries, a fifth of what it would take, because 032 wants the margin
 
@@ -81,7 +82,8 @@ R_grid        | ohm | derived | res_cu * L_reg_to_die / A_grid             | res
 dV_grid       | V   | derived | I_die_logic * R_grid                       | drop across it at the design current
 dV_total      | V   | derived | dV_grid + dV_plane                         | accumulated static drop to the worst-placed transistor, at the logic rail
 R_to_load     | ohm | derived | dV_grid / I_die_logic                      | the resistance the last level actually presents
-R_to_load_max | ohm | derived | dV_droop_logic / I_die_logic               | the most it may present, from the droop allowance in 029
+dV_static_max | V   | derived | V_logic * ir_frac                          | the most the static drop may be
+R_to_load_max | ohm | derived | dV_static_max / I_die_logic                | the most the last level may present
 I_pillar_cap  | A   | derived | n_pillar_pwr * i_pad_max                   | current the radial pillar array will carry inward
 f_pillar_used | 1   | derived | I_core_face / I_pillar_cap                 | how much of that capability the core's inward supply actually uses
 ```
@@ -89,7 +91,7 @@ f_pillar_used | 1   | derived | I_core_face / I_pillar_cap                 | how
 ## Constraints
 
 ```constraints
-C-030-1 | dV_total < dV_droop_logic      | the accumulated static drop to the worst-placed transistor must fit inside the droop allowance, leaving nothing for the transient in 031. That is deliberately harsh: static drop is always present, so spending the whole allowance on it would mean the rail is out of specification the moment anything switches
+C-030-1 | dV_total < dV_static_max       | the accumulated static drop to the worst-placed transistor must fit inside its own allowance, which is smaller than the droop allowance because the transient in 031 needs what is left. Written first against the whole droop allowance, which was both too generous and the wrong budget
 C-030-2 | R_to_load < R_to_load_max      | the same statement at the level where it binds
 C-030-3 | f_pillar_used < 0.20           | the radial interface must spend under a fifth of its power-carrying capability on the core's supply, because the rest of it is 051's signal integrity budget and current is not what limits that interface
 C-030-4 | P_island_loss < P_heat / 1000  | the heat the via island conductors make, which lands inside the coolant channels, must be under a thousandth of the machine's total. It comes out far below, which is the finding: the islands are a sealing problem and not an electrical one

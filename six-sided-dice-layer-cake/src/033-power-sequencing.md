@@ -75,10 +75,11 @@ I_inrush      | A | derived | C_decouple_all * V_logic / t_ramp_dom | current dr
 t_powerup     | s | derived | n_up_step * t_ramp_dom + t_lock       | from supplies valid to reset released
 t_lock        | s | given | 5.0e-4 | time for the reference and the multipliers in 070 to settle
 E_holdup      | J | derived | C_array_holdup * V_array^2 / 2        | energy stored to keep the array rail alive while the logic collapses
-C_array_holdup| F | derived | I_array * t_write_max / (V_array * tol_rail) | capacitance that keeps the array rail inside its tolerance for as long as the longest write in flight
+C_array_holdup| F | given | 3.0e-4 | bulk capacitance on the array rail whose only job is to keep the model alive through a supply sag. A real component chosen for its value, not a quantity derived from what it must achieve -- the point of the constraint below is to check a choice, and a value derived from the requirement would check nothing
 t_holdup      | s | derived | C_array_holdup * V_array * tol_rail / I_array | how long that actually lasts
 E_aux_holdup  | J | given | 5.0e-3 | energy reserved to keep the auxiliary domain alive long enough to write a fault record
 t_down_emerg  | s | given | 1.0e-4 | emergency down-sequence, ordered but fast, used when 027's interlock cuts on coolant loss
+t_holdup_ref  | s | given | 1.0e-3 | a millisecond, as the reference the hold-up energy is judged small against
 t_powerup_max | s | given | 0.100  | the longest the supplies may take to reach the point where reset can be released; a person waiting for a machine notices a tenth of a second and not much less
 ```
 
@@ -88,7 +89,7 @@ t_powerup_max | s | given | 0.100  | the longest the supplies may take to reach 
 C-033-1 | t_holdup > t_write_max        | the array rail must stay inside tolerance for longer than the longest write in flight. This is the constraint that makes the third brownout outcome impossible: without it a supply sag leaves the model half written, with nothing anywhere able to tell
 C-033-2 | I_inrush < I_supply * 3       | charging every capacitor in the machine must not draw more than a few times the running current, or the supply trips on its own start
 C-033-3 | t_down_emerg < t_to_halt      | the emergency sequence must finish before the machine reaches its thermal halt threshold with cooling stopped
-C-033-4 | E_holdup < E_stored           | the hold-up energy must be less than what the decoupling already stores, so that keeping the model alive is a matter of where the charge is rather than how much
+C-033-4 | E_holdup < P_heat * t_holdup_ref | the energy held to keep the model alive must be small against what the machine spends in a millisecond, which is what makes this a cheap addition rather than a design constraint
 C-033-5 | n_up_step == n_domain         | one step per domain, so a domain added without a sequencing step is caught
 C-033-6 | t_powerup < t_powerup_max      | the machine must reach the point where reset can be released quickly enough that 073's ten-step boot is the long part rather than this. Written first as a comparison against a bare tenth, which the checker refused -- a literal in this notation is always dimensionless, so a time is only ever compared against a named time
 C-033-7 | brownout_frac < 1 - tol_rail  | the brownout threshold must sit below the bottom of the normal tolerance band, or the machine declares a failure every time the supply is merely low

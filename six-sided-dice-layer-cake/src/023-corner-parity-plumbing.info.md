@@ -17,15 +17,15 @@ Described by `304`.
 | `n_face_per_rail` | 1 | given | 1 | face fields a single supply rail feeds, once opposite faces are run perpendicular so no rail pair carries two full loads |
 | `d_tetra` | mm | derived | 84.8528 mm | distance between any two fed corners: the cube's face diagonal, six times over |
 | `n_tetra_edge` | 1 | given | 6 | pairwise distances between the four fed corners, all equal |
-| `Q_per_inlet` | m^3/s | derived | unresolved | flow entering one fed corner |
-| `Q_per_supply` | m^3/s | derived | unresolved | flow leaving that corner down one of its three supply channels |
+| `Q_per_inlet` | m^3/s | derived | 1.46607e-05 m^3/s | flow entering one fed corner |
+| `Q_per_supply` | m^3/s | derived | 4.8869e-06 m^3/s | flow leaving that corner down one of its three supply channels |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `L_cube` | `012` | 60 mm | outer edge length of the finished cube; follows from the four dimensions below it in the chain |
-| `Q_total` | `024` | unresolved | volumetric flow through the whole machine |
+| `Q_total` | `024` | 5.86428e-05 m^3/s | volumetric flow through the whole machine |
 | `n_corner_in` | `010` | 4 | corners where coolant enters, the even-parity set |
 | `n_edge` | `010` | 12 | edges, each carrying a supply and a return channel |
 | `n_edge_per_corner` | `010` | 3 | edges meeting at one corner |

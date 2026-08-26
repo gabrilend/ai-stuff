@@ -14,32 +14,33 @@ Described by `406`.
 | `t_detect` | s | given | 2e-05 s | from the supply crossing that threshold to the machine being told |
 | `t_ramp_dom` | s | given | 0.001 s | how long one domain takes to come up, set by the inrush limit |
 | `n_up_step` | 1 | derived | 5 | steps in the power-up sequence, one per domain |
-| `C_decouple_all` | F | derived | unresolved | every decoupling capacitor in the machine |
+| `C_decouple_all` | F | derived | 0.000121361 F | every decoupling capacitor in the machine |
 | `C_core_decouple` | F | given | 5e-05 F | decoupling on the array rail inside the core and the cage |
-| `I_inrush` | A | derived | unresolved | current drawn charging all of it over one domain's ramp |
+| `I_inrush` | A | derived | 0.0910211 A | current drawn charging all of it over one domain's ramp |
 | `t_powerup` | s | derived | 0.0055 s | from supplies valid to reset released |
 | `t_lock` | s | given | 0.0005 s | time for the reference and the multipliers in 070 to settle |
-| `E_holdup` | J | derived | unresolved | energy stored to keep the array rail alive while the logic collapses |
-| `C_array_holdup` | F | derived | unresolved | capacitance that keeps the array rail inside its tolerance for as long as the longest write in flight |
-| `t_holdup` | s | derived | unresolved | how long that actually lasts |
+| `E_holdup` | J | derived | 0.000108375 J | energy stored to keep the array rail alive while the logic collapses |
+| `C_array_holdup` | F | given | 0.0003 F | bulk capacitance on the array rail whose only job is to keep the model alive through a supply sag. A real component chosen for its value, not a quantity derived from what it must achieve -- the point of the constraint below is to check a choice, and a value derived from the requirement would check nothing |
+| `t_holdup` | s | derived | 4.75275e-08 s | how long that actually lasts |
 | `E_aux_holdup` | J | given | 0.005 J | energy reserved to keep the auxiliary domain alive long enough to write a fault record |
 | `t_down_emerg` | s | given | 0.0001 s | emergency down-sequence, ordered but fast, used when 027's interlock cuts on coolant loss |
+| `t_holdup_ref` | s | given | 0.001 s | a millisecond, as the reference the hold-up energy is judged small against |
 | `t_powerup_max` | s | given | 0.1 s | the longest the supplies may take to reach the point where reset can be released; a person waiting for a machine notices a tenth of a second and not much less |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `C_ramped` | `031` | unresolved | and with it: the deficit while the regulator catches a ramp is the area of a triangle rather than a rectangle |
-| `E_stored` | `031` | unresolved | energy held in the decoupling across the machine, which 033 has to discharge safely |
-| `I_array` | `028` | unresolved | on the array rail |
-| `I_supply` | `028` | unresolved | current drawn from the external supply |
+| `C_ramped` | `031` | 2.97339e-06 F | and with it: the deficit while the regulator catches a ramp is the area of a triangle rather than a rectangle |
+| `I_array` | `028` | 268.266 A | on the array rail |
+| `I_supply` | `028` | 39.3949 A | current drawn from the external supply |
+| `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
 | `V_array` | `029` | 0.85 V | static memory cells, in the slices and in the core |
 | `V_logic` | `029` | 0.75 V | logic and multiplier arrays |
 | `n_die` | `012` | 24 | compute dies in the machine |
 | `n_domain` | `029` | 5 | supply domains |
-| `t_to_halt` | `026` | unresolved | how long the machine has, from the design operating point, if all cooling stops at once |
-| `t_write_max` | `039` | 6.4e+09 ns | the longest a write can be in flight: its own release, the array's access, and the worst the arbiter can make it wait. 033's brownout hold-up is sized from this |
+| `t_to_halt` | `026` | 1.20853 s | how long the machine has, from the design operating point, if all cooling stops at once |
+| `t_write_max` | `039` | 19.15 ns | the longest a write can be in flight: its own release, the array's access, and the worst the arbiter can make it wait. 033's brownout hold-up is judged against this. Written first with a hand conversion from seconds to nanoseconds, which turned nineteen nanoseconds into six and a half seconds |
 | `tol_rail` | `029` | 0.05 | fractional tolerance band on every rail, worst case over the operating range |
 
 ## What consumes it
@@ -60,6 +61,7 @@ Change one of these and the blueprints beside it are what break.
 | `C_array_holdup` | `033` |
 | `t_holdup` | `033`, `039` |
 | `t_down_emerg` | `033` |
+| `t_holdup_ref` | `033` |
 | `t_powerup_max` | `033` |
 
 ## What it asserts
@@ -69,7 +71,7 @@ Change one of these and the blueprints beside it are what break.
 | `C-033-1` | `t_holdup > t_write_max` | the array rail must stay inside tolerance for longer than the longest write in flight. This is the constraint that makes the third brownout outcome impossible: without it a supply sag leaves the model half written, with nothing anywhere able to tell |
 | `C-033-2` | `I_inrush < I_supply * 3` | charging every capacitor in the machine must not draw more than a few times the running current, or the supply trips on its own start |
 | `C-033-3` | `t_down_emerg < t_to_halt` | the emergency sequence must finish before the machine reaches its thermal halt threshold with cooling stopped |
-| `C-033-4` | `E_holdup < E_stored` | the hold-up energy must be less than what the decoupling already stores, so that keeping the model alive is a matter of where the charge is rather than how much |
+| `C-033-4` | `E_holdup < P_heat * t_holdup_ref` | the energy held to keep the model alive must be small against what the machine spends in a millisecond, which is what makes this a cheap addition rather than a design constraint |
 | `C-033-5` | `n_up_step == n_domain` | one step per domain, so a domain added without a sequencing step is caught |
 | `C-033-6` | `t_powerup < t_powerup_max` | the machine must reach the point where reset can be released quickly enough that 073's ten-step boot is the long part rather than this. Written first as a comparison against a bare tenth, which the checker refused -- a literal in this notation is always dimensionless, so a time is only ever compared against a named time |
 | `C-033-7` | `brownout_frac < 1 - tol_rail` | the brownout threshold must sit below the bottom of the normal tolerance band, or the machine declares a failure every time the supply is merely low |

@@ -4,8 +4,22 @@ Produces `src/042-face-tile-and-reticle.md`.
 
 ## Current behavior
 
-Nothing. Four dies per face is used everywhere and is presented as a choice, which
-it is not.
+**Done.** `src/042-face-tile-and-reticle.md` exists and states plainly that four
+dies is a lithography limit rather than a decision, so that nobody revisits it as
+though it were one.
+
+Both open questions the ticket left are answered. The radial link is **split four
+ways** rather than relayed through one die, which costs the cage more logic and
+keeps the four dies identical — and identical dies are what make `083`'s yield
+arithmetic tractable. The sequencers are **four in lockstep** rather than one
+driving four dies over an interposer.
+
+Six constraints, all holding.
+
+**The inter-die crossing fraction is a `given`.** Two per cent is what a
+partitioning that works looks like; nothing has computed what `075`'s actual
+assignment produces, so the constraint is checking an assumption against a budget
+rather than a design against a requirement.
 
 ## Intended behavior
 

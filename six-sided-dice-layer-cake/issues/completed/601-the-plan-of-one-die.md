@@ -4,8 +4,27 @@ Produces `src/041-face-floorplan.md`.
 
 ## Current behavior
 
-Nothing, and `306` is blocked on it: the largest term in the whole thermal chain
-is a spreading resistance that cannot be computed without a power map.
+**Done, and it produced the power map the thermal chain had been waiting on.**
+`src/041-face-floorplan.md` exists. Eight blocks summing to the whole die, with
+half of it slice because a transformer layer is a certain size and the prefetch
+needs two of them.
+
+**The expected benefit of scattering the array does not exist.** Breaking the
+multipliers into sixty-four tiles was meant to let heat spread sideways into the
+cold memory around each one. A hundred micron die is a poor lateral conductor:
+moving one tile's share two millimetres sideways costs over a hundred kelvin,
+against a local convection excess of about ten. `C-041-5` now asserts that in the
+failing direction rather than being deleted, because it is a reasonable
+expectation that somebody will have again.
+
+What the scattering does buy is real and different: the coolant picks the heat up
+evenly along its path instead of putting the whole engine load on twenty
+channels, and sixty amperes spread over a die is a grid `030` can actually
+build where sixty amperes into one block is not.
+
+**The remedy for the hot spot is still unexplored**: vary the channel density
+across the cold plate to match the power map. It is manufacturable, it is not in
+`022`, and it is the best idea in the thermal design that nobody has costed.
 
 ## Intended behavior
 

@@ -10,6 +10,8 @@ Described by `308`.
 
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
+| `T_in_max` | K | given | 333 K | the warmest coolant the seals, the elastomer and the materials in 011 tolerate at the working pressure |
+| `dT_margin_dry` | K | given | 15 K | the least junction margin that must remain once the chiller is removed and the inlet floats to whatever an air-cooled radiator gives |
 | `UA_rad` | W/K | given | 60 W/K | conductance of an air-cooled radiator of a size that fits beside this machine, with its fan running |
 | `d_filter` | um | given | 25 um | absolute rating of the filter; the largest particle it passes |
 | `dp_filter_new` | Pa | given | 3000 Pa | pressure across a clean filter element |
@@ -21,19 +23,19 @@ Described by `308`.
 | `n_pump` | 1 | given | 2 | pumps, one running and one held |
 | `beta_water` | 1/K | measured | 0.0004 1/K | volumetric thermal expansion of water near the operating temperature |
 | `V_loop` | mm^3 | derived | 223097 mm^3 | fluid in the whole circuit |
-| `dT_rad` | K | derived | unresolved | temperature the coolant must sit above the room for the radiator to reject the heat |
-| `T_in_no_chill` | K | derived | unresolved | the coldest inlet an air-cooled radiator alone can produce |
-| `needs_chiller` | 1 | derived | unresolved | one if the requested inlet is colder than a radiator can manage, zero otherwise |
-| `T_j_no_chill` | K | derived | unresolved | junction temperature if the chiller is removed and the inlet allowed to float to what the radiator gives |
-| `margin_no_chill` | K | derived | unresolved | and how much margin is left after doing that |
+| `dT_rad` | K | derived | 31.516 K | temperature the coolant must sit above the room for the radiator to reject the heat |
+| `T_in_no_chill` | K | derived | 326.516 K | the coldest inlet an air-cooled radiator alone can produce |
+| `dT_chiller` | K | derived | 28.516 K | how much colder the requested inlet is than an air-cooled radiator alone can produce. Positive means a refrigeration plant, and how far positive is how much of one. Written as a temperature rather than as a boolean because this notation has no conditionals and a quantity says more than a flag would |
+| `T_j_no_chill` | K | derived | 347.399 K | junction temperature if the chiller is removed and the inlet allowed to float to what the radiator gives |
+| `margin_no_chill` | K | derived | 30.6013 K | and how much margin is left after doing that |
 | `V_expansion` | mm^3 | derived | 2784.26 mm^3 | fluid volume change over the operating range, taken over four times the design rise to cover a cold start |
 | `Q_leak_max` | m^3/s | derived | 1.37193e-12 m^3/s | volumetric loss the reservoir can absorb over one service interval once thermal expansion and service spillage are allowed for |
 | `V_makeup` | mm^3 | derived | 43215.7 mm^3 | reservoir capacity left over for leakage, once expansion and the spillage 019 loses at every coupling are taken out |
 | `dp_ext` | Pa | derived | 27000 Pa | pressure the external circuit costs when the filter is at the end of its life |
 | `dp_rad` | Pa | given | 8000 Pa | pressure across the radiator core at design flow |
 | `dp_tube` | Pa | given | 4000 Pa | pressure across the tubing and fittings |
-| `dp_system` | Pa | derived | unresolved | the whole circuit, inside and out, at end-of-life filter loading |
-| `P_pump_total` | W | derived | unresolved | electrical power the pump draws against the whole system |
+| `dp_system` | Pa | derived | 45872.2 Pa | the whole circuit, inside and out, at end-of-life filter loading |
+| `P_pump_total` | W | derived | 8.96692 W | electrical power the pump draws against the whole system |
 | `t_to_halt_1pump` | K | derived | 7.8 K | the extra coolant rise on one pump: flow halves, so the fluid's own rise doubles, and nothing else in the chain changes |
 | `V_leak_life` | mm^3 | derived | 2614.5 mm^3 | fluid actually lost to leakage over one service interval, at the rate 017's hundred and sixty-six joints add up to |
 
@@ -41,20 +43,20 @@ Described by `308`.
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `P_heat` | `020` | unresolved | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
+| `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
 | `Q_leak_total` | `017` | 8.3e-14 m^3/s | and for all hundred and sixty-six of them |
-| `Q_total` | `024` | unresolved | volumetric flow through the whole machine |
+| `Q_total` | `024` | 5.86428e-05 m^3/s | volumetric flow through the whole machine |
 | `T_coolant_in` | `021` | 298 K | temperature the coolant enters at. This is the parameter that decides whether the loop in 027 needs a refrigeration plant or a radiator and a fan |
-| `T_j_peak` | `025` | unresolved | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
+| `T_j_peak` | `025` | 318.883 K | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
 | `T_room` | `025` | 295 K | air the radiator rejects into |
 | `T_si_max` | `011` | 378 K | highest junction temperature the silicon is qualified to, 105 degrees |
 | `V_coolant` | `024` | 23097.4 mm^3 | all of it, which is what 013 weighs and 027 has to make up when it leaks |
 | `V_spill_life` | `019` | 4000 mm^3 | fluid lost over the installation's life |
 | `dT_rise` | `021` | 7.8 K | design temperature rise of the coolant across the cube; a choice, and the one that sets the flow |
-| `dp_loop` | `024` | unresolved | the whole circuit inside the cube, one path from a fed corner to a drained one |
+| `dp_loop` | `024` | 18872.2 Pa | the whole circuit inside the cube, one path from a fed corner to a drained one |
 | `eta_pump` | `024` | 0.3 | wire-to-water efficiency of a pump of this size and duty; small pumps are poor and this is a realistic figure rather than a hopeful one |
 | `p_work` | `017` | 2 bar | working pressure of the coolant loop, pump head plus static |
-| `t_to_halt` | `026` | unresolved | how long the machine has, from the design operating point, if all cooling stops at once |
+| `t_to_halt` | `026` | 1.20853 s | how long the machine has, from the design operating point, if all cooling stops at once |
 | `w_uchan` | `012` | 0.15 mm | width of one microchannel in a face cold plate; this is the number that sets the heat transfer coefficient |
 
 ## What consumes it
@@ -63,6 +65,8 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
+| `T_in_max` | `027` |
+| `dT_margin_dry` | `027` |
 | `UA_rad` | `027` |
 | `d_filter` | `022`, `027` |
 | `dp_filter_end` | `027` |
@@ -90,8 +94,8 @@ Change one of these and the blueprints beside it are what break.
 
 | tag | relation | because |
 |---|---|---|
-| `C-027-1` | `UA_rad * (T_in_no_chill - T_room) >= P_heat` | the radiator must reject everything the machine makes at the approach it actually achieves |
-| `C-027-2` | `margin_no_chill > 15.0` | with the chiller removed and the inlet floating to whatever the radiator gives, there must still be fifteen kelvin between the hottest transistor and its limit. This is the constraint that says the trade is available, and it is the most useful line in the blueprint |
+| `C-027-1` | `T_in_no_chill < T_in_max` | the inlet an air-cooled radiator alone produces must be one the machine's own materials tolerate. Written first as the radiator rejecting the heat, which is how T_in_no_chill is defined and therefore says nothing at all |
+| `C-027-2` | `margin_no_chill > dT_margin_dry` | with the chiller removed and the inlet floating to whatever the radiator gives, there must still be fifteen kelvin between the hottest transistor and its limit. This is the constraint that says the trade is available, and it is the most useful line in the blueprint |
 | `C-027-3` | `t_interlock < t_to_halt` | the interlock must cut power before the machine reaches its halt threshold with all cooling stopped |
 | `C-027-4` | `d_filter * 3 < w_uchan * 1000` | the filter must pass nothing bigger than a third of a channel's width, so that no single particle can close one |
 | `C-027-5` | `V_makeup > V_leak_life` | what the reservoir has left, after thermal expansion and service spillage, must still cover a service interval's worth of leakage from a hundred and sixty-six joints |
