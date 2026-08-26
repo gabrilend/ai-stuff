@@ -7,7 +7,40 @@
 
 ## Current behaviour
 
-A rated pool. Nothing queries it.
+**Done.** `pool_survivors` answers the query and `studio_dial_report` compares two
+floors without applying either — the answer arrives while the question is still
+open, which is the whole point.
+
+`studio_dial_sentence` writes the exchange: the category, both counts, how many
+are in the category at all, and a consequence drawn from a small table of how
+much variety survives. "Expect them to start resembling each other" is what a
+quarter surviving reads as; the thresholds are in one table where they can be
+argued with rather than spread through a chain of comparisons.
+
+Lowering a floor says the opposite thing rather than announcing a cost, because
+variety is being bought back rather than spent.
+
+**Both provenance modes.** `TRUST_ANYBODY` and `TRUST_A_PERSON` are separate
+requests and the second is always smaller. Confidence and quality are not the
+same axis, and a pool nobody has judged returns nothing at all under the strict
+question — which is the honest answer and not an empty category.
+
+**Declining is free.** `studio_decline` records the refusal and touches nothing
+about the library — no tier, no entry, no ordering — and there is a test that
+checks exactly that. The offer carries its own cost, saying how many are unrated
+and what rating them would buy, because a question with no price on it has no
+honest answer.
+
+`studio_may_offer` is per category: turning down the goblins is not turning down
+everything.
+
+### What the retrieved entries are not yet used for
+
+`pool_survivors` returns the surviving entries as well as the count, so both uses
+this issue names are reachable: shown as examples of what good looks like here,
+and used directly. Nothing calls it for the first use yet, because nothing
+generates sprites from examples — that is the second rung of the ladder in
+[907](907-the-anchor-that-stops-drift.md) and only the bottom rung is built.
 
 ## Intended behaviour
 

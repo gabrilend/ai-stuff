@@ -7,7 +7,45 @@
 
 ## Current behaviour
 
-A pool exists with a tier field nothing writes.
+**Done. Both algorithms, both tested.**
+
+Rate-on-arrival judges everything the moment it lands. Judge-then-curate leaves
+everything unrated until a person looks, and re-tiering happens during play. The
+algorithm is a field of the pool and travels with the file, so it belongs to the
+library rather than to whichever program opened it.
+
+`pool_rate_by_machine` and `pool_rate_by_person` each write only their own field,
+so a correction never destroys what it corrected — which is what makes the
+agreement rate computable at all rather than reading as perfect forever.
+
+A rating that could not be recorded returns 0 and is not mistaken for one that
+was: a tier off the scale, an empty name, a name with a space in it, an entry
+that does not exist.
+
+### The in-play re-tier
+
+`VERB_RETIER` did NOT already exist in the command table — this issue said it
+did, and it did not. It exists now, with three refusals of its own, and it runs
+the whole gauntlet.
+
+It needed something else that did not exist either: a thing in the world had no
+way to say which picture it was wearing. That gap became
+[909](909-a-thing-wears-a-sprite.md).
+
+**Who rated it is a seat, not a display name.** A viewer has a name and this
+deliberately does not use it. That field is marked display-only and never used to
+decide anything, everywhere it appears — and a rating in a library that outlives
+the session is exactly the kind of durable record that must not be keyed on
+something somebody can change between one evening and the next. Two people who
+both called themselves "GM" would become one rater; one person who renamed
+themselves would become two.
+
+### The asymmetry, measured rather than asserted
+
+A pool run under judge-then-curate reports its human-rated fraction as everything
+and its agreement rate as UNMEASURABLE, and there is a test that says so. That is
+the real difference between the two algorithms and it is not the one people
+notice first.
 
 ## Intended behaviour
 

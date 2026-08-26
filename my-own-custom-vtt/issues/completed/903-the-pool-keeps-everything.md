@@ -7,7 +7,52 @@
 
 ## Current behaviour
 
-Sprites can be made. Nothing remembers them.
+**Done.** `085-sprite-pool` keeps every sprite it is given and has no function
+that removes one. Deletion is absent rather than guarded, which is the strongest
+form the rule can take.
+
+An entry holds the description that made it, the paintbrush and canvas it came
+from, and both opinions of it.
+
+### Two tiers are stored, one is effective
+
+This is a deliberate departure from what this issue asked for. "Both write the
+same field and the person's wins" works perfectly and destroys, on every
+correction, exactly the data the agreement rate is computed from — and the
+agreement rate is the entire reason for having a machine rate anything.
+
+So the machine's tier and a person's live in separate fields, neither ever
+overwrites the other, and the effective tier is the person's where there is one.
+The behaviour is what the issue described; the storage is not.
+
+### The paintbrush is a fingerprint, not a version number
+
+Nobody remembers to bump a version. The fingerprint is computed: eight fixed
+categories and seeds are drawn and encoded, and the bytes of the resulting files
+are folded together. Anything that changes what a word turns into — a new shape,
+a different body size, a change to the encoder — changes the number without
+anybody noticing it needed to.
+
+It is folded over the FILES rather than the structs, because a struct has padding
+whose contents depend on the compiler, and a pool copied between two machines
+would otherwise report every entry as stale.
+
+### The index is text and a damaged line stops the read
+
+Nine fields per line, separated by single spaces, with the header naming them. A
+line the reader cannot understand ends the read and says which line — because a
+reader that skipped it would be a pool quietly deleting an entry, silently, at
+load, months after whatever damaged it.
+
+A rater's name with a space in it is refused at the moment of rating rather than
+escaped at every place that writes a line.
+
+### Categories are a wall
+
+Lowercase letters, digits and dashes. A category becomes a filename, and a
+category with a slash in it names a file somewhere else entirely. Refused rather
+than sanitised, because a sanitised category is a category somebody cannot find
+again.
 
 ## Intended behaviour
 
