@@ -39,8 +39,8 @@ last stand is allowed to be total.
 ## Suggested implementation steps
 
 1. Extend the placement handler to accept `slot_kind = 3`, with `slot_lane = 0`.
-2. Validate against `applies_to` — the library slot feeds towers, so it takes the
-   same kinds the stone slot does.
+2. No kind validation — the library slot takes anything, like every other slot.
+   See F28.
 3. `library_mask` is already folded into `base_tower_mask` by issue 409; confirm
    the ordering in `rebuild_masks` so a library placement takes effect on the
    same tick.

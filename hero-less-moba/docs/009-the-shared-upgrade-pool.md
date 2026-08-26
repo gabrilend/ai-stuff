@@ -18,8 +18,6 @@ Two records, and keeping them apart matters.
 | `name` | string | Shown to players. |
 | `weight` | integer | Relative likelihood of being drawn. |
 | `index` | integer | Which slot this kind occupies in a body's upgrade count vector. |
-| `applies_to` | integer | Bit set: 1 = wave units, 2 = a lane's towers. There is no hero bit — see below. |
-| `shape` | integer | 1 melee, 2 ranged, 3 common. **Both slots have two audiences**, so this decides who actually receives it: in a lane, the melee bodies or the ranged ones; in a lane's towers, the guards or the tower. Common reaches everything. See [open questions](020-open-questions.md), F21 and F22. |
 | `add` | double[] | Flat additions, one per modifiable stat. |
 | `mul` | double[] | Multipliers, one per modifiable stat. |
 | `behaviour` | integer | Index into a behaviour dispatch table, or **0** for a pure stat change. |
@@ -30,16 +28,54 @@ number — a splash on hit, a death rattle, a shield on the front rank. They are
 dispatch-table entries so that adding one is adding a row, not editing the combat
 loop.
 
+### There is one kind of upgrade, and no field says who it is for
+
+**Nothing in that record tags an audience**, and that is deliberate. *Settled;
+see [open questions](020-open-questions.md), F28.* An upgrade modifies stats, and
+**a body benefits to the extent that it has those stats and uses them.** No
+routing, no categories, no refusals.
+
+There are three things upgrades affect — **wave units, guards, and towers** — and
+one catalogue works for all of them because they overlap almost completely:
+
+| | Has feet | Has a blade | Throws bone | Has health |
+| --- | --- | --- | --- | --- |
+| **melee wave unit** | yes | yes | no | yes |
+| **ranged wave unit** | yes | no | yes | yes |
+| **guard** | yes | yes | no | yes |
+| **tower** | **no — it is stone** | no | yes | yes |
+
+A guard and a tower are **opposites with everything in common.** One has feet,
+the other has stone. One has a blade, the other throws bone. Every property
+either of them has, something else in the list has too — **every effect is shared
+at least once**, which is precisely what makes one catalogue possible instead of
+three.
+
+So a health upgrade helps all four with no rule saying so. A movement upgrade
+helps three and does nothing for a tower, because a tower's speed is zero and
+always was. A ranged-damage upgrade helps the ranged bodies and the tower.
+
+**An earlier draft carried two fields for this** — `applies_to`, saying which
+slots a kind could enter, and `shape`, sorting kinds into melee, ranged, and
+common. Both are gone. A tag is a second description of a thing that already
+describes itself, and the two descriptions can disagree — which they would, the
+first time somebody wrote an upgrade adding both movement speed and ranged damage
+and had to pick a category for it.
+
+**Nothing is refused on the grounds of what an upgrade is.** Any upgrade may be
+placed in any slot. What it does there is however much of it applies.
+
 ### Upgrades never touch hero units
 
 **A lane's upgrades apply to wave units and to nothing else.** A hero unit walking
 through a lane stacked with every upgrade the team owns fights at exactly its
 catalogue values. *Settled; see [open questions](020-open-questions.md), A14.*
 
-There is no hero bit in `applies_to`, no per-kind exception, and no way to write
-one. This is a rule about the shape of the game rather than a balance figure, so
-it is enforced by the catalogue's structure rather than by everybody remembering
-it.
+There is no per-kind exception and no way to write one — heroes are excluded by
+**flavour**, in the routine that stamps a body, not by anything in the catalogue.
+That is the only audience rule left in the game, and it is a rule about the shape
+of the game rather than a balance figure, which is why it lives in one place
+rather than in a field somebody has to set correctly on every row.
 
 The reason is that the two economies must not multiply. The chest is filled by
 killing and spent on **placements**; personal resource is filled by killing and
@@ -270,8 +306,6 @@ the command pass at the top of a tick, and it is refused — with a reason the
 viewer can show — if any of these hold:
 
 - The instance is locked by a different player.
-- The destination is a tower slot and the upgrade's `applies_to` does not include
-  towers.
 - The instance is already in transit — cancel it first.
 - The destination is where it already is.
 - The instance is in the freeze window before a queued destination takes effect;
