@@ -6,7 +6,7 @@ Produces `src/097-spec-report.lua`.
 
 **Done.** `src/097-spec-report.lua` exists and produces three documents:
 `docs/089-specification.md`, `docs/088-bill-of-materials.md`, and
-`docs/091-every-number.md`.
+`docs/101-every-number.md`.
 
 The third is the one with nothing else like it: **every symbol in the project,
 grouped by the blueprint that declares it, with its unit, its kind, its resolved
