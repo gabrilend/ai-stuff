@@ -33,10 +33,10 @@ Described by `608`.
 | `C_local_mem` | `044` | 262144 bit | local memory on the scalar core for descriptor construction |
 | `n_die_face` | `042` | 4 | compute dies on one face |
 | `n_layer_face` | **nothing declares this** | — | — |
-| `n_line_per_token` | **nothing declares this** | — | — |
+| `n_line_per_token` | `052` | unresolved | correction lines one face touches per token, which 048's small reads are judged rare against |
 | `n_ramp_cycle` | `031` | 64 | cycles over which 048 admits operands at the start of an operation |
-| `t_link_rt` | **nothing declares this** | — | — |
-| `t_stage` | `026` | unresolved | how long one face works before the sieve moves on |
+| `t_link_rt` | `051` | 9.2434e-09 s | round trip from a face issuing a read to the first data arriving: two flights, the array's access, the worst arbitration wait, and the protocol's own overhead |
+| `t_stage` | `053` | unresolved | how long one face works before the sieve moves on |
 
 ## What consumes it
 
@@ -53,7 +53,7 @@ Change one of these and the blueprints beside it are what break.
 | `n_interdie_sync` | `048` |
 | `C_chain_layer` | `048` |
 | `C_chain_face` | `048` |
-| `n_small_tok` | `048` |
+| `n_small_tok` | `048`, `055` |
 | `t_layer` | `031`, `048` |
 | `f_prefetch_lead` | `048` |
 

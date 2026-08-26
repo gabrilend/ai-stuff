@@ -48,7 +48,7 @@ Change one of these and the blueprints beside it are what break.
 | `a_cell` | `035`, `047` |
 | `eta_array` | `035` |
 | `eta_tier` | `035` |
-| `t_access` | `035`, `039` |
+| `t_access` | `035`, `039`, `051` |
 | `n_macro_tier` | `035` |
 | `SNM_cell` | `035` |
 | `SNM_required` | `035` |

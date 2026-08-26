@@ -4,8 +4,22 @@ Produces `src/051-radial-link-physical.md`.
 
 ## Current behavior
 
-Nothing. Fifty terabytes a second per link and five and a quarter million pads
-have been used in `006` and `004` without a circuit behind them.
+**Done.** `src/051-radial-link-physical.md` exists, and it opens with the two
+budgets in the order that matters: counting pads gives petabits a second,
+counting picojoules gives hundreds of watts, and **power binds by more than an
+order of magnitude**.
+
+A constraint asserts that ratio explicitly, so that a reader who sizes this
+interface by pad count finds out from the checker rather than from a thermal
+failure.
+
+Seven constraints, all holding. The link reads `029`'s swing and `029` reads its
+noise margin, so neither can move alone.
+
+**The spare fraction is a `given` that `083` should be setting**, and `C-051-6`
+currently checks a guess against a rule of thumb. **Nothing says how a spare is
+mapped in** — the conductors are bonded, so the remap has to be electrical, and
+`084` does not mention the link.
 
 ## Intended behavior
 

@@ -82,7 +82,7 @@ Change one of these and the blueprints beside it are what break.
 | `P_dies` | `020`, `025` |
 | `P_core_read` | `020`, `034` |
 | `P_core` | `020`, `028`, `036` |
-| `P_link` | `020`, `028` |
+| `P_link` | `020`, `028`, `051` |
 | `P_cage` | `020` |
 | `P_load` | `020`, `028`, `029` |
 | `eta_conv` | `020` |

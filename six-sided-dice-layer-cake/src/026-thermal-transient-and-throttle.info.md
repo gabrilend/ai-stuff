@@ -20,7 +20,6 @@ Described by `307`.
 | `R_engine` | K/W | derived | 0.260085 K/W | thermal resistance from the array to the fluid, from 025's local term |
 | `tau_engine` | s | derived | 0.00255817 s | how long the array takes to reach its steady temperature. The number that decides whether any of the fast transients matter |
 | `tau_loop` | s | derived | 3.80434 s | transport delay round the external circuit |
-| `t_stage` | s | derived | unresolved | how long one face works before the sieve moves on |
 | `dT_walk` | K | derived | unresolved | temperature excursion of the walking hot spot over one stage, which is the whole of 010's argument reduced to a number |
 | `E_spout_burst` | J | derived | unresolved | energy to push the entire core through the output tube |
 | `dT_spout` | K | derived | unresolved | what that burst does to the temperature of the face it leaves through |
@@ -52,7 +51,6 @@ Described by `307`.
 | `f_solid_plate` | `013` | 0.75 | fraction of a cold plate that is silicon rather than channel |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `n_pane_core` | **nothing declares this** | — | — |
-| `n_stage` | `010` | 6 | pipeline stages a token falls through, one per face |
 | `n_tier` | `036` | 24 | memory tiers in the stack. Twenty-four rather than the thirty-two first sketched, because at the density 035 derives, thirty-two holds half again what is needed |
 | `rho_cumo` | `011` | 10000 kg/m^3 | density of the same |
 | `rho_si` | `011` | 2329 kg/m^3 | density of silicon at 300 K |
@@ -60,8 +58,8 @@ Described by `307`.
 | `t_die` | `013` | 0.1 mm | thickness of a compute die after thinning |
 | `t_interlock` | `027` | 0.1 s | from flow loss detected to power removed |
 | `t_lamina` | `012` | 1.617 mm | thickness of one cooling lamina between two tiers. It is what is left of the core's height once twenty-four tiers are laid in it, and the tier count came out of 034's capacity chain rather than being chosen |
+| `t_stage` | `053` | unresolved | how long one face works before the sieve moves on |
 | `t_tier_si` | `012` | 0.05 mm | thickness of one thinned memory tier; as thin as a tier can be handled |
-| `t_token` | **nothing declares this** | — | — |
 
 ## What consumes it
 
@@ -77,7 +75,6 @@ Change one of these and the blueprints beside it are what break.
 | `C_face` | `026` |
 | `R_engine` | `026` |
 | `tau_engine` | `026`, `049` |
-| `t_stage` | `026`, `037`, `039`, `044`, `048` |
 | `dT_walk` | `026` |
 | `E_spout_burst` | `026` |
 | `dT_spout` | `026` |

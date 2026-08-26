@@ -67,10 +67,11 @@ Change one of these and the blueprints beside it are what break.
 | `A_mac_array` | `045` |
 | `A_expand` | `045` |
 | `ops_die` | `045` |
+| `ops_machine` | `053` |
 | `P_engine_die` | `020`, `028`, `031`, `041`, `045` |
 | `n_reuse` | `045` |
 | `I_step_engine` | `045` |
-| `B_operand_die` | `020`, `045`, `047` |
+| `B_operand_die` | `020`, `045`, `047`, `055` |
 | `acc_headroom` | `045` |
 
 ## What it asserts
