@@ -34,4 +34,5 @@ what a person reads before opening the source.
 | `test_making_one(t)` |  |
 | `test_the_heat_governor(t)` |  |
 | `test_the_two_sites(t)` |  |
+| `test_the_paintbrush(t)` | The mechanism for arguing with a picture that came out wrong. Its whole value |
 | `main(argv)` |  |

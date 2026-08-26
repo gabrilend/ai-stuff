@@ -62,4 +62,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `019a-a-phrase-is-a-record-too`, `020-test-the-ink`, `021-the-shape-of-a-stroke`, `022-the-structure-field`, `023-the-component-lexicon`, `024-the-scene-grammar`, `025-the-words-the-machine-reads`, `026-arrows-that-teach-the-order`, `027-test-the-meaning`, `030-make-one-kanji`, `031-make-them-all`, `033-the-documentation-site`, `035-test-the-machine`.
+Used by `019a-a-phrase-is-a-record-too`, `020-test-the-ink`, `021-the-shape-of-a-stroke`, `022-the-structure-field`, `023-the-component-lexicon`, `024-the-scene-grammar`, `024a-the-paintbrush`, `025-the-words-the-machine-reads`, `026-arrows-that-teach-the-order`, `027-test-the-meaning`, `030-make-one-kanji`, `031-make-them-all`, `033-the-documentation-site`, `035-test-the-machine`.
