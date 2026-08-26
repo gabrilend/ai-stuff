@@ -54,4 +54,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `020-test-the-ink`, `021-the-shape-of-a-stroke`.
+Used by `020-test-the-ink`, `021-the-shape-of-a-stroke`, `022-the-structure-field`.

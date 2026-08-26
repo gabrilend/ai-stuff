@@ -86,11 +86,101 @@ local function test_measuring_a_stroke(t)
 end
 -- }}}
 
+-- {{{ test_the_structure_field(t)
+local function test_the_structure_field(t)
+  local field = project.load("022-the-structure-field")
+  local shape = project.load("021-the-shape-of-a-stroke")
+  local canvas = project.load("016-the-grey-canvas")
+  local store = project.load("019-the-kanji-record").store()
+  local settings = project.settings()
+
+  local record = store.records["川"]
+  local measured = shape.measure_record(record)
+  local surface, made = field.build(record, settings, { measured = measured })
+
+  t.same(surface.width, settings.field.resolution, "the field is the size asked for")
+
+  local low, high = canvas.extremes(surface)
+  local wanted_low = 1 - settings.field.range_high
+  local wanted_high = 1 - settings.field.range_low
+  t.near(low, wanted_low, 0.01, "the darkest value sits on the band's floor")
+  t.near(high, wanted_high, 0.01, "and the lightest on its ceiling")
+
+  -- Every stroke has to have put ink somewhere. A stroke that vanished means
+  -- the scaling is wrong for that character, and the illusion silently loses a
+  -- line while the picture still looks fine.
+  local along = field.inspect(surface, measured, settings)
+  local missing = 0
+  for index = 1, #measured do
+    if not along[index] or along[index] > (wanted_low + wanted_high) / 2 then
+      missing = missing + 1
+    end
+  end
+  t.same(missing, 0, "every stroke left ink along its own line")
+
+  -- Ink reaching the border means the character has been scaled wrongly and
+  -- whatever fell off the edge is lost from the illusion.
+  t.ok(field.edge_ink(surface) < 0.15, "and none of it reached the border",
+       string.format("%.3f away from the background at the worst point",
+                     field.edge_ink(surface)))
+
+  -- The weakening along the writing order. 川 is three separate verticals that
+  -- do not touch, so each stroke's darkness is its own -- on a character whose
+  -- strokes cross, the blur mixes them and the ordering is not readable back
+  -- out of the finished field.
+  if settings.field.order_ramp > 0 then
+    t.ok(along[1] < along[#along],
+         "the first stroke is darker than the last, so the composition carries the order",
+         string.format("%.4f then %.4f", along[1], along[#along]))
+  else
+    t.note("the writing-order ramp is turned off in settings; not checked")
+  end
+
+  -- The margin is applied to the archive's box, not to the character's own ink.
+  -- Centring each character on its own extent would make a single horizontal
+  -- line fill the frame as densely as a crowded character does, and a learner
+  -- would lose the only signal they have for how much is in a character.
+  local one = store.records["\228\184\128"]
+  local one_field = field.build(one, settings)
+  local ink_rows = 0
+  for y = 0, one_field.height - 1 do
+    local darkest = 1
+    for x = 0, one_field.width - 1 do
+      local value = one_field.pixels[y * one_field.width + x + 1]
+      if value < darkest then darkest = value end
+    end
+    if darkest < 0.5 then ink_rows = ink_rows + 1 end
+  end
+  t.ok(ink_rows < one_field.height * 0.5,
+       "a one-stroke character does not fill the frame",
+       string.format("%d of %d rows hold ink", ink_rows, one_field.height))
+
+  -- The blur has to shrink as a character gets crowded, or the dense ones weld
+  -- shut at exactly the size the whole project is specified at.
+  local sparse = field.blur_for(3, settings)
+  local middling = field.blur_for(8, settings)
+  local dense = field.blur_for(29, settings)
+  t.ok(sparse > middling and middling > dense,
+       "a crowded character is softened less than a sparse one",
+       string.format("%.1f, %.1f, %.1f at 3, 8 and 29 strokes", sparse, middling, dense))
+  t.ok(dense >= settings.field.blur_minimum,
+       "and never below the floor where softening stops working")
+
+  local small = field.thumbnail(surface, settings)
+  t.same(small.width, settings.field.thumbnail,
+         "the thumbnail is the size the illusion is specified at")
+
+  t.note(string.format("river at %d strokes was blurred by %.1f",
+         made.strokes, made.blur_radius))
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
   local groups = {
     { "measuring a stroke", test_measuring_a_stroke },
+    { "the structure field", test_the_structure_field },
   }
   local all_passed = true
   for _, group in ipairs(groups) do
