@@ -16,7 +16,7 @@ Described by `205`.
 | `d_cord` | mm | given | 2.5 mm | diameter of the elastomer cord in a compression groove. One millimetre was tried first and fell fifteen microns short of the tolerance loop; the bow that 018 then found pushed the flatness allowance from fifteen microns to fifty and the cord with it |
 | `squeeze_min` | 1 | given | 0.15 | least fractional squeeze at which the cord seals |
 | `squeeze_max` | 1 | given | 0.3 | most it tolerates before compression set over the cycle count is unacceptable |
-| `leak_per_seal` | 1 | measured | 1e-09 | helium leak rate per joint at proof pressure, in millibar litres per second, for a good elastomer seal in a groove |
+| `leak_per_seal` | mbar*L/s | measured | 1e-09 mbar*L/s | helium leak rate per joint at proof pressure for a good elastomer seal in a groove. A leak rate quoted this way is a pressure-volume throughput and therefore has the dimensions of power, which is worth knowing before dividing it by anything |
 | `comp_set` | 1 | measured | 0.2 | fraction of its squeeze an elastomer of this class loses permanently over a hundred thousand cycles at temperature |
 | `w_seal_min` | mm | given | 1.2 mm | least width of face plate rim a groove and its land need |
 | `n_seal_plate` | 1 | derived | 24 | face-plate-to-rail joints |
@@ -28,7 +28,9 @@ Described by `205`.
 | `p_burst` | Pa | derived | 1e+06 Pa | pressure at which a wall is permitted to fail |
 | `seal_compression_range` | mm | derived | 0.375 mm | the band of gap variation a groove can take up while still sealing |
 | `seal_end_of_life` | mm | derived | 0.46875 mm | squeeze that must be present when new, so that after a hundred thousand cycles of set there is still enough left to seal |
-| `leak_total` | 1 | derived | 1.66e-07 | total permitted leak from the machine, in the same units as the per-seal figure |
+| `leak_total` | mbar*L/s | derived | 1.66e-07 mbar*L/s | throughput of every joint in the machine added together |
+| `Q_leak_seal` | m^3/s | derived | 5e-16 m^3/s | volumetric loss at one joint at working pressure; a throughput divided by the pressure driving it is a volume flow |
+| `Q_leak_total` | m^3/s | derived | 8.3e-14 m^3/s | and for all hundred and sixty-six of them |
 | `L_seal_line` | mm | derived | 1248 mm | length of compression seal line around the face plates alone |
 
 ## What it consumes
@@ -36,7 +38,7 @@ Described by `205`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `L_plate` | `012` | 52 mm | edge of a face plate, once the edge rails are taken off |
-| `leak_budget` | **nothing declares this** | — | — |
+| `Q_leak_max` | `027` | unresolved | volumetric loss the reservoir can absorb over one service interval once thermal expansion and service spillage are allowed for |
 | `n_corner` | `010` | 8 | corners of the cube, each a coolant manifold block |
 | `n_edge` | `010` | 12 | edges, each carrying a supply and a return channel |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
@@ -50,7 +52,7 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `p_work` | `017` |
+| `p_work` | `017`, `024`, `027` |
 | `mult_proof` | `017` |
 | `mult_burst` | `017` |
 | `d_cord` | `017` |
@@ -68,7 +70,8 @@ Change one of these and the blueprints beside it are what break.
 | `p_burst` | `017` |
 | `seal_compression_range` | `013`, `017` |
 | `seal_end_of_life` | `017` |
-| `leak_total` | `017` |
+| `Q_leak_seal` | `017` |
+| `Q_leak_total` | `017`, `027` |
 
 ## What it asserts
 
@@ -78,6 +81,6 @@ Change one of these and the blueprints beside it are what break.
 | `C-017-2` | `seal_end_of_life * (1 + comp_set) <= d_cord * squeeze_max` | the squeeze needed when new, allowing for the set the elastomer will take, must still be inside what it tolerates. A seal fitted tight enough to survive its own ageing must not be so tight that the ageing is what kills it |
 | `C-017-3` | `w_seal >= w_seal_min` | the rim left around the die block by 012 must be wide enough for a groove and its land |
 | `C-017-4` | `p_burst > p_proof` | burst above proof, which is trivially true and worth asserting because the two multipliers are separate symbols and somebody will edit one |
-| `C-017-5` | `leak_total < leak_budget` | the sum of a hundred and sixty-six joints' permitted leak must stay under what the reservoir in 027 can lose between services without the level sensor tripping |
+| `C-017-5` | `Q_leak_total < Q_leak_max` | the sum of a hundred and sixty-six joints' permitted loss must stay under what the reservoir in 027 can give up between services without the level sensor tripping |
 | `C-017-6` | `n_seal_total > 150` | a floor asserted deliberately in the direction of alarm: this design has more than a hundred and fifty places for water to get out, and a version of it that appeared to have forty would mean somebody had stopped counting the via island rings |
 

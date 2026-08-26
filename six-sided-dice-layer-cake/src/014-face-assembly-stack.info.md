@@ -55,10 +55,10 @@ Change one of these and the blueprints beside it are what break.
 | `t_bond` | `014` |
 | `t_regulator` | `014` |
 | `t_land` | `014` |
-| `h_plenum` | `014` |
+| `h_plenum` | `014`, `024` |
 | `t_seal_travel` | `014` |
-| `n_island` | `014` |
-| `L_island` | `014` |
+| `n_island` | `014`, `022` |
+| `L_island` | `014`, `022` |
 | `p_island_pad` | `014` |
 | `t_stack` | `014`, `018` |
 | `t_face_used` | `014` |

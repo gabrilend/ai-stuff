@@ -36,7 +36,7 @@ Described by `207`.
 | `F_corner_rating` | **nothing declares this** | — | — |
 | `L_corner` | `013` | 12 mm | edge of a corner manifold block, set by the two chambers that have to fit inside it (015) |
 | `L_cube` | `012` | 60 mm | outer edge length of the finished cube; follows from the four dimensions below it in the chain |
-| `V_makeup` | **nothing declares this** | — | — |
+| `V_makeup` | `027` | unresolved | reservoir capacity left over for leakage, once expansion and the spillage 019 loses at every coupling are taken out |
 | `cte_ss` | `011` | 17.3 ppm/K | linear thermal expansion of stainless steel |
 | `m_cube` | `013` | unresolved | the finished object, wet |
 | `n_corner_in` | `010` | 4 | corners where coolant enters, the even-parity set |
@@ -62,7 +62,7 @@ Change one of these and the blueprints beside it are what break.
 | `disp_frame` | `019` |
 | `travel_compliant` | `019` |
 | `V_spill_event` | `019` |
-| `V_spill_life` | `019` |
+| `V_spill_life` | `019`, `027` |
 | `n_orient` | `019` |
 
 ## What it asserts

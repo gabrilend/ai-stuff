@@ -4,8 +4,24 @@ Produces `src/022-face-microchannel-field.md`.
 
 ## Current behavior
 
-Nothing. `005` describes a hundred and seventy-three channels and derives none of
-them.
+**Done.** `src/022-face-microchannel-field.md` exists, and all three of the
+things the ticket asked to be derived are derived rather than quoted.
+
+The Nusselt number is a fifth-order polynomial in the aspect ratio, evaluated at
+the shape `012` specifies, with a stated correction for heat arriving on three
+sides. Fin efficiency comes from the standard straight-fin result at silicon's
+conductivity -- written as the exponential form because the notation has no
+hyperbolic tangent -- and comes out near seven tenths, which is the entire price
+of choosing silicon over copper in `014`. The aspect ratio limit is published
+here so that `012`'s constraint has something real to check against.
+
+Seven constraints. The one worth having is that the fields must be two orders of
+magnitude better than the bare plumbing that feeds them: that ratio is the
+justification for the whole cold plate, and asserting it means the justification
+is checked rather than remembered.
+
+**The three-sided correction is still a `given`** and the whole conductance is
+proportional to it.
 
 ## Intended behavior
 

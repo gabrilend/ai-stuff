@@ -30,8 +30,8 @@ Described by `203`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `L_corner` | `013` | 12 mm | edge of a corner manifold block, set by the two chambers that have to fit inside it (015) |
-| `Q_total` | **nothing declares this** | — | — |
-| `dp_loop` | **nothing declares this** | — | — |
+| `Q_total` | `024` | unresolved | volumetric flow through the whole machine |
+| `dp_loop` | `024` | unresolved | the whole circuit inside the cube, one path from a fed corner to a drained one |
 | `f_solid_corner` | `013` | 0.55 | fraction of a corner block that is metal rather than chamber |
 | `n_corner` | `010` | 8 | corners of the cube, each a coolant manifold block |
 | `n_corner_in` | `010` | 4 | corners where coolant enters, the even-parity set |
@@ -39,7 +39,7 @@ Described by `203`.
 | `rho_ss` | `011` | 7900 kg/m^3 | density of stainless steel |
 | `rho_water` | `011` | 989 kg/m^3 | density of water at 320 K, the mean coolant temperature |
 | `sigma_ss_y` | `011` | 290 MPa | yield stress of annealed stainless steel |
-| `v_erosion_max` | **nothing declares this** | — | — |
+| `v_erosion_max` | `021` | 4 m/s | velocity above which flow erosion of the wetted materials shortens the life in 086 |
 
 ## What consumes it
 
@@ -54,9 +54,10 @@ Change one of these and the blueprints beside it are what break.
 | `K_tee` | `015` |
 | `n_seal_corner` | `015` |
 | `V_chamber` | `015` |
+| `V_corner_wet` | `024` |
 | `Q_corner_in` | `015` |
 | `v_corner` | `015` |
-| `dp_corner` | `015` |
+| `dp_corner` | `015`, `024` |
 | `f_corner_loss` | `015` |
 | `p_burst_wall` | `015` |
 
