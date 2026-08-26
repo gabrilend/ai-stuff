@@ -39,7 +39,18 @@ static const struct opcode_spec inbound[VERB_COUNT] = {
     /* order-stop: subject */
     { "order-stop", { 32, 0 } },
     /* give-scope: unused, which scope, which viewer */
-    { "give-scope", { 32, 32, 32, 0 } }
+    { "give-scope", { 32, 32, 32, 0 } },
+    /*
+     * retier: which thing, what tier
+     *
+     * Eight bits for a tier that runs 1 to 5. Not three, which would be the
+     * tightest fit -- three bits still admit 0, 6 and 7, so it would not buy the
+     * property the widths are chosen for, and it would make a field that no
+     * hand-written client could produce without a bit-twiddling diagram. The
+     * gate refuses anything off the scale BY NAME, which is the layer where a
+     * client with a ten-point scale should be told so.
+     */
+    { "retier",     { 32, 8, 0 } }
 };
 
 /* Server to client. */

@@ -139,6 +139,19 @@ void session_attach_fogs(struct session *s, struct fog *fogs, uint32_t count);
 void session_attach_rules(struct session *s, void *rules);
 
 /*
+ * Give the session a sprite library, so that the re-tier command has somewhere
+ * to write.
+ *
+ * This is what makes judge-then-curate a TABLETOP idea rather than a gallery
+ * one: without a library reachable from a live session, changing a sprite's tier
+ * means stopping play and opening another program, and nobody does that in the
+ * middle of a fight.
+ *
+ * Borrowed. The session does not own it and does not release it.
+ */
+void session_attach_sprites(struct session *s, void *sprites);
+
+/*
  * The sentence the ruleset gave for the last refusal, or an empty string. Gate 6
  * is the only gate whose sentence the server does not write.
  */

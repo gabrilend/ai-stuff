@@ -161,6 +161,8 @@ uint64_t world_hash(const struct world *w)
         hash_u32(&h, t->kind);
         hash_u32(&h, t->sheet);
         hash_u32(&h, t->sight_range);
+        hash_u32(&h, t->sprite_category);
+        hash_u32(&h, t->sprite_seed);
         hash_u32(&h, t->facing);
         hash_u32(&h, t->radius);
         hash_u32(&h, t->sight_arc);
@@ -302,6 +304,7 @@ int worldfile_write(const struct world *w, FILE *out, struct worldfile_error *er
             !put32(out, t->scope) || !put32(out, t->region) ||
             !put32(out, t->kind) || !put32(out, t->sheet) ||
             !put32(out, t->sight_range) ||
+            !put32(out, t->sprite_category) || !put32(out, t->sprite_seed) ||
             !put32(out, t->facing) || !put32(out, t->radius) ||
             !put32(out, t->sight_arc) || !put32(out, t->flags)) {
             return fail(error, "could not write a thing", (int64_t)i, 0);
@@ -397,6 +400,14 @@ static int migrate_forward(struct world *w, uint32_t from_version,
      * written for that particular jump -- otherwise the count grows as the
      * square of the number of versions and nobody writes the sixteenth one.
      */
+    /*
+     * Recorded before anything is converted, so a caller can say what it loaded.
+     * A world that needed no rung leaves this zero.
+     */
+    if (from_version != WORLDFILE_VERSION) {
+        w->migrated_from = from_version;
+    }
+
     if (from_version == 1) {
         /*
          * Version 1 had no origin. Nothing to convert -- the reader already left
@@ -406,6 +417,20 @@ static int migrate_forward(struct world *w, uint32_t from_version,
          */
         snprintf(w->origin, sizeof(w->origin), "%s", "unknown -- a version 1 file");
         from_version = 2;
+    }
+
+    if (from_version == 2) {
+        /*
+         * Version 2 had no sprite on a thing. Nothing to convert: the reader
+         * leaves both fields zero, and zero in sprite_category already means
+         * "wears nothing" by the same convention as every other index in the
+         * project. So an old world loads as a world where nobody is wearing
+         * anything, which is exactly what it was.
+         *
+         * The rung exists anyway rather than being skipped, because a ladder
+         * with a missing rung is a ladder somebody works around.
+         */
+        from_version = 3;
     }
 
     if (from_version == WORLDFILE_VERSION) {
@@ -552,8 +577,28 @@ int worldfile_read(struct world *w, FILE *in, struct worldfile_error *error)
         if (!get32(in, &x) || !get32(in, &y) ||
             !get32(in, &t->scope) || !get32(in, &t->region) ||
             !get32(in, &t->kind) || !get32(in, &t->sheet) ||
-            !get32(in, &t->sight_range) ||
-            !get32(in, &facing) || !get32(in, &radius) ||
+            !get32(in, &t->sight_range)) {
+            return fail(error, "the file ended part-way through the things",
+                        (int64_t)i, (int64_t)thing_count);
+        }
+
+        /*
+         * The two sprite fields arrived in version 3. An older file simply does
+         * not have them, and the reader must not go looking -- reading two words
+         * that are not there would swallow the next thing's position and every
+         * record after it would be a plausible-looking lie.
+         *
+         * They are left zero, which already means "wears nothing".
+         */
+        if (version >= 3u) {
+            if (!get32(in, &t->sprite_category) || !get32(in, &t->sprite_seed)) {
+                return fail(error,
+                            "the file ended part-way through a thing's sprite",
+                            (int64_t)i, (int64_t)thing_count);
+            }
+        }
+
+        if (!get32(in, &facing) || !get32(in, &radius) ||
             !get32(in, &sight_arc) || !get32(in, &flags)) {
             return fail(error, "the file ended part-way through the things",
                         (int64_t)i, (int64_t)thing_count);
@@ -712,8 +757,23 @@ int worldfile_read(struct world *w, FILE *in, struct worldfile_error *error)
      * The hash is checked last, because a mismatch here means the bytes changed
      * on the disk rather than that the format was misunderstood -- and every
      * other failure above is a better explanation of the same symptom.
+     *
+     * AND IT IS SKIPPED FOR A MIGRATED FILE, which is a genuine loss and not a
+     * convenience.
+     *
+     * The hash is a walk over every field of every record, and the walk is this
+     * build's walk. A version 2 file's hash was computed before things had a
+     * sprite, so it covered nine fields per thing where this one covers eleven.
+     * Recomputing it here would compare two different questions and always
+     * disagree, and keeping a hash function per version is exactly the
+     * once-per-pair growth the converter ladder was built to avoid.
+     *
+     * So an old file is loaded on the strength of its structure parsing cleanly
+     * and nothing else, and `migrated_from` records that so a caller can say so.
+     * The real fix is a checksum over the file's BYTES rather than over the
+     * world's FIELDS -- version-independent by construction. Open question 15.4.
      */
-    if (world_hash(w) != stored_hash) {
+    if (w->migrated_from == 0 && world_hash(w) != stored_hash) {
         return fail(error, "this file's contents do not match the hash written into it",
                     (int64_t)world_hash(w), (int64_t)stored_hash);
     }

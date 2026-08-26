@@ -31,7 +31,7 @@ static void test_record_layouts(void)
 {
     TEST_CASE("records are packed with no padding the writer would have to skip");
 
-    CHECK_EQ(sizeof(struct thing), 36);
+    CHECK_EQ(sizeof(struct thing), 44);
     CHECK_EQ(sizeof(struct wall), 24);
     CHECK_EQ(sizeof(struct region), 16);
     CHECK_EQ(sizeof(struct vertex), 8);

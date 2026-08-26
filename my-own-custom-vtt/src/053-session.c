@@ -273,6 +273,16 @@ static void begin_turn(struct session *s, uint32_t turn)
 }
 /* }}} */
 
+/* {{{ void session_attach_sprites */
+void session_attach_sprites(struct session *s, void *sprites)
+{
+    /* Handed straight down to the simulation, because that is where the command
+     * handlers live. The session is the thing that OWNS the arrangement; the sim
+     * is the thing that uses it. */
+    sim_attach_sprites(&s->sim, sprites);
+}
+/* }}} */
+
 /* {{{ void session_attach_rules */
 void session_attach_rules(struct session *s, void *rules)
 {

@@ -18,7 +18,7 @@ frames the view with. And `tick`, the beats since the world started running.
 
 ## The records
 
-**`struct thing`** — 36 bytes, no padding. One record for a player's character, a
+**`struct thing`** — 44 bytes, no padding. One record for a player's character, a
 goblin, a coffee cup, a door leaf, a torch, a tree.
 
 | Field | Type | Meaning |
@@ -29,10 +29,21 @@ goblin, a coffee cup, a door leaf, a torch, a tree.
 | `kind` | `uint32_t` | Into the ruleset's catalogue. Never interpreted here. |
 | `sheet` | `uint32_t` | Into the ruleset's storage. Never read here. |
 | `sight_range` | `uint32_t` | 0 means it does not see — a coffee cup's normal state. |
+| `sprite_category` | `uint32_t` | Into this world's string pool. 0 means it wears nothing. |
+| `sprite_seed` | `uint32_t` | The other half of the picture's description. |
 | `facing` | `wangle` | A full turn is 65536; wraps by overflowing. |
 | `radius` | `uint16_t` | How much space the body takes. |
 | `sight_arc` | `wangle` | 32768 is everything ahead. |
 | `flags` | `uint16_t` | Below. |
+
+The last two are what a thing is WEARING, and they are stored rather than looked
+up on purpose. The ruleset could supply a category — it already turns a kind into
+a description — but then a saved world would be a set of coordinates that needs a
+particular Lua file, in a particular version, to mean anything visual. Written
+down, the file regenerates every picture in it with nothing else loaded. Two
+things of one kind with different seeds wear different pictures, which is the
+whole point of a generated appearance layer and is unreachable while a kind is
+all a thing has.
 
 There is no second record type, and there will be pressure to add one. It arrives
 as "props do not need a sight cone" — true, and not a reason. A cup with

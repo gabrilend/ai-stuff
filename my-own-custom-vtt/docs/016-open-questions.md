@@ -697,3 +697,46 @@ corrected**, so that most of what was typed survives into the suggestion.
 `076-describe` had the identical bug in its own suggester and was fixed the same
 way. The lesson is that an edit-distance threshold is only meaningful relative to
 the length of the input, and a bare constant is a bug waiting for a short word.
+
+### 15.4 A world file's checksum cannot survive a format change
+
+A world file carries a hash of its own contents in its header. That hash is
+computed by walking every field of every record — and the walk is whatever the
+current build's walk is.
+
+Adding two sprite fields to a thing broke it. A version 2 file's hash covered
+nine fields per thing; this build's walk covers eleven. Recomputing it on load
+compares two different questions and always disagrees, so **every version 2 file
+would be refused as corrupt**, and the converter ladder — which exists precisely
+so old files keep working — could never actually be used for a change of shape.
+
+The ladder had one rung before this and that rung changed no record's shape, so
+nothing had ever tested the thing the ladder was built for.
+
+**What is done now:** the hash is checked only for a file that needed no
+migration. A migrated world records the version it came from in
+`migrated_from`, so a caller can say out loud that its integrity was not
+verified. That is a loss, stated rather than hidden.
+
+**The real fix, not yet done:** a checksum over the file's BYTES instead of over
+the world's FIELDS. Version-independent by construction, because bytes do not
+have a schema.
+
+It is not free. The field walk is currently shared with the determinism
+instrument — the same function produces the number two running servers compare at
+every beat — and those are two different jobs wearing one name:
+
+| Job | Wants |
+| --- | --- |
+| determinism | a walk over fields, so that two worlds built differently but identically compare equal |
+| file integrity | a walk over bytes, so that any version verifies and disk rot is caught |
+
+Splitting them means a second hash and a second place to keep in step. Written
+last rather than in the header, so that a streaming writer can accumulate it and
+never seek — which also keeps the writer usable on a pipe.
+
+| Answer | Cost |
+| --- | --- |
+| Split the two hashes | The right shape; two things to maintain instead of one. |
+| Keep a hash function per version | The once-per-pair growth the ladder exists to avoid. Nobody writes the sixteenth. |
+| Leave it, and accept unverified old files | Free, and quietly weakens the check every time the format moves. |

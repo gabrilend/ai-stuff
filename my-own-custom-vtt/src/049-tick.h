@@ -97,6 +97,20 @@ struct sim {
     uint32_t         crossing_capacity;
 
     uint64_t tick;
+
+    /*
+     * The sprite library, borrowed, and opaque here on purpose.
+     *
+     * A `struct sprite_pool *`, set by whoever owns one -- the same arrangement
+     * as the session's borrowed ruleset. It is a void pointer because the tick
+     * has no business knowing what a sprite is and the sprite library has no
+     * business knowing what a tick is; the one command that needs both casts it
+     * once, in 051-commandlog.
+     *
+     * NULL until somebody attaches one, and the re-tier command refuses by name
+     * rather than doing nothing when it is. See issue 909.
+     */
+    void *sprites;
 };
 
 /*
@@ -128,6 +142,15 @@ struct tick_pass {
 };
 
 const struct tick_pass *sim_passes(uint32_t *count);
+
+/*
+ * Lend the simulation a sprite library, so that the one command about pictures
+ * has somewhere to write. Borrowed -- the caller keeps it and releases it.
+ *
+ * Takes a void pointer for the same reason the field is one: the tick does not
+ * include the sprite headers and is not going to start.
+ */
+void sim_attach_sprites(struct sim *s, void *sprites);
 
 /* Give a body a standing order. */
 void sim_drive(struct sim *s, uint32_t thing, wangle direction, wcoord speed);
