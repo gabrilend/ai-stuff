@@ -15,6 +15,7 @@ run the sweep again.*
 ## Invocation
 
 ```
+luajit src/032-a-gallery-you-can-page.lua --set DIR [--per-page 150]
 luajit src/032-a-gallery-you-can-page.lua --pool
 ```
 

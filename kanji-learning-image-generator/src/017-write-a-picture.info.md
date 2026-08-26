@@ -6,7 +6,15 @@ For a general: there is no way to write this format without compressing the data
 
 So the real thing, in three parts:
 
-  * finding repeats -- most of a blurred picture is a slow gradient, and a     gradient repeats once you look at it the right way   * the standard code table, which spends fewer bits on the byte values that     turn up most   * the row transformations, which are what turn a gradient into a repeat in     the first place, and are the single largest win available here
+```
+  * finding repeats -- most of a blurred picture is a slow gradient, and a
+    gradient repeats once you look at it the right way
+  * the standard code table, which spends fewer bits on the byte values that
+    turn up most
+  * the row transformations, which are what turn a gradient into a repeat in
+    the first place, and are the single largest win available here
+
+```
 
 Nothing here reads a PNG. The test in `020` carries a small reader, because the only way to know a compressor is right is to decompress what it wrote.
 

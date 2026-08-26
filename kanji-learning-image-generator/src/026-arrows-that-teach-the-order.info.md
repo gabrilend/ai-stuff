@@ -4,7 +4,11 @@ Draws the layer that says which stroke comes first, and which way the brush went
 
 For a general: this is the part that makes the output a learning material rather than a clever picture. From the vision --
 
-  if the strokes are the structure, then the stroke order is the intended   viewing order, as directed with arrows because it's a learning material.
+```
+  if the strokes are the structure, then the stroke order is the intended
+  viewing order, as directed with arrows because it's a learning material.
+
+```
 
 A numbered arrow sits at the start of every stroke, pointing the way that stroke is written. It is drawn on its own transparent sheet and laid over the finished picture afterwards; it never goes into the grey field. Asking a diffusion model to render arrows into a landscape both fails and is wrong in principle -- an arrow is an annotation *about* the picture, not a thing in the world the picture shows.
 

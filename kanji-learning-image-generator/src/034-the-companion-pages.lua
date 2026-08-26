@@ -22,27 +22,43 @@ local project = dofile((debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$")) ..
 local M = {}
 
 -- {{{ source_files()
--- Every Lua file in src/, in index order.
+-- Every source file in src/, in index order.
 --
 -- Index order is reading order (docs/table-of-contents.md), and `ls` gives it
 -- for free because the indices are zero-padded to the same width.
+--
+-- Shell as well as Lua. The convention this whole file rests on -- a fold that
+-- names the thing, with its explanation underneath -- is the same in both; only
+-- the character that starts a comment differs. A shell script left without a
+-- companion is a shell script nobody can read the summary of, and the one in
+-- this project is the one that installs several gigabytes.
 local function source_files()
   local names = {}
-  local listing = io.popen('ls -1 "' .. project.path("src") .. '"/*.lua 2>/dev/null')
-  if not listing then return names end
-  for line in listing:lines() do
-    names[#names + 1] = line
+  for _, pattern in ipairs({ "*.lua", "*.sh" }) do
+    local listing = io.popen('ls -1 "' .. project.path("src") .. '"/' ..
+                             pattern .. ' 2>/dev/null')
+    if listing then
+      for line in listing:lines() do names[#names + 1] = line end
+      listing:close()
+    end
   end
-  listing:close()
   table.sort(names)
   return names
 end
 -- }}}
 
--- {{{ strip_comment(line)
+-- {{{ strip_comment(line, marker)
 -- The text of a comment line, or nil if the line is not one.
-local function strip_comment(line)
-  local body = line:match("^%s*%-%-%s?(.*)$")
+local function strip_comment(line, marker)
+  local body
+  if marker == "#" then
+    -- Not the first line of a shell script, which is the interpreter line and
+    -- looks exactly like a comment while being an instruction to the kernel.
+    if line:match("^#!") then return nil end
+    body = line:match("^%s*#%s?(.*)$")
+  else
+    body = line:match("^%s*%-%-%s?(.*)$")
+  end
   if not body then return nil end
   return (body:gsub("%s+$", ""))
 end
@@ -71,42 +87,88 @@ function M.read_source(path)
   local lines = {}
   for line in (text .. "\n"):gmatch("([^\n]*)\n") do lines[#lines + 1] = line end
 
-  local name = path:match("([^/]+)%.lua$")
+  local name = path:match("([^/]+)%.[%w]+$")
+  local marker = path:match("%.sh$") and "#" or "--"
   local heading, invocation = {}, nil
+
+  -- A shell script opens with its interpreter line, then a bare comment, then
+  -- its name; a Lua file opens with its name. Either way the line holding the
+  -- filename is skipped, because the page has it as a title already.
   local index = 2
+  if path:match("%.sh$") then
+    index = 1
+    while index <= #lines do
+      local body = strip_comment(lines[index], marker)
+      if body and body ~= "" then index = index + 1 break end
+      index = index + 1
+    end
+  end
 
   while index <= #lines do
-    local body = strip_comment(lines[index])
+    local body = strip_comment(lines[index], marker)
     if not body then break end
     -- the invocation is indented in the source, so the test has to allow for
     -- leading space; without that it lands in the prose and the page has no
     -- "how do I run this" section at all
-    if body:match("^%s*luajit%s") or body:match("^%s*%./") then
-      invocation = (body:gsub("^%s+", ""))
+    if body:match("^%s*luajit%s") or body:match("^%s*%./")
+       or body:match("^%s*bash%s") or body:match("^%s*src/[%w%-]+%.sh") then
+      invocation = { (body:gsub("^%s+", "")) }
+      -- A long command line wraps, and the wrapped part is indented under it.
+      -- Taken alone, the second half reads as the whole command and is
+      -- unrunnable -- which is worse than showing nothing.
+      local following = index + 1
+      while following <= #lines do
+        local more = strip_comment(lines[following], marker)
+        if not more or not more:match("^%s%s+%S") then break end
+        invocation[#invocation + 1] = (more:gsub("^%s+", ""))
+        following = following + 1
+      end
+      index = following - 1
     else
       heading[#heading + 1] = body
     end
     index = index + 1
   end
 
-  -- paragraphs, so the page reflows rather than keeping the source's wrapping
-  local paragraphs, current = {}, {}
+  -- Paragraphs, so the page reflows rather than keeping the source's wrapping
+  -- -- except where a block is indented, which in this project's comments means
+  -- a small table or a list somebody lined up by hand. Reflowing one of those
+  -- turns it into a single run-on line, which is exactly what it was written
+  -- not to be.
+  local paragraphs, current, indented = {}, {}, nil
+  local function close_paragraph()
+    if #current > 0 then
+      paragraphs[#paragraphs + 1] = table.concat(current, " ")
+      current = {}
+    end
+  end
+  local function close_block()
+    if indented and #indented > 0 then
+      paragraphs[#paragraphs + 1] = { kept = indented }
+      indented = nil
+    end
+  end
   for _, line in ipairs(heading) do
     if line == "" then
-      if #current > 0 then
-        paragraphs[#paragraphs + 1] = table.concat(current, " ")
-        current = {}
-      end
+      close_paragraph()
+      if indented then indented[#indented + 1] = "" end
+    elseif line:match("^%s%s+%S") then
+      close_paragraph()
+      indented = indented or {}
+      indented[#indented + 1] = line
     else
+      close_block()
       current[#current + 1] = line
     end
   end
-  if #current > 0 then paragraphs[#paragraphs + 1] = table.concat(current, " ") end
+  close_paragraph()
+  close_block()
 
   local entries = {}
   local at = 1
   while at <= #lines do
     local fold = lines[at]:match("^%s*%-%-%s*{{{%s*(.+)$")
+                 or (marker == "#" and lines[at]:match("^%s*#%s*{{{%s*(.+)$"))
     if fold then
       local fold_name = fold:match("^([%w_%.:]+)") or fold
       local arguments = fold:match("^[%w_%.:]+%s*(%b())") or ""
@@ -116,7 +178,7 @@ function M.read_source(path)
       local doc = {}
       local scan = at + 1
       while scan <= #lines do
-        local body = strip_comment(lines[scan])
+        local body = strip_comment(lines[scan], marker)
         if body == nil then break end
         doc[#doc + 1] = body
         scan = scan + 1
@@ -137,6 +199,7 @@ function M.read_source(path)
 
   return {
     name = name, path = path, heading = paragraphs,
+    file_name = path:match("([^/]+)$"),
     invocation = invocation, entries = entries,
   }
 end
@@ -185,7 +248,7 @@ end
 function M.who_uses(name, all_files)
   local users = {}
   for _, path in ipairs(all_files) do
-    local other = path:match("([^/]+)%.lua$")
+    local other = path:match("([^/]+)%.[%w]+$")
     if other ~= name then
       local text = project.read_file(path)
       if text and text:find(name, 1, true) then
@@ -207,12 +270,18 @@ function M.render(source, users)
   say("# " .. source.name .. " — info")
   say()
   for _, paragraph in ipairs(source.heading) do
-    say(paragraph)
+    if type(paragraph) == "table" then
+      say("```")
+      for _, line in ipairs(paragraph.kept) do say(line) end
+      say("```")
+    else
+      say(paragraph)
+    end
     say()
   end
 
   say("*Lifted from this file's own comments by `034-the-companion-pages`. To")
-  say("change this page, change the comments in `" .. source.name .. ".lua` and")
+  say("change this page, change the comments in `" .. source.file_name .. "` and")
   say("run the sweep again.*")
   say()
 
@@ -220,7 +289,7 @@ function M.render(source, users)
     say("## Invocation")
     say()
     say("```")
-    say(source.invocation)
+    for _, line in ipairs(source.invocation) do say(line) end
     say("```")
     say()
   end
@@ -298,7 +367,7 @@ function M.sweep(options)
     local source = M.read_source(path)
     local users = M.who_uses(source.name, files)
     local page = M.render(source, users)
-    local target = path:gsub("%.lua$", ".info.md")
+    local target = path:gsub("%.[%w]+$", ".info.md")
     local existing = project.read_file(target)
     if existing ~= page then
       changed[#changed + 1] = source.name

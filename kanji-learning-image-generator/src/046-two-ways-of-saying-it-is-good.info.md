@@ -15,6 +15,7 @@ run the sweep again.*
 ## Invocation
 
 ```
+luajit src/046-two-ways-of-saying-it-is-good.lua --calibrate
 luajit src/046-two-ways-of-saying-it-is-good.lua --rate <file>=<tier> ...
 ```
 

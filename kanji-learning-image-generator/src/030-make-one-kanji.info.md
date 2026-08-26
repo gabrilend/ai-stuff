@@ -13,6 +13,7 @@ run the sweep again.*
 ## Invocation
 
 ```
+luajit src/030-make-one-kanji.lua --chars 休 [--out DIR]
 luajit src/030-make-one-kanji.lua --phrase 時間=time,an hour
 ```
 

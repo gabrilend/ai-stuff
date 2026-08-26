@@ -4,7 +4,10 @@ Reads the little language each stroke is written in.
 
 For a general: a stroke in the archive is a line of text like
 
+```
     M19.5,39.86c2.45,0.57,5.23,0.8,8.04,0.57C40.75,39.38,63,36.5,79.78,36.15
+
+```
 
 which says: start at one point, then bend through two curves. The letters are instructions and the numbers are the points they bend through. This turns that text into the curves it describes.
 

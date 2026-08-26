@@ -13,6 +13,12 @@ run the sweep again.*
 ## Invocation
 
 ```
+luajit src/031-make-them-all.lua --grade 1
+luajit src/031-make-them-all.lua --jlpt 5 --workers 8
+luajit src/031-make-them-all.lua --frequent 500
+luajit src/031-make-them-all.lua --chars 木火水
+luajit src/031-make-them-all.lua --all
+luajit src/031-make-them-all.lua --phrase 時間=time,an hour
 luajit src/031-make-them-all.lua --phrases
 ```
 
