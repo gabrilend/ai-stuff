@@ -120,6 +120,11 @@ Pr_water      | 1         | derived  | mu_water * cp_water / k_water   | Prandtl
 Pr_fluoro     | 1         | derived  | mu_fluoro * cp_fluoro / k_fluoro | Prandtl number of the fluorocarbon at 320 K
 cte_ratio     | 1         | derived  | cte_cu / cte_si                 | how much faster copper expands than silicon; the number 018 exists because of
 cte_ratio_mo  | 1         | derived  | cte_cumo / cte_si               | the same for the molybdenum composite, which is why the core uses it
+alpha_cu_lo   | m^2/s     | given    | 9.0e-5                          | the least copper's thermal diffusivity may come out and still be copper. A bound rather than a property, named so that it is not a bare number sitting in a constraint -- every literal in this notation is dimensionless, and a dimensionless ninety millionths compared against a diffusivity is exactly the mistake the rule exists to catch
+alpha_cu_hi   | m^2/s     | given    | 1.3e-4                          | and the most
+alpha_cu      | m^2/s     | derived  | k_cu_bulk / (rho_cu * cp_cu)    | thermal diffusivity of copper: how fast a temperature change travels through it, as opposed to how much heat it carries. The same trick as the Prandtl numbers above and for the same reason -- it is a fourth number relating three transcribed ones, it is well known to be about a hundred and ten square millimetres a second, and computing it catches an error in any of the three
+alpha_si      | m^2/s     | derived  | k_si / (rho_si * cp_si)         | the same for silicon, which is about two thirds of copper's at this temperature
+alpha_ss      | m^2/s     | derived  | k_ss / (rho_ss * cp_ss)         | and for stainless steel, which is thirty times slower than copper and is why a steel rail is a thermal wall rather than a path
 ```
 
 ## Constraints
@@ -142,6 +147,11 @@ C-011-7 | cte_cumo > cte_si      | and more than silicon, so the mismatch is red
 C-011-8 | k_cu_bulk < k_diamond  | a sanity ceiling; a conductivity above diamond's is a units slip
 C-011-9 | k_si < k_diamond       | the same
 C-011-10 | k_cu_plated < k_cu_bulk | plated copper conducts worse than bulk, not better
+C-011-11 | alpha_cu > alpha_cu_lo | copper's thermal diffusivity is near a hundred and fifteen square millimetres a second. A value outside ninety to a hundred and thirty means one of the three properties it comes from was transcribed wrongly, and unlike the Prandtl checks this one covers a density and a heat capacity that nothing else in the project reads
+C-011-12 | alpha_cu < alpha_cu_hi | the same bound from above
+C-011-13 | alpha_si < alpha_cu   | silicon conducts heat away more slowly than copper does, at these temperatures. Obvious, and it is the cheapest possible check that the silicon triple and the copper triple were not swapped
+C-011-14 | alpha_ss < alpha_si / 4 | steel is at least four times slower again, which is the fact behind treating a steel rail as something heat does not travel along. It comes out at sixteen times
+C-011-15 | cte_ratio_mo < cte_ratio / 2 | the molybdenum composite must more than halve copper's expansion mismatch against silicon, or it is not worth the conductivity it costs. Copper runs six and a half times silicon's rate and the composite under three
 C-011-11 | k_cu_film < k_cu_plated | and a thin film worse again
 C-011-12 | k_fluoro < k_water    | the dielectric alternative is the worse conductor, which is the whole of the trade in 021
 C-011-13 | sigma_si_plas > sigma_si_frac | a plasma-diced edge is stronger than a sawn one, by the factor 018's margin depends on

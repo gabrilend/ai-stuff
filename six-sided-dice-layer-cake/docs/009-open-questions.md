@@ -174,13 +174,40 @@ understates the arithmetic side and `079`'s crossover is optimistic.
 set, dielectric breakdown, fouling, pump wear. **Bond fatigue is the largest gap**
 — `018` counts three thermal swings and turns none into cycles to failure.
 
-### A hundred-odd orphan symbols
+### A hundred-odd orphan symbols — **a first pass done, most of it left**
 
-Declared and referenced by nothing. Some are material properties nothing needed;
-some are quantities a blueprint published for a reader rather than for a
-derivation. Each is either a hole where a constraint should be or a line that
-should be deleted, and nobody has been through them. `./run-checks` lists them and
-the count moves as constraints are added, which is why it is not written here.
+Declared and referenced by nothing. Each is either a hole where a constraint
+should be or a line that should be deleted. `./run-checks` lists them and the
+count moves as constraints are added, which is why it is not written here.
+
+The material properties were the largest single cluster and have been through,
+and the pass was worth more than tidying — **four of the twelve were genuine holes
+rather than spare parts.**
+
+The copper-molybdenum the core's cooling plates are made of had never had its
+conductivity read by anything: a material chosen for how well it conducts, in a
+design that had only ever counted the water film and not the metal between the
+memory and the water. That term exists now, and it turns out the lamina is twenty
+times the silicon's resistance because it is thirty times thicker — the opposite
+of what choosing the material suggests, and still a fiftieth of a kelvin, so the
+film governs by a factor of twelve.
+
+The glass interposer's poor conductivity was described as not mattering "because
+heat leaves the other way", and that sentence now has a hundred and fifty under
+it. The steel's conductivity was unused, and the design's assumption that every
+watt reaches the coolant is now measured rather than assumed — the four mounting
+bolts carry about a two-thousandth. Tungsten's resistivity was unused, and the
+argument for making the through-stack vias copper instead is now a requirement
+that would fail if a process change ever made tungsten fast enough.
+
+Copper's density and heat capacity were unused, and are now read by a thermal
+diffusivity — the same trick the Prandtl checks in `011` use, where a fourth
+well-known quantity relating three transcribed numbers catches a transcription
+error in any of them. Two of the three solids now carry one.
+
+**What that suggests about the rest.** A third of the first cluster hid a missing
+term, and there is no reason to expect the other clusters to be cleaner. The
+remaining orphans are worth walking rather than deleting.
 
 ### The instruments have no companion pages
 

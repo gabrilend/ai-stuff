@@ -70,6 +70,11 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `Pr_fluoro` | 1 | derived | 20.31 | `mu_fluoro * cp_fluoro / k_fluoro` | Prandtl number of the fluorocarbon at 320 K |
 | `cte_ratio` | 1 | derived | 6.346 | `cte_cu / cte_si` | how much faster copper expands than silicon; the number 018 exists because of |
 | `cte_ratio_mo` | 1 | derived | 2.692 | `cte_cumo / cte_si` | the same for the molybdenum composite, which is why the core uses it |
+| `alpha_cu_lo` | m^2/s | given | 9e-05 m^2/s | — | the least copper's thermal diffusivity may come out and still be copper. A bound rather than a property, named so that it is not a bare number sitting in a constraint -- every literal in this notation is dimensionless, and a dimensionless ninety millionths compared against a diffusivity is exactly the mistake the rule exists to catch |
+| `alpha_cu_hi` | m^2/s | given | 0.00013 m^2/s | — | and the most |
+| `alpha_cu` | m^2/s | derived | 0.0001154 m^2/s | `k_cu_bulk / (rho_cu * cp_cu)` | thermal diffusivity of copper: how fast a temperature change travels through it, as opposed to how much heat it carries. The same trick as the Prandtl numbers above and for the same reason -- it is a fourth number relating three transcribed ones, it is well known to be about a hundred and ten square millimetres a second, and computing it catches an error in any of the three |
+| `alpha_si` | m^2/s | derived | 6.699e-05 m^2/s | `k_si / (rho_si * cp_si)` | the same for silicon, which is about two thirds of copper's at this temperature |
+| `alpha_ss` | m^2/s | derived | 4.051e-06 m^2/s | `k_ss / (rho_ss * cp_ss)` | and for stainless steel, which is thirty times slower than copper and is why a steel rail is a thermal wall rather than a path |
 
 ## 012 — Master dimensions
 
@@ -249,6 +254,11 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `sigma_cu_alt` | Pa | derived | 1.084e+08 Pa | `E_si * strain_cu_alt` | and what copper laminae would have induced |
 | `sigma_assembly` | Pa | derived | 7.436e+07 Pa | `E_si * (cte_cumo - cte_si) * dT_assembly` | residual stress frozen into a tier interface at bonding, before the machine is ever switched on |
 | `sigma_cu_assy` | Pa | derived | 2.349e+08 Pa | `E_si * (cte_cu - cte_si) * dT_assembly` | residual a copper lamina would have frozen in at bonding |
+| `f_share_tier` | 1 | derived | 0.9858 | `(E_cumo * t_lamina) / (E_cumo * t_lamina + E_si * t_tier_si)` | how much of the tier interface's mismatch the silicon actually takes, once the lamina is allowed to be a spring rather than a wall. Two bonded layers share a mismatch in proportion to their stiffness times their thickness, and taking the bond as rigid is the limit of this as the lamina becomes infinitely stiff |
+| `f_share_plate` | 1 | derived | 0.7481 | `(E_ss * w_rail) / (E_ss * w_rail + E_si * t_coldplate)` | the same at a plate-to-rail joint, where a four-millimetre steel rail is bonded to a two-millimetre silicon plate |
+| `f_share_cu_alt` | 1 | derived | 0.9668 | `(E_cu * t_lamina) / (E_cu * t_lamina + E_si * t_tier_si)` | and what a copper lamina would have shared, which is nearly the same because copper is thick here too -- so the material choice in this blueprint was never about stiffness |
+| `sigma_tier_real` | Pa | derived | 3.383e+07 Pa | `sigma_tier * f_share_tier` | the stress the silicon really sees at a tier interface, rather than the rigid-bond bound above it |
+| `sigma_plate_real` | Pa | derived | 8.577e+07 Pa | `E_si * strain_plate * f_share_plate` | the same at a plate-to-rail joint |
 | `sigma_cu_total` | Pa | derived | 3.433e+08 Pa | `sigma_cu_alt + sigma_cu_assy` | everything a copper lamina would put into the silicon, operating and residual together |
 | `margin_tier` | 1 | derived | 3.22 | `sigma_si_plas / (sigma_tier + sigma_assembly)` | how many times the fracture stress of a plasma-diced edge exceeds what a tier interface actually carries, residual included |
 | `margin_cu_alt` | 1 | derived | 1.019 | `sigma_si_plas / sigma_cu_total` | the same margin copper laminae would have left |
@@ -453,6 +463,10 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `T_room` | K | given | 295 K | — | air the radiator rejects into |
 | `R_die` | K/W | derived | 6.576e-05 K/W | `t_die / (k_si * A_die_total)` | one-dimensional conduction through all twenty-four dies in parallel |
 | `R_plate_base` | K/W | derived | 0.0005603 K/W | `(t_coldplate - h_uchan) / (k_si * n_face * A_plate)` | through the base of the six cold plates |
+| `R_interposer` | K/W | derived | 0.08405 K/W | `t_interposer / (k_glass * n_face * A_plate)` | the path in the other direction, out through the six glass interposers, which is the one the design says heat does not take |
+| `f_wrong_way` | 1 | derived | 150 | `R_interposer / R_plate_base` | how much worse that path is than the one the heat is meant to take. 011 says the interposer's conductivity is poor and does not matter because heat leaves the other way; this is that sentence with a number under it |
+| `R_mount` | K/W | derived | 26.53 K/W | `L_corner / (k_ss * n_mount * pi * (d_bolt/2)^2)` | out through the four mounting bolts into the frame, which is the only solid path from the cube to the room |
+| `P_leak_mount` | W | derived | 0.9004 W | `(T_j_peak - T_room) / R_mount` | heat the frame carries away. The whole design assumes every watt goes to the coolant, and this is the size of the assumption |
 | `dT_die` | K | derived | 0.09171 K | `P_dies * R_die` | the drop across the dies |
 | `dT_plate` | K | derived | 1.06 K | `P_heat * R_plate_base` | the drop across the plate bases |
 | `A_wet_engine` | mm^2 | derived | 428.5 mm^2 | `f_engine_area * A_die * A_wet_face / A_plate` | heated channel area lying above one die's multiplier array |
@@ -721,6 +735,8 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `C_tsv` | F | derived | 7.899e-12 F | `2 * pi * eps_0 * eps_ox * L_core / ln(3)` | capacitance of one through-stack via against its oxide liner, taking the shield spacing as three times the via radius |
 | `R_tsv` | ohm | derived | 19.75 ohm | `res_cu * L_core / (pi * (d_tsv/2)^2)` | resistance of the same. Copper rather than tungsten: tungsten is three times the resistivity and over forty millimetres that is the difference between settling inside a core cycle and not |
 | `t_tsv_delay` | s | derived | 1.076e-10 s | `0.69 * R_tsv * C_tsv` | the time constant of a via running the whole height of the stack, which is what decides whether the end faces can be treated like the side faces |
+| `R_tsv_w` | ohm | derived | 58.21 ohm | `res_w * L_core / (pi * (d_tsv/2)^2)` | what the same via would be in tungsten, which is the process's more usual choice for a via this deep |
+| `t_tsv_delay_w` | s | derived | 3.173e-10 s | `0.69 * R_tsv_w * C_tsv` | and what it would settle in. The rejected alternative, costed rather than dismissed: the sentence above says tungsten is three times the resistivity and over forty millimetres that is the difference between settling inside a core cycle and not, and this is that sentence as a number |
 | `P_tier` | W | derived | 6.675 W | `P_core / n_tier` | heat one tier makes |
 | `w_lam_chan` | mm | given | 0.3 mm | — | width of a channel in a cooling lamina; wider than a face's because the heat here is a tenth as dense |
 | `h_lam_chan` | mm | given | 0.3 mm | — | depth of the same. Half the lamina's thickness was tried first and made the core a quarter void, which is far more cooling than seven watts a tier needs and put nearly forty cubic centimetres of fluid inside the machine. The lamina is thick because the stack height demanded it, not because the heat did |
@@ -728,7 +744,11 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `n_lam_chan` | 1 | derived | 66 | `floor(L_core / (w_lam_chan * 2))` | channels across one lamina, on a pitch of twice their width |
 | `Q_lamina` | m^3/s | derived | 2.07e-07 m^3/s | `Q_core / n_tier` | flow through one lamina |
 | `A_wet_lam` | mm^2 | derived | 3168 mm^2 | `n_lam_chan * 2 * (w_lam_chan + h_lam_chan) * L_core` | wetted area of one lamina |
-| `dT_core` | K | derived | 0.2508 K | `P_tier / (h_conv_lam * A_wet_lam)` | temperature a tier sits above its coolant. Two hand-written conversions -- millimetres to metres in the coefficient and square millimetres to square metres here -- between them made this term a thousand times too large, which is what a checker is for |
+| `dT_core` | K | derived | 0.2508 K | `P_tier / (h_conv_lam * A_wet_lam)` | temperature a tier sits above its coolant *film*. Two hand-written conversions -- millimetres to metres in the coefficient and square millimetres to square metres here -- between them made this term a thousand times too large, which is what a checker is for |
+| `R_tier_si` | K/W | derived | 0.000142 K/W | `t_tier_si / (2 * k_si * A_core_side)` | getting out of the silicon: half a tier's thickness, because a tier is cooled from both faces and each half sends its heat the shorter way |
+| `R_lam_metal` | K/W | derived | 0.002931 K/W | `t_lamina / (2 * k_cumo * A_core_side * (1 - f_void_lam))` | and then through half a lamina's metal to reach a channel wall, across whatever cross-section the channels have not removed |
+| `dT_tier_cond` | K | derived | 0.02052 K | `P_tier * (R_tier_si + R_lam_metal)` | how much of the tier's rise is conduction rather than convection. This term was missing entirely until the copper-molybdenum's own conductivity was noticed sitting in 011 with nothing reading it -- a material chosen for its thermal conductivity, in a design that never used the number |
+| `dT_tier_total` | K | derived | 0.2713 K | `dT_core + dT_tier_cond` | the whole rise from a bitcell to the coolant that carries its heat away. This is what has to fit the budget, and the film alone was what was being checked |
 | `h_conv_lam` | W/(m^2*K) | derived | 8400 W/(m^2*K) | `4.0 * k_fluid / (2 * w_lam_chan * h_lam_chan / (w_lam_chan + h_lam_chan))` | convection coefficient in a lamina channel, at the laminar Nusselt number for a duct of about this shape |
 | `Q_core` | m^3/s | derived | 4.968e-06 m^3/s | `Q_total * P_core / P_heat` | the core's share of the machine's flow, in proportion to its share of the heat |
 | `disp_tier_lam` | mm | derived | 0.01056 mm | `(cte_cumo - cte_si) * dT_power * L_core` | relative motion at one tier-to-lamina interface over a power cycle |
@@ -1773,8 +1793,8 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `n_seam_open` | 1 | derived | 0 | `n_seam - n_seam_guarded` | seams with no constraint on them, which is what finishing this project means driving to zero |
 | `f_guarded` | 1 | derived | 1 | `n_seam_guarded / n_seam` | the share that are guarded |
 | `n_bp` | 1 | solved | 84 | — | blueprints in the set -- from 103, which loads them rather than counting them from memory |
-| `n_constraint` | 1 | solved | 552 | — | constraints in it -- from 103. Carried as a hand count until it was twelve short, which is the exact failure a self-describing document is prone to |
-| `c_per_bp` | 1 | derived | 6.571 | `n_constraint / n_bp` | constraints per blueprint, which is a crude measure of whether any file is asserting nothing |
+| `n_constraint` | 1 | solved | 566 | — | constraints in it -- from 103. Carried as a hand count until it was twelve short, which is the exact failure a self-describing document is prone to |
+| `c_per_bp` | 1 | derived | 6.738 | `n_constraint / n_bp` | constraints per blueprint, which is a crude measure of whether any file is asserting nothing |
 
 ## 088 — What it is made from, and what that costs
 
@@ -1823,12 +1843,12 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `n_software` | 1 | given | 2 | — | pieces of software assumed and not specified |
 | `n_worked_eg` | 1 | given | 1 | — | worked examples of using the package as a machine |
 | `n_bp_pkg` | 1 | derived | 84 | `n_bp` | blueprints delivered |
-| `n_sym_pkg` | 1 | solved | 1409 | — | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked |
-| `n_con_pkg` | 1 | derived | 552 | `n_constraint` | constraints |
+| `n_sym_pkg` | 1 | solved | 1429 | — | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked |
+| `n_con_pkg` | 1 | derived | 566 | `n_constraint` | constraints |
 | `n_open_pkg` | 1 | solved | 0 | — | symbols still carried as targets rather than derivations -- from 103. None: the last one was 019's service time, which became the sum of nine steps rather than one number nobody could take apart |
 | `n_solved_pkg` | 1 | solved | 20 | — | symbols a program produced because no expression in this notation could -- from 103 |
 | `n_q_blocking` | 1 | given | 2 | — | blocking open questions in 009 |
 | `n_q_open` | 1 | given | 18 | — | open questions altogether: the two blocking ones and sixteen carried. A hand count of 009's headings, and the one figure in this package that a program still does not produce |
-| `f_derived` | 1 | derived | 0.5834 | `(n_sym_pkg - n_given_pkg) / n_sym_pkg` | share of the project's numbers that are worked out rather than chosen or measured |
-| `n_given_pkg` | 1 | solved | 587 | — | symbols that are chosen or measured rather than worked out -- from 103: four hundred and seventy-one a person decided and a hundred and sixteen taken from a datasheet |
+| `f_derived` | 1 | derived | 0.5878 | `(n_sym_pkg - n_given_pkg) / n_sym_pkg` | share of the project's numbers that are worked out rather than chosen or measured |
+| `n_given_pkg` | 1 | solved | 589 | — | symbols that are chosen or measured rather than worked out -- from 103: four hundred and seventy-three a person decided and a hundred and sixteen taken from a datasheet |
 
