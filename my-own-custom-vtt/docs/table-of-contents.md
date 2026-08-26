@@ -80,6 +80,12 @@ my-own-custom-vtt/
 │   │                                           that keeps everything, and two
 │   │                                           ways of deciding what is good.
 │   │
+│   ├── ── What survives the session ──
+│   ├── 018-the-record-log-is-an-engraving .... A text file that is a carving that
+│   │                                           is a spreadsheet. Read by one
+│   │                                           script, written by another,
+│   │                                           fragile on purpose.
+│   │
 │   ├── ── How it is written ──
 │   ├── 014-the-shape-of-the-code ............. Numbering, companion files,
 │   │                                           vimfolds, dispatch tables, the
@@ -133,10 +139,13 @@ my-own-custom-vtt/
 
 ## Reading order note
 
-Two documents sit out of numeric order in the grouping above, and both are
+Three documents sit out of numeric order in the grouping above, and all three are
 deliberate. `013-content-is-generated` is grouped with the rules layer, because
 both are things loaded rather than compiled in. `017-the-sprite-studio` is grouped
-with the dynamic picture, because it is where that picture's parts come from.
+with the dynamic picture, because it is where that picture's parts come from. And
+`018-the-record-log-is-an-engraving` sits before `014`, because what a session
+leaves behind belongs with what it looked like rather than with how the code is
+laid out.
 
 The numbers still count up correctly when read straight through. The grouping
 headers are a second, looser organisation laid over the same sequence, and where
@@ -159,4 +168,5 @@ phases are the project's main organising idea and a reader should meet them earl
 | 7 | **The rules layer** -- LuaJIT, hooks, and two rulesets over one server. |
 | 8 | **Content generation** -- a description and a seed become a world. |
 | 9 | **The sprite studio** -- generated appearances, a rated pool, and two ways of judging it. |
-| 10 | **The second view** -- a terminal renderer, proving the split, and the HTML docs. |
+| 10 | **The engraving** -- statistics persisted as a carving that is also a spreadsheet. |
+| 11 | **The second view** -- a terminal renderer, proving the split, and the HTML docs. |

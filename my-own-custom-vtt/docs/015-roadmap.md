@@ -1,6 +1,6 @@
 # The roadmap
 
-Ten phases. They are not a schedule and they are not progress tracking. Each one
+Eleven phases. They are not a schedule and they are not progress tracking. Each one
 is a cluster of functionality that hangs together, and they are ordered so that
 every phase can be built on top of things that already work.
 
@@ -152,7 +152,26 @@ table without stopping play.
 judging a thing in a session is a different act from judging a picture in a
 gallery.
 
-## Phase 10 — The second view, and the documentation
+## Phase 10 — The engraving
+
+The record log: a text file drawn as an ornate metal carving whose lines are the
+cell walls of the table it contains. A reader that turns a carving into variables,
+a writer that turns variables into a carving, a third script that hands one to a
+friend, and the action bar that shows its cells during play.
+
+Intentionally fragile, which is a design decision with an argument behind it: the
+art is a checksum you can see. A value of the wrong width bends the creature's
+wing, and a person notices from across the room without running anything.
+
+**Ends with:** a demo that finishes a session, engraves its statistics as a
+creature nobody chose in advance, reads that engraving back into variables and
+shows they match, re-engraves from those variables and compares byte for byte,
+and then deliberately mangles one cell so the carving visibly deforms.
+
+**Proves:** that a file can be a picture and a database at once without being
+worse at either.
+
+## Phase 11 — The second view, and the documentation
 
 A terminal renderer speaking the same protocol as the browser, with no server
 changes. The documentation rendered to linked HTML in `docs/HTML/`, with the

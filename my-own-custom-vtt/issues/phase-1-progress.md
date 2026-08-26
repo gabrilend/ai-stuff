@@ -36,15 +36,33 @@ arithmetic.
 **One validator instead of ten thousand null checks.** Every later phase's right
 to skip checking is bought here, once.
 
+## The scale, now settled
+
+**The simulation counts metres.** A position is an `int32_t` in units of 1/1024 of
+a metre: range about ±2,100 kilometres, precision about a millimetre. Nothing in
+the server has ever heard of a foot.
+
+**The picture speaks feet**, rounded to the nearest foot, converted by the
+renderer on its way to the screen.
+
+The consequence phase 1 has to build in from the start:
+[101](101-the-arithmetic-is-integers.md) writes the metre constant with its
+reasoning beside it, and **no conversion function belongs anywhere in the
+server**. The foot exists in the view and only in the view, because a command
+carrying rounded feet would let two clients that round differently disagree about
+where a body went.
+
 ## Blocking open questions
 
-Two, both in [open questions](../docs/016-open-questions.md), and neither answered:
+One remains, in [open questions](../docs/016-open-questions.md):
 
-- **1.1** — is one world unit one foot? Sets the constant that
-  [101](101-the-arithmetic-is-integers.md) is built around.
-- **1.2** — does anything persist between sessions? If yes, the snapshot format in
-  [108](108-a-world-writes-itself-down.md) becomes long-lived and needs a
-  versioning story it does not have.
+- **1.2** — does the *world* persist between sessions? Statistics now do, as
+  [the engraving](../docs/018-the-record-log-is-an-engraving.md), but an engraving
+  carries numbers and not geometry. If the world persists too, the snapshot format
+  in [108](108-a-world-writes-itself-down.md) stops being a debugging convenience
+  and becomes a long-lived format needing a version story and a migration path.
 
-Neither blocks starting. Both block finishing, because the answer changes a
-constant in one case and a format's obligations in the other.
+It does not block starting. It blocks finishing 108, because it changes what that
+format is obliged to promise.
+
+**Settled since these issues were written:** 1.1, the scale, answered above.
