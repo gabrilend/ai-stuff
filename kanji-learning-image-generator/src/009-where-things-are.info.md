@@ -100,4 +100,4 @@ output/ is a mailbox, not a record. Whatever ran last is what is in there, and t
 
 ## Where it sits
 
-Used by `010-fetch-the-archives`, `012-read-the-strokes`, `013-read-the-meanings`, `019-the-kanji-record`, `020-test-the-ink`, `021-the-shape-of-a-stroke`, `022-the-structure-field`, `023-the-component-lexicon`, `024-the-scene-grammar`, `025-the-words-the-machine-reads`, `026-arrows-that-teach-the-order`, `027-test-the-meaning`, `028-the-shape-of-a-graph`, `029-the-workflow-for-one-kanji`, `030-make-one-kanji`, `034-the-companion-pages`, `035-test-the-machine`.
+Used by `010-fetch-the-archives`, `012-read-the-strokes`, `013-read-the-meanings`, `019-the-kanji-record`, `020-test-the-ink`, `021-the-shape-of-a-stroke`, `022-the-structure-field`, `023-the-component-lexicon`, `024-the-scene-grammar`, `025-the-words-the-machine-reads`, `026-arrows-that-teach-the-order`, `027-test-the-meaning`, `028-the-shape-of-a-graph`, `029-the-workflow-for-one-kanji`, `030-make-one-kanji`, `031-make-them-all`, `031a-when-the-machine-runs-hot`, `032-a-gallery-you-can-page`, `033-the-documentation-site`, `034-the-companion-pages`, `035-test-the-machine`.

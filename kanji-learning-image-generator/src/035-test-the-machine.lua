@@ -204,6 +204,80 @@ local function test_making_one(t)
 end
 -- }}}
 
+-- {{{ test_the_heat_governor(t)
+local function test_the_heat_governor(t)
+  local heat = project.load("031a-when-the-machine-runs-hot")
+  local settings = project.settings()
+
+  -- Fewer workers than cores, and by a proportion rather than a subtraction.
+  -- Leaving two cores free is a large concession on a four-core machine and
+  -- almost none on a thirty-two core one, and it is the *share* of the machine
+  -- held at full load that decides how hot it gets.
+  local function workers_for(processors, share, reserve, ceiling)
+    local want = math.floor(processors * share)
+    local spare = processors - reserve
+    if want > spare then want = spare end
+    if ceiling and want > ceiling then want = ceiling end
+    if want < 1 then want = 1 end
+    return want
+  end
+
+  local howmany, processors = heat.workers(settings)
+  t.ok(processors >= 1, "the machine says how many processors it has", processors)
+  t.ok(howmany >= 1, "and at least one worker is run")
+  t.ok(howmany <= processors, "never more workers than processors")
+  t.ok(howmany <= settings.batch.max_workers,
+       "and never past the outright ceiling")
+  if processors > 2 then
+    t.ok(howmany < processors,
+         "a run does not take the whole machine",
+         howmany .. " of " .. processors)
+  end
+  t.same(howmany, workers_for(processors, settings.batch.share,
+                              settings.batch.reserve, settings.batch.max_workers),
+         "the count follows the share, the reserve and the ceiling")
+
+  -- A single-core machine still gets a worker rather than none.
+  t.same(workers_for(1, 0.45, 1, 6), 1, "a one-core machine still runs one worker")
+  t.same(workers_for(2, 0.45, 1, 6), 1, "and so does a two-core one")
+
+  -- Resting has to actually stop the process. A pause implemented by looping
+  -- until the clock moves would be a way of avoiding heat by making it.
+  local before = os.time()
+  local spun = 0
+  local started = os.clock()
+  heat.rest(0.30)
+  local cpu_spent = os.clock() - started
+  t.ok(cpu_spent < 0.10,
+       "resting gives the processor up rather than spinning on it",
+       string.format("%.3f seconds of processor time for a 0.30 second rest",
+                     cpu_spent))
+
+  local where = heat.source()
+  if where then
+    local degrees = heat.temperature()
+    t.ok(degrees ~= nil, "this machine reports its temperature")
+    t.ok(degrees > 5 and degrees < 130,
+         "and the reading is a plausible temperature",
+         string.format("%.1f degrees from %s", degrees, where))
+
+    local governor = heat.governor(settings)
+    t.ok(governor ~= nil, "so a governor is made")
+    for _ = 1, 3 do governor.consider() end
+    local watched = governor.report()
+    t.ok(watched.readings > 0, "which takes readings as work goes by")
+    t.note(string.format("%.0f degrees now, resting above %d, %d of %d cores",
+           degrees, settings.heat.warm, howmany, processors))
+  else
+    -- The failure worth preventing is a run that rests constantly because it is
+    -- reading nothing and treating that as hot.
+    t.same(heat.governor(settings), nil,
+           "a machine that will not say how hot it is gets no governor at all")
+    t.note("this machine does not report its temperature; runs will not pause")
+  end
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -211,6 +285,7 @@ function M.run(options)
     { "the graph", test_the_graph },
     { "the workflow", test_the_workflow },
     { "making one", test_making_one },
+    { "the heat governor", test_the_heat_governor },
   }
   local all_passed = true
   for _, group in ipairs(groups) do

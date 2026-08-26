@@ -112,8 +112,31 @@ return {
 
   -- {{{ batch -- generating the whole set (303)
   batch = {
-    workers = 0,          -- 0 means ask the machine how many processors it has
+    workers = 0,          -- 0 means work it out from the processor count below
+    -- What share of the machine a run is allowed to take. Measured rather
+    -- than guessed: at every core this processor reaches the top of its
+    -- thermal range within seconds, and the last few cores are the ones that
+    -- cost the most heat for the least speed.
+    share = 0.45,
+    reserve = 1,          -- and at least this many cores left alone regardless
+    max_workers = 6,      -- an outright ceiling, whatever the machine has
+    nice = 10,            -- how far down the queue the workers wait
     out_dir = "tmp/shared-memory/sets",
+  },
+  -- }}}
+
+  -- {{{ heat -- resting when the processor is climbing (307)
+  --
+  -- Degrees. A duty cycle is the one thing that lowers sustained temperature
+  -- rather than moving it around: a busy core is a busy core, but brief regular
+  -- idleness lets a chip shed what it has built up.
+  heat = {
+    warm = 58,            -- above this the run starts pausing between characters
+    hot = 72,             -- by here the pauses are as long as they get
+    rest_warm = 0.06,     -- seconds of rest at the warm mark
+    rest_hot = 0.55,      -- and at the hot one; in between, proportional
+    ceiling = 2.5,        -- how far past the hot rest it may go if still climbing
+    check_every = 1,      -- characters between readings
   },
   -- }}}
 }

@@ -32,4 +32,5 @@ what a person reads before opening the source.
 | `test_the_graph(t)` |  |
 | `test_the_workflow(t)` |  |
 | `test_making_one(t)` |  |
+| `test_the_heat_governor(t)` |  |
 | `main(argv)` |  |

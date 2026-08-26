@@ -13,10 +13,11 @@ the difference between a demonstration and a learning material.
 |---|---|---|
 | `301` | The shape of a ComfyUI graph | **completed** — a catalogue of a dozen node types, and both formats checked against each other |
 | `302` | The workflow for one kanji | **completed** — thirteen nodes, two files, and a card holding every decision |
-| `303` | The whole alphabet at once | not started |
+| `303` | The whole alphabet at once | **completed** — every character, in parallel, with a report that found ten real gaps on its first run |
 | `304` | A gallery you can page through | not started |
 | `305` | The documentation as a website | not started |
 | `306` | The demos, and the thing that runs them | not started |
+| `307` | Slow down when the machine runs hot | **completed** — a share of the machine, politely asked for, resting when it climbs |
 
 ## Where the risk is
 
@@ -51,3 +52,25 @@ array and said so.
 
 It had also been rebuilding the record store once per module, which nobody had
 noticed because the store caches to disk.
+
+## What `303` turned up
+
+**The report paid for itself on its first real run.** Ten of the five hundred
+commonest characters could not be made at all, and the cause was one thing wearing
+three faces: a meaning-bearing piece with no entry. Three characters shared the
+jade radical. Three more failed on a left-hand form of the bank radical that has
+a **different Unicode number** from the form that stands alone and is visually
+identical — the lists held one of the two, and no amount of staring at the file
+would have shown it.
+
+## What `307` turned up
+
+**A cost nobody in this project had thought about at all.** Every design note
+here weighs correctness against clarity and none of them weighed anything
+against the machine the work runs on. Asking for every processor is the obvious
+thing to do and it held the chip at the top of its thermal range for the length
+of a run, while leaving nothing for the person at the keyboard.
+
+The fix that mattered was not a smaller number. It was reading the temperature
+and resting when it climbs — the machine already reports it, as a file, and
+nothing had ever asked.
