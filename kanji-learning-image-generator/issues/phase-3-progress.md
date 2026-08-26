@@ -14,8 +14,8 @@ the difference between a demonstration and a learning material.
 | `301` | The shape of a ComfyUI graph | **completed** — a catalogue of a dozen node types, and both formats checked against each other |
 | `302` | The workflow for one kanji | **completed** — thirteen nodes, two files, and a card holding every decision |
 | `303` | The whole alphabet at once | **completed** — every character, in parallel, with a report that found ten real gaps on its first run |
-| `304` | A gallery you can page through | not started |
-| `305` | The documentation as a website | not started |
+| `304` | A gallery you can page through | **completed** — thumbnails first, because thumbnail is where the illusion has to work |
+| `305` | The documentation as a website | **completed** — every reference a link, and the build fails if one does not resolve |
 | `306` | The demos, and the thing that runs them | not started |
 | `307` | Slow down when the machine runs hot | **completed** — a share of the machine, politely asked for, resting when it climbs |
 

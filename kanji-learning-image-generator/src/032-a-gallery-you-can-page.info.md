@@ -60,4 +60,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `033-the-documentation-site`.
+Used by `033-the-documentation-site`, `035-test-the-machine`.

@@ -278,6 +278,64 @@ local function test_the_heat_governor(t)
 end
 -- }}}
 
+-- {{{ test_the_two_sites(t)
+local function test_the_two_sites(t)
+  local gallery = project.load("032-a-gallery-you-can-page")
+  local site = project.load("033-the-documentation-site")
+  local one = project.load("030-make-one-kanji")
+  local store = project.load("019-the-kanji-record").store()
+  local settings = project.settings()
+
+  -- A small real set rather than a fixture, because the gallery reads what a
+  -- run wrote and a fixture would be a second opinion about that format.
+  local out = project.scratch("test-gallery")
+  os.execute('rm -rf "' .. out .. '"')
+  for _, character in ipairs({ "\230\156\168", "\229\183\157", "\228\188\145" }) do
+    one.make(store.records[character], store, settings, { out = out })
+  end
+
+  local made = gallery.build(out, { per_page = 2 })
+  t.same(made.characters, 3, "the gallery finds every character in the set")
+  t.same(made.pages, 2, "and pages them as asked")
+  t.same(#made.broken, 0, "with no folder missing its card")
+  t.ok(project.exists(out .. "/index.html"), "there is an index")
+  t.ok(project.exists(out .. "/page-001.html"), "and a page")
+
+  local index = project.read_file(out .. "/index.html")
+  t.ok(index:find("field%-thumb%.png") ~= nil,
+       "the index shows the thumbnail, which is the size the illusion works at")
+  t.ok(index:find("<style>", 1, true) ~= nil,
+       "and carries its own style, so it works from a filesystem with no server")
+  t.ok(index:find("http://") == nil and index:find("https://") == nil,
+       "and fetches nothing from anywhere")
+
+  local page = project.read_file(out .. "/page-001.html")
+  t.ok(page:find("workflow%.ui%.json") ~= nil, "a page links to its workflows")
+  t.ok(page:find("refused", 1, true) ~= nil, "and shows what every prompt refuses")
+
+  -- A folder with no card must show as a visible gap, not vanish. A gallery
+  -- quietly short of the set it claims to show is worse than one with a hole in
+  -- it, because the hole is at least visible.
+  os.execute('mkdir -p "' .. out .. '/0FFFF-x"')
+  local gapped = gallery.build(out, { per_page = 10 })
+  t.same(#gapped.broken, 1, "a folder with no card is counted")
+  local said = project.read_file(out .. "/index.html")
+  t.ok(said:find("have no card", 1, true) ~= nil, "and named on the page")
+  os.execute('rm -rf "' .. out .. '"')
+
+  -- The documentation site. Its own check is that every link it emits resolves;
+  -- a site full of dead links is worse than the markdown it came from, because
+  -- markdown never promised the link worked.
+  local built = site.build({ no_figures = true })
+  t.ok(built.pages > 20, "the site covers the documents, tickets and source pages",
+       built.pages .. " pages")
+  t.ok(built.links > 50, "with a good many cross-references", built.links)
+  t.same(#built.broken, 0, "and every one of them resolves",
+         built.broken[1])
+  t.note(built.pages .. " pages, " .. built.links .. " links, none broken")
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -286,6 +344,7 @@ function M.run(options)
     { "the workflow", test_the_workflow },
     { "making one", test_making_one },
     { "the heat governor", test_the_heat_governor },
+    { "the two sites", test_the_two_sites },
   }
   local all_passed = true
   for _, group in ipairs(groups) do
