@@ -6,7 +6,7 @@
 | Blocked by | 412, 411 |
 | Blocks | 703 |
 | Reads | [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md) |
-| Open questions | F30 — the resource kinds this stakes |
+| Open questions | none |
 
 ## Current behavior
 

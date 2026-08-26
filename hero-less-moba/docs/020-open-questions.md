@@ -3039,7 +3039,7 @@ ownership.
 
 **Changed:** [009](009-the-shared-upgrade-pool.md) (extensively), [001](001-what-this-game-is.md)'s premise and vocabulary, [016](016-players-teams-and-commands.md)'s verb table gains `offer_upgrade`, [017](017-the-viewing-layer.md), issues 402, 403, 404, 406, 407, 411, 703, 704, 903.
 
-## F30. Is resource one number or many? — **OPEN, but with structure now**
+## F30. Is resource one number or many? — **ANSWERED**
 
 From [vision 3](../notes/vision-3), plus two mechanics that arrived after it and
 gave it a shape. Still open because it rewrites the second economy, but no longer
@@ -3113,9 +3113,26 @@ cheaper than others.
 - **"Mechanically it is one number"** — the first vision's own words about
   personal resource, and A2's answer, and all of
   [commanders and personal resource](011-commanders-and-personal-resource.md).
-- **The ceiling is per colour.** *Settled.* A16 gave the wallet one ceiling and
-  made overflow the pressure; there are now as many ceilings as there are
-  colours, each filling and overflowing on its own.
+- **The ceiling is per colour, and it is five.** *Settled.* A16 gave the wallet
+  one ceiling and made overflow the pressure; there are now as many ceilings as
+  there are colours, each filling and overflowing on its own — **and each one
+  tops out at five points, which is exactly one d12.**
+
+  So the cap is not a separate number somebody has to pick. **It is the top of
+  the die ladder**, and the whole wallet is describable in one line: as many
+  colours as there are attribute scores, five points each, spendable in any
+  partition up to a d12. Three colours means a maximum wallet of fifteen points,
+  which is small enough to draw and small enough to hold in your head.
+
+  That also makes the ladder do double duty. It was a spending rule — how points
+  become dice — and it is now the **shape of the wallet itself**, so a player who
+  understands one understands the other. Nothing else has to be explained.
+
+  The interaction with A16b is worth naming: **the ceiling rises across a match**,
+  which now means it climbs *the ladder* — a colour that starts capped at two
+  points can hold a d6 and no more, and by the endgame holds a d12. So a raise is
+  not an abstract number going up, it is **a bigger die becoming possible**, and
+  a player can see exactly what a calm bought them.
 
   That is the answer that makes the rest of the system mean anything.
   **Overflowing in blue while starving in red is a situation**, where overflowing
@@ -3659,49 +3676,66 @@ numbers.
 
 **Changed:** [011](011-commanders-and-personal-resource.md), [009](009-the-shared-upgrade-pool.md), issues 411, 413, 503, and F30, which this fills in.
 
-## F40. Are the healers wave units or heroes? — **OPEN**
+## F40. Are the healers wave units or heroes? — **ANSWERED**
 
-The five healers arrived without saying which side of that line they sit on, and
-the two answers make very different games.
+**Answer: wave units. So are captains. The commander decides which.**
 
-**The evidence points both ways.** The paladin commander's composition is *"more
-strong knights, priests in the back, and bowmen"* — priests listed alongside
-knights and bowmen, which are plainly wave units, in a description of what a wave
-contains. But the same commander's **heroes** are *"paladins and white dragons
-with lightning"*, and a paladin is on the healer list too.
+Healing is not a purchase. It arrives with the wave, in the ordinary way, and
+dies in the ordinary way — which means a lane that is being sustained is being
+sustained by bodies the enemy can kill, and killing them is how you stop it.
 
-So at least one archetype appears on both sides, which suggests the honest answer
-is **both, and not the same one twice**.
+### What a commander actually determines
 
-### What changes depending on the answer
+Everything about what walks out, and **none of it is a stat block**:
 
-**As wave units** they arrive with every wave, in numbers, and die constantly.
-Healing becomes ambient — a property of a lane rather than an event in it — and
-the positional rules in
-[standing off and falling back](022-standing-off-and-falling-back.md) do all the
-work, because nobody is steering them. It also means **a commander's composition
-decides how much its waves mend themselves**, which is a real axis between
-commanders and costs nothing to add.
+| | Set by the commander |
+| --- | --- |
+| **The captain** | which one — its signature body |
+| **The composition** | what proportion of the wave is melee and what is ranged |
+| **The bounty dice** | which colours its bodies carry, and therefore what killing them pays |
 
-**As heroes** they are bought, rare, and permanent until killed, and they carry
-abilities from the dispatch table. The moon spike is plainly a hero's ability
-rather than a wave unit's. And a hero healer is a purchase that makes everything
-else on the field last longer, which is a genuinely different kind of buy from
-anything currently on a roster.
+**And the melee and ranged bodies themselves are always the same stats**, for
+every commander, buffed by whatever is placed in their lane. A knight and a
+barbarian are one body wearing two costumes, and so are a bowman and a goblin
+archer.
 
-**The likely shape**, and it needs confirming rather than assuming: a **priest**
-is a wave unit — the back rank of a composition, unremarkable individually. A
-**paladin**, **druid**, **curse-doctor** and **rain shaman** are heroes, bought,
-each with a signature. The word "priest" doing ordinary work while the named ones
-do extraordinary work is how the rest of this design already reads.
+That is a much larger simplification than it looks and it is the right one. It
+means a commander is **a mixture and a captain**, not a private unit catalogue —
+so adding a commander is choosing proportions, colours, and one signature body,
+rather than balancing three new stat blocks against everything that exists.
 
-### And one thing that has to be decided either way
+**It also corrects something written down two entries ago.** *"Goblin archers —
+many attacks, little damage"* was read as the first statement in the project that
+two ranged bodies could differ in **how** they shoot, and that reading is now
+wrong: the goblin archer is the standard ranged body. The phrase describes how it
+*looks*, not what it does. Attack cooldown as a differentiator between wave units
+is off the table; it remains available to captains and heroes.
 
-**Wave units carry their lane's upgrades and heroes carry none.** So a priest that
-is a wave unit gets stronger as a lane accumulates, and a paladin that is a hero
-does not, ever — which means the same heal, from two archetypes, scales
-completely differently over a match. That is either a good reason to split them
-across the line deliberately, or a trap. It is worth choosing on purpose.
+### The captain is the signature
+
+**Each commander has a different captain**, and it is where the commander's
+character lives. The paladin commander's captain is a **priest**. The savage
+noble's is a **hobgoblin captain**.
+
+So a captain is not always a healer — but several of the healers are captains,
+which is what makes healing a property of *who you brought* rather than a role
+somebody fills. A team of three commanders fields three different captains, in
+rotation, and therefore three different kinds of support, none of which anybody
+chose to buy.
+
+**Which resolves the trap this entry was worried about.** Wave units carry their
+lane's upgrades and heroes carry none — so if healers had been heroes, a heal
+would never scale while everything around it did. As wave units, **a healer gets
+stronger exactly as the lane it walks in does**, which is the same rule as
+everything else and needs no exception.
+
+### And some of the named units are still heroes
+
+Paladins, white dragons with lightning, severage destroyers, spiked mammoths.
+Those are bought, they carry abilities, and they carry no lane upgrades. The
+druid's moon spike sits with them.
+
+**Changed:** [004](004-a-unit-and-what-it-carries.md), [005](005-waves-and-when-one-is-finished.md), [011](011-commanders-and-personal-resource.md), [022](022-standing-off-and-falling-back.md), issues 501, 509, 510, and F27, which described commander composition before this narrowed it.
 ---
 
 ## How this list is meant to be used
