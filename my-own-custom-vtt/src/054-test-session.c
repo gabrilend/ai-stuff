@@ -14,6 +14,9 @@
 #include "037-fixture.h"
 #include "035-worldfile.h"
 #include "033-validate.h"
+#include "085-sprite-pool.h"
+
+#include <string.h>
 
 #define M(n) ((wcoord)((n) * WC_ONE))
 
@@ -471,6 +474,116 @@ static void test_the_world_survives_it_all(void)
 }
 /* }}} */
 
+/*
+ * Somebody at the table says "that goblin is wrong" without stopping play.
+ *
+ * Two things are being checked and the second is the load-bearing one.
+ *
+ * That the opinion lands in the library at all -- which is what makes
+ * judge-then-curate a tabletop idea rather than a gallery one, since a rating
+ * that requires quitting and opening another program is a rating nobody makes in
+ * the middle of a fight.
+ *
+ * And that THE WORLD DOES NOT MOVE. Not a coordinate, not a hash, not a beat. A
+ * command that arrives mid-turn and changes the world would have to be rolled
+ * back with it, replayed with it, and compared with it -- and this one has
+ * nothing to do with any of that, which is exactly why it is safe to allow while
+ * the fight is still going.
+ */
+/* {{{ static void test_a_sprite_is_retiered_mid_session */
+static void test_a_sprite_is_retiered_mid_session(void)
+{
+    struct world w;
+    struct pool *threads = pool_start(1);
+    struct sprite_pool library;
+    struct session s;
+    uint32_t goblin;
+    uint64_t hash_before;
+    uint64_t tick_before;
+    uint32_t entry;
+    uint16_t answer;
+
+    TEST_CASE("a sprite is re-tiered from a running session");
+
+    CHECK_EQ(fixture_make_two_rooms(&w), 1);
+    goblin = add_body(&w, M(3), M(3));
+
+    /* It is wearing something, which is what the generator would have given it
+     * and what a hand-built fixture has to be told. */
+    world_thing(&w, goblin)->sprite_category =
+        string_pool_add(&w.strings, "goblin", 6);
+    world_thing(&w, goblin)->sprite_seed = 4242;
+
+    CHECK_EQ(session_start(&s, &w, threads, 12345, 8, 10), 1);
+    CHECK_EQ(pool_init(&library, POOL_JUDGE_THEN_CURATE), 1);
+
+    session_attach_sprites(&s, &library);
+
+    hash_before = world_hash(&w);
+    tick_before = s.sim.tick;
+
+    answer = session_command(&s, VERB_RETIER, goblin, 2, 0);
+    CHECK_EQ(answer, REFUSED_NOT_AT_ALL);
+
+    /* The opinion is in the library, marked as a person's. */
+    entry = pool_find(&library, "goblin", 4242);
+    CHECK(entry != POOL_NOTHING);
+    CHECK_EQ(pool_tier(&library, entry), 2);
+    CHECK_EQ(pool_tier_provenance(&library, entry), RATED_BY_PERSON);
+
+    /*
+     * WHO rated it is a seat, not a display name. A name is display-only
+     * everywhere in this project, and a library that outlives the session must
+     * not be keyed on something somebody can change between one evening and the
+     * next.
+     */
+    CHECK(strcmp(pool_at(&library, entry)->person_name, "the-table") == 0);
+
+    /* And nothing whatsoever moved. */
+    CHECK_EQ(world_hash(&w), hash_before);
+    CHECK_EQ(s.sim.tick, tick_before);
+
+    /* Play carries on from exactly where it was. */
+    session_tick(&s);
+    CHECK_EQ(s.sim.tick, tick_before + 1);
+
+    TEST_CASE("a re-tier that cannot be honoured is refused by name");
+
+    /* A tier off the scale is refused rather than clamped -- a client with a
+     * ten-point scale is told so instead of having its nine become a five. */
+    CHECK_EQ(session_command(&s, VERB_RETIER, goblin, 9, 0), REFUSED_NOT_A_TIER);
+    CHECK_EQ(session_command(&s, VERB_RETIER, goblin, 0, 0), REFUSED_NOT_A_TIER);
+    CHECK_EQ(pool_tier(&library, entry), 2);
+
+    /* Something wearing no picture has nothing to have an opinion of. */
+    {
+        uint32_t bare = add_body(&w, M(4), M(4));
+
+        sim_fit_to_world(&s.sim);
+        CHECK_EQ(session_command(&s, VERB_RETIER, bare, 3, 0),
+                 REFUSED_WEARS_NOTHING);
+    }
+
+    /* And nothing at all is still nothing. */
+    CHECK_EQ(session_command(&s, VERB_RETIER, 0, 3, 0), REFUSED_SUBJECT_IS_NOTHING);
+
+    TEST_CASE("with no library attached, the refusal says so");
+
+    session_attach_sprites(&s, NULL);
+    CHECK_EQ(session_command(&s, VERB_RETIER, goblin, 3, 0), REFUSED_NO_LIBRARY);
+
+    /* A refusal is a sentence, always. */
+    CHECK(strstr(refusal_sentence(REFUSED_NO_LIBRARY), "library") != NULL);
+    CHECK(strstr(refusal_sentence(REFUSED_NOT_A_TIER), "1 to 5") != NULL);
+    CHECK(strstr(refusal_sentence(REFUSED_WEARS_NOTHING), "picture") != NULL);
+
+    pool_release(&library);
+    session_release(&s);
+    world_release(&w);
+    pool_stop(threads);
+}
+/* }}} */
+
 /* {{{ int main */
 int main(void)
 {
@@ -483,6 +596,7 @@ int main(void)
     test_the_ring_is_finite();
     test_fog_rolls_back_too();
     test_the_world_survives_it_all();
+    test_a_sprite_is_retiered_mid_session();
 
     return vtt_test_finish("054-test-session");
 }

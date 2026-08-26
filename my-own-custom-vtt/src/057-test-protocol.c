@@ -377,6 +377,52 @@ static void test_the_leak_tests_instrument(void)
 }
 /* }}} */
 
+/*
+ * Every verb has a shape on the wire.
+ *
+ * This exists because of a crash. The inbound table is declared with VERB_COUNT
+ * rows and filled by hand, so adding a verb to the command list without adding a
+ * row here leaves a row of zeroes with a null name -- and the first thing to ask
+ * that row for its name walks into it.
+ *
+ * The crash was found by a test, which is the system working. But a segmentation
+ * fault is a symptom and a sentence naming the verb with no wire shape is a
+ * diagnosis, and the difference between them is an afternoon.
+ */
+/* {{{ static void test_every_verb_has_a_wire_shape */
+static void test_every_verb_has_a_wire_shape(void)
+{
+    uint8_t verb;
+
+    TEST_CASE("a verb with no shape on the wire is named, not crashed into");
+
+    for (verb = 1; verb < VERB_COUNT; verb++) {
+        const char *name = opcode_name(verb);
+
+        if (name == NULL) {
+            fprintf(stderr,
+                    "    verb %u (%s) has no row in the inbound table\n",
+                    (unsigned)verb, verb_name(verb));
+            CHECK(0);
+            continue;
+        }
+
+        CHECK(name[0] != '\0');
+
+        /* And it carries at least one value, or it is a command that says
+         * nothing -- every verb this project has names a subject. */
+        CHECK(opcode_slot_count(verb) >= 1);
+
+        /*
+         * The wire name and the command name are the same word. Two tables that
+         * disagree about what a verb is called is how a log and a protocol dump
+         * come to describe different sessions.
+         */
+        CHECK(strcmp(name, verb_name(verb)) == 0);
+    }
+}
+/* }}} */
+
 /* {{{ int main */
 int main(void)
 {
@@ -388,6 +434,7 @@ int main(void)
     test_flags_are_positional();
     test_server_instructions();
     test_the_leak_tests_instrument();
+    test_every_verb_has_a_wire_shape();
 
     return vtt_test_finish("057-test-protocol");
 }

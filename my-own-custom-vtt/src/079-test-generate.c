@@ -455,6 +455,133 @@ static void test_the_graph_questions(void)
 }
 /* }}} */
 
+/*
+ * Everything placed wears a picture, and two things of one kind wear different
+ * ones.
+ *
+ * The second half is the point. A generated appearance layer whose goblins are
+ * all the same goblin is a picture file with extra steps, and the only thing
+ * that makes them differ is a seed per thing rather than a seed per kind.
+ */
+/* {{{ static void test_everything_placed_wears_a_picture */
+static void test_everything_placed_wears_a_picture(void)
+{
+    struct world w;
+    struct layout l;
+    const char *why = "";
+    uint32_t seeds_seen[64];
+    uint32_t distinct = 0;
+    uint32_t of_one_kind = 0;
+    uint32_t i;
+
+    TEST_CASE("generated things wear pictures, and not all the same one");
+
+    CHECK_EQ(build_from(&w,
+        "name = the old inn\n"
+        "rooms = 8\n"
+        "smallest = 5\n"
+        "largest = 9\n"
+        "loops = 1\n"
+        "lights = 4\n", 90210, &l, &why), 1);
+
+    for (i = 1; i < world_thing_count(&w); i++) {
+        const struct thing *t = world_thing_const(&w, i);
+        uint32_t length = 0;
+        const char *category;
+        uint32_t j;
+        int already = 0;
+
+        /* Every one of them is wearing something. A thing with no picture is a
+         * thing the renderer has nothing to draw for. */
+        CHECK(t->sprite_category != 0);
+
+        category = string_pool_read(&w.strings, t->sprite_category, &length);
+        CHECK(length > 0);
+        CHECK(category[0] != '\0');
+
+        /* With no ruleset loaded the category is the kind's number, which is a
+         * name rather than an absence -- the describe hook is optional and a
+         * world with no rules layer is a supported world. */
+        CHECK(strncmp(category, "kind-", 5) == 0);
+
+        if (t->kind != 2) {
+            continue;
+        }
+
+        of_one_kind++;
+
+        for (j = 0; j < distinct; j++) {
+            if (seeds_seen[j] == t->sprite_seed) {
+                already = 1;
+            }
+        }
+
+        if (!already && distinct < 64) {
+            seeds_seen[distinct] = t->sprite_seed;
+            distinct++;
+        }
+    }
+
+    /* Enough of one kind to be able to ask the question at all. */
+    CHECK(of_one_kind >= 3);
+
+    /* And they are not all the same picture. Not "mostly distinct" -- with
+     * 32-bit seeds from a decent generator, any repeat inside a handful is
+     * either a collision worth investigating or a seed shared by construction,
+     * and the second is the bug this is looking for. */
+    CHECK_EQ(distinct, of_one_kind);
+
+    world_release(&w);
+}
+/* }}} */
+
+/*
+ * The same description and seed dress the same way, and a dungeon written out
+ * and read back is still wearing what it was.
+ */
+/* {{{ static void test_the_dressing_is_part_of_the_seed */
+static void test_the_dressing_is_part_of_the_seed(void)
+{
+    struct world first;
+    struct world again;
+    struct layout l;
+    const char *why = "";
+    const char *text =
+        "name = the deep place\n"
+        "rooms = 6\n"
+        "smallest = 4\n"
+        "largest = 8\n"
+        "lights = 3\n";
+    uint32_t i;
+
+    TEST_CASE("the same seed dresses the same way");
+
+    CHECK_EQ(build_from(&first, text, 777, &l, &why), 1);
+    CHECK_EQ(build_from(&again, text, 777, &l, &why), 1);
+
+    CHECK_EQ(world_thing_count(&first), world_thing_count(&again));
+
+    for (i = 1; i < world_thing_count(&first); i++) {
+        CHECK_EQ(world_thing_const(&first, i)->sprite_seed,
+                 world_thing_const(&again, i)->sprite_seed);
+        CHECK_EQ(world_thing_const(&first, i)->sprite_category,
+                 world_thing_const(&again, i)->sprite_category);
+    }
+
+    /* And it is part of the world hash, so a difference in what anybody is
+     * wearing is a difference the determinism harness would report. */
+    CHECK_EQ(world_hash(&first), world_hash(&again));
+
+    world_release(&again);
+
+    CHECK_EQ(build_from(&again, text, 778, &l, &why), 1);
+    CHECK(world_hash(&first) != world_hash(&again));
+
+    world_release(&first);
+    world_release(&again);
+}
+/* }}} */
+
 /* {{{ int main */
 int main(void)
 {
@@ -465,6 +592,8 @@ int main(void)
     test_sealing_a_doorway_is_caught();
     test_impossible_descriptions_are_refused();
     test_the_graph_questions();
+    test_everything_placed_wears_a_picture();
+    test_the_dressing_is_part_of_the_seed();
 
     return vtt_test_finish("079-test-generate");
 }

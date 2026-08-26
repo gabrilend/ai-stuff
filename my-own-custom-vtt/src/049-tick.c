@@ -43,6 +43,13 @@ const struct tick_pass *sim_passes(uint32_t *count)
 }
 /* }}} */
 
+/* {{{ void sim_attach_sprites */
+void sim_attach_sprites(struct sim *s, void *sprites)
+{
+    s->sprites = sprites;
+}
+/* }}} */
+
 /* {{{ int sim_fit_to_world */
 int sim_fit_to_world(struct sim *s)
 {

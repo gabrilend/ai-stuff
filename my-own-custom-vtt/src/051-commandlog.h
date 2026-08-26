@@ -39,7 +39,24 @@
 #define VERB_ORDER_FACE  3u   /* Look at a point. */
 #define VERB_ORDER_STOP  4u   /* Cancel standing orders. */
 #define VERB_GIVE_SCOPE  5u   /* Hand a scope to somebody else. */
-#define VERB_COUNT       6u
+/*
+ * Say what you think of the picture a thing is wearing.
+ *
+ * IT CHANGES NOTHING IN THE WORLD, which is what makes it safe to send in the
+ * middle of a turn -- no position moves, no hash shifts, no replay diverges. It
+ * still runs the whole gauntlet, because who may re-tier a shared library is a
+ * permission question like any other.
+ *
+ * `subject` is the thing being looked at; `ax` is the tier, 1 to 5.
+ *
+ * This is what makes judge-then-curate a TABLETOP idea rather than a gallery
+ * one. A sprite judged in a gallery is judged as a picture; the same sprite
+ * judged mid-session is judged on whether it read as a goblin at the moment it
+ * needed to, at that size, in that light, next to those other things. That is a
+ * better question and it can only be asked while playing.
+ */
+#define VERB_RETIER      6u
+#define VERB_COUNT       7u
 
 /* Why a command was refused. Every refusal is a sentence, not a number. */
 #define REFUSED_NOT_AT_ALL       0u
@@ -57,7 +74,13 @@
  * opinions by the back door.
  */
 #define REFUSED_BY_THE_RULES       8u
-#define REFUSED_COUNT              9u
+/* Re-tiering needs a library to write into, and none is attached. */
+#define REFUSED_NO_LIBRARY         9u
+/* A tier is 1 to 5. Anything else is a caller with a different scale in mind. */
+#define REFUSED_NOT_A_TIER        10u
+/* The thing is not wearing a picture, so there is nothing to have an opinion of. */
+#define REFUSED_WEARS_NOTHING     11u
+#define REFUSED_COUNT             12u
 
 struct log_entry {
     uint64_t tick;

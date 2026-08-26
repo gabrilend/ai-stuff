@@ -404,12 +404,185 @@ static void test_hash_notices_everything(void)
 }
 /* }}} */
 
+/*
+ * A file written before things wore sprites still loads.
+ *
+ * Built by taking a current file apart rather than by keeping an old one around:
+ * a fixture file in the repository would drift out of date the moment anything
+ * else about the format changed, and then this test would be proving that an
+ * ancient artifact still parses rather than that the LADDER works.
+ *
+ * The two sprite words are cut out of every thing record and the version is set
+ * back to 2, which is exactly what a version 2 file is.
+ */
+/* {{{ static void test_a_version_two_file_still_loads */
+static void test_a_version_two_file_still_loads(void)
+{
+    /* Where the things begin: magic, version, scale, eight counts, the extent,
+     * the tick, the seed, the hash, and the origin. */
+    const uint32_t things_begin = 12u + 32u + 16u + 8u + 8u + 8u + 64u;
+
+    /* A version 3 thing is twelve words; the two sprite words sit after the
+     * first seven. */
+    const uint32_t thing_bytes_v3 = 12u * 4u;
+    const uint32_t sprite_at = 7u * 4u;
+
+    struct world made;
+    struct world loaded;
+    struct worldfile_error error;
+    const char *path = SCRATCH_DIR "/version-two.world";
+    unsigned char *bytes;
+    long length;
+    uint32_t thing_count;
+    uint32_t i;
+    FILE *f;
+
+    TEST_CASE("a file from before things wore sprites still loads");
+
+    CHECK_EQ(world_init(&made, 8, 8, 8, 8, 8, 256), 1);
+
+    {
+        uint32_t one = world_add_thing(&made);
+        struct thing *t = world_thing(&made, one);
+
+        t->x = M(3);
+        t->y = M(4);
+        t->kind = 7;
+        t->radius = 500;
+        t->sprite_category = 11;
+        t->sprite_seed = 4242;
+    }
+
+    made.min_x = M(-10);
+    made.min_y = M(-10);
+    made.max_x = M(10);
+    made.max_y = M(10);
+
+    f = fopen(path, "wb");
+    CHECK(f != NULL);
+    if (f == NULL) {
+        world_release(&made);
+        return;
+    }
+    CHECK_EQ(worldfile_write(&made, f, &error), 1);
+    fclose(f);
+
+    thing_count = world_thing_count(&made);
+
+    /* Read it back as bytes and cut the sprite words out of every thing. */
+    f = fopen(path, "rb");
+    CHECK(f != NULL);
+    if (f == NULL) {
+        world_release(&made);
+        return;
+    }
+
+    fseek(f, 0, SEEK_END);
+    length = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    bytes = (unsigned char *)malloc((size_t)length);
+    CHECK(bytes != NULL);
+    if (bytes == NULL) {
+        fclose(f);
+        world_release(&made);
+        return;
+    }
+
+    CHECK_EQ(fread(bytes, 1, (size_t)length, f), (size_t)length);
+    fclose(f);
+
+    /* Backwards, so that removing one record does not move the next one's
+     * offset out from under the loop. */
+    for (i = thing_count; i > 0; i--) {
+        uint32_t cut_at = things_begin + (i - 1u) * thing_bytes_v3 + sprite_at;
+        uint32_t after = cut_at + 8u;
+
+        memmove(bytes + cut_at, bytes + after, (size_t)length - after);
+        length -= 8;
+    }
+
+    /* And it is a version 2 file. */
+    bytes[4] = 2;
+
+    f = fopen(path, "wb");
+    CHECK(f != NULL);
+    if (f != NULL) {
+        fwrite(bytes, 1, (size_t)length, f);
+        fclose(f);
+    }
+    free(bytes);
+
+    CHECK_EQ(world_init(&loaded, 8, 8, 8, 8, 8, 256), 1);
+
+    f = fopen(path, "rb");
+    CHECK(f != NULL);
+    if (f == NULL) {
+        world_release(&made);
+        world_release(&loaded);
+        return;
+    }
+
+    if (!worldfile_read(&loaded, f, &error)) {
+        char sentence[256];
+
+        fprintf(stderr, "    a version 2 file was refused: %s\n",
+                worldfile_error_describe(&error, sentence, sizeof(sentence)));
+        CHECK(0);
+    }
+    fclose(f);
+
+    /* Everything that existed in version 2 came back. */
+    CHECK_EQ(world_thing_count(&loaded), thing_count);
+    CHECK_EQ(world_thing(&loaded, 1)->x, M(3));
+    CHECK_EQ(world_thing(&loaded, 1)->kind, 7);
+    CHECK_EQ(world_thing(&loaded, 1)->radius, 500);
+
+    /* And what did not exist reads as nothing, rather than as whatever the next
+     * record's first word happened to be -- which is what a reader that did not
+     * know about the version would have produced. */
+    CHECK_EQ(world_thing(&loaded, 1)->sprite_category, 0);
+    CHECK_EQ(world_thing(&loaded, 1)->sprite_seed, 0);
+
+    /* The world knows it was migrated, so a caller can say that its checksum
+     * was not verified rather than letting a skipped check pass unmentioned. */
+    CHECK_EQ(loaded.migrated_from, 2);
+
+    /* A current file is not marked as migrated. */
+    {
+        struct world current;
+
+        CHECK_EQ(world_init(&current, 8, 8, 8, 8, 8, 256), 1);
+
+        f = fopen(SCRATCH_DIR "/version-three.world", "wb");
+        if (f != NULL) {
+            worldfile_write(&made, f, &error);
+            fclose(f);
+
+            f = fopen(SCRATCH_DIR "/version-three.world", "rb");
+            if (f != NULL) {
+                CHECK_EQ(worldfile_read(&current, f, &error), 1);
+                fclose(f);
+                CHECK_EQ(current.migrated_from, 0);
+                CHECK_EQ(world_thing(&current, 1)->sprite_seed, 4242);
+            }
+        }
+
+        world_release(&current);
+    }
+
+    world_release(&made);
+    world_release(&loaded);
+}
+/* }}} */
+
 /* {{{ int main */
 int main(void)
 {
     test_round_trip();
     test_refusals();
     test_hash_notices_everything();
+    test_a_version_two_file_still_loads();
 
     return vtt_test_finish("036-test-worldfile");
 }
