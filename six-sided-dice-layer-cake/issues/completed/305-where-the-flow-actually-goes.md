@@ -14,34 +14,69 @@ the convection coefficient does not depend on velocity, so halving the flow does
 not halve the cooling -- it doubles only the coolant's own rise, which is a fifth
 of the chain. `027` builds its pump redundancy on that.
 
-## What is not done
+## What was missing, and how it was closed
 
-**The network is not solved and the ticket asked for it to be.** The worst-served
-fraction is a `target`, and the checker reports it as unfinished on every run.
-Until it is solved the junction temperature in `025` rests on an estimate. **This
-is the largest unfinished piece in the phase**, and it is blocked twice over.
+**The network is solved.** `102` builds it from `304`'s assignment and runs it,
+and the worst-served fraction is a `solved` value that the checker recomputes on
+every pass rather than a `target` nobody could produce.
 
-**Blocked on a topology.** `304` has not enumerated which rail feeds which face,
-so there is no network to solve even with a solver. Both tickets want the same
-thing: a program holding the cube's eight corners, twelve edges and six faces as
-data, rather than as prose in `010` and counts in `023`.
+**It is bigger than this ticket estimated.** Twenty branches across eight nodes
+was the guess, and it was the cube's own edges and corners rather than its
+plumbing. The real object is **fifty branches across twenty-nine nodes**: supply
+and return are separate networks that happen to share a geometry, every rail
+carrying a plenum is two rails with a tap between them, and the corner blocks are
+branches rather than junctions.
 
-**Blocked on somewhere to put the answer.** The notation's four kinds are a
-decision, a material property, an expression, and a goal. A solver's output is
-none of those, and writing it as a `given` would invite the reader to argue with
-it by choosing differently, and would go stale in silence the first time a rail's
-cross-section changed. `1411` adds the kind that fits and the drift check that
-keeps it honest.
+**It is not a linear solve either.** Three regimes meet in one circuit. The
+microchannel fields are laminar and lose pressure in proportion to flow. The rails
+are turbulent on Blasius and lose it as flow to the power one and three quarters.
+Every plenum entry, corner tee and rail end is a fitting and loses it as the
+square.
 
-**The solve is not linear.** The first estimate assumed it was. The microchannel
-fields are laminar, so their loss rises with the first power of flow; the rails
-are turbulent on Blasius, so theirs rises with the power one and three quarters;
-the plenum entry losses go as the square. Three exponents in one network means
-the answer comes from iterating rather than from one elimination, and the
-blueprint should say which method and how far it converged.
+**Newton's method diverged, for a reason worth keeping.** The tangent of a
+square-law branch at zero flow is zero, so its conductance there is infinite — and
+on the first pass every pressure is still equal and half the branches are carrying
+nothing, so half of them claim they will pass any flow for no pressure at all. The
+first step is enormous, the pressures go negative, and the run ends in numbers with
+forty digits. The secant has no such singularity: each pass computes the resistance
+`dp/Q` each branch would have at its current flow, solves the resulting linear
+resistor network exactly, and averages. Forty-three passes.
 
-**Part-flow behaviour is described and not plotted**, and `027` builds its pump
-redundancy on the description.
+**The worst-served face is the mean face, exactly.** `304`'s chosen assignment has
+a threefold symmetry that makes all six faces one face seen six ways, and no
+arithmetic can separate them.
+
+**So the thermal chain was moved onto the worst legal wiring instead.** Building
+the junction temperature on a perfect distribution would make the whole thermal
+budget depend on the plumbing being assembled to the drawing rather than merely to
+the rules. `025` is given `f_worst_any` — the five and a half per cent shortfall of
+the least even of the sixty-four legal arrangements. **This is the one substantive
+design change the solve caused, and it makes the design more conservative rather
+than less.**
+
+**The single path overstates the circuit by a quarter.** `dp_loop` follows one
+route from a fed corner to a drained one and charges it for two whole rails; the
+real manifold delivers to each plenum from both ends at once. Eighteen point nine
+kilopascals becomes eleven point four. The estimate was the conservative one, which
+is the right way round, and `C-024-11` is what notices if it ever inverts.
+
+**Six constraints were added.** Thirteen in `024` now, up from seven.
+
+## What is still not done
+
+**Part-flow behaviour is described and not plotted.** The claim that halving the
+flow costs about four kelvin is arithmetic anybody can do, and `027` builds its
+pump redundancy on it, so it should be a curve. `102` could produce it by solving
+at a sweep of flows, which is a loop around something that already exists.
+
+**No channel is ever blocked in this model.** `T2` in `009` asks how many of the
+hundred and seventy-three channels in a field can stop before the face overheats.
+Removing channels from one face's branch and re-solving is the experiment, and
+`102` is now the place to run it.
+
+**The pump curve is not overlaid.** The solve fixes the flow and reports the
+pressure, which is the system curve at one point. A real pump has a curve of its
+own and the duty point is where the two cross.
 
 ## Intended behavior
 

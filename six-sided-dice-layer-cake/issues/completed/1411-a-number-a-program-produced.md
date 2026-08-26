@@ -5,28 +5,38 @@ Changes `docs/002-the-notation.md`, `src/093-blueprint-reader.lua`,
 
 ## Current behavior
 
-The notation has four kinds and none of them fits a number that came out of a
-computation the notation itself cannot express.
+**Done.** `solved` is the notation's fifth kind. `093` accepts it and requires a
+bare number and a producer named as `-- from NNN`; `094` treats it as a leaf;
+`095` re-runs the named instrument on every pass and fails the run if the copy has
+drifted by more than a part in a thousand; `002` documents all of it.
 
-- `given` is a decision. Somebody chose it and can choose differently.
-- `measured` is the world. Changing it means changing material.
-- `derived` is an expression in this grammar, recomputed on every run.
-- `target` is a goal with no derivation, and the checker calls a set that still
-  has one unfinished.
+Two instruments answer. `102` produces fourteen values about the cube's plumbing
+that no expression could — a network that converges, a search over five hundred
+and twelve candidates, a list of twelve edges. `103` produces six about the size
+of the blueprint set itself.
 
-Two numbers in the project are none of these. `024`'s worst-served flow fraction
-is the output of a twenty-branch hydraulic solve; `019`'s service time waits on a
-procedure to exist and be timed. The first is currently written as a `target`
-with an estimate in it, which is the closest available lie: it is not a goal, it
-is an answer nobody has computed yet.
+**The second one found a real defect on its first run.** `087` and `090` carried
+the blueprint count, the symbol count and the constraint count as numbers a person
+had typed, and every one was wrong: eighty blueprints offered where there were
+eighty-four, five hundred and eight requirements where there were five hundred and
+forty-four. Nothing had gone wrong with the design — the documents were describing
+an earlier version of themselves, which is what a self-describing document does if
+nobody re-counts. That is the exact failure this kind exists to make impossible,
+and it was sitting in the covering note a materials engineer opens first.
 
-The cost of having no kind for this is that the moment somebody does compute it,
-the only place to put the answer is a `given` — and a `given` is a number the
-reader is invited to argue with by choosing differently, which is exactly the
-wrong invitation for a number that is what it is because the geometry says so.
-Worse, it goes stale silently: change a rail's cross-section and the flow shares
-change, and nothing in the project notices that the number in the blueprint is
-now describing a machine that no longer exists.
+**The producer marker needed to be explicit.** The first version took the first
+three-digit number it found in the meaning field, which picked a cross-reference
+to another blueprint out of the middle of a sentence and then reported that
+blueprint as a program that would not load. Meanings are prose and a sentence about
+a solved value very often mentions where the geometry came from, so the marker is
+`-- from NNN` and nothing else.
+
+**A document that counts itself moves while you are counting it.** Converting the
+five self-describing declarations from `given` to `solved` changed the number of
+`given` declarations in the project, so the first run reported the new figures as
+already stale — by five, exactly the number that had changed kind. The second
+settled. It is a genuine fixed point and it converges in one pass, and `090` says
+so in prose so that nobody meeting it concludes the checker is broken.
 
 ## Intended behavior
 

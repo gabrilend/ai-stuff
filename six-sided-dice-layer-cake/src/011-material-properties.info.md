@@ -37,6 +37,7 @@ Described by `102`.
 | `cte_glass` | ppm/K | measured | 3.2 ppm/K | linear thermal expansion of the interposer's glass core, chosen to sit near silicon |
 | `k_glass` | W/(m*K) | measured | 1.1 W/(m*K) | thermal conductivity of the same, which is poor and does not matter because heat leaves the other way |
 | `rho_ss` | kg/m^3 | measured | 7900 kg/m^3 | density of stainless steel |
+| `cp_ss` | J/(kg*K) | measured | 500 J/(kg*K) | specific heat capacity of the same, which is what decides how long the steel in the rails and corners holds its heat once the power is off |
 | `k_ss` | W/(m*K) | measured | 16 W/(m*K) | thermal conductivity of stainless steel |
 | `cte_ss` | ppm/K | measured | 17.3 ppm/K | linear thermal expansion of stainless steel |
 | `E_ss` | GPa | measured | 193 GPa | Young's modulus of stainless steel |
@@ -72,7 +73,7 @@ Change one of these and the blueprints beside it are what break.
 |---|---|
 | `k_si` | `011`, `022`, `025`, `041` |
 | `rho_si` | `013`, `026`, `088` |
-| `cp_si` | `026` |
+| `cp_si` | `019`, `026` |
 | `cte_si` | `011`, `018`, `036` |
 | `E_si` | `018` |
 | `sigma_si_frac` | `011`, `081` |
@@ -85,14 +86,15 @@ Change one of these and the blueprints beside it are what break.
 | `res_cu` | `030`, `036` |
 | `j_em_cu` | `032` |
 | `rho_cumo` | `013`, `026` |
-| `cp_cumo` | `026` |
+| `cp_cumo` | `019`, `026` |
 | `cte_cumo` | `011`, `018`, `036` |
 | `cte_glass` | `018` |
 | `rho_ss` | `013`, `015`, `016` |
+| `cp_ss` | `019` |
 | `cte_ss` | `018`, `019` |
 | `sigma_ss_y` | `015`, `016` |
 | `rho_water` | `013`, `015`, `016`, `021` |
-| `cp_water` | `011`, `021` |
+| `cp_water` | `011`, `019`, `021` |
 | `k_water` | `011`, `021` |
 | `mu_water` | `011`, `016`, `021` |
 | `T_water_frz` | `021` |

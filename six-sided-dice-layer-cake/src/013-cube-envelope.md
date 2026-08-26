@@ -85,8 +85,8 @@ f_solid_corner| 1  | given | 0.55  | fraction of a corner block that is metal ra
 rho_cage      | kg/m^3 | given | 3000 | mean density of the cage shell, silicon and copper and void together
 m_ports       | kg | given | 0.150 | port fields, regulators and connectors on all six faces, weighed as an assembly
 
-m_laminae     | kg | derived | n_tier * A_core_side * t_lamina * rho_cumo    | the thirty-two cooling plates inside the core, which are most of the machine's mass
-m_tiers       | kg | derived | n_tier * A_core_side * t_tier_si * rho_si     | the thirty-two memory tiers between them
+m_laminae     | kg | derived | n_tier * A_core_side * t_lamina * rho_cumo    | the cooling plates inside the core, one between every pair of memory tiers, which are most of the machine's mass
+m_tiers       | kg | derived | n_tier * A_core_side * t_tier_si * rho_si     | the memory tiers between them; 036 derives how many there are from the bitcell density rather than choosing a round number
 m_coldplate   | kg | derived | n_face * A_plate * t_coldplate * f_solid_plate * rho_si | six silicon cold plates, less the channels etched out of them
 m_dies        | kg | derived | n_die * A_die * t_die * rho_si                | twenty-four compute dies
 m_interposer  | kg | derived | n_face * A_plate * t_interposer * rho_glass   | six face interposers

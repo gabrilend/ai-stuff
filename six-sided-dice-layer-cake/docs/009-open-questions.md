@@ -5,8 +5,13 @@ sections only by being answered, and the answer is written here beside it rather
 than only in the blueprint that acted on it, so the reasoning stays findable.
 
 **Nothing in this project is finished while this page has entries in its first two
-sections.** Eighty-four blueprints check and five hundred and thirty-two
-constraints hold; that is consistency, not completeness.
+sections.** Every blueprint checks and every constraint holds; that is
+consistency, not completeness. `./run-checks` prints the counts, and this page
+does not, because a count written into prose is a count that goes stale.
+
+As of the network solve there are **no `target` symbols left** — no place where
+the design states a goal it cannot produce. That is a different and weaker claim
+than being finished, and the sections below are why.
 
 **Identifiers never move.** A question keeps its label when it is answered and
 when its neighbours are answered around it, so the lists below have gaps in them.
@@ -122,14 +127,6 @@ take the load. Nobody has run the case, and `027`'s filtration specification is 
 requirement written in the imperative mood rather than one derived from a blockage
 model. Fouling is not modelled at all.
 
-### The flow network is not solved
-
-`024`'s worst-served fraction is one of two remaining `target` symbols and the
-checker reports it on every run. Twenty branches across eight nodes wants a linear
-solve the notation cannot express. Until then `025`'s junction temperature rests
-on an estimate — and `023`'s rail-to-face assignment is not enumerated either, so
-there is no network to solve even if there were a solver.
-
 ### P1. Five volts or twelve as the intermediate?
 
 Twelve quarters the current in the interposer planes and makes the second
@@ -177,12 +174,25 @@ understates the arithmetic side and `079`'s crossover is optimistic.
 set, dielectric breakdown, fouling, pump wear. **Bond fatigue is the largest gap**
 — `018` counts three thermal swings and turns none into cycles to failure.
 
-### A hundred and ten orphan symbols
+### A hundred-odd orphan symbols
 
 Declared and referenced by nothing. Some are material properties nothing needed;
 some are quantities a blueprint published for a reader rather than for a
 derivation. Each is either a hole where a constraint should be or a line that
-should be deleted, and nobody has been through them.
+should be deleted, and nobody has been through them. `./run-checks` lists them and
+the count moves as constraints are added, which is why it is not written here.
+
+### The instruments have no companion pages
+
+Every source file in this project is supposed to have an `.info.md` beside it
+saying what it offers, and `096` generates one for every blueprint. Nothing
+generates them for the eleven programs. `102` and `103` have hand-written ones and
+the other nine have none, so the fastest way into the instruments is still reading
+their source, which is the thing companion pages exist to avoid.
+
+Writing the generator is better than writing nine files, and it is harder: a
+blueprint's declarations are a table a program can read, and a Lua module's public
+surface is whatever it happens to assign to `M`.
 
 ### Smaller, and worth recording
 
@@ -202,6 +212,87 @@ lengths, re-resolving in the browser.
 A question moves here with the answer, the date, and what changed because of it.
 They are kept rather than deleted so that the next person to have the same idea
 finds out it was considered and which way it went.
+
+### The flow network — *2026-08-26*
+
+**Solved, and it changed a design decision.**
+
+The question was how evenly the coolant divides between six faces, and the
+blocker was that nobody had said which of the twelve edge rails feeds which face.
+Both wanted the same missing thing — a program holding the cube as data rather
+than as prose — and `102` is it.
+
+*The network is two and a half times the size the ticket estimated.* Twenty
+branches across eight nodes was the guess, and it was the cube's own edges and
+corners rather than its plumbing: fifty branches across twenty-nine nodes, because
+supply and return are separate networks sharing a geometry, every rail carrying a
+plenum is two rails with a tap between them, and the corner blocks are branches.
+
+*Sixteen of the sixty-four legal rail assignments distribute the coolant exactly
+evenly and the other forty-eight leave one face five or six per cent short.* The
+sixteen have a threefold rotation about a body diagonal — one fed corner with all
+three of its channels tapped — which is the symmetry that makes all six faces the
+same face. **Nothing in `023`'s argument predicted this**, because that argument is
+about the supply network reaching everywhere and this is about where the plenums
+hang on it.
+
+*The thermal chain was moved onto the worst legal wiring rather than the best.*
+Building the junction temperature on a perfect distribution would make the whole
+thermal budget depend on the plumbing being assembled to the drawing rather than
+merely to the rules. `025` is given the five and a half per cent shortfall of the
+least even legal arrangement. This is the substantive design change, and it makes
+the design more conservative.
+
+*The hand-summed loop overstates the circuit by a quarter*, because it charges one
+path for two whole rails where the real manifold delivers to each plenum from both
+ends at once. The estimate was the conservative one, which is the right way round.
+
+### The last target — *2026-08-26*
+
+**Closed.** `019`'s cube-swap time was the final `target` in the project: a number
+the design stated as a goal and could not produce, waiting on a service procedure
+that had never been written.
+
+The procedure is written. Nine steps — stop the machine, hold with the pump
+running until it is cool, shut the valves, part sixteen couplings, undo four
+bolts, lift out and in, seat against three rigid mounts and one compliant, do the
+bolts up, make the couplings, fill and purge — each a number somebody can argue
+with on its own. A service event comes to a little over three hours, and two of
+those are `085` testing the replacement rather than anybody touching it.
+
+One of the nine is not a guess. The cooling hold falls out of the machine's own
+heat capacity and its own thermal resistance, and it is **seventeen seconds**: a
+cube holds ten kilojoules above ambient while its coolant carries away nearly two
+thousand watts. It is cool enough to handle before the isolation valves are shut.
+
+The step times are all `given`, which is the honest label — nobody has done this
+with a stopwatch. What changed is that the claim is a sum of nine things rather
+than one number nobody could take apart.
+
+### The notation had nowhere to put a computed answer — *2026-08-26*
+
+**Answered with a fifth kind.** `given` is a decision, `measured` is the world,
+`derived` is an expression, `target` is a goal. A solver's output is none of them,
+and writing it as a decision would invite a reader to change it by preference and
+let it go stale in silence the first time an input moved.
+
+`solved` is a bare number whose declaration names the program that produced it,
+and **the checker re-runs that program on every pass and fails the run if the copy
+has drifted by more than a part in a thousand.** It reports in both directions: a
+declaration naming a program that will not answer for it, and a program answering
+for a symbol nobody declared.
+
+It found a defect immediately. `087` and `090` carried the size of the blueprint
+set as hand-typed numbers, and every one was wrong — eighty blueprints offered
+where there were eighty-four, five hundred and eight requirements where there were
+five hundred and forty-four. The documents were describing an earlier version of
+themselves. `103` counts now.
+
+This does **not** fix the notation's inability to hold a list, which is still open
+above. A program answering with one number is not the same as the notation holding
+a set — and `102` is the demonstration of what that costs: to check that twelve
+edges cross a parity, a whole program had to be written and its answer copied back
+in as a scalar.
 
 ### B1. Does this machine ever train? — *2026-08-26*
 

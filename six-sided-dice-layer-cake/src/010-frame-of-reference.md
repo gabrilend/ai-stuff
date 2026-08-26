@@ -100,7 +100,12 @@ Named by their two corners, lower label first: `C000-C001`, `C000-C010`,
 `C100-C101`, `C100-C110`, `C101-C111`, `C110-C111`.
 
 Reading down that list and checking that every pair has one even and one odd
-label is the bipartition, verified by enumeration rather than by assertion.
+label is the bipartition, verified by enumeration rather than by assertion. That
+reading is now done by a program: `102` builds the twelve edges from the
+definition of a cube — every pair of corners differing in one coordinate — and
+compares them to the twelve written above. `C-023-8` is where the two lists have
+to agree, and until it existed nothing in the project had ever checked that this
+paragraph describes the object the rest of the design is about.
 
 ## Sign conventions
 

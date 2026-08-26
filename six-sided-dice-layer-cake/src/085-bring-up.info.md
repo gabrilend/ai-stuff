@@ -25,14 +25,14 @@ Described by `1205`.
 | `t_bringup_h` | hr | derived | 2.16667 hr | in the unit a person plans a day around |
 | `f_rung_exact` | 1 | derived | 0.230769 | the share spent on the exact comparison, which is where the value is |
 | `n_counter_chk` | 1 | derived | 7 | terms of 080's model that rung ten must compare against 049's counters |
-| `t_service_est` | s | derived | 1200 s | the cube swap time 019 carries as a target, which this procedure is what would time |
+| `t_service_est` | s | derived | 10996.4 s | the cube swap time 019 carries as a target, which this procedure is what would time |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `n_model_term_d` | `080` | 7 | terms in this model, which 049 must have a counter for each of |
-| `t_service` | `019` | 1200 s | seconds a cube swap takes, once the procedure in 1205 exists to be timed |
+| `t_service` | `019` | 10996.4 s | the whole service event as an operator experiences it, from the machine still running to the replacement passing rung ten. 085 owns the second half and this blueprint owns the first |
 
 ## What consumes it
 
@@ -51,7 +51,7 @@ Change one of these and the blueprints beside it are what break.
 | `n_criterion` | `085` |
 | `t_bringup_max` | `085` |
 | `remap_reject` | `085` |
-| `t_bringup` | `085` |
+| `t_bringup` | `019`, `085` |
 | `t_bringup_h` | `085` |
 | `f_rung_exact` | `085` |
 | `n_counter_chk` | `085` |

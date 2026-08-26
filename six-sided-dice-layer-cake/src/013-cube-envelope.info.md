@@ -26,8 +26,8 @@ Described by `201`.
 | `f_solid_corner` | 1 | given | 0.55 | fraction of a corner block that is metal rather than chamber |
 | `rho_cage` | kg/m^3 | given | 3000 kg/m^3 | mean density of the cage shell, silicon and copper and void together |
 | `m_ports` | kg | given | 0.15 kg | port fields, regulators and connectors on all six faces, weighed as an assembly |
-| `m_laminae` | kg | derived | 0.620928 kg | the thirty-two cooling plates inside the core, which are most of the machine's mass |
-| `m_tiers` | kg | derived | 0.00447168 kg | the thirty-two memory tiers between them |
+| `m_laminae` | kg | derived | 0.620928 kg | the cooling plates inside the core, one between every pair of memory tiers, which are most of the machine's mass |
+| `m_tiers` | kg | derived | 0.00447168 kg | the memory tiers between them; 036 derives how many there are from the bitcell density rather than choosing a round number |
 | `m_coldplate` | kg | derived | 0.0566785 kg | six silicon cold plates, less the channels etched out of them |
 | `m_dies` | kg | derived | 0.00321961 kg | twenty-four compute dies |
 | `m_interposer` | kg | derived | 0.06084 kg | six face interposers |
@@ -85,16 +85,16 @@ Change one of these and the blueprints beside it are what break.
 | `L_corner` | `013`, `015`, `016`, `019` |
 | `f_solid_corner` | `013`, `015` |
 | `rho_cage` | `013` |
-| `m_ports` | `013` |
-| `m_laminae` | `013` |
-| `m_tiers` | `013` |
-| `m_coldplate` | `013` |
-| `m_dies` | `013` |
+| `m_ports` | `013`, `019` |
+| `m_laminae` | `013`, `019` |
+| `m_tiers` | `013`, `019` |
+| `m_coldplate` | `013`, `019` |
+| `m_dies` | `013`, `019` |
 | `m_interposer` | `013` |
-| `m_rails` | `013` |
-| `m_corners` | `013` |
-| `m_cage` | `013` |
-| `m_coolant` | `013` |
+| `m_rails` | `013`, `019` |
+| `m_corners` | `013`, `019` |
+| `m_cage` | `013`, `019` |
+| `m_coolant` | `013`, `019` |
 | `m_cube` | `013`, `019`, `088`, `089` |
 | `rho_mean` | `013` |
 

@@ -1,7 +1,7 @@
 # Phase 3 — The Corners: progress
 
 **Where the heat goes, and the plumbing that takes it. All eight blueprints
-written; one of them is not finished and says so on every run.**
+written, and as of the network solve, all eight finished.**
 
 | ticket | blueprint | state |
 |---|---|---|
@@ -9,13 +9,13 @@ written; one of them is not finished and says so on every run.**
 | `302` | `021-working-fluid` | done |
 | `303` | `022-face-microchannel-field` | done |
 | `304` | `023-corner-parity-plumbing` | done |
-| `305` | `024-flow-network` | **written; the network is not solved** |
+| `305` | `024-flow-network` | done |
 | `306` | `025-thermal-resistance-network` | done |
 | `307` | `026-thermal-transient-and-throttle` | done |
 | `308` | `027-external-loop` | done |
 
-Eighty constraints hold across eighteen blueprints. Forty-seven more are written
-and waiting on phases 5 through 9.
+Sixty-eight constraints in the phase, all holding. `./run-demo 3` prints them
+with the cube's plumbing solved underneath.
 
 ## The four findings
 
@@ -62,16 +62,45 @@ millimetres a year.
 failed outright rather than marginally, and the resolution — the cube ships empty
 — puts a fill and purge step into two other blueprints.
 
+## The three things the solve found
+
+Both remaining tickets in the phase turned out to want the same missing thing: a
+program holding the cube as data rather than as prose. `102` is that program, and
+it produced three results nobody had predicted.
+
+**The network is two and a half times the size the ticket estimated.** Twenty
+branches across eight nodes was the guess, and it was the cube's own edges and
+corners rather than its plumbing. The real object is fifty branches across
+twenty-nine nodes: supply and return are separate networks sharing a geometry,
+every rail carrying a plenum is two rails with a tap between them, and the corner
+blocks are branches rather than junctions.
+
+**The rail assignment is a real choice and most of the choices are worse.** Six
+plenum pairs onto twelve rails gives five hundred and twelve arrangements; sixty
+four obey every rule; **sixteen of those sixty-four distribute the coolant exactly
+evenly and the other forty-eight leave one face five or six per cent short.** The
+sixteen are the ones with a threefold rotation about a body diagonal — one fed
+corner with all three of its channels tapped — which is the symmetry that makes
+all six faces the same face. The forty-eight spread the plenums two and two,
+which looks more balanced and is not. Nothing in `304`'s argument predicted this,
+because `304`'s argument is about the network reaching everywhere and this is
+about where the plenums hang on it.
+
+**The hand-summed loop overstates the circuit by a quarter.** `dp_loop` follows
+one path from a fed corner to a drained one and charges it for two whole rails.
+The real manifold delivers to each plenum from both ends at once, so the rails
+carry about half what the single path assumes. Eighteen point nine kilopascals
+becomes eleven point four. The estimate was the conservative one, which is the
+right way round for an estimate to be wrong, and `C-024-11` is what would notice
+if it ever inverted.
+
+**And the thermal chain now uses the worst legal wiring rather than the best.**
+Building the junction temperature on a perfect distribution would make the whole
+thermal budget depend on the plumbing being assembled to the drawing rather than
+merely to the rules. `025` is given `f_worst_any`, the five and a half per cent
+shortfall of the least even legal arrangement.
+
 ## What is still open
-
-**The flow network is not solved** (`024`). The worst-served fraction is a
-`target` and the checker reports it as unfinished every run. It needs twenty
-branches and eight nodes solved simultaneously, which the notation cannot express
-and a small program could. Until then the junction temperature in `025` rests on
-an estimate, and **`305` is not finished** however complete its blueprint looks.
-
-**Which rail feeds which face is not assigned** (`023`). Half an hour of work, and
-`024` cannot solve anything without it.
 
 **The hot spot rests on a floorplan that does not exist** (`025`, `009` entry T1).
 The multiplier array's area and power share are entered from `041`'s intention.

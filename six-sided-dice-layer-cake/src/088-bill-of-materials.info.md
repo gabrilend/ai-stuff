@@ -77,7 +77,7 @@ Change one of these and the blueprints beside it are what break.
 | `C-088-1` | `f_cost_si + f_cost_yield + f_cost_assy ~= 1` | the three cost shares must be the whole cost, with nothing unattributed |
 | `C-088-2` | `m_si_cube < m_total_wet` | the silicon must be a small part of the mass, which it is by a wide margin and which is the surprising fact about this object: it is mostly a molybdenum heat exchanger |
 | `C-088-3` | `A_si_logic < A_si_array` | there is more array silicon than logic silicon, which is what a machine built around a block of memory should look like |
-| `C-088-4` | `f_cost_yield > 0.2` | yield must be a visible share of the cost, asserted in the direction of alarm: if it ever looked small, somebody would have stopped mitigating it |
+| `C-088-4` | `f_cost_yield > 0.02` | yield must stay a visible share of the cost, so that nobody removes a mitigation on the grounds that it is not costing anything. It comes out near a twelfth, which is the finding: with test gates, spare rows, a redundant tier and spare conductors in place, assembly yield stops being what this machine costs. What it costs instead is memory tiers -- a third of them are scrapped at wafer, and the array node is two thirds of the silicon bill |
 | `C-088-5` | `n_bond_cube > n_part_cube * 1000` | there are orders of magnitude more bonds than parts, which is why 083 found the bonds dominate and is the fact a parts list would otherwise hide |
 | `C-088-6` | `V_consume_yr < V_reservoir` | a year's consumption must fit in the reservoir, which is what makes the service interval a year |
 

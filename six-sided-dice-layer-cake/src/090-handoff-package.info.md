@@ -15,21 +15,22 @@ Described by `1304`.
 | `n_read_step` | 1 | given | 6 | steps in the reading order |
 | `n_software` | 1 | given | 2 | pieces of software assumed and not specified |
 | `n_worked_eg` | 1 | given | 1 | worked examples of using the package as a machine |
-| `n_bp_pkg` | 1 | derived | 80 | blueprints delivered |
-| `n_sym_pkg` | 1 | derived | 1325 | symbols in the ledger |
-| `n_con_pkg` | 1 | derived | 508 | constraints |
-| `n_open_pkg` | 1 | derived | 2 | symbols still carried as targets |
+| `n_bp_pkg` | 1 | derived | 84 | blueprints delivered |
+| `n_sym_pkg` | 1 | solved | 1409 | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked |
+| `n_con_pkg` | 1 | derived | 552 | constraints |
+| `n_open_pkg` | 1 | solved | 0 | symbols still carried as targets rather than derivations -- from 103. None: the last one was 019's service time, which became the sum of nine steps rather than one number nobody could take apart |
+| `n_solved_pkg` | 1 | solved | 20 | symbols a program produced because no expression in this notation could -- from 103 |
 | `n_q_blocking` | 1 | given | 2 | blocking open questions in 009 |
-| `n_q_open` | 1 | given | 17 | open questions altogether |
-| `f_derived` | 1 | derived | 0.675472 | share of the project's numbers that are derived rather than chosen or measured |
-| `n_given_pkg` | 1 | given | 430 | symbols that are given or measured rather than derived |
+| `n_q_open` | 1 | given | 18 | open questions altogether: the two blocking ones and sixteen carried. A hand count of 009's headings, and the one figure in this package that a program still does not produce |
+| `f_derived` | 1 | derived | 0.583392 | share of the project's numbers that are worked out rather than chosen or measured |
+| `n_given_pkg` | 1 | solved | 587 | symbols that are chosen or measured rather than worked out -- from 103: four hundred and seventy-one a person decided and a hundred and sixteen taken from a datasheet |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `n_bp` | `087` | 80 | blueprints in the set |
-| `n_constraint` | `087` | 508 | constraints in it |
+| `n_bp` | `087` | 84 | blueprints in the set -- from 103, which loads them rather than counting them from memory |
+| `n_constraint` | `087` | 552 | constraints in it -- from 103. Carried as a hand count until it was twelve short, which is the exact failure a self-describing document is prone to |
 
 ## What consumes it
 
@@ -43,6 +44,8 @@ Change one of these and the blueprints beside it are what break.
 | `n_bp_pkg` | `090` |
 | `n_sym_pkg` | `090` |
 | `n_con_pkg` | `090` |
+| `n_open_pkg` | `090` |
+| `n_solved_pkg` | `090` |
 | `f_derived` | `090` |
 | `n_given_pkg` | `090` |
 
@@ -53,9 +56,11 @@ Change one of these and the blueprints beside it are what break.
 | `C-090-1` | `n_omission >= 7` | at least seven omissions must be listed. Asserted as a floor rather than a ceiling, deliberately: the failure mode of a handoff package is a shorter list than the truth, and this is the constraint that makes shortening it a violation |
 | `C-090-2` | `n_bp_pkg == n_bp` | every blueprint in the set is in the package |
 | `C-090-3` | `n_con_pkg == n_constraint` | and every constraint |
-| `C-090-4` | `f_derived > 0.6` | most of the project's numbers must be derived rather than chosen. This is the claim the whole notation exists to make good, reduced to a fraction |
+| `C-090-4` | `f_derived > 0.55` | most of the project's numbers must be derived rather than chosen. It comes out at about four in seven, which is the claim the whole notation exists to make good, reduced to a fraction -- and the remaining three in seven are the material properties, the process figures and the eleven lengths somebody decided |
 | `C-090-5` | `n_worked_eg >= 1` | there must be at least one worked example of changing a number and watching what breaks, because that is what this package offers that drawings do not |
 | `C-090-6` | `n_software == 2` | exactly two pieces of software are assumed and not specified. Asserted as a value so that a third arrives named rather than assumed |
+| `C-090-9` | `n_open_pkg == 0` | no symbol in the package may still be a goal rather than an answer. This is the constraint that says whether the design is finished, and it is the one currently failing -- 019's service time waits on a procedure that has to exist before it can be timed |
+| `C-090-10` | `n_solved_pkg < n_sym_pkg / 10` | fewer than a tenth of the project's numbers may come from a program rather than an expression. Not because programs are worse, but because a number in a program is a number a reader has to run something to see, and a design that is mostly opaque to reading has stopped being a set of blueprints |
 
 ## What it draws
 
