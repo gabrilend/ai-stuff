@@ -39,7 +39,7 @@ one somebody builds from.
 Thermal conductivity, density, specific heat capacity, coefficient of thermal
 expansion, Young's modulus, electrical resistivity, relative permittivity. Not
 every material needs every one; a blank is written as such rather than as zero,
-and `104` must treat a referenced blank as an error rather than as a number.
+and `095` must treat a referenced blank as an error rather than as a number.
 
 ## What makes this hard to get right
 
@@ -92,7 +92,7 @@ ones worth having are sanity bounds that catch a typo or a units slip:
    field. A property without a temperature is not a property.
 3. Split copper three ways and say where each applies.
 4. Add the Prandtl cross-check.
-5. Run `104` and confirm that no blueprint references a blank.
+5. Run `095` and confirm that no blueprint references a blank.
 
 ## Blocks
 

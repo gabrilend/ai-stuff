@@ -16,7 +16,7 @@ output/*
 # the same words in the record twice and make a one-line edit to a blueprint
 # look like two hundred changed files. The builder is the artifact.
 #
-#   luajit src/108-the-documentation-site.lua
+#   luajit src/099-the-documentation-site.lua
 docs/HTML/
 
 # What the checker leaves behind. The pass/fail state of every constraint in the
