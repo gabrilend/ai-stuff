@@ -577,6 +577,22 @@ local function test_the_pool_and_the_graders(t)
   t.same(pool.tier_of(moved), 2, "a companion carried elsewhere keeps its tier")
   t.same(moved.seed, 1234, "and its seed")
 
+  -- A pool that has lost its pictures but kept its judgements is the ordinary
+  -- state of a fresh clone, and it must be a supported state rather than a
+  -- broken one -- the opinions are in the record and the pictures are not,
+  -- because a picture can be made again from its seed and an opinion cannot
+  -- be made again from anything.
+  t.ok(pool.read_companion(made[TREE].companion).picture_is_here,
+       "a companion knows its picture is beside it")
+  os.remove(made[TREE].picture)
+  local orphaned = pool.read_companion(made[TREE].companion)
+  t.ok(not orphaned.picture_is_here, "and knows when it is not")
+  t.same(pool.tier_of(orphaned), 2, "while still carrying every rating")
+  t.same(orphaned.seed, 1234, "and the seed that makes the picture again")
+  local after = pool.counts(settings)
+  t.same(#after.awaiting_their_picture, 1,
+         "and the count says how many are waiting for their picture")
+
   t.ok(not pcall(pool.rate, made[TREE].companion, 7, "person"),
        "a tier outside one to five is refused, with the scale")
   t.ok(not pcall(pool.rate, made[TREE].companion, 2.5, "person"),
