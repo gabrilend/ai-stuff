@@ -201,9 +201,21 @@ at, since the machines agree about most bodies for free. For each one that
 differs, the receiving machine finds the units in range of that body on its own
 view and asks whether the difference is explicable by them. A health drop larger
 than every attacker in range could have dealt in the elapsed ticks is not a
-correction; it is a claim about something that could not have happened. A health
-gain with nothing capable of healing in range is the same, and nothing in this
-game heals. What fails is rejected, the local value kept, the rejection logged.
+correction; it is a claim about something that could not have happened. What
+fails is rejected, the local value kept, the rejection logged.
+
+**Health gains used to be free to reject** — this document said *"nothing in this
+game heals"* and treated any rise as impossible. **Priests heal**, so that
+absolute is gone, and healers have to be counted among the things that could
+explain a change exactly as attackers already are.
+
+Which is harder than it sounds, and F39 has the whole of it: **a per-body
+question does not compose.** One healer's single heal can look like a valid
+explanation for two different bodies at once, because nothing in a per-body check
+tracks that its capacity can only be spent once. That turns the check from a
+lookup into a bipartite matching, unless healing is made an **area** effect —
+which removes the assignment entirely and puts the check back to one question
+with one complete answer. See F39.
 
 **Across teams, it is an accounting check.** *Settled; see F8.* Because your
 machine no longer simulates the enemy's chest or their wallets, it has to
