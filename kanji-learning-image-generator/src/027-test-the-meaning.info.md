@@ -35,4 +35,5 @@ what a person reads before opening the source.
 | `test_the_structure_field(t)` |  |
 | `test_the_component_lexicon(t)` |  |
 | `test_the_scene_grammar(t)` | The reasoning, not the wording. |
+| `test_the_words(t)` |  |
 | `main(argv)` |  |

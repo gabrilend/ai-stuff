@@ -135,6 +135,11 @@ diagonal is a shaft of light through the canopy; a dot is a bird. In water, the
 same long vertical is a cataract and the same dot is a stone breaking the surface.
 The measurement is universal; the vocabulary is per biome.
 
+**Not every subject is named either.** A crowded character can have six
+nameable pieces, and naming all of them spends the sentence before the world is
+mentioned. They are sorted largest-first so what survives the cut is what
+dominates the picture.
+
 **Not every stroke is named in the prompt.** A twenty-stroke character listed
 stroke by stroke produces a sentence no diffusion model can hold. Only the
 structural strokes are named — the ones carrying the most ink, which are the ones

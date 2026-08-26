@@ -61,6 +61,10 @@ return {
   -- {{{ scene -- what the picture is of (docs/004, 204)
   scene = {
     named_strokes = 5,    -- how many strokes get an object named in the prompt
+    named_subjects = 3,   -- how many pieces of the character get named. a
+                          -- character can have six, and naming all of them
+                          -- spends the whole sentence before the world is
+                          -- mentioned.
     -- weights for biome scoring. a component is evidence about what a character
     -- is about; a translated keyword is a weaker version of the same evidence.
     weight_primary_meaning = 3.0,

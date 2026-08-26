@@ -15,7 +15,7 @@ This is where the project stops being a drawing program.
 | `202` | The field the illusion rides on | **completed** — five steps in a fixed order, and a blur that answers to how crowded the character is |
 | `203` | What the pieces mean | **completed** — a rule for refusing glosses about writing, and a queue that says what to write next |
 | `204` | The place the meaning makes | **completed** — seventeen worlds, and two ways of being confidently wrong that the spread report caught |
-| `205` | The words the machine reads | not started |
+| `205` | The words the machine reads | **completed** — clauses ranked for dropping and placed for reading, which are not the same order |
 | `206` | Arrows that teach the order | not started |
 
 ## Where the risk is
