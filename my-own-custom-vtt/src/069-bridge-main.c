@@ -18,6 +18,14 @@
 
 #include "061-door.h"
 #include "064-httpd.h"
+#include "096-engrave.h"
+
+/*
+ * Where the last session's carving is kept. The RAM tier, because it is
+ * regenerated every time a session ends -- and the sharing script is what
+ * moves one somewhere durable.
+ */
+#define ENGRAVING_PATH "/dev/shm/my-own-custom-vtt/engravings/last.engraving"
 #include "056-protocol.h"
 #include "051-commandlog.h"
 
@@ -111,6 +119,34 @@ static uint32_t build_tables_js(char *out, uint32_t capacity)
 /* }}} */
 
 /* {{{ int main */
+/*
+ * The engraving the last session left, or a sentence saying there is none.
+ *
+ * A MISSING ENGRAVING IS NOT AN ERROR. It is what a first session looks like,
+ * and a bar that said nothing would be indistinguishable from a bar that failed
+ * to load -- so it says what is true instead.
+ */
+/* {{{ static uint32_t read_the_engraving */
+static uint32_t read_the_engraving(char *into, uint32_t capacity)
+{
+    FILE *in = fopen(ENGRAVING_PATH, "r");
+    size_t length;
+
+    if (in == NULL) {
+        snprintf(into, capacity,
+                 "no engraving yet -- this table has no history.\n"
+                 "One is carved when a session ends.\n");
+        return (uint32_t)strlen(into);
+    }
+
+    length = fread(into, 1, (size_t)capacity - 1u, in);
+    fclose(in);
+
+    into[length] = '\0';
+    return (uint32_t)length;
+}
+/* }}} */
+
 int main(int argc, char **argv)
 {
     const char *address;
@@ -128,7 +164,18 @@ int main(int argc, char **argv)
     static char tables_js[8192];
     uint32_t tables_length;
 
-    struct served_file files[3];
+    /*
+     * The previous session's engraving, read once at startup and hung in the
+     * action bar. A table's history is visible while the table is playing.
+     *
+     * READ ONCE, not watched. The engraving is what the LAST session left; the
+     * current one has no statistics yet and will not until it ends. That is what
+     * a carving on a wall is.
+     */
+    static char engraving[ENGRAVING_MAX_BYTES];
+    uint32_t engraving_length;
+
+    struct served_file files[4];
 
     uint8_t from_server[65536];
     uint8_t from_browser[8192];
@@ -201,7 +248,19 @@ int main(int argc, char **argv)
     files[2].body = tables_js;
     files[2].length = tables_length;
 
-    if (!httpd_start(&h, local_port, files, 3, &why)) {
+    engraving_length = read_the_engraving(engraving, sizeof(engraving));
+
+    /*
+     * ONE MORE ROW IN A FIXED TABLE, which is not the same as adding a
+     * directory. The table is still matched by exact path, so ".." remains a
+     * question this program cannot be asked.
+     */
+    files[3].path = "/engraving";
+    files[3].content_type = "text/plain; charset=utf-8";
+    files[3].body = engraving;
+    files[3].length = engraving_length;
+
+    if (!httpd_start(&h, local_port, files, 4, &why)) {
         printf("  could not serve a browser: %s\n", why);
         close(server_socket);
         return 1;

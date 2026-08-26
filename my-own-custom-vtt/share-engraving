@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+#
+# share-engraving -- hands a record log to somebody else.
+#
+# WHAT THIS IS, for somebody who has not read the rest: when a session ends, the
+# server writes a text file that is drawn as an ornate carving of an animal. The
+# animal's lines are the walls of a small table, and the numbers of the evening
+# sit in it. This script hands one of those to a friend.
+#
+# WHY IT EXISTS. The carving is fragile on purpose -- a whitespace change breaks
+# it, a hand-edit breaks it, and there is no salvage. That buys something real:
+# the art is a checksum you can see, so a damaged record LOOKS damaged from
+# across the room, where a damaged binary file looks exactly like a good one
+# until something tries to read it.
+#
+# The honest cost of that trade is that a mangled record log is gone. So the
+# other half of the trade is this: the format is one text file, and copying it is
+# trivial, and you can look at it before you run anything, because it is a
+# picture of a dragon with numbers in it.
+#
+# It always validates before it copies. Handing somebody a broken carving wastes
+# both people's time, and the reader already knows how to tell.
+#
+# Usage:
+#   ./share-engraving <engraving> <destination>   -- validate, then copy
+#   ./share-engraving --print <engraving>         -- validate, then print it
+#   ./share-engraving --list                      -- what engravings exist
+#   ./share-engraving /path/to/prj --list         -- from a checkout elsewhere
+
+set -e
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT_NAME="my-own-custom-vtt"
+EXEC_TIER="/tmp/${PROJECT_NAME}/tmp"
+ARTIFACT_TIER="/dev/shm/${PROJECT_NAME}"
+READER="${EXEC_TIER}/100-read-engraving"
+
+# Where engravings are kept. The RAM tier, which is the wrong place for the one
+# artifact meant to outlive the machine -- which is exactly why this exists.
+ENGRAVINGS="${ARTIFACT_TIER}/engravings"
+
+mkdir -p "${ENGRAVINGS}"
+
+# The reader is built from source rather than assumed, because a script that
+# validates with a stale binary is a script that blesses a broken file.
+if [ ! -x "${READER}" ]; then
+    if [ ! -x "${DIR}/build" ]; then
+        echo "No build script at ${DIR}/build, and no reader at ${READER}."
+        echo "Either the project root is wrong, or the project has not been built."
+        exit 1
+    fi
+    echo "Building the reader..."
+    "${DIR}/build" "${DIR}" --no-test > /dev/null
+fi
+
+MODE="copy"
+
+case "$1" in
+--list)
+    MODE="list"
+    shift
+    ;;
+--print)
+    MODE="print"
+    shift
+    ;;
+esac
+
+if [ "${MODE}" = "list" ]; then
+    echo "Engravings in ${ENGRAVINGS}:"
+    echo
+
+    FOUND=0
+    for FILE in "${ENGRAVINGS}"/*; do
+        if [ ! -f "${FILE}" ]; then
+            continue
+        fi
+
+        FOUND=1
+
+        # The reader says what animal it is and whether it still reads. A listing
+        # that showed the filenames alone would be a listing that cannot tell a
+        # carving from a damaged one, which is the only question worth asking.
+        if "${READER}" "${FILE}" --check; then
+            CREATURE=$("${READER}" "${FILE}" | head -1)
+            echo "  ${FILE}"
+            echo "      ${CREATURE}"
+        else
+            echo "  ${FILE}"
+            echo "      DAMAGED -- run ${READER} on it to see where"
+        fi
+    done
+
+    if [ "${FOUND}" = "0" ]; then
+        echo "  none yet. A session writes one when it ends."
+    fi
+    exit 0
+fi
+
+SOURCE="$1"
+
+if [ -z "${SOURCE}" ]; then
+    echo "share-engraving: say which engraving to share."
+    echo "Try --list to see what there is."
+    exit 1
+fi
+
+if [ ! -f "${SOURCE}" ]; then
+    echo "share-engraving: there is no file at ${SOURCE}."
+    exit 1
+fi
+
+# Validated before anything else happens, in both modes.
+if ! "${READER}" "${SOURCE}" --check; then
+    echo "share-engraving: that carving does not read, so it is not worth sending."
+    echo
+    "${READER}" "${SOURCE}"
+    exit 1
+fi
+
+if [ "${MODE}" = "print" ]; then
+    # Printed rather than copied, so it can be piped, pasted, or dropped into a
+    # message without a file ever existing at the other end.
+    cat "${SOURCE}"
+    exit 0
+fi
+
+DESTINATION="$2"
+
+if [ -z "${DESTINATION}" ]; then
+    echo "share-engraving: say where it should go."
+    echo "Or use --print to send it to standard output instead."
+    exit 1
+fi
+
+# A destination that is a directory keeps the name; otherwise the name is taken
+# literally. Guessing either way round would be surprising half the time.
+if [ -d "${DESTINATION}" ]; then
+    DESTINATION="${DESTINATION}/$(basename "${SOURCE}")"
+fi
+
+if [ -e "${DESTINATION}" ]; then
+    echo "share-engraving: there is already something at ${DESTINATION}."
+    echo "Refusing rather than overwriting -- a record log that gets overwritten"
+    echo "is a record log that is gone, and this format cannot be repaired."
+    exit 1
+fi
+
+cp "${SOURCE}" "${DESTINATION}"
+
+echo "Copied to ${DESTINATION}"
+echo
+"${READER}" "${DESTINATION}" | head -1
+echo
+echo "It is one text file. Paste it to somebody and they can look at it before"
+echo "they run anything, because it is a picture with numbers in it."

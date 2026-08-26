@@ -191,6 +191,12 @@ and then deliberately mangles one cell so the carving visibly deforms.
 **Proves:** that a file can be a picture and a database at once without being
 worse at either.
 
+**Built.** Four creatures, generated from tiling rules rather than drawn, with
+their ornament anchored to chamber walls so that a hand-edit visibly bends the
+animal. The writer and the reader share no code and describe the alphabet in two
+different ways on purpose. The bridge hangs the last session's carving in the
+action bar, and the server carves itself as the last thing it does.
+
 ## Phase 11 — The second view, and the documentation
 
 A terminal renderer speaking the same protocol as the browser, with no server

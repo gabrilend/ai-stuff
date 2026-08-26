@@ -22,6 +22,18 @@
 #include "031-region.h"
 #include "070-scope.h"
 #include "035-worldfile.h"
+#include "096-engrave.h"
+#include "094-creature.h"
+
+/*
+ * Where a session leaves its carving. The RAM tier, because it is regenerated
+ * every time a session ends -- and ./share-engraving is what moves one somewhere
+ * durable, which is the other half of the trade for a format that cannot be
+ * repaired.
+ *
+ * The bridge reads this same path at startup and hangs it in the action bar.
+ */
+#define ENGRAVING_PATH "/dev/shm/my-own-custom-vtt/engravings/last.engraving"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -331,6 +343,43 @@ int main(int argc, char **argv)
     printf("  %llu bytes sent to viewers\n", (unsigned long long)bytes_out);
     printf("  world hash at the end: %016llx\n",
            (unsigned long long)world_hash(&w));
+
+    /*
+     * THE LAST THING A SESSION DOES IS CARVE ITSELF.
+     *
+     * Eight numbers, drawn as an animal whose lines are the walls of the table
+     * holding them. The next bridge to start hangs it in the action bar, so a
+     * table's history is visible while the table is playing.
+     *
+     * Written to the RAM tier, which is the wrong place for the one artifact
+     * meant to outlive the machine -- and that is what ./share-engraving is for.
+     */
+    {
+        struct record r;
+        const char *why = "";
+
+        /*
+         * Minus the sentinel. Index 0 of the viewer set is the reserved empty
+         * record that is never handed out, the same convention as every block in
+         * the world -- so a table with nobody at it reported one seat until this
+         * was noticed in the first carving a real session produced.
+         */
+        record_gather(&r, &session, viewer_count(&viewers) - 1u);
+
+        if (engrave_to_file(&r, ALPHABET_CARVED, ENGRAVING_PATH, &why)) {
+            printf("  carved a %s at %s\n",
+                   creature_name(creature_from_seed(r.seed)), ENGRAVING_PATH);
+        } else {
+            /*
+             * Said out loud. A record log that silently failed to be written is
+             * a session nobody can point at afterwards, and the failure is
+             * always something specific -- a missing directory, a number too
+             * wide for its chamber.
+             */
+            printf("  the engraving was not carved: %s\n", why);
+        }
+    }
+
     printf("goodbye\n");
 
     door_close(&d);

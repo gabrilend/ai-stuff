@@ -73,17 +73,35 @@ dragon with numbers in it.
 
 ## What is actually in the cells
 
-Undecided, and it should be decided by looking at what a session produces rather
-than by guessing here. The shape of the answer: whatever
-[the goodbye](../output/goodbye) writes at the end of a run is the candidate list
--- how long it ran, who was at the table, what they held, where they went, the
-world hash at the last tick.
+Eight, decided by looking at what a session produces and taken from what
+[the goodbye](../output/goodbye) already said a run should tell about itself.
 
-The constraint the format puts on that list is real and worth stating early: **a
-creature has only so many places to put a number.** The engraving cannot grow a
-column without being redrawn, so the set of statistics is small, fixed, and chosen
-rather than accumulated. That is a good pressure. Most record formats grow columns
-until nobody reads them.
+| Cell | What it counts |
+| --- | --- |
+| beats | How long it ran, in the unit the simulation counts. |
+| turns | How many were declared. A different question. |
+| seats | How many people were at the table. A count, not names. |
+| commands | How many things were asked for. |
+| refused | How many were refused. |
+| rollbacks | How many turns were taken back. |
+| things | How big the world got. |
+| checksum | The world hash at the final beat. |
+
+The ratio of the fourth to the fifth is the most direct evidence there is about
+where an interface confuses people. The last is the one that matters most: it says
+a replay of this session will reproduce it, and if a replay ever ends on a
+different number this is where the two get compared.
+
+The constraint the format puts on that list is real: **a creature has only so many
+places to put a number.** The engraving cannot grow a column without being
+redrawn, so the set of statistics is small, fixed, and chosen rather than
+accumulated. That is a good pressure. Most record formats grow columns until
+nobody reads them.
+
+**Names are deliberately not in it.** A seat is a count. Display names are
+display-only everywhere in this project, and a record that outlives the evening
+must not be keyed on something somebody can change between one evening and the
+next.
 
 ## What this does not answer
 
@@ -93,6 +111,62 @@ The engraving carries **statistics**, not geometry. A creature with the numbers 
 last week's session in it does not contain a map.
 
 So that question is still open, and it is [1.2](016-open-questions.md).
+
+## How it was built, and what that taught
+
+Phase ten is [issues 1001 through 1009](../issues/phase-10-progress.md). The
+source is [090-record](../src/090-record.info.md),
+[092-canvas](../src/092-canvas.info.md),
+[094-creature](../src/094-creature.info.md),
+[096-engrave](../src/096-engrave.info.md) and
+[097-read-engraving](../src/097-read-engraving.info.md).
+
+### The geometry that makes the fragility work
+
+A creature is a tiling of rectangular chambers, one per cell, and the silhouette
+is the boundary of the tiling. Attachments -- fins, wings, legs, a trunk -- hang
+off **the wall between two chambers**, never off a column anybody typed.
+
+So a hand-edit that widens a value moves that wall, moves every wall to its right
+on that row with it, and leaves the animal lopsided against the rows above and
+below. That is the checksum you can see, and it only works because the anatomy is
+defined in terms of the table.
+
+Ornament is drawn with plain characters and never with wall characters, because a
+fin that closed a rectangle would read as a chamber. Nothing may touch a wall: the
+canvas counts it when something does, the tests insist on zero, and the writer
+refuses to emit a carving with holes in it.
+
+### A drawing tells you what is wrong with it, and no test does
+
+The first render put an eye inside a chamber and it ate the last letter of a
+label -- "seats" became "seato". The mammoth had six legs, because a leg was drawn
+under every chamber of a band that has three.
+
+Neither was reachable from an assertion anybody would have thought to write. Both
+were obvious the instant somebody looked at the output. That is the argument for
+this format restated from the inside, and it is also an argument for looking at
+your own output before writing tests about it.
+
+### Truncating quietly lies about where the fault is
+
+The reader's text buffers were sized to the label, and a chamber's interior is as
+wide as the wider of its label and its value, plus padding. So "rollbacks" came
+back as "rollback" and a sixteen-digit checksum as fifteen -- and the failure
+surfaced two layers away as *this carving has no chamber labelled rollbacks*,
+which is a true sentence pointing at entirely the wrong thing.
+
+It refuses rather than truncating now. Fragile is not the same as unhelpful.
+
+### Two alphabets forced a better reader
+
+The plain alphabet cannot tell a corner from a crossing -- a plus sign is every
+junction there is -- so the chamber scan could not depend on recognising corner
+characters and had to be written as geometry: four unbroken walls, exactly four
+rows, and no stroke anywhere inside.
+
+That version is simpler than the one it replaced, and it reads a creature nobody
+has written a rule for.
 
 ## Read next
 

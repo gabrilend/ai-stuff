@@ -94,6 +94,15 @@ struct session {
     uint8_t  turn_state;
 
     /*
+     * How many turns have been taken back. Counted rather than derived, because
+     * the log records what was DECLARED and a rollback is not a declaration --
+     * there is nothing in the log to count afterwards.
+     *
+     * It is a statistic a session tells about itself at the end. See issue 1001.
+     */
+    uint32_t rollbacks;
+
+    /*
      * The rules layer, or NULL. Held as a void pointer because 073-rules.h
      * includes this file -- a forward declaration would be cleaner and C does
      * not offer one that survives the cycle.

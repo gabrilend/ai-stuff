@@ -1,15 +1,39 @@
 The last thing any program in this project does is write here. Specifically, it
 writes goodbye.
 
-Nothing has run yet, so this is the placeholder version of that.
+A session now also carves itself. After it writes here, it engraves eight numbers
+about the evening as an ornate metal animal whose lines are the walls of the table
+holding them -- and the next bridge to start hangs that in the action bar, so the
+table can see its own history while it plays.
 
-What a real goodbye will carry: which session just ended, how long it ran in
-ticks and in hours, who was at the table and which scopes they held, the world
-hash at the final tick, and where the command log was written. Enough that
-somebody reading only this file knows what happened, and can go and watch it.
+The eight, and they are chosen rather than accumulated:
+
+    beats       how long it ran, in the unit the simulation counts
+    turns       how many were declared
+    seats       how many people were at the table
+    commands    how many things were asked for
+    refused     how many were refused
+    rollbacks   how many turns were taken back
+    things      how big the world got
+    checksum    the world hash at the final beat
+
+A creature has only so many places to put a number, and the engraving cannot grow
+a column without being redrawn. So the list stays small. That is a good pressure:
+most record formats grow columns until nobody reads them, because adding one costs
+nothing at the moment of adding.
 
 The world hash matters more than it looks. It is the number that says a replay of
 this session will reproduce it -- and if a replay ever ends on a different number,
-this file is where the two get compared.
+this is where the two get compared. It is also the widest value in the table,
+which is why the animal is drawn around it.
+
+What is deliberately not here: names, because a seat is a count and a display name
+is not a durable identity. And geometry, because this carries statistics and not a
+map. Whether the tavern the players burned down is still burned next week is a
+different question, and it is still open.
+
+The carvings live in the RAM tier, which is the wrong place for the one artifact
+meant to outlive the machine. ./share-engraving is what moves one somewhere
+durable, and it validates before it copies.
 
 goodbye
