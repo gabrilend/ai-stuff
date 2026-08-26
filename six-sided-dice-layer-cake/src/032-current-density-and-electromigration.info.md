@@ -20,9 +20,9 @@ Described by `405`.
 | `A_isl_avail` | um^2 | derived | 2.82743e+13 um^2 | cross-section they provide, taking a pad as a quarter of its pitch in radius |
 | `m_island` | 1 | derived | 4.30629e+09 | margin there, which is the number that showed the islands are not the problem |
 | `A_req_pillar` | um^2 | derived | 31411 um^2 | cross-section the inward core supply needs at one radial interface |
-| `A_pil_avail` | um^2 | derived | unresolved | cross-section the power pillars provide |
-| `m_pillar` | 1 | derived | unresolved | margin there |
-| `m_worst` | 1 | derived | unresolved | the binding case across all three |
+| `A_pil_avail` | um^2 | derived | 6.64761e+20 um^2 | cross-section the power pillars provide |
+| `m_pillar` | 1 | derived | 2.11633e+16 | margin there |
+| `m_worst` | 1 | derived | 3907.4 | the binding case across all three |
 | `j_grid` | mA/um^2 | derived | 0.000255925 mA/um^2 | actual current density in the die power grid, which is the number a process engineer will ask for |
 
 ## What it consumes
@@ -34,11 +34,11 @@ Described by `405`.
 | `I_face_supply` | `028` | 6.56582 A | and per face, which is what a port field connector has to carry |
 | `L_die` | `012` | 24 mm | edge of one compute die; two thirds of a reticle field, and half its area is the slice in 047 |
 | `T_j_peak` | `025` | 318.883 K | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
-| `d_radial_pad` | **nothing declares this** | — | — |
+| `d_radial_pad` | `051` | 20 um | pitch of the radial interface's pad array |
 | `f_grid_metal` | `030` | 0.75 | share of that stack given to power rather than signal |
 | `j_em_cu` | `011` | 1 mA/um^2 | electromigration current density limit for copper at 350 K over a ten year life |
 | `n_island_pad` | `014` | 3600 | conductors that can cross the cold plate, in total |
-| `n_pillar_pwr` | `030` | unresolved | radial pillars carrying current inward rather than data |
+| `n_pillar_pwr` | `030` | 2.116e+12 | radial pillars carrying current inward rather than data |
 | `p_island_pad` | `014` | 0.2 mm | pad pitch inside a via island |
 | `t_grid_metal` | `030` | 16 um | thickness of the thick metal stack a die's power grid is built in. Three microns was tried and put a hundred millivolts across the die at seventy amperes, which is four times the whole droop allowance |
 

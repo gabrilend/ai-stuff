@@ -237,3 +237,21 @@ million to make nanoseconds, in a field already declared in nanoseconds, turned
 nineteen nanoseconds into six and a half seconds. That is now five of these
 found by the checker across four phases; they are the most common defect in this
 project by a wide margin.
+
+**2026-08-26 — outstanding requests on the scalar core, 16 to 128.** `044`.
+Sixteen was a round number and covers about a seventh of a radial link round
+trip, which means the core stalls on six descriptor fields out of every seven.
+The utilisation claim that justifies the core being small depends on it not
+stalling.
+
+**2026-08-26 — two more duplicate declarations resolved.** `053` now owns the
+pipeline stage time, which `026` had estimated before the schedule existed; `055`
+renamed its bandwidth margin, which collided with the slice's capacity margin in
+`047`. That is six duplicates the ledger has refused so far, every one of them a
+blueprint guessing at something a later phase would own.
+
+**2026-08-26 — the speed of light became a symbol.** `011`. A flight time
+derivation had it as a bare literal, which made the result a length rather than a
+time. It joins the permittivity as the second physical constant that has to be
+declared rather than written, for the same reason: a literal here is always
+dimensionless.

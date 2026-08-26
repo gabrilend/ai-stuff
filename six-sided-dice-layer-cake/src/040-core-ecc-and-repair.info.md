@@ -47,7 +47,7 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `fit_per_bit` | `040` |
-| `n_ecc_line` | `034`, `040` |
+| `n_ecc_line` | `034`, `040`, `052` |
 | `n_ecc_check` | `034`, `040` |
 | `t_scrub` | `040` |
 | `n_ecc_min` | `040` |
@@ -57,7 +57,7 @@ Change one of these and the blueprints beside it are what break.
 | `n_line` | `040` |
 | `lam_line` | `040` |
 | `t_double` | `040` |
-| `B_scrub` | `040` |
+| `B_scrub` | `040`, `055` |
 | `f_scrub` | `040` |
 | `t_scrub_period` | `037` |
 | `f_ecc_line` | `040` |

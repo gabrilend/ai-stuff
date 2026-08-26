@@ -109,6 +109,7 @@ mu_fluoro     | Pa*s      | measured | 1.20e-3  | dynamic viscosity of the same
 T_fluoro_frz  | K         | measured | 195      | freezing point of the same, which is the one property where it beats water
 
 # --- a bound, so that a transcription error has something to fail against -
+c_light       | m/s       | measured | 2.998e8   | the speed of light in vacuum. Here for the same reason the permittivity is: a literal in this notation is dimensionless, so a physical constant is a symbol
 eps_0         | F/m       | measured | 8.854e-12 | permittivity of free space. It is here rather than written into a derivation because every literal in this notation is dimensionless, so a physical constant has to be a symbol like any other quantity
 eps_ox        | 1         | measured | 3.9      | relative permittivity of the oxide liner around a through-silicon via
 k_diamond     | W/(m*K)   | measured | 2000     | thermal conductivity of diamond; nothing here is made of it, and it is the ceiling any other conductivity must sit under

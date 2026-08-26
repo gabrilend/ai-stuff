@@ -4,8 +4,23 @@ Produces `src/052-link-protocol.md`.
 
 ## Current behavior
 
-Nothing. A transfer size is referenced by five other tickets and has never been
-chosen.
+**Done.** `src/052-link-protocol.md` exists. The transfer size is derived from
+four constraints owned by four different phases — a whole number of correction
+lines, no larger than the bank interleave, header overhead under a twentieth, and
+inside the arbitration quantum — which is precisely the situation the checker
+exists for.
+
+Seven constraints. The credit count is derived from the bandwidth-delay product
+rather than chosen, because falling short does not fail: it silently costs
+bandwidth.
+
+**Writes are treated as reads with a payload.** The writes that exist are small
+and latency-sensitive in a way this does not distinguish, and `037` noticed the
+same gap from the arbiter's side. Neither has acted.
+
+**Errors are corrected and not counted.** How often a line needed correcting per
+link is the one signal that would show a conductor failing slowly rather than all
+at once, and `051` has no other way to know which conductors to remap.
 
 ## Intended behavior
 

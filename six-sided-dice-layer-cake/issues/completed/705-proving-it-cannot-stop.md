@@ -4,8 +4,26 @@ Produces `src/054-flow-control-and-deadlock.md`.
 
 ## Current behavior
 
-Nothing. Credits are specified in `703` and nothing has shown that a machine using
-them cannot lock up.
+**Partly done, and the blueprint says which part.**
+`src/054-flow-control-and-deadlock.md` exists with the dependency graph drawn,
+both cycles identified, and a rule breaking each: request and response never
+share a queue, and stage zero never blocks — it declines to admit a microbatch,
+which is a decision it can always make, where waiting for the next stage is one
+it cannot.
+
+Six constraints, and bounds rather than absences: a worst-case wait per client
+class, and timeouts set well clear of them so they do not fire in normal
+operation.
+
+**The proof is prose and the constraints are counts.** `C-054-1` asserts there
+are two channels, not that they share no queue. `C-054-2` asserts a ring break
+exists, not that it is where it is claimed. The notation cannot hold a dependency
+graph, so the acyclicity argument is checked by a reader — **which is exactly the
+kind of thing this project set out to stop relying on**, and it is the honest
+state of this ticket.
+
+**Nothing covers a request being refused rather than delayed**, and **timeouts
+have no defined recovery.**
 
 ## Intended behavior
 

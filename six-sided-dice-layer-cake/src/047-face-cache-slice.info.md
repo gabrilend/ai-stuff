@@ -23,7 +23,7 @@ Described by `607`.
 | `C_slice_need` | MB | derived | unresolved | what the two-buffer requirement actually demands |
 | `m_slice` | 1 | derived | unresolved | margin on the tightest constraint in the project, which is worth having as a number rather than as a pass |
 | `B_slice_read` | bit/s | derived | 3.67002e+15 bit/s | rate a face's slice serves reads, all banks at once |
-| `t_seq_wait` | s | derived | unresolved | how long a sequencer's small read waits when it lands behind a burst |
+| `t_seq_wait` | s | derived | 1.42857e-12 s | how long a sequencer's small read waits when it lands behind a burst |
 | `d_slice_ratio` | 1 | derived | 2.0625 | how much denser a dedicated tier is than a slice on a logic die |
 
 ## What it consumes
@@ -39,9 +39,9 @@ Described by `607`.
 | `d_areal` | `035` | 2.07286 MB/mm^2 | areal density. The unit conversion from bits per square micron to megabytes per square millimetre is the notation's job, not the author's, which is the second reason area per bit had to carry its bit |
 | `f_face` | `045` | 1.4 GHz | the face clock |
 | `n_die_face` | `042` | 4 | compute dies on one face |
-| `t_link_rt` | **nothing declares this** | — | — |
+| `t_link_rt` | `051` | 9.2434e-09 s | round trip from a face issuing a read to the first data arriving: two flights, the array's access, the worst arbitration wait, and the protocol's own overhead |
 | `w_tier_port` | `034` | 10240 bit | bits one tier delivers per cycle, set by its macro count and the routing it can support across a forty millimetre die |
-| `w_transfer` | **nothing declares this** | — | — |
+| `w_transfer` | `052` | 4096 bit | payload of one transfer. Sixteen of 040's correction lines, an eighth of 038's interleave, and large enough that the header is three per cent |
 
 ## What consumes it
 
@@ -52,7 +52,7 @@ Change one of these and the blueprints beside it are what break.
 | `eta_slice` | `047` |
 | `n_slice_buf` | `047` |
 | `n_slice_bank` | `047` |
-| `batch_design` | `045` |
+| `batch_design` | `045`, `050`, `053` |
 | `p_seq_conflict` | `047` |
 | `a_bit_slice` | `047` |
 | `d_slice` | `047` |
@@ -60,7 +60,7 @@ Change one of these and the blueprints beside it are what break.
 | `C_face_slice` | `041`, `047` |
 | `C_slice_need` | `047` |
 | `m_slice` | `047` |
-| `B_slice_read` | `045`, `047` |
+| `B_slice_read` | `045`, `047`, `055` |
 | `t_seq_wait` | `047` |
 
 ## What it asserts

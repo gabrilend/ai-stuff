@@ -4,8 +4,24 @@ Produces `src/055-sieve-bandwidth.md`.
 
 ## Current behavior
 
-Nothing. Thirty-nine terabytes a second appears in six documents and the chain
-that produces it has never been written in one place.
+**Done.** `src/055-sieve-bandwidth.md` exists with the chain from the tiers to
+the engine and a margin at every stage.
+
+`C-055-1` is the architecture's central claim reduced to a single number that
+must be one: **one face gets the whole aggregate.** Three separate blueprints must
+each permit it and any one failing would kill it, and this is where that is
+checked rather than assumed.
+
+Six constraints, all holding. Non-weight traffic comes out well under a per cent.
+
+**The spout's average is a use assumption, not a hardware property.** A pane every
+millisecond is ordinary operation; a machine being used as memory through `069b`
+takes them far more often, and `C-055-5` would be the first thing to notice —
+which means **the memory mode has a bandwidth cost nothing has budgeted for.**
+
+**The sensitivity table the ticket asked for is deliberately not here**, because
+it belongs in `080` and putting it in two places is the duplication this project
+exists to avoid. So this answers *does it keep up* and not *what if it changes*.
 
 ## Intended behavior
 

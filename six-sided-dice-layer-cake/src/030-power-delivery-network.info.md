@@ -16,7 +16,7 @@ Described by `403`.
 | `t_grid_metal` | um | given | 16 um | thickness of the thick metal stack a die's power grid is built in. Three microns was tried and put a hundred millivolts across the die at seventy amperes, which is four times the whole droop allowance |
 | `f_grid_metal` | 1 | given | 0.75 | share of that stack given to power rather than signal |
 | `L_reg_to_die` | mm | given | 1.2 mm | distance from a regulator's output to the microbumps it feeds. Regulators sit directly beneath the dies they serve, because this length multiplies the drop |
-| `n_pillar_pwr` | 1 | derived | unresolved | radial pillars carrying current inward rather than data |
+| `n_pillar_pwr` | 1 | derived | 2.116e+12 | radial pillars carrying current inward rather than data |
 | `i_pad_max` | mA | given | 5 mA | current one twenty-micron copper pillar carries, a fifth of what it would take, because 032 wants the margin |
 | `R_island` | ohm | derived | 1.34398e-06 ohm | resistance of all the via island feedthroughs on one face in parallel |
 | `dV_island` | V | derived | 8.8243e-06 V | drop across them at the supply voltage, where the current is small |
@@ -30,8 +30,8 @@ Described by `403`.
 | `R_to_load` | ohm | derived | 7.91667e-05 ohm | the resistance the last level actually presents |
 | `dV_static_max` | V | derived | 0.015 V | the most the static drop may be |
 | `R_to_load_max` | ohm | derived | 0.00020351 ohm | the most the last level may present |
-| `I_pillar_cap` | A | derived | unresolved | current the radial pillar array will carry inward |
-| `f_pillar_used` | 1 | derived | unresolved | how much of that capability the core's inward supply actually uses |
+| `I_pillar_cap` | A | derived | 1.058e+10 A | current the radial pillar array will carry inward |
+| `f_pillar_used` | 1 | derived | 2.9689e-09 | how much of that capability the core's inward supply actually uses |
 
 ## What it consumes
 
@@ -47,10 +47,10 @@ Described by `403`.
 | `P_input` | `020` | 1890.96 W | power drawn from the forty-eight volt supply |
 | `V_logic` | `029` | 0.75 V | logic and multiplier arrays |
 | `V_mid` | `029` | 5 V | the intermediate rail on a face interposer, between the two conversion stages |
-| `f_radial_power` | **nothing declares this** | — | — |
+| `f_radial_power` | `051` | 0.4 | share of positions given to power and ground, which 030 needs for the core's inward supply |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `n_island_pad` | `014` | 3600 | conductors that can cross the cold plate, in total |
-| `n_radial_pad` | **nothing declares this** | — | — |
+| `n_radial_pad` | `051` | 5.29e+12 | positions in the array |
 | `p_island_pad` | `014` | 0.2 mm | pad pitch inside a via island |
 | `res_cu` | `011` | 1.9e-08 ohm*m | electrical resistivity of copper at 350 K |
 | `t_coldplate` | `013` | 2 mm | thickness of a face cold plate, base and channels and cover together |
