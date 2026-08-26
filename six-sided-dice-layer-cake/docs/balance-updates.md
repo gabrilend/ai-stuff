@@ -36,3 +36,30 @@ against eight hundred and seventy-four needed. Fifty per cent gives nine hundred
 and twenty-two. This is the constraint that ties the model shape to the die
 floorplan and it is the tightest one in the project — forty-eight megabytes of
 margin on a nine hundred megabyte number.
+
+**2026-08-25 — face cold plate, copper to silicon.** `014`.
+Not a knob so much as a material swap forced by arithmetic that had not been done
+yet. Copper against silicon across fifty-two millimetres over a sixty kelvin swing
+is forty-three microns of differential motion and about a hundred megapascals in
+the die, which is where silicon with an ordinary surface finish fractures.
+Matching the material zeroes the mismatch. Downstream: fin efficiency falls from
+eighty-nine per cent to seventy-four, effective conductance from about thirteen
+hundred watts per kelvin to one thousand and forty, and the convection term from
+one and a third kelvin to one and four fifths. Three tenths of a kelvin to remove
+the dominant mechanical failure mode.
+
+**2026-08-25 — cold plate wetted area derated five per cent.** `014`.
+The port field's conductors have to reach the interposer, and the cold plate is
+between them. Sixteen islands of three millimetres square per plate, where the
+channels stop and insulated feedthroughs pass instead. Costs about five per cent
+of wetted area and buys the ability to power the face at all.
+
+**2026-08-25 — core cooling laminae, copper to copper-molybdenum.** `036`.
+Same expansion argument as the face cold plate, one axis further in. Forty
+millimetre tiers, thirty-two interfaces, and copper would move thirty-three
+microns against the silicon at each one. An eighty-five per cent molybdenum
+composite sits at seven parts per million per kelvin instead of sixteen and a
+half, which cuts the differential by a factor of three, and costs conductivity —
+one hundred and ninety watts per metre per kelvin against four hundred. The core's
+heat load is a tenth of the faces', so it can afford the loss and the faces could
+not.
