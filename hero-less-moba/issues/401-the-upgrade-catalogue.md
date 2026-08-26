@@ -23,7 +23,6 @@ A **catalogue** of upgrade kinds, fixed at build time, living in a table under
 | `name` | string | Shown to players. |
 | `weight` | integer | Relative likelihood of being drawn. |
 | `bit` | integer | Which bit this kind occupies in a soldier's `upgrade_mask`. |
-| `applies_to` | integer | Bit set: 1 wave units, 2 towers. No hero bit exists. |
 | `add` | double[] | Flat additions, one per modifiable stat. |
 | `mul` | double[] | Multipliers, one per modifiable stat. |
 | `behaviour` | integer | Row in a behaviour dispatch table, or **0** for a pure stat change. |
@@ -40,18 +39,39 @@ is bounded by the width of that integer. If more kinds are wanted than bits
 available, that is a real design decision — a second mask word, or a smaller
 catalogue — and it should be made deliberately rather than discovered.
 
-Not every kind can go into stone. `applies_to` says which destinations a kind
-accepts, and a placement into a slot the kind does not accept is refused with a
-reason. Speed and health on an immobile building are meaningless; damage, range,
-and rate of fire are not.
+**Every kind can go into every slot, and nothing is ever refused for being the
+wrong kind.** *Settled; see [open questions](../docs/020-open-questions.md), F28.*
+
+There is one catalogue and no audience field on it. An upgrade modifies stats,
+and a body benefits to the extent that it has those stats and uses them. The
+three things upgrades reach — **wave units, guards, and towers** — overlap almost
+completely: they all have health, three of the four have feet, two swing and two
+throw. A guard and a tower are opposites with everything in common.
+
+So a movement upgrade slotted into a lane's towers is not refused and is not
+wasted: it does nothing for the tower, which is stone, and makes its guards cover
+their ground faster, which is a real purchase. **The routing falls out of the
+numbers and does not need a field.**
+
+An earlier draft of this issue built two fields for this — `applies_to` and
+`shape` — and a validator that refused anything outside their ranges. Both are
+gone. A tag is a second description of a thing that already describes itself, and
+the two can disagree the first time somebody writes an upgrade that adds both
+movement speed and ranged damage.
+
+**The one audience rule that remains is not in the catalogue.** Heroes are
+excluded by **flavour**, in the mask-stamping routine, so it is one check in one
+place rather than a field that has to be set right on every row.
 
 ## Suggested implementation steps
 
 1. Write the catalogue as a data table under `assets/`, not as code. It is data,
    it will be edited constantly, and it should be diffable.
-2. Write the loader and a **catalogue validator**: every kind has a distinct bit,
-   every weight is positive, every `applies_to` is nonzero, every behaviour index
-   resolves. A validator failure stops the program and names the row.
+2. Write the loader and a **catalogue validator**: every kind has a distinct
+   index into the count vector, every weight is positive, every behaviour index
+   resolves, and **every kind touches at least one stat** — a row that modifies
+   nothing is a typo, not an upgrade. A validator failure stops the program and
+   names the row.
 3. Write the behaviour dispatch table with a small number of real entries — a
    splash, a death rattle, a front-rank shield — so the mechanism is exercised
    rather than theoretical.
@@ -67,12 +87,12 @@ and rate of fire are not.
 
 ## Settled
 
-**Upgrades never apply to hero units.** No hero bit, no per-kind exception, no way
-to write one — enforce it in the **structure** of the catalogue rather than by
-everybody remembering: `applies_to` is two bits, the validator refuses anything
-outside {1, 2, 3}, and the mask-stamping routine returns zero for any flavour
-that is not a wave unit. A rule that can only be broken by editing the validator
-will not be broken by accident.
+**Upgrades never apply to hero units.** No per-kind exception and no way to write
+one. Since the catalogue carries no audience field at all (F28), this is enforced
+in exactly one place: **the stamping routine returns an empty vector for any
+flavour that is not a wave unit or a guard.** One check, one file, one comment
+saying why — which is a stronger guarantee than a field on every row that
+somebody has to remember to set, and a much easier one to find.
 
 Why the two economies must not multiply is in
 [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md).

@@ -22,48 +22,45 @@ lost its outer towers wants the latter.
 ### Both slots have two audiences
 
 An upgrade is never delivered to one recipient. Each slot feeds two things that
-are shaped differently, and **the upgrade's own shape decides which of them
-actually gets it.** *Settled; see [open questions](020-open-questions.md), F21
-and F22.*
+are built differently, and **how much of the upgrade lands depends on which of
+its stats they have.** *Settled; see [open questions](020-open-questions.md),
+F28.*
 
-| The upgrade is | In a lane it reaches | In a lane's towers it reaches |
+| Slot | Its two recipients | What separates them |
 | --- | --- | --- |
-| **melee** | the melee bodies and melee captains | the guards |
-| **ranged** | the ranged bodies and ranged captains | the tower |
-| **common** — health, armour, and the like | everything the lane spawns | both |
+| **a lane** | melee bodies, ranged bodies | one closes and swings, one stands off and throws |
+| **a lane's towers** | the guards, the tower | one has feet and a blade, one is stone and throws bone |
 
-**This is the same rule twice**, which is why it is one field on the catalogue
-rather than two. A slot has a melee audience and a ranged audience; an upgrade
-speaks to one or to both.
+**Nothing tags an upgrade with an audience.** There is no melee upgrade and no
+tower upgrade — there is an upgrade, and there are the things it happens to help.
+A movement upgrade helps everything with feet and does nothing for a tower,
+because a tower's speed is zero and always was. A health upgrade helps all four
+equally. None of that is written anywhere; it falls out of the numbers.
 
-The consequence a player will feel: **a placement can be wrong rather than merely
-suboptimal.** An upgrade in the right lane and the wrong half of it does a
-fraction of its work, and nothing refuses it or warns. That is new — until wave
-units came in three kinds, every placement was somewhere on a scale from useful
-to less useful, and none of them missed.
+**So nothing is ever refused for being the wrong kind**, and a placement is never
+flatly *wrong* — it does exactly as much as it can do. The question a player is
+answering stays what it always was: **where is this worth the most**, not *will
+this slot accept it*.
 
-### And what that means for the tower slot in particular
+### Which makes the tower slot a wider purchase than it looks
 
-The two audiences here are **the guards, who are melee** — they walk, they close,
-they swing — and **the tower, which is ranged**: it stands still and shoots.
+An upgrade here applies to the guards and *possibly* the tower. A melee damage
+upgrade buys a harder patrol and does nothing for the arrows; a ranged one buys
+arrows and does nothing for the patrol; health buys both. **All three are
+sensible purchases out of the same slot**, and a player choosing between them is
+choosing whether they want bodies or arrows on that lane.
 
-That is why an upgrade in this slot applies to the guards and *possibly* the
-tower. A melee damage upgrade slotted here is not wasted and is not refused; it
-buys a harder patrol and does nothing for the arrows. A player who slots one is
-buying bodies, and a player who slots a ranged one is buying arrows, out of the
-same slot.
-
-**An earlier version of this document had this wrong**, and the wrongness is
-worth recording because the reasoning was plausible: it said "speed and health
-upgrades on an immobile building are meaningless" and refused them here. That
-holds only if the slot feeds a building. It feeds a patrol as well — so a
+**An earlier version of this document got this badly wrong**, and the wrongness
+is worth recording because the reasoning was so plausible: it said *"speed and
+health upgrades on an immobile building are meaningless"* and refused them here.
+That holds only if the slot feeds a building. It feeds a patrol as well — so a
 movement-speed upgrade slotted into a lane's towers makes its guards cover their
 ground faster and answer a breach sooner, which is a real purchase and one of the
-more interesting ones in the slot.
+more interesting ones available.
 
-**So the refusal test is narrow: a placement into the tower slot is refused only
-when the upgrade helps neither the guards nor the tower.** Given that guards are
-ordinary soldiers with ordinary stats, that set is small and may well be empty.
+The lesson generalises past this slot: **a rule that refuses something is a claim
+about who is listening, and this design kept getting that claim wrong.** Deleting
+the refusals rather than repairing them is what finally fixed it.
 
 Nothing is consumed by any of this. An upgrade sitting in a slot is a **standing
 property of that slot**, not a resource spent into bodies — it applies for as long
@@ -121,7 +118,7 @@ last stand is allowed to be total.
 
 Towers, unlike soldiers, are **not** stamped once. A soldier is born, carries
 what it was born with, and dies; a tower stands for the whole match, so it reads
-its counts live:
+its counts live — it is the only thing in the game that does:
 
 - A lane tower on lane L reads `tower_count[L]`.
 - A base tower reads the **sum** of every lane's `tower_count` row and

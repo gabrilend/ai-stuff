@@ -34,10 +34,16 @@ tower falling changes nothing, because the upgrade was never in that tower. It
 was in that lane's stone, and the lane still has stone — and even when it does
 not, the base towers inherit it.
 
-Not every kind can go into stone; `applies_to` decides, and a refusal names the
-reason. Speed and health on an immobile building mean nothing.
+**Every kind can go into stone and nothing is refused for being the wrong kind.**
+*See F28.* The slot has two recipients — the guards, who walk and swing, and the
+tower, which stands and shoots — and an upgrade reaches whichever of them has the
+stats it touches. A movement upgrade here does nothing for the tower and makes
+its patrol faster, which is a real purchase rather than a mistake.
 
-A tower reads its mask **live**, unlike a soldier, which is stamped at birth.
+A tower reads its counts **live**, unlike a soldier. Its **guards** each carry
+their own copy, cleared and re-stamped whenever the slot changes (F23), so
+nothing in the swing path follows a reference to a tower.
+
 A tower upgrade therefore takes effect **immediately** while a lane upgrade takes
 effect on the **next wave**. That asymmetry is deliberate and it is the reason a
 player under pressure reaches for the stone: stone is the fast option, soldiers
@@ -45,8 +51,8 @@ are the slow one.
 
 ## Suggested implementation steps
 
-1. Extend the placement handler to accept `slot_kind = 2` and validate against
-   `applies_to`.
+1. Extend the placement handler to accept `slot_kind = 2`. There is no kind
+   validation to do — see F28.
 2. Extend `rebuild_masks` to fill `tower_mask[lane]`.
 3. Wire tower damage and range to read `tower_mask[lane]` live in the tower
    attack pass.

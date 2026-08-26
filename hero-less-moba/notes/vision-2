@@ -1,0 +1,111 @@
+this is the second vision. the first one is in notes/vision and it is about what
+the game is. this one is about what it looks like and what your hands do, and it
+arrived whole, in one piece, on 2026-08-25.
+
+it is written down here rather than turned into documents, because a vision is
+allowed to contradict the documents and the documents are not allowed to quietly
+sand it down. what it collides with is listed at the bottom, as questions, not as
+corrections.
+
+--
+
+# the vision, as it came
+
+a tower throws spikes of bone because it's an undead commander - then the player
+clicks or taps one of the stones listed underneath the tower's 3d model,
+projected onto the world...
+
+the stone is a rune, with a color. The runes are like katakana.
+
+then, the viewpoint, which was a 3d RTS style like Warcraft or Starcraft, some of
+the greats of the genere, zooms out to a grander scale, which is fully zoomed out
+supreme commander scale. The places where they could place the upgrade are
+highlighted, and they can also tap the other options on the tower they selected,
+if they pressed the wrong button or something. These are located on the map, in
+it's zoomed out state, and they can see the enemy unit armies approaching. Then,
+they summon units, and they advance toward them.
+
+--
+
+# what is in it
+
+Six things, and each of them is a decision even though none of them was written
+as one.
+
+**The world is three-dimensional and the camera is an RTS camera.** Warcraft,
+Starcraft. Not a board seen from above.
+
+**Upgrades live on the objects they affect, not in a panel.** They are stones
+listed underneath a tower's model, projected onto the world. To touch the chest
+you touch the thing the chest is doing something to.
+
+**An upgrade is a rune, and it has a colour.** Not an icon, not a name in a list.
+The runes are like katakana — a small closed alphabet of shapes that mean things,
+learnable, and readable at a size where a word would not be.
+
+**The zoom is the interface, not a convenience.** Selecting a rune zooms the
+camera out to the fullest extent — Supreme Commander scale, the whole war at
+once — and the act of zooming out *is* the act of asking where to put it.
+
+**Valid destinations light up at that scale**, so a placement is chosen by
+looking at the whole map rather than by reading a slot name. And the other runes
+on the tower you selected stay tappable, so a wrong press costs nothing.
+
+**And you can see the enemy armies approaching while you decide.** The placement
+decision and the reason for it are on screen at the same time, which is the
+opposite of a panel.
+
+Then you summon units, and they advance toward them.
+
+--
+
+# what it collides with
+
+None of these are corrections to the vision. They are places where a document
+currently says something else, and the vision is the older authority.
+
+**The viewer was settled as LÖVE**, chosen for a 2D sprite batcher drawing
+thousands of near-identical bodies on a fixed view. See D1 in the open questions
+and [the viewing layer](../docs/017-the-viewing-layer.md). A 3D RTS camera is a
+different program with a different reason for existing, and D1's reasoning does
+not survive it — the rejected alternative there was "an FFI binding to something
+lower-level," rejected because "the drawing is not unusual." It is now unusual.
+
+**The chest was a panel.** [The viewing layer](../docs/017-the-viewing-layer.md)
+puts unplaced upgrades "large and impossible to ignore" in a panel, and says the
+chest and the lanes should be arranged so a placement is "a short drag and not a
+trip across the screen." This vision says the opposite and says it better: the
+placement is not a drag at all, it is a selection and then a zoom.
+
+**The default camera was the whole map, always**, with zoom to inspect (D7). This
+vision has the default *closer* than that and the zoomed-out view arriving on
+demand, as a consequence of picking something up. Those are not the same rule and
+the difference matters — D7's argument was that a player must be able to judge
+three lanes without doing anything, and here they do something first.
+
+**An upgrade had no colour and no shape of its own.** It had a name and a row in
+a catalogue. Runes are a real constraint on the catalogue's size — an alphabet is
+learnable and a hundred symbols is not — which touches B7.
+
+**Nothing in the documents is undead.** The setting is
+[nobody remembers why](../docs/021-nobody-remembers-why.md): an ancient automated
+war, machinery that still runs, libraries nobody has read. An undead commander
+throwing spikes of bone fits that better than it disturbs it — *something* is
+still commanding, centuries in — but the documents have never said what is doing
+the commanding, and this is the first thing that has.
+
+--
+
+# what to do with it
+
+Nothing yet. Phase 7 is where the viewer gets built and phase 7 is a long way
+down. What this document is for is making sure that when somebody arrives there,
+they arrive holding this rather than holding
+[the viewing layer](../docs/017-the-viewing-layer.md)'s assumptions — which were
+written before anybody had pictured the thing.
+
+The one decision it would be a mistake to make early is the drawing library. D1
+answered LÖVE on the strength of "this is thousands of small sprites on a fixed
+view." If it is a 3D RTS camera at Supreme Commander scale, that sentence is
+false, and the answer that followed from it should be reopened rather than
+inherited.

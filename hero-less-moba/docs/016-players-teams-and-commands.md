@@ -68,7 +68,7 @@ the game lets you do, and any feature proposal has to add a row.
 
 | Command | Arguments | Refused when |
 | --- | --- | --- |
-| `place_upgrade` | instance, slot kind, lane | Locked by another; kind cannot enter that slot; already in transit; destination is where it already is; inside the freeze window |
+| `place_upgrade` | instance, slot kind, lane | Locked by another; already in transit; destination is where it already is; inside the freeze window. **Never on the grounds of what the upgrade is** — see F28 |
 | `withdraw_upgrade` | instance | Locked by another; inside the freeze window |
 | `choose_boon` | offer index | Not in a boon window; this player has already chosen |
 | `lock_upgrade` | instance | Already locked; instance is unplaced |

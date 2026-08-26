@@ -24,8 +24,12 @@ hero-less-moba/
 │                                               for the written half.
 │
 ├── notes/
-│   └── vision ................................ Where all of this came from, in the
-│                                               author's own words. Read first.
+│   ├── vision ................................ Where all of this came from, in the
+│   │                                           author's own words. Read first.
+│   └── vision-2 .............................. The second vision: what it looks
+│                                               like and what your hands do. Runes
+│                                               on the towers, and a camera that
+│                                               zooms out when you pick one up.
 │
 ├── docs/
 │   ├── 001-what-this-game-is ................. The subtraction premise, the three
