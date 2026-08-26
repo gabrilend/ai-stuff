@@ -91,9 +91,16 @@ pump and a radiator. One particle stops one channel and its neighbours take the
 load. Nobody has run the case. The filtration specification in `027` is currently
 a guess written in the imperative mood.
 
-**T3. What is the actual fin efficiency?** `022` assumes ninety per cent for a one
-millimetre copper fin, which is plausible and unverified. It multiplies the whole
-convection term.
+**T3. What is the actual fin efficiency?** `022` derives about seventy-four per
+cent for a one millimetre silicon fin. It multiplies the whole convection term and
+it is the entire price of choosing silicon over copper in `202`, so it deserves a
+better treatment than a one-dimensional fin formula.
+
+**T4. The core is not in the flow network.** `024` solves six face fields, twelve
+rails and eight corner blocks. The core's thirty-two cooling laminae need a
+hundred and ninety watts of flow through the cage and they appear in no branch of
+that network. A known omission rather than an open question, recorded here so it is
+not discovered by somebody adding up the flows.
 
 ### Phase 4, the rails
 
@@ -118,7 +125,31 @@ the pane and generating tokens are mutually exclusive for as long as the read
 takes — fifty-four nanoseconds per pane, one and three quarter milliseconds for
 the whole core, long enough to stall a token. Whether a coherent snapshot is
 required, or whether the spout may read a torn view, is an ordering question `039`
-has not answered.
+has not answered. `506` recommends exclusion and should close this.
+
+**M3. Is one and a half megabytes per square millimetre real?** The core's whole
+capacity rests on it and it is **the most optimistic number in the project**. It is
+defensible only for a dedicated array tier carrying bit cells and local decode and
+nothing else, with sense amplifiers, redundancy, correction and interface all on a
+separate logic lamina beneath. A conventional cache achieves a third of it. If the
+true figure is one megabyte per square millimetre, usable capacity falls from
+sixty-four gibibytes to forty-one, the reference model no longer fits, and the
+machine's central claim goes with it. `502` must derive rather than quote it.
+
+**M4. Where does the runtime repair map live?** `507` wants to retire a line that
+fails repeatedly and remap its address. The map has to survive power loss and
+nothing in the design provides non-volatile storage anywhere inside the cube. The
+options are a small fuse array per tier, a region on the storage lines rewritten at
+shutdown, or abandoning runtime repair and relying on test-time spares alone. This
+is a real gap rather than an unmade decision.
+
+**M5. How do the two end faces reach the deep tiers?** Four faces look at the
+stack's sides where every tier's edge is exposed. Two look at its ends, where only
+the outermost tier is. Either a through-stack via forty millimetres long — which at
+one point two gigahertz is a transmission line, not a via — or a redistribution
+route around the outside of the stack. The two cost very differently in area and
+power, and whichever is chosen, `504` must still be able to give any face the whole
+bandwidth, so an answer that privileges the four side faces is not an answer.
 
 ### Phase 6, the faces
 
