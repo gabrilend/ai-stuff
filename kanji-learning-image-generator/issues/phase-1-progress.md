@@ -13,7 +13,7 @@ is for.
 | | | Status |
 |---|---|---|
 | `101` | The two archives | **completed** — both archives fetched, provenance recorded, settings and the two rituals in place |
-| `102` | Reading a shape out of XML | not started |
+| `102` | Reading a shape out of XML | **completed** — both archives read, joined, cached, and every leftover accounted for |
 | `103` | The line the brush took | not started |
 | `104` | A surface that holds grey | not started |
 | `105` | A picture on the disk | not started |
@@ -44,3 +44,22 @@ at the end. And the project root was to be verified by comparing two paths as
 strings, on a machine where one directory has two absolute paths. Both checks
 were cheap, both were plausible, and both would have reported success on exactly
 the failure they existed to catch.
+
+## What `102` turned up
+
+**The report earned its keep before anything used it.** The plan justified
+counting the join's leftovers on the general principle that a set which shrinks
+quietly is a set nobody notices has shrunk. The first run printed the list and
+it began with an exclamation mark, a comma, and the digits — the stroke archive
+draws the Latin alphabet and both syllabaries, which no kanji dictionary lists.
+The alarming number was three ordinary numbers stacked together.
+
+**And then two checks in a row were wrong about the world.** Nine characters
+remained that plainly had English meanings — "cold", "territory" — and did not
+join. They are compatibility characters: a second Unicode number for the same
+character, so old Korean text survives a round trip. Establishing which ordinary
+character each pairs with was attempted twice and refuted twice, once by
+comparing the drawings and once by reading the archive's own label. The pairing
+is not in either archive. It is now stated as a limitation instead of a fact,
+which is the only outcome of the three that would have survived contact with a
+reader who knew Unicode.

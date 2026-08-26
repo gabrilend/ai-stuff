@@ -47,3 +47,7 @@ what a person reads before opening the source.
 | `file_size(path)` | Bytes, or nil if there is no such file. |
 | `ends_of(path, bytes)` | The first and last stretch of a file, for the shape check. |
 | `main(argv)` | Run directly, this fetches. Loaded as a library, it does not. |
+
+## Where it sits
+
+Used by `012-read-the-strokes`, `013-read-the-meanings`, `019-the-kanji-record`.

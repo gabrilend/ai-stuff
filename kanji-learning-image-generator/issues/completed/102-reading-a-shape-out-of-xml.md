@@ -2,7 +2,28 @@
 
 ## Current behavior
 
-Two large XML files sit in `assets/` and nothing can read them.
+Done. `src/011-scan-xml.lua` walks either archive as a stream of tags,
+`src/012-read-the-strokes.lua` and `src/013-read-the-meanings.lua` build their
+halves, and `src/019-the-kanji-record.lua` joins them, caches the result and
+reports the gaps.
+
+Three things came out differently from the plan:
+
+**The store computes stroke ranges, not bounding boxes.** The plan said both. A
+bounding box needs the paths parsed and flattened, which is `103`'s work and a
+geometry concern; a store that reached for it would be a record keeper doing
+arithmetic. The ranges come free from the group tree and the boxes are computed
+where they are used, in `204`.
+
+**The cache is a flat text format rather than Lua source**, because the Lua
+version was measured to be *slower than re-parsing the XML it replaced* —
+thirty-two megabytes of source, since the standard quoter escapes every byte of
+every kanji, and compiling that costs more than reading thirty megabytes of
+tags. The flat form loads in a fraction of a second.
+
+**The leftovers are three categories, not one**, and finding that out took two
+wrong answers. `docs/002` has the categories and `docs/007` has what is still
+not known about the compatibility block.
 
 ## Intended behavior
 
@@ -54,8 +75,8 @@ dispatch table of named selectors rather than a chain of tests.
    attribute marks the others.
 
 4. **`src/019-the-kanji-record.lua`** — the store. Loads both, joins on the
-   character, computes each component's stroke range and bounding box, reports the
-   gaps, and offers the selectors.
+   character, computes each component's stroke range, reports the gaps, and
+   offers the selectors.
 
    It is slow to build — two archives, thirteen thousand entries — so it caches
    the joined result. The cache goes in `tmp/shared-memory/`, which is RAM, and is

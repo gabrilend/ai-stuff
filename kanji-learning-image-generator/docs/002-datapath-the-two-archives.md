@@ -135,13 +135,30 @@ ever sees:
 | `grade`, `jlpt`, `frequency`, `stroke_count` | numbers or nil | KANJIDIC2 |
 | `radical` | number, the classical radical | KANJIDIC2 |
 
-**The join is not total, and the gap is not an error.** KANJIDIC2 describes more
-characters than KanjiVG has drawn. A character with meanings and no strokes cannot
-be made into a picture, and one with strokes and no meanings has nothing to be a
-picture *of*. Both are dropped, and both are counted and named in the report the
-store prints, because a silently shrinking set is how you end up wondering where
-a character went. `docs/007` holds the open question about whether the
-strokes-but-no-meaning set is worth rescuing by hand.
+**The join is not total, and the gap is not an error.** A character with meanings
+and no strokes cannot be made into a picture; one with strokes and no meanings has
+nothing to be a picture *of*. Both are dropped, both are counted, and the smaller
+lists are named outright — a silently shrinking set is how you end up wondering
+where a character went.
+
+The leftovers are sorted into three kinds, and keeping them apart is the
+difference between a useful report and an alarming one:
+
+- **Not kanji at all.** The stroke archive also draws the Latin alphabet, the
+  digits, punctuation and both syllabaries — reasonably, since it is an archive
+  about how to write things. None appear in a kanji dictionary. This is the
+  largest of the three leftovers by a wide margin and it is not a gap in anything.
+- **A kanji the dictionary does not gloss.** The real gap, and it is tiny — a
+  handful of rare and archaic forms.
+- **The compatibility block.** Characters given a second number so that older
+  Korean text survives a round trip through Unicode. The dictionary lists them
+  under their ordinary number, so these carry no gloss of their own. **This
+  project cannot say which ordinary character each one pairs with**: the pairing
+  lives in Unicode's character database and in neither archive here. Two attempts
+  to derive it are recorded in `src/019` and both were wrong.
+
+Run `luajit src/019-the-kanji-record.lua --report` for the counts and the lists as
+they stand against the archives on disk.
 
 **`stroke_count` is checked, not trusted.** KANJIDIC2 states a number and KanjiVG
 supplies a list; where they disagree, the archives disagree about the character
