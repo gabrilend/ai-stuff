@@ -52,6 +52,17 @@
 #define SPRITE_MAX_LAYERS 6
 #define SPRITE_NAME_MAX   31
 
+/*
+ * THE CANVAS: the square a sprite is drawn on, in its own hundredths. Every
+ * offset and radius is measured against this, which is why they fit in a byte --
+ * a sprite is described in its own units and the renderer decides how big a
+ * metre is.
+ *
+ * Recorded alongside every rating, because a rating of a picture drawn for a
+ * different canvas is a rating of a different picture.
+ */
+#define SPRITE_CANVAS 100u
+
 struct sprite_layer {
     uint8_t shape;
     uint8_t slot;
@@ -113,6 +124,26 @@ uint32_t sprite_to_svg(const struct sprite *s, char *into, uint32_t capacity);
  * notices.
  */
 int sprite_from_svg(struct sprite *s, const char *svg);
+
+/*
+ * ONE NUMBER STANDING FOR THE WHOLE PAINTBRUSH.
+ *
+ * Not a version somebody remembers to bump. It is computed: a fixed handful of
+ * categories and seeds are drawn and encoded, and the bytes of the resulting
+ * files are folded together. Anything that changes what a word turns into --
+ * a new shape, a different body size, a reweighted palette, a change to the
+ * encoder itself -- changes this number, without anybody having to notice.
+ *
+ * WHY IT IS RECORDED WITH EVERY RATING: a tier is an opinion about a specific
+ * picture. Change the generator and the same category and seed produce a
+ * different picture, so the old rating is now describing something that no
+ * longer exists -- and without this number there is no way to tell a rating of
+ * the current paintbrush from a rating of last month's. That is the difference
+ * between "this goblin was badly drawn" and "this goblin was drawn by a tool
+ * that has since been replaced", and it is not a difference you can reconstruct
+ * afterwards.
+ */
+uint64_t sprite_paintbrush_fingerprint(void);
 
 /* The names, for the paintbrush's document half and for a demo. */
 const char *shape_name(uint8_t shape);

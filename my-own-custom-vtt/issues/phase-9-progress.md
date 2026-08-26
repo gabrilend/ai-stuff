@@ -2,7 +2,7 @@
 
 **Goal:** the art is generated, kept, judged, and the judging is watched.
 
-**Status: in progress.** Two of eight issues complete, one part-done.
+**Status: in progress.** Seven of nine issues complete.
 
 ## The issues
 
@@ -10,12 +10,13 @@
 | --- | --- | --- |
 | [901 a sprite is an animated SVG](completed/901-a-sprite-is-an-animated-svg.md) | done | A picture that watches itself, and a reader that did not write it. |
 | [902 the paintbrush is a closed set](completed/902-the-paintbrush-is-a-closed-set.md) | done | Twelve words, and nothing outside them. |
-| [903 the pool keeps everything](903-the-pool-keeps-everything.md) | not started | Storage is cheap, judgment is expensive. |
-| [904 two ways of rating](904-two-ways-of-rating.md) | not started | Both algorithms, both tested. |
-| [905 the machine grader is a heuristic](905-the-machine-grader-is-a-heuristic.md) | part done | The grader exists; the measurement of it does not. |
-| [906 the quality dial](906-the-quality-dial.md) | not started | Raising quality spends variety, and says so first. |
-| [907 the anchor that stops drift](907-the-anchor-that-stops-drift.md) | not started | A loop tuned by a grader that is itself being tuned. |
+| [903 the pool keeps everything](completed/903-the-pool-keeps-everything.md) | done | Storage is cheap, judgment is expensive. |
+| [904 two ways of rating](completed/904-two-ways-of-rating.md) | done | Both algorithms, both tested. |
+| [905 the machine grader is a heuristic](completed/905-the-machine-grader-is-a-heuristic.md) | done | A proxy for taste, measured rather than trusted. |
+| [906 the quality dial](completed/906-the-quality-dial.md) | done | Raising quality spends variety, and says so first. |
+| [907 the anchor that stops drift](completed/907-the-anchor-that-stops-drift.md) | done | A loop tuned by a grader that is itself being tuned. |
 | [908 the phase nine demo](908-the-phase-nine-demo.md) | not started | The capstone. |
+| [909 a thing wears a sprite](909-a-thing-wears-a-sprite.md) | not started | Foundational, and discovered late. |
 
 ## What is built so far
 
@@ -24,6 +25,22 @@
 | `082-sprite` | Making, writing, and independently reading one animated SVG. |
 | `083-test-sprite` | Three thousand round trips, and the grader's spread. |
 | `084-calibrate` | Whether the five tiers are still five tiers. |
+| `085-sprite-pool` | Every sprite ever made, and what anybody thought of it. |
+| `087-studio` | The agreement rate, the anchor, and the dial that quotes its price. |
+
+## Two more, from building the library
+
+**Zero out of zero is not perfect.** A ratio over no observations is the single
+most dangerous number this project could print — a hundred per cent agreement
+with a person who has never rated anything. Nothing disagreed; nothing agreed
+either. The agreement rate has three standings rather than two, and both the
+unmeasurable and the too-thin cases have tests checking that no percentage
+appears in the sentence.
+
+**A correction must not destroy what it corrected.** The obvious storage is one
+tier field that a person's rating overwrites. It works perfectly and it destroys,
+every time somebody disagrees, exactly the pair the agreement rate is computed
+from. Two fields, one effective.
 
 ## Three things this phase has already taught
 
