@@ -24,6 +24,7 @@ kanji-learning-image-generator/
 │   ├── 004-datapath-the-scene-grammar.md  which piece is a subject, which is only a sound
 │   ├── 005-datapath-the-workflow.md .. the ComfyUI graph, in the two shapes it accepts
 │   ├── 042-datapath-the-studio.md ... pictures kept, rated, filtered, and argued with
+│   ├── the-paintbrush ............... what an argument may say; generated, no file of its own
 │   │
 │   ├── 006-roadmap.md ............... three phases; parts, not dates
 │   ├── 007-open-questions.md ........ every question, closed and open, in one place
@@ -69,6 +70,12 @@ flattening, the raster surface, PNG, JSON. Nothing here knows what a kanji means
 **Phase 2 — The Meaning.** A record into a scene. Stroke measurement, the
 structure field, the component lexicon, the biome and subject grammar, the prompt,
 the stroke-order arrows. Nothing here knows what ComfyUI is.
+
+**Phase 4 — The Study Tool.** Recipes into pictures, pictures into a pool, and
+a way to argue with a bad one. Radical names, whole words, the closed vocabulary
+a better argument may speak, the picture program and the client that feeds it,
+the pool that keeps everything, the two graders, the quality dial, and the
+stroke-order animation a good picture earns.
 
 **Phase 3 — The Machine.** A scene into a file somebody can run. The node graph
 and its catalogue, the workflow, the whole set in parallel, the gallery, this

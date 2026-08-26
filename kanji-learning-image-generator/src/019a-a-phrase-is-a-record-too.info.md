@@ -56,4 +56,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `022-the-structure-field`, `027-test-the-meaning`, `030-make-one-kanji`, `031-make-them-all`.
+Used by `022-the-structure-field`, `027-test-the-meaning`, `030-make-one-kanji`, `031-make-them-all`, `044-run-the-pictures`.
