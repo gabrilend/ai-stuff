@@ -46,4 +46,8 @@ what a person reads before opening the source.
 | `test_flattening(t)` |  |
 | `test_every_stroke_in_the_archive(t, quick)` | The test the whole of phase one exists for. |
 | `test_the_store(t)` |  |
+| `test_the_canvas(t)` |  |
+| `inflate_fixed(text)` | Enough of a decompressor to check the compressor, and no more. |
+| `test_writing_a_picture(t)` |  |
+| `test_the_numbers(t)` |  |
 | `main(argv)` |  |

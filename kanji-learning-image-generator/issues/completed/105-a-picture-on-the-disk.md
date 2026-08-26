@@ -2,7 +2,23 @@
 
 ## Current behavior
 
-The canvas holds a picture and there is no way to look at it.
+Done. `src/017-write-a-picture.lua` writes grayscale and colour-with-transparency
+PNGs, with real compression rather than uncompressed blocks.
+
+A full-size field comes out at well under a fifth of its raw size, which is the
+whole reason the compressor was written rather than skipped. Run the phase demo
+for the figure against the archive on disk.
+
+**Both checks the plan asked for are in place and both are real.** The round trip
+goes through a decoder written in the test from the format description, not
+through anything in `017` — a round trip through code written from the same
+misunderstanding proves nothing. And the outside opinion is taken when the
+machine has one, with the tool named in the output; when there is none, the test
+says the outside check was skipped rather than counting it as a pass.
+
+Two ordering mistakes surfaced immediately, both the same shape: a table lookup
+placed before the bounds check that protects it, in the code that picks which
+length bracket and which distance bracket a repeat falls into.
 
 ## Intended behavior
 
