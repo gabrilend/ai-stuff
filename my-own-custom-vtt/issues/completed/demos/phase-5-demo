@@ -119,10 +119,13 @@ echo "    What you can see was decided before it was sent. The dark"
 echo "    is not painted over anything -- the records for what is in"
 echo "    it never left the server."
 echo
-echo "    The shapes are placeholders. Phase 7 lets a ruleset say"
-echo "    what a thing looks like, and phase 9 generates the sprites."
-echo "    The interface is built so those are substitutions rather"
-echo "    than rewrites."
+echo "    The shapes were placeholders when this was written, and the"
+echo "    note said phase 7 would let a ruleset name a thing and"
+echo "    phase 9 would generate its picture. Both happened, and"
+echo "    phase 11 put the picture on the wire -- so what you are"
+echo "    looking at now is a generated sprite, sent as its layers"
+echo "    and assembled by the browser. The interface took the"
+echo "    substitutions it was built for, without a rewrite."
 echo
 echo "    ctrl-c to stop both."
 echo
