@@ -4,8 +4,28 @@ Produces `src/090-handoff-package.md`.
 
 ## Current behavior
 
-Nothing. The stated deliverable of this project is a blueprint set somebody can
-build from, and nothing says what that set is or in what order to read it.
+**Done.** `src/090-handoff-package.md` exists with the omissions list **at the
+front**, and `C-090-1` asserts it as a **floor rather than a ceiling** — the
+failure mode of a handoff package is a shorter list than the truth, so shortening
+it is a violation.
+
+Seven omissions. The largest is that **every number in this project is a point
+value and nobody has written down a tolerance for anything**. A materials engineer
+will ask on the first day.
+
+`C-090-4` reduces the notation's whole claim to a fraction: **about four numbers
+in seven are derived rather than chosen**, and the remaining three are the
+material properties, the process figures and the eleven lengths somebody decided.
+
+The worked example is the part that makes this a machine rather than a folder of
+drawings: **change the compute die's edge from twenty-four millimetres to
+twenty-six and run the checker.** It names the core-edge constraint, because the
+core's size is derived one way from outside the cube and another way from the
+stack inside it, and nothing forces those two arguments to agree.
+
+**The ownership table is not here** — which blueprint a question goes to, and
+which open question bears on it. It wants generating from the tickets rather than
+writing.
 
 ## Intended behavior
 

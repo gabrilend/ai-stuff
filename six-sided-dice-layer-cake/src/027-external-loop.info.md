@@ -71,7 +71,7 @@ Change one of these and the blueprints beside it are what break.
 | `d_filter` | `022`, `027` |
 | `dp_filter_end` | `027` |
 | `V_loop_ext` | `027` |
-| `V_reservoir` | `027` |
+| `V_reservoir` | `027`, `088` |
 | `t_interlock` | `026`, `027` |
 | `t_service_int` | `027` |
 | `n_pump` | `027` |
@@ -88,7 +88,7 @@ Change one of these and the blueprints beside it are what break.
 | `dp_rad` | `027` |
 | `dp_tube` | `027` |
 | `dp_system` | `027` |
-| `V_leak_life` | `027` |
+| `V_leak_life` | `027`, `088` |
 
 ## What it asserts
 

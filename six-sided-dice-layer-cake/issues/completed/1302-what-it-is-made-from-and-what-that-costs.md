@@ -4,7 +4,30 @@ Produces `src/088-bill-of-materials.md`.
 
 ## Current behavior
 
-Nothing. Nobody has counted the parts.
+**Done.** `src/088-bill-of-materials.md` exists as a generator specification, with
+no quantity entered by hand.
+
+**The ranking came out differently from the ticket's expectation and the
+difference is the finding.** The ticket expected silicon area, then yield, then
+bonding. What the model says:
+
+**Memory tiers dominate, at wafer.** Two thirds of the silicon bill — not the
+compute dies. A tier is forty millimetres square, which is large enough that only
+about two thirds come off a wafer good, so a third are scrapped before anything is
+assembled.
+
+**Assembly yield is smaller than expected.** With the test gates, the spare rows,
+the redundant tier and the spare conductors all in place, about nine cubes in ten
+survive being built from known-good parts. Yield adds about a twelfth to the cost
+rather than the multiple the bare arithmetic threatens — **the mitigations work**,
+and `C-088-4` now asserts that yield stays *visible* so that nobody removes one on
+the grounds it is not costing anything.
+
+The ordering matters: **making the tiers smaller would save more than any assembly
+improvement**, and nothing in the design has been asked whether a tier has to be
+one piece.
+
+**No price is given**, deliberately.
 
 ## Intended behavior
 

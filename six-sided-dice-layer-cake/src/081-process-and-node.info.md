@@ -22,9 +22,9 @@ Described by `1201`.
 | `cost_wafer_a` | 1 | measured | 6000 | at the array node |
 | `cost_wafer_p` | 1 | measured | 900 | at the passive node |
 | `A_wafer` | cm^2 | measured | 706 cm^2 | usable area of one three hundred millimetre wafer |
-| `n_die_wafer_l` | 1 | derived | 12256 | compute dies per wafer, before yield |
-| `n_tier_wafer` | 1 | derived | 4412 | memory tiers per wafer, before yield |
-| `n_plate_wafer` | 1 | derived | 2610 | cold plates per wafer |
+| `n_die_wafer_l` | 1 | derived | 122 | compute dies per wafer, before yield |
+| `n_tier_wafer` | 1 | derived | 44 | memory tiers per wafer, before yield |
+| `n_plate_wafer` | 1 | derived | 26 | cold plates per wafer |
 | `n_die_stitch` | 1 | derived | 1 | exposures per compute die; one, because 042 sized the die to fit a field |
 | `n_tier_stitch` | 1 | derived | 2 | exposures per memory tier, which is more than one and is what 036 left open |
 
