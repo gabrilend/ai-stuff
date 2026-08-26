@@ -4,8 +4,24 @@ Produces `src/060-prefetch-and-double-buffer.md`.
 
 ## Current behavior
 
-Nothing. `607` sized the slice for two layers on the strength of a prefetch that
-has never been specified.
+**Done.** `src/060-prefetch-and-double-buffer.md` exists, and it is short because
+the problem is: the descriptor chain is built at load time and never changes, so
+every address is known before the token starts. No prediction, no history, no
+mis-speculation.
+
+Five constraints. `C-060-4` is asserted in the obvious direction on purpose —
+the contended lead must exceed the uncontended one — because computing the lead
+against the whole core rather than a face's share is the mistake that makes a
+prefetcher work in isolation and stall whenever the machine is busy.
+
+**Three guesses are stacked here.** The stall probability, `047`'s bank conflict
+probability, and `038`'s interleaving, which is a stride rather than an analysis.
+None is derived from the others and `049`'s counters are the only thing that will
+ever settle them.
+
+**Which means the number that decides `009` entry F2 does not exist**: whether a
+third slice buffer is worth a larger die turns on how often a stall actually
+happens with two.
 
 ## Intended behavior
 

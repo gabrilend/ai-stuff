@@ -73,7 +73,7 @@ Change one of these and the blueprints beside it are what break.
 | `bind_ratio` | `051` |
 | `n_tile_link` | `051` |
 | `t_flight` | `051` |
-| `t_link_rt` | `039`, `044`, `047`, `048`, `052`, `053`, `054` |
+| `t_link_rt` | `039`, `044`, `047`, `048`, `052`, `053`, `054`, `060` |
 | `t_proto` | `051` |
 
 ## What it asserts

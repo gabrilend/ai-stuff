@@ -56,7 +56,7 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `n_mac_row` | `045` |
-| `f_face` | `031`, `044`, `045`, `047`, `049` |
+| `f_face` | `031`, `044`, `045`, `047`, `049`, `060` |
 | `a_mac` | `045` |
 | `w_acc` | `045`, `046` |
 | `n_lut_entry` | `046` |
@@ -71,7 +71,7 @@ Change one of these and the blueprints beside it are what break.
 | `P_engine_die` | `020`, `028`, `031`, `041`, `045` |
 | `n_reuse` | `045` |
 | `I_step_engine` | `045` |
-| `B_operand_die` | `020`, `045`, `047`, `055` |
+| `B_operand_die` | `020`, `045`, `047`, `055`, `060`, `061` |
 | `acc_headroom` | `045` |
 
 ## What it asserts

@@ -46,7 +46,7 @@ Change one of these and the blueprints beside it are what break.
 | `w_weight` | `045`, `046` |
 | `n_group` | `046` |
 | `w_scale` | `046` |
-| `w_act` | `045`, `046` |
+| `w_act` | `045`, `046`, `058` |
 | `w_operand` | `046` |
 | `w_kv` | `046` |
 | `n_round_mode` | `046` |

@@ -57,7 +57,7 @@ Change one of these and the blueprints beside it are what break.
 | `n_line` | `040` |
 | `lam_line` | `040` |
 | `t_double` | `040` |
-| `B_scrub` | `040`, `055` |
+| `B_scrub` | `040`, `055`, `061` |
 | `f_scrub` | `040` |
 | `t_scrub_period` | `037` |
 | `f_ecc_line` | `040` |
