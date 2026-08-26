@@ -82,4 +82,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `027-test-the-meaning`.
+Used by `026-arrows-that-teach-the-order`, `027-test-the-meaning`.
