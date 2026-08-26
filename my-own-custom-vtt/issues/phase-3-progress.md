@@ -17,7 +17,7 @@ which are transactions that resolve at once and can be undone.
 | [306 the command log is the replay](306-the-command-log-is-the-replay.md) | not started | Editable and indexed, because a retcon is an edit to it. |
 | [307 the world hashes itself](307-the-world-hashes-itself.md) | not started | One number for a whole world, compared every tick, which is where "when" comes from. |
 | [308 the turn is a window](308-the-turn-is-a-window.md) | not started | Declarations accumulate; something closes the window; everything settles at once. |
-| [309 taking a turn back](309-taking-a-turn-back.md) | **blocked** | Restore the head and run it again. Cannot be completed until 3.3 is answered. |
+| [309 taking a turn back](309-taking-a-turn-back.md) | not started | Restore the head and run it again. Fog goes back with the world. |
 | [310 the phase three demo](310-the-phase-three-demo.md) | not started | The capstone. Proves determinism, then spends it. |
 
 ## What this phase is really establishing
@@ -36,24 +36,29 @@ is the third time in this project a decision made for one reason has turned out 
 be the whole answer to a different question, which is now often enough to be worth
 watching for rather than enjoying.
 
-## The problem this phase cannot solve
+## The problem this phase does not solve, and stops pretending to
 
 Undoing the world is a block copy. **Undoing what people saw is impossible.**
 
-If somebody walked into an unexplored room during a turn that is now being taken
-back, their fog recorded it — and they also just looked at it with their eyes. Roll
-the fog back and the program is internally consistent while the person is not.
-Leave it and their map holds a room the world says was never entered.
+**Fog rolls back with the world.** That is decided. A rollback is a full state
+restore — world, fog, and stream positions together — and nothing anywhere has to
+reason about a memory that disagrees with its world.
 
-The program can restore state. It cannot restore ignorance. Whichever way
-[3.3](../docs/016-open-questions.md) goes, it is a choice about which kind of wrong
-is more comfortable, and [310](310-the-phase-three-demo.md) is written to put it on
-screen rather than describe it.
+What it costs is left standing rather than argued away: the person still remembers
+the corridor, because they looked at it. Their map closes over a room they can
+describe out loud. The screen ends up knowing less than they do.
+
+It is the right trade because the other answer is worse in a way that never goes
+away — a fog left un-rolled holds a place reached in a turn that never happened,
+and contradicts the world every time anybody walks there again.
+
+**You cannot restore ignorance.** A rollback at a tabletop has always been a
+social agreement, and the program's job is to put the board back so that the
+people can do the rest. [310](310-the-phase-three-demo.md) is written to show this
+on screen rather than describe it.
 
 ## Blocking open questions
 
-- **3.3** — does fog roll back with the world? **Blocks
-  [309](309-taking-a-turn-back.md) from being completed**, not from being started.
 - **3.4** — who may roll back, when several GMs are present and a retcon rewrites
   what somebody else did?
 - **3.5** — what closes a window: everybody declaring, a timer, or a GM?
@@ -62,3 +67,6 @@ screen rather than describe it.
 - **3.2** — the tick rate, which phase 2's demo should have measured by now.
 - **12.3** — is the command log capped or rotated? A session is hours long and
   every decoded operand goes into it.
+
+None of these blocks an issue from being completed. **3.3 is answered**, so
+[309](309-taking-a-turn-back.md) is clear to be finished.

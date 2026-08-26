@@ -52,15 +52,27 @@ leaf swings for the picture's sake and the bits flip at one defined moment.
 2. Write the predicates, each with a comment naming what each branch means -- for
    the side test in particular, what the world is like when the answer is zero,
    because collinear is a real case and it is where these tests go wrong.
-3. Build the broad-phase index. A uniform grid over the map is almost certainly
-   right: sight queries are circles of bounded radius, and a grid answers those
-   in constant time without a tree to maintain. Write down why, so the person who
-   later wants a BVH knows what they are arguing against.
+3. Write the polygon predicates that [105](105-regions-nest.md) and the validator
+   need: containment, signed area for winding, and self-intersection.
 4. Write the companion `.info.md`.
 5. Test the predicates against hand-computed cases, especially collinear,
    touching-at-an-endpoint, and zero-length segments. A zero-length segment
    should be refused by [107](107-the-validator-refuses-to-guess.md) rather than
    handled here, but the predicate should not crash on one.
+
+## What moved out of this issue
+
+The broad-phase index -- a uniform grid over the map, so that "which walls are
+near this point" is answered without touching every wall -- was originally listed
+here and belongs with [202](202-an-eye-and-its-wedge.md) instead.
+
+The reason is that **its only two consumers are the sight sweep and collision,
+and both are later phases.** Building an index in phase 1 would mean building it
+without either caller to shape it, and an index built against no query is an
+index built against the wrong query. Phase 1 ends with predicates that answer
+correctly and walk every wall to do it, which is right for a world that is not
+moving and is measured rather than guessed at by
+[109](109-the-phase-one-demo.md).
 
 ## Related
 

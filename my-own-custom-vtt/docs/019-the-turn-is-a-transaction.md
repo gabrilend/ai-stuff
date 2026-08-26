@@ -93,20 +93,28 @@ server's confirmation, which is what makes the controls feel alive -- see
 away at once, and the correction will be large and visible rather than the usual
 imperceptible nudge.
 
-**Fog does not un-see.** This is the one that has no clean answer.
+**Fog rolls back with the world.** A rollback is a full state restore: whatever
+the world was at the head of the turn, every viewer's memory was too, and both go
+back together.
 
-If a player walked down a corridor during a turn that is now being undone, their
-fog memory recorded it. Roll the fog back with the world and the program is
-consistent -- but the person still remembers the corridor, because they looked at
-it. Leave the fog alone and the program is honest about what they know -- but now
-their map shows a place they reached in a turn that never happened, which will
-contradict the world the moment somebody walks there again.
+Mechanically this is easy -- a fog record is a flat block of bits and restores the
+way everything else does -- and it means nothing anywhere has to reason about a
+memory that disagrees with its world.
 
-The design has to pick one and **be honest that neither is right**, because the
-real situation is that you cannot un-see something, and a rollback at a tabletop
-has always been a social agreement rather than a memory wipe. The program can
-restore state. It cannot restore ignorance. Which way this goes is
-[open question 3.3](016-open-questions.md).
+**The cost is real and is not pretended away.** The person still remembers the
+corridor. They looked at it. The screen now knows less than they do, and their own
+map closes over a room they can describe out loud.
+
+The reason it is still the right trade: the alternative is worse in a way that
+never goes away. A fog that is not rolled back holds a place reached in a turn
+that never happened, and it contradicts the world every time anybody walks there
+again -- a permanent inconsistency, spreading, bought with one moment of honesty
+about one person's memory.
+
+What stays true underneath: **you cannot restore ignorance.** A rollback at a
+tabletop has always been a social agreement, and the program's job is to make the
+state consistent so that the people can do the rest. It is not pretending to wipe
+a memory. It is putting the board back.
 
 ## What the record remembers
 

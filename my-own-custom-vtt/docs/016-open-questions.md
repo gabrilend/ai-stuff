@@ -136,21 +136,37 @@ should be measured in phase 2's demo rather than chosen now.
 Turns add a second question underneath it: how many ticks long is a window, and is
 that fixed or does it depend on people being finished?
 
-### 3.3 When a turn is rolled back, does the fog roll back with it?
+### 3.3 When a turn is rolled back, does the fog roll back with it? — ANSWERED
 
-**The question with no right answer**, and the one most worth taking time over.
+**Fog rolls back with the world.**
 
-If a player walked down a corridor during a turn now being undone, their fog
-recorded it. Roll the fog back and the program is internally consistent -- but the
-person still remembers the corridor, because they looked at it. Leave the fog
-alone and the program is honest about what they know -- but their map now shows a
-place reached in a turn that never happened, which will contradict the world the
-moment anybody walks there again.
+A rollback is a full state restore. Whatever the world was at the head of the
+turn, every viewer's memory was too, and both go back together. Mechanically this
+is the easy answer -- a fog record is a flat block of bits, so it restores the same
+way everything else does, and nothing anywhere has to reason about a memory that
+disagrees with its world.
 
-The underlying fact is that **you cannot un-see something**. A rollback at a
-tabletop has always been a social agreement rather than a memory wipe. The program
-can restore state; it cannot restore ignorance. Whichever way this goes, it should
-be chosen knowing that.
+**What it costs, stated plainly so nobody is surprised by it later:** the person
+still remembers the corridor. They looked at it. The screen now knows less than
+they do, and their own map will close over a room they can describe out loud.
+
+That is accepted, and the reason it is the right trade is that the alternative is
+worse in a way that never goes away. A fog that is not rolled back holds a place
+reached in a turn that never happened, and it will contradict the world every time
+anybody walks there again -- a permanent inconsistency, spreading, in exchange for
+a moment of honesty about one person's memory.
+
+The underlying fact stays true and stays worth writing down: **you cannot restore
+ignorance.** A rollback at a tabletop has always been a social agreement, and the
+program's job is to make the state consistent so the people can make the rest of
+it work. It is not pretending to wipe a memory. It is putting the board back.
+
+The implementation consequence, which is small only because it was anticipated:
+[205](../issues/205-the-fog-is-a-bitmap.md) builds snapshot and restore for a fog
+record from the start, and [309](../issues/309-taking-a-turn-back.md) includes fog
+in the ring alongside the world blocks and the random stream positions. The
+decision gets a comment at the point where fog is restored, because the other
+answer will look like a bug to the next reader.
 
 ### 3.4 Who may roll back a turn?
 
