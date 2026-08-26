@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# phase-13-demo -- what phase 13 of this design produced, with live numbers.
+#
+# For a general reader: this project's deliverable is a set of blueprints in
+# which no number is written twice -- every dimension is either chosen once or
+# derived from ones that were. So a demonstration of it is not a program doing
+# something; it is the design answering questions about itself. Every figure
+# printed below is resolved from the blueprints at the moment you run this.
+# Change a dimension in src/ and run it again and the numbers move.
+#
+# Phase 13 is "The Whole Cake".
+#
+# Usage:   ./phase-13-demo [project-directory]
+
+DIR="/mnt/mtwo/programming/ai-stuff/six-sided-dice-layer-cake"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+luajit "${DIR}/src/100-the-phase-demonstrations.lua" "${DIR}" 13
+
+echo ""
+echo "  The capstone's own output is three generated documents and a site."
+echo "  Building them now."
+echo ""
+
+luajit "${DIR}/src/097-spec-report.lua" "${DIR}"
+luajit "${DIR}/src/099-the-documentation-site.lua" "${DIR}"
+
+echo ""
+echo "  The specification sheet:   ${DIR}/docs/089-specification.md"
+echo "  The bill of materials:     ${DIR}/docs/088-bill-of-materials.md"
+echo "  Every number in one place: ${DIR}/docs/091-every-number.md"
+echo "  The site:                  ${DIR}/docs/HTML/index.html"
+echo ""
+echo "  To look at it:  xdg-open ${DIR}/docs/HTML/index.html"
+echo ""

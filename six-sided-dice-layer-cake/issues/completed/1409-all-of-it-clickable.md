@@ -4,7 +4,29 @@ Produces `src/099-the-documentation-site.lua`.
 
 ## Current behavior
 
-Nothing. `docs/HTML/` is reserved and empty.
+**Done.** `src/099-the-documentation-site.lua` exists and builds two hundred and
+ninety-one pages into `docs/HTML/`.
+
+Every number reference in every file becomes a link — `037` is a blueprint, `1004`
+a ticket, `009` a document, and a reader no longer has to hold that mapping in
+their head. Every page carries **what points at this**, which is the direction
+nobody can see from inside a file.
+
+Blueprint pages render their symbols and constraints as tables with **values
+resolved from the ledger while the site is being built**, coloured by kind, so a
+reader sees what a quantity is *and* what it comes to without opening anything
+else. Drawings keep their monospace and their box-drawing characters.
+
+The front page's counts are taken during the build rather than transcribed.
+
+**The markdown renderer is deliberately small** and handles what this project's
+documents actually use. It is not a general renderer and should not become one.
+
+**The interactive part the ticket asked for is not built.** A slider on the eleven
+given lengths, re-resolving the ledger in the browser and showing which
+constraints go red, would turn the design from a document into a thing you can
+push on. It needs the dependency graph exported as data and evaluated in script,
+which is the second half of this ticket and is not done.
 
 ## Intended behavior
 
