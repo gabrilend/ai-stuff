@@ -57,6 +57,7 @@ Change one of these and the blueprints beside it are what break.
 |---|---|
 | `dT_assembly` | `018` |
 | `dT_power` | `018`, `036` |
+| `n_cyc_power` | `086` |
 | `bow_coeff` | `018` |
 | `strain_tier` | `018` |
 | `strain_glass` | `018` |

@@ -85,6 +85,14 @@ BLOCK.symbols = function(bp, lines, fail)
         fail(ln.n, ("%s is %s, so its value must be a bare number, not %q")
                    :format(name, kind, value))
       end
+    elseif kind == "target" then
+      -- A target is a placeholder for a derivation nobody has written. Most are
+      -- a bare number standing in for one, and those carry the declared unit
+      -- exactly as a given does -- a target in seconds that resolved to a
+      -- dimensionless number would fail against every other time in the project
+      -- for a reason that has nothing to do with its being unfinished. A target
+      -- may also be a partial expression, which is left as one.
+      literal = tonumber(value)
     elseif kind == "derived" then
       if value == "" then fail(ln.n, ("derived symbol %s has no expression"):format(name)) end
     end

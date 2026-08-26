@@ -64,9 +64,9 @@ Change one of these and the blueprints beside it are what break.
 | `e_link_bit_d` | `051` |
 | `L_radial` | `051` |
 | `n_radial_col` | `051` |
-| `n_radial_pad` | `030`, `051` |
+| `n_radial_pad` | `030`, `051`, `083` |
 | `n_radial_sig` | `051` |
-| `n_radial_spare` | `051` |
+| `n_radial_spare` | `051`, `083` |
 | `B_link_pads` | `051`, `055` |
 | `B_link_used` | `051` |
 | `P_link_used` | `051` |

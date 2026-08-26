@@ -38,7 +38,7 @@ Described by `507`.
 | `B_core` | `034` | 3.072e+14 bit/s | aggregate read bandwidth, every tier delivering at once |
 | `C_core_raw` | `034` | 79.598 GB | raw capacity of the stack |
 | `f_ecc_overhead` | `034` | 0.037594 | share of raw capacity spent on check bits |
-| `t_life_seconds` | **nothing declares this** | — | — |
+| `t_life_seconds` | `086` | 3.156e+08 s | the life, in the unit every other blueprint's mean-time figures are in |
 
 ## What consumes it
 
@@ -56,7 +56,7 @@ Change one of these and the blueprints beside it are what break.
 | `t_upset` | `040` |
 | `n_line` | `040` |
 | `lam_line` | `040` |
-| `t_double` | `040` |
+| `t_double` | `040`, `086` |
 | `B_scrub` | `040`, `055`, `061` |
 | `f_scrub` | `040` |
 | `t_scrub_period` | `037` |

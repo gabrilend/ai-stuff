@@ -15,13 +15,13 @@ Described by `1003`.
 | `tau_meta` | ps | given | 8 ps | metastability resolution time constant of the process |
 | `t_meta_0` | s | measured | 1e-12 s | the metastability window: how wide a slice of each clock edge can put a flip-flop into an undecided state |
 | `n_cross_site` | 1 | given | 3 | places two faces interact through memory, excluding the arbiter which is inside one domain. Three today; the reverse staging buffers make it four the day 076a is implemented, and 039's count moves with it |
-| `w_timebase` | bit | given | 48 bit | width of the free-running timebase counter |
+| `w_timebase` | bit | given | 52 bit | width of the free-running timebase counter. Forty-eight wraps in under nine years, which is inside the life the machine is built for -- and two counters compared across faces after a wrap can disagree about which came first |
 | `f_timebase` | MHz | given | 1 MHz | its rate: microsecond resolution, deliberately far below any clock so it cannot be mistaken for one |
 | `t_resolve` | ps | derived | 2127.86 ps | time a synchroniser gives metastability to resolve |
 | `mtbf_sync` | s | derived | 1.8687e+109 s | mean time between synchroniser failures at one crossing: the two clocks' rates and the window between them, against the time the synchroniser gives metastability to resolve |
 | `mtbf_all` | s | derived | 1.55725e+108 s | and across all six links in both directions |
 | `t_cross_face` | ps | derived | 2142.86 ps | latency a domain crossing adds, which lands in 053's stage budget |
-| `t_timebase_wrap` | s | derived | 2.81475e+08 s | how long the shared timebase runs before wrapping |
+| `t_timebase_wrap` | s | derived | 4.5036e+09 s | how long the shared timebase runs before wrapping |
 | `res_timebase` | s | derived | 1e-06 s | its resolution |
 | `f_cross_stage` | 1 | derived | 1.33265e-05 | the crossing's cost as a share of a pipeline stage |
 
@@ -35,7 +35,7 @@ Described by `1003`.
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `n_share_site` | `039` | 3 | places in this machine where two faces touch the same memory |
 | `t_cycle_face` | `070` | 714.286 ps | the face cycle time everything in 074 is budgeted against |
-| `t_life_seconds` | **nothing declares this** | — | — |
+| `t_life_seconds` | `086` | 3.156e+08 s | the life, in the unit every other blueprint's mean-time figures are in |
 | `t_stage` | `053` | 0.000160796 s | how long one face works before the sieve moves on |
 
 ## What consumes it
@@ -53,7 +53,7 @@ Change one of these and the blueprints beside it are what break.
 | `f_timebase` | `072` |
 | `t_resolve` | `072` |
 | `mtbf_sync` | `072` |
-| `mtbf_all` | `072` |
+| `mtbf_all` | `072`, `086` |
 | `t_cross_face` | `071`, `072` |
 | `t_timebase_wrap` | `072` |
 | `res_timebase` | `072` |
