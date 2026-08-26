@@ -151,4 +151,26 @@ uint32_t rules_requests_made(const struct ruleset *r);
  */
 int rules_sheets_survive_rollback(const struct ruleset *r);
 
+/*
+ * Copy every sheet aside, filed under a turn number. Returns 1, or 0 with a
+ * sentence saying where the copy stopped.
+ *
+ * THE COPIER IS LUA AND LIVES IN THE REGISTRY, so nothing in C ever looks inside
+ * a sheet -- the rule from issue 703 stays literally true. C says "copy" and
+ * "put back" and never asks what a hit point is.
+ *
+ * It refuses a function, a userdata, a coroutine, a table keyed by any of those,
+ * or a sheet that points back at itself, and the sentence names the path where
+ * it found the problem. A caller that gets a 0 must treat that turn as not
+ * rollbackable rather than rolling back half of it.
+ */
+int rules_snapshot_sheets(struct ruleset *r, uint32_t turn, const char **why);
+
+/* Put a turn's sheets back. The snapshot stays, so a turn can be rolled back
+ * to more than once. */
+int rules_restore_sheets(struct ruleset *r, uint32_t turn, const char **why);
+
+/* A ring slot is being reused, so stop keeping its sheets alive. */
+void rules_forget_sheet_snapshot(struct ruleset *r, uint32_t turn);
+
 #endif

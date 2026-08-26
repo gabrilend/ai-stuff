@@ -99,3 +99,26 @@ rollback that looks like it worked is worse than one that visibly does not.
 ## What phase 8 inherits
 
 A server with no opinions, and a `describe` hook whose answers nothing yet draws.
+
+
+## Reopened later, and closed
+
+[703](completed/703-the-ruleset-owns-the-sheets.md) shipped with a hole in it and
+said so: a rolled-back turn restored geometry and not sheets, so an undone fight
+put everybody back where they had been standing and left them bleeding. Open
+question 14.1 called it the largest hole in the project and the demo showed it
+happening.
+
+Four phases later it was closed, and the issue was **reopened rather than a new
+one written beside it**, because the fix belongs in the issue that built the
+storage. History is more useful vertical.
+
+What had been missed: the option "serialise the table generically" was rejected
+for breaking *quietly* on a closure — and that is a property of one
+implementation of it, not of the idea. A copier can know perfectly well what it
+cannot copy. The whole difference between a good answer and a bad one is whether
+it says so, and where.
+
+The general shape, worth keeping: **when three options are rejected and the
+problem stays open, check whether one of them was rejected for a fixable property
+of a particular implementation rather than for something intrinsic.**

@@ -116,6 +116,20 @@ tabletop has always been a social agreement, and the program's job is to make th
 state consistent so that the people can do the rest. It is not pretending to wipe
 a memory. It is putting the board back.
 
+**And the numbers roll back with the geometry**, which for four phases they did
+not. A ruleset's sheets are Lua tables rather than flat bytes, so an undone fight
+used to put everybody back where they had been standing and leave them bleeding.
+
+They are deep-copied at the head of every turn now. Anything that cannot be
+copied — a function, a coroutine, a table that points back at itself — stops the
+snapshot with a sentence naming where it was found, and **that turn is not
+rollbackable rather than half-rollbackable.** The refusal happens before anything
+is restored, so the world is left exactly where it was.
+
+The full argument, including why the option that was rejected for "breaking
+quietly" was rejected for a property of one implementation rather than of the
+idea, is in [the rules layer](011-the-rules-layer.md) and in open question 14.1.
+
 ## What the record remembers
 
 A rolled-back turn is still in the command log -- the log records what was decoded,

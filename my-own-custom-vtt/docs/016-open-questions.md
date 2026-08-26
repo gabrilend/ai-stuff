@@ -219,12 +219,21 @@ Three candidates and they are not exclusive: everybody has sent `DECLARED`; a
 timer expired; a GM said so. A timer is the one that keeps a session moving and
 also the one that will cut somebody off mid-thought.
 
-### 3.6 Does a rolled-back turn appear in the engraving?
+### 3.6 Does a rolled-back turn appear in the engraving? — ANSWERED
 
-The command log keeps it, because a record that omits the parts somebody regretted
-is not a record. Whether it reaches the carving is separate -- and **the number of
-rollbacks might be the best statistic on it.** A session with eleven of them was a
-session about something.
+Yes. `rollbacks` is one of the eight cells.
+
+The guess in the original wording turned out right: **it is one of the more
+telling numbers on the carving.** A session with eleven of them was a session
+about something, and it sits next to the ratio of commands to refusals, which is
+the other statistic that is about the table rather than about the world.
+
+It needed a counter on the session rather than a walk of the log, because the log
+records what was DECLARED and a rollback is not a declaration — there is nothing
+in it to count afterwards. It is incremented after the restore succeeds, so a
+rollback that could not restore is not counted as one that did.
+
+See [090-record](../src/090-record.info.md).
 
 ---
 
@@ -395,12 +404,25 @@ game handles uncertainty. That may be over-thinking it.
 
 ## Blocking phase 8 — content generation
 
-### 8.1 What does the description language look like?
+### 8.1 What does the description language look like? — ANSWERED
 
 The five-stage pipeline in [content is generated](013-content-is-generated.md)
-says what the stages do and says nothing about the syntax of the thing feeding
-them. It is the part of the project most likely to become a language, and the part
+said what the stages do and nothing about the syntax of the thing feeding them.
+It was the part of the project most likely to become a language, and the part
 where deciding by accident would be worst.
+
+**It is `key = value`, one per line, over a closed vocabulary of eight words.**
+Not a language. Deliberately, and the deliberateness is the answer: a closed
+allowlist has nowhere for an analogy to go, and anything generating descriptions
+— a person working fast, and much more so a language model — will invent
+plausible neighbouring words when handed a complete reference.
+
+Every fault is reported at once rather than one per run, each naming the line,
+the word, what was found and the nearest legal word. It refuses rather than
+filling in.
+
+See [076-describe](../src/076-describe.info.md) and
+issue [801](../issues/completed/801-a-description-is-validated-first.md).
 
 ---
 
@@ -460,13 +482,23 @@ proposes that the categories are the `kind` families a ruleset declares. That
 makes them the ruleset's to name, which means two rulesets have two different sets
 of categories, which means a pool is not straightforwardly portable between them.
 
-### 10.5 Does a machine grader that watches motion actually exist here?
+### 10.5 Does a machine grader that watches motion actually exist here? — ANSWERED
 
-Algorithm A requires something that rates every sprite on arrival, and a rater
-shown one still frame of a walk cycle is rating an illustration. Whether the thing
-doing the rating can watch an animated SVG at all is a practical question that has
-not been checked, and if it cannot, algorithm A does not work as described and
-algorithm B is the only one that does.
+Yes, and it was easier than the question expected.
+
+The worry assumed the grader would have to *watch* a rendered animation. It does
+not: the motion is a field of the sprite and a declaration in the file, so reading
+it is reading the animation rather than one still frame. That is achievable
+because the format is SVG with the motion declared in it, and would not be
+achievable for a raster format — which is one of the four reasons the format was
+chosen.
+
+Motion is worth twenty of the grader's hundred points, and a still sprite scores
+four. That is an opinion, and it is the project's: the vision asked for art that
+behaves more like a video game than like a picture.
+
+So algorithm A works as described. See
+[082-sprite](../src/082-sprite.info.md).
 
 ### 10.6 Does the studio ever regenerate a sprite that is in use?
 
@@ -478,14 +510,34 @@ is the safest and is also how a library stops improving.
 
 ## Blocking phase 10 — the second view
 
-### 11.1 Does the terminal renderer draw sprites at all?
+### 11.1 Does the terminal renderer draw sprites at all? — ANSWERED
 
-Phase 10 proves the split by building a second renderer against the same protocol.
-But the protocol now carries vector sprites, and a terminal cannot draw one. Either
-the terminal view ignores appearance entirely and draws glyphs by `kind` -- which
-is honest and slightly weakens the proof -- or the appearance layer has a
-representation the terminal can use, which is a constraint on
-[the sprite studio](017-the-sprite-studio.md) that nothing currently states.
+The worry was that the protocol would carry vector sprites a terminal cannot
+draw, leaving the second view either ignoring appearance entirely — which weakens
+the proof — or forcing a constraint back onto the sprite studio.
+
+**Neither happened, because the wire carries the paintbrush rather than the
+picture.** A sprite arrives as at most six layers of small integers, so the
+terminal takes the body layer's shape as a glyph and its colour as the colour,
+and drops the rest.
+
+| Shape | Glyph |
+| --- | --- |
+| circle | `o` |
+| rect | `#` |
+| triangle | `A` |
+| ring | `0` |
+| wearing nothing | `*` |
+
+**The drawing is reduced; the data is not.** The same instructions arrive at the
+terminal as arrive at the browser, and the terminal says at startup that it is
+throwing five sixths of them away rather than pretending otherwise.
+
+No constraint was pushed back onto the studio. The one that made this possible —
+the paintbrush being a closed set of numeric moves — was decided in phase 9 for a
+completely different reason.
+
+See [102-watch](../src/102-watch.info.md).
 
 ---
 
@@ -598,7 +650,7 @@ Phase 4 does, and this is where it will surface.
 
 ## Raised by building phase 7
 
-### 14.1 A rolled-back turn does not roll back the sheets
+### 14.1 A rolled-back turn does not roll back the sheets — ANSWERED
 
 A world snapshot copies flat blocks of bytes, which is what makes it a memcpy. A
 ruleset's sheet storage is a Lua table, which is not that.
@@ -615,10 +667,59 @@ Three ways out, none taken:
 | The server serialises the sheet table generically | Works only for plain data. Breaks quietly on a closure or an upvalue, which is exactly what a ruleset with interesting rules will contain. |
 | Accept it | Honest and cheap and wrong in a way people will notice the first time somebody undoes a fight. |
 
-`rules_sheets_survive_rollback` exists and returns 0, so a caller can **say** so
-rather than pretend. The phase 7 demo shows it happening.
+`rules_sheets_survive_rollback` existed and returned 0, so a caller could **say**
+so rather than pretend. The phase 7 demo showed it happening. It was the largest
+known hole in the project for four phases.
 
-This is the largest known hole in the project.
+---
+
+**There was a fourth way, and the second one's cost had been misread.**
+
+The second option was rejected for breaking *quietly* on a closure. That is a
+property of one implementation of it, not of the idea. **A copier can know
+perfectly well what it cannot copy**, and the whole difference between a good
+answer and a bad one is whether it says so, and where.
+
+So sheets are deep-copied at the head of every turn and copied back on a
+rollback, and anything that cannot be copied stops the snapshot with a sentence
+naming the path:
+
+    the sheets could not be copied: sheet.2.attack holds a function
+
+Three things make that safe rather than clever:
+
+**The copier is Lua, not C**, and it lives in the registry where a ruleset cannot
+reach it. C says "copy" and "put it back" and never looks inside a sheet, so the
+rule from issue 703 — the server never reads a sheet — stays literally true. The
+refinement worth stating: *the server may copy a sheet; it may not interpret
+one.* That is the same distinction the world file writer already relies on when
+it copies a `kind` it has no opinion about.
+
+**A turn that could not be snapshotted is not rollbackable, and says why.** Not
+half-rollbackable. `session_can_roll_back_to` already answered this question for
+turns that had fallen out of the ring; this is the same answer for a different
+reason, and `session_why_not_rollbackable` gives the sentence. The refusal happens
+*before* anything is restored, so the world is left exactly where it was.
+
+**A failure to snapshot does not stop play.** That one turn cannot be taken back
+and everything else carries on — the same argument that made an abandoned rule
+hook fail open rather than freezing an evening over a line in somebody's homebrew.
+
+**A write of something uncopyable is refused where it happens.** A sheet's
+metatable rejects a function at the moment it is stored, naming the field, so the
+ruleset author learns at the line that did it. A ruleset can call `setmetatable`
+and take the guard off, which is why the copier validates as well: *the guard is
+for the message, the copier is the authority*, and there is a test that removes
+the guard and checks the copier still refuses.
+
+Cycles are refused too, rather than flattened. Flattening a cycle silently turns
+what the ruleset stored into a different shape that looks similar, and the
+ruleset would go on using it as though nothing had happened.
+
+Issue [703](../issues/completed/703-the-ruleset-owns-the-sheets.md) was reopened
+to close this rather than a new issue being written beside it, because the fix
+belongs in the issue that built the storage. See
+[073-sheet-copier.lua](../src/073-sheet-copier.lua).
 
 ### 14.2 Can a ruleset make a replay diverge?
 
@@ -763,7 +864,20 @@ never seek — which also keeps the writer usable on a pipe.
 | Leave it, and accept unverified old files | Free, and quietly weakens the check every time the format moves. |
 
 
-### 15.5 The pictures exist and the table cannot see them
+### 15.5 The pictures exist and the table cannot see them — ANSWERED
+
+**Done in phase 11**, and the answer is the one this entry predicted: the layers
+go on the existing wire as numbers, and each view assembles them. A view renders
+the paintbrush; it does not own it.
+
+Measured rather than assumed: about six instructions per visible thing per beat,
+twelve bytes each, which came to between one and eight per cent of an update in
+a generated inn. The visibility fan is far larger. Both the phase eleven demo and
+the terminal view report the figure rather than anybody estimating it here.
+
+The original entry follows, because the reasoning is why it was built this way.
+
+---
 
 Phase nine built a generated appearance layer and the browser still draws
 coloured circles. Sprites are written to disk, they animate when opened, and

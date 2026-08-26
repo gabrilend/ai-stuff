@@ -65,6 +65,22 @@ struct turn_state {
     uint32_t      fog_count;
 
     uint8_t used;
+
+    /*
+     * Whether the ruleset's sheets were copied with the rest of it.
+     *
+     * A turn whose sheets could not be copied -- because one of them holds a
+     * function, or points back at itself -- is NOT rollbackable. Not
+     * half-rollbackable: restoring geometry and not hit points is a rollback
+     * that looks like it worked, which is the thing this whole path exists to
+     * avoid.
+     *
+     * The sentence saying which sheet and where is kept, because "that turn
+     * cannot be taken back" is not an answer somebody can act on and "the goblin
+     * at sheet 3 holds a function at .attack" is.
+     */
+    uint8_t sheets_copied;
+    char    sheet_trouble[256];
 };
 
 struct turn_ring {
@@ -204,6 +220,16 @@ int session_rollback(struct session *s, uint32_t turn, uint8_t mode);
 
 /* Whether a turn is still far back enough to be reachable. */
 int session_can_roll_back_to(const struct session *s, uint32_t turn);
+
+/*
+ * Why not, as a sentence. Empty when it can be.
+ *
+ * Two reasons: the turn fell out of the ring, or its sheets could not be copied
+ * -- and the second one names which sheet and where. "That turn cannot be taken
+ * back" is not something anybody can act on; "the goblin at sheet 3 holds a
+ * function at .attack" is.
+ */
+const char *session_why_not_rollbackable(const struct session *s, uint32_t turn);
 
 /* How deep the ring is, and how many turns it currently holds. */
 uint32_t session_ring_depth(const struct session *s);
