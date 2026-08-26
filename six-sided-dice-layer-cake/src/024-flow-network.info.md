@@ -10,6 +10,7 @@ Described by `305`.
 
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
+| `f_wet_max` | 1 | given | 0.15 | the most of the cube's volume that may be standing fluid |
 | `eta_pump` | 1 | measured | 0.3 | wire-to-water efficiency of a pump of this size and duty; small pumps are poor and this is a realistic figure rather than a hopeful one |
 | `K_plenum` | 1 | given | 2.2 | loss coefficient for entering and leaving a plenum and turning into the channel field, summed over both ends |
 | `Q_total` | m^3/s | derived | unresolved | volumetric flow through the whole machine |
@@ -26,9 +27,8 @@ Described by `305`.
 | `f_field_loss` | 1 | derived | unresolved | the load's share of the loss, which is what says whether this is a manifold feeding a load or two comparable restrictions in series |
 | `V_field_wet` | mm^3 | derived | 8096.4 mm^3 | fluid standing in the six microchannel fields |
 | `V_plenum_wet` | mm^3 | derived | 2820.48 mm^3 | and in the twelve plenums that feed and drain them |
-| `V_core_wet` | mm^3 | derived | unresolved | and in the thirty-two cooling laminae inside the core |
-| `V_coolant` | mm^3 | derived | unresolved | all of it, which is what 013 weighs and 027 has to make up when it leaks |
-| `f_void_lamina` | 1 | given | 0.35 | share of a core cooling lamina that is channel rather than metal |
+| `V_core_wet` | mm^3 | derived | 5760 mm^3 | and in the twenty-four cooling laminae inside the core, at the void fraction 036 derives from their channel geometry |
+| `V_coolant` | mm^3 | derived | 23097.4 mm^3 | all of it, which is what 013 weighs and 027 has to make up when it leaks |
 | `P_hydraulic` | W | derived | unresolved | work a second the fluid needs |
 | `P_pump` | W | derived | unresolved | electrical power the pump draws, which is outside the cube and outside 020's budget |
 | `f_pump_of_heat` | 1 | derived | unresolved | what moving the coolant costs against what it carries |
@@ -50,16 +50,17 @@ Described by `305`.
 | `dT_conv` | `022` | unresolved | the temperature the coolant sits below the channel walls |
 | `dp_corner` | `015` | unresolved | pressure lost dividing three ways in one block |
 | `dp_rail` | `016` | unresolved | pressure lost along one rail including its ends |
+| `f_void_lam` | `036` | 0.0927644 | share of a lamina that is channel rather than metal, from the channel geometry rather than assumed |
 | `h_plenum` | `014` | 1.13 mm | height of the coolant distribution plenum across the cold plate's width; it gave seventy microns to the seal when the cord had to grow |
 | `h_uchan` | `012` | 1 mm | depth of the same channel, limited by fin efficiency rather than by etching |
 | `mdot_design` | `021` | unresolved | mass flow the selected fluid actually needs |
 | `mu_fluid` | `021` | 0.000577 Pa*s | dynamic viscosity of the same |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
-| `n_tier` | **nothing declares this** | — | — |
+| `n_tier` | `036` | 24 | memory tiers in the stack. Twenty-four rather than the thirty-two first sketched, because at the density 035 derives, thirty-two holds half again what is needed |
 | `n_uchan` | `012` | 173 | microchannels across one face cold plate |
 | `p_work` | `017` | 2 bar | working pressure of the coolant loop, pump head plus static |
 | `rho_fluid` | `021` | 989 kg/m^3 | density of whichever fluid is selected |
-| `t_lamina` | `012` | 1.2 mm | thickness of one cooling lamina between two tiers, set by the core's heat in 036 |
+| `t_lamina` | `012` | 1.617 mm | thickness of one cooling lamina between two tiers. It is what is left of the core's height once twenty-four tiers are laid in it, and the tier count came out of 034's capacity chain rather than being chosen |
 | `v_erosion_max` | `021` | 4 m/s | velocity above which flow erosion of the wetted materials shortens the life in 086 |
 | `w_rail` | `012` | 4 mm | width of an edge rail, taken off each edge of each face plate; sized by the duct area 024 needs |
 | `w_uchan` | `012` | 0.15 mm | width of one microchannel in a face cold plate; this is the number that sets the heat transfer coefficient |
@@ -70,9 +71,10 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
+| `f_wet_max` | `024` |
 | `eta_pump` | `024`, `027` |
 | `K_plenum` | `024` |
-| `Q_total` | `015`, `016`, `023`, `024`, `026`, `027` |
+| `Q_total` | `015`, `016`, `023`, `024`, `026`, `027`, `036` |
 | `Q_face` | `024` |
 | `Q_uchan` | `024` |
 | `A_uchan` | `024` |
@@ -88,7 +90,6 @@ Change one of these and the blueprints beside it are what break.
 | `V_plenum_wet` | `024` |
 | `V_core_wet` | `024` |
 | `V_coolant` | `013`, `024`, `027` |
-| `f_void_lamina` | `024` |
 | `P_hydraulic` | `024` |
 | `P_pump` | `024` |
 | `f_pump_of_heat` | `024` |
@@ -104,7 +105,7 @@ Change one of these and the blueprints beside it are what break.
 | `C-024-3` | `v_uchan < v_erosion_max` | velocity in the channels must stay under what erodes silicon over the life in 086; it is under half a metre a second, so this is slack, and it is the rails that are close |
 | `C-024-4` | `f_pump_of_heat < 0.01` | moving the coolant must cost under a hundredth of what it carries. It comes out near a thousandth, and this is the constraint that would notice if the channels were ever made much narrower |
 | `C-024-5` | `f_worst_served > 0.85` | the worst-served field must get within fifteen per cent of the mean, or 025's worst case is not the one being computed |
-| `C-024-6` | `V_coolant < V_cube / 10` | the fluid standing in the machine must be a small part of its volume, which is a sanity check on five separately derived wetted volumes |
+| `C-024-6` | `V_coolant < V_cube * f_wet_max` | the fluid standing in the machine must be a bounded part of its volume, which is a sanity check on five separately derived wetted volumes. A tenth was tried and failed at eighteen per cent -- the core's laminae were being cut half through to remove seven watts a tier. The channels are shallower now and the bound is set at what a machine that is genuinely part heat exchanger comes to |
 | `C-024-7` | `dp_loop < p_work` | the circuit's own loss must be inside the working pressure the seals in 017 are rated for |
 
 ## What it draws

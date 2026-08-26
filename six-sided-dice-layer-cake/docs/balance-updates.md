@@ -143,3 +143,47 @@ a pipeline stage is a hundred and fifty microseconds, so the array reaches five
 per cent of its steady rise before the work moves on. The excursion is under a
 kelvin under any ordering. The ordering is now free for something else, most
 likely shorter storage line routing.
+
+**2026-08-26 — core tiers, 32 to 24; lamina 1.200 mm to 1.617 mm.** `034`, `036`,
+`012`. Thirty-two was the first sketch, chosen because it made the stack pitch a
+round number. `035` then derived an areal density from the bitcell upward —
+cell area, array efficiency, tier overhead — and at that density thirty-two tiers
+hold half again what the reference model needs. That is silicon nobody uses
+paying leakage forever. Twenty-four lands just above sixty-four gibibytes usable
+and gives each tier a lamina a third thicker, which the core's own cooling wanted
+anyway. **The tier count came out of the capacity chain rather than going into
+it.**
+
+**2026-08-26 — error correction line, 64 bits to 256.** `040`, `034`. Sixty-four
+data bits need eight check bits, which is twelve and a half per cent of the
+core's raw capacity. Two hundred and fifty-six need ten — nine to locate an error
+among them and one to detect a second — which is under four per cent. The sieve's
+reads are enormous and sequential so a wide line costs nothing, and the eight and
+a half per cent recovered is most of what paid for dropping eight tiers.
+
+**2026-08-26 — through-stack via, 3 µm to 5 µm to 7 µm.** `036`. A via running
+the full forty millimetres of the stack is not a via, it is a resistance and a
+capacitance in series, and its time constant goes as the reciprocal of its area.
+Three microns was hopeless; five settled in two hundred and eleven picoseconds
+against a two hundred picosecond budget; seven gives a hundred and eight. Copper
+rather than tungsten for the same reason — three times the resistivity over forty
+millimetres is the difference between settling inside a core cycle and not.
+
+**2026-08-26 — core lamina channels, half the lamina's depth to 0.30 mm.** `036`,
+`024`. Cutting the laminae half through put nearly forty cubic centimetres of
+fluid inside a two hundred and sixteen cubic centimetre machine, which is a fifth
+of it. The laminae are thick because the stack height demanded it, not because
+seven watts a tier did; at three tenths of a millimetre deep a tier still sits
+under a third of a kelvin above its coolant.
+
+**2026-08-26 — bank interleave, 8192 bits to 32768.** `038`. Eight thousand is
+narrower than a single cycle's read from one tier, so every transfer would have
+straddled two banks — the opposite of what interleaving is for.
+
+**2026-08-26 — three manual unit conversions removed.** `034`, `036`. A division
+by a thousand to turn megabytes into gigabytes, and two more to turn millimetres
+into metres, all in derivations where the notation already does the conversion.
+Each was a dimensionless literal and therefore silent: the first made the core a
+thousand times too small, the other two between them made a tier's temperature
+rise a thousand times too large. This is the failure mode the whole notation
+exists to prevent and it still took a checker to find them.

@@ -38,7 +38,7 @@ Described by `205`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `L_plate` | `012` | 52 mm | edge of a face plate, once the edge rails are taken off |
-| `Q_leak_max` | `027` | unresolved | volumetric loss the reservoir can absorb over one service interval once thermal expansion and service spillage are allowed for |
+| `Q_leak_max` | `027` | 1.37193e-12 m^3/s | volumetric loss the reservoir can absorb over one service interval once thermal expansion and service spillage are allowed for |
 | `n_corner` | `010` | 8 | corners of the cube, each a coolant manifold block |
 | `n_edge` | `010` | 12 | edges, each carrying a supply and a return channel |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |

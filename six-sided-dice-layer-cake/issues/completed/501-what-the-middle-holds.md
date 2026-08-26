@@ -4,8 +4,27 @@ Produces `src/034-core-organisation.md`.
 
 ## Current behavior
 
-Nothing. Seventy-eight gigabytes raw and sixty-four gibibytes usable are quoted
-throughout and derived nowhere.
+**Done, and the tier count changed while it was being written.**
+`src/034-core-organisation.md` exists with the capacity chain as symbols.
+
+Thirty-two tiers was the first sketch. `035` then derived an areal density from
+the bitcell upward rather than quoting one, and at that density thirty-two tiers
+hold half again what the reference model needs — silicon nobody uses, paying
+leakage forever. **Twenty-four lands just above sixty-four gibibytes usable**, and
+gives each tier a thicker cooling lamina into the bargain. The tier count came
+out of the chain rather than going into it, which is what the chain is for.
+
+Six constraints. The one that matters is `C-034-2`: one face may take the whole
+bandwidth. Every other blueprint in the project would continue to check if that
+were quietly a sixth, and `008` entry 5 would be wrong.
+
+**A division by a thousand nearly ruined it.** `C_tier` was written with a manual
+megabyte-to-gigabyte conversion in a notation that does conversions itself. Being
+a dimensionless literal it was silent, and it made the core a thousand times too
+small.
+
+**The bank collision estimate assumes independent addresses** and they are six
+streams walking six contiguous regions in step. `038` owes the real analysis.
 
 ## Intended behavior
 

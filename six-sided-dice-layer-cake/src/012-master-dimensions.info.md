@@ -17,7 +17,7 @@ Described by `103`.
 | `L_die` | mm | given | 24 mm | edge of one compute die; two thirds of a reticle field, and half its area is the slice in 047 |
 | `w_street` | mm | given | 1 mm | gap between two dies on a face, for placement tolerance and the seal ring |
 | `t_tier_si` | mm | given | 0.05 mm | thickness of one thinned memory tier; as thin as a tier can be handled |
-| `t_lamina` | mm | given | 1.2 mm | thickness of one cooling lamina between two tiers, set by the core's heat in 036 |
+| `t_lamina` | mm | given | 1.617 mm | thickness of one cooling lamina between two tiers. It is what is left of the core's height once twenty-four tiers are laid in it, and the tier count came out of 034's capacity chain rather than being chosen |
 | `w_uchan` | mm | given | 0.15 mm | width of one microchannel in a face cold plate; this is the number that sets the heat transfer coefficient |
 | `h_uchan` | mm | given | 1 mm | depth of the same channel, limited by fin efficiency rather than by etching |
 | `w_ufin` | mm | given | 0.15 mm | wall between two microchannels, set by the plate's pressure rating in 017 |
@@ -26,7 +26,7 @@ Described by `103`.
 | `L_plate` | mm | derived | 52 mm | edge of a face plate, once the edge rails are taken off |
 | `L_dieblock` | mm | derived | 49 mm | edge of the four-die array on a face |
 | `w_seal` | mm | derived | 1.5 mm | seal ring left around the die block on each side |
-| `t_tier_pitch` | mm | derived | 1.25 mm | one repeating unit of the core stack |
+| `t_tier_pitch` | mm | derived | 1.667 mm | one repeating unit of the core stack |
 | `p_uchan` | mm | derived | 0.3 mm | pitch of the microchannel field |
 | `n_uchan` | 1 | derived | 173 | microchannels across one face cold plate |
 | `ar_uchan` | 1 | derived | 6.66667 | aspect ratio of one microchannel |
@@ -43,7 +43,7 @@ Described by `103`.
 |---|---|---|---|
 | `ar_uchan_max` | `022` | 8 | aspect ratio past which fin efficiency falls below what is worth the extra silicon; this is what set h_uchan in 012 |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
-| `n_tier` | **nothing declares this** | — | — |
+| `n_tier` | `036` | 24 | memory tiers in the stack. Twenty-four rather than the thirty-two first sketched, because at the density 035 derives, thirty-two holds half again what is needed |
 | `w_seal_min` | `017` | 1.2 mm | least width of face plate rim a groove and its land need |
 
 ## What consumes it
@@ -54,27 +54,27 @@ Change one of these and the blueprints beside it are what break.
 |---|---|
 | `L_cube` | `012`, `013`, `016`, `019`, `023` |
 | `t_face` | `012`, `014` |
-| `t_cage` | `012` |
+| `t_cage` | `012`, `037` |
 | `w_rail` | `012`, `013`, `016`, `024` |
 | `L_die` | `012`, `030`, `032` |
 | `w_street` | `012` |
-| `t_tier_si` | `012`, `013`, `026` |
-| `t_lamina` | `012`, `013`, `024`, `026` |
+| `t_tier_si` | `012`, `013`, `026`, `036` |
+| `t_lamina` | `012`, `013`, `024`, `026`, `036` |
 | `w_uchan` | `012`, `014`, `022`, `024`, `027` |
 | `h_uchan` | `012`, `014`, `022`, `024`, `025` |
 | `w_ufin` | `012`, `022` |
-| `L_cavity` | `012`, `013` |
-| `L_core` | `012`, `013`, `018` |
+| `L_cavity` | `012`, `013`, `037` |
+| `L_core` | `012`, `013`, `018`, `036` |
 | `L_plate` | `012`, `013`, `014`, `017`, `018`, `022`, `024`, `030` |
 | `L_dieblock` | `012`, `014` |
 | `w_seal` | `012`, `017` |
-| `t_tier_pitch` | `012` |
+| `t_tier_pitch` | `012`, `036` |
 | `p_uchan` | `012`, `022` |
 | `n_uchan` | `012`, `022`, `024` |
 | `ar_uchan` | `012`, `022` |
 | `A_plate` | `013`, `014`, `025`, `026` |
 | `A_die` | `012`, `013`, `020`, `025`, `026`, `031` |
-| `A_core_side` | `013`, `024`, `026` |
+| `A_core_side` | `013`, `024`, `026`, `034`, `036` |
 | `V_cube` | `013`, `020`, `024` |
 | `n_die` | `012`, `013`, `020`, `028`, `031`, `033` |
 | `A_die_total` | `025` |

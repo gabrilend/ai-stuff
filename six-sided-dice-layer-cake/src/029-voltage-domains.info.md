@@ -29,13 +29,13 @@ Described by `402`.
 | `P_if_merged` | W | derived | unresolved | what running the logic at the array's voltage would cost, which is the argument for keeping them apart |
 | `f_merge_cost` | 1 | derived | unresolved | that cost as a share of the machine |
 | `E_swing_ratio` | 1 | derived | 0.64 | the energy the link saves by swinging six hundred millivolts instead of the logic rail's, since energy goes as the square of the swing |
-| `P_link_if_logic` | W | derived | unresolved | what the link would cost at the logic swing |
+| `P_link_if_logic` | W | derived | 48 W | what the link would cost at the logic swing |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `P_link_load` | `028` | unresolved | the six radial link drivers |
+| `P_link_load` | `028` | 30.72 W | the six radial link drivers |
 | `P_load` | `020` | unresolved | power delivered to the point of load |
 | `P_logic_load` | `028` | unresolved | everything on the logic rail: engines, control, leakage and the switch fabric |
 | `V_link_min` | **nothing declares this** | — | — |
@@ -56,7 +56,7 @@ Change one of these and the blueprints beside it are what break.
 | `tol_rail` | `029`, `033` |
 | `droop_frac` | `029` |
 | `ripple_frac` | `029` |
-| `dV_read_marg` | `029` |
+| `dV_read_marg` | `029`, `035` |
 | `I_port_max` | `028` |
 | `n_domain` | `029`, `033` |
 | `dV_droop_logic` | `029`, `030`, `031` |

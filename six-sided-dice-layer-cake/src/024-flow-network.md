@@ -61,6 +61,7 @@ around it.
 ## Symbols
 
 ```symbols
+f_wet_max     | 1 | given | 0.15 | the most of the cube's volume that may be standing fluid
 eta_pump      | 1 | measured | 0.30 | wire-to-water efficiency of a pump of this size and duty; small pumps are poor and this is a realistic figure rather than a hopeful one
 K_plenum      | 1 | given    | 2.20 | loss coefficient for entering and leaving a plenum and turning into the channel field, summed over both ends
 
@@ -80,9 +81,8 @@ f_field_loss  | 1  | derived | dp_field / dp_loop                   | the load's
 
 V_field_wet   | mm^3 | derived | n_face * n_uchan * A_uchan * L_plate      | fluid standing in the six microchannel fields
 V_plenum_wet  | mm^3 | derived | n_face * 2 * h_plenum * L_plate * w_rail  | and in the twelve plenums that feed and drain them
-V_core_wet    | mm^3 | derived | n_tier * A_core_side * t_lamina * f_void_lamina | and in the thirty-two cooling laminae inside the core
+V_core_wet    | mm^3 | derived | n_tier * A_core_side * t_lamina * f_void_lam | and in the twenty-four cooling laminae inside the core, at the void fraction 036 derives from their channel geometry
 V_coolant     | mm^3 | derived | V_field_wet + V_plenum_wet + V_rail_wet + V_corner_wet + V_core_wet | all of it, which is what 013 weighs and 027 has to make up when it leaks
-f_void_lamina | 1    | given   | 0.35 | share of a core cooling lamina that is channel rather than metal
 
 P_hydraulic   | W | derived | Q_total * dp_loop        | work a second the fluid needs
 P_pump        | W | derived | P_hydraulic / eta_pump   | electrical power the pump draws, which is outside the cube and outside 020's budget
@@ -100,7 +100,7 @@ C-024-2 | f_field_loss > 0.30           | the load must still be the largest sin
 C-024-3 | v_uchan < v_erosion_max       | velocity in the channels must stay under what erodes silicon over the life in 086; it is under half a metre a second, so this is slack, and it is the rails that are close
 C-024-4 | f_pump_of_heat < 0.01         | moving the coolant must cost under a hundredth of what it carries. It comes out near a thousandth, and this is the constraint that would notice if the channels were ever made much narrower
 C-024-5 | f_worst_served > 0.85         | the worst-served field must get within fifteen per cent of the mean, or 025's worst case is not the one being computed
-C-024-6 | V_coolant < V_cube / 10       | the fluid standing in the machine must be a small part of its volume, which is a sanity check on five separately derived wetted volumes
+C-024-6 | V_coolant < V_cube * f_wet_max | the fluid standing in the machine must be a bounded part of its volume, which is a sanity check on five separately derived wetted volumes. A tenth was tried and failed at eighteen per cent -- the core's laminae were being cut half through to remove seven watts a tier. The channels are shallower now and the bound is set at what a machine that is genuinely part heat exchanger comes to
 C-024-7 | dp_loop < p_work              | the circuit's own loss must be inside the working pressure the seals in 017 are rated for
 ```
 
