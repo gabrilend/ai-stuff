@@ -57,6 +57,7 @@ what a person reads before opening the source.
 | | |
 |---|---|
 | `quote(text)` |  |
+| `unescape(text)` | A string out of the far end's reply, with its escapes turned back. |
 | `main(argv)` |  |
 
 ## Where it sits

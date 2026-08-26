@@ -8,6 +8,37 @@ been made from any of it.
 
 ## Current behavior
 
+**Done, and pictures exist.** The first one was made on 2026-08-26. A tree that
+is the character for tree; three posts standing in water that are the character
+for river.
+
+```
+bash src/043-install-the-kitchen.sh
+libs/kitchen/venv/bin/python libs/kitchen/ComfyUI/main.py --listen 127.0.0.1 --port 8188
+luajit src/044-run-the-pictures.lua --chars 川木
+```
+
+**The first real run found that the most important dial was set at less than
+half what it should be.** At the shipped strength the finished picture agreed
+with its own character no better than with a random one — 0.35 against a
+0.39 baseline — which is exactly what looking at it showed: a pleasant forest
+photograph with no character in it. `docs/balance-updates.md` has the sweep.
+Nothing before this point could have found that, because nothing had ever been
+generated.
+
+**And it found a design error.** The workflow was burning the arrow layer into
+the picture it saved, which `docs/005` argued for on the grounds that what lands
+in the output folder should be the finished learning card. Two things go wrong.
+The grader then squints at arrows as well as at scenery. And the stroke-order
+animation draws arrows on top of arrows, so every frame looks the same. The pool
+now holds what the model actually drew, unmodified, and everything that wants
+the arrows composites them itself — which is also what makes showing them one at
+a time possible at all.
+
+Two smaller things: the far end writes JSON, so a filename comes back spelled
+`\u6728` and has to be unescaped before it names a file; and the first `"name"`
+in its reply is a package it happens to mention rather than the graphics card.
+
 The install script is done and `src/044-run-the-pictures.lua` is written. With
 nothing listening it says so and gives the line that starts one, which is the
 case that will actually happen.

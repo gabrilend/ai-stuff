@@ -145,3 +145,49 @@ the old behaviour raises `share` and the two marks.
 **What this is not.** A machine that does not report its temperature gets the
 pauses turned off entirely, with a notice. Resting on a fixed schedule against a
 temperature nobody measured is a slower run bought for nothing.
+
+---
+
+## 2026-08-26 — the first numbers that were measured rather than guessed
+
+**Every dial in this file until now was a starting position set by argument.**
+There was no way to do better: nothing had ever been generated. There is now, so
+these were measured — one dial moved at a time, against the machine grader in
+`src/046`, on the character for *tree*.
+
+**The finding is that `control_strength` was less than half what it should be**,
+and it was the only dial that mattered much.
+
+| strength | released at | agreement |
+|---|---|---|
+| 0.85 *(as guessed)* | 0.72 | 0.349 |
+| 1.20 | 0.72 | 0.574 |
+| 1.20 | 0.95 | 0.594 |
+| 1.55 | 1.00 | 0.623 |
+| 1.90 | 1.00 | 0.663 |
+
+For scale: a field compared against a *different character's* field scores about
+0.39. So at the setting this project shipped with, the finished picture agreed
+with its own character no better than with a random one — which is exactly what
+looking at it showed. At 1.55 the tree grows a visible trunk with two diagonals
+sweeping down and a crossbar, and it is unmistakably a photograph of a tree.
+
+**It helps more on crowded characters, not less**, which was the opposite of the
+worry. 語, at fourteen strokes: 0.457 at 0.85, and 0.720 at 1.55. More strokes
+means more structure for the composition to follow.
+
+| Knob | Was | Now | Why |
+|---|---|---|---|
+| `workflow.control_strength` | 0.85 | 1.55 | The table above. 1.90 scored higher still and is left as headroom rather than taken, because nothing has checked what it does to a thirty-stroke character. |
+| `workflow.control_end` | 0.72 | 1.0 | Releasing it early was argued for on the grounds that the model should finish the scene unaided. Measured, holding it to the end is slightly better and does not stamp the character through the picture the way that argument feared. |
+
+**And one dial turned out not to matter.** The band the field is compressed into
+was moved from 0.16–0.86 to 0.02–1.00 with the strength held fixed: 0.617
+against 0.623, which is noise. So it stays where `docs/003` argues it should be.
+That test had to be run twice, because the first sweep moved the band and the
+strength together and could not tell which had done the work.
+
+**What none of this measures** is the failure the grader is blind to — a model
+that satisfies *kanji* by painting one. Every picture above was looked at, and
+none of them did it. That is not the same as knowing it will not happen at 1.55
+on some other character.
