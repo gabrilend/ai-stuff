@@ -46,3 +46,34 @@ work if somebody looks at them.
 the dial and the elaboration queue are all downstream of somebody clicking. If
 nobody does, this is an apparatus that has made the project larger and no
 better.
+
+## Where the tests for this phase live
+
+Not in a file of their own. `401` and `402` are tested in `027`, which is where
+everything about turning a character into a scene is tested; `403` through `408`
+are in `035`, which is where everything about turning a scene into a file
+somebody can run is tested.
+
+That is deliberate. A test file per *phase* would put the paintbrush's wall in a
+different file from the scene grammar it overrides, and the animation in a
+different file from the picture writer it is the other half of. The phases are
+when things were built; the test files follow what they are about.
+
+## What this phase turned up
+
+**Three bugs left the data perfectly correct and made the program read it
+wrong**, which is a shape this project had not hit before. A pattern anchored on
+the newline before each entry eats it, so the next entry is never seen. `a and b
+or c` falls through when b is nil, so a filter for *what a person judged*
+quietly became *what anyone judged*. An inline event handler runs in a scope
+where nothing the page declared is visible, so buttons could not see what they
+were adding to.
+
+**And two checks were wrong about the machine rather than about the code.** The
+card was declared unusable because the arithmetic library's list of supported
+architectures did not contain this card's exactly — while it sat there working,
+because compiled CUDA code runs on any device of the same major version with an
+equal or higher minor one. And a phrase list with a typo in it was treated as no
+phrase list at all.
+
+The pattern across all five: ask the thing, do not reason about it.
