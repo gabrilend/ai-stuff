@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# phase-8-demo -- what phase 8 of this design produced, with live numbers.
+#
+# For a general reader: this project's deliverable is a set of blueprints in
+# which no number is written twice -- every dimension is either chosen once or
+# derived from ones that were. So a demonstration of it is not a program doing
+# something; it is the design answering questions about itself. Every figure
+# printed below is resolved from the blueprints at the moment you run this.
+# Change a dimension in src/ and run it again and the numbers move.
+#
+# Phase 8 is "The Feed".
+#
+# Usage:   ./phase-8-demo [project-directory]
+
+DIR="/mnt/mtwo/programming/ai-stuff/six-sided-dice-layer-cake"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+exec luajit "${DIR}/src/100-the-phase-demonstrations.lua" "${DIR}" 8
