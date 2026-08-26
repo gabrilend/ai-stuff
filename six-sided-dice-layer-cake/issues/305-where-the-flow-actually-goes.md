@@ -14,12 +14,34 @@ the convection coefficient does not depend on velocity, so halving the flow does
 not halve the cooling -- it doubles only the coolant's own rise, which is a fifth
 of the chain. `027` builds its pump redundancy on that.
 
+## What is not done
+
 **The network is not solved and the ticket asked for it to be.** The worst-served
 fraction is a `target`, and the checker reports it as unfinished on every run.
-Solving twenty branches across eight nodes needs a linear solve this notation
-cannot express, and until it exists the junction temperature in `025` rests on an
-estimate. **This is the largest unfinished piece in the phase** and the ticket
-stays open in that respect even though the blueprint is written.
+Until it is solved the junction temperature in `025` rests on an estimate. **This
+is the largest unfinished piece in the phase**, and it is blocked twice over.
+
+**Blocked on a topology.** `304` has not enumerated which rail feeds which face,
+so there is no network to solve even with a solver. Both tickets want the same
+thing: a program holding the cube's eight corners, twelve edges and six faces as
+data, rather than as prose in `010` and counts in `023`.
+
+**Blocked on somewhere to put the answer.** The notation's four kinds are a
+decision, a material property, an expression, and a goal. A solver's output is
+none of those, and writing it as a `given` would invite the reader to argue with
+it by choosing differently, and would go stale in silence the first time a rail's
+cross-section changed. `1411` adds the kind that fits and the drift check that
+keeps it honest.
+
+**The solve is not linear.** The first estimate assumed it was. The microchannel
+fields are laminar, so their loss rises with the first power of flow; the rails
+are turbulent on Blasius, so theirs rises with the power one and three quarters;
+the plenum entry losses go as the square. Three exponents in one network means
+the answer comes from iterating rather than from one elimination, and the
+blueprint should say which method and how far it converged.
+
+**Part-flow behaviour is described and not plotted**, and `027` builds its pump
+redundancy on the description.
 
 ## Intended behavior
 
