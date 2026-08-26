@@ -35,15 +35,25 @@ collection of modifiers spread across three people, and spends its attention
 deciding where they sit and who should be holding which. This is the roguelike
 layer: what you get is random, what you do with it is not.
 
-**The commander (fast).** Each player picks a commander. Every enemy soldier your
-team kills pays every player on it a private currency — gold, mana, blood,
-whatever the commander calls it; mechanically it is one number. Teammates earn
-identically, so what separates two of them is entirely what they do with the same
-money. It buys **hero units**: individual soldiers roughly two and a half times
-as strong as an ordinary one, carrying abilities that ordinary soldiers do not
-have. A hero is spawned onto a place you already control, walks a lane like
-everything else, and fights until it dies. It does not come back. This is the
-moment-to-moment layer: you are always deciding whether to bank or to spend.
+**The commander (fast).** Each player picks a commander, which sets three things:
+its **captain** — the signature body in its waves — the **proportion** of melee to
+ranged it fields, and the **colours** its bodies carry. Melee and ranged bodies
+are otherwise identical for everybody, so a commander is a mixture and a captain
+rather than a private army.
+
+The commanders take turns sending waves, so **a third of what walks out of your
+base is a teammate's design.** And every enemy body your team kills pays every
+player on it, in **the colour that body was carrying** — as many colours as there
+are attribute scores, five points each, spent as dice on a ladder from d4 to d12.
+
+Which means **you farm what the enemy brought.** What your opponents chose in the
+lobby decides which colours you can accumulate, and therefore which **hero units**
+you can afford: individual soldiers roughly two and a half times as strong as an
+ordinary one, carrying abilities that ordinary soldiers do not have, priced as a
+*hand of dice* rather than as a number. A hero is spawned onto a place you already
+control, walks a lane like everything else, and fights until it dies. It does not
+come back. This is the moment-to-moment layer: you are always deciding whether to
+bank or to spend, and in which colour.
 
 **The surge (structural).** Three times per match the game changes shape, twice
 over. First comes a **siege-surge**: waves stop and a continuous stream pours from
@@ -93,9 +103,12 @@ properties a hero does not:
 
 - **The frontline must move.** Any system that does not, directly or indirectly,
   push a frontline is decoration and should be cut.
-- **Every player touches every lane.** The base guards' shared radius, the shared
-  chest, and the surge dealing every upgrade evenly across all three lanes all
-  exist to punish tunnel vision.
+- **Every player touches every lane.** The base guards' shared radius, stones
+  dealt one to each player, and the surge reading everything a team owns at once
+  all exist to punish tunnel vision. **The largest single risk to this pillar is
+  one lane holding everything** — what already resists it, what would show it
+  happening, and the tempting fix that would make it worse are in
+  [ways this could go wrong](023-ways-this-could-go-wrong.md).
 - **Soldiers are the only actors.** Heroes, guards, and challenge monsters are
   all soldiers with different numbers on them. There is one movement system, one
   targeting system, one combat system. If the soldier brain is bad, the whole
@@ -112,13 +125,13 @@ these words and not synonyms.
 
 | Term | Means |
 | --- | --- |
-| **lane** | One of the three paths joining the two bases. |
+| **lane** | One of the paths joining the two bases. One per player on a team, so three at the size this prototype targets. |
 | **wave** | A batch of soldiers spawned into a lane at the same instant, tracked as a group. |
-| **wave unit** | An ordinary soldier. No abilities. The bulk of everything on the map. |
-| **hero unit** | A stronger soldier with abilities, bought with personal resource. Dies permanently. |
-| **guard tower** | A stationary shooter standing on a lane. Two per lane, three more inside each base. |
+| **wave unit** | An ordinary soldier. No abilities. The bulk of everything on the map. Three kinds: **melee**, **ranged**, and a **captain** at 2.5× health and 1.5× damage. Melee and ranged are identical for every commander; the captain is the commander's own. |
+| **hero unit** | A stronger soldier with abilities, bought with coloured dice. Carries **no** lane upgrades, ever. Dies permanently, except when it survives a challenge, which refunds it. |
+| **guard tower** | A stationary shooter. Three per lane — two standing on it and one at its mouth inside the base — so the count follows the lane count, which follows the team size. |
 | **guard** | A soldier a guard tower spawns to patrol the ground near it. |
-| **base** | The end of the map belonging to one team: three guard towers and a library. |
+| **base** | The end of the map belonging to one team: one guard tower per lane mouth, and a library. |
 | **library** | The building that ends the game when it falls. One per base. |
 | **stone** | An upgrade, as a physical object: a rune with a colour, held by one player, placed by them into a slot. **A stone belongs to the player who drew it** and changes hands only by being offered. |
 | **upgrade** | The same thing, as a rule rather than an object. Use **stone** when talking about the thing a player holds and taps; use **upgrade** when talking about what it does to a body. |

@@ -109,6 +109,10 @@ hero-less-moba/
 │   │                                           walking forward and swinging:
 │   │                                           keeping range, leaving the line
 │   │                                           to mend, and who a healer picks.
+│   ├── 023-ways-this-could-go-wrong .......... Failure modes, not decisions.
+│   │                                           Shapes the game could settle into
+│   │                                           that nobody wants, each with what
+│   │                                           resists it and what would show it.
 │   │
 │   ├── table-of-contents ..................... This page.
 │   ├── balance-updates ....................... Append-only ledger of knobs turned
