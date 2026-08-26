@@ -58,3 +58,7 @@ what a person reads before opening the source.
 | `gather(known)` | Every file the site will hold, and the name its page gets. |
 | `contents(known, here)` | The column that is always there. |
 | `main(argv)` |  |
+
+## Where it sits
+
+Used by `035-test-the-machine`.

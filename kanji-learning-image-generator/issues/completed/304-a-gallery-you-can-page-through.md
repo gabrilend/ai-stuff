@@ -2,8 +2,27 @@
 
 ## Current behavior
 
-A run produces thousands of directories of PNGs and JSON. Nobody is going to open
-thousands of directories.
+Done. `src/032-a-gallery-you-can-page.lua`:
+
+```
+luajit src/032-a-gallery-you-can-page.lua --set tmp/shared-memory/sets
+```
+
+An index showing every character at thumbnail size with a filter bar, and detail
+pages showing each field large with its arrows over it, the thumbnail beside it,
+and every decision that went into the picture.
+
+**Nothing is parsed in Lua.** The cards are JSON and the gallery is a web page,
+so the card text is spliced into the page and the browser parses it — which is
+why there is still no reader for that format anywhere in this project. The one
+thing that needs to understand a card already understands it.
+
+Only the five fields the index filters on are pulled out on this side, by
+pattern, from a file this project wrote itself.
+
+**Paging happens when the page is built, not in the browser.** Six thousand
+cards embedded in one document is twenty-five megabytes; the index carries a
+hundred bytes per character for filtering and points at the page each one is on.
 
 ## Intended behavior
 
