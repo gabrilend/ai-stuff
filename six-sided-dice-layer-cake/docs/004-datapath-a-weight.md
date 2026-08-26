@@ -70,11 +70,12 @@ that is the whole thirty-five gigabytes, once, for every token generated.
 The transfer runs over the radial link (`051`) at up to fifty terabytes a second
 of raw link capacity, but the link is not what limits it — the core is. Thirty-two
 tiers each delivering eight thousand one hundred and ninety-two bits per cycle at
-one point two gigahertz is about **thirty-nine terabytes a second aggregate**, and
-that number, divided into thirty-five gigabytes, is the machine's headline
-latency of nine tenths of a millisecond per token.
+the core clock is **thirty-eight and a half terabytes a second aggregate**, and
+that number, divided into the model's weights plus one sequence's cache, is the
+machine's headline latency of about a millisecond per token — a thousand and
+twenty-one tokens a second.
 
-The cage (`037`) will give all thirty-nine terabytes a second to one face if the
+The cage (`037`) will give all of that to one face if the
 other five are not asking. This is why the sieve's serial structure costs
 essentially nothing when a single sequence is being generated, and it is the least
 obvious load-bearing decision in the design.
@@ -119,11 +120,11 @@ again until the machine is power-cycled.
 
 ## The three numbers that matter
 
-| | |
+| | derived |
 |---|---|
-| media to core, whole model | ≈ 30 ms, once |
-| core to slices, whole model | ≈ 0.90 ms, per token |
-| slice to engines, whole model | ≈ 0.032 ms × batch, per token |
+| media to core, whole model | 34 ms, once |
+| core to slices, whole model | 0.98 ms, per token |
+| slice to engines, whole model | 0.039 ms × batch, per token |
 
 The middle row is the machine. The top row is why the six storage lines exist and
 is otherwise unimportant. The bottom row is why batching works.
@@ -148,3 +149,7 @@ die. Whether it is worth a larger die is a phase 6 question nobody has priced.
 `003` follows a token rather than a weight. `058` is the media layout. `059` is
 residency. `060` is the prefetch. `061` is the arithmetic that says a face never
 starves.
+
+---
+
+*The figures in this document are rounded prose. The derived ones live in `091`, which lists every symbol in the project with its unit, its derivation and what it is for; `089` is the one-page version. `./run-checks` evaluates every constraint in under a second.*

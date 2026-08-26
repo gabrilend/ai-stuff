@@ -9,7 +9,7 @@ millisecond and has nowhere to put them except through its own corners.
 | source | watts | why |
 |---|---|---|
 | twenty-four compute dies | 1380 | matrix engines, almost all of it |
-| the core, thirty-two memory tiers | 190 | read energy at thirty-nine terabytes a second, plus leakage |
+| the core, twenty-four memory tiers | 160 | read energy at thirty-eight terabytes a second, plus leakage |
 | the cage and six radial links | 70 | crossbar and link drivers |
 | port fields, storage lines, the spout | 10 | idle during generation; the spout is a burst load |
 | **delivered to the point of load** | **1650** | |
@@ -189,11 +189,17 @@ seal and it is the single most likely thing in this project to leak.
 
 ## What is still open
 
-**Whether the hot spot term is fifteen kelvin.** It is the largest number in the
-chain and it is the only one currently carried as a `target` rather than a
-derivation, because it depends on the matrix engine floorplan that `045` has not
-finished. If it turns out to be forty, the margin above is gone and the clock
-comes down. This is the highest-value open question in the thermal phase.
+**The hot spot term came out at about ten kelvin rather than fifteen**, once
+`041` produced a real floorplan and `025` derived it rather than estimating. It is
+still the largest term in the chain by a factor of five, and it still rests on an
+engine layout `045` has not laid out in detail — if the array turns out denser or
+hotter than a tenth of the die at seventy per cent of its power, the term grows in
+proportion.
+
+The remedy nobody has costed is to **vary the channel density across the cold
+plate to match the power map** — finer channels above the engine tiles. It is
+manufacturable, it is not in `022`, and it is the best unexplored idea in the
+thermal design.
 
 **What happens when a channel blocks.** A hundred and seventy-three channels per
 face, a hundred and fifty microns wide, in a loop with a pump and a radiator in
@@ -207,3 +213,7 @@ guess written down as if it were a requirement.
 `020` is the budget. `022` is the field. `023` is the corner plumbing and the
 tetrahedra. `025` is the chain with every term derived. `026` is what happens on a
 load step. `027` is everything outside the cube. `008` is the honest list.
+
+---
+
+*The figures in this document are rounded prose. The derived ones live in `091`, which lists every symbol in the project with its unit, its derivation and what it is for; `089` is the one-page version. `./run-checks` evaluates every constraint in under a second.*

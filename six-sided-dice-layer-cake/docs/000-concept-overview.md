@@ -70,14 +70,14 @@ worked out in `023-corner-parity-plumbing`.
        ║       ┌─────────────▼──────────────────┐          ║
        ║       │░░░░░░░░░░░ the cage ░░░░░░░░░░░│          ║   ── the cavity
        ║       │░░┌──────────────────────────┐░░│          ║
-       ║       │░░│▓▓▓▓▓▓▓▓ tier 31 ▓▓▓▓▓▓▓▓▓│░░│          ║
-       ║       │░░│══════ copper lamina ═════│░░│          ║   ── the core:
-       ║       │░░│▓▓▓▓▓▓▓▓ tier 30 ▓▓▓▓▓▓▓▓▓│░░│          ║      thirty-two
-       ║       │░░│══════ copper lamina ═════│░░│          ║      tiers, each
+       ║       │░░│▓▓▓▓▓▓▓▓ tier 23 ▓▓▓▓▓▓▓▓▓│░░│          ║
+       ║       │░░│══════ cooling plate ═════│░░│          ║   ── the core:
+       ║       │░░│▓▓▓▓▓▓▓▓ tier 22 ▓▓▓▓▓▓▓▓▓│░░│          ║      twenty-four
+       ║       │░░│══════ cooling plate ═════│░░│          ║      tiers, each
        ║       │░░│            ⋮             │░░│          ║      one part
        ║       │░░│▓▓▓▓▓▓▓▓ tier  0 ▓▓▓▓▓▓▓▓▓│░░│          ║      silicon to
-       ║       │░░└──────────────────────────┘░░│          ║      twenty-four
-       ║       │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│          ║      parts copper
+       ║       │░░└──────────────────────────┘░░│          ║      thirty-two
+       ║       │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│          ║      parts metal
        ║       └────────────────────────────────┘          ║
        ║  ┌─────────────────────────────────────────────┐  ║
        ║  │           the opposite face                 │  ║
@@ -105,14 +105,18 @@ other five are idle. That last property is not a luxury and `055` explains why �
 it is what makes the sieve cost nothing for a single stream of tokens.
 
 **The core.** The forty millimetre cube the cage encloses, and it is mostly not
-silicon. Thirty-two memory tiers, each forty millimetres square and fifty microns
-thick, laminated between copper cooling plates twelve hundred microns thick. Two
-per cent silicon by volume and the rest a heat exchanger, which is the only way a
-solid block of static memory at the geometric centre of a sealed cube can survive
-its own leakage. Seventy-eight gigabytes raw, sixty-four gibibytes usable once
-error correction, spare rows and redundant tiers are taken out. It is the layer
-cake the project is named after, and every one of the six faces reads and writes
-all of it.
+silicon. **Twenty-four memory tiers**, each forty millimetres square and fifty
+microns thick, laminated between copper–molybdenum cooling plates sixteen hundred
+microns thick. Three per cent silicon by volume and the rest a heat exchanger,
+which is the only way a solid block of static memory at the geometric centre of a
+sealed cube can survive its own leakage. About eighty gigabytes raw and
+seventy-two usable once error correction, spare rows and a redundant tier are
+taken out. It is the layer cake the project is named after, and every one of the
+six faces reads and writes all of it.
+
+The tier count was not chosen. `034` derives the capacity from a bit cell upward
+and `036` from the stack outward, and twenty-four is where those two arguments
+meet the reference model.
 
 ## The sixth face
 
@@ -134,9 +138,10 @@ and the whole of `062` through `069` is about making it real.
 The vision document offers its own retreat and it is the right one: *alternatively,
 each byte, so you can pulse 8 bits in a cycle*. One conductor per byte instead of
 per bit divides the conductor count by eight, which moves the required pitch from
-ten microns — bondable only, never detachable — to twenty-eight microns, which
+ten microns — bondable only, never repairable — to about thirty microns, which
 ordinary microbumps reach. **Byte mode is what makes the spout a part rather than
-a wish**, and it costs eight clock edges instead of one.
+a wish**: it can be tested before it is committed and reworked if it fails, and it
+costs eight clock edges instead of one.
 
 ## What falls through it
 
@@ -194,6 +199,16 @@ their constraints written down in a form a program can check, and the program
 reports that they are consistent with each other. Consistent is not the same as
 correct, and neither is the same as manufacturable. `090` says what a materials
 engineer would receive and what they would still have to find out.
+
+## Where the exact numbers are
+
+Everything in this document is rounded prose. **The figures are derived, not
+estimated**, and three generated documents carry them: `089` is the specification
+sheet, `088` the bill of materials, and `091` every symbol in the project with its
+unit, its derivation and the sentence saying what it is.
+
+    ./run-checks     every constraint, evaluated
+    ./run-demo       any phase, with its numbers resolved as you ask
 
 ## Where to go next
 
