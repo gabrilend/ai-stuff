@@ -1,0 +1,13 @@
+# the-deep-place -- larger, more tangled, and darker.
+
+name = the deep place
+
+rooms = 14
+smallest = 4
+largest = 16
+loops = 4
+lights = 2
+
+require = shrine
+require = well
+require = crypt

@@ -21,6 +21,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <time.h>
 
 /* ------------------------------------------------------------------------- *
  * SHA-1
@@ -314,22 +315,60 @@ void httpd_stop(struct httpd *h)
 }
 /* }}} */
 
+/*
+ * How long to keep trying when a browser is not reading, before giving up on the
+ * rest of what we were sending.
+ *
+ * A websocket socket here is NON-BLOCKING, so a full receive buffer returns
+ * EAGAIN. An earlier version of this function simply retried, immediately, with
+ * no bound -- which is a hot loop that pegs a processor for as long as the
+ * browser stays behind, and a browser tab left open in the background will do
+ * exactly that.
+ *
+ * Ten milliseconds of patience, in slices, and then the rest is dropped. That is
+ * safe here for the reason door_flush gives: AN UPDATE IS THE WHOLE PICTURE
+ * rather than a difference, so a missed one costs a beat of freshness and
+ * nothing else.
+ */
+#define SEND_PATIENCE_SLICES 20
+#define SEND_SLICE_NANOSECONDS 500000L   /* half a millisecond */
+
 /* {{{ static void send_all */
 static void send_all(int fd, const char *bytes, uint32_t length)
 {
     uint32_t written = 0;
+    uint32_t waited = 0;
 
     while (written < length) {
         ssize_t n = send(fd, bytes + written, (size_t)(length - written), MSG_NOSIGNAL);
 
-        if (n <= 0) {
-            if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-                continue;
-            }
-            break;
+        if (n > 0) {
+            written += (uint32_t)n;
+            waited = 0;   /* Progress resets the patience. */
+            continue;
         }
 
-        written += (uint32_t)n;
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            struct timespec slice;
+
+            if (waited >= SEND_PATIENCE_SLICES) {
+                break;   /* They are not keeping up. Drop the rest. */
+            }
+
+            /*
+             * SLEEP, not spin. This is the difference between a bridge that
+             * waits and a bridge that burns a core until somebody notices their
+             * fan.
+             */
+            slice.tv_sec = 0;
+            slice.tv_nsec = SEND_SLICE_NANOSECONDS;
+            nanosleep(&slice, NULL);
+
+            waited++;
+            continue;
+        }
+
+        break;   /* A real error, or they hung up. */
     }
 }
 /* }}} */

@@ -223,6 +223,21 @@ struct world {
 
     /* Beats since this world started running. Phase 3 advances it. */
     uint64_t tick;
+
+    /*
+     * Where this world came from.
+     *
+     * A description plus a seed is a few hundred bytes that name a whole dungeon
+     * exactly, so carrying them turns a world file from a blob into something
+     * with provenance: somebody handed a dungeon can ask what made it, change
+     * one line, and regenerate.
+     *
+     * That is the difference between a map you can edit and a map you can only
+     * replace. Zero and an empty name mean a world that was not generated -- a
+     * hand-built fixture, which is a normal thing to be.
+     */
+    uint64_t seed;
+    char     origin[64];
 };
 
 /*

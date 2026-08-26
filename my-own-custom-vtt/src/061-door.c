@@ -574,6 +574,19 @@ int door_join_as_client(uint16_t door_port, const char *name,
         return -1;
     }
 
+    /*
+     * A bound on waiting for the door's reply. Without one, a server that
+     * accepts and then says nothing leaves this blocked forever -- which is not
+     * a spin, but is a program that appears to have hung with no way to tell
+     * whether it is waiting or wedged.
+     */
+    {
+        struct timeval patience;
+        patience.tv_sec = 2;
+        patience.tv_usec = 0;
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &patience, sizeof(patience));
+    }
+
     header[0] = (uint8_t)(JOIN_MAGIC & 0xFFu);
     header[1] = (uint8_t)((JOIN_MAGIC >> 8) & 0xFFu);
     header[2] = (uint8_t)((JOIN_MAGIC >> 16) & 0xFFu);

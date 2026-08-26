@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#
+# phase-8-demo -- shows what phase eight built.
+#
+# Phase eight claims nothing needs to be hand-placed. Every phase before this
+# one used the same hand-written two-room fixture; this is where the project
+# stops needing one.
+#
+# It shows the CHAIN rather than the result -- the description, the graph with
+# no coordinates in it, the geometry, the furnishing -- because the point of the
+# four-stage split is that each stage is separately answerable.
+#
+# Then the same seed twice, one line of the description changed, three
+# descriptions refused by name, and finally a body walking into the place that
+# came out.
+#
+# Usage:
+#   ./phase-8-demo                 -- build and run
+#   ./phase-8-demo /path/to/prj    -- the same, from a checkout somewhere else
+#
+# Normally reached through ./run-phase-demo 1 in the project root.
+
+set -e
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT_NAME="my-own-custom-vtt"
+EXEC_TIER="/tmp/${PROJECT_NAME}/tmp"
+DEMO="${EXEC_TIER}/081-demo-phase-8"
+
+if [ ! -x "${DIR}/build" ]; then
+    echo "No build script at ${DIR}/build."
+    echo "Either the project root is wrong, or the project has not been initialised."
+    exit 1
+fi
+
+# Built from source every time rather than trusting whatever is lying around in
+# the RAM tier, because a demo that runs a stale binary is a demo that lies.
+echo "Building..."
+"${DIR}/build" "${DIR}" --no-test > /dev/null
+
+if [ ! -x "${DEMO}" ]; then
+    echo "The build did not produce ${DEMO}."
+    exit 1
+fi
+
+exec "${DEMO}"

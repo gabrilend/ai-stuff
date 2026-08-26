@@ -208,15 +208,28 @@ int main(void)
 
             /* The parent admits, then accepts the private connection. */
             {
-                double until = wall_now() + 2.0;
+                /*
+                 * Polled with a rest between attempts rather than spun.
+                 * Non-blocking accepts in a tight loop burn a processor for the
+                 * whole wait, and a demo that heats somebody's machine while it
+                 * waits for a socket is a badly behaved demo.
+                 */
+                struct timespec rest;
+                double until;
 
+                rest.tv_sec = 0;
+                rest.tv_nsec = 2000000;   /* two milliseconds */
+
+                until = wall_now() + 2.0;
                 while (wall_now() < until && viewer_count(&viewers) < i + 2) {
                     door_admit(&d, &viewers, &w, WC_ONE);
+                    nanosleep(&rest, NULL);
                 }
 
                 until = wall_now() + 2.0;
                 while (wall_now() < until && viewer_connected_count(&viewers) < i + 1) {
                     door_connect_waiting(&d, &viewers);
+                    nanosleep(&rest, NULL);
                 }
             }
         }
