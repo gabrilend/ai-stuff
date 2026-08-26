@@ -67,7 +67,7 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `E_op` | `020` |
-| `P_scalar_die` | `020` |
+| `P_scalar_die` | `020`, `028` |
 | `E_slice_bit` | `020` |
 | `leak_ref` | `020` |
 | `dT_leak_dbl` | `020` |
@@ -76,28 +76,28 @@ Change one of these and the blueprints beside it are what break.
 | `E_core_bit` | `020` |
 | `P_core_leak` | `020` |
 | `E_link_bit` | `020` |
-| `P_crossbar` | `020` |
-| `P_ports` | `020` |
+| `P_crossbar` | `020`, `028` |
+| `P_ports` | `020`, `028` |
 | `eta_conv_1` | `020` |
 | `eta_conv_2` | `020` |
 | `eta_dist` | `020` |
 | `ops_die` | `020` |
-| `P_engine_die` | `020` |
+| `P_engine_die` | `020`, `028`, `031` |
 | `B_slice_die` | `020` |
-| `P_slice_die` | `020` |
+| `P_slice_die` | `020`, `028` |
 | `leak_factor` | `020` |
-| `P_leak_die` | `020` |
+| `P_leak_die` | `020`, `028` |
 | `P_die` | `020`, `025`, `026` |
 | `P_dies` | `020`, `025` |
 | `P_core_read` | `020` |
-| `P_core` | `020` |
-| `P_link` | `020` |
+| `P_core` | `020`, `028` |
+| `P_link` | `020`, `028` |
 | `P_cage` | `020` |
-| `P_load` | `020` |
+| `P_load` | `020`, `028`, `029` |
 | `eta_conv` | `020` |
-| `P_input` | `020` |
+| `P_input` | `020`, `028`, `030` |
 | `P_conv_loss` | `020` |
-| `P_heat` | `020`, `021`, `022`, `024`, `025`, `026`, `027` |
+| `P_heat` | `020`, `021`, `022`, `024`, `025`, `026`, `027`, `028`, `030` |
 | `P_idle` | `020` |
 
 ## What it asserts

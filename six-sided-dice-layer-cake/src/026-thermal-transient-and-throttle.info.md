@@ -81,7 +81,7 @@ Change one of these and the blueprints beside it are what break.
 | `dT_walk` | `026` |
 | `E_spout_burst` | `026` |
 | `dT_spout` | `026` |
-| `t_to_halt` | `026`, `027` |
+| `t_to_halt` | `026`, `027`, `033` |
 | `T_throttle` | `026` |
 | `T_halt` | `026` |
 | `t_lag_budget` | `026` |

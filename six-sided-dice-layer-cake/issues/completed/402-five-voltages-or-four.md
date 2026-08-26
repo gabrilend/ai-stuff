@@ -4,7 +4,21 @@ Produces `src/029-voltage-domains.md`.
 
 ## Current behavior
 
-Five domains are used in the documentation and none is justified.
+**Done.** `src/029-voltage-domains.md` exists with five domains, each with a
+tolerance, a droop allowance and a ripple allowance, and a constraint requiring
+droop plus ripple to fit inside the band — because a rail that is out of
+specification whenever anything switches is the kind of thing that is obviously
+wrong and quietly true.
+
+The three arguments are derived rather than asserted: what merging the array rail
+into the logic rail would cost, what the link's small swing saves, and why the
+auxiliary domain cannot be powered by the thing its interlock cuts.
+
+Seven constraints, and one of them asserts a merge cost in the direction that
+*keeps* a domain — the second rail has to be worth its own regulator.
+
+**Only one merge is priced.** Port into auxiliary and link into logic are both
+plausible and neither has been written down.
 
 ## Intended behavior
 

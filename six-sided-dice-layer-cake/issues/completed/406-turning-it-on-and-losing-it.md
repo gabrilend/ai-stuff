@@ -4,7 +4,23 @@ Produces `src/033-power-sequencing.md`.
 
 ## Current behavior
 
-Nothing. `009` entry P2 asks what happens on a brownout and there is no answer.
+**Done.** `src/033-power-sequencing.md` exists with the order, the inrush limit,
+and the brownout behaviour the ticket asked for.
+
+The middle outcome is chosen: hold the array rail up on stored charge while the
+logic collapses, so the model survives a flicker and only the in-flight token is
+lost. The constraint that makes the *third* outcome impossible is the useful one
+— the array rail's collapse must be slower than the longest write in flight, or
+a supply sag leaves the model half written with nothing able to tell.
+
+Seven constraints. One of them was written as a comparison against a bare tenth
+of a second and the checker refused it: a literal in this notation is always
+dimensionless, so a time is only ever compared against a named time. The fix is a
+symbol with a meaning, which is the notation working as intended.
+
+**The fault record has nowhere to go.** Energy is reserved to write one and
+nothing in this machine is non-volatile — the same gap `009` entry M4 records for
+the repair map.
 
 ## Intended behavior
 
