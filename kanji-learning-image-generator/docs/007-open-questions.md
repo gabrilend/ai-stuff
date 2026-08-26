@@ -151,6 +151,23 @@ A machine with better cooling is being slowed down for nothing; a laptop may
 want more caution still. The knobs are all in `input/settings.lua` and none of
 them has been tried anywhere else.
 
+### Q15 — Which style suits which character, and can that be decided rather than guessed?
+
+`412` made style a thing you can ask for, and the first four asked for it did
+not agree. Against the photographic default, a Wimmelbild took 川 from 0.76 to
+0.98 and 木 from 0.64 to 0.87 — and took 語 from 0.75 down to 0.52.
+
+The pattern in four characters is not a finding, but there is a guess worth
+testing: the two that gained have radicals that are **things you can stand in a
+landscape** — posts in water, a tree in a wood. The one that lost is abstract,
+and its scene was already a crowded desk, so a style whose whole instruction is
+*crowd it with small objects* had nothing left to add and something to lose.
+
+If that holds, style belongs on the **world** rather than on the run — water and
+forest asking for a teeming picture while word stays photographic. Deciding it
+needs more than four characters, and the pool now records which style made each
+rendering, so the comparison is a query rather than an experiment.
+
 ### Q11 — Are the radical names the right ones?
 
 `401` gives every piece a short name, and those names are **ours**. Most are
@@ -175,7 +192,37 @@ file — so the animation cannot find the strokes it needs.
 The fix is small and nobody has done it: record the characters in the companion,
 which is already there under `characters`, and rebuild.
 
-### Q13 — Is there a second measurement, for the failure the first is blind to?
+### Q13 — Is there a second measurement, for the failure the first is blind to? — **now urgent, with evidence**
+
+No longer hypothetical. Asked for a Wimmelbild, 時 came back with its right half
+**drawn** — dark horizontal bars and an upright with a cross on top, standing
+against the sky. They are not objects in a scene; they are strokes. And the
+machine gave it **0.84**, its second-highest score of the run.
+
+That is the failure being *rewarded*. It has to be, by construction: the grader
+measures how closely the finished picture's light and dark match the field, and
+nothing matches a field better than the character itself. The score is not
+merely blind to this failure — it is maximised by it.
+
+Two consequences, and the second is the uncomfortable one:
+
+- **A high score is not automatically good**, and nothing in the pool says which
+  high scores are which. A floor set at tier 5 selects for this failure.
+- **Any future tuning against this grader will drift towards it.** The strength
+  sweep in `docs/balance-updates.md` was measured against exactly this number.
+  It gave a good answer, and it would have kept giving "better" answers past the
+  point where the pictures stopped being pictures.
+
+What would catch it: the difference between a stroke and an object is roughly
+uniform width, hard edges, and no attachment to anything around it. A thing in a
+scene casts a shadow, is occluded, and varies in thickness. That is a harder
+measurement than the first, and it is the one that decides whether this project
+is generating illustrations or diagrams.
+
+Until it exists, **looking is the only defence**, and the phase demonstrations
+exist for that reason.
+
+
 
 The machine grader (`406`) measures whether the finished picture's light and
 dark landed where the strokes are. It cannot see the other failure at all: a
