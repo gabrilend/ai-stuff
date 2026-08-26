@@ -4,7 +4,28 @@ Produces `src/074-timing-budget.md`.
 
 ## Current behavior
 
-Nothing. Every frequency in the project is asserted and no path has been budgeted.
+**Done.** `src/074-timing-budget.md` exists with both corners done and the reason
+stated: a setup failure is a machine that will not run fast, a hold failure is a
+machine that does not work at any speed, and hold gets worse at the corner the
+setup check does not visit.
+
+Six constraints. **`C-074-6` answers `070`'s question in the negative**: the core's
+path does not fit a face cycle, so the two domains cannot be merged and `072`'s
+crossing stays.
+
+The coincidence worth naming is in `C-074-5`: `025`'s peak temperature is a hot
+spot number, and the hot spot is inside `045`'s multiplier array, which is also
+where the critical path is. **The hottest transistors are the slowest ones and
+they are the ones that matter**, so the budget uses the local temperature and not
+the die average.
+
+**The clearest unresolved conflict in the project is now visible.** This blueprint
+publishes what the thermal margin would buy in clock; `027` publishes what the
+same margin would buy in removing a refrigeration plant. **Both stake a claim on
+it and neither knows about the other's.**
+
+**The logic delay is a `given`** from a cell `045` has not laid out, and
+everything here rests on it.
 
 ## Intended behavior
 

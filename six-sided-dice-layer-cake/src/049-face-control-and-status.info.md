@@ -31,7 +31,7 @@ Described by `609`.
 |---|---|---|---|
 | `b1` | `046` | 1 bit | one bit. A width carries the unit so that a format's size can be added to a capacity; an exponent needs a pure number. Dividing by this is how a width becomes a count, and it is the only place in the project where a unit quantity is declared for that purpose |
 | `f_face` | `045` | 1.4 GHz | the face clock |
-| `n_boot_step` | **nothing declares this** | — | — |
+| `n_boot_step` | `073` | 10 | steps between supplies valid and ready |
 | `n_die_face` | `042` | 4 | compute dies on one face |
 | `n_tile_engine` | `041` | 64 | tiles the multiplier array is broken into and scattered across the die |
 | `n_trap` | `043` | 2 | trap conditions the machine recognises |
@@ -49,7 +49,7 @@ Change one of these and the blueprints beside it are what break.
 | `w_counter` | `049` |
 | `w_reg_ctrl` | `049` |
 | `n_counter` | `049` |
-| `n_fault_bit` | `049` |
+| `n_fault_bit` | `049`, `073` |
 | `n_reg_ctrl` | `049` |
 | `n_model_term` | `049` |
 | `t_session` | `049` |

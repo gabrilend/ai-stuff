@@ -54,7 +54,7 @@ Change one of these and the blueprints beside it are what break.
 | `B_drives` | `057` |
 | `B_feed` | `057`, `059` |
 | `t_load` | `057` |
-| `t_load_relay` | `057`, `061` |
+| `t_load_relay` | `057`, `061`, `073` |
 | `P_line` | `057` |
 | `t_load_min` | `057` |
 | `E_burst_max` | `057`, `062` |

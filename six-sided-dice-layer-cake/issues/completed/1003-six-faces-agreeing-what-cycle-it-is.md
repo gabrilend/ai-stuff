@@ -4,8 +4,23 @@ Produces `src/072-cross-face-synchronisation.md`.
 
 ## Current behavior
 
-Nothing. `1002` declares the faces mesochronous and points here for why that is
-enough.
+**Done.** `src/072-cross-face-synchronisation.md` exists, and it establishes the
+claim rigorously rather than asserting it: faces need to agree about **order**,
+not about time, and every place two faces touch the same memory is enumerated and
+shown covered by `039`'s two barriers.
+
+Six constraints. `C-072-2` derives the synchroniser failure rate rather than
+calling it negligible — at these rates *negligible* is a number, and it belongs
+beside `040`'s soft error rate when `086` adds them up.
+
+**`C-072-1` caught the two enumerations disagreeing** on its first run: this
+blueprint counted the reverse staging buffers and `039` did not. They are three
+today and four the day `076a` is implemented, and now both say so.
+
+**The enumeration is checked by count and not by name.** Two blueprints could
+each name three different sites and pass, because the notation holds numbers and
+not lists. **That is the weakest link in the argument that mesochronous operation
+is safe.**
 
 ## Intended behavior
 

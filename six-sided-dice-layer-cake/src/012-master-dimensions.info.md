@@ -53,7 +53,7 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `L_cube` | `012`, `013`, `016`, `019`, `023`, `050` |
-| `t_face` | `012`, `014`, `050` |
+| `t_face` | `012`, `014`, `050`, `071` |
 | `t_cage` | `012`, `037` |
 | `w_rail` | `012`, `013`, `016`, `024` |
 | `L_die` | `012`, `030`, `032`, `041`, `042` |
