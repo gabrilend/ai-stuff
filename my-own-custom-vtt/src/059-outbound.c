@@ -12,6 +12,7 @@
 #include "059-outbound.h"
 #include "056-protocol.h"
 #include "031-region.h"
+#include "070-scope.h"
 
 #include <string.h>
 
@@ -19,27 +20,59 @@
  * The gates
  * ------------------------------------------------------------------------- */
 
+/* {{{ void viewpoint_gather */
+void viewpoint_gather(struct viewpoint *from, const struct world *w, uint32_t viewer)
+{
+    uint32_t scope;
+
+    memset(from, 0, sizeof(struct viewpoint));
+    from->viewer = viewer;
+
+    if (viewer == 0) {
+        return;
+    }
+
+    from->sees_all = (uint8_t)viewer_has_flag(w, viewer, SCOPE_SEES_ALL);
+
+    /*
+     * SEES_REGION is a design question wearing a performance costume. Computing
+     * one region's interior once beats computing thirty overlapping wedges and
+     * unioning them -- but whether the tavern's commander SHOULD be blind to the
+     * corner their crockery cannot see is about what it feels like to play a
+     * building, and is not settled.
+     */
+    for (scope = 1; scope < world_scope_count(w); scope++) {
+        const struct scope *s = world_scope_const(w, scope);
+
+        if (s->viewer == viewer && (s->flags & SCOPE_SEES_REGION) != 0) {
+            from->sees_region = s->region;
+            break;
+        }
+    }
+
+    from->eyes_in_total = scope_eyes_of_viewer(w, viewer, from->bodies,
+                                               VIEWPOINT_MAX_EYES);
+
+    from->body_count = (from->eyes_in_total < VIEWPOINT_MAX_EYES)
+                     ? from->eyes_in_total
+                     : VIEWPOINT_MAX_EYES;
+}
+/* }}} */
+
 /* {{{ static int gate_scope */
 static int gate_scope(const struct session *s, uint32_t viewer_index, uint32_t thing)
 {
-    (void)s;
-    (void)viewer_index;
-    (void)thing;
-
     /*
      * GATE 1. Is this thing inside a scope this viewer holds? If so it passes
-     * everything below -- you always know about what you command, whether or not
+     * everything below -- YOU ALWAYS KNOW ABOUT WHAT YOU COMMAND, whether or not
      * you can currently see it.
      *
-     * Scopes arrive in phase 6. Until then nobody holds anything, so nothing
-     * passes here and every record is decided by the geometry below.
-     *
-     * Written now, in place, permissive in the safe direction: returning 0 means
-     * "this gate does not admit anything", which is the direction that cannot
-     * leak. A stub returning 1 would have quietly disabled the rest of the
-     * filter.
+     * This was a stub returning 0 until phase 6, deliberately: "admits nothing"
+     * is the direction that cannot leak, so the geometry below decided
+     * everything. Now it is real, and it is the reason a commander does not lose
+     * track of a goblin that walks behind a pillar.
      */
-    return 0;
+    return scope_of_viewer_containing(s->world, viewer_index, thing) != 0;
 }
 /* }}} */
 
@@ -48,17 +81,22 @@ static int gate_hidden(const struct session *s, uint32_t viewer_index, uint32_t 
 {
     const struct thing *t = world_thing_const(s->world, thing);
 
-    (void)viewer_index;
-
     /*
      * GATE 2. THING_HIDDEN overrides the geometry completely. The GM's ambush
      * standing in plain view of a corridor nobody has walked down is visible to
      * the sweep and must not be sent.
      *
-     * MAY_SEE_HIDDEN belongs to a scope, and scopes are phase 6. Until then
-     * nothing has it, so hidden means hidden from everyone.
+     * MAY_SEE_HIDDEN lifts it -- but only for somebody who holds a scope with the
+     * flag, which currently means whoever was given it deliberately. Whether one
+     * GM's hidden things should be hidden from another GM is open question 6.5,
+     * and the answer this builds is "no, a flag is a flag" rather than a
+     * per-GM secret.
      */
-    return thing_is_hidden(t) ? 0 : 1;
+    if (!thing_is_hidden(t)) {
+        return 1;
+    }
+
+    return viewer_has_flag(s->world, viewer_index, SCOPE_MAY_SEE_HIDDEN);
 }
 /* }}} */
 
@@ -68,22 +106,38 @@ static int gate_sight(const struct session *s,
                       uint32_t thing)
 {
     const struct thing *t = world_thing_const(s->world, thing);
+    uint32_t i;
 
     /* GATE 3. A GM's scope skips the geometry rather than running it and winning. */
     if (from->sees_all) {
         return 1;
     }
 
-    if (from->body == 0) {
-        return 0;
+    /*
+     * A scope that sees its whole region sees everything standing in it, without
+     * a sweep. What the tavern's commander plausibly wants: they ARE the tavern,
+     * and a tavern knows where its own crockery is.
+     */
+    if (from->sees_region != 0 &&
+        region_is_within(s->world, t->region, from->sees_region)) {
+        return 1;
     }
 
     /*
+     * Otherwise, the union: inside any of this viewer's eyes' wedges. A loop with
+     * early exit, which is why the fans were never merged -- merging would have
+     * bought a harder problem to answer the same question.
+     *
      * Bodies need sight, not memory. You keep the shape of a room you have left
-     * and have no idea whether anybody is still standing in it -- which is the
-     * whole reason sight and memory are separate things stored separately.
+     * and have no idea whether anybody is still standing in it.
      */
-    return sight_point_visible(s->world, from->body, t->x, t->y);
+    for (i = 0; i < from->body_count; i++) {
+        if (sight_point_visible(s->world, from->bodies[i], t->x, t->y)) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 /* }}} */
 
@@ -278,23 +332,37 @@ uint32_t outbound_build(struct session *s,
      * torchlight and dark. It was computed to decide what may be sent; sending
      * it costs nothing extra and is what makes the picture look right.
      */
-    if (from->body != 0 && !from->sees_all) {
+    if (from->body_count > 0 && !from->sees_all) {
         struct sight_fan fan;
 
         if (sight_fan_init(&fan, sight_fan_capacity_for(s->world))) {
-            if (sight_compute(s->world, from->body, &fan)) {
-                uint32_t point;
+            uint32_t eye;
 
-                for (point = 0; point < fan.count; point++) {
-                    struct instruction out;
-                    instruction_begin(&out, OP_FAN);
-                    instruction_set(&out, 0, fan.points[point].angle);
-                    instruction_set(&out, 1, (uint32_t)fan.points[point].distance);
-                    if (instruction_encode(&out, &v->outbound)) {
-                        written++;
+            /*
+             * One fan per pair of eyes, sent in turn rather than merged. The view
+             * composites them, which is easier than any polygon union and is what
+             * a renderer would rather have anyway.
+             */
+            for (eye = 0; eye < from->body_count; eye++) {
+                if (!sight_compute(s->world, from->bodies[eye], &fan)) {
+                    continue;
+                }
+
+                {
+                    uint32_t point;
+
+                    for (point = 0; point < fan.count; point++) {
+                        struct instruction out;
+                        instruction_begin(&out, OP_FAN);
+                        instruction_set(&out, 0, fan.points[point].angle);
+                        instruction_set(&out, 1, (uint32_t)fan.points[point].distance);
+                        if (instruction_encode(&out, &v->outbound)) {
+                            written++;
+                        }
                     }
                 }
             }
+
             sight_fan_release(&fan);
         }
     }

@@ -20,6 +20,7 @@
 #include "037-fixture.h"
 #include "033-validate.h"
 #include "031-region.h"
+#include "070-scope.h"
 #include "035-worldfile.h"
 
 #include <stdio.h>
@@ -201,6 +202,13 @@ int main(int argc, char **argv)
                     bodies[i] = body_for_viewer(&w, i);
                     sim_fit_to_world(&session.sim);
 
+                    /*
+                     * A scope over that one body, driven with keys. The simplest
+                     * position on the dial -- and it goes through exactly the
+                     * same machinery a commander or a tavern would.
+                     */
+                    scope_make_list(&w, i, STYLE_DRIVEN, &bodies[i], 1, "a player");
+
                     {
                         struct instruction hello;
                         instruction_begin(&hello, OP_HELLO);
@@ -245,7 +253,13 @@ int main(int argc, char **argv)
                 }
 
                 {
-                    uint16_t refusal = session_command(&session, in.opcode,
+                    /*
+                     * From this viewer, so the gauntlet's membership and style
+                     * gates have somebody to check against. The viewer index came
+                     * from the port these bytes arrived on -- the kernel decided
+                     * it before any of our code ran.
+                     */
+                    uint16_t refusal = session_command_from(&session, i, in.opcode,
                                                        instruction_get(&in, 0),
                                                        (int32_t)instruction_get(&in, 1),
                                                        (int32_t)instruction_get(&in, 2));
@@ -284,8 +298,7 @@ int main(int argc, char **argv)
                 continue;
             }
 
-            from.body = bodies[i];
-            from.sees_all = 0;
+            viewpoint_gather(&from, &w, i);
 
             outbound_build(&session, &viewers, i, &from);
             bytes_out += v->outbound.count;

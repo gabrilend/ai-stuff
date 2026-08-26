@@ -37,17 +37,38 @@
 #include "053-session.h"
 
 /*
- * Which body a viewer sees from.
+ * Where a viewer sees from.
  *
- * In phase 6 this becomes the union across every body in every scope they hold.
- * For now a viewer has one pair of eyes, and the interface is already shaped for
- * the plural so that adding scopes is adding a loop rather than changing every
- * caller.
+ * A viewer's sight is the UNION of what every body in every scope they hold can
+ * see. A player driving one character sees from one pair of eyes; a commander
+ * with six goblins sees from six.
+ *
+ * The fans are deliberately NOT merged into one polygon. The filter asks "inside
+ * any of them", which is a loop with early exit; the fog folds each in turn and
+ * unions in the bitmap for free; and only a renderer might want one outline, and
+ * even it may prefer compositing several. Polygon union is difficult, slow, full
+ * of degenerate cases, and nothing here needs it.
  */
+
+/* More eyes than a tabletop commander will ever hold at once. */
+#define VIEWPOINT_MAX_EYES 32
+
 struct viewpoint {
-    uint32_t body;        /* Which thing they see from. 0 means they see nothing. */
-    uint8_t  sees_all;    /* A GM. Skips the geometry entirely. */
+    uint32_t viewer;                          /* Whose. 0 sees nothing. */
+
+    uint32_t bodies[VIEWPOINT_MAX_EYES];      /* The eyes, gathered from scopes. */
+    uint32_t body_count;                      /* How many fit. */
+    uint32_t eyes_in_total;                   /* How many there were. */
+
+    uint8_t  sees_all;      /* A GM. Skips the geometry rather than winning it. */
+    uint32_t sees_region;   /* A whole region, or 0. */
 };
+
+/*
+ * Gather a viewer's eyes from the scopes they hold. Call this once a beat,
+ * before building their update.
+ */
+void viewpoint_gather(struct viewpoint *from, const struct world *w, uint32_t viewer);
 
 /*
  * Build one viewer's update into their outbound buffer.

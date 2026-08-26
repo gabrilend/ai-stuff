@@ -12,6 +12,7 @@
 #include "033-validate.h"
 #include "029-geometry.h"
 #include "031-region.h"
+#include "070-scope.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -327,6 +328,65 @@ static int check_string_offsets(const struct world *w,
 }
 /* }}} */
 
+/* {{{ static int check_scopes */
+static int check_scopes(const struct world *w, struct validation_failure *failure)
+{
+    uint32_t count = world_scope_count(w);
+    uint32_t i;
+
+    for (i = 1; i < count; i++) {
+        const struct scope *s = world_scope_const(w, i);
+
+        if (s->membership != SCOPE_LIST && s->membership != SCOPE_REGION) {
+            return fail(failure, "scopes", i, "membership", s->membership,
+                        "SCOPE_LIST or SCOPE_REGION -- there is no third rule");
+        }
+
+        if (s->style != STYLE_DRIVEN && s->style != STYLE_ORDERED) {
+            return fail(failure, "scopes", i, "style", s->style,
+                        "STYLE_DRIVEN or STYLE_ORDERED");
+        }
+
+        if (s->membership == SCOPE_LIST) {
+            uint32_t member;
+
+            /*
+             * A slice of the shared pool, so both ends must be inside it. A slice
+             * running past the end would have a scope quietly containing whatever
+             * came after somebody else's members.
+             */
+            if (s->member_count > 0 &&
+                (s->first_member == 0 ||
+                 s->first_member + s->member_count > world_member_count(w))) {
+                return fail(failure, "scopes", i, "first_member", s->first_member,
+                            "a run of member_count entries inside the members pool");
+            }
+
+            for (member = 0; member < s->member_count; member++) {
+                uint32_t thing = world_member_at(w, s->first_member + member);
+
+                if (thing == 0 || thing >= world_thing_count(w)) {
+                    return fail(failure, "scopes", i, "(a member)", thing,
+                                "an index into the things block");
+                }
+            }
+        } else {
+            if (s->region >= world_region_count(w)) {
+                return fail(failure, "scopes", i, "region", s->region,
+                            "an index into the regions block, or 0 for the whole map");
+            }
+        }
+
+        if (!string_pool_offset_is_valid(&w->strings, s->name_offset)) {
+            return fail(failure, "scopes", i, "name_offset", s->name_offset,
+                        "an offset to a well-formed string inside the pool");
+        }
+    }
+
+    return 1;
+}
+/* }}} */
+
 /* {{{ int world_validate */
 int world_validate(const struct world *w, struct validation_failure *failure)
 {
@@ -343,6 +403,7 @@ int world_validate(const struct world *w, struct validation_failure *failure)
     if (!check_lights_agree_with_their_things(w, failure)) return 0;
     if (!check_things_know_their_region(w, failure))      return 0;
     if (!check_string_offsets(w, failure))                return 0;
+    if (!check_scopes(w, failure))                        return 0;
 
     return 1;
 }

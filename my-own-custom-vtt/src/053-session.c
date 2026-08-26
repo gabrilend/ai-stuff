@@ -276,6 +276,15 @@ static void begin_turn(struct session *s, uint32_t turn)
 uint16_t session_command(struct session *s, uint16_t verb, uint32_t subject,
                          int32_t ax, int32_t ay)
 {
+    return session_command_from(s, 0, verb, subject, ax, ay);
+}
+/* }}} */
+
+/* {{{ uint16_t session_command_from */
+uint16_t session_command_from(struct session *s, uint32_t viewer,
+                              uint16_t verb, uint32_t subject,
+                              int32_t ax, int32_t ay)
+{
     struct log_entry entry;
     uint32_t index;
     uint16_t refusal;
@@ -283,6 +292,7 @@ uint16_t session_command(struct session *s, uint16_t verb, uint32_t subject,
     memset(&entry, 0, sizeof(entry));
     entry.tick = s->sim.tick;
     entry.turn = s->turn;
+    entry.viewer = viewer;
     entry.verb = verb;
     entry.subject = subject;
     entry.ax = ax;

@@ -37,7 +37,9 @@ static const struct opcode_spec inbound[VERB_COUNT] = {
     /* order-face: subject, x, y */
     { "order-face", { 32, 32, 32, 0 } },
     /* order-stop: subject */
-    { "order-stop", { 32, 0 } }
+    { "order-stop", { 32, 0 } },
+    /* give-scope: unused, which scope, which viewer */
+    { "give-scope", { 32, 32, 32, 0 } }
 };
 
 /* Server to client. */

@@ -317,10 +317,33 @@ possible; four bodies given orders is the strategy-game interface; one driven an
 three following is a third thing that is common in games and is not in the
 documents at all.
 
-### 6.5 Does `HIDDEN` hide a thing from other GMs?
+### 6.5 Does `HIDDEN` hide a thing from other GMs? — ANSWERED BY THE MECHANISM
 
-With several GMs at one table, one of them may want an ambush the others do not
-know about. Currently `MAY_SEE_HIDDEN` is a single bit and every GM has it.
+**It falls out of gate ordering rather than needing a rule of its own.**
+
+Gate 1 asks whether a thing is inside a scope you hold, and passing it passes
+everything below -- including the hidden gate. So:
+
+- A GM whose scope is the whole map sees hidden things, because they command
+  them. **Your own ambush is not hidden from you.**
+- Two GMs with whole-map scopes therefore both see everything, including each
+  other's.
+- A co-GM holding only a **region** sees hidden things inside it and not
+  elsewhere -- so a GM who wants an ambush their colleague does not know about
+  puts it outside the colleague's region.
+
+`MAY_SEE_HIDDEN` is left meaningful for the case that remains: seeing somebody
+else's hidden things without commanding them.
+
+This was not designed. It was noticed when a phase 4 leak test started failing
+in phase 6 -- a test whose own comment had said it would change deliberately when
+scopes arrived. The mechanism produced a coherent answer and the answer was
+adopted rather than overridden.
+
+**What is still open:** whether two GMs should be able to keep secrets from each
+other at all, which is a question about tables rather than about code. The
+mechanism above says "only by carving up regions", and nobody has said whether
+that is enough.
 
 ### 6.6 Can a GM see what the players have seen?
 

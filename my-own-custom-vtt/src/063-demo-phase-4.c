@@ -18,6 +18,7 @@
 #include "037-fixture.h"
 #include "033-validate.h"
 #include "031-region.h"
+#include "070-scope.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -245,8 +246,7 @@ int main(void)
         struct viewer *v = viewer_at(&viewers, viewer_index[i]);
         uint32_t written;
 
-        from.body = watcher[i];
-        from.sees_all = 0;
+        viewpoint_gather(&from, &w, viewer_index[i]);
 
         fog_fold(&v->fog, &w, watcher[i]);
         written = outbound_build(&session, &viewers, viewer_index[i], &from);
@@ -300,8 +300,7 @@ int main(void)
         int visible;
         int in_stream;
 
-        from.body = watcher[i];
-        from.sees_all = 0;
+        viewpoint_gather(&from, &w, viewer_index[i]);
 
         outbound_build(&session, &viewers, viewer_index[i], &from);
 
@@ -349,8 +348,7 @@ int main(void)
         for (round = 0; round < rounds; round++) {
             for (i = 0; i < 3; i++) {
                 struct viewpoint from;
-                from.body = watcher[i];
-                from.sees_all = 0;
+                viewpoint_gather(&from, &w, viewer_index[i]);
                 outbound_build(&session, &viewers, viewer_index[i], &from);
                 total_bytes += viewer_at(&viewers, viewer_index[i])->outbound.count;
             }
