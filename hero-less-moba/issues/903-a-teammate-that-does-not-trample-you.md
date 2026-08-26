@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Phase | 9 — An Opponent Worth Playing |
-| Blocked by | 902, 406, 407, 806 |
+| Blocked by | 902, 412, 413, 806 |
 | Blocks | 906 |
 | Reads | [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md) |
 | Open questions | none |
@@ -24,7 +24,7 @@ Playing alone in a 3v3 means five bots and **two of them share your chest.**
 
 ### What a teammate bot can read of a person's intent
 
-Exactly what a human teammate can, which is the whole design of the seven verbs:
+Exactly what a human teammate can, which is the whole design of the eight verbs:
 
 | Signal | Says |
 | --- | --- |

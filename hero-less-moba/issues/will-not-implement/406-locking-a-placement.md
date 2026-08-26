@@ -1,11 +1,18 @@
 # 406 — Locking a Placement
 
+> **Will not be implemented.** Stones belong to individual players now, so a
+> teammate cannot move what you placed and there is nothing for a lock to defend
+> against. Replaced by **issue 412**, which builds contributing a stone to the
+> communal pool. See F29 and F31 in the open questions.
+>
+> Left as written. The number is spent and will not be reused.
+
 | | |
 | --- | --- |
 | Phase | 4 — The Shared Chest |
 | Blocked by | 106, 402, 404 |
 | Blocks | 407, 704 |
-| Reads | [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md) |
+| Reads | [the shared upgrade pool](../../docs/009-the-shared-upgrade-pool.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -53,7 +60,7 @@ Rules:
 
 ## Related documents and tools
 
-- [The shared upgrade pool](../docs/009-the-shared-upgrade-pool.md)
+- [The shared upgrade pool](../../docs/009-the-shared-upgrade-pool.md)
 - Issue 407, the other half of the conversation
 
 ## Settled
@@ -66,7 +73,7 @@ So there is **no counter to enforce and no timer to run**. The one thing the
 interface owes a player is a visible count of what they currently have locked,
 because the failure mode here is not malice. It is forgetting.
 
-See [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md).
+See [the shared upgrade pool](../../docs/009-the-shared-upgrade-pool.md).
 
 ## Still open
 

@@ -1,11 +1,18 @@
 # 407 — Two Objections Open a Lock
 
+> **Will not be implemented.** The two-key rule existed to open a lock against
+> its holder's wishes, and there are no locks. Replaced by **issue 413**, which
+> builds the dismissal cycle — a disclaim rather than a claim, and one that
+> scales to any team size where "two objections" never did. See F31.
+>
+> Left as written. The number is spent and will not be reused.
+
 | | |
 | --- | --- |
 | Phase | 4 — The Shared Chest |
 | Blocked by | 106, 406 |
 | Blocks | 704 |
-| Reads | [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md) |
+| Reads | [the shared upgrade pool](../../docs/009-the-shared-upgrade-pool.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -57,7 +64,7 @@ the same instance twice to count as two.
 
 ## Related documents and tools
 
-- [The shared upgrade pool](../docs/009-the-shared-upgrade-pool.md)
+- [The shared upgrade pool](../../docs/009-the-shared-upgrade-pool.md)
 - Issue 406, the other half
 
 ## Settled
@@ -74,7 +81,7 @@ looks like a rule.**
 Implementation as described above: a per-player tick stamp alongside the mask,
 checked when the mask is read, rather than a sweep over every instance every tick.
 
-See [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md).
+See [the shared upgrade pool](../../docs/009-the-shared-upgrade-pool.md).
 
 ## Still open
 
