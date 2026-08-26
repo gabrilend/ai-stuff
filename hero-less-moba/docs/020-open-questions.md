@@ -918,6 +918,34 @@ visibly break it, the design is wrong and no amount of tuning fixes it.
 
 Issue 804 — ten thousand matches overnight — exists to answer this.
 
+### First evidence, from the prototype
+
+Both halves of the premise now reproduce, on a machine, from one seed. This is
+not the ten thousand matches and does not close the question; it is the first
+measurement, and it points the right way.
+
+**The stalemate is real.** A headless match with nobody placing anything runs for
+twenty-two minutes and goes nowhere: both teams sit between milestones three and
+four in every lane, hundreds of waves are spawned and wiped, and the frontlines
+oscillate around the midpoint without either side taking a base. That is the
+vision's problem statement, rendered — units walking toward one another, fighting
+in the middle, barely moving the frontlines at all.
+
+**Placement breaks it, and by a wide margin.** From the same seed, with one team
+shovelling everything it draws into the centre lane, that lane reaches milestone
+**8** — the enemy library — while the other team's depth in it collapses to
+**0**. The other two lanes stay where the untouched match left them, which is the
+control the comparison needed.
+
+So the chest is not a marginal modifier. It is the difference between a match that
+cannot end and a match that ends decisively, which is what the design claimed and
+what nothing had yet shown.
+
+Two cautions carried forward, both raised as their own questions rather than left
+in this answer: the chest fills far faster than the evidence assumed (**G4**), and
+a lane that is stacked without limit currently wins without any counterplay in the
+prototype, because heroes, surges and challenges are not built yet.
+
 ---
 
 # Group C — The shape of a match
@@ -3809,5 +3837,186 @@ E5 replay storage, E6 whether the map builder ever emits a non-standard map, and
 E7 how good the bot has to be — which is really the question of whether this
 ships single-player, and probably deserves its own phase if it does.
 
-That is the whole list. **This stops being a design and starts being a program at
-issue 101.**
+That is the whole list as it stood before anything was built. **This stops being
+a design and starts being a program at issue 101** — and building it turned up its
+own set of disagreements, which are Group G below.
+
+---
+
+# Group G — Found while building it
+
+Writing the program is itself a review, and a harsher one than reading the
+documents against each other. A document can describe two things that cannot both
+be true and stay perfectly readable; a program has to pick one, and the picking is
+where the disagreement surfaces.
+
+Everything below came out of building the prototype — the map builder, the
+simulation, the camera, and the viewer. None of it is a complaint about the
+design. Each entry is a place where the documents are either **not consistent**,
+**not yet implemented**, or **quietly disagreed with by the code that had to
+choose**, and every one of them wants an answer from a person rather than from
+whoever next reads the file.
+
+## G1. Does the centre lane's junction have three neighbours or four? — **OPEN**
+
+[The map](002-the-map-and-its-milestones.md)'s node record says a junction has
+three neighbours, and adds "the centre lane's midpoint is a junction too, so it
+has three."
+
+It has four, and the geometry the same document describes is what makes it four.
+A short connector joins **each** side lane's junction to the middle. The centre
+lane's midpoint therefore carries two lane neighbours plus two connectors, while
+each side junction carries two lane neighbours plus one connector and does have
+three.
+
+The builder emits four and the validator accepts it, because four is what the
+described shape produces. Three readings are available:
+
+1. **The sentence is simply wrong** and the centre junction has four. Nothing in
+   the design depends on the number; it is a fact about the graph, not a rule.
+2. **The two connectors should land on different nodes** — one just before the
+   midpoint and one just after — which restores three neighbours everywhere and
+   makes crossing the middle a two-step journey rather than a single point every
+   route passes through.
+3. **There should be one connector, not two**, joining the two side junctions and
+   crossing the centre without touching it — which would mean a body can go from
+   the top lane to the bottom without ever entering the middle, and that is a
+   different game.
+
+The first is a one-line documentation fix. The second and third are design
+changes. Nothing has been changed pending an answer.
+
+## G2. Exact mirror symmetry does not hold, and it is asked for by name — **OPEN**
+
+[The shape of the code](018-the-shape-of-the-code.md) names two tests that run on
+every build. Reproducibility is implemented and passes. **Symmetry is not, and
+would not pass.**
+
+A match with no player commands should leave the two teams in exact mirror states
+at every tick. It does not. Two causes, and only one of them is fixed:
+
+- **The tie stream was shared between the teams**, so each team's luck depended on
+  how often the other team happened to have a tie to break. That is fixed — it is
+  now one stream per team, for the same reason `draw` always was.
+- **The spatial grid is walked in row-major order.** A body at (a, b) and its
+  mirror image at (b, a) see their equally-good candidates in *different orders*,
+  because reflecting the map swaps the axes and the walk does not. Tie-breaking
+  picks the nth candidate uniformly, but the nth candidate is a different body on
+  each side.
+
+After the first fix the asymmetry is systematic rather than random — both teams
+drift in a consistent direction rather than diverging noisily — which is what a
+scan-order cause looks like.
+
+Making it exact means giving the tie-break a **canonical ordering** that does not
+depend on how the grid was walked: sort the tied candidates by something
+reflection-invariant before choosing. That costs a sort in the hottest loop in the
+game, on every tie, forever.
+
+So the question is not "how do we fix it" but **is exact mirror symmetry worth
+that price**, or is the test better written as a tolerance — the two teams' push
+depths within one milestone of each other over a long unattended match — which
+would catch every real asymmetry and cost nothing.
+
+## G3. Lane width does nothing — **OPEN**
+
+Three documents say a lane's width feeds exactly two things: how wide the renderer
+draws it, and **how many bodies the frontline queue lets stand abreast.** The
+renderer draws it. The queue does not read it.
+
+What is implemented is a queue by personal space: a melee body stops short behind
+a friendly body ahead of it in the same lane, and ranged bodies keep a smaller
+bubble and hold behind the rank. That produces ranks, and the ranks read correctly
+on screen. But it is **single file**, so the centre lane's whole design property —
+that it is where numbers matter most, because more bodies get into contact at
+once — does not currently exist. The centre is wider only in the drawing.
+
+This also blocks **B1**, which instructs that a wave should be *wider than the
+lane can fit abreast* so that ranks queue visibly. That instruction cannot be
+followed while the answer to "how many fit abreast" is always one.
+
+The shape of the fix is clear enough — a lane holds a small number of parallel
+files, and a body picks the nearest free one — but it is a real piece of design
+about how bodies are offset across a lane, and it changes what the renderer draws
+and what a frontline looks like. It has not been guessed at.
+
+## G4. Is one draw per wave wipe far too generous? — **AWAITING EVIDENCE**
+
+Measured rather than argued, so it belongs in Group B's spirit even though it was
+found here.
+
+Nearly every wave in a stalemated match is eventually wiped, because a wave that
+meets an even wave grinds until one side is gone. So nearly every wave pays. In a
+twenty-two minute headless match each team drew **around a hundred and ninety
+upgrades**, all of which sat unplaced because nothing was placing them.
+
+Three readings, and they are not exclusive:
+
+1. **It is correct and the number is only shocking because nobody is placing.** A
+   real team spends them as they arrive, and a hundred and ninety placements over
+   twenty-two minutes across three players is roughly one every twenty seconds
+   each — busy, not absurd.
+2. **The wipe is too easy to earn.** A wave that dies to towers counts, and a wave
+   both sides grind to nothing pays whoever survived by one body.
+3. **The match is too long**, and it is long because the surge and the challenge —
+   the two things that end matches — are not built.
+
+The third is most likely and is why this is awaiting evidence rather than open:
+the number should be re-measured once a match can actually end, not tuned now
+against a match shape that will not exist.
+
+## G5. Should the side lanes be so much longer than the centre? — **OPEN**
+
+The described shape produces side lanes about **1.7 times** the centre lane's
+length, because a side lane runs out to a corner and back while the centre cuts
+the diagonal. Nothing in any document says whether that is intended.
+
+The consequence is real and visible: first contact happens in the centre a long
+time before it happens anywhere else, and every side lane's first wave meets the
+enemy's much later. That is authentic to the genre this one is subtracted from,
+and it gives the centre a second distinguishing property beyond width — it is
+where the match starts.
+
+But it interacts with **G3** and with the centre being the wide lane. If the
+centre is where numbers matter most *and* where contact happens first *and* the
+route both connectors lead to, it may simply be the whole game with two side
+shows attached.
+
+The alternative is bending the side lanes inward so all three are closer in
+length, which costs the clean "out to the corner" shape and the neat fact that
+milestone 4 is exactly the bend.
+
+## G6. Are upgrades applied per swing or folded in at birth? — **OPEN**
+
+[Combat and damage](006-combat-and-damage.md) describes step 4 of a swing as
+walking the attacker's count vector and applying each nonzero entry.
+
+The prototype **folds the modifiers into the body's own fields at stamp time**
+instead, and keeps the count vector on the body only so the renderer can draw the
+badges an opponent reads an arrangement off.
+
+The two produce identical numbers. Folding does the multiplication once per body
+rather than once per blow, and it is safe precisely because of a rule the design
+already committed to: a wave unit's vector never changes after birth, and a
+guard's only changes when its tower does — which is exactly when it is re-stamped.
+
+So this is a documentation question and not a behaviour one: **which should the
+document describe?** The written version is easier to reason about; the built
+version is what runs. Leaving them different is the thing that must not happen,
+because a reader who trusts the page will look for a loop that is not there.
+
+## G7. Issue 101 describes four junctions — **OPEN**
+
+The issue that builds the path graph says the side lanes "bend once near each
+base — four bends in total, and those bends are the junctions," and that the
+centre lane "has no junctions."
+
+[The map](002-the-map-and-its-milestones.md) says the opposite, at length, and
+explains why: three junctions, one per lane, on the field's other diagonal, and
+giving the centre a junction of its own is what makes the middle a place a body
+can leave. The builder follows the document.
+
+The issue is simply stale — it predates the change and nobody went back. It is
+listed here rather than quietly edited because issue files are the blueprint this
+project is meant to be rebuildable from, and a blueprint that contradicts the
+building is worth a moment's decision about which one moved.

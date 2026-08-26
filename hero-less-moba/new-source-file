@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+#
+# new-source-file -- the only sanctioned way to bring a source file into this
+# project.
+#
+# Every file here is numbered, and the numbers count up across the whole project
+# rather than restarting per directory, so that reading the project in index
+# order reads it as a story from the beginning. Every file also carries the AGPL
+# notice, and every file has a companion .info.md describing its exports as a
+# black box. Three pieces of bookkeeping, all of them the sort that rots the
+# moment a person is asked to do them by hand -- one file gets a stale licence,
+# another skips its companion, a third reuses an index because somebody guessed.
+#
+# So a person does not do them. This script does. It reads the highest index in
+# use from the hidden counter at the project root, claims the next one, stamps
+# the licence in the right comment syntax for the file type, writes a companion
+# stub next to it, and bumps the counter. The author is left with nothing to do
+# except say what the file is for.
+#
+# Usage:
+#   ./new-source-file waves
+#       -> src/NNN-waves.lua and src/NNN-waves.info.md
+#
+#   ./new-source-file --into assets unit-table
+#       -> assets/NNN-unit-table.lua and its companion
+#
+#   ./new-source-file --summary "Spawns waves on a cadence." waves
+#       -> the same, with the one-line purpose already filled in
+#
+#   ./new-source-file /path/to/project waves
+#       -> the same, against a checkout somewhere other than the default below
+#
+#   ./new-source-file --peek
+#       -> print the index that would be claimed next, and claim nothing
+
+# The project root. Hard-coded so the script runs correctly from any directory,
+# and overridable as a leading argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+COUNTER="${DIR}/.file-index-counter"
+
+# Where the file lands, and what it is called. Defaults chosen because src/ is
+# where nearly everything goes and Lua is the project's language.
+INTO="src"
+SUMMARY=""
+PEEK="no"
+NAME=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --into)
+            INTO="$2"
+            shift 2
+            ;;
+        --summary)
+            SUMMARY="$2"
+            shift 2
+            ;;
+        --peek)
+            PEEK="yes"
+            shift
+            ;;
+        -*)
+            echo "new-source-file: unknown option '$1'"
+            echo "Options are --into <dir>, --summary <text>, --peek."
+            exit 1
+            ;;
+        *)
+            NAME="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ ! -f "${COUNTER}" ]; then
+    echo "No index counter at ${COUNTER}."
+    echo "Either the project root is wrong, or the project has not been initialised."
+    exit 1
+fi
+
+CURRENT="$(cat "${COUNTER}")"
+NEXT="$((10#${CURRENT} + 1))"
+INDEX="$(printf '%03d' "${NEXT}")"
+
+# --peek exists so a person writing a document can say which index a file will
+# take without creating it, and without reading the counter and doing the
+# arithmetic in their head -- which is how two files end up claiming one number.
+if [ "${PEEK}" = "yes" ]; then
+    echo "${INDEX}"
+    exit 0
+fi
+
+if [ -z "${NAME}" ]; then
+    echo "new-source-file: no name given."
+    echo "Usage: ./new-source-file [--into <dir>] [--summary <text>] <dashed-name>"
+    exit 1
+fi
+
+TARGET_DIR="${DIR}/${INTO}"
+if [ ! -d "${TARGET_DIR}" ]; then
+    echo "No directory at ${TARGET_DIR} -- refusing to invent one."
+    exit 1
+fi
+
+SOURCE_PATH="${TARGET_DIR}/${INDEX}-${NAME}.lua"
+COMPANION_PATH="${TARGET_DIR}/${INDEX}-${NAME}.info.md"
+
+# Refuse rather than overwrite. A collision here means the counter disagrees with
+# what is on disk, which is a real problem that a silent overwrite would bury.
+if [ -e "${SOURCE_PATH}" ]; then
+    echo "Refusing to overwrite ${SOURCE_PATH}."
+    echo "The counter says ${INDEX} is free and the disk disagrees. Fix the counter."
+    exit 1
+fi
+
+if [ -z "${SUMMARY}" ]; then
+    SUMMARY="TODO -- one line saying what this file is for."
+fi
+
+# The licence notice, verbatim from COPYING.md, in Lua's comment syntax. It is
+# written once, here, so that there is exactly one copy of it in the project to
+# keep current -- which is the entire argument for this script existing.
+cat > "${SOURCE_PATH}" <<LUA
+-- hero-less-moba — a lane-pushing game with the heroes subtracted out
+-- Copyright (C) 2026 gabrilend
+--
+-- This program is free software: you can redistribute it and/or modify it
+-- under the terms of the GNU Affero General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or (at
+-- your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful, but
+-- WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
+-- General Public License for more details.
+--
+-- You should have received a copy of the GNU Affero General Public License
+-- along with this program. If not, see <https://www.gnu.org/licenses/>.
+--
+-- SPDX-License-Identifier: AGPL-3.0-or-later
+
+-- ${INDEX}-${NAME}.lua
+--
+-- ${SUMMARY}
+
+local M = {}
+
+return M
+LUA
+
+cat > "${COMPANION_PATH}" <<MD
+# ${INDEX}-${NAME}
+
+${SUMMARY}
+
+Read this file rather than the source. The source is for when one specific
+function is misbehaving; this is for everything else.
+
+## What it is for
+
+TODO
+
+## Exports
+
+| Function | Arguments | Returns |
+| --- | --- | --- |
+
+## Data structures it owns
+
+TODO
+MD
+
+echo "${INDEX}" > "${COUNTER}"
+
+echo "${SOURCE_PATH}"
+echo "${COMPANION_PATH}"

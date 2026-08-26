@@ -1,0 +1,9 @@
+# Which catalogue tables to load, in the order they are read. These are the
+# balance numbers -- every health value, every interval, every damage figure in
+# the game is in one of these files and in no document.
+#
+# Paths are relative to the project root.
+assets/024-map-shape.lua
+assets/025-unit-table.lua
+assets/026-structure-table.lua
+assets/027-upgrade-table.lua

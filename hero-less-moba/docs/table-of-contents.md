@@ -17,11 +17,37 @@ hero-less-moba/
 ├── COPYING.md ................................ What the AGPL asks of you, and the
 │                                               notice every source file carries.
 │
+├── run-prototype ............................. The front door. Opens the window,
+│                                               or runs the same match headless,
+│                                               in a terminal, or as a screenshot.
+├── run-tests ................................. Both halves at once: the document
+│                                               validator and the invariants.
 ├── run-phase-demo ............................ Asks which phase demo to run,
 │                                               and runs it.
 ├── validate-documentation .................... Checks the documents and issues
 │                                               against each other. A compiler
 │                                               for the written half.
+├── new-source-file ........................... The only sanctioned way to bring a
+│                                               source file in. Claims the next
+│                                               index, stamps the licence, writes
+│                                               the companion stub.
+├── fill-source-file .......................... Rewrites a file's body without ever
+│                                               disturbing its licence notice.
+│
+├── main.lua .................................. LOVE insists on this name at the
+│                                               root, so it is the one unnumbered
+│                                               source file. A doorway, not a room.
+├── conf.lua .................................. The window's shape, and which engine
+│                                               modules are started at all.
+│
+├── src/ ...................................... The simulation and the viewer.
+│                                               Numbered 028 upward. Not listed
+│                                               here — each file is found through
+│                                               its companion .info.md page.
+├── assets/ ................................... The catalogue tables, 024 to 027.
+│                                               Every balance number in the game is
+│                                               in one of these and in no document.
+├── tests/ .................................... The invariants, 051.
 │
 ├── notes/
 │   ├── vision ................................ Where all of this came from, in the

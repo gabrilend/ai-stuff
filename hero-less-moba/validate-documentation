@@ -98,15 +98,19 @@ for f in issue_files:
         fail(f"title mismatch {ident}: file '{title}' vs roadmap '{want}'")
 
 # -- 4. cited open questions are real, and still open ----------------------
+# Groups run A through G. G was added when the design was first built: writing
+# the program is itself a review, and it turns up disagreements between documents
+# that no amount of reading them against each other would have found, because
+# they only become visible when something has to pick one.
 oq       = (docs / "020-open-questions.md").read_text()
-answered = set(re.findall(r"^## ([A-F]\d+[a-z-]*)\..*(?:ANSWERED|MOOT|DIRECTION SET)", oq, re.M))
-known    = set(re.findall(r"^## ([A-F]\d+[a-z-]*)\.", oq, re.M))
+answered = set(re.findall(r"^## ([A-G]\d+[a-z-]*)\..*(?:ANSWERED|MOOT|DIRECTION SET)", oq, re.M))
+known    = set(re.findall(r"^## ([A-G]\d+[a-z-]*)\.", oq, re.M))
 known   |= set(re.findall(r"^- \*\*(B\d+)\.", oq, re.M))
 for f in issue_files:
     row = re.search(r"^\| Open questions \| (.+?) \|$", f.read_text(), re.M)
     if not row:
         continue
-    for ref in re.findall(r"\b([A-F]\d+[a-z-]*)\b", row.group(1)):
+    for ref in re.findall(r"\b([A-G]\d+[a-z-]*)\b", row.group(1)):
         if ref in answered:
             fail(f"stale question: {f.name} cites {ref}, which is answered")
         elif ref not in known:
@@ -117,7 +121,7 @@ for f in issue_files:
 # that cannot be settled by argument at all, only by running the thing and
 # looking. Lumping those in with real undecided design questions made the open
 # list read as a backlog when most of it was a to-measure list.
-awaiting = set(re.findall(r"^## ([A-F]\d+[a-z-]*)\..*AWAITING EVIDENCE", oq, re.M))
+awaiting = set(re.findall(r"^## ([A-G]\d+[a-z-]*)\..*AWAITING EVIDENCE", oq, re.M))
 awaiting |= set(re.findall(r"^- \*\*(B\d+)\.[^\n]*[Aa]waiting evidence", oq, re.M))
 undecided = sorted(known - answered - awaiting)
 print(f"{len(issue_files)} issues, {len(known)} questions, "
