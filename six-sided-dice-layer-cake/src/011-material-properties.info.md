@@ -15,7 +15,8 @@ Described by `102`.
 | `cp_si` | J/(kg*K) | measured | 705 J/(kg*K) | specific heat capacity of silicon at 300 K |
 | `cte_si` | ppm/K | measured | 2.6 ppm/K | linear thermal expansion of silicon, 300 K to 400 K |
 | `E_si` | GPa | measured | 130 GPa | Young's modulus of silicon, averaged over orientation |
-| `sigma_si_frac` | MPa | measured | 150 MPa | fracture stress of thinned silicon with an ordinary edge finish |
+| `sigma_si_frac` | MPa | measured | 150 MPa | fracture stress of thinned silicon with an ordinary sawn or laser-diced edge, where microcracks from the cut are what fail |
+| `sigma_si_plas` | MPa | measured | 350 MPa | the same for a plasma-diced edge, which etches rather than cuts and leaves no crack population; 018 requires this and it is a process requirement rather than a preference |
 | `T_si_max` | K | measured | 378 K | highest junction temperature the silicon is qualified to, 105 degrees |
 | `k_cu_bulk` | W/(m*K) | measured | 398 W/(m*K) | thermal conductivity of bulk annealed copper at 350 K |
 | `k_cu_plated` | W/(m*K) | measured | 350 W/(m*K) | the same for electroplated copper in a via, where the grains are smaller |
@@ -67,15 +68,25 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `k_si` | `011` |
-| `cte_si` | `011` |
+| `rho_si` | `013` |
+| `cte_si` | `011`, `018` |
+| `E_si` | `018` |
+| `sigma_si_frac` | `011` |
+| `sigma_si_plas` | `011`, `018` |
 | `k_cu_bulk` | `011` |
 | `k_cu_plated` | `011` |
 | `k_cu_film` | `011` |
-| `cte_cu` | `011` |
-| `cte_cumo` | `011` |
+| `cte_cu` | `011`, `018` |
+| `rho_cumo` | `013` |
+| `cte_cumo` | `011`, `018` |
+| `cte_glass` | `018` |
+| `rho_ss` | `013`, `015`, `016` |
+| `cte_ss` | `018`, `019` |
+| `sigma_ss_y` | `015`, `016` |
+| `rho_water` | `013`, `015`, `016` |
 | `cp_water` | `011` |
 | `k_water` | `011` |
-| `mu_water` | `011` |
+| `mu_water` | `011`, `016` |
 | `cp_fluoro` | `011` |
 | `k_fluoro` | `011` |
 | `mu_fluoro` | `011` |
@@ -99,4 +110,5 @@ Change one of these and the blueprints beside it are what break.
 | `C-011-10` | `k_cu_plated < k_cu_bulk` | plated copper conducts worse than bulk, not better |
 | `C-011-11` | `k_cu_film < k_cu_plated` | and a thin film worse again |
 | `C-011-12` | `k_fluoro < k_water` | the dielectric alternative is the worse conductor, which is the whole of the trade in 021 |
+| `C-011-13` | `sigma_si_plas > sigma_si_frac` | a plasma-diced edge is stronger than a sawn one, by the factor 018's margin depends on |
 

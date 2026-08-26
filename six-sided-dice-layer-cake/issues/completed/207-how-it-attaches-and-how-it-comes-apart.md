@@ -4,7 +4,26 @@ Produces `src/019-mount-and-service-frame.md`.
 
 ## Current behavior
 
-Nothing. The cube has been designed as though it floats.
+**Done.** `src/019-mount-and-service-frame.md` exists, with the four rules: one
+mechanical interface rather than six, couplings that part dry, no assumption
+about which way is up, and a fourth mount point that is compliant because three
+points constrain a rigid body and a fourth adds a temperature-varying preload
+that finds the weakest seal.
+
+The loads are undemanding -- under a hundred and forty newtons per mount even at
+fifty times gravity -- and the bolt came down from M4 to M3 because three
+diameters of clearance in a twelve millimetre corner block is exactly twelve
+millimetres for an M4 and leaves nothing around it.
+
+The blueprint says plainly that nothing inside a cube is serviceable and that
+service means replacing the whole thing.
+
+**Two things are not done.** Which mounting orientations are actually permitted
+has not been enumerated against the parity assignment -- the rule is written and
+the six cases are not checked, and it may eliminate an orientation somebody
+wanted. And the service time is carried as a `target` rather than a derivation,
+which the checker reports, because it cannot become one until `1205` writes a
+procedure that could be timed.
 
 ## Intended behavior
 

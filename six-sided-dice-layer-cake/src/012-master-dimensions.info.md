@@ -44,7 +44,7 @@ Described by `103`.
 | `ar_uchan_max` | **nothing declares this** | — | — |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `n_tier` | **nothing declares this** | — | — |
-| `w_seal_min` | **nothing declares this** | — | — |
+| `w_seal_min` | `017` | 1.2 mm | least width of face plate rim a groove and its land need |
 
 ## What consumes it
 
@@ -52,28 +52,31 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `L_cube` | `012` |
-| `t_face` | `012` |
+| `L_cube` | `012`, `013`, `016`, `019` |
+| `t_face` | `012`, `014` |
 | `t_cage` | `012` |
-| `w_rail` | `012` |
+| `w_rail` | `012`, `013`, `016` |
 | `L_die` | `012` |
 | `w_street` | `012` |
-| `t_tier_si` | `012` |
-| `t_lamina` | `012` |
-| `w_uchan` | `012` |
-| `h_uchan` | `012` |
+| `t_tier_si` | `012`, `013` |
+| `t_lamina` | `012`, `013` |
+| `w_uchan` | `012`, `014` |
+| `h_uchan` | `012`, `014` |
 | `w_ufin` | `012` |
-| `L_cavity` | `012` |
-| `L_core` | `012` |
-| `L_plate` | `012` |
-| `L_dieblock` | `012` |
-| `w_seal` | `012` |
+| `L_cavity` | `012`, `013` |
+| `L_core` | `012`, `013`, `018` |
+| `L_plate` | `012`, `013`, `014`, `017`, `018` |
+| `L_dieblock` | `012`, `014` |
+| `w_seal` | `012`, `017` |
 | `t_tier_pitch` | `012` |
 | `p_uchan` | `012` |
 | `n_uchan` | `012` |
 | `ar_uchan` | `012` |
-| `A_die` | `012` |
-| `n_die` | `012` |
+| `A_plate` | `013`, `014` |
+| `A_die` | `012`, `013` |
+| `A_core_side` | `013` |
+| `V_cube` | `013` |
+| `n_die` | `012`, `013` |
 
 ## What it asserts
 

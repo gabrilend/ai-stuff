@@ -4,9 +4,23 @@ Produces `src/014-face-assembly-stack.md`.
 
 ## Current behavior
 
-Nothing. A face has been described as "four dies on an interposer with a cold
-plate behind it" and the order of those things has never been settled, which is
-the entire content of this ticket.
+**Done.** `src/014-face-assembly-stack.md` exists. Eight layers, inward to
+outward, with the two arguments the ticket asked for written into the blueprint
+rather than left here: why the dies face inward and are cooled from behind, and
+why the cold plate is silicon.
+
+The thickness equality closes exactly. Stack, plenum and seal travel account for
+all seven millimetres with nothing left over, which is the point -- space nobody
+drew is where a mistake lives.
+
+**The plenum lost seventy microns** to `017`'s seal when the cord had to grow,
+which is the tail end of the bow cascade in `018`.
+
+Seven constraints. Two are waiting on blueprints that do not exist: the port
+field's conductor count in `056`, which the sixteen via islands have to carry.
+
+The ninety-six seal features this file creates are counted in `017` and the
+decision that created them is flagged there for re-examination.
 
 ## Intended behavior
 

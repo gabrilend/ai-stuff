@@ -4,10 +4,29 @@ Produces `src/018-thermomechanical-stress.md`.
 
 ## Current behavior
 
-Nothing exists, but the argument has already changed the design once: `202` chose
-a silicon cold plate over a copper one on the strength of a calculation this
-blueprint is supposed to contain. That calculation currently lives in a paragraph
-in an issue file, which is the wrong place for it.
+**Done.** `src/018-thermomechanical-stress.md` exists, and it changed two things
+outside itself.
+
+**It turned plasma dicing into a requirement.** Tier-to-lamina interfaces carry
+about a hundred and nine megapascals once the residual frozen in at bonding is
+counted -- and the residual is two thirds of it, which was not expected. Against a
+sawn edge at a hundred and fifty megapascals that is a margin of one point four
+on a failure that scraps a whole cube. A plasma-diced edge etches rather than
+cuts, leaves no crack population, and gives three point two. `1201` now has to
+specify it.
+
+**It found the face assembly bows forty-five microns**, three times the flatness
+`013` had assumed, and that cascaded into the seal and the plenum. The better
+answer -- reordering the stack so it does not bow -- was not attempted and is
+recorded.
+
+The copper comparison is now a constraint asserted in the direction of alarm:
+copper laminae would leave a margin of one point zero two against the composite's
+three point two.
+
+Six constraints, all holding. **Fatigue life is still not computed** -- three
+swings are counted and none is turned into cycles to failure, which is what `086`
+is relying on.
 
 ## Intended behavior
 

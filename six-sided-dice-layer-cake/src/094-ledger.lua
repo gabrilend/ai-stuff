@@ -173,9 +173,25 @@ function M.load(dir, opts)
   end
 
   -- Resolve, in dependency order.
+  --
+  -- A symbol whose own dependencies did not resolve is skipped rather than
+  -- attempted. The root cause was already reported once, above, and attempting
+  -- it would report the same missing name again at every step of the chain --
+  -- so one undeclared symbol at the bottom of a six-deep derivation produces
+  -- six identical complaints and the reader has to work out which one is real.
+  L.unresolved = {}
+  local function resolvable(name)
+    for _, d in ipairs(deps[name] or {}) do
+      if L.value[d] == nil then return false end
+    end
+    return true
+  end
+
   for _, name in ipairs(order) do
     local s = L.decl[name]
-    if s and L.value[name] == nil then
+    if s and L.value[name] == nil and not resolvable(name) then
+      L.unresolved[name] = true
+    elseif s and L.value[name] == nil then
       if s.kind == "given" or s.kind == "measured" then
         local okv, q = pcall(units.new, s.literal, s.unit)
         if okv then L.value[name] = q
