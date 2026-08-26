@@ -423,7 +423,7 @@ function M.run(dir, opts)
   end
 
   -- the front page: counts taken during the build rather than transcribed
-  local counts = { given = 0, measured = 0, derived = 0, target = 0 }
+  local counts = { given = 0, measured = 0, derived = 0, solved = 0, target = 0 }
   for _, n in ipairs(L.order) do counts[L.decl[n].kind] = counts[L.decl[n].kind] + 1 end
   local kinds = {}
   for _, p in ipairs(pages) do kinds[p.kind] = (kinds[p.kind] or 0) + 1 end
@@ -441,8 +441,9 @@ function M.run(dir, opts)
     card(kinds.blueprint or 0, "blueprints"),
     card(#L.order, "symbols"),
     card(#L.constraints, "constraints"),
-    card(counts.derived, "derived"),
+    card(counts.derived + counts.solved, "worked out"),
     card(counts.given + counts.measured, "chosen or measured"),
+    card(counts.solved, "from a program"),
     card(counts.target, "still targets"),
     card(#L.orphans, "orphan symbols"),
     card((kinds.done or 0) .. "/" .. ((kinds.done or 0) + (kinds.issue or 0)), "tickets closed"),

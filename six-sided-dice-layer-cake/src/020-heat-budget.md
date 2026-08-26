@@ -25,7 +25,7 @@ where the energy goes [not-dimensioned]
                                 ├─── slice reads
                                 └─── leakage, at temperature
 
-   thirty-two memory tiers ─────┬─── array read energy
+   twenty-four memory tiers ───┬─── array read energy
                                 └─── retention leakage
 
    the cage ────────────────────┬─── six link drivers

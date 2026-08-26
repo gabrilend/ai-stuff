@@ -25,14 +25,14 @@ the only real lever is to stop the mismatch existing.
 where two materials are bonded and disagree about temperature [not-dimensioned]
 
    die  ──── silicon ──── cold plate      matched, by choice in 014
-   tier ──── silicon ──── CuMo lamina     4.4 ppm/K apart, thirty-two times over
+   tier ──── silicon ──── CuMo lamina     4.4 ppm/K apart, once per tier
    die  ──── silicon ──── glass core      0.6 ppm/K apart, glass chosen for it
    plate ─── silicon ──── steel rail      14.7 ppm/K apart, taken by a seal
    cage ──── silicon ──── CuMo            4.4 ppm/K apart
 ```
 
 The first row is what choosing silicon for the cold plate bought: exactly zero.
-The second is what it did not buy — thirty-two interfaces, each moving eleven
+The second is what it did not buy — one interface per tier, each moving eleven
 microns, and the molybdenum composite is the compromise that got it down from
 thirty-three.
 

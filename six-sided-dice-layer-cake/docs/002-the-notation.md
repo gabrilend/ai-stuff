@@ -83,21 +83,48 @@ bit/s and clock frequency in Hz are different types even though both are
 one-over-seconds, and adding them fails rather than producing a number nobody
 questions.
 
-**The kind** is one of four:
+**The kind** is one of five:
 
 | kind | what it means |
 |---|---|
 | `given` | a person chose this. The fourth field is a bare number. |
 | `derived` | computed. The fourth field is an expression and there is no number. |
 | `measured` | a material property or a vendor figure. Bare number; the meaning field must say where it came from. |
+| `solved` | a number a named program produced. Bare number; the meaning must say `-- from NNN`, and `095` re-runs that program and refuses if the two have drifted apart. |
 | `target` | a goal with no derivation yet. `095` counts these and lists them; a blueprint set with targets left in it is not finished. |
 
 The difference between `given` and `measured` is who you argue with when it turns
 out to be wrong. A `given` is a decision and can be changed by deciding
 differently. A `measured` is the world, and changing it means changing material.
 
-**The value or expression.** For `given` and `measured`, a bare decimal number,
-interpreted in the declared unit. For `derived`, an expression.
+### What `solved` is for, and what it is not
+
+Everything else in this notation is recomputed on every run. A `solved` value is
+the one exception: it is a copy of an answer that lives somewhere else, and a copy
+goes stale.
+
+It exists because three kinds of computation cannot be written as an expression
+here, however the grammar is extended. One that **iterates** — a hydraulic network
+with three flow regimes in it converges rather than evaluates. One that
+**searches** — five hundred and twelve arrangements of six plenums on twelve rails
+is a loop, not a formula. One that **holds a list** — the cube's twelve edges are
+an object, and this notation has only scalars.
+
+So the declaration names the program, written as `-- from NNN` in the meaning, and
+the checker loads that program, asks it for its answers, and compares. Agreement
+within a part in a thousand passes silently. Disagreement is a failed run, printed
+with both numbers and the drift between them. A program that answers for a symbol
+nobody declared is reported, and a declaration naming a program that will not
+answer for it is reported: the two lists have to agree in both directions, or the
+mechanism is a comment with extra steps.
+
+**It is not an escape hatch for a hard derivation.** If an expression in this
+grammar can compute the number, it must. And unlike `target`, it does not make a
+set unfinished — `095` counts the two separately, so a reader can see how much of
+the design rests on programs rather than on expressions.
+
+**The value or expression.** For `given`, `measured` and `solved`, a bare decimal
+number, interpreted in the declared unit. For `derived`, an expression.
 
 **The meaning** is one line of English. It appears in the companion page, in the
 site, and in the specification report, so it is the sentence an engineer reads

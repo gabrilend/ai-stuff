@@ -22,7 +22,7 @@ Described by `307`.
 | `R_engine` | K/W | derived | 0.260085 K/W | thermal resistance from the array to the fluid, from 025's local term |
 | `tau_engine` | s | derived | 0.00255817 s | how long the array takes to reach its steady temperature. The number that decides whether any of the fast transients matter |
 | `tau_loop` | s | derived | 3.80434 s | transport delay round the external circuit |
-| `dT_walk` | K | derived | 0.615992 K | temperature excursion of the walking hot spot over one stage, which is the whole of 010's argument reduced to a number |
+| `dT_walk` | K | derived | 0.622361 K | temperature excursion of the walking hot spot over one stage, which is the whole of 010's argument reduced to a number |
 | `E_spout_burst` | J | derived | 0.00575563 J | energy to push the entire core through the output tube |
 | `dT_spout` | K | derived | 0.00081779 K | what that burst does to the temperature of the face it leaves through |
 | `t_to_halt` | s | derived | 1.20853 s | how long the machine has, from the design operating point, if all cooling stops at once |
@@ -47,7 +47,7 @@ Described by `307`.
 | `cp_cumo` | `011` | 250 J/(kg*K) | specific heat capacity of the same |
 | `cp_si` | `011` | 705 J/(kg*K) | specific heat capacity of silicon at 300 K |
 | `dT_conv_local` | `025` | 11.9314 K | convection rise directly over the array, where a tenth of the area carries seventy per cent of the heat |
-| `dT_hotspot` | `025` | 9.80003 K | how much hotter the array is than the face average; this is what 005 calls the hot spot term |
+| `dT_hotspot` | `025` | 9.90136 K | how much hotter the array is than the face average; this is what 005 calls the hot spot term |
 | `f_engine_area` | `041` | 0.104 | and the share of its area, under the name 025 uses |
 | `f_engine_power` | `041` | 0.789509 | share of a die's heat the array makes, which 025's local term needs |
 | `f_solid_plate` | `013` | 0.75 | fraction of a cold plate that is silicon rather than channel |

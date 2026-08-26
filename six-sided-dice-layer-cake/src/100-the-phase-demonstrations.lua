@@ -190,13 +190,14 @@ local function show_instruments(R)
   print("")
   print("  THE SET, AS THE LEDGER SEES IT")
   print("")
-  local kinds = { given = 0, measured = 0, derived = 0, target = 0 }
+  local kinds = { given = 0, measured = 0, derived = 0, solved = 0, target = 0 }
   for _, n in ipairs(L.order) do kinds[L.decl[n].kind] = kinds[L.decl[n].kind] + 1 end
   print(("    blueprints          %d"):format(#L.blueprints))
   print(("    symbols             %d"):format(#L.order))
   print(("      chosen            %d"):format(kinds.given))
   print(("      measured          %d"):format(kinds.measured))
   print(("      derived           %d"):format(kinds.derived))
+  print(("      solved by program %d"):format(kinds.solved))
   print(("      still targets     %d"):format(kinds.target))
   print(("    constraints         %d"):format(#L.constraints))
   print(("    holding             %d"):format(#R.passed))
@@ -233,13 +234,50 @@ local function show_instruments(R)
   print("  Nothing forces those two to agree. C-012-9 is what notices when they")
   print("  stop, and it is the single most valuable line in the blueprint set.")
   print("")
+  print("  A NUMBER THAT IS RE-RUN RATHER THAN REMEMBERED")
+  print("")
+  print("  Twenty values in this project came out of a program, because no")
+  print("  expression in this notation could produce them -- a network that")
+  print("  converges, a search over five hundred and twelve candidates, a list")
+  print("  of twelve edges. The number in the blueprint is a copy, and a copy")
+  print("  goes stale. So the checker re-runs the program on every pass:")
+  print("")
+  for _, n in ipairs(L.solved or {}) do
+    local d = L.decl[n]
+    print(("    %-16s %-10s %s"):format(n, fmt(L, n), d.meaning:match("%-%- from (%d%d%d)")))
+  end
+  print("")
+  print("  Change a rail's cross-section in 016 and every one of the network")
+  print("  figures above stops matching what produced it, and the run fails")
+  print("  rather than quietly describing a machine that no longer exists.")
+  print("")
   return 0
 end
 -- }}}
 
+-- Some phases have more to show than a list of numbers, because an instrument
+-- was written for them that answers questions the notation cannot. One entry per
+-- such phase, as a table rather than a chain of comparisons: adding a phase's
+-- extra is a line here, and a phase with no entry simply has none.
+local EXTRA = {
+  -- Phase 3's plumbing is a graph and a network, neither of which fits in a
+  -- blueprint. 102 holds both and this is where a reader sees it work.
+  [3] = function()
+    local cube = dofile(DIR .. "/src/102-the-cube-solved.lua")
+    cube.report(cube.solve(DIR))
+  end,
+  -- Phase 14 has no dimensions of its own at all; its whole demonstration is the
+  -- instruments being exercised, so it replaces the standard one rather than
+  -- following it.
+}
+
 local R = check.run(DIR)
 if PHASE == 14 then os.exit(show_instruments(R)) end
-if PHASE then os.exit(show_phase(R, PHASE)) end
+if PHASE then
+  local code = show_phase(R, PHASE)
+  if EXTRA[PHASE] then EXTRA[PHASE]() end
+  os.exit(code)
+end
 
 -- no phase given: a summary of all of them
 print("")

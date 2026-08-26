@@ -65,6 +65,109 @@ local function margin(a, b)
 end
 -- }}}
 
+-- {{{ local function check_solved()
+-- The one category in the project that is remembered rather than recomputed.
+--
+-- A `solved` symbol holds a number some instrument produced because the
+-- notation's own arithmetic cannot express the computation -- an iterative
+-- solve, a search over a discrete set. The number in the blueprint is a copy,
+-- and a copy of an answer goes stale the moment the question changes: narrow a
+-- rail and the flow shares move, and nothing would notice that the blueprint is
+-- now describing a machine that does not exist.
+--
+-- So the copy is checked against the original on every run. The declaration
+-- names its producer by index in the meaning field, this loads that instrument,
+-- asks it for its table of answers, and compares. The tolerance is the same one
+-- the approximate operator uses everywhere else, because it is the same
+-- question: do these two routes to one number agree.
+--
+-- Three ways it can go wrong, reported apart because they mean different
+-- things. The number has drifted -- somebody changed an input and did not
+-- re-run. Nobody answered for the symbol -- the named instrument does not know
+-- it, so the declaration is pointing at the wrong program. Nobody declared the
+-- answer -- the instrument computes something no blueprint records, which is
+-- work being thrown away rather than a mistake, but is worth seeing.
+local function check_solved(R, L, dir)
+  -- Which instruments to ask. Gathering them first means each is loaded once
+  -- however many symbols it answers for, and a solver that iterates is not
+  -- something to run six times for six numbers.
+  local wanted, producers = {}, {}
+  for _, name in ipairs(L.solved or {}) do
+    local d = L.decl[name]
+    -- The marker is "-- from NNN" and not merely a three-digit number, because
+    -- a meaning is a sentence and a sentence about a solved value very often
+    -- mentions the blueprint the geometry came from.
+    local idx = d.meaning:match("%-%- from (%d%d%d)")
+    if not idx then
+      R.unclaimed[#R.unclaimed + 1] = { name = name, why = "names no instrument" }
+    else
+      wanted[idx] = wanted[idx] or {}
+      wanted[idx][#wanted[idx] + 1] = name
+      producers[name] = idx
+    end
+  end
+
+  for idx, names in pairs(wanted) do
+    local path = nil
+    local pipe = io.popen(("ls %s/src/%s-*.lua 2>/dev/null"):format(dir, idx))
+    if pipe then path = pipe:read("*l"); pipe:close() end
+    if not path or path == "" then
+      for _, name in ipairs(names) do
+        R.unclaimed[#R.unclaimed + 1] = {
+          name = name, why = ("no instrument %s in src/"):format(idx),
+        }
+      end
+    else
+      local ok, inst = pcall(dofile, path)
+      local answers = ok and type(inst) == "table" and inst.answers
+      if not answers then
+        for _, name in ipairs(names) do
+          R.unclaimed[#R.unclaimed + 1] = {
+            name = name,
+            why = ok and ("%s answers for nothing"):format(idx)
+                      or ("%s would not load: %s"):format(idx, tostring(inst)),
+          }
+        end
+      else
+        local okr, given = pcall(answers, dir)
+        if not okr then
+          for _, name in ipairs(names) do
+            R.unclaimed[#R.unclaimed + 1] = {
+              name = name, why = ("%s failed: %s"):format(idx, tostring(given)),
+            }
+          end
+        else
+          for _, name in ipairs(names) do
+            local q = given[name]
+            local have = L.value[name]
+            if q == nil then
+              R.unclaimed[#R.unclaimed + 1] = {
+                name = name, why = ("%s does not answer for it"):format(idx),
+              }
+            elseif have then
+              local scale = math.max(math.abs(q.v), math.abs(have.v))
+              local off = scale == 0 and 0 or math.abs(q.v - have.v) / scale
+              if off > M.TOLERANCE then
+                R.drift[#R.drift + 1] = {
+                  name = name, stored = have, fresh = q, off = off,
+                  file = L.decl[name].file, line = L.decl[name].line,
+                  by = idx,
+                }
+              end
+            end
+          end
+          for name in pairs(given) do
+            if not L.decl[name] then
+              R.unwanted[#R.unwanted + 1] = { name = name, by = idx }
+            end
+          end
+        end
+      end
+    end
+  end
+end
+-- }}}
+
 -- {{{ function M.run()
 function M.run(dir)
   dir = dir or DIR
@@ -76,7 +179,12 @@ function M.run(dir)
     bare = {},          -- blueprints with no constraints at all
     exact_warn = {},    -- == used on something with a fractional part
     conversions = {},   -- literals that look like hand-written unit conversions
+    drift = {},         -- solved symbols whose producer no longer agrees
+    unclaimed = {},     -- solved symbols no instrument answered for
+    unwanted = {},      -- instrument answers nobody declared
   }
+
+  check_solved(R, L, dir)
 
   -- Every derivation and every relation, swept for literals that look like
   -- somebody converting units by hand. See 092 for why this is worth doing:
@@ -155,7 +263,7 @@ end
 -- worked out, and in base units otherwise. A cavity reported as 0.046 m when
 -- every drawing says millimetres is technically right and practically useless.
 local function unit_for(L, tree, q)
-  if tree.k == "ref" then
+  if tree and tree.k == "ref" then
     local d = L.decl[tree.name]
     if d then
       local ok, s = pcall(units.format, q, d.unit)
@@ -239,6 +347,52 @@ function M.report(R, out)
     say("")
   end
 
+  -- Drift is a failure and reads like one. The design believes a number that
+  -- the program which produced it no longer produces, which means an input
+  -- moved and nobody re-ran the solver -- and every constraint downstream has
+  -- been holding against a machine that is not the one on the drawings.
+  if #R.drift > 0 then
+    say("  STALE -- %d solved values no longer match what produced them", #R.drift)
+    for _, d in ipairs(R.drift) do
+      say("    %-24s %s:%d", d.name, d.file, d.line)
+      local u = L.decl[d.name].unit
+      local function show(q)
+        local ok, t = pcall(units.format, q, u)
+        return ok and t or units.format(q)
+      end
+      say("      blueprint says %s, %s now gives %s -- %.2f%% apart",
+          show(d.stored), d.by, show(d.fresh), d.off * 100)
+    end
+    say("")
+  end
+
+  if #R.unclaimed > 0 then
+    say("  UNANSWERED -- %d solved values have no working producer", #R.unclaimed)
+    for _, u in ipairs(R.unclaimed) do
+      say("    %-24s %s", u.name, u.why)
+    end
+    say("")
+  end
+
+  if #R.unwanted > 0 then
+    say("  UNRECORDED -- %d answers no blueprint declares", #R.unwanted)
+    say("  An instrument computed these and nothing in the design uses them.")
+    for _, u in ipairs(R.unwanted) do
+      say("    %-24s from %s", u.name, u.by)
+    end
+    say("")
+  end
+
+  if #(L.solved or {}) > 0 then
+    say("  SOLVED -- %d values come from a program rather than an expression",
+        #L.solved)
+    for _, n in ipairs(L.solved) do
+      local d = L.decl[n]
+      say("    %-24s %s:%d  %s", n, d.file, d.line, d.meaning)
+    end
+    say("")
+  end
+
   if #L.targets > 0 then
     say("  UNFINISHED -- %d symbols are still targets rather than derivations.", #L.targets)
     say("  A blueprint set with targets in it is not finished.")
@@ -277,6 +431,11 @@ end
 -- from anything and its answer believed.
 function M.exit_code(R)
   if #R.structural > 0 or #R.mismatched > 0 or #R.failed > 0 then return 1 end
+  -- A stale solved value is wrong rather than unfinished, and it is the worse
+  -- kind of wrong: every constraint that reads it passed, against a number the
+  -- design no longer produces. An unanswered one is the same defect one step
+  -- earlier -- a declaration pointing at a program that cannot confirm it.
+  if #R.drift > 0 or #R.unclaimed > 0 then return 1 end
   -- An unresolved constraint is the set being unfinished, and unfinished is
   -- reported rather than failed -- the same treatment targets and orphans get.
   return 0

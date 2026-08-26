@@ -65,7 +65,7 @@ Change one of these and the blueprints beside it are what break.
 | `t_step` | `080` |
 | `t_layer_comp` | `048` |
 | `ops_face` | `053` |
-| `t_stage` | `026`, `037`, `039`, `044`, `052`, `053`, `054`, `055`, `072` |
+| `t_stage` | `019`, `026`, `037`, `039`, `044`, `052`, `053`, `054`, `055`, `072` |
 | `t_token_comp` | `053` |
 | `C_stage_buf` | `038`, `053` |
 | `C_stage_min` | `038`, `053` |

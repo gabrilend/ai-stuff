@@ -192,7 +192,7 @@ function M.load(dir, opts)
     if s and L.value[name] == nil and not resolvable(name) then
       L.unresolved[name] = true
     elseif s and L.value[name] == nil then
-      if s.kind == "given" or s.kind == "measured"
+      if s.kind == "given" or s.kind == "measured" or s.kind == "solved"
          or (s.kind == "target" and s.literal) then
         local okv, q = pcall(units.new, s.literal, s.unit)
         if okv then L.value[name] = q
@@ -253,10 +253,16 @@ function M.load(dir, opts)
 
   -- Reported, never fatal. Both are conditions the project should see on every
   -- run, and neither is an error today -- 095 decides what to do about them.
-  L.orphans, L.targets = {}, {}
+  L.orphans, L.targets, L.solved = {}, {}, {}
   for _, name in ipairs(L.order) do
     if #L.used_by[name] == 0 then L.orphans[#L.orphans + 1] = name end
     if L.decl[name].kind == "target" then L.targets[#L.targets + 1] = name end
+    -- Counted apart from targets, and for the opposite reason. A target is a
+    -- question the design has not answered. A solved value is one it answered
+    -- with a program rather than with an expression, which is finished -- but
+    -- it is a copy of an answer rather than the answer itself, so a reader is
+    -- owed the count of how much of the design rests on programs.
+    if L.decl[name].kind == "solved" then L.solved[#L.solved + 1] = name end
   end
 
   L.deps = deps
