@@ -25,7 +25,7 @@ kanji-learning-image-generator/
 │   │
 │   ├── 006-roadmap.md ............... three phases; parts, not dates
 │   ├── 007-open-questions.md ........ every question, closed and open, in one place
-│   ├── 035-a-walkthrough.md ......... the things a person can run, and what each does
+│   ├── 036-a-walkthrough.md ......... the things a person can run, and what each does
 │   ├── balance-updates.md ........... every knob turned, and why
 │   └── HTML/ ........................ all of this, cross-linked; built, never edited
 │
@@ -40,13 +40,19 @@ kanji-learning-image-generator/
 │
 ├── input/ ........................... what the programs read at startup
 ├── output/ .......................... what they return, ending in goodbye
-├── desire/ .......................... notes on what should be better
-├── faith/ ........................... expectations of boons and blessings
-├── strategems/ ...................... dataflow patterns that worked more than once
+├── strategems/
+│   ├── 037-keep-the-thing-that-measured-it.md  a constant downstream of data is a claim with an expiry
+│   └── 038-rank-for-dropping-place-for-reading.md  two orders, and using one for both is a bug
+│
+├── desire/
+│   └── 039-what-should-be-better.md . where this is weaker than it looks
+│
+├── faith/
+│   └── 040-what-is-expected.md ...... the bets this project is making
 ├── llm-transcripts/ ................. the dialogue this was built out of
 │
 ├── run-demo ......................... asks which phase to show, and shows it
-└── run-tests ........................ every test in the project
+└── run-tests ........................ every test in the project, and the page sweep
 ```
 
 ## The three phases, as sections of the machine
@@ -64,4 +70,18 @@ the stroke-order arrows. Nothing here knows what ComfyUI is.
 
 **Phase 3 — The Machine.** A scene into a file somebody can run. The node graph
 and its catalogue, the workflow, the whole set in parallel, the gallery, this
-documentation as a website, the demonstrations.
+documentation as a website, the demonstrations — and the governor that keeps a
+run from taking the whole machine and holding the processor at the top of its
+thermal range for as long as it lasts.
+
+## Reading the source in order
+
+The indices are the reading order. `src/009` through `src/020` are phase one and
+know nothing about meaning; `src/021` through `src/027` are phase two and know
+nothing about ComfyUI; `src/028` onward is phase three. A letter suffix means a
+file belongs *beside* its neighbour rather than after it — `031a` is the heat
+governor and is read with `031`, which it governs.
+
+Every source file has an `.info.md` page beside it, generated out of that file's
+own comments. Read the page unless you are chasing a specific bug in a specific
+function.
