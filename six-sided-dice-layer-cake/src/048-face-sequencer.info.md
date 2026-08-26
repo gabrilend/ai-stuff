@@ -54,7 +54,7 @@ Change one of these and the blueprints beside it are what break.
 | `C_chain_layer` | `048` |
 | `C_chain_face` | `048` |
 | `n_small_tok` | `048`, `055` |
-| `t_layer` | `031`, `048` |
+| `t_layer` | `031`, `048`, `060`, `061` |
 | `f_prefetch_lead` | `048` |
 
 ## What it asserts

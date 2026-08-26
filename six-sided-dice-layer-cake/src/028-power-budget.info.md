@@ -34,7 +34,7 @@ Described by `401`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `I_die_max` | **nothing declares this** | — | — |
-| `I_port_max` | `029` | 20 A | current one port field's power pads will carry |
+| `I_port_max` | `056` | 14.4 A | current the power pads will carry, half of them being return |
 | `P_core` | `020` | 160.196 W | the whole memory block |
 | `P_crossbar` | `020` | 13.82 W | the cage's switch fabric at full traffic. Thirty-nine was an estimate before 037 had a per-bit figure; the constraint that compares the two is what corrected it |
 | `P_engine_die` | `045` | 45.8752 W | switching power of one die's multiplier array at the design utilisation |
@@ -43,7 +43,7 @@ Described by `401`.
 | `P_leak_die` | `020` | 6.40458 W | leakage of one die at that temperature |
 | `P_link` | `020` | 30.72 W | six radial links carrying everything the core delivers |
 | `P_load` | `020` | 1609.28 W | power delivered to the point of load |
-| `P_ports` | `020` | 10 W | six port fields, storage lines and the spout, averaged; the spout's burst is an energy and lives in 026 |
+| `P_ports` | `020` | 10 W | six port fields during generation, when the storage lines are idle and the spout is occasional. This is a steady figure and the two things that break it are both bursts |
 | `P_scalar_die` | `020` | 3 W | scalar core, sequencer, clock tree and control on one die, which barely varies with what it is doing |
 | `P_slice_die` | `020` | 2.82624 W | what a die's own slice reads cost, at the rate 045's array consumes them |
 | `V_array` | `029` | 0.85 V | static memory cells, in the slices and in the core |
@@ -70,7 +70,7 @@ Change one of these and the blueprints beside it are what break.
 | `I_array` | `033` |
 | `I_die_logic` | `028`, `030`, `032` |
 | `I_supply` | `028`, `033` |
-| `I_face_supply` | `028`, `030`, `032` |
+| `I_face_supply` | `028`, `030`, `032`, `056` |
 | `I_core_inward` | `028`, `030` |
 | `I_core_face` | `028`, `030`, `032` |
 | `I_would_be` | `028` |

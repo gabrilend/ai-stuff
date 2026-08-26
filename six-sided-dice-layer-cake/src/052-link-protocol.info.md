@@ -42,7 +42,7 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `w_header` | `052` |
-| `w_transfer` | `038`, `044`, `047`, `052`, `053`, `055` |
+| `w_transfer` | `038`, `044`, `047`, `052`, `053`, `055`, `058` |
 | `n_credit` | `052` |
 | `f_overhead` | `052` |
 | `n_line_txfr` | `052` |

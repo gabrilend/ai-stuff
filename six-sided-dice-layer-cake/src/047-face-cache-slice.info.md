@@ -50,17 +50,17 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `eta_slice` | `047` |
-| `n_slice_buf` | `047` |
+| `n_slice_buf` | `047`, `060` |
 | `n_slice_bank` | `047` |
 | `batch_design` | `045`, `050`, `053` |
 | `p_seq_conflict` | `047` |
 | `a_bit_slice` | `047` |
 | `d_slice` | `047` |
 | `C_slice_die` | `047` |
-| `C_face_slice` | `041`, `047` |
+| `C_face_slice` | `041`, `047`, `060` |
 | `C_slice_need` | `047` |
 | `m_slice` | `047` |
-| `B_slice_read` | `045`, `047`, `055` |
+| `B_slice_read` | `045`, `047`, `055`, `060`, `061` |
 | `t_seq_wait` | `047` |
 
 ## What it asserts

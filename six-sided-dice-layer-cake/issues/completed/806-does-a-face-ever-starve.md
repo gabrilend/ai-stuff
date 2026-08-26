@@ -4,7 +4,25 @@ Produces `src/061-feed-bandwidth.md`.
 
 ## Current behavior
 
-Nothing. `004` claims a face never starves and shows no arithmetic.
+**Done.** `src/061-feed-bandwidth.md` exists with four inequalities and their
+timescales stated separately, because the four are easy to conflate and only the
+middle two ever bind.
+
+The below-crossover answer is written plainly: **the face starves and this is the
+intended state.** `C-061-6` asserts it in the confirming direction, because a
+design in which it were false would mean the array had become too small rather
+than the memory too fast.
+
+`C-061-3` is the one that earns the blueprint: `040` asserts that scrubbing is
+invisible, and **this is the only place that claim is tested against the traffic
+it would have to be invisible against.**
+
+Six constraints. `C-061-5` closes the project's third triple check — time per
+token derived here, in `053` and in `055`, by three different routes.
+
+**The uneven stage is not modelled.** `075` gives two faces extra work; this
+checks a face's margin against an average layer, and the face carrying the output
+projection reads a larger one in the same stage time.
 
 ## Intended behavior
 

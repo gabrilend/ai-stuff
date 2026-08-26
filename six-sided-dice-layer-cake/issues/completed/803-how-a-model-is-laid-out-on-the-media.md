@@ -4,8 +4,26 @@ Produces `src/058-weight-format-on-media.md`.
 
 ## Current behavior
 
-Nothing. "Laid out in walk order rather than in the order the training framework
-wrote it" is asserted in `004` and never specified.
+**Done.** `src/058-weight-format-on-media.md` exists. The format is a pre-sorted
+stream in the sequencer's own walk order, cut into six contiguous regions so six
+lines read at once with none touching another's data.
+
+Six constraints. `C-058-2` is the format's whole purpose as a number: over
+ninety-nine per cent of a slice read must be one contiguous run, which is what
+separates a thirty millisecond load from a several second one.
+
+The carried rotation table is in, with a constraint requiring it to stay small
+against the weights — it removes every transcendental from the forward pass, and
+if it were large that trade would need arguing rather than asserting.
+
+**The tensor walk order is a count and not an order.** Nine tensors a layer, and
+which nine in what sequence is `048`'s to state and this file's to mirror, and
+neither has written the list.
+
+**Nothing describes how the file is produced.** Something outside this machine
+quantises, fits the expansion tables, computes the rotations and writes this
+layout. It is the only substantial piece of software the design assumes and does
+not specify, and `085` needs it on day one.
 
 ## Intended behavior
 

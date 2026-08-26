@@ -48,7 +48,7 @@ Change one of these and the blueprints beside it are what break.
 | `C_request` | `038` |
 | `C_control` | `038` |
 | `C_repair` | `038` |
-| `w_interleave` | `038`, `052` |
+| `w_interleave` | `038`, `052`, `058` |
 | `C_pane` | `038`, `039`, `055` |
 | `n_region` | `038` |
 | `C_staging` | `038` |
