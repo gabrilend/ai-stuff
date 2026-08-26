@@ -76,14 +76,14 @@ A hybrid-bonded connection is about ten microns long and carries something like 
 femtofarad. Driving one bit across it costs on the order of ten femtojoules once
 the driver and the receiver's sense amplifier are counted.
 
-| | |
+| | derived |
 |---|---|
-| energy, one bit | ≈ 10 fJ |
-| energy, one pane of 2 MiB | ≈ 168 nJ |
-| **energy to push the whole core through the pane** | **≈ 5.5 mJ** |
-| panes needed for the whole core | 32,768 |
-| **time, at one gigahertz** | **≈ 33 µs** |
-| average power during that burst | ≈ 168 W |
+| energy, one bit | 10 fJ |
+| energy, one pane of 2 MiB | 168 nJ |
+| **energy to push the whole core through the pane** | **5.8 mJ** |
+| panes needed for the whole core | 34,306 |
+| **time, at one gigahertz** | **34.3 µs** |
+| average power during that burst | 168 W |
 
 Sixty-four gibibytes, moved somewhere else, in thirty-three microseconds. The same
 transfer over a four hundred gigabit network link takes one and four tenths of a
@@ -193,3 +193,7 @@ and let the far end sort it out, is an ordering question `039` has not answered.
 circuit at each end of one conductor. `065` is skew. `066`, `067` and `068` are
 the three grades. `069` is integrity. `008` is where this sits among the four
 places the design departs from the page it came from.
+
+---
+
+*The figures in this document are rounded prose. The derived ones live in `091`, which lists every symbol in the project with its unit, its derivation and what it is for; `089` is the one-page version. `./run-checks` evaluates every constraint in under a second.*

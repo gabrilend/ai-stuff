@@ -99,19 +99,31 @@ request region and the whole thing begins again at face zero.
 
 ## What it costs in time
 
-| | |
+| | derived |
 |---|---|
-| weights read, whole model, once per token | 35 GB |
-| aggregate core read bandwidth | ≈ 39 TB/s |
-| **time per token, bandwidth-bound** | **≈ 0.90 ms** |
-| arithmetic per token | 140 GFLOP |
-| aggregate arithmetic available | ≈ 4.4 PFLOP/s |
-| time per token, compute-bound, one sequence | 0.032 ms |
+| weights read, whole model, once per token | 36.4 GB |
+| one sequence's cache read, at full context | 0.7 GB |
+| aggregate core read bandwidth | 38.4 TB/s |
+| **time per token, one sequence** | **0.98 ms** |
+| **tokens a second, one sequence** | **1,021** |
+| arithmetic per token per sequence | 141 GFLOP |
+| aggregate arithmetic available | 4.4 PFLOP/s |
+| time per token, compute-bound, one sequence | 0.039 ms |
+| **tokens a second, aggregate at the design batch** | **19,490** |
 
-The two columns are twenty-eight apart, and twenty-eight is the number that
-governs everything about how this machine should be used. Below a batch of
-twenty-eight it is waiting on memory and the arithmetic is nearly free. Above it,
+*Every figure above is derived rather than estimated. `091` has all of them with
+their derivations; `089` is the one-page version.*
+
+The two middle columns are about twenty-five apart, and that number governs
+everything about how this machine should be used. Below a batch of about
+twenty-five it is waiting on memory and the arithmetic is nearly free. Above it,
 the memory has been amortised and the engines are the wall.
+
+**The aggregate figure is lower than a first estimate suggested**, and the reason
+is worth knowing: that estimate counted only weight traffic. The key and value
+cache is read once per token **for every sequence in the batch**, so it scales
+with batch where the weights do not, and at the reference context it is a
+substantial share of a step.
 
 ## The thing that looks wrong and is not
 
@@ -165,3 +177,7 @@ ordering model in `039` in a way nobody has traced.
 `004` follows a weight rather than a token. `053` is the schedule. `076` is this
 same path written as a constraint set rather than as a story. `080` is where the
 two numbers above come from.
+
+---
+
+*The figures in this document are rounded prose. The derived ones live in `091`, which lists every symbol in the project with its unit, its derivation and what it is for; `089` is the one-page version. `./run-checks` evaluates every constraint in under a second.*
