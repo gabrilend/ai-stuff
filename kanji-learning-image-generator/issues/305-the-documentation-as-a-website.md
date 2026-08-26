@@ -5,6 +5,17 @@
 The documentation is markdown files. Reading one means opening a file and
 following a cross-reference by hand.
 
+The companion pages are already generated: `src/034-the-companion-pages.lua`
+sweeps `src/`, lifts each file's header block and each of its function folds,
+and writes the `.info.md` beside it. It was built early because every source
+file needs one from the moment it exists, and twenty-odd pages written by hand
+would have been stale before the phase ended. `--check` reports what is out of
+date and writes nothing, which is what `run-tests` calls.
+
+That works because every function in this project is wrapped in a fold naming
+it, with its explanation underneath. The convention was there for editing
+comfort; this makes it load-bearing.
+
 ## Intended behavior
 
 **Every document, every ticket and every source file's companion page, as one
@@ -38,7 +49,9 @@ nobody reads.
 ## Suggested implementation steps
 
 1. **`src/033-the-documentation-site.lua`** — walk `docs/`, `notes/`, `issues/`
-   and the `.info.md` files; convert; link; write.
+   and the `.info.md` files; convert; link; write. The companion pages are
+   already produced by `src/034-the-companion-pages.lua`; this renders them
+   alongside everything else rather than regenerating them.
 
 2. **The markdown converter handles what this project's documents use** —
    headings, paragraphs, lists, tables, fenced code, inline code, emphasis, links,

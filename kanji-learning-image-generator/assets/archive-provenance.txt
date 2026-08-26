@@ -1,0 +1,16 @@
+# the archives this project reads, and which editions are on disk
+#
+# written by src/010-fetch-the-archives.lua. a set of images is generated
+# against a specific dictionary, and this is how that is answerable later.
+
+kanjidic2
+  from   http://www.edrdg.org/kanjidic/kanjidic2.xml.gz
+  file   assets/kanjidic2.xml
+  bytes  15641823
+  taken  already on disk
+
+kanjivg
+  from   https://github.com/KanjiVG/kanjivg/releases/download/r20250422/kanjivg-20250422.xml.gz
+  file   assets/kanjivg.xml
+  bytes  13754449
+  taken  already on disk
