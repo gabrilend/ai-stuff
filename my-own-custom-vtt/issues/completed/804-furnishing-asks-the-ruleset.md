@@ -3,7 +3,7 @@
 **Phase:** 8, content generation
 **Blocked by:** [803](803-the-graph-becomes-geometry.md)
 **Blocks:** [806](806-the-generator-checks-its-own-work.md)
-**Documents:** [content is generated](../docs/013-content-is-generated.md)
+**Documents:** [content is generated](../../docs/013-content-is-generated.md)
 
 ## Current behaviour
 

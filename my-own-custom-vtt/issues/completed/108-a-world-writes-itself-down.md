@@ -4,8 +4,8 @@
 **Blocked by:** [107](107-the-validator-refuses-to-guess.md)
 **Blocks:** [306](306-the-command-log-is-the-replay.md), rollback in phase 3,
 phase 8's generator output, and every session that ever ends.
-**Documents:** [the world and its tick](../docs/004-the-world-and-its-tick.md),
-[the turn is a transaction](../docs/019-the-turn-is-a-transaction.md)
+**Documents:** [the world and its tick](../../docs/004-the-world-and-its-tick.md),
+[the turn is a transaction](../../docs/019-the-turn-is-a-transaction.md)
 
 ## Current behaviour
 

@@ -3,7 +3,7 @@
 **Phase:** 3, the world ticks
 **Blocked by:** every other issue in phase 3.
 **Blocks:** nothing. It is the capstone of the phase.
-**Documents:** [the roadmap](../docs/015-roadmap.md)
+**Documents:** [the roadmap](../../docs/015-roadmap.md)
 
 ## Current behaviour
 
@@ -47,7 +47,7 @@ everything, including the stream positions that are the easiest thing to forget.
 ### And it should show the fog problem rather than hide it
 
 Roll back a turn in which a body walked into an unexplored room, and **show what
-happens to the fog** -- whichever way [3.3](../docs/016-open-questions.md) was
+happens to the fog** -- whichever way [3.3](../../docs/016-open-questions.md) was
 decided. If fog rolls back, show the map closing again over a place somebody saw.
 If it does not, show the map keeping a room the world says was never entered.
 

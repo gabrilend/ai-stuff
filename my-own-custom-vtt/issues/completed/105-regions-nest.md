@@ -6,8 +6,8 @@
 [104](104-walls-are-segments.md)
 **Blocks:** [602](602-membership-is-a-list-or-a-region.md), which is how the
 tavern's commander exists at all.
-**Documents:** [the map is geometry](../docs/006-the-map-is-geometry-not-a-picture.md),
-[who controls what](../docs/008-who-controls-what.md)
+**Documents:** [the map is geometry](../../docs/006-the-map-is-geometry-not-a-picture.md),
+[who controls what](../../docs/008-who-controls-what.md)
 
 ## Current behaviour
 
@@ -63,7 +63,7 @@ point, since a thing in the cellar is in the cellar and not in the tavern.
 
 ## Open question this touches
 
-[6.1](../docs/016-open-questions.md) -- when a patrol walks out of the forest and
+[6.1](../../docs/016-open-questions.md) -- when a patrol walks out of the forest and
 into the tavern, whose is it? Mechanically this file gives the answer "the
 tavern's, immediately", because that is what maintaining the `region` field
 means. Whether that is the wanted answer is not settled, and if it is not, the

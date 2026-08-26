@@ -86,3 +86,15 @@ certain connection to its neighbours, and something else decided that meant a ba
 
 - [The shape of the code](014-the-shape-of-the-code.md).
 - [The roadmap](015-roadmap.md) -- when each stage above gets built.
+
+
+## The descriptions that exist
+
+Two, in `input/`, because that is where a program's opening decisions live:
+
+- [the old inn](../input/descriptions/the-old-inn) -- a tavern with a cellar.
+- [the deep place](../input/descriptions/the-deep-place) -- larger, with loops.
+
+`input/what-to-start-with` lists everything that eventually belongs there. Only
+the world is honoured so far, and that is
+[open question 16.1](016-open-questions.md#q-16-1).

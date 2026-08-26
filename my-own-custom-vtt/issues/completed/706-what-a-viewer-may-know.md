@@ -4,7 +4,7 @@
 **Blocked by:** [703](703-the-ruleset-owns-the-sheets.md),
 [704](704-the-narrow-window-on-the-world.md)
 **Blocks:** [709](709-the-phase-seven-demo.md)
-**Documents:** [what a viewer is allowed to know](../docs/009-what-a-viewer-is-allowed-to-know.md)
+**Documents:** [what a viewer is allowed to know](../../docs/009-what-a-viewer-is-allowed-to-know.md)
 
 ## Current behaviour
 

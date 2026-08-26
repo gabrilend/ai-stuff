@@ -17,6 +17,8 @@ alone.
 
 ## Phase 1 — The world holds still
 
+*What it turned out to teach:* [phase 1 progress](../issues/phase-1-progress.md)
+
 The data model, and nothing that moves. Fixed-point arithmetic. The flat arrays.
 The thing record, the wall record, the region record. The string pool. The
 validator that runs once and refuses to substitute a default. Snapshot out,
@@ -32,6 +34,8 @@ reads it back, and shows the two are byte-identical.
 
 ## Phase 2 — The world can be seen
 
+*What it turned out to teach:* [phase 2 progress](../issues/phase-2-progress.md)
+
 The angular sweep. Visibility polygons from an eye with a facing and an arc. The
 fog bitmaps. The thread pool that the sweep runs on.
 
@@ -46,6 +50,8 @@ accumulating behind it while the sight ahead changes.
 tick. The demo reports its own timings rather than this document guessing at them.
 
 ## Phase 3 — The world ticks, and turns can be taken back
+
+*What it turned out to teach:* [phase 3 progress](../issues/phase-3-progress.md)
 
 The dispatch table of passes. Motion, and collision against walls.
 Buffer-then-resolve. Named random streams. The command log, and replay from a
@@ -68,6 +74,8 @@ table actually wants.
 
 ## Phase 4 — People connect
 
+*What it turned out to teach:* [phase 4 progress](../issues/phase-4-progress.md)
+
 The door and the private ports. The session sockets. The wire protocol. The
 outbound filter -- the one function that may write a thing to a socket. The intake
 gauntlet. Leak tests.
@@ -84,6 +92,8 @@ embarrassed to have wrong.
 
 ## Phase 5 — The bridge and the browser
 
+*What it turned out to teach:* [phase 5 progress](../issues/phase-5-progress.md)
+
 The client program: one socket out, one HTTP server in, on `localhost`. The first
 real renderer. Interpolation between ticks, prediction for your own body, light
 and shadow drawn from the visibility polygons.
@@ -99,6 +109,8 @@ dungeon in a browser, with real fog, at a real frame rate.
 
 ## Phase 6 — Control is a dial
 
+*What it turned out to teach:* [phase 6 progress](../issues/phase-6-progress.md)
+
 Scopes in full. List membership and region membership. Driven and ordered styles.
 Several scopes held by one connection. Multiple GMs. The commander who owns the
 tavern and moves the crockery. Handing a scope over mid-session.
@@ -110,6 +122,8 @@ orders, the tavern, and a GM -- all in the same room at the same time.
 **Proves:** that the dial is one mechanism and not four special cases.
 
 ## Phase 7 — The rules layer
+
+*What it turned out to teach:* [phase 7 progress](../issues/phase-7-progress.md)
 
 LuaJIT embedded in the server. The hooks. Sheet storage owned by the ruleset.
 `may_know`. Dice from named streams. A sample ruleset, and then a second one that
@@ -123,6 +137,8 @@ what -- with the server unchanged between them.
 
 ## Phase 8 — Content generation
 
+*What it turned out to teach:* [phase 8 progress](../issues/phase-8-progress.md)
+
 The description language. Validate, lay out, realise, furnish, write -- five
 stages, five programs. Generator tests that check the output against the
 description that asked for it.
@@ -135,6 +151,8 @@ it.
 **Proves:** that nothing needs to be hand-placed.
 
 ## Phase 9 — The sprite studio
+
+*What it turned out to teach:* [phase 9 progress](../issues/phase-9-progress.md)
 
 A description-in, sprite-out generator whose artifact is one self-contained
 animated SVG. The wall that refuses a bad description by name. The pool that keeps
@@ -174,6 +192,8 @@ question 15.5.
 
 ## Phase 10 — The engraving
 
+*What it turned out to teach:* [phase 10 progress](../issues/phase-10-progress.md)
+
 The record log: a text file drawn as an ornate metal carving whose lines are the
 cell walls of the table it contains. A reader that turns a carving into variables,
 a writer that turns variables into a carving, a third script that hands one to a
@@ -199,6 +219,8 @@ action bar, and the server carves itself as the last thing it does.
 
 ## Phase 11 — The second view, and the documentation
 
+*What it turned out to teach:* [phase 11 progress](../issues/phase-11-progress.md)
+
 A terminal renderer speaking the same protocol as the browser, with no server
 changes. The documentation rendered to linked HTML in `docs/HTML/`, with the
 companion files reachable from everything that mentions them.
@@ -208,6 +230,16 @@ and a terminal, and the documentation site built from the Markdown by a tool.
 
 **Proves:** the generate-then-view split at the last boundary -- and it is the
 capstone precisely because it can only be attempted once everything else is real.
+
+**Built.** A terminal view speaking the same protocol, which found a defect that
+had been in the server since phase four: the hello had never once arrived, and
+the browser had degraded silently and correctly for six phases. A documentation
+site of 287 pages built from the Markdown by a tool, whose first report found a
+hundred and sixty-five dead links -- nearly all of them created by the act of
+finishing an issue and moving it into `completed/`.
+
+And the sprites reach the table, as numbers on the wire, because the paintbrush
+was closed.
 ---
 
 ## What is deliberately not in any phase

@@ -3,7 +3,7 @@
 **Phase:** 1, the world holds still
 **Blocked by:** every other issue in phase 1.
 **Blocks:** nothing. It is the capstone of the phase.
-**Documents:** [the roadmap](../docs/015-roadmap.md)
+**Documents:** [the roadmap](../../docs/015-roadmap.md)
 
 ## Current behaviour
 

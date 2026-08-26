@@ -3,7 +3,7 @@
 **Phase:** 4, people connect
 **Blocked by:** [403](403-the-wire-format.md)
 **Blocks:** [406](406-commands-run-a-gauntlet.md)
-**Documents:** [commands enter through one door](../docs/010-commands-enter-through-one-door.md)
+**Documents:** [commands enter through one door](../../docs/010-commands-enter-through-one-door.md)
 
 ## Current behaviour
 

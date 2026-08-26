@@ -51,7 +51,7 @@ bar during play, and intentionally fragile. See
 loads it. The tavern the players burned down is still burned next week.
 
 That has a price, and it is recurring rather than one-off. The snapshot format in
-[108](../issues/108-a-world-writes-itself-down.md) stops being a debugging
+[108](../issues/completed/108-a-world-writes-itself-down.md) stops being a debugging
 convenience and becomes a **long-lived format**: it needs a version number that is
 checked and refused on mismatch, and it needs a migration path every single time a
 record changes shape. Adding one field to the thing record in phase 6 means
@@ -65,24 +65,45 @@ and then upgraded later.** The version story has to be in it from the start,
 because the first world file that gets saved without one is the first world file
 that cannot be migrated.
 
-### 1.3 What goes in the engraving's cells?
+### 1.3 What goes in the engraving's cells? — ANSWERED
 
 Constrained in an unusual and useful way: **a creature has only so many places to
 put a number.** The engraving cannot grow a column without being redrawn, so the
 set of statistics is small, fixed, and chosen rather than accumulated.
 
-The candidate list is whatever [the goodbye](../output/goodbye) writes at the end
-of a run. Which of those earn a place on the carving is undecided.
+**Eight, and they came from [the goodbye](../output/goodbye)** — which named them
+before any of this existed, which makes it the honest source rather than a guess
+made afterwards. Beats, turns, seats, commands, refused, rollbacks, things, and
+the checksum.
 
-### 1.4 What picks the creature?
+The ratio of commands to refusals is the most direct evidence there is about
+where an interface confuses people, which is why both are there rather than
+either. Names are deliberately absent: a seat is a count, and a record that
+outlives the evening must not be keyed on something somebody can change between
+one evening and the next.
 
-Each record log gets its own. Is the animal chosen by the person, drawn from the
-session's seed, or derived from the statistics themselves -- a long session
-becoming a mammoth, a short violent one becoming a hawk?
+See [090-record](../src/090-record.info.md).
 
-The third is the most appealing and the most likely to produce something nobody
-wanted. It is also the only one of the three where the shape of your campaign
-picks its own animal.
+### 1.4 What picks the creature? — ANSWERED
+
+Each record log gets its own. The three candidates were: chosen by a person,
+drawn from the session's seed, or derived from the statistics themselves — a long
+session becoming a mammoth, a short violent one becoming a hawk.
+
+**The seed picks it**, folded with the beat the session stopped on. So two runs
+from the same starting number that lasted different lengths get different
+animals, because they were different evenings, and the carving belongs to the
+run.
+
+The third option was the most appealing and it was not taken. Deriving the animal
+from the statistics means the shape of a campaign picks its own creature, which
+is lovely — and it means the animal changes when the numbers do, so a session
+that ran two beats longer is a different species. The carving is a picture of one
+evening, and an evening does not change after it ends.
+
+The seed is stirred before the animal is chosen, which was not obvious: taking
+the high bits of an unstirred seed made every small number pick the fish,
+including 1, 2 and 3. See [094-creature](../src/094-creature.info.md).
 ---
 
 ## Blocking phase 2 — the world can be seen
@@ -179,8 +200,8 @@ program's job is to make the state consistent so the people can make the rest of
 it work. It is not pretending to wipe a memory. It is putting the board back.
 
 The implementation consequence, which is small only because it was anticipated:
-[205](../issues/205-the-fog-is-a-bitmap.md) builds snapshot and restore for a fog
-record from the start, and [309](../issues/309-taking-a-turn-back.md) includes fog
+[205](../issues/completed/205-the-fog-is-a-bitmap.md) builds snapshot and restore for a fog
+record from the start, and [309](../issues/completed/309-taking-a-turn-back.md) includes fog
 in the ring alongside the world blocks and the random stream positions. The
 decision gets a comment at the point where fog is restored, because the other
 answer will look like a bug to the next reader.
@@ -776,3 +797,42 @@ sends the whole picture every update rather than a difference, because that is
 what makes a dropped update harmless. Sending six layer instructions per thing
 per update is a few kilobytes for a busy map, which is probably fine and has not
 been measured.
+
+---
+
+## Raised by building phase 11
+
+### 16.1 The server reads one line of `input/` and there are seven
+
+[`input/what-to-start-with`](../input/what-to-start-with) lists what a session's
+opening decisions are: a seed, a world, a ruleset, a door, participants, a tick
+rate, and a fog cell size. It says they belong in files rather than in a wall of
+command-line flags, because a session is a small number of decisions and the
+header of a replay is nearly the same set of fields.
+
+**Only the world is honoured.** The server takes `--place` and `--seed` as
+arguments, which is the thing that file exists to replace.
+
+The rest are still command-line defaults or compiled-in constants:
+
+| Decision | Where it lives now |
+| --- | --- |
+| seed | `--seed`, defaulting to a constant in the source |
+| world | `--place`, or the hand-built fixture |
+| ruleset | nowhere — the server loads none, and only the phase 7 demo ever does |
+| door | `--` the first argument, and two constants for the private range |
+| participants | nowhere. **Anybody who knocks is admitted.** See 4.2. |
+| tick | a constant. See 3.2. |
+| fog | a constant. See 2.1. |
+
+The participants line is the one that matters. Permission is meant to be looked
+up rather than claimed by a client, and there is nothing to look it up in — so
+the door admits whoever knocks and hands them a body. That is fine for a table
+of friends on one machine and is not fine for anything else, and it is the same
+hole as 4.2 seen from a different side.
+
+Not resolved. What is genuinely undecided is whether the file format should be
+one file per decision — greppable, diffable, obvious — or one file with seven
+lines. The directory reads better; the single file is what somebody actually
+pastes to a friend, which is the same argument the engraving settled the other
+way.

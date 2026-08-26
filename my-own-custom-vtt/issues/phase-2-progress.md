@@ -15,7 +15,7 @@ done; `./run-phase-demo 2` draws the phase working.
 | [203 the angular sweep](completed/203-the-angular-sweep.md) | **done** | Built as ray casting rather than a sweep — see below. |
 | [204 the visibility polygon](completed/204-the-visibility-polygon.md) | **done** | A fan of angles and distances, sorted from the wedge's edge. |
 | [205 the fog is a bitmap](completed/205-the-fog-is-a-bitmap.md) | **done** | Memory, which is a different thing from sight and is stored differently. |
-| [206 sight for a viewer is a union](206-sight-for-a-viewer-is-a-union.md) | **open** | The per-body half is built. The union needs scopes, which are phase 6. |
+| [206 sight for a viewer is a union](completed/206-sight-for-a-viewer-is-a-union.md) | **open** | The per-body half is built. The union needs scopes, which are phase 6. |
 | [207 the phase two demo](completed/207-the-phase-two-demo.md) | **done** | The capstone: a picture, the timings, and the security claim. |
 
 ## What is built
@@ -80,7 +80,7 @@ of them lies about the other.
   cell's centre, which under-claims rather than over-claims, so the risk the
   question was about is reduced but not answered.
 - **2.2** — does a viewer with many bodies see the union or switch between them?
-  Now blocking [206](206-sight-for-a-viewer-is-a-union.md) directly.
+  Now blocking [206](completed/206-sight-for-a-viewer-is-a-union.md) directly.
 
 ## What phase 3 inherits
 

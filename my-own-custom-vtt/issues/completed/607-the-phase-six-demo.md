@@ -3,7 +3,7 @@
 **Phase:** 6, control is a dial
 **Blocked by:** every other issue in phase 6.
 **Blocks:** nothing. The capstone.
-**Documents:** [the roadmap](../docs/015-roadmap.md)
+**Documents:** [the roadmap](../../docs/015-roadmap.md)
 
 ## Current behaviour
 
@@ -35,7 +35,7 @@ if it had — that one of the earlier issues was wrong.
 
 **The patrol crossing.** Walk a body from the tavern into open ground and show
 which scope contains it before and after, on the beat it crosses. That is
-[6.1](../docs/016-open-questions.md) made visible so somebody can form an opinion
+[6.1](../../docs/016-open-questions.md) made visible so somebody can form an opinion
 about whether it is what they want.
 
 **A handover.** Give the tavern to somebody else and show the old holder being
@@ -50,7 +50,7 @@ refused and the new one accepted.
 | Cost with and without `SEES_ALL` | Whether the flag is an optimisation or a necessity. |
 | Cost with and without `SEES_REGION` | The same question for the middle of the dial. |
 
-Those last two are what [4.3](../docs/016-open-questions.md) — how large a table
+Those last two are what [4.3](../../docs/016-open-questions.md) — how large a table
 can get — has been waiting for.
 
 ## Suggested implementation steps

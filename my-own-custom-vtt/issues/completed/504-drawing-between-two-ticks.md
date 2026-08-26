@@ -3,7 +3,7 @@
 **Phase:** 5, the bridge and the browser
 **Blocked by:** [503](503-the-view-receives-state.md)
 **Blocks:** [506](506-light-from-the-visibility-polygon.md)
-**Documents:** [the dynamic picture](../docs/012-the-dynamic-picture.md)
+**Documents:** [the dynamic picture](../../docs/012-the-dynamic-picture.md)
 
 ## Current behaviour
 

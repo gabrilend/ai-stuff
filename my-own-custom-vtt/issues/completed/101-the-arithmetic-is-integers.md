@@ -3,8 +3,8 @@
 **Phase:** 1, the world holds still
 **Blocked by:** nothing. This is the first file in the project.
 **Blocks:** everything that has a position, a distance, or an angle.
-**Documents:** [a thing in the world](../docs/005-a-thing-in-the-world.md)
-**Open questions:** [1.1](../docs/016-open-questions.md) -- is one world unit one
+**Documents:** [a thing in the world](../../docs/005-a-thing-in-the-world.md)
+**Open questions:** [1.1](../../docs/016-open-questions.md) -- is one world unit one
 foot? The answer sets the constant this whole file is built around.
 
 ## Current behaviour

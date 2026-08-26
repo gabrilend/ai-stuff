@@ -4,8 +4,8 @@
 **Blocked by:** [203](203-the-angular-sweep.md)
 **Blocks:** [205](205-the-fog-is-a-bitmap.md),
 [404](404-one-function-writes-to-a-socket.md), and the renderer's lighting.
-**Documents:** [sight and what it remembers](../docs/007-sight-and-what-it-remembers.md),
-[the dynamic picture](../docs/012-the-dynamic-picture.md)
+**Documents:** [sight and what it remembers](../../docs/007-sight-and-what-it-remembers.md),
+[the dynamic picture](../../docs/012-the-dynamic-picture.md)
 
 ## Current behaviour
 
@@ -32,7 +32,7 @@ is small enough to put on a socket.
 The third one is the reason it stays a polygon rather than becoming a cell mask
 somewhere in the middle of the pipeline. **The geometry that made the fog secure
 is the geometry that makes it look good** -- see
-[strategems](../strategems/patterns-that-keep-working) -- and converting to cells
+[strategems](../../strategems/patterns-that-keep-working) -- and converting to cells
 early would throw that away to save nothing.
 
 ### Point-in-polygon has to be fast, not general

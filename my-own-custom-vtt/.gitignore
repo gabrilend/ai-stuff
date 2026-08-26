@@ -12,6 +12,13 @@ tmp
 # not in the record.
 !build
 
+# The documentation site is generated from the Markdown by ./build-docs, and
+# nothing in it is ever edited. Committing it would put two hundred and ninety
+# files in the record that are a function of files already in the record -- and a
+# generated file in a repository is a file somebody eventually edits and then
+# wonders why the tool disagrees with it.
+docs/HTML/
+
 # Editor and OS litter.
 *.swp
 *.swo

@@ -3,7 +3,7 @@
 **Phase:** 10, the engraving
 **Blocked by:** [1002](1002-the-canvas-that-joins-its-own-lines.md)
 **Blocks:** [1004](1004-the-writer-composes-the-creature.md)
-**Documents:** [the record log is an engraving](../docs/018-the-record-log-is-an-engraving.md)
+**Documents:** [the record log is an engraving](../../docs/018-the-record-log-is-an-engraving.md)
 
 ## Current behaviour
 

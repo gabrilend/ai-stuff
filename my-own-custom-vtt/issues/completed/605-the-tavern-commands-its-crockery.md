@@ -4,8 +4,8 @@
 **Blocked by:** [602](602-membership-is-a-list-or-a-region.md),
 [604](604-a-viewer-holds-several-scopes.md)
 **Blocks:** [607](607-the-phase-six-demo.md)
-**Documents:** [who controls what](../docs/008-who-controls-what.md)
-**Open questions:** [6.2](../docs/016-open-questions.md) — "usually weaker but
+**Documents:** [who controls what](../../docs/008-who-controls-what.md)
+**Open questions:** [6.2](../../docs/016-open-questions.md) — "usually weaker but
 not always".
 
 ## Current behaviour
@@ -46,7 +46,7 @@ here enforces that, and nothing should: the server has no idea what strength is.
 If it is a rule it is a **ruleset's** rule, and if it is a convention it is the
 GM's business when handing out scopes.
 
-[6.2](../docs/016-open-questions.md) stays open, and this issue is where somebody
+[6.2](../../docs/016-open-questions.md) stays open, and this issue is where somebody
 would notice they wanted it.
 
 ## Suggested implementation steps

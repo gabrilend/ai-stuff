@@ -4,8 +4,8 @@
 **Blocked by:** [401](401-the-door-hands-out-a-port.md)
 **Blocks:** [404](404-one-function-writes-to-a-socket.md),
 [406](406-commands-run-a-gauntlet.md)
-**Documents:** [the door and the private port](../docs/003-the-door-and-the-private-port.md),
-[who controls what](../docs/008-who-controls-what.md)
+**Documents:** [the door and the private port](../../docs/003-the-door-and-the-private-port.md),
+[who controls what](../../docs/008-who-controls-what.md)
 
 ## Current behaviour
 
@@ -53,7 +53,7 @@ A closed socket, an error, or a silence longer than a timeout marks a viewer
 `GONE`. Their port is released and their scopes become unheld.
 
 What happens to their character, and whether their fog survives a reconnect, is
-[4.4](../docs/016-open-questions.md) and is not answered. **Fog surviving a
+[4.4](../../docs/016-open-questions.md) and is not answered. **Fog surviving a
 reconnect is the difference between a dropped connection being an annoyance and
 being a disaster**, so this should be decided rather than defaulted into.
 

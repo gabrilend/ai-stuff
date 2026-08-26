@@ -3,8 +3,8 @@
 **Phase:** 2, the world can be seen
 **Blocked by:** [102](102-the-world-is-flat-arrays.md)
 **Blocks:** [203](203-the-angular-sweep.md), and every parallel pass in phase 3.
-**Documents:** [the shape of the code](../docs/014-the-shape-of-the-code.md),
-[the world and its tick](../docs/004-the-world-and-its-tick.md)
+**Documents:** [the shape of the code](../../docs/014-the-shape-of-the-code.md),
+[the world and its tick](../../docs/004-the-world-and-its-tick.md)
 
 ## Current behaviour
 
@@ -23,7 +23,7 @@ offering machinery for problems this project does not have.
 ### Why there are no locks inside a pass
 
 Nothing in a parallel pass writes where another instance of the same pass reads.
-That is [buffer-then-resolve](../docs/004-the-world-and-its-tick.md), and it is
+That is [buffer-then-resolve](../../docs/004-the-world-and-its-tick.md), and it is
 established at the design level rather than defended at the code level.
 
 The consequence is that the pool needs no lock primitives at all. It needs a way
@@ -64,6 +64,6 @@ nothing.
 
 ## Open question
 
-[4.3](../docs/016-open-questions.md) -- how large can a table get? A table of six
+[4.3](../../docs/016-open-questions.md) -- how large can a table get? A table of six
 and a table of thirty size this pool differently, because the expensive pass is
 per-viewer.

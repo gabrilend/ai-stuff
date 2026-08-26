@@ -5,7 +5,7 @@
 [706](706-what-a-viewer-may-know.md),
 [707](707-dice-come-from-named-streams.md)
 **Blocks:** [709](709-the-phase-seven-demo.md)
-**Documents:** [the rules layer](../docs/011-the-rules-layer.md)
+**Documents:** [the rules layer](../../docs/011-the-rules-layer.md)
 
 ## Current behaviour
 

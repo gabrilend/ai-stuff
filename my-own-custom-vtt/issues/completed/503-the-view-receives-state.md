@@ -3,7 +3,7 @@
 **Phase:** 5, the bridge and the browser
 **Blocked by:** [502](502-the-bridge-serves-a-browser.md)
 **Blocks:** [504](504-drawing-between-two-ticks.md)
-**Documents:** [the dynamic picture](../docs/012-the-dynamic-picture.md)
+**Documents:** [the dynamic picture](../../docs/012-the-dynamic-picture.md)
 
 ## Current behaviour
 

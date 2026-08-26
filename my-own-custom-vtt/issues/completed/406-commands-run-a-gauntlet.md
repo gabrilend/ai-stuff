@@ -4,7 +4,7 @@
 **Blocked by:** [403](403-the-wire-format.md),
 [405](405-refusals-are-sentences.md)
 **Blocks:** [408](408-the-phase-four-demo.md)
-**Documents:** [commands enter through one door](../docs/010-commands-enter-through-one-door.md)
+**Documents:** [commands enter through one door](../../docs/010-commands-enter-through-one-door.md)
 
 ## Current behaviour
 

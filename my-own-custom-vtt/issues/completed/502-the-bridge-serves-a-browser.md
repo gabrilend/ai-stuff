@@ -3,7 +3,7 @@
 **Phase:** 5, the bridge and the browser
 **Blocked by:** [501](501-the-bridge-holds-one-socket.md)
 **Blocks:** [503](503-the-view-receives-state.md)
-**Documents:** [the three programs](../docs/002-the-three-programs.md)
+**Documents:** [the three programs](../../docs/002-the-three-programs.md)
 
 ## Current behaviour
 

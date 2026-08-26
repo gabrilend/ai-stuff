@@ -4,8 +4,8 @@
 **Blocked by:** [204](204-the-visibility-polygon.md),
 [205](205-the-fog-is-a-bitmap.md)
 **Blocks:** [404](404-one-function-writes-to-a-socket.md)
-**Documents:** [sight and what it remembers](../docs/007-sight-and-what-it-remembers.md),
-[who controls what](../docs/008-who-controls-what.md)
+**Documents:** [sight and what it remembers](../../docs/007-sight-and-what-it-remembers.md),
+[who controls what](../../docs/008-who-controls-what.md)
 
 ## Current behaviour
 
@@ -75,7 +75,7 @@ slow thing is the parallel thing.
 
 ## Open questions this touches
 
-[2.2](../docs/016-open-questions.md) -- does a viewer with many bodies see the
+[2.2](../../docs/016-open-questions.md) -- does a viewer with many bodies see the
 union, or switch between them? The union is what this file builds and what the
 security argument assumes, but six overlapping cones may simply be a strange thing
 to look at.

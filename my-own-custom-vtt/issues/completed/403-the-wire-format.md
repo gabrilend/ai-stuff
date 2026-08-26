@@ -4,7 +4,7 @@
 **Blocked by:** [402](402-a-session-is-a-socket.md)
 **Blocks:** [404](404-one-function-writes-to-a-socket.md),
 [406](406-commands-run-a-gauntlet.md)
-**Documents:** [commands enter through one door](../docs/010-commands-enter-through-one-door.md)
+**Documents:** [commands enter through one door](../../docs/010-commands-enter-through-one-door.md)
 
 ## Current behaviour
 

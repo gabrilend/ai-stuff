@@ -4,7 +4,7 @@
 **Blocked by:** [103](103-a-thing-is-one-record.md),
 [104](104-walls-are-segments.md)
 **Blocks:** [203](203-the-angular-sweep.md)
-**Documents:** [sight and what it remembers](../docs/007-sight-and-what-it-remembers.md)
+**Documents:** [sight and what it remembers](../../docs/007-sight-and-what-it-remembers.md)
 
 ## Current behaviour
 

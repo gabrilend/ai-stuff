@@ -3,7 +3,7 @@
 **Phase:** 8, content generation
 **Blocked by:** [804](804-furnishing-asks-the-ruleset.md)
 **Blocks:** [807](807-the-phase-eight-demo.md)
-**Documents:** [content is generated](../docs/013-content-is-generated.md)
+**Documents:** [content is generated](../../docs/013-content-is-generated.md)
 
 ## Current behaviour
 

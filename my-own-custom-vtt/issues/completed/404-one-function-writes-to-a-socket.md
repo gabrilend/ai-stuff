@@ -4,7 +4,7 @@
 **Blocked by:** [402](402-a-session-is-a-socket.md),
 [403](403-the-wire-format.md)
 **Blocks:** [407](407-the-leak-test.md)
-**Documents:** [what a viewer is allowed to know](../docs/009-what-a-viewer-is-allowed-to-know.md)
+**Documents:** [what a viewer is allowed to know](../../docs/009-what-a-viewer-is-allowed-to-know.md)
 
 ## Current behaviour
 

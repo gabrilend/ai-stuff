@@ -3,7 +3,7 @@
 **Phase:** 9, the sprite studio
 **Blocked by:** [904](904-two-ways-of-rating.md)
 **Blocks:** [907](907-the-anchor-that-stops-drift.md)
-**Documents:** [the sprite studio](../docs/017-the-sprite-studio.md)
+**Documents:** [the sprite studio](../../docs/017-the-sprite-studio.md)
 
 ## Current behaviour
 

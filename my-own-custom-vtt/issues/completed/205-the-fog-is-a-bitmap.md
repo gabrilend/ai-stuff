@@ -4,7 +4,7 @@
 **Blocked by:** [204](204-the-visibility-polygon.md)
 **Blocks:** [404](404-one-function-writes-to-a-socket.md), and the rollback
 question in phase 3.
-**Documents:** [sight and what it remembers](../docs/007-sight-and-what-it-remembers.md)
+**Documents:** [sight and what it remembers](../../docs/007-sight-and-what-it-remembers.md)
 
 ## Current behaviour
 
@@ -45,12 +45,12 @@ people cost less than a photograph.
 At that price the argument for coarser cells has evaporated, and the remaining
 question is whether a metre is too *coarse*: a cell set because one corner of it
 fell inside your vision claims you remember a square metre of floor you barely
-saw. See [2.1](../docs/016-open-questions.md).
+saw. See [2.1](../../docs/016-open-questions.md).
 
 ### Rollback reaches into this file
 
 Phase 3 can take a turn back. Whether the fog goes back with it is
-[3.3](../docs/016-open-questions.md) and it is not settled -- but **whichever way
+[3.3](../../docs/016-open-questions.md) and it is not settled -- but **whichever way
 it goes, this file has to be able to do it**, which means a fog record must be
 snapshottable and restorable exactly like the world is.
 
@@ -77,4 +77,4 @@ is touched.
 It looks like a drawing feature and it is not. The outbound filter uses it to
 decide which *walls* a viewer may be sent, which makes it part of the security
 boundary rather than part of the picture. See
-[what a viewer is allowed to know](../docs/009-what-a-viewer-is-allowed-to-know.md).
+[what a viewer is allowed to know](../../docs/009-what-a-viewer-is-allowed-to-know.md).

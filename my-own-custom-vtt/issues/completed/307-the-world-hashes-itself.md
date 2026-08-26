@@ -5,7 +5,7 @@
 [306](306-the-command-log-is-the-replay.md)
 **Blocks:** [310](310-the-phase-three-demo.md), and every later claim about
 replays.
-**Documents:** [the world and its tick](../docs/004-the-world-and-its-tick.md)
+**Documents:** [the world and its tick](../../docs/004-the-world-and-its-tick.md)
 
 ## Current behaviour
 

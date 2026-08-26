@@ -3,7 +3,7 @@
 **Phase:** 10, the engraving
 **Blocked by:** every other issue in phase 10.
 **Blocks:** nothing. The capstone.
-**Documents:** [the roadmap](../docs/015-roadmap.md)
+**Documents:** [the roadmap](../../docs/015-roadmap.md)
 
 ## Current behaviour
 

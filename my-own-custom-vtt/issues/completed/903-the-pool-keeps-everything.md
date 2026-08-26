@@ -3,7 +3,7 @@
 **Phase:** 9, the sprite studio
 **Blocked by:** [902](902-the-paintbrush-is-a-closed-set.md)
 **Blocks:** [904](904-two-ways-of-rating.md)
-**Documents:** [the sprite studio](../docs/017-the-sprite-studio.md)
+**Documents:** [the sprite studio](../../docs/017-the-sprite-studio.md)
 
 ## Current behaviour
 

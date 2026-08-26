@@ -5,8 +5,8 @@
 [106](106-names-live-in-one-pool.md). It checks all of them.
 **Blocks:** [108](108-a-world-writes-itself-down.md), and every later phase's
 right to skip null checks.
-**Documents:** [the world and its tick](../docs/004-the-world-and-its-tick.md),
-[the shape of the code](../docs/014-the-shape-of-the-code.md)
+**Documents:** [the world and its tick](../../docs/004-the-world-and-its-tick.md),
+[the shape of the code](../../docs/014-the-shape-of-the-code.md)
 
 ## Current behaviour
 
@@ -73,5 +73,5 @@ pass was honest.
 
 The standalone checker is the first of this project's validators. The pattern --
 refuse loudly, name what was missing and where -- is in
-[strategems](../strategems/patterns-that-keep-working) and applies to the
+[strategems](../../strategems/patterns-that-keep-working) and applies to the
 generator's checker in [806](806-the-generator-checks-its-own-work.md) too.
