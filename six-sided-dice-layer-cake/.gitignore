@@ -1,0 +1,33 @@
+# tmp/ is a symlink into RAM -- /tmp for anything executable, /dev/shm for
+# artifacts and logs. Nothing under it is the record, and the link itself points
+# at a machine-local path, so the run scripts recreate it rather than the
+# repository carrying it.
+tmp
+
+# output/ is where the last tool to finish left its goodbye. It is a mailbox
+# rather than a record: overwritten every run, and meaningless to anyone who was
+# not there when it was written. Keep the room, discard the letters.
+output/*
+!output/.gitkeep
+
+# docs/HTML/ is the documentation site, and it is built rather than written.
+# Every page in it is derived from a file already in this repository, and the
+# whole tree rewrites whenever any dimension changes -- so tracking it would put
+# the same words in the record twice and make a one-line edit to a blueprint
+# look like two hundred changed files. The builder is the artifact.
+#
+#   luajit src/108-the-documentation-site.lua
+docs/HTML/
+
+# What the checker leaves behind. The pass/fail state of every constraint in the
+# design is recomputed from the blueprints in under a second; a committed copy
+# would be a second source of truth, and the second source is always the one
+# that is wrong.
+*.report
+*.log
+
+# Editor and platform litter.
+*.swp
+*.swo
+*~
+.DS_Store
