@@ -19,7 +19,7 @@ Described by `405`.
 | `A_req_island` | um^2 | derived | unresolved | cross-section the via islands need |
 | `A_isl_avail` | um^2 | derived | 2.82743e+13 um^2 | cross-section they provide, taking a pad as a quarter of its pitch in radius |
 | `m_island` | 1 | derived | unresolved | margin there, which is the number that showed the islands are not the problem |
-| `A_req_pillar` | um^2 | derived | unresolved | cross-section the inward core supply needs at one radial interface |
+| `A_req_pillar` | um^2 | derived | 31411 um^2 | cross-section the inward core supply needs at one radial interface |
 | `A_pil_avail` | um^2 | derived | unresolved | cross-section the power pillars provide |
 | `m_pillar` | 1 | derived | unresolved | margin there |
 | `m_worst` | 1 | derived | unresolved | the binding case across all three |
@@ -29,7 +29,7 @@ Described by `405`.
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `I_core_face` | `028` | unresolved | one face's share of it, sent inward through the same interface the data uses |
+| `I_core_face` | `028` | 31.411 A | one face's share of it, sent inward through the same interface the data uses |
 | `I_die_logic` | `028` | unresolved | logic current into one compute die, which is the number the power grid in 030 is sized by |
 | `I_face_supply` | `028` | unresolved | and per face, which is what a port field connector has to carry |
 | `L_die` | `012` | 24 mm | edge of one compute die; two thirds of a reticle field, and half its area is the slice in 047 |

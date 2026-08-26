@@ -54,7 +54,7 @@ w_rail     | mm | given | 4.0   | width of an edge rail, taken off each edge of 
 L_die      | mm | given | 24.0  | edge of one compute die; two thirds of a reticle field, and half its area is the slice in 047
 w_street   | mm | given | 1.0   | gap between two dies on a face, for placement tolerance and the seal ring
 t_tier_si  | mm | given | 0.050 | thickness of one thinned memory tier; as thin as a tier can be handled
-t_lamina   | mm | given | 1.200 | thickness of one cooling lamina between two tiers, set by the core's heat in 036
+t_lamina   | mm | given | 1.617 | thickness of one cooling lamina between two tiers. It is what is left of the core's height once twenty-four tiers are laid in it, and the tier count came out of 034's capacity chain rather than being chosen
 w_uchan    | mm | given | 0.150 | width of one microchannel in a face cold plate; this is the number that sets the heat transfer coefficient
 h_uchan    | mm | given | 1.000 | depth of the same channel, limited by fin efficiency rather than by etching
 w_ufin     | mm | given | 0.150 | wall between two microchannels, set by the plate's pressure rating in 017

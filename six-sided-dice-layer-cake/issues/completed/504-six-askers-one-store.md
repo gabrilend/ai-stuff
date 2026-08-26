@@ -4,8 +4,25 @@ Produces `src/037-core-six-port-arbitration.md`.
 
 ## Current behavior
 
-Nothing. The cage is described as "a crossbar wide enough that one face can take
-everything" and no arbitration has been specified.
+**Done.** `src/037-core-six-port-arbitration.md` exists, built from the
+single-face-takes-all requirement outward rather than from a switch design
+inward.
+
+Six constraints, and the useful ones are bounds rather than promises: a
+worst-case wait for every client class including the lowest, which is the only
+form starvation freedom can take that a checker can look at. The spout is
+deliberately low priority — a pane arriving a microsecond late costs nothing, a
+token arriving late costs a pipeline bubble.
+
+Its area is what sizes the cage in `012`, and its power was checked against
+`020`'s budget and **corrected it**: the heat budget carried an estimate of
+thirty-nine watts from before there was a per-bit figure, and the fabric actually
+costs about fourteen.
+
+**Starvation freedom is bounded, not proved**, and nothing covers a request being
+refused rather than delayed, which `054` needs. **Nothing arbitrates writes
+against reads**, and the writes that exist are small and latency-sensitive in a
+way a quantum sized for long bursts serves badly.
 
 ## Intended behavior
 

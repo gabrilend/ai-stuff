@@ -12,19 +12,19 @@ Described by `401`.
 |---|---|---|---|---|
 | `P_logic_load` | W | derived | unresolved | everything on the logic rail: engines, control, leakage and the switch fabric |
 | `P_array_load` | W | derived | unresolved | everything on the array rail: the face slices and the whole memory block |
-| `P_link_load` | W | derived | unresolved | the six radial link drivers |
+| `P_link_load` | W | derived | 30.72 W | the six radial link drivers |
 | `P_port_load` | W | derived | 10 W | port fields, storage lines and the spout, averaged |
 | `P_aux_load` | W | given | 1 W | sensors, telemetry and the interlock, which must run when nothing else does |
 | `I_logic` | A | derived | unresolved | current on the logic rail across the whole machine |
 | `I_array` | A | derived | unresolved | on the array rail |
-| `I_link` | A | derived | unresolved | on the link rail |
+| `I_link` | A | derived | 51.2 A | on the link rail |
 | `I_port` | A | derived | 8.33333 A | on the port rail |
 | `I_aux` | A | derived | 0.30303 A | on the auxiliary rail |
 | `I_die_logic` | A | derived | unresolved | logic current into one compute die, which is the number the power grid in 030 is sized by |
 | `I_supply` | A | derived | unresolved | current drawn from the external supply |
 | `I_face_supply` | A | derived | unresolved | and per face, which is what a port field connector has to carry |
-| `I_core_inward` | A | derived | unresolved | current the memory block draws, arriving radially |
-| `I_core_face` | A | derived | unresolved | one face's share of it, sent inward through the same interface the data uses |
+| `I_core_inward` | A | derived | 188.466 A | current the memory block draws, arriving radially |
+| `I_core_face` | A | derived | 31.411 A | one face's share of it, sent inward through the same interface the data uses |
 | `I_would_be` | A | derived | unresolved | what the supply current would be if power arrived at the voltage the transistors run at. Two and a half kiloamps: not a connector, a pair of busbars nobody could bolt to this object, and the reason the whole two-stage conversion exists |
 | `conv_ratio` | 1 | derived | 64 | how far the voltage has to fall between the outside world and a gate |
 
@@ -34,13 +34,13 @@ Described by `401`.
 |---|---|---|---|
 | `I_die_max` | **nothing declares this** | — | — |
 | `I_port_max` | `029` | 20 A | current one port field's power pads will carry |
-| `P_core` | `020` | unresolved | the whole memory block |
-| `P_crossbar` | `020` | 39 W | the cage's switch fabric at full traffic |
+| `P_core` | `020` | 160.196 W | the whole memory block |
+| `P_crossbar` | `020` | 13.82 W | the cage's switch fabric at full traffic. Thirty-nine was an estimate before 037 had a per-bit figure; the constraint that compares the two is what corrected it |
 | `P_engine_die` | `020` | unresolved | switching power of one die's multiplier array at the design utilisation |
 | `P_heat` | `020` | unresolved | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
 | `P_input` | `020` | unresolved | power drawn from the forty-eight volt supply |
 | `P_leak_die` | `020` | 4.56022 W | leakage of one die at that temperature |
-| `P_link` | `020` | unresolved | six radial links carrying everything the core delivers |
+| `P_link` | `020` | 30.72 W | six radial links carrying everything the core delivers |
 | `P_load` | `020` | unresolved | power delivered to the point of load |
 | `P_ports` | `020` | 10 W | six port fields, storage lines and the spout, averaged; the spout's burst is an energy and lives in 026 |
 | `P_scalar_die` | `020` | 3 W | scalar core, sequencer, clock tree and control on one die, which barely varies with what it is doing |

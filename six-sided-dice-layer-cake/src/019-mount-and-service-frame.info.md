@@ -20,9 +20,9 @@ Described by `207`.
 | `cte_frame` | ppm/K | derived | 17.3 ppm/K | the frame is steel, and so is most of the cube's exterior |
 | `dT_frame` | K | given | 40 K | temperature difference the frame and the cube can be at, worst case |
 | `t_service` | 1 | target | 1200 | seconds a cube swap takes, once the procedure in 1205 exists to be timed |
-| `m_mounted` | kg | derived | unresolved | mass the frame carries |
-| `F_mount_static` | N | derived | unresolved | static load at one mount point |
-| `F_mount_shock` | N | derived | unresolved | load at one mount point under transit shock |
+| `m_mounted` | kg | derived | 1.12638 kg | mass the frame carries |
+| `F_mount_static` | N | derived | 2.76244 N | static load at one mount point |
+| `F_mount_shock` | N | derived | 138.122 N | load at one mount point under transit shock |
 | `disp_frame` | mm | derived | 0 mm | differential motion between frame and cube over the worst temperature difference |
 | `travel_compliant` | mm | derived | 0.33216 mm | travel the compliant mount must allow, taken generously because the frame's own material is not settled |
 | `V_spill_event` | mm^3 | derived | 800 mm^3 | fluid lost in one service event, all eight couplings parted |
@@ -36,9 +36,9 @@ Described by `207`.
 | `F_corner_rating` | **nothing declares this** | — | — |
 | `L_corner` | `013` | 12 mm | edge of a corner manifold block, set by the two chambers that have to fit inside it (015) |
 | `L_cube` | `012` | 60 mm | outer edge length of the finished cube; follows from the four dimensions below it in the chain |
-| `V_makeup` | `027` | unresolved | reservoir capacity left over for leakage, once expansion and the spillage 019 loses at every coupling are taken out |
+| `V_makeup` | `027` | 43215.7 mm^3 | reservoir capacity left over for leakage, once expansion and the spillage 019 loses at every coupling are taken out |
 | `cte_ss` | `011` | 17.3 ppm/K | linear thermal expansion of stainless steel |
-| `m_cube` | `013` | unresolved | the finished object, wet |
+| `m_cube` | `013` | 1.12638 kg | the finished object, wet |
 | `n_corner_in` | `010` | 4 | corners where coolant enters, the even-parity set |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 

@@ -4,8 +4,28 @@ Produces `src/040-core-ecc-and-repair.md`.
 
 ## Current behavior
 
-Nothing. Twelve and a half per cent of the raw capacity is deducted for error
-correction in `501`'s chain and no scheme has been chosen.
+**Done.** `src/040-core-ecc-and-repair.md` exists and opens with the sentence it
+should: a flipped weight bit crashes nothing, changes one number in one matrix,
+and the model produces slightly different text forever with no symptom at all.
+Six hundred and thirty thousand million bits gives an upset about every ninety
+minutes.
+
+The line went from sixty-four bits to two hundred and fifty-six, which takes the
+overhead from twelve and a half per cent to under four — and that eight and a
+half per cent recovered is most of what paid for dropping eight tiers. Scrubbing
+comes out close to free: an hour's period puts the mean time between
+uncorrectable errors in the millions of years and costs about a millionth of the
+core's bandwidth.
+
+Seven constraints, all holding.
+
+**Runtime repair is abandoned rather than solved**, and it is a real reduction in
+what the machine survives. The map would have to outlive power loss and nothing
+in this cube is non-volatile — the same gap `033` needs for its fault record.
+Two dependents on one missing thing.
+
+**The soft error rate is a sea-level figure with no altitude term**, and cosmic
+ray flux roughly doubles every two thousand metres.
 
 ## Intended behavior
 

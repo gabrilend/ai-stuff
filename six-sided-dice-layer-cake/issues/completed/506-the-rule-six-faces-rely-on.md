@@ -4,9 +4,28 @@ Produces `src/039-core-ordering-model.md`.
 
 ## Current behavior
 
-Nothing, and `003` already depends on it: a face sets a completion flag after
-writing a staging buffer and the next face polls it. Nothing currently guarantees
-that the buffer is visible when the flag is.
+**Done, and it closes `009` entry M2.** `src/039-core-ordering-model.md` exists
+with five definitions and one table, which is the whole contract.
+
+There is no coherence, and that is written as a value rather than left unsaid, so
+that any blueprint deriving something from its existence fails outright instead
+of being quietly wrong. There are exactly three places where two faces touch the
+same memory, and a constraint requires `072`'s enumeration to find the same
+three — a site added to one and not the other is precisely the hole that produces
+intermittent wrong answers with nothing able to notice.
+
+The pane question is closed in favour of exclusion, with the arithmetic that
+makes it affordable: a pane read is tens of nanoseconds against a token's nine
+hundred microseconds, so the simple contract costs parts per hundred thousand.
+
+**Training will break `C-039-5`.** `076a`'s reverse staging buffers are a fourth
+sharing site — the same pattern in the other direction, so the same barriers
+cover it — but the count still says three and the constraint will fail the day
+that blueprint is implemented rather than merely written. Which is the right
+behaviour.
+
+**Nothing here is machine-checked.** The five definitions are prose and the
+constraints check the latencies the contract implies, not the contract.
 
 ## Intended behavior
 

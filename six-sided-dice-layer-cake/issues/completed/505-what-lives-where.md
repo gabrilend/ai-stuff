@@ -4,8 +4,25 @@ Produces `src/038-core-address-map.md`.
 
 ## Current behavior
 
-Nothing. Three regions with special meaning have been named in passing — staging
-buffers, the pane window, the request region — and none has an address.
+**Done.** `src/038-core-address-map.md` exists with nine regions, each with a
+size, an alignment and an owner, including the three that are not just storage:
+the staging buffers, the pane window, and the request region — which is the
+machine's only compatibility surface and is marked as such.
+
+Seven constraints. One of them caught the interleave being **narrower than a
+single cycle's read from one tier**, which would have meant every transfer
+straddling two banks — the exact opposite of what interleaving is for.
+
+**The interleaving is a stride and not an analysis**, and it is the piece of this
+phase most likely to cost real bandwidth silently. `034` estimated bank
+collisions assuming six independent address streams; they are six streams walking
+six contiguous regions in step, and whether that helps or hurts depends entirely
+on where those regions begin relative to the stride.
+
+**The training regions are sized at zero when not training and the map has no
+notion of a mode.** And nothing says what happens on an out-of-range address:
+there is no protection here and no fault for it, so a face computing a wrong
+address reads somebody else's region and produces plausible nonsense.
 
 ## Intended behavior
 

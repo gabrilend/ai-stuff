@@ -51,6 +51,8 @@ Described by `102`.
 | `k_fluoro` | W/(m*K) | measured | 0.065 W/(m*K) | thermal conductivity of the same, a tenth of water's |
 | `mu_fluoro` | Pa*s | measured | 0.0012 Pa*s | dynamic viscosity of the same |
 | `T_fluoro_frz` | K | measured | 195 K | freezing point of the same, which is the one property where it beats water |
+| `eps_0` | F/m | measured | 8.854e-12 F/m | permittivity of free space. It is here rather than written into a derivation because every literal in this notation is dimensionless, so a physical constant has to be a symbol like any other quantity |
+| `eps_ox` | 1 | measured | 3.9 | relative permittivity of the oxide liner around a through-silicon via |
 | `k_diamond` | W/(m*K) | measured | 2000 W/(m*K) | thermal conductivity of diamond; nothing here is made of it, and it is the ceiling any other conductivity must sit under |
 | `Pr_water` | 1 | derived | 3.82835 | Prandtl number of water at 320 K, computed from the three properties above |
 | `Pr_fluoro` | 1 | derived | 20.3077 | Prandtl number of the fluorocarbon at 320 K |
@@ -70,7 +72,7 @@ Change one of these and the blueprints beside it are what break.
 | `k_si` | `011`, `022`, `025` |
 | `rho_si` | `013`, `026` |
 | `cp_si` | `026` |
-| `cte_si` | `011`, `018` |
+| `cte_si` | `011`, `018`, `036` |
 | `E_si` | `018` |
 | `sigma_si_frac` | `011` |
 | `sigma_si_plas` | `011`, `018` |
@@ -79,11 +81,11 @@ Change one of these and the blueprints beside it are what break.
 | `k_cu_plated` | `011` |
 | `k_cu_film` | `011` |
 | `cte_cu` | `011`, `018` |
-| `res_cu` | `030` |
+| `res_cu` | `030`, `036` |
 | `j_em_cu` | `032` |
 | `rho_cumo` | `013`, `026` |
 | `cp_cumo` | `026` |
-| `cte_cumo` | `011`, `018` |
+| `cte_cumo` | `011`, `018`, `036` |
 | `cte_glass` | `018` |
 | `rho_ss` | `013`, `015`, `016` |
 | `cte_ss` | `018`, `019` |
@@ -98,6 +100,8 @@ Change one of these and the blueprints beside it are what break.
 | `k_fluoro` | `011`, `021` |
 | `mu_fluoro` | `011`, `021` |
 | `T_fluoro_frz` | `021` |
+| `eps_0` | `036` |
+| `eps_ox` | `036` |
 | `k_diamond` | `011` |
 | `Pr_water` | `011` |
 | `Pr_fluoro` | `011` |

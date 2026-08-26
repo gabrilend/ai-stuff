@@ -35,8 +35,8 @@ Described by `403`.
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `I_core_face` | `028` | unresolved | one face's share of it, sent inward through the same interface the data uses |
-| `I_core_inward` | `028` | unresolved | current the memory block draws, arriving radially |
+| `I_core_face` | `028` | 31.411 A | one face's share of it, sent inward through the same interface the data uses |
+| `I_core_inward` | `028` | 188.466 A | current the memory block draws, arriving radially |
 | `I_die_logic` | `028` | unresolved | logic current into one compute die, which is the number the power grid in 030 is sized by |
 | `I_face_supply` | `028` | unresolved | and per face, which is what a port field connector has to carry |
 | `L_die` | `012` | 24 mm | edge of one compute die; two thirds of a reticle field, and half its area is the slice in 047 |
