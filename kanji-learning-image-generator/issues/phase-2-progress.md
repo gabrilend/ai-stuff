@@ -14,7 +14,7 @@ This is where the project stops being a drawing program.
 | `201` | What a stroke is shaped like | **completed** — every boundary measured off the archive, and the thing that measured them kept |
 | `202` | The field the illusion rides on | **completed** — five steps in a fixed order, and a blur that answers to how crowded the character is |
 | `203` | What the pieces mean | **completed** — a rule for refusing glosses about writing, and a queue that says what to write next |
-| `204` | The place the meaning makes | not started |
+| `204` | The place the meaning makes | **completed** — seventeen worlds, and two ways of being confidently wrong that the spread report caught |
 | `205` | The words the machine reads | not started |
 | `206` | Arrows that teach the order | not started |
 
@@ -73,3 +73,17 @@ radical number, a kana name, a stroke count. All true, none of it paintable.
 
 That is a rule and not a list, so the long tail is handled and the failures are
 reported rather than guessed at.
+
+## What `204` turned up
+
+**Both bugs produced good-looking pictures about the wrong subject**, which is
+the failure this phase's note names at the top as the dangerous one.
+
+Demoting the half of a character chosen for its sound is not enough — the pieces
+*inside* that half have to go with it, and nothing in the archive marks them.
+And skipping the outermost component, which merely restates a compound, silently
+starves every atomic character of all its evidence.
+
+Neither would have been visible one character at a time. Both were obvious the
+moment the whole set was tabulated by world, which is why the distribution report
+is a mode of the file rather than something somebody might run.

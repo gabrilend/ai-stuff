@@ -222,6 +222,98 @@ local function test_the_component_lexicon(t)
 end
 -- }}}
 
+-- {{{ test_the_scene_grammar(t)
+-- The reasoning, not the wording.
+--
+-- Every assertion here is about which world, which subjects, which pieces were
+-- demoted. None mentions a word of English prose, which is the point of the
+-- scene being a table of facts -- `205` owns the sentences and can be rewritten
+-- without any of these changing.
+local function test_the_scene_grammar(t)
+  local grammar = project.load("024-the-scene-grammar")
+  local store = project.load("019-the-kanji-record").store()
+  local settings = project.settings()
+
+  local function world_of(character)
+    local scene = grammar.scene(store.records[character], store, settings)
+    return scene and scene.biome.name or nil
+  end
+
+  t.same(world_of("\230\156\168"), "forest", "a tree belongs in a forest")
+  t.same(world_of("\229\183\157"), "water", "a river belongs in water")
+  t.same(world_of("\229\177\177"), "mountain", "a mountain belongs on a mountain")
+  t.same(world_of("\231\129\171"), "fire", "a fire belongs in fire")
+
+  -- A character with no parts has exactly one component: itself. Skipping the
+  -- outermost level left every atomic character with no evidence at all, and
+  -- those are the first characters anybody learns.
+  t.same(world_of("\228\184\128"), "sky", "one, which has no parts, still lands somewhere")
+  t.same(world_of("\232\187\138"), "road", "and so does car")
+
+  -- The etymology. Rest is a person beside a tree, and both have to survive
+  -- into the cast, or the picture is not the character.
+  local rest = grammar.scene(store.records["\228\188\145"], store, settings)
+  t.same(#rest.subjects, 2, "rest has two subjects")
+  t.same(#rest.landscape, 0, "and neither of them is there for its sound")
+
+  -- The half of a character chosen for its sound is demoted to ground, and so
+  -- is everything inside it. The pieces inside the sound half of "language" are
+  -- two mouths, and counted, they outvoted the speech radical and put the scene
+  -- in a room with a person in it instead of at a desk with words on it.
+  local language = grammar.scene(store.records["\232\170\158"], store, settings)
+  t.same(world_of("\232\170\158"), "word", "language is about words")
+  t.same(#language.subjects, 1, "and has exactly one subject")
+  t.same(language.subjects[1].element, "\232\168\128", "which is the speech radical")
+  t.ok(#language.landscape >= 2,
+       "with the sound half and its insides all demoted to ground",
+       #language.landscape .. " pieces became ground")
+  local marked = 0
+  for _, ground in ipairs(language.landscape) do
+    if ground.marked then marked = marked + 1 end
+  end
+  t.same(marked, 1, "though the archive itself only marked one of them")
+
+  -- The same failure in a different character, kept because it is the shape of
+  -- mistake this project is most at risk of: the picture looks fine and is
+  -- about the wrong thing.
+  t.same(world_of("\230\153\130"), "sky", "time is a sun, not the earth beneath it")
+
+  -- A character that matches nothing is refused rather than given a default
+  -- world. A default would make some unknown share of the output generic
+  -- landscapes unrelated to their characters, and every one would look fine.
+  local nothing_scored = nil
+  for _, record in ipairs(store.order) do
+    if not grammar.scene(record, store, settings) then
+      nothing_scored = record.character
+      break
+    end
+  end
+  if nothing_scored then
+    local scene, why = grammar.scene(store.records[nothing_scored], store, settings)
+    t.same(scene, nil, "a character with no evidence gets no scene")
+    t.ok(why ~= nil and why:find(nothing_scored, 1, true) ~= nil,
+         "and the refusal names the character and says what was tried")
+  else
+    t.note("every character in the set matched a world; the refusal path is untested")
+  end
+
+  -- The scene holds facts. Building sentences is `205`'s job, and keeping that
+  -- boundary is what lets the wording be rewritten without touching any of the
+  -- reasoning above.
+  t.same(rest.prompt, nil, "a scene carries no assembled prose")
+
+  local spread, homeless = grammar.spread(store, settings)
+  t.ok(#spread >= 15, "the whole set is distributed across the worlds")
+  t.ok(spread[1].count < #store.order * 0.6,
+       "and no single world swallows most of it",
+       string.format("the largest is %s at %.1f%%", spread[1].name,
+                     spread[1].count / #store.order * 100))
+  t.note(string.format("largest %s %d, smallest %s %d, %d matched nothing",
+         spread[1].name, spread[1].count, spread[#spread].name,
+         spread[#spread].count, #homeless))
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -229,6 +321,7 @@ function M.run(options)
     { "measuring a stroke", test_measuring_a_stroke },
     { "the structure field", test_the_structure_field },
     { "the component lexicon", test_the_component_lexicon },
+    { "the scene grammar", test_the_scene_grammar },
   }
   local all_passed = true
   for _, group in ipairs(groups) do
