@@ -1,0 +1,59 @@
+#!/bin/sh
+#
+# run-demo -- show what one phase of this design produced, with live numbers.
+#
+# For a general reader: this project is a hardware design expressed as blueprints
+# a program can read. Every dimension in it is either a number somebody chose --
+# there are eleven lengths in that category -- or an expression over ones that
+# were. A demonstration of such a thing is not a program doing something. It is
+# the design answering questions about itself, and every figure it prints is
+# worked out from the blueprints at the moment you ask.
+#
+# Pick a phase and it will show you that phase's blueprints, the numbers it
+# produced, every requirement it asserts and whether they hold, and anything it
+# left unfinished.
+#
+# Usage:   ./run-demo [phase-number] [project-directory]
+
+DIR="/mnt/mtwo/programming/ai-stuff/six-sided-dice-layer-cake"
+PHASE="$1"
+
+if [ -n "$2" ]; then
+    DIR="$2"
+fi
+
+if [ -z "${PHASE}" ]; then
+    echo ""
+    echo "   1  Datum             the frame, the materials, the master dimensions"
+    echo "   2  The Body          the cube as a mechanical object"
+    echo "   3  The Corners       where the heat goes, and the plumbing that takes it"
+    echo "   4  The Rails         where the current comes from"
+    echo "   5  The Yolk          the block of shared memory at the centre"
+    echo "   6  The Faces         one compute face, six times"
+    echo "   7  The Sieve         six radial links, and the pipeline on them"
+    echo "   8  The Feed          how a model gets into the cube"
+    echo "   9  The Spout         the face that became a tube of wire"
+    echo "  10  The Metronome     clock, reset, and agreeing about when"
+    echo "  11  The Recipe        cutting a model up and pouring it through"
+    echo "  12  The Kiln          making it, testing it, waking it"
+    echo "  13  The Whole Cake    integration, materials, the specification sheet"
+    echo "  14  The Instruments   the programs that check all of it"
+    echo ""
+    echo "  all               every phase at once, as a summary"
+    echo ""
+    printf "  which? "
+    read PHASE
+fi
+
+if [ "${PHASE}" = "all" ] || [ -z "${PHASE}" ]; then
+    exec luajit "${DIR}/src/100-the-phase-demonstrations.lua" "${DIR}"
+fi
+
+SCRIPT="${DIR}/issues/completed/demos/phase-${PHASE}-demo"
+
+if [ ! -x "${SCRIPT}" ]; then
+    echo "no demonstration for phase ${PHASE}; there are fourteen"
+    exit 1
+fi
+
+exec "${SCRIPT}" "${DIR}"

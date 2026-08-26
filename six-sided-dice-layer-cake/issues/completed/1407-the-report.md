@@ -4,8 +4,25 @@ Produces `src/097-spec-report.lua`.
 
 ## Current behavior
 
-Nothing. `089`'s specification sheet and `088`'s bill of materials are both
-required to be generated and there is no generator.
+**Done.** `src/097-spec-report.lua` exists and produces three documents:
+`docs/089-specification.md`, `docs/088-bill-of-materials.md`, and
+`docs/091-every-number.md`.
+
+The third is the one with nothing else like it: **every symbol in the project,
+grouped by the blueprint that declares it, with its unit, its kind, its resolved
+value, the expression that produced it and the sentence saying what it is.** Over
+thirteen hundred rows. `002` claimed that naming every quantity buys the ability
+to print the machine with its reasons attached, and this is where that is cashed.
+
+A template names symbols in braces and the generator substitutes. **A name that
+does not resolve is an error and not a blank**, which is `089`'s `C-089-1`
+enforced by the generator that fills it — and it caught one on the first run, a
+count of conductors asked for as a dimensionless number when it is a quantity of
+bits.
+
+Units are declared in the template rather than guessed, so the sheet says sixty
+millimetres and not six hundredths of a metre, and it says the same thing next
+week.
 
 ## Intended behavior
 
