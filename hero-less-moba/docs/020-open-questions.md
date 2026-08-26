@@ -2970,11 +2970,23 @@ cheaper than others.
 - **"Mechanically it is one number"** — the first vision's own words about
   personal resource, and A2's answer, and all of
   [commanders and personal resource](011-commanders-and-personal-resource.md).
-- **The ceiling.** A16 gave the wallet one ceiling and made overflow the
-  pressure. Per colour, or shared? Overflowing in blue while starving in red is a
-  very different feeling from overflowing full stop — and bounty stones would
-  become a way to *fix* a starving colour, which is a strong argument for
-  per-colour ceilings.
+- **The ceiling is per colour.** *Settled.* A16 gave the wallet one ceiling and
+  made overflow the pressure; there are now as many ceilings as there are
+  colours, each filling and overflowing on its own.
+
+  That is the answer that makes the rest of the system mean anything.
+  **Overflowing in blue while starving in red is a situation**, where overflowing
+  full stop is only a scolding — and it is a situation with three answers already
+  in the design: spend the blue on something you would not otherwise have bought,
+  get a teammate to invest a bounty stone in your red, or go and kill different
+  things. A single ceiling would have collapsed all of that into *spend
+  something, anything*.
+
+  It also gives the interface a harder job, and one worth doing well: a player
+  has to see several wallets filling at different rates and notice which one is
+  about to waste. That is the one number A16 said should be uncomfortable to look
+  at, multiplied — so it needs shape and position, not just colour, which is what
+  the display-type rule above is for.
 - **A2, "every kill pays every player in full."** Still workable — every kill pays
   every player the colour of what died — but it has to be said that way.
 - **The reroll price**, anchored by A11b-ii to the cheapest hero. A hero no longer
@@ -3051,25 +3063,60 @@ replace them are **`contribute_upgrade`** and **`dismiss_upgrade`**.
 
 **Changed:** [009](009-the-shared-upgrade-pool.md) (the whole locking section), [001](001-what-this-game-is.md)'s vocabulary, [016](016-players-teams-and-commands.md)'s verb table, [017](017-the-viewing-layer.md), issues 406 and 407 (which build the withdrawn system), 703, 704, 903.
 
-## F31b. What happens to issues 406 and 407? — **OPEN**
+## F31b. What happens to issues 406 and 407? — **ANSWERED**
 
-Two issue files build a system that is no longer being built: *Locking a
-placement* and *Two objections open a lock*. A third, 704, makes locks and
-objections loud in the interface.
+**Answer: they move to `issues/will-not-implement/`, kept and never edited
+again.** The git history carries the move, which is what makes deleting them
+unnecessary.
 
-The project's rule is that issues are **never deleted** — they are blueprints,
-and a reader should be able to rebuild the whole thing by working through them.
-So the question is what a blueprint for a thing that was cancelled looks like.
+Both were blueprints for the lock system. Their numbers are **spent** and will
+not be reused, and each carries a short note at the top naming what replaced it —
+**412, contributing a stone** and **413, staking a die to share** — with its body
+left exactly as written.
 
-The shape that probably fits: **rewrite them to build the replacement**, keeping
-the numbers, since 406 and 407 sit exactly where the new verbs sit in the
-dependency graph — one for contributing, one for the dismissal cycle. The
-cancelled design stays inside them as what it was and why it went, which is the
-same treatment every superseded answer on this page gets.
+That is a third option neither of the two on offer here. Rewriting them in place
+would have destroyed a record; leaving them cancelled in `issues/` would have made
+the active list lie about what is still to be built. A separate directory does
+neither, and it gives the project a place to put the next one.
 
-The alternative is to leave them cancelled and add new issues at the end, which
-keeps the record cleaner and makes the phase-4 numbering lie about what is
-foundational.
+**The general rule it establishes:** an issue is never deleted and never
+rewritten into something else. If the design stops wanting it, it moves, keeps
+its number, and gains one line saying where the story went instead.
+
+## F31c. Is there a verb for asking? — **ANSWERED**
+
+**Answer: yes. Build it, because refusing to build it does not prevent it.**
+
+*"People will just use voice chat if we don't allow it in the game."*
+
+That is the whole argument and it is a good one. Leaving asking out of the
+vocabulary does not remove asking from the game; it moves it somewhere the design
+cannot see, shape, or bound. A verb the game defines can be rate-limited, made
+polite by construction, made ignorable without awkwardness, and made to cost
+something if it should. A sentence over voice can be none of those.
+
+**What it must not become is the point.** The stated worry is exact: *"players
+are supposed to share their units and build each other up, instead of
+micromanaging each other's resources."* A request verb that turns into a nagging
+channel — pointing at every stone a teammate holds, one after another — would be
+the failure, and it is the likely one, because asking is free and giving is not.
+
+So the shape to build toward: **giving must be easier than asking.**
+
+- **Contributing and offering cost a click and a stone.** Requesting should cost
+  at least as much attention and probably more — rate-limited, one outstanding
+  request at a time, expiring on its own.
+- **A request is addressed to a stone, not to a person.** *I would like that one*
+  rather than *give me something*, which keeps it concrete and keeps it from
+  becoming a general demand for attention.
+- **Ignoring one is free and silent.** No notification that you declined, no
+  record, nothing a teammate can point at afterwards. A request that can be held
+  against you is a demand.
+
+Which leaves the team with three verbs that move a stone and one that asks about
+one — and the asking is the only one of the four that changes nothing by itself.
+
+**Changed:** [009](009-the-shared-upgrade-pool.md)'s verb table gains an eighth row, [016](016-players-teams-and-commands.md), issue 412.
 
 ## F32. "Stone" means two things and one of them has to go — **ANSWERED**
 
@@ -3245,75 +3292,190 @@ what a unit is — per function is finest and noisiest, per file is coarsest and
 easiest to keep honest. Retrofitting markers onto a finished tree is mechanical
 but large, and the unit boundary wants choosing once and never again.
 
-## F35. The economy just tripled and nobody chose that — **OPEN**
+## F35. The economy tripled — is that all right? — **ANSWERED**
 
-Created by F29 and found by checking its arithmetic against what was already
-written.
+**Answer: yes, blessed. And the problem it was really about was legibility, not
+arithmetic, so the fix is a merge rather than a rate change.**
 
-**Before:** a wave wipe drew **one** upgrade into the team's chest. Felling a
-tower drew **three**.
+A draw deals one stone to every player, so a three-player team gets three stones
+per wave wipe and nine per felled tower — three times the old rate, scaling with
+team size. That stands. Balance absorbs it: individually weaker stones, a longer
+deck, or wipes that come less often. It also makes contributing and offering
+matter early in a match rather than only late, which is the right direction.
 
-**After:** a draw deals one stone to *every player*. So on a three-player team a
-wave wipe now produces **three** stones and a felled tower produces **nine**.
+### Stones of a kind merge where they sit
 
-**The whole upgrade economy is three times faster than it was**, at every rate, in
-every phase, and that fell out of an ownership decision rather than being chosen.
-It also scales with team size, so a 4v4 runs at four times the old rate and a 1v1
-at the old one.
+**Two stones of the same kind in the same slot become one stone**, showing its
+count. In a lane or in a lane's towers — **never in a chest**, private or
+communal, where a player is still choosing what to do with each of them.
 
-Three ways it could resolve, and they are genuinely different games:
+**A double right-click breaks a merged stone back into its constituents**, for a
+player who wants to send them different places.
 
-**1. Bless it.** The economy is three times richer and every balance number
-absorbs it — waves get wiped less often relative to a longer match, or stones are
-individually weaker, or the deck is longer. Consistent with the worked example
-exactly as it was given, and it makes a team's collective holding grow fast enough
-that contributing and offering matter early rather than late.
+That is a presentation rule doing a design job, and worth stating as one:
+**the problem with a three-times-faster economy is not that it is too strong, it
+is that it looks like too much.** A lane holding twelve separate stones is
+unreadable; a lane holding four stones, one of them showing ×5, is a board a
+person can take in at a glance. The merge costs nothing mechanically — counts
+already stack, since a body carries a count vector — and buys back the whole
+legibility loss.
 
-**2. A draw event is rarer.** Keep one-stone-per-player, but stop paying it for
-every wave wipe — pay it on some larger unit of progress. That preserves the
-per-match total while keeping the hand-dealt-to-everybody shape, at the cost of
-making wipes feel unrewarding.
+### Two other levers, kept and not spent
 
-**3. A wave wipe pays one player.** Whoever it is rotates, or it goes to the
-player with fewest stones. The rate is unchanged and players still hold different
-things — but both teams no longer hold *identical* sets, only identically many,
-and that quietly gives up the parity argument A11b was built on.
+Both are recorded because they may be wanted when the numbers arrive, and one of
+them was considered and disliked on the spot.
 
-Option 3 is the one to be most careful with. **Parity between teams is the thing
-the shared deck exists for**, and it survives options 1 and 2 untouched.
+**Rarer draw events.** Keep one-stone-per-player but stop paying it on every wave
+wipe. Preserves the per-match total at the cost of making a wipe feel unrewarding.
 
-There is also a bookkeeping consequence in the worked example that is worth
-noticing: the stones dealt were **1, 7 and 9**, not 1, 2 and 3. So a draw is not
-three consecutive reads from a sequence — either the numbers are kind identifiers
-rather than positions, or **the deck is a sequence of hands rather than of
-stones.** The second is cleaner and probably what should be built: one shuffled
-list of hands, both teams walking it together.
+**Per-player lanes** — each player spawning wave units into one lane according to
+their commander, earning bounty only in the lane they fought in, with the towers
+carrying their unit types too. **Rejected on sight, and the reason is worth
+keeping:** *"I don't like this design, I think it would limit the player's
+viewpoint and make them tunnel vision."* Every-player-touches-every-lane is a
+design pillar, and this would have quietly repealed it in exchange for a tidier
+economy.
 
-## F36. During a surge, whose stones are dealt? — **OPEN**
+**Changed:** [009](009-the-shared-upgrade-pool.md), [017](017-the-viewing-layer.md), issues 402, 403, 703.
 
-Created by F29 against F11.
+## F35b. How do three commanders' wave compositions share one map? — **ANSWERED**
 
-The surge "reads everything a team owns as one flat list and deals it across the
-bodies spawning that instant." **A team does not own things any more.** Three
-players do, plus a communal pool.
+Created by rejecting per-player lanes, and it is the better answer.
 
-The candidates:
+**The commanders take turns.** Wave one is commander A's composition, wave two is
+commander B's, wave three is commander C's, then A again. Every wave still goes
+into every lane.
 
-- **Everything, private hands included.** Simplest, and it means a stone you are
-  holding but have not placed is on the field during a surge exactly as much as a
-  placed one. That is already true of unplaced communal stones under F11, so it
-  is consistent — and it makes a surge the one stretch where hoarding costs you
-  nothing at all.
-- **Only what is placed or communal.** Keeps a private unplaced stone genuinely
-  private, and makes the surge reward teams who put things down. But it
-  reintroduces exactly the pre-surge hold that C1b worried about and F11 retired.
-- **Everything, but the private ones only reach that player's own bodies.** The
-  most interesting and the most machinery — it would make a surge legible as
-  three players' contributions walking side by side, and it needs bodies to know
-  whose they are, which nothing currently tracks.
+Two things fall out and both are good.
 
-The first is the default unless somebody prefers otherwise, on the grounds that
-F11's whole point was that a surge takes nothing and reads everything.
+**The whole map is covered by every commander in rotation**, so nobody is
+confined to a corner of it and the tunnel-vision problem never arises. Bounty
+shape varies over *time* rather than over *space* — which means every player is
+farming the same colours as their teammates at any given moment, and the mix
+comes from the rotation rather than from where you happened to be looking.
+
+**Everyone is invested in how each commander is built**, including the two they
+did not pick. A teammate's roster is not their business alone; it is a third of
+what walks out of your base. That makes commander selection in the lobby a team
+conversation rather than three private preferences, and it gives C4's
+no-duplicates rule a second job it did not have.
+
+### Which gives heroes a spawn queue
+
+Since waves now belong to commanders in rotation, a hero can be **queued to spawn
+with a future wave** — up to **N−1 waves ahead**, where N is the team size.
+
+**Not the current wave.** That is the constraint the rule is built around: by the
+time you are looking at a wave it has already left, so buying a hero onto it is
+buying into something you can no longer influence.
+
+On a three-player team that means you may queue for the next wave or the one
+after, and the horizon is exactly *up to but not including your own commander's
+next turn*. Which makes the queue depth a consequence of team size rather than a
+number somebody picked.
+
+This changes the first of the three hero destinations in
+[hero units](012-hero-units.md) — *onto a wave*, which was immediate — into
+something scheduled, and it should be read as a strictly better version of it: a
+purchase with a delivery date is a commitment, and this design has consistently
+found that commitments are what make decisions worth arguing about.
+
+**Changed:** [005](005-waves-and-when-one-is-finished.md), [011](011-commanders-and-personal-resource.md), [012](012-hero-units.md), issues 207, 501, 505, 802.
+
+## F36. During a surge, whose stones are dealt? — **ANSWERED**
+
+**Answer: everybody's. All of them, private hands included, pooled for the
+duration and applied at random.**
+
+*"During a siege-surge we collect all the stones and use them for united purpose —
+spawning units all over the map of all three kinds. It's intended to be chaotic
+but fair, and to this end all of the stones are applied randomly while the
+commanders at home are deciding how to distribute them for the challenge
+monster."*
+
+Three things in that worth pulling out.
+
+**Ownership stops mattering for the duration, and only for the duration.** A
+surge is the one stretch of a match where the question *whose is this* has no
+answer, because everything is being dealt at once to bodies coming out of every
+lane. Nothing is transferred and nothing changes hands — the stones are read, not
+moved, exactly as F11 established. When the surge ends, everything is still
+exactly where and whose it was.
+
+**Hoarding stops working, without a rule against it.** A stone held privately and
+unplaced is on the field during a surge precisely as much as a placed one, so
+there is no pre-surge hold to be clever about. That closes C1b's worry for the
+second time and from a different direction: the first fix was that the deal
+ignores slots, and this one is that it ignores owners too.
+
+**"Chaotic but fair" is the design instruction**, and the two halves are doing
+different jobs. Chaotic: random application, all three body kinds, every lane at
+once, no arrangement surviving. Fair: *everything* a team has is out there, so
+nobody is holding anything back and nobody is being deprived of anything.
+
+### And what the players are actually doing meanwhile
+
+**Deciding how to distribute them for the challenge monster — and each monster
+has different requirements.**
+
+That is new and it makes the surge's retooling window concrete rather than
+general. It is not *rebuild your board for the next stretch of play*; it is
+**build the board that beats the specific thing walking out of the middle next**,
+which is known in advance because the three challenges are a fixed named
+sequence.
+
+So the Pillar Orc, the Field Dragon and the Eternal Golem want three different
+arrangements, and a team that knows which is coming is spending the surge
+answering a question with a right answer. What those requirements are belongs
+with B9 and the monster catalogue.
+
+**Changed:** [014](014-the-siege-surge.md), [009](009-the-shared-upgrade-pool.md), [015](015-boons-and-the-challenge.md), issues 603, 606.
+
+
+## F37. What exactly does a staked die cost when it resolves? — **OPEN**
+
+The mechanism is settled (issue 413) and one number in it is not.
+
+**Settled:** dismissing a communal stone stakes a die, and how much bounty you
+commit sets its size — one gives a d4, two a d6, three a d8. Nothing is spent
+while it sits there. **When every player has staked, the stone is rerolled and
+the stakes are consumed.** One person dismissing costs nothing; you only pay when
+the whole team declines together, and then the team gets a different stone for it.
+
+**Not settled: what "consumed" means when it fires.**
+
+- **The dice are rolled and you lose that much** of the colour you staked. Which
+  makes a bigger stake a bigger *gamble* rather than a bigger certain cost, and
+  fits a design that has dice in it — but it means the price of a reroll is not
+  knowable in advance, and the person who committed three is not simply paying
+  more, they are paying more *variably*.
+- **The committed amount is spent flat**, and the die size is a display of how
+  much you put in rather than something rolled. Simplest, and the die becomes a
+  legibility device — you can see at a glance how heavily each teammate has given
+  up on a stone.
+- **The dice are rolled for something else** — the quality of the replacement, or
+  which part of the deck it comes from — so the stake buys influence over the
+  reroll rather than being a fee.
+
+The third is the most interesting and the least worked out. It would make a
+collective dismissal into a collective *bid*, where a team that has thoroughly
+given up on a stone gets a better replacement than one that barely has.
+
+Also unsettled, and smaller: *"maybe we need 2 or 3 as the cost, who can say
+until balancing"* — whether the minimum commitment is one unit or more. That is
+B-group material once there are numbers to look at.
+
+### And what happens to the solo reroll
+
+[Rerolling the deck](../issues/411-rerolling-the-deck.md) lets one player spend
+resource to push a stone down the deck and take the next. This is the same
+transaction made collective, and the two overlap.
+
+**Both can coexist**, and the split has a natural shape if they do: the solo
+reroll is *I do not want this*, the collective one is *none of us want this*, and
+the second should be cheaper per head, because agreement is evidence. If they do
+not coexist, the collective one is the better keeper — it cannot be done alone,
+which means it cannot be done thoughtlessly.
 ---
 
 ## How this list is meant to be used

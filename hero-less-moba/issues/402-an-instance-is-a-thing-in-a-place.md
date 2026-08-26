@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 4 — The Shared Chest |
 | Blocked by | 401 |
-| Blocks | 403, 404, 406, 407, 408, 410, 603, 605 |
+| Blocks | 403, 404, 412, 413, 408, 410, 603, 605 |
 | Reads | [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md) |
 | Open questions | none |
 

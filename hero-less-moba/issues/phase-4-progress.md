@@ -15,12 +15,12 @@ soldiers carrying three upgrades, and the frontline moving.
 | 403 | Wiping a wave draws an upgrade | not started |
 | 404 | Placing an upgrade into a lane | not started |
 | 405 | A soldier is stamped at birth | not started |
-| 406 | Locking a placement | not started |
-| 407 | Two objections open a lock | not started |
 | 408 | Slotting upgrades into stone | not started |
 | 409 | The base inherits every lane | not started |
 | 410 | The library slot is the last stand | not started |
 | 411 | Rerolling the deck | not started |
+| 412 | Contributing a stone | not started |
+| 413 | Staking a die to share | not started |
 
 **Blocking:** nothing.
 

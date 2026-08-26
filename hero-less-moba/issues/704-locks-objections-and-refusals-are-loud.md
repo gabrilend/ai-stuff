@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Phase | 7 — Watching It Happen |
-| Blocked by | 406, 407, 703 |
+| Blocked by | 412, 413, 703 |
 | Blocks | 805 |
 | Reads | [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md) |
 | Open questions | the ping rate limit |

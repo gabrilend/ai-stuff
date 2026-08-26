@@ -74,6 +74,7 @@ the game lets you do, and any feature proposal has to add a row.
 | `contribute_upgrade` | instance | Not yours; already communal |
 | `dismiss_upgrade` | instance | Not communal; already dismissed by this player |
 | `offer_upgrade` | instance, player | Not yours; that player is not a teammate |
+| `request_upgrade` | instance | Already have a request outstanding; rate-limited; the stone is already yours |
 | `cancel_move` | instance | Not in transit; not yours and not communal |
 | `ping_map` | x, y | Rate-limited |
 | `set_signpost` | sign-post, branch | The sign-post is not this player's team's |
@@ -179,7 +180,7 @@ everything downstream follows through the normal path.
 ### Presence — every player's cursor, continuously
 
 Each player's mouse position is synced to their **teammates**. This is a few
-bytes and it is not a nicety: it is one of the seven verbs a team has for talking
+bytes and it is not a nicety: it is one of the eight verbs a team has for talking
 about the chest, and one of the two that are involuntary. A cursor hovering over
 an upgrade says *I am about to touch this*, before anybody has committed to
 anything. Expect teams to lock less because of it, since most of what a lock
