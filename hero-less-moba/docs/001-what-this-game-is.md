@@ -23,13 +23,17 @@ that the frontline moves?**
 
 Three answers, layered, each one operating on a different timescale.
 
-**The chest (slow).** When a team wipes out an enemy wave, that team draws a
-random upgrade into a shared chest. The upgrade is not owned by the player who
-drew it; it belongs to the whole team, and any teammate can pick it up and drop
-it into any lane. A lane's upgrades apply to every soldier that team spawns into
-that lane. Over a game a team accumulates a bag of modifiers and spends its
-attention deciding where they sit. This is the roguelike layer: what you get is
-random, what you do with it is not.
+**The stones (slow).** When a team wipes out an enemy wave, **every player on
+that team draws a stone** — and no two of them draw the same one. A stone is
+yours: nobody can move what you placed with it, and the only way it changes hands
+is if you **offer** it to a teammate. Both teams are dealt the identical hand in
+the identical order, so nobody is ever ahead on luck.
+
+A stone goes into a lane, into a lane's towers, or into your library, and what it
+does there reaches whatever can use it. Over a match a team accumulates a
+collection of modifiers spread across three people, and spends its attention
+deciding where they sit and who should be holding which. This is the roguelike
+layer: what you get is random, what you do with it is not.
 
 **The commander (fast).** Each player picks a commander. Every enemy soldier your
 team kills pays every player on it a private currency — gold, mana, blood,
@@ -43,19 +47,22 @@ moment-to-moment layer: you are always deciding whether to bank or to spend.
 
 **The surge (structural).** Three times per match the game changes shape, twice
 over. First comes a **siege-surge**: waves stop and a continuous stream pours from
-both bases, one body per lane every fraction of a second. Nobody can place an
-upgrade — instead every single body is stamped with a **randomly selected third of
-the team's chest**, so the stream is a shuffled deck walking down a lane. The
-surge does not make you weaker. It makes you *incoherent*: the combination you
-spent the match assembling is still on the field, just never on the same soldier
-twice running.
+both bases, one body per lane every fraction of a second. **Nothing is taken from
+you** — placements stay exactly where they are and you may keep rearranging them
+throughout — but for the duration the game stops reading them. Instead it reads
+everything a team owns as one flat list and deals it across the bodies coming off
+the spawn points, a different split every half second. The surge does not make
+you weaker. It makes you *incoherent*: the combination you spent the match
+assembling is all still on the field, just never on the same soldier twice
+running. What you are arranging while it runs is not the surge — it is what comes
+next.
 
-Then the surge ends, the whole chest is dumped out unplaced, each team is handed
-a **boon** that applies to all three lanes and can never be moved, and a monster
-appears in the middle — the **Pillar Orc**, then the **Field Dragon**, then the
-**Eternal Golem**. Waves come back but every lane's worth funnels into the wide
-center to fight it. So the scramble to rebuild your board happens with something
-enormous walking at your library.
+Then the surge ends and a monster appears in the middle — the **Pillar Orc**, then
+the **Field Dragon**, then the **Eternal Golem**. Waves come back but every lane's
+worth funnels into the wide centre to fight it, carrying whatever you spent the
+surge arranging. Kill it and there is a quiet minute in which every player picks
+a **boon** from two — the same two offered to everybody on both sides — which
+applies to everything that team ever fields again and can never be moved.
 
 The Golem is the last one and it cannot be killed. Damage only slows it, and it
 recovers speed quickly, so holding it back takes continuous pressure and buys no
@@ -66,12 +73,15 @@ not a clock, not a score — a body, walking, that nobody can stop.
 
 A hero in a normal lane-pusher is a *body* — a thing you drive around the map. It
 concentrates all of a player's agency into one avatar's position. Here, agency is
-concentrated into **placement decisions over a shared pool**, which has three
+concentrated into **placement decisions over stones you own**, which has three
 properties a hero does not:
 
-1. **It is negotiated.** Your teammates can move what you placed. You can lock a
-   placement to stop them; they can object to the lock, and two objections force it open.
-   Every upgrade is a small ongoing conversation between three people.
+1. **It is negotiated.** Your stones are yours — nobody can move what you placed —
+   but you can **offer** one to a teammate, and they can offer you theirs. Every
+   draw deals a different stone to each of you, so a team is three people holding
+   three different things and deciding together where they go. The conversation
+   is *here, you take this* rather than *stop touching mine*. See
+   [open questions](020-open-questions.md), F29.
 2. **It is legible from across the map.** A hero's strength is where the hero is.
    An upgrade's strength is spread across every soldier in a lane, so a lane that
    is winning looks like a lane that is winning, from any distance.
@@ -110,14 +120,15 @@ these words and not synonyms.
 | **guard** | A soldier a guard tower spawns to patrol the ground near it. |
 | **base** | The end of the map belonging to one team: three guard towers and a library. |
 | **library** | The building that ends the game when it falls. One per base. |
-| **chest** | A team's shared pool of upgrades. Also called the upgrade pool. |
-| **upgrade** | A modifier drawn into the chest and placed into a lane or slotted into towers. |
-| **slot** | A named place an upgrade can sit: a lane, a lane's towers, or the library. |
-| **stone** | Guard towers, spoken of as a material rather than as objects. "Slotting into stone" is putting an upgrade on a lane's towers instead of on its soldiers. The word exists so that one sentence works: an upgrade goes either on bodies that walk forward and die, or on stone that stays put and does not. |
-| **the two slots** | Shorthand for the choice at a lane: **the lane** (every wave unit spawned into it) or **the lane's towers** (both towers on it, and all three base towers). One or the other, never both. |
+| **stone** | An upgrade, as a physical object: a rune with a colour, held by one player, placed by them into a slot. **A stone belongs to the player who drew it** and changes hands only by being offered. |
+| **upgrade** | The same thing, as a rule rather than an object. Use **stone** when talking about the thing a player holds and taps; use **upgrade** when talking about what it does to a body. |
+| **draw** | The event that deals one stone to every player on a team. Both teams are dealt the identical hand in the identical order. |
+| **offer** | Handing one of your stones to a teammate. It becomes theirs. The only verb in the game that transfers anything. |
+| **chest** | The stones a player is holding but has not placed. Per player, not per team — an earlier design had one shared chest per team and the word is a leftover of it. |
+| **slot** | A named place a stone can sit: a lane, a lane's towers, or the library. |
+| **the two slots** | Shorthand for the choice at a lane: **the lane** (the wave units spawned into it) or **the lane's towers** (both towers on it, and all the base towers). One or the other, never both. |
 | **command radius** | The circle of ground around a guard tower. While an enemy stands inside it the tower replaces no guards and no hero may be spawned there. The only thing in the game both teams can see the shape of. |
-| **lock** | A claim one player puts on a placement so teammates cannot move it. |
-| **objection** | A request to release a lock. Two objections from two different teammates force it. |
+| **lock**, **objection** | Machinery from the shared-chest design, for stopping a teammate moving what you placed. **A teammate cannot do that any more**, so both may be about to be deleted — see [open questions](020-open-questions.md), F31. |
 | **ping** | A marker a player drops on the map to point at a place. Nothing to do with locks — see **objection**. |
 | **siege-surge** | The phase where waves become a continuous stream and the chest cannot be touched. |
 | **boon** | An upgrade a player chooses, from three, for slaying a challenge monster. Applies to all three lanes, permanently, and belongs to that player. |

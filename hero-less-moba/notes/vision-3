@@ -1,0 +1,162 @@
+the third vision, from 2026-08-25, arriving in the same conversation as the
+second but as a different kind of thing. the second was about what the game
+looks like. this one is about what the world *is* — what the enemy actually is,
+why it is frightening, and what stands against it — and then, in the same breath,
+a whole economy made of dice.
+
+kept together because it came together. taking it apart into a setting document
+and a mechanics document would be a second draft, and this is the first one.
+
+--
+
+# the vision, as it came
+
+the landscape of darwinia, but with colored dots instead of sprites/3d models I
+forget - much smaller scale also shadows
+
+the skeletons in the game are actually earth wizard'ed statues in a skeleton
+shape with coal - they emit fear, definitely slayable tho, just gotta be a
+stronger spirit
+
+hence, sunlight paladins, with water and magic powers and bootsn in.
+
+in this game, fear is paralyzing, sometimes demoralizing, sometimes, subtlely
+diminishing decisionmaking...
+
+fear is evil. it is inflicted.
+
+the only people who want to change anything are lawyers. everyone else are their
+employers. they fight for a cause, and everyone's happy because it feels like
+you're making a difference in the world. And maybe you are. But you better be
+overcoming the fight, at a measurable pace,
+
+--
+
+let's say that different statistics have modifiers. we roll an N sided die for
+each of the statistics ability modifiers, and depending on the custom class
+designed, we have certain +status dividers. [error, retype: we have certain skill
+bonuses]
+
+and each one has a different color / display type (7 type bar bitflag number
+digit) vs flowy circle script vs dots 1-6 vs 3-of-hearts or 5-of-spades, where
+the suit is randomly generated, etc... to be accessible to colorblind people
+
+anyway you can accumulate different types of resource in each of these, and each
+wave has a predictable amount like 15 or twenty ten.
+
+and depending on if you pick high or low
+
+it costs more or less of that resource
+
+and when you kill a wave unit that has that color die,
+
+you get +1 of them to use on a hero unit.
+
+there are as many colors as there are attribute scores.
+
+captains give +3 I think?
+
+some enemy commanders have certain concentrations of their wave units they spawn
+
+some of yours do too
+
+others just use the kingdom troops.
+
+which are just guys in historical period armor.
+
+like... fmv animated
+
+so... they determine the shape of their bounty. "this commander has 3 blue die
+for every 1 green die and every 5 red die"
+
+but, the good news is, all the hero units are roughly equivalent, and they
+counter certain units in certain ways. See the balancing of troops in Warcraft
+Rumble for an excellent example of this. Not the individual numbers, but the
+relationship dynamic graph that they create.
+
+--
+
+# what is in the first half
+
+**The look is Darwinia, scaled down, in dots.** Coloured dots rather than sprites
+or models, a much smaller field than the reference, and **shadows** — which is
+the detail that says the dots are objects standing on ground rather than marks on
+a surface. It is the first thing in this project that says what a soldier looks
+like, and it says: not much, on purpose, at a scale where a thousand of them read
+as weather.
+
+Note what it does *not* contradict. Vision 2 has a 3D RTS camera and a tower with
+a model and runes projected onto the world. Dots and shadows fit inside that —
+the stone is detailed because you are meant to touch it; the bodies are dots
+because there are a thousand of them and you are meant to read the shape they
+make.
+
+**The enemy is not undead. It is a statue.** Earth-wizarded, skeleton-shaped,
+made of **coal**. That is a much better thing than a skeleton, because it says
+somebody *made* these — there is a wizard, or there was one — and it fits the
+setting the documents already have, where an automated war keeps running and
+nobody remembers who started it. Coal also burns, which is not nothing.
+
+**It emits fear, and fear is the enemy's actual weapon.** Not damage. The statue
+is "definitely slayable tho, just gotta be a stronger spirit," which makes the
+fight a contest of nerve rather than of hit points.
+
+**Fear does three things, and the third is the interesting one:**
+
+- paralysing
+- demoralising
+- *"subtlely diminishing decisionmaking"*
+
+The third is a status effect on a **player**, not on a body. Nothing else in this
+game reaches through the screen like that, and it is either the best idea here or
+the one to be most careful with.
+
+**"fear is evil. it is inflicted."** Two sentences, and they are a design rule:
+fear is not an environmental hazard or a resource, it is something one thing does
+to another on purpose. It has an author.
+
+**Sunlight paladins stand against it** — water, magic, and boots on. Sunlight
+against coal, water against earth. The counter structure is elemental and it is
+already legible before anybody writes a stat.
+
+**And then the lawyers.** Kept exactly as written because it is not a mechanic
+and should not be turned into one:
+
+> the only people who want to change anything are lawyers. everyone else are
+> their employers. they fight for a cause, and everyone's happy because it feels
+> like you're making a difference in the world. And maybe you are. But you better
+> be overcoming the fight, at a measurable pace,
+
+It ends on a comma. That is left alone.
+
+What it is *about*, as far as this project is concerned: **the measurable pace.**
+This is a game where the frontline must move, where push depth is a small integer
+somebody can read, and where the whole premise is that a war which does not
+advance is a war nobody is really fighting. "You better be overcoming the fight,
+at a measurable pace" is the design pillar written as an accusation.
+
+# what is in the second half
+
+An economy, and it is a large one. Handled as questions rather than as answers,
+in the open-questions page under **F30**, because it rewrites the second economy
+from the ground up:
+
+- **Resource stops being one number.** There are as many kinds as there are
+  attribute scores, each with a colour.
+- **Colour is not the only channel.** Each kind also has its own *display type* —
+  a bar, a flowy circle script, pips one to six, a playing card with a randomly
+  generated suit. Written down as an accessibility requirement and worth reading
+  as a design principle: **never encode meaning in hue alone.**
+- **You farm what the enemy fields.** Killing a wave unit carrying a colour pays
+  that colour. A captain pays three.
+- **A commander's roster decides the shape of its bounty** — "3 blue die for
+  every 1 green die and every 5 red die" — which means **the enemy's commander
+  selection determines what you can afford**, and that is a loop this design did
+  not previously have.
+- **Some commanders just field the kingdom troops**, who are guys in historical
+  period armour, FMV animated. Not everything is wizardry.
+- **Buying a hero is a set of bids rather than a price.** Roll a die per
+  attribute; picking high costs more of that colour, picking low costs less.
+- **All heroes are roughly equivalent and counter each other**, in the manner of
+  Warcraft Rumble — and the instruction is explicit that what is being copied is
+  **the relationship graph, not the numbers.**
