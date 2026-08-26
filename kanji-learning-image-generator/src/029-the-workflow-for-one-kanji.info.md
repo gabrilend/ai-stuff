@@ -36,7 +36,9 @@ The graph for one character.
 
 What this workflow takes on faith, said out loud.
 
-There is no picture program on this machine. The model and the control net are names that have to match some other installation's model folder, and nothing here can look. Stating the assumption is the whole of what can be done about it, so it is done rather than skipped.
+There is no picture program on this machine. The model and the control net are names that have to match some other installation's model folder, and nothing here can look. Stating the assumption is the whole of what can be done about it, so it is done rather than skipped. {{{ M.shape_warning(width, height) Whether this picture is a shape the far end was never trained on.
+
+Diffusion models learn on images of roughly one aspect and go strange well away from it -- repeated subjects, drifting composition. A five-character phrase is five times as wide as it is tall, and that is far outside what any of them have seen. Said out loud rather than prevented, because a long phrase is a legitimate thing to ask for and the result is worth looking at even if it comes out badly.
 
 ## Where it sits
 

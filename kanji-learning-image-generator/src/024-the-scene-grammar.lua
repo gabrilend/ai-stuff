@@ -23,6 +23,13 @@ local lexicon = project.load("023-the-component-lexicon")
 
 local M = {}
 
+-- {{{ CANVAS -- the box the archive draws one character in
+--
+-- A word is several of these side by side, so a piece of the second character
+-- has coordinates that overlap the first character's until it is shifted.
+local CANVAS = 109
+-- }}}
+
 -- {{{ BIOMES -- the worlds a character can be about
 --
 -- The most opinionated thing in this project, and it is meant to be readable
@@ -435,16 +442,23 @@ function M.biomes() return BIOMES end
 -- Read off the strokes the piece owns rather than from the archive's position
 -- label. The label says "left"; the box says the left third and upper half,
 -- which is what a sentence can use.
-local function component_box(component, measured)
+local function component_box(component, measured, record)
   local left, top = math.huge, math.huge
   local right, bottom = -math.huge, -math.huge
   for index = component.stroke_first, component.stroke_last do
     local one = measured[index]
     if one then
+      -- Every character draws in its own 109-unit box, so a piece of the second
+      -- character of a word has coordinates that overlap the first character's.
+      -- Shifted by which box it is in, the whole phrase lives in one wide space
+      -- and "down the left of the frame" means the left of the *phrase*.
+      local cell = (record and record.strokes[index] and record.strokes[index].cell)
+                   or 1
+      local shift = (cell - 1) * CANVAS
       local box = one.flat.bbox
-      if box[1] < left then left = box[1] end
+      if box[1] + shift < left then left = box[1] + shift end
       if box[2] < top then top = box[2] end
-      if box[3] > right then right = box[3] end
+      if box[3] + shift > right then right = box[3] + shift end
       if box[4] > bottom then bottom = box[4] end
     end
   end
@@ -455,11 +469,11 @@ end
 
 -- {{{ box_place(box)
 -- A box, as a phrase about where it is in the frame.
-local function box_place(box)
-  local CANVAS = 109
-  local x = (box[1] + box[3]) * 0.5 / CANVAS
+local function box_place(box, cells)
+  local across = CANVAS * (cells or 1)
+  local x = (box[1] + box[3]) * 0.5 / across
   local y = (box[2] + box[4]) * 0.5 / CANVAS
-  local width = (box[3] - box[1]) / CANVAS
+  local width = (box[3] - box[1]) / across
   local height = (box[4] - box[2]) / CANVAS
 
   local column = (x < 0.36) and "left" or (x < 0.64) and "centre" or "right"
@@ -667,10 +681,12 @@ function M.scene(record, store, settings, options)
   -- counts the third so the lexicon's queue stays honest.
   local subjects, landscape, unglossed = {}, {}, {}
   local inside_sound = sound_halves(record)
+  local cell_count = record.cells and #record.cells or 1
   for position, component in ipairs(record.components) do
     if component.element then
-      local box = component_box(component, measured)
-      local where, column, row = box and box_place(box) or "somewhere", nil, nil
+      local box = component_box(component, measured, record)
+      local where, column, row = box and box_place(box, cell_count)
+                                 or "somewhere", nil, nil
       -- A piece inside the sound half is ground for the same reason the sound
       -- half itself is -- but only under the reading where the picture is about
       -- the meaning. Under the mnemonic reading it is a named thing like any
@@ -690,6 +706,7 @@ function M.scene(record, store, settings, options)
             name = found.name, named_by_us = found.named_by_us,
             source = found.source, where = where, box = box,
             depth = component.depth, for_the_sound = is_sound or nil,
+            cell = component.cell or 1,
             stroke_first = component.stroke_first,
             stroke_last = component.stroke_last,
           }
@@ -714,13 +731,18 @@ function M.scene(record, store, settings, options)
   -- while the scoring, which does count it, had already put them in the right
   -- world. So: the shallowest level below the character, or the character
   -- itself when there is nothing below it.
+  -- The first level is the character itself, and for a word it is the word --
+  -- so the level below is each character, and the level below *that* is the
+  -- pieces a learner is told the characters are made of. A word wants that
+  -- third level; a character wants its second.
+  local outermost = record.cells and #record.cells > 1 and 2 or 1
   local shallowest = math.huge
   for _, subject in ipairs(subjects) do
-    if subject.depth > 1 and subject.depth < shallowest then
+    if subject.depth > outermost and subject.depth < shallowest then
       shallowest = subject.depth
     end
   end
-  if shallowest == math.huge then shallowest = 1 end
+  if shallowest == math.huge then shallowest = outermost end
   local outer = {}
   for _, subject in ipairs(subjects) do
     if subject.depth == shallowest then outer[#outer + 1] = subject end
@@ -738,6 +760,10 @@ function M.scene(record, store, settings, options)
     local a_sound = a.for_the_sound and 1 or 0
     local b_sound = b.for_the_sound and 1 or 0
     if a_sound ~= b_sound then return a_sound < b_sound end
+    -- Within a word, the characters come in the order they are written and
+    -- read. A sentence that named the second character's pieces before the
+    -- first's would describe the phrase backwards.
+    if (a.cell or 1) ~= (b.cell or 1) then return (a.cell or 1) < (b.cell or 1) end
     local function area(one)
       if not one.box then return 0 end
       return (one.box[3] - one.box[1]) * (one.box[4] - one.box[2])

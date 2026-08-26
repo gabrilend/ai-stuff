@@ -550,6 +550,104 @@ local function test_the_two_readings(t)
 end
 -- }}}
 
+-- {{{ test_a_phrase(t)
+-- A word is what a learner is actually trying to hold. 時 and 間 separately are
+-- not the thing; 時間 is, and it means "time".
+local function test_a_phrase(t)
+  local phrases = project.load("019a-a-phrase-is-a-record-too")
+  local field = project.load("022-the-structure-field")
+  local grammar = project.load("024-the-scene-grammar")
+  local store = project.load("019-the-kanji-record").store()
+  local settings = project.settings()
+
+  local TIME, INTERVAL = "\230\153\130", "\233\150\147"
+  local record = phrases.build(TIME .. INTERVAL, { "time", "an hour" }, store)
+
+  -- The property everything else rests on: a phrase's strokes are its
+  -- characters' strokes, in order, with nothing lost between them.
+  local time = store.records[TIME]
+  local interval = store.records[INTERVAL]
+  t.same(#record.strokes, #time.strokes + #interval.strokes,
+         "a phrase has every stroke of every character in it")
+  t.same(record.strokes[1].d, time.strokes[1].d, "starting with the first")
+  t.same(record.strokes[#time.strokes + 1].d, interval.strokes[1].d,
+         "and the second character following straight on")
+
+  -- The numbering is continuous, because that is the order a hand writes the
+  -- phrase in and the writing order is the viewing order.
+  local cells = phrases.cells(record)
+  t.same(#cells, 2, "the phrase knows it is two characters")
+  t.same(cells[1].stroke_first, 1, "the first starts at stroke one")
+  t.same(cells[2].stroke_first, #time.strokes + 1,
+         "and the second picks up where it left off")
+  t.same(cells[2].stroke_last, #record.strokes, "through to the end")
+
+  -- Every stroke remembers which character it came from, which is how the field
+  -- knows which box to draw it in.
+  t.same(record.strokes[1].cell, 1, "a stroke knows its character")
+  t.same(record.strokes[#record.strokes].cell, 2, "including the last one")
+
+  -- A single character is one cell. Saying so in one place is what lets
+  -- everything downstream treat a word and a character as the same thing.
+  t.same(#phrases.cells(time), 1, "a single character is one cell")
+  t.same(phrases.cells(time)[1].stroke_last, #time.strokes,
+         "covering all of its strokes")
+  t.ok(not phrases.is_phrase(time), "and is not a phrase")
+  t.ok(phrases.is_phrase(record), "while a word is")
+
+  -- The picture grows wider rather than each character shrinking. A phrase that
+  -- squeezed its characters to fit would be a phrase whose characters stop
+  -- being legible at the one size this project is specified at.
+  local placement = field.placement(settings, record)
+  t.same(placement.count, 2, "the picture has two boxes")
+  t.same(placement.width, settings.field.resolution * 2, "and is twice as wide")
+  t.same(placement.height, settings.field.resolution, "and no taller")
+  t.same(placement.cells[1].scale, placement.cells[2].scale,
+         "both characters are drawn at the same size as each other")
+  t.same(field.placement(settings, time).cells[1].scale, placement.cells[1].scale,
+         "and at the same size they would have had alone")
+
+  -- The blur follows how crowded a character is, not how many strokes the whole
+  -- phrase has -- a two-character word has twice the strokes and exactly the
+  -- same crowding.
+  local _, made = field.build(record, settings)
+  local _, alone = field.build(time, settings)
+  t.near(made.blur_radius, alone.blur_radius, 2.5,
+         "a word is softened like a character, not like a monster",
+         string.format("%.1f against %.1f", made.blur_radius, alone.blur_radius))
+
+  -- The pieces of both characters are the cast, and they are named in reading
+  -- order rather than in size order, or the sentence describes the phrase
+  -- backwards.
+  local scene = grammar.scene(record, store, settings)
+  t.ok(#scene.subjects >= 3, "a two-character word has a cast from both",
+       #scene.subjects .. " subjects")
+  local last_cell = 0
+  local in_order = true
+  for _, subject in ipairs(scene.subjects) do
+    if not subject.for_the_sound then
+      if (subject.cell or 1) < last_cell then in_order = false end
+      last_cell = subject.cell or 1
+    end
+  end
+  t.ok(in_order, "and they are named in the order the phrase is read")
+
+  -- A word's meaning is not in either archive, so it has to be given.
+  t.ok(not pcall(phrases.build, TIME .. INTERVAL, {}, store),
+       "a phrase with no meaning given is refused, and says where to put one")
+  t.ok(not pcall(phrases.build, "\240\159\152\128", { "a face" }, store),
+       "and so is one containing a character this project cannot draw")
+
+  -- 時間 and 間時 are different words and must not get the same picture.
+  local backwards = phrases.build(INTERVAL .. TIME, { "nonsense" }, store)
+  t.ok(backwards.codepoint ~= record.codepoint,
+       "the same characters in a different order are a different phrase")
+
+  local parsed = phrases.from_argument(TIME .. INTERVAL .. "=time,an hour", store)
+  t.same(parsed.meanings[2], "an hour", "a phrase can be given on a command line")
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -561,6 +659,7 @@ function M.run(options)
     { "the words", test_the_words },
     { "the arrows", test_the_arrows },
     { "the two readings", test_the_two_readings },
+    { "a phrase", test_a_phrase },
   }
   local all_passed = true
   for _, group in ipairs(groups) do

@@ -2,7 +2,40 @@
 
 ## Current behavior
 
-Everything takes one character. The record store is keyed by character, the
+Done. `src/019a-a-phrase-is-a-record-too.lua`, and everything downstream takes a
+word without being told anything changed:
+
+```
+luajit src/030-make-one-kanji.lua --phrase 時間=time,an hour
+luajit src/031-make-them-all.lua --phrases
+```
+
+**The trick is that a single character is one cell.** Saying that in one place —
+rather than checking everywhere whether a record is a word — is what lets the
+field, the arrows, the scene grammar and the workflow treat a word and a
+character as the same kind of thing. Nothing downstream branches on it.
+
+**Component depths are pushed down by one for a word**, because the whole phrase
+is now the outermost thing and each character is a piece of it. Without that,
+two characters' outermost groups would both claim to be the whole record.
+
+**Subjects are named in reading order.** They were sorted by size, which for a
+word named the second character's pieces before the first's and described the
+phrase backwards.
+
+**The picture is as wide as the phrase and the workflow says so**, rounded to
+what these models work in. A phrase more than about two and a half times as wide
+as it is tall is well outside anything a diffusion model has been trained on, so
+the run says that rather than refusing — a long word is a legitimate thing to
+ask for and the result is worth looking at even if it is bad.
+
+**A vocabulary list lives in `input/phrases.lua`**, which is the point: one word
+on a command line is a demonstration, and a chapter's worth is a study set.
+
+One bug worth keeping: a phrase list with a syntax error in it was being treated
+exactly like no phrase list at all, so a typo reported as *nothing to do*, with
+no error anywhere. A file that is present and will not load is now a different
+thing from a file that is absent. The record store is keyed by character, the
 field is built from one character's strokes, the scene has one character's
 components, and the workflow saves one character's picture.
 
