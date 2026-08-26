@@ -4,7 +4,20 @@ Produces `src/092-expression.lua`.
 
 ## Current behavior
 
-Nothing. `002` defines a derivation grammar and nothing parses it.
+**Done.** `src/092-expression.lua` exists. Tokeniser, recursive-descent parser,
+symbol collection and evaluation, kept as separate passes so the ledger can
+learn the shape of the dependency graph before any value exists.
+
+Fourteen functions and the constant pi, held in two dispatch tables -- arity and
+behaviour -- so that adding one is two lines and no branch.
+
+The rule that every literal is dimensionless is enforced by construction: a
+number becomes a dimensionless quantity and `091`'s arithmetic then refuses
+anything that needed it to be otherwise.
+
+`parse_relation` splits a constraint on its comparison operator, refuses a
+relation with none and one with two, and keeps both sides' original text so the
+checker can print the relation as its author wrote it.
 
 ## Intended behavior
 

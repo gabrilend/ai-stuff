@@ -4,8 +4,26 @@ Produces `src/091-units.lua`.
 
 ## Current behavior
 
-Nothing. `002` describes a units engine with ten dimension slots and it does not
-exist.
+**Done.** `src/091-units.lua` exists. Ten dimension slots, thirty-eight units,
+fourteen prefixes, a recursive-descent parser for compound unit strings, and
+arithmetic through metamethods so that a derivation reads as arithmetic.
+
+Addition, subtraction and comparison refuse across dimensions and say which two
+they were given. When one side is dimensionless the message is a longer one that
+teaches the rule, because a bare number where a quantity belongs is the mistake
+every author makes on their first day.
+
+**One thing turned out to matter that the ticket did not anticipate.** A
+quantity is recognised by a marker field rather than by the identity of its
+metatable, because two modules each reaching for this file with `dofile` load it
+twice, and a quantity built by one copy was being rejected by the other with a
+message about not being a quantity. Correct, baffling, and fixed by not asking
+the question that way.
+
+Temperature is still unchecked in the way the ticket predicted: kelvin and a
+kelvin difference have the same dimension and the engine cannot tell them apart.
+The convention of naming differences `dT_` is a convention and the blueprint
+says so rather than implying a check.
 
 ## Intended behavior
 

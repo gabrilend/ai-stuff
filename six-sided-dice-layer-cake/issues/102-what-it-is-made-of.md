@@ -4,8 +4,25 @@ Produces `src/011-material-properties.md`.
 
 ## Current behavior
 
-Nothing. Copper's thermal conductivity has been used in three calculations in the
-documentation and is written down nowhere.
+**Done.** `src/011-material-properties.md` exists with forty-five entries across
+eleven materials, every one `measured` and every meaning field naming a
+temperature.
+
+Copper is split three ways -- bulk, plated and thin film -- with a note about
+where each applies. Silicon's conductivity is carried at 350 K rather than at
+room temperature, which is about twelve per cent lower and is the value the hot
+spot calculation actually needs.
+
+Twelve constraints, all holding. The valuable four are the Prandtl checks: three
+transcribed properties of each fluid are combined into a fourth quantity that is
+independently known, so a typing error in any of the three fails rather than
+propagating. Water comes out at 3.83, which is where it should be.
+
+**Two things the ticket asked for are not there.** There is no blank-value
+mechanism, because no property turned out to be inapplicable in a way that
+mattered; a material that lacks a property simply has no entry. And nothing here
+has a tolerance -- carried as `009` entry X2, which is a change to the notation
+rather than to this file.
 
 ## Intended behavior
 

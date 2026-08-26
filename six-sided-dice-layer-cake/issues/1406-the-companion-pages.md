@@ -4,8 +4,20 @@ Produces `src/096-symbol-sweep.lua`.
 
 ## Current behavior
 
-Nothing. Ninety companion pages are promised by `002` and must not be written by
-hand.
+**Done.** `src/096-symbol-sweep.lua` exists and writes one `.info.md` beside
+every blueprint.
+
+Each page carries what the blueprint publishes with resolved values, what it
+consumes and from which blueprint, what consumes it -- from the ledger's reverse
+index, which is the direction no single file can see -- what it asserts, and
+what it draws.
+
+The coverage report names four ways a blueprint can be thin: declares nothing,
+asserts nothing, draws nothing, or publishes only symbols nothing reads.
+
+A dry run reports without writing. Output is deterministic: no timestamps, no
+run identifiers, symbols in declaration order and consumers sorted, so that two
+runs produce identical bytes and a documentation commit means something changed.
 
 ## Intended behavior
 

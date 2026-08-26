@@ -4,8 +4,21 @@ Produces `src/010-frame-of-reference.md`.
 
 ## Current behavior
 
-Nothing. Six faces have been referred to as "a face" throughout the documentation
-and no drawing can be read until they have names.
+**Done.** `src/010-frame-of-reference.md` exists. It fixes the right-handed axis
+set with its origin at `C000`, names the six faces by their outward normal and
+by their sieve index, labels the eight corners by their coordinate bits, and
+lists the twelve edges by name so that the bipartition can be checked by reading
+rather than by trusting.
+
+The antipodal face ordering is in, with the thermal argument that motivates it
+and an explicit note that `026` has not yet confirmed the argument is worth
+anything.
+
+All three parity proofs are written out. Seven counts are published and five
+geometric constraints assert them; all five hold, including Euler's formula and
+the handshake between corners and edges. Those five were the first exercise of
+the whole notation and getting them right is what showed the instruments worked
+before any physics was attempted.
 
 ## Intended behavior
 
