@@ -10,6 +10,7 @@ Described by `405`.
 
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
+| `I_die_max` | A | given | 120 A | the most current one die's power grid and microbump array will carry, from the cross-section below and the limit at temperature |
 | `sp_hillock` | um | given | 0.4 um | least spacing between a power conductor and a signal conductor at the top metal level, so that a hillock cannot bridge them |
 | `n_yr_life` | 1 | given | 10 | years the conductors must survive at the design current, from 086 |
 | `T_em_quoted` | K | given | 319 K | temperature the current density limit in 011 is quoted at. It was three hundred and fifty, which is where the conductors were assumed to run before 025's chain closed; they run cooler, and a limit quoted hot is conservative rather than wrong -- but a limit quoted at the wrong temperature at all is how this goes wrong silently |
@@ -48,6 +49,7 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
+| `I_die_max` | `028` |
 | `sp_hillock` | `032` |
 | `n_yr_life` | `032` |
 | `T_em_quoted` | `032` |

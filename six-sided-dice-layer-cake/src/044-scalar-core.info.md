@@ -18,7 +18,7 @@ Described by `604`.
 | `w_rng_min` | bit | given | 64 bit | the least width at which two sequences will not collide over a long conversation |
 | `n_core_face` | 1 | derived | 4 | scalar cores on a face, one per die |
 | `t_scalar_tok` | s | derived | 2.85714e-07 s | time the core spends per token, at one instruction a cycle |
-| `util_scalar` | 1 | derived | unresolved | how busy it is |
+| `util_scalar` | 1 | derived | 0.00177687 | how busy it is |
 | `A_scalar_face` | mm^2 | derived | 32.256 mm^2 | area four scalar cores take on a face |
 | `f_scalar_face` | 1 | derived | 0.014 | that as a share of a face, which is the cost of choosing four over one |
 | `t_cover_link` | s | derived | 1.024e-08 s | how long the outstanding requests cover, which must exceed a link round trip or the core stalls |
@@ -34,7 +34,7 @@ Described by `604`.
 | `n_desc_layer` | `048` | 34 | descriptors in one layer's chain: a dozen operations, several of them per head group |
 | `n_die_face` | `042` | 4 | compute dies on one face |
 | `t_link_rt` | `051` | 9.2434e-09 s | round trip from a face issuing a read to the first data arriving: two flights, the array's access, the worst arbitration wait, and the protocol's own overhead |
-| `t_stage` | `053` | unresolved | how long one face works before the sieve moves on |
+| `t_stage` | `053` | 0.000160796 s | how long one face works before the sieve moves on |
 | `w_desc` | `048` | 512 bit | width of one descriptor |
 | `w_transfer` | `052` | 4096 bit | payload of one transfer. Sixteen of 040's correction lines, an eighth of 038's interleave, and large enough that the header is three per cent |
 

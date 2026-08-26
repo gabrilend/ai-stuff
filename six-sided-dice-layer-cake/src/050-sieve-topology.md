@@ -72,7 +72,6 @@ L_face_opp     | mm | derived | 2 * L_cube                 | and an opposite-fac
 n_pair         | 1 | derived | n_face * (n_face - 1) / 2   | face pairs a mesh would have had to connect
 n_closure      | 1 | derived | 2                           | distinct link designs a mesh would have needed, one per distance
 ratio_reach    | 1 | derived | L_face_opp / L_link         | how much further a face-to-face wire would have had to reach
-C_handoff      | MB | derived | C_activation * batch_design | what actually crosses between two stages, per step
 f_handoff      | 1 | derived | C_handoff / (C_weights / n_face) | that as a share of the weight traffic one stage moves, which is the number that says a mesh would be carrying nothing
 ```
 

@@ -20,19 +20,19 @@ Described by `703`.
 | `n_credit_need` | 1 | derived | 115.542 | credits needed to cover it |
 | `B_eff_face` | bit/s | derived | 5.12e+13 bit/s | what a face actually achieves, given its credits |
 | `f_credit_loss` | 1 | derived | 0 | bandwidth lost to running out of credits, which is a loss with no symptom |
-| `n_line_per_token` | 1 | derived | unresolved | correction lines one face touches per token, which 048's small reads are judged rare against |
+| `n_line_per_token` | 1 | derived | 1.8946e+08 | correction lines one face touches per token, which 048's small reads are judged rare against |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `B_face_even` | `034` | 5.12e+13 bit/s | and what it gets when all six are asking equally |
-| `C_weights` | **nothing declares this** | — | — |
+| `C_weights` | `078` | 36.3764 GB | the weights, resident, at the format in 046 |
 | `n_ecc_line` | `040` | 256 bit | data bits one correction line covers |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `q_arb` | `037` | 65536 bit | arbitration quantum: how much one client is given before the arbiter reconsiders |
 | `t_link_rt` | `051` | 9.2434e-09 s | round trip from a face issuing a read to the first data arriving: two flights, the array's access, the worst arbitration wait, and the protocol's own overhead |
-| `t_stage` | `053` | unresolved | how long one face works before the sieve moves on |
+| `t_stage` | `053` | 0.000160796 s | how long one face works before the sieve moves on |
 | `w_interleave` | `038` | 32768 bit | address granularity at which consecutive addresses move to the next bank. Eight thousand was tried and is narrower than a single cycle's read from one tier, which would have meant every transfer straddling two banks |
 
 ## What consumes it

@@ -33,7 +33,7 @@ Described by `401`.
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `I_die_max` | **nothing declares this** | — | — |
+| `I_die_max` | `032` | 120 A | the most current one die's power grid and microbump array will carry, from the cross-section below and the limit at temperature |
 | `I_port_max` | `056` | 14.4 A | current the power pads will carry, half of them being return |
 | `P_core` | `020` | 160.196 W | the whole memory block |
 | `P_crossbar` | `020` | 13.82 W | the cage's switch fabric at full traffic. Thirty-nine was an estimate before 037 had a per-bit figure; the constraint that compares the two is what corrected it |

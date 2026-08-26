@@ -27,7 +27,7 @@ Described by `605`.
 | `n_reuse` | 1 | derived | 28 | how many times a weight is used from the slice for each time it is read from the core |
 | `I_step_engine` | A | derived | 61.1669 A | current the array demands when every cell has an operand, which 031 sized the decoupling from |
 | `B_operand_die` | bit/s | derived | 1.88416e+13 bit/s | operand bandwidth from the slice: a weight tile reloaded every batch cycles at four bits each, plus a row of activations every cycle at sixteen |
-| `acc_headroom` | 1 | derived | 512 | how much margin the accumulator has against the largest reduction: a row of products, each at most the square of an operand's range |
+| `acc_headroom` | 1 | derived | 4.57143 | how much margin the accumulator has against the largest reduction in the model, each product at most the square of an operand's range. Written first against one row of the array, which is not the reduction -- the array accumulates across many passes and the real length is the model's widest tensor |
 
 ## What it consumes
 
@@ -44,6 +44,7 @@ Described by `605`.
 | `f_area_engine` | `041` | 0.104 | share given to the multiplier array and its accumulators |
 | `f_area_expand` | `041` | 0.087 | share given to operand staging and the weight expansion path |
 | `n_die` | `012` | 24 | compute dies in the machine |
+| `n_reduce_max` | `078` | 28672 | the longest reduction anywhere in a forward pass, which 077 sizes the accumulator against |
 | `range_operand` | `046` | 128 | largest magnitude an engine operand can carry |
 | `util_design` | `041` | 1 | multiplier utilisation at the design operating point, which is the crossover batch where the engines are the wall |
 | `w_act` | `046` | 16 bit | activations in the residual stream |
@@ -58,20 +59,20 @@ Change one of these and the blueprints beside it are what break.
 | `n_mac_row` | `045` |
 | `f_face` | `031`, `044`, `045`, `047`, `049`, `060`, `070`, `072`, `074` |
 | `a_mac` | `045` |
-| `w_acc` | `045`, `046` |
+| `w_acc` | `045`, `046`, `077` |
 | `n_lut_entry` | `046` |
-| `n_flop_mac` | `045` |
+| `n_flop_mac` | `045`, `053`, `078` |
 | `a_expand_lane` | `045` |
 | `f_bwd_operand` | `045` |
 | `n_mac` | `045` |
 | `A_mac_array` | `045` |
 | `A_expand` | `045` |
-| `ops_die` | `045` |
-| `ops_machine` | `053` |
+| `ops_die` | `045`, `053` |
+| `ops_machine` | `053`, `079` |
 | `P_engine_die` | `020`, `028`, `031`, `041`, `045` |
 | `n_reuse` | `045` |
 | `I_step_engine` | `045` |
-| `B_operand_die` | `020`, `045`, `047`, `055`, `060`, `061` |
+| `B_operand_die` | `020`, `042`, `045`, `047`, `055`, `060`, `061` |
 | `acc_headroom` | `045` |
 
 ## What it asserts

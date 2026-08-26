@@ -20,8 +20,8 @@ Described by `607`.
 | `d_slice` | MB/mm^2 | derived | 1.00503 MB/mm^2 | areal density on a logic die |
 | `C_slice_die` | MB | derived | 289.447 MB | capacity of one die's slice |
 | `C_face_slice` | MB | derived | 1157.79 MB | and of a whole face's |
-| `C_slice_need` | MB | derived | unresolved | what the two-buffer requirement actually demands |
-| `m_slice` | 1 | derived | unresolved | margin on the tightest constraint in the project, which is worth having as a number rather than as a pass |
+| `C_slice_need` | MB | derived | 882.377 MB | what the two-buffer requirement actually demands |
+| `m_slice` | 1 | derived | 1.31213 | margin on the tightest constraint in the project, which is worth having as a number rather than as a pass |
 | `B_slice_read` | bit/s | derived | 3.67002e+15 bit/s | rate a face's slice serves reads, all banks at once |
 | `t_seq_wait` | s | derived | 1.42857e-12 s | how long a sequencer's small read waits when it lands behind a burst |
 | `d_slice_ratio` | 1 | derived | 2.0625 | how much denser a dedicated tier is than a slice on a logic die |
@@ -33,7 +33,7 @@ Described by `607`.
 | `A_slice_die` | `041` | 288 mm^2 | area one die's slice occupies |
 | `B_face_even` | `034` | 5.12e+13 bit/s | and what it gets when all six are asking equally |
 | `B_operand_die` | `045` | 1.88416e+13 bit/s | operand bandwidth from the slice: a weight tile reloaded every batch cycles at four bits each, plus a row of activations every cycle at sixteen |
-| `C_layer_weights` | **nothing declares this** | — | — |
+| `C_layer_weights` | `078` | 441.188 MB | one transformer layer's share |
 | `E_slice_bit` | `020` | 0.15 pJ/bit | energy to read one bit out of a face slice, array and local routing together |
 | `a_cell` | `035` | 0.0199 um^2/bit | area of one six-transistor static memory cell at the chosen node. The unit is area per bit rather than area, which sounds pedantic until a density derived from it is compared against something and turns out to be a reciprocal area with no information in it |
 | `d_areal` | `035` | 2.07286 MB/mm^2 | areal density. The unit conversion from bits per square micron to megabytes per square millimetre is the notation's job, not the author's, which is the second reason area per bit had to carry its bit |
@@ -52,12 +52,12 @@ Change one of these and the blueprints beside it are what break.
 | `eta_slice` | `047` |
 | `n_slice_buf` | `047`, `060` |
 | `n_slice_bank` | `047` |
-| `batch_design` | `045`, `050`, `053` |
+| `batch_design` | `045`, `053`, `076`, `078`, `079`, `080` |
 | `p_seq_conflict` | `047` |
 | `a_bit_slice` | `047` |
 | `d_slice` | `047` |
 | `C_slice_die` | `047` |
-| `C_face_slice` | `041`, `047`, `060` |
+| `C_face_slice` | `041`, `047`, `060`, `075`, `076`, `078` |
 | `C_slice_need` | `047` |
 | `m_slice` | `047` |
 | `B_slice_read` | `045`, `047`, `055`, `060`, `061` |

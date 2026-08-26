@@ -32,7 +32,7 @@ Described by `501`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `A_core_side` | `012` | 1600 mm^2 | area of one side of the core block, and of one tier |
-| `C_resident` | `059` | unresolved | what a model needs resident: weights and cache together |
+| `C_resident` | `059` | 55.1669 GB | what a model needs resident: weights and cache together |
 | `E_core_bit` | `020` | 0.48 pJ/bit | energy to read one bit out of a core tier, array and tier routing together |
 | `P_core_read` | `020` | 147.456 W | the core's array read energy at its full bandwidth |
 | `d_areal` | `035` | 2.07286 MB/mm^2 | areal density. The unit conversion from bits per square micron to megabytes per square millimetre is the notation's job, not the author's, which is the second reason area per bit had to carry its bit |
@@ -56,8 +56,8 @@ Change one of these and the blueprints beside it are what break.
 | `n_bank_min` | `034` |
 | `C_tier` | `034` |
 | `C_core_raw` | `034`, `035`, `040`, `073` |
-| `C_core_usable` | `034`, `038`, `059`, `062`, `067`, `069a`, `069b` |
-| `B_core` | `020`, `034`, `037`, `039`, `040`, `051`, `053`, `055`, `059`, `060`, `061`, `062`, `073` |
+| `C_core_usable` | `034`, `038`, `059`, `062`, `067`, `069a`, `069b`, `076a`, `078`, `080` |
+| `B_core` | `020`, `034`, `037`, `039`, `040`, `051`, `053`, `055`, `059`, `060`, `061`, `062`, `073`, `079`, `080` |
 | `B_face_max` | `034`, `055` |
 | `B_face_even` | `037`, `044`, `047`, `048`, `052`, `060`, `061` |
 | `C_bank` | `034` |

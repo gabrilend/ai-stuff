@@ -17,17 +17,15 @@ Described by `701`.
 | `n_pair` | 1 | derived | 15 | face pairs a mesh would have had to connect |
 | `n_closure` | 1 | derived | 2 | distinct link designs a mesh would have needed, one per distance |
 | `ratio_reach` | 1 | derived | 17.1429 | how much further a face-to-face wire would have had to reach |
-| `C_handoff` | MB | derived | unresolved | what actually crosses between two stages, per step |
-| `f_handoff` | 1 | derived | unresolved | that as a share of the weight traffic one stage moves, which is the number that says a mesh would be carrying nothing |
+| `f_handoff` | 1 | derived | 1.26112e-05 | that as a share of the weight traffic one stage moves, which is the number that says a mesh would be carrying nothing |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `C_activation` | **nothing declares this** | — | — |
-| `C_weights` | **nothing declares this** | — | — |
+| `C_handoff` | `076` | 0.0764587 MB | one staging buffer's worth: a microbatch of activation vectors |
+| `C_weights` | `078` | 36.3764 GB | the weights, resident, at the format in 046 |
 | `L_cube` | `012` | 60 mm | outer edge length of the finished cube; follows from the four dimensions below it in the chain |
-| `batch_design` | `047` | 28 | the batch the machine is provisioned for; 079 derives the crossover independently and C-079-1 requires the two to agree |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `t_face` | `012` | 7 mm | one face assembly, outward surface to inward surface; the stack in 014 adds to just under this |
 
@@ -42,7 +40,6 @@ Change one of these and the blueprints beside it are what break.
 | `L_face_opp` | `050` |
 | `n_pair` | `050` |
 | `ratio_reach` | `050` |
-| `C_handoff` | `050`, `055` |
 | `f_handoff` | `050` |
 
 ## What it asserts

@@ -19,12 +19,13 @@ Described by `802`.
 | `B_line` | bit/s | derived | 2.048e+12 bit/s | what one line's pairs carry |
 | `B_drives` | bit/s | derived | 2.048e+12 bit/s | what the drives behind it supply |
 | `B_feed` | bit/s | derived | 1.024e+13 bit/s | aggregate into the machine |
-| `t_load` | s | derived | unresolved | time to fill the core |
-| `t_load_relay` | s | derived | unresolved | and with the sixth slice relayed through the core over one of the five |
+| `t_load` | s | derived | 0.0284191 s | time to fill the core |
+| `t_load_relay` | s | derived | 0.0341029 s | and with the sixth slice relayed through the core over one of the five |
 | `P_line` | W | derived | 51.2 W | what the lines cost while they are running, which is only during a load |
 | `n_drive_total` | 1 | derived | 80 | drives an installation has to provide |
-| `t_load_min` | s | derived | unresolved | load time with a single drive on each line, which is the other end of the deployment table |
+| `t_load_min` | s | derived | 0.454705 s | load time with a single drive on each line, which is the other end of the deployment table |
 | `E_burst_max` | J | given | 20 J | the most energy a transient may deposit in the face assemblies before it stops being absorbed by their thermal mass and starts being a load the coolant sees |
+| `t_load_slow` | s | given | 60 s | the longest a load may take at the sparsest sensible deployment, one drive per line. A minute is what somebody will wait once per power cycle |
 | `t_load_max` | s | given | 0.1 s | the longest filling the core may take. A tenth of a second is what somebody starting a machine will not notice; the design comes in well under it |
 | `L_reach_line` | mm | given | 3000 mm | reach of the adopted serial standard at this rate, from its own specification |
 
@@ -32,7 +33,7 @@ Described by `802`.
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `C_weights` | **nothing declares this** | — | — |
+| `C_weights` | `078` | 36.3764 GB | the weights, resident, at the format in 046 |
 | `P_port_burst` | `020` | 80 W | what the port fields may draw transiently: a model load runs the storage lines flat out for tens of milliseconds, and the spout's pane costs more again for microseconds. Neither is in the steady budget and 026 is where both are absorbed |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `n_pair_line` | `056` | 64 | differential pairs one storage line uses |
@@ -58,6 +59,7 @@ Change one of these and the blueprints beside it are what break.
 | `P_line` | `057` |
 | `t_load_min` | `057` |
 | `E_burst_max` | `057`, `062` |
+| `t_load_slow` | `057` |
 | `t_load_max` | `057`, `061`, `069b` |
 | `L_reach_line` | `057`, `067` |
 
@@ -70,6 +72,6 @@ Change one of these and the blueprints beside it are what break.
 | `C-057-3` | `n_pair_line * 2 <= n_port_conductor` | the pairs must fit in what 056 routes through the via islands |
 | `C-057-4` | `P_line < P_port_burst` | the lines must fit inside the transient port allowance. They do not fit inside the steady one and should not have to: a load runs them flat out for tens of milliseconds and then they are idle until the machine is next power-cycled |
 | `C-057-7` | `P_line * t_load_relay < E_burst_max` | and the energy of a whole load must be small enough for 026's thermal masses to absorb without the coolant hearing about it |
-| `C-057-5` | `t_load_min < 60` | even at one drive a line the machine must load in under a minute, which is what makes the drive count a deployment choice rather than a requirement |
+| `C-057-5` | `t_load_min < t_load_slow` | even at one drive a line the machine must load in under a minute, which is what makes the drive count a deployment choice rather than a requirement |
 | `C-057-6` | `L_cable < L_reach_line` | the cable must be inside the reach the chosen physical layer supports |
 

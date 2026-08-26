@@ -16,24 +16,24 @@ Described by `505`.
 | `w_interleave` | bit | given | 32768 bit | address granularity at which consecutive addresses move to the next bank. Eight thousand was tried and is narrower than a single cycle's read from one tier, which would have meant every transfer straddling two banks |
 | `C_pane` | MB | derived | 2.09715 MB | the window the spout sees, from 062 |
 | `n_region` | 1 | given | 9 | regions in the map |
-| `C_staging` | MB | derived | unresolved | the six forward staging buffers |
-| `C_staging_r` | MB | derived | unresolved | and the six reverse ones for training |
-| `C_mapped` | GB | derived | unresolved | everything with an address |
-| `C_free` | GB | derived | unresolved | what is left |
-| `f_mapped` | 1 | derived | unresolved | how full the map is at the reference model |
+| `C_staging` | MB | derived | 0.458752 MB | the six forward staging buffers |
+| `C_staging_r` | MB | derived | 0.458752 MB | and the six reverse ones for training |
+| `C_mapped` | GB | derived | 55.1858 GB | everything with an address |
+| `C_free` | GB | derived | 16.7596 GB | what is left |
+| `f_mapped` | 1 | derived | 0.767051 | how full the map is at the reference model |
 | `n_bank_stride` | 1 | derived | 3.2 | cycles a single bank is held before the address moves on |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `C_adapter` | **nothing declares this** | — | — |
-| `C_checkpoint` | **nothing declares this** | — | — |
+| `C_adapter` | `078` | 0 GB | adapter and optimiser state; the same |
+| `C_checkpoint` | `078` | 0 GB | activation checkpoints; zero unless 076a's training is in use |
 | `C_core_usable` | `034` | 71.9454 GB | what a model may actually use |
-| `C_kv` | **nothing declares this** | — | — |
-| `C_stage_buf` | `053` | unresolved | one staging buffer: a microbatch of activation vectors |
-| `C_stage_min` | `053` | unresolved | the least a staging buffer can be and still hold one sequence's activations |
-| `C_weights` | **nothing declares this** | — | — |
+| `C_kv` | `078` | 18.7905 GB | and the whole batch's |
+| `C_stage_buf` | `053` | 0.0764587 MB | one staging buffer: a microbatch of activation vectors |
+| `C_stage_min` | `053` | 0.016384 MB | the least a staging buffer can be and still hold one sequence's activations |
+| `C_weights` | `078` | 36.3764 GB | the weights, resident, at the format in 046 |
 | `n_pane_bit` | `062` | 1.67772e+07 bit | the pane, rounded down to a power of two so that its window aligns naturally in 038. It carries the unit because it is a quantity of bits rather than a count of things, and everything downstream of it is a size or a rate |
 | `n_stage` | `010` | 6 | pipeline stages a token falls through, one per face |
 | `w_tier_port` | `034` | 10240 bit | bits one tier delivers per cycle, set by its macro count and the routing it can support across a forty millimetre die |
@@ -51,8 +51,8 @@ Change one of these and the blueprints beside it are what break.
 | `w_interleave` | `038`, `052`, `058` |
 | `C_pane` | `038`, `039`, `055` |
 | `n_region` | `038` |
-| `C_staging` | `038` |
-| `C_staging_r` | `038` |
+| `C_staging` | `038`, `076a` |
+| `C_staging_r` | `038`, `076a` |
 | `C_mapped` | `038` |
 | `C_free` | `038` |
 | `n_bank_stride` | `038` |

@@ -4,10 +4,25 @@ Produces `src/076a-the-sieve-in-reverse.md`.
 
 ## Current behavior
 
-Nothing, and until this ticket the project assumed the opposite. `701` said
-training was foreclosed by the topology. It is not. It is limited by memory, and
-the limit lands in a place that leaves something genuinely useful on the near side
-of it.
+**Done.** `src/076a-the-sieve-in-reverse.md` exists.
+
+The topology permits it, and the wall is memory. Six constraints, and `C-076a-5`
+is asserted **in the failing direction on purpose**: training every parameter must
+be out of reach by at least an order of magnitude. A blueprint set that is silent
+about what a machine cannot do is worse than one that says so plainly.
+
+What it costs is small: a second set of staging buffers, recomputation instead of
+saved activations -- nearly free here because the machine has arithmetic to spare
+below the crossover -- and `045`'s transposed multiply, which was priced three
+ways and resolved by streaming differently rather than by changing the array.
+
+`C-076a-2` asserts the property that makes it cheap: **backward traffic between
+stages is the same size as forward traffic**, because the gradient with respect to
+a face's own weights never leaves the face.
+
+**Nothing here has been checked against a training run**, and whether a
+rank-limited adapter trained this way learns anything useful is not a hardware
+question. **The interleaved schedule is named and not designed.**
 
 ## Intended behavior
 

@@ -51,7 +51,7 @@ n_stall_cycle | 1 | given | 2000   | cycles the engine waits when one does
 t_transfer_layer | s | derived | C_layer_weights / B_face_even | time to move one layer's weights at a face's contended share
 t_lead        | s | derived | t_link_rt + t_transfer_layer          | how far ahead the prefetch must start
 t_lead_unc    | s | derived | t_link_rt + C_layer_weights / B_core | and what it would be uncontended, which is the number that would have been used had nobody thought about the other five faces
-f_lead_layer  | 1 | derived | t_lead / t_layer                      | the lead as a share of the time a layer takes
+f_lead_layer  | 1 | derived | t_lead / t_layer                      | the lead as a share of the arithmetic it has to hide behind
 t_stall_token | s | derived | f_stall_prob * n_layer_face * n_stall_cycle / f_face | stall time per token per face
 f_stall_token | 1 | derived | t_stall_token / t_token               | that as a share of a token
 B_concurrent  | bit/s | derived | B_operand_die * n_die_face + B_face_even | what the slice must serve and absorb at the same time: the engine reading one buffer while the link fills the other

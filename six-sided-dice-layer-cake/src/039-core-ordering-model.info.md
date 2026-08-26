@@ -17,7 +17,7 @@ Described by `506`.
 | `t_write_max` | ns | derived | 19.15 ns | the longest a write can be in flight: its own release, the array's access, and the worst the arbiter can make it wait. 033's brownout hold-up is judged against this. Written first with a hand conversion from seconds to nanoseconds, which turned nineteen nanoseconds into six and a half seconds |
 | `t_handoff` | ns | derived | 38.4868 ns | a full stage handoff: release, the flag crossing to the next face, acquire, and the buffer read |
 | `t_pane_excl` | ns | derived | 54.6133 ns | how long the pane read excludes writes, which is the price of choosing exclusion |
-| `f_pane_stall` | 1 | derived | unresolved | that price as a share of a token |
+| `f_pane_stall` | 1 | derived | 5.66071e-05 | that price as a share of a token |
 
 ## What it consumes
 
@@ -28,8 +28,8 @@ Described by `506`.
 | `t_access` | `035` | 0.75 ns | latency from a read being issued to the first bits arriving at the tier's port |
 | `t_holdup` | `033` | 4.75275e-08 s | how long that actually lasts |
 | `t_link_rt` | `051` | 9.2434e-09 s | round trip from a face issuing a read to the first data arriving: two flights, the array's access, the worst arbitration wait, and the protocol's own overhead |
-| `t_stage` | `053` | unresolved | how long one face works before the sieve moves on |
-| `t_token` | `053` | unresolved | time for one token, bandwidth-bound: every weight read once at the core's aggregate rate |
+| `t_stage` | `053` | 0.000160796 s | how long one face works before the sieve moves on |
+| `t_token` | `053` | 0.000964779 s | time for one token of one sequence, bandwidth-bound: every weight once, plus that sequence's cache |
 | `t_wait_face` | `037` | 6.4e-09 s | worst case a face waits when all six are asking, which is what 053's stage budget must absorb |
 
 ## What consumes it
@@ -43,7 +43,7 @@ Change one of these and the blueprints beside it are what break.
 | `n_share_site` | `039`, `072` |
 | `coherent` | `039` |
 | `t_write_max` | `033`, `039` |
-| `t_handoff` | `039`, `054` |
+| `t_handoff` | `039`, `054`, `080` |
 | `t_pane_excl` | `039` |
 | `f_pane_stall` | `039` |
 

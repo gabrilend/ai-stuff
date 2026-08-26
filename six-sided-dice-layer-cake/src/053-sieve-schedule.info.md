@@ -14,11 +14,14 @@ Described by `704`.
 | `f_poll_backoff` | 1 | given | 0.01 | share of a stage a polling face spends actually issuing reads, the rest being back-off |
 | `tol_stage` | 1 | given | 0.05 | how unequal the six stages may be before the slowest visibly sets the rate |
 | `f_end_rate` | 1 | given | 0.02 | share of steps in which some sequence in the batch produces an end marker |
-| `t_token` | s | derived | unresolved | time for one token, bandwidth-bound: every weight read once at the core's aggregate rate |
-| `t_stage` | s | derived | unresolved | how long one face works before the sieve moves on |
-| `t_token_comp` | s | derived | unresolved | and what one step would take if arithmetic were the wall |
-| `C_stage_buf` | MB | derived | unresolved | one staging buffer: a microbatch of activation vectors |
-| `C_stage_min` | MB | derived | unresolved | the least a staging buffer can be and still hold one sequence's activations |
+| `t_token` | s | derived | 0.000964779 s | time for one token of one sequence, bandwidth-bound: every weight once, plus that sequence's cache |
+| `t_step` | s | derived | 0.00143664 s | and for one step of a whole batch, where the weights are read once for everybody and the cache is read for each |
+| `t_layer_comp` | s | derived | 7.96098e-05 s | how long one layer's arithmetic takes at the design batch, which is what a prefetch actually has to hide behind |
+| `ops_face` | flop/s | derived | 6.01883e+14 flop/s | arithmetic one face actually delivers |
+| `t_stage` | s | derived | 0.000160796 s | how long one face works before the sieve moves on |
+| `t_token_comp` | s | derived | 0.000897067 s | and what one step would take if arithmetic were the wall |
+| `C_stage_buf` | MB | derived | 0.0764587 MB | one staging buffer: a microbatch of activation vectors |
+| `C_stage_min` | MB | derived | 0.016384 MB | the least a staging buffer can be and still hold one sequence's activations |
 | `B_poll` | bit/s | derived | 2.65876e+10 bit/s | bandwidth six polling faces consume |
 | `f_poll_cost` | 1 | derived | 8.65483e-05 | that as a share of the core's |
 | `n_fill` | 1 | derived | 5 | microbatches that enter an empty pipeline before it is full |
@@ -31,13 +34,20 @@ Described by `704`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `B_core` | `034` | 3.072e+14 bit/s | aggregate read bandwidth, every tier delivering at once |
-| `C_activation` | **nothing declares this** | — | — |
-| `C_weights` | **nothing declares this** | — | — |
+| `B_kv_seq` | `076` | 671.089 MB | cache traffic for one token of one sequence, at full context |
+| `B_kv_tok` | `076` | 18790.5 MB | and across the whole batch, which is a different number and is the one 079 uses |
+| `C_activation` | `078` | 0.016384 MB | one token's activation vector, which is what crosses between stages |
+| `C_weights` | `078` | 36.3764 GB | the weights, resident, at the format in 046 |
 | `batch_design` | `047` | 28 | the batch the machine is provisioned for; 079 derives the crossover independently and C-079-1 requires the two to agree |
-| `flop_token` | **nothing declares this** | — | — |
+| `eta_array_util` | `079` | 0.82 | share of cycles a multiplier has an operand at the design microbatch, which is below one because a tile reload is not overlapped perfectly |
+| `flop_token` | `078` | 1.41096e+11 flop | operations to generate one token: two per weight |
+| `n_die_face` | `042` | 4 | compute dies on one face |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
+| `n_flop_mac` | `045` | 2 flop | operations one multiply-accumulate cell performs per cycle: a multiply and an add. It carries the unit so that an operation rate is a rate of operations rather than a bare reciprocal second, which is the distinction that keeps a throughput from being added to a clock |
 | `n_stage` | `010` | 6 | pipeline stages a token falls through, one per face |
+| `ops_die` | `045` | 1.83501e+14 flop/s | operations a die can issue a second |
 | `ops_machine` | `045` | 4.40402e+15 flop/s | and the whole machine |
+| `p_layer` | `078` | 8.55638e+08 | parameters in one transformer layer |
 | `t_link_rt` | `051` | 9.2434e-09 s | round trip from a face issuing a read to the first data arriving: two flights, the array's access, the worst arbitration wait, and the protocol's own overhead |
 | `w_transfer` | `052` | 4096 bit | payload of one transfer. Sixteen of 040's correction lines, an eighth of 038's interleave, and large enough that the header is three per cent |
 
@@ -47,21 +57,24 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `n_microbatch` | `053` |
+| `n_microbatch` | `053`, `076` |
 | `f_poll_backoff` | `053` |
-| `tol_stage` | `053` |
+| `tol_stage` | `053`, `075` |
 | `f_end_rate` | `053` |
-| `t_token` | `039`, `053`, `055`, `059`, `060`, `061` |
-| `t_stage` | `026`, `037`, `039`, `044`, `048`, `052`, `053`, `054`, `055`, `072` |
+| `t_token` | `039`, `053`, `055`, `059`, `060`, `061`, `079`, `080` |
+| `t_step` | `080` |
+| `t_layer_comp` | `048` |
+| `ops_face` | `053` |
+| `t_stage` | `026`, `037`, `039`, `044`, `052`, `053`, `054`, `055`, `072` |
 | `t_token_comp` | `053` |
 | `C_stage_buf` | `038`, `053` |
 | `C_stage_min` | `038`, `053` |
 | `B_poll` | `053`, `055` |
 | `f_poll_cost` | `053` |
 | `n_fill` | `053` |
-| `f_fill_cost` | `053` |
+| `f_fill_cost` | `053`, `080` |
 | `n_token_typical` | `053` |
-| `f_bubble_cost` | `053` |
+| `f_bubble_cost` | `053`, `080` |
 
 ## What it asserts
 
