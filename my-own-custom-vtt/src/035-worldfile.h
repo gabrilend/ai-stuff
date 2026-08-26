@@ -38,7 +38,7 @@
  * came from. The FIRST time this number moved, and the first rung of the
  * converter ladder that was built empty in phase 1 on purpose.
  */
-#define WORLDFILE_VERSION 3u
+#define WORLDFILE_VERSION 4u
 
 /*
  * What went wrong. Every failure is a sentence naming what was found and what
