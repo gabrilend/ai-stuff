@@ -6,6 +6,26 @@ Six thousand recipes and no kitchen. Every claim this project makes about the
 illusion is an argument from how the machinery works, and not one image has ever
 been made from any of it.
 
+## Current behavior
+
+The install script is done and `src/044-run-the-pictures.lua` is written. With
+nothing listening it says so and gives the line that starts one, which is the
+case that will actually happen.
+
+**The node catalogue has been checked against ComfyUI's own source** for the
+first time, because installing it inside this project put that source on disk.
+All eleven node types exist; `ControlNetApplyAdvanced` declares exactly the
+sockets `301` claims; and the trap `docs/005` spends a paragraph predicting is
+real and is exactly where it said — the sampler's seed is declared with
+`control_after_generate` set, which is the flag that makes the editor draw an
+extra selector after it.
+
+**The card check had to stop reading a list and ask the card.** The published
+build of the arithmetic library reports being made for `sm_50 sm_60 sm_70 …`,
+and this card is `sm_61` — so an exact-match check declared it unusable while it
+was sitting there working, because compiled CUDA code runs on any device of the
+same major version with an equal or higher minor one.
+
 ## Intended behavior
 
 **A ComfyUI on this machine, and something here that feeds it.**
