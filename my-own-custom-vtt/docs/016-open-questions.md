@@ -572,3 +572,62 @@ orders and wrong for anything order-dependent.
 
 It has not come up because phase 3 has no way to declare a command in the future.
 Phase 4 does, and this is where it will surface.
+
+---
+
+## Raised by building phase 7
+
+### 14.1 A rolled-back turn does not roll back the sheets
+
+A world snapshot copies flat blocks of bytes, which is what makes it a memcpy. A
+ruleset's sheet storage is a Lua table, which is not that.
+
+So taking a turn back restores every position, every wall, every fog bitmap and
+every dice position -- and leaves the hit points where they were. **A rollback
+that looks like it worked.**
+
+Three ways out, none taken:
+
+| Way | What it costs |
+| --- | --- |
+| The ruleset provides `snapshot` and `restore` hooks | Every ruleset author must get it right, and one who does not produces a rollback that silently half-works -- which is worse than one that visibly does not. |
+| The server serialises the sheet table generically | Works only for plain data. Breaks quietly on a closure or an upvalue, which is exactly what a ruleset with interesting rules will contain. |
+| Accept it | Honest and cheap and wrong in a way people will notice the first time somebody undoes a fight. |
+
+`rules_sheets_survive_rollback` exists and returns 0, so a caller can **say** so
+rather than pretend. The phase 7 demo shows it happening.
+
+This is the largest known hole in the project.
+
+### 14.2 Can a ruleset make a replay diverge?
+
+Lua's only number type is a double, so every value crossing the rules boundary is
+floating point, and `073-rules` is exempt from the build's floating-point check
+for that reason.
+
+That is a relocation of the determinism argument rather than a hole in it: what
+was banned in C was the compiler's freedom to reassociate and to fuse, and a VM
+executing bytecode one operation at a time has neither. The four arithmetic
+operations are deterministic given the same inputs.
+
+**What is left open is transcendentals.** `math.sin` in one C library may not
+agree with `math.sin` in another to the last bit, so a ruleset using them may
+replay differently on a different machine.
+
+Three possible answers, none chosen: remove them from the sandbox and make
+rulesets poorer; provide our own integer versions and make them slower and
+stranger; or leave them and rely on the determinism harness to catch a divergence
+after the fact.
+
+The harness does catch it -- the world hash compared at every beat is exactly
+this test -- so the current position is "leave them, and find out". That is a
+position, not an oversight.
+
+### 14.3 Who reads a ruleset's error?
+
+A failing hook is abandoned after eight failures and its error is recorded, and
+the refusal that comes back says the ruleset failed rather than that it declined.
+
+But the error is currently only visible to whoever issued the command. A GM
+probably wants to see it; a player probably does not want a stack trace; a log
+file cannot be read during a session. Undecided.

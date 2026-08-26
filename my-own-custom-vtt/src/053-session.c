@@ -12,6 +12,7 @@
  */
 
 #include "053-session.h"
+#include "073-rules.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -272,6 +273,28 @@ static void begin_turn(struct session *s, uint32_t turn)
 }
 /* }}} */
 
+/* {{{ void session_attach_rules */
+void session_attach_rules(struct session *s, void *rules)
+{
+    s->rules = rules;
+
+    if (rules != NULL) {
+        ((struct ruleset *)rules)->sim = &s->sim;
+    }
+}
+/* }}} */
+
+/* {{{ const char *session_last_rules_refusal */
+const char *session_last_rules_refusal(const struct session *s)
+{
+    if (s->rules == NULL) {
+        return "";
+    }
+
+    return ((const struct ruleset *)s->rules)->last_refusal;
+}
+/* }}} */
+
 /* {{{ uint16_t session_command */
 uint16_t session_command(struct session *s, uint16_t verb, uint32_t subject,
                          int32_t ax, int32_t ay)
@@ -305,7 +328,20 @@ uint16_t session_command_from(struct session *s, uint32_t viewer,
      */
     index = log_record(&s->log, &entry);
 
-    refusal = command_apply(&s->sim, &entry);
+    /*
+     * Gates 1 through 5, then the ruleset, then the change. In that order,
+     * because a ruleset asked to veto something that has already happened is not
+     * a veto -- and because a refusal must leave the world exactly as it was.
+     */
+    refusal = command_check(&s->sim, &entry);
+
+    if (refusal == REFUSED_NOT_AT_ALL && s->rules != NULL) {
+        refusal = rules_on_command((struct ruleset *)s->rules, viewer, &entry);
+    }
+
+    if (refusal == REFUSED_NOT_AT_ALL) {
+        refusal = command_perform(&s->sim, &entry);
+    }
 
     if (refusal != REFUSED_NOT_AT_ALL) {
         log_mark_refused(&s->log, index, refusal);
@@ -319,6 +355,27 @@ uint16_t session_command_from(struct session *s, uint32_t viewer,
 void session_tick(struct session *s)
 {
     sim_tick(&s->sim);
+
+    /*
+     * Pass 5 of the tick table, which has been an empty row since phase 3. And
+     * the crossings pass 4 collected, delivered in index order on one thread --
+     * a ruleset called from three threads at once could not be deterministic.
+     */
+    if (s->rules != NULL) {
+        struct ruleset *rules = s->rules;
+        const struct crossing *crossings;
+        uint32_t count = 0;
+        uint32_t i;
+
+        crossings = sim_crossings(&s->sim, &count);
+
+        for (i = 0; i < count; i++) {
+            rules_on_region_enter(rules, crossings[i].thing,
+                                  crossings[i].left, crossings[i].entered);
+        }
+
+        rules_on_tick(rules);
+    }
 
     /*
      * The window closes when it has been open long enough, and the next one

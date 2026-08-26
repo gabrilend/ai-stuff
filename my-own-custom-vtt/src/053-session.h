@@ -94,6 +94,15 @@ struct session {
     uint8_t  turn_state;
 
     /*
+     * The rules layer, or NULL. Held as a void pointer because 073-rules.h
+     * includes this file -- a forward declaration would be cleaner and C does
+     * not offer one that survives the cycle.
+     *
+     * Set with session_attach_rules, which takes the real type.
+     */
+    void *rules;
+
+    /*
      * How many beats a window stays open. ONE IS A REAL CONFIGURATION, not a
      * degenerate one -- it is continuous play, and it must run through exactly
      * the same code as any other window rather than down a special path.
@@ -120,6 +129,20 @@ void session_release(struct session *s);
  * keeps the array -- but the ring will snapshot and restore it.
  */
 void session_attach_fogs(struct session *s, struct fog *fogs, uint32_t count);
+
+/*
+ * Give the session a ruleset. Gate 6 of the gauntlet runs between checking a
+ * command and performing it, and pass 5 of the tick calls on_tick.
+ *
+ * Takes a `struct ruleset *`. Untyped here only because of the include cycle.
+ */
+void session_attach_rules(struct session *s, void *rules);
+
+/*
+ * The sentence the ruleset gave for the last refusal, or an empty string. Gate 6
+ * is the only gate whose sentence the server does not write.
+ */
+const char *session_last_rules_refusal(const struct session *s);
 
 /*
  * Offer a command. It is recorded first, then run through the gauntlet, so that
