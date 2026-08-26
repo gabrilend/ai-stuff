@@ -4,7 +4,21 @@ Produces `src/095-constraint-check.lua`.
 
 ## Current behavior
 
-Nothing. `001` says the test of the deliverable is this program.
+**Done.** `src/095-constraint-check.lua` exists, and `./run-checks` at the
+project root runs it and the diagram check together.
+
+A failure line gives the tag, the file and line, the relation as written, both
+sides evaluated in the unit their own symbols were declared in, the margin as a
+percentage, and the author's reason. Dimension mismatch is reported apart from
+failure because the two mean different things.
+
+**Two categories were added while using it.** Zero is treated as dimensionally
+neutral, because every literal is dimensionless and without the exception the
+notation would forbid `x > 0`, which is the commonest constraint anybody writes.
+And a constraint that reaches for a symbol nothing has declared yet is reported
+under *not yet* rather than as nonsense, and does not fail the run -- the set
+being incomplete is a different condition from the set being wrong, and during
+construction it is the normal one.
 
 ## Intended behavior
 

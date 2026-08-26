@@ -4,8 +4,21 @@ Produces `src/098-diagram-check.lua`.
 
 ## Current behavior
 
-Nothing. `002` requires every dimension in a drawing to be a bracketed symbol name
-and nothing verifies it.
+**Done.** `src/098-diagram-check.lua` exists and runs as part of `./run-checks`.
+
+Every bracketed name in every drawing is checked against the ledger, and an
+unknown one fails the run. Digit runs that look like a dimension somebody typed
+instead of naming are warned about, with the small counts a drawing legitimately
+uses left alone.
+
+**The marker changed from what the ticket described.** One marker,
+`[not-dimensioned]`, placed in a drawing's caption, means the drawing is
+deliberately without dimensions -- so it silences both the number warning and
+the coverage note about an unfinished drawing. Two markers for what is really
+one statement would have been two things to remember.
+
+The blueprint states its own limit plainly: this checks that a drawing refers to
+things that exist, and nothing whatever about whether it depicts them honestly.
 
 ## Intended behavior
 
