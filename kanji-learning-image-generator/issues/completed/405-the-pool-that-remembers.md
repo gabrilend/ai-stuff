@@ -24,7 +24,21 @@ something no person had judged fell through to the machine's tier — so the
 provenance dial quietly became no dial at all, which is the one distinction it
 exists to preserve.
 
-Both were found by tests that asserted the thing rather than the mechanism. A run overwrites its output directory and there is no record
+Both were found by tests that asserted the thing rather than the mechanism.
+
+**A third, found by looking at a real companion after a real run.** Rating a
+picture rewrites its whole companion from whatever reading it back produced —
+and reading it back only ever looked at the table of fields. So the heading and
+the opening line, which were written once and never parsed, were erased by the
+*first* rating. Every rated companion in the pool had silently lost what
+character it was of and what that character means, while looking perfectly
+correct.
+
+The rule that fixes it is worth stating plainly, because the same shape will
+come back the next time a field is added: **anything that has to survive a
+rating lives in the table.** The heading is made from the table, not the other
+way round. A field that is written but never read is a field that is deleted by
+the next write. A run overwrites its output directory and there is no record
 that a picture ever existed, let alone whether it was any good.
 
 ## Intended behavior

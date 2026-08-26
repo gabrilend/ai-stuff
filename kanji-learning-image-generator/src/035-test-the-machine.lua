@@ -500,6 +500,8 @@ local function test_the_pool_and_the_graders(t)
 
   local entry = pool.read_companion(made[TREE].companion)
   t.same(entry.character, TREE, "the companion names its character")
+  t.same(entry.means, table.concat(store.records[TREE].meanings, ", "),
+         "and what it means")
   t.same(entry.seed, 1234, "and its seed, so it can be made again")
   t.same(entry.canvas, "a made-up brief",
          "and the brief it answered, so a bad score can be told from a bad ask")
@@ -539,6 +541,17 @@ local function test_the_pool_and_the_graders(t)
   pool.rate(made[TREE].companion, 2, "person")
   local rated = pool.read_companion(made[TREE].companion)
   t.same(#rated.ratings, 2, "both ratings are kept")
+
+  -- Rating rewrites the whole companion from whatever reading it back
+  -- produced, so anything that reading does not pick up is erased by the first
+  -- rating -- silently, leaving a file that looks perfectly fine and has lost
+  -- what it was of. Every rated companion in the pool had lost its title.
+  t.same(rated.means, entry.means, "and a rating does not erase what it means")
+  t.ok(rated.what ~= nil and rated.what ~= "",
+       "nor the line saying what it is")
+  t.same(rated.canvas, entry.canvas, "nor the brief it answered")
+  t.same(rated.seed, entry.seed, "nor the seed that makes it again")
+  t.same(rated.category, entry.category, "nor which world it is in")
 
   -- This is the bug that made every correction invisible: a pattern anchored on
   -- the newline before each entry eats it, so the second entry never matches --

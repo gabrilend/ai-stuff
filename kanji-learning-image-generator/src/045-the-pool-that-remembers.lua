@@ -98,9 +98,14 @@ function M.render_companion(entry)
   local out = {}
   local function say(line) out[#out + 1] = line or "" end
 
+  -- The default is settled here, once, and then written into the table like
+  -- everything else -- rather than being supplied at the moment of printing,
+  -- which would put a line in the file that reading it back cannot find.
+  local what = entry.what or "A rendering."
+
   say("# " .. entry.character .. " — " .. (entry.means or ""))
   say()
-  say(entry.what or "A rendering.")
+  say(what)
   say()
   say("| | |")
   say("|---|---|")
@@ -109,6 +114,18 @@ function M.render_companion(entry)
       say("| " .. name .. " | " .. tostring(value) .. " |")
     end
   end
+  -- In the table as well as in the heading and the opening line above.
+  --
+  -- WHY BOTH. A companion is rewritten every time somebody rates it, from
+  -- whatever reading it back produced -- and reading it back only ever looked
+  -- at this table. So the heading and the opening line, which were written once
+  -- and never parsed, were erased by the first rating. The file looked fine
+  -- and had quietly lost what it was of.
+  --
+  -- Anything that has to survive a rating lives in the table. The heading is
+  -- made from it, not the other way round.
+  field("means", entry.means)
+  field("what", what)
   field("kind", entry.kind)
   field("category", entry.category)
   field("character", entry.character)
