@@ -62,4 +62,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `020-test-the-ink`.
+Used by `020-test-the-ink`, `021-the-shape-of-a-stroke`, `027-test-the-meaning`.
