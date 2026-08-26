@@ -14,7 +14,7 @@ is for.
 |---|---|---|
 | `101` | The two archives | **completed** — both archives fetched, provenance recorded, settings and the two rituals in place |
 | `102` | Reading a shape out of XML | **completed** — both archives read, joined, cached, and every leftover accounted for |
-| `103` | The line the brush took | not started |
+| `103` | The line the brush took | **completed** — every stroke in the archive parses, flattens, and lands inside the box |
 | `104` | A surface that holds grey | not started |
 | `105` | A picture on the disk | not started |
 | `106` | Numbers a machine will read | not started |

@@ -59,3 +59,7 @@ what a person reads before opening the source.
 | `is_ideograph(codepoint)` | Whether a character number is a Chinese character at all. |
 | `is_duplicate_form(codepoint)` | Whether a character number is in the compatibility block. |
 | `main(argv)` |  |
+
+## Where it sits
+
+Used by `020-test-the-ink`.
