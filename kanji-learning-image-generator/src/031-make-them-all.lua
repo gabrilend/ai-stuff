@@ -13,6 +13,8 @@
 --   luajit src/031-make-them-all.lua --frequent 500
 --   luajit src/031-make-them-all.lua --chars 木火水
 --   luajit src/031-make-them-all.lua --all
+--   luajit src/031-make-them-all.lua --phrase 時間=time,an hour
+--   luajit src/031-make-them-all.lua --phrases
 --
 -- Add --out DIR to put the set somewhere other than the RAM scratch area.
 
@@ -22,6 +24,7 @@ local records = project.load("019-the-kanji-record")
 local one = project.load("030-make-one-kanji")
 local workflow = project.load("029-the-workflow-for-one-kanji")
 local heat = project.load("031a-when-the-machine-runs-hot")
+local phrases = project.load("019a-a-phrase-is-a-record-too")
 
 local M = {}
 
@@ -70,7 +73,7 @@ end
 function M.work(chosen, store, settings, options)
   local report = {
     asked = #chosen, made = 0, failed = {}, bytes = 0,
-    worlds = {}, unglossed = {}, crowded = 0, disputed = {},
+    worlds = {}, kinds = {}, unglossed = {}, crowded = 0, disputed = {},
     peak = 0, rested = 0,
   }
   -- Between characters, the worker looks at how hot the machine is getting and
@@ -90,6 +93,7 @@ function M.work(chosen, store, settings, options)
       report.made = report.made + 1
       report.bytes = report.bytes + done.bytes
       report.worlds[done.world] = (report.worlds[done.world] or 0) + 1
+      report.kinds[done.kind] = (report.kinds[done.kind] or 0) + 1
       report.crowded = report.crowded + (done.crowded or 0)
       for _, element in ipairs(done.unglossed or {}) do
         report.unglossed[element] = (report.unglossed[element] or 0) + 1
@@ -125,6 +129,7 @@ function M.write_shard_report(report, path)
   line("peak", string.format("%.1f", report.peak or 0))
   line("rested", string.format("%.2f", report.rested or 0))
   for world, count in pairs(report.worlds) do line("world", world, count) end
+  for kind, count in pairs(report.kinds) do line("kind", kind, count) end
   for element, count in pairs(report.unglossed) do line("nopicture", element, count) end
   for _, failure in ipairs(report.failed) do
     -- a reason can run to several lines and the format is one record per line
@@ -140,7 +145,7 @@ end
 function M.read_shard_reports(paths)
   local total = {
     asked = 0, made = 0, bytes = 0, crowded = 0, peak = 0, rested = 0,
-    failed = {}, worlds = {}, unglossed = {}, disputed = {},
+    failed = {}, worlds = {}, kinds = {}, unglossed = {}, disputed = {},
   }
   local missing = {}
   for _, path in ipairs(paths) do
@@ -165,6 +170,8 @@ function M.read_shard_reports(paths)
           total.rested = total.rested + (tonumber(fields[2]) or 0)
         elseif kind == "world" then
           total.worlds[fields[2]] = (total.worlds[fields[2]] or 0) + tonumber(fields[3])
+        elseif kind == "kind" then
+          total.kinds[fields[2]] = (total.kinds[fields[2]] or 0) + tonumber(fields[3])
         elseif kind == "nopicture" then
           total.unglossed[fields[2]] = (total.unglossed[fields[2]] or 0)
                                        + tonumber(fields[3])
@@ -213,6 +220,13 @@ function M.describe(total, elapsed, out_dir, settings)
       say(string.format("  and %d more", #total.failed - 20))
     end
   end
+
+  local kinds = {}
+  for name, count in pairs(total.kinds or {}) do
+    kinds[#kinds + 1] = name .. " " .. count
+  end
+  table.sort(kinds)
+  if #kinds > 0 then say("of which: " .. table.concat(kinds, ", ")) end
 
   local worlds = {}
   for name, count in pairs(total.worlds) do
@@ -283,6 +297,15 @@ end
 -- characters on a command line is not a command line.
 local function selection_arguments(options)
   local parts = {}
+  for _, name in ipairs({ "phrase", "phrases" }) do
+    if options[name] ~= nil then
+      if options[name] == true then
+        parts[#parts + 1] = "--" .. name
+      else
+        parts[#parts + 1] = "--" .. name .. " " .. shell_quote(options[name])
+      end
+    end
+  end
   for _, name in ipairs(records.selector_names()) do
     if options[name] ~= nil then
       if options[name] == true then
@@ -302,12 +325,19 @@ local function main(argv)
   local settings = project.hello("031-make-them-all")
   local store = records.store()
 
-  local chosen, how = records.select(store, options)
+  -- Words first, since asking for one is more specific than asking for a set
+  -- of characters and nobody means both at once.
+  local chosen, how = phrases.select(store, options), "phrases"
+  if not chosen then
+    chosen, how = records.select(store, options)
+  end
   if not chosen then
     io.write("say which characters to make. one of:\n")
     for _, name in ipairs(records.selector_names()) do
       io.write("  --", name, "\n")
     end
+    io.write("  --phrase 時間=time,an hour\n")
+    io.write("  --phrases              (everything in input/phrases.lua)\n")
     os.exit(1)
   end
 

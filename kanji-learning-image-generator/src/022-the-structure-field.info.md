@@ -22,18 +22,27 @@ luajit src/022-the-structure-field.lua --chars 森休川 [--out DIR]
 
 | | |
 |---|---|
-| `M.placement(settings)` | How the archive's box maps onto the picture. |
+| `M.placement(settings, record)` | How the archive's boxes map onto the picture. |
+| `M.where(placement, stroke)` | Which box a stroke is drawn in. |
 | `M.blur_for(count, settings)` | How far to soften a character with this many strokes. |
 | `M.build(record, settings, options)` | One character's structure field. |
 | `M.thumbnail(surface, settings)` | The same field at the size the illusion is supposed to work at. |
 | `M.inspect(surface, measured, settings)` | What the field looks like from the outside, as numbers a test can assert on. |
 | `M.edge_ink(surface)` | The most extreme value found anywhere on the outer border. |
 
-### `M.placement(settings)`
+### `M.placement(settings, record)`
 
-How the archive's box maps onto the picture.
+How the archive's boxes map onto the picture.
 
-The margin is applied to the *box*, not to the character's own ink, and this is the one decision here that is easy to get backwards. Centring each character on its own extent would make 一 -- a single horizontal line -- fill the frame exactly as densely as 田 does. Every character would come out the same visual size, and a learner would lose the one signal they have for how much is in a character before they can read it.
+One box per character. A single character is one box and a word is several, side by side, each holding its character at the same scale it would have had alone -- so the picture grows *wider* rather than each character shrinking. A phrase that squeezed its characters to fit would be a phrase whose characters stop being legible at the one size this project is specified at.
+
+The margin is applied to each box, not to the character's own ink, and this is the decision here that is easy to get backwards. Centring each character on its own extent would make 一 -- a single horizontal line -- fill its box exactly as densely as 田 does, so every character would come out the same visual size and a learner would lose the one signal they have for how much is in a character before they can read it.
+
+### `M.where(placement, stroke)`
+
+Which box a stroke is drawn in.
+
+Every stroke of a phrase remembers which character it came from, and a single character's strokes have no such mark -- which is the same thing as being in box one.
 
 ### `M.blur_for(count, settings)`
 

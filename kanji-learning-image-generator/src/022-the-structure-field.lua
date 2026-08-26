@@ -25,6 +25,7 @@ local project = dofile((debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$")) ..
                        "/009-where-things-are.lua")
 local canvas = project.load("016-the-grey-canvas")
 local shape = project.load("021-the-shape-of-a-stroke")
+local phrases = project.load("019a-a-phrase-is-a-record-too")
 
 local M = {}
 
@@ -32,21 +33,53 @@ local M = {}
 local CANVAS = 109
 -- }}}
 
--- {{{ M.placement(settings)
--- How the archive's box maps onto the picture.
+-- {{{ M.placement(settings, record)
+-- How the archive's boxes map onto the picture.
 --
--- The margin is applied to the *box*, not to the character's own ink, and this
--- is the one decision here that is easy to get backwards. Centring each
--- character on its own extent would make 一 -- a single horizontal line -- fill
--- the frame exactly as densely as 田 does. Every character would come out the
--- same visual size, and a learner would lose the one signal they have for how
--- much is in a character before they can read it.
-function M.placement(settings)
+-- One box per character. A single character is one box and a word is several,
+-- side by side, each holding its character at the same scale it would have had
+-- alone -- so the picture grows *wider* rather than each character shrinking.
+-- A phrase that squeezed its characters to fit would be a phrase whose
+-- characters stop being legible at the one size this project is specified at.
+--
+-- The margin is applied to each box, not to the character's own ink, and this
+-- is the decision here that is easy to get backwards. Centring each character
+-- on its own extent would make 一 -- a single horizontal line -- fill its box
+-- exactly as densely as 田 does, so every character would come out the same
+-- visual size and a learner would lose the one signal they have for how much is
+-- in a character before they can read it.
+function M.placement(settings, record)
   local resolution = settings.field.resolution
   local margin = settings.field.margin
   local scale = resolution * (1 - 2 * margin) / CANVAS
   local offset = resolution * margin
-  return scale, offset, resolution
+
+  local cells = record and phrases.cells(record) or { { index = 1 } }
+  local places = {}
+  for index = 1, #cells do
+    places[index] = {
+      scale = scale,
+      x = (index - 1) * resolution + offset,
+      y = offset,
+    }
+  end
+
+  return {
+    scale = scale, margin = offset, cell_size = resolution,
+    width = resolution * #cells, height = resolution,
+    cells = places, count = #cells,
+  }
+end
+-- }}}
+
+-- {{{ M.where(placement, stroke)
+-- Which box a stroke is drawn in.
+--
+-- Every stroke of a phrase remembers which character it came from, and a
+-- single character's strokes have no such mark -- which is the same thing as
+-- being in box one.
+function M.where(placement, stroke)
+  return placement.cells[(stroke and stroke.cell) or 1] or placement.cells[1]
 end
 -- }}}
 
@@ -94,10 +127,10 @@ end
 function M.build(record, settings, options)
   options = options or {}
   local field = settings.field
-  local scale, offset, resolution = M.placement(settings)
+  local placement = M.placement(settings, record)
 
   local measured = options.measured or shape.measure_record(record)
-  local surface = canvas.new(resolution, resolution, 0)
+  local surface = canvas.new(placement.width, placement.height, 0)
   local count = #measured
 
   for index, one in ipairs(measured) do
@@ -114,17 +147,23 @@ function M.build(record, settings, options)
       ramp = 1 - field.order_ramp * (index - 1) / (count - 1)
     end
 
+    local box = M.where(placement, record.strokes[index])
     canvas.stroke(surface, one.flat, {
       width = field.stroke_width,
       strength = ramp,
       taper = field.taper,
-      scale = scale,
-      offset_x = offset,
-      offset_y = offset,
+      scale = box.scale,
+      offset_x = box.x,
+      offset_y = box.y,
     })
   end
 
-  local radius = M.blur_for(count, settings)
+  -- The blur follows how crowded a *character* is, not how many strokes the
+  -- whole phrase has. A two-character word has twice the strokes and exactly
+  -- the same crowding, and softening it as though it were one impossibly dense
+  -- character would weld every phrase shut.
+  local per_cell = count / math.max(placement.count, 1)
+  local radius = M.blur_for(per_cell, settings)
   canvas.blur(surface, radius, field.blur_passes)
   canvas.compress(surface, field.range_low, field.range_high)
 
@@ -138,7 +177,9 @@ function M.build(record, settings, options)
   end
 
   return surface, {
-    resolution = resolution,
+    resolution = placement.cell_size,
+    width = placement.width, height = placement.height,
+    cells = placement.count,
     polarity = polarity,
     strokes = count,
     blur_radius = radius,
@@ -158,7 +199,10 @@ end
 -- thing being looked at is the thing that was made.
 function M.thumbnail(surface, settings)
   local size = settings.field.thumbnail
-  return canvas.resample(surface, size, size)
+  -- A phrase's thumbnail keeps the phrase's shape. Squaring it would squash
+  -- the characters into each other at exactly the size legibility is judged at.
+  local wide = math.floor(size * surface.width / surface.height + 0.5)
+  return canvas.resample(surface, wide, size)
 end
 -- }}}
 
@@ -168,17 +212,18 @@ end
 -- Per stroke: the average darkness of the pixels along that stroke's own line.
 -- That is how "did this stroke put ink anywhere" and "is the weakening actually
 -- monotonic along the writing order" get answered without looking at a picture.
-function M.inspect(surface, measured, settings)
-  local scale, offset = M.placement(settings)
+function M.inspect(surface, measured, settings, record)
+  local placement = M.placement(settings, record)
   local out = {}
   for index, one in ipairs(measured) do
+    local box = M.where(placement, record and record.strokes[index])
     local total, samples = 0, 0
     local steps = 24
     for step = 0, steps do
       local flatten = project.load("015-flatten-the-curves")
       local x, y = flatten.locate(one.flat, one.flat.travel * step / steps)
-      local px = math.floor(x * scale + offset)
-      local py = math.floor(y * scale + offset)
+      local px = math.floor(x * box.scale + box.x)
+      local py = math.floor(y * box.scale + box.y)
       if px >= 0 and py >= 0 and px < surface.width and py < surface.height then
         total = total + surface.pixels[py * surface.width + px + 1]
         samples = samples + 1
@@ -238,8 +283,8 @@ local function main(argv)
     local small = M.thumbnail(surface, settings)
     local bytes = png.write_grey(out_dir .. "/" .. character .. ".png", surface, canvas)
     png.write_grey(out_dir .. "/" .. character .. "-thumb.png", small, canvas)
-    local line = string.format("%s  %2d strokes, blur %.1f, %d bytes, edge %.3f, %.2fs",
-      character, made.strokes, made.blur_radius, bytes, M.edge_ink(surface),
+    local line = string.format("%s  %2d strokes, blur %.1f, %dx%d, %d bytes, %.2fs",
+      character, made.strokes, made.blur_radius, made.width, made.height, bytes,
       os.clock() - started)
     io.write(line, "\n")
     said[#said + 1] = line

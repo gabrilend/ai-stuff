@@ -13,7 +13,7 @@ run the sweep again.*
 ## Invocation
 
 ```
-luajit src/031-make-them-all.lua --all
+luajit src/031-make-them-all.lua --phrases
 ```
 
 ## What it offers

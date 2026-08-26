@@ -73,12 +73,12 @@ end
 -- everything in `016` works on them unchanged. The transparency is drawn into
 -- exactly the way the colours are, and there is no second kind of canvas to
 -- write and maintain.
-local function sheet(resolution)
+local function sheet(width, height)
   return {
-    canvas.new(resolution, resolution, 0),
-    canvas.new(resolution, resolution, 0),
-    canvas.new(resolution, resolution, 0),
-    canvas.new(resolution, resolution, 0),
+    canvas.new(width, height, 0),
+    canvas.new(width, height, 0),
+    canvas.new(width, height, 0),
+    canvas.new(width, height, 0),
   }
 end
 -- }}}
@@ -148,17 +148,20 @@ end
 function M.build(record, settings, options)
   options = options or {}
   local measured = options.measured or shape.measure_record(record)
-  local scale, offset, resolution = field_of.placement(settings)
+  local placement = field_of.placement(settings, record)
   local arrows = settings.arrows
 
-  local surfaces = sheet(resolution)
+  local surfaces = sheet(placement.width, placement.height)
   local placed = {}
   local crowded = 0
 
   for index, one in ipairs(measured) do
     local flat = one.flat
-    local start_x = flat.xs[1] * scale + offset
-    local start_y = flat.ys[1] * scale + offset
+    -- Which of the phrase's boxes this stroke lives in. A single character has
+    -- one box, so this is the same arithmetic either way.
+    local box = field_of.where(placement, record.strokes[index])
+    local start_x = flat.xs[1] * box.scale + box.x
+    local start_y = flat.ys[1] * box.scale + box.y
 
     -- The direction the stroke *leaves* by, not the direction to where it ends
     -- up. On a stroke that bends, those are nothing alike, and an arrow aimed
@@ -251,7 +254,8 @@ function M.build(record, settings, options)
   end
 
   return surfaces, { arrows = #placed, crowded = crowded, placed = placed,
-                     resolution = resolution }
+                     resolution = placement.cell_size,
+                     width = placement.width, height = placement.height }
 end
 -- }}}
 

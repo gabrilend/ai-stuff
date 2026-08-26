@@ -11,6 +11,7 @@
 -- decides what a picture is happens here.
 --
 --   luajit src/030-make-one-kanji.lua --chars 休 [--out DIR]
+--   luajit src/030-make-one-kanji.lua --phrase 時間=time,an hour
 
 local project = dofile((debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$")) ..
                        "/009-where-things-are.lua")
@@ -74,7 +75,13 @@ function M.make(record, store, settings, options)
     negative = built.negative,
     field_name = field_name,
     arrows_name = arrows_name,
+    width = surface.width,
+    height = surface.height,
   }, settings)
+
+  -- A phrase of more than two or three characters is a far wider picture than
+  -- any of these models were trained on, and says so rather than being refused.
+  local shape_warning = workflow.shape_warning(surface.width, surface.height)
 
   project.write_file(folder .. "/workflow.api.json", json.encode(graph:api()))
   project.write_file(folder .. "/workflow.ui.json", json.encode(graph:ui()))
@@ -141,8 +148,28 @@ function M.make(record, store, settings, options)
   card.field = json.object(
     "file", "field.png", "thumbnail", "field-thumb.png",
     "resolution", field_made.resolution, "blur_radius", field_made.blur_radius,
+    "width", field_made.width, "height", field_made.height,
+    "characters", field_made.cells,
     "polarity", field_made.polarity, "bytes", field_bytes,
     "named_in_the_workflow", field_name)
+  if shape_warning then card.field.warning = shape_warning end
+
+  -- A word is several characters and a learner meets it as one thing. The card
+  -- says which characters, so the gallery can show them and so that a phrase
+  -- can be told from a character without counting anything.
+  local phrases = project.load("019a-a-phrase-is-a-record-too")
+  local cells = phrases.cells(record)
+  card.kind = (#cells > 1) and "phrase" or "character"
+  if #cells > 1 then
+    local made_of = {}
+    for _, cell in ipairs(cells) do
+      made_of[#made_of + 1] = json.object(
+        "character", cell.character,
+        "means", table.concat(cell.meanings, ", "),
+        "strokes", cell.stroke_last - cell.stroke_first + 1)
+    end
+    card.characters = made_of
+  end
 
   card.arrows = json.object(
     "file", "arrows.png", "count", arrows_made.arrows,
@@ -157,9 +184,11 @@ function M.make(record, store, settings, options)
     folder = folder,
     character = record.character,
     world = scene.biome.name,
+    kind = card.kind,
     bytes = field_bytes + arrow_bytes,
     unglossed = scene.unglossed,
     crowded = arrows_made.crowded,
+    warning = shape_warning,
   }
 end
 -- }}}
@@ -172,19 +201,33 @@ local function main(argv)
   local xml = project.load("011-scan-xml")
 
   local out_dir = options.out or project.scratch("sets/one")
+  local phrases = project.load("019a-a-phrase-is-a-record-too")
   local said = {}
-  for _, character in ipairs(xml.characters(options.chars or "休")) do
-    local record = store.records[character]
-    if not record then error(character .. " is not in the joined set") end
+
+  local wanted = {}
+  for _, record in ipairs(phrases.select(store, options) or {}) do
+    wanted[#wanted + 1] = record
+  end
+  if #wanted == 0 then
+    for _, character in ipairs(xml.characters(options.chars or "休")) do
+      local record = store.records[character]
+      if not record then error(character .. " is not in the joined set") end
+      wanted[#wanted + 1] = record
+    end
+  end
+
+  for _, record in ipairs(wanted) do
     local started = os.clock()
     local done, why = M.make(record, store, settings, { out = out_dir })
     if not done then
-      io.write(character, ": ", why, "\n")
-      said[#said + 1] = character .. " could not be made"
+      io.write(record.character, ": ", why, "\n")
+      said[#said + 1] = record.character .. " could not be made"
     else
-      local line = string.format("%s  %s  %d bytes  %.2fs  ->  %s",
-        character, done.world, done.bytes, os.clock() - started, done.folder)
+      local line = string.format("%s  %-9s %-8s %d bytes  %.2fs  ->  %s",
+        record.character, done.world, done.kind, done.bytes,
+        os.clock() - started, done.folder)
       io.write(line, "\n")
+      if done.warning then io.write("  note: ", done.warning, "\n") end
       said[#said + 1] = line
     end
   end

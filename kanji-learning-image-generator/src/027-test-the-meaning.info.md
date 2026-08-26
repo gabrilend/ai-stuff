@@ -38,4 +38,5 @@ what a person reads before opening the source.
 | `test_the_words(t)` |  |
 | `test_the_arrows(t)` |  |
 | `test_the_two_readings(t)` | The picture can be about the meaning, or it can be a hook the meaning hangs |
+| `test_a_phrase(t)` | A word is what a learner is actually trying to hold. 時 and 間 separately are |
 | `main(argv)` |  |
