@@ -131,6 +131,7 @@ distinct.
 | 507 | Spawning onto the library picks the worst lane |
 | 508 | Sign-posts stand at the corners |
 | 509 | Five heroes for the first commander |
+| 510 | The healers, and what they remember |
 
 ## Phase 6 — The Surge and the Challenge
 The layer that takes the board apart, and the thing that ends the match. Three

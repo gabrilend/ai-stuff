@@ -99,7 +99,8 @@ cluster in memory.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `state` | integer | 1 walking, 2 closing, 3 fighting, 4 leashing home, 5 dying, **6 waiting**. |
+| `state` | integer | 1 walking, 2 closing, 3 fighting, 4 leashing home, 5 dying, 6 waiting, **7 recovering**. |
+| `incoming_dps` | double | Damage per second currently aimed at this body — the summed output of everything that has taken it as a target. Maintained rather than recomputed. Read by the healer's choice of who to mend and by the decision to fall back. |
 | `target` | integer | Soldier id, or **0** for none. Structures are targeted through a separate field. |
 | `target_structure` | integer | Structure id, or **0**. |
 | `target_generation` | integer | Checked against the target's generation before every use. |
@@ -212,7 +213,7 @@ anything, because by then the map is empty in both directions. On the tick the
 calm ends it goes to walking and marches out with the first wave of the new
 phase. *Settled; see [open questions](020-open-questions.md), A17 and F24.*
 
-This is the sixth state and it is the only one in the game where a body is doing
+This is one of the two states where a body is doing
 nothing useful — which makes it the only place in the game where a body can have
 a personality. A waiting hero should **meander, idle, and turn to look at the
 other bodies standing around it.** Nothing about that is mechanical and none of
@@ -223,6 +224,18 @@ Note the deliberate asymmetry with walking home at the *start* of a calm, which
 is **not** a state — it reuses leashing, with the leash set to the team's own
 library. Leaving the map is a thing the brain already knows how to do. Standing
 still with intent is not.
+
+**Recovering.** A wounded body that has pulled out of the line to mend, either
+waiting beside a healer or regenerating at its own tower. It returns to walking
+when the frontline turns against its team — **the line pulls its wounded out while
+it is winning and feeds them back in while it is losing**, with nobody deciding
+that centrally. The full rule, including where it goes when it comes back, is in
+[standing off and falling back](022-standing-off-and-falling-back.md).
+
+This is the seventh state, and it is the one most likely to be got wrong by being
+made too eager. A body that withdraws at the first scratch is a body that spends
+the match walking; the condition is about **the health on the ground around it**,
+not about its own.
 
 ### The Golem does not use this
 
@@ -243,13 +256,27 @@ Ranked, cheapest test first, ties broken by the `tie` random stream so that two
 identical soldiers do not both pick the leftmost enemy every single time:
 
 1. An enemy soldier already attacking me.
-2. The nearest enemy soldier within acquisition range.
+2. **The lowest-health enemy soldier** within acquisition range.
 3. An enemy structure within weapon range.
 4. Nothing — keep walking.
+
+**Lowest health, not nearest**, and the change is worth its own sentence:
+**bodies should finish things.** A rank that spreads its damage across everything
+in front of it kills nothing and dies anyway; a rank that concentrates removes an
+enemy from the fight and lowers the incoming damage for everybody behind it.
+Focus is how a smaller force beats a larger one, and this design has no way for a
+player to arrange it by hand — so the brain has to do it.
 
 Structures rank below soldiers deliberately. A soldier that walks past a
 defended tower to chew on the tower is a soldier that dies for free, and a
 frontline made of those never moves.
+
+**There is more to the brain than this**, and it lives in
+[standing off and falling back](022-standing-off-and-falling-back.md): how a
+ranged body keeps its distance, how a wounded one leaves the line and comes back,
+and how a healer chooses. Those are rules on this same record and this same
+dispatch table — not a second controller — but they are enough of them to want
+their own page.
 
 ## Forming a frontline
 
