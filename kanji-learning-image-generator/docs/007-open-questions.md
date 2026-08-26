@@ -74,8 +74,64 @@ it is the only place in the project asserting something no archive said.
 
 It should probably be a data file rather than a table inside a source file, so
 it can be corrected by somebody who knows kanji better than the person who wrote
-it and does not know Lua. Not done, and the longer it waits the more entries have
-to move.
+it and does not know Lua. **This got more pressing while it waited**: the table
+is now well over a hundred and fifty rows, and every row added is a row that has
+to move if the answer is yes.
+
+### Q7 — Should the trigger lists keep growing until nothing is refused?
+
+`204` refuses to invent a world for a character that matches nothing, and the
+count of those fell from a hundred and twenty-three to thirty-five as the lists
+were widened in response to real runs. Run `src/024 --spread` for where it
+stands.
+
+The remaining ones are mostly abstract or archaic — *merit*, *effort*,
+*already*, *concave*. Two directions, and they are genuinely different:
+
+Keep widening the lists until every character has a world. That means inventing
+imagery for concepts that do not have any, and the invented ones will be
+indistinguishable from the earned ones once they are in the file.
+
+Or stop, and let the refusal stand as the honest answer for a character this
+project has nothing to say about. That means a learning set with holes in it,
+and the holes are in exactly the abstract characters a learner finds hardest.
+
+Nobody has decided. The lists were widened opportunistically each time a real
+run reported a gap, which is a policy by accident rather than by choice.
+
+### Q8 — Is one world in three the right shape for the distribution?
+
+About a third of the whole archive lands in the *person* world. That is not
+obviously wrong — mouth, person, eye, hand and heart really are the commonest
+radicals there are — but it means a third of the output will be figures in rooms.
+
+The alternative is splitting that world into several: the body, the face, work,
+the crowd. It would spread the output and it would also be the point at which
+the world list stops being a list of places and starts being a taxonomy, which
+is a different kind of thing to maintain.
+
+### Q9 — Are the model and control net named in the settings the right ones?
+
+`input/settings.lua` names a checkpoint and a control net, and every generated
+workflow refers to them by those names. They were chosen as the well-known
+members of the family this technique needs, and **nothing on this machine has
+ever loaded either of them**, because there is no ComfyUI here.
+
+Two things follow. If the names do not match what is in a given installation,
+every workflow in a set of six thousand is wrong in the same way at once. And if
+a newer control net does this job better — the field is built for the older
+generation of them — the whole set would want regenerating at a different
+resolution. Answering this needs somebody with a graphics card and half an hour.
+
+### Q10 — Is the heat trade set where a person would want it?
+
+`307` made a run take under half the machine and rest when the processor climbs,
+which cost roughly two and a half times the wall clock for eight degrees off the
+mean. Those numbers were chosen against one processor on one afternoon.
+
+A machine with better cooling is being slowed down for nothing; a laptop may
+want more caution still. The knobs are all in `input/settings.lua` and none of
+them has been tried anywhere else.
 
 ---
 

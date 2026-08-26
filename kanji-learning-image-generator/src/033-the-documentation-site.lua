@@ -338,12 +338,17 @@ local function gather()
     if number then known.doc[number] = page end
   end
 
-  for _, name in ipairs(listing("notes", "^[%w]")) do
-    local base = name:gsub("%.md$", "")
-    known.pages[#known.pages + 1] = {
-      kind = "notes", file = project.path("notes", name),
-      page = "note-" .. base, title = base, sort = base,
-    }
+  -- notes, and the three directories beside it that this project writes into:
+  -- what should be better, what is expected, and the dataflow patterns that
+  -- turned out to work more than once.
+  for _, where in ipairs({ "notes", "strategems", "desire", "faith" }) do
+    for _, name in ipairs(listing(where, "^[%w]")) do
+      local base = name:gsub("%.md$", "")
+      known.pages[#known.pages + 1] = {
+        kind = where, file = project.path(where, name),
+        page = where .. "-" .. base, title = base, sort = base,
+      }
+    end
   end
 
   for _, where in ipairs({ "issues", "issues/completed" }) do
@@ -377,7 +382,8 @@ end
 -- The column that is always there.
 local function contents(known, here)
   local groups = {}
-  local order = { "docs", "notes", "source", "issues open", "issues completed" }
+  local order = { "docs", "notes", "strategems", "desire", "faith", "source",
+                  "issues open", "issues completed" }
   for _, page in ipairs(known.pages) do
     groups[page.kind] = groups[page.kind] or {}
     table.insert(groups[page.kind], page)
