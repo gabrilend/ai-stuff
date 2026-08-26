@@ -1,0 +1,276 @@
+#!/usr/bin/env bash
+#
+# build -- compiles the server and runs its tests.
+#
+# Everything this produces is disposable and lives in RAM. Object files, the
+# generated trigonometry tables, and the test logs go to the shared-memory tier;
+# the finished executables go to the /tmp tier, because /dev/shm is mounted
+# without execute permission on a good many systems and an executable written
+# there simply refuses to run.
+#
+# Nothing built here is ever committed. A fresh checkout runs this and gets a
+# working tree; there is no generated file in the repository for somebody to
+# edit by hand and then wonder why the tool disagrees with it.
+#
+# Usage:
+#   ./build                 -- generate, compile, and test
+#   ./build /path/to/prj    -- the same, from a checkout somewhere else
+#   ./build --no-test       -- compile only
+#   ./build --release       -- optimised, with the test instruments compiled out
+
+set -e
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT_NAME="my-own-custom-vtt"
+SRC="${DIR}/src"
+
+# The two RAM tiers, ensured to exist before anything tries to write to them.
+EXEC_TIER="/tmp/${PROJECT_NAME}/tmp"
+ARTIFACT_TIER="/dev/shm/${PROJECT_NAME}"
+
+mkdir -p "${EXEC_TIER}"
+mkdir -p "${ARTIFACT_TIER}"
+
+if [ ! -L "/tmp/${PROJECT_NAME}/shared-memory" ]; then
+    ln -sfn "${ARTIFACT_TIER}" "/tmp/${PROJECT_NAME}/shared-memory"
+fi
+
+BUILD="${ARTIFACT_TIER}/build"
+mkdir -p "${BUILD}"
+
+RUN_TESTS=1
+LUA_CFLAGS=$(pkg-config --cflags luajit 2>/dev/null || echo "")
+LUA_LIBS=$(pkg-config --libs luajit 2>/dev/null || echo "-lluajit-5.1")
+
+CFLAGS="-std=c99 -D_DEFAULT_SOURCE -Wall -Wextra -Werror -g -O0 -pthread -DVTT_TESTING=1 ${LUA_CFLAGS}"
+
+for ARG in "$@"; do
+    case "${ARG}" in
+    --no-test)
+        RUN_TESTS=0
+        ;;
+    --release)
+        # The world hash and the other test instruments compile out. They are
+        # instruments, not features.
+        CFLAGS="-std=c99 -D_DEFAULT_SOURCE -Wall -Wextra -Werror -O2 -pthread ${LUA_CFLAGS}"
+        ;;
+    *)
+        echo "build: unknown option '${ARG}'"
+        echo "Options are --no-test and --release."
+        exit 1
+        ;;
+    esac
+done
+
+echo "==> project    ${DIR}"
+echo "==> objects    ${BUILD}"
+echo "==> binaries   ${EXEC_TIER}"
+
+# ---------------------------------------------------------------------------
+# Generated sources.
+#
+# The trigonometry tables are integers computed once, at build time, by a program
+# that is allowed to use floating point precisely because its output is frozen
+# before the server ever starts. See 021-sine-table-generator.c.
+# ---------------------------------------------------------------------------
+
+echo "==> generating trigonometry tables"
+cc -std=c99 -O2 -o "${EXEC_TIER}/sine-table-generator" \
+    "${SRC}/021-sine-table-generator.c" -lm
+"${EXEC_TIER}/sine-table-generator" > "${BUILD}/021-trig-table.h"
+
+# ---------------------------------------------------------------------------
+# The browser's files, embedded.
+#
+# The bridge is meant to be one file to copy. Serving the page from disk would
+# mean a bridge plus a directory, and a directory means somebody eventually asks
+# it for a path -- which is a question this project would rather never be asked.
+#
+# So the HTML and the script become C string literals at build time.
+# ---------------------------------------------------------------------------
+
+echo "==> embedding the browser's files"
+
+emit_c_string() {
+    echo "static const char $1[] ="
+    sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/^/"/' -e 's/$/\\n"/' "$2"
+    echo ";"
+}
+
+{
+    echo "/*"
+    echo " * 066-embedded-view.h -- GENERATED. Do not edit."
+    echo " *"
+    echo " * Produced by ./build from 066-view.html and 067-view.js. Editing this"
+    echo " * makes it disagree with the files it claims to hold."
+    echo " */"
+    echo "#ifndef VTT_EMBEDDED_VIEW_H"
+    echo "#define VTT_EMBEDDED_VIEW_H"
+    echo
+    emit_c_string "embedded_view_html" "${SRC}/066-view.html"
+    echo
+    emit_c_string "embedded_view_js" "${SRC}/067-view.js"
+    echo
+    echo "#endif"
+} > "${BUILD}/066-embedded-view.h"
+
+# ---------------------------------------------------------------------------
+# The server's own translation units.
+# ---------------------------------------------------------------------------
+
+MODULES="021-fixed-point 023-blocks 025-strings 027-world 029-geometry 031-region 033-validate 035-worldfile 037-fixture 040-threadpool 042-sight 044-fog 047-streams 049-tick 051-commandlog 053-session 056-protocol 058-viewer 059-outbound 061-door 064-httpd 070-scope 073-rules 076-describe 078-generate 082-sprite"
+
+OBJECTS=""
+for MODULE in ${MODULES}; do
+    echo "==> compiling ${MODULE}"
+    cc ${CFLAGS} -I"${SRC}" -I"${BUILD}" \
+        -c "${SRC}/${MODULE}.c" -o "${BUILD}/${MODULE}.o"
+    OBJECTS="${OBJECTS} ${BUILD}/${MODULE}.o"
+done
+
+
+# ---------------------------------------------------------------------------
+# The programs somebody actually runs.
+#
+# Anything named *-main.c becomes an executable. These are thin on purpose --
+# everything they call has been built and tested on its own, and a main is the
+# order those things go in.
+# ---------------------------------------------------------------------------
+
+PROGRAMS=$(ls "${SRC}" | grep -E '^[0-9]+-.*-main\.c$' || true)
+
+for PROGRAM in ${PROGRAMS}; do
+    NAME="${PROGRAM%-main.c}"
+    echo "==> compiling ${NAME}"
+    cc ${CFLAGS} -I"${SRC}" -I"${BUILD}" \
+        -o "${EXEC_TIER}/${NAME}" "${SRC}/${PROGRAM}" ${OBJECTS} ${LUA_LIBS}
+done
+# ---------------------------------------------------------------------------
+# Demo programs.
+#
+# A phase demo is part of what this project delivers, not development scrap, so
+# it is compiled by the ordinary build and kept working rather than being
+# rebuilt by hand when somebody remembers it exists.
+# ---------------------------------------------------------------------------
+
+DEMOS=$(ls "${SRC}" | grep -E '^[0-9]+-demo-.*\.c$' || true)
+
+for DEMO in ${DEMOS}; do
+    NAME="${DEMO%.c}"
+    echo "==> compiling ${NAME}"
+    cc ${CFLAGS} -I"${SRC}" -I"${BUILD}" \
+        -o "${EXEC_TIER}/${NAME}" "${SRC}/${DEMO}" ${OBJECTS} ${LUA_LIBS}
+done
+
+# ---------------------------------------------------------------------------
+# The floating-point ban, checked rather than trusted.
+#
+# The whole determinism argument rests on there being no floating-point
+# arithmetic in the simulation. A comment saying so is a wish; this is the check.
+# It reads the compiled objects and looks for the instructions that would only be
+# there if a float had crept in.
+# ---------------------------------------------------------------------------
+
+echo "==> checking for floating point in the simulation"
+
+# ---------------------------------------------------------------------------
+# One module is exempt, by name, and the exemption is the interesting part.
+#
+# 073-rules is the boundary with Lua, and Lua's only number type is a double.
+# Every value crossing that boundary is floating point and there is no way to
+# arrange otherwise -- so the choice is an exemption or no rules layer.
+#
+# What the exemption does NOT mean: it is not a hole in the determinism
+# argument, it is a relocation of it. IEEE arithmetic is deterministic for the
+# four operations given the same inputs; what was banned in C was the compiler's
+# freedom to reassociate and to fuse, and a Lua VM executing bytecode one
+# operation at a time has neither freedom.
+#
+# What it DOES leave open: transcendentals. math.sin in one libm may not agree
+# with math.sin in another to the last bit, so a ruleset that uses them may
+# replay differently on a different machine. The determinism harness -- the
+# world hash compared at every beat -- is what would catch it, and open question
+# 14.2 is where that is written down.
+#
+# Anything added to this list needs the same paragraph. An exemption without a
+# reason is the ban quietly ending.
+# ---------------------------------------------------------------------------
+EXEMPT_FROM_FLOAT_CHECK="073-rules"
+
+FOUND_FLOAT=0
+for OBJECT in ${OBJECTS}; do
+    EXEMPT=0
+    for NAME in ${EXEMPT_FROM_FLOAT_CHECK}; do
+        case "${OBJECT}" in
+        *"${NAME}"*)
+            EXEMPT=1
+            ;;
+        esac
+    done
+
+    if [ "${EXEMPT}" = "1" ]; then
+        echo "    ${OBJECT##*/} exempt -- it is the Lua boundary; see the note in ./build"
+        continue
+    fi
+
+    HITS=$(objdump -d "${OBJECT}" | grep -cE '\s(mulsd|divsd|addsd|subsd|mulss|divss|addss|subss|cvtsi2sd|cvtsi2ss)\s' || true)
+    if [ "${HITS}" != "0" ]; then
+        echo "    FAIL: ${OBJECT} contains ${HITS} floating-point instructions."
+        FOUND_FLOAT=1
+    fi
+done
+
+if [ "${FOUND_FLOAT}" != "0" ]; then
+    echo
+    echo "The simulation must contain no floating-point arithmetic. A compiler is"
+    echo "allowed to reorder and fuse it in ways that differ between machines, and"
+    echo "a replay that diverges an hour in has nothing to point at."
+    exit 1
+fi
+echo "    clean"
+
+# ---------------------------------------------------------------------------
+# Tests.
+# ---------------------------------------------------------------------------
+
+if [ "${RUN_TESTS}" = "0" ]; then
+    echo "==> tests skipped"
+    exit 0
+fi
+
+TESTS=$(ls "${SRC}" | grep -E '^[0-9]+-test-.*\.c$' || true)
+
+if [ -z "${TESTS}" ]; then
+    echo "==> no tests yet"
+    exit 0
+fi
+
+FAILURES=0
+for TEST in ${TESTS}; do
+    NAME="${TEST%.c}"
+    echo "==> ${NAME}"
+    cc ${CFLAGS} -I"${SRC}" -I"${BUILD}" \
+        -o "${EXEC_TIER}/${NAME}" "${SRC}/${TEST}" ${OBJECTS} ${LUA_LIBS}
+
+    if "${EXEC_TIER}/${NAME}"; then
+        true
+    else
+        FAILURES=$((FAILURES + 1))
+    fi
+done
+
+echo
+if [ "${FAILURES}" != "0" ]; then
+    echo "${FAILURES} test program(s) failed."
+    exit 1
+fi
+
+echo "All tests passed."
