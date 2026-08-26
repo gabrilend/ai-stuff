@@ -1,0 +1,23 @@
+this one's a hardware design.
+
+basically, it's a CPU architecture.
+
+there's 6 CPU's arranged like the faces on a die. Inside, there is shared
+cache memory. The corners are pumped with coolant.
+
+the reason for the 6 cpu arrangement is because then they can pull from 6
+different hard disk lines.
+
+each holding layers in an LLM model. each CPU's cache holds a slice of the
+layers, and the tokens are passed through filter sieve style.
+
+written to central block of shared memory, inside the center of the die.
+
+one of the faces is allowed to be an output data tube, which has 1 wire per
+bit in memory so that it can be almost instantly replicated somewhere else.
+
+rethink silicon
+
+(company name)
+
+alternatively, each byte, so you can pulse 8 bits in a cycle.
