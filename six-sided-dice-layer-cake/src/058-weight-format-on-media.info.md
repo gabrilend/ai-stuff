@@ -15,9 +15,9 @@ Described by `803`.
 | `w_hash` | bit | given | 256 bit | hash width per slice |
 | `p_align_med` | bit | derived | 32768 bit | alignment every tensor start must satisfy, being the larger of a transfer and a bank stride |
 | `f_pad_med` | 1 | given | 0.004 | share of the file that is padding to that alignment |
-| `C_rotation` | MB | derived | unresolved | the carried rotation table: a cosine and a sine per position per pair |
-| `C_media` | GB | derived | unresolved | the whole file |
-| `C_slice_med` | GB | derived | unresolved | one slice's region |
+| `C_rotation` | MB | derived | 1.04858 MB | the carried rotation table: a cosine and a sine per position per pair |
+| `C_media` | GB | derived | 36.523 GB | the whole file |
+| `C_slice_med` | GB | derived | 6.08716 GB | one slice's region |
 | `f_sequential` | 1 | derived | 0.996 | share of a slice read that is one contiguous run, which is the whole point of the format |
 | `n_seek` | 1 | derived | 6 | seeks in a whole load: one per slice region, and no more |
 
@@ -25,9 +25,9 @@ Described by `803`.
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `C_weights` | **nothing declares this** | — | — |
-| `d_head` | **nothing declares this** | — | — |
-| `n_ctx` | **nothing declares this** | — | — |
+| `C_weights` | `078` | 36.3764 GB | the weights, resident, at the format in 046 |
+| `d_head` | `078` | 128 | width of one head |
+| `n_ctx` | `078` | 4096 | context length the machine is provisioned for |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `w_act` | `046` | 16 bit | activations in the residual stream |
 | `w_interleave` | `038` | 32768 bit | address granularity at which consecutive addresses move to the next bank. Eight thousand was tried and is narrower than a single cycle's read from one tier, which would have meant every transfer straddling two banks |

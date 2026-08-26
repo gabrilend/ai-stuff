@@ -4,8 +4,26 @@ Produces `src/077-numerics-and-accuracy.md`.
 
 ## Current behavior
 
-Nothing. Four-bit weights are chosen in `606` on a speed argument with no accuracy
-figure beside it.
+**Done.** `src/077-numerics-and-accuracy.md` exists, and it is explicit about the
+boundary between what it can establish and what it cannot.
+
+It establishes the accumulator width, which is arithmetic and which `046` was
+waiting for -- and that number **corrected `045`**, which had been checking the
+accumulator against one row of the multiplier array rather than against the
+model's widest reduction. The array accumulates across many passes; a row is not
+the reduction.
+
+It establishes where exactness stops, and confirms it does not: with the
+exponential specified in `043` and the rotations carried in `058`, no operation in
+a forward pass is implementation-dependent.
+
+It does **not** establish whether the model produces different text, and says so
+rather than producing a number that sounds like an answer.
+
+Six constraints. `C-077-6` answers `009` entry F1: an eight-bit group scale costs
+under five per cent more error and saves three per cent of the read that dominates
+everything. **If the measured figures hold, the scale should shrink -- and they are
+`measured` entries with no source.**
 
 ## Intended behavior
 

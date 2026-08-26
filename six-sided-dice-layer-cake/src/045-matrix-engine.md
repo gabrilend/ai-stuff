@@ -75,7 +75,7 @@ P_engine_die  | W  | derived | E_op * ops_die * util_design         | switching 
 n_reuse       | 1  | derived | batch_design                         | how many times a weight is used from the slice for each time it is read from the core
 I_step_engine | A  | derived | E_op * ops_die / V_logic             | current the array demands when every cell has an operand, which 031 sized the decoupling from
 B_operand_die | bit/s | derived | (n_mac / batch_design * w_weight + n_mac_row * w_act) * f_face | operand bandwidth from the slice: a weight tile reloaded every batch cycles at four bits each, plus a row of activations every cycle at sixteen
-acc_headroom  | 1  | derived | 2^(w_acc / b1 - 1) / (n_mac_row * range_operand^2) | how much margin the accumulator has against the largest reduction: a row of products, each at most the square of an operand's range
+acc_headroom  | 1  | derived | 2^(w_acc / b1 - 1) / (n_reduce_max * range_operand^2) | how much margin the accumulator has against the largest reduction in the model, each product at most the square of an operand's range. Written first against one row of the array, which is not the reduction -- the array accumulates across many passes and the real length is the model's widest tensor
 ```
 
 ## Constraints

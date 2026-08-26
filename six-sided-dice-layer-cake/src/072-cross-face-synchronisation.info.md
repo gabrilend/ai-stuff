@@ -23,7 +23,7 @@ Described by `1003`.
 | `t_cross_face` | ps | derived | 2142.86 ps | latency a domain crossing adds, which lands in 053's stage budget |
 | `t_timebase_wrap` | s | derived | 2.81475e+08 s | how long the shared timebase runs before wrapping |
 | `res_timebase` | s | derived | 1e-06 s | its resolution |
-| `f_cross_stage` | 1 | derived | unresolved | the crossing's cost as a share of a pipeline stage |
+| `f_cross_stage` | 1 | derived | 1.33265e-05 | the crossing's cost as a share of a pipeline stage |
 
 ## What it consumes
 
@@ -36,7 +36,7 @@ Described by `1003`.
 | `n_share_site` | `039` | 3 | places in this machine where two faces touch the same memory |
 | `t_cycle_face` | `070` | 714.286 ps | the face cycle time everything in 074 is budgeted against |
 | `t_life_seconds` | **nothing declares this** | — | — |
-| `t_stage` | `053` | unresolved | how long one face works before the sieve moves on |
+| `t_stage` | `053` | 0.000160796 s | how long one face works before the sieve moves on |
 
 ## What consumes it
 

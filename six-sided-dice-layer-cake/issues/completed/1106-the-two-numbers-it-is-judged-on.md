@@ -4,8 +4,27 @@ Produces `src/080-performance-model.md`.
 
 ## Current behavior
 
-Nothing. Nine tenths of a millisecond per token is quoted in five documents and
-assembled in none.
+**Done.** `src/080-performance-model.md` exists with all seven terms, each taken
+from the blueprint that owns it and none estimated.
+
+The numbers: **about a thousand tokens a second on one sequence**, nineteen and a
+half thousand aggregate at the design batch, and twenty-five thousand prompt
+tokens a second during prefill. Against an accelerator with stacked memory the
+machine wins **eleven times over on bandwidth** and loses on capacity, at about
+half -- and `C-080-5` asserts the losing half **in the failing direction**, because
+a sheet quoting only the first would be selling something this machine is not.
+
+**The aggregate figure is lower than phase 0 estimated by hand**, and the reason
+is real: that estimate omitted cache traffic, which at the reference context and
+batch is a substantial share of a step.
+
+`C-080-1` had to be rewritten. It required this model's token time to equal what
+three other blueprints derive, which was wrong -- **those three derive the
+memory-bound floor and this one adds what sits on top of it.** It now bounds the
+overhead instead, which measures the five small terms rather than hiding them.
+
+**Attention's own arithmetic is missing**, inherited from `076`, so at long
+context this understates the arithmetic side.
 
 ## Intended behavior
 

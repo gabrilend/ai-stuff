@@ -4,8 +4,23 @@ Produces `src/078-model-capacity.md`.
 
 ## Current behavior
 
-Nothing. The reference model is used as an anchor in fifteen blueprints and is
-defined in none of them.
+**Done, and it unlocked fifty constraints that had been waiting since phase 2.**
+`src/078-model-capacity.md` exists. The shape is given as symbols and the
+parameter count derived from them, so a different model is a different set of
+numbers rather than a different document.
+
+Seven constraints. `C-078-2` caught something a constraint written against an
+average layer would have missed: **the largest thing a face must hold is the
+output projection, not a transformer layer.** It is bigger than any of them, and a
+face carrying it must still have room for the next layer beside it.
+
+**`009` entry B4 is now askable rather than merely open.** Every number in the
+project is anchored here; nobody has asked what a smaller model would do to the
+cube, and the chain in `012` says it would shrink.
+
+**Only one model shape is expressed.** A mixture of experts, or a different
+attention arrangement, would need this extended rather than edited -- and `058`'s
+media format and `048`'s chains both assume this shape too.
 
 ## Intended behavior
 

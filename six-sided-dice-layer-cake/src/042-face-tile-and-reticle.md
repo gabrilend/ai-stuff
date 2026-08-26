@@ -49,7 +49,7 @@ f_interdie    | 1  | given | 0.02    | share of a face's operand traffic that cr
 
 A_reticle     | mm^2  | derived | w_reticle * h_reticle          | area of one exposure field
 f_reticle_use | 1     | derived | A_die / A_reticle              | how much of a field one die uses
-B_interdie    | bit/s | derived | f_interdie * B_slice_die * n_die_face | traffic crossing die boundaries on one face
+B_interdie    | bit/s | derived | f_interdie * B_operand_die * n_die_face | traffic crossing die boundaries on one face
 P_interdie    | W     | derived | e_interdie * B_interdie        | what that costs
 w_link_split  | 1     | derived | n_die_face                     | how many ways the radial link is divided, one segment per die
 n_die_total   | 1     | derived | n_die_face * n_face            | compute dies in the machine

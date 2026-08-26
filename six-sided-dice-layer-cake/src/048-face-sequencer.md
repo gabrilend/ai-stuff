@@ -61,7 +61,7 @@ n_interdie_sync | 1 | given | 1     | inter-die crossings per layer for the four
 C_chain_layer | bit | derived | w_desc * n_desc_layer            | one layer's chain
 C_chain_face  | bit | derived | C_chain_layer * n_layer_face     | all of a face's chains, built once at load
 n_small_tok   | 1 | derived | n_small_read * n_layer_face        | small reads per token per face, which 040 asserts against its line width
-t_layer       | s | derived | t_stage / n_layer_face             | how long one layer takes
+t_layer       | s | derived | t_layer_comp                       | how long one layer takes at the design batch. It is the arithmetic time and not the transfer time, because below the crossover a prefetch and the compute it hides behind are the same memory traffic and cannot overlap at all -- double buffering earns itself above the crossover, where the arithmetic is the wall and the transfer can run underneath it
 f_prefetch_lead | 1 | derived | t_prefetch_lead / t_layer        | how much of a layer's time the prefetch must run ahead by
 ```
 

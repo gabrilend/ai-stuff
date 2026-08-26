@@ -10,18 +10,18 @@ Described by `706`.
 
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
-| `B_stage_hand` | bit/s | derived | unresolved | staging handoff traffic, one microbatch of activations per stage per step |
-| `B_seq_small` | bit/s | derived | unresolved | the sequencer's small control reads |
+| `B_stage_hand` | bit/s | derived | 3.804e+09 bit/s | staging handoff traffic, one microbatch of activations per stage per step |
+| `B_seq_small` | bit/s | derived | 4.755e+08 bit/s | the sequencer's small control reads |
 | `B_spout_avg` | bit/s | derived | 1.67772e+10 bit/s | the spout, averaged over how often a pane is actually taken |
 | `t_spout_period` | s | given | 0.001 s | how often a pane is taken in ordinary operation, which is a use assumption rather than a hardware property |
-| `B_other` | bit/s | derived | unresolved | everything that is not weight traffic |
-| `f_other` | 1 | derived | unresolved | that as a share of the core |
+| `B_other` | bit/s | derived | 4.78212e+10 bit/s | everything that is not weight traffic |
+| `f_other` | 1 | derived | 0.000155668 | that as a share of the core |
 | `m_bisect` | 1 | derived | 1 | the crossbar's margin over the memory |
 | `m_link` | 1 | derived | 18.9421 | the link's, counting pads rather than power |
 | `m_slice_bw` | 1 | derived | 194.783 | the slice's margin over what one die's engine consumes |
 | `B_face_single` | bit/s | derived | 3.072e+14 bit/s | what one face gets with the others idle, which must be the aggregate |
 | `f_single` | 1 | derived | 1 | that as a share, which is the claim reduced to a number that must be one |
-| `t_token_bw` | s | derived | unresolved | time per token from this chain, which 061 and 080 must agree with |
+| `t_token_bw` | s | derived | 0.000964779 s | time per token from this chain: every weight once and one sequence's cache. 061 and 080 must agree with it |
 
 ## What it consumes
 
@@ -30,17 +30,18 @@ Described by `706`.
 | `B_bisect` | `037` | 3.072e+14 bit/s | bisection bandwidth of the fabric |
 | `B_core` | `034` | 3.072e+14 bit/s | aggregate read bandwidth, every tier delivering at once |
 | `B_face_max` | `034` | 3.072e+14 bit/s | what a single face may take when the others are idle. Equal to the aggregate, deliberately, and 037 has to deliver it |
+| `B_kv_seq` | `076` | 671.089 MB | cache traffic for one token of one sequence, at full context |
 | `B_link_pads` | `051` | 5.819e+15 bit/s | what the pad count alone would permit |
 | `B_operand_die` | `045` | 1.88416e+13 bit/s | operand bandwidth from the slice: a weight tile reloaded every batch cycles at four bits each, plus a row of activations every cycle at sixteen |
 | `B_poll` | `053` | 2.65876e+10 bit/s | bandwidth six polling faces consume |
 | `B_scrub` | `040` | 1.76884e+08 bit/s | bandwidth the scrubber consumes |
 | `B_slice_read` | `047` | 3.67002e+15 bit/s | rate a face's slice serves reads, all banks at once |
-| `C_handoff` | `050` | unresolved | what actually crosses between two stages, per step |
+| `C_handoff` | `076` | 0.0764587 MB | one staging buffer's worth: a microbatch of activation vectors |
 | `C_pane` | `038` | 2.09715 MB | the window the spout sees, from 062 |
-| `C_weights` | **nothing declares this** | — | — |
-| `n_small_tok` | `048` | unresolved | small reads per token per face, which 040 asserts against its line width |
-| `t_stage` | `053` | unresolved | how long one face works before the sieve moves on |
-| `t_token` | `053` | unresolved | time for one token, bandwidth-bound: every weight read once at the core's aggregate rate |
+| `C_weights` | `078` | 36.3764 GB | the weights, resident, at the format in 046 |
+| `n_small_tok` | `048` | 112 | small reads per token per face, which 040 asserts against its line width |
+| `t_stage` | `053` | 0.000160796 s | how long one face works before the sieve moves on |
+| `t_token` | `053` | 0.000964779 s | time for one token of one sequence, bandwidth-bound: every weight once, plus that sequence's cache |
 | `w_transfer` | `052` | 4096 bit | payload of one transfer. Sixteen of 040's correction lines, an eighth of 038's interleave, and large enough that the header is three per cent |
 
 ## What consumes it

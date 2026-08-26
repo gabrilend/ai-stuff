@@ -33,7 +33,7 @@ Described by `207`.
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `F_corner_rating` | **nothing declares this** | — | — |
+| `F_corner_rating` | `015` | 4000 N | load one corner block will carry at a mount point without yielding, from its section and the steel in 011 |
 | `L_corner` | `013` | 12 mm | edge of a corner manifold block, set by the two chambers that have to fit inside it (015) |
 | `L_cube` | `012` | 60 mm | outer edge length of the finished cube; follows from the four dimensions below it in the chain |
 | `V_makeup` | `027` | 43215.7 mm^3 | reservoir capacity left over for leakage, once expansion and the spillage 019 loses at every coupling are taken out |

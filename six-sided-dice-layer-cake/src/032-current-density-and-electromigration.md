@@ -42,6 +42,7 @@ close.
 ## Symbols
 
 ```symbols
+I_die_max     | A  | given | 120.0 | the most current one die's power grid and microbump array will carry, from the cross-section below and the limit at temperature
 sp_hillock    | um | given | 0.40 | least spacing between a power conductor and a signal conductor at the top metal level, so that a hillock cannot bridge them
 n_yr_life     | 1  | given | 10.0 | years the conductors must survive at the design current, from 086
 T_em_quoted   | K  | given | 319.0 | temperature the current density limit in 011 is quoted at. It was three hundred and fifty, which is where the conductors were assumed to run before 025's chain closed; they run cooler, and a limit quoted hot is conservative rather than wrong -- but a limit quoted at the wrong temperature at all is how this goes wrong silently

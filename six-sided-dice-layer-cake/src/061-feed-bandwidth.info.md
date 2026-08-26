@@ -12,11 +12,11 @@ Described by `806`.
 |---|---|---|---|---|
 | `B_eat_face` | bit/s | derived | 7.53664e+13 bit/s | what one face's four engines consume at full utilisation |
 | `m_slice_feed` | 1 | derived | 48.6957 | the slice's margin over that |
-| `m_core_feed` | 1 | derived | unresolved | the core's margin over what a face must pull per layer at its contended share |
+| `m_core_feed` | 1 | derived | 1.15484 | the core's margin over what a face must pull per layer at its contended share |
 | `B_scrub_face` | bit/s | derived | 2.94807e+07 bit/s | the scrubber's share falling on one face's traffic |
-| `m_scrub` | 1 | derived | unresolved | the core's margin with the scrubber running, which is the check 040 needs and cannot do for itself |
+| `m_scrub` | 1 | derived | 1.15484 | the core's margin with the scrubber running, which is the check 040 needs and cannot do for itself |
 | `f_starve_below` | 1 | derived | 0.320652 | how starved an engine is below the crossover, which is the intended state and is reported rather than constrained |
-| `t_token_feed` | s | derived | unresolved | time per token from this chain, which 055 and 080 must agree with |
+| `t_token_feed` | s | derived | 0.000964779 s | time per token from this chain, which 055 and 080 must agree with |
 
 ## What it consumes
 
@@ -24,17 +24,18 @@ Described by `806`.
 |---|---|---|---|
 | `B_core` | `034` | 3.072e+14 bit/s | aggregate read bandwidth, every tier delivering at once |
 | `B_face_even` | `034` | 5.12e+13 bit/s | and what it gets when all six are asking equally |
+| `B_kv_seq` | `076` | 671.089 MB | cache traffic for one token of one sequence, at full context |
 | `B_operand_die` | `045` | 1.88416e+13 bit/s | operand bandwidth from the slice: a weight tile reloaded every batch cycles at four bits each, plus a row of activations every cycle at sixteen |
 | `B_scrub` | `040` | 1.76884e+08 bit/s | bandwidth the scrubber consumes |
 | `B_slice_read` | `047` | 3.67002e+15 bit/s | rate a face's slice serves reads, all banks at once |
-| `C_layer_weights` | **nothing declares this** | — | — |
-| `C_weights` | **nothing declares this** | — | — |
+| `C_layer_weights` | `078` | 441.188 MB | one transformer layer's share |
+| `C_weights` | `078` | 36.3764 GB | the weights, resident, at the format in 046 |
 | `n_die_face` | `042` | 4 | compute dies on one face |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
-| `t_layer` | `048` | unresolved | how long one layer takes |
+| `t_layer` | `048` | 7.96098e-05 s | how long one layer takes at the design batch. It is the arithmetic time and not the transfer time, because below the crossover a prefetch and the compute it hides behind are the same memory traffic and cannot overlap at all -- double buffering earns itself above the crossover, where the arithmetic is the wall and the transfer can run underneath it |
 | `t_load_max` | `057` | 0.1 s | the longest filling the core may take. A tenth of a second is what somebody starting a machine will not notice; the design comes in well under it |
-| `t_load_relay` | `057` | unresolved | and with the sixth slice relayed through the core over one of the five |
-| `t_token` | `053` | unresolved | time for one token, bandwidth-bound: every weight read once at the core's aggregate rate |
+| `t_load_relay` | `057` | 0.0341029 s | and with the sixth slice relayed through the core over one of the five |
+| `t_token` | `053` | 0.000964779 s | time for one token of one sequence, bandwidth-bound: every weight once, plus that sequence's cache |
 
 ## What consumes it
 

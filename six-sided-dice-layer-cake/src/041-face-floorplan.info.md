@@ -36,7 +36,7 @@ Described by `601`.
 |---|---|---|---|
 | `A_die` | `012` | 576 mm^2 | area of one compute die |
 | `C_face_slice` | `047` | 1157.79 MB | and of a whole face's |
-| `C_layer_weights` | **nothing declares this** | — | — |
+| `C_layer_weights` | `078` | 441.188 MB | one transformer layer's share |
 | `L_die` | `012` | 24 mm | edge of one compute die; two thirds of a reticle field, and half its area is the slice in 047 |
 | `P_die` | `020` | 58.106 W | everything one compute die dissipates at the design point |
 | `P_engine_die` | `045` | 45.8752 W | switching power of one die's multiplier array at the design utilisation |

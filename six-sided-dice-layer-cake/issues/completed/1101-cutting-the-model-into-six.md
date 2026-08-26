@@ -4,8 +4,23 @@ Produces `src/075-layer-assignment.md`.
 
 ## Current behavior
 
-Nothing. Fourteen, thirteen, thirteen, thirteen, thirteen, fourteen has been used
-in `003` and never justified.
+**Done.** `src/075-layer-assignment.md` exists. Twelve layers on the two faces
+carrying the embedding and the output projection, fourteen on each of the other
+four, cut so that **bytes read per token** are as equal as possible rather than
+layer counts.
+
+Five constraints. `C-075-3` asserts that balancing by bytes beats balancing by
+count -- which for a model with uniform layers would be false, and that is
+precisely when somebody would simplify it away.
+
+**One constraint was comparing the wrong things.** It asked a face's whole share
+of reading -- everything it touches in a token -- to fit inside its slice. That is
+not a thing that has to fit; what has to fit is the largest single item plus the
+next one behind it.
+
+**The rule is stated and the algorithm is not.** Given a different shape somebody
+must apply it by hand, and `058`'s layout and `048`'s chains both depend on the
+answer.
 
 ## Intended behavior
 

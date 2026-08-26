@@ -48,7 +48,7 @@ Change one of these and the blueprints beside it are what break.
 | `t_sensor_resp` | `049` |
 | `w_counter` | `049` |
 | `w_reg_ctrl` | `049` |
-| `n_counter` | `049` |
+| `n_counter` | `049`, `080` |
 | `n_fault_bit` | `049`, `073` |
 | `n_reg_ctrl` | `049` |
 | `n_model_term` | `049` |

@@ -14,6 +14,7 @@ Described by `203`.
 | `t_chamber_wall` | mm | given | 1.6 mm | the wall separating the supply chamber from the return chamber |
 | `t_outer_wall` | mm | given | 1.2 mm | wall between a chamber and the outside of the block |
 | `d_port` | mm | given | 6 mm | bore of the external coolant fitting on the four ported blocks |
+| `F_corner_rating` | N | given | 4000 N | load one corner block will carry at a mount point without yielding, from its section and the steel in 011 |
 | `K_tee` | 1 | given | 1.1 | loss coefficient for a three-way division at this geometry and Reynolds number |
 | `n_seal_corner` | 1 | given | 9 | seal lines where three rails and three plates meet one block |
 | `V_chamber` | mm^3 | derived | 168 mm^3 | volume of one chamber |
@@ -51,6 +52,7 @@ Change one of these and the blueprints beside it are what break.
 | `t_chamber_wall` | `015` |
 | `t_outer_wall` | `015` |
 | `d_port` | `015` |
+| `F_corner_rating` | `019` |
 | `K_tee` | `015` |
 | `n_seal_corner` | `015` |
 | `V_chamber` | `015` |
