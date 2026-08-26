@@ -130,7 +130,7 @@ these words and not synonyms.
 | **command radius** | The circle of ground around a guard tower. While an enemy stands inside it the tower replaces no guards and no hero may be spawned there. The only thing in the game both teams can see the shape of. |
 | **contribute** | Putting one of your stones into the communal pool, where any teammate may place and re-place it. It stops being yours completely — it shows up as simply one of the stones they have. |
 | **dismiss** | Marking a communal stone *not my problem*, which hides it from you and nobody else. When every player has dismissed the same stone it becomes visible to all of them again. |
-| **green stone** | A moss ball among a tower's bricks, worth **+1** to the die roll made there. Some upgrades leave one behind when placed. They accumulate, and they belong to the place rather than to a body. |
+| **moss ball** | An effect some stones carry: **+1** to one attribute's die roll, chosen by the player, reaching whatever stands in the same slot as the stone. It travels with the stone rather than staying where it was put. |
 | **bounty stone** | A stone played on a *teammate*, raising what their kills pay in one colour — +1 for a melee or ranged body, +3 for a captain. The one way to invest in somebody rather than give to them. |
 | **ping** | A marker a player drops on the map to point at a place. |
 | **siege-surge** | The phase where waves become a continuous stream and the chest cannot be touched. |

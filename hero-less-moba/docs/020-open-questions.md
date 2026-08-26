@@ -2910,34 +2910,40 @@ roster decides the shape of its bounty — *"3 blue die for every 1 green die an
 every 5 red die"*. Buying a hero rolls a die per attribute, and picking high
 costs more of that colour than picking low.
 
-### Green stones: a place can be lucky
+### Moss balls: a +1 that travels with the stone
 
-**Some upgrades carry, in addition to whatever else they do, "gives +1 green
-stone."** When such an upgrade is placed, a **green stone** — a moss ball —
-appears among the bricks *at that tower*, and it is worth exactly **+1 to the die
-roll in question**.
+**Some stones carry a moss ball among their other effects.** It is not a separate
+object and it is not placed separately — it is an attribute a stone has, the way
+a stone has a damage bonus, and a stone that has one usually has other bonuses
+too.
 
-They accumulate where they are put. Three green stones sitting on a tower with a
-red attack bonus means **+3 to attack** whenever the die that made the unit is
-rolled for attack there.
+**It follows the stone.** Wherever the stone is, the moss ball's **+1** applies
+to whatever is standing in that same slot:
 
-Two things make this worth more than a flat modifier.
+| The stone sits in | The +1 reaches |
+| --- | --- |
+| **a lane** | the die roll of wave units in that lane |
+| **a lane's towers** | that roll for the tower *and* its guards |
 
-**It is a modifier attached to a place rather than to a body or a slot.** Nothing
-else in this design works that way — lanes hold upgrades, bodies carry copies,
-boons float over everything. A green stone belongs to a *tower*, and it means
-that tower is a better place to have been made. In the words it arrived in:
-**getting bounty from a particular area is especially cool.**
+Move the stone and the +1 moves with it. It buffs **only things present in the
+same area the stone is present in** — which is the same rule every other effect a
+stone carries already follows, so it needs no new machinery at all.
 
-**And it is visible as an object.** A moss ball among bricks, accumulating, is a
-thing a player can count from the camera rather than read off a panel — which is
-exactly what vision 2 asks of every upgrade.
+**The +1 is applied at will**, so a player with a mossy stone has a small free
+decision on top of the placement: which attribute's die does this point at.
 
-The open part is the interaction with the roll. A die plus a flat bonus has a
-different distribution from a bigger die, and stacking green stones eventually
-makes the roll a formality — at which point the attribute has stopped being
-random and become a number, which may be the intent or may be the thing to
-prevent.
+**Expect no more than four to six in any one lane or tower.** That bound is what
+keeps the roll a roll. A die plus a large flat bonus stops being random and
+becomes a number, and an attribute that has quietly become a number is an
+attribute that has stopped being interesting — so the cap is a design constraint
+rather than a tuning preference, and the balance work should treat it as one.
+
+An earlier draft of this entry had moss balls as objects belonging to a **tower**
+rather than to a stone — accumulating among its bricks, staying where they were
+put. That was a misreading and it invented a whole new axis the design did not
+ask for. **Nothing here belongs to a place.** Stones belong to players, effects
+belong to stones, and where a stone sits decides who its effects reach. The moss
+ball is no exception, and the design is smaller for it.
 
 ### Bounty stones: investing in a teammate
 
@@ -3114,117 +3120,200 @@ else wrote.
 
 **Changed:** [001](001-what-this-game-is.md)'s vocabulary. The renames above are outstanding.
 
-## F33. Should this become a PvP zone in Everland Ghostsong? — **OPEN, and worth arguing about**
+## F33. Should this become a PvP zone in Everland Ghostsong? — **DIRECTION SET**
 
-The proposal is to build this as a Warcraft PvP zone inside the AzerothCore
-project at `~/games/azeroth-core/wow-chat-2026/` — *Everland Ghostsong*, a
-roguelike survival layer on 3.3.5a whose stated premise is that **the game exists
-for socialising** and that combat and progression are the backdrop for
-conversation.
+**Yes, as a target rather than a port, and the host keeps its own engine.**
 
-Taken seriously rather than politely, because the fit is better than it first
-looks and the mismatch is sharper than it first looks.
+The proposal is to build this inside the AzerothCore project at
+`~/games/azeroth-core/wow-chat-2026/` — *Everland Ghostsong*, whose stated
+premise is that **the game exists for socialising** and that combat and
+progression are the backdrop for conversation.
 
-### What translates, and some of it translates unreasonably well
+### What made it obviously worth doing
 
-**The socialising premise is this game's premise.** Everland's core philosophy is
-that the world is a backdrop for conversation. This project's whole thesis is
-that a shared pool three people argue over beats three avatars three people
-drive. Those are the same bet made twice. A PvP zone built on negotiation would
-be more on-theme there than an ordinary battleground.
+**The socialising premise is this project's premise.** Everland's philosophy is
+that the world is a backdrop for conversation; this project's thesis is that a
+shared pool people argue over beats avatars people drive. Those are the same bet
+made twice, and a PvP zone built on negotiation belongs there more than an
+ordinary battleground would.
 
-**Playerbots already exist there** and are described as companions that join your
-party, follow commands, and have their own behaviours. That is most of phase 9 —
-including the hard half, the *teammate* bot — already standing.
+**Playerbots already exist there**, described as companions that join your party,
+follow commands, and have their own behaviours. That is most of phase 9 already
+standing, including the hard half — the *teammate* bot.
 
-**The empty world is the right canvas.** Everland removed every NPC and creature
-so the world is quiet until a player arrives. A lane-pusher needs a space where
-nothing exists except what the match spawns, and that is exactly what has been
-built.
+**The world is already empty.** Everland removed every NPC and creature so the
+world is quiet until a player arrives, which is exactly the canvas a lane-pusher
+needs: a space where nothing exists except what the match spawns.
 
-**Waves, towers, and lanes are the oldest things in the engine.** Warcraft 3
-shipped with this shape and the WoW client renders crowds of low-detail bodies
-walking a route as well as anything does.
+### The engine stays the host's
 
-### What does not translate, and one of these is fatal-ish
+**The host handles the engine's jobs — networking, graphics, scheduling, bodies
+on screen — and this project supplies the rules.** That resolves what looked like
+the fatal objection and it is worth being precise about what it actually costs,
+because something real is given up.
 
-**Determinism.** The tick, the named random streams, the same-seed-same-result
-test, the replay — none of that survives being a script inside a server that owns
-its own scheduler. This project's most valuable regression test does not port.
+**These do not survive, and they were never design features:**
 
-**The tick itself.** The design is built on a fixed-step simulation the viewer
-merely reads. A game server runs its own loop at its own rate, and everything
-here that says *twenty-two ticks* rather than *0.7 seconds* is written that way
-specifically to avoid depending on somebody else's timing.
+- the fixed tick, and durations counted in ticks
+- the named random streams
+- same-seed-same-result
+- the replay
 
-**The camera.** Vision 2 wants a Supreme Commander pull-back where runes light up
-across the whole field. WoW's camera does not do that, and the zoom *is* the
-interface in that vision rather than a convenience.
+**Every one of those is a property of the reference implementation, not of the
+game.** That distinction was already half-discovered by E2, which found that the
+networking model does not rely on lockstep and that the determinism test "proves
+nothing about two machines." It is now fully general: **determinism is a thing
+this project builds for itself so that it can test and measure. It is not
+something the game needs in order to be the game.**
 
-**The thread pool.** Slicing thousands of bodies across workers is a decision
-about a simulation you own.
+Which means the port loses the *instruments* and keeps the *design*. Balance
+numbers still come from the LuaJIT implementation running ten thousand matches
+overnight; the host runs the game people play.
 
-### Which suggests the honest answer is "both, deliberately"
+### What transfers, precisely
 
-Not a port and not a rewrite: **a target.** The design is the thing this project
-is producing, and the design is portable even where the implementation is not.
-The parts that transfer are the ones written down as rules — the shared deck, the
-draw dealt one stone per player, contribute-and-dismiss, the command radius, the
-surge that reads instead of confiscating, the boon pair offered to everybody.
-None of that needs a fixed tick.
+Everything written down as a rule, and it is nearly all of it: the shared deck
+dealt one stone per player, contribute-and-dismiss, the offer, the command
+radius, the surge that reads instead of confiscating, the boon pair offered to
+everybody, the milestone comparison, the one-turn sign-post, the Golem whose
+health is its speed.
 
-The parts that do not transfer are all *implementation* — the pool, the streams,
-the replay, the frame. Which is a good sign about the design rather than a
-problem with it.
+None of that needs a clock anybody owns.
 
-**And that is exactly what the polyglot-source idea is for** — see below. A slot
-named `azerothcore` that is declared `partial`, where every unit that cannot be
-expressed inside a server script carries a note saying why, is a much better
-artefact than either a port or a refusal. **The holes would be a map of where
-this design depends on owning the clock.**
+**Changed:** nothing yet. This becomes real at phase 7 or later, and the decision to take now is only F34's — whether the source is authored with language markers from the start.
 
-Nothing is blocked. This is phase-7-and-beyond territory at the earliest, and the
-question to settle before then is only whether `azerothcore` becomes a declared
-language in the source tree, which is cheap to decide late and cheaper to decide
-now.
+## F34. Should the source be polyglot? — **DIRECTION SET**
 
-## F34. Should the source be polyglot? — **OPEN**
-
-The proposal: write the source in several languages at once, keeping the inactive
-ones in structured comments, with a small activator switching which is live.
-Incomplete areas allowed, filled in when needed. One of the languages is "ported
-to azerothcore."
+Write the source in several languages at once, keeping the inactive ones in
+structured comments, with a small activator switching which is live. One of the
+languages is "ported to azerothcore" (F33).
 
 **Written up as a reusable skill** at `~/.claude/skills/polyglot-source/`, since
 the idea is not specific to this project.
 
-The three things that make it interesting here specifically:
+### The rule that makes it affordable
 
-**The second implementation is the review.** Writing the soldier brain again, in a
-language with different primitives, would find every place the first version
-leaned on something incidental. This project has spent a great deal of effort on
-documents catching each other's contradictions; a second implementation catches a
-different class of them.
+**Delete what you are no longer sure of. Git is the other implementations.**
 
-**The gaps are findings.** A unit that has a Lua version and no AzerothCore
-version, with a note saying *the host runs scripts on its own worker and does not
-hand out slices*, is a recorded fact about the target sitting at the line where it
-matters. Under F33 that is the whole value.
+That inverts the obvious instinct and it removes the objection that would
+otherwise sink the whole idea — that every change becomes N changes and the
+inactive versions rot silently.
 
-**LuaJIT is the canonical language and that does not change.** The house style
-says so and nothing here argues with it. A polyglot tree has one language that
-gets fixed first and others that follow, or it drifts into several half-programs.
+They are allowed to rot. A block nobody can vouch for is **deleted**, not kept
+and not marked stale, because a wrong implementation sitting in a file is worse
+than an absent one — somebody will activate it.
 
-**What it costs, and it is not small:** every change becomes N changes, only the
-active language is ever tested, and activation rewrites comment prefixes across
-the tree so it has to be its own commit every time. It earns its keep only when
-the languages genuinely disagree — LuaJIT and a constrained host dialect qualify;
-LuaJIT and Lua 5.4 would not.
+**Recovery is mechanical**, and it is the reason this works:
 
-**The decision to make before phase 1, not after:** whether source files are
-authored with markers from the start. Retrofitting them onto a finished tree is a
-mechanical job but a large one, and the unit boundary — per function or per file
-— wants choosing once, early, and never again.
+1. `git log` the file, find the last commit where that language was current.
+2. Diff **the rest of the machine** from there to now — not the deleted block.
+   What did the canonical language do since, what did the records become, which
+   rules changed.
+3. Re-derive the block from the design as it now stands, treating the old one as
+   a sketch of how that language thinks rather than as a text to patch.
+
+Bringing an old block forward line by line is how you get something that compiles
+and is wrong in the way the system used to be.
+
+**So "how out of date is this version" becomes a commit range** rather than a
+feeling, which is strictly better than a stale block that looks maintained
+because it sits next to a maintained one. And the cost of a change goes back to
+being one change: fix the canonical language, delete what you cannot vouch for,
+carry on. The bill for a target arrives when somebody wants that target, as a
+readable diff of everything that happened since.
+
+### For this project specifically
+
+**LuaJIT stays canonical.** The house style says so and nothing here argues with
+it. A polyglot tree has one language that gets fixed first, or it drifts into
+several half-programs.
+
+**The second implementation is the review.** Writing the soldier brain again in a
+language with different primitives finds every place the first version leaned on
+something incidental. This project has spent real effort on documents catching
+each other's contradictions; a second implementation catches a different class.
+
+**And under F33 the gaps are the deliverable.** A unit with no AzerothCore version
+and a note saying *the host runs scripts on its own worker and does not hand out
+slices* is a recorded fact about the target at the line where it matters. Those
+notes, collected, are the map of where this design depends on owning its clock.
+
+### The one decision to take before phase 1
+
+**Whether source files are authored with language markers from the start**, and
+what a unit is — per function is finest and noisiest, per file is coarsest and
+easiest to keep honest. Retrofitting markers onto a finished tree is mechanical
+but large, and the unit boundary wants choosing once and never again.
+
+## F35. The economy just tripled and nobody chose that — **OPEN**
+
+Created by F29 and found by checking its arithmetic against what was already
+written.
+
+**Before:** a wave wipe drew **one** upgrade into the team's chest. Felling a
+tower drew **three**.
+
+**After:** a draw deals one stone to *every player*. So on a three-player team a
+wave wipe now produces **three** stones and a felled tower produces **nine**.
+
+**The whole upgrade economy is three times faster than it was**, at every rate, in
+every phase, and that fell out of an ownership decision rather than being chosen.
+It also scales with team size, so a 4v4 runs at four times the old rate and a 1v1
+at the old one.
+
+Three ways it could resolve, and they are genuinely different games:
+
+**1. Bless it.** The economy is three times richer and every balance number
+absorbs it — waves get wiped less often relative to a longer match, or stones are
+individually weaker, or the deck is longer. Consistent with the worked example
+exactly as it was given, and it makes a team's collective holding grow fast enough
+that contributing and offering matter early rather than late.
+
+**2. A draw event is rarer.** Keep one-stone-per-player, but stop paying it for
+every wave wipe — pay it on some larger unit of progress. That preserves the
+per-match total while keeping the hand-dealt-to-everybody shape, at the cost of
+making wipes feel unrewarding.
+
+**3. A wave wipe pays one player.** Whoever it is rotates, or it goes to the
+player with fewest stones. The rate is unchanged and players still hold different
+things — but both teams no longer hold *identical* sets, only identically many,
+and that quietly gives up the parity argument A11b was built on.
+
+Option 3 is the one to be most careful with. **Parity between teams is the thing
+the shared deck exists for**, and it survives options 1 and 2 untouched.
+
+There is also a bookkeeping consequence in the worked example that is worth
+noticing: the stones dealt were **1, 7 and 9**, not 1, 2 and 3. So a draw is not
+three consecutive reads from a sequence — either the numbers are kind identifiers
+rather than positions, or **the deck is a sequence of hands rather than of
+stones.** The second is cleaner and probably what should be built: one shuffled
+list of hands, both teams walking it together.
+
+## F36. During a surge, whose stones are dealt? — **OPEN**
+
+Created by F29 against F11.
+
+The surge "reads everything a team owns as one flat list and deals it across the
+bodies spawning that instant." **A team does not own things any more.** Three
+players do, plus a communal pool.
+
+The candidates:
+
+- **Everything, private hands included.** Simplest, and it means a stone you are
+  holding but have not placed is on the field during a surge exactly as much as a
+  placed one. That is already true of unplaced communal stones under F11, so it
+  is consistent — and it makes a surge the one stretch where hoarding costs you
+  nothing at all.
+- **Only what is placed or communal.** Keeps a private unplaced stone genuinely
+  private, and makes the surge reward teams who put things down. But it
+  reintroduces exactly the pre-surge hold that C1b worried about and F11 retired.
+- **Everything, but the private ones only reach that player's own bodies.** The
+  most interesting and the most machinery — it would make a surge legible as
+  three players' contributions walking side by side, and it needs bodies to know
+  whose they are, which nothing currently tracks.
+
+The first is the default unless somebody prefers otherwise, on the grounds that
+F11's whole point was that a surge takes nothing and reads everything.
 ---
 
 ## How this list is meant to be used
