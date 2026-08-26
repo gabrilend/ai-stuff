@@ -42,4 +42,4 @@ Diffusion models learn on images of roughly one aspect and go strange well away 
 
 ## Where it sits
 
-Used by `030-make-one-kanji`, `031-make-them-all`, `035-test-the-machine`.
+Used by `030-make-one-kanji`, `031-make-them-all`, `035-test-the-machine`, `044-run-the-pictures`.

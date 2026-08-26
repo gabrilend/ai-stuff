@@ -46,4 +46,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `027-test-the-meaning`, `030-make-one-kanji`.
+Used by `027-test-the-meaning`, `030-make-one-kanji`, `044-run-the-pictures`.

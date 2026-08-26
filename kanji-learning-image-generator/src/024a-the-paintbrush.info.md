@@ -76,4 +76,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `025-the-words-the-machine-reads`, `033-the-documentation-site`, `035-test-the-machine`.
+Used by `025-the-words-the-machine-reads`, `033-the-documentation-site`, `035-test-the-machine`, `044-run-the-pictures`.
