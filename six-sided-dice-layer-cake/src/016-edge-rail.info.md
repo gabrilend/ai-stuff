@@ -19,12 +19,12 @@ Described by `204`.
 | `L_rail` | mm | derived | 36 mm | length of a rail between the two corner blocks it joins |
 | `D_rail` | mm | derived | 1.8989 mm | hydraulic diameter of a rectangular rail channel |
 | `n_rail_chan` | 1 | derived | 24 | rail channels in the machine, supply and return on every edge |
-| `Q_rail` | m^3/s | derived | unresolved | volumetric flow along one supply rail: a rail feeds one face's field, and there are six of those |
-| `v_rail` | m/s | derived | unresolved | velocity in a rail channel |
-| `Re_rail` | 1 | derived | unresolved | Reynolds number in a rail; expected to be transitional, which is the awkward regime |
-| `f_rail` | 1 | derived | unresolved | Darcy friction factor from the Blasius correlation, valid to about Re of one hundred thousand |
-| `dp_rail` | Pa | derived | unresolved | pressure lost along one rail including its ends |
-| `f_rail_loss` | 1 | derived | unresolved | that loss as a fraction of the whole loop's |
+| `Q_rail` | m^3/s | derived | 9.7738e-06 m^3/s | volumetric flow along one supply rail: a rail feeds one face's field, and there are six of those |
+| `v_rail` | m/s | derived | 2.26245 m/s | velocity in a rail channel |
+| `Re_rail` | 1 | derived | 7363.81 | Reynolds number in a rail; expected to be transitional, which is the awkward regime |
+| `f_rail` | 1 | derived | 0.0341123 | Darcy friction factor from the Blasius correlation, valid to about Re of one hundred thousand |
+| `dp_rail` | Pa | derived | 5433.75 Pa | pressure lost along one rail including its ends |
+| `f_rail_loss` | 1 | derived | 0.287923 | that loss as a fraction of the whole loop's |
 | `V_rail_wet` | mm^3 | derived | 3732.48 mm^3 | fluid standing in all twenty-four rail channels |
 | `I_rail` | mm^4 | derived | 9.45248 mm^4 | second moment of area of a rail about a face-parallel axis, the square section less its two bores |
 | `m_rail_one` | kg | derived | 0.00273024 kg | mass of one rail |
@@ -36,8 +36,8 @@ Described by `204`.
 |---|---|---|---|
 | `L_corner` | `013` | 12 mm | edge of a corner manifold block, set by the two chambers that have to fit inside it (015) |
 | `L_cube` | `012` | 60 mm | outer edge length of the finished cube; follows from the four dimensions below it in the chain |
-| `Q_total` | `024` | unresolved | volumetric flow through the whole machine |
-| `dp_loop` | `024` | unresolved | the whole circuit inside the cube, one path from a fed corner to a drained one |
+| `Q_total` | `024` | 5.86428e-05 m^3/s | volumetric flow through the whole machine |
+| `dp_loop` | `024` | 18872.2 Pa | the whole circuit inside the cube, one path from a fed corner to a drained one |
 | `f_solid_rail` | `013` | 0.6 | fraction of an edge rail's square section that is metal rather than channel |
 | `mu_water` | `011` | 0.000577 Pa*s | dynamic viscosity of water at 320 K, a third below its value at 293 K |
 | `n_edge` | `010` | 12 | edges, each carrying a supply and a return channel |

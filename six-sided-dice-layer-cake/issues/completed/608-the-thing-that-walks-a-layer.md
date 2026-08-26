@@ -4,8 +4,23 @@ Produces `src/048-face-sequencer.md`.
 
 ## Current behavior
 
-Nothing. A sequencer has been referred to in six documents as the thing that keeps
-software out of the inner loop.
+**Done.** `src/048-face-sequencer.md` exists with the descriptor chain specified
+exactly, because `085` will need somebody to build one by hand on a bench.
+
+It carries the three things the ticket noticed it also does: the prefetch, the
+sixty-four cycle current ramp that `031` sized its decoupling against, and
+`039`'s two barriers. It adds a fourth — the four sequencers on a face agree once
+per layer rather than once per operation, which is the difference between thirteen
+interposer crossings a token and a hundred and sixty.
+
+Six constraints, all holding.
+
+**Chains are built rather than patched.** If nothing in a chain is
+token-dependent besides the position, the scalar core's four hundred instructions
+collapse to almost nothing, and nobody has checked.
+
+**The buffer swap at a layer boundary is not specified** and it recurs thirteen
+times a token.
 
 ## Intended behavior
 

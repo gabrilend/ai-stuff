@@ -18,10 +18,10 @@ Described by `203`.
 | `n_seal_corner` | 1 | given | 9 | seal lines where three rails and three plates meet one block |
 | `V_chamber` | mm^3 | derived | 168 mm^3 | volume of one chamber |
 | `V_corner_wet` | mm^3 | derived | 2688 mm^3 | fluid standing in all eight corner blocks |
-| `Q_corner_in` | m^3/s | derived | unresolved | volumetric flow entering one inlet block |
-| `v_corner` | m/s | derived | unresolved | velocity in an inlet block's supply chamber |
-| `dp_corner` | Pa | derived | unresolved | pressure lost dividing three ways in one block |
-| `f_corner_loss` | 1 | derived | unresolved | that loss as a fraction of the whole loop's |
+| `Q_corner_in` | m^3/s | derived | 1.46607e-05 m^3/s | volumetric flow entering one inlet block |
+| `v_corner` | m/s | derived | 1.04719 m/s | velocity in an inlet block's supply chamber |
+| `dp_corner` | Pa | derived | 596.502 Pa | pressure lost dividing three ways in one block |
+| `f_corner_loss` | 1 | derived | 0.0316074 | that loss as a fraction of the whole loop's |
 | `p_burst_wall` | Pa | derived | 3.53524e+07 Pa | pressure a flat wall of this thickness spanning this chamber will take before yielding |
 | `m_corner_one` | kg | derived | 0.00750816 kg | mass of one block |
 
@@ -30,8 +30,8 @@ Described by `203`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `L_corner` | `013` | 12 mm | edge of a corner manifold block, set by the two chambers that have to fit inside it (015) |
-| `Q_total` | `024` | unresolved | volumetric flow through the whole machine |
-| `dp_loop` | `024` | unresolved | the whole circuit inside the cube, one path from a fed corner to a drained one |
+| `Q_total` | `024` | 5.86428e-05 m^3/s | volumetric flow through the whole machine |
+| `dp_loop` | `024` | 18872.2 Pa | the whole circuit inside the cube, one path from a fed corner to a drained one |
 | `f_solid_corner` | `013` | 0.55 | fraction of a corner block that is metal rather than chamber |
 | `n_corner` | `010` | 8 | corners of the cube, each a coolant manifold block |
 | `n_corner_in` | `010` | 4 | corners where coolant enters, the even-parity set |

@@ -78,7 +78,7 @@ Change one of these and the blueprints beside it are what break.
 | `tol_loop` | `013`, `017` |
 | `t_coldplate` | `013`, `014`, `025`, `026`, `030` |
 | `t_interposer` | `013`, `014`, `030` |
-| `t_die` | `013`, `014`, `025`, `026` |
+| `t_die` | `013`, `014`, `025`, `026`, `041` |
 | `rho_glass` | `013` |
 | `f_solid_rail` | `013`, `016` |
 | `f_solid_plate` | `013`, `026` |

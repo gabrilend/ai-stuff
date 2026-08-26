@@ -67,7 +67,7 @@ the impedance the network must stay under [not-dimensioned]
 t_reg_resp    | s      | given | 1.0e-8 | how long an integrated regulator takes to respond to a load step
 c_trench      | nF/mm^2| measured | 100.0 | capacitance per unit area of a deep trench capacitor array in the interposer
 n_ramp_cycle  | 1      | given | 64     | cycles over which 048 admits operands at the start of an operation
-f_antires     | 1      | given | 3.0    | how far above the target impedance an unmitigated antiresonant peak sits, as a multiple
+f_antires     | 1      | given | 1.5    | how far above the target impedance a damped antiresonant peak sits. Three is what an undamped two-stage network gives, and it does not fit inside the rail's tolerance band -- so damping is a requirement here rather than a refinement
 
 I_step_die    | A  | derived | P_engine_die / V_logic                      | current one die's multiplier array demands when it goes from idle to full
 t_ramp        | s  | derived | n_ramp_cycle / f_face                       | how long the sequencer takes to get there

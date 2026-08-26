@@ -77,8 +77,7 @@ way to put one into a set of one-way derivations.
 ## Symbols
 
 ```symbols
-f_engine_area  | 1 | given | 0.104 | share of a compute die given to the multiplier array, from 041's floorplan
-f_engine_power | 1 | given | 0.70  | share of a die's heat the array makes
+dT_margin_min  | K | given | 20.0  | the least margin the hottest transistor must keep against its limit, given that the hot spot term rests on a floorplan that could still move
 dT_conv_max    | K | given | 4.0   | the most 022's convection term may take of the budget between the coolant and the silicon
 T_room         | K | given | 295.0 | air the radiator rejects into
 
@@ -111,7 +110,7 @@ s_solid        | 1 | derived | (dT_plate + dT_die) / (T_j_peak - T_coolant_in)  
 
 ```constraints
 C-025-1 | T_j_peak < T_si_max          | the hottest transistor on the worst die on the worst-served face must stay under what the silicon is qualified to. The one constraint the whole phase exists for
-C-025-2 | margin_thermal > 20.0        | and by at least twenty kelvin, because the hot spot term rests on a floorplan that 041 has not finished and could move
+C-025-2 | margin_thermal > dT_margin_min | and by at least twenty kelvin, because the hot spot term rests on a floorplan that 041 has not finished and could move
 C-025-3 | dT_conv_worst < dT_conv_max  | the channel wall's share must stay inside its allowance
 C-025-4 | s_hotspot > s_conv           | the hot spot must be the largest term. Asserted not because it is desirable but because it is true, and a design change that made the coolant dominant instead would mean something had gone badly wrong in 022
 C-025-5 | s_hotspot + s_conv + s_fluid + s_solid ~= 1 | the four shares account for everything between the inlet and the junction, with nothing unattributed
@@ -120,9 +119,9 @@ C-025-6 | T_j_mean < T_j_peak          | the average die is cooler than the wors
 
 ## What is still open
 
-**The hot spot term rests on a floorplan that does not exist.** `f_engine_area`
-and `f_engine_power` are entered as `given` from `041`'s intended floorplan, and
-`041` has not been written. If the array turns out denser than a tenth of the die
+**The hot spot term rested on a floorplan that did not exist** when this was
+written; `041` now derives both shares from a layout, so the term follows from
+one rather than from an intention. If the array turns out denser than a tenth of the die
 or hotter than seventy per cent of its power, this term grows in proportion and
 the twenty kelvin of margin in `C-025-2` is what absorbs it. **`009` entry T1, and
 it is the highest-value open question in the project.**

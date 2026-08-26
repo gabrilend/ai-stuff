@@ -4,8 +4,26 @@ Produces `src/043-instruction-set.md`.
 
 ## Current behavior
 
-Nothing. The faces have been called processors and nothing has said what they
-understand.
+**Done.** `src/043-instruction-set.md` exists with forty-nine instructions in
+four groups, and the omissions list with a reason for each.
+
+The ordering rule is written as architecture rather than as an implementation
+note: ascending index order, a stated accumulator width, a stated rounding mode,
+for every reduction — because two implementations must agree bit for bit or `085`
+cannot debug anything on a machine that has no debugger. The exponential is
+specified rather than borrowed, which together with the carried rotation table in
+`058` removes every transcendental from the forward pass and lets exactness hold
+all the way through the softmax.
+
+Six constraints.
+
+**The ordering rule is checked by counting, not by reading.** `C-043-5` confirms
+reductions exist and nothing confirms each has a specified order and width,
+because the notation cannot hold a list of operations with properties. That check
+lives in a reviewer's head, and it is the one that keeps bit-exactness from
+lapsing as operations are added.
+
+**`009` entry F3 — where the sampler runs — is still open.**
 
 ## Intended behavior
 

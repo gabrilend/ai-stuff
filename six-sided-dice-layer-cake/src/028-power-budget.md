@@ -47,6 +47,7 @@ P_array_load  | W | derived | n_die * P_slice_die + P_core                | ever
 P_link_load   | W | derived | P_link                                      | the six radial link drivers
 P_port_load   | W | derived | P_ports                                     | port fields, storage lines and the spout, averaged
 P_aux_load    | W | given   | 1.0                                         | sensors, telemetry and the interlock, which must run when nothing else does
+I_alarm       | A | given   | 1000.0                                      | a current large enough that reaching it would mean the delivery scheme had been abandoned; it exists to give C-028-5 something named to compare against
 
 I_logic       | A | derived | P_logic_load / V_logic     | current on the logic rail across the whole machine
 I_array       | A | derived | P_array_load / V_array     | on the array rail
@@ -70,7 +71,7 @@ C-028-1 | P_input ~= P_heat                                          | the power
 C-028-2 | P_logic_load + P_array_load + P_link_load + P_port_load + P_aux_load ~= P_load | the five rails account for everything delivered to the point of load, with nothing on a rail that does not exist
 C-028-3 | I_core_face * n_face ~= I_core_inward                       | the six faces' inward contributions add up to what the core draws
 C-028-4 | I_face_supply < I_port_max                                  | the current one face brings in must be inside what a port field connector will carry
-C-028-5 | I_would_be > 1000                                           | asserted in the direction of alarm and never expected to fail: at the transistor's own voltage this machine would draw over a kiloampere, which is what makes the two-stage conversion structural rather than an efficiency measure
+C-028-5 | I_would_be > I_alarm                                        | asserted in the direction of alarm and never expected to fail: at the transistor's own voltage this machine would draw over a kiloampere, which is what makes the two-stage conversion structural rather than an efficiency measure
 C-028-6 | I_die_logic < I_die_max                                     | logic current into one die must be inside what its power grid and microbump array can carry, from 032
 ```
 

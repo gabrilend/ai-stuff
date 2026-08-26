@@ -10,22 +10,23 @@ Described by `401`.
 
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
-| `P_logic_load` | W | derived | unresolved | everything on the logic rail: engines, control, leakage and the switch fabric |
-| `P_array_load` | W | derived | unresolved | everything on the array rail: the face slices and the whole memory block |
+| `P_logic_load` | W | derived | 1340.53 W | everything on the logic rail: engines, control, leakage and the switch fabric |
+| `P_array_load` | W | derived | 228.026 W | everything on the array rail: the face slices and the whole memory block |
 | `P_link_load` | W | derived | 30.72 W | the six radial link drivers |
 | `P_port_load` | W | derived | 10 W | port fields, storage lines and the spout, averaged |
 | `P_aux_load` | W | given | 1 W | sensors, telemetry and the interlock, which must run when nothing else does |
-| `I_logic` | A | derived | unresolved | current on the logic rail across the whole machine |
-| `I_array` | A | derived | unresolved | on the array rail |
+| `I_alarm` | A | given | 1000 A | a current large enough that reaching it would mean the delivery scheme had been abandoned; it exists to give C-028-5 something named to compare against |
+| `I_logic` | A | derived | 1787.38 A | current on the logic rail across the whole machine |
+| `I_array` | A | derived | 268.266 A | on the array rail |
 | `I_link` | A | derived | 51.2 A | on the link rail |
 | `I_port` | A | derived | 8.33333 A | on the port rail |
 | `I_aux` | A | derived | 0.30303 A | on the auxiliary rail |
-| `I_die_logic` | A | derived | unresolved | logic current into one compute die, which is the number the power grid in 030 is sized by |
-| `I_supply` | A | derived | unresolved | current drawn from the external supply |
-| `I_face_supply` | A | derived | unresolved | and per face, which is what a port field connector has to carry |
+| `I_die_logic` | A | derived | 73.7064 A | logic current into one compute die, which is the number the power grid in 030 is sized by |
+| `I_supply` | A | derived | 39.3949 A | current drawn from the external supply |
+| `I_face_supply` | A | derived | 6.56582 A | and per face, which is what a port field connector has to carry |
 | `I_core_inward` | A | derived | 188.466 A | current the memory block draws, arriving radially |
 | `I_core_face` | A | derived | 31.411 A | one face's share of it, sent inward through the same interface the data uses |
-| `I_would_be` | A | derived | unresolved | what the supply current would be if power arrived at the voltage the transistors run at. Two and a half kiloamps: not a connector, a pair of busbars nobody could bolt to this object, and the reason the whole two-stage conversion exists |
+| `I_would_be` | A | derived | 2521.28 A | what the supply current would be if power arrived at the voltage the transistors run at. Two and a half kiloamps: not a connector, a pair of busbars nobody could bolt to this object, and the reason the whole two-stage conversion exists |
 | `conv_ratio` | 1 | derived | 64 | how far the voltage has to fall between the outside world and a gate |
 
 ## What it consumes
@@ -36,15 +37,15 @@ Described by `401`.
 | `I_port_max` | `029` | 20 A | current one port field's power pads will carry |
 | `P_core` | `020` | 160.196 W | the whole memory block |
 | `P_crossbar` | `020` | 13.82 W | the cage's switch fabric at full traffic. Thirty-nine was an estimate before 037 had a per-bit figure; the constraint that compares the two is what corrected it |
-| `P_engine_die` | `020` | unresolved | switching power of one die's multiplier array at the design utilisation |
-| `P_heat` | `020` | unresolved | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
-| `P_input` | `020` | unresolved | power drawn from the forty-eight volt supply |
-| `P_leak_die` | `020` | 4.56022 W | leakage of one die at that temperature |
+| `P_engine_die` | `045` | 45.8752 W | switching power of one die's multiplier array at the design utilisation |
+| `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
+| `P_input` | `020` | 1890.96 W | power drawn from the forty-eight volt supply |
+| `P_leak_die` | `020` | 6.40458 W | leakage of one die at that temperature |
 | `P_link` | `020` | 30.72 W | six radial links carrying everything the core delivers |
-| `P_load` | `020` | unresolved | power delivered to the point of load |
+| `P_load` | `020` | 1609.28 W | power delivered to the point of load |
 | `P_ports` | `020` | 10 W | six port fields, storage lines and the spout, averaged; the spout's burst is an energy and lives in 026 |
 | `P_scalar_die` | `020` | 3 W | scalar core, sequencer, clock tree and control on one die, which barely varies with what it is doing |
-| `P_slice_die` | `020` | unresolved | what those reads cost |
+| `P_slice_die` | `020` | 2.82624 W | what a die's own slice reads cost, at the rate 045's array consumes them |
 | `V_array` | `029` | 0.85 V | static memory cells, in the slices and in the core |
 | `V_aux` | `029` | 3.3 V | sensors, telemetry and the interlock |
 | `V_link` | `029` | 0.6 V | radial link drivers, low swing by design |
@@ -65,6 +66,7 @@ Change one of these and the blueprints beside it are what break.
 | `P_link_load` | `028`, `029` |
 | `P_port_load` | `028` |
 | `P_aux_load` | `028` |
+| `I_alarm` | `028` |
 | `I_array` | `033` |
 | `I_die_logic` | `028`, `030`, `032` |
 | `I_supply` | `028`, `033` |
@@ -81,7 +83,7 @@ Change one of these and the blueprints beside it are what break.
 | `C-028-2` | `P_logic_load + P_array_load + P_link_load + P_port_load + P_aux_load ~= P_load` | the five rails account for everything delivered to the point of load, with nothing on a rail that does not exist |
 | `C-028-3` | `I_core_face * n_face ~= I_core_inward` | the six faces' inward contributions add up to what the core draws |
 | `C-028-4` | `I_face_supply < I_port_max` | the current one face brings in must be inside what a port field connector will carry |
-| `C-028-5` | `I_would_be > 1000` | asserted in the direction of alarm and never expected to fail: at the transistor's own voltage this machine would draw over a kiloampere, which is what makes the two-stage conversion structural rather than an efficiency measure |
+| `C-028-5` | `I_would_be > I_alarm` | asserted in the direction of alarm and never expected to fail: at the transistor's own voltage this machine would draw over a kiloampere, which is what makes the two-stage conversion structural rather than an efficiency measure |
 | `C-028-6` | `I_die_logic < I_die_max` | logic current into one die must be inside what its power grid and microbump array can carry, from 032 |
 
 ## What it draws

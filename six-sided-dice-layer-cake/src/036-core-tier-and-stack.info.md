@@ -26,11 +26,11 @@ Described by `503`.
 | `h_lam_chan` | mm | given | 0.3 mm | depth of the same. Half the lamina's thickness was tried first and made the core a quarter void, which is far more cooling than seven watts a tier needs and put nearly forty cubic centimetres of fluid inside the machine. The lamina is thick because the stack height demanded it, not because the heat did |
 | `f_void_lam` | 1 | derived | 0.0927644 | share of a lamina that is channel rather than metal, from the channel geometry rather than assumed |
 | `n_lam_chan` | 1 | derived | 66 | channels across one lamina, on a pitch of twice their width |
-| `Q_lamina` | m^3/s | derived | unresolved | flow through one lamina |
+| `Q_lamina` | m^3/s | derived | 2.07001e-07 m^3/s | flow through one lamina |
 | `A_wet_lam` | mm^2 | derived | 3168 mm^2 | wetted area of one lamina |
 | `dT_core` | K | derived | 0.250828 K | temperature a tier sits above its coolant. Two hand-written conversions -- millimetres to metres in the coefficient and square millimetres to square metres here -- between them made this term a thousand times too large, which is what a checker is for |
 | `h_conv_lam` | W/(m^2*K) | derived | 8400 W/(m^2*K) | convection coefficient in a lamina channel, at the laminar Nusselt number for a duct of about this shape |
-| `Q_core` | m^3/s | derived | unresolved | the core's share of the machine's flow, in proportion to its share of the heat |
+| `Q_core` | m^3/s | derived | 4.96803e-06 m^3/s | the core's share of the machine's flow, in proportion to its share of the heat |
 | `disp_tier_lam` | mm | derived | 0.01056 mm | relative motion at one tier-to-lamina interface over a power cycle |
 
 ## What it consumes
@@ -40,8 +40,8 @@ Described by `503`.
 | `A_core_side` | `012` | 1600 mm^2 | area of one side of the core block, and of one tier |
 | `L_core` | `012` | 40 mm | edge of the memory block the cage encloses |
 | `P_core` | `020` | 160.196 W | the whole memory block |
-| `P_heat` | `020` | unresolved | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
-| `Q_total` | `024` | unresolved | volumetric flow through the whole machine |
+| `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
+| `Q_total` | `024` | 5.86428e-05 m^3/s | volumetric flow through the whole machine |
 | `cte_cumo` | `011` | 7 ppm/K | linear thermal expansion of the same; chosen for this number and no other |
 | `cte_si` | `011` | 2.6 ppm/K | linear thermal expansion of silicon, 300 K to 400 K |
 | `dT_conv_max` | `025` | 4 K | the most 022's convection term may take of the budget between the coolant and the silicon |

@@ -4,8 +4,24 @@ Produces `src/047-face-cache-slice.md`.
 
 ## Current behavior
 
-Nothing. Nine hundred and twenty-two megabytes per face is quoted and never
-derived, and it is the tightest number in the project.
+**Done.** `src/047-face-cache-slice.md` exists, built around the constraint that
+sized the cube: the slice must hold the layer being computed and the layer being
+fetched.
+
+Seven constraints. The margin on the binding one is published as a number rather
+than as a pass, because a constraint that holds by three per cent and one that
+holds by a factor of two are different situations and a checker reports both the
+same way.
+
+The density difference against the core's tiers is argued rather than assumed —
+a slice on a logic die carries its own sense amplifiers, its own correction, its
+own three-port banking and shares routing with the engine beside it — and a
+constraint asserts the inequality so that somebody unifying the two numbers fails
+here rather than silently losing a quarter of the slice.
+
+**`009` entry F2 is priced and not decided.** A third buffer would absorb
+contention between faces at large batch and does not fit on this die; the larger
+die has not been costed.
 
 ## Intended behavior
 

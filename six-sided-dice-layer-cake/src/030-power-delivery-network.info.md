@@ -11,23 +11,25 @@ Described by `403`.
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
 | `t_plane_mid` | mm | given | 0.07 mm | thickness of one interposer plane carrying the intermediate rail |
-| `n_plane_mid` | 1 | given | 2 | such planes, one out and one back |
-| `t_grid_metal` | um | given | 3 um | thickness of the top metal layer a die's power grid is built in |
-| `f_grid_metal` | 1 | given | 0.6 | share of that layer given to power rather than signal |
-| `L_reg_to_die` | mm | given | 3 mm | distance from a regulator's output to the microbumps it feeds |
+| `ir_frac` | 1 | given | 0.02 | fraction of nominal the static drop may take. Separate from the transient droop allowance in 029, because static drop is always present and spending the whole allowance on it would leave the rail out of specification the moment anything switched |
+| `n_plane_mid` | 1 | given | 4 | such planes, two out and two back |
+| `t_grid_metal` | um | given | 16 um | thickness of the thick metal stack a die's power grid is built in. Three microns was tried and put a hundred millivolts across the die at seventy amperes, which is four times the whole droop allowance |
+| `f_grid_metal` | 1 | given | 0.75 | share of that stack given to power rather than signal |
+| `L_reg_to_die` | mm | given | 1.2 mm | distance from a regulator's output to the microbumps it feeds. Regulators sit directly beneath the dies they serve, because this length multiplies the drop |
 | `n_pillar_pwr` | 1 | derived | unresolved | radial pillars carrying current inward rather than data |
 | `i_pad_max` | mA | given | 5 mA | current one twenty-micron copper pillar carries, a fifth of what it would take, because 032 wants the margin |
 | `R_island` | ohm | derived | 1.34398e-06 ohm | resistance of all the via island feedthroughs on one face in parallel |
-| `dV_island` | V | derived | unresolved | drop across them at the supply voltage, where the current is small |
-| `P_island_loss` | W | derived | unresolved | heat those conductors make, deposited inside the channel field |
-| `R_plane` | ohm | derived | 0.000135714 ohm | resistance of the interposer planes carrying the intermediate rail across a face |
-| `dV_plane` | V | derived | unresolved | drop across them |
-| `A_grid` | mm^2 | derived | 0.0432 mm^2 | cross-section of one die's power grid, taken across the die's width in the top metal |
-| `R_grid` | ohm | derived | 0.00131944 ohm | resistance from a regulator's output to the far side of a die |
-| `dV_grid` | V | derived | unresolved | drop across it at the design current |
-| `dV_total` | V | derived | unresolved | accumulated static drop to the worst-placed transistor, at the logic rail |
-| `R_to_load` | ohm | derived | unresolved | the resistance the last level actually presents |
-| `R_to_load_max` | ohm | derived | unresolved | the most it may present, from the droop allowance in 029 |
+| `dV_island` | V | derived | 8.8243e-06 V | drop across them at the supply voltage, where the current is small |
+| `P_island_loss` | W | derived | 5.79388e-05 W | heat those conductors make, deposited inside the channel field |
+| `R_plane` | ohm | derived | 6.78571e-05 ohm | resistance of the interposer planes carrying the intermediate rail across a face |
+| `dV_plane` | V | derived | 0.00427717 V | drop across them |
+| `A_grid` | mm^2 | derived | 0.288 mm^2 | cross-section of one die's power grid, taken across the die's width in the top metal |
+| `R_grid` | ohm | derived | 7.91667e-05 ohm | resistance from a regulator's output to the far side of a die |
+| `dV_grid` | V | derived | 0.00583509 V | drop across it at the design current |
+| `dV_total` | V | derived | 0.0101123 V | accumulated static drop to the worst-placed transistor, at the logic rail |
+| `R_to_load` | ohm | derived | 7.91667e-05 ohm | the resistance the last level actually presents |
+| `dV_static_max` | V | derived | 0.015 V | the most the static drop may be |
+| `R_to_load_max` | ohm | derived | 0.00020351 ohm | the most the last level may present |
 | `I_pillar_cap` | A | derived | unresolved | current the radial pillar array will carry inward |
 | `f_pillar_used` | 1 | derived | unresolved | how much of that capability the core's inward supply actually uses |
 
@@ -37,14 +39,14 @@ Described by `403`.
 |---|---|---|---|
 | `I_core_face` | `028` | 31.411 A | one face's share of it, sent inward through the same interface the data uses |
 | `I_core_inward` | `028` | 188.466 A | current the memory block draws, arriving radially |
-| `I_die_logic` | `028` | unresolved | logic current into one compute die, which is the number the power grid in 030 is sized by |
-| `I_face_supply` | `028` | unresolved | and per face, which is what a port field connector has to carry |
+| `I_die_logic` | `028` | 73.7064 A | logic current into one compute die, which is the number the power grid in 030 is sized by |
+| `I_face_supply` | `028` | 6.56582 A | and per face, which is what a port field connector has to carry |
 | `L_die` | `012` | 24 mm | edge of one compute die; two thirds of a reticle field, and half its area is the slice in 047 |
 | `L_plate` | `012` | 52 mm | edge of a face plate, once the edge rails are taken off |
-| `P_heat` | `020` | unresolved | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
-| `P_input` | `020` | unresolved | power drawn from the forty-eight volt supply |
+| `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
+| `P_input` | `020` | 1890.96 W | power drawn from the forty-eight volt supply |
+| `V_logic` | `029` | 0.75 V | logic and multiplier arrays |
 | `V_mid` | `029` | 5 V | the intermediate rail on a face interposer, between the two conversion stages |
-| `dV_droop_logic` | `029` | 0.0225 V | how far the logic rail may fall during a load step, which is what sizes the decoupling in 031 |
 | `f_radial_power` | **nothing declares this** | — | — |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `n_island_pad` | `014` | 3600 | conductors that can cross the cold plate, in total |
@@ -61,6 +63,7 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `t_plane_mid` | `030` |
+| `ir_frac` | `030` |
 | `n_plane_mid` | `030` |
 | `t_grid_metal` | `030`, `032` |
 | `f_grid_metal` | `030`, `032` |
@@ -76,6 +79,7 @@ Change one of these and the blueprints beside it are what break.
 | `dV_grid` | `030` |
 | `dV_total` | `030` |
 | `R_to_load` | `030` |
+| `dV_static_max` | `030` |
 | `R_to_load_max` | `030` |
 | `I_pillar_cap` | `030` |
 | `f_pillar_used` | `030` |
@@ -84,7 +88,7 @@ Change one of these and the blueprints beside it are what break.
 
 | tag | relation | because |
 |---|---|---|
-| `C-030-1` | `dV_total < dV_droop_logic` | the accumulated static drop to the worst-placed transistor must fit inside the droop allowance, leaving nothing for the transient in 031. That is deliberately harsh: static drop is always present, so spending the whole allowance on it would mean the rail is out of specification the moment anything switches |
+| `C-030-1` | `dV_total < dV_static_max` | the accumulated static drop to the worst-placed transistor must fit inside its own allowance, which is smaller than the droop allowance because the transient in 031 needs what is left. Written first against the whole droop allowance, which was both too generous and the wrong budget |
 | `C-030-2` | `R_to_load < R_to_load_max` | the same statement at the level where it binds |
 | `C-030-3` | `f_pillar_used < 0.20` | the radial interface must spend under a fifth of its power-carrying capability on the core's supply, because the rest of it is 051's signal integrity budget and current is not what limits that interface |
 | `C-030-4` | `P_island_loss < P_heat / 1000` | the heat the via island conductors make, which lands inside the coolant channels, must be under a thousandth of the machine's total. It comes out far below, which is the finding: the islands are a sealing problem and not an electrical one |

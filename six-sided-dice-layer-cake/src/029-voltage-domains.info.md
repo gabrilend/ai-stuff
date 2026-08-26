@@ -26,8 +26,8 @@ Described by `402`.
 | `dV_droop_logic` | V | derived | 0.0225 V | how far the logic rail may fall during a load step, which is what sizes the decoupling in 031 |
 | `dV_ripple` | V | derived | 0.0075 V | switching ripple allowed on the same |
 | `dV_band` | V | derived | 0.0375 V | the whole tolerance band the rail must stay inside |
-| `P_if_merged` | W | derived | unresolved | what running the logic at the array's voltage would cost, which is the argument for keeping them apart |
-| `f_merge_cost` | 1 | derived | unresolved | that cost as a share of the machine |
+| `P_if_merged` | W | derived | 178.738 W | what running the logic at the array's voltage would cost, which is the argument for keeping them apart |
+| `f_merge_cost` | 1 | derived | 0.111067 | that cost as a share of the machine |
 | `E_swing_ratio` | 1 | derived | 0.64 | the energy the link saves by swinging six hundred millivolts instead of the logic rail's, since energy goes as the square of the swing |
 | `P_link_if_logic` | W | derived | 48 W | what the link would cost at the logic swing |
 
@@ -36,8 +36,8 @@ Described by `402`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `P_link_load` | `028` | 30.72 W | the six radial link drivers |
-| `P_load` | `020` | unresolved | power delivered to the point of load |
-| `P_logic_load` | `028` | unresolved | everything on the logic rail: engines, control, leakage and the switch fabric |
+| `P_load` | `020` | 1609.28 W | power delivered to the point of load |
+| `P_logic_load` | `028` | 1340.53 W | everything on the logic rail: engines, control, leakage and the switch fabric |
 | `V_link_min` | **nothing declares this** | — | — |
 
 ## What consumes it
@@ -48,7 +48,7 @@ Change one of these and the blueprints beside it are what break.
 |---|---|
 | `V_supply` | `028`, `029` |
 | `V_mid` | `029`, `030` |
-| `V_logic` | `028`, `029`, `031`, `033` |
+| `V_logic` | `028`, `029`, `030`, `031`, `033`, `045` |
 | `V_array` | `028`, `029`, `033` |
 | `V_link` | `028`, `029` |
 | `V_port` | `028` |
@@ -59,7 +59,7 @@ Change one of these and the blueprints beside it are what break.
 | `dV_read_marg` | `029`, `035` |
 | `I_port_max` | `028` |
 | `n_domain` | `029`, `033` |
-| `dV_droop_logic` | `029`, `030`, `031` |
+| `dV_droop_logic` | `029`, `031` |
 | `dV_ripple` | `029` |
 | `dV_band` | `029`, `031` |
 | `P_if_merged` | `029` |

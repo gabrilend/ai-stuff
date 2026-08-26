@@ -70,6 +70,8 @@ try to fix the flow.
 ## Symbols
 
 ```symbols
+T_in_max      | K     | given | 333.0 | the warmest coolant the seals, the elastomer and the materials in 011 tolerate at the working pressure
+dT_margin_dry | K     | given | 15.0  | the least junction margin that must remain once the chiller is removed and the inlet floats to whatever an air-cooled radiator gives
 UA_rad        | W/K   | given | 60.0  | conductance of an air-cooled radiator of a size that fits beside this machine, with its fan running
 d_filter      | um    | given | 25.0  | absolute rating of the filter; the largest particle it passes
 dp_filter_new | Pa    | given | 3000  | pressure across a clean filter element
@@ -84,7 +86,7 @@ beta_water    | 1/K   | measured | 4.0e-4 | volumetric thermal expansion of wate
 V_loop        | mm^3 | derived | V_coolant + V_loop_ext        | fluid in the whole circuit
 dT_rad        | K    | derived | P_heat / UA_rad               | temperature the coolant must sit above the room for the radiator to reject the heat
 T_in_no_chill | K    | derived | T_room + dT_rad               | the coldest inlet an air-cooled radiator alone can produce
-needs_chiller | 1    | derived | max(0, T_in_no_chill - T_coolant_in) / max(1, T_in_no_chill - T_coolant_in) | one if the requested inlet is colder than a radiator can manage, zero otherwise
+dT_chiller    | K    | derived | T_in_no_chill - T_coolant_in  | how much colder the requested inlet is than an air-cooled radiator alone can produce. Positive means a refrigeration plant, and how far positive is how much of one. Written as a temperature rather than as a boolean because this notation has no conditionals and a quantity says more than a flag would
 T_j_no_chill  | K    | derived | T_j_peak - T_coolant_in + T_in_no_chill | junction temperature if the chiller is removed and the inlet allowed to float to what the radiator gives
 margin_no_chill | K  | derived | T_si_max - T_j_no_chill       | and how much margin is left after doing that
 
@@ -102,8 +104,8 @@ t_to_halt_1pump | K  | derived | dT_rise                       | the extra coola
 ## Constraints
 
 ```constraints
-C-027-1 | UA_rad * (T_in_no_chill - T_room) >= P_heat | the radiator must reject everything the machine makes at the approach it actually achieves
-C-027-2 | margin_no_chill > 15.0     | with the chiller removed and the inlet floating to whatever the radiator gives, there must still be fifteen kelvin between the hottest transistor and its limit. This is the constraint that says the trade is available, and it is the most useful line in the blueprint
+C-027-1 | T_in_no_chill < T_in_max                    | the inlet an air-cooled radiator alone produces must be one the machine's own materials tolerate. Written first as the radiator rejecting the heat, which is how T_in_no_chill is defined and therefore says nothing at all
+C-027-2 | margin_no_chill > dT_margin_dry | with the chiller removed and the inlet floating to whatever the radiator gives, there must still be fifteen kelvin between the hottest transistor and its limit. This is the constraint that says the trade is available, and it is the most useful line in the blueprint
 C-027-3 | t_interlock < t_to_halt    | the interlock must cut power before the machine reaches its halt threshold with all cooling stopped
 C-027-4 | d_filter * 3 < w_uchan * 1000 | the filter must pass nothing bigger than a third of a channel's width, so that no single particle can close one
 C-027-5 | V_makeup > V_leak_life        | what the reservoir has left, after thermal expansion and service spillage, must still cover a service interval's worth of leakage from a hundred and sixty-six joints
