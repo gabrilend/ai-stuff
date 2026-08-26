@@ -6,7 +6,7 @@
 | Blocked by | 203, 204, 504, 509 |
 | Blocks | nothing |
 | Reads | [standing off and falling back](../docs/022-standing-off-and-falling-back.md) · [hero units](../docs/012-hero-units.md) |
-| Open questions | F40 — which of these are wave units and which are heroes |
+| Open questions | none |
 
 ## Current behavior
 
@@ -65,6 +65,12 @@ with a hole in front of it.
 player something to read: a druid throwing moons is a druid whose line has gaps
 in it.
 
+**And it is what sends the druid orbiting.** A druid with no line of sight and no
+ally needing a regeneration has nothing to do standing where it is, so it walks
+the flank looking for an angle — see
+[standing off and falling back](../docs/022-standing-off-and-falling-back.md).
+The blocked shot is not a dead end; it is the condition that makes the body move.
+
 It also aims **opposite to everything else the healers do.** Every healing rule
 here reaches for the ally closest to dying; the moon reaches for the enemy
 furthest from it. A druid mends what is nearly gone and attacks what is barely
@@ -88,9 +94,13 @@ touched — which is a coherent temperament rather than two unrelated buttons.
    only fires when the team is winning and will otherwise never be exercised.
 5. Write the **positional** rule as a movement goal, not a filter: stay in range
    of at least three valid wounded, out of enemy melee and ranged reach.
-6. Write line of sight for the moon spike, with allies as blockers, and a test
+6. Write **orbiting** for every ranged body, not just the druid: direction chosen
+   by which side of the enemy formation's mass the body already stands on, held
+   for as long as it is in the same milestone. Test that two opposing lines of
+   ranged bodies converge on the flanks without any rule telling them to.
+7. Write line of sight for the moon spike, with allies as blockers, and a test
    that a druid behind an unbroken rank cannot cast it.
-7. Write a scenario (issue 110) with **two healers and three wounded**, arranged
+8. Write a scenario (issue 110) with **two healers and three wounded**, arranged
    so one is reachable by each healer and one by both. That is the configuration
    the claim rule exists for, and it should be a file anybody can load and watch.
 
