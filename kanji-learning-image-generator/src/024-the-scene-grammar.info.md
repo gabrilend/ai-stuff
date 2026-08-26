@@ -59,4 +59,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `025-the-words-the-machine-reads`, `027-test-the-meaning`.
+Used by `024a-the-paintbrush`, `027-test-the-meaning`, `035-test-the-machine`.

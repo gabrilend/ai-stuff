@@ -69,4 +69,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `012-read-the-strokes`, `013-read-the-meanings`, `019-the-kanji-record`, `019a-a-phrase-is-a-record-too`, `020-test-the-ink`, `021-the-shape-of-a-stroke`, `022-the-structure-field`, `023-the-component-lexicon`, `024-the-scene-grammar`, `025-the-words-the-machine-reads`, `026-arrows-that-teach-the-order`, `030-make-one-kanji`.
+Used by `012-read-the-strokes`, `013-read-the-meanings`, `019-the-kanji-record`, `019a-a-phrase-is-a-record-too`, `020-test-the-ink`, `021-the-shape-of-a-stroke`, `022-the-structure-field`, `023-the-component-lexicon`, `024-the-scene-grammar`, `024a-the-paintbrush`, `025-the-words-the-machine-reads`, `026-arrows-that-teach-the-order`, `030-make-one-kanji`.

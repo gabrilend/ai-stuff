@@ -15,7 +15,11 @@
 
 local project = dofile((debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$")) ..
                        "/009-where-things-are.lua")
-local grammar = project.load("024-the-scene-grammar")
+-- The paintbrush rather than the grammar directly, so that an argument
+-- somebody wrote is never written and then quietly ignored -- which would be
+-- worse than having no arguments at all, because the picture would not change
+-- and nothing would say why.
+local grammar = project.load("024a-the-paintbrush")
 
 local M = {}
 

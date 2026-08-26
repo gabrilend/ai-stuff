@@ -336,6 +336,116 @@ local function test_the_two_sites(t)
 end
 -- }}}
 
+-- {{{ test_the_paintbrush(t)
+-- The mechanism for arguing with a picture that came out wrong. Its whole value
+-- is in what it refuses, so most of this walks into the wall on purpose.
+local function test_the_paintbrush(t)
+  local paintbrush = project.load("024a-the-paintbrush")
+  local store = project.load("019-the-kanji-record").store()
+  local settings = project.settings()
+  local record = store.records["\230\153\130"]
+
+  -- Every complaint at once. Stopping at the first turns fixing an argument
+  -- into one guess per run.
+  local complaints = paintbrush.check({
+    wold = "sky",
+    world = "skies",
+    reading = "mnemonik",
+    subjects = { { "\229\177\177", "a mountain" } },
+    strokes = { [99] = "nowhere" },
+    palette = 12,
+  }, record, store)
+  t.ok(#complaints >= 6, "the wall reports every problem in one pass",
+       #complaints .. " of them")
+
+  local all = table.concat(complaints, "\n")
+
+  -- Each refusal names its field and, where a suggestion means anything, makes
+  -- one. The vocabulary is small and closed, so the nearest legal word is
+  -- computable and is almost certainly what was meant.
+  t.ok(all:find("no word 'wold'", 1, true) ~= nil, "an unknown word is named")
+  t.ok(all:find("Did you mean 'world'", 1, true) ~= nil, "with the word meant")
+  t.ok(all:find("Did you mean 'sky'", 1, true) ~= nil,
+       "a misspelt world is corrected")
+  t.ok(all:find("Did you mean 'mnemonic'", 1, true) ~= nil,
+       "and so is a misspelt reading")
+
+  -- A piece the character does not have is the mistake somebody will actually
+  -- make, so the wall names what it *is* made of. It offers no guess: every
+  -- distinct single character is exactly one edit from every other, so the
+  -- "nearest" one is whichever came first in the list -- which once produced
+  -- "did you mean 時?" about the character being argued.
+  t.ok(all:find("has no piece", 1, true) ~= nil, "a piece it does not have is refused")
+  t.ok(all:find("it is made of", 1, true) ~= nil, "and the real pieces are listed")
+  t.ok(all:find("Did you mean '\230\153\130'", 1, true) == nil,
+       "without guessing between single characters, which carries no information")
+
+  t.ok(all:find("strokes 1 to 10", 1, true) ~= nil,
+       "a stroke number it does not have is refused, with the range")
+  t.ok(all:find("palette", 1, true) ~= nil, "and a field of the wrong type")
+
+  -- An argument may say as little as it likes. Overriding the world and nothing
+  -- else is the commonest case.
+  t.same(#paintbrush.check({ world = "shrine" }, record, store), 0,
+         "an argument that says one thing is legal")
+  t.same(#paintbrush.check({}, record, store), 0,
+         "and so is one that says nothing at all")
+  t.same(#paintbrush.check({ note = "just a note" }, record, store), 0,
+         "a note is legal and does nothing")
+
+  -- What an argument actually does. Only what it says changes.
+  local grammar = project.load("024-the-scene-grammar")
+  local before = grammar.scene(record, store, settings)
+  local after = paintbrush.apply(
+    grammar.scene(record, store, settings),
+    { world = "shrine", subjects = { { "\230\151\165", "a huge white sun" } } })
+  t.same(after.biome.name, "shrine", "an argued world wins")
+  t.same(after.subjects[1].depicts, "a huge white sun", "and an argued subject")
+  t.same(after.reading, before.reading,
+         "while everything unsaid stays as the grammar worked it out")
+  t.ok(after.argued, "and the scene records that it was argued with")
+
+  -- A person says what a piece looks like, not where it is. Where it is comes
+  -- from the strokes and nobody should have to restate it.
+  t.ok(after.subjects[1].where ~= "somewhere",
+       "an argued subject keeps the place its strokes give it",
+       after.subjects[1].where)
+
+  -- The contract is generated from the vocabulary, not written beside it. Two
+  -- homes for one contract is a contract that disagrees with itself silently:
+  -- the document says one thing, the wall enforces another, and whoever is
+  -- writing an argument believes the document.
+  local contract = paintbrush.contract()
+  for _, word in ipairs({ "world", "reading", "polarity", "subjects",
+                          "strokes", "register", "light", "palette", "note" }) do
+    t.ok(contract:find("`" .. word .. "`", 1, true) ~= nil,
+         "the contract publishes " .. word)
+  end
+  for _, biome in ipairs(grammar.biomes()) do
+    if not contract:find(biome.name, 1, true) then
+      t.ok(false, "the contract lists every world", biome.name .. " is missing")
+      break
+    end
+  end
+  t.ok(true, "and every world it will accept")
+
+  -- An argument that exists and is wrong must stop the run. Written and then
+  -- silently ignored would be worse than never written: the picture does not
+  -- change and nothing says why.
+  local wrong = paintbrush.path_for("\239\189\158test")
+  project.write_file(wrong, "return { world = 'nowhere' }")
+  local pretend = { character = "\239\189\158test", components = {},
+                    strokes = { { d = "M0,0c1,1,2,2,3,3" } } }
+  local ok, complaint = pcall(paintbrush.load_for, pretend, store)
+  os.remove(wrong)
+  t.ok(not ok, "an argument that is there and is wrong stops the run")
+  t.ok(tostring(complaint):find("is not a world", 1, true) ~= nil,
+       "saying what was wrong with it")
+  t.ok(tostring(complaint):find("--contract", 1, true) ~= nil,
+       "and where the list of legal words is")
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -344,6 +454,7 @@ function M.run(options)
     { "the workflow", test_the_workflow },
     { "making one", test_making_one },
     { "the heat governor", test_the_heat_governor },
+    { "the paintbrush", test_the_paintbrush },
     { "the two sites", test_the_two_sites },
   }
   local all_passed = true
