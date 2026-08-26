@@ -4,8 +4,22 @@ Produces `src/030-power-delivery-network.md`.
 
 ## Current behavior
 
-Nothing. `006` states that power enters at every face and never crosses a corner,
-and no plane has been drawn.
+**Done.** `src/030-power-delivery-network.md` exists, opening with the rule it
+enforces: no current passes through a corner or along an edge. That keeps the
+plumbing purely hydraulic and makes power purely radial.
+
+**The via islands turned out not to be a problem.** The ticket expected them to
+be the awkward level; at the supply voltage they carry a few amperes through
+several hundred pads each, with three orders of magnitude of headroom. They are a
+sealing problem and not an electrical one, and a constraint now says so.
+
+The hard level is the regulator output: seventy amperes at three quarters of a
+volt with twenty-two millivolts to spend, which is a third of a milliohm and
+therefore an area problem that reaches back into the interposer thickness.
+
+**Five volts or twelve is still open** (`009` entry P1), and it changes the
+interposer, which changes the face, which changes the cube. **And the regulator
+itself is nowhere specified**, which two other blueprints need.
 
 ## Intended behavior
 

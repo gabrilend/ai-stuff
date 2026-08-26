@@ -79,6 +79,8 @@ Change one of these and the blueprints beside it are what break.
 | `k_cu_plated` | `011` |
 | `k_cu_film` | `011` |
 | `cte_cu` | `011`, `018` |
+| `res_cu` | `030` |
+| `j_em_cu` | `032` |
 | `rho_cumo` | `013`, `026` |
 | `cp_cumo` | `026` |
 | `cte_cumo` | `011`, `018` |
