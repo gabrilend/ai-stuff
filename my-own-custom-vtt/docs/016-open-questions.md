@@ -740,3 +740,39 @@ never seek — which also keeps the writer usable on a pipe.
 | Split the two hashes | The right shape; two things to maintain instead of one. |
 | Keep a hash function per version | The once-per-pair growth the ladder exists to avoid. Nobody writes the sixteenth. |
 | Leave it, and accept unverified old files | Free, and quietly weakens the check every time the format moves. |
+
+
+### 15.5 The pictures exist and the table cannot see them
+
+Phase nine built a generated appearance layer and the browser still draws
+coloured circles. Sprites are written to disk, they animate when opened, and
+nothing sends one to a viewer.
+
+That is the gap between "the art is generated" and the thing actually asked for,
+which was art that behaves more like a video game than like a picture somebody
+moves tokens around on.
+
+**The shape of the answer is already decided by the paintbrush being closed.**
+A sprite is at most six layers, each of which is a shape, a palette slot, two
+offsets and a radius, plus one motion for the whole thing. Every one of those is
+a small integer. So a sprite can be sent as **numbers on the existing wire** --
+one instruction per layer and one for the motion -- and the browser assembles the
+SVG from them.
+
+That matters because the two obvious alternatives are both bad:
+
+| Alternative | Why not |
+| --- | --- |
+| Port the generator to JavaScript | A second implementation that has to agree byte for byte, over 64-bit arithmetic that JavaScript does not have without BigInt. Two generators that disagree produce two different pictures and no error. |
+| Send the SVG text | The protocol has fixed-width numeric slots and no byte strings, and adding one is a much larger change to the one place that decides what a viewer may know. |
+
+Sending the layers makes the browser a **renderer of the paintbrush** rather than
+a re-implementation of the generator, which is the same division the project uses
+everywhere else: generate here, view there.
+
+What is genuinely undecided is when. A thing's sprite never changes, so it need
+only be sent once per thing per viewer -- but the outbound path deliberately
+sends the whole picture every update rather than a difference, because that is
+what makes a dropped update harmless. Sending six layer instructions per thing
+per update is a few kilobytes for a busy map, which is probably fine and has not
+been measured.

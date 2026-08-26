@@ -54,9 +54,25 @@ Every sprite ever generated, kept. Nothing is ever deleted -- a low tier is not
 waste, it is the record of what missed and by how much, and a pool that has been
 pruned cannot answer any later question about why the output drifted.
 
-Each entry holds the sprite, the description that produced it, the paintbrush and
-canvas it came from, its **category**, its **tier**, and **who set that tier and
-when**.
+Each entry holds the description that produced it -- with the seed, that
+regenerates the picture exactly, so the pool stores forty bytes rather than a
+hundred -- the paintbrush and canvas it came from, its **category**, and both
+opinions of it.
+
+**Two tiers are stored and one is effective.** The behaviour is that a person's
+rating wins; the storage is deliberately not one field. One field would work
+perfectly and would destroy, on every single correction, exactly the pair of
+numbers the agreement rate is computed from -- and the agreement rate is the
+entire reason for having a machine rate anything. So the machine's tier and a
+person's live side by side, neither ever overwriting the other, and which one is
+in force is a question answered rather than a fact overwritten.
+
+**The paintbrush is a fingerprint, not a version number.** Nobody remembers to
+bump a version. It is computed: eight fixed categories and seeds are drawn and
+encoded, and the bytes of the resulting files are folded together, so anything
+that changes what a word turns into changes the number without anybody noticing
+it needed to. Without it there is no telling "this goblin was badly drawn" from
+"this goblin was drawn by a tool that no longer exists".
 
 Category is the unit quality gets discussed in, because quality is never discussed
 globally. Nobody says "the sprites are bad"; they say *the goblins* are bad. Here
@@ -69,14 +85,15 @@ what missed.
 
 ## Two ways of rating, and they are different machines
 
-Both are built. Both are tested. Which one a project is running is a setting, and
-switching costs nothing because they write the same field.
+Both are built. Both are tested. Which one a project is running is a setting that
+travels with the library rather than with whichever program opened it, and
+switching costs nothing because both end up in the same effective tier.
 
 ### Algorithm A -- rate on arrival, correct on inspection
 
 The machine rates **everything**, the moment it is generated. A person rates a
-little, whenever they feel like it. Both write the same field, the person's rating
-wins, and it is marked as a person's.
+little, whenever they feel like it. The person's rating wins and is marked as
+theirs, and the machine's is kept underneath rather than replaced.
 
 This exists because of an arithmetic problem: if everything generated is kept and
 only a little is ever looked at, the pool is overwhelmingly unrated, and a floor
@@ -203,3 +220,53 @@ person's patience.
 - [Content is generated](013-content-is-generated.md) -- the same
   description-in-artifact-out spine, applied to maps instead.
 - [Open questions](016-open-questions.md), section 10.
+
+
+## What was built, and the three things it taught
+
+Phase nine is [issues 901 through 909](../issues/phase-9-progress.md), and the
+source is [082-sprite](../src/082-sprite.info.md),
+[084-calibrate](../src/084-calibrate.info.md),
+[085-sprite-pool](../src/085-sprite-pool.info.md) and
+[087-studio](../src/087-studio.info.md).
+
+### A vocabulary grows once and never shrinks
+
+The first sprites came out as piles of overlapping shapes rather than as
+creatures, and the obvious remedy was more shapes. The actual remedy was hanging
+the detail in **mirrored pairs** -- a match either side of the middle reads as
+eyes, or arms, or a thing with a front -- and it cost no new words at all.
+
+Reach for a rearrangement of the closed set before reaching to open it. That is
+what makes a closed set worth having; a paintbrush that grows whenever the output
+disappoints is a paintbrush in name only.
+
+### A grader's cut lines have a date on them
+
+The five tiers are separated by four numbers. The first four were round values
+that looked reasonable, and against real output they left tier one entirely empty
+and put ninety per cent of everything into two tiers -- a five-point scale that
+was really a three-point scale, which is worse than a three-point scale because
+the two dead numbers look like information.
+
+So the numbers were measured instead, and the measuring is a program rather than
+an afternoon: run [084-calibrate](../src/084-calibrate.info.md) for the current
+figures rather than trusting any number written in prose. It has already caught
+two drifts, and neither would have been noticed by anything else.
+
+This makes a tier a **ranking rather than a verdict** -- tier five means "in the
+best tenth of what this paintbrush makes", not "good" -- which is the right
+meaning for the quality dial and is worth being clear-eyed about. See open
+question 15.2.
+
+### Zero out of zero is not perfect
+
+The agreement rate has three standings, not two. A library nobody has looked at
+reports **UNMEASURABLE**, and its sentence contains no percentage at all. A
+library with a handful of comparisons reports **THIN**, because three out of three
+is a hundred per cent that swings thirty points on the fourth.
+
+Reporting silence as consensus is the single most dangerous number this project
+could print. It is exactly the reading that would let the machine's taste replace
+yours with no error raised anywhere, which is the failure this entire document
+exists to prevent.
