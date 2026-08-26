@@ -36,33 +36,30 @@ arithmetic.
 **One validator instead of ten thousand null checks.** Every later phase's right
 to skip checking is bought here, once.
 
-## The scale, now settled
+## What the answers since changed
 
-**The simulation counts metres.** A position is an `int32_t` in units of 1/1024 of
-a metre: range about ±2,100 kilometres, precision about a millimetre. Nothing in
-the server has ever heard of a foot.
+**The scale is settled.** The simulation counts thousandths of a metre; the view
+speaks whole feet and does the conversion on its way to the screen. No conversion
+function belongs anywhere in the server, because a command carrying rounded feet
+would let two clients that round differently disagree about where a body went.
 
-**The picture speaks feet**, rounded to the nearest foot, converted by the
-renderer on its way to the screen.
+**The world persists between sessions**, which is the one that reshaped an issue
+rather than filling in a constant. [108](108-a-world-writes-itself-down.md) is no
+longer a debugging convenience -- it is a long-lived format, and it needs its
+version number and its migration chain built in from the first commit. The first
+world file saved without one is the first world file that cannot be migrated.
 
-The consequence phase 1 has to build in from the start:
-[101](101-the-arithmetic-is-integers.md) writes the metre constant with its
-reasoning beside it, and **no conversion function belongs anywhere in the
-server**. The foot exists in the view and only in the view, because a command
-carrying rounded feet would let two clients that round differently disagree about
-where a body went.
+**Turns can be rolled back**, which reaches back into phase 1 in a smaller way:
+rollback takes a world snapshot at the head of every turn, constantly, during
+play. So [108](108-a-world-writes-itself-down.md) grows a second path -- an
+in-memory block copy that never touches the file encoder -- and a test asserting
+the two paths describe the same world.
 
 ## Blocking open questions
 
-One remains, in [open questions](../docs/016-open-questions.md):
+None remain for this phase. 1.1 and 1.2 are both answered above.
 
-- **1.2** — does the *world* persist between sessions? Statistics now do, as
-  [the engraving](../docs/018-the-record-log-is-an-engraving.md), but an engraving
-  carries numbers and not geometry. If the world persists too, the snapshot format
-  in [108](108-a-world-writes-itself-down.md) stops being a debugging convenience
-  and becomes a long-lived format needing a version story and a migration path.
-
-It does not block starting. It blocks finishing 108, because it changes what that
-format is obliged to promise.
-
-**Settled since these issues were written:** 1.1, the scale, answered above.
+What is left is downstream: the decisions in phase 3 about what a rollback does to
+somebody's fog memory ([3.3](../docs/016-open-questions.md)) do not block anything
+being built here, but they are the reason the snapshot path exists at all, and
+somebody implementing 108 should know what it is for.

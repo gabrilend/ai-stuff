@@ -45,18 +45,26 @@ accumulating behind it while the sight ahead changes.
 **Proves:** the geometry works, and that it is fast enough to run per viewer per
 tick. The demo reports its own timings rather than this document guessing at them.
 
-## Phase 3 — The world ticks
+## Phase 3 — The world ticks, and turns can be taken back
 
 The dispatch table of passes. Motion, and collision against walls.
 Buffer-then-resolve. Named random streams. The command log, and replay from a
 snapshot plus a log.
 
+Then the turn, which is a transaction: a window in which declarations accumulate,
+a simultaneous resolution when it closes, a snapshot at its head, and an undo.
+Both re-declaring and retconning -- restoring the head and reopening the window,
+and restoring the head and replaying a corrected log forward.
+
 Still single-process, driven by a scripted command file rather than by people.
 
-**Ends with:** a demo that runs a scripted session twice, on different thread
-counts, and compares the world hash at every tick.
+**Ends with:** a demo that runs a scripted session twice on different thread counts
+and compares the world hash at every tick, then takes a turn back, runs it
+differently, and shows the world following the correction.
 
-**Proves:** determinism, which every later claim about replays depends on.
+**Proves:** determinism, which every later claim about replays depends on -- and
+then spends it, because rollback is determinism being cashed in for something a
+table actually wants.
 
 ## Phase 4 — People connect
 

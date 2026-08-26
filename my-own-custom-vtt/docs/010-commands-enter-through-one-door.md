@@ -23,27 +23,60 @@ table. An opcode with no row in the table is not a malformed command -- it is no
 a command at all, and the socket closes. There is nothing to explain to a sender
 who is not speaking the language.
 
-### Bitflags say which operands are present
+### A chain of flag words says what is present
 
-After the opcode comes a **flag word**. Each bit stands for one operand, and the
-operands follow **in bit order, low to high**. The decoder walks the set bits and
-fills a slot per bit.
+After the opcode comes a **flag word**, and possibly several. They chain.
 
-This buys four things at once:
+**The first bit of every flag word is the continuation bit.** If it is 1, another
+flag word follows. If it is 0, this is the last one. There is no count and no
+length -- the words say when they stop.
 
-**The instruction's length is derivable rather than declared.** Nobody sends a
-length. The flags say what is present, each present operand has a fixed width, and
-the total follows. A sender cannot claim an instruction is longer than it is,
-because a sender never gets to claim anything about length.
+**Every other bit is positional and independent.** Bit 1 means one thing, bit 2
+means another, and they do not combine into a number. This is the distinction that
+matters, so it is worth showing rather than describing. Four-bit words, continuation
+bit first:
 
-**Absent operands cost nothing.** A command that does not need a destination does
-not carry four bytes of zeroes.
+```
+0 0 0 0     last word, nothing set
+0 1 0 0     last word, flag 1
+0 1 1 0     last word, flags 1 and 2
+0 1 1 1     last word, flags 1, 2 and 3
+1 1 0 0     flag 1 -- and another word follows
+```
 
-**Two encoders producing the same command produce the same bytes.** Canonical bit
-order means there is one encoding, which matters because the stream is the replay.
+It is **not** `00 01 10 11` counting zero, one, two, three. Three bits are three
+separate questions, not one question with eight answers.
 
-**The decoder is a loop over bits.** Not a switch, not a parser. Walk the set bits
-of a word; for each, copy a known number of bytes into a known slot.
+The count of expressible states is identical either way, so this buys nothing in
+density. What it buys:
+
+**Testing one flag is one mask.** "Does this carry a destination" is an AND
+against a constant, not a comparison against the list of values that happen to
+include a destination.
+
+**Adding a flag renumbers nothing.** With an integer encoding, giving a new
+meaning to a value in the middle shifts everything above it, and every encoder and
+decoder anywhere has to agree about the shift on the same day. A new bit position
+disturbs nothing that already exists.
+
+**Flags compose without being enumerated.** "Movement and facing together" is both
+bits set. Nobody has to define a value meaning *both*.
+
+### How long the chain may be is configuration
+
+The server reads how many flag words to accept from its config -- one, two, five,
+depending on how many things it actually wants to listen for. That number is a
+hard limit, not a hint.
+
+This is what keeps a self-terminating format from being a way to make the server
+read forever. A sender who sets the continuation bit on every word runs into the
+configured maximum and the socket closes, having cost the server a fixed and tiny
+amount of work. The bound is known before anybody connects, which is what lets the
+flag buffer be one of the **pre-sized containers** the decoder writes into.
+
+The default should be small. A server that listens for five words of flags when it
+understands one word's worth is a server advertising an attack surface it does not
+use.
 
 ### Every value is recorded as it is decoded
 
@@ -108,6 +141,8 @@ flag layout, a validator, and a handler.
 | `EDIT_WORLD` | -- | Move a wall, place a thing, redraw a region. Requires `MAY_EDIT_WORLD`. |
 | `SAY` | -- | Text. Routed by the same visibility rules as everything else, which is why it is a command and not a side channel. |
 | `RETIER` | -- | Change a sprite's quality tier, mid-session. Changes nothing in the world; comes through this door anyway. See [the sprite studio](017-the-sprite-studio.md). |
+| `DECLARED` | both | "I am done deciding." One of the three things that can close a turn's window. See [the turn is a transaction](019-the-turn-is-a-transaction.md). |
+| `ROLLBACK` | -- | Take back a turn. Restore the snapshot at its head, and either reopen the window or replay a corrected log forward. Heavily permissioned. |
 
 ## The gauntlet
 
