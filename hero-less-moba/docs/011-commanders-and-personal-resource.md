@@ -7,20 +7,30 @@ player and cannot be touched by their teammates.
 
 Each player picks a commander before the match. A commander is **not a body on
 the map.** There is no avatar to move, no commander health bar, and nothing to
-kill. A commander is two things and only two things:
+kill. A commander is **four things**:
 
-1. The **name of your resource** — gold, mana, blood, embers, favour.
-2. The **roster of hero units** you are allowed to buy with it.
+1. **A captain** — its signature wave body, and the only wave unit that differs
+   between commanders.
+2. **A proportion** — how much of its waves are melee and how much are ranged.
+3. **A bounty** — which colours its bodies carry, and therefore what killing them
+   pays.
+4. **A roster of hero units** you are allowed to buy.
 
-The resource name is flair. Two commanders that both call it "gold" are
-mechanically identical in that respect: one number, earned the same way, spent
-the same way. The vision says this outright and it is worth holding to, because
-the temptation to make one commander's resource behave differently — decay over
-time, cap out, convert — is exactly the temptation that turns a clean second
-economy into six special cases.
+**Melee and ranged bodies are identical for every commander in the game.** Same
+stats, differing only in art — a knight and a barbarian are the same body, a
+bowman and a goblin archer are the same body. *Settled; see
+[open questions](020-open-questions.md), F40.*
 
-The roster is where commanders actually differ. Everything about how a commander
-plays is in what they can put on the ground.
+So **a commander is a mixture and a captain.** Adding one is choosing proportions,
+colours and a signature, not balancing three new stat blocks against everything
+that already exists. And since the commanders take turns sending waves (F35b), a
+third of what walks out of your base is somebody else's mixture — which is what
+makes commander selection a team conversation in the lobby rather than three
+private preferences.
+
+The first two written down: the **paladin commander**, whose captain is a
+**priest**, fielding knights and bowmen. The **savage noble**, an orc, whose
+captain is a **hobgoblin captain**, fielding barbarians and goblin archers.
 
 ### commander record — catalogue, fixed at build time
 
@@ -28,20 +38,34 @@ plays is in what they can put on the ground.
 | --- | --- | --- |
 | `id` | integer | Row in the commander catalogue. |
 | `name` | string | Shown to players. |
-| `resource_name` | string | Flair only. Never read by any rule. |
-| `roster` | integer[] | Rows in the unit catalogue. At least three heroes, ideally five. |
+| `captain` | integer | Row in the unit catalogue — this commander's signature wave body, and the only wave unit that differs between commanders. |
+| `melee_share` | double | What proportion of a wave is melee. The rest is ranged. |
+| `bounty` | integer[colours] | Which colours this commander's bodies carry, and in what ratio — *"three blue die for every one green and every five red."* Killing them pays this. |
+| `roster` | integer[] | Rows in the unit catalogue. The heroes this commander may buy. At least three, ideally five. |
+
+**There is no `resource_name` any more.** It was flair — a commander's currency
+called gold or mana or blood, mechanically one number wearing different words.
+Resource is now several colours with their own shapes (F30), and which colours a
+commander *earns* is `bounty`, which is a real field that real rules read. The
+flair had nothing left to be flair about.
+
+**And melee and ranged bodies are the same for every commander** — same stats,
+same everything, differing only in art. *Settled; see
+[open questions](020-open-questions.md), F40.* A commander is **a mixture and a
+captain**, which is why this record is four short fields rather than a private
+unit catalogue.
 
 ### player record — live, per match
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `number` | integer | 1–6. Players 1–3 are team 1, 4–6 are team 2. |
+| `number` | integer | 1 to twice the team size. The first half are team 1. |
 | `team` | integer | 1 or 2. |
 | `commander` | integer | Row in the commander catalogue. |
-| `resource` | double | Current balance. Never negative, and never above `resource_max` — income arriving at the ceiling is lost. |
-| `resource_max` | double | The current ceiling. Rises as the match goes on. |
-| `resource_wasted` | double | Lifetime total lost to overflow. For the report, and for making the player uncomfortable. |
-| `resource_earned` | double | Lifetime total, for the post-match report. |
+| `points` | integer[colours] | Current balance, one figure per colour. Never negative, never above that colour's ceiling — income arriving at a full colour is lost. |
+| `points_max` | integer[colours] | The current ceiling per colour, climbing the die ladder as the match goes on and topping out at **five**, which is one d12. |
+| `points_wasted` | integer[colours] | Lifetime total lost to overflow, per colour. For the report, and for making the player uncomfortable about the right colour. |
+| `points_earned` | integer[colours] | Lifetime total, per colour, for the post-match report. |
 | `hero_alive` | integer | How many of this player's heroes are currently on the map. |
 
 ## Earning
@@ -92,8 +116,21 @@ as a question this answer created.
 limit on how much resource you can hold.** *Settled; see
 [open questions](020-open-questions.md), A16.*
 
-A player's balance has a ceiling. Income arriving at the ceiling is **lost** —
-not stored, not carried, not converted. Spend it or waste it.
+**Each colour has its own ceiling**, and income arriving at a full one is
+**lost** — not stored, not carried, not converted into another colour. Spend it
+or waste it.
+
+**The ceiling is five points, which is one d12**, and it is the top of the die
+ladder rather than a separate number anybody picked. *Settled; see
+[open questions](020-open-questions.md), F30 and F37.* So the whole wallet is one
+sentence: **as many colours as there are attributes, five points each, spendable
+in any partition up to a d12.**
+
+Per colour rather than shared is what makes overflow a *situation* instead of a
+scolding. **Full in blue while starving in red** has three answers already in the
+design — spend the blue on something you would not otherwise have bought, get a
+teammate to invest a bounty stone in your red, or go and kill different things.
+A single wallet would have collapsed all of that into *spend something, anything.*
 
 That is a much better limiter than a hero cap, and the difference is worth
 stating because it is the difference between a rule and a pressure.
@@ -142,6 +179,15 @@ everything else, so a match escalates in one rhythm rather than three, and it
 means the ceiling steps up in front of the player rather than creeping. The
 alternative, continuous growth with the match clock, is smoother and much harder
 to notice happening.
+
+**And a raise now climbs the die ladder**, which makes it something a player can
+see rather than a number quietly going up: a colour capped at two points can hold
+a d6 and no more, and a colour capped at five holds a d12. **A calm does not give
+you more room — it gives you a bigger die.**
+
+Which means the endgame's arithmetic is knowable in advance. Two raises, three
+colours, five points each at the top; whatever a team is holding when the third
+surge ends is a hand it can count, and it is the last one it will ever have.
 
 The two economies therefore step together and step twice: at each calm a player
 picks a boon and their wallet gets deeper. By the third surge both are at their

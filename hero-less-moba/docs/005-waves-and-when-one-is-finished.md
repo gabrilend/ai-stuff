@@ -27,8 +27,34 @@ own reach, which is issue 206's problem. And **a lane's upgrades only reach the
 half of a wave they match**, so placing into a lane is a decision about
 composition and not only about quantity.
 
-**How many of each, and whether every wave carries a captain, is not settled.**
-The numbers belong to B1; whether anybody gets to choose them is **F27**.
+### The commander decides the mixture, not the bodies
+
+**Melee and ranged bodies have the same stats for every commander in the game.**
+*Settled; see [open questions](020-open-questions.md), F40.* A knight and a
+barbarian are the same body with different art; a bowman and a goblin archer are
+the same body with different art. Whatever a lane's upgrades do to one, they do
+to the other.
+
+What a commander sets is three things and none of them is a stat block:
+
+| | Set by the commander |
+| --- | --- |
+| **The captain** | which one — its signature body, and the only unit that differs |
+| **The proportion** | how much of the wave is melee and how much is ranged |
+| **The bounty dice** | which colours its bodies carry, and so what killing them pays |
+
+That is a large simplification and the right one. **A commander is a mixture and
+a captain**, not a private unit catalogue — so adding one is choosing
+proportions, colours and a signature, rather than balancing three new stat blocks
+against everything that already exists.
+
+It also means **the enemy's bodies are your bodies**, numerically. What differs
+between two waves crashing into each other is the ratio, the captain, and what
+each side has placed in the lane behind them. Everything a player reads off a
+frontline is one of those three, which is a short enough list to learn.
+
+**How many bodies per wave, and how the proportion is expressed**, are numbers
+and belong to B1.
 
 ## A wave is a group with a name
 

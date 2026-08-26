@@ -25,6 +25,42 @@ shots at a distance where neither is comfortable — so a standoff is a position
 sides can argue about rather than a guarantee. That is the whole reason to make
 it a movement rule rather than a fixed spacing.
 
+### Orbiting, when there is nothing to shoot
+
+A ranged body with **nothing in sight** does not stand still and does not walk
+into the line. **It orbits.**
+
+It moves laterally around the fight, holding its own maximum range, until
+something comes into view — and it keeps doing that whenever there is nothing
+else to do. A druid with no line of sight to an enemy and no ally needing a
+regeneration does exactly this.
+
+**Which way it goes is not random.** Draw a line through the mass of the enemy
+formation; a ranged body already on the left of that line orbits left, and one on
+the right orbits right. **It commits to that direction and holds it for as long
+as it stays within the same milestone**, so the behaviour reads as a decision
+rather than as dithering.
+
+That is a better rule than picking a side at random, and the reason is worth
+stating because it is the whole point:
+
+> **Both sides' ranged bodies do this, so they drift toward the same flanks, and
+> end up facing each other.**
+
+Nothing anywhere says *ranged units should fight ranged units*. It falls out of
+two formations each sending their long-reach bodies wide, and it produces the
+thing every lane battle should have — **a fight at the shoulders as well as one
+in the middle**, with the flanks resolving on their own timetable while the melee
+grinds.
+
+It also gives a lane a shape a player can read from a distance: bodies bunched in
+the centre and thinner arcs at the edges, with the arcs moving.
+
+**The anchor is the friendly line, not the enemy.** A body orbits at its own
+weapon range from the fighting, which means it stays close enough to be useful
+and far enough to be safe — and when the line moves, the orbit moves with it,
+with no separate rule for retreating.
+
 ### Once engaged, the two kinds move at different rates
 
 | | Speed while engaged |
