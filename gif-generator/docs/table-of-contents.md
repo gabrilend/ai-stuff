@@ -20,8 +20,13 @@
 
 ```
 notes/
-└── vision ................ the founding description: particle-drawn
-                            motion, glowing on black, out to .gif
+├── vision ................ the founding description: particle-drawn
+│                           motion, glowing on black, out to .gif
+└── reference-rl-code-painting.md
+                            outside source (surya.website): a model
+                            trained to write drawing code, graded on
+                            the picture that code renders. Kept for the
+                            reward-design and short-allowlist findings.
 
 docs/
 ├── table-of-contents.md .. this file
