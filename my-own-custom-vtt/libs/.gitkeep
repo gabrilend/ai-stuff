@@ -1,0 +1,3 @@
+Third-party code lives here, renumbered into a high band so a reader can skip a
+contiguous range. LuaJIT will be the first resident. See
+docs/014-the-shape-of-the-code.md.

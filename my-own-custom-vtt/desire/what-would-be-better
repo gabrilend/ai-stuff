@@ -1,0 +1,40 @@
+Things this project would like to be better. Not issues -- issues are blueprints
+for building something. These are wishes, and some of them may never become
+anything.
+
+--
+
+I would like a player to work out that they cannot see around the corner without
+anybody telling them, and to find that interesting rather than broken. The
+difference between those two reactions is entirely in how the edge of the light
+is drawn.
+
+I would like the tavern's commander to be a real seat at the table and not a
+novelty. Somebody whose whole game is moving crockery and lighting fires and
+having the barman look up at the right moment. There is no reason that should be
+a lesser way to play, and every reason to expect it will feel like one for a
+while.
+
+I would like the ruleset to stay genuinely ignorable. Every system like this
+eventually grows one game it secretly prefers -- a field in the core that only one
+ruleset needs, a default that assumes hit points. The day the server knows what a
+hit point is, it is not a system-agnostic tabletop any more, and it will not
+announce that day.
+
+I would like the terminal renderer in phase 9 to still be useful, rather than
+being a thing that was built to prove a point and then abandoned. A proof that
+nobody runs stops being a proof about a year later.
+
+I would like sound. Hearing something you cannot see is the best thing a tabletop
+does, and it is the same geometry as light with different constants. It is in no
+phase and no document, and it is the largest thing this project is pretending not
+to want.
+
+I would like nobody to ever hand-edit a map. Not because the rule is sacred, but
+because I have watched the failure: one map gets edited by hand in a hurry, then
+the generator that made it is not quite trusted, then everything is hand-edited
+and the generator rots. It takes about two months and it is very hard to reverse.
+
+I would like the first person who joins a session to spend zero seconds
+configuring their router. This wish is currently losing to the port range, and it
+has not lost yet.
