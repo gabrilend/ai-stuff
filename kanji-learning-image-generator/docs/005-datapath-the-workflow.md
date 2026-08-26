@@ -67,6 +67,19 @@ the one place in the project that knows ComfyUI's schema, and it knows it for
 about a dozen node types rather than for all of them, which is the correct
 ambition.
 
+**It has now been checked against the real thing**, which it could not be when
+it was written — `404` installs ComfyUI inside this project, so its own source
+is on disk and can be read. All eleven node types exist. `ControlNetApplyAdvanced`
+declares exactly the sockets the catalogue claims, plus an optional one the
+catalogue correctly omits. And the trap is real and is where it was predicted:
+the sampler's seed is declared with `control_after_generate` set, which is the
+flag that makes the editor draw a selector after it — so the widget array really
+does carry an entry the posted format has no field for, and the catalogue's
+order matches the declared one exactly.
+
+That is a check against a program rather than against a specification, and it is
+worth more than everything above it.
+
 ## The graph
 
 ```
