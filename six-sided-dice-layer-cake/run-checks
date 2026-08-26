@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# run-checks -- load every blueprint in this project, resolve every dimension,
+# evaluate every constraint, and say which ones hold.
+#
+# For a general reader: this project's deliverable is a set of blueprints in
+# which no number is written twice. Every dimension is either chosen once or
+# derived from ones that were, and every requirement the design has to meet is
+# written next to the part it constrains. This program is what makes that
+# checkable rather than merely claimed: it reads all of it, works out every
+# number from first principles, and prints the requirements that are not met,
+# with both sides worked out and the reason they mattered.
+#
+# It writes nothing except its own report. There is no state and no cache.
+#
+# Usage:   ./run-checks [project-directory]
+
+DIR="/mnt/mtwo/programming/ai-stuff/six-sided-dice-layer-cake"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+LOGDIR="${DIR}/tmp/shared-memory"
+mkdir -p "${LOGDIR}"
+
+luajit "${DIR}/src/095-constraint-check.lua" "${DIR}"
+STATUS=$?
+
+luajit "${DIR}/src/098-diagram-check.lua" "${DIR}"
+DRAWINGS=$?
+
+if [ "${DRAWINGS}" -ne 0 ]; then
+    STATUS="${DRAWINGS}"
+fi
+
+exit "${STATUS}"
