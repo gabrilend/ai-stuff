@@ -68,3 +68,39 @@ to the nearest ink belonging to a different stroke, and it costs a great deal
 more while almost certainly moving the number by less than turning this dial
 does. If a character ever comes out wrong in a way this cannot fix, that is the
 thing to build.
+
+---
+
+## 2026-08-25 — the arrows were drawn for a page, not for a thumbnail
+
+**Symptom.** The first stroke-order layers were correct and unreadable. Every
+arrow pointed the right way, every number was the right number, and at the size
+the rest of the image is designed for they were specks.
+
+**Cause.** The sizes were picked against a full-size image on a screen. The
+whole project is specified at thumbnail size — that is where the illusion works
+and where a learner meets it — so the annotation has to be legible there too.
+
+| Knob | Was | Now |
+|---|---|---|
+| `arrows.head_length` | 13 | 27 |
+| `arrows.head_width` | 9 | 21 |
+| `arrows.shaft_length` | 26 | 34 |
+| `arrows.number_size` | 19 | 36 |
+| `arrows.line_width` | 3.0 | 5.0 |
+| `arrows.outline` | 2.4 | 3.4 |
+
+**And a second thing, which was a bug wearing a knob's clothes.** Two arrows
+were considered to be in each other's way if their *anchors* were closer than
+about one shaft length. But an arrow carries a number beside it, and the number
+is now the largest part of it — so two strokes beginning close together produced
+two labels printed one on top of the other while the placement reported that it
+had found room for both.
+
+| Knob | Was | Now | Why |
+|---|---|---|---|
+| `arrows.clearance` | shaft × 1.15, in code | 66, in settings | Covers the arrow *and* its number. Being in code is what let it drift out of step with the sizes above. |
+| `arrows.nudges` | 14, in code | 16, in settings | How many sideways attempts before an arrow gives up, keeps its number in place, and shortens itself instead. |
+
+A twenty-nine-stroke character still has nowhere to put twenty-nine labels. One
+of them gives up and is counted, which is the honest outcome.

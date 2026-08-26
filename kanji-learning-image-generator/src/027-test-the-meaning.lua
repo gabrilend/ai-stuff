@@ -382,6 +382,87 @@ local function test_the_words(t)
 end
 -- }}}
 
+-- {{{ test_the_arrows(t)
+local function test_the_arrows(t)
+  local arrows = project.load("026-arrows-that-teach-the-order")
+  local shape = project.load("021-the-shape-of-a-stroke")
+  local flatten = project.load("015-flatten-the-curves")
+  local store = project.load("019-the-kanji-record").store()
+  local settings = project.settings()
+
+  local record = store.records["\228\188\145"]
+  local measured = shape.measure_record(record)
+  local surfaces, made = arrows.build(record, settings, { measured = measured })
+
+  t.same(made.arrows, #record.strokes, "there is one arrow per stroke")
+  t.same(#surfaces, 4, "and the sheet has three colours and a transparency")
+
+  -- Everywhere there is no arrow has to be see-through, or the layer covers the
+  -- picture it is annotating.
+  local opaque = 0
+  local total = surfaces[4].width * surfaces[4].height
+  for index = 1, total do
+    if surfaces[4].pixels[index] > 0.01 then opaque = opaque + 1 end
+  end
+  t.ok(opaque > 0, "something was drawn")
+  t.ok(opaque < total * 0.2, "and most of the sheet is see-through",
+       string.format("%.1f%% of it is not", opaque / total * 100))
+
+  -- THE ONE THING HERE THAT IS NOT VISIBLE AT A GLANCE. An arrow must point the
+  -- way the stroke *leaves*, which on a curving stroke is nothing like the
+  -- direction from its start to its end. An arrow aimed at the far end of a
+  -- bending stroke points straight through the middle of the bend and teaches
+  -- the wrong exit -- and it looks perfectly reasonable.
+  --
+  -- Checked on a stroke found in the archive where the two genuinely disagree,
+  -- rather than on one invented for the purpose.
+  local found_curved = false
+  for index = 1, math.min(300, #store.order) do
+    local candidate = store.order[index]
+    local shapes = shape.measure_record(candidate)
+    for number, one in ipairs(shapes) do
+      local flat = one.flat
+      local tx, ty = flatten.direction(flat, 1)
+      local cx = flat.xs[flat.count] - flat.xs[1]
+      local cy = flat.ys[flat.count] - flat.ys[1]
+      local size = math.sqrt(cx * cx + cy * cy)
+      if size > 5 then
+        cx, cy = cx / size, cy / size
+        local between = math.deg(math.acos(
+          math.max(-1, math.min(1, tx * cx + ty * cy))))
+        if between > 45 and not found_curved then
+          found_curved = true
+          local _, placement = arrows.build(candidate, settings,
+                                            { measured = shapes })
+          local drawn = placement.placed[number]
+          local agrees = drawn.direction_x * tx + drawn.direction_y * ty
+          local against = drawn.direction_x * cx + drawn.direction_y * cy
+          t.ok(agrees > 0.99,
+               "an arrow points the way its stroke leaves",
+               string.format("%s stroke %d, %.0f degrees between exit and chord",
+                             candidate.character, number, between))
+          t.ok(agrees > against,
+               "and not at where the stroke ends up")
+        end
+      end
+    end
+    if found_curved then break end
+  end
+  t.ok(found_curved, "a stroke that bends enough to tell the two apart was found")
+
+  -- A character with thirty strokes in one box has nowhere for thirty labels to
+  -- go, and the layer says so rather than piling them up silently.
+  local dense = store.records["\233\172\177"]
+  if dense then
+    local _, crowded = arrows.build(dense, settings)
+    t.ok(crowded.arrows == #dense.strokes,
+         "a crowded character still gets an arrow for every stroke")
+    t.note(string.format("%s: %d arrows, %d had to be shortened for room",
+           dense.character, crowded.arrows, crowded.crowded))
+  end
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -391,6 +472,7 @@ function M.run(options)
     { "the component lexicon", test_the_component_lexicon },
     { "the scene grammar", test_the_scene_grammar },
     { "the words", test_the_words },
+    { "the arrows", test_the_arrows },
   }
   local all_passed = true
   for _, group in ipairs(groups) do

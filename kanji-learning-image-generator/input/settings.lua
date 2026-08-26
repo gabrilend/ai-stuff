@@ -76,12 +76,18 @@ return {
 
   -- {{{ arrows -- the stroke-order layer (206)
   arrows = {
-    head_length  = 13,    -- at field.resolution; must read at thumbnail size
-    head_width   = 9,
-    shaft_length = 26,
-    number_size  = 19,
-    line_width   = 3.0,
-    outline      = 2.4,   -- extra width of the dark outline under everything
+    head_length  = 27,    -- at field.resolution; must read at thumbnail size
+    head_width   = 21,
+    shaft_length = 34,
+    number_size  = 36,
+    line_width   = 5.0,
+    outline      = 3.4,   -- extra width of the dark outline under everything
+    -- How far apart two arrows have to be before neither is in the other's way.
+    -- Must cover the arrow *and* its number: sized to the arrow alone, adjacent
+    -- strokes produced two labels printed on top of each other, and the
+    -- placement reported that it had found room for both.
+    clearance    = 66,
+    nudges       = 16,    -- how many sideways attempts before giving up
     colour       = { 1.00, 0.92, 0.25 },  -- the arrows themselves
     outline_col  = { 0.06, 0.05, 0.02 },  -- what makes them survive a bright sky
   },
