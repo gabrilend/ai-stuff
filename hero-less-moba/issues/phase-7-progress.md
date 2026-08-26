@@ -15,6 +15,7 @@ applied to the project's own prose.
 | 704 | Locks, objections, and refusals are loud | not started |
 | 705 | The sign-posts are clickable in the world | not started |
 | 706 | The documentation becomes HTML | not started |
+| 707 | The way in | not started |
 
 **Blocking:** nothing. D1 was the last decision in the project with a deadline
 and it is made: **LÖVE**, because it is already LuaJIT — no FFI boundary between
