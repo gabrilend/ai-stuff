@@ -1,0 +1,15 @@
+The last thing any program in this project does is write here. Specifically, it
+writes goodbye.
+
+Nothing has run yet, so this is the placeholder version of that.
+
+What a real goodbye will carry: which session just ended, how long it ran in
+ticks and in hours, who was at the table and which scopes they held, the world
+hash at the final tick, and where the command log was written. Enough that
+somebody reading only this file knows what happened, and can go and watch it.
+
+The world hash matters more than it looks. It is the number that says a replay of
+this session will reproduce it -- and if a replay ever ends on a different number,
+this file is where the two get compared.
+
+goodbye

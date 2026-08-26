@@ -1,0 +1,11 @@
+# The RAM tiers are symlinks out of the repository. Nothing in them is ever
+# committed; they hold logs, builds, and scratch that is regenerated on demand.
+tmp
+
+# Deprecated temporary scripts are kept for exactly one commit and then removed,
+# so they are never ignored -- they are supposed to show up in the record once.
+
+# Editor and OS litter.
+*.swp
+*.swo
+.DS_Store

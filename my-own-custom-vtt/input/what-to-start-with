@@ -1,0 +1,31 @@
+The first thing any program in this project does is read this directory.
+
+Right now there is nothing to configure, because nothing has been built. When
+there is, this is where a session's opening decisions live: the ones made before
+anybody connects, which should be readable, diffable, and copyable rather than
+buried in a wall of command-line flags.
+
+The reason this is a directory of files: a session is a small number of
+decisions, and the header of a replay is nearly the same set of fields. Anything
+you would want to pin down and hand to somebody else so they can run the same
+session belongs here.
+
+What goes here eventually:
+
+    seed              -- the session seed, one integer. Everything random in the
+                         world and in the ruleset descends from it through named
+                         streams.
+    world             -- which world file to load, or the description and seed to
+                         generate one from. See docs/013-content-is-generated.md.
+    ruleset           -- which directory of Lua to load as the rules layer.
+                         See docs/011-the-rules-layer.md.
+    door              -- the port that is always open, and the range of private
+                         ports it hands out. See docs/003-the-door-and-the-private-port.md.
+    participants      -- one entry per person: who they are, what proves it, and
+                         which scopes they hold. Permission is looked up here and
+                         never claimed by a client.
+    tick              -- how many beats per second the world advances.
+    fog               -- how coarse the memory grid is.
+
+Two of those -- the tick rate and the fog cell size -- are open questions rather
+than settled defaults. See docs/016-open-questions.md, 3.2 and 2.1.

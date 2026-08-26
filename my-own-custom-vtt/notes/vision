@@ -1,0 +1,65 @@
+A virtual tabletop, but system-agnostic. The program knows about space, sight,
+things, and who is allowed to touch what. It does not know what a saving throw
+is. Rules are something you load, not something compiled in.
+
+The server is written in C. Users each connect to a different port. You run the
+client program with an IP and a port, it connects, and you view it in your
+browser, localhost:12345 style. But you're not hosting it per se -- the server
+is hosted on the server computer. They can connect just the same.
+
+I want to make the art dynamic. More like a video game and less like a .png that
+you move tokens around on.
+
+Who is at the table, and what can they touch?
+
+GM plus players, and the GM has secrets. But there can be multiple GMs. One
+server, but players can connect as a player or a DM, and they can control
+certain types of units.
+
+Players just control one, wasd style. Commanders control several, usually weaker
+but not always, RTS style. GMs command the entire map. There can be commanders
+that control abstract things like the dungeon, or the forest, or the taverns in
+town, and they can move stuff around like coffee cups and goblin patrols.
+
+The players can control up to an entire party at once, but generally not more,
+and specifically their viewpoint is limited to what's in front of them.
+
+What is the interesting part -- the part actually worth designing?
+
+All of it, which is the honest answer and also the difficult one. The map with
+its sight and fog and walls. The rules layer. Content generation. Shared state
+and sync across machines. And the dynamic picture, which is the one that was not
+on the list and had to be written in by hand.
+
+--
+
+Interleaved below are the questions this raised while it was being written down,
+and what they were answered with. Questions with no answer under them are still
+open, and they live in the open-questions document until they are worked through
+one at a time.
+
+Why one port per user, rather than one port and many sockets?
+
+    (open)
+
+If a player's viewpoint is limited to what is in front of them, and the GM has
+secrets, then fog of war is not a drawing effect. It is the thing that decides
+which bytes are allowed onto a socket. Is that the intent?
+
+    (open)
+
+A commander who controls the forest, and a commander who controls the tavern:
+when a goblin patrol walks out of the forest and into the tavern, whose is it?
+
+    (open)
+
+"Usually weaker but not always" -- is the strength of a commander's units a rule
+the program enforces, or a convention the GM applies when handing out control?
+
+    (open)
+
+Dynamic art, more like a video game: does that mean the world is continuously
+simulated even when nobody is issuing commands, or that it is still turn-shaped
+underneath and merely drawn with motion?
+
+    (open)

@@ -1,0 +1,96 @@
+Data-flow patterns that turned out to be right in more than one place. Proven
+useful, therefore worth reaching for first the next time something looks similar.
+
+This file starts thin, because the project has not run yet. A pattern earns its
+way in here by being right twice.
+
+--
+
+## Generate, then view. Never both at once.
+
+The server produces world state; the browser draws it. The generator produces a
+world; the server runs it. The layout stage produces a graph; the realise stage
+turns it into geometry. The Markdown is the data; the HTML is a view of it.
+
+Every time this split exists, a bug has a side, and the search space halves. Every
+time it does not, a wrong pixel and a wrong rule look identical, and there is no
+way to tell them apart except by reading everything.
+
+The split is claimed at four boundaries in this project. It is only real at a
+boundary where something has actually been swapped across it, which is why phase
+9 builds a second renderer -- a claim that is never tested is a claim that is false
+eventually.
+
+## The security answer and the pretty answer are often the same answer.
+
+The visibility polygon exists because the outbound filter must know which records
+it may write. It turns out to be exactly what the renderer needs to draw a clean
+edge between light and dark.
+
+The general shape: when a constraint forces you to compute something exactly that
+you would otherwise have approximated, the exact version is usually better at the
+approximate version's job too. Watch for it, because it arrives disguised as luck.
+
+## A small integer beats a measurement.
+
+Indices, not pointers. Ticks, not seconds. Region membership, not distance to the
+tavern. Fixed point, not floating point.
+
+Every one of these is the same trade: give up a little expressiveness, get back
+something that can be compared exactly, saved without translation, and reproduced
+on another machine. The one place this project spends a real-valued measurement is
+position, and even there it is an integer wearing a scale factor.
+
+## Zero is a sentinel. Nil is a question.
+
+Index 0 of every array is a reserved empty record. Nothing in the world is ever
+null. A nil check asks whether some earlier code did its job, and that question
+belongs in a validator that runs once, not in a loop that runs ten thousand times
+a tick.
+
+## Buffer, then resolve.
+
+Motion is written as intent and committed in a second pass. Two bodies reaching
+for the same doorway both write, and the resolve decides, so the outcome does not
+depend on which thread got there first.
+
+Whenever two things must be able to happen at the same instant, write both down
+first and settle them afterwards. This is what makes the tick deterministic, and
+determinism is what makes a replay mean anything.
+
+## Dispatch tables, not branches.
+
+The tick's passes, the command verbs, the ruleset's hooks, the generator's
+stages. In every case the value already knows what it means, and the table says
+what knowing that means. Adding a case is adding a row.
+
+The real payoff is not speed. It is that **the order of the simulation became a
+piece of readable data** instead of something buried in a function body.
+
+## Refuse loudly, in words.
+
+Every rejected command carries a reason, and the reason is a sentence. This is not
+politeness -- it is the only teaching mechanism the program has, because nobody
+reads a rules screen. A person finds out that the door is barred, that the goblin
+belongs to the forest, that they cannot see around that corner, at the moment they
+try.
+
+The same standard applies to every validator: name what was missing and where, and
+never substitute a default.
+
+## Make the tool, not the thing.
+
+Maps are generated. The documentation's HTML is generated. The demos are
+regenerated. Anything hand-tweaked is a thing nobody dares change afterwards, and
+a thing nobody dares change is how a tool dies.
+
+## One door out.
+
+There is exactly one function that may write a thing record to a socket, and it
+takes the viewer as an argument. The question "can this leak?" is therefore
+answered by reading one function and checking its callers, rather than by reading
+the whole program.
+
+Generalises: when a property must hold everywhere, build a single choke point
+where it can be checked, and forbid the bypass. A rule enforced in one place is a
+rule; a rule enforced in forty places is a habit.
