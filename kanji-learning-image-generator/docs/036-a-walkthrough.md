@@ -109,9 +109,15 @@ works; `--models-only` and `--skip-models` do half each; `--build-torch` builds
 the arithmetic library from source and tells you what it is getting into.
 
 ```
-libs/kitchen/venv/bin/python libs/kitchen/ComfyUI/main.py --listen 127.0.0.1 --port 8188
+libs/kitchen/venv/bin/python libs/kitchen/ComfyUI/main.py \
+    --listen 127.0.0.1 --port 8188 --reserve-vram 1.5
 luajit src/044-run-the-pictures.lua --grade 1 --limit 20
 ```
+
+**`--reserve-vram` is not optional on a machine with one graphics card.** That
+card is drawing your screen. The picture program takes as much of it as it can
+get, and a desktop with no graphics memory left stops responding — which is not
+a slow computer, it is a frozen one. `issues/409` is why this sentence is here.
 
 The first starts the picture program. The second hands it recipes one at a time,
 collects what comes back, files each one in the pool and has the machine rate it

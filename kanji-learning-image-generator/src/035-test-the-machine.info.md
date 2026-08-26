@@ -40,4 +40,5 @@ what a person reads before opening the source.
 | `ungif(text)` | Enough of a reader to check the writer, written from the format description. |
 | `test_the_animation(t)` |  |
 | `test_the_dial(t)` |  |
+| `test_the_card_is_also_the_screen(t)` | `307` asked whether the processor was getting hot and answered it properly. |
 | `main(argv)` |  |

@@ -325,7 +325,13 @@ fi
 report
 
 step "how to start it"
-say "${VENV}/bin/python ${COMFY}/main.py --listen 127.0.0.1 --port 8188"
+say "${VENV}/bin/python ${COMFY}/main.py --listen 127.0.0.1 --port 8188 \\"
+say "    --reserve-vram 1.5"
+say ""
+say "The last part holds a gigabyte and a half back for your desktop. On a"
+say "machine whose only graphics card is also drawing the screen -- which this"
+say "one is -- leaving it off lets the picture program take everything, and a"
+say "desktop with no graphics memory stops responding. See issues/409."
 say ""
 say "then, with it running:"
 say "  luajit ${DIR}/src/044-run-the-pictures.lua --chars 木"

@@ -22,6 +22,9 @@ luajit src/044-run-the-pictures.lua --phrases
 
 | | |
 |---|---|
+| `M.card()` | What the graphics card says about itself, or nil if it will not say. |
+| `M.is_the_display_card(card)` | Whether the card that would draw the pictures is also drawing the screen. |
+| `M.room_to_work(settings)` | Whether there is enough of the card free to start a picture. |
 | `M.where(settings)` | The address the picture program is listening on. |
 | `M.input_folder(settings)` | The folder that program reads its inputs from. |
 | `M.listening(settings)` | Whether there is anything there, and what it says about itself. |
@@ -30,6 +33,26 @@ luajit src/044-run-the-pictures.lua --phrases
 | `M.wait_for(settings, identifier, patience)` | Poll until the picture is made, or give up. |
 | `M.collect(settings, filename, subfolder)` | The finished picture, fetched. |
 | `M.make_one(settings, record, store, options)` | One character, all the way from a recipe to a rated picture in the pool. |
+
+### `M.card()`
+
+What the graphics card says about itself, or nil if it will not say.
+
+Total memory, how much is in use, and how much is free -- in gigabytes.
+
+### `M.is_the_display_card(card)`
+
+Whether the card that would draw the pictures is also drawing the screen.
+
+WHY THIS IS ASKED AT ALL, and it is the whole of `409`. This project reasoned carefully about the processor getting hot and never asked the same question about the card -- on the grounds that generating is the card's work rather than the processor's, so the processor's governor did not apply. True, and it answered the wrong question. On a machine with one graphics card, that card is drawing somebody's desktop; take its memory and the desktop stops responding, which from outside is not a slow computer but a frozen one.
+
+A card with a desktop on it is never at zero before anything of ours has run. That is the tell, and it is asked rather than assumed.
+
+### `M.room_to_work(settings)`
+
+Whether there is enough of the card free to start a picture.
+
+Asked before submitting rather than discovered by submitting. A run that wedged the display cannot tell anybody anything; one that stopped early can.
 
 ### `M.input_folder(settings)`
 
@@ -62,4 +85,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `043-install-the-kitchen`, `045-the-pool-that-remembers`.
+Used by `035-test-the-machine`, `043-install-the-kitchen`, `045-the-pool-that-remembers`.
