@@ -103,12 +103,12 @@ soldiers are carrying three upgrades and the frontline is moving.
 | 403 | Wiping a wave draws an upgrade |
 | 404 | Placing an upgrade into a lane |
 | 405 | A soldier is stamped at birth |
-| 406 | Locking a placement |
-| 407 | Two objections open a lock |
 | 408 | Slotting upgrades into stone |
 | 409 | The base inherits every lane |
 | 410 | The library slot is the last stand |
 | 411 | Rerolling the deck |
+| 412 | Contributing a stone |
+| 413 | Staking a die to share |
 
 ## Phase 5 — Commanders and Heroes
 

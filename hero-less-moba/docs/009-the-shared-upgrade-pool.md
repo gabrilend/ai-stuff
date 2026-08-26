@@ -342,7 +342,7 @@ lock or an objection, it is **not opt-in.** You cannot move an upgrade quietly.
 Your teammates get a wave's notice, which is exactly enough time to say something
 about it.
 
-### The seven verbs of the team's conversation
+### The eight verbs of the team's conversation
 
 Three people each hold their own stones, and almost everything they say about
 them they say by doing something. Everything they can say to each other is in
@@ -356,17 +356,32 @@ this table, and it is worth keeping the list short and the meanings distinct.
 | **Cursor** | *I am about to touch this.* | **no** — always on | nothing |
 | **Marked-to-move** | *this is going there.* | **no** — automatic | a wave |
 | **Ping** | *look at this place.* | yes | rate-limited |
+| **Request** | *I would like that one.* | yes | rate-limited; one at a time; expires |
 | **Chat** | *anything at all* | yes | rate-limited; team only |
 
-**Two of the seven are involuntary, and those two are the load-bearing ones.** A
+**Two of the eight are involuntary, and those two are the load-bearing ones.** A
 player's cursor is synced continuously and a placement announces itself for a
 whole wave, which together mean **you can see a teammate reaching for something
 before they touch it, and see what they did for a wave after.**
 
-**Two of them transfer something**, which is new — under the old shared chest,
-nothing could be given because everything was already everybody's. Contributing
-and offering are the same act aimed differently: one puts a stone where anybody
-might pick it up, the other puts it in one person's hands.
+**Three of them move a stone and one asks about one**, which is new — under the
+old shared chest nothing could be given, because everything was already
+everybody's. Contributing and offering are the same act aimed differently: one
+puts a stone where anybody might pick it up, the other puts it in one person's
+hands.
+
+**Requesting is the odd one out and the one to be careful with.** It changes
+nothing by itself, and it was built for a reason worth remembering: **refusing to
+build it does not prevent it.** Players will ask over voice, where the design
+cannot rate-limit it, cannot make it ignorable without awkwardness, and cannot
+stop it becoming a running commentary on what a teammate is holding.
+
+So it exists, and it is deliberately the weakest verb here. **Giving must stay
+easier than asking** — a request names one specific stone, only one can be
+outstanding, it expires on its own, and **ignoring one is free and silent.** No
+notification that you declined, no record, nothing anybody can bring up later. A
+request that can be held against you is a demand, and this game is supposed to be
+about building each other up rather than managing each other's pockets.
 
 **One of them is a refusal to act**, and it is the only verb in the game that
 works by *subtraction*. Dismissing removes a thing from your attention rather
@@ -374,7 +389,7 @@ than adding anything to anybody's, and it is the replacement for the whole
 lock-and-objection system — see above for why a disclaim is a better instrument
 than a claim.
 
-A ping is the only one of the seven that is not about the stones at all.
+A ping is the only one of the eight that is not about the stones at all.
 
 **Chat is the newest and the one that changes the others.** An earlier draft of
 this document opened this section with *"three people share one chest and mostly

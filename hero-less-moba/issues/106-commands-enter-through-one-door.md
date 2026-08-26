@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 1 — The Ground and the Clock |
 | Blocked by | 104 |
-| Blocks | 107, 404, 406, 407, 505, 508, 801 |
+| Blocks | 107, 404, 412, 413, 505, 508, 801 |
 | Reads | [players, teams, and commands](../docs/016-players-teams-and-commands.md) |
 | Open questions | none |
 

@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Phase | 6 — The Surge and the Challenge |
-| Blocked by | 105, 402, 406, 601, 602 |
+| Blocked by | 105, 402, 412, 601, 602 |
 | Blocks | 605 |
 | Reads | [the siege-surge](../docs/014-the-siege-surge.md), [the shared upgrade pool](../docs/009-the-shared-upgrade-pool.md) |
 | Open questions | none |
