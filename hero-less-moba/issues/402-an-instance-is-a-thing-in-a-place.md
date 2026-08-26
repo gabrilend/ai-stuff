@@ -25,8 +25,8 @@ team owns, sitting in a specific place:
 | `team` | integer | 1 or 2. An instance never changes teams. |
 | `slot_kind` | integer | **0** unplaced, 1 lane, 2 lane towers, 3 library. |
 | `slot_lane` | integer | 1–3 when `slot_kind` is 1 or 2; **0** otherwise. |
-| `locked_by` | integer | Player number, or **0**. |
-| `objection_mask` | integer | Bit set of players currently asking for the lock to open. |
+| `held_by` | integer | Owning player, or **0** if contributed to the communal pool. |
+| `dismissed_mask` | integer | Bit set of players who have dismissed it. Clears when every player is set. |
 | `placed_tick` | integer | When it last arrived somewhere. Drives the UI's recency sort. |
 | `is_boon` | integer | 1 if this is a boon. No slot, never dealt out by a surge. |
 | `owner` | integer | Player number 1–6, **boons only**. **0** on everything else, which belongs to the team. |

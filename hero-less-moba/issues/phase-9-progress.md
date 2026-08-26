@@ -27,9 +27,10 @@ one — everything before it is the game, and the project is complete without it
   play well; a teammate has to work out what a person is trying to do from
   cursors, locks, and recent placements, and then stay out of it. Too eager and
   the chest fights you; too passive and single-player is solitaire. Issue 903.
-- **A bot teammate never objects to a human's lock.** The two-objection rule is
-  for people disagreeing deliberately. A bot arguing with its owner is not a
-  feature.
+- **A bot teammate does not re-place what a human just placed.** Nothing in the
+  simulation stops it — a human's own stones are untouchable already, and the
+  communal pool is open to everybody by construction — so this is a rule inside
+  the bot, and it fails silently when it fails. Assert it in a test.
 - **It cannot cheat, and that is free rather than enforced.** Under F7 the
   enemy's chest and wallets are not on the machine at all, so there is nothing
   privileged to read. Issue 901 builds the rest of the fence and asserts it in a
