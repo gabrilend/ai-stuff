@@ -15,7 +15,7 @@ local graph = project.load("028-the-shape-of-a-graph")
 
 local M = {}
 
--- {{{ M.seed_for(record)
+-- {{{ M.seed_for(record, style)
 -- The starting noise for a character, taken from the character itself.
 --
 -- Not from a clock. A given character regenerates identically, and two runs
@@ -25,8 +25,31 @@ local M = {}
 --
 -- Multiplied by a large odd number so that neighbouring characters, whose
 -- numbers differ by one, do not get neighbouring noise.
-function M.seed_for(record)
-  return (record.codepoint * 2654435761) % 2147483647
+function M.seed_for(record, style)
+  local from = record.codepoint * 2654435761
+  -- The style is part of the description, so it is part of the seed.
+  --
+  -- WHY THIS MATTERS MORE THAN IT LOOKS. Without it, two styles of one
+  -- character begin from *identical* noise, meet an identical field at full
+  -- control strength, and differ only by a trailing clause -- so they come out
+  -- as very nearly the same picture, and asking for a different style appears
+  -- to do nothing. It was doing something; there was no room left for it to do
+  -- it in.
+  --
+  -- The rule the project actually wants is that the same *description* gives
+  -- the same bytes, and the style is part of the description.
+  --
+  -- Folded back into range on every step, not once at the end. Numbers here are
+  -- doubles: multiplying by thirty-one ten times carries a codepoint past the
+  -- fifty-three bits a double keeps exactly, and the low bits -- which are the
+  -- only ones the modulo reads -- become noise. It came out as zero.
+  if style and style ~= "photographic" then
+    from = from % 2147483647
+    for index = 1, #style do
+      from = (from * 31 + style:byte(index)) % 2147483647
+    end
+  end
+  return from % 2147483647
 end
 -- }}}
 
@@ -88,7 +111,7 @@ function M.build(record, made, settings)
                       "an empty picture to start from")
 
   local sampler = g:add("KSampler", {
-    seed = M.seed_for(record),
+    seed = M.seed_for(record, made.style),
     steps = wanted.steps,
     cfg = wanted.cfg,
     sampler_name = wanted.sampler,

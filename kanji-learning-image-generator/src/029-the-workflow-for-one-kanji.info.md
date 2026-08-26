@@ -14,11 +14,11 @@ run the sweep again.*
 
 | | |
 |---|---|
-| `M.seed_for(record)` | The starting noise for a character, taken from the character itself. |
+| `M.seed_for(record, style)` | The starting noise for a character, taken from the character itself. |
 | `M.build(record, made, settings)` | The graph for one character. |
 | `M.assumptions(settings)` | What this workflow takes on faith, said out loud. |
 
-### `M.seed_for(record)`
+### `M.seed_for(record, style)`
 
 The starting noise for a character, taken from the character itself.
 

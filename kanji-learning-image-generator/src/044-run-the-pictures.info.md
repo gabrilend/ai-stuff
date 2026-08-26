@@ -16,6 +16,7 @@ run the sweep again.*
 luajit src/044-run-the-pictures.lua --chars 木火水
 luajit src/044-run-the-pictures.lua --grade 1 --limit 20
 luajit src/044-run-the-pictures.lua --phrases
+luajit src/044-run-the-pictures.lua --chars 時語 --style wimmelbild
 ```
 
 ## What it offers

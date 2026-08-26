@@ -23,36 +23,124 @@ local grammar = project.load("024a-the-paintbrush")
 
 local M = {}
 
--- {{{ REFUSALS -- the negative prompt, and it is not a tuning parameter
+-- {{{ REFUSALS -- what every prompt says it must not be
 --
 -- THIS IS WHERE THE PROJECT IS DEFENDED. The idea invites one specific failure:
 -- a model satisfying "kanji" by *painting a kanji*. A brushed character on a
--- wall, a banner, a carved sign, a shop curtain. Technically present, completely
--- useless as a learning image, and the picture will look good enough to pass a
--- careless glance -- so nobody reviewing a set of six thousand would catch it.
+-- wall, a banner, a carved sign. Technically present, completely useless as a
+-- learning image, and good enough to pass a careless glance -- so nobody
+-- reviewing a set of six thousand would catch it.
 --
--- The character has to be assembled out of scenery or the whole thing has not
--- worked. So these terms are a constant rather than a setting, and this comment
--- is the reason: a setting is a thing somebody empties.
---
--- The second group is ordinary quality refusal. The first group is the project.
-local REFUSALS = table.concat({
-  "text", "letters", "lettering", "words", "writing", "calligraphy",
-  "brush strokes", "ink wash", "chinese characters", "japanese characters",
-  "kanji", "hanzi", "signage", "watermark", "signature", "logo",
-  "border", "frame", "caption", "subtitle",
-  "illustration", "cartoon", "flat colour", "poster", "diagram",
-  "blurry", "low contrast", "washed out", "deformed",
-}, ", ")
+-- A list rather than one string, so a style can lift an entry by name and leave
+-- the rest standing (`412`). Four are marked as never liftable, and that mark
+-- is the project: a style asking for those is asking for a picture *of* a
+-- character rather than a picture that *is* one.
+local REFUSALS = {
+  { "text", forever = true },
+  { "lettering", forever = true },
+  { "calligraphy", forever = true },
+  { "kanji", forever = true },
+
+  { "letters" }, { "words" }, { "writing" }, { "brush strokes" },
+  { "ink wash" }, { "chinese characters" }, { "japanese characters" },
+  { "hanzi" }, { "signage" }, { "watermark" }, { "signature" }, { "logo" },
+  { "border" }, { "frame" }, { "caption" }, { "subtitle" },
+
+  { "illustration" }, { "cartoon" }, { "flat colour" }, { "poster" },
+  { "diagram" },
+
+  { "blurry" }, { "low contrast" }, { "washed out" }, { "deformed" },
+}
 -- }}}
 
--- {{{ TAIL -- what keeps the model out of illustration
+-- {{{ STYLES -- what a picture may be asked to look like
 --
--- An illustration has large flat regions of one colour, and a flat region
--- cannot hide a shape -- there is no light and shade in it for the strokes to
--- live in. Photographic terms are not a style preference here; they are what
--- makes the illusion possible at all.
-local TAIL = "photographic, natural light, shallow depth of field, fine texture"
+-- Photographic is the default and is a style like any other, so nothing is
+-- special-cased.
+--
+-- A style may lift refusals, one at a time and never wholesale, and each
+-- lifting carries the reason it does not apply. The refusal against
+-- illustration was argued precisely: an illustration has large flat regions of
+-- one colour, and a flat region has no light and shade for a hidden shape to
+-- live in. Good against what it was aimed at, and written as though it were an
+-- argument against everything that is not a photograph.
+local STYLES = {
+
+  photographic = {
+    tail = "photographic, natural light, shallow depth of field, fine texture",
+    -- Where in the sentence the style sits. Last, for this one, because it is a
+    -- qualifier on a scene rather than the point of it.
+    place = 80,
+    lifts = {},
+    why = "the default: flat regions cannot hide a shape, so pictures are " ..
+          "pushed towards photographs, which have light and shade everywhere",
+  },
+
+  wimmelbild = {
+    tail = "(a Wimmelbild:1.3), a teeming seek-and-find picture crowded with " ..
+           "hundreds of small distinct figures and objects in every corner, " ..
+           "each with its own outline, richly detailed, painted",
+    -- Near the front, because for this style the style *is* the point. Written
+    -- last, as the photographic tail is, it was a qualifier the model had
+    -- almost no room left to act on.
+    place = 15,
+    -- Lifted because a Wimmelbild is the *opposite* of flat: hundreds of small
+    -- distinct things, each with edges and a shadow, which is more for a hidden
+    -- shape to live in than a photograph offers rather than less. Diagram is
+    -- not lifted, because a diagram really is flat and schematic.
+    lifts = { "illustration", "cartoon", "flat colour", "poster" },
+    why = "a teeming picture has no large flat regions -- it is small detail " ..
+          "everywhere -- so the argument that sends this project towards " ..
+          "photographs does not apply to it",
+  },
+}
+-- }}}
+
+-- {{{ M.styles()
+function M.styles()
+  local names = {}
+  for name in pairs(STYLES) do names[#names + 1] = name end
+  table.sort(names)
+  return names
+end
+-- }}}
+
+-- {{{ M.style(name)
+-- One style, or an error naming the ones there are.
+function M.style(name)
+  name = name or "photographic"
+  local found = STYLES[name]
+  if not found then
+    error("there is no style called '" .. tostring(name) .. "'.\n  there is: " ..
+          table.concat(M.styles(), ", "))
+  end
+  return found, name
+end
+-- }}}
+
+-- {{{ M.refusals(style_name)
+-- The negative prompt, with whatever this style may lift removed.
+function M.refusals(style_name)
+  local style = M.style(style_name)
+  local lifted = {}
+  for _, term in ipairs(style.lifts or {}) do lifted[term] = true end
+
+  local out = {}
+  for _, entry in ipairs(REFUSALS) do
+    local term = entry[1]
+    if lifted[term] and entry.forever then
+      -- Refused by name rather than ignored. A style wanting one of these is
+      -- asking for a picture of a character instead of a picture that is one,
+      -- and allowing it quietly is how the whole project stops working while
+      -- every individual image still looks fine.
+      error("the style '" .. tostring(style_name) .. "' asks to lift '" ..
+            term .. "', and no style may.\n  Those four are what stop a model " ..
+            "satisfying 'kanji' by painting one.")
+    end
+    if not lifted[term] then out[#out + 1] = term end
+  end
+  return table.concat(out, ", ")
+end
 -- }}}
 
 -- {{{ WORD_BUDGET -- how long the sentence may be
@@ -75,10 +163,6 @@ function M.token_estimate(text)
   for _ in text:gmatch("%S+") do words = words + 1 end
   return math.floor(words * TOKENS_PER_WORD + 0.5), words
 end
--- }}}
-
--- {{{ M.refusals()
-function M.refusals() return REFUSALS end
 -- }}}
 
 -- {{{ M.positive(scene, settings)
@@ -109,12 +193,13 @@ function M.refusals() return REFUSALS end
 --    40  the ground the sound-half became
 --    30  the palette
 --    20  the note that this is an abstract word
-function M.positive(scene, settings)
+function M.positive(scene, settings, style_name)
   -- Two orders, and they are not the same order. `rank` decides what gets
   -- dropped when the sentence is too long; `place` decides where a clause sits
   -- in the sentence that is finally written. Using one for both put the
   -- photographic terms -- which must never be dropped, so they rank high --
   -- into the middle of the sentence, between the setting and the light.
+  local style = M.style(style_name or (settings.scene and settings.scene.style))
   local clauses = {}
   local function say(rank, place, text)
     if text and text ~= "" then
@@ -166,7 +251,7 @@ function M.positive(scene, settings)
     say(20, 70, "still, composed, deliberate")
   end
 
-  say(80, 80, TAIL)
+  say(80, style.place or 80, style.tail)
 
   -- Emitted in the order that reads as a sentence and puts the most heavily
   -- weighed words first: subjects, world, composition, ground, light, palette,
@@ -217,12 +302,16 @@ end
 -- {{{ M.prompts(record, store, settings)
 -- One record, all the way to the two sentences. Or nil and a reason.
 function M.prompts(record, store, settings, options)
+  options = options or {}
   local scene, why = grammar.scene(record, store, settings, options)
   if not scene then return nil, why end
-  local positive, measured = M.positive(scene, settings)
+  local chosen = options.style or (settings.scene and settings.scene.style)
+                 or "photographic"
+  local positive, measured = M.positive(scene, settings, chosen)
   return {
     positive = positive,
-    negative = REFUSALS,
+    negative = M.refusals(chosen),
+    style = chosen,
     scene = scene,
     length = measured,
   }
@@ -239,7 +328,9 @@ local function main(argv)
   for _, character in ipairs(xml.characters(options.chars or "休語時川森")) do
     local record = store.records[character]
     if not record then error(character .. " is not in the joined set") end
-    local made, why = M.prompts(record, store, settings)
+    local made, why = M.prompts(record, store, settings,
+                                { style = type(options.style) == "string"
+                                          and options.style or nil })
     io.write("\n", character, "  ", table.concat(record.meanings, ", "), "\n")
     if not made then
       io.write("  no scene: ", why, "\n")
@@ -249,7 +340,10 @@ local function main(argv)
                made.length.words, made.length.tokens, made.length.dropped))
     end
   end
-  io.write("\nrefused in every prompt:\n  ", REFUSALS, "\n")
+  local which = type(options.style) == "string" and options.style
+                or (settings.scene and settings.scene.style) or "photographic"
+  io.write("\nstyle: ", which, " -- ", (M.style(which).why), "\n")
+  io.write("refused in every prompt:\n  ", M.refusals(which), "\n")
   project.goodbye("025-the-words-the-machine-reads", { "prompts built" })
 end
 -- }}}

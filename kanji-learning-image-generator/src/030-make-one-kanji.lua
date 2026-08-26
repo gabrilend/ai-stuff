@@ -45,7 +45,8 @@ function M.make(record, store, settings, options)
 
   local measured = shape.measure_record(record)
   local built, why = words.prompts(record, store, settings,
-                                   { measured = measured })
+                                   { measured = measured,
+                                     style = options.style })
   if not built then return nil, why end
   local scene = built.scene
 
@@ -77,6 +78,11 @@ function M.make(record, store, settings, options)
     arrows_name = arrows_name,
     width = surface.width,
     height = surface.height,
+    -- Carried in rather than worked out again inside the graph. The seed comes
+    -- from the description and the style is part of the description, so a graph
+    -- that recomputed the seed from the character alone would hand every style
+    -- the same starting noise.
+    style = built.style,
   }, settings)
 
   -- A phrase of more than two or three characters is a far wider picture than
@@ -139,7 +145,8 @@ function M.make(record, store, settings, options)
   end
   card.strokes_and_what_they_carry = strokes
 
-  card.prompt = json.object("positive", built.positive,
+  card.prompt = json.object("style", built.style,
+                            "positive", built.positive,
                             "negative", built.negative,
                             "words", built.length.words,
                             "about_tokens", built.length.tokens,
@@ -176,7 +183,7 @@ function M.make(record, store, settings, options)
     "shortened_for_room", arrows_made.crowded, "bytes", arrow_bytes,
     "named_in_the_workflow", arrows_name)
 
-  card.seed = workflow.seed_for(record)
+  card.seed = workflow.seed_for(record, built.style)
 
   project.write_file(folder .. "/card.json", json.encode(card))
 
@@ -189,6 +196,9 @@ function M.make(record, store, settings, options)
     unglossed = scene.unglossed,
     crowded = arrows_made.crowded,
     warning = shape_warning,
+    style = built.style,
+    seed = card.seed,
+    prompt = built,
   }
 end
 -- }}}
@@ -218,13 +228,16 @@ local function main(argv)
 
   for _, record in ipairs(wanted) do
     local started = os.clock()
-    local done, why = M.make(record, store, settings, { out = out_dir })
+    local done, why = M.make(record, store, settings, {
+      out = out_dir,
+      style = type(options.style) == "string" and options.style or nil,
+    })
     if not done then
       io.write(record.character, ": ", why, "\n")
       said[#said + 1] = record.character .. " could not be made"
     else
-      local line = string.format("%s  %-9s %-8s %d bytes  %.2fs  ->  %s",
-        record.character, done.world, done.kind, done.bytes,
+      local line = string.format("%s  %-9s %-8s %-13s %d bytes  %.2fs  ->  %s",
+        record.character, done.world, done.kind, done.style, done.bytes,
         os.clock() - started, done.folder)
       io.write(line, "\n")
       if done.warning then io.write("  note: ", done.warning, "\n") end
