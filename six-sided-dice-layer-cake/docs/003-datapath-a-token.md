@@ -111,7 +111,7 @@ request region and the whole thing begins again at face zero.
 | time per token, compute-bound, one sequence | 0.039 ms |
 | **tokens a second, aggregate at the design batch** | **19,490** |
 
-*Every figure above is derived rather than estimated. `091` has all of them with
+*Every figure above is derived rather than estimated. `101` has all of them with
 their derivations; `089` is the one-page version.*
 
 The two middle columns are about twenty-five apart, and that number governs
@@ -180,4 +180,4 @@ two numbers above come from.
 
 ---
 
-*The figures in this document are rounded prose. The derived ones live in `091`, which lists every symbol in the project with its unit, its derivation and what it is for; `089` is the one-page version. `./run-checks` evaluates every constraint in under a second.*
+*The figures in this document are rounded prose. The derived ones live in `101`, which lists every symbol in the project with its unit, its derivation and what it is for; `089` is the one-page version. `./run-checks` evaluates every constraint in under a second.*

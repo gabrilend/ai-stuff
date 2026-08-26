@@ -241,7 +241,7 @@ function M.run(dir, opts)
   local docs = {
     { path = dir .. "/docs/089-specification.md", body = render(L, SHEET, problems) },
     { path = dir .. "/docs/088-bill-of-materials.md", body = render(L, BOM, problems) },
-    { path = dir .. "/docs/091-every-number.md", body = full_listing(L) },
+    { path = dir .. "/docs/101-every-number.md", body = full_listing(L) },
   }
   if not opts.dry then
     for _, d in ipairs(docs) do
