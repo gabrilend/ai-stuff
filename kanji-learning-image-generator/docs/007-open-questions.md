@@ -152,6 +152,53 @@ A machine with better cooling is being slowed down for nothing; a laptop may
 want more caution still. The knobs are all in `input/settings.lua` and none of
 them has been tried anywhere else.
 
+### Q11 — Are the radical names the right ones?
+
+`401` gives every piece a short name, and those names are **ours**. Most are
+derived from the phrase already written for that piece; the rest are corrections
+somebody typed.
+
+The person this was built for is learning through a system that has its own
+names for radicals, and a learner who meets *leader* here and something else
+there has been given two things to remember instead of one. Matching an existing
+system exactly would mean either taking its list — which belongs to somebody —
+or reconstructing it, which is guessing at somebody's choices.
+
+The names are marked as ours wherever they are shown, which is honest and is not
+the same as being useful.
+
+### Q12 — Can a phrase be animated?
+
+`408` refuses, and says so. A word's record is *built* from its characters
+rather than read from the store, and nothing reconstructs one from a companion
+file — so the animation cannot find the strokes it needs.
+
+The fix is small and nobody has done it: record the characters in the companion,
+which is already there under `characters`, and rebuild.
+
+### Q13 — Is there a second measurement, for the failure the first is blind to?
+
+The machine grader (`406`) measures whether the finished picture's light and
+dark landed where the strokes are. It cannot see the other failure at all: a
+model that satisfies *kanji* by painting one onto a wall in the scene scores
+beautifully.
+
+Something would have to notice **brush strokes rather than scenery** — high
+contrast, hard edges, uniform stroke width, a shape sitting on a surface rather
+than being made of one. That is a harder measurement than the first and it is
+the one the negative prompt is defending against, so it is also the one nobody
+would find out had failed.
+
+### Q14 — What happens to old ratings when the paintbrush changes?
+
+Every rendering records which version of the vocabulary it was made against,
+which was the whole point of storing it. Nothing does anything with that yet.
+
+When the vocabulary changes — a world renamed, a piece re-described — every
+rating made before it describes a picture that would not be made the same way
+now. They are not wrong, exactly. They are answers to a question that has since
+been reworded, and there is no rule yet for what to do with them.
+
 ---
 
 ## Closed
