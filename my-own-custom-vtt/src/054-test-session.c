@@ -584,6 +584,105 @@ static void test_a_sprite_is_retiered_mid_session(void)
 }
 /* }}} */
 
+/*
+ * A retcon does not re-snapshot, and the heads it leaves behind are still right.
+ *
+ * This is open question 13.2, which said the reasoning was "subtle enough to be
+ * worth a test that nobody has written". This is that test.
+ *
+ * The claim: a retcon replays turn boundaries forward WITHOUT capturing new
+ * heads, because the ring already holds those heads and overwriting them would
+ * destroy the history a second rollback needs. So after a deep retcon the ring
+ * holds heads captured before the correction — and rolling back again must still
+ * land somewhere correct, because the state at a turn's START did not change.
+ *
+ * If that reasoning is wrong, a second rollback lands on a head that describes a
+ * world nobody was ever in, and every check below would still pass except the
+ * last.
+ */
+/* {{{ static void test_a_retcon_leaves_the_earlier_heads_usable */
+static void test_a_retcon_leaves_the_earlier_heads_usable(void)
+{
+    struct world w;
+    struct pool *p = pool_start(1);
+    struct session s;
+    uint32_t body;
+    uint64_t at_the_first_head;
+    uint32_t first_turn;
+    int beat;
+
+    TEST_CASE("a second rollback after a retcon lands somewhere real");
+
+    CHECK(fixture_make_two_rooms(&w) == 1);
+    body = add_body(&w, M(4), M(4));
+
+    /* A ring deep enough that the first head is still in it at the end.
+     * Four turns pass below and a shallow ring would drop it, which is a
+     * legitimate outcome and not the one being tested. */
+    CHECK(session_start(&s, &w, p, 77, 16, 4) == 1);
+
+    /*
+     * Tick until a turn actually OPENS, and remember exactly what its head
+     * looked like.
+     *
+     * Not turn zero: a session starts on turn zero without begin_turn ever being
+     * called for it, so turn zero has no head in the ring and cannot be rolled
+     * back to. That is not a defect -- there is nothing before the start of a
+     * session to return to -- but it is an asymmetry worth knowing about, and
+     * this test found it by assuming otherwise.
+     */
+    while (s.turn == 0) {
+        session_tick(&s);
+    }
+
+    first_turn = s.turn;
+    at_the_first_head = world_hash(&w);
+
+    /* Four turns of somebody walking about. */
+    for (beat = 0; beat < 16; beat++) {
+        if (beat % 4 == 0) {
+            session_command(&s, VERB_ORDER_MOVE, body,
+                            M(6 + (beat % 5)), M(8));
+        }
+        session_tick(&s);
+    }
+
+    CHECK(s.turn > first_turn);
+    CHECK(world_hash(&w) != at_the_first_head);
+
+    /* A deep retcon: back to a turn in the middle, replaying its commands. */
+    {
+        uint32_t middle = s.turn - 1u;
+
+        CHECK_EQ(session_can_roll_back_to(&s, middle), 1);
+        CHECK_EQ(session_rollback(&s, middle, ROLLBACK_RETCON), 1);
+    }
+
+    /*
+     * And now the part nobody had checked. The earlier head was captured before
+     * the retcon and was not recaptured by it. Rolling back to it must put the
+     * world exactly where it was at that turn's start.
+     */
+    if (session_can_roll_back_to(&s, first_turn)) {
+        CHECK_EQ(session_rollback(&s, first_turn, ROLLBACK_REDECLARE), 1);
+        CHECK_EQ(world_hash(&w), at_the_first_head);
+    } else {
+        /*
+         * It fell out of the ring, which is a legitimate answer and not the one
+         * this test is about. Said out loud rather than passing quietly, because
+         * a test that silently tests nothing is worse than no test.
+         */
+        fprintf(stderr, "    the first head fell out of the ring before the"
+                        " second rollback, so this test checked nothing\n");
+        CHECK(0);
+    }
+
+    session_release(&s);
+    world_release(&w);
+    pool_stop(p);
+}
+/* }}} */
+
 /* {{{ int main */
 int main(void)
 {
@@ -597,6 +696,7 @@ int main(void)
     test_fog_rolls_back_too();
     test_the_world_survives_it_all();
     test_a_sprite_is_retiered_mid_session();
+    test_a_retcon_leaves_the_earlier_heads_usable();
 
     return vtt_test_finish("054-test-session");
 }

@@ -502,8 +502,14 @@ static void test_a_version_two_file_still_loads(void)
         length -= 8;
     }
 
-    /* And it is a version 2 file. */
+    /*
+     * And it is a version 2 file: the version word set back, and the byte
+     * checksum at the end removed, because a version 2 file never had one. The
+     * reader would not look for it either way -- but a fixture that is nearly a
+     * version 2 file is a fixture that proves nearly the right thing.
+     */
     bytes[4] = 2;
+    length -= 8;
 
     f = fopen(path, "wb");
     CHECK(f != NULL);
@@ -576,6 +582,142 @@ static void test_a_version_two_file_still_loads(void)
 }
 /* }}} */
 
+/*
+ * One byte changed on the disk, and the file says so.
+ *
+ * This is what open question 15.4 asked for. The field hash in the header could
+ * never do it across a format change -- it is a walk over THIS build's fields,
+ * so an older file's stored hash covers a different set and can never match --
+ * which meant the converter ladder could never actually be used.
+ *
+ * A checksum over the file's own bytes has no schema and therefore cannot go
+ * stale. This is the test that says so.
+ */
+/* {{{ static void test_a_changed_byte_is_caught */
+static void test_a_changed_byte_is_caught(void)
+{
+    struct world made;
+    struct world loaded;
+    struct worldfile_error error;
+    const char *path = SCRATCH_DIR "/byte-checksum.world";
+    unsigned char *bytes;
+    long length;
+    uint32_t where;
+    FILE *f;
+
+    TEST_CASE("a byte changed anywhere in the file is caught");
+
+    CHECK_EQ(world_init(&made, 8, 8, 8, 8, 8, 256), 1);
+
+    {
+        uint32_t one = world_add_thing(&made);
+        struct thing *t = world_thing(&made, one);
+
+        t->x = M(3);
+        t->y = M(4);
+        t->kind = 7;
+        t->radius = 500;
+        t->sprite_seed = 4242;
+    }
+
+    made.min_x = M(-10);
+    made.min_y = M(-10);
+    made.max_x = M(10);
+    made.max_y = M(10);
+
+    f = fopen(path, "wb");
+    CHECK(f != NULL);
+    if (f == NULL) {
+        world_release(&made);
+        return;
+    }
+    CHECK_EQ(worldfile_write(&made, f, &error), 1);
+    fclose(f);
+
+    /* Sound, first, so that a failure below means the damage and not the file. */
+    CHECK_EQ(world_init(&loaded, 8, 8, 8, 8, 8, 256), 1);
+    f = fopen(path, "rb");
+    if (f != NULL) {
+        CHECK_EQ(worldfile_read(&loaded, f, &error), 1);
+        fclose(f);
+    }
+    world_release(&loaded);
+
+    /* Read it back as bytes. */
+    f = fopen(path, "rb");
+    CHECK(f != NULL);
+    if (f == NULL) {
+        world_release(&made);
+        return;
+    }
+
+    fseek(f, 0, SEEK_END);
+    length = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    bytes = (unsigned char *)malloc((size_t)length);
+    CHECK(bytes != NULL);
+    if (bytes == NULL) {
+        fclose(f);
+        world_release(&made);
+        return;
+    }
+
+    CHECK_EQ(fread(bytes, 1, (size_t)length, f), (size_t)length);
+    fclose(f);
+
+    /*
+     * Every byte, one at a time, flipped and put back. Not one byte in the
+     * middle: a checksum that catches a change in the header and not in the
+     * string pool is a checksum with a blind spot, and the only way to know is
+     * to try all of them.
+     *
+     * The last eight are the checksum itself, and changing one of those must be
+     * caught too -- otherwise somebody could damage a file and rewrite the
+     * checksum to match by accident.
+     */
+    for (where = 0; where < (uint32_t)length; where++) {
+        struct world damaged;
+        unsigned char was = bytes[where];
+        int accepted;
+
+        bytes[where] = (unsigned char)(was ^ 0x40u);
+
+        f = fopen(path, "wb");
+        if (f != NULL) {
+            fwrite(bytes, 1, (size_t)length, f);
+            fclose(f);
+        }
+
+        CHECK_EQ(world_init(&damaged, 8, 8, 8, 8, 8, 256), 1);
+
+        f = fopen(path, "rb");
+        accepted = 0;
+        if (f != NULL) {
+            accepted = worldfile_read(&damaged, f, &error);
+            fclose(f);
+        }
+
+        if (accepted) {
+            char sentence[256];
+
+            fprintf(stderr,
+                    "    byte %u was changed and the file was accepted: %s\n",
+                    (unsigned)where,
+                    worldfile_error_describe(&error, sentence, sizeof(sentence)));
+        }
+
+        CHECK_EQ(accepted, 0);
+
+        world_release(&damaged);
+        bytes[where] = was;
+    }
+
+    free(bytes);
+    world_release(&made);
+}
+/* }}} */
+
 /* {{{ int main */
 int main(void)
 {
@@ -583,6 +725,7 @@ int main(void)
     test_refusals();
     test_hash_notices_everything();
     test_a_version_two_file_still_loads();
+    test_a_changed_byte_is_caught();
 
     return vtt_test_finish("036-test-worldfile");
 }

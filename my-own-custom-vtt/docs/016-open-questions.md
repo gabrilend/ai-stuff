@@ -385,13 +385,28 @@ also, faintly, a surveillance question about the other people at the table.
 
 ## Blocking phase 7 — the rules layer
 
-### 7.1 What happens when a ruleset raises an error mid-tick?
+### 7.1 What happens when a ruleset raises an error mid-tick? — HALF ANSWERED
 
 The whole argument for embedding Lua rather than compiling rules in is that
 somebody's homebrew should not take down the table. So: the offending hook is
 abandoned, the tick continues, and a sentence goes somewhere a person will read
-it. But *which* person -- the GM, everyone, a log file? And what happens to the
-half-applied changes the hook had already requested before it failed?
+it.
+
+**The half-applied changes are discarded, whole.** A hook does not touch the
+world directly; it queues requests that are drained after it returns, so a hook
+that fails part-way through has its queue cleared and nothing it asked for
+happens. That was one of the reasons for making it a queue in the first place,
+and it makes the answer free rather than careful.
+
+A hook that keeps failing is abandoned after eight failures and stops being
+called at all, which is failing open — the commands it would have refused are
+simply allowed. That is a choice and the phase 7 demo names it: failing shut
+would freeze an evening over one bad line in somebody's homebrew, and carrying on
+with no rules at all is worse than right and much better than stopped. It is only
+defensible because the breakage is announced loudly first.
+
+**What is still open is which person reads the sentence**, and that is
+[14.3](#q-14-3) rather than this.
 
 ### 7.2 Are stale ghosts shown?
 
@@ -590,13 +605,29 @@ What is still undecided is the **word width** -- four bits, a byte, something el
 A byte gives seven flags per word, which is probably more than one command needs
 and therefore probably right.
 
-### 12.3 Where does the recorded value go, and how big does it get?
+### 12.3 Where does the recorded value go, and how big does it get? — MEASURED, NOT DECIDED
 
 Every operand is written to the command log as it is decoded, before anything acts
-on it -- including operands belonging to commands that are then refused. A busy
-table generates a lot of this. Whether the log is capped, rotated, or simply
-allowed to grow for the length of a session has not been decided, and a session is
-hours long.
+on it -- including operands belonging to commands that are then refused.
+
+**It is not capped.** The log doubles its array when it fills and keeps every
+entry for the length of the session, and so does the index of where each turn
+begins.
+
+Now the arithmetic, which was the missing half of the question. A log entry is 32
+bytes. Six people issuing a command every beat at twenty beats a second is 120
+entries a second, which is under four kilobytes a second and about thirteen
+megabytes for a four-hour evening. A doubling array wastes at most half of that
+again.
+
+So the honest position is that **the log is small enough not to need a decision**,
+and the reason to write that down rather than leaving the question open is that
+"it grows without bound" and "it grows to thirteen megabytes" are very different
+facts and only one of them is worth acting on.
+
+What is still genuinely undecided is what happens across sessions -- a campaign is
+not one evening, and nothing yet writes a log to disk at all. That is downstream
+of 1.2, which is answered for the world and not for the record.
 
 ---
 
@@ -626,16 +657,29 @@ from `input/`? And whether it should be measured once at startup on the host's
 actual machine rather than compiled in, since the crossover depends entirely on
 how fast a barrier is there.
 
-### 13.2 Does a replayed turn re-snapshot?
+### 13.2 Does a replayed turn re-snapshot? — ANSWERED
 
-Currently no, deliberately: a retcon replays turn boundaries forward without
-capturing new heads, because the ring already holds those heads and overwriting
-them would destroy the history a second rollback would need.
+No, deliberately: a retcon replays turn boundaries forward without capturing new
+heads, because the ring already holds those heads and overwriting them would
+destroy the history a second rollback would need.
 
-The consequence is that after a deep retcon, the ring holds heads captured
-before the correction. Rolling back again lands on a head that is still correct
--- the state at that turn's start did not change -- but the reasoning is subtle
-enough to be worth a test that nobody has written.
+The consequence is that after a deep retcon the ring holds heads captured before
+the correction, and rolling back again must still land somewhere correct — the
+state at a turn's *start* did not change.
+
+**The reasoning was called subtle enough to be worth a test that nobody had
+written. It is written.** It plays five turns, retcons deep into the middle of
+them, then rolls back again to a head captured before the correction and compares
+the world hash against the one recorded at that head. If the reasoning were
+wrong, that second rollback would land on a world nobody was ever in, and every
+other check in the test would still pass.
+
+**And writing it found a small asymmetry nobody had stated.** A session starts on
+turn zero without `begin_turn` ever being called for it, so **turn zero has no
+head in the ring and cannot be rolled back to**. That is not a defect — there is
+nothing before the start of a session to return to — but the test assumed
+otherwise and failed, which is how it surfaced. It is now written down in the
+test, where somebody will meet it.
 
 ### 13.3 What happens to commands declared after the point a retcon replays to?
 
@@ -807,9 +851,9 @@ components happen to add up to.
 Not resolved. Worth resolving before anybody uses a tier to decide that the
 generator has got better.
 
-### 15.3 An empty word was offered a suggestion
+### 15.3 An empty word was offered a suggestion — ANSWERED
 
-Not open — fixed — but recorded because the shape of the mistake recurs.
+Fixed, and recorded because the shape of the mistake recurs.
 
 `sprite_nearest_word` offered `bob` for an empty word, because the threshold was
 "at most three edits" and three edits is the whole of a three-letter word. The fix
@@ -820,7 +864,7 @@ corrected**, so that most of what was typed survives into the suggestion.
 way. The lesson is that an edit-distance threshold is only meaningful relative to
 the length of the input, and a bare constant is a bug waiting for a short word.
 
-### 15.4 A world file's checksum cannot survive a format change
+### 15.4 A world file's checksum cannot survive a format change — ANSWERED
 
 A world file carries a hash of its own contents in its header. That hash is
 computed by walking every field of every record — and the walk is whatever the
@@ -862,6 +906,39 @@ never seek — which also keeps the writer usable on a pipe.
 | Split the two hashes | The right shape; two things to maintain instead of one. |
 | Keep a hash function per version | The once-per-pair growth the ladder exists to avoid. Nobody writes the sixteenth. |
 | Leave it, and accept unverified old files | Free, and quietly weakens the check every time the format moves. |
+
+---
+
+**The first was taken. The file format is version 4 and carries both.**
+
+| Checksum | Where | Answers |
+| --- | --- | --- |
+| the field hash | the header | *does this build's reader reconstruct the same world the writer had* — a question about **code** |
+| the byte checksum | the very end | *did this file change on disk* — a question about a **disk** |
+
+The byte checksum is accumulated as the file is written and again as it is read,
+through a small `struct tally` that carries a file and a running total. **Passed
+rather than kept in a static**, because two threads writing two worlds is a thing
+this project does and a hidden accumulator would silently mix them.
+
+It sits at the end rather than in the header so a streaming writer never has to
+seek — which keeps the writer usable on a pipe, and a world you can pipe is a
+world you can hand to somebody without a file existing at either end.
+
+**The test flips every byte in the file, one at a time, and checks each one is
+caught** — including the eight bytes of the checksum itself. Not one byte in the
+middle: a checksum that catches a change in the header and not in the string pool
+is a checksum with a blind spot, and the only way to know is to try all of them.
+
+The field hash stays, and after the byte check has passed on a current-version
+file it cannot fail by construction — which makes it a **bug detector** rather
+than an integrity check. A writer and a reader that disagree about a field would
+show up there and nowhere else.
+
+A version 3 file or older still cannot be verified, and `migrated_from` still
+records that so a caller can say so. That is unavoidable: those files carry only
+a walk over a field set this build no longer has. **From version 4 onward it
+stops being true forever**, because bytes do not have a schema.
 
 
 ### 15.5 The pictures exist and the table cannot see them — ANSWERED

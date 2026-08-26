@@ -67,3 +67,44 @@ reproduce the session, do two thread counts agree. Three separate functions coul
 disagree about what "the same world" means.
 
 Padding is not hashed, for the same reason it is not written.
+
+
+## Two checksums, for two different questions
+
+Conflating them was a real bug, and separating them is what closed open question
+15.4.
+
+| Checksum | Where | Answers |
+| --- | --- | --- |
+| the **field hash** (`world_hash`) | the header | *does this build's reader reconstruct the same world the writer had* — a question about **code**. It is also the number two running servers compare at every beat to prove a replay. |
+| the **byte checksum** | the very end | *did this file change on disk* — a question about a **disk**. |
+
+For four phases there was only the first, doing both jobs, and it could not do the
+second. A walk over fields is a walk over *this build's* fields, so the moment a
+record grew a field every older file's stored hash became unmatchable and every
+older file would have been refused as corrupt. **The converter ladder existed to
+keep old files working and could never have been used for a change of shape.**
+
+Bytes do not have a schema, so a byte checksum survives a format change by
+construction.
+
+### How it is accumulated
+
+A `struct tally` carries a file and a running total, and every read and write
+goes through it. **Passed rather than kept in a static**, because two threads
+writing two worlds is a thing this project does and a hidden accumulator would
+silently mix them.
+
+It is written at the end rather than in the header so a streaming writer never
+has to seek — which keeps the writer usable on a pipe.
+
+### What it catches
+
+Everything. The test flips **every byte in the file, one at a time**, including
+the eight bytes of the checksum itself, and checks that each one is refused. A
+checksum that catches a change in the header and not in the string pool is a
+checksum with a blind spot, and the only way to know is to try all of them.
+
+A version 3 file or older carries no byte checksum and cannot be verified.
+`migrated_from` records that, so a caller can say the integrity was not confirmed
+rather than letting a skipped check pass unmentioned.

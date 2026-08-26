@@ -26,8 +26,62 @@
  * reader gets the same numbers rather than mirrored ones.
  * ------------------------------------------------------------------------- */
 
+/* ------------------------------------------------------------------------- *
+ * Two different checksums, for two different questions
+ *
+ * A world file carries both, and conflating them was a real bug.
+ *
+ *   THE FIELD HASH, in the header, is world_hash: a walk over every field of
+ *     every record. It answers "does this build's reader reconstruct the same
+ *     world the writer had", which is a question about CODE. It is also the
+ *     number two running servers compare at every beat to prove a replay.
+ *
+ *   THE BYTE CHECKSUM, at the end, is a walk over the file's own bytes. It
+ *     answers "did this file change on disk", which is a question about a DISK.
+ *
+ * For four phases there was only the first, doing both jobs, and it could not do
+ * the second: a walk over fields is a walk over THIS build's fields, so the
+ * moment a record grew a field, every older file's stored hash became
+ * unmatchable and every older file would have been refused as corrupt. The
+ * converter ladder existed to keep old files working and could never have been
+ * used for a change of shape.
+ *
+ * Bytes do not have a schema, so a byte checksum survives a format change by
+ * construction. See open question 15.4.
+ * ------------------------------------------------------------------------- */
+
+/*
+ * A file and a running checksum of everything that has passed through it. Both
+ * directions use the same shape, because reading and writing must accumulate
+ * identically or the comparison at the end means nothing.
+ *
+ * PASSED RATHER THAN KEPT IN A STATIC. Two threads writing two worlds is a thing
+ * this project does, and a hidden accumulator would silently mix them.
+ */
+struct tally {
+    FILE    *file;
+    uint64_t running;
+};
+
+/* FNV-1a, the same one the sprite fingerprint uses. Frozen: changing it would
+ * make every world file written so far unverifiable. */
+#define TALLY_START 14695981039346656037u
+
+/* {{{ static void tally_bytes */
+static void tally_bytes(struct tally *t, const void *from, size_t count)
+{
+    const uint8_t *bytes = (const uint8_t *)from;
+    size_t i;
+
+    for (i = 0; i < count; i++) {
+        t->running ^= (uint64_t)bytes[i];
+        t->running *= 1099511628211u;
+    }
+}
+/* }}} */
+
 /* {{{ static int put32 */
-static int put32(FILE *out, uint32_t value)
+static int put32(struct tally *out, uint32_t value)
 {
     uint8_t bytes[4];
 
@@ -36,26 +90,51 @@ static int put32(FILE *out, uint32_t value)
     bytes[2] = (uint8_t)((value >> 16) & 0xFFu);
     bytes[3] = (uint8_t)((value >> 24) & 0xFFu);
 
-    return fwrite(bytes, 1, 4, out) == 4;
+    tally_bytes(out, bytes, 4);
+
+    return fwrite(bytes, 1, 4, out->file) == 4;
 }
 /* }}} */
 
 /* {{{ static int put64 */
-static int put64(FILE *out, uint64_t value)
+static int put64(struct tally *out, uint64_t value)
 {
     return put32(out, (uint32_t)(value & 0xFFFFFFFFu)) &&
            put32(out, (uint32_t)(value >> 32));
 }
 /* }}} */
 
+/* {{{ static int put_bytes */
+static int put_bytes(struct tally *out, const void *from, size_t count)
+{
+    tally_bytes(out, from, count);
+
+    return fwrite(from, 1, count, out->file) == count;
+}
+/* }}} */
+
+/* {{{ static int get_bytes */
+static int get_bytes(struct tally *in, void *into, size_t count)
+{
+    if (fread(into, 1, count, in->file) != count) {
+        return 0;
+    }
+
+    tally_bytes(in, into, count);
+    return 1;
+}
+/* }}} */
+
 /* {{{ static int get32 */
-static int get32(FILE *in, uint32_t *value)
+static int get32(struct tally *in, uint32_t *value)
 {
     uint8_t bytes[4];
 
-    if (fread(bytes, 1, 4, in) != 4) {
+    if (fread(bytes, 1, 4, in->file) != 4) {
         return 0;
     }
+
+    tally_bytes(in, bytes, 4);
 
     *value = (uint32_t)bytes[0]
            | ((uint32_t)bytes[1] << 8)
@@ -67,7 +146,7 @@ static int get32(FILE *in, uint32_t *value)
 /* }}} */
 
 /* {{{ static int get64 */
-static int get64(FILE *in, uint64_t *value)
+static int get64(struct tally *in, uint64_t *value)
 {
     uint32_t low;
     uint32_t high;
@@ -254,10 +333,15 @@ uint64_t world_hash(const struct world *w)
  * ------------------------------------------------------------------------- */
 
 /* {{{ int worldfile_write */
-int worldfile_write(const struct world *w, FILE *out, struct worldfile_error *error)
+int worldfile_write(const struct world *w, FILE *file, struct worldfile_error *error)
 {
+    struct tally sink;
+    struct tally *out = &sink;
     uint32_t count;
     uint32_t i;
+
+    sink.file = file;
+    sink.running = TALLY_START;
 
     if (!put32(out, WORLDFILE_MAGIC) ||
         !put32(out, WORLDFILE_VERSION) ||
@@ -293,7 +377,7 @@ int worldfile_write(const struct world *w, FILE *out, struct worldfile_error *er
         return fail(error, "could not write the world header", 0, 0);
     }
 
-    if (fwrite(w->origin, 1, sizeof(w->origin), out) != sizeof(w->origin)) {
+    if (!put_bytes(out, w->origin, sizeof(w->origin))) {
         return fail(error, "could not write where this world came from", 0, 0);
     }
 
@@ -368,8 +452,32 @@ int worldfile_write(const struct world *w, FILE *out, struct worldfile_error *er
     }
 
     if (w->strings.used > 0 &&
-        fwrite(w->strings.data, 1, w->strings.used, out) != w->strings.used) {
+        !put_bytes(out, w->strings.data, w->strings.used)) {
         return fail(error, "could not write the string pool", 0, 0);
+    }
+
+    /*
+     * THE BYTE CHECKSUM, last, over everything above it.
+     *
+     * At the end rather than in the header, so a streaming writer never has to
+     * seek -- which keeps this usable on a pipe, and a world you can pipe is a
+     * world you can hand to somebody without a file existing at either end.
+     *
+     * It is not itself counted, obviously. Written with the raw fwrite rather
+     * than put64 for exactly that reason.
+     */
+    {
+        uint64_t checksum = sink.running;
+        uint8_t bytes[8];
+        uint32_t byte;
+
+        for (byte = 0; byte < 8; byte++) {
+            bytes[byte] = (uint8_t)((checksum >> (byte * 8)) & 0xFFu);
+        }
+
+        if (fwrite(bytes, 1, 8, sink.file) != 8) {
+            return fail(error, "could not write the file's own checksum", 0, 0);
+        }
     }
 
     return 1;
@@ -433,6 +541,21 @@ static int migrate_forward(struct world *w, uint32_t from_version,
         from_version = 3;
     }
 
+    if (from_version == 3) {
+        /*
+         * Version 3 had no byte checksum. Nothing to convert -- the reader does
+         * not look for one on an older file -- but the rung exists so the next
+         * one has something to stand on.
+         *
+         * What a version 3 file cannot do is prove it was not damaged, which is
+         * exactly what open question 15.4 was about: the only checksum it
+         * carries is a walk over a field set this build no longer has. From
+         * version 4 onward that stops being true forever, because bytes do not
+         * have a schema.
+         */
+        from_version = 4;
+    }
+
     if (from_version == WORLDFILE_VERSION) {
         return 1;
     }
@@ -448,8 +571,10 @@ static int migrate_forward(struct world *w, uint32_t from_version,
  * ------------------------------------------------------------------------- */
 
 /* {{{ int worldfile_read */
-int worldfile_read(struct world *w, FILE *in, struct worldfile_error *error)
+int worldfile_read(struct world *w, FILE *file, struct worldfile_error *error)
 {
+    struct tally source;
+    struct tally *in = &source;
     uint32_t magic;
     uint32_t version;
     uint32_t scale;
@@ -463,6 +588,9 @@ int worldfile_read(struct world *w, FILE *in, struct worldfile_error *error)
     uint32_t string_used;
     uint64_t stored_hash;
     uint32_t i;
+
+    source.file = file;
+    source.running = TALLY_START;
 
     if (!get32(in, &magic)) {
         return fail(error, "the file is too short to hold a header", 0, 0);
@@ -530,7 +658,7 @@ int worldfile_read(struct world *w, FILE *in, struct worldfile_error *error)
         }
 
         if (version >= 2) {
-            if (fread(w->origin, 1, sizeof(w->origin), in) != sizeof(w->origin)) {
+            if (!get_bytes(in, w->origin, sizeof(w->origin))) {
                 return fail(error,
                             "the file is too short to hold where it came from",
                             0, 0);
@@ -743,7 +871,7 @@ int worldfile_read(struct world *w, FILE *in, struct worldfile_error *error)
     }
 
     if (string_used > 0 &&
-        fread(w->strings.data, 1, string_used, in) != string_used) {
+        !get_bytes(in, w->strings.data, string_used)) {
         return fail(error, "the file ended part-way through the string pool",
                     0, (int64_t)string_used);
     }
@@ -754,24 +882,53 @@ int worldfile_read(struct world *w, FILE *in, struct worldfile_error *error)
     }
 
     /*
-     * The hash is checked last, because a mismatch here means the bytes changed
-     * on the disk rather than that the format was misunderstood -- and every
-     * other failure above is a better explanation of the same symptom.
+     * TWO CHECKS, FOR TWO DIFFERENT QUESTIONS, and separating them is what
+     * closed open question 15.4.
      *
-     * AND IT IS SKIPPED FOR A MIGRATED FILE, which is a genuine loss and not a
-     * convenience.
+     * First: did this file change on disk? That is the byte checksum at the end,
+     * accumulated as the file was read. Bytes do not have a schema, so this
+     * works for a version 4 file whatever the reader's record shapes are -- and
+     * it will still work in version nine.
      *
-     * The hash is a walk over every field of every record, and the walk is this
-     * build's walk. A version 2 file's hash was computed before things had a
-     * sprite, so it covered nine fields per thing where this one covers eleven.
-     * Recomputing it here would compare two different questions and always
-     * disagree, and keeping a hash function per version is exactly the
-     * once-per-pair growth the converter ladder was built to avoid.
+     * A version 3 file or older does not carry one, and cannot be verified. That
+     * is a real loss and `migrated_from` records it so a caller can say so
+     * rather than letting a skipped check pass unmentioned.
+     */
+    if (version >= 4u) {
+        uint8_t bytes[8];
+        uint64_t written_checksum = 0;
+        uint64_t ours = source.running;
+        uint32_t byte;
+
+        if (fread(bytes, 1, 8, source.file) != 8) {
+            return fail(error,
+                        "the file ends without the checksum every version 4 file"
+                        " carries", 0, 0);
+        }
+
+        for (byte = 0; byte < 8; byte++) {
+            written_checksum |= (uint64_t)bytes[byte] << (byte * 8);
+        }
+
+        if (ours != written_checksum) {
+            return fail(error,
+                        "this file's bytes do not match the checksum written at"
+                        " the end of it",
+                        (int64_t)ours, (int64_t)written_checksum);
+        }
+    }
+
+    /*
+     * Second: does this build's reader reconstruct the same world the writer
+     * had? That is the field hash in the header, and it is a question about
+     * CODE rather than about a disk.
      *
-     * So an old file is loaded on the strength of its structure parsing cleanly
-     * and nothing else, and `migrated_from` records that so a caller can say so.
-     * The real fix is a checksum over the file's BYTES rather than over the
-     * world's FIELDS -- version-independent by construction. Open question 15.4.
+     * After the byte check has passed on a current-version file it cannot fail
+     * by construction, which makes it a bug detector rather than an integrity
+     * check -- a writer and a reader that disagree about a field would show up
+     * here. It is skipped for a migrated file for the reason that made 15.4 a
+     * question: the walk is THIS build's walk, so an older file's stored hash
+     * covers a different set of fields and could never match.
      */
     if (w->migrated_from == 0 && world_hash(w) != stored_hash) {
         return fail(error, "this file's contents do not match the hash written into it",
