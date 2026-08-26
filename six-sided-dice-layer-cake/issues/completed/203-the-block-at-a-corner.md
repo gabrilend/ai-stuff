@@ -4,7 +4,27 @@ Produces `src/015-corner-manifold-block.md`.
 
 ## Current behavior
 
-Nothing. `005` describes what the corners do and no corner has been drawn.
+**Done.** `src/015-corner-manifold-block.md` exists, in two variants that differ
+by whether a port is drilled.
+
+**It failed its own geometry on the first run.** Two chambers of thirty square
+millimetres, their shared wall and their outer walls wanted fifteen millimetres
+inside an eight millimetre block. The block is twelve now and the chambers are
+fourteen, which closes with half a millimetre to spare and stays under the
+quarter-of-an-edge limit where blocks start interfering along an edge.
+
+**The transparency claim was withdrawn rather than adjusted.** A corner costs
+about two and a half per cent of the loop, not under one. The consequence is
+handed to `024`: it must solve the network rather than lean on the manifold being
+invisible.
+
+Six constraints. Two wait on the flow figures in `024`. The dangerous one -- the
+wall between the supply and return chambers, whose failure short-circuits the
+cooling loop while showing nothing on any external sensor -- holds against proof
+pressure as a flat plate.
+
+**The nine-seal corner geometry is still not drawn**, and it is what `017`
+actually needs.
 
 ## Intended behavior
 

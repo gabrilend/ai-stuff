@@ -61,7 +61,8 @@ rho_si        | kg/m^3    | measured | 2329     | density of silicon at 300 K
 cp_si         | J/(kg*K)  | measured | 705      | specific heat capacity of silicon at 300 K
 cte_si        | ppm/K     | measured | 2.6      | linear thermal expansion of silicon, 300 K to 400 K
 E_si          | GPa       | measured | 130      | Young's modulus of silicon, averaged over orientation
-sigma_si_frac | MPa       | measured | 150      | fracture stress of thinned silicon with an ordinary edge finish
+sigma_si_frac | MPa       | measured | 150      | fracture stress of thinned silicon with an ordinary sawn or laser-diced edge, where microcracks from the cut are what fail
+sigma_si_plas | MPa       | measured | 350      | the same for a plasma-diced edge, which etches rather than cuts and leaves no crack population; 018 requires this and it is a process requirement rather than a preference
 T_si_max      | K         | measured | 378      | highest junction temperature the silicon is qualified to, 105 degrees
 
 # --- copper, in its three forms ------------------------------------------
@@ -139,6 +140,7 @@ C-011-9 | k_si < k_diamond       | the same
 C-011-10 | k_cu_plated < k_cu_bulk | plated copper conducts worse than bulk, not better
 C-011-11 | k_cu_film < k_cu_plated | and a thin film worse again
 C-011-12 | k_fluoro < k_water    | the dielectric alternative is the worse conductor, which is the whole of the trade in 021
+C-011-13 | sigma_si_plas > sigma_si_frac | a plasma-diced edge is stronger than a sawn one, by the factor 018's margin depends on
 ```
 
 ## What is still open
@@ -148,8 +150,9 @@ engineer will ask for the spread on at least half of them. `009` entry X2 carrie
 it as a change to the notation rather than to this file, because a tolerance
 column that nothing propagates would be decoration.
 
-**The fracture stress of thinned silicon depends on the edge finish**, and the
-figure here assumes an ordinary one. A laser-diced edge is worse and a
-plasma-diced one much better, and `018`'s margin moves by more than a factor of
-two between them. This should become a decision in `1201` rather than a property
-here.
+**The edge finish stopped being an open question and became a requirement.**
+Both figures are here, and `018` found that the ordinary one leaves a margin of
+one point four against a fracture that scraps the whole cube — so plasma dicing
+is now something `1201` must specify rather than something somebody might choose.
+Two entries remain because the weaker one is what the constraint is measured
+against.

@@ -4,8 +4,24 @@ Produces `src/016-edge-rail.md`.
 
 ## Current behavior
 
-Nothing. Twelve four-millimetre rails have been mentioned and their cross-section
-has never been drawn.
+**Done.** `src/016-edge-rail.md` exists, with the two channels stacked rather
+than side by side, because a four millimetre section will not hold them any other
+way once the walls are real.
+
+**The finding is that the rail cannot be transparent.** A rail feeds one face's
+microchannel field, which wants a sixth of the machine's flow. Fitting two
+channels inside four millimetres leaves about four and a third square millimetres
+each, so the flow runs at over two metres a second, turns turbulent, and costs
+something near five kilopascals against the field's eleven. That is a third of
+the loop, not a twentieth.
+
+Three ways out were available and only the third is honest: widening the rail
+pushes the face plate below the die block and the cube grows; reducing the flow
+buys less than it costs; or the claim goes. The claim went, and what actually
+balances this network is the parity topology in `023`, which was always the
+stronger argument and simply was not the one being relied on.
+
+Eight constraints. Four wait on `024`'s flow. The geometry ones hold.
 
 ## Intended behavior
 

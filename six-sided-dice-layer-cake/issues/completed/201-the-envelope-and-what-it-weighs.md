@@ -4,8 +4,23 @@ Produces `src/013-cube-envelope.md`.
 
 ## Current behavior
 
-Nothing. The cube is described as sixty millimetres on a side and no drawing of it
-exists.
+**Done.** `src/013-cube-envelope.md` exists. One drawing of a face from outside,
+the tolerance set, and a mass built from ten volume-times-density terms with not
+one figure entered by hand.
+
+The machine comes out near a kilogram and is, by mass, a block of molybdenum
+composite with some silicon laminated through it and a shell of electronics
+around it. The core's cooling laminae are more than half of it.
+
+**The flatness figure moved and the reason is not in this file.** Fifteen microns
+is what the process achieves at one temperature; `018` found the face assembly
+bows forty-five when hot, so a single-temperature flatness was never a real
+number. It is fifty now, and `017`'s seal grew to cover it.
+
+Six constraints, all holding. The mass checks are deliberately weak -- denser
+than water, less dense than its densest component -- because a mass assembled
+from ten independent terms is exactly the thing where one gets counted twice, and
+a weak check that runs is worth more than a strong one nobody writes.
 
 ## Intended behavior
 
