@@ -2700,9 +2700,10 @@ and the flavour is doing design work:
 **The paladin commander.** More strong knights, priests in the back, and bowmen.
 Heroes include **paladins** and **white dragons with lightning**.
 
-**The savage noble**, an orc. Throws **barbarians**, **goblin archers** — many
-attacks, little damage — and a **hobgoblin captain**. Heroes include a **severage
-destroyer** and a **spiked mammoth**.
+**The savage noble**, an orc. Fields **barbarians** and **goblin bowmen** behind a
+**hobgoblin captain**. Heroes include a **severage destroyer**, a **spiked
+mammoth**, and **goblin archers** — many attacks, little damage, which a hero may
+be and a wave unit may not.
 
 Read those two against each other and the design is already visible. The paladin
 fields fewer, tougher bodies with reach behind them; the orc fields a swarm whose
@@ -3704,12 +3705,20 @@ means a commander is **a mixture and a captain**, not a private unit catalogue �
 so adding a commander is choosing proportions, colours, and one signature body,
 rather than balancing three new stat blocks against everything that exists.
 
-**It also corrects something written down two entries ago.** *"Goblin archers —
-many attacks, little damage"* was read as the first statement in the project that
-two ranged bodies could differ in **how** they shoot, and that reading is now
-wrong: the goblin archer is the standard ranged body. The phrase describes how it
-*looks*, not what it does. Attack cooldown as a differentiator between wave units
-is off the table; it remains available to captains and heroes.
+**And the goblin archers moved rather than being flattened.** *"Many attacks,
+little damage"* was originally read as the first statement in the project that
+two ranged bodies could differ in **how** they shoot. That cannot be true of a
+wave unit any more — but it can be true of a **hero**, and that is where the
+goblin archers went: onto the **savage noble's roster**, alongside the severage
+destroyer and the spiked mammoth.
+
+Which is the better home for them anyway. A hero is where a body is allowed to be
+strange, and *many small fast attacks* is a genuinely different thing to buy from
+anything else on a roster — it is the answer to armour, since a flat subtraction
+per hit punishes exactly that profile, and something has to be.
+
+So attack cooldown as a differentiator is off the table **for wave units** and
+very much on it for heroes and captains.
 
 ### The captain is the signature
 
