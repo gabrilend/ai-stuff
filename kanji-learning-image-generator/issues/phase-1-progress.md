@@ -15,9 +15,9 @@ is for.
 | `101` | The two archives | **completed** — both archives fetched, provenance recorded, settings and the two rituals in place |
 | `102` | Reading a shape out of XML | **completed** — both archives read, joined, cached, and every leftover accounted for |
 | `103` | The line the brush took | **completed** — every stroke in the archive parses, flattens, and lands inside the box |
-| `104` | A surface that holds grey | not started |
-| `105` | A picture on the disk | not started |
-| `106` | Numbers a machine will read | not started |
+| `104` | A surface that holds grey | **completed** — brush, blur, band, and a clipping bug the tests found |
+| `105` | A picture on the disk | **completed** — a real compressor, checked by decompressing what it wrote |
+| `106` | Numbers a machine will read | **completed** — ordered keys, and the three quiet failures tested for |
 
 ## Where the risk is
 
@@ -29,10 +29,30 @@ it ruins are ruined in a way that looks like bad drawing rather than bad
 arithmetic. The test that every point lands inside the archive's own box is what
 catches it.
 
-**`105`, in the compressor.** A wrong Huffman code produces a file of plausible
-length that some decoders open. Round-tripping is the only test that finds it.
+**`105`, in the compressor.** A wrong code produces a file of plausible length
+that some decoders open. Round-tripping is the only test that finds it, and the
+reader that does the round trip is written in the test from the format
+description rather than borrowed from the writer -- a round trip through one
+misunderstanding twice proves nothing.
 
 Everything else here is ordinary work.
+
+## What `104` turned up
+
+**The risk was not where this file said it was.** Everything above worried about
+the compressor and the path arithmetic. The bug that mattered was in a bounding
+box: the rectangle of pixels a brush stroke could possibly touch was sized from
+the brush width at the ends of each segment.
+
+That is wrong exactly when a stroke flattens to a single segment, which is
+exactly when a stroke is straight -- and then both of its ends are at the
+tapered tips while its middle is at full width. So the box clipped the middle of
+every straight stroke, and clipped it asymmetrically, because rounding down at
+the top and up at the bottom take different amounts. Every horizontal and every
+vertical in the archive came out thin and lopsided. Every curve was perfect.
+
+Nothing downstream could have reported this. The characters looked like the
+characters, in a slightly worse hand.
 
 ## What `101` turned up
 

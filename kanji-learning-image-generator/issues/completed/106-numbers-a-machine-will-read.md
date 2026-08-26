@@ -2,7 +2,16 @@
 
 ## Current behavior
 
-The output of this project is JSON and there is no way to write JSON.
+Done. `src/018-write-the-numbers.lua` provides the ordered table and the writer.
+
+The ordered table is an ordinary table with a gate on assignment: values live in
+a store the gate holds rather than on the object, which is what keeps the object
+empty enough for the gate to keep being consulted. A key written straight onto
+the object would be found by ordinary lookup afterwards and would never pass
+through the gate again, so its order would be lost the moment it was updated.
+
+All three failure modes the plan named are tested for directly, because all three
+produce output that looks correct at a glance.
 
 ## Intended behavior
 

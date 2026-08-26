@@ -2,7 +2,28 @@
 
 ## Current behavior
 
-Strokes are runs of points and there is nowhere to put them.
+Done. `src/016-the-grey-canvas.lua` holds the surface, the brush, the shape
+fill, the blur, the range compression, the inversion and the resampler.
+
+**The plain table is fast enough and stays.** The plan said to measure before
+reaching for a faster array, and the measurement is that a full-size blur — the
+most expensive thing here by a wide margin — takes about six hundredths of a
+second. Nothing about that is worth a dependency.
+
+**One bug, found by a test, and it was in the bounding box rather than in the
+brush.** The box around each segment was sized from the brush width at the
+segment's two ends, which is wrong for the taper: a perfectly straight stroke
+flattens to a single segment spanning the whole stroke, so both of its ends sit
+at the tapered tips while its middle is at full width. The box then clipped the
+middle of every straight stroke — and clipped it *asymmetrically*, because
+rounding down at the top and up at the bottom do not cut the same amount off
+each side. Every horizontal and every vertical in the archive was affected;
+every curve was fine. The box is now sized from the untapered width, which the
+taper can only ever narrow.
+
+A second, related mistake was fixed at the same time: the brush width is asked
+for at each pixel's own place along the stroke, not interpolated between the
+segment's ends, for exactly the same two-point reason.
 
 ## Intended behavior
 
