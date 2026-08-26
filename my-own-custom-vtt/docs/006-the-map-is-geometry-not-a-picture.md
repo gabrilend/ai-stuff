@@ -31,7 +31,7 @@ one baked image.
 | --- | --- | --- |
 | 0 | `BLOCKS_SIGHT` | Sight does not cross it. |
 | 1 | `BLOCKS_MOVEMENT` | Bodies do not cross it. |
-| 2 | `ONE_WAY` | Blocks only from one side. The side is the segment's left, taking `a`-to-`b` as forward. A window you can see out of but not into; a secret door that is a wall from the corridor. |
+| 2 | `WALL_ONE_WAY` | Blocks only from one side. The side is the segment's left, taking `a`-to-`b` as forward. A window you can see out of but not into; a secret door that is a wall from the corridor. |
 
 Sight-blocking and movement-blocking are separate bits because the interesting
 cases are the ones where they disagree. A chasm blocks movement and not sight. A

@@ -27,18 +27,32 @@ for why that matters.
 | `sight_arc` | `uint16_t` | 2 | How wide its cone of vision is, in the same units as `facing`. A value of 32768 is a half-turn -- everything in front. |
 | `flags` | `uint16_t` | 2 | The bits below. |
 
-Thirty-six bytes. Whether that gets padded to forty or packed to thirty-six is a
-question for the measurement, not for this document.
+Thirty-six bytes, packed with no padding -- the four-byte fields are laid out
+first and the two-byte fields after them, so the compiler has no hole to leave.
+That is asserted by a test rather than hoped for, because the world file writes
+fields one at a time precisely so that padding never reaches the disk, and a
+record that silently grows a hole should fail a build rather than a load.
 
 ### The flag bits
 
+The first two are **shared with the wall record** -- the same bit means the same
+thing on a body as it does on a segment, defined once and used by both. An
+earlier draft of these documents numbered them differently in the two places,
+which would have produced a curtain you cannot walk through and a wall you can
+see past, with nothing obviously wrong in either file.
+
 | Bit | Name | Meaning when set |
 | --- | --- | --- |
-| 0 | `BLOCKS_MOVEMENT` | Bodies cannot walk through it. A wall of crates; a closed door. |
-| 1 | `BLOCKS_SIGHT` | Sight does not pass through it. Usually set together with the above, but not always -- a portcullis blocks movement and not sight, and a curtain does the reverse. |
-| 2 | `EMITS_LIGHT` | It has an entry in the lights array. |
-| 3 | `MOBILE` | It is expected to move. A hint for the motion pass, not a permission. |
-| 4 | `HIDDEN` | It is never sent to anyone who does not command it, regardless of sight. The GM's ambush, standing in plain view of a corridor nobody has walked down. |
+| 0 | `BLOCKS_SIGHT` | Sight does not pass through it. |
+| 1 | `BLOCKS_MOVEMENT` | Bodies cannot walk through it. A wall of crates; a closed door. |
+| 2 | `THING_HIDDEN` | It is never sent to anyone who does not command it, regardless of sight. The GM's ambush, standing in plain view of a corridor nobody has walked down. |
+| 3 | `THING_EMITS_LIGHT` | It has an entry in the lights array. |
+| 4 | `THING_MOBILE` | It is expected to move. A hint for the motion pass, not a permission. |
+
+The two blocking bits are separate because the interesting cases are the ones
+where they disagree. A chasm blocks movement and not sight. A curtain blocks
+sight and not movement. A portcullis blocks movement and lets sight through. One
+"solid" flag would delete all three.
 
 ## The simulation counts metres; the picture speaks feet
 
