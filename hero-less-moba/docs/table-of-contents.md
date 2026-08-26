@@ -26,10 +26,14 @@ hero-less-moba/
 ├── notes/
 │   ├── vision ................................ Where all of this came from, in the
 │   │                                           author's own words. Read first.
-│   └── vision-2 .............................. The second vision: what it looks
-│                                               like and what your hands do. Runes
-│                                               on the towers, and a camera that
-│                                               zooms out when you pick one up.
+│   ├── vision-2 .............................. The second vision: what it looks
+│   │                                           like and what your hands do. Runes
+│   │                                           on the towers, and a camera that
+│   │                                           zooms out when you pick one up.
+│   └── vision-3 .............................. The third vision: what the enemy
+│                                               actually is. Coal statues that
+│                                               emit fear, the paladins who answer
+│                                               them, and an economy of dice.
 │
 ├── docs/
 │   ├── 001-what-this-game-is ................. The subtraction premise, the three

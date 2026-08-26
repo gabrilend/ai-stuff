@@ -2830,6 +2830,218 @@ statement and a lock is an argument.
 
 Issue 804's numbers cannot see any of this. It is a question about six people in
 a room, and it gets answered the first time six people are in one.
+
+## F29. Whose upgrades are they? — **ANSWERED, and it changes the centre of the game**
+
+**Answer: each player's own. A team does not share a chest. Both teams draw the
+same stones in the same order, and within a team every player gets a different
+one.**
+
+This supersedes the shared-chest model that A11 and A11b built and that
+[the shared upgrade pool](009-the-shared-upgrade-pool.md) is named after.
+
+### How a draw works now
+
+A draw event deals **one stone to every player on the team**, and deals the *same
+hand* to both teams. Worked through with the example as it was given:
+
+| Draw | Team A gets | Team B gets |
+| --- | --- | --- |
+| first | stone 1 | stone 1 |
+| second | stone 7 | stone 7 |
+| third | stone 9 | stone 9 |
+
+So on a three-player team, one draw event puts stones 1, 7 and 9 on the board for
+each side — one per player. **Both teams hold exactly the same stones. No two
+players on a team hold the same stone.**
+
+That keeps the parity argument from A11b completely intact — *if a team is ahead,
+it is ahead because of placements* — while removing the thing that argument cost:
+under a shared chest, three teammates were three hands reaching into one box, and
+now they are three people each holding something.
+
+### What a player may do with theirs
+
+**Place them, move them, and give them away.** A stone belongs to the player who
+drew it, and it stays theirs unless they **offer it to an ally**, at which point
+it becomes the ally's to place and to give away in turn.
+
+Nobody can take one. Nobody can move somebody else's placement.
+
+### Which means the lock system may have nothing left to do
+
+This is the consequence worth stating loudly rather than discovering during
+phase 4, and it is recorded as **F31**.
+
+Locks, objections, and the two-key rule exist for exactly one situation: a
+teammate moving something you placed. **That situation cannot arise any more.**
+If a stone is yours until you give it away, there is nothing to lock it against,
+and `locked_by`, `objection_mask`, `lock_upgrade`, `unlock_upgrade` and
+`object_upgrade` are all answers to a question nobody is asking.
+
+[What this game is](001-what-this-game-is.md) states the shared pool as one of
+the three reasons the chest replaced heroes — *"It is negotiated. Your teammates
+can move what you placed."* That sentence is now false, and the premise document
+is the first thing that has to change.
+
+**But the negotiation is not gone. It has changed direction.** Under a shared
+chest the conversation was defensive — *stop touching mine.* Under individual
+stores it is a request — *can I have that one, I have a use for it.* An offer is
+a strictly nicer verb than a lock, it costs the giver something real, and it
+cannot be done by accident. It is also the only one of the six verbs that
+**transfers** anything.
+
+Whether that is a better game is F31's problem. What is settled here is the
+ownership.
+
+**Changed:** [009](009-the-shared-upgrade-pool.md) (extensively), [001](001-what-this-game-is.md)'s premise and vocabulary, [016](016-players-teams-and-commands.md)'s verb table gains `offer_upgrade`, [017](017-the-viewing-layer.md), issues 402, 403, 404, 406, 407, 411, 703, 704, 903.
+
+## F30. Is resource one number or many? — **OPEN**
+
+From [vision 3](../notes/vision-3). It rewrites the second economy and it is too
+large to settle in passing.
+
+**The sketch:** there are as many kinds of resource as there are attribute
+scores, each with its own colour *and its own display type* — a bar, a flowy
+circle script, pips one to six, a playing card of a randomly generated suit.
+Killing a wave unit carrying a colour pays that colour; a captain pays three. A
+commander's roster decides the shape of its bounty — *"3 blue die for every 1
+green die and every 5 red die"*. Buying a hero rolls a die per attribute, and
+picking high costs more of that colour than picking low.
+
+**What it would give the design, and these are real:**
+
+**You farm what the enemy fields.** What your opponents chose in the lobby
+decides which colours you can accumulate, which decides which heroes you can
+afford. Nothing in this design currently connects the two sides' choices at all —
+the map is symmetric, the deck is shared, the surge is on a common clock. This
+would be the first mechanic where *their* decision shapes *your* options, and it
+arrives without any interaction being added.
+
+**A hero purchase becomes a shape rather than a price.** Bidding per attribute is
+a much richer decision than affording a catalogue row, and it makes two copies of
+the same hero genuinely different bodies.
+
+**Colourblind accessibility is designed in rather than retrofitted.** The rule
+underneath it generalises past this system and belongs in the house style
+regardless of what happens here: **never encode meaning in hue alone.**
+
+**What it collides with:**
+
+- **"Mechanically it is one number"** — the vision's own words about personal
+  resource, and A2's answer, and all of
+  [commanders and personal resource](011-commanders-and-personal-resource.md).
+  The resource *name* was explicitly flair; now the kinds are mechanically
+  distinct.
+- **The ceiling.** A16 gave the wallet one ceiling and made overflow the
+  pressure. Does each colour have its own? One shared? Overflowing in blue while
+  starving in red is a very different feeling from overflowing full stop.
+- **A2, "every kill pays every player in full."** Still workable — every kill pays
+  every player the colour of the thing that died — but it needs saying that way
+  rather than assumed.
+- **The reroll price**, which A11b-ii anchored to the cheapest hero. A hero no
+  longer has *a* price.
+- **B5**, which is now a much bigger question: payouts per colour per flavour.
+
+**Not blocked by anything and blocking nothing**, because none of it is built.
+It should be settled before issue 501's commander catalogue is written, since a
+commander's bounty shape is part of what a commander *is* under this.
+
+## F31. Does the lock system still have a job? — **OPEN**
+
+Created by F29, and it is the largest open question in the project.
+
+Locks, objections, and the two-key rule exist because a teammate could move
+something you placed. **Under individual stores, they cannot.** So either the
+system goes, or it finds a different job.
+
+**The case for deleting it:** it is a solution to a problem that no longer
+exists. Three commands, two record fields, a timeout balance value, and a whole
+issue apiece for locking and for the two-objection rule — all defending against a
+thing the ownership rule already prevents. Keeping machinery because it was
+expensive to design is the worst reason to keep anything.
+
+**The case for keeping something:** the premise document lists negotiation as one
+of the three reasons the chest replaced heroes, and *"every upgrade is a small
+ongoing conversation between three people"* is a good sentence about a good idea.
+Deleting locks without replacing them leaves three people playing next to each
+other rather than with each other.
+
+**The shape that probably replaces it: the offer.** A player can hand a stone to
+an ally. That is still a conversation and a better one — a lock says *stop*, an
+offer says *here* — and it has properties a lock never had:
+
+- It **transfers** rather than forbids. It is the only verb that does.
+- It **costs the giver**, really and visibly, which a lock never did.
+- It cannot be done by accident, and it cannot be done *to* somebody.
+- It makes generosity a play rather than a mood.
+
+If that is the answer, then what is worth rescuing from the old system is the
+**asking** half rather than the refusing half. An objection said *I would like you
+to stop*; the thing that is now missing is *I would like that one* — a request,
+addressed to a specific stone a specific teammate is holding, that they can grant
+or ignore.
+
+**Three things to decide, and none of them can be decided by argument alone:**
+
+1. Do locks and objections go entirely?
+2. Is there a **request** verb to pair with the offer, or is that what the chat
+   channel is for now?
+3. Does an offer cost anything beyond the stone — a wave in transit, say — or is
+   it instant?
+
+The last one has a clue in it. Everything else that moves in this game takes a
+wave, for reasons that had nothing to do with generosity. An offer that lands
+instantly would be the only free movement in the design.
+
+## F32. "Stone" means two things and one of them has to go — **ANSWERED**
+
+**Answer: a stone is an upgrade. The guard-tower meaning is withdrawn.**
+
+This is a collision I introduced and it is worth recording as a caution rather
+than quietly fixing, because of *how* it happened.
+
+**What went wrong.** The audit found the word "stone" used a couple of hundred
+times across the documents to mean *guard towers, spoken of as a material* —
+never defined anywhere, not present in the vision, and load-bearing in one good
+sentence: *an upgrade goes either on bodies that walk forward and die, or on
+stone that stays put and does not.* The fix seemed obvious: define it, since it
+was doing real work and only lacked an entry.
+
+That was the mistake. **The word was not the project's to spend.** Two visions
+later it turns out a stone is what a player holds — a rune with a colour, listed
+under a tower, tapped to pick it up — and the vocabulary table had already given
+the name to something else.
+
+**So the guard-tower meaning goes.** Where a document needs to talk about towers
+as a material, it says *towers*, or names the thing directly. The one sentence
+that needed the metaphor can have it without the word: an upgrade goes either on
+bodies that walk forward and die, or on the towers that stay put and do not.
+
+### What still has to be renamed
+
+Not done yet, and listed so it is not forgotten:
+
+- **[Upgrades slotted into stone](010-upgrades-slotted-into-stone.md)** — the
+  document's own title, and its filename.
+- **Issue 408, "slotting upgrades into stone"** — same, and the roadmap and phase
+  tracker rows that name it.
+- Prose uses throughout 007, 009, 010, and the phase-3 and phase-4 trackers.
+
+Renaming a document and an issue file touches the roadmap, the tracker, the table
+of contents, and every link — so it is a job to do deliberately in one pass with
+the validator watching, rather than incidentally.
+
+### The general caution
+
+**A term that is used everywhere and defined nowhere is not necessarily free.**
+It may be undefined because nobody has needed it yet, or because it is already
+spoken for by something that has not been written down. The check that would have
+caught this costs one question: *does the author use this word for something
+else?* — and the place to look is the vision, which is the only document nobody
+else wrote.
+
+**Changed:** [001](001-what-this-game-is.md)'s vocabulary. The renames above are outstanding.
 ---
 
 ## How this list is meant to be used
