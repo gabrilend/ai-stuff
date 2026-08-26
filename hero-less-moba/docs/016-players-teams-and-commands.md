@@ -68,17 +68,17 @@ the game lets you do, and any feature proposal has to add a row.
 
 | Command | Arguments | Refused when |
 | --- | --- | --- |
-| `place_upgrade` | instance, slot kind, lane | Locked by another; already in transit; destination is where it already is; inside the freeze window. **Never on the grounds of what the upgrade is** — see F28 |
-| `withdraw_upgrade` | instance | Locked by another; inside the freeze window |
+| `place_upgrade` | instance, slot kind, lane | Not yours and not communal; already in transit; destination is where it already is; inside the freeze window. **Never on the grounds of what the upgrade is** — see F28 |
+| `withdraw_upgrade` | instance | Not yours and not communal; inside the freeze window |
 | `choose_boon` | offer index | Not in a boon window; this player has already chosen |
-| `lock_upgrade` | instance | Already locked; instance is unplaced |
-| `unlock_upgrade` | instance | Not locked by this player |
-| `object_upgrade` | instance | Not locked; locked by this player; already objected by this player |
-| `cancel_move` | instance | Not in transit; locked by another |
+| `contribute_upgrade` | instance | Not yours; already communal |
+| `dismiss_upgrade` | instance | Not communal; already dismissed by this player |
+| `offer_upgrade` | instance, player | Not yours; that player is not a teammate |
+| `cancel_move` | instance | Not in transit; not yours and not communal |
 | `ping_map` | x, y | Rate-limited |
 | `set_signpost` | sign-post, branch | The sign-post is not this player's team's |
 | `spawn_hero` | roster row, destination kind, destination id | Not enough resource; enemies inside that tower's command radius; destination is not yours |
-| `reroll_upgrade` | instance | Not enough resource; locked by another |
+| `reroll_upgrade` | instance | Not enough resource; not yours |
 
 Every refusal produces a **reason code**, and the viewer shows it. A command that
 silently does nothing is the worst possible outcome — the player learns nothing
@@ -179,7 +179,7 @@ everything downstream follows through the normal path.
 ### Presence — every player's cursor, continuously
 
 Each player's mouse position is synced to their **teammates**. This is a few
-bytes and it is not a nicety: it is one of the six verbs a team has for talking
+bytes and it is not a nicety: it is one of the seven verbs a team has for talking
 about the chest, and one of the two that are involuntary. A cursor hovering over
 an upgrade says *I am about to touch this*, before anybody has committed to
 anything. Expect teams to lock less because of it, since most of what a lock

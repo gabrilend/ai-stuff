@@ -24,7 +24,7 @@ Playing alone in a 3v3 means five bots and **two of them share your chest.**
 
 ### What a teammate bot can read of a person's intent
 
-Exactly what a human teammate can, which is the whole design of the six verbs:
+Exactly what a human teammate can, which is the whole design of the seven verbs:
 
 | Signal | Says |
 | --- | --- |
@@ -35,12 +35,18 @@ Exactly what a human teammate can, which is the whole design of the six verbs:
 | a **ping** | *look at this place* |
 | **chat** | anything at all |
 
-A lock is the only one that is binding, and a bot must never test it — the
-two-objection rule exists for humans disagreeing with each other deliberately,
-and a bot that objects to a person's locks is a bot arguing with its owner.
+Nothing here is binding — a human's own stones are already untouchable, and the
+communal pool is open to everybody by construction. So the bot's restraint cannot
+be enforced by a rule in the simulation. **It has to be a rule inside the bot**,
+and that is harder to get right and easier to get wrong quietly.
 
-**The rule: a bot teammate objects to nothing a human locked. Ever.** It may
-object to another *bot's* lock, which is how three-bot teams stay unstuck.
+**The rule: a bot teammate does not re-place a communal stone a human placed
+recently.** Recently is a balance value, and it should be generous — a human who
+places something and watches a bot move it two seconds later has learned that the
+board is not theirs, and will stop touching it.
+
+A bot may re-place another *bot's* placement freely, which is how three-bot teams
+stay unstuck.
 
 ### The failure on both sides
 
@@ -74,9 +80,10 @@ useful. A bot with a personality is a different project and a worse one.
    the last few waves.
 2. Write the placement behaviour to operate only on the complement of that set,
    and widen the set only after a period of human inactivity.
-3. Wire the hard rule as a **refusal inside the bot**, not as a preference: a bot
-   may not issue `object_upgrade` against an instance locked by a human player.
-   Assert it in a test.
+3. Wire the restraint as a **refusal inside the bot**, not a preference: it may
+   not re-place a communal stone a human placed inside the recency window, and it
+   may never touch a stone a human still holds. Assert both in tests, because
+   neither is enforced by the simulation and both fail silently.
 4. Give it the boon announcement, with a fixed phrase per option.
 5. Write the test that matters and is easy to skip: **run a match where the human
    places into one lane every wave and never speaks, and assert the bot never
@@ -86,7 +93,7 @@ useful. A bot with a personality is a different project and a worse one.
 
 ## Related documents and tools
 
-- [The shared upgrade pool](../docs/009-the-shared-upgrade-pool.md) — the six
-  verbs, the lock, the two-objection rule
+- [The shared upgrade pool](../docs/009-the-shared-upgrade-pool.md) — the seven
+  verbs, contributing, and the dismissal cycle
 - Issue 806 — the chat channel this uses
 - Issue 902 — the board readings it decides from

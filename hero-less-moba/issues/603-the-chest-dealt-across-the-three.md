@@ -80,7 +80,7 @@ re-place them happens under the challenge, with a monster walking.
    stream, pick a starting lane, walk and rotate. Preallocate the scratch buffer;
    this runs several times a second.
 4. OR every boon into all three afterwards, unconditionally.
-5. Refuse `place_upgrade`, `withdraw_upgrade`, `lock_upgrade`, `object_upgrade`,
+5. Nothing is refused during a surge — placement stays open in every phase (F12). Confirm that
    and `reroll_upgrade` during phase 2, with a reason code that says why. Players
    will try, and being told "not during a surge" is the only way they learn it.
 6. Write the surge-end dump: every instance to `slot_kind = 0`, locks released,

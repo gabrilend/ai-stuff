@@ -37,8 +37,8 @@ why.
 The verbs, complete — if it is not on this list it is not a thing the game lets a
 player do, and any future feature proposal has to add a row here first:
 
-`place_upgrade`, `withdraw_upgrade`, `cancel_move`, `lock_upgrade`,
-`unlock_upgrade`, `object_upgrade`, `reroll_upgrade`, `ping_map`,
+`place_upgrade`, `withdraw_upgrade`, `cancel_move`, `contribute_upgrade`,
+`dismiss_upgrade`, `offer_upgrade`, `choose_boon`, `reroll_upgrade`, `ping_map`,
 `set_signpost`, `spawn_hero`, `choose_boon`.
 
 There is no verb for moving a soldier, attacking, or using an ability. Those are

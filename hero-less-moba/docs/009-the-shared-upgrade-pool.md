@@ -105,8 +105,8 @@ rate between the two economies, it runs one way, and it has to be earned.
 | `team` | integer | 1 or 2. An instance never changes teams. |
 | `slot_kind` | integer | **0** unplaced (in the chest), 1 lane, 2 lane towers, 3 library. |
 | `slot_lane` | integer | 1–3 when `slot_kind` is 1 or 2; **0** otherwise. |
-| `locked_by` | integer | Player number 1–6 holding the lock, or **0** for unlocked. |
-| `objection_mask` | integer | Bit set of player numbers currently asking for the lock to open. |
+| `held_by` | integer | The player who owns this stone, or **0** if it has been contributed to the communal pool. |
+| `dismissed_mask` | integer | Bit set of players who have marked this *not my problem*. When every player is set, it clears and the stone is visible to all of them again. Communal stones only. |
 | `placed_tick` | integer | When it last arrived somewhere. Drives the UI's recency sort. |
 | `is_boon` | integer | 1 if this is a boon. No slot, never dealt out by a surge. |
 | `owner` | integer | Player number 1–6, **boons only**. **0** on everything else, which belongs to the team. |
@@ -342,43 +342,53 @@ lock or an objection, it is **not opt-in.** You cannot move an upgrade quietly.
 Your teammates get a wave's notice, which is exactly enough time to say something
 about it.
 
-### The six verbs of the team's conversation
+### The seven verbs of the team's conversation
 
-Three people share one chest, and almost everything they say about it they say by
-doing something to it. Everything they can say to each other is in this table,
-and it is worth keeping the list short and the meanings distinct.
+Three people each hold their own stones, and almost everything they say about
+them they say by doing something. Everything they can say to each other is in
+this table, and it is worth keeping the list short and the meanings distinct.
 
 | | Says | Opt-in? | Costs |
 | --- | --- | --- | --- |
-| **Lock** | *I am doing something here.* | yes | nothing |
-| **Objection** | *I would like you to stop.* | yes | nothing; expires |
+| **Contribute** | *anyone can use this now.* | yes | the stone, permanently |
+| **Offer** | *you specifically should have this.* | yes | the stone, to one person |
+| **Dismiss** | *not my problem.* | yes | nothing; expires when everybody agrees |
 | **Cursor** | *I am about to touch this.* | **no** — always on | nothing |
-| **Marked-to-move** | *This is going there.* | **no** — automatic | a wave |
-| **Ping** | *Look at this place.* | yes | rate-limited |
+| **Marked-to-move** | *this is going there.* | **no** — automatic | a wave |
+| **Ping** | *look at this place.* | yes | rate-limited |
 | **Chat** | *anything at all* | yes | rate-limited; team only |
 
-Two of the six are involuntary, and those two are the load-bearing ones. A
+**Two of the seven are involuntary, and those two are the load-bearing ones.** A
 player's cursor is synced continuously and a placement announces itself for a
 whole wave, which together mean **you can see a teammate reaching for something
-before they touch it, and see what they did for a wave after.** Locks and
-objections are for the cases that survive all that visibility and still need
-settling.
+before they touch it, and see what they did for a wave after.**
 
-A ping is the only one of the six that is not about the chest at all.
+**Two of them transfer something**, which is new — under the old shared chest,
+nothing could be given because everything was already everybody's. Contributing
+and offering are the same act aimed differently: one puts a stone where anybody
+might pick it up, the other puts it in one person's hands.
+
+**One of them is a refusal to act**, and it is the only verb in the game that
+works by *subtraction*. Dismissing removes a thing from your attention rather
+than adding anything to anybody's, and it is the replacement for the whole
+lock-and-objection system — see above for why a disclaim is a better instrument
+than a claim.
+
+A ping is the only one of the seven that is not about the stones at all.
 
 **Chat is the newest and the one that changes the others.** An earlier draft of
 this document opened this section with *"three people share one chest and mostly
-cannot talk about it in words,"* and built the lock system partly on that. Words
+cannot talk about it in words,"* and built a lock system partly on that. Words
 exist now — see issue 806 — and they arrived because of a specific hole: **when a
-boon is chosen, nothing being decided is on the board yet**, so all five of the
-other verbs are useless and a team has to coordinate blind.
+boon is chosen, nothing being decided is on the board yet**, so every other verb
+is useless and a team has to coordinate blind.
 
-The distinction to hold on to, because the whole negotiation layer rests on it
-now: **chat is persuasion, a lock is enforcement.** A message asks. A lock
-refuses. A lock persists without anybody remembering it, works on a teammate who
-was not reading, and cannot be argued with in the moment; a sentence is none of
-those things. **A team that talks well will lock less**, and that is the system
-working rather than the system being redundant.
+The distinction that survives the lock system's removal: **chat persuades, the
+other six do.** A message asks for something; contributing, offering and
+dismissing actually move the board, and they do it in a way a teammate who was
+not reading still sees. A team that talks well will hand things around more
+deliberately — which is the two working together rather than one replacing the
+other.
 
 Whether that survives six people in a room is
 [open questions](020-open-questions.md), F26.
@@ -428,52 +438,82 @@ That delay is the whole information design, and it falls out of rules that exist
 for other reasons — stamp-at-birth, the transit wave, and the length of a lane.
 Nothing had to be hidden deliberately. **The fog is made of walking.**
 
-## Locking, objecting, and the two-key rule
+## Contributing, and dismissing
 
-Any player may lock any of their own team's placed instances. A locked instance
-cannot be moved by a teammate. The point, in the vision's words, is that the
-locker has "a thing going, y'see" — an intention that a teammate scanning the
-board cannot see and would otherwise trample.
+**A stone belongs to the player who drew it.** Nobody can take it, nobody can
+move what you placed with it, and there is no lock, because there is nothing to
+lock it against. *Settled; see [open questions](020-open-questions.md), F29 and
+F31.*
 
-To open a lock without the locker's cooperation:
+Two verbs let a team be a team anyway, and they point in opposite directions.
 
-1. A teammate **objects to** the instance. Their bit is set in `objection_mask`.
-2. When **every teammate other than the locker** has objected it, the lock
-   releases automatically: `locked_by` goes to 0 and `objection_mask` clears.
+### Contribute — letting go of one completely
 
-On a three-player team that is the vision's "if both of them do so." Written as
-"everyone but the locker" rather than "two people," the rule survives a change of
-team size — which is the more likely thing to change.
+A player may **contribute** any of their stones to a **communal pool**. Once
+there, any teammate may place it, move it, and place it again, as often as they
+like.
 
-The locker can always unlock their own instance. **Locking is free and unlimited —
-no cap, no cost, no decay** — so one player claiming every instance the team owns
-is legal, and answerable only by their teammates disagreeing deliberately, one
-placement at a time. That cost is the conversation, not an obstacle to it.
-*Settled; see [open questions](020-open-questions.md), A13.*
+**And it appears to each of them as simply one of the stones they have.** No
+owner shown, no *this one is Sam's*, no asking. The point is not to hide who gave
+what — it is that **a shared thing you have to remember is shared is not
+shared.** Remembering costs a small permanent tax of attention and etiquette, and
+that tax is what made a lock system necessary in the first place. Contributing
+means letting go completely: *they forget they ever didn't own it, and they just
+use it as they please.*
 
-Because there is no cap to enforce, the one thing the interface owes a player is
-a visible count of what they currently have locked. The failure mode here is not
-malice; it is forgetting.
+Contributing is one-way. A stone in the pool does not come back to you, because
+"whose is it really" is exactly the question the pool exists to delete.
 
-**Objections expire after a timeout.** *Settled; see
-[open questions](020-open-questions.md), A12.* An objection left over from four minutes
-ago cannot combine with a fresh one to open a lock nobody currently objects to.
+### Dismiss — saying *not my problem*, and the floor that closes
 
-Expiry is what keeps two objections a **decision** rather than an **accumulation**.
-The two objections have to overlap in time, which means two people looked at the
-same thing and disagreed with it at the same moment. Without expiry, every lock
-on a long match eventually collects enough stray objections to pop on its own, and the
-two-key rule quietly degrades into a one-key rule that fires late and for no
-reason anybody can point at.
+The failure mode of a communal pool is not theft. It is **neglect** — three
+people each quietly assuming somebody else has it in hand.
 
-The timeout itself is a balance value. Too short and two teammates who are not
-watching each other can never coordinate an unlock at all; too long and it stops
-doing its job.
+So a player may mark a communal stone **not my problem**, and it vanishes from
+their view. Not from the pool; from *theirs*.
 
-Note what this system is really for. It is not a permissions system; it is a
-**communication channel with exactly two verbs**. "I am doing something here" and
-"I would like you to stop." A team that never locks anything is a team that has
-not started talking to each other yet.
+> **When every player has dismissed the same stone, it comes back to all of
+> them.** The dismissals clear and it is everybody's again.
+
+That single rule is what makes the pool safe, and it is worth reading twice. **A
+stone cannot fall through the floor, because the floor closes.** The moment
+nobody is looking at it, everybody is. It turns *I assumed you had it* — which is
+silent, and permanent, and only discovered when a lane collapses — into something
+that resurfaces on its own.
+
+### Why a disclaim beats a claim
+
+**A lock says *I am doing something here***, which is a statement about intent
+that a teammate must take on trust and cannot check.
+
+**A dismissal says *I am not doing anything here***, which is a statement about
+attention and is simply true at the moment it is made.
+
+Three things follow, and each was a real problem with the old design:
+
+- **It cannot be forgotten.** A lock left on for a whole match held a placement
+  hostage, which is why the interface owed a player a running count of what they
+  had locked. A dismissal that everybody forgets is a dismissal that expires.
+- **Nothing is ever done *to* anybody.** The two-objection rule existed to open a
+  lock against its holder's wishes — a whole mechanism, with a timeout to tune,
+  for one situation. There is no such situation here.
+- **It scales to any team size** with no rule change at all. "Everybody has
+  dismissed it" means the same thing at two players as at four, where "two
+  objections" never did.
+
+### And the third verb: offer
+
+**A player may offer one of their own stones to a specific teammate**, and it
+becomes theirs — to place, to contribute, or to offer on.
+
+It is the only verb in the game that **transfers** anything, and it is the one to
+reach for when the communal pool is too vague: contributing puts a stone where
+anybody might use it, offering puts it in one person's hands because you think
+they specifically should have it.
+
+Offering costs the giver something real and visible, cannot be done by accident,
+and cannot be done *to* somebody. It is a strictly kinder verb than a lock ever
+was.
 
 ## The team's view of its own chest
 

@@ -2896,103 +2896,174 @@ ownership.
 
 **Changed:** [009](009-the-shared-upgrade-pool.md) (extensively), [001](001-what-this-game-is.md)'s premise and vocabulary, [016](016-players-teams-and-commands.md)'s verb table gains `offer_upgrade`, [017](017-the-viewing-layer.md), issues 402, 403, 404, 406, 407, 411, 703, 704, 903.
 
-## F30. Is resource one number or many? — **OPEN**
+## F30. Is resource one number or many? — **OPEN, but with structure now**
 
-From [vision 3](../notes/vision-3). It rewrites the second economy and it is too
-large to settle in passing.
+From [vision 3](../notes/vision-3), plus two mechanics that arrived after it and
+gave it a shape. Still open because it rewrites the second economy, but no longer
+a sketch.
 
-**The sketch:** there are as many kinds of resource as there are attribute
-scores, each with its own colour *and its own display type* — a bar, a flowy
-circle script, pips one to six, a playing card of a randomly generated suit.
-Killing a wave unit carrying a colour pays that colour; a captain pays three. A
-commander's roster decides the shape of its bounty — *"3 blue die for every 1
-green die and every 5 red die"*. Buying a hero rolls a die per attribute, and
-picking high costs more of that colour than picking low.
+**The core:** there are as many kinds of resource as there are attribute scores,
+each with its own colour *and its own display shape* — a bar, a flowy circle
+script, pips one to six, a playing card of a randomly generated suit. Killing a
+wave unit carrying a colour pays that colour; a captain pays three. A commander's
+roster decides the shape of its bounty — *"3 blue die for every 1 green die and
+every 5 red die"*. Buying a hero rolls a die per attribute, and picking high
+costs more of that colour than picking low.
 
-**What it would give the design, and these are real:**
+### Green stones: a place can be lucky
 
-**You farm what the enemy fields.** What your opponents chose in the lobby
-decides which colours you can accumulate, which decides which heroes you can
-afford. Nothing in this design currently connects the two sides' choices at all —
-the map is symmetric, the deck is shared, the surge is on a common clock. This
-would be the first mechanic where *their* decision shapes *your* options, and it
-arrives without any interaction being added.
+**Some upgrades carry, in addition to whatever else they do, "gives +1 green
+stone."** When such an upgrade is placed, a **green stone** — a moss ball —
+appears among the bricks *at that tower*, and it is worth exactly **+1 to the die
+roll in question**.
 
-**A hero purchase becomes a shape rather than a price.** Bidding per attribute is
-a much richer decision than affording a catalogue row, and it makes two copies of
-the same hero genuinely different bodies.
+They accumulate where they are put. Three green stones sitting on a tower with a
+red attack bonus means **+3 to attack** whenever the die that made the unit is
+rolled for attack there.
 
-**Colourblind accessibility is designed in rather than retrofitted.** The rule
-underneath it generalises past this system and belongs in the house style
-regardless of what happens here: **never encode meaning in hue alone.**
+Two things make this worth more than a flat modifier.
 
-**What it collides with:**
+**It is a modifier attached to a place rather than to a body or a slot.** Nothing
+else in this design works that way — lanes hold upgrades, bodies carry copies,
+boons float over everything. A green stone belongs to a *tower*, and it means
+that tower is a better place to have been made. In the words it arrived in:
+**getting bounty from a particular area is especially cool.**
 
-- **"Mechanically it is one number"** — the vision's own words about personal
-  resource, and A2's answer, and all of
+**And it is visible as an object.** A moss ball among bricks, accumulating, is a
+thing a player can count from the camera rather than read off a panel — which is
+exactly what vision 2 asks of every upgrade.
+
+The open part is the interaction with the roll. A die plus a flat bonus has a
+different distribution from a bigger die, and stacking green stones eventually
+makes the roll a formality — at which point the attribute has stopped being
+random and become a number, which may be the intent or may be the thing to
+prevent.
+
+### Bounty stones: investing in a teammate
+
+**Some stones are playable on another player**, and what they do is raise the
+**bounty** that player's kills pay — **+1 for a melee or ranged body, +3 for a
+captain**, on a particular colour.
+
+The owning player redistributes them freely, so a team can **concentrate its
+income**: three people can decide that one of them should be the one accumulating
+red, and make it so.
+
+This is the first cooperative act in the design that is not about placement.
+Every other way a team helps each other is *here is a thing, put it somewhere* —
+this is *I am making you earn faster*, which is an investment rather than a gift,
+and it pays out over the rest of the match rather than immediately.
+
+It also pairs with the note that closes vision 3: **every hero has at least one
+use for every attribute**, so no colour is ever dead for anybody. Investing red
+in a teammate is never wasted on them; it just makes some of their options
+cheaper than others.
+
+### What it all collides with
+
+- **"Mechanically it is one number"** — the first vision's own words about
+  personal resource, and A2's answer, and all of
   [commanders and personal resource](011-commanders-and-personal-resource.md).
-  The resource *name* was explicitly flair; now the kinds are mechanically
-  distinct.
 - **The ceiling.** A16 gave the wallet one ceiling and made overflow the
-  pressure. Does each colour have its own? One shared? Overflowing in blue while
-  starving in red is a very different feeling from overflowing full stop.
+  pressure. Per colour, or shared? Overflowing in blue while starving in red is a
+  very different feeling from overflowing full stop — and bounty stones would
+  become a way to *fix* a starving colour, which is a strong argument for
+  per-colour ceilings.
 - **A2, "every kill pays every player in full."** Still workable — every kill pays
-  every player the colour of the thing that died — but it needs saying that way
-  rather than assumed.
-- **The reroll price**, which A11b-ii anchored to the cheapest hero. A hero no
-  longer has *a* price.
-- **B5**, which is now a much bigger question: payouts per colour per flavour.
+  every player the colour of what died — but it has to be said that way.
+- **The reroll price**, anchored by A11b-ii to the cheapest hero. A hero no longer
+  has *a* price.
+- **B5** becomes much larger: payouts per colour per flavour.
+- **C4's commander uniqueness** gains a second job. It was about roster variety;
+  now a commander's bounty shape is part of what it is, so no-duplicates also
+  guarantees a team's income is mixed rather than concentrated by accident.
 
-**Not blocked by anything and blocking nothing**, because none of it is built.
-It should be settled before issue 501's commander catalogue is written, since a
-commander's bounty shape is part of what a commander *is* under this.
+**Not blocked and blocking nothing**, because none of it is built. It wants
+settling before issue 501 writes the commander catalogue, since a bounty shape is
+now part of what a commander *is*.
 
-## F31. Does the lock system still have a job? — **OPEN**
+## F31. Does the lock system still have a job? — **ANSWERED**
 
-Created by F29, and it is the largest open question in the project.
+**Answer: no. Locks and objections are optional and are not being built. What
+replaces them is the opposite verb — you do not claim a stone, you disclaim
+one.**
 
-Locks, objections, and the two-key rule exist because a teammate could move
-something you placed. **Under individual stores, they cannot.** So either the
-system goes, or it finds a different job.
+### Contributing
 
-**The case for deleting it:** it is a solution to a problem that no longer
-exists. Three commands, two record fields, a timeout balance value, and a whole
-issue apiece for locking and for the two-objection rule — all defending against a
-thing the ownership rule already prevents. Keeping machinery because it was
-expensive to design is the worst reason to keep anything.
+A player may **contribute** any of their stones to a **communal pool**. Once
+there:
 
-**The case for keeping something:** the premise document lists negotiation as one
-of the three reasons the chest replaced heroes, and *"every upgrade is a small
-ongoing conversation between three people"* is a good sentence about a good idea.
-Deleting locks without replacing them leaves three people playing next to each
-other rather than with each other.
+- **Anyone on the team may place it, and re-place it, freely.**
+- **It appears to each of them as their own.** There is no owner badge, no "this
+  is Sam's stone" — a contributed stone is simply one of the stones you have.
 
-**The shape that probably replaces it: the offer.** A player can hand a stone to
-an ally. That is still a conversation and a better one — a lock says *stop*, an
-offer says *here* — and it has properties a lock never had:
+That second rule is the whole design and it is worth being exact about why. The
+point is not to obscure who gave what. It is that **a shared thing you have to
+remember is shared is not shared** — it comes with a small permanent tax of
+attention and etiquette, and that tax is what made the lock system necessary in
+the first place. Contributing a stone means letting go of it completely. In the
+words it arrived in: *they forget they ever didn't own it, and they just use it
+as they please.*
 
-- It **transfers** rather than forbids. It is the only verb that does.
-- It **costs the giver**, really and visibly, which a lock never did.
-- It cannot be done by accident, and it cannot be done *to* somebody.
-- It makes generosity a play rather than a mood.
+### Dismissing
 
-If that is the answer, then what is worth rescuing from the old system is the
-**asking** half rather than the refusing half. An objection said *I would like you
-to stop*; the thing that is now missing is *I would like that one* — a request,
-addressed to a specific stone a specific teammate is holding, that they can grant
-or ignore.
+The failure mode of a communal pool is not theft, it is **neglect** — three
+people each assuming somebody else is handling it. So:
 
-**Three things to decide, and none of them can be decided by argument alone:**
+**A player may mark a communal stone "not my problem", and it disappears from
+their view.** Not from the pool; from *their* pool. Somebody else's problem now.
 
-1. Do locks and objections go entirely?
-2. Is there a **request** verb to pair with the offer, or is that what the chat
-   channel is for now?
-3. Does an offer cost anything beyond the stone — a wave in transit, say — or is
-   it instant?
+**And when every player has dismissed it, it comes back to all of them.** The
+dismissals clear and the stone is visible to the whole team again, and the cycle
+can start over.
 
-The last one has a clue in it. Everything else that moves in this game takes a
-wave, for reasons that had nothing to do with generosity. An offer that lands
-instantly would be the only free movement in the design.
+That single rule is what makes the system safe. A stone cannot fall through the
+floor, because the floor closes: the moment nobody is looking at it, everybody
+is. It converts *I assumed you had it* — which is silent and permanent — into a
+thing that resurfaces on its own.
+
+### Why this is better than a lock
+
+**A lock is a claim and this is a disclaim**, and disclaiming is the honest one.
+Locking says *I am doing something here*, which is a statement about intent that
+a teammate has to take on trust and cannot verify. Dismissing says *I am not
+doing anything here*, which is a statement about attention and is simply true
+when made.
+
+**It also has no failure state.** A lock could be forgotten and hold a placement
+hostage for a whole match; the interface owed a player a running count of what
+they had locked precisely because forgetting was the expected failure. A
+dismissal cannot be forgotten, because forgetting it is what makes it expire.
+
+**And it needs no negotiation to undo.** The two-objection rule existed to open a
+lock against its holder's wishes — a whole mechanism for one situation. Nothing
+here is against anybody.
+
+So: `lock_upgrade`, `unlock_upgrade`, `object_upgrade`, `locked_by`,
+`objection_mask` and the objection timeout are all withdrawn. The verbs that
+replace them are **`contribute_upgrade`** and **`dismiss_upgrade`**.
+
+**Changed:** [009](009-the-shared-upgrade-pool.md) (the whole locking section), [001](001-what-this-game-is.md)'s vocabulary, [016](016-players-teams-and-commands.md)'s verb table, [017](017-the-viewing-layer.md), issues 406 and 407 (which build the withdrawn system), 703, 704, 903.
+
+## F31b. What happens to issues 406 and 407? — **OPEN**
+
+Two issue files build a system that is no longer being built: *Locking a
+placement* and *Two objections open a lock*. A third, 704, makes locks and
+objections loud in the interface.
+
+The project's rule is that issues are **never deleted** — they are blueprints,
+and a reader should be able to rebuild the whole thing by working through them.
+So the question is what a blueprint for a thing that was cancelled looks like.
+
+The shape that probably fits: **rewrite them to build the replacement**, keeping
+the numbers, since 406 and 407 sit exactly where the new verbs sit in the
+dependency graph — one for contributing, one for the dismissal cycle. The
+cancelled design stays inside them as what it was and why it went, which is the
+same treatment every superseded answer on this page gets.
+
+The alternative is to leave them cancelled and add new issues at the end, which
+keeps the record cleaner and makes the phase-4 numbering lie about what is
+foundational.
 
 ## F32. "Stone" means two things and one of them has to go — **ANSWERED**
 
@@ -3042,6 +3113,118 @@ else?* — and the place to look is the vision, which is the only document nobod
 else wrote.
 
 **Changed:** [001](001-what-this-game-is.md)'s vocabulary. The renames above are outstanding.
+
+## F33. Should this become a PvP zone in Everland Ghostsong? — **OPEN, and worth arguing about**
+
+The proposal is to build this as a Warcraft PvP zone inside the AzerothCore
+project at `~/games/azeroth-core/wow-chat-2026/` — *Everland Ghostsong*, a
+roguelike survival layer on 3.3.5a whose stated premise is that **the game exists
+for socialising** and that combat and progression are the backdrop for
+conversation.
+
+Taken seriously rather than politely, because the fit is better than it first
+looks and the mismatch is sharper than it first looks.
+
+### What translates, and some of it translates unreasonably well
+
+**The socialising premise is this game's premise.** Everland's core philosophy is
+that the world is a backdrop for conversation. This project's whole thesis is
+that a shared pool three people argue over beats three avatars three people
+drive. Those are the same bet made twice. A PvP zone built on negotiation would
+be more on-theme there than an ordinary battleground.
+
+**Playerbots already exist there** and are described as companions that join your
+party, follow commands, and have their own behaviours. That is most of phase 9 —
+including the hard half, the *teammate* bot — already standing.
+
+**The empty world is the right canvas.** Everland removed every NPC and creature
+so the world is quiet until a player arrives. A lane-pusher needs a space where
+nothing exists except what the match spawns, and that is exactly what has been
+built.
+
+**Waves, towers, and lanes are the oldest things in the engine.** Warcraft 3
+shipped with this shape and the WoW client renders crowds of low-detail bodies
+walking a route as well as anything does.
+
+### What does not translate, and one of these is fatal-ish
+
+**Determinism.** The tick, the named random streams, the same-seed-same-result
+test, the replay — none of that survives being a script inside a server that owns
+its own scheduler. This project's most valuable regression test does not port.
+
+**The tick itself.** The design is built on a fixed-step simulation the viewer
+merely reads. A game server runs its own loop at its own rate, and everything
+here that says *twenty-two ticks* rather than *0.7 seconds* is written that way
+specifically to avoid depending on somebody else's timing.
+
+**The camera.** Vision 2 wants a Supreme Commander pull-back where runes light up
+across the whole field. WoW's camera does not do that, and the zoom *is* the
+interface in that vision rather than a convenience.
+
+**The thread pool.** Slicing thousands of bodies across workers is a decision
+about a simulation you own.
+
+### Which suggests the honest answer is "both, deliberately"
+
+Not a port and not a rewrite: **a target.** The design is the thing this project
+is producing, and the design is portable even where the implementation is not.
+The parts that transfer are the ones written down as rules — the shared deck, the
+draw dealt one stone per player, contribute-and-dismiss, the command radius, the
+surge that reads instead of confiscating, the boon pair offered to everybody.
+None of that needs a fixed tick.
+
+The parts that do not transfer are all *implementation* — the pool, the streams,
+the replay, the frame. Which is a good sign about the design rather than a
+problem with it.
+
+**And that is exactly what the polyglot-source idea is for** — see below. A slot
+named `azerothcore` that is declared `partial`, where every unit that cannot be
+expressed inside a server script carries a note saying why, is a much better
+artefact than either a port or a refusal. **The holes would be a map of where
+this design depends on owning the clock.**
+
+Nothing is blocked. This is phase-7-and-beyond territory at the earliest, and the
+question to settle before then is only whether `azerothcore` becomes a declared
+language in the source tree, which is cheap to decide late and cheaper to decide
+now.
+
+## F34. Should the source be polyglot? — **OPEN**
+
+The proposal: write the source in several languages at once, keeping the inactive
+ones in structured comments, with a small activator switching which is live.
+Incomplete areas allowed, filled in when needed. One of the languages is "ported
+to azerothcore."
+
+**Written up as a reusable skill** at `~/.claude/skills/polyglot-source/`, since
+the idea is not specific to this project.
+
+The three things that make it interesting here specifically:
+
+**The second implementation is the review.** Writing the soldier brain again, in a
+language with different primitives, would find every place the first version
+leaned on something incidental. This project has spent a great deal of effort on
+documents catching each other's contradictions; a second implementation catches a
+different class of them.
+
+**The gaps are findings.** A unit that has a Lua version and no AzerothCore
+version, with a note saying *the host runs scripts on its own worker and does not
+hand out slices*, is a recorded fact about the target sitting at the line where it
+matters. Under F33 that is the whole value.
+
+**LuaJIT is the canonical language and that does not change.** The house style
+says so and nothing here argues with it. A polyglot tree has one language that
+gets fixed first and others that follow, or it drifts into several half-programs.
+
+**What it costs, and it is not small:** every change becomes N changes, only the
+active language is ever tested, and activation rewrites comment prefixes across
+the tree so it has to be its own commit every time. It earns its keep only when
+the languages genuinely disagree — LuaJIT and a constrained host dialect qualify;
+LuaJIT and Lua 5.4 would not.
+
+**The decision to make before phase 1, not after:** whether source files are
+authored with markers from the start. Retrofitting them onto a finished tree is a
+mechanical job but a large one, and the unit boundary — per function or per file
+— wants choosing once, early, and never again.
 ---
 
 ## How this list is meant to be used
