@@ -22,23 +22,58 @@ roughly the order of [the roadmap](015-roadmap.md).
 
 ## Blocking phase 1 — the world holds still
 
-### 1.1 Is one world unit one foot?
+### 1.1 What is one world unit? — ANSWERED
 
-[A thing in the world](005-a-thing-in-the-world.md) assumes it, which sets the
-range at about four hundred miles and the precision at about a hundredth of an
-inch. If the intended scale is a town rather than a dungeon, or a battlefield,
-the constant changes and everything downstream still works. It is cheap to decide
-now and expensive to decide in phase 5.
+**The simulation counts metres. The picture speaks feet, rounded to the nearest
+foot.**
 
-### 1.2 Does anything persist between sessions?
+A position is an `int32_t` in units of 1/1024 of a metre: range about ±2,100
+kilometres, precision about a millimetre. Nothing in the server has ever heard of
+a foot. The renderer converts on its way to the screen, and a person at the table
+reads whole feet.
 
-[The roadmap](015-roadmap.md) says no -- a session is a world file, a command log,
-and then it is over. But a campaign is a sequence of sessions in a place that
-remembers, and "the players burned down the tavern last week" is a normal thing
-for a table to want. If the answer is yes, the snapshot format becomes a
-long-lived format rather than a debugging convenience, which is a much stronger
-constraint on it.
+The rounding lives in the view and only in the view. See
+[a thing in the world](005-a-thing-in-the-world.md) for the consequence that
+matters: **commands carry metres**, never rounded feet, because two clients that
+round differently would otherwise disagree about where a body went.
 
+### 1.2 Does anything persist between sessions? — PARTLY
+
+**Statistics do, as an engraving.** A text file drawn as an ornate metal carving
+-- a fish, a bird, a dragon, a mammoth -- whose lines are the cell walls of the
+table it contains. Bespoke per run. Read by one script, written by another, shown
+in the action bar during play, and intentionally fragile. See
+[the record log is an engraving](018-the-record-log-is-an-engraving.md).
+
+**Whether the world persists is still open.** An engraving carries numbers, not
+geometry. A creature with last week's session in it does not contain a map, so
+"is the tavern the players burned down still burned next week" has not been
+answered.
+
+If the world does persist, the snapshot format in
+[108](../issues/108-a-world-writes-itself-down.md) stops being a debugging
+convenience and becomes a long-lived format needing a version story and a
+migration path whenever a record changes shape. That is a real ongoing cost and
+it should be taken on deliberately rather than by drifting into it.
+
+### 1.3 What goes in the engraving's cells?
+
+Constrained in an unusual and useful way: **a creature has only so many places to
+put a number.** The engraving cannot grow a column without being redrawn, so the
+set of statistics is small, fixed, and chosen rather than accumulated.
+
+The candidate list is whatever [the goodbye](../output/goodbye) writes at the end
+of a run. Which of those earn a place on the carving is undecided.
+
+### 1.4 What picks the creature?
+
+Each record log gets its own. Is the animal chosen by the person, drawn from the
+session's seed, or derived from the statistics themselves -- a long session
+becoming a mammoth, a short violent one becoming a hawk?
+
+The third is the most appealing and the most likely to produce something nobody
+wanted. It is also the only one of the three where the shape of your campaign
+picks its own animal.
 ---
 
 ## Blocking phase 2 — the world can be seen
@@ -46,9 +81,14 @@ constraint on it.
 ### 2.1 How coarse is the fog memory grid?
 
 [Sight and what it remembers](007-sight-and-what-it-remembers.md) proposes one
-world unit per cell. Coarser is smaller and remembers a corridor you only glanced
-into; finer is exact and costs bits. The number is configuration either way, but
-the default matters because it is what everyone will use.
+world metre per cell, which now that the scale is settled means a map a hundred
+and twenty metres on a side costs under two kilobytes per viewer. That is cheap
+enough that the argument for coarser has mostly evaporated.
+
+What is left of the question is the other direction: whether a metre is too coarse
+for a corridor you only glanced into. A metre cell that is set because one corner
+of it fell inside your vision claims you remember a square metre of floor you
+barely saw.
 
 ### 2.2 Does a viewer with many bodies see the union, or switch between them?
 
@@ -84,18 +124,25 @@ should probably be measured in phase 2's demo rather than chosen now.
 
 ## Blocking phase 4 — people connect
 
-### 4.1 Why one port per participant, rather than one port and many sockets?
+### 4.1 Why one port per participant? — ANSWERED
 
-[The door and the private port](003-the-door-and-the-private-port.md) argues for
-it after the fact: the kernel resolves identity, the outbound filter binds once
-and cannot be misthreaded, and operations become legible. Those are real. The
-counter-case has not been argued: one listening socket needs no port range,
-crosses NAT without a conversation with a router, and has a dispatch that is
-thoroughly tested in every server ever written.
+**Kept.** One listening port per participant, and the host forwards a range.
 
-This is the single most reversible-looking decision that is actually expensive to
-reverse later, because the filter-binds-to-the-socket property is what phase 4's
-whole security argument leans on.
+What it buys: the kernel resolves identity before any of our code runs, so there
+is no session lookup in the receive path and no bug possible in one. And the
+per-person outbound filter binds to the socket once, at bind time, rather than
+being passed as a parameter on every outbound message -- which removes the single
+most plausible way a secret could leak, a misthreaded "who is this for".
+
+What it costs, unchanged and accepted: a host behind a home router forwards a
+contiguous range rather than one port, which is a longer conversation with a
+router's web interface. [Desire](../desire/what-would-be-better) records the wish
+that this not be what stops somebody joining, and
+[faith](../faith/boons-expected) records the expectation that it will be, on the
+first evening a real table tries this.
+
+Both of those stay written down. If the expectation turns out right, this is the
+decision to revisit, and the argument above is what would have to be given up.
 
 ### 4.2 What is in the `secret` field of a join request?
 
@@ -310,3 +357,48 @@ the terminal view ignores appearance entirely and draws glyphs by `kind` -- whic
 is honest and slightly weakens the proof -- or the appearance layer has a
 representation the terminal can use, which is a constraint on
 [the sprite studio](017-the-sprite-studio.md) that nothing currently states.
+
+---
+
+## Blocking phase 4 — the command machine
+
+These arrived with the bytecode decision and are downstream of it.
+
+### 12.1 Does an out-of-range value round, or refuse?
+
+[Commands](010-commands-enter-through-one-door.md) resolves this by making it
+mostly moot: a slot's bit width *is* its range, so an out-of-range value is
+inexpressible rather than rejected, and a value landing between representable
+steps rounds to the nearest, which is what a fixed-width field means.
+
+The exception written in is **references**. A 32-bit index is a legal `uint32_t`
+and still points past the end of the array, and that is refused rather than
+clamped, because clamping an index silently redirects a command onto whichever
+body happened to be last.
+
+**The reading being checked:** "rounded to the nearest of these" was read as
+*quantise within the representable set*, not as *clamp anything larger down to the
+maximum*. Those differ exactly when a value is genuinely out of range, and
+clamping there would be a fallback -- which this project's standing rule treats as
+a warning, and a warning as an error. If the intent was the literal clamp, this
+document and that rule are in conflict and the conflict should be settled rather
+than split.
+
+### 12.2 What exactly is "bitflag-sorted"?
+
+Read as: a flag word after the opcode, one bit per operand, operands following in
+bit order low to high, decoder walking the set bits. That gives derivable
+instruction length with no length field a sender can lie about, absent operands
+costing nothing, and a canonical encoding so the log can be diffed byte for byte.
+
+It is a coherent reading and it may not be the intended one. The phrase could also
+mean the opcode table is *sorted* by flag value so dispatch is a range check rather
+than an index, which is a different and also sensible thing.
+
+### 12.3 Where does the recorded value go, and how big does it get?
+
+Every operand is written to the command log as it is decoded, before anything acts
+on it -- including operands belonging to commands that are then refused. A busy
+table generates a lot of this. Whether the log is capped, rotated, or simply
+allowed to grow for the length of a session has not been decided, and a session is
+hours long.

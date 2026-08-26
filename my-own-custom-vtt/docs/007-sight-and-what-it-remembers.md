@@ -60,9 +60,10 @@ Each viewer has one fog record, and it grows.
 
 Memory is stored as **a bitmap over a coarse cell grid** -- one bit per cell, set
 the first time any part of that cell falls inside the viewer's visibility polygon,
-never cleared. Cell size is configuration; the natural choice is one world foot,
-which for a four-hundred-foot map is 160,000 bits, twenty kilobytes per viewer.
-Twelve people at the table is a quarter of a megabyte, once.
+never cleared. Cell size is configuration; the natural choice is one world metre,
+which for a map a hundred and twenty metres on a side is about fourteen thousand
+bits, under two kilobytes per viewer. Twelve people at the table costs less than
+a photograph, once.
 
 This is the one place a grid appears inside the server, and it is worth being
 precise about why it is not a contradiction of
