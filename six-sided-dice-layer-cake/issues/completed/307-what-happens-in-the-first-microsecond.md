@@ -4,8 +4,27 @@ Produces `src/026-thermal-transient-and-throttle.md`.
 
 ## Current behavior
 
-Nothing. Every thermal number in the project is a steady-state number and the
-machine's load is not steady.
+**Done, and it closed a question opened two phases earlier.**
+`src/026-thermal-transient-and-throttle.md` exists.
+
+**The walking hot spot is thermally invisible.** A multiplier region's time
+constant against its own cold plate is about three milliseconds; a pipeline stage
+is a hundred and fifty microseconds. The array reaches five per cent of its
+steady rise -- about six tenths of a kelvin -- before the work moves to the next
+face. The excursion is small under any face ordering, so the antipodal
+arrangement `010` chose on thermal grounds earns nothing, and `010`'s open
+question closes in the negative. The ordering is now free for something else.
+
+The spout's burst is confirmed as thermally nothing: five and a half millijoules
+into a face's thermal mass is under a millikelvin, which is what makes it an
+energy budget rather than a power one.
+
+Eight constraints, including the ordering of the four protection thresholds --
+three constraints on four numbers that are obviously in the right order, which is
+exactly the situation where one gets retuned and the order quietly breaks.
+
+**The load step's electrical consequence is real even though its thermal one is
+not**, and a reader of this file alone would come away thinking otherwise.
 
 ## Intended behavior
 

@@ -36,8 +36,8 @@ Described by `204`.
 |---|---|---|---|
 | `L_corner` | `013` | 12 mm | edge of a corner manifold block, set by the two chambers that have to fit inside it (015) |
 | `L_cube` | `012` | 60 mm | outer edge length of the finished cube; follows from the four dimensions below it in the chain |
-| `Q_total` | **nothing declares this** | — | — |
-| `dp_loop` | **nothing declares this** | — | — |
+| `Q_total` | `024` | unresolved | volumetric flow through the whole machine |
+| `dp_loop` | `024` | unresolved | the whole circuit inside the cube, one path from a fed corner to a drained one |
 | `f_solid_rail` | `013` | 0.6 | fraction of an edge rail's square section that is metal rather than channel |
 | `mu_water` | `011` | 0.000577 Pa*s | dynamic viscosity of water at 320 K, a third below its value at 293 K |
 | `n_edge` | `010` | 12 | edges, each carrying a supply and a return channel |
@@ -46,7 +46,7 @@ Described by `204`.
 | `rho_ss` | `011` | 7900 kg/m^3 | density of stainless steel |
 | `rho_water` | `011` | 989 kg/m^3 | density of water at 320 K, the mean coolant temperature |
 | `sigma_ss_y` | `011` | 290 MPa | yield stress of annealed stainless steel |
-| `v_erosion_max` | **nothing declares this** | — | — |
+| `v_erosion_max` | `021` | 4 m/s | velocity above which flow erosion of the wetted materials shortens the life in 086 |
 | `w_rail` | `012` | 4 mm | width of an edge rail, taken off each edge of each face plate; sized by the duct area 024 needs |
 
 ## What consumes it
@@ -55,21 +55,22 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `w_rail_chan` | `016` |
-| `h_rail_chan` | `016` |
+| `w_rail_chan` | `016`, `022` |
+| `h_rail_chan` | `016`, `022` |
 | `t_rail_web` | `016` |
 | `t_rail_wall` | `016` |
 | `K_rail_ends` | `016` |
 | `A_rail_chan` | `016` |
-| `L_rail` | `016` |
-| `D_rail` | `016` |
+| `L_rail` | `016`, `022` |
+| `D_rail` | `016`, `022` |
 | `n_rail_chan` | `016` |
 | `Q_rail` | `016` |
 | `v_rail` | `016` |
 | `Re_rail` | `016` |
 | `f_rail` | `016` |
-| `dp_rail` | `016` |
+| `dp_rail` | `016`, `024` |
 | `f_rail_loss` | `016` |
+| `V_rail_wet` | `024` |
 | `p_burst_web` | `016` |
 
 ## What it asserts

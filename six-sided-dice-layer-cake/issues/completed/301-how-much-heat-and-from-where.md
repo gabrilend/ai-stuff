@@ -4,7 +4,24 @@ Produces `src/020-heat-budget.md`.
 
 ## Current behavior
 
-Nothing. Nineteen hundred and ten watts is used everywhere and derived nowhere.
+**Done.** `src/020-heat-budget.md` exists. Every watt is attributed to a
+mechanism -- switching energy times operation rate times utilisation, leakage
+times area times a temperature factor, read energy times bandwidth -- so the
+budget moves when the clock or the die area does.
+
+**The leakage loop is closed as a constraint rather than as an iteration.** The
+notation cannot iterate, so the junction temperature the leakage term is
+evaluated at is entered as a `given` and `025` derives what the resulting power
+actually produces; a constraint requires the two within a per cent. That is the
+only honest way to put a circular calculation into a set of one-way derivations,
+and it means changing the cooling reports a mismatch instead of hiding one.
+
+Six constraints. The energy identity -- input power equals heat removed -- is
+asserted as an exact agreement rather than an inequality, because it is the one
+statement here that cannot be approximately true.
+
+**The spout is absent on purpose.** A hundred and sixty-eight watts for
+thirty-three microseconds is an energy, not a power, and it lives in `026`.
 
 ## Intended behavior
 

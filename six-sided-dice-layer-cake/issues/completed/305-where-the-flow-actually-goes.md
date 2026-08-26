@@ -4,8 +4,22 @@ Produces `src/024-flow-network.md`.
 
 ## Current behavior
 
-Nothing. Three and a half litres a minute has been divided evenly by six and by a
-hundred and seventy-three and nobody has checked whether it divides that way.
+**Done in part.** `src/024-flow-network.md` exists with every branch resistance
+derived from a geometry that another blueprint owns: the friction factor in the
+microchannels is the laminar rectangular-duct polynomial rather than a circular
+approximation, and the rails and corners take theirs from `016` and `015`.
+
+Seven constraints. The counter-intuitive result is written down: in laminar flow
+the convection coefficient does not depend on velocity, so halving the flow does
+not halve the cooling -- it doubles only the coolant's own rise, which is a fifth
+of the chain. `027` builds its pump redundancy on that.
+
+**The network is not solved and the ticket asked for it to be.** The worst-served
+fraction is a `target`, and the checker reports it as unfinished on every run.
+Solving twenty branches across eight nodes needs a linear solve this notation
+cannot express, and until it exists the junction temperature in `025` rests on an
+estimate. **This is the largest unfinished piece in the phase** and the ticket
+stays open in that respect even though the blueprint is written.
 
 ## Intended behavior
 

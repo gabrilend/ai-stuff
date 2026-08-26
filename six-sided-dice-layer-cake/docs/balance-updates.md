@@ -116,3 +116,30 @@ That would give the seventy microns back and is recorded in `018`.
 in a twelve millimetre corner block is exactly twelve millimetres for an M4,
 which leaves no material around it. The shock load at a mount point is under a
 hundred and forty newtons, so an M3 is generous.
+
+**2026-08-26 — the cube ships dry.** `021`, and it goes into `082` and `085`.
+Water freezes at zero and a cube may see minus twenty in transit, so the
+constraint failed outright rather than marginally. The alternative was an
+antifreeze additive at about fifteen per cent of the thermal performance and a
+new set of properties in `011`. Shipping empty costs a filling and purging step
+in the installation procedure instead, and it means a cube that arrives is not a
+cube that can be switched on.
+
+**2026-08-26 — leak rate re-expressed as a volume.** `017`, `027`. A helium leak
+rate quoted in millibar litres per second is a pressure-volume throughput and
+therefore has the dimensions of power, which the checker noticed when it was
+compared against a reservoir emptying. Dividing it by the working pressure gives
+a volume flow, which is the thing the reservoir actually loses. A hundred and
+sixty-six joints come to a few cubic millimetres a year, which the reservoir
+absorbs without noticing.
+
+**2026-08-26 — the antipodal face ordering earns nothing.** `010`, `026`.
+Recorded here rather than reverted, because the ordering is harmless and may yet
+be useful. Consecutive pipeline stages were put on opposite faces so that the hot
+region walking around the cube during single-stream generation would land
+alternately at opposite ends. The silicon does not notice: a multiplier region's
+thermal time constant against its own cold plate is about three milliseconds and
+a pipeline stage is a hundred and fifty microseconds, so the array reaches five
+per cent of its steady rise before the work moves on. The excursion is under a
+kelvin under any ordering. The ordering is now free for something else, most
+likely shorter storage line routing.

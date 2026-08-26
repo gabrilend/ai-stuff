@@ -4,8 +4,25 @@ Produces `src/021-working-fluid.md`.
 
 ## Current behavior
 
-Water is assumed throughout and argued nowhere. `009` entry B2 carries it as a
-blocking question.
+**Done.** `src/021-working-fluid.md` exists and opens by fixing the word:
+coolant is a role, not a substance, and the question is water against a liquid
+that does not conduct rather than water against coolant.
+
+**The fluid is a parameter.** A switch selects between the two property sets and
+every downstream number reads the selection. The mechanism is a linear blend
+rather than a branch, because the notation has no conditionals and does not need
+one -- and a constraint refuses any value between zero and one, since a half
+would produce a blend of two fluids that describes nothing.
+
+The finding is that **the design survives the substitution**: junction
+temperature rises about eleven kelvin against forty of margin, and pumping power
+goes from a rounding error to something visible. That is only available because
+there is margin, and it means the choice is a reliability judgement rather than a
+thermal one.
+
+**Water freezing decided something.** A cube may see minus twenty in transit and
+water freezes at zero, so the constraint failed outright. The cube ships dry,
+which puts a fill and purge into `082` and `085`.
 
 ## Intended behavior
 

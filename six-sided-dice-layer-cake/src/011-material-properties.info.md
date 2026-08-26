@@ -67,29 +67,35 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `k_si` | `011` |
-| `rho_si` | `013` |
+| `k_si` | `011`, `022`, `025` |
+| `rho_si` | `013`, `026` |
+| `cp_si` | `026` |
 | `cte_si` | `011`, `018` |
 | `E_si` | `018` |
 | `sigma_si_frac` | `011` |
 | `sigma_si_plas` | `011`, `018` |
+| `T_si_max` | `021`, `025`, `026`, `027` |
 | `k_cu_bulk` | `011` |
 | `k_cu_plated` | `011` |
 | `k_cu_film` | `011` |
 | `cte_cu` | `011`, `018` |
-| `rho_cumo` | `013` |
+| `rho_cumo` | `013`, `026` |
+| `cp_cumo` | `026` |
 | `cte_cumo` | `011`, `018` |
 | `cte_glass` | `018` |
 | `rho_ss` | `013`, `015`, `016` |
 | `cte_ss` | `018`, `019` |
 | `sigma_ss_y` | `015`, `016` |
-| `rho_water` | `013`, `015`, `016` |
-| `cp_water` | `011` |
-| `k_water` | `011` |
-| `mu_water` | `011`, `016` |
-| `cp_fluoro` | `011` |
-| `k_fluoro` | `011` |
-| `mu_fluoro` | `011` |
+| `rho_water` | `013`, `015`, `016`, `021` |
+| `cp_water` | `011`, `021` |
+| `k_water` | `011`, `021` |
+| `mu_water` | `011`, `016`, `021` |
+| `T_water_frz` | `021` |
+| `rho_fluoro` | `021` |
+| `cp_fluoro` | `011`, `021` |
+| `k_fluoro` | `011`, `021` |
+| `mu_fluoro` | `011`, `021` |
+| `T_fluoro_frz` | `021` |
 | `k_diamond` | `011` |
 | `Pr_water` | `011` |
 | `Pr_fluoro` | `011` |

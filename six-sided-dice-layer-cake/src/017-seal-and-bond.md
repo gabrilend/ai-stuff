@@ -57,7 +57,7 @@ mult_burst    | 1   | given | 5.0   | burst pressure as the same
 d_cord        | mm  | given | 2.50  | diameter of the elastomer cord in a compression groove. One millimetre was tried first and fell fifteen microns short of the tolerance loop; the bow that 018 then found pushed the flatness allowance from fifteen microns to fifty and the cord with it
 squeeze_min   | 1   | given | 0.15  | least fractional squeeze at which the cord seals
 squeeze_max   | 1   | given | 0.30  | most it tolerates before compression set over the cycle count is unacceptable
-leak_per_seal | 1   | measured | 1e-9 | helium leak rate per joint at proof pressure, in millibar litres per second, for a good elastomer seal in a groove
+leak_per_seal | mbar*L/s | measured | 1e-9 | helium leak rate per joint at proof pressure for a good elastomer seal in a groove. A leak rate quoted this way is a pressure-volume throughput and therefore has the dimensions of power, which is worth knowing before dividing it by anything
 comp_set      | 1   | measured | 0.20 | fraction of its squeeze an elastomer of this class loses permanently over a hundred thousand cycles at temperature
 w_seal_min    | mm  | given | 1.20  | least width of face plate rim a groove and its land need
 
@@ -70,7 +70,9 @@ p_proof       | Pa  | derived | p_work * mult_proof           | pressure every w
 p_burst       | Pa  | derived | p_work * mult_burst           | pressure at which a wall is permitted to fail
 seal_compression_range | mm | derived | d_cord * (squeeze_max - squeeze_min) | the band of gap variation a groove can take up while still sealing
 seal_end_of_life       | mm | derived | d_cord * squeeze_min / (1 - comp_set) | squeeze that must be present when new, so that after a hundred thousand cycles of set there is still enough left to seal
-leak_total    | 1   | derived | n_seal_total * leak_per_seal  | total permitted leak from the machine, in the same units as the per-seal figure
+leak_total    | mbar*L/s | derived | n_seal_total * leak_per_seal | throughput of every joint in the machine added together
+Q_leak_seal   | m^3/s | derived | leak_per_seal / p_work        | volumetric loss at one joint at working pressure; a throughput divided by the pressure driving it is a volume flow
+Q_leak_total  | m^3/s | derived | n_seal_total * Q_leak_seal    | and for all hundred and sixty-six of them
 L_seal_line   | mm  | derived | n_seal_plate * L_plate        | length of compression seal line around the face plates alone
 ```
 
@@ -81,7 +83,7 @@ C-017-1 | seal_compression_range >= tol_loop | the squeeze band must take up the
 C-017-2 | seal_end_of_life * (1 + comp_set) <= d_cord * squeeze_max | the squeeze needed when new, allowing for the set the elastomer will take, must still be inside what it tolerates. A seal fitted tight enough to survive its own ageing must not be so tight that the ageing is what kills it
 C-017-3 | w_seal >= w_seal_min          | the rim left around the die block by 012 must be wide enough for a groove and its land
 C-017-4 | p_burst > p_proof             | burst above proof, which is trivially true and worth asserting because the two multipliers are separate symbols and somebody will edit one
-C-017-5 | leak_total < leak_budget      | the sum of a hundred and sixty-six joints' permitted leak must stay under what the reservoir in 027 can lose between services without the level sensor tripping
+C-017-5 | Q_leak_total < Q_leak_max     | the sum of a hundred and sixty-six joints' permitted loss must stay under what the reservoir in 027 can give up between services without the level sensor tripping
 C-017-6 | n_seal_total > 150            | a floor asserted deliberately in the direction of alarm: this design has more than a hundred and fifty places for water to get out, and a version of it that appeared to have forty would mean somebody had stopped counting the via island rings
 ```
 

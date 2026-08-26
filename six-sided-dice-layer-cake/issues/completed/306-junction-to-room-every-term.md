@@ -4,8 +4,25 @@ Produces `src/025-thermal-resistance-network.md`.
 
 ## Current behavior
 
-`005` draws the chain with numbers beside it. None of them is derived and one of
-them — the largest — is a guess.
+**Done.** `src/025-thermal-resistance-network.md` exists with every term derived
+and worst case taken at every step -- the worst-served field, the hottest point
+in the coolant path, the highest-power die, the hottest region on it, all at once.
+
+**The mechanism turned out not to be what the word suggests.** *Spreading
+resistance* implies heat travelling sideways to reach a cooled area, and here it
+does not have to: the cold plate covers the whole die back and the channels are
+directly above, so getting out vertically is a fifth of a kelvin. The problem is
+that only the channels above the multiplier array are available to it -- a tenth
+of the wetted area removing seventy per cent of the heat -- which is about twelve
+kelvin instead of the face's two. It is a floorplanning problem wearing a
+plumbing costume.
+
+Six constraints, all holding, with more than twenty kelvin of margin.
+
+**Two things it rests on are not solid.** The array's area and power share are
+entered from a floorplan `041` has not written, which is `009` entry T1. And the
+worst-served fraction it divides by is `024`'s target rather than a solved
+network, so the headline junction temperature is derived from an estimate.
 
 ## Intended behavior
 
