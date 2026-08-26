@@ -12,7 +12,7 @@ is for.
 
 | | | Status |
 |---|---|---|
-| `101` | The two archives | not started |
+| `101` | The two archives | **completed** — both archives fetched, provenance recorded, settings and the two rituals in place |
 | `102` | Reading a shape out of XML | not started |
 | `103` | The line the brush took | not started |
 | `104` | A surface that holds grey | not started |
@@ -33,3 +33,14 @@ catches it.
 length that some decoders open. Round-tripping is the only test that finds it.
 
 Everything else here is ordinary work.
+
+## What `101` turned up
+
+Two assumptions that were wrong in the same way — both were about checking a
+thing by looking at the part of it that is easiest to look at.
+
+A download was to be verified by reading the start of the file. Downloads fail
+at the end. And the project root was to be verified by comparing two paths as
+strings, on a machine where one directory has two absolute paths. Both checks
+were cheap, both were plausible, and both would have reported success on exactly
+the failure they existed to catch.

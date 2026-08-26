@@ -2,7 +2,29 @@
 
 ## Current behavior
 
-Nothing exists. There is a vision document and a set of empty directories.
+Done. `src/010-fetch-the-archives.lua` takes both archives, decompresses them
+into `assets/`, and writes `assets/archive-provenance.txt`. `src/009-where-things-are.lua`
+resolves the project root, loads `input/settings.lua`, and provides the startup
+and goodbye rituals every program here observes.
+
+Two things came out differently from the plan, both because the machine
+disagreed with an assumption:
+
+**The shape check reads both ends of the file, not the beginning.** The plan
+said to check that the file contains what it should. A download fails by losing
+its *tail*, so a check on the head proves only that the file started arriving.
+The check is now that the document opens with its root element and closes with
+it, which is what "this file is whole" actually means. KANJIDIC2 made the point
+twice over: its document type declaration runs to several hundred lines, so the
+first content tag is nowhere near the start.
+
+**The project root is compared as a location, not as a spelling.** The root is
+hard-coded and overridable as every path here is, and it is also checked against
+where the file physically sits so a moved copy cannot silently read the
+original's data. On this machine the same directory answers to two absolute
+paths, so the check fired on every run about nothing. Paths are now resolved to
+their physical form on both sides before being compared, and the notice fires
+only when the project has genuinely moved.
 
 ## Intended behavior
 
