@@ -204,7 +204,7 @@ engineer would receive and what they would still have to find out.
 
 Everything in this document is rounded prose. **The figures are derived, not
 estimated**, and three generated documents carry them: `089` is the specification
-sheet, `088` the bill of materials, and `091` every symbol in the project with its
+sheet, `088` the bill of materials, and `101` every symbol in the project with its
 unit, its derivation and the sentence saying what it is.
 
     ./run-checks     every constraint, evaluated
