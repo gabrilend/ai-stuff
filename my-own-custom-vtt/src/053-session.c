@@ -212,6 +212,29 @@ static int state_capture(struct session *s, struct turn_state *state)
         }
     }
 
+    /*
+     * And the ruleset's sheets, which are not flat bytes and so need a copy of
+     * their own kind. See issue 703, reopened to close what was open question
+     * 14.1 -- the largest known hole in the project for four phases.
+     *
+     * A failure here does NOT fail the capture. Play carries on; that one turn
+     * simply cannot be taken back, and it says why. Failing the capture would
+     * stop an evening over a line in somebody's homebrew, which is the same
+     * argument that made an abandoned rule hook fail open.
+     */
+    state->sheets_copied = 1;
+    state->sheet_trouble[0] = '\0';
+
+    if (s->rules != NULL) {
+        const char *why = "";
+
+        if (!rules_snapshot_sheets((struct ruleset *)s->rules, s->turn, &why)) {
+            state->sheets_copied = 0;
+            snprintf(state->sheet_trouble, sizeof(state->sheet_trouble),
+                     "%.240s", why);
+        }
+    }
+
     state->used = 1;
 
     return 1;
@@ -267,6 +290,16 @@ static void begin_turn(struct session *s, uint32_t turn)
      * The head snapshot is taken when a window OPENS, not when it closes. What a
      * rollback wants is the state before anybody said anything.
      */
+    /*
+     * The slot about to be overwritten held a turn's sheets. Told to let them
+     * go, because otherwise the snapshots table grows for the length of the
+     * session and holds every turn ever played -- a leak that only appears on a
+     * long evening.
+     */
+    if (s->rules != NULL && slot->used) {
+        rules_forget_sheet_snapshot((struct ruleset *)s->rules, slot->turn);
+    }
+
     state_capture(s, slot);
 
     s->ring.next = (s->ring.next + 1) % s->ring.depth;
@@ -421,11 +454,36 @@ int session_can_roll_back_to(const struct session *s, uint32_t turn)
 
     for (i = 0; i < s->ring.depth; i++) {
         if (s->ring.slots[i].used && s->ring.slots[i].turn == turn) {
-            return 1;
+            /*
+             * Two reasons a turn is not rollbackable, and this is the second
+             * one. The first is that it fell out of the ring. The second is that
+             * its sheets could not be copied -- and both must be answered
+             * BEFORE anybody restores anything, because a half-restore is worse
+             * than a refusal.
+             */
+            return s->ring.slots[i].sheets_copied ? 1 : 0;
         }
     }
 
     return 0;
+}
+/* }}} */
+
+/* {{{ const char *session_why_not_rollbackable */
+const char *session_why_not_rollbackable(const struct session *s, uint32_t turn)
+{
+    uint32_t i;
+
+    for (i = 0; i < s->ring.depth; i++) {
+        if (s->ring.slots[i].used && s->ring.slots[i].turn == turn) {
+            if (s->ring.slots[i].sheets_copied) {
+                return "";
+            }
+            return s->ring.slots[i].sheet_trouble;
+        }
+    }
+
+    return "that turn has fallen out of the ring";
 }
 /* }}} */
 
@@ -450,8 +508,31 @@ int session_rollback(struct session *s, uint32_t turn, uint8_t mode)
     log_end = s->log.count;
     replay_to = s->sim.tick;
 
+    /*
+     * A turn whose sheets could not be copied is not rollbackable. Refused
+     * before anything is restored, so the world is left exactly where it was --
+     * a half-restore is the failure this whole path exists to avoid.
+     */
+    if (!head->sheets_copied) {
+        return 0;
+    }
+
     if (!state_restore(s, head)) {
         return 0;
+    }
+
+    if (s->rules != NULL) {
+        const char *why = "";
+
+        if (!rules_restore_sheets((struct ruleset *)s->rules, turn, &why)) {
+            /*
+             * The world is already back. This cannot be undone and is not
+             * pretended away: the caller gets a 0, which it must read as "the
+             * geometry moved and the numbers did not", and the ruleset's own
+             * last_error says which sheet.
+             */
+            return 0;
+        }
     }
 
     /*

@@ -107,6 +107,22 @@ emit_c_string() {
 
 {
     echo "/*"
+    echo " * 073-embedded-copier.h -- GENERATED. Do not edit."
+    echo " *"
+    echo " * Produced by ./build from 073-sheet-copier.lua. It is embedded rather"
+    echo " * than read from disk because the server must be one file to copy, and"
+    echo " * because a Lua chunk read at runtime is a file somebody can swap."
+    echo " */"
+    echo "#ifndef VTT_EMBEDDED_COPIER_H"
+    echo "#define VTT_EMBEDDED_COPIER_H"
+    echo
+    emit_c_string "embedded_sheet_copier" "${SRC}/073-sheet-copier.lua"
+    echo
+    echo "#endif"
+} > "${BUILD}/073-embedded-copier.h"
+
+{
+    echo "/*"
     echo " * 066-embedded-view.h -- GENERATED. Do not edit."
     echo " *"
     echo " * Produced by ./build from 066-view.html and 067-view.js. Editing this"

@@ -9,7 +9,8 @@
  * So this runs the same scripted sequence under both and prints what each did.
  *
  * It also shows the two things that do not work: a ruleset that raises an error,
- * and a rolled-back turn that restores the geometry and not the hit points.
+ * and a rolled-back turn that puts the hit points back with the geometry --
+ * which it did not, for four phases, and which this demo used to show failing.
  * Hiding either would be the demo lying.
  *
  * Run through ./run-phase-demo 7.
@@ -22,6 +23,9 @@
 #include "033-validate.h"
 #include "031-region.h"
 #include "035-worldfile.h"
+
+#include <lua.h>
+#include <lauxlib.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +61,48 @@ struct table {
     uint32_t       viewer;
 };
 /* }}} */
+
+/*
+ * What the ruleset thinks this body's hit points are.
+ *
+ * The DEMO may read a sheet. The server may not, and does not -- this is a
+ * program showing what a ruleset is doing, which is a different job from being
+ * the thing that must not have an opinion about hit points.
+ */
+/* {{{ static int hit_points_of */
+static int hit_points_of(struct table *t, uint32_t thing)
+{
+    lua_State *L = t->rules.state;
+    char source[128];
+    int found = -1;
+
+    /*
+     * Keyed by the THING index, because that is what this ruleset passes to
+     * vtt.sheet. The server hands out a sheet field on every thing and this
+     * ruleset ignores it -- which is allowed, and is the point: what a sheet
+     * index means is the ruleset's business and never the server's.
+     */
+    snprintf(source, sizeof(source),
+             "local s = vtt.sheet(%u); return s and s.hp or -1",
+             (unsigned)thing);
+
+    if (luaL_loadstring(L, source) != 0) {
+        lua_pop(L, 1);
+        return -1;
+    }
+
+    if (lua_pcall(L, 0, 1, 0) != 0) {
+        lua_pop(L, 1);
+        return -1;
+    }
+
+    found = (int)lua_tointeger(L, -1);
+    lua_pop(L, 1);
+
+    return found;
+}
+/* }}} */
+
 
 /* {{{ static int sit_down */
 static int sit_down(struct table *t, const char *ruleset, const char **why)
@@ -358,16 +404,35 @@ static void report_the_hole(void)
         return;
     }
 
+    /*
+     * Given hit points before any turn opens, so that the head snapshot has a
+     * number in it. Without this the sheet is simply empty at the head of the
+     * turn -- which restores correctly and reads as nothing.
+     */
+    {
+        lua_State *L = t.rules.state;
+        char source[96];
+
+        snprintf(source, sizeof(source), "vtt.sheet(%u).hp = 10",
+                 (unsigned)t.body);
+
+        if (luaL_loadstring(L, source) == 0) {
+            lua_pcall(L, 0, 0, 0);
+        }
+    }
+
     for (beat = 0; beat < 25; beat++) {
         session_tick(&t.session);
     }
 
     turn = t.session.turn;
 
-    printf("    At the head of turn %u the body stands at (%d, %d).\n",
+    printf("    At the head of turn %u the body stands at (%d, %d)"
+           " with %d hit points.\n",
            turn,
            (int)(world_thing_const(&t.world, t.body)->x / WC_ONE),
-           (int)(world_thing_const(&t.world, t.body)->y / WC_ONE));
+           (int)(world_thing_const(&t.world, t.body)->y / WC_ONE),
+           hit_points_of(&t, t.body));
 
     /* Take some damage, and move. */
     memset(&action, 0, sizeof(action));
@@ -386,9 +451,10 @@ static void report_the_hole(void)
     }
 
     printf("    It is attacked six times and walks a few metres.\n");
-    printf("      now at (%d, %d)\n",
+    printf("      now at (%d, %d), and %d hit points\n",
            (int)(world_thing_const(&t.world, t.body)->x / WC_ONE),
-           (int)(world_thing_const(&t.world, t.body)->y / WC_ONE));
+           (int)(world_thing_const(&t.world, t.body)->y / WC_ONE),
+           hit_points_of(&t, t.body));
 
     session_rollback(&t.session, turn, ROLLBACK_REDECLARE);
 
@@ -397,19 +463,54 @@ static void report_the_hole(void)
            (int)(world_thing_const(&t.world, t.body)->x / WC_ONE),
            (int)(world_thing_const(&t.world, t.body)->y / WC_ONE));
 
+    printf("      and %d hit points -- the numbers returned too\n",
+           hit_points_of(&t, t.body));
+
     printf("      sheets restored: %s\n",
            rules_sheets_survive_rollback(&t.rules) ? "yes" : "NO");
 
     printf("\n");
-    printf("    The hit points did not come back. A world snapshot copies flat\n");
-    printf("    blocks of bytes, which is what makes it a memcpy -- and a Lua\n");
-    printf("    table is not that.\n");
-    printf("\n");
-    printf("    So an undone fight restores where everybody was standing and\n");
-    printf("    leaves the wounds. THIS IS THE LARGEST KNOWN HOLE IN THE PROJECT,\n");
-    printf("    it is open question 14.1, and it is shown here rather than\n");
-    printf("    avoided because a rollback that looks like it worked is worse\n");
+    printf("    FOR FOUR PHASES THE WOUNDS STAYED. A world snapshot copies flat\n");
+    printf("    blocks of bytes, which is what makes it a memcpy, and a Lua table\n");
+    printf("    is not that -- so an undone fight put everybody back where they\n");
+    printf("    had been standing and left them bleeding. This demo showed it\n");
+    printf("    happening, because a rollback that looks like it worked is worse\n");
     printf("    than one that visibly does not.\n");
+    printf("\n");
+    printf("    Three ways out had been written down and all three rejected. The\n");
+    printf("    second was \"serialise the table generically\", turned down for\n");
+    printf("    breaking QUIETLY on a closure -- and that is a property of one\n");
+    printf("    implementation of it, not of the idea. A copier can know\n");
+    printf("    perfectly well what it cannot copy.\n");
+    printf("\n");
+    printf("    So it refuses, by name and by path, and a turn whose sheets could\n");
+    printf("    not be copied is not rollbackable rather than half-restored:\n");
+    printf("\n");
+
+    /*
+     * The refusal, shown rather than described. A ruleset can take the guard off
+     * a sheet and store a closure underneath it, and the demo does exactly that
+     * so the sentence it produces is on the page.
+     */
+    {
+        lua_State *L = t.rules.state;
+        const char *trouble = "";
+
+        if (luaL_loadstring(L,
+                "setmetatable(vtt.sheet(2), nil);"
+                " rawset(vtt.sheet(2), 'attack', function() end)") == 0
+            && lua_pcall(L, 0, 0, 0) == 0) {
+
+            if (!rules_snapshot_sheets(&t.rules, 999, &trouble)) {
+                printf("      %s\n", trouble);
+            }
+        }
+    }
+
+    printf("\n");
+    printf("    Issue 703 was reopened to close this rather than a new issue\n");
+    printf("    being written beside it, because the fix belongs in the issue\n");
+    printf("    that built the storage. Open question 14.1 is answered.\n");
 
     stand_up(&t);
 }
