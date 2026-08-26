@@ -1,0 +1,6 @@
+# The match seed. One integer. Everything random in the match descends from it
+# through the named streams in src/029-random-streams.lua, so the same seed and
+# the same commands produce the same match, tick for tick, on this machine.
+#
+# Change it to play a different match on the same map.
+20260826

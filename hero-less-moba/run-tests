@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+#
+# run-tests -- everything this project checks about itself, in one command.
+#
+# Two halves, and they are genuinely different kinds of check.
+#
+# The written half: this project had documents and issue files long before it had
+# a line of code, and they reference each other constantly. The documentation
+# validator is the compiler for them -- it finds broken links, malformed issues,
+# roadmap drift, and questions that were answered without the issues citing them
+# being updated.
+#
+# The running half: the properties the simulation refuses to break. Determinism,
+# the camera's anchor, the map's symmetry, and the premise itself -- that putting
+# upgrades in a lane moves a frontline.
+#
+# Both halves exit non-zero on failure, so this can be wired into a build.
+#
+# Usage:
+#   ./run-tests                  -- everything
+#   ./run-tests docs             -- only the written half
+#   ./run-tests code             -- only the running half
+#   ./run-tests /path/to/project -- elsewhere
+
+DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
+
+# A leading argument is taken as a project root only when it actually looks like
+# one. Testing for "is a directory" alone is not enough: this script's own modes
+# are words like "docs" and "code", and a directory of that name in the working
+# directory would silently be mistaken for a checkout.
+if [ -d "$1/issues" ] && [ -d "$1/src" ]; then
+    DIR="$1"
+    shift
+fi
+
+WHICH="${1:-all}"
+FAILED=0
+
+if [ "${WHICH}" = "all" ] || [ "${WHICH}" = "docs" ]; then
+    echo "== the written half =="
+    "${DIR}/validate-documentation" "${DIR}"
+    if [ "$?" -ne 0 ]; then
+        FAILED=1
+    fi
+    echo
+fi
+
+if [ "${WHICH}" = "all" ] || [ "${WHICH}" = "code" ]; then
+    echo "== the running half =="
+    luajit "${DIR}/tests/051-the-invariants.lua"
+    if [ "$?" -ne 0 ]; then
+        FAILED=1
+    fi
+fi
+
+exit "${FAILED}"

@@ -10,14 +10,14 @@ problem statement, rendered, and phase 4's demo is the answer to it.
 
 | Issue | | Status |
 | --- | --- | --- |
-| 201 | A soldier is one record | not started |
-| 202 | Walking an edge of the graph | not started |
-| 203 | The brain is five states | not started |
-| 204 | Choosing what to attack | not started |
-| 205 | Damage is buffered, then applied | not started |
-| 206 | The frontline is a queue | not started |
-| 207 | Waves spawn on a cadence | not started |
-| 208 | A wave knows when it is gone | not started |
+| 201 | A soldier is one record | built |
+| 202 | Walking an edge of the graph | built |
+| 203 | The brain is five states | built |
+| 204 | Choosing what to attack | built |
+| 205 | Damage is buffered, then applied | built |
+| 206 | The frontline is a queue | ranks built, lane width not — G3 |
+| 207 | Waves spawn on a cadence | built |
+| 208 | A wave knows when it is gone | built |
 | 209 | The thread pool slices the tick | not started |
 
 **Blocking:** nothing.
@@ -32,3 +32,24 @@ problem statement, rendered, and phase 4's demo is the answer to it.
   makes the middle where a body-count advantage converts fastest.
 
 **Demo:** not yet built.
+
+## Where the prototype got to
+
+The soldier is one record, one movement routine, one targeting routine, one attack
+routine, and the brain is a dispatch table with a row per state. Waves spawn on a
+cadence as a column — captain first, then melee, then ranged — and a wave notices
+when it has been wiped without anything scanning every wave every tick.
+
+**The phase's ending is reproduced.** Two waves meet in the middle of a lane and
+grind to the stalemate the vision describes, and a headless match with nobody
+placing anything runs twenty-two minutes without either side taking a base. Seeing
+the stalemate was the point: it is the problem statement, rendered.
+
+**206 is the gap.** Melee bodies form ranks and ranged bodies hold behind them at
+their own reach, which is the half of the issue that reads correctly on screen. The
+other half — how many bodies a lane's *width* lets stand abreast — is not built at
+all, so the centre lane is wider only in the drawing. See G3, which also blocks B1.
+
+**209 is not started.** The tick runs on one thread. Nothing in the design is in the
+way of slicing it; it simply has not been needed at prototype body counts, where a
+match runs at roughly eighty times real time.

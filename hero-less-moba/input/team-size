@@ -1,0 +1,7 @@
+# How many players per side. There is one lane per player on a team, so this
+# also decides the lane count, the tower count, and therefore the milestone
+# count -- none of which is written down as a constant anywhere.
+#
+# The prototype's map builder only knows how to lay out three lanes and will
+# refuse anything else by name rather than guessing.
+3
