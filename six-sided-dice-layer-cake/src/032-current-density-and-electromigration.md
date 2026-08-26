@@ -47,7 +47,7 @@ n_yr_life     | 1  | given | 10.0 | years the conductors must survive at the des
 T_em_quoted   | K  | given | 319.0 | temperature the current density limit in 011 is quoted at. It was three hundred and fifty, which is where the conductors were assumed to run before 025's chain closed; they run cooler, and a limit quoted hot is conservative rather than wrong -- but a limit quoted at the wrong temperature at all is how this goes wrong silently
 
 A_req_die     | um^2 | derived | I_die_logic / j_em_cu                    | cross-section one die's logic current needs
-A_grid_avail  | um^2 | derived | L_die * 1000 * t_grid_metal * f_grid_metal | cross-section the top metal actually provides across the die's width
+A_grid_avail  | um^2 | derived | L_die * t_grid_metal * f_grid_metal | cross-section the top metal actually provides across the die's width
 m_grid        | 1    | derived | A_grid_avail / A_req_die                 | margin at the binding case
 A_req_island  | um^2 | derived | I_face_supply / j_em_cu                  | cross-section the via islands need
 A_isl_avail   | um^2 | derived | n_island_pad * pi * (p_island_pad * 250)^2 | cross-section they provide, taking a pad as a quarter of its pitch in radius

@@ -44,11 +44,11 @@ e_line_bit    | pJ/bit | measured | 5.0 | energy to move one bit over the line, 
 B_line        | bit/s | derived | n_pair_line * r_pair_line       | what one line's pairs carry
 B_drives      | bit/s | derived | n_drive_line * r_drive          | what the drives behind it supply
 B_feed        | bit/s | derived | n_line_pop * min(B_line, B_drives) | aggregate into the machine
-t_load        | s | derived | C_weights * 8e9 / B_feed            | time to fill the core
+t_load        | s | derived | C_weights / B_feed                  | time to fill the core
 t_load_relay  | s | derived | t_load * n_face / n_line_pop        | and with the sixth slice relayed through the core over one of the five
 P_line        | W | derived | e_line_bit * B_feed                 | what the lines cost while they are running, which is only during a load
 n_drive_total | 1 | derived | n_drive_line * n_line_pop           | drives an installation has to provide
-t_load_min    | s | derived | C_weights * 8e9 / (n_line_pop * r_drive) | load time with a single drive on each line, which is the other end of the deployment table
+t_load_min    | s | derived | C_weights / (n_line_pop * r_drive)  | load time with a single drive on each line, which is the other end of the deployment table
 ```
 
 ## Constraints

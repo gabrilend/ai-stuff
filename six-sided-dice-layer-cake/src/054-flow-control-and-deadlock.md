@@ -73,7 +73,7 @@ n_ring_break   | 1 | given | 1      | stages at which the ring is broken by a st
 f_timeout_marg | 1 | given | 100.0  | how many times the proven worst case a timeout must be set at
 
 t_wait_worst   | s | derived | max(max(t_wait_face, t_wait_spout), t_wait_scrub) | the longest any client can wait, across all three classes
-t_timeout_bar  | s | derived | t_handoff * 1e-9 * f_timeout_marg | timeout on a staging barrier
+t_timeout_bar  | s | derived | t_handoff * f_timeout_marg | timeout on a staging barrier
 t_timeout_txn  | s | derived | t_link_rt * f_timeout_marg        | timeout on a transfer
 n_resource     | 1 | derived | n_channel + n_stage + n_port      | resources a client can hold while waiting for another, which is the size of the graph the argument has to cover
 f_wait_stage   | 1 | derived | t_wait_worst / t_stage            | the worst wait as a share of a pipeline stage

@@ -4,8 +4,28 @@ Produces `src/069b-the-cube-as-memory.md`.
 
 ## Current behavior
 
-Nothing. The idea arrived from outside the design: *it'd be RAM for a normal
-computer to use and read from.*
+**Done.** `src/069b-the-cube-as-memory.md` exists.
+
+The three properties that make it plausible were already there and none was added
+for this: one flat address space, no coherence to maintain because there are no
+copies, and a pane that is already a movable window moved by a single store.
+
+Five constraints. `C-069b-3` is asserted in the **confirming** direction — this
+must be slower than a host's own memory — because the honest positioning is a
+large second tier and a blueprint that let somebody believe otherwise would be
+worse than one that said nothing.
+
+The access rule is expressed as a capacity rather than as a promise: a host sees
+the weight region, which is most of the machine and is immutable while a model is
+loaded, and therefore needs no locking at all.
+
+**The bandwidth cost of this mode is not in `055`.** That blueprint budgets one
+pane a millisecond; a host using this as memory takes a hundred thousand a
+second. **Neither blueprint has reconciled with the other**, and `C-055-5` would
+be the first thing to notice.
+
+**Writing is not specified at all**, though loading a model from the host side is
+listed as a use.
 
 ## Intended behavior
 

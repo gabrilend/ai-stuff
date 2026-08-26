@@ -4,9 +4,28 @@ Produces `src/069a-the-translation-unit.md`.
 
 ## Current behavior
 
-Nothing, and `009` entry O1 called it the largest unspecified block in the
-project. Everything in phase 9 specifies a transmitter and nothing says what
-receives it.
+**Done, and it closes `009` entry O1** — what had been called the largest
+unspecified block in the project.
+
+`src/069a-the-translation-unit.md` exists. The cube is built once and adapters
+are built many times, which is the right way round because host interfaces change
+every few years and a cube does not.
+
+Six constraints. `C-069a-2` is the property that actually justifies sixteen
+million wires, and it is not throughput: **the cube is occupied for under a
+thousandth of the time a whole-core handover takes.** It is a zero-cost output,
+not a fast one.
+
+**The receive circuit had to shrink by a factor of three and a half.** A hundred
+and forty square microns a conductor makes the unit two and a half thousand
+square millimetres — three reticle fields — and it cannot be larger than the
+sending side's anyway, because the far end meets the same pitch.
+
+**Only one variant is worked out**, which is `069b`. **The receiving side's own
+skew is not budgeted.** **And data conditioning leaks into the interface**: `064`
+inverts a tile's data and sends a bit saying so, and something must undo it,
+which means the core-side interface is not quite as protocol-free as `062`
+claims.
 
 ## Intended behavior
 

@@ -10,6 +10,7 @@ Described by `307`.
 
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
+| `dT_spout_max` | K | given | 0.1 K | the most a whole-core output burst may warm the face it leaves through before it stops being an energy the silicon absorbs and starts being a load the coolant sees |
 | `dT_throttle` | K | given | 15 K | how far below the silicon's limit the throttle acts |
 | `dT_halt` | K | given | 5 K | how far below it the machine stops issuing |
 | `t_sensor` | s | measured | 0.0002 s | response time of an on-die temperature sensor, its own settling included |
@@ -21,8 +22,8 @@ Described by `307`.
 | `tau_engine` | s | derived | 0.00255817 s | how long the array takes to reach its steady temperature. The number that decides whether any of the fast transients matter |
 | `tau_loop` | s | derived | 3.80434 s | transport delay round the external circuit |
 | `dT_walk` | K | derived | unresolved | temperature excursion of the walking hot spot over one stage, which is the whole of 010's argument reduced to a number |
-| `E_spout_burst` | J | derived | unresolved | energy to push the entire core through the output tube |
-| `dT_spout` | K | derived | unresolved | what that burst does to the temperature of the face it leaves through |
+| `E_spout_burst` | J | derived | 0.00575563 J | energy to push the entire core through the output tube |
+| `dT_spout` | K | derived | 0.00081779 K | what that burst does to the temperature of the face it leaves through |
 | `t_to_halt` | s | derived | 1.20853 s | how long the machine has, from the design operating point, if all cooling stops at once |
 | `T_throttle` | K | derived | 363 K | threshold at which the clock comes down |
 | `T_halt` | K | derived | 373 K | threshold at which the faces stop |
@@ -35,7 +36,7 @@ Described by `307`.
 | `A_core_side` | `012` | 1600 mm^2 | area of one side of the core block, and of one tier |
 | `A_die` | `012` | 576 mm^2 | area of one compute die |
 | `A_plate` | `012` | 2704 mm^2 | area of one face plate |
-| `E_pane` | **nothing declares this** | — | — |
+| `E_pane` | `062` | 1.67772e-07 J | energy of one pane transfer |
 | `P_die` | `020` | 58.106 W | everything one compute die dissipates at the design point |
 | `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
 | `Q_total` | `024` | 5.86428e-05 m^3/s | volumetric flow through the whole machine |
@@ -50,7 +51,7 @@ Described by `307`.
 | `f_engine_power` | `041` | 0.789509 | share of a die's heat the array makes, which 025's local term needs |
 | `f_solid_plate` | `013` | 0.75 | fraction of a cold plate that is silicon rather than channel |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
-| `n_pane_core` | **nothing declares this** | — | — |
+| `n_pane_core` | `062` | 34306.2 | panes needed to move the whole core |
 | `n_tier` | `036` | 24 | memory tiers in the stack. Twenty-four rather than the thirty-two first sketched, because at the density 035 derives, thirty-two holds half again what is needed |
 | `rho_cumo` | `011` | 10000 kg/m^3 | density of the same |
 | `rho_si` | `011` | 2329 kg/m^3 | density of silicon at 300 K |
@@ -67,6 +68,7 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
+| `dT_spout_max` | `026` |
 | `dT_throttle` | `026` |
 | `dT_halt` | `026` |
 | `t_sensor` | `026` |
@@ -88,7 +90,7 @@ Change one of these and the blueprints beside it are what break.
 | tag | relation | because |
 |---|---|---|
 | `C-026-1` | `dT_walk < 1.0` | the walking hot spot's excursion over one stage must be under a kelvin, which it is by a wide margin. This is 010's ordering argument, checked, and it does not survive: the excursion is small under any ordering and the choice earns nothing |
-| `C-026-2` | `dT_spout < 0.1` | pushing the whole core through the output tube must not warm the face it leaves through by a tenth of a kelvin. It does not come close, which is what makes the spout an energy budget rather than a power one |
+| `C-026-2` | `dT_spout < dT_spout_max` | pushing the whole core through the output tube must not warm the face it leaves through measurably. It does not come close, which is what makes the spout an energy budget rather than a power one |
 | `C-026-3` | `T_j_peak < T_throttle` | the design operating point must sit below the throttle threshold, or the machine throttles constantly |
 | `C-026-4` | `T_throttle < T_halt` | throttle below halt |
 | `C-026-5` | `T_halt < T_si_max` | and halt below the fatal temperature. Three constraints on four numbers that are obviously in the right order, which is exactly the situation where one of them gets retuned and the order quietly breaks |

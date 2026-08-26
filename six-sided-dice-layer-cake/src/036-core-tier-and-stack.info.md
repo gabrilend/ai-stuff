@@ -15,9 +15,9 @@ Described by `503`.
 | `h_stack` | mm | derived | 40.008 mm | height of the stack, which must be the cavity's core dimension |
 | `p_tsv` | um | given | 18 um | pitch of the through-stack via array |
 | `d_tsv` | um | given | 7 um | diameter of one through-stack via. Three microns was tried, then five: a forty millimetre column is a resistance and a capacitance in series, its time constant goes as the reciprocal of the via's area, and five microns settled in two hundred and eleven picoseconds against a two hundred picosecond budget. Seven gives a hundred and eight |
-| `n_tsv_col` | 1 | derived | 2.22222e+06 | via columns across one edge of a tier |
-| `n_tsv` | 1 | derived | 4.93827e+12 | through-stack vias in the whole array |
-| `f_tsv_area` | 1 | derived | 0.118779 | share of a tier's area the via array occupies, which is part of what 035's tier overhead pays for |
+| `n_tsv_col` | 1 | derived | 2222 | via columns across one edge of a tier |
+| `n_tsv` | 1 | derived | 4.93728e+06 | through-stack vias in the whole array |
+| `f_tsv_area` | 1 | derived | 0.118756 | share of a tier's area the via array occupies, which is part of what 035's tier overhead pays for |
 | `C_tsv` | F | derived | 7.8995e-12 F | capacitance of one through-stack via against its oxide liner, taking the shield spacing as three times the via radius |
 | `R_tsv` | ohm | derived | 19.7482 ohm | resistance of the same. Copper rather than tungsten: tungsten is three times the resistivity and over forty millimetres that is the difference between settling inside a core cycle and not |
 | `t_tsv_delay` | s | derived | 1.07641e-10 s | the time constant of a via running the whole height of the stack, which is what decides whether the end faces can be treated like the side faces |

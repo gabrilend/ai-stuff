@@ -14,7 +14,7 @@ Described by `505`.
 | `C_control` | MB | given | 1 MB | control and status, including the pane window's aliasing register |
 | `C_repair` | MB | given | 16 MB | the repair map and scrub state from 040 |
 | `w_interleave` | bit | given | 32768 bit | address granularity at which consecutive addresses move to the next bank. Eight thousand was tried and is narrower than a single cycle's read from one tier, which would have meant every transfer straddling two banks |
-| `C_pane` | MB | derived | unresolved | the window the spout sees, from 062 |
+| `C_pane` | MB | derived | 2.09715 MB | the window the spout sees, from 062 |
 | `n_region` | 1 | given | 9 | regions in the map |
 | `C_staging` | MB | derived | unresolved | the six forward staging buffers |
 | `C_staging_r` | MB | derived | unresolved | and the six reverse ones for training |
@@ -34,7 +34,7 @@ Described by `505`.
 | `C_stage_buf` | `053` | unresolved | one staging buffer: a microbatch of activation vectors |
 | `C_stage_min` | `053` | unresolved | the least a staging buffer can be and still hold one sequence's activations |
 | `C_weights` | **nothing declares this** | — | — |
-| `n_pane_bit` | **nothing declares this** | — | — |
+| `n_pane_bit` | `062` | 1.67772e+07 bit | the pane, rounded down to a power of two so that its window aligns naturally in 038. It carries the unit because it is a quantity of bits rather than a count of things, and everything downstream of it is a size or a rate |
 | `n_stage` | `010` | 6 | pipeline stages a token falls through, one per face |
 | `w_tier_port` | `034` | 10240 bit | bits one tier delivers per cycle, set by its macro count and the routing it can support across a forty millimetre die |
 | `w_transfer` | `052` | 4096 bit | payload of one transfer. Sixteen of 040's correction lines, an eighth of 038's interleave, and large enough that the header is three per cent |
@@ -64,7 +64,7 @@ Change one of these and the blueprints beside it are what break.
 | `C-038-1` | `C_mapped <= C_core_usable` | everything mapped must fit in what 034 says is usable. The map is what turns a capacity into a limit |
 | `C-038-2` | `C_free > 0` | and there must be something left over, because the alternative is a machine that fits its reference model exactly and no other |
 | `C-038-3` | `w_interleave >= w_transfer` | the interleave granularity must be at least 052's transfer size, so that a single transfer is never split across two banks |
-| `C-038-4` | `C_pane * 1e6 == n_pane_bit / 8` | the pane window's size must be exactly what 062 defines, in the units this map uses |
+| `C-038-4` | `C_pane ~= n_pane_bit` | the pane window's size must be exactly what 062 defines |
 | `C-038-5` | `C_staging >= C_stage_min` | the staging buffers must hold at least what 053's look-ahead needs |
 | `C-038-6` | `n_region == 9` | nine regions. Asserted so that a tenth arrives with an argument rather than by accident, since every region is address space nothing else can have |
 | `C-038-7` | `n_bank_stride >= 2` | a bank must be held for at least two cycles before the address moves on, or the crossbar spends more time switching than transferring |

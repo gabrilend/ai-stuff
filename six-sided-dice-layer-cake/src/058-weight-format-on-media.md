@@ -63,8 +63,8 @@ w_hash        | bit | given | 256    | hash width per slice
 p_align_med   | bit | derived | max(w_transfer, w_interleave) | alignment every tensor start must satisfy, being the larger of a transfer and a bank stride
 f_pad_med     | 1 | given | 0.004    | share of the file that is padding to that alignment
 
-C_rotation    | MB | derived | n_ctx * d_head * 2 * w_act / 8e6 / 2 | the carried rotation table: a cosine and a sine per position per pair
-C_media       | GB | derived | C_weights + C_rotation / 1000 + (w_header_med + n_face * w_hash) / 8e9 + C_weights * f_pad_med | the whole file
+C_rotation    | MB | derived | n_ctx * d_head * w_act | the carried rotation table: a cosine and a sine per position per pair
+C_media       | GB | derived | C_weights + C_rotation + w_header_med + n_face * w_hash + C_weights * f_pad_med | the whole file
 C_slice_med   | GB | derived | C_media / n_face                     | one slice's region
 f_sequential  | 1 | derived | 1 - f_pad_med                         | share of a slice read that is one contiguous run, which is the whole point of the format
 n_seek        | 1 | derived | n_face                                | seeks in a whole load: one per slice region, and no more

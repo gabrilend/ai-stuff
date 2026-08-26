@@ -4,8 +4,25 @@ Produces `src/066-spout-bonded-grade.md`.
 
 ## Current behavior
 
-Nothing. The vision's literal reading, taken as far as it goes, has never been
-written as a part.
+**Done.** `src/066-spout-bonded-grade.md` exists, opening with *it is a bond, not
+a connector* because every consequence follows from that sentence.
+
+Six constraints, and two are asserted in the alarming direction deliberately.
+`C-066-1`: with no spares an array this size **fails more often than it works**,
+which is the entire justification for `063`'s spare conductors and which a reader
+who has not multiplied it out will not believe. `C-066-3`: this bond needs a
+flatness **two orders of magnitude tighter** than the face flatness `013`
+specifies — which locates the difficulty precisely. It is not the number of
+wires. It is that two fifty millimetre surfaces must be flat to a fifth of a
+micron while being pressed together hot.
+
+The shipping form is argued: a cube bonded to its own small translation die, with
+the detachable interface on the far side of that.
+
+**The spare coverage bound is crude** — expected failures over spares, which is
+not a probability, and is marked as such. **And nothing says how a failed bond is
+found**, since the only opportunity is after the bond, when the object cannot be
+taken apart.
 
 ## Intended behavior
 
