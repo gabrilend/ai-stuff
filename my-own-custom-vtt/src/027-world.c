@@ -36,6 +36,14 @@ int world_init(struct world *w,
     if (!block_init(&w->vertices, sizeof(struct vertex), vertex_capacity)) return 0;
     if (!block_init(&w->lights,   sizeof(struct light),  light_capacity))  return 0;
 
+    /*
+     * Scopes and their members. Sized from the thing capacity rather than taking
+     * a parameter of their own -- a scope per body is a generous ceiling and
+     * nobody wants a sixth number to pass in.
+     */
+    if (!block_init(&w->scopes,  sizeof(struct scope),  thing_capacity)) return 0;
+    if (!block_init(&w->members, sizeof(uint32_t),      thing_capacity)) return 0;
+
     if (!string_pool_init(&w->strings, string_capacity)) return 0;
 
     return 1;
@@ -50,6 +58,8 @@ void world_release(struct world *w)
     block_release(&w->regions);
     block_release(&w->vertices);
     block_release(&w->lights);
+    block_release(&w->scopes);
+    block_release(&w->members);
     string_pool_release(&w->strings);
 
     memset(w, 0, sizeof(struct world));
@@ -104,6 +114,72 @@ uint32_t world_add_vertex(struct world *w, wcoord x, wcoord y)
 uint32_t world_add_light(struct world *w)
 {
     return block_alloc(&w->lights);
+}
+/* }}} */
+
+/* {{{ uint32_t world_add_scope */
+uint32_t world_add_scope(struct world *w)
+{
+    return block_alloc(&w->scopes);
+}
+/* }}} */
+
+/* {{{ uint32_t world_add_member */
+uint32_t world_add_member(struct world *w, uint32_t thing)
+{
+    uint32_t index = block_alloc(&w->members);
+    uint32_t *slot;
+
+    if (index == BLOCK_NOTHING) {
+        return BLOCK_NOTHING;
+    }
+
+    /*
+     * A LIST scope holds a slice of this pool rather than a list of its own, so
+     * a scope's members must be added consecutively. That is a constraint on the
+     * caller and it is worth stating: it is what lets membership be a start and
+     * a count rather than an allocation per scope.
+     */
+    slot = block_at(&w->members, index);
+    *slot = thing;
+
+    return index;
+}
+/* }}} */
+
+/* {{{ struct scope *world_scope */
+struct scope *world_scope(struct world *w, uint32_t index)
+{
+    return block_at(&w->scopes, index);
+}
+/* }}} */
+
+/* {{{ const struct scope *world_scope_const */
+const struct scope *world_scope_const(const struct world *w, uint32_t index)
+{
+    return block_at_const(&w->scopes, index);
+}
+/* }}} */
+
+/* {{{ uint32_t world_scope_count */
+uint32_t world_scope_count(const struct world *w)
+{
+    return w->scopes.count;
+}
+/* }}} */
+
+/* {{{ uint32_t world_member_count */
+uint32_t world_member_count(const struct world *w)
+{
+    return w->members.count;
+}
+/* }}} */
+
+/* {{{ uint32_t world_member_at */
+uint32_t world_member_at(const struct world *w, uint32_t index)
+{
+    const uint32_t *slot = block_at_const(&w->members, index);
+    return *slot;
 }
 /* }}} */
 
@@ -274,6 +350,8 @@ int world_copy(struct world *destination, const struct world *source)
     if (!block_copy(&destination->regions,  &source->regions))  return 0;
     if (!block_copy(&destination->vertices, &source->vertices)) return 0;
     if (!block_copy(&destination->lights,   &source->lights))   return 0;
+    if (!block_copy(&destination->scopes,   &source->scopes))   return 0;
+    if (!block_copy(&destination->members,  &source->members))  return 0;
 
     /*
      * The string pool is append-only and never shrinks, so a copy is the bytes

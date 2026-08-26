@@ -142,6 +142,55 @@ struct light {
 };
 
 /* ------------------------------------------------------------------------- *
+ * A scope -- the dial
+ *
+ * There is no fixed list of roles. There is a dial, and this is it as a record.
+ *
+ * Reading its four positions -- one body, a few bodies, a region, the map --
+ * looks like four systems. It is TWO FACTS:
+ *
+ *   Membership is one of two rules. A written list, or a region and everything
+ *   inside it. "One body" is a list of length one; "the map" is a region that is
+ *   the whole map. There is no third rule.
+ *
+ *   Driving style is a separate axis. Whether you push a body with keys or issue
+ *   it orders is about input, and has nothing to do with what you may touch.
+ *
+ * Separating those two is what makes the interesting cases fall out rather than
+ * be built. The commander who owns a tavern and moves the coffee cups is not a
+ * feature -- it is a region scope over a region that happens to contain
+ * crockery, driven the ordinary way, moving the ordinary thing record.
+ * ------------------------------------------------------------------------- */
+
+#define SCOPE_LIST    0u   /* A written list of things. */
+#define SCOPE_REGION  1u   /* A region, and everything nested inside it. */
+
+#define STYLE_DRIVEN   0u  /* Keys. You are that body. */
+#define STYLE_ORDERED  1u  /* Select and order, the way a strategy game does. */
+
+/* Sight is not computed; everything is visible. What a GM has. */
+#define SCOPE_SEES_ALL        (1u << 0)
+/* Sees its whole region rather than only from its bodies' eyes. */
+#define SCOPE_SEES_REGION     (1u << 1)
+/* May move walls, place things, hand scopes over. Distinct from commanding. */
+#define SCOPE_MAY_EDIT_WORLD  (1u << 2)
+/* Sees things flagged HIDDEN inside its membership. */
+#define SCOPE_MAY_SEE_HIDDEN  (1u << 3)
+
+struct scope {
+    uint32_t viewer;        /* Who holds it. 0 means unheld, which is normal -- */
+                            /* the forest exists whether anybody is playing it. */
+    uint32_t region;        /* If SCOPE_REGION. */
+    uint32_t first_member;  /* If SCOPE_LIST: into the members pool. */
+    uint32_t member_count;
+    uint32_t name_offset;   /* Shown to people; never used to decide anything. */
+
+    uint8_t  membership;
+    uint8_t  style;
+    uint16_t flags;
+};
+
+/* ------------------------------------------------------------------------- *
  * The world
  * ------------------------------------------------------------------------- */
 
@@ -151,6 +200,14 @@ struct world {
     struct block regions;
     struct block vertices;
     struct block lights;
+
+    /*
+     * Who commands what. World state, so it is snapshotted, rolled back, and
+     * hashed like anything else -- a scope changing hands is something a turn
+     * did, and taking that turn back must take it back too.
+     */
+    struct block scopes;
+    struct block members;   /* A shared pool of thing indices, sliced by scopes. */
 
     struct string_pool strings;
 
@@ -181,6 +238,21 @@ int world_init(struct world *w,
                uint32_t vertex_capacity,
                uint32_t light_capacity,
                uint32_t string_capacity);
+
+/*
+ * Claim a scope, and add a thing to the members pool. A LIST scope's members
+ * must be added consecutively, because a scope holds a slice rather than a list
+ * of its own.
+ */
+uint32_t world_add_scope(struct world *w);
+uint32_t world_add_member(struct world *w, uint32_t thing);
+
+struct scope       *world_scope(struct world *w, uint32_t index);
+const struct scope *world_scope_const(const struct world *w, uint32_t index);
+uint32_t            world_scope_count(const struct world *w);
+
+uint32_t  world_member_count(const struct world *w);
+uint32_t  world_member_at(const struct world *w, uint32_t index);
 
 /* Release everything a world holds. */
 void world_release(struct world *w);

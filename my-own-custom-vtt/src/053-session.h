@@ -129,6 +129,16 @@ void session_attach_fogs(struct session *s, struct fog *fogs, uint32_t count);
 uint16_t session_command(struct session *s, uint16_t verb, uint32_t subject,
                          int32_t ax, int32_t ay);
 
+/*
+ * The same, from a particular participant. A viewer of 0 means the scripted
+ * driver -- inside the process, with no seat at the table, and allowed
+ * everything. Nothing arriving on a socket can be viewer 0, because a viewer
+ * index comes from the port the bytes arrived on.
+ */
+uint16_t session_command_from(struct session *s, uint32_t viewer,
+                              uint16_t verb, uint32_t subject,
+                              int32_t ax, int32_t ay);
+
 /* Advance one beat, closing and reopening the window when it is due. */
 void session_tick(struct session *s);
 

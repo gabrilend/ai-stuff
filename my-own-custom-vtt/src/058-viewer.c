@@ -153,6 +153,10 @@ void viewer_departs(struct viewer_set *set, uint32_t index)
      *
      * Keeping it costs a few kilobytes per departed viewer and is the reversible
      * choice; throwing it away is not.
+     *
+     * THEIR SCOPES ARE UNHELD SEPARATELY, by whoever owns the world -- see
+     * scope_unhold_all. This file deliberately knows nothing about the world, so
+     * that the filter above it can be tested without one.
      */
     v->socket = -1;
     v->state = VIEWER_GONE;
