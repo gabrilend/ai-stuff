@@ -23,7 +23,28 @@ network is more than one edge from a port and every channel carries flow toward 
 load. That was always the stronger argument and it was simply not the one being
 relied on.
 
-**Which rail feeds which face is still not assigned**, and `024` needs it.
+## What is not done
+
+**Which rail feeds which face is not assigned**, and `024` needs it before there
+is a network to solve.
+
+The rule is written and the enumeration is not. Opposite faces run their fields
+perpendicular so that no pair of rails carries two full loads; six faces must
+each take one of the twelve supply rails, the rail must lie on that face's own
+boundary, and no rail may serve two faces. That is a matching problem on the
+cube's edge graph and it has an answer; nobody has written it down.
+
+**The proofs are asserted and not enumerated.** `C-023-1` counts and `C-023-2`
+declares. Neither one reads the twelve-edge list in `010` and checks the parity
+of each endpoint, which is what would make them proofs rather than restatements
+of what the author believes. The notation holds scalars and the twelve-edge list
+is not a scalar, so this cannot be fixed inside a blueprint — it needs a program
+that holds the cube as data.
+
+Both of these are the same missing thing, and `305` needs it too. One instrument
+that holds the eight corners, the twelve edges and the six faces as actual data
+can enumerate the parity, solve the matching, and hand `024` a topology to run a
+flow solve on. It should be built once and used by both.
 
 ## Intended behavior
 
