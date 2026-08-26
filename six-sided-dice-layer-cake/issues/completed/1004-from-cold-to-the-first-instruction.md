@@ -4,7 +4,27 @@ Produces `src/073-reset-and-boot.md`.
 
 ## Current behavior
 
-Nothing. `406` sequences the supplies and stops there.
+**Done.** `src/073-reset-and-boot.md` exists with ten steps, a time for each, and
+a total — which is the answer to a question every operator asks and nothing else
+in the project provided.
+
+The step nobody expects is there: **static memory comes up with arbitrary
+contents, and `040`'s correction over arbitrary contents reports errors
+everywhere**, so the whole core must be written before it is read. It takes
+milliseconds.
+
+Six constraints. `C-073-4` asserts that a warm reset preserves the core as a
+value, because it is the property most likely to be lost in a later
+simplification and losing it turns every software restart into a model reload.
+
+**A claim was corrected by the checker.** The blueprint asserted that memory
+initialisation is longer than the self test; it is not. It is longer than repair
+and link training together, which is what it says now — and the finding is that
+the two slow steps in a cold boot are the model load and a self test whose
+duration is a guess.
+
+**Step five has nowhere to read its map from.** The **fourth** blueprint now
+waiting on the same missing non-volatile store.
 
 ## Intended behavior
 

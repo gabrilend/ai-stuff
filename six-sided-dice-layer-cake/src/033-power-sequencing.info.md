@@ -55,14 +55,14 @@ Change one of these and the blueprints beside it are what break.
 | `C_decouple_all` | `033` |
 | `C_core_decouple` | `033` |
 | `I_inrush` | `033` |
-| `t_powerup` | `033` |
+| `t_powerup` | `033`, `073` |
 | `t_lock` | `033` |
 | `E_holdup` | `033` |
 | `C_array_holdup` | `033` |
 | `t_holdup` | `033`, `039` |
 | `t_down_emerg` | `033` |
 | `t_holdup_ref` | `033` |
-| `t_powerup_max` | `033` |
+| `t_powerup_max` | `033`, `070` |
 
 ## What it asserts
 
