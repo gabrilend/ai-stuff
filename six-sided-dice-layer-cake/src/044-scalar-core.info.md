@@ -17,7 +17,7 @@ Described by `604`.
 | `w_rng_state` | bit | given | 128 bit | width of the carried random state, per sequence |
 | `w_rng_min` | bit | given | 64 bit | the least width at which two sequences will not collide over a long conversation |
 | `n_core_face` | 1 | derived | 4 | scalar cores on a face, one per die |
-| `t_scalar_tok` | s | derived | 2.85714e-16 s | time the core spends per token, at one instruction a cycle |
+| `t_scalar_tok` | s | derived | 2.85714e-07 s | time the core spends per token, at one instruction a cycle |
 | `util_scalar` | 1 | derived | unresolved | how busy it is |
 | `A_scalar_face` | mm^2 | derived | 32.256 mm^2 | area four scalar cores take on a face |
 | `f_scalar_face` | 1 | derived | 0.014 | that as a share of a face, which is the cost of choosing four over one |

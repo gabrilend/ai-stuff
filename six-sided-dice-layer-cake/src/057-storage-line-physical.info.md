@@ -57,9 +57,9 @@ Change one of these and the blueprints beside it are what break.
 | `t_load_relay` | `057`, `061` |
 | `P_line` | `057` |
 | `t_load_min` | `057` |
-| `E_burst_max` | `057` |
-| `t_load_max` | `057`, `061` |
-| `L_reach_line` | `057` |
+| `E_burst_max` | `057`, `062` |
+| `t_load_max` | `057`, `061`, `069b` |
+| `L_reach_line` | `057`, `067` |
 
 ## What it asserts
 

@@ -4,8 +4,27 @@ Produces `src/067-spout-cabled-grade.md`.
 
 ## Current behavior
 
-Nothing. Two thousand and forty-eight pairs at thirty-two gigabits has been quoted
-once.
+**Done, and it resolved the conflict it was written to find.**
+`src/067-spout-cabled-grade.md` exists.
+
+`069a` requires the cube-side interface to be identical across every variant, and
+a pane serialised over a couple of thousand lanes arrives over hundreds of
+nanoseconds in lane order, which is not the same thing arriving. **The resolution
+is that the requirement belongs on the core side, not the cube side**: the core,
+the cage and the pane window are identical in every variant, and a fixed-function
+serialiser on the face is what differs. `069a` says *core-side* now.
+
+Six constraints. Both comparisons are asserted, because either alone misleads —
+two orders of magnitude narrower than the bonded grade, more than one wider than
+a network interface.
+
+**The pair count had to come down by a factor of four.** Two thousand pairs draw
+two hundred and sixty watts, three times even the transient port allowance. A
+serial link costs picojoules a bit where a bond costs femtojoules, and that is
+the real reason this grade is narrow.
+
+**No serial standard is named** and **the serialiser is not designed** — and it
+has to buffer a whole pane, which is memory `041`'s floorplan does not have.
 
 ## Intended behavior
 

@@ -50,7 +50,7 @@ Change one of these and the blueprints beside it are what break.
 | `V_logic` | `028`, `029`, `030`, `031`, `033`, `045` |
 | `V_array` | `028`, `029`, `033` |
 | `V_link` | `028`, `029`, `051` |
-| `V_port` | `028` |
+| `V_port` | `028`, `064` |
 | `V_aux` | `028` |
 | `tol_rail` | `029`, `033` |
 | `droop_frac` | `029` |

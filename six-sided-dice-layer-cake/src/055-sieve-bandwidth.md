@@ -52,9 +52,9 @@ back-off is wrong.
 ## Symbols
 
 ```symbols
-B_stage_hand  | bit/s | derived | C_handoff * 8e6 / t_stage         | staging handoff traffic, one microbatch of activations per stage per step
+B_stage_hand  | bit/s | derived | C_handoff / t_stage               | staging handoff traffic, one microbatch of activations per stage per step
 B_seq_small   | bit/s | derived | n_small_tok * w_transfer / t_token | the sequencer's small control reads
-B_spout_avg   | bit/s | derived | C_pane * 8e6 / t_spout_period      | the spout, averaged over how often a pane is actually taken
+B_spout_avg   | bit/s | derived | C_pane / t_spout_period            | the spout, averaged over how often a pane is actually taken
 t_spout_period| s | given | 1.0e-3                                   | how often a pane is taken in ordinary operation, which is a use assumption rather than a hardware property
 B_other       | bit/s | derived | B_stage_hand + B_seq_small + B_spout_avg + B_scrub + B_poll | everything that is not weight traffic
 f_other       | 1 | derived | B_other / B_core                        | that as a share of the core
@@ -63,7 +63,7 @@ m_link        | 1 | derived | B_link_pads / B_core                    | the link
 m_slice_bw    | 1 | derived | B_slice_read / B_operand_die            | the slice's margin over what one die's engine consumes
 B_face_single | bit/s | derived | B_face_max                          | what one face gets with the others idle, which must be the aggregate
 f_single      | 1 | derived | B_face_single / B_core                  | that as a share, which is the claim reduced to a number that must be one
-t_token_bw    | s | derived | C_weights * 8e9 / B_core                | time per token from this chain, which 061 and 080 must agree with
+t_token_bw    | s | derived | C_weights / B_core                      | time per token from this chain, which 061 and 080 must agree with
 ```
 
 ## Constraints

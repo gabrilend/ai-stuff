@@ -20,16 +20,16 @@ Described by `702`.
 | `w_tile_link` | 1 | given | 4096 | conductors in one source-synchronous tile |
 | `e_link_bit_d` | pJ/bit | measured | 0.1 pJ/bit | energy to move one bit across the interface, driver and receiver together |
 | `L_radial` | mm | derived | 46 mm | edge of the square patch where a face meets the cage |
-| `n_radial_col` | 1 | derived | 2.3e+06 | pad columns across it |
-| `n_radial_pad` | 1 | derived | 5.29e+12 | positions in the array |
-| `n_radial_sig` | 1 | derived | 2.9095e+12 | conductors carrying data |
-| `n_radial_spare` | 1 | derived | 2.645e+11 | conductors held in reserve |
-| `B_link_pads` | bit/s | derived | 5.819e+21 bit/s | what the pad count alone would permit |
-| `P_link_pads` | W | derived | 5.819e+08 W | and what that would cost, which is the number that shows power binds |
+| `n_radial_col` | 1 | derived | 2300 | pad columns across it |
+| `n_radial_pad` | 1 | derived | 5.29e+06 | positions in the array |
+| `n_radial_sig` | 1 | derived | 2.9095e+06 | conductors carrying data |
+| `n_radial_spare` | 1 | derived | 264500 | conductors held in reserve |
+| `B_link_pads` | bit/s | derived | 5.819e+15 bit/s | what the pad count alone would permit |
+| `P_link_pads` | W | derived | 581.9 W | and what that would cost, which is the number that shows power binds |
 | `B_link_used` | bit/s | derived | 3.072e+14 bit/s | what the link is actually provisioned for: everything the memory behind it can deliver |
 | `P_link_used` | W | derived | 30.72 W | and what that costs on one link at full rate |
-| `bind_ratio` | 1 | derived | 1.89421e+07 | how much more the pads would have allowed than the power budget does |
-| `n_tile_link` | 1 | derived | 7.10327e+08 | source-synchronous tiles across the interface |
+| `bind_ratio` | 1 | derived | 18.9421 | how much more the pads would have allowed than the power budget does |
+| `n_tile_link` | 1 | derived | 710.327 | source-synchronous tiles across the interface |
 | `t_flight` | s | derived | 4.66978e-11 s | one-way flight time over the link |
 | `t_link_rt` | s | derived | 9.2434e-09 s | round trip from a face issuing a read to the first data arriving: two flights, the array's access, the worst arbitration wait, and the protocol's own overhead |
 | `t_proto` | s | given | 2e-09 s | fixed protocol overhead in a round trip: framing, decode and the crossing into the cage's clock domain |

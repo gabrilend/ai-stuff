@@ -66,7 +66,7 @@ bdp_face      | bit | derived | B_face_even * t_link_rt           | bandwidth-de
 n_credit_need | 1 | derived | bdp_face / w_transfer               | credits needed to cover it
 B_eff_face    | bit/s | derived | min(B_face_even, n_credit * w_transfer / t_link_rt) | what a face actually achieves, given its credits
 f_credit_loss | 1 | derived | 1 - B_eff_face / B_face_even        | bandwidth lost to running out of credits, which is a loss with no symptom
-n_line_per_token | 1 | derived | C_weights * 8e9 / n_ecc_line / n_face | correction lines one face touches per token, which 048's small reads are judged rare against
+n_line_per_token | 1 | derived | C_weights / n_ecc_line / n_face | correction lines one face touches per token, which 048's small reads are judged rare against
 ```
 
 ## Constraints

@@ -11,15 +11,15 @@ Described by `801`.
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
 | `p_port_coarse` | um | given | 250 um | pitch of the perimeter zone, a detachable land grid |
-| `w_perimeter` | mm | given | 4 mm | width of the perimeter zone on each side |
+| `w_perimeter` | mm | given | 2 mm | width of the perimeter zone on each side. Four millimetres was the first sketch and it costs the fine zone a quarter of its area, which halves the pane in 062 -- and the perimeter needs a few hundred conductors against the several thousand positions two millimetres already gives it |
 | `n_pair_line` | 1 | given | 64 | differential pairs one storage line uses |
 | `n_pad_power` | 1 | given | 96 | pads carrying the face's supply and its return |
 | `n_pad_control` | 1 | given | 32 | pads for management, telemetry and the interlock |
 | `i_pad_port` | A | given | 0.3 A | current one perimeter pad carries |
 | `A_port` | mm^2 | derived | 2704 mm^2 | the whole outward surface |
-| `A_perimeter` | mm^2 | derived | 768 mm^2 | area of the perimeter zone |
-| `A_fine` | mm^2 | derived | 1936 mm^2 | area of the fine zone |
-| `n_pad_perim` | 1 | derived | 1.2288e+10 | positions in the perimeter zone |
+| `A_perimeter` | mm^2 | derived | 400 mm^2 | area of the perimeter zone |
+| `A_fine` | mm^2 | derived | 2304 mm^2 | area of the fine zone |
+| `n_pad_perim` | 1 | derived | 6400 | positions in the perimeter zone |
 | `n_port_conductor` | 1 | derived | 256 | conductors that must reach the interposer through 014's via islands |
 | `I_port_max` | A | derived | 14.4 A | current the power pads will carry, half of them being return |
 | `f_fine_unused` | 1 | derived | 0.833333 | share of the fine zones that will never be bonded to anything, which is the price of one part number |
@@ -30,7 +30,7 @@ Described by `801`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `A_plate` | `012` | 2704 mm^2 | area of one face plate |
-| `A_spout_need` | **nothing declares this** | — | — |
+| `A_spout_need` | `063` | 2304 mm^2 | fine zone area the widest grade needs, which 056 must provide |
 | `I_face_supply` | `028` | 6.56582 A | and per face, which is what a port field connector has to carry |
 | `L_plate` | `012` | 52 mm | edge of a face plate, once the edge rails are taken off |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
@@ -50,9 +50,9 @@ Change one of these and the blueprints beside it are what break.
 | `i_pad_port` | `056` |
 | `A_port` | `056` |
 | `A_perimeter` | `056` |
-| `A_fine` | `056` |
-| `n_pad_perim` | `056` |
-| `n_port_conductor` | `014`, `056`, `057` |
+| `A_fine` | `056`, `062`, `063`, `066`, `068` |
+| `n_pad_perim` | `056`, `067` |
+| `n_port_conductor` | `014`, `056`, `057`, `067` |
 | `I_port_max` | `028`, `056` |
 | `f_fine_unused` | `056` |
 

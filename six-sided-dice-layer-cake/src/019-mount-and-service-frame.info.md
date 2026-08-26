@@ -51,7 +51,7 @@ Change one of these and the blueprints beside it are what break.
 | `n_mount` | `019` |
 | `n_mount_rigid` | `019` |
 | `g_shock` | `019` |
-| `g_accel` | `019` |
+| `g_accel` | `019`, `066` |
 | `d_bolt` | `019` |
 | `V_coupling` | `019` |
 | `n_service` | `019` |

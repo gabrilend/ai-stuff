@@ -76,7 +76,7 @@ f_poll_backoff| 1 | given | 0.01   | share of a stage a polling face spends actu
 tol_stage     | 1 | given | 0.05   | how unequal the six stages may be before the slowest visibly sets the rate
 f_end_rate    | 1 | given | 0.02   | share of steps in which some sequence in the batch produces an end marker
 
-t_token       | s | derived | C_weights * 8e9 / B_core           | time for one token, bandwidth-bound: every weight read once at the core's aggregate rate
+t_token       | s | derived | C_weights / B_core           | time for one token, bandwidth-bound: every weight read once at the core's aggregate rate
 t_stage       | s | derived | t_token / n_stage                  | how long one face works before the sieve moves on
 t_token_comp  | s | derived | batch_design * flop_token / ops_machine | and what one step would take if arithmetic were the wall
 C_stage_buf   | MB | derived | C_activation * batch_design / n_microbatch | one staging buffer: a microbatch of activation vectors

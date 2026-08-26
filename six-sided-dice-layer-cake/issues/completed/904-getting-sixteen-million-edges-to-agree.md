@@ -4,8 +4,25 @@ Produces `src/065-spout-skew-and-timing.md`.
 
 ## Current behavior
 
-Nothing. `007` names the tiling as the answer and never derives the budget it is
-answering.
+**Done.** `src/065-spout-skew-and-timing.md` exists, and it establishes where the
+skew is not before saying where it is — the bond contributes nothing and a reader
+will assume the width is the problem.
+
+`C-065-1` asserts the naive approach's failure in the confirming direction:
+distributing one edge across a face costs at least a quarter of a cycle. It is
+what justifies every conductor the tiling spends, and a reader who does not
+believe it will try the simple thing.
+
+Five constraints. The arrival window is stated as a **contract the far end may
+rely on**, which is what lets `069a` size its buffers without knowing how the
+sending side is built.
+
+**The window has no enforcement.** Nothing measures it, and a sending side that
+drifts outside it fails in a way `069`'s hash sees as corruption rather than as a
+timing fault.
+
+**The receiving side's own distribution is not budgeted** and belongs to `069a`,
+which does not have it.
 
 ## Intended behavior
 

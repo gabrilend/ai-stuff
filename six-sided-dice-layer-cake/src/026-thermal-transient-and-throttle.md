@@ -83,6 +83,7 @@ where the slow thermal response helps rather than hurts.
 ## Symbols
 
 ```symbols
+dT_spout_max  | K | given | 0.1   | the most a whole-core output burst may warm the face it leaves through before it stops being an energy the silicon absorbs and starts being a load the coolant sees
 dT_throttle   | K | given | 15.0  | how far below the silicon's limit the throttle acts
 dT_halt       | K | given | 5.0   | how far below it the machine stops issuing
 t_sensor      | s | measured | 2e-4 | response time of an on-die temperature sensor, its own settling included
@@ -109,7 +110,7 @@ t_lag_budget  | s | derived | (T_halt - T_throttle) * C_face * n_face / P_heat |
 
 ```constraints
 C-026-1 | dT_walk < 1.0                     | the walking hot spot's excursion over one stage must be under a kelvin, which it is by a wide margin. This is 010's ordering argument, checked, and it does not survive: the excursion is small under any ordering and the choice earns nothing
-C-026-2 | dT_spout < 0.1                    | pushing the whole core through the output tube must not warm the face it leaves through by a tenth of a kelvin. It does not come close, which is what makes the spout an energy budget rather than a power one
+C-026-2 | dT_spout < dT_spout_max           | pushing the whole core through the output tube must not warm the face it leaves through measurably. It does not come close, which is what makes the spout an energy budget rather than a power one
 C-026-3 | T_j_peak < T_throttle             | the design operating point must sit below the throttle threshold, or the machine throttles constantly
 C-026-4 | T_throttle < T_halt               | throttle below halt
 C-026-5 | T_halt < T_si_max                 | and halt below the fatal temperature. Three constraints on four numbers that are obviously in the right order, which is exactly the situation where one of them gets retuned and the order quietly breaks

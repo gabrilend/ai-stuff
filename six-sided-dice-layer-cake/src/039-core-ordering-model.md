@@ -90,8 +90,8 @@ n_share_site  | 1  | given | 3     | places in this machine where two faces touc
 coherent      | 1  | given | 0     | whether hardware coherence exists. It does not, and this is written as a number so that a blueprint assuming otherwise fails rather than merely being wrong
 t_write_max   | ns | derived | t_release + t_access + t_wait_face | the longest a write can be in flight: its own release, the array's access, and the worst the arbiter can make it wait. 033's brownout hold-up is judged against this. Written first with a hand conversion from seconds to nanoseconds, which turned nineteen nanoseconds into six and a half seconds
 t_handoff     | ns | derived | t_release + t_acquire + 2 * t_link_rt  | a full stage handoff: release, the flag crossing to the next face, acquire, and the buffer read
-t_pane_excl   | ns | derived | C_pane * 8e6 / B_core * 1e9            | how long the pane read excludes writes, which is the price of choosing exclusion
-f_pane_stall  | 1  | derived | t_pane_excl / (t_token * 1e9)          | that price as a share of a token
+t_pane_excl   | ns | derived | C_pane / B_core                        | how long the pane read excludes writes, which is the price of choosing exclusion
+f_pane_stall  | 1  | derived | t_pane_excl / t_token                  | that price as a share of a token
 ```
 
 ## Constraints
