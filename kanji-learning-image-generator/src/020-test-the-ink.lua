@@ -297,6 +297,349 @@ local function test_the_store(t)
 end
 -- }}}
 
+-- {{{ test_the_canvas(t)
+local function test_the_canvas(t)
+  local canvas = project.load("016-the-grey-canvas")
+  local paths = project.load("014-the-path-language")
+  local flatten = project.load("015-flatten-the-curves")
+
+  -- Strokes cross. If ink accumulated, every crossing would be darker than
+  -- either stroke that made it, and the field would tell a diffusion model to
+  -- put something solid at every joint of every character.
+  local crossing = canvas.new(40, 40, 0)
+  local across = flatten.flatten(paths.parse("M2,20C12,20,28,20,38,20", "across"))
+  local down = flatten.flatten(paths.parse("M20,2C20,12,20,28,20,38", "down"))
+  canvas.stroke(crossing, across, { width = 6, strength = 1 })
+  canvas.stroke(crossing, down, { width = 6, strength = 1 })
+  local low, high = canvas.extremes(crossing)
+  t.near(high, 1, 1e-9, "a crossing is no darker than the strokes that made it")
+  t.near(low, 0, 1e-9, "and the paper around them is untouched")
+
+  -- Asymmetry between the two would mean the distance from a pixel to a line is
+  -- being computed wrongly, and every character would come out with its
+  -- horizontals a different weight from its verticals.
+  local flat_h = canvas.new(40, 40, 0)
+  local flat_v = canvas.new(40, 40, 0)
+  canvas.stroke(flat_h, across, { width = 6, strength = 1 })
+  canvas.stroke(flat_v, down, { width = 6, strength = 1 })
+  local worst = 0
+  for offset = -5, 5 do
+    local horizontal = flat_h.pixels[(20 + offset) * 40 + 20 + 1]
+    local vertical = flat_v.pixels[20 * 40 + (20 + offset) + 1]
+    local gap = math.abs(horizontal - vertical)
+    if gap > worst then worst = gap end
+  end
+  t.near(worst, 0, 1e-9, "a horizontal mark weighs the same as a vertical one")
+
+  -- Blurring treats the outside as more of the edge. Treating it as black would
+  -- darken every border, and the border is exactly where a character's margin is.
+  local uniform = canvas.new(50, 50, 0.42)
+  canvas.blur(uniform, 5, 3)
+  local flat_low, flat_high = canvas.extremes(uniform)
+  t.near(flat_low, 0.42, 1e-9, "blurring a flat surface changes nothing")
+  t.near(flat_high, 0.42, 1e-9, "including at its edges")
+
+  local banded = canvas.new(20, 20, 0)
+  banded.pixels[1] = 0
+  banded.pixels[400] = 1
+  canvas.compress(banded, 0.16, 0.86)
+  local band_low, band_high = canvas.extremes(banded)
+  t.near(band_low, 0.16, 1e-9, "compression puts the darkest value on the floor")
+  t.near(band_high, 0.86, 1e-9, "and the lightest on the ceiling")
+
+  -- A blank sheet has no range to stretch, and stretching it would turn nothing
+  -- into something.
+  local blank = canvas.new(8, 8, 0.3)
+  canvas.compress(blank, 0.2, 0.8)
+  local blank_low, blank_high = canvas.extremes(blank)
+  t.near(blank_low, 0.5, 1e-9, "a surface with no range goes to the middle of the band")
+  t.near(blank_high, 0.5, 1e-9, "everywhere, not just somewhere")
+
+  -- The taper is measured along the arc, not by point index. Flattening puts
+  -- more points where a stroke bends, so tapering by index thins the curves and
+  -- leaves the straight parts blunt.
+  -- A perfectly straight stroke flattens to exactly two points, and both of
+  -- them are at the tapered tips. Asking the brush how wide it is only at those
+  -- two places drew the whole stroke at tip width -- so every horizontal and
+  -- every vertical in the archive came out a quarter of its proper thickness,
+  -- while curved strokes, which flatten to many points, were correct.
+  --
+  -- Measured as actual widths rather than as one pixel being darker than
+  -- another, because the failure was a matter of degree and a spot check
+  -- happened to agree at the centre line.
+  local tapered = canvas.new(60, 20, 0)
+  local line = flatten.flatten(paths.parse("M4,10C20,10,40,10,56,10", "line"))
+  t.same(line.count, 2, "a straight stroke really does flatten to two points")
+  canvas.stroke(tapered, line, { width = 8, strength = 1, taper = 0.25 })
+
+  local function ink_height(x)
+    local total = 0
+    for y = 0, 19 do total = total + tapered.pixels[y * 60 + x + 1] end
+    return total
+  end
+  local middle = ink_height(30)
+  local tip = ink_height(5)
+  t.near(middle, 8, 0.6, "the middle of a tapered stroke is its full width")
+  t.ok(tip < middle * 0.5, "and its tip is much narrower",
+       string.format("tip %.2f against middle %.2f", tip, middle))
+  t.ok(tip > 0.5, "but is still drawn", string.format("tip %.2f", tip))
+
+  local small = canvas.resample(uniform, 10, 10)
+  t.same(small.width, 10, "resampling gives the size asked for")
+  local small_low, small_high = canvas.extremes(small)
+  t.near(small_low, 0.42, 1e-9, "and averaging a flat surface keeps it flat")
+  t.near(small_high, 0.42, 1e-9, "at both extremes")
+end
+-- }}}
+
+-- {{{ inflate_fixed(text)
+-- Enough of a decompressor to check the compressor, and no more.
+--
+-- It lives in the test rather than in `017` because nothing in this project
+-- reads a picture -- and because a round trip through code written from the
+-- same misunderstanding would prove nothing. This is written from the format
+-- description, reading the stream the way an outside program would.
+--
+-- Only the standard code table is handled, which is all `017` emits.
+local function inflate_fixed(text)
+  local bit = require("bit")
+  local band, rshift = bit.band, bit.rshift
+
+  local position = 3          -- past the two header bytes
+  local held, count = 0, 0
+
+  local function take(width)
+    while count < width do
+      held = held + (text:byte(position) or 0) * (2 ^ count)
+      position = position + 1
+      count = count + 8
+    end
+    local value = band(held, (2 ^ width) - 1)
+    held = math.floor(held / (2 ^ width))
+    count = count - width
+    return value
+  end
+
+  local LENGTH_BASE = { 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
+    35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258 }
+  local LENGTH_EXTRA = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3,
+    3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0 }
+  local DISTANCE_BASE = { 1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129,
+    193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289,
+    16385, 24577 }
+  local DISTANCE_EXTRA = { 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7,
+    8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13 }
+
+  local final = take(1)
+  local kind = take(2)
+  if kind ~= 1 then error("this reader only knows the standard code table") end
+
+  local out = {}
+  while true do
+    -- Codes are stored highest bit first, while everything else in the stream
+    -- is lowest bit first. Both are true at once, which is the single easiest
+    -- thing to get wrong about this format.
+    local code = 0
+    for _ = 1, 7 do code = code * 2 + take(1) end
+    local symbol
+    if code <= 0x17 then
+      symbol = 256 + code
+    else
+      code = code * 2 + take(1)
+      if code >= 0x30 and code <= 0xBF then
+        symbol = code - 0x30
+      elseif code >= 0xC0 and code <= 0xC7 then
+        symbol = 280 + code - 0xC0
+      else
+        code = code * 2 + take(1)
+        symbol = 144 + code - 0x190
+      end
+    end
+
+    if symbol == 256 then break end
+    if symbol < 256 then
+      out[#out + 1] = string.char(symbol)
+    else
+      local index = symbol - 256
+      local length = LENGTH_BASE[index] + (LENGTH_EXTRA[index] > 0
+                     and take(LENGTH_EXTRA[index]) or 0)
+      local distance_code = 0
+      for _ = 1, 5 do distance_code = distance_code * 2 + take(1) end
+      distance_code = distance_code + 1
+      local distance = DISTANCE_BASE[distance_code] +
+                       (DISTANCE_EXTRA[distance_code] > 0
+                        and take(DISTANCE_EXTRA[distance_code]) or 0)
+      local so_far = table.concat(out)
+      out = { so_far }
+      local start = #so_far - distance + 1
+      for step = 0, length - 1 do
+        -- a repeat may reach into itself; copying one byte at a time is what
+        -- makes that work and is why this is not a substring operation
+        local piece = table.concat(out)
+        out = { piece .. piece:sub(start + step, start + step) }
+      end
+    end
+  end
+  return table.concat(out)
+end
+-- }}}
+
+-- {{{ test_writing_a_picture(t)
+local function test_writing_a_picture(t)
+  local canvas = project.load("016-the-grey-canvas")
+  local png = project.load("017-write-a-picture")
+
+  -- A picture with structure in it, so the compressor has both repeats and
+  -- literals to get wrong. A flat one would compress to almost nothing and
+  -- would exercise none of the matching.
+  local surface = canvas.new(64, 48, 0)
+  for y = 0, 47 do
+    for x = 0, 63 do
+      surface.pixels[y * 64 + x + 1] = ((x * 3 + y * 5) % 71) / 71
+    end
+  end
+  local raw = canvas.bytes(surface)
+  local file = png.encode(raw, 64, 48, 1)
+
+  t.same(file:sub(1, 8), "\137PNG\13\10\26\10", "the file starts the way one does")
+
+  -- Pull the compressed part back out the way an outside reader would, and
+  -- check the chunk checksums on the way past. A wrong checksum makes a file
+  -- some viewers open and others refuse, which is the worst of both.
+  local position = 9
+  local compressed, chunks = {}, {}
+  local bit = require("bit")
+  while position <= #file do
+    local length = 0
+    for offset = 0, 3 do length = length * 256 + file:byte(position + offset) end
+    local kind = file:sub(position + 4, position + 7)
+    local body = file:sub(position + 8, position + 7 + length)
+    local stated = 0
+    for offset = 0, 3 do
+      stated = stated * 256 + file:byte(position + 8 + length + offset)
+    end
+    local computed = bit.band(bit.bxor(png.crc32(kind .. body), 0xFFFFFFFF),
+                              0xFFFFFFFF)
+    if computed < 0 then computed = computed + 4294967296 end
+    t.same(stated, computed, "the checksum on the " .. kind .. " chunk is right")
+    chunks[#chunks + 1] = kind
+    if kind == "IDAT" then compressed[#compressed + 1] = body end
+    position = position + 12 + length
+  end
+  t.same(table.concat(chunks, " "), "IHDR IDAT IEND", "the chunks are the ones needed")
+
+  local recovered = inflate_fixed(table.concat(compressed))
+  t.same(#recovered, 48 * (64 + 1),
+         "what comes back is one filter byte plus one row, per row")
+
+  -- Undo the row transformations, and what is left must be the pixels that went
+  -- in. This is the assertion the whole file exists for: a wrong code table
+  -- produces a stream of the right length that decodes to something else.
+  local rebuilt = {}
+  local previous = {}
+  for index = 1, 64 do previous[index] = 0 end
+  local at = 1
+  for _ = 1, 48 do
+    local filter = recovered:byte(at)
+    at = at + 1
+    local row = {}
+    for index = 1, 64 do
+      local value = recovered:byte(at + index - 1)
+      local left = index > 1 and row[index - 1] or 0
+      local up = previous[index]
+      local upleft = index > 1 and previous[index - 1] or 0
+      if filter == 1 then value = (value + left) % 256
+      elseif filter == 2 then value = (value + up) % 256
+      elseif filter == 3 then value = (value + math.floor((left + up) / 2)) % 256
+      elseif filter == 4 then
+        local estimate = left + up - upleft
+        local from_left = math.abs(estimate - left)
+        local from_up = math.abs(estimate - up)
+        local from_upleft = math.abs(estimate - upleft)
+        local guess
+        if from_left <= from_up and from_left <= from_upleft then guess = left
+        elseif from_up <= from_upleft then guess = up
+        else guess = upleft end
+        value = (value + guess) % 256
+      end
+      row[index] = value
+      rebuilt[#rebuilt + 1] = string.char(value)
+    end
+    previous = row
+    at = at + 64
+  end
+  t.same(table.concat(rebuilt), raw,
+         "the picture that comes back out is the picture that went in")
+
+  t.ok(#file < #raw * 0.75, "and it is meaningfully smaller than the pixels",
+       string.format("%d bytes from %d raw", #file, #raw))
+
+  -- An outside opinion, if the machine has one. Reported either way: a check
+  -- that was skipped and counted as a pass is worse than no check at all.
+  local scratch = project.scratch("test-picture.png")
+  local handle = io.open(scratch, "wb")
+  handle:write(file)
+  handle:close()
+  local probe = io.popen("identify -quiet " .. scratch .. " 2>/dev/null")
+  local said = probe and probe:read("*l") or nil
+  if probe then probe:close() end
+  if said and said ~= "" then
+    t.ok(said:find("64x48", 1, true) ~= nil,
+         "an outside decoder agrees about the picture", said)
+    t.note("outside decoder: " .. said:gsub("^%S+%s+", ""))
+  else
+    t.note("no outside decoder on this machine; only the round trip was checked")
+  end
+  os.remove(scratch)
+end
+-- }}}
+
+-- {{{ test_the_numbers(t)
+local function test_the_numbers(t)
+  local json = project.load("018-write-the-numbers")
+
+  local node = json.object("class_type", "KSampler")
+  node.inputs = json.object("seed", 41011, "steps", 24, "cfg", 6.5)
+  node.flags = json.object()
+  node.links = {}
+
+  -- Two runs of the same program must produce the same bytes, or a comparison
+  -- between two workflows is noise and nobody will read one.
+  local once = json.encode(node)
+  for _ = 1, 40 do
+    if json.encode(node) ~= once then
+      t.ok(false, "key order is not stable between runs")
+      break
+    end
+  end
+  t.ok(true, "key order is the order keys were given, every time")
+
+  t.ok(once:find('"class_type"') < once:find('"inputs"'),
+       "and it is insertion order, not alphabetical")
+
+  -- A seed or a step count with a decimal point on it is a type error at the
+  -- far end, and printing one that way is this language's default behaviour.
+  t.ok(once:find('"seed": 41011') ~= nil, "a whole number has no decimal point")
+  t.ok(once:find('"cfg": 6.5') ~= nil, "and one that is not whole keeps its point")
+
+  -- Both empty things exist in the format the far end reads and mean different
+  -- things there. A writer that had to guess would be wrong about one of them.
+  t.ok(once:find('"flags": {}') ~= nil, "an empty object stays an object")
+  t.ok(once:find('"links": %[%]') ~= nil, "and an empty array stays an array")
+
+  local awkward = json.object("text", 'a "grove", 木\nwith a tab\there')
+  local written = json.encode(awkward)
+  t.ok(written:find('\\"', 1, true) ~= nil, "quotes are escaped")
+  t.ok(written:find("\\n", 1, true) ~= nil, "newlines are escaped")
+  t.ok(written:find("木", 1, true) ~= nil,
+       "and kanji are left as themselves, because a person reads these")
+
+  node.inputs = nil
+  t.ok(json.encode(node):find('"inputs"') == nil,
+       "removing a key removes it from the order as well")
+end
+-- }}}
+
 -- {{{ M.run(options)
 -- Every test in this file. Returns true if they all passed.
 function M.run(options)
@@ -306,6 +649,9 @@ function M.run(options)
     { "the path language", test_the_path_language },
     { "flattening", test_flattening },
     { "the store", test_the_store },
+    { "the canvas", test_the_canvas },
+    { "writing a picture", test_writing_a_picture },
+    { "the numbers", test_the_numbers },
     { "every stroke in the archive",
       function(t) test_every_stroke_in_the_archive(t, options.quick) end },
   }
