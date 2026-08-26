@@ -2,7 +2,22 @@
 
 ## Current behavior
 
-A graph can be built and emitted. Nothing says what graph.
+Done. `src/029-the-workflow-for-one-kanji.lua` is the graph and
+`src/030-make-one-kanji.lua` is the command:
+
+```
+luajit src/030-make-one-kanji.lua --chars 休森
+```
+
+Thirteen nodes, both formats, and a card holding every decision that went into
+them. `029` also prints what the workflow takes on faith and cannot check — the
+checkpoint name, the control net name, and where the pictures have to be copied
+to — because there is no ComfyUI on this machine to ask.
+
+`field-thumb.png` was added to the folder beyond what the ticket listed: the
+gallery in `304` needs the field at the size the illusion is specified at, and
+producing it here means it is the same computation as the full-size one rather
+than a second one that could disagree.
 
 ## Intended behavior
 
