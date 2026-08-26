@@ -89,9 +89,24 @@ strokes, not from its `kvg:position` label. The label says *left*; the box says
 | `direction` | horizontal, vertical, falling-left, falling-right, rising |
 | `length` | end-to-end, as a fraction of the canvas |
 | `travel` | arc length; `travel / length` well above 1 means it curves |
-| `hooked` | whether it ends in a flick — read from the calligraphic class, since geometry barely sees it |
+| `hooked` | whether it ends in a flick — measured as a sharp turn over the last fifth |
 | `place` | which ninth of the frame the stroke's midpoint is in |
 | `weight` | how much of the character's total ink this stroke is |
+
+**Hookedness was going to be read out of the archive's label and is measured
+instead**, and the reason the plan said otherwise is worth keeping. A hook is a
+small flick at the end of a stroke; it barely moves the endpoint, barely changes
+the arc length, and is invisible to every other statistic in that table — so the
+plan concluded that geometry could not see it and the archive's own stroke
+classification had to be consulted.
+
+The conclusion did not follow from the premise. A hook barely moves the endpoint
+and *sharply changes the direction*, and direction is the easiest thing here to
+measure. Run `luajit src/021-the-shape-of-a-stroke.lua --calibrate`: every class
+the archive labels as hooked averages a turn upward of seventy-five degrees over
+its last fifth, and every class it does not labels under twenty-six. There is no
+overlap. The measurement is used because it agrees with the label everywhere and
+also works on the strokes the archive left unlabelled or labelled ambiguously.
 
 The biome then supplies an object for that measurement. In a forest, a long
 vertical is a cedar trunk; a long low horizontal is a fallen log; a falling-right

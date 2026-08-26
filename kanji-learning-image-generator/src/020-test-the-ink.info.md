@@ -51,3 +51,7 @@ what a person reads before opening the source.
 | `test_writing_a_picture(t)` |  |
 | `test_the_numbers(t)` |  |
 | `main(argv)` |  |
+
+## Where it sits
+
+Used by `027-test-the-meaning`.
