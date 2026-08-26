@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+#
+# phase-10-demo -- shows what phase ten built.
+#
+# Phase ten claims one artifact can be an interface element, a persistence format
+# and an artwork at once, without being worse at any of them.
+#
+# It runs a real session -- with commands, refusals and a turn taken back -- and
+# then carves the eight numbers of that evening as an ornate metal animal whose
+# lines are the walls of the table holding them. Nobody chooses the animal; the
+# session's own seed does.
+#
+# Then the round trip, both halves. The carving is read back into variables by a
+# reader that shares no code with the writer and does not know which animal it is
+# looking at. Then it is engraved AGAIN from what was read, and the two files are
+# compared byte for byte -- which is the half that catches a reader recovering a
+# number by accident.
+#
+# Then the same numbers as all four animals, and then one digit is typed into one
+# cell and the animal visibly deforms. That is the whole argument for the format
+# being fragile on purpose: a corrupted binary file looks exactly like a good one
+# until something reads it, and a corrupted engraving looks corrupted.
+#
+# Usage:
+#   ./phase-10-demo                 -- build and run
+#   ./phase-10-demo /path/to/prj    -- the same, from a checkout somewhere else
+#
+# Normally reached through ./run-phase-demo 10 in the project root.
+
+set -e
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT_NAME="my-own-custom-vtt"
+EXEC_TIER="/tmp/${PROJECT_NAME}/tmp"
+ARTIFACT_TIER="/dev/shm/${PROJECT_NAME}"
+DEMO="${EXEC_TIER}/101-demo-phase-10"
+
+if [ ! -x "${DIR}/build" ]; then
+    echo "No build script at ${DIR}/build."
+    echo "Either the project root is wrong, or the project has not been initialised."
+    exit 1
+fi
+
+# Where the carvings go. Ensured before the demo runs rather than discovered
+# missing at the last step, after all the work is done.
+mkdir -p "${ARTIFACT_TIER}/engravings"
+
+# Built from source every time rather than trusting whatever is lying around in
+# the RAM tier, because a demo that runs a stale binary is a demo that lies.
+echo "Building..."
+"${DIR}/build" "${DIR}" --no-test > /dev/null
+
+if [ ! -x "${DEMO}" ]; then
+    echo "The build did not produce ${DEMO}."
+    exit 1
+fi
+
+"${DEMO}"
+
+# And the pair, run as the two separate programs they are -- because the demo
+# calls them as libraries and a person is going to call them as commands.
+echo "  The same pair, run as two programs:"
+echo
+
+echo "    099-engrave ${ARTIFACT_TIER}/engravings/by-hand.engraving --seed 3"
+"${EXEC_TIER}/099-engrave" "${ARTIFACT_TIER}/engravings/by-hand.engraving" --seed 3 \
+    --beats 4096 --turns 41 --seats 5 --commands 380 --refused 17 \
+    --rollbacks 2 --things 63 | sed 's/^/      /'
+
+echo
+echo "    100-read-engraving ${ARTIFACT_TIER}/engravings/by-hand.engraving"
+"${EXEC_TIER}/100-read-engraving" "${ARTIFACT_TIER}/engravings/by-hand.engraving" \
+    | sed 's/^/      /'
+
+echo
+echo "  And the ones on disk:"
+echo
+"${DIR}/share-engraving" "${DIR}" --list | sed 's/^/    /'
+echo

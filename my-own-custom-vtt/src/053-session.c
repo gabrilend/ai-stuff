@@ -454,6 +454,13 @@ int session_rollback(struct session *s, uint32_t turn, uint8_t mode)
         return 0;
     }
 
+    /*
+     * Counted here rather than at the top, so a rollback that could not restore
+     * is not counted as one that did. See issue 1001 -- this is a statistic the
+     * session tells about itself at the end.
+     */
+    s->rollbacks++;
+
     if (mode == ROLLBACK_REDECLARE) {
         /*
          * Discard what was declared. The window reopens and everybody decides

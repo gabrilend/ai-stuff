@@ -637,6 +637,36 @@ function connect() {
 }
 /* }}} */
 
+/* ------------------------------------------------------------------------- *
+ * The action bar
+ *
+ * The previous session's engraving, hung on the wall. Fetched once, because it
+ * is what the LAST session left -- the current one has no statistics yet and
+ * will not until it ends. That is what a carving on a wall is.
+ *
+ * Shown as it is. Not parsed into a table and re-rendered: the carving IS the
+ * table, and reading the engraving and reading the database are the same act.
+ * ------------------------------------------------------------------------- */
+
+/* {{{ function hangTheEngraving */
+function hangTheEngraving() {
+    const bar = document.getElementById('bar');
+
+    fetch('/engraving')
+        .then((answer) => answer.text())
+        .then((text) => { bar.textContent = text.replace(/^vtt-engraving[^]*?\n\n/, ''); })
+        .catch(() => {
+            /*
+             * Said out loud rather than left blank. A bar that shows nothing is
+             * indistinguishable from a bar that failed to load, and one of those
+             * is a first session and the other is a bug.
+             */
+            bar.textContent = 'the bridge is not serving an engraving';
+        });
+}
+/* }}} */
+
 fitToWindow();
+hangTheEngraving();
 connect();
 requestAnimationFrame(drawFrame);
