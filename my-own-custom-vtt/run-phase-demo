@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+#
+# run-phase-demo -- the front door to this project's phase demonstrations.
+#
+# Each phase of development ends with a demo: a runnable program that shows what
+# that phase built, recombining the tools from every earlier phase into something
+# none of them could do alone. The demos are not development scrap. They are part
+# of what this project delivers, they are kept working, and they ship with each
+# stable build.
+#
+# This script counts how many demos exist, offers them by name, and runs the one
+# you pick. If none exist yet, it says so and points at the roadmap.
+#
+# Usage:
+#   ./run-phase-demo              -- ask which demo to run
+#   ./run-phase-demo 3            -- run phase 3's demo directly
+#   ./run-phase-demo /path/to/prj -- run from a project root other than the
+#                                    hard-coded one below, asking as usual
+#   ./run-phase-demo /path/to/prj 3
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+DEMO_DIR="${DIR}/issues/completed/demos"
+ROADMAP="${DIR}/docs/015-roadmap.md"
+
+# The RAM tiers. Demos write logs and scratch there, so they are ensured to exist
+# before anything runs rather than being discovered missing halfway through.
+PROJECT_NAME="my-own-custom-vtt"
+mkdir -p "/tmp/${PROJECT_NAME}/tmp"
+mkdir -p "/dev/shm/${PROJECT_NAME}"
+
+if [ ! -L "/tmp/${PROJECT_NAME}/shared-memory" ]; then
+    ln -sfn "/dev/shm/${PROJECT_NAME}" "/tmp/${PROJECT_NAME}/shared-memory"
+fi
+
+if [ ! -d "${DEMO_DIR}" ]; then
+    echo "No demos directory at ${DEMO_DIR}."
+    echo "Either the project root is wrong, or the project has not been initialised."
+    exit 1
+fi
+
+# Collect the demos that actually exist. A phase demo is named phase-N-demo and
+# is executable; anything else in the directory is a support file for one of them.
+DEMOS=()
+for N in 1 2 3 4 5 6 7 8 9 10; do
+    CANDIDATE="${DEMO_DIR}/phase-${N}-demo"
+    if [ -x "${CANDIDATE}" ]; then
+        DEMOS+=("${N}")
+    fi
+done
+
+COUNT="${#DEMOS[@]}"
+
+# No demos yet. This is the expected state of a freshly initialised project, so
+# say what is missing and where the plan for it lives, rather than failing dumbly.
+if [ "${COUNT}" -eq 0 ]; then
+    echo "No phase demos have been built yet."
+    echo
+    echo "Each phase ends with one, and it lives at:"
+    echo "    ${DEMO_DIR}/phase-N-demo"
+    echo
+    echo "The ten phases and what each of them ends with are described in:"
+    echo "    ${ROADMAP}"
+    exit 0
+fi
+
+CHOICE="$1"
+
+# No choice given, so ask. Listing the phases by number keeps the prompt honest
+# about which ones are actually available -- a gap in the middle is possible,
+# because it is entirely normal for a later phase to finish before an earlier one.
+if [ -z "${CHOICE}" ]; then
+    echo "Phase demos available: ${DEMOS[*]}"
+    printf "Which phase? "
+    read -r CHOICE
+fi
+
+for N in "${DEMOS[@]}"; do
+    if [ "${CHOICE}" = "${N}" ]; then
+        exec "${DEMO_DIR}/phase-${N}-demo" "${DIR}"
+    fi
+done
+
+echo "Phase ${CHOICE} has no demo. Available: ${DEMOS[*]}"
+exit 1

@@ -1,0 +1,178 @@
+# The roadmap
+
+Ten phases. They are not a schedule and they are not progress tracking. Each one
+is a cluster of functionality that hangs together, and they are ordered so that
+every phase can be built on top of things that already work.
+
+It is entirely normal for the last issue completed in this project to belong to
+phase one.
+
+Every phase ends with a **demo** in `issues/completed/demos/`, run from the
+project root with `./run-phase-demo`. The demos are not development scrap. They
+are part of what this project delivers, they are kept working, and each one
+recombines the tools of earlier phases into something none of them could do
+alone.
+
+---
+
+## Phase 1 — The world holds still
+
+The data model, and nothing that moves. Fixed-point arithmetic. The flat arrays.
+The thing record, the wall record, the region record. The string pool. The
+validator that runs once and refuses to substitute a default. Snapshot out,
+snapshot in.
+
+No network, no sight, no rules, no clock.
+
+**Ends with:** a demo that loads a world, reports statistics about it -- how many
+things, how many segments, how deep the region nesting goes -- writes it out,
+reads it back, and shows the two are byte-identical.
+
+**Proves:** that a world can be described, held, checked, and round-tripped.
+
+## Phase 2 — The world can be seen
+
+The angular sweep. Visibility polygons from an eye with a facing and an arc. The
+fog bitmaps. The thread pool that the sweep runs on.
+
+Still no network and no tick -- sight is computed on demand, from a world that is
+not moving.
+
+**Ends with:** a demo that draws, in the terminal, what one body can see in a
+generated dungeon; walks it down a corridor a step at a time; and shows the fog
+accumulating behind it while the sight ahead changes.
+
+**Proves:** the geometry works, and that it is fast enough to run per viewer per
+tick. The demo reports its own timings rather than this document guessing at them.
+
+## Phase 3 — The world ticks
+
+The dispatch table of passes. Motion, and collision against walls.
+Buffer-then-resolve. Named random streams. The command log, and replay from a
+snapshot plus a log.
+
+Still single-process, driven by a scripted command file rather than by people.
+
+**Ends with:** a demo that runs a scripted session twice, on different thread
+counts, and compares the world hash at every tick.
+
+**Proves:** determinism, which every later claim about replays depends on.
+
+## Phase 4 — People connect
+
+The door and the private ports. The session sockets. The wire protocol. The
+outbound filter -- the one function that may write a thing to a socket. The intake
+gauntlet. Leak tests.
+
+No browser yet; the participants in this phase are test programs.
+
+**Ends with:** a demo where several fake participants connect at once, one of
+them deliberately asks for something it must not have, the refusal is shown in
+words, and the leak test sweeps every outbound stream for records that should not
+be in it.
+
+**Proves:** the security model, which is the claim this project would be most
+embarrassed to have wrong.
+
+## Phase 5 — The bridge and the browser
+
+The client program: one socket out, one HTTP server in, on `localhost`. The first
+real renderer. Interpolation between ticks, prediction for your own body, light
+and shadow drawn from the visibility polygons.
+
+Appearance in this phase comes from a table compiled into the renderer. Phase 7
+replaces that table with the ruleset's answers, and the interface is built now so
+that replacement is a substitution rather than a rewrite.
+
+**Ends with:** a demo you can actually play. Walk a character around a generated
+dungeon in a browser, with real fog, at a real frame rate.
+
+**Proves:** the whole spine, end to end, for the first time.
+
+## Phase 6 — Control is a dial
+
+Scopes in full. List membership and region membership. Driven and ordered styles.
+Several scopes held by one connection. Multiple GMs. The commander who owns the
+tavern and moves the crockery. Handing a scope over mid-session.
+
+**Ends with:** a demo with one server and four connections sitting at four
+different points on the dial -- one body driven with keys, a party of four given
+orders, the tavern, and a GM -- all in the same room at the same time.
+
+**Proves:** that the dial is one mechanism and not four special cases.
+
+## Phase 7 — The rules layer
+
+LuaJIT embedded in the server. The hooks. Sheet storage owned by the ruleset.
+`may_know`. Dice from named streams. A sample ruleset, and then a second one that
+is deliberately unlike the first.
+
+**Ends with:** a demo that runs the same world under two different rulesets and
+shows them disagreeing about what is legal, what a thing is, and who may know
+what -- with the server unchanged between them.
+
+**Proves:** system-agnosticism, which is otherwise only an intention.
+
+## Phase 8 — Content generation
+
+The description language. Validate, lay out, realise, furnish, write -- five
+stages, five programs. Generator tests that check the output against the
+description that asked for it.
+
+**Ends with:** a demo that takes a written description and a seed, produces a
+dungeon, regenerates it from the same seed and shows it is identical, changes one
+line of the description and shows what changed, and then drops a participant into
+it.
+
+**Proves:** that nothing needs to be hand-placed.
+
+## Phase 9 — The sprite studio
+
+A description-in, sprite-out generator whose artifact is one self-contained
+animated SVG. The wall that refuses a bad description by name. The pool that keeps
+every sprite ever made, with its category, its tier, and who set that tier. The
+per-category quality floor, which reports what raising it costs in variety before
+it is raised.
+
+Both rating algorithms, because both are wanted and they are different machines:
+**rate on arrival** — the machine tiers everything as it is generated, a person
+tiers a little whenever they like, and the person's rating wins and is marked as
+theirs. And **judge then curate** — a person tiers the whole library once, and
+from then on re-tiers individual sprites during live play, at the moment they look
+at one and think it is wrong.
+
+Neither counts as built until both are tested and shown working.
+
+**Ends with:** a demo that generates a batch of sprites, shows the pool with its
+tiers and their provenance, raises one category's floor and reports the variety it
+just cost, and then runs a live session in which a sprite is re-tiered from the
+table without stopping play.
+
+**Proves:** that the appearance layer is a studio rather than a folder, and that
+judging a thing in a session is a different act from judging a picture in a
+gallery.
+
+## Phase 10 — The second view, and the documentation
+
+A terminal renderer speaking the same protocol as the browser, with no server
+changes. The documentation rendered to linked HTML in `docs/HTML/`, with the
+companion files reachable from everything that mentions them.
+
+**Ends with:** a demo showing one session watched simultaneously from a browser
+and a terminal, and the documentation site built from the Markdown by a tool.
+
+**Proves:** the generate-then-view split at the last boundary -- and it is the
+capstone precisely because it can only be attempted once everything else is real.
+---
+
+## What is deliberately not in any phase
+
+**Audio, video, and voice chat.** Real, and out of scope. People have those
+already.
+
+**Accounts, lobbies, matchmaking, persistence across sessions.** This is a program
+a host runs for a table they already have.
+
+**Combat, character advancement, inventory, initiative.** These belong to a
+ruleset, and the sample rulesets in phase 7 will implement enough of them to prove
+the interface. The server will never grow an opinion about any of them.

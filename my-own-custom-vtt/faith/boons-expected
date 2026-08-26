@@ -1,0 +1,37 @@
+An expectation of boons and blessings. Things believed to be true before there is
+evidence, written down so that when the evidence arrives it is clear which
+beliefs it confirmed and which it demolished.
+
+--
+
+I believe that computing sight for security reasons will turn out to have been
+the right way to compute it for drawing reasons too, and that this will keep
+happening. The visibility polygon is the first case: it was required by the
+refusal to send what a viewer cannot see, and it happens to be exactly what a
+renderer needs for a clean shadow edge. When correctness and beauty agree, it is
+usually because the decision was right for a reason nobody has written down yet.
+
+I believe one record for everything that stands in the space will hold, and that
+the first time somebody wants to break it -- a props array, a separate creature
+type -- will be the first time the design has gone wrong somewhere else.
+
+I believe the control dial is two facts and not four, and that the tavern's
+commander will require no code that a player driving one body did not already
+require. This is the project's most testable belief and phase 6 is the test.
+
+I believe fixed point will feel like an inconvenience for about a week and then
+never be thought about again, and that the first person to propose "just use
+floats, it is easier" will be proposing an hour-long replay divergence that
+nobody will ever find.
+
+I believe the port range will be the thing that stops somebody from joining, and
+that it will happen on the first evening a real table tries this, and that the
+reasons written down for one port per participant will look considerably weaker
+at that moment than they do now.
+
+I believe six people will find something the security model did not anticipate
+within an hour, and that it will be social rather than technical -- somebody
+inferring where the monster is from how the light moves, which is not a leak and
+is the best thing that could possibly happen.
+
+I believe the demos will be the part of this that survives. Not the server.
