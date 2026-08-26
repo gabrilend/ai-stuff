@@ -1556,7 +1556,9 @@ The check:
 3. Ask whether the difference is **explicable** by those units. A health drop
    larger than every attacker in range could have dealt in the elapsed ticks is
    not a correction; it is a claim about something that could not have happened.
-   A health gain with nothing capable of healing in range is the same.
+   A health gain larger than every **healer** in range could have produced is the
+   same — see F39, which is where that turns out to be much harder than the
+   damage case.
 4. Reject what fails, keep the local value, log it.
 
 **A causality check, not a tolerance** — and that distinction is the whole reason
@@ -1566,9 +1568,17 @@ have done this?**, which is a question the simulation already knows the answer t
 because knowing what is in range of what is the retarget pass's whole job. The
 defence costs one function that reuses machinery that already exists.
 
-It also lands exactly on the cheat. Publishing yourself healthier requires
-something in range able to heal you, and nothing in this game heals. Publishing
-the enemy weaker requires attackers in range you do not have.
+It also lands close to the cheat. Publishing the enemy weaker requires attackers
+in range you do not have. Publishing yourself healthier requires something in
+range able to heal you — which **used to be nothing, and is now priests.**
+
+**That is not a small amendment and F39 has the whole of it.** A per-body
+question does not compose: one healer's single heal can serve as a valid
+explanation for two different bodies at once, because nothing in a per-body check
+tracks that its capacity is spent. The check becomes a bipartite matching over
+healers and wounded bodies rather than a lookup — unless healing is made an
+**area** effect, in which case the assignment disappears and this step goes back
+to asking one question and getting a complete answer.
 
 **What it does not catch:** a cheater who inflates damage *within* what an
 in-range attacker could plausibly have dealt. It catches the impossible, not the
@@ -2713,40 +2723,144 @@ assumed not to exist. Recorded as **F38**.
 
 **Changed:** [005](005-waves-and-when-one-is-finished.md), [011](011-commanders-and-personal-resource.md), [004](004-a-unit-and-what-it-carries.md), issues 207, 501, 509, 802.
 
-## F38. Does anything heal? — **OPEN**
+## F38. What does a priest do? — **ANSWERED IN PART**
 
-Created by the paladin commander having **priests in the back**.
+**Answer so far: two things, and each scales off a different attribute die.**
 
-**What assumes nothing heals:** the cross-team sanity check from E2b, which
-decides whether an incoming health value is explicable by asking what was in
-range to cause it. Its cleanest case is stated outright — *"a health gain with
-nothing capable of healing in range"* is the same kind of impossible claim as a
-damage drop nothing could have dealt — and that case evaporates if priests exist.
+| | Scales with |
+| --- | --- |
+| **Heal** | the priest's **strength** die |
+| **Buff fortitude** | the priest's **constitution** die |
 
-**It is not fatal and the check does not break.** Causality still works; it has to
-include healers among the things that could explain a change, exactly as it
-already includes attackers. What is lost is a free absolute: *any* health gain
-was a cheat, and now some are legitimate.
+So a priest is not one effect with a number attached. It is a body whose two jobs
+draw on two different colours of its own dice — which makes it the first unit in
+the project whose **internal composition** matters, and the first place the
+attribute system reaches down into a body's behaviour rather than only into what
+a player can afford.
 
-**What actually needs deciding is what a priest does**, because "heals" is the
-least interesting answer available and this design has form for finding better
-ones:
+Two consequences fall out immediately.
 
-- **Healing proper**, restoring health to bodies in range. Simple, and it changes
-  the frontline queue's arithmetic — a rank that heals holds ground the numbers
-  say it should have lost.
-- **Preventing damage** rather than restoring it — a shield on the front rank,
-  which the upgrade catalogue already lists as an example behaviour, and which
-  needs no new arithmetic and no exception in the sanity check at all.
-- **Answering fear.** Vision 3 makes fear the enemy's actual weapon — paralysing,
-  demoralising, subtly diminishing decision-making — and puts **sunlight
-  paladins** against it. A priest whose job is holding off fear rather than
-  restoring health would tie the two visions together, and would be the only
-  support role in the game that is not a number going up.
+**The attribute list is no longer abstract.** Vision 3 says *"there are as many
+colors as there are attribute scores"*, which was a shape without contents.
+Strength and constitution are now named, and they are named by what uses them
+rather than by a table somebody wrote — which is the right direction of travel and
+the way the rest should be filled in. B7 and F30 inherit that.
 
-The third is the most interesting and the likeliest to be right, since it is what
-the setting already asked for. It also depends on fear existing mechanically,
-which nothing has yet built.
+**And fortitude is a new stat**, distinct from armour and from health. What it
+resists is not settled, and there is an obvious candidate: vision 3 makes **fear**
+the enemy's actual weapon — paralysing, demoralising, subtly diminishing
+decision-making — and puts sunlight paladins against it. Fortitude answering fear
+would make the priest's two jobs *mend the body* and *hold the nerve*, which is a
+much better pair than two numbers going up.
+
+**Still open:** what fortitude resists, and therefore whether fear is built.
+
+**Changed:** [004](004-a-unit-and-what-it-carries.md), [011](011-commanders-and-personal-resource.md), issues 401, 501, 509.
+
+## F39. Who healed whom? — **OPEN, and it is a matching problem**
+
+Raised as a puzzle against the cross-team sanity check, and it is sharper than it
+first looks.
+
+### The configuration
+
+Two healers, three wounded bodies:
+
+- **A** is in range of **H1** only
+- **B** is in range of **both**
+- **C** is in range of **H2** only
+
+A snapshot arrives claiming all three were healed. **Every one of those claims
+passes an independent check** — A had a healer in range, B had two, C had one — and
+yet if each healer can serve one body per tick, **the set is impossible.** Two
+healers cannot produce three heals.
+
+### Why the existing check cannot see it
+
+E2b's causality test asks, of each differing value, *could anything in range have
+caused this?* That question is **per body**, and per-body questions do not
+compose. H1's one heal gets counted as an explanation for A **and** for B, because
+nothing is tracking that it can only be spent once.
+
+Damage has the same shape and gets away with it, because attackers are many and
+the check is looking for the impossible rather than the improbable. **Healers are
+few**, their output is small and countable, and the arithmetic is tight enough
+that double-counting is the difference between valid and invalid rather than a
+rounding error.
+
+### What it actually is
+
+**A bipartite matching, and Hall's condition is the test.** Healers on one side,
+wounded bodies on the other, an edge where a body is in range. The set of claims
+is possible only if **every subset of bodies has enough healer capacity in its
+combined neighbourhood** to cover it.
+
+In the configuration above, the subset {A, B, C} has a neighbourhood of {H1, H2}
+— two healers for three claims — so no assignment exists, and no amount of looking
+at A, B or C individually will ever reveal that.
+
+### The result that is worth the whole question
+
+**The body in range of the most healers is the one least able to rely on them.**
+
+A can only be served by H1. C can only be served by H2. So both of those claims
+are forced, and **B — the one standing in the overlap, apparently in the best
+place on the field — is the one that goes unhealed**, because the bodies with no
+alternative have already spent the capacity.
+
+That is not a bug to be fixed. It is a true fact about the situation, and it is
+the kind of thing a player would eventually feel without being able to name:
+*standing where two priests can reach me did not help.*
+
+### And the simulation has the same problem, not just the checker
+
+This is the part that matters more than the cheat detection. **When the game
+itself decides who heals whom, it faces the identical assignment**, and if healers
+pick targets greedily and independently, the greedy answer is wrong in exactly
+the configuration above — H1 and H2 both reach for B, the most wounded body in
+sight, and A and C get nothing.
+
+Worse, a greedy pass is **order-dependent**: which healer picks first decides the
+outcome, and "which picks first" is slot order, which is a function of which body
+died four minutes ago and freed its slot. That is precisely the unfairness the
+buffered damage pass exists to eliminate, arriving through a different door.
+
+**And the checker must share whatever rule the simulation uses**, or it will
+reject legitimate heals — a peer that solves the assignment differently from the
+peer that published it sees an impossible claim where there is only a different
+answer to the same ambiguous question.
+
+### The way out that removes the problem instead of solving it
+
+**A priest heals an area, not a target.**
+
+Every wounded body in range gets a share, written into a pending-heal buffer,
+applied in the resolve pass alongside damage. No selection, no assignment, no
+matching:
+
+- **Each body's heal is a sum of contributions** from the healers that can reach
+  it, which is *locally checkable* — the sanity check goes back to asking one
+  question about one body and getting a complete answer.
+- **No ordering anywhere.** Two healers contributing to the same body is
+  commutative, exactly as two attackers are.
+- **It slices across the thread pool** like every other pass, because each healer
+  writes into distinct buffer slots and reads nothing another worker is writing.
+- **And it fits what a priest in the back is for** — sustaining a rank rather than
+  picking individuals out of it.
+
+The interesting property survives the change, incidentally, and in a nicer form:
+a body in the overlap of two healers now gets **more** healing rather than
+competing for a scarce one. Which is the opposite of the matching result, and is
+probably the better game.
+
+**The cost, and it is real:** area healing is weaker per body and harder to make
+decisive, and it cannot be aimed. A priest becomes weather rather than a
+decision. Whether that is a loss depends on whether anybody was going to be
+choosing heal targets, and nothing in this design lets a player choose anything a
+body does.
+
+Recorded rather than settled, because it is a genuine fork: **solve the
+assignment, or delete it.**
 ## F23. Stamped or read live? — **ANSWERED, and it reverses F1**
 
 **Answer: everything is stamped. Nothing is ever read through a reference. When

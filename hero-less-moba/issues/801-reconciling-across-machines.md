@@ -91,10 +91,17 @@ worth carrying into the code as comments:
 10. Log the mean and worst-case correction distance. **If bodies visibly snap,
     the cycle is too long or the divergence is bigger than floating-point
     rounding explains** — and the second of those is a bug, not a tuning problem.
-11. Write a test with a hand-built malicious snapshot: a body healed from
-    nothing, and a body killed by an attacker never in range. Both refused, local
-    values survive.
-12. Test across two machines with different processors before believing any of it.
+11. Write a test with a hand-built malicious snapshot: a body healed with **no
+    healer in range**, and a body killed by an attacker never in range. Both
+    refused, local values survive.
+12. Write the harder healing test, because the easy one above passes for the
+    wrong reason. **Two healers, three wounded bodies** — one reachable by the
+    first healer only, one by both, one by the second only — with all three
+    claiming a heal. Each claim is individually explicable and the set is
+    impossible. Whether this test can pass at all depends on F39: if healing
+    stays targeted, the check has to solve an assignment; if healing becomes an
+    area effect, the case cannot arise and the test asserts that instead.
+13. Test across two machines with different processors before believing any of it.
 
 ## Related documents and tools
 
