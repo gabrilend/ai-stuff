@@ -11,7 +11,26 @@ reason a thing was decided is more useful than the decision.
 
 ## Open
 
-### Q1 — Can "the illusion worked" be measured at all?
+### Q1 — Can "the illusion worked" be measured at all? — **answered, partly**
+
+Yes, well enough to be useful. `src/046` shrinks a finished picture to thumbnail
+size, blurs it, and correlates it against the field that produced it. A field
+against itself scores 1.00 and against a different character's about 0.39, and
+that gap is what the five tiers divide up.
+
+Both doubts below were right and neither turned out to be fatal, because the
+machine's ratings are measured against a person's continuously — every rendering
+they both rated is a free measurement of how often the machine agrees, and that
+number is printed where it can be seen.
+
+What remains open is not the measurement but the **anchor**: if a person's
+ratings become rare, the apparatus converges on the grader's taste with nothing
+raised anywhere. There is a floor and it is reported. Nobody has watched it over
+a long run.
+
+The original question and its two doubts, kept:
+
+
 
 The specification is *a person squints at the thumbnail and sees the character*.
 Nothing in this repository can check that, because this repository never sees a
