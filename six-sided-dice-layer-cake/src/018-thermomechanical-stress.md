@@ -59,6 +59,36 @@ another. The face assembly is eight layers and several are asymmetric about the
 neutral axis, so it bows like a bimetallic strip — and the bow is what breaks the
 tolerance stack in `013`, which breaks the seal in `017`.
 
+## What the rigid-bond assumption costs
+
+Every stress figure above is computed by taking the bond as rigid — the silicon
+takes the whole expansion mismatch and the other material takes none. It is the
+pessimistic case and it is a line of arithmetic instead of a model, which is
+usually the right trade and is worth putting a number on rather than asserting.
+
+Two bonded layers share a mismatch in proportion to stiffness times thickness.
+The rigid case is the limit as the other layer becomes infinitely stiff, and how
+far it is from that limit depends entirely on the geometry.
+
+| joint | share the silicon really takes | what the rigid figure costs |
+|---|---|---|
+| tier to lamina | 98.5 % | one and a half per cent, pessimistic |
+| cold plate to rail | 75 % | a quarter, pessimistic |
+
+**At a tier interface the assumption is nearly exact**, and the reason is that the
+lamina is thirty times the silicon's thickness and twice its stiffness. It barely
+yields at all.
+
+**At a plate-to-rail joint it is a quarter too high**, because a four-millimetre
+steel rail against a two-millimetre silicon plate is a much more even contest.
+That is the harmless direction, but it means the margin at that joint is larger
+than this blueprint has been claiming, and somebody sizing the rail on these
+figures would be sizing it against a number a quarter too pessimistic.
+
+**Copper would have shared the mismatch almost identically.** The material choice
+here was about expansion and never about stiffness, and asserting that as
+`C-018-10` stops a reader from inferring a reason that was never in play.
+
 ## Symbols
 
 ```symbols
@@ -81,6 +111,12 @@ sigma_glass   | Pa | derived | E_si * strain_glass                        | the 
 sigma_cu_alt  | Pa | derived | E_si * strain_cu_alt                       | and what copper laminae would have induced
 sigma_assembly| Pa | derived | E_si * (cte_cumo - cte_si) * dT_assembly    | residual stress frozen into a tier interface at bonding, before the machine is ever switched on
 sigma_cu_assy | Pa | derived | E_si * (cte_cu - cte_si) * dT_assembly      | residual a copper lamina would have frozen in at bonding
+
+f_share_tier  | 1  | derived | (E_cumo * t_lamina) / (E_cumo * t_lamina + E_si * t_tier_si) | how much of the tier interface's mismatch the silicon actually takes, once the lamina is allowed to be a spring rather than a wall. Two bonded layers share a mismatch in proportion to their stiffness times their thickness, and taking the bond as rigid is the limit of this as the lamina becomes infinitely stiff
+f_share_plate | 1  | derived | (E_ss * w_rail) / (E_ss * w_rail + E_si * t_coldplate)       | the same at a plate-to-rail joint, where a four-millimetre steel rail is bonded to a two-millimetre silicon plate
+f_share_cu_alt| 1  | derived | (E_cu * t_lamina) / (E_cu * t_lamina + E_si * t_tier_si)     | and what a copper lamina would have shared, which is nearly the same because copper is thick here too -- so the material choice in this blueprint was never about stiffness
+sigma_tier_real | Pa | derived | sigma_tier * f_share_tier                 | the stress the silicon really sees at a tier interface, rather than the rigid-bond bound above it
+sigma_plate_real| Pa | derived | E_si * strain_plate * f_share_plate       | the same at a plate-to-rail joint
 sigma_cu_total| Pa | derived | sigma_cu_alt + sigma_cu_assy                | everything a copper lamina would put into the silicon, operating and residual together
 margin_tier   | 1  | derived | sigma_si_plas / (sigma_tier + sigma_assembly) | how many times the fracture stress of a plasma-diced edge exceeds what a tier interface actually carries, residual included
 margin_cu_alt | 1  | derived | sigma_si_plas / sigma_cu_total              | the same margin copper laminae would have left
@@ -96,6 +132,10 @@ C-018-3 | margin_cu_alt < 2.0              | asserted deliberately in the direct
 C-018-4 | sigma_glass < sigma_si_plas / 10 | the die-to-interposer interface should be far from trouble; glass was chosen for its expansion and if this is close, the wrong glass is specified
 C-018-5 | bow_face <= flat_plate           | a face assembly's bow over a power cycle must stay inside the flatness 013 assumed, or the tolerance stack that 017 already fails is worse than it looks
 C-018-6 | disp_tier < disp_cu_alt          | the composite moves less than copper would, which is the only reason to use a material with half the conductivity
+C-018-7 | sigma_tier_real < sigma_tier    | a compliant joint must relieve the silicon rather than load it further. Trivially true given how the share is written, and worth asserting because the rigid-bond figure is the one every other constraint here uses and somebody has to state that it is the bound and not the answer
+C-018-8 | f_share_tier > 0.95             | the rigid-bond assumption must be nearly exact at a tier interface, or the whole of this blueprint is computing the wrong number. It comes out at ninety-eight and a half per cent: the lamina is thirty times the silicon's thickness and twice its stiffness, so it barely yields at all and the silicon takes essentially the whole mismatch
+C-018-9 | f_share_plate < f_share_tier    | and it must be a worse assumption at the plate-to-rail joint than at a tier, because a four-millimetre rail against a two-millimetre plate is nothing like a lamina against a tier. It comes out at three quarters, so the rigid figure there is a quarter too high -- which is the direction that costs nothing, but it means the plate joint's real margin is larger than this blueprint has been claiming
+C-018-10 | f_share_cu_alt > 0.95          | copper would have shared the mismatch almost identically, which is the point of asserting it: the material choice in this blueprint was about expansion and never about stiffness, and a reader who assumed otherwise is told so by a number
 ```
 
 ## What is still open

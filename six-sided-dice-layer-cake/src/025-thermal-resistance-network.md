@@ -84,6 +84,10 @@ T_room         | K | given | 295.0 | air the radiator rejects into
 # conduction, all of it small, and derived anyway so that a thinner die shows up
 R_die          | K/W | derived | t_die / (k_si * A_die_total)                     | one-dimensional conduction through all twenty-four dies in parallel
 R_plate_base   | K/W | derived | (t_coldplate - h_uchan) / (k_si * n_face * A_plate) | through the base of the six cold plates
+R_interposer   | K/W | derived | t_interposer / (k_glass * n_face * A_plate)      | the path in the other direction, out through the six glass interposers, which is the one the design says heat does not take
+f_wrong_way    | 1   | derived | R_interposer / R_plate_base                      | how much worse that path is than the one the heat is meant to take. 011 says the interposer's conductivity is poor and does not matter because heat leaves the other way; this is that sentence with a number under it
+R_mount        | K/W | derived | L_corner / (k_ss * n_mount * pi * (d_bolt/2)^2) | out through the four mounting bolts into the frame, which is the only solid path from the cube to the room
+P_leak_mount   | W   | derived | (T_j_peak - T_room) / R_mount                    | heat the frame carries away. The whole design assumes every watt goes to the coolant, and this is the size of the assumption
 dT_die         | K   | derived | P_dies * R_die                                   | the drop across the dies
 dT_plate       | K   | derived | P_heat * R_plate_base                            | the drop across the plate bases
 
@@ -115,6 +119,8 @@ C-025-3 | dT_conv_worst < dT_conv_max  | the channel wall's share must stay insi
 C-025-4 | s_hotspot > s_conv           | the hot spot must be the largest term. Asserted not because it is desirable but because it is true, and a design change that made the coolant dominant instead would mean something had gone badly wrong in 022
 C-025-5 | s_hotspot + s_conv + s_fluid + s_solid ~= 1 | the four shares account for everything between the inlet and the junction, with nothing unattributed
 C-025-6 | T_j_mean < T_j_peak          | the average die is cooler than the worst one, which is trivially true and catches a worst-case term accidentally applied to both
+C-025-7 | f_wrong_way > 100            | the path out through the interposer must be at least a hundred times worse than the path into the cold plate. This is the sentence in 011 -- that the glass conducts poorly and it does not matter because heat leaves the other way -- turned into a number that can fail. It comes out at a hundred and fifty, so the claim holds with room, and if somebody ever thins the interposer or thickens the plate this is what says so
+C-025-8 | P_leak_mount < P_heat / 100  | the four mounting bolts must carry under a hundredth of the machine's heat, or the design's assumption that every watt goes to the coolant is not one. It comes out near a two-thousandth, and that is an upper bound rather than a figure: the calculation puts the bolt at junction temperature when it is really at the corner block's, so the true leak is smaller still
 ```
 
 ## What is still open
