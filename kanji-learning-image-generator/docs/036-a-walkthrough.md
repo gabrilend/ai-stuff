@@ -93,6 +93,61 @@ resolve. The second regenerates the `.info.md` page beside each source file out
 of that file's own comments; `--check` reports what has drifted and writes
 nothing.
 
+## The studio
+
+Everything above makes recipes. These make pictures out of them, keep every one,
+and let a bad one be argued with.
+
+```
+bash src/043-install-the-kitchen.sh
+```
+
+Installs ComfyUI, the arithmetic library and the two model files, entirely
+inside `libs/kitchen` — so removing all of it is removing one folder. Several
+gigabytes. `--check` says what is already there and whether the graphics card
+works; `--models-only` and `--skip-models` do half each; `--build-torch` builds
+the arithmetic library from source and tells you what it is getting into.
+
+```
+libs/kitchen/venv/bin/python libs/kitchen/ComfyUI/main.py --listen 127.0.0.1 --port 8188
+luajit src/044-run-the-pictures.lua --grade 1 --limit 20
+```
+
+The first starts the picture program. The second hands it recipes one at a time,
+collects what comes back, files each one in the pool and has the machine rate it
+on arrival. With nothing listening it says so and gives you the line above.
+
+```
+luajit src/032-a-gallery-you-can-page.lua --pool
+```
+
+Everything ever made, good and bad, with five buttons under each one. It cannot
+write to the pool — it is a viewer — so it collects your clicks and hands back a
+line to run.
+
+| | |
+|---|---|
+| `src/045-the-pool-that-remembers.lua` | how many of what, and how often the machine agrees with you |
+| `src/045-… --list --category forest --floor 4` | which ones survive a floor |
+| `src/046-… --calibrate` | what the machine's scores actually look like, and where the tier cuts should sit |
+| `src/046-… --rate <name>=<tier>` | what the gallery hands you |
+| `src/047-the-quality-dial.lua --category forest --floor 4` | what raising the quality would cost in variety, said before it costs it |
+| `src/048-what-a-higher-tier-buys.lua --owed` | which pictures deserve an animation they have not had |
+| `src/048-… --do-the-work` | make them |
+
+## Arguing with a picture
+
+When one comes out wrong, write a better argument for that character. It lives
+in `input/arguments/<character>.lua` and overrides only what it mentions.
+
+```
+luajit src/024a-the-paintbrush.lua --contract      what an argument may say
+luajit src/024a-the-paintbrush.lua --check 時       whether yours is legal
+```
+
+The vocabulary is closed on purpose. A wrong word is refused by name with the
+nearest legal one beside it, and every complaint arrives in one pass.
+
 ## What to do with a set once you have one
 
 Nothing here draws a picture. Each folder holds a recipe, and running it needs a

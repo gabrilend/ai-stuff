@@ -116,4 +116,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `032-a-gallery-you-can-page`, `035-test-the-machine`, `046-two-ways-of-saying-it-is-good`, `047-the-quality-dial`, `048-what-a-higher-tier-buys`.
+Used by `032-a-gallery-you-can-page`, `035-test-the-machine`, `044-run-the-pictures`, `046-two-ways-of-saying-it-is-good`, `047-the-quality-dial`, `048-what-a-higher-tier-buys`.

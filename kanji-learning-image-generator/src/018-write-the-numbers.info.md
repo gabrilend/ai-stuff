@@ -46,4 +46,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `020-test-the-ink`, `028-the-shape-of-a-graph`, `030-make-one-kanji`, `035-test-the-machine`.
+Used by `020-test-the-ink`, `028-the-shape-of-a-graph`, `030-make-one-kanji`, `035-test-the-machine`, `044-run-the-pictures`.

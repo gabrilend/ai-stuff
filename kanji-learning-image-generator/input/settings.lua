@@ -131,6 +131,18 @@ return {
   },
   -- }}}
 
+  -- {{{ kitchen -- the picture program this hands recipes to (404)
+  kitchen = {
+    url = "http://127.0.0.1:8188",
+    -- Where it reads its inputs from. It names them by filename and looks in
+    -- its own folder rather than taking a path, so the two pictures for each
+    -- character are copied here before the workflow is posted.
+    input = nil,          -- nil means libs/kitchen/ComfyUI/input
+    rest = 1.0,           -- seconds between submissions, for the card's sake
+    patience = 300,       -- how long to wait for one picture
+  },
+  -- }}}
+
   -- {{{ pool -- every picture ever made, kept (405)
   pool = {
     dir = "tmp/shared-memory/pool",
