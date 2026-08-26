@@ -36,8 +36,12 @@ Placement is refused, with a reason code the viewer shows, when:
 
 - the instance is locked by another player
 - the instance is already in transit
-- the destination is a stone slot the kind's `applies_to` rejects
-- a siege-surge is running — nothing may be placed at all
+- the destination is where it already is
+- the instance is inside the freeze window before a queued destination takes
+  effect
+
+**Never for being the wrong kind of upgrade**, and never because a siege-surge is
+running — see F28 and F12. Any upgrade may go into any slot, in any phase.
 
 **No cap on how many upgrades a lane holds.** The vision blesses stacking one
 lane explicitly, and any player may place any of their team's unlocked

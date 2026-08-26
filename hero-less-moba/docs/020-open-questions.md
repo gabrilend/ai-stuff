@@ -2451,68 +2451,124 @@ reason 3v3 is the shape the prototype is built and balanced against rather than
 merely the default size.
 
 **Changed:** [002](002-the-map-and-its-milestones.md), [015](015-boons-and-the-challenge.md), issue 101.
-## F21. What does a slot actually deliver, and to whom? — **ANSWERED**
+## F21. What does a slot deliver, and to whom? — **ANSWERED, then simplified by F28**
 
-**Answer: nothing is ever consumed, and the tower slot feeds two different kinds
-of recipient with different halves of the same upgrade.**
+**Answer: nothing is ever consumed, and a slot delivers to everything standing in
+it that can use what the upgrade does.**
 
 ### Nothing is consumed, in either slot
 
 An upgrade placed at a lane is **affixed there**. It stays. It is stamped onto
 every wave unit that lane spawns from then on, and stamping does not use it up —
 the same upgrade stamps the next wave, and the one after, for as long as it sits
-there. An upgrade slotted into a lane's towers is the same: it applies
-continuously, to everything that reads through those towers, and moving it away
-is the only thing that ever stops it.
+there. An upgrade slotted into a lane's towers is the same. **An upgrade is a
+standing property of a slot, not a resource spent into bodies.**
 
-This was never in doubt, but it was also never written in one place, and the
-surge's deal made it worth saying out loud: **an upgrade is a standing property of
-a slot, not a resource that gets spent into bodies.**
+### A slot has more than one kind of recipient
 
-### The tower slot has two audiences, and they are shaped differently
+A lane spawns melee bodies and ranged bodies. A lane's towers cover both the
+guards, who walk and swing, and the tower itself, which stands and shoots. So an
+upgrade placed anywhere reaches a mixed audience, and how much of that audience
+it actually helps depends on what the upgrade does.
 
-A lane's towers are two things at once:
+**This entry originally answered that with a `shape` tag** — melee, ranged, or
+common — sorting upgrades into categories and routing them accordingly. **F28
+deleted the tag**, because the sorting was already implicit in the stats and did
+not need naming twice. See F28 for the current rule, which is simpler and does
+the same job.
 
-- **The guard units, which are melee.** They walk, they close, they swing.
-- **The guard tower itself, which is ranged.** It stands still and shoots.
+What survives from this entry unchanged: the observation that killed the old
+refusal rule. [Upgrades slotted into stone](010-upgrades-slotted-into-stone.md)
+used to say "speed and health upgrades on an immobile building are meaningless"
+and refuse them at the tower slot. That holds only if the slot feeds a building.
+**It feeds a patrol as well**, so a movement-speed upgrade slotted into a lane's
+towers makes its guards cover their ground faster and answer a breach sooner —
+a real purchase, and one of the more interesting ones in the slot.
 
-So an upgrade slotted there does not simply "apply to the towers." It applies
-according to what it *is*:
+**Changed:** [009](009-the-shared-upgrade-pool.md), [010](010-upgrades-slotted-into-stone.md), [007](007-guard-towers-and-their-guards.md), issues 401, 408, 303.
 
-| The upgrade is | The guards get it | The tower gets it |
-| --- | --- | --- |
-| a **melee** upgrade | **yes** | no |
-| a **ranged** upgrade | no | **yes** |
-| **common** — health, armour, and the like | **yes** | **yes** |
+## F28. How many kinds of upgrade are there? — **ANSWERED**
 
-That is why the phrasing is "and *possibly* the tower itself." A melee damage
-upgrade in a lane's towers is not wasted and is not refused; it buys a harder
-patrol and does nothing for the arrows.
+**Answer: one. There is no such thing as a melee upgrade or a tower upgrade.
+There is an upgrade, and there are the things it happens to help.**
 
-### What this breaks, and it needs correcting
+This deletes two fields from the catalogue — `applies_to` and `shape` — and the
+entire refusal rule that hung off them.
 
-[upgrades slotted into stone](010-upgrades-slotted-into-stone.md) currently says
-**"Speed and health upgrades on an immobile building are meaningless"**, and uses
-that to justify refusing them at the tower slot. That reasoning is dead. The slot
-feeds bodies that walk, so a movement-speed upgrade slotted into a lane's towers
-makes its guards patrol faster and answer a breach sooner, which is a real
-purchase.
+### The rule
 
-The refusal test has to change with it: **a placement into the tower slot is
-refused only when the upgrade helps neither the guards nor the tower.** Which,
-given that guards are ordinary soldiers, is a much smaller set than the old rule
-assumed — possibly empty.
+**An upgrade modifies stats. A body benefits to the extent that it has those
+stats and uses them.** Nothing tags an upgrade with an audience, because the
+audience is already implied by what the upgrade touches.
 
-### What it opens
+There are exactly three things upgrades affect: **wave units, guards, and
+towers.** And the reason no tag is needed is that these three overlap almost
+completely:
 
-**Does the same affinity split apply at the lane slot?** Wave units have a
-`range` and melee is described as "a small nonzero number, not a special case,"
-which leaves room for ranged wave units to exist as a different archetype. If
-they do, a ranged upgrade affixed to a lane full of melee soldiers is doing
-nothing, and the lane slot needs the same three-way table. If every wave unit is
-melee, the question does not arise. Recorded as **F22**.
+| | Has feet | Has a blade | Throws bone | Has health |
+| --- | --- | --- | --- | --- |
+| **melee wave unit** | yes | yes | no | yes |
+| **ranged wave unit** | yes | no | yes | yes |
+| **guard** | yes | yes | no | yes |
+| **tower** | **no — it is stone** | no | yes | yes |
 
-**Changed:** [009](009-the-shared-upgrade-pool.md)'s catalogue record, [010](010-upgrades-slotted-into-stone.md) (the "meaningless on a building" argument, which is wrong), [007](007-guard-towers-and-their-guards.md), issues 401, 408, 303.
+A guard and a tower are **opposites with everything in common**. One has feet,
+the other has stone. One has a blade, the other throws bone. And every property
+either of them has, the other has too, or something else in the list does —
+**every effect is shared at least once**, which is what makes one catalogue
+possible instead of three.
+
+So a health upgrade helps all four, equally usefully, with no rule saying so. A
+movement upgrade helps three and does nothing for the tower, because a tower's
+speed is zero and always was. A ranged-damage upgrade helps the ranged bodies and
+the tower. **None of that needs a field. It falls out of the numbers.**
+
+### What it deletes
+
+**`applies_to` is gone.** It was a two-bit set saying whether a kind could enter
+the lane slot, the tower slot, or both, with a validator refusing anything
+outside {1, 2, 3}.
+
+**`shape` is gone**, four days after being added. It sorted upgrades into melee,
+ranged, and common, and routed them accordingly.
+
+**Every kind-based refusal is gone with them.** [Players, teams, and
+commands](016-players-teams-and-commands.md)'s command table had *"kind cannot
+enter that slot"* as a refusal reason for placement. **Nothing is refused on the
+grounds of what an upgrade is.** Any upgrade may be placed in any slot, and what
+it does there is however much of it applies.
+
+### Why this is better than the tag
+
+**A tag is a second description of a thing that already describes itself.** An
+upgrade that adds movement speed is a melee-and-guard upgrade *because* it adds
+movement speed — writing `shape = melee` next to it says the same fact again in a
+form that can disagree with the first one. And it will disagree, the first time
+somebody writes an upgrade that adds both speed and ranged damage and has to pick
+a category for it.
+
+**It also removes the last case where a placement could be flatly wrong.** With
+tags, an upgrade in the wrong half of a lane did a fraction of its work and
+nothing warned you. Without them, every placement does exactly as much as it can
+do, and the interesting question goes back to being *where is this worth the
+most* rather than *did I put it in a slot that accepts it*.
+
+**And it makes the catalogue one table.** Not a lane catalogue and a stone
+catalogue, not three shape-partitions. One list of things an upgrade can do to a
+stat, drawn from one deck, placeable anywhere.
+
+### What it costs
+
+**Legibility.** A player looking at an upgrade cannot read off a tag which of
+their bodies it helps; they have to know that towers do not walk. That is a real
+cost and it is paid at the interface rather than in the rules — the viewer owes a
+player a clear picture of *what this does and to whom*, and it now has to derive
+that from the stats the same way the simulation does.
+
+Which is the right place for it. A rule that exists to make an interface easier
+is a rule the interface should have handled.
+
+**Changed:** [009](009-the-shared-upgrade-pool.md)'s catalogue record, [010](010-upgrades-slotted-into-stone.md), [016](016-players-teams-and-commands.md)'s refusal table, [004](004-a-unit-and-what-it-carries.md), issues 401, 404, 408, and F21, F22, A14 — all of which described the tag.
 
 ## F22. Are there ranged wave units? — **ANSWERED**
 

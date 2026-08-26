@@ -30,7 +30,7 @@ rather than a bot invention:
 | --- | --- |
 | **push depth per lane, both teams** | the team record, already maintained |
 | **which lane is in the most trouble** | the largest enemy push depth — the same rule a library hero spawn uses |
-| **chest shape** | how many unplaced instances, and their `shape` split between melee, ranged, and common |
+| **chest shape** | how many unplaced instances, and which stats they touch — since an upgrade has no audience tag, what a chest is *for* has to be read off its effects |
 | **lane fit** | for each lane, how much of what is placed there matches what walks out of it — see F22 |
 | **stone versus bodies** | the ratio of tower-slotted to lane-slotted instances |
 | **wallet pressure** | how close each player is to the ceiling, since overflow is pure waste |
