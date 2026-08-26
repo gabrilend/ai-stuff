@@ -41,9 +41,19 @@ say.
 
 ## Suggested implementation steps
 
-1. **Install ComfyUI and fetch the two models.** This is several gigabytes and
-   it is somebody's decision to spend them, not this ticket's to assume. The
-   free space on this machine is not generous.
+1. **Install ComfyUI and fetch the two models.** Done, by
+   `src/043-install-the-kitchen.sh`, entirely inside `libs/kitchen` so that
+   removing it is removing one folder. ComfyUI is a clone, which is its source;
+   the arithmetic library is a published build and the script says why, and
+   offers `--build-torch` for anybody who wants the several hours; the models
+   are weights and have no source at all.
+
+   **The card check had to stop reading a list and start asking the card.** The
+   published build reports being made for `sm_50 sm_60 sm_70 …` and this card is
+   `sm_61`, so an exact-match check declared it unusable — while it was sitting
+   there working, because compiled CUDA code runs on any device of the same
+   major version with an equal or higher minor one. It now does a real
+   multiplication and reports what happened.
 
 2. **The submitter posts the API-format workflow** — that format exists for
    exactly this and needs no editor. It then polls history for the result and
