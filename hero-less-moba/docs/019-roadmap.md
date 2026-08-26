@@ -172,6 +172,7 @@ Ends with: a human playing a full match against the phase-8 bot with a mouse.
 | 705 | The sign-posts are clickable in the world |
 | 706 | The documentation becomes HTML |
 | 707 | The way in |
+| 708 | The camera is a lens you push into |
 
 ## Phase 8 — Six Players
 

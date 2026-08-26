@@ -9,13 +9,13 @@ seeded coin-flip's worth of asymmetry, and the report says which lane did it.
 
 | Issue | | Status |
 | --- | --- | --- |
-| 301 | A structure is a record with health | not started |
-| 302 | A tower picks a target and keeps it | not started |
-| 303 | Towers put guards on the ground | not started |
-| 304 | Guards are leashed | not started |
-| 305 | The base is one open room | not started |
-| 306 | Felling a tower pays three | not started |
-| 307 | The library ends the game | not started |
+| 301 | A structure is a record with health | built |
+| 302 | A tower picks a target and keeps it | built |
+| 303 | Towers put guards on the ground | built |
+| 304 | Guards are leashed | built |
+| 305 | The base is one open room | geometry built, shared patrol not |
+| 306 | Felling a tower pays three | built |
+| 307 | The library ends the game | built |
 
 **Blocking:** nothing, though **A4 is not really decided.** The vision's sentence
 puts "will move to attack" and "the range on their arrows" in one clause; issue
@@ -32,3 +32,22 @@ radius reaches one lane mouth. Defensible, and not a decision.
   dying; there is no code path from tower-felled into the mask rebuild.
 
 **Demo:** not yet built.
+
+## Where the prototype got to
+
+Towers stand, shoot the nearest body in range and keep that target while it lives;
+guards patrol on a leash and refuse to acquire while walking home; felling a tower
+kills its guards and pays three separate draws; and a library at zero health ends
+the match on that tick, with both libraries falling in one buffered pass recorded
+as a draw rather than resolved by team number.
+
+**The command radius and its inversion are in.** A tower replaces guards only while
+no enemy stands inside the circle, the timer is held rather than reset while the
+ground is contested, and the circle is drawn for both teams.
+
+**305 is the gap.** The base's geometry is built — three base towers at the lane
+mouths, a library behind them, and the base towers inherit every lane's stone. But
+its guards are leashed to their own tower like any other guard, so a base is three
+short corridors rather than **one open room**, and guards do not cross it to answer
+an invasion from another lane. That is the issue's actual subject and it is not
+built.

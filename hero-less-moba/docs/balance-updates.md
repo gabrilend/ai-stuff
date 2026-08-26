@@ -41,3 +41,65 @@ lull between waves disappears.
 
 Related open questions: B1 (wave interval and size), B2 (surge length and stream
 rate against the wave rate).
+
+## 2026-08-26 — the first numbers that actually run
+
+Estimates → catalogue tables. The four files under `assets/` now exist, so for the
+first time these are values a program reads rather than a shape written down. They
+were chosen to make a match *observable*, not to make it good: the point was to get
+a frontline on screen so that everything in Group B has something to move away
+from.
+
+Where each cluster is anchored, following the discipline Group B asks for:
+
+    the wave is the clock       -- one wave per lane per team, every 620 ticks
+    a wave unit is the strength -- melee is 1x and everything else is a ratio
+    the captain is 2.5x / 1.5x  -- health and damage, per the design
+    the library is 1.5 towers   -- stored as a ratio, never as a figure
+    a tick is 1/30 of a second  -- so a cooldown of 22 ticks is about 0.7s
+
+What was observed, from the headless runner:
+
+- **The stalemate is real and reproduces.** Twenty-two minutes, both teams between
+  milestones three and four in every lane, neither base threatened. That is the
+  vision's problem statement and it is now a thing that happens on a machine.
+- **A melee body kills another in roughly six seconds** one-to-one, which is slow
+  enough that a rank holds and fast enough that a wave resolves before the next one
+  arrives. That number is what the wave interval was then chosen against.
+- **The chest fills much faster than expected** — around a hundred and ninety draws
+  per team over a full match, because nearly every wave in a stalemate is eventually
+  wiped and nearly every wipe pays. Raised as **G4** rather than tuned here, because
+  the match is only that long because the surge and the challenge are not built, and
+  the number should be re-measured against a match shape that can actually end.
+- **A stacked lane wins outright.** Everything one team drew, shovelled into the
+  centre, reached the enemy library while the enemy's depth there collapsed to zero.
+  Recorded against **B11**, which is the question the whole project exists to answer.
+
+Two numbers that are not balance and are noted so nobody tunes them by accident:
+
+    milestone 4 is at fraction 0.50   -- it must be the lane's bend; the builder
+                                         places every other milestone relative to it
+    command radius > tower range      -- getting inside has to be reachable ground
+                                         rather than a spot under maximum fire
+
+Related open questions: B1, B4, B5, B11, G4.
+
+## 2026-08-26 — the camera's three constants
+
+Nothing → the numbers below. Not simulation balance, but they are knobs with
+reasons and they belong in the same ledger rather than in a comment nobody finds.
+
+    wheel factor        1.18 per notch, multiplicative
+    ease rate           14.0, as an exponential time constant
+    zoom ceiling        9.0 screen pixels per pace
+
+**Multiplicative, not additive**, because a notch should be the same *proportional*
+change at every scale — an additive step crawls when zoomed in and jumps when zoomed
+out, which is the same complaint from both ends.
+
+**The ceiling is not a preference.** It is set by the requirement that a soldier's
+upgrade badges be readable off the body, which is how an opponent learns your
+arrangement at all. If the badges get smaller, this number goes up.
+
+**The floor is not a number**, it is the whole-map framing, computed from the map's
+own bounds — so changing the field size reframes the view with no second edit.

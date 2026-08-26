@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+#
+# run-prototype -- the front door to the thing you can actually look at.
+#
+# This project is two programs that share a simulation: one draws a window and
+# takes a mouse, and one runs the same match with no window at all as fast as the
+# machine allows. This script is how you start either of them without having to
+# remember which interpreter each one wants.
+#
+# The window is LOVE, because the simulation is already LuaJIT and there is
+# therefore no boundary between the viewer and the world it is drawing -- the
+# snapshot is read directly, in the same language, with no marshalling.
+#
+# Usage:
+#   ./run-prototype                  -- open the window and play
+#   ./run-prototype watch            -- the same, but paused so you can look first
+#   ./run-prototype headless         -- one match, no window, a report at the end
+#   ./run-prototype headless 40000   -- the same, stopping after that many ticks
+#   ./run-prototype trace            -- headless with a line every twenty seconds
+#   ./run-prototype terminal         -- the text viewer, redrawn in place
+#   ./run-prototype shot out.png 240 -- a screenshot of minute four, no hands
+#   ./run-prototype /path/to/project ...  -- any of the above, elsewhere
+
+# The project root. Hard-coded so this runs from any directory, overridable as a
+# leading argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
+
+# A leading argument is taken as a project root only when it actually looks like
+# one. Testing for "is a directory" alone is not enough: this script's own modes
+# are words like "docs" and "code", and a directory of that name in the working
+# directory would silently be mistaken for a checkout.
+if [ -d "$1/issues" ] && [ -d "$1/src" ]; then
+    DIR="$1"
+    shift
+fi
+
+# The RAM tiers. Logs and screenshots go to shared memory rather than into the
+# repository; the exec tier holds anything that has to be runnable. Both are
+# recreated here rather than assumed, because /tmp and /dev/shm do not survive a
+# reboot and the symlinks in the repository would otherwise dangle.
+mkdir -p "/tmp/hero-less-moba/tmp"
+mkdir -p "/dev/shm/hero-less-moba"
+if [ ! -e "/tmp/hero-less-moba/shared-memory" ]; then
+    ln -sfn "/dev/shm/hero-less-moba" "/tmp/hero-less-moba/shared-memory"
+fi
+
+MODE="${1:-play}"
+
+case "${MODE}" in
+
+    play|watch)
+        if ! command -v love > /dev/null; then
+            echo "LOVE is not installed, and the window needs it."
+            echo "Everything else in this project runs under a bare luajit:"
+            echo "    ./run-prototype headless"
+            exit 1
+        fi
+        echo "Opening the window."
+        echo
+        echo "  wheel          zoom, anchored to whatever is under the cursor"
+        echo "  right-drag     pan"
+        echo "  HOME or SPACE  frame the whole map again"
+        echo "  drag a chip    from the chest onto a lane, a tower, or the library"
+        echo "  click a pip    to take an upgrade back out of a slot"
+        echo "  TAB            switch which team's board you are looking at"
+        echo "  P, 1/2/3       pause, and speed"
+        echo
+        love "${DIR}"
+        ;;
+
+    headless)
+        LIMIT="${2:-30000}"
+        luajit "${DIR}/src/044-headless-runner.lua" "${LIMIT}"
+        ;;
+
+    trace)
+        LIMIT="${2:-30000}"
+        luajit "${DIR}/src/044-headless-runner.lua" "${LIMIT}" trace
+        ;;
+
+    terminal)
+        TICKS="${2:-2400}"
+        luajit -e "
+            local root = '${DIR}'
+            local tick_module = loadfile(root .. '/src/042-the-tick.lua')()
+            local modules = tick_module.load_cast(root)
+            local viewer = loadfile(root .. '/src/045-terminal-viewer.lua')()
+            local world = tick_module.assemble(modules, modules.match_parameters.load())
+            for i = 1, ${TICKS} do
+                if not tick_module.advance(world) then break end
+                -- Redrawn every second of match time rather than every tick, so
+                -- the output is watchable rather than a blur, and so piping it to
+                -- a file produces something a person can diff.
+                if world.tick % 30 == 0 then
+                    io.write('\027[H\027[2J')
+                    io.write(viewer.draw(world, modules.snapshot.newest(world), 1))
+                    io.write('\n')
+                    io.flush()
+                end
+            end
+        "
+        ;;
+
+    shot)
+        OUT="${2:-/dev/shm/hero-less-moba/shot.png}"
+        AT="${3:-120}"
+        ZOOM="${4:-}"
+        echo "Running ${AT} seconds of match, then writing ${OUT}"
+        HLM_CAPTURE="${OUT}" HLM_CAPTURE_AT="${AT}" HLM_CAPTURE_SPEED=16 \
+            HLM_CAPTURE_ZOOM="${ZOOM}" love "${DIR}"
+        echo "${OUT}"
+        ;;
+
+    *)
+        echo "run-prototype: no mode called '${MODE}'."
+        echo "Modes are: play, watch, headless, trace, terminal, shot."
+        exit 1
+        ;;
+esac
