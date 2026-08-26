@@ -2,8 +2,30 @@
 
 ## Current behavior
 
-Everything needed to describe a picture exists. Nothing can write it in the form
-the program that makes pictures reads.
+Done. `src/028-the-shape-of-a-graph.lua` holds the catalogue, the builder, the
+layout pass and both emitters, and the check that the two formats describe the
+same wiring runs in `035`.
+
+**The interface-only control is real and it is in the sampler**, exactly where
+`docs/005` said to look. The editor's control array carries the seed selector
+between the seed and the step count; the posted format has no field for it.
+Written into one format and not the other, tested for by position in `035`.
+
+**A bug elsewhere surfaced here, and it would have been very hard to find from
+its symptom.** The first workflow emitted every node as `[]` — an empty array
+where an object belonged — while nothing errored anywhere.
+
+The cause was that every source file in this project loads `src/009` by running
+the file, since these filenames carry their index and their hyphens. Run twice,
+it produced two of everything in it, including two module caches, and so two
+copies of the ordered-table module in `018`. An ordered table is recognised by
+its metatable; a second copy has a second metatable; a table built through one
+copy is not an ordered table to the other, and the writer decided it must be an
+empty array.
+
+`src/009` now registers itself where the interpreter keeps loaded modules, and
+every run after the first hands back the same one. It had also been quietly
+rebuilding the record store per module.
 
 ## Intended behavior
 

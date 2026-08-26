@@ -10,6 +10,30 @@
 -- number in the project lives, so that no program carries its own copy of a
 -- number somebody is going to want to change.
 
+-- {{{ ONE OF THESE PER PROCESS, NOT ONE PER FILE THAT ASKS
+--
+-- Every source file in this project begins by loading this one, and every one
+-- of them does it by running the file rather than by name -- because these
+-- filenames carry their index and their hyphens, and bending them into module
+-- identifiers would mean the name a person opens and the name a program uses
+-- are two different strings.
+--
+-- Run twice, a file produces two of everything in it, and the caches below stop
+-- being caches. That is wasteful and it is not the reason this matters.
+--
+-- The ordered table in `018` is recognised by its metatable, and a second copy
+-- of `018` has a second metatable -- so an ordered table built through one copy
+-- is not an ordered table to the other. The workflow emitter built its objects
+-- through its own copy and handed them to a writer holding a different one,
+-- which did not recognise them, decided they were empty arrays, and wrote every
+-- node in the graph as `[]`. Nothing errored.
+--
+-- So: the first run registers itself where the interpreter keeps loaded
+-- modules, and every run after it hands back the same one.
+local ALREADY = package.loaded["kanji-learning-image-generator.project"]
+if ALREADY then return ALREADY end
+-- }}}
+
 local M = {}
 
 -- {{{ DEFAULT_ROOT -- the project root, hard-coded, overridable by --dir
@@ -354,5 +378,7 @@ function M.goodbye(program, lines)
   M.write_file(M.path("output", "goodbye"), table.concat(text, "\n"))
 end
 -- }}}
+
+package.loaded["kanji-learning-image-generator.project"] = M
 
 return M
