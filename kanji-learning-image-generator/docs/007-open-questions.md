@@ -30,16 +30,6 @@ model painted the character on a wall and scored perfectly.
 **Not started.** It needs generated images to test against, which needs a machine
 with a GPU, which this is not.
 
-### Q2 — What happens to the characters KanjiVG draws and KANJIDIC2 does not gloss?
-
-The join in `docs/002` drops them. They have strokes and no meaning, so there is
-nothing for the scene to be about.
-
-Is that set large enough to care about, and is it *interesting* — variant forms
-and rare characters nobody learns — or does it contain things a learner would
-actually meet? The store counts and names them on every run, so the answer is
-one command away, but nobody has looked and decided what to do about it.
-
 ### Q3 — Should a component's own picture be reused inside the characters that contain it?
 
 木 gets an image. 休, 林, 森, 材, 村 all contain 木 and all get their own images,
@@ -90,6 +80,30 @@ to move.
 ---
 
 ## Closed
+
+### Q2 — What happens to the characters KanjiVG draws and KANJIDIC2 does not gloss?
+
+**Asked because the number looked alarming and turned out to be three numbers.**
+Nearly three hundred characters were being dropped for having strokes and no
+gloss, which sounded like a large hole in the output set.
+
+Sorting them apart made it small. The overwhelming majority are **not kanji** —
+the stroke archive also draws letters, digits, punctuation and both syllabaries,
+and no kanji dictionary lists those. A further handful are in the **compatibility
+block**, glossed elsewhere under another number. What is left, the actual gap, is
+a few rare and archaic characters that nobody learning Japanese will meet.
+
+So: nothing worth rescuing by hand, and the question is closed. `docs/002` has
+the three categories and `src/019 --report` has the current counts.
+
+Left behind by it is a smaller question that is genuinely unanswerable from what
+is on disk: **which ordinary character does each compatibility character
+duplicate?** Two derivations were tried and both were refuted by their own
+checks — comparing the drawings (they differ on purpose; that is what the block
+is *for*) and reading the archive's own element name (it names itself). The
+pairing is in Unicode's character database, which would be a third dataset
+fetched to resolve nine characters nobody is learning. Not worth it, so they are
+excluded and named. If that judgement ever changes, the mapping is one file away.
 
 ### Why not derive strokes from a CJK font instead of KanjiVG?
 
