@@ -501,3 +501,51 @@ on it -- including operands belonging to commands that are then refused. A busy
 table generates a lot of this. Whether the log is capped, rotated, or simply
 allowed to grow for the length of a session has not been decided, and a session is
 hours long.
+
+---
+
+## Raised by building phase 3
+
+### 13.1 Should the motion passes go to the thread pool at all?
+
+They currently do, and it makes them **slower**.
+
+Phase 3's demo measures the same session at one, two, four, and eight threads.
+Results are identical at every beat, which is the claim that mattered. But the
+wall time climbs with the thread count: twenty-four bodies is a few microseconds
+of arithmetic, and waking a pool and waiting on a barrier costs more than the
+work it is coordinating.
+
+Sight was worth parallelising and motion is not, which is the same measurement
+pointing in two directions. The pool is not the wrong tool; motion at tabletop
+scale is the wrong size of job for it.
+
+The obvious shape: a pass declares a **threshold**, and below it runs on the
+calling thread. That keeps one code path -- the pool of one is already exactly
+this -- and makes the threshold a number somebody measured rather than a
+judgement somebody made.
+
+What is not obvious is where the threshold goes. Per pass, per world, or read
+from `input/`? And whether it should be measured once at startup on the host's
+actual machine rather than compiled in, since the crossover depends entirely on
+how fast a barrier is there.
+
+### 13.2 Does a replayed turn re-snapshot?
+
+Currently no, deliberately: a retcon replays turn boundaries forward without
+capturing new heads, because the ring already holds those heads and overwriting
+them would destroy the history a second rollback would need.
+
+The consequence is that after a deep retcon, the ring holds heads captured
+before the correction. Rolling back again lands on a head that is still correct
+-- the state at that turn's start did not change -- but the reasoning is subtle
+enough to be worth a test that nobody has written.
+
+### 13.3 What happens to commands declared after the point a retcon replays to?
+
+A retcon replays to where the session was. Anything in the log past that point is
+applied afterward without being ticked through, which is right for standing
+orders and wrong for anything order-dependent.
+
+It has not come up because phase 3 has no way to declare a command in the future.
+Phase 4 does, and this is where it will surface.
