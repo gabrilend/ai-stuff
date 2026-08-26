@@ -19,6 +19,7 @@ works blind.
 | 107 | Snapshots and replays | not started |
 | 108 | The headless runner | not started |
 | 109 | A terminal viewer, so we are not blind | not started |
+| 110 | A scenario you can hold at the gate | not started |
 
 **Blocking:** nothing. E2 used to block this phase and phase 2 — fixed point or
 floating point — and it is answered: **doubles are fine.** The project is not

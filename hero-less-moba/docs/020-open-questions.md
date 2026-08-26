@@ -2659,33 +2659,94 @@ production decision competes with the chest for the same attention. Recorded as
 
 **Changed:** [004](004-a-unit-and-what-it-carries.md), [005](005-waves-and-when-one-is-finished.md), [009](009-the-shared-upgrade-pool.md), [010](010-upgrades-slotted-into-stone.md), issues 201, 206, 207, 401, 405.
 
-## F27. Is a wave's composition fixed, or chosen? — **OPEN**
+## F27. Is a wave's composition fixed, or chosen? — **ANSWERED**
 
-Created by F22.
+**Answer: fixed, and fixed by whose commander is sending the wave.** No player
+composes an army. A commander *is* a composition, chosen once in the lobby, and
+what walks out is what that commander sends.
 
-A wave now contains melee bodies, ranged bodies, and a captain. Nothing has said
-how many of each, whether every wave carries a captain, or whether a player can
-change the mix.
+Combined with F35b's rotation — the commanders take turns, one wave each, around
+and around — **a lane's composition varies over time and never over space**, and
+nobody has a second production decision competing with placement for their
+attention.
 
-**The instinct is fixed**, and it is a strong one: this design has been careful
-that a player's hands are busy with **placement** and nothing else. A production
-decision would compete directly with the chest for the same attention, at the
-same moments, and the chest is the thing that replaced heroes. Two economies are
-already enough.
+### What a commander is, now
 
-**The argument against** is that composition is the natural partner to the
-affinity split. If a lane can hold ranged upgrades and a wave's ranged share is
-fixed, then the correct ratio of ranged upgrades in a lane is also fixed, and a
-whole axis collapses back into arithmetic somebody solves once.
+Three things rather than two. It was a resource name and a hero roster; it is:
 
-A middle shape exists and nobody has argued it yet: composition is fixed but
-**differs by lane**, set by the map builder — the wide centre spawning more melee
-because bodies get into contact there, the side lanes more ranged because only
-the front rank ever fights. That would make the three lanes different in a second
-way, for free, with no new player decision at all.
+1. **A wave composition** — how many melee, how many ranged, which captain
+2. **A bounty shape**, which falls straight out of the first, since killing a
+   body pays the colour it carries
+3. **A hero roster**
 
-The numbers themselves are B1's problem. This is the question of whether anybody
-gets to touch them.
+And those are one decision rather than three, because the composition determines
+the bounty and the roster has to answer what the composition cannot.
+
+### The two written down so far
+
+Preserved as given, because they are the first concrete commanders in the project
+and the flavour is doing design work:
+
+**The paladin commander.** More strong knights, priests in the back, and bowmen.
+Heroes include **paladins** and **white dragons with lightning**.
+
+**The savage noble**, an orc. Throws **barbarians**, **goblin archers** — many
+attacks, little damage — and a **hobgoblin captain**. Heroes include a **severage
+destroyer** and a **spiked mammoth**.
+
+Read those two against each other and the design is already visible. The paladin
+fields fewer, tougher bodies with reach behind them; the orc fields a swarm whose
+archers trade damage for volume. **They pay different colours at different
+rates**, they want different things placed in front of them, and a team holding
+both is farming two economies in alternation — which is exactly what the rotation
+is for.
+
+*"Goblin archers — many attacks, little damage"* is also the first statement in
+the project that two ranged bodies can differ in **how** they shoot rather than
+only in how hard, which is where attack cooldown starts earning its place in the
+catalogue as something other than a number that goes down.
+
+### And it opens one thing
+
+**Priests in the back.** A priest implies healing, and healing is currently
+assumed not to exist. Recorded as **F38**.
+
+**Changed:** [005](005-waves-and-when-one-is-finished.md), [011](011-commanders-and-personal-resource.md), [004](004-a-unit-and-what-it-carries.md), issues 207, 501, 509, 802.
+
+## F38. Does anything heal? — **OPEN**
+
+Created by the paladin commander having **priests in the back**.
+
+**What assumes nothing heals:** the cross-team sanity check from E2b, which
+decides whether an incoming health value is explicable by asking what was in
+range to cause it. Its cleanest case is stated outright — *"a health gain with
+nothing capable of healing in range"* is the same kind of impossible claim as a
+damage drop nothing could have dealt — and that case evaporates if priests exist.
+
+**It is not fatal and the check does not break.** Causality still works; it has to
+include healers among the things that could explain a change, exactly as it
+already includes attackers. What is lost is a free absolute: *any* health gain
+was a cheat, and now some are legitimate.
+
+**What actually needs deciding is what a priest does**, because "heals" is the
+least interesting answer available and this design has form for finding better
+ones:
+
+- **Healing proper**, restoring health to bodies in range. Simple, and it changes
+  the frontline queue's arithmetic — a rank that heals holds ground the numbers
+  say it should have lost.
+- **Preventing damage** rather than restoring it — a shield on the front rank,
+  which the upgrade catalogue already lists as an example behaviour, and which
+  needs no new arithmetic and no exception in the sanity check at all.
+- **Answering fear.** Vision 3 makes fear the enemy's actual weapon — paralysing,
+  demoralising, subtly diminishing decision-making — and puts **sunlight
+  paladins** against it. A priest whose job is holding off fear rather than
+  restoring health would tie the two visions together, and would be the only
+  support role in the game that is not a number going up.
+
+The third is the most interesting and the likeliest to be right, since it is what
+the setting already asked for. It also depends on fear existing mechanically,
+which nothing has yet built.
 ## F23. Stamped or read live? — **ANSWERED, and it reverses F1**
 
 **Answer: everything is stamped. Nothing is ever read through a reference. When
@@ -3363,16 +3424,27 @@ no-duplicates rule a second job it did not have.
 ### Which gives heroes a spawn queue
 
 Since waves now belong to commanders in rotation, a hero can be **queued to spawn
-with a future wave** — up to **N−1 waves ahead**, where N is the team size.
+with a future wave** — up to **N−1 waves ahead**, where N is the team size, but
+**never fewer than one**.
 
 **Not the current wave.** That is the constraint the rule is built around: by the
 time you are looking at a wave it has already left, so buying a hero onto it is
 buying into something you can no longer influence.
 
-On a three-player team that means you may queue for the next wave or the one
-after, and the horizon is exactly *up to but not including your own commander's
-next turn*. Which makes the queue depth a consequence of team size rather than a
-number somebody picked.
+| Team size | Queue depth |
+| --- | --- |
+| 1 | **1** — the special case; N−1 would be zero and there would be no way to buy a hero onto a wave at all |
+| 2 | 1 — the next wave only |
+| 3 | 2 — the next wave or the one after |
+| 4 | 3 |
+
+So the rule is **max(1, N−1)**, and the exception exists only at a team size of
+one, where the formula would otherwise close the door entirely.
+
+At every size above one the horizon is exactly *up to but not including your own
+commander's next turn*, which makes the depth a consequence of the rotation
+rather than a number somebody picked. At a size of one there is no rotation to
+speak of — every wave is yours — so the horizon is simply the next one.
 
 This changes the first of the three hero destinations in
 [hero units](012-hero-units.md) — *onto a wave*, which was immediate — into
@@ -3432,50 +3504,78 @@ with B9 and the monster catalogue.
 **Changed:** [014](014-the-siege-surge.md), [009](009-the-shared-upgrade-pool.md), [015](015-boons-and-the-challenge.md), issues 603, 606.
 
 
-## F37. What exactly does a staked die cost when it resolves? — **OPEN**
+## F37. What does a staked die cost? — **ANSWERED, and it defines the whole wallet**
 
-The mechanism is settled (issue 413) and one number in it is not.
+**Answer: one point. It drops you down one notch, and a reroll needs one from
+every player.** No roll, no gamble, no variable price. All three readings this
+entry was holding open were overthinking it.
 
-**Settled:** dismissing a communal stone stakes a die, and how much bounty you
-commit sets its size — one gives a d4, two a d6, three a d8. Nothing is spent
-while it sits there. **When every player has staked, the stone is rerolled and
-the stakes are consumed.** One person dismissing costs nothing; you only pay when
-the whole team declines together, and then the team gets a different stone for it.
+The answer arrived with the thing it depends on, so the wallet gets written down
+here.
 
-**Not settled: what "consumed" means when it fires.**
+### Resource is points, and points are spent as dice
 
-- **The dice are rolled and you lose that much** of the colour you staked. Which
-  makes a bigger stake a bigger *gamble* rather than a bigger certain cost, and
-  fits a design that has dice in it — but it means the price of a reroll is not
-  knowable in advance, and the person who committed three is not simply paying
-  more, they are paying more *variably*.
-- **The committed amount is spent flat**, and the die size is a display of how
-  much you put in rather than something rolled. Simplest, and the die becomes a
-  legibility device — you can see at a glance how heavily each teammate has given
-  up on a stone.
-- **The dice are rolled for something else** — the quality of the replacement, or
-  which part of the deck it comes from — so the stake buys influence over the
-  reroll rather than being a fee.
+A colour is held as a number of **points**. Points are turned into **dice** when
+spent, on a fixed ladder:
 
-The third is the most interesting and the least worked out. It would make a
-collective dismissal into a collective *bid*, where a team that has thoroughly
-given up on a stone gets a better replacement than one that barely has.
+| Points | Die |
+| --- | --- |
+| 1 | d4 |
+| 2 | d6 |
+| 3 | d8 |
+| 4 | d10 |
+| 5 | d12 |
 
-Also unsettled, and smaller: *"maybe we need 2 or 3 as the cost, who can say
-until balancing"* — whether the minimum commitment is one unit or more. That is
-B-group material once there are numbers to look at.
+**d12 is the largest die there is.** A player with more than five points in a
+colour holds more dice, not a bigger one.
 
-### And what happens to the solo reroll
+**And you partition your points however you like at the moment of spending.**
+Three red points is *any* of:
 
-[Rerolling the deck](../issues/411-rerolling-the-deck.md) lets one player spend
-resource to push a stone down the deck and take the next. This is the same
-transaction made collective, and the two overlap.
+- **3d4** — three small dice
+- **1d4 + 1d6** — one small and one medium
+- **1d8** — one large
 
-**Both can coexist**, and the split has a natural shape if they do: the solo
-reroll is *I do not want this*, the collective one is *none of us want this*, and
-the second should be cheaper per head, because agreement is evidence. If they do
-not coexist, the collective one is the better keeper — it cannot be done alone,
-which means it cannot be done thoughtlessly.
+Those are the same three points wearing different shapes, and the worked example
+is the part that matters: **if a hero costs 2d4, a player with three red points
+can pay it and keep one point over** — spending two of their points as two small
+dice and holding the third. Nothing is wasted by having chosen a shape, because
+the shape is chosen at the counter.
+
+That is the mechanic underneath *"depending on if you pick high or low, it costs
+more or less"* from vision 3: an expensive hero wants big dice, which means
+committing several points into one of them; a cheap one wants small dice and
+leaves change.
+
+### So a stake is one point
+
+**Staking a die to share drops your colour down exactly one notch.** Three red
+becomes two red — you had 3d4 or 1d4+1d6 or 1d8 available, and now you have 2d4
+or 1d6. Nothing is rolled, nothing is at risk, the point is simply gone.
+
+**The reroll fires when the team has staked one each** — three on a three-player
+team. So a collective reroll costs every player one point, in whichever colour
+each of them chose to pay from, which makes it cheap for a rich team and real for
+a poor one with no rule saying so.
+
+And it keeps what made the mechanism good: **one person dismissing costs
+nothing** until the others agree. Declining to care about a stone is free right up
+until the whole team declines together.
+
+### What this settles beyond itself
+
+**A hero's price stops being a number.** It is a *hand* — 2d4, or 1d8, or 1d6+1d4
+— so two heroes costing the same total points are genuinely different purchases,
+because one wants its points concentrated and the other wants them spread. That
+is what F30's *"a hero purchase becomes a shape rather than a price"* was
+reaching for, now with the shape written down.
+
+**And the per-colour ceiling has an obvious candidate**, though not a settled one:
+five points is one d12 and the top of the ladder. Whether a colour caps there, or
+whether a player may hold more points as several dice, belongs with A16 and the
+numbers.
+
+**Changed:** [011](011-commanders-and-personal-resource.md), [009](009-the-shared-upgrade-pool.md), issues 411, 413, 503, and F30, which this fills in.
 ---
 
 ## How this list is meant to be used

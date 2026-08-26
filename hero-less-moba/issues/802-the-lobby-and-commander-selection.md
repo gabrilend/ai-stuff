@@ -15,17 +15,28 @@ file.
 
 ## Intended behavior
 
-The place a match is agreed on before it starts. Six players, two teams of three,
-each picking a commander, all six agreeing on a seed.
+The place a match is agreed on before it starts. Two teams, each player picking a
+commander, everybody agreeing on a seed.
+
+**Commander selection is a team conversation rather than a private preference**,
+and that is new. Since the commanders take turns sending waves (F35b), a third of
+what walks out of your base is somebody else's choice — their composition, their
+bounty shape, their captain. A team that picks three swarm commanders is a team
+that has decided something together, whether or not it noticed.
+
+So the lobby owes players a view of **what the three of them add up to**: the
+combined composition, the colours it will pay, and where the gaps are. Not a
+recommendation — a mirror.
 
 The lobby's real job is producing the **replay header**: match seed, rules
 version, map parameters, player count, and each player's commander. That header
 plus the command list is the entire match. Everything the lobby does is filling
 in six fields.
 
-Team assignment is fixed: player numbers 1, 2, 3 are team 1; 4, 5, 6 are team 2.
-Not a lookup, not a field — a fixed mapping, so that command ordering by player
-number is also grouping by team.
+Team assignment is arithmetic on the team size: the first half of the player
+numbers are team 1, the second half team 2. Not a lookup and not a table, so that
+command ordering by player number is also grouping by team — and so that the
+lobby can seat a 2v2 or a 4v4 without a special case. See F10.
 
 Commander selection is visible to your own team and — undecided — possibly to the
 enemy. Since a commander is a roster rather than a body, knowing the enemy's
