@@ -38,16 +38,45 @@ soldier and adds up to a visibly limp frontline across a wave.
 **4 — Leashing.** Guards only. Walk back toward the leash node, refusing to
 acquire anything on the way.
 
-**5 — Dying.** One tick of bookkeeping: pay every player on the killer's team, decrement the
-wave's living count, free the slot.
+**5 — Dying.** One tick of bookkeeping: pay every player on the opposing team,
+decrement the wave's living count, free the slot.
+
+**6 — Waiting.** A hero bought during a calm, standing at its own library until
+spawning resumes. Does not advance, does not acquire. See A17 and F24 — and note
+that it is the only state where a body has nothing at stake, which makes it the
+only place idle behaviour belongs.
+
+**7 — Recovering.** A wounded body that has pulled out of the line, waiting
+beside a healer or regenerating at its own tower, returning when the frontline
+turns against its team. See F35 and
+[standing off and falling back](../docs/022-standing-off-and-falling-back.md).
+
+**The title of this issue is wrong and stays wrong.** It said five and there are
+seven, and the two that arrived late did so for good reasons that are recorded
+where they were decided. Renaming the file would take the roadmap, the tracker,
+and every citation with it — see F32 for the last time this project let a name
+drift and what it cost. It is on the list of renames to do in one deliberate
+pass.
 
 Every transition gets a comment naming what each path leads to. The condition and
 its comment are edited as one unit; changing one without the other leaves a lie
 in the file.
 
+### What is *not* a state
+
+Two behaviours that look like states and are not, because putting them in the
+table would double it:
+
+- **Walking home at the start of a calm** reuses **leashing**, with the leash set
+  to the team's own library.
+- **Standing off** — a ranged body backing away at half speed when an enemy is
+  inside its reach but nearer than the maximum — is a movement rule inside
+  **fighting**, not a state of its own. It is a question about where to put your
+  feet while doing the thing you are already doing.
+
 ## Suggested implementation steps
 
-1. Write the five behaviour functions and the table that indexes them.
+1. Write the seven behaviour functions and the table that indexes them.
 2. Wire the retarget, move, and attack passes to consult the state rather than
    each re-deciding what a soldier is up to.
 3. Give acquisition range its own catalogue field, separate from weapon range,

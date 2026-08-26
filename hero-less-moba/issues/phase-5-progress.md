@@ -19,6 +19,7 @@ visibly distinct.
 | 507 | Spawning onto the library picks the worst lane | not started |
 | 508 | Sign-posts stand at the corners | not started |
 | 509 | Five heroes for the first commander | not started |
+| 510 | The healers, and what they remember | not started |
 
 **Blocking:** nothing.
 

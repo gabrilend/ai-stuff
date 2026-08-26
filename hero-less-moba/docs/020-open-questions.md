@@ -2757,110 +2757,78 @@ much better pair than two numbers going up.
 
 **Changed:** [004](004-a-unit-and-what-it-carries.md), [011](011-commanders-and-personal-resource.md), issues 401, 501, 509.
 
-## F39. Who healed whom? — **OPEN, and it is a matching problem**
+## F39. Who healed whom? — **ANSWERED**
 
-Raised as a puzzle against the cross-team sanity check, and it is sharper than it
-first looks.
+**Answer: nobody solves the assignment. Healers stand where the assignment is
+easy, and the five healer archetypes each dodge the problem in a different way.**
 
-### The configuration
+The full behaviour is in
+[standing off and falling back](022-standing-off-and-falling-back.md). What
+belongs here is why the answer is a good one, since the question was posed as a
+puzzle about whether a per-body sanity check could be fooled.
 
-Two healers, three wounded bodies:
+### The problem, restated
 
-- **A** is in range of **H1** only
-- **B** is in range of **both**
-- **C** is in range of **H2** only
+Two healers, three wounded. One reachable by the first only, one by both, one by
+the second only. All three claim a heal; **each claim passes an independent check
+and the set is impossible.** It is a bipartite matching, Hall's condition is the
+test, and the body standing in the overlap of two healers is the one that goes
+unhealed — because the two with no alternative claim their healers first.
 
-A snapshot arrives claiming all three were healed. **Every one of those claims
-passes an independent check** — A had a healer in range, B had two, C had one — and
-yet if each healer can serve one body per tick, **the set is impossible.** Two
-healers cannot produce three heals.
+### The answer: position so that Hall's condition holds
 
-### Why the existing check cannot see it
+**A healer keeps itself in range of enough wounded bodies that the healers who
+could contest them cannot claim them all.** In practice, within reach of at least
+three valid wounded, while out of enemy melee and ranged range.
 
-E2b's causality test asks, of each differing value, *could anything in range have
-caused this?* That question is **per body**, and per-body questions do not
-compose. H1's one heal gets counted as an explanation for A **and** for B, because
-nothing is tracking that it can only be spent once.
+**That is Hall's condition turned into a movement goal**, and it is the part of
+this worth admiring. The hard version of the problem is *given these positions,
+find an assignment* — a flow problem, global, expensive, and needing the checker
+and the simulation to agree on a tie-break. The easy version is *move until your
+own neighbourhood is bigger than the demand on it*, which every healer can do
+alone, locally, with no knowledge of what any other healer decided.
 
-Damage has the same shape and gets away with it, because attackers are many and
-the check is looking for the impossible rather than the improbable. **Healers are
-few**, their output is small and countable, and the arithmetic is tight enough
-that double-counting is the difference between valid and invalid rather than a
-rounding error.
+It does not guarantee a perfect matching. It makes one overwhelmingly likely,
+which is the correct bar for a game.
 
-### What it actually is
+**And the claim rule handles the rest:** a healer skips anybody already being
+healed, and when there are genuinely not enough wounded to go round it relaxes to
+*fewest healers on them, lowest health first*. Somebody gets doubled up. Nobody
+stands idle.
 
-**A bipartite matching, and Hall's condition is the test.** Healers on one side,
-wounded bodies on the other, an edge where a body is in range. The set of claims
-is possible only if **every subset of bodies has enough healer capacity in its
-combined neighbourhood** to cover it.
+### And the archetypes answer it five ways
 
-In the configuration above, the subset {A, B, C} has a neighbourhood of {H1, H2}
-— two healers for three claims — so no assignment exists, and no amount of looking
-at A, B or C individually will ever reveal that.
+The matching problem appears and disappears down the roster, and **the difference
+is the design rather than a leak in it**:
 
-### The result that is worth the whole question
+- **Priest** — one target, contested. Has the problem fully, and is the reason the
+  positional rule exists.
+- **Druid** — one target, but as a regeneration that ticks. Contention is spread
+  over *time* rather than over bodies.
+- **Paladin** — an area aura. **No selection, therefore no assignment, therefore
+  no problem.** The way out that deletes the question rather than answering it.
+- **Curse-doctor** — heals allies near a cursed *enemy*. Inverts the whole thing:
+  the targeting decision is about the other side, and the healing follows from
+  where the fighting is.
+- **Rain shaman** — a chain, resolving one bounce at a time, so the assignment is
+  sequential and self-resolving by construction.
 
-**The body in range of the most healers is the one least able to rely on them.**
+So there was never one answer to find. **Five units answer it five ways, and that
+is what makes them five units instead of five numbers.**
 
-A can only be served by H1. C can only be served by H2. So both of those claims
-are forced, and **B — the one standing in the overlap, apparently in the best
-place on the field — is the one that goes unhealed**, because the bodies with no
-alternative have already spent the capacity.
+### What the sanity check has to do
 
-That is not a bug to be fixed. It is a true fact about the situation, and it is
-the kind of thing a player would eventually feel without being able to name:
-*standing where two priests can reach me did not help.*
+Include healers among the things that could explain a health change, as
+attackers already are — and for the **paladin, druid, curse-doctor and shaman it
+stays a per-body lookup**, because none of those requires knowing who else
+claimed what.
 
-### And the simulation has the same problem, not just the checker
+**The priest is the only one that needs care**, and the positional rule is what
+keeps even that tractable: a priest standing correctly has slack in its
+neighbourhood, so a claim against it is explicable without solving anything. The
+test in issue 801 should be built against the priest specifically.
 
-This is the part that matters more than the cheat detection. **When the game
-itself decides who heals whom, it faces the identical assignment**, and if healers
-pick targets greedily and independently, the greedy answer is wrong in exactly
-the configuration above — H1 and H2 both reach for B, the most wounded body in
-sight, and A and C get nothing.
-
-Worse, a greedy pass is **order-dependent**: which healer picks first decides the
-outcome, and "which picks first" is slot order, which is a function of which body
-died four minutes ago and freed its slot. That is precisely the unfairness the
-buffered damage pass exists to eliminate, arriving through a different door.
-
-**And the checker must share whatever rule the simulation uses**, or it will
-reject legitimate heals — a peer that solves the assignment differently from the
-peer that published it sees an impossible claim where there is only a different
-answer to the same ambiguous question.
-
-### The way out that removes the problem instead of solving it
-
-**A priest heals an area, not a target.**
-
-Every wounded body in range gets a share, written into a pending-heal buffer,
-applied in the resolve pass alongside damage. No selection, no assignment, no
-matching:
-
-- **Each body's heal is a sum of contributions** from the healers that can reach
-  it, which is *locally checkable* — the sanity check goes back to asking one
-  question about one body and getting a complete answer.
-- **No ordering anywhere.** Two healers contributing to the same body is
-  commutative, exactly as two attackers are.
-- **It slices across the thread pool** like every other pass, because each healer
-  writes into distinct buffer slots and reads nothing another worker is writing.
-- **And it fits what a priest in the back is for** — sustaining a rank rather than
-  picking individuals out of it.
-
-The interesting property survives the change, incidentally, and in a nicer form:
-a body in the overlap of two healers now gets **more** healing rather than
-competing for a scarce one. Which is the opposite of the matching result, and is
-probably the better game.
-
-**The cost, and it is real:** area healing is weaker per body and harder to make
-decisive, and it cannot be aimed. A priest becomes weather rather than a
-decision. Whether that is a loss depends on whether anybody was going to be
-choosing heal targets, and nothing in this design lets a player choose anything a
-body does.
-
-Recorded rather than settled, because it is a genuine fork: **solve the
-assignment, or delete it.**
+**Changed:** [022](022-standing-off-and-falling-back.md) (new), [016](016-players-teams-and-commands.md), [004](004-a-unit-and-what-it-carries.md), issues 203, 204, 510, 801.
 ## F23. Stamped or read live? — **ANSWERED, and it reverses F1**
 
 **Answer: everything is stamped. Nothing is ever read through a reference. When
@@ -3690,6 +3658,50 @@ whether a player may hold more points as several dice, belongs with A16 and the
 numbers.
 
 **Changed:** [011](011-commanders-and-personal-resource.md), [009](009-the-shared-upgrade-pool.md), issues 411, 413, 503, and F30, which this fills in.
+
+## F40. Are the healers wave units or heroes? — **OPEN**
+
+The five healers arrived without saying which side of that line they sit on, and
+the two answers make very different games.
+
+**The evidence points both ways.** The paladin commander's composition is *"more
+strong knights, priests in the back, and bowmen"* — priests listed alongside
+knights and bowmen, which are plainly wave units, in a description of what a wave
+contains. But the same commander's **heroes** are *"paladins and white dragons
+with lightning"*, and a paladin is on the healer list too.
+
+So at least one archetype appears on both sides, which suggests the honest answer
+is **both, and not the same one twice**.
+
+### What changes depending on the answer
+
+**As wave units** they arrive with every wave, in numbers, and die constantly.
+Healing becomes ambient — a property of a lane rather than an event in it — and
+the positional rules in
+[standing off and falling back](022-standing-off-and-falling-back.md) do all the
+work, because nobody is steering them. It also means **a commander's composition
+decides how much its waves mend themselves**, which is a real axis between
+commanders and costs nothing to add.
+
+**As heroes** they are bought, rare, and permanent until killed, and they carry
+abilities from the dispatch table. The moon spike is plainly a hero's ability
+rather than a wave unit's. And a hero healer is a purchase that makes everything
+else on the field last longer, which is a genuinely different kind of buy from
+anything currently on a roster.
+
+**The likely shape**, and it needs confirming rather than assuming: a **priest**
+is a wave unit — the back rank of a composition, unremarkable individually. A
+**paladin**, **druid**, **curse-doctor** and **rain shaman** are heroes, bought,
+each with a signature. The word "priest" doing ordinary work while the named ones
+do extraordinary work is how the rest of this design already reads.
+
+### And one thing that has to be decided either way
+
+**Wave units carry their lane's upgrades and heroes carry none.** So a priest that
+is a wave unit gets stronger as a lane accumulates, and a paladin that is a hero
+does not, ever — which means the same heal, from two archetypes, scales
+completely differently over a match. That is either a good reason to split them
+across the line deliberately, or a trap. It is worth choosing on purpose.
 ---
 
 ## How this list is meant to be used
