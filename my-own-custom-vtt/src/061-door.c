@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/socket.h>
@@ -194,6 +195,8 @@ const char *join_sentence(uint8_t outcome)
         return "every port in the range is in use -- the host needs to widen it";
     case JOIN_NO_ROOM:
         return "the table is full";
+    case JOIN_NO_ANSWER:
+        return "the door did not answer -- is a server running there?";
     default:
         return "refused, for a reason nobody wrote down -- which is a bug";
     }
@@ -204,15 +207,23 @@ const char *join_sentence(uint8_t outcome)
 static int read_exactly(int fd, uint8_t *into, uint32_t length)
 {
     uint32_t got = 0;
-    int attempts = 0;
 
     /*
-     * The join is small and the client has just connected, so a short read means
-     * the packet is still in flight rather than that anything is wrong. Bounded
-     * attempts, because an attacker who connects and says nothing must not hold
-     * the door open.
+     * A BOUNDED BLOCKING READ, not a spin.
+     *
+     * An earlier version made the accepted socket non-blocking and retried a
+     * thousand times with no wait. That is microseconds of spinning, and on a
+     * connection where the client's bytes have not landed at the instant of
+     * accept -- which is most of them -- it gave up and hung up on a perfectly
+     * good participant. The symptom was a bridge being told its protocol was
+     * wrong when its protocol was fine.
+     *
+     * The socket carries a receive timeout instead (set by the caller), so this
+     * waits a little and then gives up. The join is one small exchange, so
+     * waiting is the right shape; the timeout is what stops somebody who
+     * connects and says nothing from holding the door open.
      */
-    while (got < length && attempts < 1000) {
+    while (got < length) {
         ssize_t n = recv(fd, into + got, (size_t)(length - got), 0);
 
         if (n > 0) {
@@ -220,18 +231,11 @@ static int read_exactly(int fd, uint8_t *into, uint32_t length)
             continue;
         }
 
-        if (n == 0) {
-            return 0;   /* They hung up. */
-        }
-
-        if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            return 0;
-        }
-
-        attempts++;
+        /* Zero is a hang-up; a timeout arrives as EAGAIN. Both mean give up. */
+        return 0;
     }
 
-    return got == length;
+    return 1;
 }
 /* }}} */
 
@@ -281,7 +285,18 @@ uint32_t door_admit(struct door *d, struct viewer_set *set,
             break;   /* Nothing waiting. */
         }
 
-        make_nonblocking(fd);
+        /*
+         * Left blocking, with a short timeout. The door is a one-shot exchange
+         * and the alternative -- polling a non-blocking socket -- turned out to
+         * mean giving up on people whose bytes were a moment behind their
+         * connection.
+         */
+        {
+            struct timeval patience;
+            patience.tv_sec = 0;
+            patience.tv_usec = 250000;   /* a quarter of a second */
+            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &patience, sizeof(patience));
+        }
 
         if (!read_exactly(fd, header, sizeof(header))) {
             close(fd);
@@ -537,7 +552,12 @@ int door_join_as_client(uint16_t door_port, const char *name,
     uint16_t name_length = (uint16_t)strlen(name);
     uint32_t got = 0;
 
-    *outcome = JOIN_NOT_OUR_PROTOCOL;
+    /*
+     * Not JOIN_NOT_OUR_PROTOCOL. A connection that never gets answered is a
+     * different thing from a protocol mismatch, and reporting the second when
+     * the first happened sends somebody looking at the wrong end.
+     */
+    *outcome = JOIN_NO_ANSWER;
     *port = 0;
 
     if (fd < 0) {
