@@ -37,7 +37,7 @@ Described by `202`.
 | `L_plate` | `012` | 52 mm | edge of a face plate, once the edge rails are taken off |
 | `h_uchan` | `012` | 1 mm | depth of the same channel, limited by fin efficiency rather than by etching |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
-| `n_port_conductor` | **nothing declares this** | — | — |
+| `n_port_conductor` | `056` | 256 | conductors that must reach the interposer through 014's via islands |
 | `t_coldplate` | `013` | 2 mm | thickness of a face cold plate, base and channels and cover together |
 | `t_die` | `013` | 0.1 mm | thickness of a compute die after thinning |
 | `t_face` | `012` | 7 mm | one face assembly, outward surface to inward surface; the stack in 014 adds to just under this |
@@ -64,7 +64,7 @@ Change one of these and the blueprints beside it are what break.
 | `t_face_used` | `014` |
 | `A_island` | `014` |
 | `A_island_all` | `014` |
-| `n_island_pad` | `014`, `030`, `032` |
+| `n_island_pad` | `014`, `030`, `032`, `056` |
 | `f_island_area` | `014` |
 | `n_island_seal` | `017` |
 

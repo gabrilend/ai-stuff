@@ -83,7 +83,8 @@ P_core_leak   | W        | given    | 12.74 | retention leakage of all twenty-fo
 # --- what the switch spends -------------------------------------------------
 E_link_bit    | pJ/bit   | measured | 0.100 | energy to move one bit across a radial link, driver and receiver together
 P_crossbar    | W        | given    | 13.82 | the cage's switch fabric at full traffic. Thirty-nine was an estimate before 037 had a per-bit figure; the constraint that compares the two is what corrected it
-P_ports       | W        | given    | 10.0  | six port fields, storage lines and the spout, averaged; the spout's burst is an energy and lives in 026
+P_ports       | W        | given    | 10.0  | six port fields during generation, when the storage lines are idle and the spout is occasional. This is a steady figure and the two things that break it are both bursts
+P_port_burst  | W        | given    | 80.0  | what the port fields may draw transiently: a model load runs the storage lines flat out for tens of milliseconds, and the spout's pane costs more again for microseconds. Neither is in the steady budget and 026 is where both are absorbed
 
 # --- conversion, which is inside the cube and therefore inside the budget ----
 eta_conv_1    | 1        | measured | 0.960 | efficiency of the first stage, forty-eight volts to five

@@ -49,7 +49,6 @@ tol_rail     | 1 | given | 0.05  | fractional tolerance band on every rail, wors
 droop_frac   | 1 | given | 0.03  | fraction of nominal a rail may droop transiently under a load step
 ripple_frac  | 1 | given | 0.01  | fraction of nominal a rail may carry as switching ripple
 dV_read_marg | V | given | 0.08  | the least the array rail must exceed the logic rail by for a static memory cell to stay stable while it is read, at the worst process corner and the highest temperature
-I_port_max   | A | given | 20.0  | current one port field's power pads will carry
 n_domain     | 1 | given | 5     | supply domains
 
 dV_droop_logic | V | derived | V_logic * droop_frac         | how far the logic rail may fall during a load step, which is what sizes the decoupling in 031

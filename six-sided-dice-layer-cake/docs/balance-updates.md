@@ -255,3 +255,17 @@ derivation had it as a bare literal, which made the result a length rather than 
 time. It joins the permittivity as the second physical constant that has to be
 declared rather than written, for the same reason: a literal here is always
 dimensionless.
+
+**2026-08-26 — the port field gained a burst allowance.** `020`, `057`. Ten watts
+was a steady figure for six port fields during generation, when the storage lines
+are idle and the spout is occasional. Loading a model runs five storage lines
+flat out and draws fifty-one, which is five times the allocation. Two things
+break that steady figure and both are bursts — a load for tens of milliseconds, a
+pane for microseconds — so the budget now carries a transient allowance alongside
+the steady one, and both are judged as energies against the thermal masses in
+`026` rather than as powers against the coolant.
+
+**2026-08-26 — seventh and eighth duplicate declarations.** `029` had given a
+port field's current capability before `056` existed to derive it; `047` and
+`055` had both used the name for a margin. Every one of the eight has been the
+same shape: an earlier blueprint estimating something a later phase would own.

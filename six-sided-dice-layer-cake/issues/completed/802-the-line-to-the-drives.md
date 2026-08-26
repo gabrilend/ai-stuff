@@ -4,8 +4,28 @@ Produces `src/057-storage-line-physical.md`.
 
 ## Current behavior
 
-Nothing. Two hundred and fifty-six gigabytes a second per line and sixteen drives
-behind each have been quoted and never specified.
+**Done.** `src/057-storage-line-physical.md` exists, opening with the sentence
+that sets the standard for everything in it: after the load, no weight a face
+reads comes from a drive.
+
+The drive count is presented as a **deployment table with a load time attached**
+rather than a requirement — sixteen a line gives tens of milliseconds, one a line
+gives seconds, and against a machine that then runs for weeks the difference is
+nothing.
+
+Seven constraints. One of them failed and produced a real correction: **the lines
+draw fifty-one watts while loading against a ten watt port allocation.** They do
+not fit in the steady budget and should not have to; the budget now carries a
+transient allowance, and both bursts that break the steady figure — a load, and a
+pane — are judged as energies against thermal mass rather than powers against
+coolant.
+
+**No physical layer is named.** The blueprint says to adopt an existing standard
+and does not say which, so the rate, the reach and the energy per bit are all
+plausible rather than sourced.
+
+**The controller is not designed** — the only piece of logic in this machine that
+speaks somebody else's protocol.
 
 ## Intended behavior
 

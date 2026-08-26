@@ -21,7 +21,6 @@ Described by `402`.
 | `droop_frac` | 1 | given | 0.03 | fraction of nominal a rail may droop transiently under a load step |
 | `ripple_frac` | 1 | given | 0.01 | fraction of nominal a rail may carry as switching ripple |
 | `dV_read_marg` | V | given | 0.08 V | the least the array rail must exceed the logic rail by for a static memory cell to stay stable while it is read, at the worst process corner and the highest temperature |
-| `I_port_max` | A | given | 20 A | current one port field's power pads will carry |
 | `n_domain` | 1 | given | 5 | supply domains |
 | `dV_droop_logic` | V | derived | 0.0225 V | how far the logic rail may fall during a load step, which is what sizes the decoupling in 031 |
 | `dV_ripple` | V | derived | 0.0075 V | switching ripple allowed on the same |
@@ -57,7 +56,6 @@ Change one of these and the blueprints beside it are what break.
 | `droop_frac` | `029` |
 | `ripple_frac` | `029` |
 | `dV_read_marg` | `029`, `035` |
-| `I_port_max` | `028` |
 | `n_domain` | `029`, `033` |
 | `dV_droop_logic` | `029`, `031` |
 | `dV_ripple` | `029` |

@@ -44,7 +44,7 @@ Change one of these and the blueprints beside it are what break.
 |---|---|
 | `w_reticle` | `042` |
 | `h_reticle` | `042` |
-| `n_die_face` | `042`, `044`, `047`, `048`, `049` |
+| `n_die_face` | `042`, `044`, `047`, `048`, `049`, `060`, `061` |
 | `e_interdie` | `042` |
 | `f_interdie` | `042` |
 | `A_reticle` | `042` |

@@ -4,8 +4,26 @@ Produces `src/059-residency-and-paging.md`.
 
 ## Current behavior
 
-Nothing. `000` says the machine "falls off a cliff" for models larger than the
-core and does not say where the cliff is.
+**Done.** `src/059-residency-and-paging.md` exists with the three tiers, the
+cliff, and refusal chosen over degradation — with a shorter context offered as
+the graceful alternative, because a machine that thinks in shorter breaths beats
+one that refuses to start.
+
+The slice policy is the interesting half: **a cache with no cache logic.** No
+tags, no comparators, no victim selection, because the walk order is known before
+the token starts and there is nothing to choose between. `C-059-6` asserts the
+absence as a value so that a blueprint adding a policy has to say what it is
+choosing between.
+
+Six constraints, all holding.
+
+**`C-059-4` is a tautology and the blueprint says so.** The refusal threshold has
+no independent expression, so nothing can check that an implementation uses the
+capacity rather than a rounded version of it — and writing a second symbol to
+compare against would have created exactly the drift the constraint exists to
+prevent. It is a marker for a reader, not a check.
+
+**Streaming is priced and not designed.**
 
 ## Intended behavior
 

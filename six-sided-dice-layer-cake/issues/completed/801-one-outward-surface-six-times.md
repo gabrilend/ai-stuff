@@ -4,8 +4,22 @@ Produces `src/056-port-field.md`.
 
 ## Current behavior
 
-Nothing. "All six faces are the same part; what differs is which connector is
-populated" is asserted in three documents and specified in none.
+**Done.** `src/056-port-field.md` exists with the zoning trade resolved: a coarse
+perimeter for power and differential pairs, routed through `014`'s via islands,
+and a fine zone across the middle routed to the cage instead. **Two routes, both
+drawn**, because taking the wrong one is discovered at assembly.
+
+Six constraints, all holding.
+
+The cost of one part number is stated rather than hidden. `C-056-6` asserts that
+**most of the fine zones will never be bonded to anything** — a bondable pitch
+across a fifty-two millimetre square is a process step and a yield term on all
+six faces whether or not anything uses it. It is asserted in the direction of
+alarm so that somebody optimising meets it as a number.
+
+**That cost is named and not quantified.** `083` should be carrying it and does
+not. If it turns out expensive, two face designs is the alternative and `C-056-6`
+is the line that starts the argument.
 
 ## Intended behavior
 
