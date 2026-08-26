@@ -3,11 +3,11 @@
 **Phase:** 6, control is a dial
 **Blocked by:** [602](602-membership-is-a-list-or-a-region.md)
 **Blocks:** [605](605-the-tavern-commands-its-crockery.md)
-**Documents:** [who controls what](../docs/008-who-controls-what.md),
-[sight and what it remembers](../docs/007-sight-and-what-it-remembers.md)
-**Open questions:** [2.2](../docs/016-open-questions.md) — union or switch;
-[6.5](../docs/016-open-questions.md) — hidden from other GMs;
-[6.6](../docs/016-open-questions.md) — a GM seeing the players' fog.
+**Documents:** [who controls what](../../docs/008-who-controls-what.md),
+[sight and what it remembers](../../docs/007-sight-and-what-it-remembers.md)
+**Open questions:** [2.2](../../docs/016-open-questions.md) — union or switch;
+[6.5](../../docs/016-open-questions.md) — hidden from other GMs;
+[6.6](../../docs/016-open-questions.md) — a GM seeing the players' fog.
 
 ## Current behaviour
 

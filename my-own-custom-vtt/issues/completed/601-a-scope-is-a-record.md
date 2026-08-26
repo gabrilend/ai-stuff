@@ -3,7 +3,7 @@
 **Phase:** 6, control is a dial
 **Blocked by:** phase 5 complete.
 **Blocks:** everything else in phase 6.
-**Documents:** [who controls what](../docs/008-who-controls-what.md)
+**Documents:** [who controls what](../../docs/008-who-controls-what.md)
 
 ## Current behaviour
 

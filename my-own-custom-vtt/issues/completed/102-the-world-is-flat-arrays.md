@@ -3,7 +3,7 @@
 **Phase:** 1, the world holds still
 **Blocked by:** [101](101-the-arithmetic-is-integers.md), for the coordinate type.
 **Blocks:** every record that lives in the world.
-**Documents:** [the world and its tick](../docs/004-the-world-and-its-tick.md)
+**Documents:** [the world and its tick](../../docs/004-the-world-and-its-tick.md)
 
 ## Current behaviour
 

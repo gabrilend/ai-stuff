@@ -3,7 +3,7 @@
 **Phase:** 7, the rules layer
 **Blocked by:** [704](704-the-narrow-window-on-the-world.md)
 **Blocks:** [709](709-the-phase-seven-demo.md)
-**Documents:** [the rules layer](../docs/011-the-rules-layer.md)
+**Documents:** [the rules layer](../../docs/011-the-rules-layer.md)
 
 ## Current behaviour
 

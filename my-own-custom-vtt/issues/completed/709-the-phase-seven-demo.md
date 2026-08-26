@@ -3,7 +3,7 @@
 **Phase:** 7, the rules layer
 **Blocked by:** every other issue in phase 7.
 **Blocks:** nothing. The capstone.
-**Documents:** [the roadmap](../docs/015-roadmap.md)
+**Documents:** [the roadmap](../../docs/015-roadmap.md)
 
 ## Current behaviour
 

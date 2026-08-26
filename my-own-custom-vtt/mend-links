@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#
+# mend-links -- repoints the relative links that moving a file broke.
+#
+# Every time an issue is finished it moves from issues/ into issues/completed/,
+# and every relative link inside it silently becomes wrong: "../docs/004" now
+# means "issues/docs/004", which is nothing. The file still reads fine in an
+# editor and nothing complains. The link dies at the moment of success, which is
+# the least likely moment for anybody to check.
+#
+# This finds them by name and repoints them. Where two files share a name it
+# says so and changes nothing, because an ambiguous mend is a wrong mend half the
+# time and a wrong link that looks fixed is worse than a dead one that looks dead.
+#
+# Usage:
+#   ./mend-links                 -- report and mend
+#   ./mend-links --dry           -- report only
+#   ./mend-links /path/to/prj    -- from a checkout somewhere else
+
+set -e
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+TOOL="${DIR}/src/104-mend-links.lua"
+
+if [ ! -f "${TOOL}" ]; then
+    echo "No link mender at ${TOOL}."
+    exit 1
+fi
+
+LUA="luajit"
+if ! command -v "${LUA}" > /dev/null; then
+    LUA="lua"
+fi
+
+echo "Mending links..."
+echo
+
+exec "${LUA}" "${TOOL}" "${DIR}" "$@"

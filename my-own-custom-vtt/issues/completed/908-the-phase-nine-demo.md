@@ -3,7 +3,7 @@
 **Phase:** 9, the sprite studio
 **Blocked by:** every other issue in phase 9.
 **Blocks:** nothing. The capstone.
-**Documents:** [the roadmap](../docs/015-roadmap.md)
+**Documents:** [the roadmap](../../docs/015-roadmap.md)
 
 ## Current behaviour
 

@@ -4,7 +4,7 @@
 **Blocked by:** [302](302-motion-is-intent-then-resolve.md),
 [104](104-walls-are-segments.md)
 **Blocks:** [310](310-the-phase-three-demo.md)
-**Documents:** [the map is geometry](../docs/006-the-map-is-geometry-not-a-picture.md)
+**Documents:** [the map is geometry](../../docs/006-the-map-is-geometry-not-a-picture.md)
 
 ## Current behaviour
 
@@ -45,7 +45,7 @@ swarm occupies a square -- and enforcing separation is a *rules* question about 
 much space a creature claims, not a geometric fact about the world.
 
 If a ruleset wants exclusion it refuses the command, which is
-[gate 5](../docs/010-commands-enter-through-one-door.md). Writing body-body
+[gate 5](../../docs/010-commands-enter-through-one-door.md). Writing body-body
 collision into the server would mean the server having an opinion about how big a
 creature is, and it has none.
 

@@ -4,8 +4,8 @@
 **Blocked by:** [307](307-the-world-hashes-itself.md),
 [308](308-the-turn-is-a-window.md)
 **Blocks:** [310](310-the-phase-three-demo.md)
-**Documents:** [the turn is a transaction](../docs/019-the-turn-is-a-transaction.md)
-**Open questions:** [3.3](../docs/016-open-questions.md) is answered -- fog rolls
+**Documents:** [the turn is a transaction](../../docs/019-the-turn-is-a-transaction.md)
+**Open questions:** [3.3](../../docs/016-open-questions.md) is answered -- fog rolls
 back with the world. Nothing blocks this issue.
 
 ## Current behaviour

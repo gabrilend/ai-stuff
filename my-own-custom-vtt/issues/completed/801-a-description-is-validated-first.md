@@ -3,8 +3,8 @@
 **Phase:** 8, content generation
 **Blocked by:** phase 7 complete.
 **Blocks:** [802](802-the-layout-is-a-graph.md)
-**Documents:** [content is generated](../docs/013-content-is-generated.md)
-**Open questions:** [8.1](../docs/016-open-questions.md) — what the description
+**Documents:** [content is generated](../../docs/013-content-is-generated.md)
+**Open questions:** [8.1](../../docs/016-open-questions.md) — what the description
 language looks like.
 
 ## Current behaviour

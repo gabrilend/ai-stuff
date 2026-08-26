@@ -3,7 +3,7 @@
 **Phase:** 8, content generation
 **Blocked by:** every other issue in phase 8.
 **Blocks:** nothing. The capstone.
-**Documents:** [the roadmap](../docs/015-roadmap.md)
+**Documents:** [the roadmap](../../docs/015-roadmap.md)
 
 ## Current behaviour
 

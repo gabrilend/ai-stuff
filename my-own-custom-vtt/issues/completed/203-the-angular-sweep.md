@@ -5,7 +5,7 @@
 [202](202-an-eye-and-its-wedge.md)
 **Blocks:** [204](204-the-visibility-polygon.md), and through it the entire
 security model.
-**Documents:** [sight and what it remembers](../docs/007-sight-and-what-it-remembers.md)
+**Documents:** [sight and what it remembers](../../docs/007-sight-and-what-it-remembers.md)
 
 ## Current behaviour
 
@@ -65,7 +65,7 @@ through [101](101-the-arithmetic-is-integers.md). No `atan2`, no doubles, no
    afterwards.
 5. Keep the inner loop free of branches on data and free of pointer chasing, so
    that hand-written assembly stays possible later without restructuring anything.
-   See [the shape of the code](../docs/014-the-shape-of-the-code.md).
+   See [the shape of the code](../../docs/014-the-shape-of-the-code.md).
 6. Write the companion `.info.md`.
 7. Test against hand-computed visibility in small worlds: one wall, two walls
    meeting, a doorway, a pillar, a body inside a closed room, a body in the open.

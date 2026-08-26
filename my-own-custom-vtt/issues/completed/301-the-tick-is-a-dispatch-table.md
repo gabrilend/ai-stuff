@@ -3,7 +3,7 @@
 **Phase:** 3, the world ticks
 **Blocked by:** phase 1 and phase 2 complete.
 **Blocks:** every other issue in phase 3.
-**Documents:** [the world and its tick](../docs/004-the-world-and-its-tick.md)
+**Documents:** [the world and its tick](../../docs/004-the-world-and-its-tick.md)
 
 ## Current behaviour
 

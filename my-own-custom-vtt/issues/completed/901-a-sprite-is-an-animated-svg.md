@@ -3,7 +3,7 @@
 **Phase:** 9, the sprite studio
 **Blocked by:** phase 8 complete.
 **Blocks:** everything else in phase 9.
-**Documents:** [the sprite studio](../docs/017-the-sprite-studio.md)
+**Documents:** [the sprite studio](../../docs/017-the-sprite-studio.md)
 
 ## Current behaviour
 

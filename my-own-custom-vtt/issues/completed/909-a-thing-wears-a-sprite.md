@@ -3,8 +3,8 @@
 **Phase:** 9, the sprite studio
 **Blocked by:** [903](903-the-pool-keeps-everything.md), [904](904-two-ways-of-rating.md)
 **Blocks:** [908](908-the-phase-nine-demo.md)
-**Documents:** [the sprite studio](../docs/017-the-sprite-studio.md),
-[the dynamic picture](../docs/012-the-dynamic-picture.md)
+**Documents:** [the sprite studio](../../docs/017-the-sprite-studio.md),
+[the dynamic picture](../../docs/012-the-dynamic-picture.md)
 
 ## Why this exists and why it is numbered last
 

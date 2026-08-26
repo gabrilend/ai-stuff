@@ -3,7 +3,7 @@
 **Phase:** 2, the world can be seen
 **Blocked by:** every other issue in phase 2.
 **Blocks:** nothing. It is the capstone of the phase.
-**Documents:** [the roadmap](../docs/015-roadmap.md)
+**Documents:** [the roadmap](../../docs/015-roadmap.md)
 
 ## Current behaviour
 
@@ -37,7 +37,7 @@ project should be able to watch it and see what fog of war means here.
 | Time for the whole pass at 1, 2, and all threads | Whether it scales. If it does not, that is a finding now rather than in phase 5. |
 | Cells set in the fog, over time | The accumulation, as a number beside the picture. |
 
-**The tick rate falls out of this.** [3.2](../docs/016-open-questions.md) asks how
+**The tick rate falls out of this.** [3.2](../../docs/016-open-questions.md) asks how
 fast the world should beat, and the honest answer comes from this demo rather than
 from a document: sweep cost times the number of viewers gives the budget.
 
@@ -45,7 +45,7 @@ from a document: sweep cost times the number of viewers gives the budget.
 
 Place a thing behind a wall. Show it absent from what the body can see, and show
 it appearing the moment the corner is turned. That is the whole argument of
-[what a viewer is allowed to know](../docs/009-what-a-viewer-is-allowed-to-know.md),
+[what a viewer is allowed to know](../../docs/009-what-a-viewer-is-allowed-to-know.md),
 demonstrated before the network exists to enforce it.
 
 ## Suggested implementation steps

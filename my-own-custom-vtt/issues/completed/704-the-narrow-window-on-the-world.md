@@ -3,8 +3,8 @@
 **Phase:** 7, the rules layer
 **Blocked by:** [702](702-the-hooks-are-a-dispatch-table.md)
 **Blocks:** [705](705-a-ruleset-may-refuse.md)
-**Documents:** [the rules layer](../docs/011-the-rules-layer.md),
-[what a viewer is allowed to know](../docs/009-what-a-viewer-is-allowed-to-know.md)
+**Documents:** [the rules layer](../../docs/011-the-rules-layer.md),
+[what a viewer is allowed to know](../../docs/009-what-a-viewer-is-allowed-to-know.md)
 
 ## Current behaviour
 
@@ -15,7 +15,7 @@ Hooks are called with nothing useful.
 A deliberately narrow interface. **The exclusions are the point.**
 
 The security argument in
-[009](../docs/009-what-a-viewer-is-allowed-to-know.md) has to survive a carelessly
+[009](../../docs/009-what-a-viewer-is-allowed-to-know.md) has to survive a carelessly
 written ruleset, so a ruleset is never in a position to break it.
 
 ### It cannot

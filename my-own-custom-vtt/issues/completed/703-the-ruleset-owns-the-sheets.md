@@ -3,8 +3,8 @@
 **Phase:** 7, the rules layer
 **Blocked by:** [702](702-the-hooks-are-a-dispatch-table.md)
 **Blocks:** [706](706-what-a-viewer-may-know.md)
-**Documents:** [a thing in the world](../docs/005-a-thing-in-the-world.md),
-[the rules layer](../docs/011-the-rules-layer.md)
+**Documents:** [a thing in the world](../../docs/005-a-thing-in-the-world.md),
+[the rules layer](../../docs/011-the-rules-layer.md)
 
 ## Current behaviour
 

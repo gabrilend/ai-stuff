@@ -3,8 +3,8 @@
 **Phase:** 10, the engraving
 **Blocked by:** [1005](1005-the-reader-reads-the-picture.md)
 **Blocks:** [1009](1009-the-phase-ten-demo.md)
-**Documents:** [the record log is an engraving](../docs/018-the-record-log-is-an-engraving.md),
-[the three programs](../docs/002-the-three-programs.md)
+**Documents:** [the record log is an engraving](../../docs/018-the-record-log-is-an-engraving.md),
+[the three programs](../../docs/002-the-three-programs.md)
 
 ## Current behaviour
 

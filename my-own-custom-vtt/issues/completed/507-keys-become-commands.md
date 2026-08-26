@@ -3,7 +3,7 @@
 **Phase:** 5, the bridge and the browser
 **Blocked by:** [503](503-the-view-receives-state.md)
 **Blocks:** [508](508-the-phase-five-demo.md)
-**Documents:** [commands enter through one door](../docs/010-commands-enter-through-one-door.md)
+**Documents:** [commands enter through one door](../../docs/010-commands-enter-through-one-door.md)
 
 ## Current behaviour
 
@@ -38,7 +38,7 @@ site -- a screen-to-world conversion written twice is written differently twice.
 
 **Commands carry metres.** The view displays feet, rounded, and never converts
 back: two clients rounding differently would disagree about where somebody
-clicked. See [a thing in the world](../docs/005-a-thing-in-the-world.md).
+clicked. See [a thing in the world](../../docs/005-a-thing-in-the-world.md).
 
 ### Refusals are shown
 

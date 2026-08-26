@@ -3,8 +3,8 @@
 **Phase:** 6, control is a dial
 **Blocked by:** [601](601-a-scope-is-a-record.md)
 **Blocks:** [605](605-the-tavern-commands-its-crockery.md)
-**Documents:** [who controls what](../docs/008-who-controls-what.md)
-**Open questions:** [6.1](../docs/016-open-questions.md) — the patrol crossing a
+**Documents:** [who controls what](../../docs/008-who-controls-what.md)
+**Open questions:** [6.1](../../docs/016-open-questions.md) — the patrol crossing a
 boundary.
 
 ## Current behaviour
@@ -41,7 +41,7 @@ hands it over; a thing can be in a list scope *and* a region scope with the list
 winning; the crossing is a request the receiving commander accepts.
 
 **Do not decide this by implementing it.** Build the mechanical answer, make the
-demo show the moment it happens, and leave [6.1](../docs/016-open-questions.md)
+demo show the moment it happens, and leave [6.1](../../docs/016-open-questions.md)
 open until somebody has watched it and formed an opinion.
 
 ## Suggested implementation steps

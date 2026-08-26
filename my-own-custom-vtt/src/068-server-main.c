@@ -22,6 +22,7 @@
 #include "031-region.h"
 #include "070-scope.h"
 #include "035-worldfile.h"
+#include "078-generate.h"
 #include "096-engrave.h"
 #include "094-creature.h"
 
@@ -112,6 +113,17 @@ static uint32_t body_for_viewer(struct world *w, uint32_t which)
     t->kind = 1;
     t->region = region_deepest_containing(w, t->x, t->y);
 
+    /*
+     * And a face, so the person arriving sees somebody rather than a disc.
+     *
+     * The category is the same for everybody at the table and the seed is who
+     * they are, so no two people wear the same picture -- which is the whole
+     * point of a generated appearance layer and would be invisible if they all
+     * looked alike.
+     */
+    t->sprite_category = string_pool_add(&w->strings, "adventurer", 10);
+    t->sprite_seed = 1000u + which;
+
     return index;
 }
 /* }}} */
@@ -131,6 +143,10 @@ int main(int argc, char **argv)
     uint16_t door_port = DEFAULT_DOOR_PORT;
     uint32_t bodies[64];
     uint32_t i;
+
+    /* What to start with. NULL means the hand-built fixture. */
+    const char *place = NULL;
+    uint64_t world_seed = 4207;
 
     double next_beat;
     uint64_t beats = 0;
@@ -154,11 +170,72 @@ int main(int argc, char **argv)
 
     memset(bodies, 0, sizeof(bodies));
 
-    printf("reading input/ ... nothing configured yet; using the two-room fixture\n");
+    for (i = 2; i < (uint32_t)argc; i++) {
+        if (strcmp(argv[i], "--place") == 0 && (int)i + 1 < argc) {
+            place = argv[i + 1];
+            i++;
+        } else if (strcmp(argv[i], "--seed") == 0 && (int)i + 1 < argc) {
+            world_seed = strtoull(argv[i + 1], NULL, 0);
+            i++;
+        } else {
+            printf("%s: '%s' is not an option this program knows.\n",
+                   argv[0], argv[i]);
+            printf("usage: %s <door-port> [--place <description>] [--seed N]\n",
+                   argv[0]);
+            return 1;
+        }
+    }
 
-    if (!fixture_make_two_rooms(&w)) {
-        printf("could not build the world\n");
-        return 1;
+    /*
+     * READ input/ FIRST. That is the project's own rule and this is the thin
+     * version of it: one optional argument naming a description to generate a
+     * place from, and the hand-built fixture otherwise.
+     *
+     * input/what-to-start-with lists what eventually belongs there -- a seed, a
+     * world, a ruleset, a door, participants, a tick rate, a fog size -- and only
+     * the world is honoured here. Said plainly rather than left to be discovered:
+     * open question 16.1.
+     */
+    if (place != NULL) {
+        struct description d;
+        struct fault_list faults;
+        uint32_t things, walls, regions, vertices, lights, strings;
+        const char *trouble = "";
+
+        printf("reading input/ ... generating from %s\n", place);
+
+        if (!description_read_file(&d, place, &faults)) {
+            faults_report(&faults, place);
+            return 1;
+        }
+
+        generate_capacity_hint(&d, &things, &walls, &regions,
+                               &vertices, &lights, &strings);
+
+        /* Room for a body per seat on top of what the place itself needs. */
+        things += 64;
+        strings += 1024;
+
+        if (!world_init(&w, things, walls, regions, vertices, lights, strings)) {
+            printf("could not make room for the world\n");
+            return 1;
+        }
+
+        if (!generate(&w, &d, world_seed, NULL, NULL, &trouble)) {
+            printf("could not generate the world: %s\n", trouble);
+            world_release(&w);
+            return 1;
+        }
+
+        w.seed = world_seed;
+        snprintf(w.origin, sizeof(w.origin), "%.60s", d.name);
+    } else {
+        printf("reading input/ ... nothing configured; using the two-room fixture\n");
+
+        if (!fixture_make_two_rooms(&w)) {
+            printf("could not build the world\n");
+            return 1;
+        }
     }
 
     if (!world_validate(&w, &failure)) {
@@ -169,7 +246,7 @@ int main(int argc, char **argv)
     }
 
     pool = pool_start(0);
-    session_start(&session, &w, pool, 4207, 16, 10);
+    session_start(&session, &w, pool, world_seed, 16, 10);
     viewer_set_init(&viewers, 16);
 
     if (!door_open(&d, door_port, DEFAULT_RANGE_FIRST, DEFAULT_RANGE_LAST, &why)) {
@@ -221,16 +298,13 @@ int main(int argc, char **argv)
                      */
                     scope_make_list(&w, i, STYLE_DRIVEN, &bodies[i], 1, "a player");
 
-                    {
-                        struct instruction hello;
-                        instruction_begin(&hello, OP_HELLO);
-                        instruction_set(&hello, 0, bodies[i]);
-                        instruction_set(&hello, 1, (uint32_t)w.min_x);
-                        instruction_set(&hello, 2, (uint32_t)w.min_y);
-                        instruction_set(&hello, 3, (uint32_t)w.max_x);
-                        instruction_set(&hello, 4, (uint32_t)w.max_y);
-                        instruction_encode(&hello, &v->outbound);
-                    }
+                    /*
+                     * The hello used to be written here and it never arrived:
+                     * outbound_build clears the buffer at the top of every beat,
+                     * and that happens later in this same beat. It is part of
+                     * every update now. See the note in 059-outbound.c and issue
+                     * 1103, which is where the second view found it.
+                     */
 
                     printf("  %s joined on port %u, driving thing %u\n",
                            "somebody", v->port, bodies[i]);

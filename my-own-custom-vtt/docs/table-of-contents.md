@@ -1,5 +1,9 @@
 # Table of Contents
 
+Start at [what this is](001-what-this-is.md). Everything else is reachable
+from there, and everything here is reachable from the site
+[build-docs](../build-docs) makes.
+
 Everything in `docs/` and `notes/`, in reading order. Source files and issue files
 are not listed here; source files are found through their companion `.info.md`
 pages, and issues are found through [the roadmap](015-roadmap.md).

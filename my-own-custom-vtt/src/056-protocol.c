@@ -61,8 +61,14 @@ static const struct opcode_spec outbound[] = {
     { "tick",    { 32, 32, 0 } },
     /* wall:    index, ax, ay, bx, by, flags */
     { "wall",    { 32, 32, 32, 32, 32, 16, 0 } },
-    /* thing:   index, x, y, facing, radius, kind */
-    { "thing",   { 32, 32, 32, 16, 16, 32, 0 } },
+    /*
+     * thing: index, x, y, facing, radius, kind, motion
+     *
+     * The motion is eight bits and belongs on the thing rather than on a layer,
+     * because the whole sprite bobs or walks or turns -- a per-layer motion would
+     * be a different and much larger idea.
+     */
+    { "thing",   { 32, 32, 32, 16, 16, 32, 8, 0 } },
     /* fan:     angle, distance */
     { "fan",     { 16, 32, 0 } },
     /* refusal: which verb, which subject, reason */
@@ -70,7 +76,19 @@ static const struct opcode_spec outbound[] = {
     /* recall:  the turn being taken back */
     { "recall",  { 32, 0 } },
     /* end:     how many instructions preceded this one */
-    { "end",     { 32, 0 } }
+    { "end",     { 32, 0 } },
+    /*
+     * layer: which thing, which layer, shape, colour, offset x, offset y, radius
+     *
+     * The COLOUR goes on the wire, not the palette slot it came from. A view
+     * needs no palette and no lookup, and a slot number would be a second thing
+     * to keep in step for no gain -- a view is not going to re-tint anything.
+     *
+     * The offsets are signed bytes sent through unsigned slots, the same way a
+     * coordinate is. A reader sign-extends; a reader that forgets draws every
+     * detail on one side, which is loud rather than subtle.
+     */
+    { "layer",   { 32, 8, 8, 32, 8, 8, 8, 0 } }
 };
 
 /* {{{ static const struct opcode_spec *spec_for */

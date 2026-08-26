@@ -5,8 +5,8 @@
 [105](105-regions-nest.md)
 **Blocks:** [602](602-membership-is-a-list-or-a-region.md) -- the tavern's
 commander depends entirely on this being right.
-**Documents:** [the map is geometry](../docs/006-the-map-is-geometry-not-a-picture.md),
-[who controls what](../docs/008-who-controls-what.md)
+**Documents:** [the map is geometry](../../docs/006-the-map-is-geometry-not-a-picture.md),
+[who controls what](../../docs/008-who-controls-what.md)
 
 ## Current behaviour
 
@@ -43,7 +43,7 @@ forest's.
 
 **That is mechanically what happens and it is not settled that it is what anybody
 wants** -- the forest's commander may have been walking that patrol for ten
-minutes with an intention. See [6.1](../docs/016-open-questions.md).
+minutes with an intention. See [6.1](../../docs/016-open-questions.md).
 
 If the answer changes, it changes in
 [602](602-membership-is-a-list-or-a-region.md) rather than here: this file's job is

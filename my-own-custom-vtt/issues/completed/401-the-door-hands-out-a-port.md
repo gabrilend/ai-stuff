@@ -3,9 +3,9 @@
 **Phase:** 4, people connect
 **Blocked by:** phase 3 complete.
 **Blocks:** [402](402-a-session-is-a-socket.md)
-**Documents:** [the door and the private port](../docs/003-the-door-and-the-private-port.md)
-**Open questions:** [4.2](../docs/016-open-questions.md) -- what is in the
-`secret` field? [4.3](../docs/016-open-questions.md) -- how large can a table get?
+**Documents:** [the door and the private port](../../docs/003-the-door-and-the-private-port.md)
+**Open questions:** [4.2](../../docs/016-open-questions.md) -- what is in the
+`secret` field? [4.3](../../docs/016-open-questions.md) -- how large can a table get?
 
 ## Current behaviour
 
@@ -63,6 +63,6 @@ change.
 
 ## What this does not do
 
-No encryption and no real authentication yet. [4.2](../docs/016-open-questions.md)
+No encryption and no real authentication yet. [4.2](../../docs/016-open-questions.md)
 is unanswered, and building a `secret` check before deciding what a secret is
 would mean building the wrong one.

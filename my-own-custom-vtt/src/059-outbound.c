@@ -13,6 +13,7 @@
 #include "056-protocol.h"
 #include "031-region.h"
 #include "070-scope.h"
+#include "082-sprite.h"
 
 #include <string.h>
 
@@ -231,6 +232,37 @@ static int write_thing(struct viewer *v, const struct world *w, uint32_t index)
      * entitle you to its hit points. Its `scope` does not either, because who
      * commands a body is not something looking at it tells you.
      */
+    struct sprite worn;
+    int wearing = 0;
+    uint32_t layer;
+
+    /*
+     * What it looks like, rebuilt from the two fields the thing carries. Nothing
+     * is stored for this and nothing is cached: a world file already holds a
+     * category and a seed, and those regenerate the picture exactly.
+     *
+     * A thing wearing nothing is normal -- a hand-built fixture has no sprite and
+     * neither does a world file written before things wore them -- so the layers
+     * are simply absent and the view draws the plain body it drew before. That
+     * is not a fallback hiding an error; it is the correct picture of a thing
+     * whose appearance nobody has decided.
+     */
+    if (t->sprite_category != 0) {
+        uint32_t length = 0;
+        const char *bytes = string_pool_read(&w->strings, t->sprite_category,
+                                             &length);
+        char category[SPRITE_NAME_MAX + 1];
+
+        if (length > SPRITE_NAME_MAX) {
+            length = SPRITE_NAME_MAX;
+        }
+        memcpy(category, bytes, length);
+        category[length] = '\0';
+
+        sprite_make(&worn, category, t->sprite_seed);
+        wearing = 1;
+    }
+
     instruction_begin(&out, OP_THING);
     instruction_set(&out, 0, index);
     instruction_set(&out, 1, (uint32_t)t->x);
@@ -238,9 +270,42 @@ static int write_thing(struct viewer *v, const struct world *w, uint32_t index)
     instruction_set(&out, 3, t->facing);
     instruction_set(&out, 4, t->radius);
     instruction_set(&out, 5, t->kind);
+    instruction_set(&out, 6, wearing ? worn.motion : MOTION_STILL);
 
     if (!instruction_encode(&out, &v->outbound)) {
         return 0;
+    }
+
+    /*
+     * And the layers, EVERY UPDATE.
+     *
+     * An update is the whole picture rather than a difference, because that is
+     * what makes a dropped update harmless -- and an appearance is part of the
+     * picture. Sending it once and remembering would mean a viewer who lost one
+     * frame under back-pressure had a thing with no face, permanently, with
+     * nothing anywhere to notice.
+     *
+     * The cost is six instructions per visible thing per beat, and the phase
+     * eleven demo measures it rather than assuming it is fine.
+     */
+    for (layer = 0; wearing && layer < worn.layer_count; layer++) {
+        const struct sprite_layer *l = &worn.layers[layer];
+        struct instruction paint;
+
+        instruction_begin(&paint, OP_LAYER);
+        instruction_set(&paint, 0, index);
+        instruction_set(&paint, 1, layer);
+        instruction_set(&paint, 2, l->shape);
+        instruction_set(&paint, 3, worn.palette[l->slot]);
+        instruction_set(&paint, 4, (uint32_t)(int32_t)l->offset_x);
+        instruction_set(&paint, 5, (uint32_t)(int32_t)l->offset_y);
+        instruction_set(&paint, 6, l->radius);
+
+        if (!instruction_encode(&paint, &v->outbound)) {
+            return 0;
+        }
+
+        v->layers_sent++;
     }
 
     v->things_sent++;
@@ -294,6 +359,46 @@ uint32_t outbound_build(struct session *s,
      * way neither end can detect.
      */
     buffer_clear(&v->outbound);
+
+    /*
+     * WHO YOU ARE AND HOW BIG THE WORLD IS, in every update.
+     *
+     * It used to be written once, when somebody joined, and it never arrived --
+     * because this function clears the buffer at the top of every beat and the
+     * join happens earlier in the same beat. The browser had been running for
+     * six phases without ever receiving one; it defaulted to body zero, which is
+     * nothing, so it simply never highlighted anybody's own body and nobody
+     * noticed.
+     *
+     * A SECOND VIEW FOUND IT IMMEDIATELY, because a terminal cannot draw a map
+     * at all without knowing the extent. That is what a second consumer is for,
+     * and it is a phase 4 defect rather than a phase 11 requirement. Written up
+     * as one in issue 1103.
+     *
+     * The fix is the protocol's own principle applied consistently: an update is
+     * the whole picture, so anything that must reach a viewer is IN the update.
+     * It costs twenty-one bytes a beat and it cannot go missing again.
+     */
+    {
+        struct instruction hello;
+        uint32_t eyes[1];
+        uint32_t yours = 0;
+
+        if (scope_eyes_of_viewer(s->world, viewer_index, eyes, 1) > 0) {
+            yours = eyes[0];
+        }
+
+        instruction_begin(&hello, OP_HELLO);
+        instruction_set(&hello, 0, yours);
+        instruction_set(&hello, 1, (uint32_t)s->world->min_x);
+        instruction_set(&hello, 2, (uint32_t)s->world->min_y);
+        instruction_set(&hello, 3, (uint32_t)s->world->max_x);
+        instruction_set(&hello, 4, (uint32_t)s->world->max_y);
+
+        if (instruction_encode(&hello, &v->outbound)) {
+            written++;
+        }
+    }
 
     {
         struct instruction tick;

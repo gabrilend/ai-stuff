@@ -3,7 +3,7 @@
 **Phase:** 10, the engraving
 **Blocked by:** [1001](1001-what-is-in-the-cells.md)
 **Blocks:** [1003](1003-a-creature-is-a-tiling.md)
-**Documents:** [the record log is an engraving](../docs/018-the-record-log-is-an-engraving.md)
+**Documents:** [the record log is an engraving](../../docs/018-the-record-log-is-an-engraving.md)
 
 ## Current behaviour
 

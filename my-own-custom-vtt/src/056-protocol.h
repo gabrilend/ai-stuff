@@ -63,9 +63,24 @@
 #define OP_REFUSAL    69u   /* Server: what you asked for, and why not. */
 #define OP_RECALL     70u   /* Server: the last stretch did not happen. */
 #define OP_END        71u   /* Server: that is the whole update. */
+/*
+ * Server: one layer of what a body looks like.
+ *
+ * THE PAINTBRUSH TRAVELS AS NUMBERS. Every move a sprite is allowed to make is a
+ * small integer -- a shape, a colour, two offsets, a radius -- so an appearance
+ * fits the protocol this project already has, and a view becomes a RENDERER OF
+ * THE PAINTBRUSH rather than a second copy of the generator.
+ *
+ * That distinction is the whole reason it is done this way. The alternatives were
+ * porting the generator to JavaScript, which is a second implementation that must
+ * agree byte for byte over arithmetic JavaScript does not have; or sending the
+ * SVG text, which the wire has no field for. Both end with two things that can
+ * disagree about what a goblin looks like, with no error anywhere.
+ */
+#define OP_LAYER      72u
 
 #define OP_FIRST_SERVER OP_HELLO
-#define OP_LAST_SERVER  OP_END
+#define OP_LAST_SERVER  OP_LAYER
 
 /* Why an instruction could not be decoded at all. These close the socket. */
 #define PROTO_OK              0u

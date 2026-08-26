@@ -199,9 +199,39 @@ function applyUpdate(instructions) {
                 x: signed(one.slot[1]), y: signed(one.slot[2]),
                 facing: one.slot[3] || 0,
                 radius: one.slot[4] || 0,
-                kind: one.slot[5] || 0
+                kind: one.slot[5] || 0,
+                motion: one.slot[6] || 0,
+                layers: []
             });
             break;
+
+        case TABLES.op.LAYER: {
+            /*
+             * What it looks like, one shape at a time. The layers of a thing
+             * always follow it, so the body they belong to is already here.
+             *
+             * A layer for a thing that never arrived is dropped rather than
+             * kept: it would be an appearance with nothing wearing it, and the
+             * only way to get one is a stream that was cut, which the missing
+             * END already handles.
+             */
+            const wearer = state.things.get(one.slot[0]);
+
+            if (wearer !== undefined) {
+                wearer.layers.push({
+                    shape: one.slot[2] || 0,
+                    colour: one.slot[3] || 0,
+                    /* Signed bytes through unsigned slots, the same way a
+                     * coordinate travels. Forget the sign extension and every
+                     * detail lands on one side, which is loud rather than
+                     * subtle. */
+                    ox: signedByte(one.slot[4]),
+                    oy: signedByte(one.slot[5]),
+                    radius: one.slot[6] || 0
+                });
+            }
+            break;
+        }
 
         case TABLES.op.FAN:
             state.fan.push({ angle: one.slot[0] || 0, distance: one.slot[1] || 0 });
@@ -251,6 +281,19 @@ function signed(value) {
 }
 /* }}} */
 
+/*
+ * The same, for a byte. A slot's width is the field's width, so an eight-bit
+ * signed value arrives as 0 to 255 and the reader is the only thing that knows
+ * it was negative.
+ */
+/* {{{ function signedByte */
+function signedByte(value) {
+    const v = value || 0;
+
+    return (v & 0x80) ? v - 256 : v;
+}
+/* }}} */
+
 /* ------------------------------------------------------------------------- *
  * Interpolation
  * ------------------------------------------------------------------------- */
@@ -296,7 +339,11 @@ function blend(fraction) {
             y: before.y + (now.y - before.y) * fraction,
             facing: before.facing + shortWayRound(before.facing, now.facing) * fraction,
             radius: now.radius,
-            kind: now.kind
+            kind: now.kind,
+            /* The appearance is not interpolated. It does not change, so there
+             * is nothing between two of them to be. */
+            motion: now.motion,
+            layers: now.layers
         });
     }
 
@@ -349,6 +396,138 @@ function worldToScreen(x, y) {
         px: originX + (x / WC_ONE) * scale,
         py: originY - (y / WC_ONE) * scale
     };
+}
+/* }}} */
+
+/* ------------------------------------------------------------------------- *
+ * The paintbrush, rendered
+ *
+ * THE VIEW RENDERS THE PAINTBRUSH; IT DOES NOT OWN IT. Four shapes, three of
+ * which are two calls each. Nothing here holds an opinion about what a goblin
+ * looks like -- only about how to draw a ring.
+ *
+ * That is why it is small. A view that had to know what a goblin looks like
+ * would be a second generator, and two generators that disagree produce two
+ * different pictures and no error anywhere.
+ * ------------------------------------------------------------------------- */
+
+/* Matching the shape numbers in 082-sprite.h. */
+const SHAPE_CIRCLE = 0;
+const SHAPE_RECT = 1;
+const SHAPE_TRIANGLE = 2;
+const SHAPE_RING = 3;
+
+/* Matching the motion numbers. */
+const MOTION_STILL = 0;
+const MOTION_BOB = 1;
+const MOTION_WALK = 2;
+const MOTION_FLICKER = 3;
+const MOTION_TURN = 4;
+
+/* A sprite is described in hundredths of its own box, measured from the middle. */
+const SPRITE_CANVAS = 100;
+
+/* {{{ function hexColour */
+function hexColour(packed) {
+    return '#' + (packed & 0xFFFFFF).toString(16).padStart(6, '0');
+}
+/* }}} */
+
+/*
+ * How a motion displaces its sprite right now.
+ *
+ * DRIVEN BY THE FRAME CLOCK, NOT THE BEAT. A bob at twenty beats a second is a
+ * stutter; a bob at sixty frames a second is a bob.
+ *
+ * And it is drawing, not simulation. The bob has no effect on anything, moves
+ * nothing, and is never sent anywhere. Confusing the two would be the beginning
+ * of a client that thinks it knows where a goblin is.
+ */
+/* {{{ function motionOf */
+function motionOf(motion, index) {
+    /* Offset per thing so that a room of goblins does not bob in unison, which
+     * reads as one object rather than several. */
+    const now = performance.now() / 1000 + index * 0.37;
+
+    if (motion === MOTION_BOB) {
+        return { dx: 0, dy: -Math.sin(now * 3.9) * 0.06, alpha: 1, spin: 0 };
+    }
+    if (motion === MOTION_WALK) {
+        return { dx: Math.sin(now * 7.8) * 0.05, dy: 0, alpha: 1, spin: 0 };
+    }
+    if (motion === MOTION_FLICKER) {
+        return { dx: 0, dy: 0, alpha: 0.72 + Math.sin(now * 12.5) * 0.28, spin: 0 };
+    }
+    if (motion === MOTION_TURN) {
+        return { dx: 0, dy: 0, alpha: 1, spin: (now * 1.5) % (Math.PI * 2) };
+    }
+
+    return { dx: 0, dy: 0, alpha: 1, spin: 0 };
+}
+/* }}} */
+
+/* {{{ function drawWornSprite */
+function drawWornSprite(p, r, body) {
+    /*
+     * The sprite's own box is a hundred across and the body's radius is what it
+     * is drawn to fill, so one hundredth of the box is this many screen pixels.
+     */
+    const unit = (r * 2.2) / SPRITE_CANVAS;
+    const move = motionOf(body.motion, body.index);
+
+    context.save();
+    context.globalAlpha = move.alpha;
+    context.translate(p.px + move.dx * r * 2, p.py + move.dy * r * 2);
+
+    if (move.spin !== 0) {
+        context.rotate(move.spin);
+    }
+
+    for (const layer of body.layers) {
+        const cx = layer.ox * unit;
+        const cy = layer.oy * unit;
+        const size = layer.radius * unit;
+        const colour = hexColour(layer.colour);
+
+        context.beginPath();
+
+        if (layer.shape === SHAPE_RECT) {
+            context.rect(cx - size, cy - size, size * 2, size * 2);
+            context.fillStyle = colour;
+            context.fill();
+        } else if (layer.shape === SHAPE_TRIANGLE) {
+            context.moveTo(cx, cy - size);
+            context.lineTo(cx - size, cy + size);
+            context.lineTo(cx + size, cy + size);
+            context.closePath();
+            context.fillStyle = colour;
+            context.fill();
+        } else if (layer.shape === SHAPE_RING) {
+            /* Only its edge. The reader on the other side tells a ring from a
+             * circle the same way -- by there being nothing inside it. */
+            context.arc(cx, cy, size, 0, Math.PI * 2);
+            context.strokeStyle = colour;
+            context.lineWidth = Math.max(1, unit * 4);
+            context.stroke();
+        } else {
+            context.arc(cx, cy, size, 0, Math.PI * 2);
+            context.fillStyle = colour;
+            context.fill();
+        }
+    }
+
+    /* The one thing this view adds that the sprite does not carry: which body is
+     * yours. It is a ring around the outside rather than a tint, so it does not
+     * argue with the sprite's own colours. */
+    if (body.index === commandedBody) {
+        context.beginPath();
+        context.arc(0, 0, r * 1.35, 0, Math.PI * 2);
+        context.strokeStyle = '#d8c89a';
+        context.lineWidth = 2;
+        context.stroke();
+    }
+
+    context.restore();
 }
 /* }}} */
 
@@ -437,10 +616,20 @@ function drawFrame() {
         const p = worldToScreen(drawnAt.x, drawnAt.y);
         const r = Math.max(3, (body.radius / WC_ONE) * scale);
 
-        context.beginPath();
-        context.arc(p.px, p.py, r, 0, Math.PI * 2);
-        context.fillStyle = (body.index === commandedBody) ? '#d8c89a' : '#9a6a5a';
-        context.fill();
+        if (body.layers && body.layers.length > 0) {
+            drawWornSprite(p, r, body);
+        } else {
+            /*
+             * A body wearing nothing. Normal: a hand-built fixture has no
+             * sprite and neither does a world written before things wore them.
+             * Not a fallback hiding an error -- the correct picture of a thing
+             * whose appearance nobody has decided.
+             */
+            context.beginPath();
+            context.arc(p.px, p.py, r, 0, Math.PI * 2);
+            context.fillStyle = (body.index === commandedBody) ? '#d8c89a' : '#9a6a5a';
+            context.fill();
+        }
 
         /* Which way it is looking. */
         const angle = (drawnAt.facing / FULL_TURN) * Math.PI * 2;

@@ -4,7 +4,7 @@
 **Blocked by:** [302](302-motion-is-intent-then-resolve.md),
 [306](306-the-command-log-is-the-replay.md)
 **Blocks:** [309](309-taking-a-turn-back.md)
-**Documents:** [the turn is a transaction](../docs/019-the-turn-is-a-transaction.md)
+**Documents:** [the turn is a transaction](../../docs/019-the-turn-is-a-transaction.md)
 
 ## Current behaviour
 
@@ -45,7 +45,7 @@ intent, and a decision about which beat resolves them.
 
 A viewer is not sent what other viewers have declared. That is a filtering rule and
 it belongs with the others in
-[405](405-the-four-gates.md) rather than being enforced here.
+[406](406-commands-run-a-gauntlet.md) rather than being enforced here.
 
 People will talk to each other while they decide, and that is a tabletop and the
 point of one. The server's job is not to prevent it -- only to avoid being the thing
@@ -58,7 +58,7 @@ that leaks.
    else about ordering.
 2. Implement window closing. Three triggers, not exclusive: everybody has sent
    `DECLARED`; a timer expired; a GM said so. Which of these a session uses is
-   configuration. See [3.5](../docs/016-open-questions.md) -- undecided, and a
+   configuration. See [3.5](../../docs/016-open-questions.md) -- undecided, and a
    timer is both the thing that keeps a session moving and the thing that cuts
    somebody off mid-thought.
 3. Take the head snapshot when a window opens, not when it closes.
