@@ -44,7 +44,121 @@ local CATALOGUE_TALK = {
   "radical", "%(no%.", "katakana", "hiragana", "kana ", "^kana$",
   "counter for", "stroke", "kokuji", "variant of", "old form",
   "abbreviation of", "%f[%a]form of%f[%A]",
+  -- And glosses that are grammar rather than things. A pronoun is a correct
+  -- translation and cannot be in a photograph -- the piece 吾 is glossed "I",
+  -- which put the word "I" into a scene description as though it named
+  -- something. These are anchored, because "it" is inside "item" and "we" is
+  -- inside "west".
+  "^i$", "^me$", "^my$", "^mine$", "^you$", "^your$", "^we$", "^us$",
+  "^he$", "^she$", "^it$", "^they$", "^them$", "^this$", "^that$",
+  "^these$", "^those$", "^oneself$", "^itself$", "^etc%.?$", "^and$",
+  "^or$", "^but$", "^not$", "^very$", "^more$", "^most$",
 }
+-- }}}
+
+-- {{{ CUTS -- where a describing phrase stops being a name
+--
+-- A piece has two things to say about itself and they are not the same length.
+-- *A hand reaching down to grasp* is a phrase to drop into a sentence. *Hand*
+-- is what the piece is called, and what a learner is told it is called.
+--
+-- The names are derived from the phrases rather than written a second time,
+-- because a hundred and seventy of them written by hand would be a hundred and
+-- seventy chances for the two to disagree -- and a piece whose name and whose
+-- description have drifted apart is a piece nobody can trust either half of.
+--
+-- Everything from the first of these onward is elaboration on the name and is
+-- cut. Where the derivation gets one wrong, NAMED below says so outright.
+local CUTS = {
+  ", ", " with ", " on ", " of ", " above ", " under ", " beneath ", " over ",
+  " reaching ", " lying ", " held ", " being ", " that ", " which ", " where ",
+  " turned ", " laid ", " set ", " left ", " seen ", " going ", " coming ",
+  " standing ", " driven ", " cut ", " split ", " stepping ", " walking ",
+  " breaking ", " enclosing ", " curled ", " raised ", " caught ", " calling ",
+  " falling ", " trailing ", " drawing ", " side by side ", " mid-step ",
+  " from ", " for ", " to ", " at ", " in ", " into ", " and ", " up ", " down ",
+  " out ", " apart ", " away ", " leaving ", " used ", " making ", " running ",
+  " catching ", " pushing ", " bent ", " planted ", " worn ", " spoken ",
+  " round ", " across ", " between ", " beside ", " like ", " asleep ",
+}
+-- }}}
+
+-- {{{ NAMED -- pieces whose name is not the head of their phrase
+--
+-- Every row here is one the derivation above got wrong, and it is short because
+-- the derivation is mostly right. Kept as a list of corrections rather than as
+-- a full second column, so that adding a phrase does not oblige anybody to
+-- invent a name for it.
+local NAMED = {
+  ["亻"] = "leader",     ["儿"] = "legs",       ["彳"] = "loiter",
+  ["丿"] = "slide",      ["丶"] = "drop",       ["丨"] = "stick",
+  ["亠"] = "lid",        ["冖"] = "cover",      ["宀"] = "roof",
+  ["广"] = "canopy",     ["厂"] = "cliff",      ["囗"] = "enclosure",
+  ["冂"] = "head",       ["匚"] = "box",        ["匸"] = "hiding",
+  ["勹"] = "wrap",       ["卩"] = "seal",       ["厶"] = "private",
+  ["又"] = "again",      ["寸"] = "measurement", ["扌"] = "fingers",
+  ["忄"] = "heart",      ["氵"] = "tsunami",    ["灬"] = "boil",
+  ["艹"] = "flowers",    ["竹"] = "bamboo",     ["糹"] = "thread",
+  ["糸"] = "thread",     ["衤"] = "cloak",      ["礻"] = "altar",
+  ["犭"] = "animal",     ["阝"] = "building",   ["⻖"] = "building",
+  ["辶"] = "scooter",    ["廴"] = "stretch",    ["攵"] = "task",
+  ["殳"] = "weapon",     ["夂"] = "winter",     ["彡"] = "hair",
+  ["廾"] = "twenty",     ["⺕"] = "grip",       ["幺"] = "poop",
+  ["爿"] = "bed",        ["彑"] = "snout",      ["癶"] = "tent",
+  ["屰"] = "reversed",   ["歹"] = "death",      ["尸"] = "flag",
+  ["疒"] = "sick",       ["龰"] = "foot",       ["𠂉"] = "eave",
+  ["乂"] = "cross",      ["弋"] = "stake",      ["卜"] = "toe",
+  ["匕"] = "spoon",      ["王"] = "king",       ["玉"] = "jewel",
+  ["頁"] = "geoduck",    ["隹"] = "turkey",     ["聿"] = "brush",
+  ["革"] = "leather",    ["髟"] = "hair",       ["隶"] = "slave",
+  ["言"] = "say",        ["口"] = "mouth",      ["目"] = "eye",
+  ["心"] = "heart",      ["火"] = "fire",       ["水"] = "water",
+  ["土"] = "dirt",       ["田"] = "rice paddy", ["山"] = "mountain",
+  ["石"] = "stone",      ["金"] = "gold",       ["月"] = "moon",
+  ["日"] = "sun",        ["木"] = "tree",       ["人"] = "person",
+  ["女"] = "woman",      ["子"] = "child",      ["大"] = "big",
+  ["小"] = "small",      ["中"] = "middle",     ["一"] = "ground",
+  ["二"] = "two",        ["八"] = "fins",       ["十"] = "cross",
+  ["入"] = "enter",      ["西"] = "west",       ["用"] = "task",
+  ["長"] = "long",       ["貝"] = "shellfish",  ["食"] = "eat",
+  ["米"] = "rice",       ["皿"] = "dish",       ["衣"] = "clothes",
+  ["巾"] = "towel",      ["車"] = "car",        ["刀"] = "sword",
+  ["刂"] = "knife",      ["弓"] = "bow",        ["矢"] = "arrow",
+  ["戈"] = "spear",      ["斤"] = "axe",        ["工"] = "construction",
+  ["示"] = "altar",      ["穴"] = "hole",       ["谷"] = "valley",
+  ["門"] = "gate",       ["戸"] = "door",       ["里"] = "village",
+  ["虫"] = "insect",     ["魚"] = "fish",       ["鳥"] = "bird",
+  ["馬"] = "horse",      ["牛"] = "cow",        ["羊"] = "sheep",
+  ["犬"] = "dog",        ["舟"] = "boat",       ["雨"] = "rain",
+  ["竹"] = "bamboo",     ["生"] = "life",       ["足"] = "foot",
+  ["耳"] = "ear",        ["首"] = "neck",       ["自"] = "nose",
+  ["見"] = "see",        ["立"] = "stand",      ["止"] = "stop",
+  ["走"] = "run",        ["手"] = "hand",       ["文"] = "writing",
+  ["夕"] = "evening",    ["夜"] = "night",      ["光"] = "sunlight",
+  ["禾"] = "grain",      ["才"] = "genius",     ["求"] = "request",
+}
+-- }}}
+
+-- {{{ M.name_from(phrase)
+-- The short name inside a describing phrase.
+--
+-- Strips the article, then cuts at the first place the phrase stops naming the
+-- thing and starts saying more about it.
+function M.name_from(phrase)
+  if not phrase or phrase == "" then return nil end
+  local name = phrase:gsub("^[Aa]n?%s+", ""):gsub("^[Tt]he%s+", "")
+  local cut = #name + 1
+  for _, marker in ipairs(CUTS) do
+    local at = name:find(marker, 1, true)
+    if at and at < cut then cut = at end
+  end
+  name = name:sub(1, cut - 1)
+  -- "long low branch" is still a name; "long low" is not. A cut that left an
+  -- adjective dangling has cut in the wrong place, and the whole phrase is a
+  -- better answer than a fragment of it.
+  if name == "" or name:match("^%a+ly$") then return phrase end
+  return name
+end
 -- }}}
 
 -- {{{ M.is_paintable(gloss)
@@ -278,6 +392,42 @@ local WRITTEN = {
   { "二", "two marks tallied",                "word",    "abstract" },
   { "八", "two marks drawing apart",          "word",    "abstract" },
   { "求", "a hand reaching for something",    "person",  "abstract" },
+
+  -- Pieces whose dictionary gloss is a pronoun or a grammatical word, refused
+  -- above and given a picture here. Every one is drawn from what the piece is
+  -- actually built out of, which is the same move the rest of this file makes.
+  { "吾", "five mouths all speaking at once",  "word",    "abstract" },
+  { "予", "a shuttle passed between hands",    "cloth",   "abstract" },
+  { "其", "a winnowing basket on a stand",     "food",    "abstract" },
+  { "之", "a foot setting off",                "road",    "abstract" },
+  { "乃", "a rope hanging in a loop",          "cloth",   "abstract" },
+  { "亦", "a figure with marks under each arm", "person", "abstract" },
+  { "自", "a nose",                          "person",  "abstract" },
+  { "勿", "a banner with streamers flying",  "cloth",   "abstract" },
+  { "此", "a foot halted beside another",    "road",    "abstract" },
+
+  -- And the next rows the coverage report named, all of them pieces with no
+  -- dictionary entry of their own. Drawn from what each is built out of.
+  { "䜌", "two skeins of silk either side of a word", "cloth", "shape" },
+  { "叚", "a hand passing something across",  "person",  "shape" },
+  { "壴", "a drum standing on its post",      "shrine",  "shape" },
+  { "枼", "a spray of leaves on a branch",    "forest",  "shape" },
+  { "睪", "an eye watching from above",       "person",  "shape" },
+  { "肙", "a small pale worm",                "beast",   "shape" },
+  { "囟", "the crown of a skull",             "person",  "shape" },
+  { "冘", "a figure carrying a load",         "road",    "shape" },
+  { "啇", "a stalk with a mouth beneath it",  "field",   "shape" },
+  { "夆", "two hands meeting",                "person",  "shape" },
+  { "尗", "a bean plant with pods",           "field",   "shape" },
+  { "夌", "a figure climbing over a mound",   "mountain","shape" },
+  { "匃", "a figure with an outstretched hand", "person", "shape" },
+  { "乡", "three marks trailing behind",      "sky",     "shape" },
+  { "𥁕", "a dish set down in an enclosure",  "food",    "shape" },
+  { "㐺", "three figures standing together",  "town",    "shape" },
+  { "巸", "a wide-open gateway",              "town",    "shape" },
+  { "豖", "a pig with its legs bound",        "beast",   "shape" },
+  { "㫃", "a banner on a leaning pole",       "cloth",   "shape" },
+  { "冎", "a bone joint",                     "person",  "shape" },
   { "見", "an eye above a pair of legs",      "person",  "abstract" },
 }
 
@@ -313,12 +463,18 @@ function M.look_up(component, store)
   local written = BY_CHARACTER[element]
   if written then
     return { depicts = written.depicts, biome = written.biome,
+             name = NAMED[element] or M.name_from(written.depicts),
+             named_by_us = true,
              source = "written", why = written.why, element = element }
   end
 
   local own = store.records[element]
   if own and M.is_paintable(own.meanings[1]) then
+    -- A dictionary's first gloss is already a name -- "tree", "mouth", "five".
+    -- That is the whole reason most of this lexicon did not have to be written.
     return { depicts = own.meanings[1], biome = nil,
+             name = NAMED[element] or own.meanings[1],
+             named_by_us = NAMED[element] ~= nil,
              source = "dictionary", element = element,
              meanings = own.meanings }
   end
@@ -327,12 +483,16 @@ function M.look_up(component, store)
     local under = BY_CHARACTER[component.original]
     if under then
       return { depicts = under.depicts, biome = under.biome,
+               name = NAMED[component.original] or M.name_from(under.depicts),
+               named_by_us = true,
                source = "written-original", why = under.why,
                element = component.original }
     end
     local other = store.records[component.original]
     if other and M.is_paintable(other.meanings[1]) then
       return { depicts = other.meanings[1], biome = nil,
+               name = NAMED[component.original] or other.meanings[1],
+               named_by_us = NAMED[component.original] ~= nil,
                source = "dictionary-original", element = component.original,
                meanings = other.meanings }
     end
@@ -428,9 +588,10 @@ local function main(argv)
     for _, component in ipairs(record.components) do
       if component.depth > 1 then
         local found = M.look_up(component, store)
-        io.write(string.format("  %-4s depth %d %-8s %s%s\n",
+        io.write(string.format("  %-4s depth %d %-8s %-14s %s%s\n",
           component.element, component.depth,
           component.phonetic and "(sound)" or "",
+          found and (found.name .. (found.named_by_us and "*" or "")) or "",
           found and found.depicts or "-- nothing to picture --",
           found and ("   [" .. found.source .. "]") or ""))
       end

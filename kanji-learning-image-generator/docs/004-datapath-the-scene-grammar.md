@@ -53,7 +53,10 @@ character in its own right, and this is where the etymology does the work:
 
 Each component is looked up in the **component lexicon**
 (`src/023-the-component-lexicon.lua`), which answers *what does this piece look
-like as a thing in a picture*. The lexicon is mostly not written by hand: a
+like as a thing in a picture* — and separately, *what is it called*. A phrase
+goes into a sentence; a name is what a learner is told the piece is. The names
+are derived from the phrases rather than written a second time, because writing
+both by hand is one chance per row for the two to disagree. The lexicon is mostly not written by hand: a
 component is usually itself a kanji, so its glosses are already in KANJIDIC2 and
 the lexicon reads them out of the same record store everything else uses. Hand
 authorship is reserved for the pieces that need it — components that are not
@@ -63,6 +66,28 @@ a measuring rod).
 
 Two demotions apply, and both are demotions to something specific rather than to
 nothing:
+
+### Which of two pictures this is
+
+Everything in this section describes **one of two readings**, and which one runs
+is a setting. The distinction did not exist when this document was written and
+`notes/041` is why it does now.
+
+| Reading | The half chosen for its sound | The question it answers |
+|---|---|---|
+| `semantic` | becomes landscape, as below | *what does this word mean?* |
+| `mnemonic` (default) | is a named subject like any other | *what can I hang the meaning on?* |
+
+The argument below is the argument for `semantic`, and it is correct. It is not
+the argument for `mnemonic`, which is this: 時 is a **sun** over a **temple**,
+and the mnemonic works *because* a temple has nothing to do with time. A picture
+showing only the sun has quietly dropped the half of the character a learner has
+to account for when they meet it on the page.
+
+**The scoring is identical under both.** A sound half never votes on which world
+a character belongs to, in either reading, because that was never about the
+picture — it is about what the character is *about*, and a piece chosen for its
+sound is not evidence of that.
 
 **Phonetic components are de-selected from subjecthood and re-selected as
 landscape.** KanjiVG marks them with `kvg:phon`. In a phono-semantic compound the
