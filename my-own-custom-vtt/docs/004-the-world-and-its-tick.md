@@ -91,26 +91,40 @@ This is what makes the tick deterministic, and determinism is what makes a repla
 mean anything. Same world, same commands, same seed, same result, on any machine
 with any number of threads.
 
-## Time, and the question of turns
+## Time, turns, and undoing
 
-The world ticks continuously. A torch flickers, a patrol walks its route, and a
-door finishes swinging, all without anybody issuing a command. That is what
-"dynamic, more like a video game" requires: motion is a property of the world, not
-an animation the client invents to cover up a teleport.
+The tick is the heartbeat. The **turn** is a larger thing built out of ticks, and
+it is a transaction: commands accumulate inside it, everything resolves at once
+when it closes, and it can be taken back.
 
-**Turn structure, if there is any, belongs to the ruleset, not to the tick.** A
-system with initiative order does not stop the world; it makes the ruleset refuse
-commands from bodies whose turn it is not. The refusal is a sentence, and it is
-the same mechanism as every other refusal. A system with no turns refuses nothing
-and the world simply runs.
+That is a server concept, not a ruleset one, and the distinction is what keeps the
+server ignorant of games. The server knows **a turn is a window that can be
+undone**. It does not know what initiative is, what a round means, or whether
+acting twice is legal. A ruleset that wants continuous play sets the window to one
+tick and never rolls anything back, and nothing special happens.
 
-This split is a proposal, not a settled decision -- it is the answer this design
-wants to give to the question in [the vision](../notes/vision) about whether the
-world is continuously simulated or turn-shaped underneath. It is in
-[open questions](016-open-questions.md) until it is confirmed.
+Turns are described in full in
+[the turn is a transaction](019-the-turn-is-a-transaction.md). What matters here
+is the two properties they demand of the tick, both of which it already has:
+
+**Simultaneous resolution** is [buffer-then-resolve](#buffer-then-resolve),
+already the rule for every pass. Everyone's intentions are written down first and
+settled afterwards, so nothing depends on whose packet arrived first.
+
+**Rollback** is a snapshot at the head of each turn plus a deterministic replay
+forward. Both already exist: a snapshot is a write, because the world is flat
+arrays with no pointers; and a replay reproduces exactly, because the tick is
+deterministic. Undo did not need a mechanism built for it. It needed two
+mechanisms that were already there for other reasons to be pointed at each other.
+
+That is the second time in this project that a decision made for one reason turned
+out to be the whole of the answer to a different question. It is worth noticing
+each time it happens -- see [strategems](../strategems/patterns-that-keep-working).
 
 ## Read next
 
+- [The turn is a transaction](019-the-turn-is-a-transaction.md) -- what a turn
+  actually is, and what undoing one does to everybody who already saw it happen.
 - [A thing in the world](005-a-thing-in-the-world.md) -- the record that most of
   those arrays are made of.
 - [Commands enter through one door](010-commands-enter-through-one-door.md) --
