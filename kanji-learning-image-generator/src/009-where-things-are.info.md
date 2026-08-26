@@ -90,7 +90,9 @@ Read rather than defaulted. A program that carries its own copy of a blur radius
 
 The startup ritual: read input/, say what was found, hand back the settings.
 
-The first thing a program does is read the input directory. That is where it learns how to start up; nothing here decides anything for itself that the input directory could have decided.
+The first thing a program does is read the input directory. That is where it learns how to start up; nothing here decides anything for itself that the input directory could have decided. The files this project knows how to read out of input/. Anything else in there is something a person put there for a program to find, and naming it is how they learn whether any program saw it.
+
+The list is here rather than absent because a notice that fires on every run is a notice nobody reads -- and one that fires on every run *of every worker in a batch* is worse than that, since it drowns the report.
 
 ### `M.goodbye(program, lines)`
 
@@ -100,4 +102,4 @@ output/ is a mailbox, not a record. Whatever ran last is what is in there, and t
 
 ## Where it sits
 
-Used by `010-fetch-the-archives`, `012-read-the-strokes`, `013-read-the-meanings`, `019-the-kanji-record`, `020-test-the-ink`, `021-the-shape-of-a-stroke`, `022-the-structure-field`, `023-the-component-lexicon`, `024-the-scene-grammar`, `025-the-words-the-machine-reads`, `026-arrows-that-teach-the-order`, `027-test-the-meaning`, `028-the-shape-of-a-graph`, `029-the-workflow-for-one-kanji`, `030-make-one-kanji`, `031-make-them-all`, `031a-when-the-machine-runs-hot`, `032-a-gallery-you-can-page`, `033-the-documentation-site`, `034-the-companion-pages`, `035-test-the-machine`.
+Used by `010-fetch-the-archives`, `012-read-the-strokes`, `013-read-the-meanings`, `019-the-kanji-record`, `019a-a-phrase-is-a-record-too`, `020-test-the-ink`, `021-the-shape-of-a-stroke`, `022-the-structure-field`, `023-the-component-lexicon`, `024-the-scene-grammar`, `025-the-words-the-machine-reads`, `026-arrows-that-teach-the-order`, `027-test-the-meaning`, `028-the-shape-of-a-graph`, `029-the-workflow-for-one-kanji`, `030-make-one-kanji`, `031-make-them-all`, `031a-when-the-machine-runs-hot`, `032-a-gallery-you-can-page`, `033-the-documentation-site`, `034-the-companion-pages`, `035-test-the-machine`.

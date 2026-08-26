@@ -341,21 +341,35 @@ end
 -- The first thing a program does is read the input directory. That is where it
 -- learns how to start up; nothing here decides anything for itself that the
 -- input directory could have decided.
+-- The files this project knows how to read out of input/. Anything else in
+-- there is something a person put there for a program to find, and naming it is
+-- how they learn whether any program saw it.
+--
+-- The list is here rather than absent because a notice that fires on every run
+-- is a notice nobody reads -- and one that fires on every run *of every worker
+-- in a batch* is worse than that, since it drowns the report.
+local EXPECTED_INPUT = {
+  ["settings.lua"] = true,
+  ["phrases.lua"] = true,
+  ["arguments"] = true,
+}
+
 function M.hello(program)
   local settings = M.settings()
   local listing = io.popen('ls -1 "' .. M.path("input") .. '" 2>/dev/null')
   local others = {}
   if listing then
     for line in listing:lines() do
-      if line ~= "settings.lua" and line ~= "" then others[#others + 1] = line end
+      if line ~= "" and not EXPECTED_INPUT[line] then
+        others[#others + 1] = line
+      end
     end
     listing:close()
   end
   if #others > 0 then
-    -- Anything else in input/ is something a person put there for a program to
-    -- find. Naming it is how they learn whether the program saw it.
     io.stderr:write(program .. ": input/ also holds " ..
-                    table.concat(others, ", ") .. "\n")
+                    table.concat(others, ", ") ..
+                    ", which nothing here reads\n")
   end
   return settings
 end

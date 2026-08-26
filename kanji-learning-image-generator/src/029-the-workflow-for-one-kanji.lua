@@ -74,8 +74,17 @@ function M.build(record, made, settings)
   g:link(net, "CONTROL_NET", applied, "control_net")
   g:link(field, "IMAGE", applied, "image")
 
+  -- The picture is as wide as the field is. A word of two characters is twice
+  -- as wide as a single one, and asking for a square would squash it.
+  --
+  -- Rounded down to a multiple of eight, because that is what these models
+  -- work in and a size that is not one gets rounded somewhere out of sight.
+  local width = made.width or wanted.width
+  local height = made.height or wanted.height
+  width = width - (width % 8)
+  height = height - (height % 8)
   local blank = g:add("EmptyLatentImage",
-                      { width = wanted.width, height = wanted.height },
+                      { width = width, height = height },
                       "an empty picture to start from")
 
   local sampler = g:add("KSampler", {
@@ -140,6 +149,25 @@ end
 -- are names that have to match some other installation's model folder, and
 -- nothing here can look. Stating the assumption is the whole of what can be
 -- done about it, so it is done rather than skipped.
+-- {{{ M.shape_warning(width, height)
+-- Whether this picture is a shape the far end was never trained on.
+--
+-- Diffusion models learn on images of roughly one aspect and go strange well
+-- away from it -- repeated subjects, drifting composition. A five-character
+-- phrase is five times as wide as it is tall, and that is far outside what any
+-- of them have seen. Said out loud rather than prevented, because a long phrase
+-- is a legitimate thing to ask for and the result is worth looking at even if
+-- it comes out badly.
+function M.shape_warning(width, height)
+  local ratio = width / height
+  if ratio <= 2.6 then return nil end
+  return string.format(
+    "this picture is %.1f times as wide as it is tall, which is well outside " ..
+    "what\n  a diffusion model has been trained on. Expect the composition to " ..
+    "drift or\n  the subject to repeat across the frame.", ratio)
+end
+-- }}}
+
 function M.assumptions(settings)
   return {
     "the checkpoint named '" .. settings.workflow.checkpoint ..
