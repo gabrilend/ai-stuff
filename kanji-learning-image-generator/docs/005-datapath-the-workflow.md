@@ -122,9 +122,18 @@ places the strokes and then lets the model finish the scene without them. Holdin
 it to the last step gives a picture with the character stamped through it. These
 are knobs and they live in `docs/balance-updates.md`.
 
-**The arrow layer is composited inside the workflow**, so what lands in ComfyUI's
-output directory is the finished learning card and not a picture that still needs
-assembling. One detail decides whether this works: `LoadImage`'s `MASK` output is
+**The arrow layer can be composited inside the workflow, and by default is
+not.** The argument for doing it was that what lands in ComfyUI's output
+directory should be the finished learning card rather than a picture that still
+needs assembling. That argument lost to two things the first real run showed.
+The machine grader squints at what was saved, and with the arrows in it, it is
+squinting at arrows as well as at scenery. And the stroke-order animation draws
+arrows onto the saved picture, so with arrows already in it every frame looks
+the same. The pool holds what the model drew, unmodified; everything that wants
+the arrows composites them itself.
+
+The nodes are still here and still correct, because a run that wants a
+self-contained card is a legitimate thing to ask for. One detail decides whether this works: `LoadImage`'s `MASK` output is
 the **inverse** of the image's alpha — one where the PNG is transparent, zero
 where it is opaque. `ImageCompositeMasked` pastes the source where the mask is
 one. Wire those together directly and you paste the arrows exactly where the

@@ -37,6 +37,31 @@ local function quote(text)
 end
 -- }}}
 
+-- {{{ unescape(text)
+-- A string out of the far end's reply, with its escapes turned back.
+--
+-- The far end writes JSON, and JSON may spell any character as \uXXXX -- which
+-- it does for every character this project cares about, since they are all
+-- kanji. Pulled out by pattern and used as-is, the filename for 木 comes back
+-- as the eleven characters \u6728_00001_.png and no such file exists.
+--
+-- This is not a JSON reader and does not want to be. It is the unescaping of
+-- one string, which is the only part of the reply this project reads.
+local xml = project.load("011-scan-xml")
+local function unescape(text)
+  if not text then return nil end
+  text = text:gsub("\\u(%x%x%x%x)", function(digits)
+    return xml.utf8(tonumber(digits, 16))
+  end)
+  return (text:gsub("\\(.)", function(character)
+    if character == "n" then return "\n" end
+    if character == "t" then return "\t" end
+    if character == "r" then return "\r" end
+    return character
+  end))
+end
+-- }}}
+
 -- {{{ M.where(settings)
 -- The address the picture program is listening on.
 function M.where(settings)
@@ -73,7 +98,11 @@ function M.listening(settings)
   if pipe then pipe:close() end
   if said:find('"system"', 1, true) or said:find("comfyui_version", 1, true)
      or said:find('"devices"', 1, true) then
-    local device = said:match('"name"%s*:%s*"([^"]+)"')
+    -- The card's name, from inside the list of devices -- not the first "name"
+    -- in the whole reply, which is a package the far end happens to mention
+    -- first and is not a graphics card.
+    local devices = said:match('"devices"%s*:%s*%[(.-)%]') or said
+    local device = devices:match('"name"%s*:%s*"([^"]+)"')
     return true, device
   end
   return false, nil
@@ -132,8 +161,8 @@ function M.wait_for(settings, identifier, patience)
     if pipe then pipe:close() end
 
     if said:find('"status"', 1, true) then
-      local filename = said:match('"filename"%s*:%s*"([^"]+)"')
-      local subfolder = said:match('"subfolder"%s*:%s*"([^"]*)"')
+      local filename = unescape(said:match('"filename"%s*:%s*"([^"]+)"'))
+      local subfolder = unescape(said:match('"subfolder"%s*:%s*"([^"]*)"'))
       if filename then return filename, subfolder or "" end
       -- The far end records a failure in the same place it records a success,
       -- so a run that ended badly is found here rather than by waiting out the

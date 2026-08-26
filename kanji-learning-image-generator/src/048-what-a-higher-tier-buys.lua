@@ -49,8 +49,16 @@ local M = {}
 --
 -- 176 greys is finer than the eye resolves in a small animation; the remaining
 -- 80 are the arrow colour fading into whatever is under it.
-local GREYS = 176
-local ARROW_STEPS = 80
+-- 216 colours in a six-by-six-by-six cube, and 40 steps of the arrow colour.
+--
+-- A cube rather than a palette chosen for each picture, because which entry a
+-- colour belongs to is then *arithmetic* -- six levels per channel, multiplied
+-- out -- with no nearest-colour search and no per-picture analysis. It bands a
+-- smooth sky slightly. A stroke-order diagram can afford that; a search over
+-- every pixel of every frame could not.
+local CUBE = 6
+local COLOURS = CUBE * CUBE * CUBE
+local ARROW_STEPS = 40
 
 -- {{{ M.palette(settings)
 -- The 256 colours a frame may use, as bytes.
@@ -58,21 +66,24 @@ function M.palette(settings)
   local colour = settings.arrows.colour
   local outline = settings.arrows.outline_col
   local out = {}
-  for index = 0, GREYS - 1 do
-    local level = math.floor(index * 255 / (GREYS - 1) + 0.5)
-    out[#out + 1] = string.char(level, level, level)
+  for red = 0, CUBE - 1 do
+    for green = 0, CUBE - 1 do
+      for blue = 0, CUBE - 1 do
+        out[#out + 1] = string.char(
+          math.floor(red * 255 / (CUBE - 1) + 0.5),
+          math.floor(green * 255 / (CUBE - 1) + 0.5),
+          math.floor(blue * 255 / (CUBE - 1) + 0.5))
+      end
+    end
   end
-  -- The arrow colour, and the dark outline under it, each fading from a mid
-  -- grey so that a partly covered pixel has somewhere to land.
+  -- The arrow colour and the dark outline under it, each fading up from black
+  -- so that a partly covered pixel has somewhere to land.
+  local half = math.floor(ARROW_STEPS / 2)
   for index = 0, ARROW_STEPS - 1 do
-    local part = index / (ARROW_STEPS - 1)
-    local which = (index < ARROW_STEPS / 2) and colour or outline
-    local blend = (index < ARROW_STEPS / 2)
-                  and (index / (ARROW_STEPS / 2 - 1))
-                  or ((index - ARROW_STEPS / 2) / (ARROW_STEPS / 2 - 1))
-    local grey = 0.55
+    local which = (index < half) and colour or outline
+    local blend = ((index % half) + 1) / half
     local function mix(channel)
-      return math.floor((grey * (1 - blend) + channel * blend) * 255 + 0.5)
+      return math.floor(channel * blend * 255 + 0.5)
     end
     out[#out + 1] = string.char(mix(which[1]), mix(which[2]), mix(which[3]))
   end
@@ -82,16 +93,19 @@ end
 
 -- {{{ M.index_of(grey, arrow_alpha, arrow_colour)
 -- Which palette entry one pixel is, exactly.
-function M.index_of(grey, alpha, is_outline)
+function M.index_of(red, green, blue, alpha, is_outline)
   if alpha < 0.02 then
-    local level = math.floor(grey * (GREYS - 1) + 0.5)
-    if level < 0 then level = 0 elseif level > GREYS - 1 then level = GREYS - 1 end
-    return level
+    local function level(value)
+      local step = math.floor(value * (CUBE - 1) + 0.5)
+      if step < 0 then step = 0 elseif step > CUBE - 1 then step = CUBE - 1 end
+      return step
+    end
+    return level(red) * CUBE * CUBE + level(green) * CUBE + level(blue)
   end
   local half = math.floor(ARROW_STEPS / 2)
   local step = math.floor(alpha * (half - 1) + 0.5)
   if step < 0 then step = 0 elseif step > half - 1 then step = half - 1 end
-  return GREYS + (is_outline and (half + step) or step)
+  return COLOURS + (is_outline and (half + step) or step)
 end
 -- }}}
 -- }}}
@@ -260,6 +274,9 @@ function M.frames_for(record, settings, background)
     local sheets = arrows_of.build(record, settings, { measured = partial })
 
     local width, height = background.width, background.height
+    local red = background.red or background.pixels
+    local green = background.green or background.pixels
+    local blue = background.blue or background.pixels
     local indices = {}
     for position = 1, width * height do
       local alpha = sheets[4].pixels[position]
@@ -267,7 +284,8 @@ function M.frames_for(record, settings, background)
       -- belongs to is decided by which it is closer to, since the layer draws
       -- the outline wider and the fill over it.
       local is_outline = (sheets[1].pixels[position] < 0.4)
-      indices[position] = M.index_of(background.pixels[position], alpha, is_outline)
+      indices[position] = M.index_of(red[position], green[position],
+                                     blue[position], alpha, is_outline)
     end
     frames[#frames + 1] = indices
   end
@@ -292,7 +310,9 @@ function M.animate(settings, entry, store)
            "animating a phrase needs its record rebuilt, which nothing here does yet"
   end
 
-  local background, why = reader.read(entry.picture)
+  -- In colour, because this is the one thing here that shows somebody a
+  -- photograph rather than measuring one.
+  local background, why = reader.read(entry.picture, true)
   if not background then return nil, why end
 
   local frames = M.frames_for(record, settings, background)

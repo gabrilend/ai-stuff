@@ -316,14 +316,18 @@ local function unfilter(bytes, width, height, channels)
 end
 -- }}}
 
--- {{{ M.read(path)
+-- {{{ M.read(path, keep_colour)
 -- One PNG, as brightness values between zero and one.
 --
 -- Colour is flattened to brightness on the way out, weighted the way an eye
--- weighs it. Everything that reads a picture in this project is asking about
--- light and dark -- whether the strokes are where they should be -- and none of
--- it cares what colour they are.
-function M.read(path)
+-- weighs it, because the thing that reads a picture to *grade* it is asking
+-- about light and dark -- whether the strokes are where they should be -- and
+-- does not care what colour they are.
+--
+-- `keep_colour` also fills in `red`, `green` and `blue`, for the one caller
+-- that is not grading: the animation, which is showing somebody a photograph
+-- and would be turning it grey for no reason.
+function M.read(path, keep_colour)
   local text = project_read(path)
   if not text then return nil, "there is no picture at " .. path end
   if text:sub(1, 8) ~= "\137PNG\13\10\26\10" then
@@ -383,6 +387,9 @@ function M.read(path)
   local rows = unfilter(bytes, header.width, header.height, stored)
 
   local canvas = { width = header.width, height = header.height, pixels = {} }
+  if keep_colour then
+    canvas.red, canvas.green, canvas.blue = {}, {}, {}
+  end
   for y = 1, header.height do
     local row = rows[y]
     local base = (y - 1) * header.width
@@ -402,6 +409,22 @@ function M.read(path)
                + 0.0722 * row[at + step * 2]) / 255
       end
       canvas.pixels[base + x] = value
+      if keep_colour then
+        if header.colour == 0 or header.colour == 4 then
+          canvas.red[base + x] = value
+          canvas.green[base + x] = value
+          canvas.blue[base + x] = value
+        elseif header.colour == 3 then
+          local into = row[at] * 3
+          canvas.red[base + x] = palette:byte(into + 1) / 255
+          canvas.green[base + x] = palette:byte(into + 2) / 255
+          canvas.blue[base + x] = palette:byte(into + 3) / 255
+        else
+          canvas.red[base + x] = row[at] / 255
+          canvas.green[base + x] = row[at + step] / 255
+          canvas.blue[base + x] = row[at + step * 2] / 255
+        end
+      end
     end
   end
   return canvas

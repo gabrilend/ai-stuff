@@ -103,16 +103,34 @@ return {
   workflow = {
     checkpoint       = "v1-5-pruned-emaonly.safetensors",
     control_net      = "control_v1p_sd15_qrcode_monster.safetensors",
-    control_strength = 0.85,
+    -- Measured, not guessed. At 0.85 the character did not appear at all;
+    -- raising it to 1.55 roughly doubles how much of the field survives into
+    -- the picture, and the picture is still a photograph. docs/balance-updates.
+    control_strength = 1.55,
     control_start    = 0.0,   -- composition is decided in the earliest steps
-    control_end      = 0.72,  -- released so the model can finish the scene
+    -- Held to the end. The reasoning for releasing it early was that the model
+    -- should finish the scene unaided; measured, holding it is slightly better
+    -- and does not stamp the character through the picture the way that
+    -- reasoning feared.
+    control_end      = 1.0,
     steps            = 24,
     cfg              = 6.5,   -- below the usual 7-8; high guidance fights the net
     sampler          = "dpmpp_2m",
     scheduler        = "karras",
     width            = 768,
     height           = 768,
-    composite_arrows = true,  -- put the arrow layer in the saved image
+    -- Whether the picture program burns the arrow layer into what it saves.
+    --
+    -- OFF, and this was learned the hard way. With it on, what lands in the
+    -- pool is a picture with arrows already in it -- so the machine grader
+    -- squints at arrows as well as scenery, and the stroke-order animation
+    -- draws arrows on top of arrows and every frame looks the same.
+    --
+    -- The pool should hold what the model actually drew, unmodified. The
+    -- arrows are a separate layer and everything that wants them composites
+    -- them itself, which is also what makes showing them one at a time
+    -- possible at all.
+    composite_arrows = false,
   },
   -- }}}
 
