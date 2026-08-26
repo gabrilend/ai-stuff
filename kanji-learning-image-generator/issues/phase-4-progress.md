@@ -18,6 +18,7 @@ were finished and reframed what the project is for. Read that first.
 | `405` | The pool that remembers | **completed** — two files per rendering, ratings appended, nothing deleted |
 | `406` | Two ways of saying it is good | **completed** — a machine that squints, a gallery that cannot write, and the agreement between them |
 | `407` | The quality dial | **completed** — the whole ladder, and the variety cost said before it is paid |
+| `409` | The card is also the screen | **completed** — asked of the card what `307` asked of the processor |
 | `408` | What a higher tier buys | **completed** — a stroke-order animation, and an encoder checked by decoding it |
 
 `405` is the foundation the last three stand on. `404` is the one that cannot be

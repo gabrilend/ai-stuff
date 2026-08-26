@@ -156,7 +156,21 @@ return {
     -- its own folder rather than taking a path, so the two pictures for each
     -- character are copied here before the workflow is posted.
     input = nil,          -- nil means libs/kitchen/ComfyUI/input
-    rest = 1.0,           -- seconds between submissions, for the card's sake
+    rest = 1.0,           -- seconds between submissions on a card of its own
+    -- And between submissions when the card is also drawing the screen, which
+    -- is a different situation and was found out the hard way (409). A second
+    -- is courtesy on a spare card; on the one running somebody's desktop it is
+    -- not enough.
+    rest_on_the_display_card = 6.0,
+    -- Gigabytes held back for the desktop. The picture program takes as much as
+    -- it can get, which is right on a machine with a spare card and hostile on
+    -- a machine with one. Passed to it as --reserve-vram.
+    reserve_vram = 1.5,
+    -- A run will not submit a picture unless this many gigabytes are free. Below
+    -- it, wait; still below after a while, stop and say what is holding the
+    -- memory -- because a run that wedges the display cannot tell anybody
+    -- anything, and one that stopped early can.
+    least_free_vram = 2.0,
     patience = 300,       -- how long to wait for one picture
   },
   -- }}}

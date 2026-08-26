@@ -912,6 +912,65 @@ local function test_the_dial(t)
 end
 -- }}}
 
+-- {{{ test_the_card_is_also_the_screen(t)
+-- `307` asked whether the processor was getting hot and answered it properly.
+-- Nobody asked the same question about the graphics card, on the grounds that
+-- generating is the card's work and so the processor's governor did not apply
+-- -- which is true, and answers the wrong question. On a machine with one card,
+-- that card is drawing somebody's desktop.
+local function test_the_card_is_also_the_screen(t)
+  local runner = project.load("044-run-the-pictures")
+  local settings = project.settings()
+
+  -- A card with a desktop on it is never at zero before anything of ours has
+  -- run. That is the tell.
+  t.ok(runner.is_the_display_card({ total = 11, used = 0.3, free = 10.6 }),
+       "a card with something already on it is drawing a screen")
+  t.ok(not runner.is_the_display_card({ total = 24, used = 0.0, free = 24 }),
+       "and one with nothing on it is not")
+  t.ok(not runner.is_the_display_card(nil),
+       "a card that will not say is not assumed to be one")
+
+  -- THE ASSERTION THIS TICKET EXISTS FOR. That a picture gets made when there
+  -- is room is the ordinary path. That a run stops rather than taking the last
+  -- of the memory the desktop is living in is the thing, and it is the one a
+  -- later tidy-up would quietly drop.
+  local tight = { kitchen = {} }
+  for key, value in pairs(settings.kitchen) do tight.kitchen[key] = value end
+  tight.kitchen.least_free_vram = 99999
+  local room, seen = runner.room_to_work(tight)
+  if seen then
+    t.ok(not room, "a run refuses to start when the card has no room to spare",
+         string.format("%.1f GB free against a floor of %d", seen.free,
+                       tight.kitchen.least_free_vram))
+  else
+    t.note("this machine has no card that will report its memory; not checked")
+  end
+
+  local roomy = { kitchen = {} }
+  for key, value in pairs(settings.kitchen) do roomy.kitchen[key] = value end
+  roomy.kitchen.least_free_vram = 0
+  t.ok(runner.room_to_work(roomy), "and does start when there is")
+
+  -- A machine with no card at all must not be stopped by a check about cards.
+  t.ok(runner.room_to_work({ kitchen = {} }),
+       "a machine that reports nothing is not refused on that account")
+
+  local card = runner.card()
+  if card then
+    t.ok(card.total > 0, "the card reports a size")
+    t.near(card.used + card.free, card.total, card.total * 0.06,
+           "and its used and free add up to about its total")
+    t.note(string.format("%.1f GB, %.1f free, %s", card.total, card.free,
+           runner.is_the_display_card(card) and "also drawing the screen"
+           or "not drawing a screen"))
+  end
+
+  t.ok(settings.kitchen.reserve_vram and settings.kitchen.reserve_vram > 0,
+       "and something is held back for the desktop by default")
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -920,6 +979,7 @@ function M.run(options)
     { "the workflow", test_the_workflow },
     { "making one", test_making_one },
     { "the heat governor", test_the_heat_governor },
+    { "the card is also the screen", test_the_card_is_also_the_screen },
     { "the paintbrush", test_the_paintbrush },
     { "reading a picture", test_reading_a_picture },
     { "the pool and the graders", test_the_pool_and_the_graders },
