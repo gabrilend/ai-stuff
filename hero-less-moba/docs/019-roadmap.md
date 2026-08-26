@@ -46,6 +46,7 @@ nobody is ever working blind.
 | 107 | Snapshots and replays |
 | 108 | The headless runner |
 | 109 | A terminal viewer, so we are not blind |
+| 110 | A scenario you can hold at the gate |
 
 ## Phase 2 — Things That Walk and Fight
 
@@ -169,6 +170,7 @@ Ends with: a human playing a full match against the phase-8 bot with a mouse.
 | 704 | Locks, objections, and refusals are loud |
 | 705 | The sign-posts are clickable in the world |
 | 706 | The documentation becomes HTML |
+| 707 | The way in |
 
 ## Phase 8 — Six Players
 
