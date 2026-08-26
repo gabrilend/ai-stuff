@@ -69,4 +69,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `020-test-the-ink`, `022-the-structure-field`.
+Used by `020-test-the-ink`, `022-the-structure-field`, `026-arrows-that-teach-the-order`.

@@ -2,7 +2,28 @@
 
 ## Current behavior
 
-The stroke order is known and nothing says it out loud.
+Done. `src/026-arrows-that-teach-the-order.lua` draws the sheet, and can write a
+character's field beside it so the two can be laid over one another by eye:
+
+```
+luajit src/026-arrows-that-teach-the-order.lua --chars 休語鬱
+```
+
+**The sizes were wrong and the crowding rule was wrong in the same way**: both
+were reasoned about at full size, and this project is specified at thumbnail
+size. The arrows came out correct and unreadable. `docs/balance-updates.md` has
+the numbers.
+
+The crowding one was a bug rather than a preference. Two arrows counted as
+clashing when their *anchors* were within about a shaft length — but an arrow
+carries a number beside it, and after the resizing the number is the largest
+part of it. Two strokes beginning close together printed two labels on top of
+each other while the placement reported it had found room for both. The distance
+now covers the whole label and lives in settings rather than in code, which is
+where it drifted out of step with the sizes in the first place.
+
+A twenty-nine-stroke character still has nowhere to put twenty-nine labels. One
+gives up, keeps its number where it belongs, shortens its arrow, and is counted.
 
 ## Intended behavior
 

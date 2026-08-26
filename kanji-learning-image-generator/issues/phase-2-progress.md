@@ -16,7 +16,7 @@ This is where the project stops being a drawing program.
 | `203` | What the pieces mean | **completed** — a rule for refusing glosses about writing, and a queue that says what to write next |
 | `204` | The place the meaning makes | **completed** — seventeen worlds, and two ways of being confidently wrong that the spread report caught |
 | `205` | The words the machine reads | **completed** — clauses ranked for dropping and placed for reading, which are not the same order |
-| `206` | Arrows that teach the order | not started |
+| `206` | Arrows that teach the order | **completed** — one arrow per stroke, pointing the way the stroke leaves, legible at the size that matters |
 
 ## Where the risk is
 
