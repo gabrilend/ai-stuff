@@ -14,7 +14,7 @@ were finished and reframed what the project is for. Read that first.
 | `401` | The names the radicals bear | **completed** — two readings, and every piece carries a name as well as a phrase |
 | `402` | A phrase is a picture too | **completed** — a word is one record, one picture, and one continuous stroke order |
 | `403` | The paintbrush, and the wall around it | **completed** — a closed vocabulary, a wall that names every complaint at once, and a contract with one home |
-| `404` | Running the pictures | in progress — the install script is written and running |
+| `404` | Running the pictures | **completed** — a kitchen inside the project, and pictures that are the characters |
 | `405` | The pool that remembers | **completed** — two files per rendering, ratings appended, nothing deleted |
 | `406` | Two ways of saying it is good | **completed** — a machine that squints, a gallery that cannot write, and the agreement between them |
 | `407` | The quality dial | **completed** — the whole ladder, and the variety cost said before it is paid |

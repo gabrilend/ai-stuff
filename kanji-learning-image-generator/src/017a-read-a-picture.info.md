@@ -19,13 +19,15 @@ run the sweep again.*
 | | |
 |---|---|
 | `M.inflate(text, from)` | A compressed stream, back to the bytes that went into it. |
-| `M.read(path)` | One PNG, as brightness values between zero and one. |
+| `M.read(path, keep_colour)` | One PNG, as brightness values between zero and one. |
 
-### `M.read(path)`
+### `M.read(path, keep_colour)`
 
 One PNG, as brightness values between zero and one.
 
-Colour is flattened to brightness on the way out, weighted the way an eye weighs it. Everything that reads a picture in this project is asking about light and dark -- whether the strokes are where they should be -- and none of it cares what colour they are.
+Colour is flattened to brightness on the way out, weighted the way an eye weighs it, because the thing that reads a picture to *grade* it is asking about light and dark -- whether the strokes are where they should be -- and does not care what colour they are.
+
+`keep_colour` also fills in `red`, `green` and `blue`, for the one caller that is not grading: the animation, which is showing somebody a photograph and would be turning it grey for no reason.
 
 ## Inside
 

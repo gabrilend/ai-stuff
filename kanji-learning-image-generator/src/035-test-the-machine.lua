@@ -95,10 +95,19 @@ local function test_the_workflow(t)
   local settings = project.settings()
 
   local record = store.records["\228\188\145"]
+
+  -- Asked for by name. Burning the arrows into the saved picture is no longer
+  -- the default -- the pool holds what the model drew, unmodified -- but the
+  -- graph still has to be able to do it, and a test that relied on the default
+  -- would be testing whichever way the settings file happened to be set.
+  local compositing = { workflow = {} }
+  for key, value in pairs(settings.workflow) do compositing.workflow[key] = value end
+  compositing.workflow.composite_arrows = true
+
   local g = workflow.build(record, {
     positive = "a scene", negative = "no text",
     field_name = "kanji/field.png", arrows_name = "kanji/arrows.png",
-  }, settings)
+  }, compositing)
 
   local kinds = {}
   for _, node in ipairs(g.nodes) do kinds[node.kind] = (kinds[node.kind] or 0) + 1 end
@@ -135,8 +144,9 @@ local function test_the_workflow(t)
   t.same(over.incoming.mask.from.kind, "InvertMask",
          "so the compositor never sees the mask as it arrived")
 
-  -- Asked for the plain illusion, the nodes are absent rather than present and
-  -- switched off. A disabled node is a node somebody re-enables by accident.
+  -- Asked for the plain illusion -- which is now the ordinary case -- the nodes
+  -- are absent rather than present and switched off. A disabled node is a node
+  -- somebody re-enables by accident.
   local plain = {}
   for key, value in pairs(settings.workflow) do plain[key] = value end
   plain.composite_arrows = false
@@ -830,10 +840,15 @@ local function test_the_animation(t)
   -- The palette is built to be exactly what these frames are made of, so no
   -- pixel needs a nearest-colour search and none is placed with any error.
   t.same(#animation.palette(settings), 256 * 3, "the palette is a full one")
-  t.same(animation.index_of(0, 0, false), 0, "black grey is the first entry")
-  t.same(animation.index_of(1, 0, false), 175, "and white is the last grey")
-  t.ok(animation.index_of(0.5, 1, false) >= 176,
-       "while anything with an arrow over it is past the greys")
+  t.same(animation.index_of(0, 0, 0, 0, false), 0, "black is the first entry")
+  t.same(animation.index_of(1, 1, 1, 0, false), 215, "and white is the last colour")
+  t.ok(animation.index_of(0.5, 0.5, 0.5, 1, false) >= 216,
+       "while anything with an arrow over it is past the colours")
+  -- The cube is arithmetic rather than a search, so a pure colour lands where
+  -- multiplying out says it should and not merely somewhere near.
+  t.same(animation.index_of(1, 0, 0, 0, false), 5 * 36, "pure red is where it should be")
+  t.same(animation.index_of(0, 1, 0, 0, false), 5 * 6, "and pure green")
+  t.same(animation.index_of(0, 0, 1, 0, false), 5, "and pure blue")
 end
 -- }}}
 

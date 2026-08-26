@@ -129,18 +129,17 @@ the crowd. It would spread the output and it would also be the point at which
 the world list stops being a list of places and starts being a taxonomy, which
 is a different kind of thing to maintain.
 
-### Q9 — Are the model and control net named in the settings the right ones?
+### Q9 — Are the model and control net named in the settings the right ones? — **answered**
 
-`input/settings.lua` names a checkpoint and a control net, and every generated
-workflow refers to them by those names. They were chosen as the well-known
-members of the family this technique needs, and **nothing on this machine has
-ever loaded either of them**, because there is no ComfyUI here.
+Yes, and by luck as much as judgement. This machine has an eleven-gigabyte
+Pascal card, which suits the older generation of model the settings already
+named; the newer generation would have been slow and tight on it. `404`
+installs both and the pictures come out.
 
-Two things follow. If the names do not match what is in a given installation,
-every workflow in a set of six thousand is wrong in the same way at once. And if
-a newer control net does this job better — the field is built for the older
-generation of them — the whole set would want regenerating at a different
-resolution. Answering this needs somebody with a graphics card and half an hour.
+What was *not* right was the strength the control net is applied at, which was
+set at less than half what it should be. See `docs/balance-updates.md`.
+
+
 
 ### Q10 — Is the heat trade set where a person would want it?
 

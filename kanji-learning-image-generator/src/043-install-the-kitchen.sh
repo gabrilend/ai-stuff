@@ -87,30 +87,64 @@ have_space() {
 }
 # }}}
 
-# {{{ fetch -- one large file, resumably
+# {{{ expected_size -- how big the far end says the file is
+#
+# Asked rather than written down here. The first version of this script carried
+# a minimum size per file, typed by somebody who had not measured it -- and one
+# of them was wrong by a factor of two, so a download that had completed
+# perfectly was declared truncated and the install stopped one file from the
+# end.
+#
+# The server states the length in its own headers. Comparing against that is
+# both stricter than a guessed minimum and impossible to be wrong about.
+expected_size() {
+  curl --silent --show-error --head --location --max-time 20 "$1" 2>/dev/null \
+    | tr -d '\r' | awk 'tolower($1) == "content-length:" { print $2 }' | tail -1
+}
+# }}}
+
+# {{{ fetch -- one large file, resumably, checked against what was promised
 #
 # Downloads resume, because a model file is gigabytes and a connection that
 # drops at ninety percent should not mean starting again. The size is checked
-# afterwards: a truncated safetensors file loads far enough to look plausible
+# afterwards, because a truncated model file loads far enough to look plausible
 # and then fails somewhere unrelated.
 fetch() {
   local url="$1" target="$2" least_mb="$3" what="$4"
+  local wanted
+  wanted=$(expected_size "$url")
+
   if [ -f "$target" ]; then
-    local have_mb=$(( $(stat -c %s "$target") / 1048576 ))
-    if [ "$have_mb" -ge "$least_mb" ]; then
-      say "$what is already here (${have_mb}MB)"
+    local have
+    have=$(stat -c %s "$target")
+    if [ -n "$wanted" ] && [ "$have" -eq "$wanted" ]; then
+      say "$what is already here, and is the size the server says ($((have / 1048576))MB)"
       return 0
     fi
-    say "$what is here but only ${have_mb}MB; resuming"
+    if [ -z "$wanted" ] && [ "$((have / 1048576))" -ge "$least_mb" ]; then
+      say "$what is already here (${have}B); the server would not say how big it should be"
+      return 0
+    fi
+    say "$what is here but incomplete; resuming"
   fi
-  say "fetching $what"
+
+  say "fetching $what$( [ -n "$wanted" ] && echo " ($((wanted / 1048576))MB)" )"
   curl --location --fail --continue-at - --progress-bar --output "$target" "$url" \
     || die "could not fetch $what from $url"
-  local got_mb=$(( $(stat -c %s "$target") / 1048576 ))
-  if [ "$got_mb" -lt "$least_mb" ]; then
-    die "$what came out at ${got_mb}MB and should be at least ${least_mb}MB; it is truncated"
+
+  local got
+  got=$(stat -c %s "$target")
+  if [ -n "$wanted" ]; then
+    if [ "$got" -ne "$wanted" ]; then
+      die "$what came out at ${got} bytes and the server said ${wanted}; it is truncated"
+    fi
+    say "$what is ${got} bytes, exactly what was promised"
+  else
+    if [ "$((got / 1048576))" -lt "$least_mb" ]; then
+      die "$what came out at $((got / 1048576))MB and the server would not say how big it should be; it looks truncated"
+    fi
+    say "$what is $((got / 1048576))MB; the server would not say how big it should be"
   fi
-  say "$what is ${got_mb}MB"
 }
 # }}}
 
@@ -276,7 +310,7 @@ if [ "$SKIP_MODELS" -eq 0 ]; then
   fetch \
     "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors" \
     "${COMFY}/models/checkpoints/v1-5-pruned-emaonly.safetensors" \
-    4000 "the model that draws"
+    3000 "the model that draws"
 
   # The one that makes a picture obey a grey image. This is the whole trick
   # (docs/003) and the reason the settings name an older generation of model:
@@ -285,7 +319,7 @@ if [ "$SKIP_MODELS" -eq 0 ]; then
   fetch \
     "https://huggingface.co/monster-labs/control_v1p_sd15_qrcode_monster/resolve/main/control_v1p_sd15_qrcode_monster.safetensors" \
     "${COMFY}/models/controlnet/control_v1p_sd15_qrcode_monster.safetensors" \
-    1300 "the one that hides the character"
+    600 "the one that hides the character"
 fi
 
 report
