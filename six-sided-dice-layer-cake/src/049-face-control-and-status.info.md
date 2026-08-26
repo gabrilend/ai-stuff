@@ -13,20 +13,23 @@ Described by `609`.
 | `n_sensor_die` | 1 | given | 16 | temperature sensors on one compute die. Eight was a round number chosen before 041 scattered the array into sixty-four tiles; at eight, three quarters of the hot regions have no sensor near them |
 | `t_sensor_resp` | s | given | 0.0002 s | response time of one, its own settling included |
 | `w_counter` | bit | given | 48 bit | width of a performance counter |
+| `w_reg_ctrl` | bit | given | 64 bit | width of one control or status register |
 | `n_counter` | 1 | given | 12 | performance counters per face |
 | `n_fault_bit` | 1 | given | 24 | sticky fault bits per face |
 | `n_reg_ctrl` | 1 | given | 64 | control and status registers per face |
 | `n_model_term` | 1 | given | 7 | terms in 080's performance model, each of which must have a counter |
+| `t_session` | s | given | 3600 s | a working session: the span over which a measurement has to mean something, and therefore the span a counter must not wrap in |
 | `n_sensor_face` | 1 | derived | 64 | sensors on one face |
 | `sensor_per_tile` | 1 | derived | 0.25 | sensors per engine tile, which is what decides whether the hot region is actually being watched |
-| `t_counter_wrap` | s | derived | unresolved | how long a counter runs at full rate before it wraps |
-| `C_ctrl` | bit | derived | 4096 | the register file, at sixty-four bits a register |
+| `t_counter_wrap` | s | derived | 201054 s | how long a counter runs at full rate before it wraps |
+| `C_ctrl` | bit | derived | 4096 bit | the register file |
 | `t_sensor_lag` | s | derived | 0.000455817 s | total lag from the hot region changing to the reading changing: the sensor's own settling plus the time for the change to reach it through a tenth of the engine's thermal constant |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
+| `b1` | `046` | 1 bit | one bit. A width carries the unit so that a format's size can be added to a capacity; an exponent needs a pure number. Dividing by this is how a width becomes a count, and it is the only place in the project where a unit quantity is declared for that purpose |
 | `f_face` | `045` | 1.4 GHz | the face clock |
 | `n_boot_step` | **nothing declares this** | — | — |
 | `n_die_face` | `042` | 4 | compute dies on one face |
@@ -44,10 +47,12 @@ Change one of these and the blueprints beside it are what break.
 | `n_sensor_die` | `049` |
 | `t_sensor_resp` | `049` |
 | `w_counter` | `049` |
+| `w_reg_ctrl` | `049` |
 | `n_counter` | `049` |
 | `n_fault_bit` | `049` |
 | `n_reg_ctrl` | `049` |
 | `n_model_term` | `049` |
+| `t_session` | `049` |
 | `n_sensor_face` | `049` |
 | `sensor_per_tile` | `049` |
 | `t_counter_wrap` | `049` |
@@ -59,7 +64,7 @@ Change one of these and the blueprints beside it are what break.
 |---|---|---|
 | `C-049-1` | `t_sensor_lag < t_lag_budget` | the sensors must see a temperature change before the machine crosses from the throttle threshold to the fatal one at full power with no cooling. 026 sets the budget and this is where it is met |
 | `C-049-2` | `n_counter >= n_model_term` | there must be at least one counter per term in 080's performance model. This is the constraint that stops the machine being unmeasurable, and it is enumerated across two blueprints because neither can see the other's list |
-| `C-049-3` | `t_counter_wrap > 3600` | a counter must run for an hour at full rate without wrapping, or a measurement taken over a working session means nothing |
+| `C-049-3` | `t_counter_wrap > t_session` | a counter must run for a whole working session at full rate without wrapping, or a measurement taken over one means nothing |
 | `C-049-4` | `sensor_per_tile >= 0.25` | there must be a sensor for every few engine tiles, so that the hot region on a checkerboard is actually near one rather than merely on the same die |
 | `C-049-5` | `n_fault_bit >= n_trap + n_boot_step` | there must be a sticky bit for every trap and every boot step, so that a machine stopped part way through waking up says which step it stopped in |
 | `C-049-6` | `n_sensor_face > n_die_face` | more sensors than dies, which is the weakest possible statement of the placement requirement and catches somebody putting one per die and calling it done |

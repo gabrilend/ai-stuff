@@ -38,7 +38,7 @@ Described by `504`.
 | `n_tier` | `036` | 24 | memory tiers in the stack. Twenty-four rather than the thirty-two first sketched, because at the density 035 derives, thirty-two holds half again what is needed |
 | `t_cage` | `012` | 3 mm | the switch shell lining the inside of the cavity, sized by the crossbar area in 037 |
 | `t_scrub_period` | `040` | 3600 s | the same figure, under the name 037's starvation bound refers to |
-| `t_stage` | `026` | unresolved | how long one face works before the sieve moves on |
+| `t_stage` | `053` | unresolved | how long one face works before the sieve moves on |
 | `w_tier_port` | `034` | 10240 bit | bits one tier delivers per cycle, set by its macro count and the routing it can support across a forty millimetre die |
 
 ## What consumes it
@@ -47,18 +47,19 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `n_port` | `037` |
+| `n_port` | `037`, `054` |
 | `w_xbar_slice` | `037` |
 | `n_xbar_slice` | `037` |
-| `q_arb` | `037` |
+| `q_arb` | `037`, `052` |
 | `a_xbar_slice` | `037` |
 | `e_xbar_bit` | `037` |
-| `B_bisect` | `037` |
+| `B_bisect` | `037`, `055` |
 | `A_xbar` | `037` |
 | `P_xbar` | `037` |
 | `t_quantum` | `037` |
-| `t_wait_face` | `037`, `039` |
-| `t_wait_scrub` | `037` |
+| `t_wait_face` | `037`, `039`, `051`, `054` |
+| `t_wait_spout` | `054` |
+| `t_wait_scrub` | `037`, `054` |
 | `A_cage_avail` | `037` |
 
 ## What it asserts

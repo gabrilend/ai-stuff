@@ -4,8 +4,23 @@ Produces `src/053-sieve-schedule.md`.
 
 ## Current behavior
 
-Nothing. Six stages have been described in four documents and no timing has been
-written.
+**Done.** `src/053-sieve-schedule.md` exists with both regimes drawn separately,
+because the machine's schedule genuinely changes shape between them and one
+diagram would have been wrong in one of the two.
+
+Seven constraints. **`009` entry S1 is closed**: the bubble from a sequence
+ending mid-pipeline propagates, and the arithmetic says why that is the right
+answer rather than the lazy one — at the batch sizes this machine is for it costs
+under a per cent, and the alternative interacts with `039`'s ordering in a way
+nobody has traced.
+
+This blueprint also took ownership of the stage time, which `026` had been
+estimating since phase 3.
+
+**The tolerance on stage equality is a `given` and `075` has not been told.** Five
+per cent is what the balance must achieve, and nothing has checked that an
+integer number of layers per face can achieve it when face zero carries an
+embedding table and face five an output projection.
 
 ## Intended behavior
 

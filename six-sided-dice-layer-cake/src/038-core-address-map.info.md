@@ -31,13 +31,13 @@ Described by `505`.
 | `C_checkpoint` | **nothing declares this** | — | — |
 | `C_core_usable` | `034` | 71.9454 GB | what a model may actually use |
 | `C_kv` | **nothing declares this** | — | — |
-| `C_stage_buf` | **nothing declares this** | — | — |
-| `C_stage_min` | **nothing declares this** | — | — |
+| `C_stage_buf` | `053` | unresolved | one staging buffer: a microbatch of activation vectors |
+| `C_stage_min` | `053` | unresolved | the least a staging buffer can be and still hold one sequence's activations |
 | `C_weights` | **nothing declares this** | — | — |
 | `n_pane_bit` | **nothing declares this** | — | — |
 | `n_stage` | `010` | 6 | pipeline stages a token falls through, one per face |
 | `w_tier_port` | `034` | 10240 bit | bits one tier delivers per cycle, set by its macro count and the routing it can support across a forty millimetre die |
-| `w_transfer` | **nothing declares this** | — | — |
+| `w_transfer` | `052` | 4096 bit | payload of one transfer. Sixteen of 040's correction lines, an eighth of 038's interleave, and large enough that the header is three per cent |
 
 ## What consumes it
 
@@ -48,8 +48,8 @@ Change one of these and the blueprints beside it are what break.
 | `C_request` | `038` |
 | `C_control` | `038` |
 | `C_repair` | `038` |
-| `w_interleave` | `038` |
-| `C_pane` | `038`, `039` |
+| `w_interleave` | `038`, `052` |
+| `C_pane` | `038`, `039`, `055` |
 | `n_region` | `038` |
 | `C_staging` | `038` |
 | `C_staging_r` | `038` |

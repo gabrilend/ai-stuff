@@ -38,7 +38,7 @@ Described by `402`.
 | `P_link_load` | `028` | 30.72 W | the six radial link drivers |
 | `P_load` | `020` | 1609.28 W | power delivered to the point of load |
 | `P_logic_load` | `028` | 1340.53 W | everything on the logic rail: engines, control, leakage and the switch fabric |
-| `V_link_min` | **nothing declares this** | — | — |
+| `V_link_min` | `051` | 0.45 V | the least swing that keeps the receiver's noise margin across this interface, which 029 reads |
 
 ## What consumes it
 
@@ -50,7 +50,7 @@ Change one of these and the blueprints beside it are what break.
 | `V_mid` | `029`, `030` |
 | `V_logic` | `028`, `029`, `030`, `031`, `033`, `045` |
 | `V_array` | `028`, `029`, `033` |
-| `V_link` | `028`, `029` |
+| `V_link` | `028`, `029`, `051` |
 | `V_port` | `028` |
 | `V_aux` | `028` |
 | `tol_rail` | `029`, `033` |

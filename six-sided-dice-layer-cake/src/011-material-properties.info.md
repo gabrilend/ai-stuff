@@ -51,6 +51,7 @@ Described by `102`.
 | `k_fluoro` | W/(m*K) | measured | 0.065 W/(m*K) | thermal conductivity of the same, a tenth of water's |
 | `mu_fluoro` | Pa*s | measured | 0.0012 Pa*s | dynamic viscosity of the same |
 | `T_fluoro_frz` | K | measured | 195 K | freezing point of the same, which is the one property where it beats water |
+| `c_light` | m/s | measured | 2.998e+08 m/s | the speed of light in vacuum. Here for the same reason the permittivity is: a literal in this notation is dimensionless, so a physical constant is a symbol |
 | `eps_0` | F/m | measured | 8.854e-12 F/m | permittivity of free space. It is here rather than written into a derivation because every literal in this notation is dimensionless, so a physical constant has to be a symbol like any other quantity |
 | `eps_ox` | 1 | measured | 3.9 | relative permittivity of the oxide liner around a through-silicon via |
 | `k_diamond` | W/(m*K) | measured | 2000 W/(m*K) | thermal conductivity of diamond; nothing here is made of it, and it is the ceiling any other conductivity must sit under |
@@ -100,6 +101,7 @@ Change one of these and the blueprints beside it are what break.
 | `k_fluoro` | `011`, `021` |
 | `mu_fluoro` | `011`, `021` |
 | `T_fluoro_frz` | `021` |
+| `c_light` | `051` |
 | `eps_0` | `036` |
 | `eps_ox` | `036` |
 | `k_diamond` | `011` |

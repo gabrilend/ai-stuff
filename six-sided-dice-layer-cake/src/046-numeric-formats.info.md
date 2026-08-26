@@ -42,7 +42,7 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `b1` | `045`, `046` |
+| `b1` | `045`, `046`, `049` |
 | `w_weight` | `045`, `046` |
 | `n_group` | `046` |
 | `w_scale` | `046` |

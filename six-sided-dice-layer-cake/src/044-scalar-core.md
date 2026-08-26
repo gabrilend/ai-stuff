@@ -53,7 +53,7 @@ alternative puts a latency in the setup path that recurs thirteen times a token.
 n_pipe_stage  | 1 | given | 5     | pipeline stages
 n_scalar_inst | 1 | given | 400   | scalar instructions executed per token per face, building thirteen layers of descriptor chain
 C_local_mem   | bit | given | 262144 | local memory on the scalar core for descriptor construction
-n_outstanding | 1 | given | 16    | memory requests the core may have in flight
+n_outstanding | 1 | given | 128   | memory requests the core may have in flight. Sixteen was a round number and covers a seventh of a link round trip, which means the core stalls on six descriptor fields out of seven
 w_rng_state   | bit | given | 128  | width of the carried random state, per sequence
 w_rng_min     | bit | given | 64   | the least width at which two sequences will not collide over a long conversation
 n_core_face   | 1 | derived | n_die_face | scalar cores on a face, one per die

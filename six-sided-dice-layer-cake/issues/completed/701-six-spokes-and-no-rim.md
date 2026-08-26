@@ -4,8 +4,22 @@ Produces `src/050-sieve-topology.md`.
 
 ## Current behavior
 
-Nothing. "No face-to-face wire anywhere" has been asserted three times and never
-argued.
+**Done.** `src/050-sieve-topology.md` exists: six edges, one figure, and a
+blueprint whose whole job is to justify an absence.
+
+Five constraints. The one worth having derives the handoff traffic as a share of
+what one stage reads and requires it to be under a thousandth — which turns *a
+mesh would carry nothing* from an assertion into arithmetic that would notice if
+a model shape ever made it false.
+
+The correction the ticket carries is in the blueprint: **backpropagation is not
+foreclosed by this topology.** Cutting a model by layer is pipeline parallelism
+and a backward pass is the same stage-to-stage handoff in the other direction.
+What limits training is memory.
+
+**Nothing here could be revisited cheaply.** Adding a rim later means a second
+link technology, a second timing closure, and a route through either the coolant
+or the memory.
 
 ## Intended behavior
 

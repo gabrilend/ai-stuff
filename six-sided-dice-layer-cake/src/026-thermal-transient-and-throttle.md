@@ -95,7 +95,6 @@ R_engine      | K/W | derived | dT_conv_local / (f_engine_power * P_die) | therm
 tau_engine    | s   | derived | R_engine * C_engine          | how long the array takes to reach its steady temperature. The number that decides whether any of the fast transients matter
 tau_loop      | s   | derived | V_loop / Q_total             | transport delay round the external circuit
 
-t_stage       | s | derived | t_token / n_stage              | how long one face works before the sieve moves on
 dT_walk       | K | derived | dT_hotspot * t_stage / tau_engine | temperature excursion of the walking hot spot over one stage, which is the whole of 010's argument reduced to a number
 E_spout_burst | J | derived | E_pane * n_pane_core           | energy to push the entire core through the output tube
 dT_spout      | K | derived | E_spout_burst / C_face         | what that burst does to the temperature of the face it leaves through

@@ -57,9 +57,9 @@ Change one of these and the blueprints beside it are what break.
 | `C_tier` | `034` |
 | `C_core_raw` | `034`, `035`, `040` |
 | `C_core_usable` | `034`, `038` |
-| `B_core` | `020`, `034`, `037`, `039`, `040` |
-| `B_face_max` | `034` |
-| `B_face_even` | `037`, `044`, `047`, `048` |
+| `B_core` | `020`, `034`, `037`, `039`, `040`, `051`, `053`, `055` |
+| `B_face_max` | `034`, `055` |
+| `B_face_even` | `037`, `044`, `047`, `048`, `052` |
 | `C_bank` | `034` |
 | `p_collide` | `034` |
 
