@@ -609,6 +609,31 @@ function M.score(record, measured, store, settings)
 end
 -- }}}
 
+-- {{{ READINGS -- the two things a picture of a character can be
+--
+-- WHY THERE ARE TWO. The half of a character chosen for its sound is not about
+-- the meaning, and painting it as a subject puts an object in the picture with
+-- no relation to the word. That reasoning is in `docs/004`, it is correct, and
+-- it answers only one of the two questions somebody can be asking.
+--
+--   semantic   the picture should be ABOUT what the word means.
+--              the sound half becomes ground.
+--
+--   mnemonic   the picture should be a HOOK the meaning hangs on.
+--              the sound half is a named thing like any other.
+--
+-- The mnemonic tradition this project is used alongside says the character for
+-- time is a sun over a temple, and it works *because* a temple has nothing to
+-- do with time -- the incongruity is the memory. A picture showing only the sun
+-- has quietly dropped the half of the character a learner has to account for.
+--
+-- Neither reading is wrong. `notes/041` is why the default is the second one.
+--
+-- The scoring is untouched in both: a sound half must never vote on which world
+-- a character belongs to, because that was never about the picture.
+local READINGS = { semantic = true, mnemonic = true }
+-- }}}
+
 -- {{{ M.scene(record, store, settings, options)
 -- One record in, one scene out. Or nil and a reason.
 --
@@ -619,6 +644,13 @@ end
 -- fallback available in this project.
 function M.scene(record, store, settings, options)
   options = options or {}
+  local reading = options.reading or (settings.scene and settings.scene.reading)
+                  or "mnemonic"
+  if not READINGS[reading] then
+    error("a scene is read one of two ways and '" .. tostring(reading) ..
+          "' is neither.\n  mnemonic -- every piece is a named thing, including" ..
+          " the sound half\n  semantic -- the sound half becomes ground")
+  end
   local measured = options.measured or shape.measure_record(record)
   local ranked = M.score(record, measured, store, settings)
 
@@ -640,8 +672,11 @@ function M.scene(record, store, settings, options)
       local box = component_box(component, measured)
       local where, column, row = box and box_place(box) or "somewhere", nil, nil
       -- A piece inside the sound half is ground for the same reason the sound
-      -- half itself is, and must not reach the sentence either.
-      if component.phonetic or inside_sound[position] then
+      -- half itself is -- but only under the reading where the picture is about
+      -- the meaning. Under the mnemonic reading it is a named thing like any
+      -- other, and being unrelated to the meaning is the point of it.
+      local is_sound = component.phonetic or inside_sound[position]
+      if is_sound and reading == "semantic" then
         landscape[#landscape + 1] = {
           element = component.element, where = where, box = box,
           marked = component.phonetic or false,
@@ -652,8 +687,9 @@ function M.scene(record, store, settings, options)
         if found then
           subjects[#subjects + 1] = {
             element = component.element, depicts = found.depicts,
+            name = found.name, named_by_us = found.named_by_us,
             source = found.source, where = where, box = box,
-            depth = component.depth,
+            depth = component.depth, for_the_sound = is_sound or nil,
             stroke_first = component.stroke_first,
             stroke_last = component.stroke_last,
           }
@@ -666,7 +702,10 @@ function M.scene(record, store, settings, options)
 
   -- The outermost pieces are the ones a reader sees first. Deeper ones are the
   -- pieces of pieces, and naming every level would describe a tree diagram
-  -- rather than a picture.
+  -- rather than a picture. Under the mnemonic reading this matters more, not
+  -- less: the sound half is now a subject too, so a character has twice as many
+  -- candidates and the deep ones would crowd out the ones a learner is told
+  -- the character is made of.
   --
   -- The first level is the character itself, which for a compound is not a
   -- subject -- naming it would put "the character for rest" in a picture of a
@@ -687,9 +726,18 @@ function M.scene(record, store, settings, options)
     if subject.depth == shallowest then outer[#outer + 1] = subject end
   end
 
-  -- Largest first, so that when the sentence has to be shortened, the piece
-  -- that dominates the picture is the one that survives.
+  -- Meaning first, then largest.
+  --
+  -- Largest-first alone put the *sound* half at the head of the list whenever
+  -- it happened to be the bigger of the two -- and the head of the list is the
+  -- one the sentence weights and the last one it will give up. For the
+  -- character meaning "time" that weighted the temple over the sun. The temple
+  -- belongs in the picture, under the mnemonic reading, and it does not belong
+  -- in front of what the character is about.
   table.sort(outer, function(a, b)
+    local a_sound = a.for_the_sound and 1 or 0
+    local b_sound = b.for_the_sound and 1 or 0
+    if a_sound ~= b_sound then return a_sound < b_sound end
     local function area(one)
       if not one.box then return 0 end
       return (one.box[3] - one.box[1]) * (one.box[4] - one.box[2])
@@ -757,6 +805,7 @@ function M.scene(record, store, settings, options)
     roles = roles,
     named = named,
     polarity = biome.polarity,
+    reading = reading,
     register_note = register_note,
     grade = record.grade,
     jlpt = record.jlpt,
@@ -831,9 +880,13 @@ local function main(argv)
                string.format("%.1f", scene.runners_up[1].score), ")\n")
       io.write("  register   ", scene.biome.register, "\n")
       io.write("  sense      ", scene.register_note, "\n")
+      io.write("  reading    ", scene.reading, "\n")
       for _, subject in ipairs(scene.subjects) do
-        io.write("  subject    ", subject.element, "  ", subject.depicts,
-                 ", ", subject.where, "\n")
+        io.write("  subject    ", subject.element, "  ", subject.name or "?",
+                 subject.named_by_us and "*" or "", " -- ", subject.depicts,
+                 ", ", subject.where,
+                 subject.for_the_sound and "   (only there for the sound)" or "",
+                 "\n")
       end
       for _, ground in ipairs(scene.landscape) do
         io.write("  ground     ", ground.element,

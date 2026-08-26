@@ -20,10 +20,17 @@ luajit src/023-the-component-lexicon.lua --coverage
 
 | | |
 |---|---|
+| `M.name_from(phrase)` | The short name inside a describing phrase. |
 | `M.is_paintable(gloss)` | Whether a gloss names something that could be in a picture. |
 | `M.written_count()` |  |
 | `M.look_up(component, store)` | One component, as something that can be in a picture. |
 | `M.coverage(store)` | How much of the archive this lexicon can actually picture, and what it cannot. |
+
+### `M.name_from(phrase)`
+
+The short name inside a describing phrase.
+
+Strips the article, then cuts at the first place the phrase stops naming the thing and starts saying more about it.
 
 ### `M.look_up(component, store)`
 

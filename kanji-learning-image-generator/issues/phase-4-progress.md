@@ -11,7 +11,7 @@ were finished and reframed what the project is for. Read that first.
 
 | | | Status |
 |---|---|---|
-| `401` | The names the radicals bear | not started |
+| `401` | The names the radicals bear | **completed** — two readings, and every piece carries a name as well as a phrase |
 | `402` | A phrase is a picture too | not started |
 | `403` | The paintbrush, and the wall around it | not started |
 | `404` | Running the pictures | not started |
