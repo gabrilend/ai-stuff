@@ -84,7 +84,7 @@ f_wait_stage   | 1 | derived | t_wait_worst / t_stage            | the worst wai
 ```constraints
 C-054-1 | n_channel == 2               | request and response are two channels and share no queue. Asserted as a count because the property itself cannot be written in this notation, and it is the constraint most easily satisfied in a diagram and violated in an implementation
 C-054-2 | n_ring_break >= 1            | the staging ring must be broken somewhere. Stage zero declining to admit a microbatch is a decision it can always make; every other stage waiting on the next is a decision it cannot
-C-054-3 | t_timeout_bar > t_handoff * 1e-9 | a barrier timeout must exceed the handoff it is timing, by the stated margin
+C-054-3 | t_timeout_bar > t_handoff        | a barrier timeout must exceed the handoff it is timing, by the stated margin
 C-054-4 | t_timeout_txn > t_link_rt    | and a transfer timeout must exceed a round trip
 C-054-5 | f_wait_stage < 0.01          | the worst wait any client can suffer must be under a hundredth of a pipeline stage, so that arbitration never appears in 080's model
 C-054-6 | f_timeout_marg > 10          | timeouts must sit well clear of the proven worst case, or they fire in normal operation and the machine reports faults it does not have

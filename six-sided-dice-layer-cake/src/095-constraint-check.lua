@@ -75,7 +75,33 @@ function M.run(dir)
     structural = L.errors,
     bare = {},          -- blueprints with no constraints at all
     exact_warn = {},    -- == used on something with a fractional part
+    conversions = {},   -- literals that look like hand-written unit conversions
   }
+
+  -- Every derivation and every relation, swept for literals that look like
+  -- somebody converting units by hand. See 092 for why this is worth doing:
+  -- the dimensionless-literal rule catches an unlabelled quantity and misses a
+  -- doubly-converted one, and the second is far more common.
+  local function sweep_literals(tree, where, file, line)
+    if not tree then return end
+    for _, lit in ipairs(expression.literals(tree)) do
+      if expression.suspicious_literal(lit.v) then
+        R.conversions[#R.conversions + 1] = {
+          where = where, file = file, line = line, v = lit.v,
+        }
+      end
+    end
+  end
+  for _, name in ipairs(L.order) do
+    local d = L.decl[name]
+    if d.tree then sweep_literals(d.tree, name, d.file, d.line) end
+  end
+  for _, c in ipairs(L.constraints) do
+    if c.rel then
+      sweep_literals(c.rel.lhs, c.tag, c.file, c.line)
+      sweep_literals(c.rel.rhs, c.tag, c.file, c.line)
+    end
+  end
 
   for _, c in ipairs(L.constraints) do
     local rel = c.rel
@@ -188,6 +214,19 @@ function M.report(R, out)
       say("      right = %s", unit_for(L, f.c.rel.rhs, f.b))
       say("      off by %.3g%%", f.margin * 100)
       say("      because: %s", f.c.reason)
+    end
+    say("")
+  end
+
+  if #R.conversions > 0 then
+    say("  WARNING -- literals that look like hand-written unit conversions")
+    say("  (this notation converts between units; multiplying by a thousand or")
+    say("  eight thousand million inside a derivation is almost always a mistake,")
+    say("  and it is a silent one because the literal is dimensionless either way).")
+    say("  Some of these are legitimate ratios -- a thousandth, a factor of ten --")
+    say("  so this is a warning to read rather than a defect to fix.")
+    for _, c in ipairs(R.conversions) do
+      say("    %-22s %s:%d  %g", c.where, c.file, c.line, c.v)
     end
     say("")
   end

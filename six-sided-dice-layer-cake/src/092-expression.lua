@@ -182,6 +182,57 @@ function M.refs(tree, out, seen)
 end
 -- }}}
 
+-- {{{ function M.literals()
+-- Every numeric literal in a tree, with its position. Collected so that 095 can
+-- warn about the ones that look like unit conversions.
+--
+-- The rule that every literal is dimensionless stops an unlabelled physical
+-- quantity entering a derivation. It does nothing about a *labelled* one being
+-- converted twice -- somebody writing `C_weights * 8e9 / B_core` because they
+-- were thinking in gigabytes and bits per second rather than trusting the
+-- notation to convert. Twenty-seven of those were found in one sweep across the
+-- blueprint set, three of which had produced visible failures and the rest of
+-- which were silent. One was silent because two of them cancelled.
+--
+-- They have a signature: a round power of ten, large or small. Ordinary
+-- arithmetic uses small numbers -- a two because something has two sides, a
+-- polynomial coefficient, a factor of four for a duct's walls. Nothing in real
+-- physics needs to be multiplied by eight thousand million.
+--
+-- A literal standing alone as one whole side of a comparison is not one of
+-- these -- `f_overhead < 0.05` is a threshold, not a conversion -- so the root
+-- of a tree is skipped. What is looked for is a literal *scaling* something.
+function M.literals(tree, out, depth)
+  out, depth = out or {}, depth or 0
+  local k = tree.k
+  if k == "num" then
+    if depth > 0 then out[#out + 1] = { v = tree.v, at = tree.at } end
+  elseif k == "call" then
+    for i = 1, #tree.args do M.literals(tree.args[i], out, depth + 1) end
+  elseif k == "neg" then
+    M.literals(tree.a, out, depth)
+  elseif k ~= "ref" then
+    M.literals(tree.a, out, depth + 1)
+    M.literals(tree.b, out, depth + 1)
+  end
+  return out
+end
+-- }}}
+
+-- {{{ function M.suspicious_literal()
+-- Whether a literal looks like a hand-written unit conversion rather than
+-- arithmetic. Large or tiny, and near a round power of ten.
+function M.suspicious_literal(v)
+  local a = math.abs(v)
+  if a == 0 then return false end
+  if a < 1000 and a > 0.001 then return false end
+  -- near a round power of ten, or a small integer times one
+  local e = math.floor(math.log(a) / math.log(10) + 0.5)
+  local m = a / (10 ^ e)
+  return m > 0.95 and m < 1.05 or (a >= 1000 and a / (10 ^ math.floor(math.log(a)/math.log(10))) % 1 == 0)
+end
+-- }}}
+
 -- {{{ local function need_dimensionless()
 local function need_dimensionless(q, fn)
   if not units.dim_equal(q.d, units.DIMENSIONLESS) then
