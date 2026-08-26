@@ -35,8 +35,8 @@
  * big a metre is. Changing this number changes every stored sprite, so it is
  * written once and referred to rather than typed into each formula.
  */
-#define VIEWBOX 100
-#define MIDDLE  50
+#define VIEWBOX ((int)SPRITE_CANVAS)
+#define MIDDLE  (VIEWBOX / 2)
 
 /*
  * How thick a ring is drawn. A ring with no thickness is an invisible sprite
@@ -1152,6 +1152,61 @@ int sprite_from_svg(struct sprite *s, const char *svg)
     }
 
     return 1;
+}
+/* }}} */
+
+/* ------------------------------------------------------------------------- */
+/* One number standing for the whole paintbrush.                               */
+/* ------------------------------------------------------------------------- */
+
+/*
+ * The witnesses: fixed words and fixed numbers, never changed.
+ *
+ * If this list were ever edited the fingerprint would change without the
+ * paintbrush changing, and every rating in every pool would be marked stale for
+ * no reason. It is frozen for the same reason a stream's name hash is frozen.
+ */
+static const struct {
+    const char *category;
+    uint64_t    seed;
+} fingerprint_witnesses[] = {
+    { "goblin", 1 }, { "goblin", 2 },   { "torch", 3 },  { "torch", 5 },
+    { "chest",  8 }, { "wolf",   13 },  { "barrel", 21 }, { "door", 34 }
+};
+
+/* {{{ uint64_t sprite_paintbrush_fingerprint */
+uint64_t sprite_paintbrush_fingerprint(void)
+{
+    /* FNV-1a, over the finished files rather than over the structs.
+     *
+     * Over the FILES, deliberately. A struct has padding whose contents depend
+     * on the compiler, and hashing it would make the same paintbrush fingerprint
+     * differently on two machines -- so a pool copied between them would report
+     * every entry as stale. The text is the text everywhere. It also means the
+     * encoder is inside the fingerprint, which is right: a changed encoder makes
+     * a changed picture just as surely as a changed generator does. */
+    uint64_t hash = 14695981039346656037u;
+    uint32_t which;
+
+    for (which = 0; which < sizeof(fingerprint_witnesses) / sizeof(fingerprint_witnesses[0]);
+         which++) {
+        struct sprite s;
+        char svg[4096];
+        uint32_t length;
+        uint32_t i;
+
+        sprite_make(&s, fingerprint_witnesses[which].category,
+                    fingerprint_witnesses[which].seed);
+
+        length = sprite_to_svg(&s, svg, sizeof(svg));
+
+        for (i = 0; i < length; i++) {
+            hash ^= (uint64_t)(unsigned char)svg[i];
+            hash *= 1099511628211u;
+        }
+    }
+
+    return hash;
 }
 /* }}} */
 

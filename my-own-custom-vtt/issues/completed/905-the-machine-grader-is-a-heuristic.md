@@ -7,34 +7,35 @@
 
 ## Current behaviour
 
-**In progress.** The grader exists and is honest; the measurement of it does not
-exist yet.
+**Done.** The grader exists, it is called a heuristic everywhere, and it is now
+measured rather than trusted.
 
-Built: `sprite_machine_tier` weighs five components — layer count, whether it
-moves, palette coherence, how much of the box it fills, and how balanced the
-detail is — over a hundred points, and maps that onto five tiers. It is called a
-heuristic in the header, in the source, in the companion file, and in every
-sentence it writes about itself. `sprite_machine_reasoning` prints the breakdown
-so a demo can show which component made the call rather than announcing a number.
+`sprite_machine_tier` weighs five components — layer count, whether it moves,
+palette coherence, how much of the box it fills, and how balanced the detail is —
+over a hundred points, and maps that onto five tiers.
+`sprite_machine_reasoning` prints the breakdown so a demo can show which
+component made the call rather than announcing a number.
 
 It watches. The motion is a field of the sprite and a declaration in the file, so
-reading it is reading the animation rather than one still frame — which is
-achievable because the format is SVG and would not be for a raster format.
+reading it is reading the animation rather than one still frame — achievable
+because the format is SVG and not achievable for a raster format.
 
 **The thresholds were measured, not chosen**, and that took a second pass. The
-first four were round numbers that looked reasonable; against the generator's real
-output they left tier one empty and put ninety per cent into two tiers. So
-`084-calibrate` was written — a program, not a script, because the numbers are
-frozen and the distribution is not. The four cut lines are now percentiles of a
-thirty-two-thousand-sprite sweep, and the tool exits non-zero when they go stale.
-It has already caught one drift: making detail layers mirrored moved every line by
-two points.
+first four were round numbers that looked reasonable; against real output they
+left tier one empty and put ninety per cent into two tiers. So `084-calibrate`
+was written — a program, not a script, because the numbers are frozen and the
+distribution is not. It exits non-zero when the tiers go adrift, and it has
+already caught one drift: making detail layers mirrored moved every line by two
+points.
 
-Deferred, and what keeps this open: **the agreement rate.** It is computed from
-pairs of ratings where both a machine tier and a person's exist for one sprite,
-which needs the pool from [903](903-the-pool-keeps-everything.md) and the two
-rating paths from [904](904-two-ways-of-rating.md). Until it is reported, the
-grader is measured against nothing.
+**And the agreement rate is reported wherever a tier is shown.** `studio_summarise`
+prints the tier table, the provenance counts, a sentence saying plainly that the
+machine's tiers are a heuristic and roughly what it measures, the agreement rate,
+and the human-rated fraction against its anchor. Every time, not in a footnote.
+
+A pool with no pairs reports UNMEASURABLE and never a percentage. A pool with a
+handful reports THIN. Both have tests, because a rate computed from nothing that
+reads as agreement is the single most dangerous number this project could print.
 
 ## Intended behaviour
 
