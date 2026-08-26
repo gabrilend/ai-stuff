@@ -32,8 +32,11 @@ score wins. Three things make the score worth more than a chain of tests:
   orders them and the first one is the sense the character is normally used in
 - a **semantic component weighs more than a keyword**, because the component is
   what the character was actually built out of and the keyword is a translation
-- **ties are broken by the classical radical**, which is the traditional answer to
-  "what is this character about" and is a reasonable adjudicator by construction
+- **ties are broken by the order the worlds are written in**, which means nothing
+  and is at least the same on every run. The plan said to break them with the
+  classical radical; the archive gives that as a catalogue *number*, and turning
+  a number into a world would have needed a two-hundred-row table restating what
+  the component decomposition already says better
 
 A character that scores nothing anywhere is not given a default quietly. It is
 reported. A silent fallback biome would mean an unknown fraction of the output
@@ -69,12 +72,30 @@ plausible-looking way this project can be wrong. Its strokes still need to be
 something, so they become terrain: ridgelines, paths, rock faces, reflections.
 Present in the composition, absent from the sentence.
 
+**And so is everything inside it**, which the archive does not mark and which is
+where this first went wrong. Being a component *of* a phonetic component is not
+a property anybody catalogues, but those inner pieces are exactly as unrelated to
+the meaning, and they vote. 語 — *word, speech, language* — is a speech radical
+beside a phonetic half, and that phonetic half contains two mouths. Counted, the
+two mouths outvoted the speech radical and the scene came out as a person alone
+in a room. 時 — *time* — is a sun beside a phonetic half containing earth, and
+the earth outvoted the sun into a rice paddy. Both pictures would have looked
+perfectly good and been about the wrong thing.
+
 **Components with no usable gloss are de-selected from subjecthood and re-selected
 as structure**, and they are *counted*. A lexicon that silently omits a fifth of
 the components produces a set of images that are quietly about less than they
 should be. The count is printed by every batch run, and a component that turns up
 often enough in that report has earned an entry in the hand-written half of the
 lexicon.
+
+**The outermost component counts, and it is the character itself.** Skipping it
+looks right — restating the whole character is not evidence about the whole
+character — and it left every *atomic* character with no component evidence at
+all. 一, 十, 大, 車 and a hundred like them scored nothing anywhere and were
+reported as belonging to no world, and those are the first characters anybody
+learns. For a compound the outermost element is almost never in a world's list of
+pieces, so counting it costs nothing there.
 
 A component's **place in the frame** comes from the bounding box of its own
 strokes, not from its `kvg:position` label. The label says *left*; the box says
