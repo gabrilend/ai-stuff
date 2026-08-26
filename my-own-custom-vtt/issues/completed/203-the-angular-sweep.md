@@ -71,3 +71,43 @@ through [101](101-the-arithmetic-is-integers.md). No `atan2`, no doubles, no
    meeting, a doorway, a pillar, a body inside a closed room, a body in the open.
 8. Test determinism directly: run the same sweep with the endpoints fed in a
    different order and assert the output is identical.
+
+---
+
+## What was actually built, and why it is not a sweep
+
+**Ray casting at corners**, not an angular sweep. `042-sight.c` casts three rays
+at each wall endpoint -- one at it and one just to either side -- and takes the
+nearest wall each meets. That is O(corners x walls) where the sweep is
+O(n log n).
+
+The reason is the active set. Everything difficult about the sweep lives there:
+deciding which of two overlapping segments is nearer, at an angle where they
+overlap, in integer arithmetic, with ties broken identically on every machine.
+The table of hazards above is entirely a table of ways that decision goes wrong.
+
+And the consequence of getting it slightly wrong is not a drawing glitch. This
+polygon decides which records go on a socket, so a wall that goes missing at one
+angle is somebody seeing through stone -- a security failure that looks like a
+rendering artefact.
+
+Ray casting has no active set. Each ray is independent and obviously correct.
+
+**The measurement, which is what actually settled it:** about 90 microseconds per
+body against 17 walls. A table of six is roughly 550 microseconds of sight per
+tick, which at twenty ticks a second is about 1% of one core. The phase 2 demo
+reports the current figure rather than this file quoting a stale one.
+
+At that price the sweep buys nothing a tabletop can feel, and costs the one thing
+this project cannot afford to get subtly wrong.
+
+## What survives for whoever writes the sweep later
+
+Everything above the line. The hazards are still the hazards -- two endpoints at
+one angle, a wedge straddling zero, collinear segments -- and every one of them is
+a determinism failure rather than a crash, so they fail an hour into a replay
+with nothing to point at.
+
+The tests in `043-test-sight.c` are the guard rail. In particular the one that
+samples thousands of points and asserts that the fan and the point query agree:
+a sweep that passes that has not gone quietly wrong.
