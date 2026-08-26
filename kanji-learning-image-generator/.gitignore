@@ -26,3 +26,11 @@ assets/*.gz
 #
 #   luajit src/033-the-documentation-site.lua
 docs/HTML/
+
+# libs/kitchen/ is the image generator this project writes recipes for, installed
+# inside the project so that removing it is removing one folder. It is somebody
+# else's program plus about six gigabytes of model weights -- none of it ours,
+# all of it re-fetchable:
+#
+#   src/043-install-the-kitchen.sh
+libs/kitchen/

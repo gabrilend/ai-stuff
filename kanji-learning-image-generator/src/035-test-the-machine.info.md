@@ -35,4 +35,6 @@ what a person reads before opening the source.
 | `test_the_heat_governor(t)` |  |
 | `test_the_two_sites(t)` |  |
 | `test_the_paintbrush(t)` | The mechanism for arguing with a picture that came out wrong. Its whole value |
+| `test_the_pool_and_the_graders(t)` |  |
+| `test_reading_a_picture(t)` | The decoder, which is what makes grading possible at all -- everything else |
 | `main(argv)` |  |

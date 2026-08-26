@@ -2,7 +2,29 @@
 
 ## Current behavior
 
-Nothing is kept. A run overwrites its output directory and there is no record
+Done. `src/045-the-pool-that-remembers.lua`.
+
+```
+luajit src/045-the-pool-that-remembers.lua
+luajit src/045-the-pool-that-remembers.lua --list --category forest --floor 4
+```
+
+**Two bugs in reading a companion back, and both made the file look fine while
+the program read it wrong.**
+
+*A pattern anchored on the newline before each entry eats that newline*, so the
+next entry has nothing to anchor on and is never seen. Every companion read back
+with only its **first** rating — and the rating that counts is the last one, so
+every correction a person had ever made was invisible. The file itself was
+perfectly correct the whole time. Read line by line now, which has no such trap.
+
+*`a and b or c` is the usual way to write a choice in Lua and is wrong exactly
+when `b` is nil.* Asking for "tier 4 or better **as judged by a person**" on
+something no person had judged fell through to the machine's tier — so the
+provenance dial quietly became no dial at all, which is the one distinction it
+exists to preserve.
+
+Both were found by tests that asserted the thing rather than the mechanism. A run overwrites its output directory and there is no record
 that a picture ever existed, let alone whether it was any good.
 
 ## Intended behavior

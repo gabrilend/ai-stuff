@@ -131,6 +131,22 @@ return {
   },
   -- }}}
 
+  -- {{{ pool -- every picture ever made, kept (405)
+  pool = {
+    dir = "tmp/shared-memory/pool",
+    -- What a machine has to score before a rendering counts as each tier. The
+    -- machine's opinion is a correlation between the finished picture and the
+    -- grey field that produced it -- how much the illusion actually took. These
+    -- cuts are a starting position and should be set from a real distribution;
+    -- src/046 --calibrate is the thing that measures it.
+    cuts = { 0.86, 0.72, 0.55, 0.34 },   -- at or above -> tier 5, 4, 3, 2
+    -- The share of renderings that must carry a person's rating before the
+    -- apparatus is still anchored to anybody's taste. Below this, the machine's
+    -- ratings are training the machine.
+    human_floor = 0.05,
+  },
+  -- }}}
+
   -- {{{ heat -- resting when the processor is climbing (307)
   --
   -- Degrees. A duty cycle is the one thing that lowers sustained temperature

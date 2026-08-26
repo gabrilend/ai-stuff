@@ -446,6 +446,205 @@ local function test_the_paintbrush(t)
 end
 -- }}}
 
+-- {{{ test_the_pool_and_the_graders(t)
+local function test_the_pool_and_the_graders(t)
+  local pool = project.load("045-the-pool-that-remembers")
+  local grader = project.load("046-two-ways-of-saying-it-is-good")
+  local reader = project.load("017a-read-a-picture")
+  local canvas = project.load("016-the-grey-canvas")
+  local png = project.load("017-write-a-picture")
+  local field_of = project.load("022-the-structure-field")
+  local paintbrush = project.load("024a-the-paintbrush")
+  local store = project.load("019-the-kanji-record").store()
+
+  -- Its own pool, so this never touches a real one. Nothing is ever deleted
+  -- from a pool, and a test that wrote into the working one would be a test
+  -- that permanently added nine renderings to it every time it ran.
+  local settings = {}
+  for key, value in pairs(project.settings()) do settings[key] = value end
+  settings.pool = { dir = project.scratch("test-pool"), cuts = { 0.86, 0.72, 0.55, 0.34 },
+                    human_floor = 0.05 }
+  os.execute('rm -rf "' .. settings.pool.dir .. '"')
+
+  local TREE, RIVER = "\230\156\168", "\229\183\157"
+  local made = {}
+  for _, character in ipairs({ TREE, RIVER }) do
+    local record = store.records[character]
+    local scene = paintbrush.scene(record, store, settings)
+    local surface = field_of.build(record, settings, { polarity = scene.polarity })
+    local scratch = project.scratch("test-standin-" .. record.codepoint .. ".png")
+    png.write_grey(scratch, surface, canvas)
+    local picture, companion = pool.add(settings, {
+      record = record, scene = scene, seed = 1234,
+      character = character, means = table.concat(record.meanings, ", "),
+      kind = "character", category = scene.biome.name,
+      codepoint = record.codepoint, canvas = "a made-up brief",
+      ratings = {},
+    }, project.read_file(scratch))
+    made[character] = { picture = picture, companion = companion, field = scratch }
+  end
+
+  -- Two files with the same stem in the same folder. That is the whole store.
+  t.ok(project.exists(made[TREE].picture), "a rendering lands in the pool")
+  t.ok(project.exists(made[TREE].companion), "with its companion beside it")
+
+  local entry = pool.read_companion(made[TREE].companion)
+  t.same(entry.character, TREE, "the companion names its character")
+  t.same(entry.seed, 1234, "and its seed, so it can be made again")
+  t.same(entry.canvas, "a made-up brief",
+         "and the brief it answered, so a bad score can be told from a bad ask")
+
+  -- THE MACHINE GRADER. A field against itself is perfect agreement; against a
+  -- different character's, far less. Neither needs a generated picture, and
+  -- they check the arithmetic -- which is the half that can be wrong quietly.
+  local tree_field = reader.read(made[TREE].field)
+  local river_field = reader.read(made[RIVER].field)
+  local itself = grader.squint(tree_field, tree_field, settings)
+  local other = grader.squint(tree_field, river_field, settings)
+  t.near(itself, 1, 0.001, "a field agrees perfectly with itself")
+  t.ok(other < itself - 0.2, "and much less with a different character's",
+       string.format("%.2f against %.2f", other, itself))
+  t.same(grader.tier_for(itself, settings), 5, "so it scores at the top")
+
+  -- A picture that is uniformly brighter has not failed at anything: what
+  -- matters is whether light and dark move together, not whether they match.
+  local brighter = canvas.clone(tree_field)
+  for index = 1, brighter.width * brighter.height do
+    brighter.pixels[index] = brighter.pixels[index] * 0.5 + 0.4
+  end
+  t.near(grader.squint(brighter, tree_field, settings), 1, 0.02,
+         "a picture that is merely paler still agrees")
+
+  -- An inverted picture is a failure and not a near miss.
+  local inverted = canvas.clone(tree_field)
+  canvas.invert(inverted)
+  t.same(grader.squint(inverted, tree_field, settings), 0,
+         "and one that is inside out agrees not at all")
+
+  -- Ratings are appended, never overwritten. A machine's guess has to stay
+  -- visible under a person's correction, or the agreement between them cannot
+  -- be measured -- and that measurement is the only check there is on whether
+  -- the machine's taste is anything like a person's.
+  pool.rate(made[TREE].companion, 5, "machine:squint 1.000")
+  pool.rate(made[TREE].companion, 2, "person")
+  local rated = pool.read_companion(made[TREE].companion)
+  t.same(#rated.ratings, 2, "both ratings are kept")
+
+  -- This is the bug that made every correction invisible: a pattern anchored on
+  -- the newline before each entry eats it, so the second entry never matches --
+  -- and the rating that counts is the last one.
+  t.same(rated.ratings[1].tier, 5, "the machine's guess is still there")
+  t.same(rated.ratings[2].tier, 2, "and so is the correction after it")
+  t.same(pool.tier_of(rated), 2, "the last one wins")
+  t.same(pool.tier_by_a_person(rated), 2, "and it is known to be a person's")
+
+  pool.rate(made[RIVER].companion, 4, "machine:squint 0.800")
+  local unjudged = pool.read_companion(made[RIVER].companion)
+  t.same(pool.tier_by_a_person(unjudged), nil,
+         "while one only a machine rated has no person's tier")
+
+  -- "tier 4 or better" and "tier 4 or better as judged by a person" are
+  -- different requests, and the second is smaller and more trustworthy.
+  t.same(#pool.walk(settings, { floor = 4 }), 1, "a floor filters")
+  t.same(#pool.walk(settings, { floor = 4, by_a_person = true }), 0,
+         "and asking for a person's judgement filters harder")
+  t.same(#pool.walk(settings, { floor = 1 }), 2, "a low floor keeps everything")
+  t.same(#pool.walk(settings, { category = "forest" }), 1, "so does a category")
+
+  local counts = pool.counts(settings)
+  t.same(counts.total, 2, "the counting utility sees everything")
+  t.same(counts.compared, 1, "and finds where both have rated the same one")
+  t.same(counts.agreed, 0, "and whether they agreed")
+
+  -- Copy the pair anywhere and nothing is lost. A record in a central store
+  -- drifts from what it describes the first time somebody archives one without
+  -- the other.
+  local elsewhere = project.scratch("moved")
+  project.ensure_directory(elsewhere)
+  os.execute('cp "' .. made[TREE].companion .. '" "' .. elsewhere .. '/"')
+  local moved = pool.read_companion(elsewhere ..
+    "/" .. made[TREE].companion:gsub(".*/", ""))
+  t.same(pool.tier_of(moved), 2, "a companion carried elsewhere keeps its tier")
+  t.same(moved.seed, 1234, "and its seed")
+
+  t.ok(not pcall(pool.rate, made[TREE].companion, 7, "person"),
+       "a tier outside one to five is refused, with the scale")
+  t.ok(not pcall(pool.rate, made[TREE].companion, 2.5, "person"),
+       "and so is one between two steps")
+
+  os.execute('rm -rf "' .. settings.pool.dir .. '" "' .. elsewhere .. '"')
+end
+-- }}}
+
+-- {{{ test_reading_a_picture(t)
+-- The decoder, which is what makes grading possible at all -- everything else
+-- here writes pictures from numbers it already had.
+local function test_reading_a_picture(t)
+  local reader = project.load("017a-read-a-picture")
+  local canvas = project.load("016-the-grey-canvas")
+  local png = project.load("017-write-a-picture")
+
+  local surface = canvas.new(64, 48, 0)
+  for y = 0, 47 do
+    for x = 0, 63 do
+      surface.pixels[y * 64 + x + 1] = ((x * 3 + y * 5) % 71) / 71
+    end
+  end
+  local path = project.scratch("read-back.png")
+  png.write_grey(path, surface, canvas)
+
+  local back, why = reader.read(path)
+  t.ok(back ~= nil, "a picture this project wrote can be read again", why)
+  t.same(back.width, 64, "at the width it was written")
+  t.same(back.height, 48, "and the height")
+  local worst = 0
+  for index = 1, 64 * 48 do
+    local gap = math.abs(back.pixels[index] - surface.pixels[index])
+    if gap > worst then worst = gap end
+  end
+  t.ok(worst < 1 / 255 + 1e-6,
+       "and every value comes back within one step of eight bits",
+       string.format("worst was %.5f", worst))
+  os.remove(path)
+
+  -- The point of this file is reading somebody *else's* picture, which uses a
+  -- code table built for its own contents rather than the standard one `017`
+  -- always emits. An outside tool is used to make one, and where the machine
+  -- has none the test says the check was skipped rather than counting a missing
+  -- check as a pass.
+  local foreign = project.scratch("foreign.png")
+  local made = os.execute('magick -size 40x30 gradient:navy-orange -depth 8 ' ..
+                          'PNG24:"' .. foreign .. '" 2>/dev/null')
+  if (made == true or made == 0) and project.exists(foreign) then
+    local outside = reader.read(foreign)
+    t.ok(outside ~= nil, "a picture written by another program reads")
+    t.same(outside.width, 40, "at the size that program made it")
+
+    -- And its brightness agrees with what that program says it is. Two
+    -- independent readers is proof; one is an opinion.
+    local total = 0
+    for index = 1, outside.width * outside.height do
+      total = total + outside.pixels[index]
+    end
+    local ours = total / (outside.width * outside.height)
+    local probe = io.popen('magick "' .. foreign ..
+                           '" -colorspace gray -format "%[fx:mean]" info: 2>/dev/null')
+    local theirs = tonumber(probe and probe:read("*l") or "")
+    if probe then probe:close() end
+    if theirs then
+      t.near(ours, theirs, 0.01,
+             "and its brightness agrees with what that program says")
+      t.note(string.format("this reader %.5f, the outside one %.5f", ours, theirs))
+    else
+      t.note("the outside tool would not report a brightness; not compared")
+    end
+    os.remove(foreign)
+  else
+    t.note("no outside image tool on this machine, so only the round trip ran")
+  end
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -455,6 +654,8 @@ function M.run(options)
     { "making one", test_making_one },
     { "the heat governor", test_the_heat_governor },
     { "the paintbrush", test_the_paintbrush },
+    { "reading a picture", test_reading_a_picture },
+    { "the pool and the graders", test_the_pool_and_the_graders },
     { "the two sites", test_the_two_sites },
   }
   local all_passed = true

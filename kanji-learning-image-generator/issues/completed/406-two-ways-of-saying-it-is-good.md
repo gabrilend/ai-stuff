@@ -2,7 +2,37 @@
 
 ## Current behavior
 
-Nothing has an opinion about any picture, including whether the illusion worked
+Done. `src/046-two-ways-of-saying-it-is-good.lua`, and it needed a PNG *reader*
+first — `src/017a-read-a-picture.lua`, because everything here until now made
+pictures out of numbers it already had, and grading means looking at one
+somebody else produced.
+
+```
+luajit src/046-two-ways-of-saying-it-is-good.lua --calibrate
+luajit src/032-a-gallery-you-can-page.lua --pool
+```
+
+**`docs/007` Q1 is answered.** A field compared with itself scores 1.00; against
+a different character's field it averages around 0.39. That gap is the whole
+range the five tiers divide, and the current cut for tier 2 sits right at the
+"no better than a random character" mark — so anything at or below it is tier 1
+by construction rather than by taste.
+
+**The person's grader is the gallery, and it cannot write to the pool.** That is
+deliberate: a page on a filesystem has no way to change a file, and giving it
+one would mean the viewer and the store share a door. It collects clicks and
+hands back a single line to run. The wall between making and looking stays a
+wall.
+
+**The decoder also gave the encoder something it never had** — an independent
+reader. It agrees with an outside image tool on the brightness of a foreign
+picture to five decimal places, which is worth more than a round trip through
+this project's own two halves.
+
+One thing about the gallery's own JavaScript is worth keeping: the tier buttons
+were inline handlers, which run in the *global* scope where nothing declared in
+the page's script is visible — so they could not have seen the ratings they were
+adding to. One listener on the grid instead., including whether the illusion worked
 at all — which is the one thing this whole project is specified on.
 
 ## Intended behavior

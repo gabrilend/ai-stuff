@@ -15,7 +15,7 @@ run the sweep again.*
 ## Invocation
 
 ```
-luajit src/032-a-gallery-you-can-page.lua --set DIR [--per-page 150]
+luajit src/032-a-gallery-you-can-page.lua --pool
 ```
 
 ## What it offers
@@ -26,6 +26,7 @@ luajit src/032-a-gallery-you-can-page.lua --set DIR [--per-page 150]
 | `M.read_set(set_dir)` | Every character a run left behind, as the raw text of its card. |
 | `M.summarise(card_text, folder)` | The handful of fields the index needs, pulled straight out of the text. |
 | `M.build(set_dir, options)` | The whole gallery for one set. |
+| `M.build_pool(settings)` | The other gallery: everything ever made, with five buttons under each one. |
 
 ### `M.stylesheet()`
 
@@ -46,6 +47,14 @@ A folder missing its card is recorded rather than skipped. A gallery that is qui
 The handful of fields the index needs, pulled straight out of the text.
 
 By pattern rather than by parsing, because these are five known fields at the top of a file this project wrote itself, and the alternative is a parser for a format nothing else here reads.
+
+### `M.build_pool(settings)`
+
+The other gallery: everything ever made, with five buttons under each one.
+
+This is the person's grader. It shows finished pictures and collects tiers, and it never reaches back into the machinery that made them -- a grader with access to the generator's internals is grading the intent rather than the result, and the result is the only thing anybody else will ever see.
+
+IT CANNOT WRITE TO THE POOL, AND THAT IS THE POINT. A page on a filesystem has no way to change a file, and giving it one would mean the viewer and the store share a door. So it collects clicks and hands back a single line to run. The wall between making and looking stays a wall.
 
 ## Inside
 

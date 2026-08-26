@@ -21,6 +21,7 @@
 -- gallery would be lying about the pictures.
 --
 --   luajit src/032-a-gallery-you-can-page.lua --set DIR [--per-page 150]
+--   luajit src/032-a-gallery-you-can-page.lua --pool
 
 local project = dofile((debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$")) ..
                        "/009-where-things-are.lua")
@@ -125,6 +126,28 @@ table.strokes tr:not(.named) td { color: var(--faint); }
 }
 .pager span.here { background: var(--accent); color: var(--paper); border-color: var(--accent); }
 .missing { color: #a33; font-size: .8rem; }
+.tiers { display: flex; gap: .2rem; justify-content: center; margin-top: .4rem; }
+.tiers .tier {
+  flex: 1; font: inherit; font-size: .8rem; padding: .15rem 0; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--paper); color: var(--faint);
+  border-radius: 2px;
+}
+.tiers .tier:hover { border-color: var(--accent); color: var(--ink); }
+.tiers .tier.on { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+.basket { }
+.basket.on {
+  background: var(--card); border: 1px solid var(--accent); border-radius: 3px;
+  padding: .9rem 1rem; margin-bottom: 1.2rem;
+}
+.basket pre {
+  white-space: pre-wrap; word-break: break-all; font-size: .78rem;
+  background: var(--paper); border: 1px solid var(--rule); padding: .5rem;
+  border-radius: 2px; margin: .5rem 0;
+}
+.basket button {
+  font: inherit; font-size: .85rem; padding: .25rem .7rem; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--paper); border-radius: 2px;
+}
 @media (max-width: 800px) { .card { grid-template-columns: 1fr; } }
 ]]
 end
@@ -192,7 +215,7 @@ M.summarise = summarise
 -- }}}
 
 -- {{{ page_shell(title, subtitle, body)
-local function page_shell(title, subtitle, body)
+function page_shell(title, subtitle, body)
   return table.concat({
     "<!doctype html>",
     '<html lang="en"><head><meta charset="utf-8">',
@@ -439,10 +462,201 @@ document.getElementById('cards').innerHTML = ENTRIES.map(e => {
 end
 -- }}}
 
+-- {{{ M.build_pool(settings)
+-- The other gallery: everything ever made, with five buttons under each one.
+--
+-- This is the person's grader. It shows finished pictures and collects tiers,
+-- and it never reaches back into the machinery that made them -- a grader with
+-- access to the generator's internals is grading the intent rather than the
+-- result, and the result is the only thing anybody else will ever see.
+--
+-- IT CANNOT WRITE TO THE POOL, AND THAT IS THE POINT. A page on a filesystem
+-- has no way to change a file, and giving it one would mean the viewer and the
+-- store share a door. So it collects clicks and hands back a single line to
+-- run. The wall between making and looking stays a wall.
+function M.build_pool(settings)
+  local pool = project.load("045-the-pool-that-remembers")
+  local entries = pool.walk(settings, {})
+  local root = pool.root(settings)
+  if #entries == 0 then
+    error("nothing has been made yet, so there is nothing to look at.\n" ..
+          "  the pool is " .. root)
+  end
+
+  local rows = {}
+  local worlds = {}
+  for _, entry in ipairs(entries) do
+    local tier, who = pool.tier_of(entry)
+    local by_person = pool.tier_by_a_person(entry)
+    worlds[entry.category or "?"] = true
+    rows[#rows + 1] = string.format(
+      '{"s":"%s","p":"%s","c":"%s","w":"%s","k":"%s","t":%s,"h":%s,"y":"%s",' ..
+      '"m":"%s","e":%d}',
+      (entry.path:gsub(".*/", ""):gsub("%.info%.md$", "")),
+      entry.picture:gsub("^" .. root .. "/", ""),
+      entry.character or "?", entry.category or "?", entry.kind or "?",
+      tier and tostring(tier) or "null",
+      by_person and tostring(by_person) or "null",
+      (who or ""):gsub('"', ""),
+      (entry.means or ""):gsub('"', "&quot;"),
+      #entry.elaborations)
+  end
+
+  local world_options = { '<option value="">every world</option>' }
+  local names = {}
+  for name in pairs(worlds) do names[#names + 1] = name end
+  table.sort(names)
+  for _, name in ipairs(names) do
+    world_options[#world_options + 1] =
+      '<option value="' .. name .. '">' .. name .. "</option>"
+  end
+
+  local body = table.concat({
+    '<div class="controls">',
+    '<label>world</label><select id="world">',
+    table.concat(world_options), "</select>",
+    '<label>at least</label><select id="floor">',
+    '<option value="">any tier</option><option value="5">5</option>',
+    '<option value="4">4</option><option value="3">3</option>',
+    '<option value="2">2</option><option value="1">1</option></select>',
+    '<label><input type="checkbox" id="byperson"> only what a person rated</label>',
+    '<span class="count" id="count"></span>',
+    "</div>",
+    '<div id="basket" class="basket"></div>',
+    '<div class="grid" id="grid"></div>',
+    "<script>",
+    "const POOL = [", table.concat(rows, ","), "];",
+    "const RATER = " .. string.format("%q",
+      "luajit " .. project.path("src", "046-two-ways-of-saying-it-is-good.lua") ..
+      " --rate") .. ";",
+    [[
+const grid = document.getElementById('grid');
+const count = document.getElementById('count');
+const basket = document.getElementById('basket');
+const mine = {};
+
+function shown() {
+  const world = document.getElementById('world').value;
+  const floor = parseInt(document.getElementById('floor').value, 10);
+  const byperson = document.getElementById('byperson').checked;
+  return POOL.filter(e =>
+    (!world || e.w === world) &&
+    (!floor || ((byperson ? e.h : e.t) || 0) >= floor) &&
+    (!byperson || e.h !== null));
+}
+
+function showBasket() {
+  const keys = Object.keys(mine);
+  if (!keys.length) { basket.innerHTML = ''; basket.className = 'basket'; return; }
+  const line = RATER + ' ' + keys.map(k => k + '=' + mine[k]).join(' ');
+  basket.className = 'basket on';
+  basket.textContent = '';
+  const said = document.createElement('div');
+  said.innerHTML = '<strong>' + keys.length + ' rated.</strong> This page cannot ' +
+    'write to the pool &mdash; it is a viewer. Run this to apply them:';
+  const box = document.createElement('pre');
+  box.textContent = line;
+  const copy = document.createElement('button');
+  copy.textContent = 'copy';
+  copy.addEventListener('click', () => navigator.clipboard.writeText(line));
+  const forget = document.createElement('button');
+  forget.textContent = 'forget them';
+  forget.addEventListener('click', () => {
+    for (const key of Object.keys(mine)) delete mine[key];
+    showBasket(); draw();
+  });
+  basket.append(said, box, copy, document.createTextNode(' '), forget);
+}
+
+// One listener on the grid rather than an attribute on every button. An inline
+// handler runs in the global scope, where nothing declared in this script is
+// visible -- so it would have been unable to see the ratings it was adding to.
+grid.addEventListener('click', event => {
+  const button = event.target.closest('button.tier');
+  if (!button) return;
+  mine[button.dataset.stem] = Number(button.dataset.tier);
+  showBasket();
+  draw();
+});
+
+function draw() {
+  const list = shown();
+  count.textContent = list.length + ' of ' + POOL.length;
+  grid.textContent = '';
+  for (const entry of list) {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+
+    const shots = document.createElement('div');
+    shots.className = 'shots';
+    const picture = document.createElement('img');
+    picture.loading = 'lazy';
+    picture.src = entry.p;
+    picture.alt = '';
+    shots.append(picture);
+
+    const glyph = document.createElement('div');
+    glyph.className = 'glyph';
+    glyph.textContent = entry.c;
+
+    const world = document.createElement('div');
+    world.className = 'world';
+    world.textContent = entry.w +
+      (entry.t !== null ? ' \u00b7 tier ' + entry.t : ' \u00b7 unrated') +
+      (entry.h !== null ? ' \u00b7 you said ' + entry.h : '') +
+      (entry.e ? ' \u00b7 ' + entry.e + ' extra' : '');
+
+    const gloss = document.createElement('div');
+    gloss.className = 'gloss';
+    gloss.textContent = entry.m;
+
+    const tiers = document.createElement('div');
+    tiers.className = 'tiers';
+    for (const tier of [1, 2, 3, 4, 5]) {
+      const button = document.createElement('button');
+      button.className = 'tier' + (mine[entry.s] === tier ? ' on' : '');
+      button.textContent = tier;
+      button.dataset.stem = entry.s;
+      button.dataset.tier = tier;
+      tiers.append(button);
+    }
+
+    tile.append(shots, glyph, world, gloss, tiers);
+    grid.append(tile);
+  }
+}
+
+draw();
+draw();
+]],
+    "</script>",
+  }, "\n")
+
+  project.write_file(root .. "/index.html", page_shell(
+    "Everything this has ever made",
+    "Every picture kept, good and bad. Click a number under one to say what " ..
+    "you think of it &mdash; 5 is <em>reach for this first</em> and 1 is " ..
+    "<em>no</em>. Nothing is ever deleted; a low tier is the record of what " ..
+    "missed.",
+    body))
+
+  return { renderings = #entries, where = root .. "/index.html" }
+end
+-- }}}
+
 -- {{{ main(argv)
 local function main(argv)
   local options = project.arguments(argv)
   local settings = project.hello("032-a-gallery-you-can-page")
+  if options.pool then
+    local made = M.build_pool(settings)
+    io.write(string.format("%d renderings\n", made.renderings))
+    io.write("open " .. made.where .. "\n")
+    project.goodbye("032-a-gallery-you-can-page",
+                    { made.renderings .. " renderings" })
+    return
+  end
+
   local set_dir = options.set or project.path(settings.batch.out_dir)
   local made = M.build(set_dir, options)
   io.write(string.format("%d characters over %d pages\n", made.characters, made.pages))
