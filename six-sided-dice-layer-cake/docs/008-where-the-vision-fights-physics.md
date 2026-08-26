@@ -90,10 +90,10 @@ hundred layers, roughly one and a half wafers of leading-node silicon per cube,
 and the leakage alone would be several kilowatts before a single read.
 
 **What the design does:** the core is still a solid forty millimetre block at the
-geometric centre, and it is still all one shared memory. But it is **thirty-two
-memory tiers laminated between copper cooling plates twelve hundred microns
-thick** — two per cent silicon by volume and the rest heat exchanger. Seventy-eight
-gigabytes raw, sixty-four gibibytes usable.
+geometric centre, and it is still all one shared memory. But it is **twenty-four
+memory tiers laminated between copper–molybdenum cooling plates sixteen hundred
+microns thick** — three per cent silicon by volume and the rest heat exchanger.
+About eighty gigabytes raw, seventy-two usable.
 
 **What survived:** the shape, the position, the sharing, and the capacity that
 matters — sixty-four gibibytes holds a seventy billion parameter model at four
@@ -198,3 +198,7 @@ come away thinking the page was wrong. It mostly was not.
 
 Four correct architectural decisions out of a single page of prose is a good
 ratio. The six entries above are what it costs to build them.
+
+---
+
+*The figures in this document are rounded prose. The derived ones live in `091`, which lists every symbol in the project with its unit, its derivation and what it is for; `089` is the one-page version. `./run-checks` evaluates every constraint in under a second.*
