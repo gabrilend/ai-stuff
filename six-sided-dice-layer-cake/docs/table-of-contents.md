@@ -9,7 +9,8 @@ that a number identifies a file uniquely and a reference like `037` needs no pat
 The highest index in use is kept in `.file-index-counter` at the project root.
 Everything numbered `091` and above is an instrument or a generated listing rather
 than a part of the machine, so `090` is where a reader stops if they came only to
-read the design.
+read the design. `101` is the odd one in that range: it is a generated document
+and not a program, which is why the instruments run `091`–`100` and then skip it.
 
 Two indices appear twice on purpose. `088` and `089` each name a blueprint in
 `src/` and a document in `docs/`, and the document is the blueprint rendered —
@@ -46,7 +47,8 @@ six-sided-dice-layer-cake/
 ├── src/
 │   ├── 010–090 ...................... eighty-four blueprints, one per component
 │   ├── *.info.md .................... one companion per blueprint: what it exports
-│   └── 091–100 ...................... ten instruments; the programs that read the above
+│   ├── 091–100 ...................... ten instruments; the programs that read the above
+│   └── 102–103 ...................... two more, which answer what the notation cannot ask
 │
 ├── issues/
 │   ├── phase-N-progress.md .......... fourteen, one per phase; what is done and what is not
@@ -137,7 +139,7 @@ the step before it, which would have melted the joint it was standing on.
 | 11 | **The Recipe** — cutting a model up and pouring it through | `075`–`080` |
 | 12 | **The Kiln** — process, assembly, yield, test, bring-up | `081`–`086` |
 | 13 | **The Whole Cake** — integration, materials, the spec sheet | `087`–`090` |
-| 14 | **The Instruments** — the programs that check all of it | `091`–`100` |
+| 14 | **The Instruments** — the programs that check all of it | `091`–`100`, `102`–`103` |
 
 Phase 13 is the capstone. Phase 14 is numbered last and built first, because
 nothing else can be checked until it exists, and none of it ships to whoever

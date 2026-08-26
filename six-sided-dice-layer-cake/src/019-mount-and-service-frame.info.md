@@ -19,7 +19,15 @@ Described by `207`.
 | `n_service` | 1 | given | 5 | service events -- cube replacements -- expected over the life of an installation |
 | `cte_frame` | ppm/K | derived | 17.3 ppm/K | the frame is steel, and so is most of the cube's exterior |
 | `dT_frame` | K | given | 40 K | temperature difference the frame and the cube can be at, worst case |
-| `t_service` | s | target | 1200 s | seconds a cube swap takes, once the procedure in 1205 exists to be timed |
+| `T_touch` | K | given | 318 K | the warmest surface a person may put a bare hand on. Forty-five degrees Celsius, which is the ordinary limit for a metal surface somebody has to grip rather than brush past |
+| `n_tau_cool` | 1 | given | 3 | thermal time constants to wait before the cube is called cool. Three leaves five per cent of the excess, and the fourth would buy one per cent for another third of the wait |
+| `t_stop` | s | given | 60 s | stopping the machine in an orderly way: finish the token in flight, drain the six pipeline stages, park the model, stop the clock |
+| `t_valve` | s | given | 120 s | closing the isolation valves either side of the cube and letting the loop pressure fall to nothing, twice -- once out and once in |
+| `t_couple` | s | given | 45 s | parting or making one self-sealing coolant coupling by hand, including wiping the face |
+| `t_bolt` | s | given | 90 s | releasing or torquing one mount point, including checking the torque |
+| `t_lift` | s | given | 60 s | lifting the cube out of the frame and the replacement into it. A sixty-millimetre cube weighing a little over a kilogram wet is a one-hand object, and the time is care rather than effort |
+| `t_align` | s | given | 180 s | seating the replacement against the three rigid mounts and setting the compliant one, which is where the time goes if it goes anywhere |
+| `t_purge` | s | given | 600 s | filling and purging the new cube, until no air returns from the outlet corners |
 | `m_mounted` | kg | derived | 1.12638 kg | mass the frame carries |
 | `F_mount_static` | N | derived | 2.76244 N | static load at one mount point |
 | `F_mount_shock` | N | derived | 138.122 N | load at one mount point under transit shock |
@@ -28,6 +36,16 @@ Described by `207`.
 | `V_spill_event` | mm^3 | derived | 800 mm^3 | fluid lost in one service event, all eight couplings parted |
 | `V_spill_life` | mm^3 | derived | 4000 mm^3 | fluid lost over the installation's life |
 | `n_orient` | 1 | derived | 6 | mounting orientations to check, one per face that could be the mounted one |
+| `C_cube` | J/K | derived | 495.298 J/K | heat the whole machine holds per kelvin, summed over what it is made of. The cage is taken as silicon because it is a switch shell of dies, and the interposer is left out as glass with a tenth the mass of anything else here |
+| `R_cube_cool` | K/W | derived | 0.0110435 K/W | the cube's whole thermal resistance to the coolant, read backwards out of the steady state: the temperature it sits at above the inlet, divided by the heat it was rejecting to get there |
+| `tau_cube` | s | derived | 5.4698 s | how long the machine takes to fall to a third of its excess temperature with the power off and the pump still running. Not the engine's time constant in 026, which is the array alone and is a thousand times shorter -- this is the whole object |
+| `t_cool_hold` | s | derived | 16.4094 s | how long to hold with the pump running before opening anything. The pump outlives the power to the dies for exactly this reason |
+| `n_couple` | 1 | derived | 16 | coolant couplings to part and then make: one supply and one return at every corner |
+| `t_swap` | s | derived | 3196.41 s | the mechanical exchange, end to end: stop, cool, isolate, part sixteen couplings, undo four bolts, lift out, lift in, seat, do up four bolts, make sixteen couplings, fill and purge |
+| `t_service` | s | derived | 10996.4 s | the whole service event as an operator experiences it, from the machine still running to the replacement passing rung ten. 085 owns the second half and this blueprint owns the first |
+| `t_service_h` | hr | derived | 3.05456 hr | the same, in the unit somebody plans a shift around |
+| `t_shift` | hr | given | 8 hr | a working shift, which a service event has to fit inside or it becomes a two-day job and the installation is down overnight |
+| `f_swap_of_svc` | 1 | derived | 0.290678 | the share of a service event that is hands on the machine rather than the machine testing itself |
 
 ## What it consumes
 
@@ -36,11 +54,30 @@ Described by `207`.
 | `F_corner_rating` | `015` | 4000 N | load one corner block will carry at a mount point without yielding, from its section and the steel in 011 |
 | `L_corner` | `013` | 12 mm | edge of a corner manifold block, set by the two chambers that have to fit inside it (015) |
 | `L_cube` | `012` | 60 mm | outer edge length of the finished cube; follows from the four dimensions below it in the chain |
+| `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
+| `T_coolant_in` | `021` | 298 K | temperature the coolant enters at. This is the parameter that decides whether the loop in 027 needs a refrigeration plant or a radiator and a fan |
+| `T_j_peak` | `025` | 318.883 K | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
 | `V_makeup` | `027` | 43215.7 mm^3 | reservoir capacity left over for leakage, once expansion and the spillage 019 loses at every coupling are taken out |
+| `cp_cumo` | `011` | 250 J/(kg*K) | specific heat capacity of the same |
+| `cp_si` | `011` | 705 J/(kg*K) | specific heat capacity of silicon at 300 K |
+| `cp_ss` | `011` | 500 J/(kg*K) | specific heat capacity of the same, which is what decides how long the steel in the rails and corners holds its heat once the power is off |
+| `cp_water` | `011` | 4180 J/(kg*K) | specific heat capacity of water at 320 K |
 | `cte_ss` | `011` | 17.3 ppm/K | linear thermal expansion of stainless steel |
+| `m_cage` | `013` | 0.100008 kg | the switch shell filling the space between the cavity wall and the core |
+| `m_coldplate` | `013` | 0.0566785 kg | six silicon cold plates, less the channels etched out of them |
+| `m_coolant` | `013` | 0.0228433 kg | the fluid standing in the machine when it is running |
+| `m_corners` | `013` | 0.0600653 kg | eight corner manifold blocks |
 | `m_cube` | `013` | 1.12638 kg | the finished object, wet |
+| `m_dies` | `013` | 0.00321961 kg | twenty-four compute dies |
+| `m_laminae` | `013` | 0.620928 kg | the cooling plates inside the core, one between every pair of memory tiers, which are most of the machine's mass |
+| `m_ports` | `013` | 0.15 kg | port fields, regulators and connectors on all six faces, weighed as an assembly |
+| `m_rails` | `013` | 0.0473242 kg | twelve edge rails |
+| `m_tiers` | `013` | 0.00447168 kg | the memory tiers between them; 036 derives how many there are from the bitcell density rather than choosing a round number |
+| `n_corner` | `010` | 8 | corners of the cube, each a coolant manifold block |
 | `n_corner_in` | `010` | 4 | corners where coolant enters, the even-parity set |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
+| `t_bringup` | `085` | 7800 s | the whole procedure |
+| `t_stage` | `053` | 0.000160796 s | how long one face works before the sieve moves on |
 
 ## What consumes it
 
@@ -57,7 +94,14 @@ Change one of these and the blueprints beside it are what break.
 | `n_service` | `019` |
 | `cte_frame` | `019` |
 | `dT_frame` | `019` |
-| `t_service` | `085` |
+| `n_tau_cool` | `019` |
+| `t_stop` | `019` |
+| `t_valve` | `019` |
+| `t_couple` | `019` |
+| `t_bolt` | `019` |
+| `t_lift` | `019` |
+| `t_align` | `019` |
+| `t_purge` | `019` |
 | `m_mounted` | `019` |
 | `F_mount_shock` | `019` |
 | `disp_frame` | `019` |
@@ -65,6 +109,16 @@ Change one of these and the blueprints beside it are what break.
 | `V_spill_event` | `019` |
 | `V_spill_life` | `019`, `027`, `088` |
 | `n_orient` | `019` |
+| `C_cube` | `019` |
+| `R_cube_cool` | `019` |
+| `tau_cube` | `019` |
+| `t_cool_hold` | `019` |
+| `n_couple` | `019` |
+| `t_swap` | `019` |
+| `t_service` | `019`, `085` |
+| `t_service_h` | `019` |
+| `t_shift` | `019` |
+| `f_swap_of_svc` | `019` |
 
 ## What it asserts
 
@@ -76,4 +130,8 @@ Change one of these and the blueprints beside it are what break.
 | `C-019-4` | `V_spill_life < V_makeup` | fluid lost over the installation's life, in couplings alone, must stay under the make-up volume 027 provides |
 | `C-019-5` | `n_orient == n_face` | every face is a candidate mounting face and each must be checked for the vent condition. Asserted so that an orientation is not silently dropped from the analysis |
 | `C-019-6` | `d_bolt * 3 < L_corner` | a bolt and its clearance must fit within a corner block with material left around it |
+| `C-019-7` | `t_service_h < t_shift` | a service event must fit inside one working shift, or the installation is down overnight and a cube swap becomes a two-day job. It comes to a little over three hours, and two of those are 085 testing the replacement rather than anybody touching it |
+| `C-019-8` | `t_cool_hold < t_valve` | the cube must be cool enough to handle before the isolation valves are even shut. Asserted in the direction of alarm: it comes out at seventeen seconds against two minutes, so the cooling hold costs nothing in practice, and the reason is that a machine this small holds ten kilojoules above ambient while its coolant carries away nearly two thousand watts |
+| `C-019-9` | `tau_cube > t_stage` | the whole machine's thermal time constant must be long compared with one pipeline stage. If it were not, the cube would cool measurably between tokens and 026's walking hot spot would be a temperature cycle rather than a ripple |
+| `C-019-10` | `f_swap_of_svc < 0.5` | less than half a service event may be a person with their hands on the machine. The rest is the replacement proving itself, which is time somebody can spend elsewhere -- and if this ever inverts, the procedure has grown manual steps that should be looked at |
 

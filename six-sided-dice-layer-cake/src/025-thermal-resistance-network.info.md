@@ -19,14 +19,14 @@ Described by `306`.
 | `dT_plate` | K | derived | 1.05957 K | the drop across the plate bases |
 | `A_wet_engine` | mm^2 | derived | 428.486 mm^2 | heated channel area lying above one die's multiplier array |
 | `dT_conv_local` | K | derived | 11.9314 K | convection rise directly over the array, where a tenth of the area carries seventy per cent of the heat |
-| `dT_hotspot` | K | derived | 9.80003 K | how much hotter the array is than the face average; this is what 005 calls the hot spot term |
+| `dT_hotspot` | K | derived | 9.90136 K | how much hotter the array is than the face average; this is what 005 calls the hot spot term |
 | `dT_fluid_mean` | K | derived | 3.9 K | the coolant's own rise at the mean point along its path |
 | `T_j_peak` | K | derived | 318.883 K | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
 | `T_j_mean` | K | derived | 304.97 K | and the same for an average die in the middle of the coolant path |
 | `margin_thermal` | K | derived | 59.1173 K | how far the hottest transistor is from what the silicon is qualified to |
 | `fix_point_err` | 1 | derived | 5.42016e-05 | how far 020's assumed leakage temperature is from what this chain produces |
-| `s_hotspot` | 1 | derived | 0.469289 | the hot spot's share of everything above the inlet |
-| `s_conv` | 1 | derived | 0.102065 | the channel wall's share |
+| `s_hotspot` | 1 | derived | 0.474142 | the hot spot's share of everything above the inlet |
+| `s_conv` | 1 | derived | 0.0972129 | the channel wall's share |
 | `s_fluid` | 1 | derived | 0.373515 | the coolant's own share |
 | `s_solid` | 1 | derived | 0.0551308 | everything conducted through solid |
 
@@ -45,7 +45,7 @@ Described by `306`.
 | `T_j_assumed` | `020` | 318.9 K | junction temperature the leakage term is evaluated at; the answer of a fixed-point iteration that C-020-1 checks against what 025 derives |
 | `T_si_max` | `011` | 378 K | highest junction temperature the silicon is qualified to, 105 degrees |
 | `dT_conv` | `022` | 1.91826 K | the temperature the coolant sits below the channel walls |
-| `dT_conv_worst` | `024` | 2.1314 K | the convection rise at the worst-served face, which is what 025 must use rather than the mean |
+| `dT_conv_worst` | `024` | 2.03007 K | the convection rise at the worst-served face, which is what 025 must use rather than the mean |
 | `dT_rise` | `021` | 7.8 K | design temperature rise of the coolant across the cube; a choice, and the one that sets the flow |
 | `eta_surface` | `022` | 0.702826 | overall surface efficiency, base and fins together |
 | `f_engine_area` | `041` | 0.104 | and the share of its area, under the name 025 uses |
@@ -74,7 +74,7 @@ Change one of these and the blueprints beside it are what break.
 | `dT_conv_local` | `025`, `026` |
 | `dT_hotspot` | `025`, `026`, `041` |
 | `dT_fluid_mean` | `025` |
-| `T_j_peak` | `025`, `026`, `027`, `032`, `074` |
+| `T_j_peak` | `019`, `025`, `026`, `027`, `032`, `074` |
 | `T_j_mean` | `025`, `074` |
 | `margin_thermal` | `025`, `074` |
 | `fix_point_err` | `020` |

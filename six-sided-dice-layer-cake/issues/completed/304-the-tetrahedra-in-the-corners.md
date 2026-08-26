@@ -23,28 +23,50 @@ network is more than one edge from a port and every channel carries flow toward 
 load. That was always the stronger argument and it was simply not the one being
 relied on.
 
-## What is not done
+## What was missing, and how it was closed
 
-**Which rail feeds which face is not assigned**, and `024` needs it before there
-is a network to solve.
+**Which rail feeds which face is now assigned**, by search rather than by hand.
 
-The rule is written and the enumeration is not. Opposite faces run their fields
-perpendicular so that no pair of rails carries two full loads; six faces must
-each take one of the twelve supply rails, the rail must lie on that face's own
-boundary, and no rail may serve two faces. That is a matching problem on the
-cube's edge graph and it has an answer; nobody has written it down.
+The rule was written and the enumeration was not. Opposite faces run their fields
+perpendicular so that no pair of rails carries two full loads; six faces must each
+take one of the twelve supply rails, the rail must lie on that face's own
+boundary, and no rail may serve two faces. `102` enumerates all five hundred and
+twelve arrangements, keeps the sixty-four that break no rule, solves the hydraulic
+network for each, and takes the one that starves the worst face least.
 
-**The proofs are asserted and not enumerated.** `C-023-1` counts and `C-023-2`
-declares. Neither one reads the twelve-edge list in `010` and checks the parity
-of each endpoint, which is what would make them proofs rather than restatements
-of what the author believes. The notation holds scalars and the twelve-edge list
-is not a scalar, so this cannot be fixed inside a blueprint — it needs a program
-that holds the cube as data.
+**The result was not what the rule anticipated.** Sixteen of the sixty-four
+distribute the coolant exactly evenly; the other forty-eight leave one face five
+or six per cent short. The sixteen are the ones where a single fed corner has all
+three of its supply channels tapped and the other three fed corners have one each
+— a threefold rotation about a body diagonal, which is the symmetry that carries
+every face of a cube onto another. The forty-eight spread the plenums two and two,
+which looks more balanced and is not. **The choice of assignment is a real design
+decision and it was very nearly made by accident.**
 
-Both of these are the same missing thing, and `305` needs it too. One instrument
-that holds the eight corners, the twelve edges and the six faces as actual data
-can enumerate the parity, solve the matching, and hand `024` a topology to run a
-flow solve on. It should be built once and used by both.
+**The proofs are enumerations now.** `C-023-1` counted and `C-023-2` declared;
+neither read the twelve-edge list in `010`. `C-023-7` takes each edge in turn and
+compares the parity of its two ends. `C-023-8` reads the twelve edges written out
+in `010`'s prose and checks that they are the twelve edges of a cube built from
+its definition — the document and the object had never been compared, and a slip
+in a corner label there would have put a drawing and a program at odds with
+nothing to notice.
+
+**Nine constraints were added** and the blueprint gained a section on the
+assignment. Fourteen constraints in `023` now, up from six.
+
+## What is still not done
+
+**The threefold-axis result is observed and not proved.** `102` finds that the
+sixteen even arrangements are exactly the ones with all three of a fed corner's
+channels tapped, and the symmetry argument says why that would make the six faces
+equivalent. But the program checks the count, not the symmetry: it never applies
+the rotation and confirms the plumbing maps onto itself. A dozen more lines would
+turn an observation into a proof.
+
+**Why one family of eight costs three and a half per cent more to pump than the
+other is measured and not explained.** The difference is whether the threefold
+axis runs through a fed corner or a drained one. The number is in the report and
+the mechanism is nowhere.
 
 ## Intended behavior
 

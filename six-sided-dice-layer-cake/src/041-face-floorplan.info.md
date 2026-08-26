@@ -40,7 +40,7 @@ Described by `601`.
 | `L_die` | `012` | 24 mm | edge of one compute die; two thirds of a reticle field, and half its area is the slice in 047 |
 | `P_die` | `020` | 58.106 W | everything one compute die dissipates at the design point |
 | `P_engine_die` | `045` | 45.8752 W | switching power of one die's multiplier array at the design utilisation |
-| `dT_hotspot` | `025` | 9.80003 K | how much hotter the array is than the face average; this is what 005 calls the hot spot term |
+| `dT_hotspot` | `025` | 9.90136 K | how much hotter the array is than the face average; this is what 005 calls the hot spot term |
 | `k_si` | `011` | 110 W/(m*K) | thermal conductivity of silicon at 350 K, a third below the room-temperature figure |
 | `t_die` | `013` | 0.1 mm | thickness of a compute die after thinning |
 

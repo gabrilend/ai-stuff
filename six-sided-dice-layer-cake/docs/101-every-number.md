@@ -47,6 +47,7 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `cte_glass` | ppm/K | measured | 3.2 ppm/K | — | linear thermal expansion of the interposer's glass core, chosen to sit near silicon |
 | `k_glass` | W/(m*K) | measured | 1.1 W/(m*K) | — | thermal conductivity of the same, which is poor and does not matter because heat leaves the other way |
 | `rho_ss` | kg/m^3 | measured | 7900 kg/m^3 | — | density of stainless steel |
+| `cp_ss` | J/(kg*K) | measured | 500 J/(kg*K) | — | specific heat capacity of the same, which is what decides how long the steel in the rails and corners holds its heat once the power is off |
 | `k_ss` | W/(m*K) | measured | 16 W/(m*K) | — | thermal conductivity of stainless steel |
 | `cte_ss` | ppm/K | measured | 17.3 ppm/K | — | linear thermal expansion of stainless steel |
 | `E_ss` | GPa | measured | 193 GPa | — | Young's modulus of stainless steel |
@@ -121,8 +122,8 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `f_solid_corner` | 1 | given | 0.55 | — | fraction of a corner block that is metal rather than chamber |
 | `rho_cage` | kg/m^3 | given | 3000 kg/m^3 | — | mean density of the cage shell, silicon and copper and void together |
 | `m_ports` | kg | given | 0.15 kg | — | port fields, regulators and connectors on all six faces, weighed as an assembly |
-| `m_laminae` | kg | derived | 0.6209 kg | `n_tier * A_core_side * t_lamina * rho_cumo` | the thirty-two cooling plates inside the core, which are most of the machine's mass |
-| `m_tiers` | kg | derived | 0.004472 kg | `n_tier * A_core_side * t_tier_si * rho_si` | the thirty-two memory tiers between them |
+| `m_laminae` | kg | derived | 0.6209 kg | `n_tier * A_core_side * t_lamina * rho_cumo` | the cooling plates inside the core, one between every pair of memory tiers, which are most of the machine's mass |
+| `m_tiers` | kg | derived | 0.004472 kg | `n_tier * A_core_side * t_tier_si * rho_si` | the memory tiers between them; 036 derives how many there are from the bitcell density rather than choosing a round number |
 | `m_coldplate` | kg | derived | 0.05668 kg | `n_face * A_plate * t_coldplate * f_solid_plate * rho_si` | six silicon cold plates, less the channels etched out of them |
 | `m_dies` | kg | derived | 0.00322 kg | `n_die * A_die * t_die * rho_si` | twenty-four compute dies |
 | `m_interposer` | kg | derived | 0.06084 kg | `n_face * A_plate * t_interposer * rho_glass` | six face interposers |
@@ -266,7 +267,15 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `n_service` | 1 | given | 5 | — | service events -- cube replacements -- expected over the life of an installation |
 | `cte_frame` | ppm/K | derived | 17.3 ppm/K | `cte_ss` | the frame is steel, and so is most of the cube's exterior |
 | `dT_frame` | K | given | 40 K | — | temperature difference the frame and the cube can be at, worst case |
-| `t_service` | s | target | 1200 s | — | seconds a cube swap takes, once the procedure in 1205 exists to be timed |
+| `T_touch` | K | given | 318 K | — | the warmest surface a person may put a bare hand on. Forty-five degrees Celsius, which is the ordinary limit for a metal surface somebody has to grip rather than brush past |
+| `n_tau_cool` | 1 | given | 3 | — | thermal time constants to wait before the cube is called cool. Three leaves five per cent of the excess, and the fourth would buy one per cent for another third of the wait |
+| `t_stop` | s | given | 60 s | — | stopping the machine in an orderly way: finish the token in flight, drain the six pipeline stages, park the model, stop the clock |
+| `t_valve` | s | given | 120 s | — | closing the isolation valves either side of the cube and letting the loop pressure fall to nothing, twice -- once out and once in |
+| `t_couple` | s | given | 45 s | — | parting or making one self-sealing coolant coupling by hand, including wiping the face |
+| `t_bolt` | s | given | 90 s | — | releasing or torquing one mount point, including checking the torque |
+| `t_lift` | s | given | 60 s | — | lifting the cube out of the frame and the replacement into it. A sixty-millimetre cube weighing a little over a kilogram wet is a one-hand object, and the time is care rather than effort |
+| `t_align` | s | given | 180 s | — | seating the replacement against the three rigid mounts and setting the compliant one, which is where the time goes if it goes anywhere |
+| `t_purge` | s | given | 600 s | — | filling and purging the new cube, until no air returns from the outlet corners |
 | `m_mounted` | kg | derived | 1.126 kg | `m_cube` | mass the frame carries |
 | `F_mount_static` | N | derived | 2.762 N | `m_mounted * g_accel / n_mount` | static load at one mount point |
 | `F_mount_shock` | N | derived | 138.1 N | `m_mounted * g_accel * g_shock / n_mount` | load at one mount point under transit shock |
@@ -275,6 +284,16 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `V_spill_event` | mm^3 | derived | 800 mm^3 | `2 * n_corner_in * V_coupling` | fluid lost in one service event, all eight couplings parted |
 | `V_spill_life` | mm^3 | derived | 4000 mm^3 | `V_spill_event * n_service` | fluid lost over the installation's life |
 | `n_orient` | 1 | derived | 6 | `n_face` | mounting orientations to check, one per face that could be the mounted one |
+| `C_cube` | J/K | derived | 495.3 J/K | `(m_tiers + m_coldplate + m_dies) * cp_si + m_laminae * cp_cumo + (m_rails + m_corners + m_ports) * cp_ss + m_coolant * cp_water + m_cage * cp_si` | heat the whole machine holds per kelvin, summed over what it is made of. The cage is taken as silicon because it is a switch shell of dies, and the interposer is left out as glass with a tenth the mass of anything else here |
+| `R_cube_cool` | K/W | derived | 0.01104 K/W | `(T_j_peak - T_coolant_in) / P_heat` | the cube's whole thermal resistance to the coolant, read backwards out of the steady state: the temperature it sits at above the inlet, divided by the heat it was rejecting to get there |
+| `tau_cube` | s | derived | 5.47 s | `C_cube * R_cube_cool` | how long the machine takes to fall to a third of its excess temperature with the power off and the pump still running. Not the engine's time constant in 026, which is the array alone and is a thousand times shorter -- this is the whole object |
+| `t_cool_hold` | s | derived | 16.41 s | `n_tau_cool * tau_cube` | how long to hold with the pump running before opening anything. The pump outlives the power to the dies for exactly this reason |
+| `n_couple` | 1 | derived | 16 | `2 * n_corner` | coolant couplings to part and then make: one supply and one return at every corner |
+| `t_swap` | s | derived | 3196 s | `t_stop + t_cool_hold + t_valve + 2 * n_couple * t_couple + 2 * n_mount * t_bolt + t_lift + t_align + t_purge` | the mechanical exchange, end to end: stop, cool, isolate, part sixteen couplings, undo four bolts, lift out, lift in, seat, do up four bolts, make sixteen couplings, fill and purge |
+| `t_service` | s | derived | 1.1e+04 s | `t_swap + t_bringup` | the whole service event as an operator experiences it, from the machine still running to the replacement passing rung ten. 085 owns the second half and this blueprint owns the first |
+| `t_service_h` | hr | derived | 3.055 hr | `t_service` | the same, in the unit somebody plans a shift around |
+| `t_shift` | hr | given | 8 hr | — | a working shift, which a service event has to fit inside or it becomes a two-day job and the installation is down overnight |
+| `f_swap_of_svc` | 1 | derived | 0.2907 | `t_swap / t_service` | the share of a service event that is hands on the machine rather than the machine testing itself |
 
 ## 020 — The heat budget
 
@@ -374,9 +393,16 @@ measured in, where it came from, what it comes to, and why it exists.*
 |---|---|---|---|---|---|
 | `n_net` | 1 | given | 2 | — | independent networks, supply and return, sharing the twelve edges |
 | `n_edge_fed` | 1 | derived | 12 | `n_edge` | supply channels carrying flow toward a load; all twelve, which is the property the parity choice delivers |
-| `n_edge_dead` | 1 | given | 0 | — | supply channels joining two fed corners and therefore carrying nothing. Zero under the parity choice and four under the choose-one-face alternative |
+| `n_edge_dead` | 1 | solved | 0 | — | supply channels joining two fed corners and therefore carrying nothing, counted by reading the twelve edges rather than asserted -- from 102. Zero under the parity choice and four under the choose-one-face alternative |
 | `hops_to_feed` | 1 | given | 1 | — | greatest number of edges from any point of the supply network to a feed point |
 | `n_face_per_rail` | 1 | given | 1 | — | face fields a single supply rail feeds, once opposite faces are run perpendicular so no rail pair carries two full loads |
+| `n_edge_crossing` | 1 | solved | 12 | — | edges whose two ends have opposite parity, found by taking each edge in turn and comparing the parity of its ends -- from 102. This is the bipartition as a count of things checked rather than a count of things assumed |
+| `n_edge_listed` | 1 | solved | 12 | — | edges written out in 010's prose that match an edge of the cube built from its definition -- from 102. The document and the object have never before been compared |
+| `n_tetra_equal` | 1 | solved | 6 | — | pairwise distances between the four fed corners that come to the face diagonal, out of six -- from 102 |
+| `n_assign_tried` | 1 | solved | 512 | — | arrangements of the six faces onto the twelve rails that obey the perpendicularity rule, before the no-sharing rules are applied -- from 102 |
+| `n_assign_legal` | 1 | solved | 64 | — | of those, the ones where no supply channel feeds two faces and no return channel drains two -- from 102 |
+| `n_assign_even` | 1 | solved | 16 | — | of those, the ones that distribute the coolant exactly evenly between the six faces -- from 102, and the surprise of the phase |
+| `n_perp_pair` | 1 | solved | 3 | — | opposite-face pairs whose channels run perpendicular under the chosen assignment -- from 102. Should be every pair, which is what makes it worth counting |
 | `d_tetra` | mm | derived | 84.85 mm | `L_cube * sqrt(2)` | distance between any two fed corners: the cube's face diagonal, six times over |
 | `n_tetra_edge` | 1 | given | 6 | — | pairwise distances between the four fed corners, all equal |
 | `Q_per_inlet` | m^3/s | derived | 1.466e-05 m^3/s | `Q_total / n_corner_in` | flow entering one fed corner |
@@ -408,8 +434,15 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `P_hydraulic` | W | derived | 1.107 W | `Q_total * dp_loop` | work a second the fluid needs |
 | `P_pump` | W | derived | 3.689 W | `P_hydraulic / eta_pump` | electrical power the pump draws, which is outside the cube and outside 020's budget |
 | `f_pump_of_heat` | 1 | derived | 0.001951 | `P_pump / P_heat` | what moving the coolant costs against what it carries |
-| `f_worst_served` | 1 | target | 0.9 | — | share of the mean flow the worst-served face receives. A target rather than a derivation: solving a twenty-branch network needs a solver this notation does not have, and the figure here is an estimate from the manifold's share of the loss |
-| `dT_conv_worst` | K | derived | 2.131 K | `dT_conv / f_worst_served` | the convection rise at the worst-served face, which is what 025 must use rather than the mean |
+| `f_served_min` | 1 | given | 0.85 | — | least share of the mean flow any face may receive and still have 025's worst case be the one being computed. A limit rather than a result, named so it is not a bare number sitting in a constraint |
+| `n_node_net` | 1 | solved | 29 | — | nodes in the hydraulic network the solve runs on -- from 102: eight supply corners, eight return corners, six supply plenums, six return plenums and the inlet header, with the outlet header as the reference every pressure is measured against |
+| `n_branch_net` | 1 | solved | 50 | — | branches joining them -- from 102: four inlet fittings, four outlets, six faces, and thirty-six rail segments, because a rail carrying a plenum is two rails with a tap between them |
+| `f_worst_served` | 1 | solved | 1 | — | share of the mean flow the worst-served face receives under the assignment 023 chose -- from 102. Exactly one, and exactly rather than nearly: the chosen arrangement has a threefold symmetry that makes all six faces the same face, so no arithmetic can separate them |
+| `f_best_served` | 1 | solved | 1 | — | and the best-served face, which is the same number for the same reason -- from 102. Declared separately because the two being equal is the result, and a result written once looks like an assumption |
+| `f_worst_any` | 1 | solved | 0.9449 | — | share of the mean the worst-served face receives under the least even of the sixty-four legal assignments -- from 102. This is the number the thermal chain is built on, not the one above, because a builder who wires the plumbing legally but not optimally must still get a machine that works |
+| `dp_network` | Pa | solved | 1.139e+04 Pa | — | pressure from the pump's outlet to its inlet at the design flow, from the network solve rather than from summing one path -- from 102 |
+| `dT_conv_worst` | K | derived | 2.03 K | `dT_conv / f_worst_any` | the convection rise at the worst-served face, which is what 025 must use rather than the mean |
+| `f_path_over_net` | 1 | derived | 1.656 | `dp_loop / dp_network` | how much the single-path sum overstates the real circuit. Above one, and the amount is the manifold delivering to each plenum from both of its ends at once |
 
 ## 025 — Junction to room, every term
 
@@ -424,14 +457,14 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `dT_plate` | K | derived | 1.06 K | `P_heat * R_plate_base` | the drop across the plate bases |
 | `A_wet_engine` | mm^2 | derived | 428.5 mm^2 | `f_engine_area * A_die * A_wet_face / A_plate` | heated channel area lying above one die's multiplier array |
 | `dT_conv_local` | K | derived | 11.93 K | `f_engine_power * P_die / (h_conv * eta_surface * A_wet_engine)` | convection rise directly over the array, where a tenth of the area carries seventy per cent of the heat |
-| `dT_hotspot` | K | derived | 9.8 K | `dT_conv_local - dT_conv_worst` | how much hotter the array is than the face average; this is what 005 calls the hot spot term |
+| `dT_hotspot` | K | derived | 9.901 K | `dT_conv_local - dT_conv_worst` | how much hotter the array is than the face average; this is what 005 calls the hot spot term |
 | `dT_fluid_mean` | K | derived | 3.9 K | `dT_rise / 2` | the coolant's own rise at the mean point along its path |
 | `T_j_peak` | K | derived | 318.9 K | `T_coolant_in + dT_rise + dT_conv_worst + dT_hotspot + dT_plate + dT_die` | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
 | `T_j_mean` | K | derived | 305 K | `T_coolant_in + dT_fluid_mean + dT_conv + dT_plate + dT_die` | and the same for an average die in the middle of the coolant path |
 | `margin_thermal` | K | derived | 59.12 K | `T_si_max - T_j_peak` | how far the hottest transistor is from what the silicon is qualified to |
 | `fix_point_err` | 1 | derived | 5.42e-05 | `abs(T_j_assumed - T_j_peak) / T_j_assumed` | how far 020's assumed leakage temperature is from what this chain produces |
-| `s_hotspot` | 1 | derived | 0.4693 | `dT_hotspot / (T_j_peak - T_coolant_in)` | the hot spot's share of everything above the inlet |
-| `s_conv` | 1 | derived | 0.1021 | `dT_conv_worst / (T_j_peak - T_coolant_in)` | the channel wall's share |
+| `s_hotspot` | 1 | derived | 0.4741 | `dT_hotspot / (T_j_peak - T_coolant_in)` | the hot spot's share of everything above the inlet |
+| `s_conv` | 1 | derived | 0.09721 | `dT_conv_worst / (T_j_peak - T_coolant_in)` | the channel wall's share |
 | `s_fluid` | 1 | derived | 0.3735 | `dT_rise / (T_j_peak - T_coolant_in)` | the coolant's own share |
 | `s_solid` | 1 | derived | 0.05513 | `(dT_plate + dT_die) / (T_j_peak - T_coolant_in)` | everything conducted through solid |
 
@@ -451,7 +484,7 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `R_engine` | K/W | derived | 0.2601 K/W | `dT_conv_local / (f_engine_power * P_die)` | thermal resistance from the array to the fluid, from 025's local term |
 | `tau_engine` | s | derived | 0.002558 s | `R_engine * C_engine` | how long the array takes to reach its steady temperature. The number that decides whether any of the fast transients matter |
 | `tau_loop` | s | derived | 3.804 s | `V_loop / Q_total` | transport delay round the external circuit |
-| `dT_walk` | K | derived | 0.616 K | `dT_hotspot * t_stage / tau_engine` | temperature excursion of the walking hot spot over one stage, which is the whole of 010's argument reduced to a number |
+| `dT_walk` | K | derived | 0.6224 K | `dT_hotspot * t_stage / tau_engine` | temperature excursion of the walking hot spot over one stage, which is the whole of 010's argument reduced to a number |
 | `E_spout_burst` | J | derived | 0.005756 J | `E_pane * n_pane_core` | energy to push the entire core through the output tube |
 | `dT_spout` | K | derived | 0.0008178 K | `E_spout_burst / C_face` | what that burst does to the temperature of the face it leaves through |
 | `t_to_halt` | s | derived | 1.209 s | `C_face * (T_si_max - dT_halt - T_j_peak) * n_face / P_heat` | how long the machine has, from the design operating point, if all cooling stops at once |
@@ -1703,7 +1736,7 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `t_bringup_h` | hr | derived | 2.167 hr | `t_bringup` | in the unit a person plans a day around |
 | `f_rung_exact` | 1 | derived | 0.2308 | `t_rung_7_9 / t_bringup` | the share spent on the exact comparison, which is where the value is |
 | `n_counter_chk` | 1 | derived | 7 | `n_model_term_d` | terms of 080's model that rung ten must compare against 049's counters |
-| `t_service_est` | s | derived | 1200 s | `t_service` | the cube swap time 019 carries as a target, which this procedure is what would time |
+| `t_service_est` | s | derived | 1.1e+04 s | `t_service` | the cube swap time 019 carries as a target, which this procedure is what would time |
 
 ## 086 — How long it lasts
 
@@ -1739,9 +1772,9 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `n_count_only` | 1 | given | 5 | — | places a constraint counts where it should name, because the notation holds numbers and not lists |
 | `n_seam_open` | 1 | derived | 0 | `n_seam - n_seam_guarded` | seams with no constraint on them, which is what finishing this project means driving to zero |
 | `f_guarded` | 1 | derived | 1 | `n_seam_guarded / n_seam` | the share that are guarded |
-| `n_bp` | 1 | given | 84 | — | blueprints in the set |
-| `n_constraint` | 1 | given | 532 | — | constraints in it |
-| `c_per_bp` | 1 | derived | 6.333 | `n_constraint / n_bp` | constraints per blueprint, which is a crude measure of whether any file is asserting nothing |
+| `n_bp` | 1 | solved | 84 | — | blueprints in the set -- from 103, which loads them rather than counting them from memory |
+| `n_constraint` | 1 | solved | 552 | — | constraints in it -- from 103. Carried as a hand count until it was twelve short, which is the exact failure a self-describing document is prone to |
+| `c_per_bp` | 1 | derived | 6.571 | `n_constraint / n_bp` | constraints per blueprint, which is a crude measure of whether any file is asserting nothing |
 
 ## 088 — What it is made from, and what that costs
 
@@ -1790,11 +1823,12 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `n_software` | 1 | given | 2 | — | pieces of software assumed and not specified |
 | `n_worked_eg` | 1 | given | 1 | — | worked examples of using the package as a machine |
 | `n_bp_pkg` | 1 | derived | 84 | `n_bp` | blueprints delivered |
-| `n_sym_pkg` | 1 | given | 1375 | — | symbols in the ledger. A hand count of something the ledger knows exactly, which is what 097 is for |
-| `n_con_pkg` | 1 | derived | 532 | `n_constraint` | constraints |
-| `n_open_pkg` | 1 | given | 2 | — | symbols still carried as targets |
+| `n_sym_pkg` | 1 | solved | 1409 | — | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked |
+| `n_con_pkg` | 1 | derived | 552 | `n_constraint` | constraints |
+| `n_open_pkg` | 1 | solved | 0 | — | symbols still carried as targets rather than derivations -- from 103. None: the last one was 019's service time, which became the sum of nine steps rather than one number nobody could take apart |
+| `n_solved_pkg` | 1 | solved | 20 | — | symbols a program produced because no expression in this notation could -- from 103 |
 | `n_q_blocking` | 1 | given | 2 | — | blocking open questions in 009 |
-| `n_q_open` | 1 | given | 17 | — | open questions altogether |
-| `f_derived` | 1 | derived | 0.5789 | `(n_sym_pkg - n_given_pkg) / n_sym_pkg` | share of the project's numbers that are derived rather than chosen or measured |
-| `n_given_pkg` | 1 | given | 579 | — | symbols that are given or measured rather than derived: four hundred and sixty-four chosen and a hundred and fifteen measured |
+| `n_q_open` | 1 | given | 18 | — | open questions altogether: the two blocking ones and sixteen carried. A hand count of 009's headings, and the one figure in this package that a program still does not produce |
+| `f_derived` | 1 | derived | 0.5834 | `(n_sym_pkg - n_given_pkg) / n_sym_pkg` | share of the project's numbers that are worked out rather than chosen or measured |
+| `n_given_pkg` | 1 | solved | 587 | — | symbols that are chosen or measured rather than worked out -- from 103: four hundred and seventy-one a person decided and a hundred and sixteen taken from a datasheet |
 

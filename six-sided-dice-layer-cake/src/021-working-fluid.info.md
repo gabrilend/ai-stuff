@@ -64,7 +64,7 @@ Change one of these and the blueprints beside it are what break.
 | `T_fluid_min` | `021` |
 | `Pr_fluid` | `021` |
 | `dT_rise` | `021`, `025`, `027` |
-| `T_coolant_in` | `021`, `025`, `027` |
+| `T_coolant_in` | `019`, `021`, `025`, `027` |
 | `v_erosion_max` | `015`, `016`, `024` |
 | `T_ship_min` | `021` |
 | `T_serv_min` | `021` |

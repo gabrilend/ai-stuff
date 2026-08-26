@@ -82,14 +82,36 @@ n_software    | 1 | given | 2        | pieces of software assumed and not specif
 n_worked_eg   | 1 | given | 1        | worked examples of using the package as a machine
 
 n_bp_pkg      | 1 | derived | n_bp                       | blueprints delivered
-n_sym_pkg     | 1 | given | 1375                         | symbols in the ledger. A hand count of something the ledger knows exactly, which is what 097 is for
+n_sym_pkg     | 1 | solved | 1409                        | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked
 n_con_pkg     | 1 | derived | n_constraint               | constraints
-n_open_pkg    | 1 | given | 2                            | symbols still carried as targets
+n_open_pkg    | 1 | solved | 0                           | symbols still carried as targets rather than derivations -- from 103. None: the last one was 019's service time, which became the sum of nine steps rather than one number nobody could take apart
+n_solved_pkg  | 1 | solved | 20                          | symbols a program produced because no expression in this notation could -- from 103
 n_q_blocking  | 1 | given | 2                            | blocking open questions in 009
-n_q_open      | 1 | given | 17                           | open questions altogether
-f_derived     | 1 | derived | (n_sym_pkg - n_given_pkg) / n_sym_pkg | share of the project's numbers that are derived rather than chosen or measured
-n_given_pkg   | 1 | given | 579                          | symbols that are given or measured rather than derived: four hundred and sixty-four chosen and a hundred and fifteen measured
+n_q_open      | 1 | given | 18                           | open questions altogether: the two blocking ones and sixteen carried. A hand count of 009's headings, and the one figure in this package that a program still does not produce
+f_derived     | 1 | derived | (n_sym_pkg - n_given_pkg) / n_sym_pkg | share of the project's numbers that are worked out rather than chosen or measured
+n_given_pkg   | 1 | solved | 587                         | symbols that are chosen or measured rather than worked out -- from 103: four hundred and seventy-one a person decided and a hundred and sixteen taken from a datasheet
 ```
+
+## A document that counts itself moves while you are counting it
+
+The five figures above describing the size of this project were hand counts
+until `103` was written, and every one of them was wrong: eighty blueprints
+offered where there were eighty-four, five hundred and eight requirements where
+there were five hundred and forty-four. Nothing had gone wrong with the design.
+The document was describing an earlier version of itself, which is what a
+self-describing document does if nobody re-counts.
+
+Handing the counting to a program has an odd consequence worth writing down.
+Converting these five declarations from *chosen* to *solved* changed the number of
+chosen declarations in the project, so the first run after the change reported
+that the new figures were already stale — by five, which is exactly how many
+declarations had just changed kind. The second run settled.
+
+That is a genuine fixed point and not a defect: a statement about a set, held
+inside the set, has to be consistent with itself. It converges in one pass because
+adding a statement about the count changes the count by a known amount. It is
+worth knowing before somebody meets it and thinks the checker is broken.
+
 
 ## Constraints
 
@@ -100,6 +122,8 @@ C-090-3 | n_con_pkg == n_constraint   | and every constraint
 C-090-4 | f_derived > 0.55           | most of the project's numbers must be derived rather than chosen. It comes out at about four in seven, which is the claim the whole notation exists to make good, reduced to a fraction -- and the remaining three in seven are the material properties, the process figures and the eleven lengths somebody decided
 C-090-5 | n_worked_eg >= 1            | there must be at least one worked example of changing a number and watching what breaks, because that is what this package offers that drawings do not
 C-090-6 | n_software == 2             | exactly two pieces of software are assumed and not specified. Asserted as a value so that a third arrives named rather than assumed
+C-090-9 | n_open_pkg == 0              | no symbol in the package may still be a goal rather than an answer. This is the constraint that says whether the design is finished, and it is the one currently failing -- 019's service time waits on a procedure that has to exist before it can be timed
+C-090-10 | n_solved_pkg < n_sym_pkg / 10 | fewer than a tenth of the project's numbers may come from a program rather than an expression. Not because programs are worse, but because a number in a program is a number a reader has to run something to see, and a design that is mostly opaque to reading has stopped being a set of blueprints
 ```
 
 ## What is still open

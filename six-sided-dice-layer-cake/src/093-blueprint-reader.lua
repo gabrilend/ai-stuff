@@ -13,7 +13,9 @@
 
 local M = {}
 
-local VALID_KIND = { given = true, derived = true, measured = true, target = true }
+local VALID_KIND = {
+  given = true, derived = true, measured = true, target = true, solved = true,
+}
 
 -- {{{ local function trim()
 local function trim(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
@@ -72,18 +74,36 @@ BLOCK.symbols = function(bp, lines, fail)
     local name, unit, kind, value, meaning = f[1], f[2], f[3], f[4], f[5]
     if name == "" then fail(ln.n, "symbol has no name") end
     if not VALID_KIND[kind] then
-      fail(ln.n, ("kind must be given, derived, measured or target, not %q"):format(kind))
+      fail(ln.n, ("kind must be given, derived, measured, solved or target, not %q")
+                 :format(kind))
     end
     if meaning == "" then fail(ln.n, ("symbol %s has no meaning"):format(name)) end
     -- A given or a measured carries a bare number. Anything else there is a
     -- derivation wearing the wrong label, and the two are treated differently
     -- everywhere downstream, so it has to be caught at the door.
     local literal = nil
-    if kind == "given" or kind == "measured" then
+    if kind == "given" or kind == "measured" or kind == "solved" then
       literal = tonumber(value)
       if not literal then
         fail(ln.n, ("%s is %s, so its value must be a bare number, not %q")
                    :format(name, kind, value))
+      end
+      -- A solved value is one an instrument computed because the notation's own
+      -- arithmetic cannot express the computation -- an iterative solve, a
+      -- search over a discrete set. The number here is a copy of that answer,
+      -- and a copy goes stale, so the declaration has to say which program to
+      -- ask. 095 re-runs that program and refuses if the two have drifted apart.
+      -- Without the name there is nothing to re-run and the kind would be a
+      -- comment.
+      --
+      -- The name is written as "-- from NNN" in the meaning, and the marker is
+      -- there because meanings are prose: the first attempt took the first
+      -- three-digit number it found and picked up a cross-reference to another
+      -- blueprint out of the middle of a sentence, then reported that blueprint
+      -- as a program that would not load.
+      if kind == "solved" and not meaning:match("%-%- from (%d%d%d)") then
+        fail(ln.n, ("solved symbol %s must name the instrument that produced it, "
+                    .. "written as \"-- from NNN\" in its meaning"):format(name))
       end
     elseif kind == "target" then
       -- A target is a placeholder for a derivation nobody has written. Most are

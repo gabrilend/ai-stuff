@@ -19,7 +19,7 @@ property.
 |---|---|
 | silicon | compute dies, memory tiers, interposer cores, the face cold plates |
 | copper | power planes, bonds, interposer wiring |
-| copper–molybdenum | the thirty-two cooling laminae inside the core |
+| copper–molybdenum | the cooling laminae inside the core, one per memory tier |
 | tungsten | through-silicon vias |
 | glass | the face interposer core |
 | water | the working fluid, selected in `021` |
@@ -89,6 +89,7 @@ res_w         | ohm*m     | measured | 5.6e-8   | electrical resistivity of tung
 cte_glass     | ppm/K     | measured | 3.2      | linear thermal expansion of the interposer's glass core, chosen to sit near silicon
 k_glass       | W/(m*K)   | measured | 1.1      | thermal conductivity of the same, which is poor and does not matter because heat leaves the other way
 rho_ss        | kg/m^3    | measured | 7900     | density of stainless steel
+cp_ss         | J/(kg*K)  | measured | 500      | specific heat capacity of the same, which is what decides how long the steel in the rails and corners holds its heat once the power is off
 k_ss          | W/(m*K)   | measured | 16       | thermal conductivity of stainless steel
 cte_ss        | ppm/K     | measured | 17.3     | linear thermal expansion of stainless steel
 E_ss          | GPa       | measured | 193      | Young's modulus of stainless steel
