@@ -29,12 +29,12 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `n_face` | `010`, `012` |
-| `n_corner` | `010` |
-| `n_edge` | `010` |
+| `n_face` | `010`, `012`, `013`, `014`, `016`, `017`, `019` |
+| `n_corner` | `010`, `013`, `015`, `017` |
+| `n_edge` | `010`, `013`, `016`, `017` |
 | `n_edge_per_corner` | `010` |
 | `n_stage` | `010` |
-| `n_corner_in` | `010` |
+| `n_corner_in` | `010`, `015`, `019` |
 | `n_corner_out` | `010` |
 
 ## What it asserts

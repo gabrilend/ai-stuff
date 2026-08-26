@@ -4,8 +4,24 @@ Produces `src/017-seal-and-bond.md`.
 
 ## Current behavior
 
-Nothing. Seven hundred and twenty millimetres of seal line have been referred to
-and none of it has been specified.
+**Done.** `src/017-seal-and-bond.md` exists, and the first useful output was the
+count: **a hundred and sixty-six joints**, ninety-six of which exist only because
+`014` chose to cross the cold plate rather than route around it.
+
+**The tolerance-against-compression constraint failed twice before it held**, and
+the sequence is kept in the blueprint because it is what the notation is for. A
+one millimetre cord takes up a hundred and fifty microns; four plates accumulate
+a hundred and sixty. Then `018` found the face bows forty-five microns when hot,
+so the flatness allowance was never real, and the loop went to three hundred. The
+cord is two and a half millimetres now and the seventy microns of travel it needs
+came out of `014`'s plenum. None of those three numbers could have been chosen
+first.
+
+Six constraints, five holding. The sixth waits on the reservoir volume in `027`.
+
+**The elastomer is not established.** Twenty per cent compression set over a
+hundred thousand cycles is plausible and has no source behind it, and it
+multiplies the whole seal life.
 
 ## Intended behavior
 
