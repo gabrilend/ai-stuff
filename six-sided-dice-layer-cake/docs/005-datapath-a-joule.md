@@ -39,10 +39,10 @@ allowed to glow.
       │   ── copper to copper, hybrid        ~0 K       negligible
       ▼
    cold plate base
-      │   ── conduction, 300 µm copper       0.02 K     negligible
+      │   ── conduction, 300 µm silicon      0.27 K     small
       ▼
    channel wall
-      │   ── convection into the water        1.3 K     the whole coolant design
+      │   ── convection into the water        1.8 K     the whole coolant design
       ▼
    the water
       │   ── carried out of the cube          7.8 K     by choice; sets the flow
@@ -54,8 +54,8 @@ allowed to glow.
 ```
 
 Read it and the surprise is where the heat gets stuck. It is not the coolant. The
-coolant is responsible for one and a third kelvin out of a chain that adds up to
-about thirty-six, and the largest single term by a factor of eleven is heat
+coolant is responsible for one and four fifths of a kelvin out of a chain that
+adds up to about thirty-six, and the largest single term by a factor of eight is heat
 spreading sideways through a hundred microns of silicon to get out of the hot spot
 it was made in. **This is a silicon floorplanning problem wearing a plumbing
 costume**, and `041` is where it is actually solved, by not putting all the
@@ -90,10 +90,19 @@ disagree.
 
 ## The field
 
-Each face carries, bonded to the back of its interposer, a copper plate with a
-hundred and seventy-three parallel channels cut into it. Each channel is a
-hundred and fifty microns wide, one millimetre deep, fifty-two millimetres long,
-separated from its neighbours by a hundred and fifty microns of copper.
+Each face carries, bonded directly to the backs of its four compute dies, a
+**silicon** plate with a hundred and seventy-three parallel channels etched into
+it. Each channel is a hundred and fifty microns wide, one millimetre deep,
+fifty-two millimetres long, separated from its neighbours by a hundred and fifty
+microns of silicon.
+
+Silicon rather than copper, and this is a decision rather than an oversight.
+Copper conducts three times better and expands seven times as much; bonded across
+fifty-two millimetres over a sixty kelvin swing it would drag the die under it
+through forty-three microns and load it to about a hundred megapascals, which is
+where silicon with an ordinary surface finish breaks. Matching the material
+matches the expansion exactly and costs only fin efficiency. `202` argues it and
+`018` has the stress.
 
 That geometry gives a hydraulic diameter of two hundred and sixty-one microns,
 which is the number that matters, because the heat transfer coefficient is
@@ -103,9 +112,17 @@ kelvin** — twenty-one times better than the four-millimetre duct — and the f
 presents two hundred and seven square centimetres of wetted surface per face
 against the whole cube's one hundred and fifteen.
 
-Six faces together: one thousand two hundred and forty square centimetres, at
-eleven thousand nine hundred, is **fourteen hundred and seventy watts per kelvin**.
-Nineteen hundred and ten watts crosses it for one and a third kelvin.
+Six faces together present one thousand two hundred and forty square centimetres
+of wetted surface. Two derations apply and both are honest costs rather than
+safety factors: a silicon fin one millimetre tall delivers heat to its own tip at
+about seventy-four per cent efficiency, and sixteen small islands per plate where
+the channels are interrupted to let the port field's conductors through cost
+another five per cent of area (`202`).
+
+What is left is **about one thousand and forty watts per kelvin**. Nineteen
+hundred and ten watts crosses it for one and four fifths of a kelvin — still the
+second smallest term in the chain, and still fifteen hundred times better than
+what the corners alone could do.
 
 The flow is gentle. Three and a half litres a minute for the whole machine, four
 tenths of a metre a second in each channel, Reynolds number ninety-eight —
