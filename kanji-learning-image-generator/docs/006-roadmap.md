@@ -60,6 +60,7 @@ It is the third most likely to be wrong, and the most interesting to be wrong in
 | `304` | A gallery you can page through — the set, at the size the illusion works at |
 | `305` | The documentation as a website — all of this, cross-linked |
 | `306` | The demos, and the thing that runs them |
+| `307` | Slow down when the machine runs hot — the batch was taking every core |
 
 `303` is the point of the project. Everything before it makes one recipe;
 that one makes all of them, and makes them without a human choosing which.

@@ -104,3 +104,44 @@ had found room for both.
 
 A twenty-nine-stroke character still has nowhere to put twenty-nine labels. One
 of them gives up and is counted, which is the honest outcome.
+
+---
+
+## 2026-08-25 — the batch was taking the whole machine
+
+**Symptom, reported from outside the program**: generating the full set drove
+the processor to the top of its thermal range and held it there. Nothing was
+going to break — a chip throttles itself long before damage and the limits it
+reports carry that margin — but sustained heat is sustained wear, and the run
+was also taking every core the machine had and leaving none for the person
+using it.
+
+**Cause.** `303` asked how many processors there were and started that many
+workers. Fourteen of fourteen, flat out, for the length of the run.
+
+| Knob | Was | Now | Why |
+|---|---|---|---|
+| `batch.share` | — (all of them) | 0.45 | A proportion, not a subtraction. Two cores free is a large concession on a four-core machine and almost none on a thirty-two core one, and it is the *share* held at full load that sets the temperature. |
+| `batch.reserve` | — | 1 | And at least one core left alone regardless, so a small machine stays usable. |
+| `batch.max_workers` | — | 6 | An outright ceiling. |
+| `batch.nice` | — | 10 | Workers wait at the back of the queue. Does not cool anything; means a hot run never also makes the machine feel broken. |
+| `heat.warm` | — | 58 | Above this the run starts pausing between characters. |
+| `heat.hot` | — | 72 | By here the pauses are as long as they get. |
+| `heat.rest_warm` / `rest_hot` | — | 0.06 / 0.55 s | The pause at each mark; proportional in between, because a flat pause treats one degree over as the same emergency as ten. |
+| `heat.ceiling` | — | 2.5 | How much further the pause may grow if it is still climbing past the hot mark. |
+| `heat.check_every` | — | 1 | Characters between readings. Two was too slow to catch a burst. |
+
+**Measured, on the five hundred commonest characters:**
+
+| | workers | peak | mean | wall clock |
+|---|---|---|---|---|
+| before | 14 | 86 °C | 74 °C | 34 s |
+| after | 6 | 81 °C | 66 °C | 91 s |
+
+Eight degrees off the mean for roughly two and a half times the wall clock. That
+is a deliberate trade and it is the one that was asked for; anybody who wants
+the old behaviour raises `share` and the two marks.
+
+**What this is not.** A machine that does not report its temperature gets the
+pauses turned off entirely, with a notice. Resting on a fixed schedule against a
+temperature nobody measured is a slower run bought for nothing.
