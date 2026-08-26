@@ -191,3 +191,36 @@ strength together and could not tell which had done the work.
 that satisfies *kanji* by painting one. Every picture above was looked at, and
 none of them did it. That is not the same as knowing it will not happen at 1.55
 on some other character.
+
+---
+
+## 2026-08-26 — the card was also the screen
+
+**Symptom, reported from outside the program and in the plainest possible
+terms**: the machine froze and had to be restarted.
+
+**Cause.** Every picture loads a four-gigabyte model onto the graphics card, and
+on this machine there is one graphics card and it is drawing the desktop.
+Sweeping settings meant loading it over and over, back to back, with nothing
+held back. A desktop with no graphics memory left does not run slowly; it stops.
+
+`307` asked whether the *processor* was getting hot and answered it carefully.
+Nobody asked the same question about the card — on the reasoning that generating
+is the card's work rather than the processor's, so the processor's governor did
+not apply. That reasoning is true and it answers the wrong question.
+
+| Knob | Was | Now | Why |
+|---|---|---|---|
+| `kitchen.rest` | 1.0 | 1.0 | Unchanged: still right for a card of its own. |
+| `kitchen.rest_on_the_display_card` | — | 6.0 | A second is courtesy on a spare card. On the one running somebody's desktop it is not enough, and the difference costs a few minutes across a set. |
+| `kitchen.reserve_vram` | — | 1.5 | Gigabytes held back for the desktop, passed to the picture program as `--reserve-vram`. It takes everything it can get otherwise, which is right on a machine with a spare card and hostile on a machine with one. |
+| `kitchen.least_free_vram` | — | 2.0 | A run will not submit below this. It waits first, since the picture program frees what it held between runs; still short after a minute, it stops and says how many it made. A run that wedged the display can tell nobody anything; one that stopped early can. |
+
+**Whether the card is also the screen is asked, not assumed** — a card with a
+desktop on it is never at zero before anything of ours has run. Same shape as
+`307` reading a temperature rather than resting on a schedule.
+
+**And the reserve is now in every command this project prints for starting the
+picture program**, in the installer, the walkthrough and the message shown when
+nothing is listening. A correct default nobody is told about is a default that
+gets dropped the first time somebody types the command from memory.

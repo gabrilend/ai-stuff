@@ -62,6 +62,56 @@ local function unescape(text)
 end
 -- }}}
 
+-- {{{ M.card()
+-- What the graphics card says about itself, or nil if it will not say.
+--
+-- Total memory, how much is in use, and how much is free -- in gigabytes.
+function M.card()
+  local pipe = io.popen("nvidia-smi --query-gpu=memory.total,memory.used," ..
+                        "memory.free --format=csv,noheader,nounits 2>/dev/null")
+  local line = pipe and pipe:read("*l") or nil
+  if pipe then pipe:close() end
+  if not line then return nil end
+  local total, used, free = line:match("(%d+),%s*(%d+),%s*(%d+)")
+  if not total then return nil end
+  return { total = tonumber(total) / 1024, used = tonumber(used) / 1024,
+           free = tonumber(free) / 1024 }
+end
+-- }}}
+
+-- {{{ M.is_the_display_card(card)
+-- Whether the card that would draw the pictures is also drawing the screen.
+--
+-- WHY THIS IS ASKED AT ALL, and it is the whole of `409`. This project reasoned
+-- carefully about the processor getting hot and never asked the same question
+-- about the card -- on the grounds that generating is the card's work rather
+-- than the processor's, so the processor's governor did not apply. True, and it
+-- answered the wrong question. On a machine with one graphics card, that card
+-- is drawing somebody's desktop; take its memory and the desktop stops
+-- responding, which from outside is not a slow computer but a frozen one.
+--
+-- A card with a desktop on it is never at zero before anything of ours has run.
+-- That is the tell, and it is asked rather than assumed.
+function M.is_the_display_card(card)
+  if not card then return false end
+  return card.used > 0.05
+end
+-- }}}
+
+-- {{{ M.room_to_work(settings)
+-- Whether there is enough of the card free to start a picture.
+--
+-- Asked before submitting rather than discovered by submitting. A run that
+-- wedged the display cannot tell anybody anything; one that stopped early can.
+function M.room_to_work(settings)
+  local card = M.card()
+  if not card then return true, nil end
+  local least = (settings.kitchen and settings.kitchen.least_free_vram) or 0
+  if card.free >= least then return true, card end
+  return false, card
+end
+-- }}}
+
 -- {{{ M.where(settings)
 -- The address the picture program is listening on.
 function M.where(settings)
@@ -115,7 +165,11 @@ local function explain_silence(settings)
   return "there is nothing listening at " .. M.where(settings) .. ".\n" ..
          "  start it with:\n" ..
          "    " .. kitchen .. "/venv/bin/python \\\n" ..
-         "      " .. kitchen .. "/ComfyUI/main.py --listen 127.0.0.1 --port 8188\n" ..
+         "      " .. kitchen .. "/ComfyUI/main.py --listen 127.0.0.1 --port 8188 \\\n" ..
+         "      --reserve-vram 1.5\n" ..
+         "  that last part holds memory back for your desktop, and on a machine\n" ..
+         "  whose only card is also drawing the screen it is what stops the\n" ..
+         "  desktop freezing. See issues/409.\n" ..
          "  or install it first with:\n" ..
          "    bash src/043-install-the-kitchen.sh"
 end
@@ -274,6 +328,30 @@ local function main(argv)
   io.write("the picture program is there", device and (", drawing on " .. device)
            or "", "\n")
 
+  -- Said before the first picture rather than in a document nobody opened. A
+  -- person who does not want their machine used this way needs to know before
+  -- it is.
+  local card = M.card()
+  local shared = M.is_the_display_card(card)
+  local rest = (settings.kitchen and settings.kitchen.rest) or 1.0
+  if card then
+    io.write(string.format("the card has %.1f GB, %.1f free\n",
+             card.total, card.free))
+    if shared then
+      rest = (settings.kitchen and settings.kitchen.rest_on_the_display_card)
+             or rest
+      io.write(string.format(
+        "it is also drawing your screen, so this will rest %.0f seconds between\n" ..
+        "pictures instead of %.0f and stop rather than take the last %.1f GB.\n",
+        rest, (settings.kitchen and settings.kitchen.rest) or 1.0,
+        (settings.kitchen and settings.kitchen.least_free_vram) or 0))
+      if not (settings.kitchen and settings.kitchen.reserve_vram) then
+        io.write("NOTE: nothing is reserved for the desktop. Start the picture\n" ..
+                 "      program with --reserve-vram to hold some back.\n")
+      end
+    end
+  end
+
   local chosen = phrases.select(store, options) or records.select(store, options)
   if not chosen then
     io.write("say which characters. --chars, --grade, --jlpt, --frequent, " ..
@@ -289,14 +367,31 @@ local function main(argv)
     chosen = trimmed
   end
 
-  -- One at a time. Generating is the graphics card's work rather than the
-  -- processor's, so `307`'s governor does not apply -- but a card held at full
-  -- load for an hour is the same kind of wear, and the same courtesy is owed.
-  local rest = (settings.kitchen and settings.kitchen.rest) or 1.0
+  -- One at a time, and how long between them depends on whether this card is
+  -- also the screen (`409`).
   local made, failed = 0, {}
   local started = os.time()
 
   for index, record in ipairs(chosen) do
+    -- Room checked before submitting, not discovered by submitting. Waiting is
+    -- tried first, because the picture program frees what it held between runs
+    -- and a moment is usually all it needs.
+    local room, seen = M.room_to_work(settings)
+    local waited = 0
+    while not room and waited < 60 do
+      heat.rest(5)
+      waited = waited + 5
+      room, seen = M.room_to_work(settings)
+    end
+    if not room then
+      io.write(string.format(
+        "\nstopping: the card has only %.1f GB free and this run will not take\n" ..
+        "the last %.1f GB, because it is drawing your screen. %d made so far.\n",
+        seen.free, (settings.kitchen and settings.kitchen.least_free_vram) or 0,
+        made))
+      break
+    end
+
     io.write(string.format("  [%d/%d] %s ... ", index, #chosen, record.character))
     io.flush()
     local done, why = M.make_one(settings, record, store, options)
