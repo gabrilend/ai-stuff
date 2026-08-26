@@ -140,8 +140,14 @@ static const char *nearest_word(const char *given)
      * Only offered when it is actually close. Suggesting "rooms" for "banana"
      * is worse than suggesting nothing -- it sends somebody looking for a
      * relationship that is not there.
+     *
+     * The second condition catches what a fixed distance alone misses: three
+     * edits is the whole of a three-letter word, so a bare "<= 3" cheerfully
+     * offers a suggestion for a word that is empty or nearly so, where nothing
+     * of what was typed survives into the suggestion. The distance has to be
+     * shorter than the word it claims to be correcting.
      */
-    if (best_distance <= 3) {
+    if (best_distance <= 3 && best_distance < (uint32_t)strlen(given)) {
         return best;
     }
 

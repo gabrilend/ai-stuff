@@ -631,3 +631,69 @@ the refusal that comes back says the ruleset failed rather than that it declined
 But the error is currently only visible to whoever issued the command. A GM
 probably wants to see it; a player probably does not want a stack trace; a log
 file cannot be read during a session. Undecided.
+
+---
+
+## Raised by building phase 9
+
+### 15.1 The tier cut lines are frozen and the distribution is not
+
+`sprite_machine_tier` files a sprite under one of five tiers by comparing its
+score against four numbers. Those four numbers are the tenth, thirtieth,
+seventieth and ninetieth percentiles of a real distribution, measured by
+`084-calibrate` over thirty-two thousand generated sprites.
+
+The first set of numbers was not measured. It was four round values that looked
+reasonable, and against the generator's actual output it put ninety per cent of
+every sprite into two tiers and left tier one entirely empty. A five-point scale
+that is really a three-point scale is worse than a three-point scale, because the
+two dead numbers look like information.
+
+**What stays open is that the measurement has a date on it.** Add a shape to the
+paintbrush, change how large a body is drawn, weight a grading component
+differently — and the distribution slides underneath the four lines. Tier five
+comes to mean "the best third" instead of "the best tenth" with nothing raising an
+error, and every rating anybody recorded against a tier is quietly describing a
+different pool than it did.
+
+`084-calibrate` exists and exits non-zero when the tiers have gone adrift, so the
+question is not "how would we find out" — it is **who runs it, and when**. Three
+possibilities, none chosen:
+
+| Answer | Cost |
+| --- | --- |
+| The build runs it every time | Adds seconds to every build for a check that only matters when the generator changed. |
+| A person runs it after touching the generator | Free, and depends entirely on somebody remembering. |
+| The pool refuses to accept ratings while the calibration is stale | Correct and severe. Turns a quiet drift into a stopped studio. |
+
+### 15.2 A tier is a ranking, and the dial reads it as a verdict
+
+Because the cut lines are percentiles, tier five means *in the best tenth of what
+this paintbrush produces*. It does not mean *good*.
+
+That is the right meaning for the quality dial, whose job is to hand back the
+better ones. But it has a consequence nobody would expect from the word "tier":
+**improving the generator does not raise anybody's tiers.** Make every sprite
+better and the distribution shifts, the percentiles shift with it, and the same
+ten per cent are still tier five. The scale measures spread, not quality, and it
+will report a paintbrush that has genuinely improved as exactly as good as before.
+
+The alternative is absolute cut lines, which have the opposite failure: they drift
+without anybody touching them, because "sixty points" means whatever the current
+components happen to add up to.
+
+Not resolved. Worth resolving before anybody uses a tier to decide that the
+generator has got better.
+
+### 15.3 An empty word was offered a suggestion
+
+Not open — fixed — but recorded because the shape of the mistake recurs.
+
+`sprite_nearest_word` offered `bob` for an empty word, because the threshold was
+"at most three edits" and three edits is the whole of a three-letter word. The fix
+is a second condition: the distance must also be **shorter than the word being
+corrected**, so that most of what was typed survives into the suggestion.
+
+`076-describe` had the identical bug in its own suggester and was fixed the same
+way. The lesson is that an edit-distance threshold is only meaningful relative to
+the length of the input, and a bare constant is a bug waiting for a short word.
