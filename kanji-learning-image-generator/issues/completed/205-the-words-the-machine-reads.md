@@ -2,7 +2,32 @@
 
 ## Current behavior
 
-A scene is a table of facts. A diffusion model reads sentences.
+Done. `src/025-the-words-the-machine-reads.lua`, and it is still the only file
+in the project that writes English.
+
+```
+luajit src/025-the-words-the-machine-reads.lua --chars 休語時川
+```
+
+**Shortening the sentence needed two orders, not one.** The plan said to weight
+the beginning, protect the end, and drop from the middle — on the reasoning that
+a text encoder reads the start most heavily and the photographic terms at the
+end are what stop the model drawing a cartoon. Both true, and together they were
+wrong: when the middle ran out, the next thing dropped was whatever sat second
+from the end, and for 休 that was **the person**. The prompt came back as a tree
+in a wood, having quietly deleted the entire reason this project claims to teach
+anything.
+
+So every clause now carries a *rank*, which decides what is dropped, and a
+*place*, which decides where it sits in the finished sentence. A colour palette
+is expendable; an etymology is not; and the photographic terms rank high while
+being written last. With one order those three requirements cannot all hold.
+
+**Subjects are capped as well as ranked.** A crowded character can have six
+nameable pieces, and naming all six spent the whole sentence before the world
+was mentioned — 鬱 produced a prompt half again as long as the encoder reads.
+`024` sorts them largest-first so that what survives is what dominates the
+picture.
 
 ## Intended behavior
 
