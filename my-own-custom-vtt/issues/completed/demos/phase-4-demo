@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# phase-4-demo -- shows what phase four built.
+#
+# Phase four claims the geometry from phase two decides which bytes are allowed
+# onto a socket. That is a claim about bytes, so this demonstrates it by looking
+# at bytes: three participants join over real sockets on loopback, and their raw
+# outbound buffers are searched for things their owner must not know about.
+#
+# The participants are test programs rather than browsers, deliberately. The
+# claim needs a client that can be told to misbehave, and a browser cannot be.
+#
+# It also prints the port range, because that is this design's real price and a
+# host deserves to see the number rather than read a paragraph about it.
+#
+# Usage:
+#   ./phase-4-demo                 -- build and run
+#   ./phase-4-demo /path/to/prj    -- the same, from a checkout somewhere else
+#
+# Normally reached through ./run-phase-demo 1 in the project root.
+
+set -e
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT_NAME="my-own-custom-vtt"
+EXEC_TIER="/tmp/${PROJECT_NAME}/tmp"
+DEMO="${EXEC_TIER}/063-demo-phase-4"
+
+if [ ! -x "${DIR}/build" ]; then
+    echo "No build script at ${DIR}/build."
+    echo "Either the project root is wrong, or the project has not been initialised."
+    exit 1
+fi
+
+# Built from source every time rather than trusting whatever is lying around in
+# the RAM tier, because a demo that runs a stale binary is a demo that lies.
+echo "Building..."
+"${DIR}/build" "${DIR}" --no-test > /dev/null
+
+if [ ! -x "${DEMO}" ]; then
+    echo "The build did not produce ${DEMO}."
+    exit 1
+fi
+
+exec "${DEMO}"

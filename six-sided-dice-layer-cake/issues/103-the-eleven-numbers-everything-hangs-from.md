@@ -4,8 +4,25 @@ Produces `src/012-master-dimensions.md`.
 
 ## Current behavior
 
-Nothing. Sixty millimetres, seven millimetres and a hundred and fifty microns have
-all been used in the documentation as though they had been decided somewhere.
+**Done.** `src/012-master-dimensions.md` exists. Eleven given lengths, sixteen
+derived, ten constraints.
+
+The chain from a transformer layer's size to the cube's edge is drawn in the
+blueprint as a diagram in symbol names rather than numbers, so `098` checks it.
+Two of its rungs -- the layer size and the slice capacity -- name symbols that
+phases 6 and 11 will declare, and the diagram checker correctly reports them as
+not existing yet.
+
+Seven of the ten constraints hold. Three reach into blueprints that do not exist
+yet: the microchannel aspect ratio limit from `022`, the tier count from `036`,
+and the seal ring minimum from `017`. The checker reports these separately from
+failures, under *not yet*, because a set that is incomplete is a different thing
+from one that is wrong.
+
+`C-012-9` -- the two-chain check, where the core's edge derived from outside the
+cube must equal the same edge derived from the tier stack -- is written and is
+one of the three waiting. It will be the first thing to fire when somebody adds
+a tier.
 
 ## Intended behavior
 

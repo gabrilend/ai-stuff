@@ -4,8 +4,18 @@ Produces `src/093-blueprint-reader.lua`.
 
 ## Current behavior
 
-Nothing. Ninety blueprints will be written in the format `002` defines and nothing
-reads it.
+**Done.** `src/093-blueprint-reader.lua` exists. Four block kinds -- meta,
+symbols, constraints, drawings -- held in a dispatch table, each accumulating
+across repeated blocks so a long blueprint can put its symbols beside the prose
+that introduces them.
+
+It refuses rather than guessing: a symbol line with four fields, an unknown
+kind, a `given` carrying an expression, a constraint with no reason, a drawing
+with no caption, an unclosed fence. Every refusal names the file and the line.
+
+**One change from the ticket.** A drawing keeps its blank lines and its leading
+spaces, because in a drawing those are the picture. Everywhere else they are
+formatting and are dropped.
 
 ## Intended behavior
 

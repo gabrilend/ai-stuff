@@ -4,8 +4,23 @@ Produces `src/094-ledger.lua`.
 
 ## Current behavior
 
-Nothing. `002` promises that a symbol is written once and referenced everywhere,
-and nothing enforces it.
+**Done.** `src/094-ledger.lua` exists. Loads every blueprint in `src/`, skips
+the generated companion pages, parses every derivation, builds the dependency
+graph from `092`'s symbol collection, sorts it depth-first with a colour per
+node, and resolves in that order.
+
+All four refusals are in: duplicate names naming both declarations, undefined
+references naming the referrer, cycles printing the whole cycle rather than just
+detecting one, and dimension mismatch inside a derivation.
+
+**A fifth refusal was added that the ticket did not ask for and should have.**
+A symbol's declared unit is checked against what its derivation actually
+produces. The unit column is a second, independent statement of what a quantity
+is, and a derivation that comes out in watts under a symbol declared in kelvin
+is a real mistake with no other place to be caught.
+
+The reverse index counts constraints as references, without which every symbol
+that exists only to be checked would look orphaned.
 
 ## Intended behavior
 
