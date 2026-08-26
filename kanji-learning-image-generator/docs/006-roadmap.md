@@ -65,10 +65,34 @@ It is the third most likely to be wrong, and the most interesting to be wrong in
 `303` is the point of the project. Everything before it makes one recipe;
 that one makes all of them, and makes them without a human choosing which.
 
+## Phase 4 — The Study Tool
+
+*Recipes into pictures, pictures into a pool, and a way to argue with a bad one.*
+
+Added after the first three were finished, because `notes/041` reframed what the
+project is for: not a generator of clever pictures but **a dictionary somebody
+is building**, where the ones that miss get sorted out and re-argued.
+
+| | |
+|---|---|
+| `401` | The names the radicals bear — every piece appears under its name, including the ones there only for the sound |
+| `402` | A phrase is a picture too — words, not only single characters |
+| `403` | The paintbrush, and the wall around it — the closed vocabulary a better argument may speak |
+| `404` | Running the pictures — a ComfyUI, and the one part of this that talks to another machine |
+| `405` | The pool that remembers — every picture ever made, and everything true about it beside it |
+| `406` | Two ways of saying it is good — a machine that squints, a person who clicks, and the agreement between them |
+| `407` | The quality dial — a floor per world, and the variety it costs said out loud first |
+| `408` | What a higher tier buys — a stroke-order animation for the ones somebody liked |
+
+`405` is what the last three stand on. `404` is the only thing in this project
+that cannot be finished on the machine it was written on.
+
 ## What is not in any phase
 
-**Generating the images.** There is no diffusion model here and there will not
-be one. `docs/001` says why, `docs/005` says what is emitted instead.
+**Shipping a diffusion model.** `docs/001` says why. Phase four adds a
+*submitter* that hands a recipe to a ComfyUI somebody else installed and
+collects what comes back — which is a client, not a model, and the boundary is
+still an HTTP request.
 
 **Judging whether the illusion worked.** A person squints at a thumbnail. That
 is the specification and it does not become an assertion by being written down
