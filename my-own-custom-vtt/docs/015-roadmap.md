@@ -160,6 +160,18 @@ table without stopping play.
 judging a thing in a session is a different act from judging a picture in a
 gallery.
 
+**Built.** Nine issues rather than eight -- the ninth, that a thing in the world
+has to say which picture it is wearing, was foundational and was found last, while
+wiring the re-tier command. The demo also writes a page gathering the whole
+library, every sprite moving, sorted by tier.
+
+**What it left for later:** the browser still draws coloured circles. The pictures
+exist, animate, and are openable on disk, and nothing yet sends one down the wire
+to a table. The paintbrush being a closed set of numeric moves makes that
+tractable -- a sprite can be sent as its layers rather than as text or as a second
+generator ported into JavaScript -- and it belongs with the second view. See open
+question 15.5.
+
 ## Phase 10 — The engraving
 
 The record log: a text file drawn as an ornate metal carving whose lines are the

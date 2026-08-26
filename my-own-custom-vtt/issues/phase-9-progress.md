@@ -2,7 +2,10 @@
 
 **Goal:** the art is generated, kept, judged, and the judging is watched.
 
-**Status: in progress.** Eight of nine issues complete; the demo remains.
+**Status: complete.** All nine issues done. `./run-phase-demo 9` generates a
+library, judges it two ways, moves the quality dial with the price quoted first,
+re-tiers a sprite from a running fight, and writes a page you can open where
+several hundred creatures are moving.
 
 ## The issues
 
@@ -15,7 +18,7 @@
 | [905 the machine grader is a heuristic](completed/905-the-machine-grader-is-a-heuristic.md) | done | A proxy for taste, measured rather than trusted. |
 | [906 the quality dial](completed/906-the-quality-dial.md) | done | Raising quality spends variety, and says so first. |
 | [907 the anchor that stops drift](completed/907-the-anchor-that-stops-drift.md) | done | A loop tuned by a grader that is itself being tuned. |
-| [908 the phase nine demo](908-the-phase-nine-demo.md) | not started | The capstone. |
+| [908 the phase nine demo](completed/908-the-phase-nine-demo.md) | done | The capstone. |
 | [909 a thing wears a sprite](completed/909-a-thing-wears-a-sprite.md) | done | Foundational, and discovered late. |
 
 ## What is built so far
@@ -27,6 +30,22 @@
 | `084-calibrate` | Whether the five tiers are still five tiers. |
 | `085-sprite-pool` | Every sprite ever made, and what anybody thought of it. |
 | `087-studio` | The agreement rate, the anchor, and the dial that quotes its price. |
+| `089-demo-phase-9` | The capstone, and a contact sheet of the whole library. |
+
+## And two the demo found that the tests had not
+
+**The suggester offered a shape for a mistyped motion.** "idle" was answered with
+"circle", because three edits is most of a four-letter word. At most half the word
+may change now, and the phase eight description parser was fixed the same way.
+
+**The grader punished the sprites that looked best.** Balance added vertical drift
+to horizontal, so a mirrored creature -- eyes above the middle, ears above them --
+scored three out of twelve. A face is in the upper half; that is what a face is.
+It measures sideways lean only now.
+
+Correcting it threw three of the five tiers outside their intended share and the
+calibration tool refused outright. Neither defect was visible from any test; both
+were visible the moment somebody read the output.
 
 ## And two from wiring it into a session
 
