@@ -300,8 +300,8 @@ static const struct {
     { "give-scope", apply_give_scope }
 };
 
-/* {{{ uint16_t command_apply */
-uint16_t command_apply(struct sim *s, const struct log_entry *entry)
+/* {{{ uint16_t command_check */
+uint16_t command_check(struct sim *s, const struct log_entry *entry)
 {
     /*
      * The gauntlet, in the order the document gives: cheapest and most
@@ -329,7 +329,7 @@ uint16_t command_apply(struct sim *s, const struct log_entry *entry)
             return REFUSED_MAY_NOT_EDIT;
         }
 
-        return verb_table[entry->verb].handle(s, entry);
+        return REFUSED_NOT_AT_ALL;
     }
 
     /*
@@ -375,9 +375,37 @@ uint16_t command_apply(struct sim *s, const struct log_entry *entry)
         }
     }
 
-    /* GATE 6, the ruleset, arrives in phase 7. */
+    /*
+     * GATE 6, the ruleset, is run by the SESSION between checking and
+     * performing -- because a ruleset asked to veto something that has already
+     * happened is not a veto.
+     */
+
+    return REFUSED_NOT_AT_ALL;
+}
+/* }}} */
+
+/* {{{ uint16_t command_perform */
+uint16_t command_perform(struct sim *s, const struct log_entry *entry)
+{
+    if (entry->verb == VERB_NONE || entry->verb >= VERB_COUNT) {
+        return REFUSED_UNKNOWN_VERB;
+    }
 
     return verb_table[entry->verb].handle(s, entry);
+}
+/* }}} */
+
+/* {{{ uint16_t command_apply */
+uint16_t command_apply(struct sim *s, const struct log_entry *entry)
+{
+    uint16_t refusal = command_check(s, entry);
+
+    if (refusal != REFUSED_NOT_AT_ALL) {
+        return refusal;
+    }
+
+    return command_perform(s, entry);
 }
 /* }}} */
 
@@ -408,6 +436,12 @@ const char *refusal_sentence(uint16_t refusal)
         return "handing a scope over is an edit, and you may not edit the world";
     case REFUSED_NO_SUCH_SCOPE:
         return "there is no scope with that index";
+    case REFUSED_BY_THE_RULES:
+        /*
+         * A placeholder. The real sentence came from the ruleset and lives in
+         * its last_refusal -- this is what a caller gets if it forgets to ask.
+         */
+        return "the rules do not allow that";
     default:
         return "refused, for a reason nobody wrote down -- which is a bug";
     }

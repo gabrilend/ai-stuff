@@ -50,7 +50,14 @@
 #define REFUSED_WRONG_STYLE        5u   /* Right thing, wrong kind of order. */
 #define REFUSED_MAY_NOT_EDIT       6u   /* Handing a scope over is an edit. */
 #define REFUSED_NO_SUCH_SCOPE      7u
-#define REFUSED_COUNT              8u
+/*
+ * Gate 6. The only reason whose sentence the SERVER does not write -- the
+ * ruleset does, because the reasons are as varied as games are. Forcing a
+ * ruleset to pick from a list the server invented would be the server having
+ * opinions by the back door.
+ */
+#define REFUSED_BY_THE_RULES       8u
+#define REFUSED_COUNT              9u
 
 struct log_entry {
     uint64_t tick;
@@ -109,8 +116,20 @@ uint32_t log_turn_count(const struct command_log *log, uint32_t turn);
 void log_rewrite(struct command_log *log, uint32_t index, const struct log_entry *entry);
 
 /*
- * Apply one command to a simulation. The dispatch table. Returns the refusal
- * reason, or REFUSED_NOT_AT_ALL if it was accepted.
+ * Gates 1 through 5, WITHOUT applying anything. Returns a refusal reason, or
+ * REFUSED_NOT_AT_ALL.
+ *
+ * Separate from performing because gate 6 -- the ruleset -- sits between them,
+ * and a ruleset asked to veto something that has already happened is not a veto.
+ */
+uint16_t command_check(struct sim *s, const struct log_entry *entry);
+
+/* Do it. Only call this on a command that passed every gate. */
+uint16_t command_perform(struct sim *s, const struct log_entry *entry);
+
+/*
+ * Check and perform, with no rules layer between. What a caller uses when there
+ * is no ruleset -- tests, and the scripted driver.
  */
 uint16_t command_apply(struct sim *s, const struct log_entry *entry);
 
