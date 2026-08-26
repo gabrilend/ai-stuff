@@ -24,19 +24,19 @@ Described by `302`.
 | `T_ship_min` | K | given | 253 K | lowest temperature a cube may see in transit |
 | `T_serv_min` | K | given | 288 K | lowest temperature a cube sees once installed and filled |
 | `ships_dry` | 1 | given | 1 | whether a cube travels with its coolant removed. One means it does, and 082 has to say so in the procedure |
-| `mdot_water` | kg/s | derived | unresolved | mass flow water would need for this heat at this rise |
-| `mdot_fluoro` | kg/s | derived | unresolved | and what the dielectric would need |
-| `Q_water` | m^3/s | derived | unresolved | volumetric flow of water |
-| `Q_fluoro` | m^3/s | derived | unresolved | and of the dielectric |
-| `flow_penalty` | 1 | derived | unresolved | how much more of the dielectric has to be moved, which is the headline cost of the substitution |
+| `mdot_water` | kg/s | derived | 0.0579977 kg/s | mass flow water would need for this heat at this rise |
+| `mdot_fluoro` | kg/s | derived | 0.220391 kg/s | and what the dielectric would need |
+| `Q_water` | m^3/s | derived | 5.86428e-05 m^3/s | volumetric flow of water |
+| `Q_fluoro` | m^3/s | derived | 0.000137745 m^3/s | and of the dielectric |
+| `flow_penalty` | 1 | derived | 2.34887 | how much more of the dielectric has to be moved, which is the headline cost of the substitution |
 | `k_penalty` | 1 | derived | 9.69231 | how much worse its conduction is, which sets the convection coefficient in 022 |
-| `mdot_design` | kg/s | derived | unresolved | mass flow the selected fluid actually needs |
+| `mdot_design` | kg/s | derived | 0.0579977 kg/s | mass flow the selected fluid actually needs |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `P_heat` | `020` | unresolved | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
+| `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
 | `T_fluoro_frz` | `011` | 195 K | freezing point of the same, which is the one property where it beats water |
 | `T_si_max` | `011` | 378 K | highest junction temperature the silicon is qualified to, 105 degrees |
 | `T_water_frz` | `011` | 273 K | freezing point of untreated water, which is why 1202 says how a cube travels |

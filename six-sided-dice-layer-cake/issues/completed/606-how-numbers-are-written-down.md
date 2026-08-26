@@ -4,8 +4,22 @@ Produces `src/046-numeric-formats.md`.
 
 ## Current behavior
 
-Four-bit weights in groups of a hundred and twenty-eight with a sixteen-bit scale
-have been used throughout and never specified.
+**Done.** `src/046-numeric-formats.md` exists with seven formats, one rounding
+mode, and special values refused rather than propagated — which is a real
+decision: a machine that carries a not-a-number through eighty layers has thrown
+away the only place the fault was findable.
+
+Seven constraints. Writing them exposed something small and general about the
+notation: **a width is a number of bits and an exponent is a pure number**, and
+two-to-the-width needs a conversion between them. One unit quantity, `b1`, is
+declared for that purpose and is the only such thing in the project.
+
+**`009` entry F1 is quantified and not closed.** The group scale costs about three
+per cent of the read that dominates everything, and whether eight-bit scales would
+cost measurable accuracy is a `077` measurement that does not exist.
+
+**The expansion table's fitting rule is not here**, and how the table is fitted
+changes the error by more than the bit width does.
 
 ## Intended behavior
 

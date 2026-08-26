@@ -13,27 +13,27 @@ Described by `305`.
 | `f_wet_max` | 1 | given | 0.15 | the most of the cube's volume that may be standing fluid |
 | `eta_pump` | 1 | measured | 0.3 | wire-to-water efficiency of a pump of this size and duty; small pumps are poor and this is a realistic figure rather than a hopeful one |
 | `K_plenum` | 1 | given | 2.2 | loss coefficient for entering and leaving a plenum and turning into the channel field, summed over both ends |
-| `Q_total` | m^3/s | derived | unresolved | volumetric flow through the whole machine |
-| `Q_face` | m^3/s | derived | unresolved | through one face's field |
-| `Q_uchan` | m^3/s | derived | unresolved | through one microchannel |
+| `Q_total` | m^3/s | derived | 5.86428e-05 m^3/s | volumetric flow through the whole machine |
+| `Q_face` | m^3/s | derived | 9.7738e-06 m^3/s | through one face's field |
+| `Q_uchan` | m^3/s | derived | 5.64959e-08 m^3/s | through one microchannel |
 | `A_uchan` | mm^2 | derived | 0.15 mm^2 | cross-section of one microchannel |
-| `v_uchan` | m/s | derived | unresolved | velocity in one microchannel |
-| `Re_uchan` | 1 | derived | unresolved | Reynolds number there; laminar by a wide margin, which every correlation in 022 depends on |
+| `v_uchan` | m/s | derived | 0.37664 m/s | velocity in one microchannel |
+| `Re_uchan` | 1 | derived | 168.411 | Reynolds number there; laminar by a wide margin, which every correlation in 022 depends on |
 | `fRe_uchan` | 1 | derived | 20.0455 | the Fanning friction factor times Reynolds number for laminar flow in a rectangular duct, which is a constant for a given shape and is why laminar pressure drop is linear in velocity |
-| `f_uchan` | 1 | derived | unresolved | Darcy friction factor in a microchannel |
-| `dp_field` | Pa | derived | unresolved | pressure lost crossing one face's field |
-| `dp_plenum` | Pa | derived | unresolved | entering and leaving the plenum at both ends |
-| `dp_loop` | Pa | derived | unresolved | the whole circuit inside the cube, one path from a fed corner to a drained one |
-| `f_field_loss` | 1 | derived | unresolved | the load's share of the loss, which is what says whether this is a manifold feeding a load or two comparable restrictions in series |
+| `f_uchan` | 1 | derived | 0.47611 | Darcy friction factor in a microchannel |
+| `dp_field` | Pa | derived | 6657.41 Pa | pressure lost crossing one face's field |
+| `dp_plenum` | Pa | derived | 154.327 Pa | entering and leaving the plenum at both ends |
+| `dp_loop` | Pa | derived | 18872.2 Pa | the whole circuit inside the cube, one path from a fed corner to a drained one |
+| `f_field_loss` | 1 | derived | 0.352762 | the load's share of the loss, which is what says whether this is a manifold feeding a load or two comparable restrictions in series |
 | `V_field_wet` | mm^3 | derived | 8096.4 mm^3 | fluid standing in the six microchannel fields |
 | `V_plenum_wet` | mm^3 | derived | 2820.48 mm^3 | and in the twelve plenums that feed and drain them |
 | `V_core_wet` | mm^3 | derived | 5760 mm^3 | and in the twenty-four cooling laminae inside the core, at the void fraction 036 derives from their channel geometry |
 | `V_coolant` | mm^3 | derived | 23097.4 mm^3 | all of it, which is what 013 weighs and 027 has to make up when it leaks |
-| `P_hydraulic` | W | derived | unresolved | work a second the fluid needs |
-| `P_pump` | W | derived | unresolved | electrical power the pump draws, which is outside the cube and outside 020's budget |
-| `f_pump_of_heat` | 1 | derived | unresolved | what moving the coolant costs against what it carries |
+| `P_hydraulic` | W | derived | 1.10672 W | work a second the fluid needs |
+| `P_pump` | W | derived | 3.68907 W | electrical power the pump draws, which is outside the cube and outside 020's budget |
+| `f_pump_of_heat` | 1 | derived | 0.0019509 | what moving the coolant costs against what it carries |
 | `f_worst_served` | 1 | target | 0.9 | share of the mean flow the worst-served face receives. A target rather than a derivation: solving a twenty-branch network needs a solver this notation does not have, and the figure here is an estimate from the manifold's share of the loss |
-| `dT_conv_worst` | K | derived | unresolved | the convection rise at the worst-served face, which is what 025 must use rather than the mean |
+| `dT_conv_worst` | K | derived | 2.1314 K | the convection rise at the worst-served face, which is what 025 must use rather than the mean |
 
 ## What it consumes
 
@@ -42,18 +42,18 @@ Described by `305`.
 | `A_core_side` | `012` | 1600 mm^2 | area of one side of the core block, and of one tier |
 | `D_uchan` | `022` | 0.26087 mm | hydraulic diameter of one channel |
 | `L_plate` | `012` | 52 mm | edge of a face plate, once the edge rails are taken off |
-| `P_heat` | `020` | unresolved | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
+| `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
 | `V_corner_wet` | `015` | 2688 mm^3 | fluid standing in all eight corner blocks |
 | `V_cube` | `012` | 216000 mm^3 | volume of the whole object |
 | `V_rail_wet` | `016` | 3732.48 mm^3 | fluid standing in all twenty-four rail channels |
 | `alpha_uchan` | `022` | 0.15 | aspect ratio of a channel, short side over long, which is what the Nusselt polynomial is in |
-| `dT_conv` | `022` | unresolved | the temperature the coolant sits below the channel walls |
-| `dp_corner` | `015` | unresolved | pressure lost dividing three ways in one block |
-| `dp_rail` | `016` | unresolved | pressure lost along one rail including its ends |
+| `dT_conv` | `022` | 1.91826 K | the temperature the coolant sits below the channel walls |
+| `dp_corner` | `015` | 596.502 Pa | pressure lost dividing three ways in one block |
+| `dp_rail` | `016` | 5433.75 Pa | pressure lost along one rail including its ends |
 | `f_void_lam` | `036` | 0.0927644 | share of a lamina that is channel rather than metal, from the channel geometry rather than assumed |
 | `h_plenum` | `014` | 1.13 mm | height of the coolant distribution plenum across the cold plate's width; it gave seventy microns to the seal when the cord had to grow |
 | `h_uchan` | `012` | 1 mm | depth of the same channel, limited by fin efficiency rather than by etching |
-| `mdot_design` | `021` | unresolved | mass flow the selected fluid actually needs |
+| `mdot_design` | `021` | 0.0579977 kg/s | mass flow the selected fluid actually needs |
 | `mu_fluid` | `021` | 0.000577 Pa*s | dynamic viscosity of the same |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `n_tier` | `036` | 24 | memory tiers in the stack. Twenty-four rather than the thirty-two first sketched, because at the density 035 derives, thirty-two holds half again what is needed |

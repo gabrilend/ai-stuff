@@ -47,7 +47,7 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `w_tier_port` | `034`, `035`, `037`, `038` |
+| `w_tier_port` | `034`, `035`, `037`, `038`, `047` |
 | `f_core` | `034`, `035`, `037` |
 | `f_ecc_overhead` | `034`, `040` |
 | `f_spare` | `034` |
@@ -59,7 +59,7 @@ Change one of these and the blueprints beside it are what break.
 | `C_core_usable` | `034`, `038` |
 | `B_core` | `020`, `034`, `037`, `039`, `040` |
 | `B_face_max` | `034` |
-| `B_face_even` | `037` |
+| `B_face_even` | `037`, `044`, `047`, `048` |
 | `C_bank` | `034` |
 | `p_collide` | `034` |
 

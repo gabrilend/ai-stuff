@@ -4,8 +4,23 @@ Produces `src/045-matrix-engine.md`.
 
 ## Current behavior
 
-Nothing. A two hundred and fifty-six by two hundred and fifty-six array at one
-point four gigahertz is quoted in four documents and specified in none.
+**Done.** `src/045-matrix-engine.md` exists and opens by admitting the array is
+idle most of the time, with the justification: prompt processing and batched
+serving both sit above the crossover, and single-stream generation is the case
+the machine must not be slow at rather than the case it is sized for.
+
+**The transposed multiply that training needs is priced three ways and the
+cheapest chosen**: stream differently during the backward pass rather than making
+the array bidirectional or holding weights twice. It costs operand bandwidth,
+which the slice has, rather than area or capacity, which it does not.
+
+Seven constraints. This blueprint also **took ownership of three symbols `020`
+had been estimating** — the array's operation rate, its power, and its operand
+demand — which the ledger caught as duplicate declarations.
+
+**`E_op` is the most load-bearing unsourced number in the project.** A quarter of
+a picojoule per operation, and everything from the cold plate's channel width to
+the radiator's area is downstream of it.
 
 ## Intended behavior
 

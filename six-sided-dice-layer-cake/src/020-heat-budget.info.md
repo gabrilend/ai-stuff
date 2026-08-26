@@ -16,7 +16,7 @@ Described by `301`.
 | `leak_ref` | W/mm^2 | measured | 0.003 W/mm^2 | logic leakage per unit die area at 300 K and the nominal supply |
 | `dT_leak_dbl` | K | measured | 10 K | temperature rise that doubles leakage |
 | `T_ref_leak` | K | given | 300 K | temperature the leakage figure above is quoted at |
-| `T_j_assumed` | K | given | 314 K | junction temperature the leakage term is evaluated at; the answer of a fixed-point iteration that C-020-1 checks against what 025 derives |
+| `T_j_assumed` | K | given | 318.9 K | junction temperature the leakage term is evaluated at; the answer of a fixed-point iteration that C-020-1 checks against what 025 derives |
 | `E_core_bit` | pJ/bit | measured | 0.48 pJ/bit | energy to read one bit out of a core tier, array and tier routing together |
 | `P_core_leak` | W | given | 12.74 W | retention leakage of all twenty-four tiers at the operating temperature, from the per-cell figure 035 carries |
 | `E_link_bit` | pJ/bit | measured | 0.1 pJ/bit | energy to move one bit across a radial link, driver and receiver together |
@@ -25,25 +25,22 @@ Described by `301`.
 | `eta_conv_1` | 1 | measured | 0.96 | efficiency of the first stage, forty-eight volts to five |
 | `eta_conv_2` | 1 | measured | 0.9 | efficiency of the second, five volts to the point of load |
 | `eta_dist` | 1 | measured | 0.985 | resistive efficiency of the planes and grids between them |
-| `ops_die` | flop/s | derived | unresolved | operations a die can issue a second, two per multiplier cell per cycle |
-| `P_engine_die` | W | derived | unresolved | switching power of one die's multiplier array at the design utilisation |
-| `B_slice_die` | bit/s | derived | unresolved | bits a second a die reads out of its own slice to keep the array fed |
-| `P_slice_die` | W | derived | unresolved | what those reads cost |
-| `leak_factor` | 1 | derived | 2.63902 | how much worse leakage is at the operating temperature than at the quoted one |
-| `P_leak_die` | W | derived | 4.56022 W | leakage of one die at that temperature |
-| `P_die` | W | derived | unresolved | everything one compute die dissipates at the design point |
-| `P_dies` | W | derived | unresolved | all twenty-four compute dies |
+| `P_slice_die` | W | derived | 2.82624 W | what a die's own slice reads cost, at the rate 045's array consumes them |
+| `leak_factor` | 1 | derived | 3.70635 | how much worse leakage is at the operating temperature than at the quoted one |
+| `P_leak_die` | W | derived | 6.40458 W | leakage of one die at that temperature |
+| `P_die` | W | derived | 58.106 W | everything one compute die dissipates at the design point |
+| `P_dies` | W | derived | 1394.54 W | all twenty-four compute dies |
 | `P_core_read` | W | derived | 147.456 W | the core's array read energy at its full bandwidth |
 | `P_core` | W | derived | 160.196 W | the whole memory block |
 | `P_link` | W | derived | 30.72 W | six radial links carrying everything the core delivers |
 | `P_cage` | W | derived | 44.54 W | the switch shell |
-| `P_load` | W | derived | unresolved | power delivered to the point of load |
+| `P_load` | W | derived | 1609.28 W | power delivered to the point of load |
 | `eta_conv` | 1 | derived | 0.85104 | end-to-end conversion and distribution efficiency |
-| `P_input` | W | derived | unresolved | power drawn from the forty-eight volt supply |
-| `P_conv_loss` | W | derived | unresolved | what turning voltage into other voltage costs, deposited on the face interposers |
-| `P_heat` | W | derived | unresolved | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
-| `P_density` | W/m^3 | derived | unresolved | heat per unit volume of the finished object |
-| `P_idle` | W | derived | 204.185 W | what the machine costs to have switched on with a model resident and nothing being asked of it |
+| `P_input` | W | derived | 1890.96 W | power drawn from the forty-eight volt supply |
+| `P_conv_loss` | W | derived | 281.677 W | what turning voltage into other voltage costs, deposited on the face interposers |
+| `P_heat` | W | derived | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
+| `P_density` | W/m^3 | derived | 8.75443e+06 W/m^3 | heat per unit volume of the finished object |
+| `P_idle` | W | derived | 248.45 W | what the machine costs to have switched on with a model resident and nothing being asked of it |
 
 ## What it consumes
 
@@ -51,14 +48,11 @@ Described by `301`.
 |---|---|---|---|
 | `A_die` | `012` | 576 mm^2 | area of one compute die |
 | `B_core` | `034` | 3.072e+14 bit/s | aggregate read bandwidth, every tier delivering at once |
+| `B_operand_die` | `045` | 1.88416e+13 bit/s | operand bandwidth from the slice: a weight tile reloaded every batch cycles at four bits each, plus a row of activations every cycle at sixteen |
+| `P_engine_die` | `045` | 45.8752 W | switching power of one die's multiplier array at the design utilisation |
 | `V_cube` | `012` | 216000 mm^3 | volume of the whole object |
-| `batch_design` | **nothing declares this** | — | — |
-| `f_face` | **nothing declares this** | — | — |
-| `fix_point_err` | `025` | unresolved | how far 020's assumed leakage temperature is from what this chain produces |
+| `fix_point_err` | `025` | 5.42016e-05 | how far 020's assumed leakage temperature is from what this chain produces |
 | `n_die` | `012` | 24 | compute dies in the machine |
-| `n_mac` | **nothing declares this** | — | — |
-| `n_mac_row` | **nothing declares this** | — | — |
-| `util_design` | **nothing declares this** | — | — |
 
 ## What consumes it
 
@@ -66,9 +60,9 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `E_op` | `020` |
+| `E_op` | `045` |
 | `P_scalar_die` | `020`, `028` |
-| `E_slice_bit` | `020` |
+| `E_slice_bit` | `020`, `047` |
 | `leak_ref` | `020` |
 | `dT_leak_dbl` | `020` |
 | `T_ref_leak` | `020` |
@@ -81,13 +75,10 @@ Change one of these and the blueprints beside it are what break.
 | `eta_conv_1` | `020` |
 | `eta_conv_2` | `020` |
 | `eta_dist` | `020` |
-| `ops_die` | `020` |
-| `P_engine_die` | `020`, `028`, `031` |
-| `B_slice_die` | `020` |
 | `P_slice_die` | `020`, `028` |
 | `leak_factor` | `020` |
-| `P_leak_die` | `020`, `028` |
-| `P_die` | `020`, `025`, `026` |
+| `P_leak_die` | `020`, `028`, `045` |
+| `P_die` | `020`, `025`, `026`, `041`, `042` |
 | `P_dies` | `020`, `025` |
 | `P_core_read` | `020`, `034` |
 | `P_core` | `020`, `028`, `036` |
@@ -97,7 +88,7 @@ Change one of these and the blueprints beside it are what break.
 | `eta_conv` | `020` |
 | `P_input` | `020`, `028`, `030` |
 | `P_conv_loss` | `020` |
-| `P_heat` | `020`, `021`, `022`, `024`, `025`, `026`, `027`, `028`, `030`, `036` |
+| `P_heat` | `020`, `021`, `022`, `024`, `025`, `026`, `027`, `028`, `030`, `033`, `036` |
 | `P_idle` | `020` |
 
 ## What it asserts
@@ -108,7 +99,7 @@ Change one of these and the blueprints beside it are what break.
 | `C-020-2` | `P_heat ~= P_input` | everything drawn from the supply leaves as heat. The one energy statement in this project that cannot be approximately true, and a failure here is a structural error rather than a design one |
 | `C-020-3` | `P_conv_loss / P_heat < 0.20` | under a fifth of the machine's heat may be spent on nothing but changing voltage. Past that, 029 should be revisiting the domain count rather than the plumbing absorbing it |
 | `C-020-4` | `P_idle < P_load / 4` | the machine switched on and doing nothing must cost under a quarter of what it costs working, or leakage is running the design |
-| `C-020-5` | `P_engine_die > P_leak_die` | the multipliers must dominate their own leakage. If this inverts, the die is too large or too hot, and either way the floorplan in 041 is wrong |
+| `C-020-5` | `P_slice_die < P_engine_die` | reading operands must cost less than using them, or the arithmetic is not what this die is for |
 | `C-020-6` | `P_dies > P_core` | the compute dies dominate the memory. Asserted because it is what makes the cold plates and not the core laminae the hard cooling problem, and a change that inverted it would move the whole thermal design |
 
 ## What it draws

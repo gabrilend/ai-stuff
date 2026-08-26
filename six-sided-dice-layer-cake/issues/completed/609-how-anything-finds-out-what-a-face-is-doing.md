@@ -4,7 +4,26 @@ Produces `src/049-face-control-and-status.md`.
 
 ## Current behavior
 
-Nothing. `307` needs temperature sensors with a specified lag and none exist.
+**Done.** `src/049-face-control-and-status.md` exists, written from the failure
+list rather than from a register list, because these registers are the only
+window into a machine that cannot be probed once it is sealed.
+
+Six constraints. The sensor count doubled while writing it: eight per die was
+chosen before `041` scattered the array into sixty-four tiles, and at eight three
+quarters of the hot regions have no sensor near them.
+
+`C-049-2` is the one that matters — **every term in `080`'s performance model must
+have a counter that measures it** — and it is enumerated across two blueprints
+because neither can see the other's list.
+
+**And that constraint is weaker than it reads.** It counts twelve counters against
+seven model terms, which proves there are enough and nothing about whether they
+measure the right things. The notation cannot match a list of names against
+another list of names, so the correspondence exists only in prose.
+
+**Nothing reports an out-of-range address**, because there is no mechanism to
+detect one, and adding it means adding bounds checking to a machine that has
+deliberately none.
 
 ## Intended behavior
 

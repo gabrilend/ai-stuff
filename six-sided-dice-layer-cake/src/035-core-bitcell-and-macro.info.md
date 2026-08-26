@@ -45,7 +45,7 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `a_cell` | `035` |
+| `a_cell` | `035`, `047` |
 | `eta_array` | `035` |
 | `eta_tier` | `035` |
 | `t_access` | `035`, `039` |
@@ -54,7 +54,7 @@ Change one of these and the blueprints beside it are what break.
 | `SNM_required` | `035` |
 | `a_bit_array` | `035` |
 | `a_bit_tier` | `035` |
-| `d_areal` | `034`, `035` |
+| `d_areal` | `034`, `035`, `047` |
 | `d_areal_ref` | `035` |
 | `t_cycle_core` | `035`, `036` |
 | `E_core_write` | `035` |

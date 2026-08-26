@@ -17,17 +17,17 @@ Described by `307`.
 | `C_engine` | J/K | derived | 0.00983591 J/K | thermal mass of the silicon directly under one die's multiplier array |
 | `C_face` | J/K | derived | 7.03803 J/K | thermal mass of one face assembly, cold plate and dies |
 | `C_core` | J/K | derived | 158.385 J/K | thermal mass of the core stack |
-| `R_engine` | K/W | derived | unresolved | thermal resistance from the array to the fluid, from 025's local term |
-| `tau_engine` | s | derived | unresolved | how long the array takes to reach its steady temperature. The number that decides whether any of the fast transients matter |
-| `tau_loop` | s | derived | unresolved | transport delay round the external circuit |
+| `R_engine` | K/W | derived | 0.260085 K/W | thermal resistance from the array to the fluid, from 025's local term |
+| `tau_engine` | s | derived | 0.00255817 s | how long the array takes to reach its steady temperature. The number that decides whether any of the fast transients matter |
+| `tau_loop` | s | derived | 3.80434 s | transport delay round the external circuit |
 | `t_stage` | s | derived | unresolved | how long one face works before the sieve moves on |
 | `dT_walk` | K | derived | unresolved | temperature excursion of the walking hot spot over one stage, which is the whole of 010's argument reduced to a number |
 | `E_spout_burst` | J | derived | unresolved | energy to push the entire core through the output tube |
 | `dT_spout` | K | derived | unresolved | what that burst does to the temperature of the face it leaves through |
-| `t_to_halt` | s | derived | unresolved | how long the machine has, from the design operating point, if all cooling stops at once |
+| `t_to_halt` | s | derived | 1.20853 s | how long the machine has, from the design operating point, if all cooling stops at once |
 | `T_throttle` | K | derived | 363 K | threshold at which the clock comes down |
 | `T_halt` | K | derived | 373 K | threshold at which the faces stop |
-| `t_lag_budget` | s | derived | unresolved | how long the machine takes to cross from one threshold to the other at full power with no cooling, which is what the sensors must be faster than |
+| `t_lag_budget` | s | derived | 0.223316 s | how long the machine takes to cross from one threshold to the other at full power with no cooling, which is what the sensors must be faster than |
 
 ## What it consumes
 
@@ -37,18 +37,18 @@ Described by `307`.
 | `A_die` | `012` | 576 mm^2 | area of one compute die |
 | `A_plate` | `012` | 2704 mm^2 | area of one face plate |
 | `E_pane` | **nothing declares this** | — | — |
-| `P_die` | `020` | unresolved | everything one compute die dissipates at the design point |
-| `P_heat` | `020` | unresolved | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
-| `Q_total` | `024` | unresolved | volumetric flow through the whole machine |
-| `T_j_peak` | `025` | unresolved | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
+| `P_die` | `020` | 58.106 W | everything one compute die dissipates at the design point |
+| `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
+| `Q_total` | `024` | 5.86428e-05 m^3/s | volumetric flow through the whole machine |
+| `T_j_peak` | `025` | 318.883 K | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
 | `T_si_max` | `011` | 378 K | highest junction temperature the silicon is qualified to, 105 degrees |
 | `V_loop` | `027` | 223097 mm^3 | fluid in the whole circuit |
 | `cp_cumo` | `011` | 250 J/(kg*K) | specific heat capacity of the same |
 | `cp_si` | `011` | 705 J/(kg*K) | specific heat capacity of silicon at 300 K |
-| `dT_conv_local` | `025` | unresolved | convection rise directly over the array, where a tenth of the area carries seventy per cent of the heat |
-| `dT_hotspot` | `025` | unresolved | how much hotter the array is than the face average; this is what 005 calls the hot spot term |
-| `f_engine_area` | `025` | 0.104 | share of a compute die given to the multiplier array, from 041's floorplan |
-| `f_engine_power` | `025` | 0.7 | share of a die's heat the array makes |
+| `dT_conv_local` | `025` | 11.9314 K | convection rise directly over the array, where a tenth of the area carries seventy per cent of the heat |
+| `dT_hotspot` | `025` | 9.80003 K | how much hotter the array is than the face average; this is what 005 calls the hot spot term |
+| `f_engine_area` | `041` | 0.104 | and the share of its area, under the name 025 uses |
+| `f_engine_power` | `041` | 0.789509 | share of a die's heat the array makes, which 025's local term needs |
 | `f_solid_plate` | `013` | 0.75 | fraction of a cold plate that is silicon rather than channel |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `n_pane_core` | **nothing declares this** | — | — |
@@ -76,15 +76,15 @@ Change one of these and the blueprints beside it are what break.
 | `C_engine` | `026` |
 | `C_face` | `026` |
 | `R_engine` | `026` |
-| `tau_engine` | `026` |
-| `t_stage` | `026`, `037`, `039` |
+| `tau_engine` | `026`, `049` |
+| `t_stage` | `026`, `037`, `039`, `044`, `048` |
 | `dT_walk` | `026` |
 | `E_spout_burst` | `026` |
 | `dT_spout` | `026` |
 | `t_to_halt` | `026`, `027`, `033` |
 | `T_throttle` | `026` |
 | `T_halt` | `026` |
-| `t_lag_budget` | `026` |
+| `t_lag_budget` | `026`, `049` |
 
 ## What it asserts
 

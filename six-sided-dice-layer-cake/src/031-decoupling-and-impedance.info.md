@@ -13,34 +13,34 @@ Described by `404`.
 | `t_reg_resp` | s | given | 1e-08 s | how long an integrated regulator takes to respond to a load step |
 | `c_trench` | nF/mm^2 | measured | 100 nF/mm^2 | capacitance per unit area of a deep trench capacitor array in the interposer |
 | `n_ramp_cycle` | 1 | given | 64 | cycles over which 048 admits operands at the start of an operation |
-| `f_antires` | 1 | given | 3 | how far above the target impedance an unmitigated antiresonant peak sits, as a multiple |
-| `I_step_die` | A | derived | unresolved | current one die's multiplier array demands when it goes from idle to full |
-| `t_ramp` | s | derived | unresolved | how long the sequencer takes to get there |
-| `slew_raw` | A/s | derived | unresolved | current slew if the array started all at once, in one cycle |
-| `slew_ramped` | A/s | derived | unresolved | and with the ramp |
-| `C_raw` | F | derived | unresolved | decoupling one die would need with no ramp: the whole step, held for the regulator's whole response |
-| `C_ramped` | F | derived | unresolved | and with it: the deficit while the regulator catches a ramp is the area of a triangle rather than a rectangle |
-| `ramp_gain` | 1 | derived | unresolved | what the sixty-four cycles buy |
-| `A_trench_die` | mm^2 | derived | unresolved | interposer area one die's decoupling occupies |
-| `A_trench_all` | mm^2 | derived | unresolved | and all of it |
-| `f_trench_area` | 1 | derived | unresolved | that area as a share of the die it sits under |
-| `Z_target` | ohm | derived | unresolved | impedance the network must stay under across frequency |
-| `Z_peak` | ohm | derived | unresolved | where an unmitigated antiresonance would put it |
+| `f_antires` | 1 | given | 1.5 | how far above the target impedance a damped antiresonant peak sits. Three is what an undamped two-stage network gives, and it does not fit inside the rail's tolerance band -- so damping is a requirement here rather than a refinement |
+| `I_step_die` | A | derived | 61.1669 A | current one die's multiplier array demands when it goes from idle to full |
+| `t_ramp` | s | derived | 4.57143e-08 s | how long the sequencer takes to get there |
+| `slew_raw` | A/s | derived | 8.56337e+10 A/s | current slew if the array started all at once, in one cycle |
+| `slew_ramped` | A/s | derived | 1.33803e+09 A/s | and with the ramp |
+| `C_raw` | F | derived | 2.71853e-05 F | decoupling one die would need with no ramp: the whole step, held for the regulator's whole response |
+| `C_ramped` | F | derived | 2.97339e-06 F | and with it: the deficit while the regulator catches a ramp is the area of a triangle rather than a rectangle |
+| `ramp_gain` | 1 | derived | 9.14286 | what the sixty-four cycles buy |
+| `A_trench_die` | mm^2 | derived | 29.7339 mm^2 | interposer area one die's decoupling occupies |
+| `A_trench_all` | mm^2 | derived | 713.614 mm^2 | and all of it |
+| `f_trench_area` | 1 | derived | 0.0516214 | that area as a share of the die it sits under |
+| `Z_target` | ohm | derived | 0.000367846 ohm | impedance the network must stay under across frequency |
+| `Z_peak` | ohm | derived | 0.000551769 ohm | where an unmitigated antiresonance would put it |
 | `f_ramp_cost` | 1 | derived | unresolved | what the ramp costs as a share of the time a layer takes |
-| `E_stored` | J | derived | unresolved | energy held in the decoupling across the machine, which 033 has to discharge safely |
+| `E_stored` | J | derived | 2.00704e-05 J | energy held in the decoupling across the machine, which 033 has to discharge safely |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `A_die` | `012` | 576 mm^2 | area of one compute die |
-| `P_engine_die` | `020` | unresolved | switching power of one die's multiplier array at the design utilisation |
+| `P_engine_die` | `045` | 45.8752 W | switching power of one die's multiplier array at the design utilisation |
 | `V_logic` | `029` | 0.75 V | logic and multiplier arrays |
 | `dV_band` | `029` | 0.0375 V | the whole tolerance band the rail must stay inside |
 | `dV_droop_logic` | `029` | 0.0225 V | how far the logic rail may fall during a load step, which is what sizes the decoupling in 031 |
-| `f_face` | **nothing declares this** | — | — |
+| `f_face` | `045` | 1.4 GHz | the face clock |
 | `n_die` | `012` | 24 | compute dies in the machine |
-| `t_layer` | **nothing declares this** | — | — |
+| `t_layer` | `048` | unresolved | how long one layer takes |
 
 ## What consumes it
 
@@ -50,9 +50,9 @@ Change one of these and the blueprints beside it are what break.
 |---|---|
 | `t_reg_resp` | `031` |
 | `c_trench` | `031` |
-| `n_ramp_cycle` | `031` |
+| `n_ramp_cycle` | `031`, `048` |
 | `f_antires` | `031` |
-| `I_step_die` | `031` |
+| `I_step_die` | `031`, `045` |
 | `t_ramp` | `031` |
 | `slew_raw` | `031` |
 | `slew_ramped` | `031` |
@@ -64,7 +64,6 @@ Change one of these and the blueprints beside it are what break.
 | `Z_target` | `031` |
 | `Z_peak` | `031` |
 | `f_ramp_cost` | `031` |
-| `E_stored` | `033` |
 
 ## What it asserts
 

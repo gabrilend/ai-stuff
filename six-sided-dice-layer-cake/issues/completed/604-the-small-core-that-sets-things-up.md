@@ -4,7 +4,20 @@ Produces `src/044-scalar-core.md`.
 
 ## Current behavior
 
-Nothing. A scalar core has been mentioned and never described.
+**Done.** `src/044-scalar-core.md` exists, and the utilisation figure comes first
+because it justifies everything after it being small: four hundred instructions a
+token against a hundred and fifty microseconds of tensor work is well under a per
+cent busy.
+
+Four cores per face rather than one, and the arithmetic is in the blueprint
+rather than asserted — the area is under a fiftieth of a face and the alternative
+puts a link round trip inside a setup path that recurs thirteen times a token.
+
+Six constraints, all holding.
+
+**Nothing says what the core does when it is not working.** Ninety-nine per cent
+idle is ninety-nine per cent of a block that is still clocked and still leaking,
+twenty-four times over, and no clock-gating is specified.
 
 ## Intended behavior
 

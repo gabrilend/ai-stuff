@@ -69,7 +69,7 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `k_si` | `011`, `022`, `025` |
+| `k_si` | `011`, `022`, `025`, `041` |
 | `rho_si` | `013`, `026` |
 | `cp_si` | `026` |
 | `cte_si` | `011`, `018`, `036` |
