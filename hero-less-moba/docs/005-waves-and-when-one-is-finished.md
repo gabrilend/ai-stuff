@@ -10,11 +10,17 @@ A wave is not a column of identical soldiers. It carries **melee bodies, ranged
 bodies, and a captain** that is one or the other. *Settled; see
 [open questions](020-open-questions.md), F22.*
 
+**One captain per lane**, so a wave puts one into each of them — three per wave on
+a three-lane map. Every lane gets the commander's signature body, every wave,
+which means **no lane is ever the cheap one to ignore**: each carries a body worth
+three times an ordinary one in bounty, and a lane you never contest is a captain
+you never collect.
+
 | | Health | Damage | Reach |
 | --- | --- | --- | --- |
 | **melee** | 1× | 1× | small, nonzero |
 | **ranged** | 1× | 1× | stands off |
-| **captain** | **2.5×** | **1.5×** | whichever the captain is |
+| **captain** | **2.5×** | **1.5×** | whichever the captain is — **one per lane, every wave** |
 
 All three are `flavour = 1`, all three spawn together, and all three are stamped
 with the lane's upgrades — including the captain, which is what makes it a
