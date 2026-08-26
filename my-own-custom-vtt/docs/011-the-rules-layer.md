@@ -46,7 +46,7 @@ It **can**:
 | Capability | Shape |
 | --- | --- |
 | Read the world | Positions, facings, regions, walls. Read-only, and only through accessors that take an index. |
-| Own the sheets | The storage behind every thing's `sheet` index is the ruleset's, in whatever shape it likes. The server allocates and frees; it never reads. |
+| Own the sheets | The storage behind every thing's `sheet` index is the ruleset's, in whatever shape it likes. The server allocates and frees; it never reads. It may *copy* one — see below — which is a different act. |
 | Veto commands | Gate 5 of [the gauntlet](010-commands-enter-through-one-door.md). Returns permitted, or refused-with-a-sentence. |
 | Request changes | Ask the server to move a thing, flip a wall's bits, set `HIDDEN`. Requests, checked the same way a participant's are. |
 | Answer questions about knowledge | Given a viewer and a thing, which sheet fields may they know. See below. |
@@ -112,3 +112,57 @@ the roll was never on their machine.
 - [The dynamic picture](012-the-dynamic-picture.md) -- what `describe` feeds.
 - [Content is generated](013-content-is-generated.md) -- the other half of what a
   ruleset directory contains.
+
+
+## Sheets and rollback
+
+A world snapshot copies flat blocks of bytes, which is what makes it a memcpy. A
+sheet is a Lua table, which is not that — so for four phases a rolled-back turn
+restored every position, every wall, every fog bitmap and every dice position,
+and left the hit points where they were. **A rollback that looked like it
+worked.**
+
+It does not any more.
+
+Sheets are deep-copied at the head of every turn and copied back on a rollback.
+**The copier is Lua and lives in the registry**, where a ruleset cannot reach it,
+so nothing in C ever looks inside a sheet — the rule above stays literally true.
+C says "copy" and "put it back".
+
+The refinement worth stating plainly: *the server may copy a sheet; it may not
+interpret one.* Copying a value without asking what it means is not reading it in
+the sense that matters, and it is the same distinction the world file writer
+already relies on when it copies a `kind` it has no opinion about.
+
+### What a sheet may hold
+
+Numbers, strings, booleans, and tables of those, nested as deep as it likes.
+
+Not a function, a userdata or a coroutine, and not a table that points back at
+itself. Those are refused twice: once by a metatable at the moment they are
+stored, naming the field — so the author learns at the line that did it — and
+once by the copier, which is the authority, because a ruleset can call
+`setmetatable` and take the guard off.
+
+A cycle is refused rather than flattened. Flattening one silently turns what the
+ruleset stored into a different shape that looks similar, and the ruleset would go
+on using it as though nothing had happened.
+
+### What happens when a sheet cannot be copied
+
+That turn is not rollbackable, and `session_why_not_rollbackable` says which
+sheet and where:
+
+    the sheets could not be copied: sheet.2.attack holds a function
+
+**Not half-rollbackable.** The refusal happens before anything is restored, so the
+world is left exactly where it was — a rollback that restores geometry and not
+numbers is precisely the failure this replaced.
+
+And it does not stop play. That one turn cannot be taken back and everything else
+carries on, which is the same argument that makes an abandoned hook fail open
+rather than freezing an evening over one line of somebody's homebrew.
+
+See [073-sheet-copier.lua](../src/073-sheet-copier.lua), issue
+[703](../issues/completed/703-the-ruleset-owns-the-sheets.md), and open question
+14.1, which this answers.

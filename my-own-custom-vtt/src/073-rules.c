@@ -11,6 +11,7 @@
  */
 
 #include "073-rules.h"
+#include "073-embedded-copier.h"
 #include "070-scope.h"
 #include "031-region.h"
 
@@ -204,6 +205,49 @@ static int lua_tick(lua_State *L)
  * Sheets
  * ------------------------------------------------------------------------- */
 
+/* ------------------------------------------------------------------------- *
+ * Copying a sheet without reading it
+ *
+ * A rollback restores the world by copying flat bytes. A sheet is a Lua table,
+ * so it needs a different kind of copy -- and for four phases it simply did not
+ * get one, which was the largest known hole in the project.
+ *
+ * THE COPIER IS LUA, NOT C, and that is the point. It lives in the registry
+ * where a ruleset cannot reach it, and C only ever says "copy" and "put back".
+ * So the rule that the server never reads a sheet stays literally true: nothing
+ * in C ever looks inside one.
+ *
+ * IT REFUSES WHAT IT CANNOT COPY, by name and by path. The generic-serialisation
+ * option was rejected in issue 703 for "breaking quietly on a closure" -- and
+ * that is a property of one implementation of it, not of the idea. A copier can
+ * know perfectly well what it cannot copy. The whole difference between a good
+ * answer and a bad one is whether it says so.
+ * ------------------------------------------------------------------------- */
+
+/* {{{ static int install_the_copier */
+static int install_the_copier(lua_State *L, char *trouble, size_t capacity)
+{
+    if (luaL_loadstring(L, embedded_sheet_copier) != 0) {
+        snprintf(trouble, capacity, "the sheet copier would not compile: %s",
+                 lua_tostring(L, -1));
+        return 0;
+    }
+
+    if (lua_pcall(L, 0, 2, 0) != 0) {
+        snprintf(trouble, capacity, "the sheet copier would not run: %s",
+                 lua_tostring(L, -1));
+        return 0;
+    }
+
+    /* Two values back: the guard metatable, and the copy function. Both into the
+     * registry, which the sandbox cannot see. */
+    lua_setfield(L, LUA_REGISTRYINDEX, "vtt_sheet_copy");
+    lua_setfield(L, LUA_REGISTRYINDEX, "vtt_sheet_guard");
+
+    return 1;
+}
+/* }}} */
+
 /* {{{ static int lua_sheet */
 static int lua_sheet(lua_State *L)
 {
@@ -222,6 +266,11 @@ static int lua_sheet(lua_State *L)
     if (lua_isnil(L, -1)) {
         lua_pop(L, 1);
         lua_newtable(L);
+
+        /* The guard, so storing a function in a sheet fails at the line that
+         * did it rather than at the next rollback. */
+        lua_getfield(L, LUA_REGISTRYINDEX, "vtt_sheet_guard");
+        lua_setmetatable(L, -2);
 
         lua_pushinteger(L, (lua_Integer)index);
         lua_pushvalue(L, -2);
@@ -472,6 +521,16 @@ int rules_load(struct ruleset *r, struct world *w, struct sim *sim,
 
     lua_newtable(L);
     lua_setfield(L, LUA_REGISTRYINDEX, "vtt_sheets");
+
+    lua_newtable(L);
+    lua_setfield(L, LUA_REGISTRYINDEX, "vtt_sheet_snapshots");
+
+    if (!install_the_copier(L, trouble, sizeof(trouble))) {
+        snprintf(r->last_error, sizeof(r->last_error), "%.240s", trouble);
+        lua_close(L);
+        r->state = NULL;
+        return 0;
+    }
 
     install_window(L);
 
@@ -888,21 +947,146 @@ int rules_sheets_survive_rollback(const struct ruleset *r)
     (void)r;
 
     /*
-     * NO, AND THAT IS NOT HIDDEN.
+     * YES, SINCE THE FOURTH OPTION.
      *
-     * A world snapshot copies flat blocks of bytes, which is what makes it a
-     * memcpy. A Lua table is not that, so a rolled-back turn restores geometry
-     * and not hit points -- a rollback that LOOKS like it worked.
+     * For four phases this returned 0 and the phase 7 demo showed the hole
+     * happening, because a rollback that looks like it worked is worse than one
+     * that plainly did not. Three ways out had been written down and all three
+     * rejected -- and the second of them, "serialise the table generically", was
+     * rejected for breaking QUIETLY on a closure.
      *
-     * Three ways out, none taken: ruleset-provided snapshot hooks (every author
-     * must get it right, and one who does not produces a silent half-restore);
-     * generic serialisation (works only for plain data and breaks quietly on a
-     * closure); or accepting it (honest, cheap, and wrong in a way people will
-     * notice).
+     * That is a property of one implementation of it, not of the idea. A copier
+     * can know perfectly well what it cannot copy. So this one refuses, by name
+     * and by path, and a turn whose sheets could not be copied is marked
+     * not-rollbackable rather than half-restored.
      *
-     * Open question 14.1. Until then this function exists so a caller can SAY
-     * so rather than pretend.
+     * See rules_snapshot_sheets below, and issue 703, which was reopened to
+     * close this rather than a new issue being written beside it.
      */
-    return 0;
+    return 1;
+}
+/* }}} */
+
+/* {{{ int rules_snapshot_sheets */
+int rules_snapshot_sheets(struct ruleset *r, uint32_t turn, const char **why)
+{
+    lua_State *L = r->state;
+    int base;
+
+    *why = "";
+
+    if (L == NULL) {
+        return 1;    /* No ruleset means no sheets, which copies perfectly. */
+    }
+
+    base = lua_gettop(L);
+
+    lua_getfield(L, LUA_REGISTRYINDEX, "vtt_sheet_copy");
+    lua_getfield(L, LUA_REGISTRYINDEX, "vtt_sheets");
+    lua_pushstring(L, "sheet");
+    lua_newtable(L);                       /* the "seen" set, for cycles */
+
+    if (lua_pcall(L, 3, 2, 0) != 0) {
+        snprintf(r->last_error, sizeof(r->last_error),
+                 "the sheets could not be copied: %s", lua_tostring(L, -1));
+        *why = r->last_error;
+        lua_settop(L, base);
+        return 0;
+    }
+
+    /* Two returns: the copy, or nil and a sentence saying where it stopped. */
+    if (lua_isnil(L, -2)) {
+        snprintf(r->last_error, sizeof(r->last_error),
+                 "the sheets could not be copied: %s",
+                 lua_isstring(L, -1) ? lua_tostring(L, -1) : "no reason given");
+        *why = r->last_error;
+        lua_settop(L, base);
+        return 0;
+    }
+
+    lua_pop(L, 1);                         /* drop the empty reason */
+
+    lua_getfield(L, LUA_REGISTRYINDEX, "vtt_sheet_snapshots");
+    lua_pushinteger(L, (lua_Integer)turn);
+    lua_pushvalue(L, -3);
+    lua_rawset(L, -3);
+
+    lua_settop(L, base);
+    return 1;
+}
+/* }}} */
+
+/* {{{ int rules_restore_sheets */
+int rules_restore_sheets(struct ruleset *r, uint32_t turn, const char **why)
+{
+    lua_State *L = r->state;
+    int base;
+
+    *why = "";
+
+    if (L == NULL) {
+        return 1;
+    }
+
+    base = lua_gettop(L);
+
+    lua_getfield(L, LUA_REGISTRYINDEX, "vtt_sheet_snapshots");
+    lua_pushinteger(L, (lua_Integer)turn);
+    lua_rawget(L, -2);
+
+    if (lua_isnil(L, -1)) {
+        snprintf(r->last_error, sizeof(r->last_error),
+                 "there is no sheet snapshot for turn %u", (unsigned)turn);
+        *why = r->last_error;
+        lua_settop(L, base);
+        return 0;
+    }
+
+    /*
+     * Copied BACK rather than swapped in. The snapshot stays where it is, so a
+     * turn can be rolled back to twice -- which the replay path does when a
+     * retcon is followed by another one.
+     */
+    lua_getfield(L, LUA_REGISTRYINDEX, "vtt_sheet_copy");
+    lua_pushvalue(L, -2);
+    lua_pushstring(L, "sheet");
+    lua_newtable(L);
+
+    if (lua_pcall(L, 3, 2, 0) != 0 || lua_isnil(L, -2)) {
+        snprintf(r->last_error, sizeof(r->last_error),
+                 "the sheet snapshot could not be copied back");
+        *why = r->last_error;
+        lua_settop(L, base);
+        return 0;
+    }
+
+    lua_pop(L, 1);
+    lua_setfield(L, LUA_REGISTRYINDEX, "vtt_sheets");
+
+    lua_settop(L, base);
+    return 1;
+}
+/* }}} */
+
+/* {{{ void rules_forget_sheet_snapshot */
+void rules_forget_sheet_snapshot(struct ruleset *r, uint32_t turn)
+{
+    lua_State *L = r->state;
+
+    if (L == NULL) {
+        return;
+    }
+
+    /*
+     * A slot in the ring is being reused, so the sheets it held are unreachable
+     * and should stop being kept alive. Without this the snapshots table grows
+     * for the length of the session, holding every turn ever played -- which is
+     * a leak that only appears on a long evening.
+     */
+    lua_getfield(L, LUA_REGISTRYINDEX, "vtt_sheet_snapshots");
+    lua_pushinteger(L, (lua_Integer)turn);
+    lua_pushnil(L);
+    lua_rawset(L, -3);
+    lua_pop(L, 1);
 }
 /* }}} */

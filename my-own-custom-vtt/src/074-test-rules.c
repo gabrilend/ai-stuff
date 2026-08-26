@@ -11,6 +11,7 @@
 #include "020-test-harness.h"
 #include "073-rules.h"
 #include "037-fixture.h"
+#include "053-session.h"
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -308,6 +309,232 @@ static void test_no_hook_sends_nothing(void)
 }
 /* }}} */
 
+/*
+ * A rolled-back turn puts the hit points back.
+ *
+ * This was the largest known hole in the project for four phases: a rollback
+ * restored geometry and not sheets, so everybody returned to where they had been
+ * standing with their wounds intact. `rules_sheets_survive_rollback` returned 0
+ * so a caller could at least SAY so.
+ *
+ * Issue 703 was reopened rather than a new issue written beside it, because the
+ * fix belongs in the issue that built the storage.
+ */
+/* {{{ static void test_sheets_survive_a_rollback */
+static void test_sheets_survive_a_rollback(void)
+{
+    struct rig r;
+    const char *why = NULL;
+    const char *trouble = "";
+
+    TEST_CASE("a rolled-back turn puts the sheets back");
+
+    CHECK(rig_start(&r, RULESETS "/a-game-with-rules", &why) == 1);
+    CHECK_EQ(rules_sheets_survive_rollback(&r.rules), 1);
+
+    /* Somebody has ten hit points at the head of turn 1. */
+    CHECK_EQ(ruleset_says(&r,
+        "vtt.sheet(1).hp = 10; return vtt.sheet(1).hp == 10"), 1);
+
+    CHECK_EQ(rules_snapshot_sheets(&r.rules, 1, &trouble), 1);
+    CHECK(trouble[0] == '\0');
+
+    /* The fight goes badly. */
+    CHECK_EQ(ruleset_says(&r,
+        "vtt.sheet(1).hp = 2; return vtt.sheet(1).hp == 2"), 1);
+
+    /* And the turn is taken back. */
+    CHECK_EQ(rules_restore_sheets(&r.rules, 1, &trouble), 1);
+    CHECK_EQ(ruleset_says(&r, "return vtt.sheet(1).hp == 10"), 1);
+
+    TEST_CASE("a nested table in a sheet is copied, not shared");
+
+    CHECK_EQ(ruleset_says(&r,
+        "vtt.sheet(2).tags = { 'green', 'small' }; return true"), 1);
+    CHECK_EQ(rules_snapshot_sheets(&r.rules, 2, &trouble), 1);
+
+    CHECK_EQ(ruleset_says(&r, "vtt.sheet(2).tags[1] = 'red'; return true"), 1);
+    CHECK_EQ(rules_restore_sheets(&r.rules, 2, &trouble), 1);
+
+    /* If the copy had shared the inner table, the restore would put back a
+     * table that had already been edited -- which is a rollback that looks like
+     * it worked and is exactly the failure being fixed. */
+    CHECK_EQ(ruleset_says(&r, "return vtt.sheet(2).tags[1] == 'green'"), 1);
+
+    TEST_CASE("a turn can be rolled back to more than once");
+
+    CHECK_EQ(ruleset_says(&r, "vtt.sheet(1).hp = 1; return true"), 1);
+    CHECK_EQ(rules_restore_sheets(&r.rules, 1, &trouble), 1);
+    CHECK_EQ(ruleset_says(&r, "return vtt.sheet(1).hp == 10"), 1);
+
+    TEST_CASE("a snapshot nobody took cannot be restored");
+
+    CHECK_EQ(rules_restore_sheets(&r.rules, 99, &trouble), 0);
+    CHECK(strstr(trouble, "99") != NULL);
+
+    rig_stop(&r);
+}
+/* }}} */
+
+/*
+ * And what cannot be copied is refused, twice: where it is stored, and where it
+ * would be copied.
+ */
+/* {{{ static void test_an_uncopyable_sheet */
+static void test_an_uncopyable_sheet(void)
+{
+    struct rig r;
+    const char *why = NULL;
+    const char *trouble = "";
+
+    TEST_CASE("storing a function in a sheet fails at the line that did it");
+
+    CHECK(rig_start(&r, RULESETS "/a-game-with-rules", &why) == 1);
+
+    /* The guard refuses it, so the assignment itself raises. */
+    CHECK_EQ(ruleset_says(&r,
+        "local ok = pcall(function() vtt.sheet(1).attack = function() end end);"
+        " return ok == false"), 1);
+
+    /* And nothing was stored. */
+    CHECK_EQ(ruleset_says(&r, "return vtt.sheet(1).attack == nil"), 1);
+
+    TEST_CASE("and the copier refuses it even with the guard removed");
+
+    /*
+     * A ruleset can call setmetatable and take the guard off. The guard is for
+     * the error message; the copier is the authority, and this is the check that
+     * says so.
+     */
+    CHECK_EQ(ruleset_says(&r,
+        "setmetatable(vtt.sheet(1), nil);"
+        " rawset(vtt.sheet(1), 'attack', function() end); return true"), 1);
+
+    CHECK_EQ(rules_snapshot_sheets(&r.rules, 5, &trouble), 0);
+    CHECK(strstr(trouble, "function") != NULL);
+    CHECK(strstr(trouble, "attack") != NULL);
+
+    TEST_CASE("a sheet that points at itself is refused, not flattened");
+
+    CHECK(rig_start(&r, RULESETS "/a-game-with-rules", &why) == 1);
+    CHECK_EQ(ruleset_says(&r,
+        "local s = vtt.sheet(1); s.me = s; return true"), 1);
+
+    CHECK_EQ(rules_snapshot_sheets(&r.rules, 6, &trouble), 0);
+    CHECK(strstr(trouble, "points back at itself") != NULL);
+
+    rig_stop(&r);
+}
+/* }}} */
+
+/*
+ * The whole path, through a real session: a turn opens, a sheet changes, the
+ * turn is taken back, and the sheet is what it was.
+ *
+ * The tests above exercise the copier directly. This one goes through
+ * session_rollback, which is what an actual retcon calls -- because a copier
+ * that works and a rollback that does not call it is the same hole with an extra
+ * function in it.
+ */
+/* {{{ static void test_a_real_rollback_restores_the_sheets */
+static void test_a_real_rollback_restores_the_sheets(void)
+{
+    struct world w;
+    struct pool *threads = pool_start(1);
+    struct session s;
+    struct ruleset rules;
+    const char *why = NULL;
+    int beat;
+
+    TEST_CASE("a retcon through the session puts the sheets back");
+
+    fixture_make_two_rooms(&w);
+    CHECK_EQ(session_start(&s, &w, threads, 4207, 8, 5), 1);
+
+    CHECK_EQ(rules_load(&rules, &w, &s.sim, RULESETS "/a-game-with-rules", &why), 1);
+    session_attach_rules(&s, &rules);
+
+    /* Turn 1 opens with ten hit points. */
+    for (beat = 0; beat < 5; beat++) {
+        session_tick(&s);
+    }
+
+    {
+        lua_State *L = rules.state;
+
+        CHECK_EQ(luaL_loadstring(L, "vtt.sheet(1).hp = 10"), 0);
+        CHECK_EQ(lua_pcall(L, 0, 0, 0), 0);
+    }
+
+    /* A turn passes, and the fight goes badly. */
+    for (beat = 0; beat < 5; beat++) {
+        session_tick(&s);
+    }
+
+    {
+        lua_State *L = rules.state;
+
+        CHECK_EQ(luaL_loadstring(L, "vtt.sheet(1).hp = 2"), 0);
+        CHECK_EQ(lua_pcall(L, 0, 0, 0), 0);
+    }
+
+    CHECK(s.turn >= 1);
+    CHECK_EQ(session_can_roll_back_to(&s, s.turn), 1);
+    CHECK(session_why_not_rollbackable(&s, s.turn)[0] == '\0');
+
+    CHECK_EQ(session_rollback(&s, s.turn, ROLLBACK_REDECLARE), 1);
+
+    {
+        lua_State *L = rules.state;
+        int restored = 0;
+
+        CHECK_EQ(luaL_loadstring(L, "return vtt.sheet(1).hp"), 0);
+        CHECK_EQ(lua_pcall(L, 0, 1, 0), 0);
+        restored = (int)lua_tointeger(L, -1);
+        lua_pop(L, 1);
+
+        /*
+         * Ten, not two. For four phases this was two, and the demo showed it
+         * happening because a rollback that looks like it worked is worse than
+         * one that plainly did not.
+         */
+        CHECK_EQ(restored, 10);
+    }
+
+    TEST_CASE("a turn whose sheets could not be copied is not rollbackable");
+
+    {
+        lua_State *L = rules.state;
+        uint32_t turn_with_a_closure;
+
+        /* The guard removed and a function stored underneath it, which is the
+         * only way to get an uncopyable sheet. */
+        CHECK_EQ(luaL_loadstring(L,
+            "setmetatable(vtt.sheet(2), nil);"
+            " rawset(vtt.sheet(2), 'attack', function() end)"), 0);
+        CHECK_EQ(lua_pcall(L, 0, 0, 0), 0);
+
+        for (beat = 0; beat < 5; beat++) {
+            session_tick(&s);
+        }
+
+        turn_with_a_closure = s.turn;
+
+        /* Refused, and it says which sheet and where. Not half-restored: the
+         * whole point is that the world is left exactly where it was. */
+        CHECK_EQ(session_can_roll_back_to(&s, turn_with_a_closure), 0);
+        CHECK(strstr(session_why_not_rollbackable(&s, turn_with_a_closure),
+                     "attack") != NULL);
+        CHECK_EQ(session_rollback(&s, turn_with_a_closure, ROLLBACK_REDECLARE), 0);
+    }
+
+    rules_release(&rules);
+    session_release(&s);
+    world_release(&w);
+    pool_stop(threads);
+}
+/* }}} */
+
 /* {{{ int main */
 int main(void)
 {
@@ -315,6 +542,9 @@ int main(void)
     test_the_window_is_narrow();
     test_the_two_rulesets_disagree();
     test_no_hook_sends_nothing();
+    test_sheets_survive_a_rollback();
+    test_an_uncopyable_sheet();
+    test_a_real_rollback_restores_the_sheets();
 
     return vtt_test_finish("074-test-rules");
 }
