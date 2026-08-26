@@ -4,8 +4,24 @@ Produces `src/035-core-bitcell-and-macro.md`.
 
 ## Current behavior
 
-Nothing. One and a half megabytes per square millimetre is used in the capacity
-chain and has no basis written down.
+**Done.** `src/035-core-bitcell-and-macro.md` exists and builds the density in
+the open — bitcell area, array efficiency, tier overhead — rather than quoting a
+figure, which is what the ticket asked for and what let `034` discover that
+thirty-two tiers was too many.
+
+It comes out near two megabytes per square millimetre and is checked against a
+shipping stacked cache die at an older node, which reaches about one and three
+quarters with a comparable arrangement. Being within a factor of two of a real
+part is a weaker claim than a derivation and a much stronger one than a number.
+
+Six constraints. The read stability one takes all three worst conditions at once
+— lowest voltage, highest temperature, slowest process — because a check at any
+one of them is a check of nothing.
+
+**Two things are unsolid.** The tier overhead is a `given` including a via count
+`036` had not settled, and the whole machine's capacity is proportional to it.
+And access time is one number for a forty millimetre die, when a read from the
+far corner is not the same as one from the middle.
 
 ## Intended behavior
 

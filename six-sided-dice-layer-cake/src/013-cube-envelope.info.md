@@ -26,17 +26,17 @@ Described by `201`.
 | `f_solid_corner` | 1 | given | 0.55 | fraction of a corner block that is metal rather than chamber |
 | `rho_cage` | kg/m^3 | given | 3000 kg/m^3 | mean density of the cage shell, silicon and copper and void together |
 | `m_ports` | kg | given | 0.15 kg | port fields, regulators and connectors on all six faces, weighed as an assembly |
-| `m_laminae` | kg | derived | unresolved | the thirty-two cooling plates inside the core, which are most of the machine's mass |
-| `m_tiers` | kg | derived | unresolved | the thirty-two memory tiers between them |
+| `m_laminae` | kg | derived | 0.620928 kg | the thirty-two cooling plates inside the core, which are most of the machine's mass |
+| `m_tiers` | kg | derived | 0.00447168 kg | the thirty-two memory tiers between them |
 | `m_coldplate` | kg | derived | 0.0566785 kg | six silicon cold plates, less the channels etched out of them |
 | `m_dies` | kg | derived | 0.00321961 kg | twenty-four compute dies |
 | `m_interposer` | kg | derived | 0.06084 kg | six face interposers |
 | `m_rails` | kg | derived | 0.0473242 kg | twelve edge rails |
 | `m_corners` | kg | derived | 0.0600653 kg | eight corner manifold blocks |
 | `m_cage` | kg | derived | 0.100008 kg | the switch shell filling the space between the cavity wall and the core |
-| `m_coolant` | kg | derived | unresolved | the fluid standing in the machine when it is running |
-| `m_cube` | kg | derived | unresolved | the finished object, wet |
-| `rho_mean` | kg/m^3 | derived | unresolved | mean density of the whole machine |
+| `m_coolant` | kg | derived | 0.0228433 kg | the fluid standing in the machine when it is running |
+| `m_cube` | kg | derived | 1.12638 kg | the finished object, wet |
+| `rho_mean` | kg/m^3 | derived | 5214.72 kg/m^3 | mean density of the whole machine |
 
 ## What it consumes
 
@@ -49,19 +49,19 @@ Described by `201`.
 | `L_core` | `012` | 40 mm | edge of the memory block the cage encloses |
 | `L_cube` | `012` | 60 mm | outer edge length of the finished cube; follows from the four dimensions below it in the chain |
 | `L_plate` | `012` | 52 mm | edge of a face plate, once the edge rails are taken off |
-| `V_coolant` | `024` | unresolved | all of it, which is what 013 weighs and 027 has to make up when it leaks |
+| `V_coolant` | `024` | 23097.4 mm^3 | all of it, which is what 013 weighs and 027 has to make up when it leaks |
 | `V_cube` | `012` | 216000 mm^3 | volume of the whole object |
 | `n_corner` | `010` | 8 | corners of the cube, each a coolant manifold block |
 | `n_die` | `012` | 24 | compute dies in the machine |
 | `n_edge` | `010` | 12 | edges, each carrying a supply and a return channel |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
-| `n_tier` | **nothing declares this** | — | — |
+| `n_tier` | `036` | 24 | memory tiers in the stack. Twenty-four rather than the thirty-two first sketched, because at the density 035 derives, thirty-two holds half again what is needed |
 | `rho_cumo` | `011` | 10000 kg/m^3 | density of the same |
 | `rho_si` | `011` | 2329 kg/m^3 | density of silicon at 300 K |
 | `rho_ss` | `011` | 7900 kg/m^3 | density of stainless steel |
 | `rho_water` | `011` | 989 kg/m^3 | density of water at 320 K, the mean coolant temperature |
 | `seal_compression_range` | `017` | 0.375 mm | the band of gap variation a groove can take up while still sealing |
-| `t_lamina` | `012` | 1.2 mm | thickness of one cooling lamina between two tiers, set by the core's heat in 036 |
+| `t_lamina` | `012` | 1.617 mm | thickness of one cooling lamina between two tiers. It is what is left of the core's height once twenty-four tiers are laid in it, and the tier count came out of 034's capacity chain rather than being chosen |
 | `t_tier_si` | `012` | 0.05 mm | thickness of one thinned memory tier; as thin as a tier can be handled |
 | `w_rail` | `012` | 4 mm | width of an edge rail, taken off each edge of each face plate; sized by the duct area 024 needs |
 

@@ -39,7 +39,7 @@ Described by `406`.
 | `n_die` | `012` | 24 | compute dies in the machine |
 | `n_domain` | `029` | 5 | supply domains |
 | `t_to_halt` | `026` | unresolved | how long the machine has, from the design operating point, if all cooling stops at once |
-| `t_write_max` | **nothing declares this** | — | — |
+| `t_write_max` | `039` | 6.4e+09 ns | the longest a write can be in flight: its own release, the array's access, and the worst the arbiter can make it wait. 033's brownout hold-up is sized from this |
 | `tol_rail` | `029` | 0.05 | fractional tolerance band on every rail, worst case over the operating range |
 
 ## What consumes it
@@ -58,7 +58,7 @@ Change one of these and the blueprints beside it are what break.
 | `t_lock` | `033` |
 | `E_holdup` | `033` |
 | `C_array_holdup` | `033` |
-| `t_holdup` | `033` |
+| `t_holdup` | `033`, `039` |
 | `t_down_emerg` | `033` |
 | `t_powerup_max` | `033` |
 

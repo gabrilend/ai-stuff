@@ -64,7 +64,7 @@ Change one of these and the blueprints beside it are what break.
 |---|---|
 | `f_engine_area` | `025`, `026` |
 | `f_engine_power` | `025`, `026` |
-| `dT_conv_max` | `022`, `025` |
+| `dT_conv_max` | `022`, `025`, `036` |
 | `T_room` | `027` |
 | `R_die` | `025` |
 | `R_plate_base` | `025` |

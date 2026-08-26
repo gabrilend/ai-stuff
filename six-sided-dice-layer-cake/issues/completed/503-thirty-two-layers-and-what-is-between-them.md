@@ -4,8 +4,26 @@ Produces `src/036-core-tier-and-stack.md`.
 
 ## Current behavior
 
-Nothing. The core has been described as thirty-two tiers laminated with copper
-plates and the lamination has never been drawn.
+**Done.** `src/036-core-tier-and-stack.md` exists, and the through-stack via
+turned out to be the hard part exactly as `009` entry M5 suspected.
+
+A via running the full forty millimetres is not a via — it is a resistance and a
+capacitance in series, and its time constant goes as the reciprocal of its area.
+Three microns was hopeless, five settled in two hundred and eleven picoseconds
+against a two hundred picosecond budget, and seven gives a hundred and eight.
+Copper rather than tungsten, because three times the resistivity over forty
+millimetres is the difference between settling inside a core cycle and not. **The
+decision is taken and the alternative was never costed**, which is what `009`
+entry M5 now records.
+
+Seven constraints, including the other half of the two-chain check with `012`.
+
+**Two manual unit conversions in one derivation** made a tier's temperature rise
+come out a thousand times too large. Both were dimensionless literals and
+therefore silent.
+
+**The core's coolant enters through the cage and the cage's plumbing is not
+drawn at all.**
 
 ## Intended behavior
 

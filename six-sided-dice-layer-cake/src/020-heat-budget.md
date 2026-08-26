@@ -78,11 +78,11 @@ T_j_assumed   | K        | given    | 314.0 | junction temperature the leakage t
 
 # --- what the memory spends -------------------------------------------------
 E_core_bit    | pJ/bit   | measured | 0.480 | energy to read one bit out of a core tier, array and tier routing together
-P_core_leak   | W        | given    | 40.0  | retention leakage of all thirty-two tiers at the operating temperature
+P_core_leak   | W        | given    | 12.74 | retention leakage of all twenty-four tiers at the operating temperature, from the per-cell figure 035 carries
 
 # --- what the switch spends -------------------------------------------------
 E_link_bit    | pJ/bit   | measured | 0.100 | energy to move one bit across a radial link, driver and receiver together
-P_crossbar    | W        | given    | 39.0  | the cage's switch fabric at full traffic
+P_crossbar    | W        | given    | 13.82 | the cage's switch fabric at full traffic. Thirty-nine was an estimate before 037 had a per-bit figure; the constraint that compares the two is what corrected it
 P_ports       | W        | given    | 10.0  | six port fields, storage lines and the spout, averaged; the spout's burst is an energy and lives in 026
 
 # --- conversion, which is inside the cube and therefore inside the budget ----

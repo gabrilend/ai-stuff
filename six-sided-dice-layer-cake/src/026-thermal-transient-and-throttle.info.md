@@ -16,7 +16,7 @@ Described by `307`.
 | `t_throttle` | s | given | 1e-05 s | time from the throttle threshold being crossed to engine activity falling |
 | `C_engine` | J/K | derived | 0.00983591 J/K | thermal mass of the silicon directly under one die's multiplier array |
 | `C_face` | J/K | derived | 7.03803 J/K | thermal mass of one face assembly, cold plate and dies |
-| `C_core` | J/K | derived | unresolved | thermal mass of the core stack |
+| `C_core` | J/K | derived | 158.385 J/K | thermal mass of the core stack |
 | `R_engine` | K/W | derived | unresolved | thermal resistance from the array to the fluid, from 025's local term |
 | `tau_engine` | s | derived | unresolved | how long the array takes to reach its steady temperature. The number that decides whether any of the fast transients matter |
 | `tau_loop` | s | derived | unresolved | transport delay round the external circuit |
@@ -42,7 +42,7 @@ Described by `307`.
 | `Q_total` | `024` | unresolved | volumetric flow through the whole machine |
 | `T_j_peak` | `025` | unresolved | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
 | `T_si_max` | `011` | 378 K | highest junction temperature the silicon is qualified to, 105 degrees |
-| `V_loop` | `027` | unresolved | fluid in the whole circuit |
+| `V_loop` | `027` | 223097 mm^3 | fluid in the whole circuit |
 | `cp_cumo` | `011` | 250 J/(kg*K) | specific heat capacity of the same |
 | `cp_si` | `011` | 705 J/(kg*K) | specific heat capacity of silicon at 300 K |
 | `dT_conv_local` | `025` | unresolved | convection rise directly over the array, where a tenth of the area carries seventy per cent of the heat |
@@ -53,13 +53,13 @@ Described by `307`.
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `n_pane_core` | **nothing declares this** | — | — |
 | `n_stage` | `010` | 6 | pipeline stages a token falls through, one per face |
-| `n_tier` | **nothing declares this** | — | — |
+| `n_tier` | `036` | 24 | memory tiers in the stack. Twenty-four rather than the thirty-two first sketched, because at the density 035 derives, thirty-two holds half again what is needed |
 | `rho_cumo` | `011` | 10000 kg/m^3 | density of the same |
 | `rho_si` | `011` | 2329 kg/m^3 | density of silicon at 300 K |
 | `t_coldplate` | `013` | 2 mm | thickness of a face cold plate, base and channels and cover together |
 | `t_die` | `013` | 0.1 mm | thickness of a compute die after thinning |
 | `t_interlock` | `027` | 0.1 s | from flow loss detected to power removed |
-| `t_lamina` | `012` | 1.2 mm | thickness of one cooling lamina between two tiers, set by the core's heat in 036 |
+| `t_lamina` | `012` | 1.617 mm | thickness of one cooling lamina between two tiers. It is what is left of the core's height once twenty-four tiers are laid in it, and the tier count came out of 034's capacity chain rather than being chosen |
 | `t_tier_si` | `012` | 0.05 mm | thickness of one thinned memory tier; as thin as a tier can be handled |
 | `t_token` | **nothing declares this** | — | — |
 
@@ -77,7 +77,7 @@ Change one of these and the blueprints beside it are what break.
 | `C_face` | `026` |
 | `R_engine` | `026` |
 | `tau_engine` | `026` |
-| `t_stage` | `026` |
+| `t_stage` | `026`, `037`, `039` |
 | `dT_walk` | `026` |
 | `E_spout_burst` | `026` |
 | `dT_spout` | `026` |

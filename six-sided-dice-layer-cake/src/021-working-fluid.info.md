@@ -58,7 +58,7 @@ Change one of these and the blueprints beside it are what break.
 | `fluid_is_water` | `021` |
 | `rho_fluid` | `024` |
 | `cp_fluid` | `021` |
-| `k_fluid` | `021`, `022` |
+| `k_fluid` | `021`, `022`, `036` |
 | `mu_fluid` | `021`, `024` |
 | `T_frz_fluid` | `021` |
 | `T_fluid_min` | `021` |

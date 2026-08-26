@@ -20,15 +20,15 @@ Described by `308`.
 | `t_service_int` | s | given | 3.15e+07 s | interval between services, one year |
 | `n_pump` | 1 | given | 2 | pumps, one running and one held |
 | `beta_water` | 1/K | measured | 0.0004 1/K | volumetric thermal expansion of water near the operating temperature |
-| `V_loop` | mm^3 | derived | unresolved | fluid in the whole circuit |
+| `V_loop` | mm^3 | derived | 223097 mm^3 | fluid in the whole circuit |
 | `dT_rad` | K | derived | unresolved | temperature the coolant must sit above the room for the radiator to reject the heat |
 | `T_in_no_chill` | K | derived | unresolved | the coldest inlet an air-cooled radiator alone can produce |
 | `needs_chiller` | 1 | derived | unresolved | one if the requested inlet is colder than a radiator can manage, zero otherwise |
 | `T_j_no_chill` | K | derived | unresolved | junction temperature if the chiller is removed and the inlet allowed to float to what the radiator gives |
 | `margin_no_chill` | K | derived | unresolved | and how much margin is left after doing that |
-| `V_expansion` | mm^3 | derived | unresolved | fluid volume change over the operating range, taken over four times the design rise to cover a cold start |
-| `Q_leak_max` | m^3/s | derived | unresolved | volumetric loss the reservoir can absorb over one service interval once thermal expansion and service spillage are allowed for |
-| `V_makeup` | mm^3 | derived | unresolved | reservoir capacity left over for leakage, once expansion and the spillage 019 loses at every coupling are taken out |
+| `V_expansion` | mm^3 | derived | 2784.26 mm^3 | fluid volume change over the operating range, taken over four times the design rise to cover a cold start |
+| `Q_leak_max` | m^3/s | derived | 1.37193e-12 m^3/s | volumetric loss the reservoir can absorb over one service interval once thermal expansion and service spillage are allowed for |
+| `V_makeup` | mm^3 | derived | 43215.7 mm^3 | reservoir capacity left over for leakage, once expansion and the spillage 019 loses at every coupling are taken out |
 | `dp_ext` | Pa | derived | 27000 Pa | pressure the external circuit costs when the filter is at the end of its life |
 | `dp_rad` | Pa | given | 8000 Pa | pressure across the radiator core at design flow |
 | `dp_tube` | Pa | given | 4000 Pa | pressure across the tubing and fittings |
@@ -48,7 +48,7 @@ Described by `308`.
 | `T_j_peak` | `025` | unresolved | junction temperature at the hottest point of the hottest die on the worst-served face, with the coolant at its outlet temperature |
 | `T_room` | `025` | 295 K | air the radiator rejects into |
 | `T_si_max` | `011` | 378 K | highest junction temperature the silicon is qualified to, 105 degrees |
-| `V_coolant` | `024` | unresolved | all of it, which is what 013 weighs and 027 has to make up when it leaks |
+| `V_coolant` | `024` | 23097.4 mm^3 | all of it, which is what 013 weighs and 027 has to make up when it leaks |
 | `V_spill_life` | `019` | 4000 mm^3 | fluid lost over the installation's life |
 | `dT_rise` | `021` | 7.8 K | design temperature rise of the coolant across the cube; a choice, and the one that sets the flow |
 | `dp_loop` | `024` | unresolved | the whole circuit inside the cube, one path from a fed corner to a drained one |

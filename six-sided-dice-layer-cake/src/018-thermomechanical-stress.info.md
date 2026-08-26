@@ -56,14 +56,14 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `dT_assembly` | `018` |
-| `dT_power` | `018` |
+| `dT_power` | `018`, `036` |
 | `bow_coeff` | `018` |
 | `strain_tier` | `018` |
 | `strain_glass` | `018` |
 | `strain_plate` | `018` |
 | `strain_cu_alt` | `018` |
 | `disp_tier` | `018` |
-| `disp_cu_alt` | `018` |
+| `disp_cu_alt` | `018`, `036` |
 | `sigma_tier` | `018` |
 | `sigma_glass` | `018` |
 | `sigma_cu_alt` | `018` |
