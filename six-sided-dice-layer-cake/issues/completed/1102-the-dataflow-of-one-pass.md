@@ -4,8 +4,24 @@ Produces `src/076-token-flow.md`.
 
 ## Current behavior
 
-`003` tells this as a story. No blueprint states it as a dataflow with sizes on
-every arrow.
+**Done.** `src/076-token-flow.md` exists with every tensor of a layer sized from
+the model shape, and every arrow marked as batch-scaling or not -- because getting
+one wrong is how a performance model comes out a factor of thirty wrong.
+
+Five constraints. `C-076-1` is a genuine two-route check: `078` derives a layer's
+size from a parameter count and this derives it from the tensors themselves, and
+a shape error in either shows up here.
+
+`C-076-4` finds the context length at which cache traffic overtakes weight
+traffic. **Past that point the machine is a different machine**, and this is the
+only place in the project that says where the point is.
+
+**A distinction had to be introduced that nothing else had noticed**: cache
+traffic per sequence and cache traffic per batch are different numbers, and three
+blueprints had been using one where they meant the other.
+
+**Attention's own arithmetic is not counted.** It scales with context rather than
+parameter count, and `080` inherits the omission.
 
 ## Intended behavior
 

@@ -76,7 +76,10 @@ f_poll_backoff| 1 | given | 0.01   | share of a stage a polling face spends actu
 tol_stage     | 1 | given | 0.05   | how unequal the six stages may be before the slowest visibly sets the rate
 f_end_rate    | 1 | given | 0.02   | share of steps in which some sequence in the batch produces an end marker
 
-t_token       | s | derived | C_weights / B_core           | time for one token, bandwidth-bound: every weight read once at the core's aggregate rate
+t_token       | s | derived | (C_weights + B_kv_seq) / B_core | time for one token of one sequence, bandwidth-bound: every weight once, plus that sequence's cache
+t_step        | s | derived | (C_weights + B_kv_tok) / B_core | and for one step of a whole batch, where the weights are read once for everybody and the cache is read for each
+t_layer_comp  | s | derived | batch_design * 2 * p_layer * n_flop_mac / 2 / ops_face | how long one layer's arithmetic takes at the design batch, which is what a prefetch actually has to hide behind
+ops_face      | flop/s | derived | ops_die * n_die_face * eta_array_util | arithmetic one face actually delivers
 t_stage       | s | derived | t_token / n_stage                  | how long one face works before the sieve moves on
 t_token_comp  | s | derived | batch_design * flop_token / ops_machine | and what one step would take if arithmetic were the wall
 C_stage_buf   | MB | derived | C_activation * batch_design / n_microbatch | one staging buffer: a microbatch of activation vectors

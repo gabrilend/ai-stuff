@@ -307,3 +307,34 @@ literal is dimensionless prevents an unlabelled quantity entering a derivation a
 does nothing whatever about a labelled one being converted twice. A checker that
 reported every dimensionless literal above ten as a warning would have caught all
 twenty-seven, and `095` should have one.
+
+**2026-08-26 — cache traffic split into per-sequence and per-batch.** `076`, and
+it moved four other blueprints. Key and value traffic scales with batch; weight
+traffic does not. Three blueprints had been using one number where they meant the
+other, which made single-stream latency and batched throughput the same
+calculation when they are not. Single-stream token time now carries one
+sequence's cache; a batched step carries the whole batch's.
+
+**2026-08-26 — aggregate throughput, ~31,000 tok/s estimated to 19,500 derived.**
+`080`. The phase 0 estimate omitted cache traffic altogether, which at the
+reference context and batch is a substantial share of a step. Single-stream
+latency is nearly unchanged, at about a thousand tokens a second against the
+eleven hundred estimated.
+
+**2026-08-26 — the layer time used by the prefetch was from the wrong regime.**
+`048`, `060`, `061`. A prefetch was being asked to hide behind a layer time
+derived from memory traffic, which is circular: below the crossover the prefetch
+and the compute it hides behind are the *same* traffic and cannot overlap at all.
+Double buffering earns itself above the crossover, where arithmetic is the wall
+and the transfer runs underneath it. The layer time is now the arithmetic time,
+and the prefetch has about a fifth of it in hand.
+
+**2026-08-26 — the accumulator check was against a row rather than a reduction.**
+`045`, corrected by `077`. The multiplier array accumulates across many passes, so
+the longest reduction is the model's widest tensor and not the width of one row.
+The headroom is still ample and the check now measures the right thing.
+
+**2026-08-26 — the crossover's cache correction had its sign wrong.** `079`.
+Including the cache was assumed to lower the crossover, on the reasoning that more
+memory traffic brings the memory wall sooner. It raises it: cache traffic scales
+with batch, so it lifts both lines and the arithmetic one has further to climb.

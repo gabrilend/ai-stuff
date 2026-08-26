@@ -4,8 +4,22 @@ Produces `src/079-batching-and-occupancy.md`.
 
 ## Current behavior
 
-Nothing. A crossover batch of about twenty-eight is cited in six documents and
-derived in none.
+**Done.** `src/079-batching-and-occupancy.md` exists with the one-line derivation
+first and the three corrections after it.
+
+Six constraints. `C-079-1` is the check that says the machine is balanced rather
+than accidentally sized: `047` chose the batch to provision the slice for, this
+derives the crossover from bandwidth and arithmetic, and the two arrive at the
+same number within fifteen per cent by completely different routes.
+
+**One correction had its sign wrong and the checker found it.** Including the
+cache was assumed to *lower* the crossover, on the reasoning that more memory
+traffic means the memory wall arrives sooner. It raises it: cache traffic scales
+with batch, so it lifts both lines and the arithmetic one has further to climb.
+
+**The array utilisation is a `given`** -- what a weights-stationary array achieves
+when tile reloads are not perfectly overlapped, and `045` has not said whether
+they are. **And the starved region is named without being bounded.**
 
 ## Intended behavior
 

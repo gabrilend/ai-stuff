@@ -19,7 +19,7 @@ Described by `910`.
 | `B_host_seq` | bit/s | derived | 5.67539e+13 bit/s | sustained rate on sequential reads, one pane at a time |
 | `t_cube_per_req` | s | derived | 5.46133e-08 s | core time one host request costs |
 | `f_cube_cost` | 1 | derived | 0.00546133 | share of the core's time spent serving a host at the stated request rate |
-| `t_load_host` | s | derived | unresolved | how long loading a model through this path takes, against 057's thirty milliseconds from drives |
+| `t_load_host` | s | derived | 0.0051276 s | how long loading a model through this path takes, against 057's thirty milliseconds from drives |
 | `ratio_dram` | 1 | derived | 3.69517 | how much slower than a host's own memory, which is the comparison that decides what this is for |
 | `t_dram_ref` | ns | measured | 80 ns | latency of a host's own attached memory, as the comparison |
 
@@ -28,7 +28,7 @@ Described by `910`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `C_core_usable` | `034` | 71.9454 GB | what a model may actually use |
-| `C_weights` | **nothing declares this** | — | — |
+| `C_weights` | `078` | 36.3764 GB | the weights, resident, at the format in 046 |
 | `n_pane_bit` | `062` | 1.67772e+07 bit | the pane, rounded down to a power of two so that its window aligns naturally in 038. It carries the unit because it is a quantity of bits rather than a count of things, and everything downstream of it is a size or a rate |
 | `t_load_max` | `057` | 0.1 s | the longest filling the core may take. A tenth of a second is what somebody starting a machine will not notice; the design comes in well under it |
 | `t_pane_empty` | `062` | 1e-09 s | how long the spout takes to empty it |

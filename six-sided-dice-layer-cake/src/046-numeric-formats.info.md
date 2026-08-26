@@ -31,9 +31,9 @@ Described by `606`.
 
 | symbol | from | value | meaning |
 |---|---|---|---|
-| `C_weights` | **nothing declares this** | — | — |
+| `C_weights` | `078` | 36.3764 GB | the weights, resident, at the format in 046 |
 | `n_lut_entry` | `045` | 16 | entries in the shared expansion table one group of weights indexes |
-| `n_param` | **nothing declares this** | — | — |
+| `n_param` | `078` | 7.05482e+10 | the whole model |
 | `w_acc` | `045` | 32 bit | accumulator width |
 
 ## What consumes it
@@ -42,19 +42,19 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `b1` | `045`, `046`, `049`, `062`, `063`, `064`, `065`, `068`, `069`, `069a`, `072` |
-| `w_weight` | `045`, `046` |
-| `n_group` | `046` |
-| `w_scale` | `046` |
-| `w_act` | `045`, `046`, `058` |
+| `b1` | `045`, `046`, `049`, `062`, `063`, `064`, `065`, `068`, `069`, `069a`, `072`, `077` |
+| `w_weight` | `045`, `046`, `077` |
+| `n_group` | `046`, `077` |
+| `w_scale` | `046`, `077` |
+| `w_act` | `045`, `046`, `058`, `076`, `076a`, `078` |
 | `w_operand` | `046` |
-| `w_kv` | `046` |
+| `w_kv` | `046`, `076`, `078` |
 | `n_round_mode` | `046` |
 | `special_vals` | `046` |
-| `w_weight_eff` | `046` |
+| `w_weight_eff` | `046`, `076`, `078` |
 | `w_weight_8` | `046` |
-| `speed_ratio` | `046` |
-| `range_operand` | `045` |
+| `speed_ratio` | `046`, `077` |
+| `range_operand` | `045`, `077` |
 
 ## What it asserts
 

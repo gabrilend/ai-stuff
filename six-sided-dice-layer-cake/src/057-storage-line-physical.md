@@ -59,7 +59,7 @@ C-057-2 | t_load_relay < t_load_max     | filling the core, including relaying t
 C-057-3 | n_pair_line * 2 <= n_port_conductor | the pairs must fit in what 056 routes through the via islands
 C-057-4 | P_line < P_port_burst       | the lines must fit inside the transient port allowance. They do not fit inside the steady one and should not have to: a load runs them flat out for tens of milliseconds and then they are idle until the machine is next power-cycled
 C-057-7 | P_line * t_load_relay < E_burst_max | and the energy of a whole load must be small enough for 026's thermal masses to absorb without the coolant hearing about it
-C-057-5 | t_load_min < 60               | even at one drive a line the machine must load in under a minute, which is what makes the drive count a deployment choice rather than a requirement
+C-057-5 | t_load_min < t_load_slow    | even at one drive a line the machine must load in under a minute, which is what makes the drive count a deployment choice rather than a requirement
 C-057-6 | L_cable < L_reach_line        | the cable must be inside the reach the chosen physical layer supports
 ```
 
@@ -67,6 +67,7 @@ C-057-6 | L_cable < L_reach_line        | the cable must be inside the reach the
 
 ```symbols
 E_burst_max   | J | given | 20.0   | the most energy a transient may deposit in the face assemblies before it stops being absorbed by their thermal mass and starts being a load the coolant sees
+t_load_slow   | s | given | 60.0   | the longest a load may take at the sparsest sensible deployment, one drive per line. A minute is what somebody will wait once per power cycle
 t_load_max    | s | given | 0.100  | the longest filling the core may take. A tenth of a second is what somebody starting a machine will not notice; the design comes in well under it
 L_reach_line  | mm | given | 3000.0 | reach of the adopted serial standard at this rate, from its own specification
 ```

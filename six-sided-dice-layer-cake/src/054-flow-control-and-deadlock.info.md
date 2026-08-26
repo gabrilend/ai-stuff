@@ -17,7 +17,7 @@ Described by `705`.
 | `t_timeout_bar` | s | derived | 3.84868e-06 s | timeout on a staging barrier |
 | `t_timeout_txn` | s | derived | 9.2434e-07 s | timeout on a transfer |
 | `n_resource` | 1 | derived | 16 | resources a client can hold while waiting for another, which is the size of the graph the argument has to cover |
-| `f_wait_stage` | 1 | derived | unresolved | the worst wait as a share of a pipeline stage |
+| `f_wait_stage` | 1 | derived | 0.000127366 | the worst wait as a share of a pipeline stage |
 
 ## What it consumes
 
@@ -27,7 +27,7 @@ Described by `705`.
 | `n_stage` | `010` | 6 | pipeline stages a token falls through, one per face |
 | `t_handoff` | `039` | 38.4868 ns | a full stage handoff: release, the flag crossing to the next face, acquire, and the buffer read |
 | `t_link_rt` | `051` | 9.2434e-09 s | round trip from a face issuing a read to the first data arriving: two flights, the array's access, the worst arbitration wait, and the protocol's own overhead |
-| `t_stage` | `053` | unresolved | how long one face works before the sieve moves on |
+| `t_stage` | `053` | 0.000160796 s | how long one face works before the sieve moves on |
 | `t_wait_face` | `037` | 6.4e-09 s | worst case a face waits when all six are asking, which is what 053's stage budget must absorb |
 | `t_wait_scrub` | `037` | 2.048e-08 s | and the scrubber, being lower |
 | `t_wait_spout` | `037` | 1.024e-08 s | worst case the spout waits, being low priority |

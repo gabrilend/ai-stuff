@@ -10,6 +10,7 @@ Described by `307`.
 
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
+| `dT_walk_max` | K | given | 1 K | the most the walking hot spot may swing over one pipeline stage before the face ordering in 010 would have to be taken seriously |
 | `dT_spout_max` | K | given | 0.1 K | the most a whole-core output burst may warm the face it leaves through before it stops being an energy the silicon absorbs and starts being a load the coolant sees |
 | `dT_throttle` | K | given | 15 K | how far below the silicon's limit the throttle acts |
 | `dT_halt` | K | given | 5 K | how far below it the machine stops issuing |
@@ -21,7 +22,7 @@ Described by `307`.
 | `R_engine` | K/W | derived | 0.260085 K/W | thermal resistance from the array to the fluid, from 025's local term |
 | `tau_engine` | s | derived | 0.00255817 s | how long the array takes to reach its steady temperature. The number that decides whether any of the fast transients matter |
 | `tau_loop` | s | derived | 3.80434 s | transport delay round the external circuit |
-| `dT_walk` | K | derived | unresolved | temperature excursion of the walking hot spot over one stage, which is the whole of 010's argument reduced to a number |
+| `dT_walk` | K | derived | 0.615992 K | temperature excursion of the walking hot spot over one stage, which is the whole of 010's argument reduced to a number |
 | `E_spout_burst` | J | derived | 0.00575563 J | energy to push the entire core through the output tube |
 | `dT_spout` | K | derived | 0.00081779 K | what that burst does to the temperature of the face it leaves through |
 | `t_to_halt` | s | derived | 1.20853 s | how long the machine has, from the design operating point, if all cooling stops at once |
@@ -59,7 +60,7 @@ Described by `307`.
 | `t_die` | `013` | 0.1 mm | thickness of a compute die after thinning |
 | `t_interlock` | `027` | 0.1 s | from flow loss detected to power removed |
 | `t_lamina` | `012` | 1.617 mm | thickness of one cooling lamina between two tiers. It is what is left of the core's height once twenty-four tiers are laid in it, and the tier count came out of 034's capacity chain rather than being chosen |
-| `t_stage` | `053` | unresolved | how long one face works before the sieve moves on |
+| `t_stage` | `053` | 0.000160796 s | how long one face works before the sieve moves on |
 | `t_tier_si` | `012` | 0.05 mm | thickness of one thinned memory tier; as thin as a tier can be handled |
 
 ## What consumes it
@@ -68,6 +69,7 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
+| `dT_walk_max` | `026` |
 | `dT_spout_max` | `026` |
 | `dT_throttle` | `026` |
 | `dT_halt` | `026` |
@@ -89,7 +91,7 @@ Change one of these and the blueprints beside it are what break.
 
 | tag | relation | because |
 |---|---|---|
-| `C-026-1` | `dT_walk < 1.0` | the walking hot spot's excursion over one stage must be under a kelvin, which it is by a wide margin. This is 010's ordering argument, checked, and it does not survive: the excursion is small under any ordering and the choice earns nothing |
+| `C-026-1` | `dT_walk < dT_walk_max` | the walking hot spot's excursion over one stage must be under a kelvin, which it is by a wide margin. This is 010's ordering argument, checked, and it does not survive: the excursion is small under any ordering and the choice earns nothing |
 | `C-026-2` | `dT_spout < dT_spout_max` | pushing the whole core through the output tube must not warm the face it leaves through measurably. It does not come close, which is what makes the spout an energy budget rather than a power one |
 | `C-026-3` | `T_j_peak < T_throttle` | the design operating point must sit below the throttle threshold, or the machine throttles constantly |
 | `C-026-4` | `T_throttle < T_halt` | throttle below halt |

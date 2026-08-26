@@ -16,27 +16,27 @@ Described by `608`.
 | `n_seq_state` | 1 | given | 12 | states in the sequencer's machine |
 | `n_ramp_cycle_s` | 1 | derived | 64 | cycles the operand admission ramp takes, under the name 031 uses |
 | `n_small_read` | 1 | given | 8 | small control reads the sequencer makes per layer, which is the count 040 needed to choose its correction granularity |
-| `t_prefetch_lead` | s | derived | unresolved | how far ahead the prefetch must start: a link round trip plus the time to move a whole layer |
+| `t_prefetch_lead` | s | derived | 6.89449e-05 s | how far ahead the prefetch must start: a link round trip plus the time to move a whole layer |
 | `n_interdie_sync` | 1 | given | 1 | inter-die crossings per layer for the four sequencers to agree |
 | `C_chain_layer` | bit | derived | 17408 bit | one layer's chain |
-| `C_chain_face` | bit | derived | unresolved | all of a face's chains, built once at load |
-| `n_small_tok` | 1 | derived | unresolved | small reads per token per face, which 040 asserts against its line width |
-| `t_layer` | s | derived | unresolved | how long one layer takes |
-| `f_prefetch_lead` | 1 | derived | unresolved | how much of a layer's time the prefetch must run ahead by |
+| `C_chain_face` | bit | derived | 243712 bit | all of a face's chains, built once at load |
+| `n_small_tok` | 1 | derived | 112 | small reads per token per face, which 040 asserts against its line width |
+| `t_layer` | s | derived | 7.96098e-05 s | how long one layer takes at the design batch. It is the arithmetic time and not the transfer time, because below the crossover a prefetch and the compute it hides behind are the same memory traffic and cannot overlap at all -- double buffering earns itself above the crossover, where the arithmetic is the wall and the transfer can run underneath it |
+| `f_prefetch_lead` | 1 | derived | 0.866036 | how much of a layer's time the prefetch must run ahead by |
 
 ## What it consumes
 
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `B_face_even` | `034` | 5.12e+13 bit/s | and what it gets when all six are asking equally |
-| `C_layer_weights` | **nothing declares this** | — | — |
+| `C_layer_weights` | `078` | 441.188 MB | one transformer layer's share |
 | `C_local_mem` | `044` | 262144 bit | local memory on the scalar core for descriptor construction |
 | `n_die_face` | `042` | 4 | compute dies on one face |
-| `n_layer_face` | **nothing declares this** | — | — |
-| `n_line_per_token` | `052` | unresolved | correction lines one face touches per token, which 048's small reads are judged rare against |
+| `n_layer_face` | `075` | 14 | layers on the busiest face by count, which 048 sizes its chains against |
+| `n_line_per_token` | `052` | 1.8946e+08 | correction lines one face touches per token, which 048's small reads are judged rare against |
 | `n_ramp_cycle` | `031` | 64 | cycles over which 048 admits operands at the start of an operation |
+| `t_layer_comp` | `053` | 7.96098e-05 s | how long one layer's arithmetic takes at the design batch, which is what a prefetch actually has to hide behind |
 | `t_link_rt` | `051` | 9.2434e-09 s | round trip from a face issuing a read to the first data arriving: two flights, the array's access, the worst arbitration wait, and the protocol's own overhead |
-| `t_stage` | `053` | unresolved | how long one face works before the sieve moves on |
 
 ## What consumes it
 

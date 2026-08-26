@@ -11,12 +11,12 @@ Described by `804`.
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
 | `ratio_core_media` | 1 | derived | 30 | how much faster the core is than the media, which is the height of the cliff |
-| `C_resident` | GB | derived | unresolved | what a model needs resident: weights and cache together |
-| `f_resident` | 1 | derived | unresolved | how full the core is at the reference model, context and batch |
-| `C_headroom` | GB | derived | unresolved | what is left |
-| `n_ctx_max` | 1 | derived | unresolved | the longest context that would fit at the reference model and batch, which is the graceful degradation offered instead of streaming |
+| `C_resident` | GB | derived | 55.1669 GB | what a model needs resident: weights and cache together |
+| `f_resident` | 1 | derived | 0.766788 | how full the core is at the reference model, context and batch |
+| `C_headroom` | GB | derived | 16.7785 GB | what is left |
+| `n_ctx_max` | 1 | derived | 7753.43 | the longest context that would fit at the reference model and batch, which is the graceful degradation offered instead of streaming |
 | `f_stream_penalty` | 1 | derived | 30 | how much slower a streamed weight is than a resident one |
-| `t_token_stream10` | s | derived | unresolved | time per token if a tenth of the model had to stream, which is the curve a reader wants before choosing to allow it |
+| `t_token_stream10` | s | derived | 0.00376264 s | time per token if a tenth of the model had to stream, which is the curve a reader wants before choosing to allow it |
 | `n_slice_policy` | 1 | given | 0 | replacement policies in the slice. There are none: the walk order is known in advance, so there is nothing to choose between |
 
 ## What it consumes
@@ -26,10 +26,10 @@ Described by `804`.
 | `B_core` | `034` | 3.072e+14 bit/s | aggregate read bandwidth, every tier delivering at once |
 | `B_feed` | `057` | 1.024e+13 bit/s | aggregate into the machine |
 | `C_core_usable` | `034` | 71.9454 GB | what a model may actually use |
-| `C_kv` | **nothing declares this** | — | — |
-| `C_weights` | **nothing declares this** | — | — |
-| `n_ctx` | **nothing declares this** | — | — |
-| `t_token` | `053` | unresolved | time for one token, bandwidth-bound: every weight read once at the core's aggregate rate |
+| `C_kv` | `078` | 18.7905 GB | and the whole batch's |
+| `C_weights` | `078` | 36.3764 GB | the weights, resident, at the format in 046 |
+| `n_ctx` | `078` | 4096 | context length the machine is provisioned for |
+| `t_token` | `053` | 0.000964779 s | time for one token of one sequence, bandwidth-bound: every weight once, plus that sequence's cache |
 
 ## What consumes it
 
@@ -38,7 +38,7 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `ratio_core_media` | `059` |
-| `C_resident` | `034`, `059` |
+| `C_resident` | `034`, `059`, `078` |
 | `f_resident` | `059` |
 | `n_ctx_max` | `059` |
 | `n_slice_policy` | `059` |

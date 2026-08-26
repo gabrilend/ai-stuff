@@ -83,6 +83,7 @@ A_chamber     | mm^2 | given | 14.0  | cross-section of one chamber inside a cor
 t_chamber_wall| mm   | given | 1.60  | the wall separating the supply chamber from the return chamber
 t_outer_wall  | mm   | given | 1.20  | wall between a chamber and the outside of the block
 d_port        | mm   | given | 6.0   | bore of the external coolant fitting on the four ported blocks
+F_corner_rating | N  | given | 4000.0 | load one corner block will carry at a mount point without yielding, from its section and the steel in 011
 K_tee         | 1    | given | 1.10  | loss coefficient for a three-way division at this geometry and Reynolds number
 n_seal_corner | 1    | given | 9     | seal lines where three rails and three plates meet one block
 

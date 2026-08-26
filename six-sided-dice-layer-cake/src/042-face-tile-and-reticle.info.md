@@ -18,8 +18,8 @@ Described by `602`.
 | `f_interdie` | 1 | given | 0.02 | share of a face's operand traffic that crosses a die boundary despite the partitioning |
 | `A_reticle` | mm^2 | derived | 858 mm^2 | area of one exposure field |
 | `f_reticle_use` | 1 | derived | 0.671329 | how much of a field one die uses |
-| `B_interdie` | bit/s | derived | unresolved | traffic crossing die boundaries on one face |
-| `P_interdie` | W | derived | unresolved | what that costs |
+| `B_interdie` | bit/s | derived | 1.50733e+12 bit/s | traffic crossing die boundaries on one face |
+| `P_interdie` | W | derived | 0.527565 W | what that costs |
 | `w_link_split` | 1 | derived | 4 | how many ways the radial link is divided, one segment per die |
 | `n_die_total` | 1 | derived | 24 | compute dies in the machine |
 
@@ -28,7 +28,7 @@ Described by `602`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `A_die` | `012` | 576 mm^2 | area of one compute die |
-| `B_slice_die` | **nothing declares this** | — | — |
+| `B_operand_die` | `045` | 1.88416e+13 bit/s | operand bandwidth from the slice: a weight tile reloaded every batch cycles at four bits each, plus a row of activations every cycle at sixteen |
 | `L_die` | `012` | 24 mm | edge of one compute die; two thirds of a reticle field, and half its area is the slice in 047 |
 | `L_dieblock` | `012` | 49 mm | edge of the four-die array on a face |
 | `P_die` | `020` | 58.106 W | everything one compute die dissipates at the design point |
@@ -44,7 +44,7 @@ Change one of these and the blueprints beside it are what break.
 |---|---|
 | `w_reticle` | `042` |
 | `h_reticle` | `042` |
-| `n_die_face` | `042`, `044`, `047`, `048`, `049`, `060`, `061` |
+| `n_die_face` | `042`, `044`, `047`, `048`, `049`, `053`, `060`, `061` |
 | `e_interdie` | `042` |
 | `f_interdie` | `042` |
 | `A_reticle` | `042`, `069a` |

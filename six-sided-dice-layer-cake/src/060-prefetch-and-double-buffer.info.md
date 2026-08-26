@@ -12,12 +12,12 @@ Described by `805`.
 |---|---|---|---|---|
 | `f_stall_prob` | 1 | given | 0.01 | share of layers whose prefetch arrives late at the design operating point |
 | `n_stall_cycle` | 1 | given | 2000 | cycles the engine waits when one does |
-| `t_transfer_layer` | s | derived | unresolved | time to move one layer's weights at a face's contended share |
-| `t_lead` | s | derived | unresolved | how far ahead the prefetch must start |
-| `t_lead_unc` | s | derived | unresolved | and what it would be uncontended, which is the number that would have been used had nobody thought about the other five faces |
-| `f_lead_layer` | 1 | derived | unresolved | the lead as a share of the time a layer takes |
-| `t_stall_token` | s | derived | unresolved | stall time per token per face |
-| `f_stall_token` | 1 | derived | unresolved | that as a share of a token |
+| `t_transfer_layer` | s | derived | 6.89357e-05 s | time to move one layer's weights at a face's contended share |
+| `t_lead` | s | derived | 6.89449e-05 s | how far ahead the prefetch must start |
+| `t_lead_unc` | s | derived | 1.14985e-05 s | and what it would be uncontended, which is the number that would have been used had nobody thought about the other five faces |
+| `f_lead_layer` | 1 | derived | 0.866036 | the lead as a share of the arithmetic it has to hide behind |
+| `t_stall_token` | s | derived | 2e-07 s | stall time per token per face |
+| `f_stall_token` | 1 | derived | 0.000207301 | that as a share of a token |
 | `B_concurrent` | bit/s | derived | 1.26566e+14 bit/s | what the slice must serve and absorb at the same time: the engine reading one buffer while the link fills the other |
 
 ## What it consumes
@@ -29,14 +29,14 @@ Described by `805`.
 | `B_operand_die` | `045` | 1.88416e+13 bit/s | operand bandwidth from the slice: a weight tile reloaded every batch cycles at four bits each, plus a row of activations every cycle at sixteen |
 | `B_slice_read` | `047` | 3.67002e+15 bit/s | rate a face's slice serves reads, all banks at once |
 | `C_face_slice` | `047` | 1157.79 MB | and of a whole face's |
-| `C_layer_weights` | **nothing declares this** | — | — |
+| `C_layer_weights` | `078` | 441.188 MB | one transformer layer's share |
 | `f_face` | `045` | 1.4 GHz | the face clock |
 | `n_die_face` | `042` | 4 | compute dies on one face |
-| `n_layer_face` | **nothing declares this** | — | — |
+| `n_layer_face` | `075` | 14 | layers on the busiest face by count, which 048 sizes its chains against |
 | `n_slice_buf` | `047` | 2 | buffers: one being computed from, one being filled |
-| `t_layer` | `048` | unresolved | how long one layer takes |
+| `t_layer` | `048` | 7.96098e-05 s | how long one layer takes at the design batch. It is the arithmetic time and not the transfer time, because below the crossover a prefetch and the compute it hides behind are the same memory traffic and cannot overlap at all -- double buffering earns itself above the crossover, where the arithmetic is the wall and the transfer can run underneath it |
 | `t_link_rt` | `051` | 9.2434e-09 s | round trip from a face issuing a read to the first data arriving: two flights, the array's access, the worst arbitration wait, and the protocol's own overhead |
-| `t_token` | `053` | unresolved | time for one token, bandwidth-bound: every weight read once at the core's aggregate rate |
+| `t_token` | `053` | 0.000964779 s | time for one token of one sequence, bandwidth-bound: every weight once, plus that sequence's cache |
 
 ## What consumes it
 
@@ -50,7 +50,7 @@ Change one of these and the blueprints beside it are what break.
 | `t_lead` | `060` |
 | `t_lead_unc` | `060` |
 | `f_lead_layer` | `060` |
-| `t_stall_token` | `060` |
+| `t_stall_token` | `060`, `080` |
 | `f_stall_token` | `060` |
 | `B_concurrent` | `060` |
 

@@ -26,7 +26,7 @@ Described by `404`.
 | `f_trench_area` | 1 | derived | 0.0516214 | that area as a share of the die it sits under |
 | `Z_target` | ohm | derived | 0.000367846 ohm | impedance the network must stay under across frequency |
 | `Z_peak` | ohm | derived | 0.000551769 ohm | where an unmitigated antiresonance would put it |
-| `f_ramp_cost` | 1 | derived | unresolved | what the ramp costs as a share of the time a layer takes |
+| `f_ramp_cost` | 1 | derived | 0.00057423 | what the ramp costs as a share of the time a layer takes |
 | `E_stored` | J | derived | 2.00704e-05 J | energy held in the decoupling across the machine, which 033 has to discharge safely |
 
 ## What it consumes
@@ -40,7 +40,7 @@ Described by `404`.
 | `dV_droop_logic` | `029` | 0.0225 V | how far the logic rail may fall during a load step, which is what sizes the decoupling in 031 |
 | `f_face` | `045` | 1.4 GHz | the face clock |
 | `n_die` | `012` | 24 | compute dies in the machine |
-| `t_layer` | `048` | unresolved | how long one layer takes |
+| `t_layer` | `048` | 7.96098e-05 s | how long one layer takes at the design batch. It is the arithmetic time and not the transfer time, because below the crossover a prefetch and the compute it hides behind are the same memory traffic and cannot overlap at all -- double buffering earns itself above the crossover, where the arithmetic is the wall and the transfer can run underneath it |
 
 ## What consumes it
 

@@ -38,7 +38,7 @@ Described by `504`.
 | `n_tier` | `036` | 24 | memory tiers in the stack. Twenty-four rather than the thirty-two first sketched, because at the density 035 derives, thirty-two holds half again what is needed |
 | `t_cage` | `012` | 3 mm | the switch shell lining the inside of the cavity, sized by the crossbar area in 037 |
 | `t_scrub_period` | `040` | 3600 s | the same figure, under the name 037's starvation bound refers to |
-| `t_stage` | `053` | unresolved | how long one face works before the sieve moves on |
+| `t_stage` | `053` | 0.000160796 s | how long one face works before the sieve moves on |
 | `w_tier_port` | `034` | 10240 bit | bits one tier delivers per cycle, set by its macro count and the routing it can support across a forty millimetre die |
 
 ## What consumes it

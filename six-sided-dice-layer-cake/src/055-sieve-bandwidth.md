@@ -63,7 +63,7 @@ m_link        | 1 | derived | B_link_pads / B_core                    | the link
 m_slice_bw    | 1 | derived | B_slice_read / B_operand_die            | the slice's margin over what one die's engine consumes
 B_face_single | bit/s | derived | B_face_max                          | what one face gets with the others idle, which must be the aggregate
 f_single      | 1 | derived | B_face_single / B_core                  | that as a share, which is the claim reduced to a number that must be one
-t_token_bw    | s | derived | C_weights / B_core                      | time per token from this chain, which 061 and 080 must agree with
+t_token_bw    | s | derived | (C_weights + B_kv_seq) / B_core         | time per token from this chain: every weight once and one sequence's cache. 061 and 080 must agree with it
 ```
 
 ## Constraints

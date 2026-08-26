@@ -18,11 +18,11 @@ Described by `1004`.
 | `t_repair` | s | given | 0.0001 s | mapping in spare rows and the redundant tier |
 | `warm_keeps_core` | 1 | given | 1 | whether a warm reset preserves the core. It does, and it is a value so that a change which stopped it failing here rather than in the field |
 | `t_mem_init` | s | derived | 0.00207286 s | writing every location once at the core's own bandwidth, which must happen before anything reads one |
-| `t_boot_cold` | s | derived | unresolved | supplies valid to ready, from cold |
+| `t_boot_cold` | s | derived | 0.0497768 s | supplies valid to ready, from cold |
 | `t_boot_warm` | s | derived | 0.007001 s | and from a warm reset, which keeps the core and therefore skips initialising and loading it |
-| `ratio_warm` | 1 | derived | unresolved | how much a warm reset saves, which is the argument for having two |
-| `f_step_load` | 1 | derived | unresolved | the model load's share of a cold boot |
-| `f_step_mem` | 1 | derived | unresolved | and memory initialisation's, which is the step nobody expects to be there at all |
+| `ratio_warm` | 1 | derived | 7.10995 | how much a warm reset saves, which is the argument for having two |
+| `f_step_load` | 1 | derived | 0.685117 | the model load's share of a cold boot |
+| `f_step_mem` | 1 | derived | 0.0416432 | and memory initialisation's, which is the step nobody expects to be there at all |
 | `t_boot_max` | s | given | 0.5 s | the longest a cold boot may take. Half a second is what somebody switching a machine on will tolerate before wondering whether it is broken |
 
 ## What it consumes
@@ -32,7 +32,7 @@ Described by `1004`.
 | `B_core` | `034` | 3.072e+14 bit/s | aggregate read bandwidth, every tier delivering at once |
 | `C_core_raw` | `034` | 79.598 GB | raw capacity of the stack |
 | `n_fault_bit` | `049` | 24 | sticky fault bits per face |
-| `t_load_relay` | `057` | unresolved | and with the sixth slice relayed through the core over one of the five |
+| `t_load_relay` | `057` | 0.0341029 s | and with the sixth slice relayed through the core over one of the five |
 | `t_powerup` | `033` | 0.0055 s | from supplies valid to reset released |
 
 ## What consumes it
