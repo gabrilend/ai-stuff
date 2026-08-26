@@ -2,10 +2,21 @@
 
 ## Current behavior
 
-The documentation is markdown files. Reading one means opening a file and
-following a cross-reference by hand.
+Done. `src/033-the-documentation-site.lua` builds the site; every link it emits
+is checked against the pages that exist, and the build fails if any does not
+resolve.
 
-The companion pages are already generated: `src/034-the-companion-pages.lua`
+The markdown converter handles what this project's writing uses and the code
+blocks are coloured by a scanner rather than by substitution — a substitution
+that colours keywords will happily colour the word `end` inside a comment.
+
+There is one thing on the site that is not a document: the blur radius is the
+most important number in the project and the paragraph explaining it is worse
+than seeing it, so a character is rendered at a spread of radii and a slider
+moves between them. Both failures either side of the right answer can be looked
+at instead of described.
+
+The companion pages are generated separately: `src/034-the-companion-pages.lua`
 sweeps `src/`, lifts each file's header block and each of its function folds,
 and writes the `.info.md` beside it. It was built early because every source
 file needs one from the moment it exists, and twenty-odd pages written by hand
