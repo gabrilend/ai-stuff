@@ -2,7 +2,28 @@
 
 ## Current behavior
 
-Three phases of machinery and no single place that shows what any of it does.
+Done. Three demonstrations in `issues/completed/demos/`, `run-demo` at the root
+that lists them and asks which, and `run-tests` that runs every test file and
+the companion-page check.
+
+```
+./run-demo          asks which
+./run-demo 2        or say which
+./run-tests
+```
+
+Each demonstration's one-line description is lifted from its own header comment,
+so what a demonstration shows is written in the demonstration and there is no
+second list to drift out of date.
+
+**`run-tests` checks the companion pages rather than rewriting them.** A page
+that has drifted means somebody edited a source file and did not sweep, and a
+test that silently repairs what it is testing is not a test.
+
+**The third demonstration ends by opening the gallery**, but only where there is
+a display to open it on; otherwise it says so. A demonstration that tries to
+open a browser on a machine with no screen is a demonstration that fails at the
+last line having worked perfectly.
 
 ## Intended behavior
 
