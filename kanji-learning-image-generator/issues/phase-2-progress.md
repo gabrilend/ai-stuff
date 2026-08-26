@@ -12,7 +12,7 @@ This is where the project stops being a drawing program.
 | | | Status |
 |---|---|---|
 | `201` | What a stroke is shaped like | **completed** — every boundary measured off the archive, and the thing that measured them kept |
-| `202` | The field the illusion rides on | not started |
+| `202` | The field the illusion rides on | **completed** — five steps in a fixed order, and a blur that answers to how crowded the character is |
 | `203` | What the pieces mean | not started |
 | `204` | The place the meaning makes | not started |
 | `205` | The words the machine reads | not started |
@@ -50,3 +50,15 @@ The lesson is not about hooks. It is that every boundary in this phase is a
 claim about a dataset, and the difference between a guessed boundary and a
 measured one is invisible until somebody looks. So the thing that measured them
 is a mode of the file it configures, not a script that was deleted afterwards.
+
+## What `202` turned up
+
+**Every test passed while the output was wrong**, which is the failure mode this
+phase's note at the top predicts and it happened on the first character that
+tested it. A twenty-nine-stroke character came out as a grey smudge: the strokes
+had all been drawn, the range was on its band, nothing touched the border, and
+the character was not there. All the machinery had done what it was told.
+
+The fix was to make the blur depend on how crowded the character is rather than
+being one number. The finding is that in this phase, *looking* is a test — and
+it is the only one that checks the thing the project is actually for.

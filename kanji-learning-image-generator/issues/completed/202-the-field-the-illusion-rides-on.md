@@ -2,7 +2,31 @@
 
 ## Current behavior
 
-There is a canvas and there are measured strokes. Nothing puts one on the other.
+Done. `src/022-the-structure-field.lua` builds the field in the five steps
+`docs/003` names, in that order, and can be run on any characters directly:
+
+```
+luajit src/022-the-structure-field.lua --chars 一川休森語鬱
+```
+
+**The blur stopped being one number, and looking is what found it.** Every test
+this ticket asked for passed while the field for a twenty-nine-stroke character
+was a grey smudge with no character in it. Nothing here can assert legibility —
+the specification is a person squinting at a thumbnail — so the failure was
+invisible to the machinery and obvious in the picture.
+
+The blur has one job with two edges: a stroke must stop being a line and become
+a neighbourhood, without merging into the neighbourhood beside it. The room
+between those edges depends on how crowded the character is, and characters run
+from one stroke to nearly thirty in the same box. The radius is now the one for
+a character of ordinary density and shrinks from there.
+`docs/balance-updates.md` has the numbers and is explicit that stroke count is
+standing in for stroke *spacing*, which would cost much more to measure and
+would probably move the answer less than turning the dial does.
+
+The field also reports what it did — resolution, polarity, the radius actually
+used, the band — because `302` puts that in each character's card and a number
+that only exists inside the function that used it cannot be looked at later.
 
 ## Intended behavior
 

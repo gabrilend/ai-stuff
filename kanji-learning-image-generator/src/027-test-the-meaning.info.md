@@ -32,4 +32,5 @@ what a person reads before opening the source.
 | | |
 |---|---|
 | `test_measuring_a_stroke(t)` | Characters whose answers are known by looking at them. |
+| `test_the_structure_field(t)` |  |
 | `main(argv)` |  |
