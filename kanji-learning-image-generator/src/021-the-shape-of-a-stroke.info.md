@@ -66,4 +66,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `022-the-structure-field`, `024-the-scene-grammar`, `026-arrows-that-teach-the-order`, `027-test-the-meaning`, `030-make-one-kanji`, `033-the-documentation-site`.
+Used by `022-the-structure-field`, `024-the-scene-grammar`, `026-arrows-that-teach-the-order`, `027-test-the-meaning`, `030-make-one-kanji`, `033-the-documentation-site`, `046-two-ways-of-saying-it-is-good`.
