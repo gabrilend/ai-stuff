@@ -476,10 +476,11 @@ void studio_summarise(const struct sprite_pool *p, const char *category,
      */
     fprintf(out, "\n    the machine's tiers are a HEURISTIC: layer count,"
                  " whether it moves,\n"
-                 "    palette coherence, how much of its box it fills, and how"
-                 " balanced\n"
-                 "    the detail is. That is a proxy for taste, and a crude"
-                 " one.\n");
+                 "    palette coherence, how much of its box it fills, and"
+                 " whether it\n"
+                 "    stands upright rather than leaning. That is a proxy for"
+                 " taste,\n"
+                 "    and a crude one.\n");
 
     studio_agreement(p, category, &a);
     fprintf(out, "\n    %s\n", studio_agreement_sentence(&a, sentence,

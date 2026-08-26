@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+#
+# phase-9-demo -- shows what phase nine built.
+#
+# Phase nine claims the appearance layer is a studio rather than a folder: art
+# that is generated, kept, judged, and -- the part that makes it a studio -- with
+# something watching whether the judging still means anything.
+#
+# It shows the twelve-word paintbrush and what a thirteenth word gets. A batch of
+# pictures made, written to disk, and gathered onto one page you can open in a
+# browser, where several hundred creatures are moving. Both rating algorithms run
+# on the same batch and printed side by side. A quality floor raised, with its
+# cost in variety quoted before it moves. And a sprite re-tiered from a running
+# session, mid-fight, without the world shifting by so much as a heartbeat.
+#
+# The number to watch is the agreement rate. Asked of a library nobody has looked
+# at, it says UNMEASURABLE rather than a hundred per cent -- because nothing
+# disagreed and nothing agreed either, and reporting silence as consensus is the
+# single most dangerous number this project could print.
+#
+# Usage:
+#   ./phase-9-demo                 -- build and run
+#   ./phase-9-demo /path/to/prj    -- the same, from a checkout somewhere else
+#
+# Normally reached through ./run-phase-demo 9 in the project root.
+
+set -e
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT_NAME="my-own-custom-vtt"
+EXEC_TIER="/tmp/${PROJECT_NAME}/tmp"
+ARTIFACT_TIER="/dev/shm/${PROJECT_NAME}"
+DEMO="${EXEC_TIER}/089-demo-phase-9"
+
+if [ ! -x "${DIR}/build" ]; then
+    echo "No build script at ${DIR}/build."
+    echo "Either the project root is wrong, or the project has not been initialised."
+    exit 1
+fi
+
+# The pictures are written here. Ensured before the demo runs rather than
+# discovered missing at the last step, after all the work is done.
+mkdir -p "${ARTIFACT_TIER}/phase-9-pool"
+
+# Built from source every time rather than trusting whatever is lying around in
+# the RAM tier, because a demo that runs a stale binary is a demo that lies.
+echo "Building..."
+"${DIR}/build" "${DIR}" --no-test > /dev/null
+
+if [ ! -x "${DEMO}" ]; then
+    echo "The build did not produce ${DEMO}."
+    exit 1
+fi
+
+"${DEMO}"
+
+# The grader's five tiers are separated by four frozen numbers, and the thing
+# they measure is not frozen. This is the check, run here so that the demo cannot
+# quietly show tiers that have stopped meaning what they say.
+echo
+echo "  Checking that the grader's five tiers are still five tiers..."
+echo
+
+if [ -x "${EXEC_TIER}/084-calibrate" ]; then
+    "${EXEC_TIER}/084-calibrate" 2000
+else
+    echo "  084-calibrate was not built."
+fi
+
+echo
+echo "  The library and the page that shows it:"
+echo "    ${ARTIFACT_TIER}/phase-9-pool/contact-sheet.html"
+echo

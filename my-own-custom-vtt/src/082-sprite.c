@@ -233,19 +233,24 @@ const char *sprite_nearest_word(const char *given)
     }
 
     /*
-     * Beyond three edits the "nearest" word is noise, and a wrong suggestion is
-     * worse than none -- it sends somebody to check a word they never typed.
-     * The vocabulary being twelve words long is what makes three a sensible
-     * line; across a thousand words it would not be.
+     * AT MOST HALF THE WORD MAY CHANGE, and never more than three letters.
      *
-     * The second condition is the one that is easy to leave out. A fixed
-     * distance alone will happily offer "bob" for an empty word and "turn" for a
-     * single letter, because three edits is the whole of a three-letter word.
+     * This started as a bare "three edits or fewer", which offered "bob" for an
+     * empty word -- three edits being the whole of a three-letter word. Adding
+     * "and shorter than the word" fixed that and still offered "circle" for
+     * "idle", because three of four letters changing is apparently a near miss.
+     *
      * A suggestion is only worth making when MOST of what was typed survives
-     * into the suggestion -- so the distance must also be shorter than the word
-     * it is correcting.
+     * into it. Half is the line. "circel" keeps four of six and gets "circle";
+     * "idle" keeps one of four and gets nothing, which is right -- a wrong
+     * suggestion sends somebody to check a word they never typed, and that costs
+     * more than silence.
+     *
+     * The absolute cap stays as well. The vocabulary being twelve words long is
+     * what makes any of this meaningful; across a thousand words the nearest one
+     * is noise however close it looks.
      */
-    if (best_distance > 3u || best_distance >= (uint32_t)strlen(given)) {
+    if (best_distance > 3u || best_distance * 2u > (uint32_t)strlen(given)) {
         return NULL;
     }
 
@@ -1341,23 +1346,33 @@ static uint32_t grade_fill(const struct sprite *s)
 static uint32_t grade_balance(const struct sprite *s)
 {
     int sum_x = 0;
-    int sum_y = 0;
     uint32_t drift;
     uint32_t i;
 
     for (i = 0; i < s->layer_count; i++) {
         sum_x += s->layers[i].offset_x;
-        sum_y += s->layers[i].offset_y;
     }
 
-    /* Where the detail sits on average. Near the middle is a creature; far off
-     * to one side is a creature and a smudge. */
-    drift = (uint32_t)((sum_x < 0 ? -sum_x : sum_x) + (sum_y < 0 ? -sum_y : sum_y));
+    /*
+     * SIDEWAYS ONLY, and the first version of this was wrong about that.
+     *
+     * It added the vertical drift in too, and the effect was backwards: a
+     * mirrored sprite -- two eyes above the middle, two ears above them -- is
+     * perfectly balanced left to right and heavily weighted upward, so the
+     * sprites that read best as creatures scored three out of twelve for
+     * balance. The demo printed the breakdown and it was obvious.
+     *
+     * Creatures are symmetric across a vertical line and are not symmetric top
+     * to bottom. A face is in the upper half; that is what a face is. What
+     * "unbalanced" actually looks like is leaning over -- everything shoved to
+     * one side -- which is a sideways measurement.
+     */
+    drift = (uint32_t)(sum_x < 0 ? -sum_x : sum_x);
 
-    if (drift >= 48u) {
+    if (drift >= 40u) {
         return 0;
     }
-    return GRADE_BALANCE_MAX - ((drift * GRADE_BALANCE_MAX) / 48u);
+    return GRADE_BALANCE_MAX - ((drift * GRADE_BALANCE_MAX) / 40u);
 }
 /* }}} */
 
@@ -1395,10 +1410,16 @@ uint8_t sprite_machine_tier(const struct sprite *s)
      * seventieth and ninetieth percentiles of that distribution. The tiers come
      * out near 10 / 20 / 40 / 20 / 10.
      *
-     * AND IT HAS ALREADY EARNED ITS KEEP ONCE. Detail layers were changed to
-     * come in mirrored pairs, which made the sprites read as creatures instead
-     * of as piles -- and moved every one of these four lines by two points. The
-     * tool said so; nothing else would have.
+     * AND IT HAS EARNED ITS KEEP TWICE ALREADY.
+     *
+     * First when detail layers were changed to come in mirrored pairs, which
+     * made the sprites read as creatures instead of as piles and moved every one
+     * of these four lines by two points.
+     *
+     * Then when the balance component was corrected to measure sideways lean
+     * only. That one was worse: it moved three of the five tiers outside their
+     * intended share, and the tool refused outright. Nothing else in the project
+     * would have said a word.
      *
      * WHAT THAT MAKES A TIER MEAN: a ranking, not a verdict. Tier five is "in
      * the best tenth of what this paintbrush produces", not "good". That is the
@@ -1432,7 +1453,7 @@ uint32_t sprite_machine_cut(uint8_t tier)
      * the long note in sprite_machine_tier for where they came from and what
      * they leave open. Tier one has no line: it is everything below tier two.
      */
-    static const uint32_t lowest_score[6] = { 0u, 0u, 51u, 61u, 71u, 77u };
+    static const uint32_t lowest_score[6] = { 0u, 0u, 56u, 65u, 75u, 81u };
 
     if (tier < 1u || tier > 5u) {
         return 0u;
@@ -1445,7 +1466,7 @@ uint32_t sprite_machine_cut(uint8_t tier)
 const char *sprite_machine_reasoning(const struct sprite *s, char *into, uint32_t capacity)
 {
     snprintf(into, capacity,
-             "%u layers %u/%u, %s %u/%u, palette %u/%u, size %u/%u, balance %u/%u"
+             "%u layers %u/%u, %s %u/%u, palette %u/%u, size %u/%u, upright %u/%u"
              " = %u of 100, tier %u (heuristic)",
              (unsigned)s->layer_count, (unsigned)grade_layers(s), (unsigned)GRADE_LAYERS_MAX,
              motion_name(s->motion), (unsigned)grade_motion(s), (unsigned)GRADE_MOTION_MAX,

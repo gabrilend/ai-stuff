@@ -144,10 +144,13 @@ static const char *nearest_word(const char *given)
      * The second condition catches what a fixed distance alone misses: three
      * edits is the whole of a three-letter word, so a bare "<= 3" cheerfully
      * offers a suggestion for a word that is empty or nearly so, where nothing
-     * of what was typed survives into the suggestion. The distance has to be
-     * shorter than the word it claims to be correcting.
+     * of what was typed survives into it.
+     *
+     * At most HALF the word may change. "circel" keeps four of six letters and
+     * is worth correcting; "idle" would keep one of four and is not, however
+     * close the arithmetic says it is.
      */
-    if (best_distance <= 3 && best_distance < (uint32_t)strlen(given)) {
+    if (best_distance <= 3 && best_distance * 2u <= (uint32_t)strlen(given)) {
         return best;
     }
 

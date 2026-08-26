@@ -433,7 +433,7 @@ static void test_what_the_heuristic_weighs(void)
     sprite_machine_reasoning(&moving, reasoning, sizeof(reasoning));
     CHECK(strstr(reasoning, "heuristic") != NULL);
     CHECK(strstr(reasoning, "palette") != NULL);
-    CHECK(strstr(reasoning, "balance") != NULL);
+    CHECK(strstr(reasoning, "upright") != NULL);
     CHECK(strstr(reasoning, "walk") != NULL);
 
     TEST_CASE("a palette that holds together beats one that does not");
