@@ -13,7 +13,7 @@ were finished and reframed what the project is for. Read that first.
 |---|---|---|
 | `401` | The names the radicals bear | **completed** — two readings, and every piece carries a name as well as a phrase |
 | `402` | A phrase is a picture too | **completed** — a word is one record, one picture, and one continuous stroke order |
-| `403` | The paintbrush, and the wall around it | not started |
+| `403` | The paintbrush, and the wall around it | **completed** — a closed vocabulary, a wall that names every complaint at once, and a contract with one home |
 | `404` | Running the pictures | not started |
 | `405` | The pool that remembers | not started |
 | `406` | Two ways of saying it is good | not started |

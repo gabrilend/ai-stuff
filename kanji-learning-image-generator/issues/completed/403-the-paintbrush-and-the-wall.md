@@ -2,7 +2,36 @@
 
 ## Current behavior
 
-Every scene is worked out automatically. When one comes out wrong there is
+Done. `src/024a-the-paintbrush.lua`, and `input/arguments/時.lua` is a worked
+example — the automatic scene put *time* on an open plain, which is a fine
+picture of a sun and has nowhere to put a temple.
+
+```
+luajit src/024a-the-paintbrush.lua --contract
+luajit src/024a-the-paintbrush.lua --check 時
+```
+
+**The contract is generated from the vocabulary, not written beside it.** A
+contract with two homes disagrees with itself silently: the document says one
+thing, the wall enforces another, and whoever is writing an argument believes
+the document. The documentation site renders it; there is no file to go stale.
+
+**Everything that wants a scene now comes through here**, not through `024`
+directly — otherwise an argument could be written and quietly ignored, which is
+worse than having no arguments at all, because the picture would not change and
+nothing would say why.
+
+**Two things about the suggestions came out differently from the plan.**
+
+*Edit distance says nothing about a single character.* Every distinct character
+is exactly one edit from every other, so the "nearest" piece was whichever
+happened to come first in the list — which produced *did you mean 時?* about the
+very character being argued. Suggestions are now offered only where the words
+have enough shape to compare, and for pieces the wall lists what the character
+is actually made of, which was the useful answer anyway.
+
+*The threshold was too tight.* Three edits out of five refused *skies* for
+*sky*, which is plainly what was meant. When one comes out wrong there is
 nothing to do about it except change the rules that produced it, which changes
 every other character too.
 

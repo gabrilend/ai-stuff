@@ -533,7 +533,7 @@ function M.build(options)
   local links_checked, links_broken = 0, {}
 
   for _, page in ipairs(known.pages) do
-    local text = project.read_file(page.file)
+    local text = page.file and project.read_file(page.file)
     if text then
       local body = M.to_html(text, known)
       project.write_file(out_dir .. "/" .. page.page .. ".html",
@@ -556,6 +556,25 @@ function M.build(options)
       end
     end
   end
+
+  -- {{{ the paintbrush contract, which has no file of its own
+  --
+  -- Rendered from the vocabulary itself rather than from a document beside it.
+  -- A contract with two homes is a contract that will disagree with itself, and
+  -- the failure is silent: the document says one thing, the wall enforces
+  -- another, and whoever is writing an argument believes the document.
+  do
+    local paintbrush = project.load("024a-the-paintbrush")
+    known.pages[#known.pages + 1] = {
+      kind = "docs", page = "doc-the-paintbrush",
+      title = "the-paintbrush", sort = "the-paintbrush",
+    }
+    project.write_file(out_dir .. "/doc-the-paintbrush.html",
+      shell("the paintbrush", "doc-the-paintbrush",
+            M.to_html(paintbrush.contract(), known)))
+    written = written + 1
+  end
+  -- }}}
 
   -- {{{ the front page, with the dial on it
   local figure_html = ""
