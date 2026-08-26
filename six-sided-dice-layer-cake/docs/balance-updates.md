@@ -338,3 +338,20 @@ The headroom is still ample and the check now measures the right thing.
 Including the cache was assumed to lower the crossover, on the reasoning that more
 memory traffic brings the memory wall sooner. It raises it: cache traffic scales
 with batch, so it lifts both lines and the arithmetic one has further to climb.
+
+**2026-08-26 — spout bond temperature, 523 K to 483 K.** `066`, forced by `082`.
+It was specified hotter than the bond that puts the faces on the cage, and it
+happens afterwards — so making it would have reflowed them. Surface activation
+before bonding is what brings it down, and it is now a process requirement rather
+than a preference.
+
+**2026-08-26 — shared timebase counter, 48 bits to 52.** `072`. Forty-eight bits
+at microsecond resolution wraps in under nine years, which is inside the ten-year
+life. Two counters compared across faces after a wrap can disagree about which
+came first.
+
+**2026-08-26 — a `target` now carries its declared unit.** `093`, `094`. A target
+is a placeholder for a derivation nobody has written, and most are a bare number
+standing in for one. Treating the value as an expression made it dimensionless, so
+a target in seconds failed against every other time in the project for a reason
+that had nothing to do with its being unfinished.

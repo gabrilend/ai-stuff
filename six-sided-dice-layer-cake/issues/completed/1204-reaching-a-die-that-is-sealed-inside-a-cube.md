@@ -4,7 +4,23 @@ Produces `src/084-test-access.md`.
 
 ## Current behavior
 
-Nothing. `009` entry K2 names the problem and says it is unsolved.
+**Done, and it closes `009` entry K2.** `src/084-test-access.md` exists.
+
+`C-084-1` carries two requirements in one count, because the notation can express
+neither directly: the access path must not depend on the interface it tests, and
+it must run on the auxiliary domain before anything else is up. **Both are the
+difference between diagnosing a dead cube and discarding it.**
+
+`C-084-5` asserts that at least four properties are named as untestable —
+**deliberately, in the direction of honesty**. A test blueprint that implies
+complete coverage is worse than one that says where it stops.
+
+**The spout is not covered.** `066` needs to know which of sixteen million bonds
+failed so `063`'s remap can act, and the only opportunity is after the bond when
+the object cannot be taken apart.
+
+**The coverage figures are `given`**, and `083`'s whole cost model turns on one of
+them.
 
 ## Intended behavior
 

@@ -133,7 +133,7 @@ function M.load(dir, opts)
   local deps = {}
   for _, name in ipairs(L.order) do
     local s = L.decl[name]
-    if s.kind == "derived" or s.kind == "target" then
+    if s.kind == "derived" or (s.kind == "target" and not s.literal) then
       if s.expr ~= "" then
         local ok, tree = pcall(expression.parse, s.expr,
                                ("%s:%d %s"):format(s.file, s.line, s.name))
@@ -192,7 +192,8 @@ function M.load(dir, opts)
     if s and L.value[name] == nil and not resolvable(name) then
       L.unresolved[name] = true
     elseif s and L.value[name] == nil then
-      if s.kind == "given" or s.kind == "measured" then
+      if s.kind == "given" or s.kind == "measured"
+         or (s.kind == "target" and s.literal) then
         local okv, q = pcall(units.new, s.literal, s.unit)
         if okv then L.value[name] = q
         else note(("%s:%d: %s: %s"):format(s.file, s.line, name, tostring(q))) end

@@ -75,8 +75,8 @@ Change one of these and the blueprints beside it are what break.
 | `cp_si` | `026` |
 | `cte_si` | `011`, `018`, `036` |
 | `E_si` | `018` |
-| `sigma_si_frac` | `011` |
-| `sigma_si_plas` | `011`, `018` |
+| `sigma_si_frac` | `011`, `081` |
+| `sigma_si_plas` | `011`, `018`, `081` |
 | `T_si_max` | `021`, `025`, `026`, `027` |
 | `k_cu_bulk` | `011` |
 | `k_cu_plated` | `011` |

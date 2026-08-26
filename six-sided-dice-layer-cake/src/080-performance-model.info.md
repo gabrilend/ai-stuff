@@ -68,7 +68,7 @@ Change one of these and the blueprints beside it are what break.
 | `t_token_model` | `080` |
 | `f_t_weights` | `080` |
 | `f_overhead_tok` | `080` |
-| `n_model_term_d` | `080` |
+| `n_model_term_d` | `080`, `085` |
 | `tok_s_single` | `080` |
 | `t_prefill_tok` | `080` |
 | `tok_s_prefill` | `080` |

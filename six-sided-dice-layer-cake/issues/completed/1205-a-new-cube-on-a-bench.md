@@ -4,8 +4,26 @@ Produces `src/085-bring-up.md`.
 
 ## Current behavior
 
-Nothing. The procedure a person follows the first time one of these is switched
-on does not exist.
+**Done.** `src/085-bring-up.md` exists — the only blueprint in the project written
+for a person to follow, and it reads like one.
+
+Six constraints. Two of them are about the procedure being a procedure:
+**every rung must have a pass criterion and a named next action**, because a
+person at a bench with a cube that stops at rung six should not have to invent a
+plan.
+
+Rung nine is the one everything else was built for: **a token compared bit for
+bit against a reference implementation**, not within a tolerance. `C-085-5`
+requires a meaningful share of bring-up to be spent on it, because the
+accumulation order in `043`, the widths and rounding in `046`, the specified
+exponential and the carried rotations in `058` all exist for no other purpose.
+
+Rung six records the spare remap count **against the serial number, for life** — a
+cube with an unusually high count is one whose bonds were marginal.
+
+**The reference implementation does not exist.** It is the second substantial
+piece of software this design assumes and does not specify, after `058`'s packer,
+and this procedure needs both on day one.
 
 ## Intended behavior
 

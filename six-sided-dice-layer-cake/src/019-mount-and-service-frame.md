@@ -61,7 +61,7 @@ V_coupling    | mm^3 | measured | 100.0 | fluid lost when one self-sealing coupl
 n_service     | 1  | given | 5     | service events -- cube replacements -- expected over the life of an installation
 cte_frame     | ppm/K | derived | cte_ss | the frame is steel, and so is most of the cube's exterior
 dT_frame      | K  | given | 40.0  | temperature difference the frame and the cube can be at, worst case
-t_service     | 1  | target | 1200  | seconds a cube swap takes, once the procedure in 1205 exists to be timed
+t_service     | s | target | 1200  | seconds a cube swap takes, once the procedure in 1205 exists to be timed
 
 m_mounted     | kg | derived | m_cube                                   | mass the frame carries
 F_mount_static| N  | derived | m_mounted * g_accel / n_mount            | static load at one mount point

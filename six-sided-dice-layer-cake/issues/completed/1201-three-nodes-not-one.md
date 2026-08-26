@@ -4,7 +4,24 @@ Produces `src/081-process-and-node.md`.
 
 ## Current behavior
 
-Nothing. A three nanometre class is implied by `502`'s density and stated nowhere.
+**Done.** `src/081-process-and-node.md` exists with three nodes and a binding
+constraint behind each choice.
+
+It also **answers a question `036` left open**: a memory tier is forty millimetres
+square and a reticle field is not, so tiers are stitched and compute dies are not.
+`C-081-7` asserts it.
+
+Two requirements arrived here from earlier phases and both are now checked rather
+than remembered. **Plasma dicing**, handed over by `018`'s stress analysis, is a
+constraint — somebody choosing a cheaper dicing process fails a check rather than
+shipping cubes that crack. And the **microchannel aspect ratio** is checked
+against a process that exists, which is the only place `022`'s geometry meets a
+real etch capability.
+
+**Stitching is named and not designed.** How the seam is handled, and what it
+costs in yield, is not written and `083` needs it. **And the cost figures are
+relative and arbitrary**, so that ratios mean something in `088` and prices do
+not.
 
 ## Intended behavior
 
