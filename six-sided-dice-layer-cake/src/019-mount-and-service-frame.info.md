@@ -19,7 +19,7 @@ Described by `207`.
 | `n_service` | 1 | given | 5 | service events -- cube replacements -- expected over the life of an installation |
 | `cte_frame` | ppm/K | derived | 17.3 ppm/K | the frame is steel, and so is most of the cube's exterior |
 | `dT_frame` | K | given | 40 K | temperature difference the frame and the cube can be at, worst case |
-| `t_service` | 1 | target | 1200 | seconds a cube swap takes, once the procedure in 1205 exists to be timed |
+| `t_service` | s | target | 1200 s | seconds a cube swap takes, once the procedure in 1205 exists to be timed |
 | `m_mounted` | kg | derived | 1.12638 kg | mass the frame carries |
 | `F_mount_static` | N | derived | 2.76244 N | static load at one mount point |
 | `F_mount_shock` | N | derived | 138.122 N | load at one mount point under transit shock |
@@ -57,6 +57,7 @@ Change one of these and the blueprints beside it are what break.
 | `n_service` | `019` |
 | `cte_frame` | `019` |
 | `dT_frame` | `019` |
+| `t_service` | `085` |
 | `m_mounted` | `019` |
 | `F_mount_shock` | `019` |
 | `disp_frame` | `019` |

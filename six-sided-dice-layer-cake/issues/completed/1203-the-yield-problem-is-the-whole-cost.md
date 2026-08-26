@@ -4,7 +4,26 @@ Produces `src/083-known-good-die.md`.
 
 ## Current behavior
 
-Nothing, and `009` entry K1 says so: this is the issue with no number in it yet.
+**Done, and it closes `009` entry K1** — the issue the ticket said had no number
+in it.
+
+`src/083-known-good-die.md` exists. Die yield and assembly yield are derived
+**separately**, because conflating them is the ordinary way to be wrong about this
+by an order of magnitude: a bad die is discarded before assembly and affects only
+the cost per known-good part.
+
+Six constraints, and two are asserted in the alarming direction because a reader
+who has not multiplied it out will not believe the mitigations are needed.
+Twenty-four tiers with no redundancy lose more than one stack in seven; the radial
+bonds with no spares **fail more often than they work**.
+
+The ticket asked which dominates and the answer is **the bonds**: sixty-one dice
+against twenty million bonds is not a close contest.
+
+**The spare coverage bounds are crude** — expected failures over spares, which is
+not a probability — and this blueprint still owes `051` and `063` the spare
+fractions that a real distribution would produce. **Stitching's yield cost is not
+charged for.**
 
 ## Intended behavior
 

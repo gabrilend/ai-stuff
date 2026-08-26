@@ -44,16 +44,15 @@ most of the serviceability objection and is how this grade is expected to ship.
 ## Symbols
 
 ```symbols
-T_bond        | K | given | 523.0    | temperature the copper-to-copper bond is made at
+T_bond        | K | given | 483.0    | temperature the copper-to-copper bond is made at. Five hundred and twenty-three was the first figure and is hotter than the bond that put the faces on, which would reflow it -- surface activation before bonding is what brings this down, and it is a process requirement rather than a preference
 F_bond        | kg | given | 2000.0  | force applied across the array during bonding
 t_bond_dwell  | s | given | 1800.0   | how long it is held
 tol_align_xy  | um | given | 0.5      | in-plane placement tolerance the pitch demands
 tol_flat_bond | um | given | 0.2      | flatness both surfaces must hold across the array
-y_bond        | 1 | measured | 0.99999995 | probability one bond is good, for a mature hybrid bonding process
 n_rework      | 1 | given | 0         | rework attempts available. There are none: this is the last operation and both objects are finished
 
-y_array_raw   | 1 | derived | y_bond^n_bond_total                  | probability every bond in the array is good with no spares at all
-n_bad_expect  | 1 | derived | n_bond_total * (1 - y_bond)          | bonds expected to fail in one array
+y_array_raw   | 1 | derived | y_bond_hybrid^n_bond_total           | probability every bond in the array is good with no spares at all
+n_bad_expect  | 1 | derived | n_bond_total * (1 - y_bond_hybrid)   | bonds expected to fail in one array
 y_array_spare | 1 | derived | 1 - n_bad_expect / n_spare_pane      | roughly, the chance the spares cover the failures -- a crude bound rather than a distribution, and marked as such
 p_area_bond   | MPa | derived | F_bond * g_accel / A_fine | pressure the bonding force puts on the array
 ratio_align   | 1 | derived | flat_plate / tol_flat_bond    | how much looser 013's face flatness is than this bond needs, which is the number that says where the difficulty is

@@ -48,7 +48,7 @@ Change one of these and the blueprints beside it are what break.
 | `n_spare_pane` | `063`, `066`, `069` |
 | `n_accounted` | `063` |
 | `A_spout_need` | `056`, `063` |
-| `n_bond_total` | `066` |
+| `n_bond_total` | `066`, `083` |
 
 ## What it asserts
 

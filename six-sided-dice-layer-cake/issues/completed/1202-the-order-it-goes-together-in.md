@@ -4,7 +4,24 @@ Produces `src/082-assembly-order.md`.
 
 ## Current behavior
 
-Nothing. `207` says nothing inside is serviceable and no assembly sequence exists.
+**Done.** `src/082-assembly-order.md` exists with ten steps, a test gate on six of
+them, and the point of no return marked.
+
+Seven constraints. Four of them are the **temperature ladder** — five bonding
+temperatures that are obviously in the right order, which is exactly the situation
+where inserting a step breaks it quietly.
+
+**And one of them broke immediately.** `066`'s spout bond was specified hotter
+than the bond that put the faces on, which would have reflowed it. The spout bond
+came down forty kelvin and needs surface activation to get there, which is now a
+process requirement.
+
+The ladder also produced an argument `068` does not make for itself: **byte mode
+sidesteps the tightest rung entirely**, because ordinary microbumps attach at a
+temperature the assembled cube does not care about.
+
+**Nothing says how long the sequence takes**, and step two alone is twenty-four
+bonds each with a dwell.
 
 ## Intended behavior
 

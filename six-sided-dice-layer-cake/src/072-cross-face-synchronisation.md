@@ -61,7 +61,7 @@ t_setup_ff    | ps | given | 15.0    | setup time of one
 tau_meta      | ps | given | 8.0     | metastability resolution time constant of the process
 t_meta_0      | s | measured | 1.0e-12 | the metastability window: how wide a slice of each clock edge can put a flip-flop into an undecided state
 n_cross_site  | 1 | given | 3        | places two faces interact through memory, excluding the arbiter which is inside one domain. Three today; the reverse staging buffers make it four the day 076a is implemented, and 039's count moves with it
-w_timebase    | bit | given | 48     | width of the free-running timebase counter
+w_timebase    | bit | given | 52     | width of the free-running timebase counter. Forty-eight wraps in under nine years, which is inside the life the machine is built for -- and two counters compared across faces after a wrap can disagree about which came first
 f_timebase    | MHz | given | 1.0    | its rate: microsecond resolution, deliberately far below any clock so it cannot be mistaken for one
 
 t_resolve     | ps | derived | n_sync_stage * t_cycle_face - t_setup_ff | time a synchroniser gives metastability to resolve

@@ -10,12 +10,11 @@ Described by `905`.
 
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
-| `T_bond` | K | given | 523 K | temperature the copper-to-copper bond is made at |
+| `T_bond` | K | given | 483 K | temperature the copper-to-copper bond is made at. Five hundred and twenty-three was the first figure and is hotter than the bond that put the faces on, which would reflow it -- surface activation before bonding is what brings this down, and it is a process requirement rather than a preference |
 | `F_bond` | kg | given | 2000 kg | force applied across the array during bonding |
 | `t_bond_dwell` | s | given | 1800 s | how long it is held |
 | `tol_align_xy` | um | given | 0.5 um | in-plane placement tolerance the pitch demands |
 | `tol_flat_bond` | um | given | 0.2 um | flatness both surfaces must hold across the array |
-| `y_bond` | 1 | measured | 1 | probability one bond is good, for a mature hybrid bonding process |
 | `n_rework` | 1 | given | 0 | rework attempts available. There are none: this is the last operation and both objects are finished |
 | `y_array_raw` | 1 | derived | 0.316004 | probability every bond in the array is good with no spares at all |
 | `n_bad_expect` | 1 | derived | 1.152 | bonds expected to fail in one array |
@@ -36,6 +35,7 @@ Described by `905`.
 | `n_bond_total` | `063` | 2.304e+07 | bonds made in one operation at the very end of assembly, which 083 has to survive |
 | `n_spare_pane` | `063` | 691200 | conductors held in reserve |
 | `t_core_out` | `062` | 3.43062e-05 s | time to do it at the burst rate |
+| `y_bond_hybrid` | `083` | 1 | and one copper-to-copper hybrid bond, which is finer and better controlled |
 
 ## What consumes it
 
@@ -43,14 +43,13 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `T_bond` | `066` |
+| `T_bond` | `066`, `082` |
 | `F_bond` | `066` |
 | `tol_flat_bond` | `066` |
-| `y_bond` | `066` |
 | `n_rework` | `066`, `068` |
 | `y_array_raw` | `066` |
 | `n_bad_expect` | `066` |
-| `y_array_spare` | `066` |
+| `y_array_spare` | `066`, `083` |
 | `p_area_bond` | `066` |
 | `ratio_align` | `066` |
 | `T_bond_max_prior` | `066` |

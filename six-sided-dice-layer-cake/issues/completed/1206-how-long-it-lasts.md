@@ -4,8 +4,25 @@ Produces `src/086-reliability-and-lifetime.md`.
 
 ## Current behavior
 
-Nothing. Six blueprints assert margins against "the target in `1206`" and no
-target exists.
+**Done.** `src/086-reliability-and-lifetime.md` exists, and it fixes something
+that was backwards: **four blueprints were already deriving numbers from a
+lifetime target that did not exist.** It exists now and they check against it.
+
+Seven constraints. Wear-out and random mechanisms are kept apart, because adding
+them as though they were the same thing is the ordinary way to get this wrong — a
+machine whose random rate is fine and whose wear-out cliff is at three years is
+not the same product as one with the reverse.
+
+The budget is **deliberately uneven**, and `C-086-2` asserts the asymmetry: the
+serviceable half of the machine gets a larger allowance than the unrepairable
+half, which is the whole reason `019`'s absence of repair matters.
+
+**Silent corruption gets the smallest allocation of the nine**, even though it
+breaks nothing — because the machine keeps running and lies.
+
+**Six of the nine mechanisms have no derived number.** They are named, allocated
+and not computed. **Bond fatigue is the largest gap**: `018` counts three thermal
+swings and turns none of them into cycles to failure.
 
 ## Intended behavior
 
