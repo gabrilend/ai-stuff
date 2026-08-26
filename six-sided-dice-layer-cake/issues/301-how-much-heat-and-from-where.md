@@ -71,7 +71,7 @@ to size the fields. Also the fixed-point iteration count for leakage.
 ## Constraints this must assert
 
 - **Input power equals total heat, exactly.** The one energy statement in the
-  project that cannot be approximately true. `104` should treat a failure here as
+  project that cannot be approximately true. `095` should treat a failure here as
   a structural error rather than a design one.
 - The design point total stays under what `022`'s fields can remove at the allowed
   junction temperature.

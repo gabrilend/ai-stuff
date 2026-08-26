@@ -16,7 +16,7 @@ one blueprint**, and every other use of it is a reference. A symbol is either
 *given* — a number a person chose — or *derived*, in which case it is an
 expression over other symbols and has no number of its own at all. There are
 eleven given lengths in the entire machine. Everything else follows from them,
-and if you change one, `104` will tell you what broke.
+and if you change one, `095` will tell you what broke.
 
 ## The shape of a blueprint file
 
@@ -58,7 +58,7 @@ t_face    | mm | given   | 7.0               | face assembly, outward surface to
 L_cavity  | mm | derived | L_cube - 2*t_face | edge length of the space the six faces enclose
 ```
 
-**The name** is unique across the whole project, not just the file. `103` refuses
+**The name** is unique across the whole project, not just the file. `094` refuses
 to load a project where two blueprints declare the same name, because the second
 one is either a duplicate or a disagreement and both are worth stopping for.
 
@@ -77,7 +77,7 @@ Names carry their meaning in a prefix, by convention rather than by rule:
 | `rho_` | density | `eta_` | an efficiency or a fraction |
 
 **The unit** is written in ASCII: `mm`, `W/(m*K)`, `kg/m^3`, `1` for
-dimensionless. `100` parses it into a dimension vector with ten slots — the seven
+dimensionless. `091` parses it into a dimension vector with ten slots — the seven
 SI base dimensions plus **bit**, **tok** and **flop** — so that bandwidth in
 bit/s and clock frequency in Hz are different types even though both are
 one-over-seconds, and adding them fails rather than producing a number nobody
@@ -90,7 +90,7 @@ questions.
 | `given` | a person chose this. The fourth field is a bare number. |
 | `derived` | computed. The fourth field is an expression and there is no number. |
 | `measured` | a material property or a vendor figure. Bare number; the meaning field must say where it came from. |
-| `target` | a goal with no derivation yet. `104` counts these and lists them; a blueprint set with targets left in it is not finished. |
+| `target` | a goal with no derivation yet. `095` counts these and lists them; a blueprint set with targets left in it is not finished. |
 
 The difference between `given` and `measured` is who you argue with when it turns
 out to be wrong. A `given` is a decision and can be changed by deciding
@@ -114,7 +114,7 @@ makes the notation worth having. If you need twenty kelvin, you may not write
 `T_amb + 20` — you declare `dT_rise | K | given | 20 | the design coolant
 temperature rise across the cube` and write `T_amb + dT_rise`. There is no way to
 put an unnamed physical quantity into this project. The cost is a few more
-declarations; the return is that `106` can print every number in the machine with
+declarations; the return is that `097` can print every number in the machine with
 its name and its reason next to it.
 
 Dimensionless literals that *are* genuinely pure — a factor of two because
@@ -140,7 +140,7 @@ set: it catches the case where two blueprints each derived the same quantity by 
 different route and got different answers.
 
 Both sides are dimension-checked before they are compared. A constraint whose
-sides have different dimensions is a failure, not a false result, and `104`
+sides have different dimensions is a failure, not a false result, and `095`
 reports it separately because it means somebody wrote nonsense rather than
 somebody's design being too tight.
 
@@ -159,14 +159,14 @@ brackets, never as a number:
 
         ├────────────── [L_cube] ──────────────┤
 
-`107` reads every drawing, pulls out every bracketed name, and fails if one of
+`098` reads every drawing, pulls out every bracketed name, and fails if one of
 them is not a symbol that exists. That check is the only thing standing between
 this project and a drawing that says `60` after the cube has become sixty-four.
 
 ## The companion pages
 
 Each `src/NNN-name.md` has a `src/NNN-name.info.md` beside it. **Do not edit
-them.** They are written by `105` from the blueprint's own declarations, and they
+them.** They are written by `096` from the blueprint's own declarations, and they
 hold what the blueprint publishes, what it consumes and from where, what consumes
 it, and which constraints mention it. Change the blueprint and run the sweep.
 

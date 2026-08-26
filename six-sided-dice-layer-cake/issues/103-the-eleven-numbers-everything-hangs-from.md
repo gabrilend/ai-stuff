@@ -13,7 +13,7 @@ all been used in the documentation as though they had been decided somewhere.
 eleven. Every other length in the project is an expression over these, which means
 three things worth having:
 
-- The cube can be resized by editing one file and running `104`, which will report
+- The cube can be resized by editing one file and running `095`, which will report
   which constraint breaks first.
 - No blueprint can quietly disagree with another about a dimension, because there
   is only one place a dimension lives.
@@ -108,10 +108,10 @@ The last of these is the one worth building the whole notation for.
 1. Write the eleven, each with its unit, its value, and one line saying who chose
    it and against what.
 2. Draw the chain above as a diagram in the blueprint, with symbol names in
-   brackets rather than numbers, so `107` can check it.
+   brackets rather than numbers, so `098` can check it.
 3. Declare the derived lengths.
 4. Write the constraints, and write the two-chain one last and deliberately.
-5. Run `104`. Then change `L_die` to 26 and run it again, and confirm that the
+5. Run `095`. Then change `L_die` to 26 and run it again, and confirm that the
    report names the core-edge constraint. A constraint that never fires has not
    been tested.
 

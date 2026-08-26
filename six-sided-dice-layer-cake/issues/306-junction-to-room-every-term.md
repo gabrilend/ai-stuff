@@ -72,7 +72,7 @@ a glance which number to go and improve.
   temperature. Trivial, and it catches a term left out.
 - Every term is derived, not entered. A `target` kind anywhere in this blueprint
   is a failure of the blueprint, and the spreading term is currently exactly that
-  — which `104` should be reporting loudly until `605` lands.
+  — which `095` should be reporting loudly until `605` lands.
 
 ## Suggested implementation steps
 

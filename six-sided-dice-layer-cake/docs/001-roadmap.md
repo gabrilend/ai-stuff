@@ -8,7 +8,7 @@ is either given or derived from something given, every derivation is written in 
 form a program can evaluate, and every constraint the design must satisfy is
 written next to the thing it constrains.
 
-The test of the deliverable is `104`: it loads all ninety blueprints, resolves
+The test of the deliverable is `095`: it loads all ninety blueprints, resolves
 every symbol, evaluates every constraint, and prints which ones hold. A blueprint
 set that does not check is not finished, and a blueprint set that checks may still
 be wrong — but it is at least wrong consistently, in one place, where an engineer
@@ -212,15 +212,15 @@ to determine themselves.
 Numbered last, built first, and none of it ships. These are the programs that
 make the rest of the project checkable rather than merely written.
 
-`100` is a units engine — quantities carry dimension vectors and arithmetic
-refuses to add a length to a temperature. `101` parses and evaluates the
-derivation expressions. `102` reads a blueprint and extracts its declared symbols
-and constraints. `103` is the ledger: it loads every blueprint, sorts the symbols
-into dependency order, detects cycles, and resolves the lot. `104` evaluates every
-constraint and reports. `105` writes the companion page for each blueprint from
-the blueprint's own declarations, so those pages cannot drift. `106` produces the
-specification report. `107` checks the diagrams — that every part named in a
-drawing is a symbol that exists. `108` builds the documentation site.
+`091` is a units engine — quantities carry dimension vectors and arithmetic
+refuses to add a length to a temperature. `092` parses and evaluates the
+derivation expressions. `093` reads a blueprint and extracts its declared symbols
+and constraints. `094` is the ledger: it loads every blueprint, sorts the symbols
+into dependency order, detects cycles, and resolves the lot. `095` evaluates every
+constraint and reports. `096` writes the companion page for each blueprint from
+the blueprint's own declarations, so those pages cannot drift. `097` produces the
+specification report. `098` checks the diagrams — that every part named in a
+drawing is a symbol that exists. `099` builds the documentation site.
 
 ## Issue names
 

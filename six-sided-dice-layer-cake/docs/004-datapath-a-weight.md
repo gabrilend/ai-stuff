@@ -101,7 +101,7 @@ millimetres on a side because a transformer layer is four hundred and thirty-sev
 megabytes.**
 
 Change the reference model and that chain moves. `012` is where it is anchored and
-`104` is what tells you which link broke.
+`095` is what tells you which link broke.
 
 ## What the weight meets at the end
 
