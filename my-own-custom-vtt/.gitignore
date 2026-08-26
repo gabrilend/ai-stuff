@@ -5,6 +5,13 @@ tmp
 # Deprecated temporary scripts are kept for exactly one commit and then removed,
 # so they are never ignored -- they are supposed to show up in the record once.
 
+# The repository root ignores anything named "build", meaning build DIRECTORIES in
+# other projects. Here "build" is the script that compiles this one -- the single
+# file without which a fresh checkout cannot produce a working tree. Un-ignoring
+# it is not a preference; a project that cannot be rebuilt from its own record is
+# not in the record.
+!build
+
 # Editor and OS litter.
 *.swp
 *.swo
