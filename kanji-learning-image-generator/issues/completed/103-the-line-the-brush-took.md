@@ -2,8 +2,21 @@
 
 ## Current behavior
 
-A stroke is a string: `"M19.5,39.86c2.45,0.57,5.23,0.8,8.04,0.57C40.75,39.38,63,36.5,79.78,36.15"`.
-Nothing can do anything with a string.
+Done. `src/014-the-path-language.lua` reads the six instructions the archive
+uses, `src/015-flatten-the-curves.lua` chops the curves into short lines and
+measures them, and `src/020-test-the-ink.lua` runs both over every stroke of
+every character in the joined set.
+
+The sweep passes with nothing broken, nothing degenerate, and nothing outside
+the archive's own box. Run it for the current counts.
+
+The archive was surveyed before the parser was written rather than after, and
+it settled three things the plan had left as guesses: no path contains more
+than one subpath, no path uses exponent notation, and the only instructions
+present are the move and the cubic curve — in both cases and in both spellings.
+A hundred and thirty-five paths begin with a *relative* move, which the format
+defines as absolute anyway; it makes no numerical difference, because the brush
+starts at the origin and adding to zero is the same as replacing it.
 
 ## Intended behavior
 
