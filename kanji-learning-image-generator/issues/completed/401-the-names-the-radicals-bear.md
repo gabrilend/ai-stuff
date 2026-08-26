@@ -2,8 +2,34 @@
 
 ## Current behavior
 
-A character's pieces are looked up in the lexicon and turned into things that
-can be in a picture. Then the ones the archive marks as chosen for their *sound*
+Done. `settings.scene.reading` is `mnemonic` or `semantic`, defaulting to the
+first, and 時 now produces a sun and a temple.
+
+```
+luajit src/024-the-scene-grammar.lua --chars 時語
+```
+
+**The names are derived, not written twice.** The lexicon's phrases were already
+noun phrases, so a name is the head of one with the elaboration cut off — *a
+temple with a bronze bell* is *temple*. A hundred and seventy names written by
+hand would have been a hundred and seventy chances for the name and the
+description to drift apart. Only the ones the derivation gets wrong are written,
+and that list is short.
+
+**Two things had to be fixed that the plan did not anticipate.**
+
+*The sound half was being weighted ahead of the meaning.* Subjects were ordered
+largest-first, and for 時 the temple is bigger than the sun — so the temple
+landed at the head of the list, which is the position the sentence weights and
+the last one it gives up. It belongs in the picture; it does not belong in front
+of what the character is about.
+
+*A pronoun is a correct gloss and not a picture.* The piece inside the sound
+half of 語 is glossed "I", and with the sound half promoted to subjecthood that
+put the word "I" into a scene description as though it named something. The rule
+that refuses glosses about the writing system now also refuses bare grammatical
+words, anchored — "it" is inside "item". Six such pieces got written entries
+drawn from what they are actually built out of. Then the ones the archive marks as chosen for their *sound*
 rather than their meaning are demoted out of being subjects and become
 landscape — ridgelines, paths, rock faces — present in the composition and
 absent from the sentence. `docs/004` argues for that at length.

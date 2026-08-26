@@ -131,7 +131,13 @@ function M.positive(scene, settings)
     local phrase = (index == 1)
       and ("(" .. subject.depicts .. ":1.2) " .. subject.where)
       or (subject.depicts .. " " .. subject.where)
-    say(subject_ranks[index] or 65, 10 + index, phrase)
+    -- A piece that is only in the picture because the character is written with
+    -- it -- not because it means anything -- is worth a little less of the
+    -- sentence than one that carries the meaning, even though both belong in
+    -- the picture. It still outranks the palette and the light.
+    local rank = subject_ranks[index] or 65
+    if subject.for_the_sound then rank = rank - 25 end
+    say(rank, 10 + index, phrase)
   end
 
   -- A character with no nameable pieces still has a world and still has

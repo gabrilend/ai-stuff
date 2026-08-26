@@ -37,4 +37,5 @@ what a person reads before opening the source.
 | `test_the_scene_grammar(t)` | The reasoning, not the wording. |
 | `test_the_words(t)` |  |
 | `test_the_arrows(t)` |  |
+| `test_the_two_readings(t)` | The picture can be about the meaning, or it can be a hook the meaning hangs |
 | `main(argv)` |  |

@@ -60,6 +60,12 @@ return {
 
   -- {{{ scene -- what the picture is of (docs/004, 204)
   scene = {
+    -- How a picture reads. "mnemonic" makes every piece of a character a named
+    -- thing, including the half chosen for its sound -- which is how the
+    -- mnemonic tradition works and why it works. "semantic" demotes that half
+    -- to background, which makes a picture that is about what the word means.
+    -- Neither is wrong; see notes/041 and src/024.
+    reading = "mnemonic",
     named_strokes = 5,    -- how many strokes get an object named in the prompt
     named_subjects = 3,   -- how many pieces of the character get named. a
                           -- character can have six, and naming all of them

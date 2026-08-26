@@ -252,7 +252,8 @@ local function test_the_scene_grammar(t)
 
   -- The etymology. Rest is a person beside a tree, and both have to survive
   -- into the cast, or the picture is not the character.
-  local rest = grammar.scene(store.records["\228\188\145"], store, settings)
+  local rest = grammar.scene(store.records["\228\188\145"], store, settings,
+                             { reading = "semantic" })
   t.same(#rest.subjects, 2, "rest has two subjects")
   t.same(#rest.landscape, 0, "and neither of them is there for its sound")
 
@@ -260,7 +261,12 @@ local function test_the_scene_grammar(t)
   -- is everything inside it. The pieces inside the sound half of "language" are
   -- two mouths, and counted, they outvoted the speech radical and put the scene
   -- in a room with a person in it instead of at a desk with words on it.
-  local language = grammar.scene(store.records["\232\170\158"], store, settings)
+  --
+  -- Asked for by name, because the default reading is now the other one and a
+  -- test that relied on the default would have been testing whichever reading
+  -- somebody last set in the settings file.
+  local language = grammar.scene(store.records["\232\170\158"], store, settings,
+                                 { reading = "semantic" })
   t.same(world_of("\232\170\158"), "word", "language is about words")
   t.same(#language.subjects, 1, "and has exactly one subject")
   t.same(language.subjects[1].element, "\232\168\128", "which is the speech radical")
@@ -463,6 +469,87 @@ local function test_the_arrows(t)
 end
 -- }}}
 
+-- {{{ test_the_two_readings(t)
+-- The picture can be about the meaning, or it can be a hook the meaning hangs
+-- on, and those want opposite things done with the half of a character that was
+-- chosen for its sound. Both readings have to keep working.
+local function test_the_two_readings(t)
+  local grammar = project.load("024-the-scene-grammar")
+  local lexicon = project.load("023-the-component-lexicon")
+  local store = project.load("019-the-kanji-record").store()
+  local settings = project.settings()
+
+  local time = store.records["\230\153\130"]
+
+  -- The mnemonic reading. Time is a sun over a temple, and it works precisely
+  -- because a temple has nothing to do with time.
+  local hook = grammar.scene(time, store, settings, { reading = "mnemonic" })
+  t.same(#hook.subjects, 2, "under the mnemonic reading, time has two subjects")
+  t.same(hook.subjects[1].element, "\230\151\165", "the sun leads")
+  t.ok(not hook.subjects[1].for_the_sound, "and it carries the meaning")
+  t.ok(hook.subjects[2].for_the_sound,
+       "while the second is marked as being there only for the sound")
+  t.same(#hook.landscape, 0, "and nothing was demoted to ground")
+
+  -- The head of the list is the one the sentence weights and the last one it
+  -- gives up. Sorting by size alone put the temple in front of the sun.
+  t.ok(hook.subjects[1].box and hook.subjects[2].box, "both have a place")
+
+  -- The semantic reading, which is what `docs/004` argued for and is still
+  -- right for the question it was answering.
+  local about = grammar.scene(time, store, settings, { reading = "semantic" })
+  t.same(#about.subjects, 1, "under the semantic reading, time has one subject")
+  t.same(about.subjects[1].element, "\230\151\165", "which is the sun")
+  t.ok(#about.landscape >= 1, "and the sound half became ground")
+
+  -- The world must not move between readings. A sound half never votes on which
+  -- world a character belongs to, in either reading, because that was never
+  -- about the picture.
+  t.same(hook.biome.name, about.biome.name,
+         "the world is the same either way, because the scoring is the same")
+
+  t.ok(not pcall(grammar.scene, time, store, settings, { reading = "sideways" }),
+       "a reading that is neither is refused by name")
+
+  -- Every piece has a short name as well as a phrase, because a phrase goes in
+  -- a sentence and a name is what a learner is told the piece is called.
+  local tree = lexicon.look_up({ element = "\230\156\168", depth = 2 }, store)
+  t.same(tree.name, "tree", "a piece has a name")
+  t.same(tree.depicts, "a tree", "as well as a phrase")
+
+  local say = lexicon.look_up({ element = "\232\168\128", depth = 2 }, store)
+  t.same(say.name, "say", "and the name is shorter than the phrase")
+  t.ok(#say.name < #say.depicts, "always")
+
+  -- The names are mostly derived rather than written twice, because a hundred
+  -- and seventy written by hand is a hundred and seventy chances for the name
+  -- and the description to drift apart.
+  t.same(lexicon.name_from("a temple with a bronze bell"), "temple",
+         "a name is the head of its phrase")
+  t.same(lexicon.name_from("a hand reaching down to grasp"), "hand",
+         "with the elaboration cut off")
+  t.same(lexicon.name_from("the sun"), "sun", "and the article too")
+
+  -- A pronoun is a correct translation and cannot be in a photograph. The piece
+  -- inside the sound half of "language" is glossed "I", which put the word "I"
+  -- into a scene description as though it named something.
+  t.ok(not lexicon.is_paintable("I"), "a pronoun is not a picture")
+  t.ok(not lexicon.is_paintable("that"), "nor is a demonstrative")
+  t.ok(lexicon.is_paintable("item"), "though a word containing one still is")
+
+  local language = grammar.scene(store.records["\232\170\158"], store, settings,
+                                 { reading = "mnemonic" })
+  local named = {}
+  for _, subject in ipairs(language.subjects) do
+    named[#named + 1] = subject.depicts
+  end
+  for _, phrase in ipairs(named) do
+    t.ok(phrase ~= "I", "no subject in a scene is a bare pronoun", phrase)
+  end
+  t.ok(#named > 0, "and language still has subjects under the mnemonic reading")
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -473,6 +560,7 @@ function M.run(options)
     { "the scene grammar", test_the_scene_grammar },
     { "the words", test_the_words },
     { "the arrows", test_the_arrows },
+    { "the two readings", test_the_two_readings },
   }
   local all_passed = true
   for _, group in ipairs(groups) do
