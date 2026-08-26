@@ -4,7 +4,16 @@ Turning the quality up on one kind of picture, and being told what that costs be
 
 For a general: the exchange this exists for is
 
-    the forest ones are looking pretty bad -- can we raise their quality?   > raising forest from 3 to 4 leaves 31 to draw from instead of 214, so   > expect them to start resembling each other.     that's fine.   > do you want to look through the 47 nobody has rated? it would take a few   > minutes.     not now.
+```
+    the forest ones are looking pretty bad -- can we raise their quality?
+  > raising forest from 3 to 4 leaves 31 to draw from instead of 214, so
+  > expect them to start resembling each other.
+    that's fine.
+  > do you want to look through the 47 nobody has rated? it would take a few
+  > minutes.
+    not now.
+
+```
 
 Four things are in that exchange and all four are requirements here.
 

@@ -13,6 +13,7 @@ run the sweep again.*
 ## Invocation
 
 ```
+luajit src/024-the-scene-grammar.lua --chars 休森語時
 luajit src/024-the-scene-grammar.lua --spread
 ```
 

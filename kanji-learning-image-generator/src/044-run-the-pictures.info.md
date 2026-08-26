@@ -13,6 +13,8 @@ run the sweep again.*
 ## Invocation
 
 ```
+luajit src/044-run-the-pictures.lua --chars 木火水
+luajit src/044-run-the-pictures.lua --grade 1 --limit 20
 luajit src/044-run-the-pictures.lua --phrases
 ```
 
@@ -59,4 +61,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `045-the-pool-that-remembers`.
+Used by `043-install-the-kitchen`, `045-the-pool-that-remembers`.

@@ -17,6 +17,7 @@ run the sweep again.*
 ## Invocation
 
 ```
+luajit src/048-what-a-higher-tier-buys.lua --owed
 luajit src/048-what-a-higher-tier-buys.lua --do-the-work
 ```
 

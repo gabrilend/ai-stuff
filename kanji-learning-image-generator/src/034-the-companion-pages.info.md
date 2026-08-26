@@ -48,8 +48,8 @@ what a person reads before opening the source.
 
 | | |
 |---|---|
-| `source_files()` | Every Lua file in src/, in index order. |
-| `strip_comment(line)` | The text of a comment line, or nil if the line is not one. |
+| `source_files()` | Every source file in src/, in index order. |
+| `strip_comment(line, marker)` | The text of a comment line, or nil if the line is not one. |
 | `first_sentence(doc)` | The opening line of a fold's comment -- what the function is, in one line. |
 | `remaining_prose(doc)` | Everything after the first line, as paragraphs. |
 | `main(argv)` | Run directly, this sweeps. --check reports what would change and writes |

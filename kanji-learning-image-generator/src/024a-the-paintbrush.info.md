@@ -4,7 +4,18 @@ The closed set of things a person may say about a picture, and the wall that ref
 
 For a general: when a picture comes out wrong there has to be something to do about it other than changing the rules that produced it, because changing the rules changes every other character too. This is that something. A person writes a better argument for one character and it wins.
 
-    -- input/arguments/時.lua     return {       world = "sky",       subjects = {         { "日", "the sun, low and huge" },         { "寺", "a temple with a bronze bell" },       },       note = "sun over temple. the temple is only there for the sound.",     }
+```
+    -- input/arguments/時.lua
+    return {
+      world = "sky",
+      subjects = {
+        { "日", "the sun, low and huge" },
+        { "寺", "a temple with a bronze bell" },
+      },
+      note = "sun over temple. the temple is only there for the sound.",
+    }
+
+```
 
 WHY THE VOCABULARY IS CLOSED. Given a long document describing everything a scene can hold, anybody writing quickly will reach for a neighbouring word that does not exist -- confidently, and in good style. A short allowlist has nowhere for the analogy to go. The refusing is the feature.
 
@@ -19,6 +30,7 @@ run the sweep again.*
 ## Invocation
 
 ```
+luajit src/024a-the-paintbrush.lua --contract
 luajit src/024a-the-paintbrush.lua --check 時
 ```
 

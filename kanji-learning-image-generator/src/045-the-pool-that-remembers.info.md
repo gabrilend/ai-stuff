@@ -4,15 +4,28 @@ Every picture this project has ever made, kept, with everything true about it in
 
 For a general: there is no database here and no index. A picture and its description are two files with the same name in the same folder, and that is the whole store. The convention already exists for source -- every source file has a companion page you read instead of opening the code -- and this is the same idea pointed at what the project produces.
 
-    pool/shrine/06642-時-20f3a9.png     pool/shrine/06642-時-20f3a9.info.md
+```
+    pool/shrine/06642-時-20f3a9.png
+    pool/shrine/06642-時-20f3a9.info.md
+
+```
 
 Three things follow from it and each is the reason for it.
 
-  Asking "which of the forest ones are good" reads small text files. It never   opens a picture.
+```
+  Asking "which of the forest ones are good" reads small text files. It never
+  opens a picture.
 
-  Nothing can be separated from its meaning. Copy the pair anywhere and the   tier, the seed and the origin come with it. A record in a central store   drifts from what it describes the first time somebody archives one without   the other.
+  Nothing can be separated from its meaning. Copy the pair anywhere and the
+  tier, the seed and the origin come with it. A record in a central store
+  drifts from what it describes the first time somebody archives one without
+  the other.
 
-  Ratings are appended and never overwritten, so a machine's guess stays   visible underneath the correction a person later made -- which is the only   reason the agreement between them can be measured at all.
+  Ratings are appended and never overwritten, so a machine's guess stays
+  visible underneath the correction a person later made -- which is the only
+  reason the agreement between them can be measured at all.
+
+```
 
 NOTHING IS EVER DELETED. Not the bad ones. A low tier records what missed and by how much; re-rating later can promote something scored in a hurry; and a pool that has been pruned cannot answer why the output drifted. Storage is cheap and judgement is expensive, and this trades the cheap thing away deliberately.
 
@@ -23,6 +36,7 @@ run the sweep again.*
 ## Invocation
 
 ```
+luajit src/045-the-pool-that-remembers.lua --counts
 luajit src/045-the-pool-that-remembers.lua --list --category forest --floor 4
 ```
 
