@@ -12,7 +12,8 @@ use is kept in `.file-index-counter` at the project root.
 ```
 kanji-learning-image-generator/
 ├── notes/
-│   └── vision ....................... the page it started from
+│   ├── vision ....................... the page it started from
+│   └── 041-what-it-is-for.md ........ what it turned out to be for, in the words it arrived in
 │
 ├── docs/
 │   ├── table-of-contents.md ......... this file
@@ -22,6 +23,7 @@ kanji-learning-image-generator/
 │   ├── 003-datapath-the-structure-field.md  the grey image the illusion rides on
 │   ├── 004-datapath-the-scene-grammar.md  which piece is a subject, which is only a sound
 │   ├── 005-datapath-the-workflow.md .. the ComfyUI graph, in the two shapes it accepts
+│   ├── 042-datapath-the-studio.md ... pictures kept, rated, filtered, and argued with
 │   │
 │   ├── 006-roadmap.md ............... three phases; parts, not dates
 │   ├── 007-open-questions.md ........ every question, closed and open, in one place
