@@ -45,6 +45,9 @@ mechanic when people are busy.
 - **A lane has finite towers.** Three per side. Fell them and the lane stops
   paying tower rewards, while six unclaimed towers stand in the lanes you
   ignored. **A won lane is a lane that has stopped earning.**
+- **And every lane carries a captain, every wave** — a body worth three times an
+  ordinary one in bounty. So ignoring a lane is declining to be paid, not merely
+  declining to fight, and it happens on every single wave.
 - **The base guards answer any lane but the base towers do not.** Splitting a push
   across two lanes into the same base is better than doubling one, which is a
   shove away from concentration at exactly the moment it matters most.
@@ -66,12 +69,17 @@ punishes an early wrong guess).
 
 **What to try, if it is real**, in the order worth trying:
 
-1. **Give the captain a rotating lane.** A captain pays three dice where an
-   ordinary body pays one, so the lane carrying this wave's captain is worth
-   three times the bounty. Rotate which lane that is, wave by wave. **Ignoring a
-   lane then costs income directly** — you are not merely losing ground, you are
-   declining to be paid — and it costs it in a way that moves, so no lane is
-   permanently the rich one. One body, one rotation, no new rule to explain.
+1. **Lean harder on the captains, which are already there.** Every lane gets a
+   captain every wave, and a captain pays three dice where an ordinary body pays
+   one — so **a lane you never contest is a captain you never collect**, three
+   times a wave, for the whole match. The income pressure against ignoring a lane
+   already exists and is uniform across all of them.
+
+   Which means the first thing to try is not a new mechanic but a **number**: if
+   concentration is winning, the captain's bounty multiple is too small relative
+   to what a stacked lane earns by killing faster. Raising it makes the third
+   lane's captain worth going to get. That is a balance change rather than a
+   rule, which is the cheapest kind of fix and the first one to reach for.
 2. **Narrow the centre and widen the challenge.** The centre is wide because a
    monster must fight a whole team at once. That is a requirement of the
    *challenge*, not of normal play, and it could be met by the challenge widening

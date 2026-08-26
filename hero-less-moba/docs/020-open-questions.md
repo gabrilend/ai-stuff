@@ -2684,7 +2684,9 @@ attention.
 
 Three things rather than two. It was a resource name and a hero roster; it is:
 
-1. **A wave composition** — how many melee, how many ranged, which captain
+1. **A wave composition** — how many melee, how many ranged, and which captain.
+   **One captain goes into every lane**, so a wave fields one apiece rather than
+   one in total.
 2. **A bounty shape**, which falls straight out of the first, since killing a
    body pays the colour it carries
 3. **A hero roster**
