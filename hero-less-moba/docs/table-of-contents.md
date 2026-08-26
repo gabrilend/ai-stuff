@@ -67,7 +67,7 @@ hero-less-moba/
 │   │
 │   ├── ── The chest ──
 │   ├── 009-the-shared-upgrade-pool ........... Upgrade kinds and instances, drawing,
-│   │                                           placing, locking, and the two-objection
+│   │                                           placing, contributing, and the
 │   │                                           rule.
 │   ├── 010-upgrades-slotted-into-stone ....... Tower slots, and the rule that makes
 │   │                                           every lane's stone defend the base.

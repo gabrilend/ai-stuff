@@ -49,7 +49,7 @@ Incoming values are **sanity-checked for causality, not magnitude**:
 
 ### Channel 3 — presence
 
-Every player's cursor, continuously. A few bytes, and one of the six verbs a
+Every player's cursor, continuously. A few bytes, and one of the seven verbs a
 team has for talking about the chest.
 
 ## Not lockstep
