@@ -4,8 +4,23 @@ Produces `src/028-power-budget.md`.
 
 ## Current behavior
 
-Nothing. `301` has a heat budget; this is the same accounting from the other side
-and the two must agree exactly.
+**Done.** `src/028-power-budget.md` exists. Not one ampere in it is a `given` —
+every current is a power from `020` divided by a voltage from `029`, so changing
+the multiplier's switching energy moves the heat and the current together with
+nobody editing either.
+
+Six constraints. The reconciliation between this budget and `020`'s heat budget
+is the one no single document can perform against itself, and what it exists to
+catch is a mechanism counted in both.
+
+The one asserted in the direction of alarm never fails and is worth having: at
+the transistor's own voltage this machine would draw over a kiloampere, which is
+what makes the two-stage conversion structural rather than an efficiency measure.
+
+**Peak current is not distinguished from average.** `031` needs the step and
+takes it from `045` rather than from here, which means the two can drift. And
+nobody has checked the spout's burst on the port rail — over a hundred amperes
+for thirty-three microseconds, fourteen times that rail's average.
 
 ## Intended behavior
 

@@ -59,12 +59,12 @@ Change one of these and the blueprints beside it are what break.
 | `t_seal_travel` | `014` |
 | `n_island` | `014`, `022` |
 | `L_island` | `014`, `022` |
-| `p_island_pad` | `014` |
+| `p_island_pad` | `014`, `030`, `032` |
 | `t_stack` | `014`, `018` |
 | `t_face_used` | `014` |
 | `A_island` | `014` |
 | `A_island_all` | `014` |
-| `n_island_pad` | `014` |
+| `n_island_pad` | `014`, `030`, `032` |
 | `f_island_area` | `014` |
 | `n_island_seal` | `017` |
 

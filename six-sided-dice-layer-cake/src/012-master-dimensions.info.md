@@ -56,7 +56,7 @@ Change one of these and the blueprints beside it are what break.
 | `t_face` | `012`, `014` |
 | `t_cage` | `012` |
 | `w_rail` | `012`, `013`, `016`, `024` |
-| `L_die` | `012` |
+| `L_die` | `012`, `030`, `032` |
 | `w_street` | `012` |
 | `t_tier_si` | `012`, `013`, `026` |
 | `t_lamina` | `012`, `013`, `024`, `026` |
@@ -65,7 +65,7 @@ Change one of these and the blueprints beside it are what break.
 | `w_ufin` | `012`, `022` |
 | `L_cavity` | `012`, `013` |
 | `L_core` | `012`, `013`, `018` |
-| `L_plate` | `012`, `013`, `014`, `017`, `018`, `022`, `024` |
+| `L_plate` | `012`, `013`, `014`, `017`, `018`, `022`, `024`, `030` |
 | `L_dieblock` | `012`, `014` |
 | `w_seal` | `012`, `017` |
 | `t_tier_pitch` | `012` |
@@ -73,10 +73,10 @@ Change one of these and the blueprints beside it are what break.
 | `n_uchan` | `012`, `022`, `024` |
 | `ar_uchan` | `012`, `022` |
 | `A_plate` | `013`, `014`, `025`, `026` |
-| `A_die` | `012`, `013`, `020`, `025`, `026` |
+| `A_die` | `012`, `013`, `020`, `025`, `026`, `031` |
 | `A_core_side` | `013`, `024`, `026` |
 | `V_cube` | `013`, `020`, `024` |
-| `n_die` | `012`, `013`, `020` |
+| `n_die` | `012`, `013`, `020`, `028`, `031`, `033` |
 | `A_die_total` | `025` |
 
 ## What it asserts

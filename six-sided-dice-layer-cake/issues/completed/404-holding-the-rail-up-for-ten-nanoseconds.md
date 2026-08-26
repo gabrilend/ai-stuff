@@ -4,8 +4,25 @@ Produces `src/031-decoupling-and-impedance.md`.
 
 ## Current behavior
 
-Nothing. Thirty-four microfarads per die has been quoted in `006` and derived
-nowhere.
+**Done.** `src/031-decoupling-and-impedance.md` exists, and the ramp turns out to
+be worth more than the ticket estimated.
+
+Without it, a die needs twenty-seven microfarads — two hundred and seventy square
+millimetres of trench capacitor under a five hundred and seventy-six square
+millimetre die, which does not fit alongside anything else. Admitting operands
+over sixty-four cycles does not change the total current, it changes how fast it
+arrives, and the charge deficit while a regulator catches a ramp is the area of a
+triangle rather than a rectangle. Three microfarads instead of twenty-seven, for
+forty-five nanoseconds at the start of a layer that takes a hundred and fifty
+microseconds.
+
+Six constraints. The impedance one is written to fail when somebody removes a
+capacitor bank without checking what it was damping.
+
+**Nothing models six dies stepping at once.** At the crossover batch all
+twenty-four switch together, and whether their steps correlate is `053`'s
+schedule — if they do, the planes and the via islands see twenty-four times the
+slew and neither has been checked for it.
 
 ## Intended behavior
 

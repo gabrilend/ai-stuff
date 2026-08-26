@@ -74,7 +74,7 @@ Change one of these and the blueprints beside it are what break.
 | `dT_conv_local` | `025`, `026` |
 | `dT_hotspot` | `025`, `026` |
 | `dT_fluid_mean` | `025` |
-| `T_j_peak` | `025`, `026`, `027` |
+| `T_j_peak` | `025`, `026`, `027`, `032` |
 | `T_j_mean` | `025` |
 | `margin_thermal` | `025` |
 | `fix_point_err` | `020` |

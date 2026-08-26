@@ -4,8 +4,23 @@ Produces `src/032-current-density-and-electromigration.md`.
 
 ## Current behavior
 
-Nothing. One milliampere per square micron has been quoted once and sourced
-nowhere.
+**Done.** `src/032-current-density-and-electromigration.md` exists, and the
+binding case is not the one the ticket predicted.
+
+Not the via islands — those have a hundredfold margin. **It is the die's own
+power grid**: seventy amperes needing seventy thousand square microns against
+seventy-two thousand available across the die's width in the top metal. A margin
+of one and a half, which is thin.
+
+The check the blueprint exists for is the cross-blueprint one: the current
+density limit must be quoted at the temperature the conductors actually run at,
+from `025`'s chain. The ordinary way to get electromigration wrong is a datasheet
+number from a cooler part, and nothing but a constraint spanning two phases
+catches it.
+
+**The margin rests on three uncertainties that multiply**: a top metal thickness
+`041` has not fixed, a limit with no source, and a junction temperature that
+itself rests on a floorplan and an unsolved flow network.
 
 ## Intended behavior
 
