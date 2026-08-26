@@ -414,6 +414,33 @@ for index, biome in ipairs(BIOMES) do
 end
 -- }}}
 
+-- {{{ OF_THAT_SHAPE -- a radical's name, worn as a stroke of a given shape
+--
+-- The shape decides the form and the radical decides the substance. A vertical
+-- is an upright whichever radical it belongs to; what changes is what the
+-- upright is made *of* -- a post of the temple rather than a cedar trunk,
+-- because that stroke is part of the temple.
+--
+-- Six phrasings shared by every radical, rather than a vocabulary per radical.
+-- There are a thousand radicals and nobody could maintain a thousand lists;
+-- there are six stroke shapes and the measurement in `021` already tells them
+-- apart.
+--
+-- The radical's *name* is used rather than its longer description, because what
+-- moves a diffusion model is the same short noun appearing several times beside
+-- several positions -- not one long phrase mentioned once.
+local OF_THAT_SHAPE = {
+  vertical      = "%s standing as an upright",
+  horizontal    = "%s lying as a level bar",
+  falling_left  = "%s sweeping down to the left",
+  falling_right = "%s sweeping down to the right",
+  rising        = "%s lifting away",
+  reversing     = "%s doubling back",
+  dot           = "a speck of %s",
+  hooked        = "%s curling at its tip",
+}
+-- }}}
+
 -- {{{ TERRAIN -- what a phonetic component's strokes become
 --
 -- A phonetic piece was chosen for how the word sounds, not for what it means
@@ -773,21 +800,59 @@ function M.scene(record, store, settings, options)
     return a.stroke_first < b.stroke_first
   end)
 
-  -- A role for every stroke, from its own shape and this world's vocabulary.
+  -- A role for every stroke: its shape from `021`, its substance from the
+  -- radical that owns it, and the world's vocabulary only where the radical has
+  -- nothing to be made of.
+  --
+  -- Which radical owns a stroke has been in the record since `012` and nothing
+  -- asked until now, so every stroke of a character drew from one list --
+  -- meaning the sun's strokes and the temple's strokes in the character for
+  -- time were described identically, and nobody could have learned to tell them
+  -- apart from the picture (`411`).
+  -- Owned by the pieces the *prompt names*, not by the finest piece available.
+  --
+  -- The character for time is a sun beside a temple, and the temple is itself
+  -- built from earth and a measuring hand. Attributing strokes to the finest
+  -- level described the sun's strokes as sun and the temple's as "dirt" and
+  -- "measurement" -- while the sentence beside them said "temple". The picture
+  -- has to be made of the things the sentence names, or the two are describing
+  -- different pictures. The finer decomposition is still in the card, where it
+  -- is study material rather than instructions to a model.
+  local owner_of = {}
+  for _, subject in ipairs(outer) do
+    for index = subject.stroke_first, subject.stroke_last do
+      local held = owner_of[index]
+      if not held or subject.depth > held.depth then owner_of[index] = subject end
+    end
+  end
+
   local roles = {}
   for index, one in ipairs(measured) do
     local key
     if one.hooked then key = "hooked"
     elseif one.size == "dot" then key = "dot"
     else key = one.direction end
+
+    local owner = owner_of[index]
+    local made_of, object
+    if owner and owner.name and OF_THAT_SHAPE[key] then
+      made_of = owner
+      object = string.format(OF_THAT_SHAPE[key], owner.name)
+    else
+      object = biome.roles[key] or biome.roles.horizontal
+    end
+
     roles[index] = {
       index = index,
-      object = biome.roles[key] or biome.roles.horizontal,
+      object = object,
       key = key,
       direction = one.direction,
       size = one.size,
       place = one.place.name,
       weight = one.weight,
+      radical = made_of and made_of.element or nil,
+      radical_name = made_of and made_of.name or nil,
+      from_the_world = (made_of == nil) or nil,
     }
   end
 
@@ -924,7 +989,10 @@ local function main(argv)
         io.write("  no picture ", element, "\n")
       end
       for _, role in ipairs(scene.named) do
-        io.write(string.format("  stroke %-2d  %s\n", role.index, role.phrase))
+        io.write(string.format("  stroke %-2d  %-46s %s\n", role.index,
+                 role.phrase,
+                 role.radical and ("(part of " .. role.radical .. " " ..
+                   role.radical_name .. ")") or "(from the world)"))
       end
     end
   end

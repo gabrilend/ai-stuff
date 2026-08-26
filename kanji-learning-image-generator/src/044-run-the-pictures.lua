@@ -15,6 +15,7 @@
 --   luajit src/044-run-the-pictures.lua --chars 木火水
 --   luajit src/044-run-the-pictures.lua --grade 1 --limit 20
 --   luajit src/044-run-the-pictures.lua --phrases
+--   luajit src/044-run-the-pictures.lua --chars 時語 --style wimmelbild
 
 local project = dofile((debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$")) ..
                        "/009-where-things-are.lua")
@@ -256,16 +257,23 @@ end
 -- {{{ M.make_one(settings, record, store, options)
 -- One character, all the way from a recipe to a rated picture in the pool.
 function M.make_one(settings, record, store, options)
-  local built, why = words.prompts(record, store, settings)
-  if not built then return nil, why end
-  local scene = built.scene
+  options = options or {}
 
-  -- The recipe is written out first, exactly as `030` would, because the
-  -- pictures it names have to exist somewhere before they can be copied to
-  -- where the far end looks.
+  -- The recipe is written by `030` and *only* by `030`, and whatever it decided
+  -- is what gets posted.
+  --
+  -- WHY THIS IS SAID SO FIRMLY. This used to work out the prompt here as well,
+  -- and then post the workflow `030` had written -- so the style asked for on
+  -- the command line went into the pool as the picture's description while the
+  -- picture itself was made from a different prompt entirely, with a different
+  -- seed. Asking for a style appeared to do nothing, and the pool recorded a
+  -- brief the picture had never answered.
   local recipe_dir = options.recipes or project.scratch("recipes")
-  local made, made_why = one.make(record, store, settings, { out = recipe_dir })
+  local made, made_why = one.make(record, store, settings,
+                                  { out = recipe_dir, style = options.style })
   if not made then return nil, made_why end
+  local built = made.prompt
+  local scene = built.scene
 
   local field_name = string.format("%05X-field.png", record.codepoint)
   local arrows_name = string.format("%05X-arrows.png", record.codepoint)
@@ -287,7 +295,7 @@ function M.make_one(settings, record, store, options)
   local picture, collect_why = M.collect(settings, filename, subfolder)
   if not picture then return nil, collect_why end
 
-  local seed = workflow.seed_for(record)
+  local seed = made.seed
   local _, companion = pool.add(settings, {
     record = record, scene = scene, seed = seed,
     character = record.character,
@@ -297,6 +305,9 @@ function M.make_one(settings, record, store, options)
     kind = (record.cells and #record.cells > 1) and "phrase" or "character",
     category = scene.biome.name, codepoint = record.codepoint,
     paintbrush = scene.paintbrush_version, reading = scene.reading,
+    -- A pool holding two styles with no way to tell them apart is a pool where
+    -- every comparison between them is meaningless.
+    style = built.style,
     argued = scene.argument_path, canvas = built.positive,
     source = filename,
     ratings = {},
@@ -306,7 +317,7 @@ function M.make_one(settings, record, store, options)
   -- only what somebody looked at were rated, the pool would be overwhelmingly
   -- unrated and "tier four or better" would exclude nearly all of it.
   local tier, agreement = grader.rate_on_arrival(settings, companion,
-    pool.place(settings, record, scene, seed),
+    pool.place(settings, record, scene, seed, built.style),
     made.folder .. "/field.png")
 
   return { character = record.character, world = scene.biome.name,
@@ -394,7 +405,10 @@ local function main(argv)
 
     io.write(string.format("  [%d/%d] %s ... ", index, #chosen, record.character))
     io.flush()
-    local done, why = M.make_one(settings, record, store, options)
+    local done, why = M.make_one(settings, record, store, {
+      recipes = options.recipes, patience = options.patience,
+      style = type(options.style) == "string" and options.style or nil,
+    })
     if done then
       made = made + 1
       io.write(string.format("%s, tier %d (%.2f)\n", done.world, done.tier or 0,

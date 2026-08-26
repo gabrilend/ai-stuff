@@ -1,0 +1,33 @@
+# 時 — time, hour
+
+A picture drawn from this project's recipe for 時.
+
+| | |
+|---|---|
+| means | time, hour |
+| what | A picture drawn from this project's recipe for 時. |
+| style | wimmelbild |
+| kind | character |
+| category | shrine |
+| character | 時 |
+| codepoint | 26178 |
+| seed | 1572849060 |
+| paintbrush | 1 |
+| reading | mnemonic |
+| argued | /mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator/input/arguments/時.lua |
+| source | 時_00005_.png |
+| made | 2026-08-26 12:28:16 |
+
+## The canvas it answered
+
+(the sun directly overhead, huge and white:1.2) in the middle left, (a Wimmelbild:1.3), a teeming seek-and-find picture crowded with hundreds of small distinct figures and objects in every corner, each with its own outline, richly detailed, painted, a hilltop shrine at midday, the whole plain visible below it
+
+## Ratings
+
+Newest last. Never rewritten — a tier is added, and the last one wins.
+
+- 4 · machine:squint 0.839 · 2026-08-26 12:28:16
+
+## Elaborations
+
+None yet.

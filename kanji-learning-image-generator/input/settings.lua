@@ -66,6 +66,12 @@ return {
     -- to background, which makes a picture that is about what the word means.
     -- Neither is wrong; see notes/041 and src/024.
     reading = "mnemonic",
+    -- What a picture should look like. "photographic" is the default and is a
+    -- style like any other. A style may lift refusals whose reasoning does not
+    -- apply to it -- a Wimmelbild is an illustration and is the opposite of
+    -- flat, so the argument that pushes this project towards photographs is not
+    -- an argument against it. See src/025 and issues/412.
+    style = "photographic",
     named_strokes = 5,    -- how many strokes get an object named in the prompt
     named_subjects = 3,   -- how many pieces of the character get named. a
                           -- character can have six, and naming all of them

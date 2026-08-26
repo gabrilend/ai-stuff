@@ -18,8 +18,10 @@ luajit src/025-the-words-the-machine-reads.lua --chars 休語時川
 
 | | |
 |---|---|
+| `M.styles()` |  |
+| `M.style(name)` | One style, or an error naming the ones there are. |
+| `M.refusals(style_name)` | The negative prompt, with whatever this style may lift removed. |
 | `M.token_estimate(text)` |  |
-| `M.refusals()` |  |
 | `M.positive(scene, settings)` | The scene, as the sentence describing it. |
 | `M.prompts(record, store, settings)` | One record, all the way to the two sentences. Or nil and a reason. |
 
