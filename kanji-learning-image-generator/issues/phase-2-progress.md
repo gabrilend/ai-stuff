@@ -13,7 +13,7 @@ This is where the project stops being a drawing program.
 |---|---|---|
 | `201` | What a stroke is shaped like | **completed** — every boundary measured off the archive, and the thing that measured them kept |
 | `202` | The field the illusion rides on | **completed** — five steps in a fixed order, and a blur that answers to how crowded the character is |
-| `203` | What the pieces mean | not started |
+| `203` | What the pieces mean | **completed** — a rule for refusing glosses about writing, and a queue that says what to write next |
 | `204` | The place the meaning makes | not started |
 | `205` | The words the machine reads | not started |
 | `206` | Arrows that teach the order | not started |
@@ -62,3 +62,14 @@ the character was not there. All the machinery had done what it was told.
 The fix was to make the blur depend on how crowded the character is rather than
 being one number. The finding is that in this phase, *looking* is a test — and
 it is the only one that checks the thing the project is actually for.
+
+## What `203` turned up
+
+**The expected difficulty was coverage and the real one was quality.** Almost
+every piece of every character has a dictionary entry. The commonest pieces have
+the least useful ones, because a piece that appears in two thousand characters is
+a structural radical and dictionaries describe those by catalogue position — a
+radical number, a kana name, a stroke count. All true, none of it paintable.
+
+That is a rule and not a list, so the long tail is handled and the failures are
+reported rather than guessed at.

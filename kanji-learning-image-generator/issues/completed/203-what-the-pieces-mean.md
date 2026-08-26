@@ -2,8 +2,39 @@
 
 ## Current behavior
 
-A record says 休 contains 人 and 木. Nothing knows that those are a person and a
-tree, or what a person and a tree look like.
+Done. `src/023-the-component-lexicon.lua`, with its own coverage report:
+
+```
+luajit src/023-the-component-lexicon.lua --coverage
+luajit src/023-the-component-lexicon.lua --chars 休語時
+```
+
+**The plan was wrong about what the hard part is.** It assumed the difficulty
+would be coverage — pieces with no dictionary entry — and budgeted the written
+table for those. Measured, almost every piece *has* an entry. The difficulty is
+that the **commonest** pieces have the **worst** ones, because a piece appearing
+in two thousand characters is a structural radical, and a dictionary describes
+those by their catalogue position:
+
+> 亻 — *radical number 9*   ·   亠 — *kettle lid radical (no. 8)*
+> 丿 — *katakana no radical (no. 4)*   ·   儿 — *legs radical (no. 10)*
+
+Every one is a correct entry and none of them is a thing that can be in a
+photograph. Left alone, the scenes would have been about the naming of radicals.
+
+So there is a rule rather than a list: a gloss mentioning radicals, kana, stroke
+counts or catalogue numbers is a gloss about **writing** and is refused. A list
+would have been long, incomplete, and silent about why.
+
+**And the archive resolves most of the rest by itself.** A squeezed form carries
+a note saying which character it is a squeezed form of, so 亻 reaches *person*
+through 人 without needing a row.
+
+The written table is ordered by how often each piece appears, because that is
+the order the coverage report ranks them in and it removes the question of what
+to write next. Run the report for where coverage stands; what remains at the
+bottom is genuinely obscure, and one entry is not a character at all but a
+placeholder identifier the archive uses for a shape Unicode has no number for.
 
 ## Intended behavior
 
