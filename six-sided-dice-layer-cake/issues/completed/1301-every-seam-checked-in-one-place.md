@@ -4,8 +4,27 @@ Produces `src/087-system-integration.md`.
 
 ## Current behavior
 
-Nothing. Roughly a hundred and forty cross-blueprint constraints have been asked
-for by individual tickets and nobody has checked that they cover the seams.
+**Done.** `src/087-system-integration.md` exists as a register of seams rather
+than a summary, because each blueprint checks itself and `095` checks every
+constraint that has been written — and **neither notices a constraint that was
+never written.**
+
+Forty-four seams, all guarded. Three quantities derived by three independent
+routes. Six constraints.
+
+`C-087-6` records something that became a pattern while the project was being
+built: **eight constraints are now asserted in the direction of alarm** — things
+that will always hold, written so a reader meets a number rather than a claim.
+Twenty-four tiers with no redundancy losing one stack in seven; the radial bonds
+with no spares failing more often than they work; a kiloampere at the transistor's
+own voltage.
+
+**The gap this blueprint cannot close is stated plainly.** The notation holds
+numbers and not lists, so a seam register can count seams and count constraints
+and **cannot verify that a given seam has a constraint on it.** Five places in the
+project now have that weakness, and `C-087-5` holds the ceiling rather than fixing
+it. Fixing it means the notation growing a named set, which is the largest single
+improvement available to the instruments.
 
 ## Intended behavior
 

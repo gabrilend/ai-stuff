@@ -64,9 +64,9 @@ n_handle      | 1 | given | 40          | handling operations in a whole assembl
 f_cover_needed | 1 | derived | 0.98     | test coverage 082's step five must reach for the numbers below to hold
 y_floor       | 1 | given | 0.40        | the least finished-cube yield that makes the machine worth building
 
-y_die_logic   | 1 | derived | (1 - exp(-A_die / 100 * d0_logic)) / (A_die / 100 * d0_logic) | fraction of compute dies good, by the standard model for a mature process
-y_die_tier    | 1 | derived | (1 - exp(-A_core_side / 100 * d0_array)) / (A_core_side / 100 * d0_array) | and of memory tiers
-y_die_plate   | 1 | derived | (1 - exp(-A_plate / 100 * d0_passive)) / (A_plate / 100 * d0_passive) | and of cold plates
+y_die_logic   | 1 | derived | (1 - exp(-A_die * d0_logic)) / (A_die * d0_logic) | fraction of compute dies good, by the standard model for a mature process
+y_die_tier    | 1 | derived | (1 - exp(-A_core_side * d0_array)) / (A_core_side * d0_array) | and of memory tiers
+y_die_plate   | 1 | derived | (1 - exp(-A_plate * d0_passive)) / (A_plate * d0_passive) | and of cold plates
 n_die_good_l  | 1 | derived | n_die_wafer_l * y_die_logic            | good compute dies per wafer
 n_tier_good   | 1 | derived | n_tier_wafer * y_die_tier / n_tier_stitch | good memory tiers per wafer, allowing for stitching
 

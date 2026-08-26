@@ -69,14 +69,15 @@ Change one of these and the blueprints beside it are what break.
 | `f_t_weights` | `080` |
 | `f_overhead_tok` | `080` |
 | `n_model_term_d` | `080`, `085` |
-| `tok_s_single` | `080` |
+| `tok_s_single` | `080`, `089` |
+| `tok_s_agg` | `089` |
 | `t_prefill_tok` | `080` |
 | `tok_s_prefill` | `080` |
 | `gain_prefill` | `080` |
 | `B_ref_hbm` | `080` |
 | `C_ref_hbm` | `080` |
-| `gain_bw` | `080` |
-| `gain_cap` | `080` |
+| `gain_bw` | `080`, `089` |
+| `gain_cap` | `080`, `089` |
 
 ## What it asserts
 
