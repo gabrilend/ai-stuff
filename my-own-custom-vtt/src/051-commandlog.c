@@ -5,6 +5,7 @@
  */
 
 #include "051-commandlog.h"
+#include "070-scope.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -244,6 +245,39 @@ static uint16_t apply_order_face(struct sim *s, const struct log_entry *e)
 }
 /* }}} */
 
+/* {{{ static uint16_t apply_give_scope */
+static uint16_t apply_give_scope(struct sim *s, const struct log_entry *e)
+{
+    /*
+     * A GM hands the tavern to somebody who has just arrived. The whole
+     * mechanism is one field changing -- and because a scope is world state, the
+     * handover is snapshotted, rolled back, and hashed like anything else.
+     *
+     * `subject` is the scope, and `ax` is the viewer receiving it. A viewer of 0
+     * unholds it, which is a legal and normal thing: the forest exists whether
+     * anybody is playing it tonight.
+     */
+    uint32_t scope = (uint32_t)e->ax;
+    uint32_t receiver = (uint32_t)e->ay;
+
+    if (scope == 0 || scope >= world_scope_count(s->world)) {
+        return REFUSED_NO_SUCH_SCOPE;
+    }
+
+    /*
+     * Standing orders belong to the BODIES, not to the scope, so they survive a
+     * handover -- the new commander inherits six goblins already walking
+     * somewhere for reasons nobody told them.
+     *
+     * That is what falls out of doing nothing, and it is worth being honest that
+     * it is a default rather than a decision. Open question 6.3.
+     */
+    world_scope(s->world, scope)->viewer = receiver;
+
+    return REFUSED_NOT_AT_ALL;
+}
+/* }}} */
+
 /* {{{ static uint16_t apply_order_stop */
 static uint16_t apply_order_stop(struct sim *s, const struct log_entry *e)
 {
@@ -262,7 +296,8 @@ static const struct {
     { "drive",      apply_drive },
     { "order-move", apply_order_move },
     { "order-face", apply_order_face },
-    { "order-stop", apply_order_stop }
+    { "order-stop", apply_order_stop },
+    { "give-scope", apply_give_scope }
 };
 
 /* {{{ uint16_t command_apply */
@@ -281,6 +316,23 @@ uint16_t command_apply(struct sim *s, const struct log_entry *entry)
     }
 
     /*
+     * Handing a scope over is about a scope rather than a body, so it takes a
+     * different gate: MAY_EDIT_WORLD, not membership. Checked before the subject
+     * gates below, which would otherwise refuse it for having no body.
+     *
+     * Who may hand a scope over is not obvious -- a GM plausibly, the current
+     * holder plausibly, both plausibly. MAY_EDIT_WORLD is the narrow answer.
+     */
+    if (entry->verb == VERB_GIVE_SCOPE) {
+        if (entry->viewer != 0 &&
+            !viewer_has_flag(s->world, entry->viewer, SCOPE_MAY_EDIT_WORLD)) {
+            return REFUSED_MAY_NOT_EDIT;
+        }
+
+        return verb_table[entry->verb].handle(s, entry);
+    }
+
+    /*
      * A reference is the one kind of field that CAN be wrong. Every bit pattern
      * is a legal uint32_t and most of them point past the end of the things
      * array -- so this is refused, never clamped. Clamping an index would aim a
@@ -294,6 +346,36 @@ uint16_t command_apply(struct sim *s, const struct log_entry *entry)
         entry->subject >= s->capacity) {
         return REFUSED_NO_SUCH_SUBJECT;
     }
+
+    /*
+     * GATE 4: is the subject inside a scope this viewer holds?
+     *
+     * A viewer of 0 is the scripted driver used by tests and by phase 3's demo,
+     * which has no seat at the table and is allowed everything. That is a
+     * deliberate hole and it is only reachable from inside the process -- nothing
+     * arriving on a socket can carry viewer 0, because a viewer index comes from
+     * the port the bytes arrived on.
+     */
+    if (entry->viewer != 0) {
+        uint32_t scope = scope_of_viewer_containing(s->world, entry->viewer,
+                                                    entry->subject);
+
+        if (scope == 0) {
+            return REFUSED_NOT_YOURS;
+        }
+
+        /*
+         * GATE 5: does the verb suit the scope's style? Driving a body you can
+         * only give orders to is a category error, and somebody whose keys do
+         * nothing needs to be told that rather than left to suspect their
+         * keyboard.
+         */
+        if (!scope_style_allows(s->world, scope, entry->verb)) {
+            return REFUSED_WRONG_STYLE;
+        }
+    }
+
+    /* GATE 6, the ruleset, arrives in phase 7. */
 
     return verb_table[entry->verb].handle(s, entry);
 }
@@ -318,6 +400,14 @@ const char *refusal_sentence(uint16_t refusal)
         return "there is nothing here with that index";
     case REFUSED_SUBJECT_IS_NOTHING:
         return "nothing is not a thing you can give an order to";
+    case REFUSED_NOT_YOURS:
+        return "that is not yours to command";
+    case REFUSED_WRONG_STYLE:
+        return "that one takes orders rather than being driven, or the other way about";
+    case REFUSED_MAY_NOT_EDIT:
+        return "handing a scope over is an edit, and you may not edit the world";
+    case REFUSED_NO_SUCH_SCOPE:
+        return "there is no scope with that index";
     default:
         return "refused, for a reason nobody wrote down -- which is a bug";
     }

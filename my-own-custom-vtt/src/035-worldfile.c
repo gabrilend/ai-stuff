@@ -208,6 +208,26 @@ uint64_t world_hash(const struct world *w)
         hash_u32(&h, l->arc);
     }
 
+    count = world_scope_count(w);
+    hash_u32(&h, count);
+    for (i = 0; i < count; i++) {
+        const struct scope *sc = world_scope_const(w, i);
+        hash_u32(&h, sc->viewer);
+        hash_u32(&h, sc->region);
+        hash_u32(&h, sc->first_member);
+        hash_u32(&h, sc->member_count);
+        hash_u32(&h, sc->name_offset);
+        hash_u32(&h, sc->membership);
+        hash_u32(&h, sc->style);
+        hash_u32(&h, sc->flags);
+    }
+
+    count = world_member_count(w);
+    hash_u32(&h, count);
+    for (i = 0; i < count; i++) {
+        hash_u32(&h, world_member_at(w, i));
+    }
+
     hash_u32(&h, w->strings.used);
     hash_bytes(&h, w->strings.data, w->strings.used);
 
@@ -250,6 +270,8 @@ int worldfile_write(const struct world *w, FILE *out, struct worldfile_error *er
         !put32(out, world_region_count(w)) ||
         !put32(out, world_vertex_count(w)) ||
         !put32(out, world_light_count(w)) ||
+        !put32(out, world_scope_count(w)) ||
+        !put32(out, world_member_count(w)) ||
         !put32(out, w->strings.used)) {
         return fail(error, "could not write the block counts", 0, 0);
     }
@@ -310,6 +332,25 @@ int worldfile_write(const struct world *w, FILE *out, struct worldfile_error *er
             !put32(out, l->dim_radius) || !put32(out, l->colour) ||
             !put32(out, l->arc)) {
             return fail(error, "could not write a light", (int64_t)i, 0);
+        }
+    }
+
+    count = world_scope_count(w);
+    for (i = 0; i < count; i++) {
+        const struct scope *sc = world_scope_const(w, i);
+        if (!put32(out, sc->viewer) || !put32(out, sc->region) ||
+            !put32(out, sc->first_member) || !put32(out, sc->member_count) ||
+            !put32(out, sc->name_offset) ||
+            !put32(out, sc->membership) || !put32(out, sc->style) ||
+            !put32(out, sc->flags)) {
+            return fail(error, "could not write a scope", (int64_t)i, 0);
+        }
+    }
+
+    count = world_member_count(w);
+    for (i = 0; i < count; i++) {
+        if (!put32(out, world_member_at(w, i))) {
+            return fail(error, "could not write a scope member", (int64_t)i, 0);
         }
     }
 
@@ -374,6 +415,8 @@ int worldfile_read(struct world *w, FILE *in, struct worldfile_error *error)
     uint32_t region_count;
     uint32_t vertex_count;
     uint32_t light_count;
+    uint32_t scope_count;
+    uint32_t member_count;
     uint32_t string_used;
     uint64_t stored_hash;
     uint32_t i;
@@ -408,7 +451,8 @@ int worldfile_read(struct world *w, FILE *in, struct worldfile_error *error)
 
     if (!get32(in, &thing_count) || !get32(in, &wall_count) ||
         !get32(in, &region_count) || !get32(in, &vertex_count) ||
-        !get32(in, &light_count) || !get32(in, &string_used)) {
+        !get32(in, &light_count) || !get32(in, &scope_count) ||
+        !get32(in, &member_count) || !get32(in, &string_used)) {
         return fail(error, "the file is too short to hold its block counts", 0, 0);
     }
 
@@ -436,7 +480,8 @@ int worldfile_read(struct world *w, FILE *in, struct worldfile_error *error)
      * allocated, so that a nonsense header costs nothing.
      */
     if (thing_count == 0 || wall_count == 0 || region_count == 0 ||
-        vertex_count == 0 || light_count == 0) {
+        vertex_count == 0 || light_count == 0 ||
+        scope_count == 0 || member_count == 0) {
         return fail(error, "a block count of zero -- every block holds a sentinel",
                     0, 1);
     }
@@ -557,6 +602,48 @@ int worldfile_read(struct world *w, FILE *in, struct worldfile_error *error)
         }
 
         l->arc = (wangle)arc;
+    }
+
+    for (i = 0; i < scope_count; i++) {
+        struct scope *sc;
+        uint32_t index = (i == 0) ? 0 : world_add_scope(w);
+        uint32_t membership, style, flags;
+
+        if (i != 0 && index == 0) {
+            return fail(error, "ran out of memory reading scopes", (int64_t)i, 0);
+        }
+
+        sc = world_scope(w, index);
+
+        if (!get32(in, &sc->viewer) || !get32(in, &sc->region) ||
+            !get32(in, &sc->first_member) || !get32(in, &sc->member_count) ||
+            !get32(in, &sc->name_offset) ||
+            !get32(in, &membership) || !get32(in, &style) || !get32(in, &flags)) {
+            return fail(error, "the file ended part-way through the scopes",
+                        (int64_t)i, (int64_t)scope_count);
+        }
+
+        sc->membership = (uint8_t)membership;
+        sc->style = (uint8_t)style;
+        sc->flags = (uint16_t)flags;
+    }
+
+    for (i = 0; i < member_count; i++) {
+        uint32_t thing = 0;
+        uint32_t index;
+
+        if (!get32(in, &thing)) {
+            return fail(error, "the file ended part-way through the scope members",
+                        (int64_t)i, (int64_t)member_count);
+        }
+
+        if (i != 0) {
+            index = world_add_member(w, thing);
+            if (index == 0) {
+                return fail(error, "ran out of memory reading scope members",
+                            (int64_t)i, 0);
+            }
+        }
     }
 
     if (string_used > w->strings.capacity) {

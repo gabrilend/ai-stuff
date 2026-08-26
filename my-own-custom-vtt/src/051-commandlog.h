@@ -38,13 +38,19 @@
 #define VERB_ORDER_MOVE  2u   /* Walk to a point. */
 #define VERB_ORDER_FACE  3u   /* Look at a point. */
 #define VERB_ORDER_STOP  4u   /* Cancel standing orders. */
-#define VERB_COUNT       5u
+#define VERB_GIVE_SCOPE  5u   /* Hand a scope to somebody else. */
+#define VERB_COUNT       6u
 
 /* Why a command was refused. Every refusal is a sentence, not a number. */
 #define REFUSED_NOT_AT_ALL       0u
 #define REFUSED_UNKNOWN_VERB     1u
 #define REFUSED_NO_SUCH_SUBJECT  2u
 #define REFUSED_SUBJECT_IS_NOTHING 3u
+#define REFUSED_NOT_YOURS          4u   /* No scope of yours contains it. */
+#define REFUSED_WRONG_STYLE        5u   /* Right thing, wrong kind of order. */
+#define REFUSED_MAY_NOT_EDIT       6u   /* Handing a scope over is an edit. */
+#define REFUSED_NO_SUCH_SCOPE      7u
+#define REFUSED_COUNT              8u
 
 struct log_entry {
     uint64_t tick;

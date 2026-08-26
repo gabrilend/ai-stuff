@@ -23,6 +23,7 @@
 #include "020-test-harness.h"
 #include "059-outbound.h"
 #include "037-fixture.h"
+#include "070-scope.h"
 
 #include <string.h>
 
@@ -81,11 +82,17 @@ static void rig_start(struct rig *r, wcoord watcher_x, wcoord watcher_y)
     r->viewer = viewer_add(&r->viewers, &r->world, WC_ONE);
     viewer_at(&r->viewers, r->viewer)->state = VIEWER_CONNECTED;
 
+    /*
+     * A scope over that one body, driven with keys -- the simplest position on
+     * the dial. Before phase 6 the viewer simply had a body; now everything goes
+     * through a scope, including the leak tests, which is the point.
+     */
+    scope_make_list(&r->world, r->viewer, STYLE_DRIVEN, &r->watcher, 1, "watcher");
+
     /* Let them see where they are standing. */
     fog_fold(&viewer_at(&r->viewers, r->viewer)->fog, &r->world, r->watcher);
 
-    r->from.body = r->watcher;
-    r->from.sees_all = 0;
+    viewpoint_gather(&r->from, &r->world, r->viewer);
 }
 /* }}} */
 
@@ -139,6 +146,7 @@ static void test_a_body_behind_a_wall(void)
     rig_start(&r, M(5), M(5));
     hidden_body = add_body(&r.world, M(40), M(10), 0);
     sim_fit_to_world(&r.session.sim);
+    viewpoint_gather(&r.from, &r.world, r.viewer);
 
     outbound_build(&r.session, &r.viewers, r.viewer, &r.from);
 
@@ -336,6 +344,7 @@ static void test_the_sheet_never_leaves(void)
     world_thing(&r.world, goblin)->sheet = sheet;
     world_thing(&r.world, goblin)->scope = 0x99887766u;
     sim_fit_to_world(&r.session.sim);
+    viewpoint_gather(&r.from, &r.world, r.viewer);
 
     outbound_build(&r.session, &r.viewers, r.viewer, &r.from);
 
@@ -380,24 +389,54 @@ static void test_a_gm_sees_everything(void)
     far_body = add_body(&r.world, M(40), M(10), 0);
     sim_fit_to_world(&r.session.sim);
 
-    r.from.sees_all = 1;
+    /*
+     * A GM's scope, rather than a flag poked into the viewpoint. Going through
+     * the real thing is what makes this a test of the dial rather than of a
+     * struct field.
+     */
+    scope_make_region(&r.world, r.viewer, STYLE_ORDERED, 0, SCOPE_SEES_ALL, "a GM");
+    viewpoint_gather(&r.from, &r.world, r.viewer);
+
+    CHECK_EQ(r.from.sees_all, 1);
 
     outbound_build(&r.session, &r.viewers, r.viewer, &r.from);
 
     CHECK_EQ(stream_mentions(&r, far_body), 1);
 
-    TEST_CASE("but hidden still beats even that");
+    TEST_CASE("and a hidden thing inside their own scope is not hidden from them");
 
     /*
-     * MAY_SEE_HIDDEN is a scope flag and scopes are phase 6, so for now the
-     * hidden flag hides from everybody including a GM. Pinned here so that when
-     * phase 6 gives a GM the flag, this test changes deliberately rather than
-     * quietly.
+     * CHANGED DELIBERATELY IN PHASE 6, which the phase 4 version of this test
+     * said it would be.
+     *
+     * Gate 1 -- is this inside a scope you hold -- passes everything below it,
+     * including the hidden gate. So a GM whose scope is the whole map sees
+     * hidden things, because they command them. Your own ambush is not hidden
+     * from you.
+     *
+     * That makes MAY_SEE_HIDDEN meaningful for things you do NOT command, which
+     * is the useful reading: it lets somebody see another person's hidden
+     * things. And it answers open question 6.5 without anything being bolted on
+     * -- two GMs with whole-map scopes both see everything, and a co-GM holding
+     * only a region sees hidden things only inside it.
      */
     world_thing(&r.world, far_body)->flags = THING_HIDDEN;
     outbound_build(&r.session, &r.viewers, r.viewer, &r.from);
 
-    CHECK_EQ(stream_mentions(&r, far_body), 0);
+    CHECK_EQ(stream_mentions(&r, far_body), 1);
+
+    TEST_CASE("while somebody who commands nothing is refused it");
+
+    {
+        uint32_t stranger = viewer_add(&r.viewers, &r.world, WC_ONE);
+        struct viewpoint theirs;
+
+        viewer_at(&r.viewers, stranger)->state = VIEWER_CONNECTED;
+        viewpoint_gather(&theirs, &r.world, stranger);
+
+        CHECK_EQ(outbound_may_send_thing(&r.session, &r.viewers, stranger,
+                                         &theirs, far_body), 0);
+    }
 
     rig_stop(&r);
 }
