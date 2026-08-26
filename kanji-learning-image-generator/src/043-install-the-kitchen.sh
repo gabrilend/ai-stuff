@@ -167,19 +167,27 @@ capability = torch.cuda.get_device_capability(0)
 print(f"  {name}, compute capability {capability[0]}.{capability[1]}")
 supported = torch.cuda.get_arch_list()
 print("  this build was made for:", " ".join(supported))
-tag = f"sm_{capability[0]}{capability[1]}"
-if tag not in supported:
-    print()
-    print(f"  !! This build of torch was not made for {tag}, which is what this")
-    print( "     card is. Recent builds drop older cards. Either install an")
-    print( "     older torch, or run on the processor and expect minutes per")
-    print( "     picture rather than seconds.")
-    raise SystemExit(0)
+
 # The only test that means anything: make it actually do arithmetic on the card.
-a = torch.randn(512, 512, device="cuda")
-b = torch.randn(512, 512, device="cuda")
-c = (a @ b).sum().item()
-print(f"  a real multiplication on the card came back with {c:.1f} -- it works")
+#
+# Asked rather than worked out from the list above, and that is not fussiness.
+# Compiled CUDA code runs on any device of the same major version with an equal
+# or higher minor one -- so a build listing sm_60 runs perfectly on an sm_61
+# card, and a check that looked for an exact match declared this machine's card
+# unusable while it was sitting there working.
+try:
+    a = torch.randn(512, 512, device="cuda")
+    b = torch.randn(512, 512, device="cuda")
+    c = (a @ b).sum().item()
+    torch.cuda.synchronize()
+    print(f"  a real multiplication on the card came back with {c:.1f} -- it works")
+except Exception as problem:
+    tag = f"sm_{capability[0]}{capability[1]}"
+    print()
+    print(f"  !! The card will not do arithmetic: {problem}")
+    print(f"     This card is {tag} and the build above does not cover it.")
+    print( "     Either install an older torch, or run on the processor and")
+    print( "     expect minutes per picture rather than seconds.")
 PYEOF
   fi
 }

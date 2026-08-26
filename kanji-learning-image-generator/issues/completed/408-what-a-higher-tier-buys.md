@@ -2,7 +2,32 @@
 
 ## Current behavior
 
-A tier filters. It decides which renderings get shown and nothing else, so the
+Done. `src/048-what-a-higher-tier-buys.lua`, including the GIF encoder.
+
+```
+luajit src/048-what-a-higher-tier-buys.lua --owed
+luajit src/048-what-a-higher-tier-buys.lua --do-the-work
+```
+
+**No quantiser was needed and that is worth saying**, because writing one is the
+obvious next step and it is a whole apparatus plus a source of banding. These
+frames are made of exactly two things — a grey picture, and arrows in one colour
+over it — so the palette is built to be exactly those two things and each pixel
+is placed in it directly. No nearest-colour search, and no error at all.
+
+**Each frame draws its arrows afresh rather than revealing them.** The arrow
+layer decides where each arrow goes by what is already placed, so drawing six
+and keeping the first three is a different picture from drawing three. The
+second is the honest one.
+
+**A phrase is not animated yet** and says so rather than doing it badly: a
+phrase's record is built rather than read from the store, and nothing here
+rebuilds one from a companion.
+
+The compressor is checked by decoding what it wrote, with a reader written in
+the test from the format description — the only test that catches a compressor
+which grows its code width one entry late, which writes a file that decodes
+correctly for a while and then falls apart. It decides which renderings get shown and nothing else, so the
 effort spent on a good one and a bad one is identical.
 
 ## Intended behavior

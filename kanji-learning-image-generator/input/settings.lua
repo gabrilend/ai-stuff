@@ -147,6 +147,16 @@ return {
   },
   -- }}}
 
+  -- {{{ animation -- what a higher tier buys (408)
+  animation = {
+    floor = 4,            -- at this tier or better, a picture earns an animation
+    -- How long each frame is held, in hundredths of a second, because that is
+    -- what the format honestly represents. Anything finer is drift dressed as
+    -- precision.
+    hundredths = 45,
+  },
+  -- }}}
+
   -- {{{ heat -- resting when the processor is climbing (307)
   --
   -- Degrees. A duty cycle is the one thing that lowers sustained temperature
