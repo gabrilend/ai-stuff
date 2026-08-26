@@ -40,11 +40,32 @@ question for the measurement, not for this document.
 | 3 | `MOBILE` | It is expected to move. A hint for the motion pass, not a permission. |
 | 4 | `HIDDEN` | It is never sent to anyone who does not command it, regardless of sight. The GM's ambush, standing in plain view of a corridor nobody has walked down. |
 
-## Why fixed point and not floating point
+## The simulation counts metres; the picture speaks feet
 
-Positions are `int32_t` counting in units of 1/1024. One world unit is one foot,
-so the range is about ±400 miles and the precision is about a hundredth of an
-inch. Neither limit will ever be reached by a tabletop.
+Two units, and the boundary between them is exactly the boundary between the
+server and the view.
+
+**The simulation stores metres.** A position is an `int32_t` counting in units of
+1/1024 of a metre, which gives a range of about ±2,100 kilometres and a precision
+of about a millimetre. Every distance, every radius, every wall endpoint, every
+sight range in the entire server is in these units, and nothing in the server has
+ever heard of a foot.
+
+**The view displays feet, rounded to the nearest foot.** The renderer converts on
+its way to the screen. Distance readouts, grid lines if a ruleset draws any, and
+anything a person reads off the interface are whole feet.
+
+That rounding is lossy and it is supposed to be. A person at a table wants to be
+told "thirty feet", not "9.144 metres" and not "29.9 feet". The conversion happens
+once, at the last possible moment, in the only program whose job is presentation.
+
+The thing to hold on to: **the rounding lives in the view and only in the view.**
+The moment a rounded foot travels back into the simulation -- a command that says
+"move thirty feet" and gets converted to metres by the client -- two clients that
+round differently will disagree about where a body went. Commands carry metres.
+The view converts for the eye and never for the wire.
+
+## Why fixed point and not floating point
 
 The reason is not range or precision. It is that **the tick must be
 deterministic**, because a replay that does not reproduce the session is not a
