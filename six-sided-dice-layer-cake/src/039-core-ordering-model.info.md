@@ -40,7 +40,7 @@ Change one of these and the blueprints beside it are what break.
 |---|---|
 | `t_release` | `039` |
 | `t_acquire` | `039` |
-| `n_share_site` | `039` |
+| `n_share_site` | `039`, `072` |
 | `coherent` | `039` |
 | `t_write_max` | `033`, `039` |
 | `t_handoff` | `039`, `054` |
@@ -52,7 +52,7 @@ Change one of these and the blueprints beside it are what break.
 | tag | relation | because |
 |---|---|---|
 | `C-039-1` | `t_handoff < t_stage / 1000` | a stage handoff must cost under a thousandth of a stage, or the two barriers show up in 080's model |
-| `C-039-2` | `t_write_max < t_holdup * 1e9` | the longest write in flight must be shorter than the array rail's hold-up in 033. This is the constraint that stops a brownout leaving the model half written |
+| `C-039-2` | `t_write_max < t_holdup` | the longest write in flight must be shorter than the array rail's hold-up in 033. This is the constraint that stops a brownout leaving the model half written -- and it had a thousand million in it, nanoseconds against seconds, which is exactly the class of mistake it was written to prevent in the machine |
 | `C-039-3` | `f_pane_stall < 0.001` | choosing exclusion for the pane must cost under a thousandth of a token. It is the arithmetic that makes the simple contract affordable, and if it failed the answer would be a snapshot rather than a torn read |
 | `C-039-4` | `coherent == 0` | there is no hardware coherence. Asserted as a value so that any blueprint deriving something from its existence fails outright rather than being quietly wrong |
 | `C-039-5` | `n_share_site == 3` | three sharing sites, and 072's enumeration must find the same three. A site added to one blueprint and not the other is exactly the hole that produces intermittent wrong answers |

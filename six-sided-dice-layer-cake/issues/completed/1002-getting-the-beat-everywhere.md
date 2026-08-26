@@ -4,8 +4,24 @@ Produces `src/071-clock-distribution.md`.
 
 ## Current behavior
 
-Nothing. Distribution has been assumed to work in a shape where the longest path
-is not in a plane.
+**Done.** `src/071-clock-distribution.md` exists. The level that looks hardest —
+between faces — is the easiest, because the cage is equidistant from all six by
+construction and the distribution is a star with equal arms.
+
+Six constraints. The decisive one is `C-071-3`: **faces share a frequency and not
+a phase**, asserted as a value so that a blueprint deriving something from a
+common edge fails outright. Insisting on synchrony would have cost a great deal
+of power for a guarantee nothing consumes, and `072` is why nothing does.
+
+`026`'s finding fed straight in: a face's thermal time constant is twenty times a
+pipeline stage, so the temperature term here is the **steady** difference between
+a busy face and an idle one rather than the walking excursion, and it is far
+smaller than it first appeared.
+
+**The temperature coefficient is a `given`** multiplying a difference `025`
+derives, so the product is half-assumed. **And the clock tree's power is one
+number for three levels**, when the within-die tree is almost certainly most of
+it.
 
 ## Intended behavior
 

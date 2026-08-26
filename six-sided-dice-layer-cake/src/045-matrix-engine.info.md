@@ -56,7 +56,7 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `n_mac_row` | `045` |
-| `f_face` | `031`, `044`, `045`, `047`, `049`, `060` |
+| `f_face` | `031`, `044`, `045`, `047`, `049`, `060`, `070`, `072`, `074` |
 | `a_mac` | `045` |
 | `w_acc` | `045`, `046` |
 | `n_lut_entry` | `046` |

@@ -4,8 +4,20 @@ Produces `src/070-clock-generation.md`.
 
 ## Current behavior
 
-Nothing. One point four gigahertz for the faces and one point two for the core are
-used everywhere and generated nowhere.
+**Done.** `src/070-clock-generation.md` exists with one reference, per-face
+multipliers and a jitter budget built from independent sources in quadrature.
+
+Six constraints. `C-070-3` is the one worth having: **supply-induced jitter must
+be smaller than the oscillator's own.** A multiplier on a rail that droops under
+`031`'s load step shifts frequency, and it does so exactly when the machine is
+busiest — so that term is separated out and constrained rather than being folded
+into a total.
+
+The face-versus-core merge question is published as a ratio for `074` to answer,
+and `074` answers it: **they cannot merge.**
+
+**Reference loss is required to be detected and no detector is specified**, and
+it cannot be anything clocked by the thing it is watching.
 
 ## Intended behavior
 

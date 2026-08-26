@@ -47,7 +47,7 @@ Change one of these and the blueprints beside it are what break.
 |---|---|
 | `V_supply` | `028`, `029` |
 | `V_mid` | `029`, `030` |
-| `V_logic` | `028`, `029`, `030`, `031`, `033`, `045` |
+| `V_logic` | `028`, `029`, `030`, `031`, `033`, `045`, `070`, `071` |
 | `V_array` | `028`, `029`, `033` |
 | `V_link` | `028`, `029`, `051` |
 | `V_port` | `028`, `064` |
@@ -57,7 +57,7 @@ Change one of these and the blueprints beside it are what break.
 | `ripple_frac` | `029` |
 | `dV_read_marg` | `029`, `035` |
 | `n_domain` | `029`, `033` |
-| `dV_droop_logic` | `029`, `031` |
+| `dV_droop_logic` | `029`, `031`, `070`, `071` |
 | `dV_ripple` | `029` |
 | `dV_band` | `029`, `031` |
 | `P_if_merged` | `029` |
