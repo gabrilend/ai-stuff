@@ -85,11 +85,11 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `n_mount` | `019` |
+| `n_mount` | `019`, `025` |
 | `n_mount_rigid` | `019` |
 | `g_shock` | `019` |
 | `g_accel` | `019`, `066` |
-| `d_bolt` | `019` |
+| `d_bolt` | `019`, `025` |
 | `V_coupling` | `019` |
 | `n_service` | `019` |
 | `cte_frame` | `019` |

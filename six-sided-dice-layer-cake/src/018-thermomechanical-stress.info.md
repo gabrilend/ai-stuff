@@ -28,6 +28,11 @@ Described by `206`.
 | `sigma_cu_alt` | Pa | derived | 1.0842e+08 Pa | and what copper laminae would have induced |
 | `sigma_assembly` | Pa | derived | 7.436e+07 Pa | residual stress frozen into a tier interface at bonding, before the machine is ever switched on |
 | `sigma_cu_assy` | Pa | derived | 2.3491e+08 Pa | residual a copper lamina would have frozen in at bonding |
+| `f_share_tier` | 1 | derived | 0.985847 | how much of the tier interface's mismatch the silicon actually takes, once the lamina is allowed to be a spring rather than a wall. Two bonded layers share a mismatch in proportion to their stiffness times their thickness, and taking the bond as rigid is the limit of this as the lamina becomes infinitely stiff |
+| `f_share_plate` | 1 | derived | 0.748062 | the same at a plate-to-rail joint, where a four-millimetre steel rail is bonded to a two-millimetre silicon plate |
+| `f_share_cu_alt` | 1 | derived | 0.966784 | and what a copper lamina would have shared, which is nearly the same because copper is thick here too -- so the material choice in this blueprint was never about stiffness |
+| `sigma_tier_real` | Pa | derived | 3.38343e+07 Pa | the stress the silicon really sees at a tier interface, rather than the rigid-bond bound above it |
+| `sigma_plate_real` | Pa | derived | 8.57728e+07 Pa | the same at a plate-to-rail joint |
 | `sigma_cu_total` | Pa | derived | 3.4333e+08 Pa | everything a copper lamina would put into the silicon, operating and residual together |
 | `margin_tier` | 1 | derived | 3.22046 | how many times the fracture stress of a plasma-diced edge exceeds what a tier interface actually carries, residual included |
 | `margin_cu_alt` | 1 | derived | 1.01943 | the same margin copper laminae would have left |
@@ -37,7 +42,10 @@ Described by `206`.
 
 | symbol | from | value | meaning |
 |---|---|---|---|
+| `E_cu` | `011` | 117 GPa | Young's modulus of copper |
+| `E_cumo` | `011` | 280 GPa | Young's modulus of the same |
 | `E_si` | `011` | 130 GPa | Young's modulus of silicon, averaged over orientation |
+| `E_ss` | `011` | 193 GPa | Young's modulus of stainless steel |
 | `L_core` | `012` | 40 mm | edge of the memory block the cage encloses |
 | `L_plate` | `012` | 52 mm | edge of a face plate, once the edge rails are taken off |
 | `cte_cu` | `011` | 16.5 ppm/K | linear thermal expansion of copper, 300 K to 400 K |
@@ -47,7 +55,11 @@ Described by `206`.
 | `cte_ss` | `011` | 17.3 ppm/K | linear thermal expansion of stainless steel |
 | `flat_plate` | `013` | 0.05 mm | flatness of a face plate over its full width, at any temperature in the operating range. Fifteen microns was tried first, which is what the process achieves cold; 018 then found the assembly bows forty-five when hot, and a flatness figure that only holds at one temperature is not one |
 | `sigma_si_plas` | `011` | 350 MPa | the same for a plasma-diced edge, which etches rather than cuts and leaves no crack population; 018 requires this and it is a process requirement rather than a preference |
+| `t_coldplate` | `013` | 2 mm | thickness of a face cold plate, base and channels and cover together |
+| `t_lamina` | `012` | 1.617 mm | thickness of one cooling lamina between two tiers. It is what is left of the core's height once twenty-four tiers are laid in it, and the tier count came out of 034's capacity chain rather than being chosen |
 | `t_stack` | `014` | 5.47 mm | everything solid in a face assembly, inward surface to outward |
+| `t_tier_si` | `012` | 0.05 mm | thickness of one thinned memory tier; as thin as a tier can be handled |
+| `w_rail` | `012` | 4 mm | width of an edge rail, taken off each edge of each face plate; sized by the duct area 024 needs |
 
 ## What consumes it
 
@@ -70,6 +82,10 @@ Change one of these and the blueprints beside it are what break.
 | `sigma_cu_alt` | `018` |
 | `sigma_assembly` | `018` |
 | `sigma_cu_assy` | `018` |
+| `f_share_tier` | `018` |
+| `f_share_plate` | `018` |
+| `f_share_cu_alt` | `018` |
+| `sigma_tier_real` | `018` |
 | `sigma_cu_total` | `018` |
 | `margin_tier` | `018` |
 | `margin_cu_alt` | `018` |
@@ -85,6 +101,10 @@ Change one of these and the blueprints beside it are what break.
 | `C-018-4` | `sigma_glass < sigma_si_plas / 10` | the die-to-interposer interface should be far from trouble; glass was chosen for its expansion and if this is close, the wrong glass is specified |
 | `C-018-5` | `bow_face <= flat_plate` | a face assembly's bow over a power cycle must stay inside the flatness 013 assumed, or the tolerance stack that 017 already fails is worse than it looks |
 | `C-018-6` | `disp_tier < disp_cu_alt` | the composite moves less than copper would, which is the only reason to use a material with half the conductivity |
+| `C-018-7` | `sigma_tier_real < sigma_tier` | a compliant joint must relieve the silicon rather than load it further. Trivially true given how the share is written, and worth asserting because the rigid-bond figure is the one every other constraint here uses and somebody has to state that it is the bound and not the answer |
+| `C-018-8` | `f_share_tier > 0.95` | the rigid-bond assumption must be nearly exact at a tier interface, or the whole of this blueprint is computing the wrong number. It comes out at ninety-eight and a half per cent: the lamina is thirty times the silicon's thickness and twice its stiffness, so it barely yields at all and the silicon takes essentially the whole mismatch |
+| `C-018-9` | `f_share_plate < f_share_tier` | and it must be a worse assumption at the plate-to-rail joint than at a tier, because a four-millimetre rail against a two-millimetre plate is nothing like a lamina against a tier. It comes out at three quarters, so the rigid figure there is a quarter too high -- which is the direction that costs nothing, but it means the plate joint's real margin is larger than this blueprint has been claiming |
+| `C-018-10` | `f_share_cu_alt > 0.95` | copper would have shared the mismatch almost identically, which is the point of asserting it: the material choice in this blueprint was about expansion and never about stiffness, and a reader who assumed otherwise is told so by a number |
 
 ## What it draws
 

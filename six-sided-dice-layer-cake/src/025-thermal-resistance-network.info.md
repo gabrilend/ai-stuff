@@ -15,6 +15,10 @@ Described by `306`.
 | `T_room` | K | given | 295 K | air the radiator rejects into |
 | `R_die` | K/W | derived | 6.57618e-05 K/W | one-dimensional conduction through all twenty-four dies in parallel |
 | `R_plate_base` | K/W | derived | 0.000560337 K/W | through the base of the six cold plates |
+| `R_interposer` | K/W | derived | 0.0840506 K/W | the path in the other direction, out through the six glass interposers, which is the one the design says heat does not take |
+| `f_wrong_way` | 1 | derived | 150 | how much worse that path is than the one the heat is meant to take. 011 says the interposer's conductivity is poor and does not matter because heat leaves the other way; this is that sentence with a number under it |
+| `R_mount` | K/W | derived | 26.5258 K/W | out through the four mounting bolts into the frame, which is the only solid path from the cube to the room |
+| `P_leak_mount` | W | derived | 0.900357 W | heat the frame carries away. The whole design assumes every watt goes to the coolant, and this is the size of the assumption |
 | `dT_die` | K | derived | 0.0917077 K | the drop across the dies |
 | `dT_plate` | K | derived | 1.05957 K | the drop across the plate bases |
 | `A_wet_engine` | mm^2 | derived | 428.486 mm^2 | heated channel area lying above one die's multiplier array |
@@ -38,6 +42,7 @@ Described by `306`.
 | `A_die_total` | `012` | 13824 mm^2 | total compute die area, which 083 turns into a yield problem |
 | `A_plate` | `012` | 2704 mm^2 | area of one face plate |
 | `A_wet_face` | `022` | 19341.4 mm^2 | heated area of one face's field before deration |
+| `L_corner` | `013` | 12 mm | edge of a corner manifold block, set by the two chambers that have to fit inside it (015) |
 | `P_die` | `020` | 58.106 W | everything one compute die dissipates at the design point |
 | `P_dies` | `020` | 1394.54 W | all twenty-four compute dies |
 | `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
@@ -47,15 +52,20 @@ Described by `306`.
 | `dT_conv` | `022` | 1.91826 K | the temperature the coolant sits below the channel walls |
 | `dT_conv_worst` | `024` | 2.03007 K | the convection rise at the worst-served face, which is what 025 must use rather than the mean |
 | `dT_rise` | `021` | 7.8 K | design temperature rise of the coolant across the cube; a choice, and the one that sets the flow |
+| `d_bolt` | `019` | 3 mm | bolt diameter at each mount point; four millimetres needs exactly the whole corner block and leaves nothing around it |
 | `eta_surface` | `022` | 0.702826 | overall surface efficiency, base and fins together |
 | `f_engine_area` | `041` | 0.104 | and the share of its area, under the name 025 uses |
 | `f_engine_power` | `041` | 0.789509 | share of a die's heat the array makes, which 025's local term needs |
 | `h_conv` | `022` | 12767.3 W/(m^2*K) | convection coefficient at the channel wall |
 | `h_uchan` | `012` | 1 mm | depth of the same channel, limited by fin efficiency rather than by etching |
+| `k_glass` | `011` | 1.1 W/(m*K) | thermal conductivity of the same, which is poor and does not matter because heat leaves the other way |
 | `k_si` | `011` | 110 W/(m*K) | thermal conductivity of silicon at 350 K, a third below the room-temperature figure |
+| `k_ss` | `011` | 16 W/(m*K) | thermal conductivity of stainless steel |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
+| `n_mount` | `019` | 4 | mount points, on the four corner blocks of one chosen face |
 | `t_coldplate` | `013` | 2 mm | thickness of a face cold plate, base and channels and cover together |
 | `t_die` | `013` | 0.1 mm | thickness of a compute die after thinning |
+| `t_interposer` | `013` | 1.5 mm | thickness of a face interposer, glass core with its planes |
 
 ## What consumes it
 
@@ -65,9 +75,13 @@ Change one of these and the blueprints beside it are what break.
 |---|---|
 | `dT_margin_min` | `025` |
 | `dT_conv_max` | `022`, `025`, `036` |
-| `T_room` | `027` |
+| `T_room` | `025`, `027` |
 | `R_die` | `025` |
 | `R_plate_base` | `025` |
+| `R_interposer` | `025` |
+| `f_wrong_way` | `025` |
+| `R_mount` | `025` |
+| `P_leak_mount` | `025` |
 | `dT_die` | `025` |
 | `dT_plate` | `025` |
 | `A_wet_engine` | `025` |
@@ -93,6 +107,8 @@ Change one of these and the blueprints beside it are what break.
 | `C-025-4` | `s_hotspot > s_conv` | the hot spot must be the largest term. Asserted not because it is desirable but because it is true, and a design change that made the coolant dominant instead would mean something had gone badly wrong in 022 |
 | `C-025-5` | `s_hotspot + s_conv + s_fluid + s_solid ~= 1` | the four shares account for everything between the inlet and the junction, with nothing unattributed |
 | `C-025-6` | `T_j_mean < T_j_peak` | the average die is cooler than the worst one, which is trivially true and catches a worst-case term accidentally applied to both |
+| `C-025-7` | `f_wrong_way > 100` | the path out through the interposer must be at least a hundred times worse than the path into the cold plate. This is the sentence in 011 -- that the glass conducts poorly and it does not matter because heat leaves the other way -- turned into a number that can fail. It comes out at a hundred and fifty, so the claim holds with room, and if somebody ever thins the interposer or thickens the plate this is what says so |
+| `C-025-8` | `P_leak_mount < P_heat / 100` | the four mounting bolts must carry under a hundredth of the machine's heat, or the design's assumption that every watt goes to the coolant is not one. It comes out near a two-thousandth, and that is an upper bound rather than a figure: the calculation puts the bolt at junction temperature when it is really at the corner block's, so the true leak is smaller still |
 
 ## What it draws
 

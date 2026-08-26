@@ -82,14 +82,14 @@ n_software    | 1 | given | 2        | pieces of software assumed and not specif
 n_worked_eg   | 1 | given | 1        | worked examples of using the package as a machine
 
 n_bp_pkg      | 1 | derived | n_bp                       | blueprints delivered
-n_sym_pkg     | 1 | solved | 1409                        | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked
+n_sym_pkg     | 1 | solved | 1429                        | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked
 n_con_pkg     | 1 | derived | n_constraint               | constraints
 n_open_pkg    | 1 | solved | 0                           | symbols still carried as targets rather than derivations -- from 103. None: the last one was 019's service time, which became the sum of nine steps rather than one number nobody could take apart
 n_solved_pkg  | 1 | solved | 20                          | symbols a program produced because no expression in this notation could -- from 103
 n_q_blocking  | 1 | given | 2                            | blocking open questions in 009
 n_q_open      | 1 | given | 18                           | open questions altogether: the two blocking ones and sixteen carried. A hand count of 009's headings, and the one figure in this package that a program still does not produce
 f_derived     | 1 | derived | (n_sym_pkg - n_given_pkg) / n_sym_pkg | share of the project's numbers that are worked out rather than chosen or measured
-n_given_pkg   | 1 | solved | 587                         | symbols that are chosen or measured rather than worked out -- from 103: four hundred and seventy-one a person decided and a hundred and sixteen taken from a datasheet
+n_given_pkg   | 1 | solved | 589                         | symbols that are chosen or measured rather than worked out -- from 103: four hundred and seventy-three a person decided and a hundred and sixteen taken from a datasheet
 ```
 
 ## A document that counts itself moves while you are counting it
@@ -111,6 +111,19 @@ That is a genuine fixed point and not a defect: a statement about a set, held
 inside the set, has to be consistent with itself. It converges in one pass because
 adding a statement about the count changes the count by a known amount. It is
 worth knowing before somebody meets it and thinks the checker is broken.
+
+There is a second, milder consequence and it is worth naming as a cost rather
+than hidden. These five figures are unlike every other computed value in the
+project: the ones describing the cooling network only move when something about
+the cooling changes, but a count of the set moves when **anything anywhere**
+changes. Adding one requirement to one blueprint makes two of these stale, and the
+checker says so, and somebody has to copy two numbers.
+
+That is the mechanism working, and it is a real tax on a large edit. The
+alternative — reading the count live and never writing it down — costs more: a
+figure nobody can see in the document is a figure nobody can check the document
+against, and the whole reason these five exist is that a covering note offering
+eighty blueprints when there are eighty-four is worse than one offering none.
 
 
 ## Constraints

@@ -21,6 +21,8 @@ Described by `503`.
 | `C_tsv` | F | derived | 7.8995e-12 F | capacitance of one through-stack via against its oxide liner, taking the shield spacing as three times the via radius |
 | `R_tsv` | ohm | derived | 19.7482 ohm | resistance of the same. Copper rather than tungsten: tungsten is three times the resistivity and over forty millimetres that is the difference between settling inside a core cycle and not |
 | `t_tsv_delay` | s | derived | 1.07641e-10 s | the time constant of a via running the whole height of the stack, which is what decides whether the end faces can be treated like the side faces |
+| `R_tsv_w` | ohm | derived | 58.2052 ohm | what the same via would be in tungsten, which is the process's more usual choice for a via this deep |
+| `t_tsv_delay_w` | s | derived | 3.17257e-10 s | and what it would settle in. The rejected alternative, costed rather than dismissed: the sentence above says tungsten is three times the resistivity and over forty millimetres that is the difference between settling inside a core cycle and not, and this is that sentence as a number |
 | `P_tier` | W | derived | 6.67483 W | heat one tier makes |
 | `w_lam_chan` | mm | given | 0.3 mm | width of a channel in a cooling lamina; wider than a face's because the heat here is a tenth as dense |
 | `h_lam_chan` | mm | given | 0.3 mm | depth of the same. Half the lamina's thickness was tried first and made the core a quarter void, which is far more cooling than seven watts a tier needs and put nearly forty cubic centimetres of fluid inside the machine. The lamina is thick because the stack height demanded it, not because the heat did |
@@ -28,7 +30,11 @@ Described by `503`.
 | `n_lam_chan` | 1 | derived | 66 | channels across one lamina, on a pitch of twice their width |
 | `Q_lamina` | m^3/s | derived | 2.07001e-07 m^3/s | flow through one lamina |
 | `A_wet_lam` | mm^2 | derived | 3168 mm^2 | wetted area of one lamina |
-| `dT_core` | K | derived | 0.250828 K | temperature a tier sits above its coolant. Two hand-written conversions -- millimetres to metres in the coefficient and square millimetres to square metres here -- between them made this term a thousand times too large, which is what a checker is for |
+| `dT_core` | K | derived | 0.250828 K | temperature a tier sits above its coolant *film*. Two hand-written conversions -- millimetres to metres in the coefficient and square millimetres to square metres here -- between them made this term a thousand times too large, which is what a checker is for |
+| `R_tier_si` | K/W | derived | 0.000142045 K/W | getting out of the silicon: half a tier's thickness, because a tier is cooled from both faces and each half sends its heat the shorter way |
+| `R_lam_metal` | K/W | derived | 0.00293148 K/W | and then through half a lamina's metal to reach a channel wall, across whatever cross-section the channels have not removed |
+| `dT_tier_cond` | K | derived | 0.0205152 K | how much of the tier's rise is conduction rather than convection. This term was missing entirely until the copper-molybdenum's own conductivity was noticed sitting in 011 with nothing reading it -- a material chosen for its thermal conductivity, in a design that never used the number |
+| `dT_tier_total` | K | derived | 0.271343 K | the whole rise from a bitcell to the coolant that carries its heat away. This is what has to fit the budget, and the film alone was what was being checked |
 | `h_conv_lam` | W/(m^2*K) | derived | 8400 W/(m^2*K) | convection coefficient in a lamina channel, at the laminar Nusselt number for a duct of about this shape |
 | `Q_core` | m^3/s | derived | 4.96803e-06 m^3/s | the core's share of the machine's flow, in proportion to its share of the heat |
 | `disp_tier_lam` | mm | derived | 0.01056 mm | relative motion at one tier-to-lamina interface over a power cycle |
@@ -49,8 +55,11 @@ Described by `503`.
 | `disp_cu_alt` | `018` | 0.03336 mm | and what copper would have moved |
 | `eps_0` | `011` | 8.854e-12 F/m | permittivity of free space. It is here rather than written into a derivation because every literal in this notation is dimensionless, so a physical constant has to be a symbol like any other quantity |
 | `eps_ox` | `011` | 3.9 | relative permittivity of the oxide liner around a through-silicon via |
+| `k_cumo` | `011` | 190 W/(m*K) | thermal conductivity of a fifteen per cent copper, eighty-five per cent molybdenum composite |
 | `k_fluid` | `021` | 0.63 W/(m*K) | thermal conductivity of the same |
+| `k_si` | `011` | 110 W/(m*K) | thermal conductivity of silicon at 350 K, a third below the room-temperature figure |
 | `res_cu` | `011` | 1.9e-08 ohm*m | electrical resistivity of copper at 350 K |
+| `res_w` | `011` | 5.6e-08 ohm*m | electrical resistivity of tungsten at 350 K |
 | `t_cycle_core` | `035` | 0.8 ns | the core's cycle time, which the access time must fit inside |
 | `t_lamina` | `012` | 1.617 mm | thickness of one cooling lamina between two tiers. It is what is left of the core's height once twenty-four tiers are laid in it, and the tier count came out of 034's capacity chain rather than being chosen |
 | `t_tier_pitch` | `012` | 1.667 mm | one repeating unit of the core stack |
@@ -73,13 +82,19 @@ Change one of these and the blueprints beside it are what break.
 | `C_tsv` | `036` |
 | `R_tsv` | `036` |
 | `t_tsv_delay` | `036` |
+| `R_tsv_w` | `036` |
+| `t_tsv_delay_w` | `036` |
 | `P_tier` | `036` |
 | `w_lam_chan` | `036` |
 | `h_lam_chan` | `036` |
-| `f_void_lam` | `024` |
+| `f_void_lam` | `024`, `036` |
 | `n_lam_chan` | `036` |
 | `A_wet_lam` | `036` |
 | `dT_core` | `036` |
+| `R_tier_si` | `036` |
+| `R_lam_metal` | `036` |
+| `dT_tier_cond` | `036` |
+| `dT_tier_total` | `036` |
 | `h_conv_lam` | `036` |
 | `Q_core` | `036` |
 | `disp_tier_lam` | `036` |
@@ -91,10 +106,13 @@ Change one of these and the blueprints beside it are what break.
 | `C-036-1` | `h_stack ~= L_core` | the tier count times the pitch must equal the core's edge as the cube's own geometry produces it. The two-chain check, from the other side, and the partner of C-012-9 |
 | `C-036-2` | `t_tsv_delay < t_cycle_core / 4` | a via running the whole height of the stack must settle in well under a core cycle, or the two end faces cannot be treated like the four side faces and 034's single-face-takes-all requirement fails for two of the six |
 | `C-036-3` | `f_tsv_area < 0.15` | the via array must not take a sixth of a tier's area, since 035's tier overhead has other things to pay for |
-| `C-036-4` | `dT_core < dT_conv_max` | a tier must sit no further above its coolant than a face does, which is easy here because the heat is a tenth as dense and is asserted so that a change to the lamina thickness is noticed |
+| `C-036-4` | `dT_tier_total < dT_conv_max` | a tier must sit no further above its coolant than a face does, which is easy here because the heat is a tenth as dense and is asserted so that a change to the lamina thickness is noticed. It compares the whole rise and not just the film; comparing the film alone was leaving out the metal the lamina is made of |
+| `C-036-9` | `dT_tier_cond > 0` | the conduction term must be a real number and not a rounding of zero. Asserted in the direction of alarm: it comes out at about a fiftieth of a kelvin against a quarter of a kelvin of film, so the film is what governs -- and knowing that by measurement rather than by assumption is the difference between a budget and a hope |
+| `C-036-10` | `dT_tier_cond < dT_core` | conduction must stay under convection, which is what says the film is the term that governs. Asserted rather than assumed because the first attempt asserted the opposite -- that the lamina would be a better path than the silicon it cools, on the grounds that copper-molybdenum conducts almost twice as well. It is twenty times worse, because it is thirty times thicker: the lamina is thick because the stack height demanded it and not because the heat did, and that trade is charged here in a fiftieth of a kelvin |
 | `C-036-5` | `disp_tier_lam < disp_cu_alt` | the composite must move less at a tier interface than copper would, which is the only reason to accept its conductivity |
 | `C-036-6` | `Q_core + Q_total * (1 - P_core / P_heat) ~= Q_total` | the core's flow plus everything else's is the machine's flow. Trivial arithmetic, and it is here because 024's network omitted the core entirely and this is what notices |
 | `C-036-7` | `f_si_volume < 0.05` | under a twentieth of the core is silicon. Asserted because it is the surprising fact about this part and a reader who has not internalised it will size something wrongly |
+| `C-036-11` | `t_tsv_delay_w > t_cycle_core / 4` | tungsten must actually fail the test copper passes, or the reason given for choosing copper is not a reason. This is a rejected alternative asserted in the direction of alarm: if a process change ever made tungsten fast enough, this constraint fails and somebody is told that the argument in this blueprint has expired |
 
 ## What it draws
 
