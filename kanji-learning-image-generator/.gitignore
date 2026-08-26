@@ -1,0 +1,28 @@
+# tmp/ is a symlink into RAM -- /tmp for anything executable, /dev/shm for
+# artifacts and logs. Nothing under it is the record, and the link itself is
+# machine-local, so the run scripts recreate it rather than git tracking it.
+tmp
+
+# output/ is a mailbox, not a record. Whichever program ran last left its
+# goodbye there, and the next one overwrites it. The directory is kept; the
+# messages are not.
+output/*
+!output/.gitkeep
+
+# assets/ holds the two archives this project reads, and they are somebody
+# else's work -- 29 MB of XML that is published, versioned and downloadable.
+# Committing them would put a third-party dataset in this history forever and
+# make every clone pay for it. Fetch them instead:
+#
+#   luajit src/010-fetch-the-archives.lua
+assets/kanjivg.xml
+assets/kanjidic2.xml
+assets/*.gz
+
+# docs/HTML/ is the documentation site, and it is built rather than written.
+# Every page is derived from a file already in this repository, so tracking it
+# would put the same words in the record twice and make one documentation edit
+# look like fifty.
+#
+#   luajit src/033-the-documentation-site.lua
+docs/HTML/

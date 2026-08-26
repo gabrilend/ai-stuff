@@ -1,0 +1,15 @@
+this is a project that runs a system somehow which generates a picture for
+each of the kanji alphabet that uses the strokes as the structure of the image
+and the meaning as what needs to be presented. It should match very closely, so
+that the learner can associate the lines drawn in the image with the meaning,
+which is presented with the scenery and the shapes that are constructed. And if
+the strokes are the structure, then the stroke order is the intended viewing
+order, as directed with arrows because it's a learning material.
+
+so we need a "kanji to comfyUI parsable visualization scheme" run as a script
+maybe since we have a finite dataset to generate for (all the kanji) and the
+translation, ideally with cultural context baked in, can be represented by the
+imagery itself. sorta like those images where someone bakes spirals into an
+image, but with varying levels of intensity. It only really appears in the
+thumbnail. but ours is apparent in the image because we're learning kanji via
+optical illusions.
