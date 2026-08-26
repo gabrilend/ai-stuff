@@ -5,8 +5,8 @@
 [308](308-the-turn-is-a-window.md)
 **Blocks:** [310](310-the-phase-three-demo.md)
 **Documents:** [the turn is a transaction](../docs/019-the-turn-is-a-transaction.md)
-**Open questions:** [3.3](../docs/016-open-questions.md) is unanswered and this
-issue **cannot be completed without it**.
+**Open questions:** [3.3](../docs/016-open-questions.md) is answered -- fog rolls
+back with the world. Nothing blocks this issue.
 
 ## Current behaviour
 
@@ -57,14 +57,21 @@ message that says: the last stretch did not happen, here is the world again.
 what makes controls feel alive. A rollback throws all of it away at once and the
 correction is large and visible rather than the usual imperceptible nudge.
 
-**Fog does not un-see, and this is the blocker.** If a player walked down a
-corridor in the turn being undone, their fog recorded it. Roll it back and the
-program is consistent while the person still remembers the corridor. Leave it and
-their map shows a place reached in a turn that never happened.
+**Fog rolls back with the world.** A rollback is a full state restore: the world,
+the fog, and the stream positions all return to the head of the turn together.
+Mechanically it is easy, because a fog record is a flat block of bits.
 
-There is no right answer. **You cannot restore ignorance.** A rollback at a
-tabletop has always been a social agreement rather than a memory wipe, and whichever
-way this goes has to be chosen knowing that. [3.3](../docs/016-open-questions.md).
+**The cost is not pretended away.** The person still remembers the corridor. They
+looked at it. Their own map closes over a room they can describe out loud, and the
+screen now knows less than they do.
+
+It is still the right trade, because the other answer is worse in a way that never
+goes away: a fog left un-rolled holds a place reached in a turn that never
+happened, and contradicts the world every time anybody walks there again.
+
+**You cannot restore ignorance.** A rollback at a tabletop has always been a
+social agreement. The program's job is to put the board back so the people can do
+the rest.
 
 ## Suggested implementation steps
 
@@ -78,9 +85,10 @@ way this goes has to be chosen knowing that. [3.3](../docs/016-open-questions.md
 5. Write the recall message and make the client honour it. Do not skip this
    because the demo works without it; a client that is never told is a client that
    silently disagrees with the server.
-6. Decide 3.3, implement it, and **comment the decision at the point where fog is
-   or is not restored**, because whichever way it went, the other way will look
-   like a bug to the next reader.
+6. Restore fog with the world, and **comment it at the restore point** -- say that
+   it is deliberate, say that the person still remembers, and say that the other
+   answer leaves a permanent contradiction. Without that comment the next reader
+   will read it as a bug and fix it.
 7. Write the companion `.info.md`.
 8. Test: roll back and replay identically, asserting the hash matches at every
    tick. Roll back, change one instruction, and assert divergence begins exactly
