@@ -34,3 +34,18 @@ docs/HTML/
 #
 #   src/043-install-the-kitchen.sh
 libs/kitchen/
+
+# pool/ holds every picture ever made and what was thought of each one, and the
+# two halves are not the same kind of thing.
+#
+# A picture is large and this project guarantees it can be remade -- the same
+# description and the same seed produce the same bytes. A companion is a few
+# hundred bytes of text holding something no seed regenerates: somebody's
+# opinion. So the opinions are kept in the record and the pictures are not,
+# which is the same trade the pool itself makes one level down.
+#
+# A fresh clone therefore has every rating and no pictures, and makes them again:
+#
+#   luajit src/044-run-the-pictures.lua --chars <whatever the pool already knows>
+pool/**/*.png
+pool/**/*.gif

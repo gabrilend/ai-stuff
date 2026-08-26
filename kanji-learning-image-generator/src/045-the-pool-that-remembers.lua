@@ -198,6 +198,12 @@ function M.read_companion(path)
 
   entry.canvas = text:match("## The canvas it answered\n\n(.-)\n\n## ")
   entry.picture = path:gsub("%.info%.md$", ".png")
+  -- A companion whose picture is not beside it is not broken. It is a judgement
+  -- waiting for its picture to be made again -- which is the ordinary state of
+  -- a fresh clone, because the opinions are in the record and the pictures are
+  -- not (410). The seed and the description are right here, so the picture is a
+  -- command away.
+  entry.picture_is_here = project.exists(entry.picture)
   return entry
 end
 -- }}}
@@ -360,9 +366,14 @@ function M.counts(settings)
     total = #all, by_category = {}, by_tier = {}, by_kind = {},
     rated_by_a_person = 0, rated_by_a_machine = 0, unrated = 0,
     agreed = 0, compared = 0, elaborations = 0, owed = 0,
+    awaiting_their_picture = {},
   }
 
   for _, entry in ipairs(all) do
+    if not entry.picture_is_here then
+      report.awaiting_their_picture[#report.awaiting_their_picture + 1] =
+        entry.character
+    end
     report.by_category[entry.category] = (report.by_category[entry.category] or 0) + 1
     report.by_kind[entry.kind or "?"] = (report.by_kind[entry.kind or "?"] or 0) + 1
     local tier = M.tier_of(entry)
@@ -462,6 +473,25 @@ local function main(argv)
   end
   io.write(string.format("\n%d elaborations made, %d owed\n",
            report.elaborations, report.owed))
+
+  -- Said plainly, because a pool with judgements and no pictures is the
+  -- ordinary state of a fresh clone and looks alarming if nothing explains it.
+  if #report.awaiting_their_picture > 0 then
+    io.write(string.format("\n%d have a rating and no picture beside them. " ..
+             "That is a clone, or a\nmachine that was restarted -- the opinions " ..
+             "are in the record and the pictures\nare not. Make them again:\n",
+             #report.awaiting_their_picture))
+    local wanted = {}
+    local seen = {}
+    for _, character in ipairs(report.awaiting_their_picture) do
+      if not seen[character] then
+        seen[character] = true
+        wanted[#wanted + 1] = character
+      end
+    end
+    io.write("  luajit src/044-run-the-pictures.lua --chars ",
+             table.concat(wanted, "", 1, math.min(24, #wanted)), "\n")
+  end
 
   project.goodbye("045-the-pool-that-remembers",
                   { report.total .. " renderings" })
