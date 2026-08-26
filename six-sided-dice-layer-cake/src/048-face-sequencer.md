@@ -55,7 +55,7 @@ n_desc_layer  | 1 | given | 34      | descriptors in one layer's chain: a dozen 
 n_seq_state   | 1 | given | 12      | states in the sequencer's machine
 n_ramp_cycle_s| 1 | derived | n_ramp_cycle | cycles the operand admission ramp takes, under the name 031 uses
 n_small_read  | 1 | given | 8       | small control reads the sequencer makes per layer, which is the count 040 needed to choose its correction granularity
-t_prefetch_lead | s | derived | t_link_rt + C_layer_weights * 8e6 / B_face_even | how far ahead the prefetch must start: a link round trip plus the time to move a whole layer
+t_prefetch_lead | s | derived | t_link_rt + C_layer_weights / B_face_even | how far ahead the prefetch must start: a link round trip plus the time to move a whole layer
 n_interdie_sync | 1 | given | 1     | inter-die crossings per layer for the four sequencers to agree
 
 C_chain_layer | bit | derived | w_desc * n_desc_layer            | one layer's chain

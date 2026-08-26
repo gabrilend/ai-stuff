@@ -101,7 +101,7 @@ Change one of these and the blueprints beside it are what break.
 | `k_fluoro` | `011`, `021` |
 | `mu_fluoro` | `011`, `021` |
 | `T_fluoro_frz` | `021` |
-| `c_light` | `051` |
+| `c_light` | `051`, `065` |
 | `eps_0` | `036` |
 | `eps_ox` | `036` |
 | `k_diamond` | `011` |

@@ -72,7 +72,7 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `tol_L_plate` | `013` |
-| `flat_plate` | `013`, `018` |
+| `flat_plate` | `013`, `018`, `066` |
 | `tol_stack_n` | `013` |
 | `A_exterior` | `013` |
 | `tol_loop` | `013`, `017` |

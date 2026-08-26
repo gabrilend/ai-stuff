@@ -269,3 +269,41 @@ the steady one, and both are judged as energies against the thermal masses in
 port field's current capability before `056` existed to derive it; `047` and
 `055` had both used the name for a margin. Every one of the eight has been the
 same shape: an earlier blueprint estimating something a later phase would own.
+
+**2026-08-26 — perimeter zone, 4 mm to 2 mm.** `056`. Four millimetres costs the
+fine zone a quarter of its area, which halves the pane. The perimeter needs a few
+hundred conductors against the several thousand positions two millimetres already
+gives it.
+
+**2026-08-26 — sustained spout rate, 100 MHz to 50 MHz.** `062`. A hundred
+megahertz costs seventeen watts against a ten watt steady port budget. Sustained
+means the coolant sees it, so it has to fit the steady figure rather than the
+transient one. Fifty megahertz is still over a hundred terabytes a second.
+
+**2026-08-26 — cabled spout pairs, 2048 to 512.** `067`. Two thousand pairs draw
+two hundred and sixty watts, which is three times even the transient port
+allowance. A serial link costs picojoules a bit where a ten micron bond costs
+femtojoules, and that — not the connector — is the real reason this grade is
+narrow.
+
+**2026-08-26 — translation unit receive circuit, 140 µm² to 40 µm² a conductor.**
+`069a`. A hundred and forty made the unit two and a half thousand square
+millimetres, which is three reticle fields. It cannot be larger than the sending
+side's circuit anyway, because the far end meets the same pitch.
+
+**2026-08-26 — twenty-seven hand-written unit conversions removed in one sweep.**
+Across `032`, `036`, `038`, `044`, `048`, `050`, `051`, `052`, `053`, `054`,
+`056`, `057`, `058`, `060`, `061`, `062`, `063`, `066`, `067`, `068`, `069`.
+Every one multiplied or divided by a thousand, a million, or eight thousand
+million inside a derivation, in a notation that already converts between units.
+
+Three of them had produced visible failures. The rest were silent, and one was
+silent because two errors cancelled — a via count a million times too large,
+divided by an area a million times too large, giving the right ratio and the
+wrong count.
+
+**This is the project's dominant defect by a wide margin.** The rule that every
+literal is dimensionless prevents an unlabelled quantity entering a derivation and
+does nothing whatever about a labelled one being converted twice. A checker that
+reported every dimensionless literal above ten as a warning would have caught all
+twenty-seven, and `095` should have one.

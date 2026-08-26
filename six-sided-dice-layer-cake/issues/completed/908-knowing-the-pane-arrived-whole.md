@@ -4,7 +4,25 @@ Produces `src/069-spout-integrity.md`.
 
 ## Current behavior
 
-Nothing. `007` sketches a hash checked after the fact and no scheme exists.
+**Done.** `src/069-spout-integrity.md` exists. A pane carries millions of bits and
+no address, no length, no type and no framing, so the small amount of state that
+makes it meaningful travels out of band on the spare conductors `063` already
+provides.
+
+Five constraints. `C-069-3` makes the argument the blueprint exists to make:
+retrying costs under a thousandth of transfers, which is why **always-send-and-
+sometimes-wrong** is the right protocol and forward error correction across
+sixteen million lanes is the wrong one. The argument is written explicitly so
+that somebody does not add one later.
+
+The two error sources are separated — a bond that failed at assembly shows on
+every pane in the same place and retrying forever does not help — with a rule for
+telling them apart.
+
+**The failure record has nowhere to live.** `063`'s remap needs to know which
+conductors are bad and that must outlive a power cycle. It is the same missing
+non-volatile store `033` needs for its fault record and `040` for its repair map.
+**Three dependents on one gap now.**
 
 ## Intended behavior
 

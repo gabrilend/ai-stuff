@@ -59,7 +59,7 @@ w_tile_link    | 1  | given | 4096   | conductors in one source-synchronous tile
 e_link_bit_d   | pJ/bit | measured | 0.10 | energy to move one bit across the interface, driver and receiver together
 
 L_radial       | mm | derived | L_cavity                                  | edge of the square patch where a face meets the cage
-n_radial_col   | 1  | derived | floor(L_radial * 1000 / d_radial_pad)     | pad columns across it
+n_radial_col   | 1  | derived | floor(L_radial / d_radial_pad)     | pad columns across it
 n_radial_pad   | 1  | derived | n_radial_col^2                            | positions in the array
 n_radial_sig   | 1  | derived | n_radial_pad * (1 - f_radial_power - f_radial_spare) | conductors carrying data
 n_radial_spare | 1  | derived | n_radial_pad * f_radial_spare             | conductors held in reserve

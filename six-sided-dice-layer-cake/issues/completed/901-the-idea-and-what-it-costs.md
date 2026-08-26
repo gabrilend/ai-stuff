@@ -4,7 +4,24 @@ Produces `src/062-spout-concept.md`.
 
 ## Current behavior
 
-Nothing. `007` tells the story; no blueprint states the idea in symbols.
+**Done, and the derived numbers match what `007` estimated by hand.**
+`src/062-spout-concept.md` exists.
+
+The pane comes out at **two to the twenty-fourth bits — sixteen million seven
+hundred and seventy-seven thousand two hundred and sixteen conductors, two
+mebibytes** — derived from the fine zone's area and pitch rather than chosen. One
+pane costs a hundred and sixty-eight nanojoules; the whole core crosses in
+**thirty-four microseconds**, which is **forty-two thousand times** a fast network
+interface. Every one of those is within a per cent of the figure written by hand
+before any blueprint existed.
+
+Six constraints. `C-062-2` states the limit that is not the wires: the memory is
+fifty-four times slower to fill a pane than the tube is to empty it, so sustained
+output is bounded by `034` and not by anything in this phase.
+
+**The sustained rate had to come down**, from a hundred megahertz to fifty:
+sustained means the coolant sees it, so it must fit the steady port budget rather
+than the transient one.
 
 ## Intended behavior
 

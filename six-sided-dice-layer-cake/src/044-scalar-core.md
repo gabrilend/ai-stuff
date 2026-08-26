@@ -58,7 +58,7 @@ w_rng_state   | bit | given | 128  | width of the carried random state, per sequ
 w_rng_min     | bit | given | 64   | the least width at which two sequences will not collide over a long conversation
 n_core_face   | 1 | derived | n_die_face | scalar cores on a face, one per die
 
-t_scalar_tok  | s | derived | n_scalar_inst / (f_face * 1e9)         | time the core spends per token, at one instruction a cycle
+t_scalar_tok  | s | derived | n_scalar_inst / f_face         | time the core spends per token, at one instruction a cycle
 util_scalar   | 1 | derived | t_scalar_tok / t_stage                 | how busy it is
 A_scalar_face | mm^2 | derived | f_area_scalar * A_die * n_die_face  | area four scalar cores take on a face
 f_scalar_face | 1 | derived | A_scalar_face / (A_die * n_die_face)   | that as a share of a face, which is the cost of choosing four over one

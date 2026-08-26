@@ -4,8 +4,23 @@ Produces `src/063-spout-pad-array.md`.
 
 ## Current behavior
 
-Nothing. Ten micron pitch and twenty-seven million positions are quoted in three
-documents with no array drawn.
+**Done.** `src/063-spout-pad-array.md` exists with the tiling, the spares and the
+bit-to-pad rule.
+
+Six constraints. The tile size is derived in `065` from the skew budget and read
+here, so neither blueprint can move it alone.
+
+**The perimeter zone had to shrink** for this to work: four millimetres of
+perimeter costs the fine zone a quarter of its area and halves the pane, while
+the perimeter itself needs a few hundred conductors against several thousand
+positions.
+
+**The bit-to-pad mapping is a rule and not a permutation.** *Keep a tile within
+one interleave unit* is the requirement; the actual mapping from pane bit to pad
+position does not exist, and `069`'s receiver needs it to reassemble anything.
+
+**The spare fraction is a `given`, as it is in `051`**, and `083` should be
+setting both.
 
 ## Intended behavior
 

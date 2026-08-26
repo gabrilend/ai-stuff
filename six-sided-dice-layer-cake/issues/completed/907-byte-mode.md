@@ -4,7 +4,25 @@ Produces `src/068-spout-byte-mode.md`.
 
 ## Current behavior
 
-Nothing. The vision document's own retreat, and probably the grade that ships.
+**Done, and it is the grade that should ship.**
+`src/068-spout-byte-mode.md` exists, crediting the line in the original page that
+found the wall two sentences after the claim.
+
+Six constraints. `C-068-6` is the argument in one line: this grade must permit
+rework where the bonded one does not.
+
+The hidden cost is surfaced rather than buried: **the skew budget within one
+pulse is eight times tighter** than the bonded grade's for the same nominal rate,
+which is the constraint that would fail first if the rate were raised.
+
+**The pitch had to grow a fraction**, from thirty microns to thirty-two, because
+thirty is finer than the conductor count actually permits in the fine zone
+available.
+
+**The bit-to-conductor mapping is not written** and interacts with `063`'s rule
+about keeping a tile inside one interleave unit. **And nothing records which grade
+a given cube is built with** — `056` makes it an assembly decision, `082` must
+sequence it, `088` must price all three, and the recommendation here is byte mode.
 
 ## Intended behavior
 

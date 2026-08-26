@@ -72,8 +72,8 @@ Change one of these and the blueprints beside it are what break.
 | `P_core_leak` | `020`, `035` |
 | `E_link_bit` | `020` |
 | `P_crossbar` | `020`, `028`, `037` |
-| `P_ports` | `020`, `028` |
-| `P_port_burst` | `057` |
+| `P_ports` | `020`, `028`, `062` |
+| `P_port_burst` | `057`, `067`, `069a` |
 | `eta_conv_1` | `020` |
 | `eta_conv_2` | `020` |
 | `eta_dist` | `020` |

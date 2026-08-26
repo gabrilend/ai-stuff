@@ -4,8 +4,27 @@ Produces `src/064-spout-driver-and-receiver.md`.
 
 ## Current behavior
 
-Nothing. Ten femtojoules per bit is asserted in `007` and `901` with no circuit
-behind it.
+**Done.** `src/064-spout-driver-and-receiver.md` exists, and the area budget goes
+first because it eliminates most of the design space before any circuit is
+proposed: a few tens of square microns rules out a current source, a bias
+network, an amplifier and every per-lane calibration state.
+
+**The circuit had to shrink to fit its own constraint.** Eighteen and twenty-two
+square microns for driver and receiver is exactly forty per cent of a ten micron
+pitch, which is not *well under* half of it.
+
+The energy figure was reconciled against the capacitance and found to be
+**fourteen times the bond's own charge** — the bond is a fourteenth of a bit's
+cost and the rest is the two inverters, the local strobe distribution and the
+receiver's latch. That is now a named factor rather than a discrepancy.
+
+Six constraints. The simultaneous switching case is treated as ordinary rather
+than rare, because a pane of zeroes followed by a pane of ones is a thing memory
+contains.
+
+**The supply impedance is a `given` and the bounce is proportional to it.** `031`
+sized decoupling for the compute dies; nothing has done it for the face that
+switches sixteen million drivers on one edge.
 
 ## Intended behavior
 

@@ -68,12 +68,12 @@ C_request     | MB | given | 1     | where a host puts a token identifier and ta
 C_control     | MB | given | 1     | control and status, including the pane window's aliasing register
 C_repair      | MB | given | 16    | the repair map and scrub state from 040
 w_interleave  | bit| given | 32768 | address granularity at which consecutive addresses move to the next bank. Eight thousand was tried and is narrower than a single cycle's read from one tier, which would have meant every transfer straddling two banks
-C_pane        | MB | derived | n_pane_bit / 8e6 | the window the spout sees, from 062
+C_pane        | MB | derived | n_pane_bit       | the window the spout sees, from 062
 n_region      | 1  | given | 9     | regions in the map
 
 C_staging     | MB | derived | n_stage * C_stage_buf                | the six forward staging buffers
 C_staging_r   | MB | derived | n_stage * C_stage_buf                | and the six reverse ones for training
-C_mapped      | GB | derived | (C_weights * 1000 + C_kv * 1000 + C_staging + C_staging_r + C_checkpoint * 1000 + C_adapter * 1000 + C_request + C_control + C_repair) / 1000 | everything with an address
+C_mapped      | GB | derived | C_weights + C_kv + C_staging + C_staging_r + C_checkpoint + C_adapter + C_request + C_control + C_repair | everything with an address
 C_free        | GB | derived | C_core_usable - C_mapped             | what is left
 f_mapped      | 1  | derived | C_mapped / C_core_usable             | how full the map is at the reference model
 n_bank_stride | 1  | derived | w_interleave / w_tier_port           | cycles a single bank is held before the address moves on
@@ -85,7 +85,7 @@ n_bank_stride | 1  | derived | w_interleave / w_tier_port           | cycles a s
 C-038-1 | C_mapped <= C_core_usable      | everything mapped must fit in what 034 says is usable. The map is what turns a capacity into a limit
 C-038-2 | C_free > 0                     | and there must be something left over, because the alternative is a machine that fits its reference model exactly and no other
 C-038-3 | w_interleave >= w_transfer     | the interleave granularity must be at least 052's transfer size, so that a single transfer is never split across two banks
-C-038-4 | C_pane * 1e6 == n_pane_bit / 8 | the pane window's size must be exactly what 062 defines, in the units this map uses
+C-038-4 | C_pane ~= n_pane_bit          | the pane window's size must be exactly what 062 defines
 C-038-5 | C_staging >= C_stage_min       | the staging buffers must hold at least what 053's look-ahead needs
 C-038-6 | n_region == 9                  | nine regions. Asserted so that a tenth arrives with an argument rather than by accident, since every region is address space nothing else can have
 C-038-7 | n_bank_stride >= 2             | a bank must be held for at least two cycles before the address moves on, or the crossbar spends more time switching than transferring

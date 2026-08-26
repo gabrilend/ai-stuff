@@ -51,11 +51,11 @@ is a much clearer thing to write down.
 ```symbols
 B_eat_face    | bit/s | derived | B_operand_die * n_die_face      | what one face's four engines consume at full utilisation
 m_slice_feed  | 1 | derived | B_slice_read / B_eat_face           | the slice's margin over that
-m_core_feed   | 1 | derived | B_face_even / (C_layer_weights * 8e6 / t_layer) | the core's margin over what a face must pull per layer at its contended share
+m_core_feed   | 1 | derived | B_face_even / (C_layer_weights / t_layer) | the core's margin over what a face must pull per layer at its contended share
 B_scrub_face  | bit/s | derived | B_scrub / n_face                | the scrubber's share falling on one face's traffic
-m_scrub       | 1 | derived | (B_face_even - B_scrub_face) / (C_layer_weights * 8e6 / t_layer) | the core's margin with the scrubber running, which is the check 040 needs and cannot do for itself
+m_scrub       | 1 | derived | (B_face_even - B_scrub_face) / (C_layer_weights / t_layer) | the core's margin with the scrubber running, which is the check 040 needs and cannot do for itself
 f_starve_below| 1 | derived | 1 - (B_face_even / B_eat_face)      | how starved an engine is below the crossover, which is the intended state and is reported rather than constrained
-t_token_feed  | s | derived | C_weights * 8e9 / B_core            | time per token from this chain, which 055 and 080 must agree with
+t_token_feed  | s | derived | C_weights / B_core            | time per token from this chain, which 055 and 080 must agree with
 ```
 
 ## Constraints

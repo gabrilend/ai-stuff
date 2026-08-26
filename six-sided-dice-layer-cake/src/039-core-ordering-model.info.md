@@ -16,7 +16,7 @@ Described by `506`.
 | `coherent` | 1 | given | 0 | whether hardware coherence exists. It does not, and this is written as a number so that a blueprint assuming otherwise fails rather than merely being wrong |
 | `t_write_max` | ns | derived | 19.15 ns | the longest a write can be in flight: its own release, the array's access, and the worst the arbiter can make it wait. 033's brownout hold-up is judged against this. Written first with a hand conversion from seconds to nanoseconds, which turned nineteen nanoseconds into six and a half seconds |
 | `t_handoff` | ns | derived | 38.4868 ns | a full stage handoff: release, the flag crossing to the next face, acquire, and the buffer read |
-| `t_pane_excl` | ns | derived | unresolved | how long the pane read excludes writes, which is the price of choosing exclusion |
+| `t_pane_excl` | ns | derived | 54.6133 ns | how long the pane read excludes writes, which is the price of choosing exclusion |
 | `f_pane_stall` | 1 | derived | unresolved | that price as a share of a token |
 
 ## What it consumes
@@ -24,7 +24,7 @@ Described by `506`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `B_core` | `034` | 3.072e+14 bit/s | aggregate read bandwidth, every tier delivering at once |
-| `C_pane` | `038` | unresolved | the window the spout sees, from 062 |
+| `C_pane` | `038` | 2.09715 MB | the window the spout sees, from 062 |
 | `t_access` | `035` | 0.75 ns | latency from a read being issued to the first bits arriving at the tier's port |
 | `t_holdup` | `033` | 4.75275e-08 s | how long that actually lasts |
 | `t_link_rt` | `051` | 9.2434e-09 s | round trip from a face issuing a read to the first data arriving: two flights, the array's access, the worst arbitration wait, and the protocol's own overhead |

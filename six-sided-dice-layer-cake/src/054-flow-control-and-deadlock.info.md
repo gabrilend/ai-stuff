@@ -14,7 +14,7 @@ Described by `705`.
 | `n_ring_break` | 1 | given | 1 | stages at which the ring is broken by a stage that never blocks |
 | `f_timeout_marg` | 1 | given | 100 | how many times the proven worst case a timeout must be set at |
 | `t_wait_worst` | s | derived | 2.048e-08 s | the longest any client can wait, across all three classes |
-| `t_timeout_bar` | s | derived | 3.84868e-15 s | timeout on a staging barrier |
+| `t_timeout_bar` | s | derived | 3.84868e-06 s | timeout on a staging barrier |
 | `t_timeout_txn` | s | derived | 9.2434e-07 s | timeout on a transfer |
 | `n_resource` | 1 | derived | 16 | resources a client can hold while waiting for another, which is the size of the graph the argument has to cover |
 | `f_wait_stage` | 1 | derived | unresolved | the worst wait as a share of a pipeline stage |

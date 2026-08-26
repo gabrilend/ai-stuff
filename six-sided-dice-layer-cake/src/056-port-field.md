@@ -61,7 +61,7 @@ face whether or not anything is bonded to it.
 
 ```symbols
 p_port_coarse | um | given | 250.0 | pitch of the perimeter zone, a detachable land grid
-w_perimeter   | mm | given | 4.0   | width of the perimeter zone on each side
+w_perimeter   | mm | given | 2.0   | width of the perimeter zone on each side. Four millimetres was the first sketch and it costs the fine zone a quarter of its area, which halves the pane in 062 -- and the perimeter needs a few hundred conductors against the several thousand positions two millimetres already gives it
 n_pair_line   | 1  | given | 64    | differential pairs one storage line uses
 n_pad_power   | 1  | given | 96    | pads carrying the face's supply and its return
 n_pad_control | 1  | given | 32    | pads for management, telemetry and the interlock
@@ -70,7 +70,7 @@ i_pad_port    | A  | given | 0.30  | current one perimeter pad carries
 A_port        | mm^2 | derived | A_plate                                    | the whole outward surface
 A_perimeter   | mm^2 | derived | A_plate - (L_plate - 2*w_perimeter)^2      | area of the perimeter zone
 A_fine        | mm^2 | derived | (L_plate - 2*w_perimeter)^2               | area of the fine zone
-n_pad_perim   | 1    | derived | A_perimeter * 1e6 / p_port_coarse^2       | positions in the perimeter zone
+n_pad_perim   | 1    | derived | A_perimeter / p_port_coarse^2       | positions in the perimeter zone
 n_port_conductor | 1 | derived | 2*n_pair_line + n_pad_power + n_pad_control | conductors that must reach the interposer through 014's via islands
 I_port_max    | A    | derived | n_pad_power / 2 * i_pad_port               | current the power pads will carry, half of them being return
 f_fine_unused | 1    | derived | (n_face - 1) / n_face                     | share of the fine zones that will never be bonded to anything, which is the price of one part number
