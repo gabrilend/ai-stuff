@@ -44,6 +44,14 @@ return {
     order_ramp   = 0.12,  -- how much weaker the last stroke is than the first
     blur_radius  = 9,     -- THE dial. line becomes neighbourhood. docs/003.
     blur_passes  = 3,     -- three box blurs approximate a gaussian
+    -- The blur cannot be one number for every character. A stroke has to become
+    -- a neighbourhood without merging into its neighbours, and a character with
+    -- thirty strokes has its strokes much closer together than one with six.
+    -- The radius above is the one for a character of `blur_reference` strokes,
+    -- and it shrinks from there. See docs/003 and docs/balance-updates.md.
+    blur_reference = 8,
+    blur_falloff = 0.38,  -- 0 turns the scaling off entirely
+    blur_minimum = 3,
     range_low    = 0.16,  -- the field is compressed into this band rather than
     range_high   = 0.86,  -- running full black to full white. docs/003.
     thumbnail    = 96,    -- the size the illusion is supposed to work at

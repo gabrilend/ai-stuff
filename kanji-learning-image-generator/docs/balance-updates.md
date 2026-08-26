@@ -34,3 +34,37 @@ one has something to compare against.
 | `workflow.sampler` / `scheduler` | `dpmpp_2m` / `karras` | Ordinary and well-behaved for this kind of conditioning. |
 | `arrows.head_length` | 13 (at 768px) | Large enough to read at thumbnail size, which is the size the rest of the image is designed for. |
 | `arrows.number_size` | 19 (at 768px) | Same reasoning. Stroke numbers that vanish in the thumbnail defeat the layer. |
+
+---
+
+## 2026-08-25 — the blur stopped being one number
+
+**Symptom.** Looking at the first six real fields at thumbnail size, five were
+crisp and 鬱 — twenty-nine strokes — was a grey smudge with no character in it.
+Thumbnail size is the *only* size this project is specified at, so that is a
+failure and not a rough edge.
+
+**Cause.** `field.blur_radius` was one number for every character. The blur has
+one job with two edges: a stroke must stop being a line and become a
+neighbourhood, without merging into the neighbourhood beside it. How much room
+sits between those two edges depends entirely on how crowded the character is,
+and characters run from one stroke to nearly thirty inside the same box. A
+radius that turns a six-stroke character into a proper field welds a
+twenty-nine-stroke one shut.
+
+| Knob | Was | Now | Why |
+|---|---|---|---|
+| `field.blur_radius` | 9, flat | 9 **at eight strokes** | Same number, different meaning: it is now the radius for a character of `blur_reference` strokes rather than for all of them. |
+| `field.blur_reference` | — | 8 | Where the radius above applies unchanged. Eight is near the middle of the distribution. |
+| `field.blur_falloff` | — | 0.38 | How fast the radius shrinks as strokes are added. Strokes crowd roughly as the square root of how many there are in a fixed box, so the exponent belongs below a half. Set to 0 to go back to a flat radius. |
+| `field.blur_minimum` | — | 3 | A floor. Below about three the softening stops doing its job and the strokes go back to being lines. |
+
+Which gives, at the current settings: one stroke ≈ 20, three ≈ 13, six ≈ 10,
+twelve ≈ 8, twenty-nine ≈ 5.5.
+
+**What this is not.** Stroke count is a proxy for stroke *spacing*, not a
+measurement of it. The honest measurement is the distance from each piece of ink
+to the nearest ink belonging to a different stroke, and it costs a great deal
+more while almost certainly moving the number by less than turning this dial
+does. If a character ever comes out wrong in a way this cannot fix, that is the
+thing to build.

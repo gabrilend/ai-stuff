@@ -78,6 +78,15 @@ It is a knob, it will be turned, and every turn of it belongs in
    and is separable, so cost is proportional to the number of pixels rather than to
    the square of the radius.
 
+   **The radius is not the same for every character.** How much room there is
+   between "still a line" and "merged with its neighbour" depends on how crowded
+   the character is, and characters run from one stroke to nearly thirty inside
+   the same box. The setting is the radius for a character of ordinary density
+   and it shrinks from there. Held flat, it welds the dense characters into a
+   grey smudge at exactly the size this project is specified at.
+   `docs/balance-updates.md` has the numbers and says what stroke count is
+   standing in for.
+
 5. **Set the range.** The field is scaled into a band between a floor and a
    ceiling rather than running the full zero-to-one. A field containing true black
    and true white asks for a picture containing true black and true white, and the
