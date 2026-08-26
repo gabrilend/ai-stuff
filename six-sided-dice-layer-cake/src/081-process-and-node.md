@@ -57,9 +57,9 @@ cost_wafer_a  | 1 | measured | 6000.0  | at the array node
 cost_wafer_p  | 1 | measured | 900.0   | at the passive node
 A_wafer       | cm^2 | measured | 706.0 | usable area of one three hundred millimetre wafer
 
-n_die_wafer_l | 1 | derived | floor(A_wafer / (A_die / 100))         | compute dies per wafer, before yield
-n_tier_wafer  | 1 | derived | floor(A_wafer / (A_core_side / 100))   | memory tiers per wafer, before yield
-n_plate_wafer | 1 | derived | floor(A_wafer / (A_plate / 100))       | cold plates per wafer
+n_die_wafer_l | 1 | derived | floor(A_wafer / A_die)                 | compute dies per wafer, before yield
+n_tier_wafer  | 1 | derived | floor(A_wafer / A_core_side)           | memory tiers per wafer, before yield
+n_plate_wafer | 1 | derived | floor(A_wafer / A_plate)               | cold plates per wafer
 n_die_stitch  | 1 | derived | 1                                      | exposures per compute die; one, because 042 sized the die to fit a field
 n_tier_stitch | 1 | derived | ceil(A_core_side / A_reticle)          | exposures per memory tier, which is more than one and is what 036 left open
 ```

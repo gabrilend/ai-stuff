@@ -16,11 +16,11 @@ Described by `1203`.
 | `n_handle` | 1 | given | 40 | handling operations in a whole assembly |
 | `f_cover_needed` | 1 | derived | 0.98 | test coverage 082's step five must reach for the numbers below to hold |
 | `y_floor` | 1 | given | 0.4 | the least finished-cube yield that makes the machine worth building |
-| `y_die_logic` | 1 | derived | 0.997412 | fraction of compute dies good, by the standard model for a mature process |
-| `y_die_tier` | 1 | derived | 0.995215 | and of memory tiers |
-| `y_die_plate` | 1 | derived | 0.997301 | and of cold plates |
-| `n_die_good_l` | 1 | derived | 12224.3 | good compute dies per wafer |
-| `n_tier_good` | 1 | derived | 2195.45 | good memory tiers per wafer, allowing for stitching |
+| `y_die_logic` | 1 | derived | 0.780338 | fraction of compute dies good, by the standard model for a mature process |
+| `y_die_tier` | 1 | derived | 0.64282 | and of memory tiers |
+| `y_die_plate` | 1 | derived | 0.772407 | and of cold plates |
+| `n_die_good_l` | 1 | derived | 95.2013 | good compute dies per wafer |
+| `n_tier_good` | 1 | derived | 14.142 | good memory tiers per wafer, allowing for stitching |
 | `y_stack_naive` | 1 | derived | 0.785678 | what the tier stack would yield at ninety-nine per cent a tier with no redundancy, which is the alarming number |
 | `y_stack_red` | 1 | derived | 0.976146 | and with one redundant tier: all good, or exactly one bad |
 | `n_bond_radial` | 1 | derived | 3.174e+07 | bonds in the six radial interfaces |
@@ -29,8 +29,8 @@ Described by `1203`.
 | `y_rad_spare` | 1 | derived | 0.999998 | roughly, the chance the spares cover the failures; a crude bound rather than a distribution, and marked as such |
 | `y_handling` | 1 | derived | 0.923042 | surviving forty handling operations |
 | `y_cube` | 1 | derived | 0.90102 | finished cubes per attempt, from known-good parts |
-| `cost_si_cube` | 1 | derived | 106.931 | silicon in one cube, at known-good prices |
-| `cost_cube` | 1 | derived | 118.678 | and per cube that works |
+| `cost_si_cube` | 1 | derived | 15493.2 | silicon in one cube, at known-good prices |
+| `cost_cube` | 1 | derived | 17195.2 | and per cube that works |
 | `f_yield_cost` | 1 | derived | 1.10985 | how much of the cost is yield rather than silicon |
 
 ## What it consumes
@@ -49,14 +49,14 @@ Described by `1203`.
 | `f_cover_five` | `082` | 0.985 | share of defects a face assembly test finds, which 083 uses and 084 must actually deliver |
 | `n_bond_total` | `063` | 2.304e+07 | bonds made in one operation at the very end of assembly, which 083 has to survive |
 | `n_die` | `012` | 24 | compute dies in the machine |
-| `n_die_wafer_l` | `081` | 12256 | compute dies per wafer, before yield |
+| `n_die_wafer_l` | `081` | 122 | compute dies per wafer, before yield |
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
-| `n_plate_wafer` | `081` | 2610 | cold plates per wafer |
+| `n_plate_wafer` | `081` | 26 | cold plates per wafer |
 | `n_radial_pad` | `051` | 5.29e+06 | positions in the array |
 | `n_radial_spare` | `051` | 264500 | conductors held in reserve |
 | `n_tier` | `036` | 24 | memory tiers in the stack. Twenty-four rather than the thirty-two first sketched, because at the density 035 derives, thirty-two holds half again what is needed |
 | `n_tier_stitch` | `081` | 2 | exposures per memory tier, which is more than one and is what 036 left open |
-| `n_tier_wafer` | `081` | 4412 | memory tiers per wafer, before yield |
+| `n_tier_wafer` | `081` | 44 | memory tiers per wafer, before yield |
 | `y_array_spare` | `066` | 0.999998 | roughly, the chance the spares cover the failures -- a crude bound rather than a distribution, and marked as such |
 
 ## What consumes it
@@ -79,12 +79,13 @@ Change one of these and the blueprints beside it are what break.
 | `y_stack_naive` | `083` |
 | `y_stack_red` | `083` |
 | `n_bond_radial` | `083` |
+| `n_bond_all` | `088` |
 | `y_rad_nospare` | `083` |
 | `y_rad_spare` | `083` |
 | `y_handling` | `083` |
 | `y_cube` | `083` |
-| `cost_si_cube` | `083` |
-| `cost_cube` | `083` |
+| `cost_si_cube` | `083`, `088` |
+| `cost_cube` | `083`, `088` |
 | `f_yield_cost` | `083` |
 
 ## What it asserts

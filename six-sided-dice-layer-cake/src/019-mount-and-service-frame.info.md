@@ -63,7 +63,7 @@ Change one of these and the blueprints beside it are what break.
 | `disp_frame` | `019` |
 | `travel_compliant` | `019` |
 | `V_spill_event` | `019` |
-| `V_spill_life` | `019`, `027` |
+| `V_spill_life` | `019`, `027`, `088` |
 | `n_orient` | `019` |
 
 ## What it asserts

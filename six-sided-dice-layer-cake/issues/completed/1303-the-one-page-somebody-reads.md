@@ -4,7 +4,22 @@ Produces `src/089-specification-sheet.md`.
 
 ## Current behavior
 
-Nothing. There is no single page that says what this machine is and what it does.
+**Done.** `src/089-specification-sheet.md` exists as a template specification
+rather than a page, with `C-089-1` asserting that it declares no symbols of its
+own — **because the failure mode of a summary document is a number that appears
+only in it.**
+
+Six constraints, and two are about honesty rather than arithmetic. `C-089-2`
+requires the capacity comparison — the losing one — to be on the sheet beside the
+bandwidth ratio. `C-089-3` requires at least five sentences saying what the
+machine is not, because they save everybody a month and they are the first thing a
+summary drops.
+
+**The template does not exist as a file.** This says what is on the sheet; `097`
+is what would render it, and the page with symbol names in it is `097`'s to carry.
+
+**One sheet, one configuration** — and `074` and `027` are still arguing over the
+thermal margin that would produce a second.
 
 ## Intended behavior
 

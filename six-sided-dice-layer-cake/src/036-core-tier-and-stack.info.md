@@ -62,7 +62,7 @@ Change one of these and the blueprints beside it are what break.
 
 | symbol | read by |
 |---|---|
-| `n_tier` | `012`, `013`, `024`, `026`, `034`, `036`, `037`, `083` |
+| `n_tier` | `012`, `013`, `024`, `026`, `034`, `036`, `037`, `083`, `088` |
 | `f_si_volume` | `036` |
 | `h_stack` | `036` |
 | `p_tsv` | `036` |
