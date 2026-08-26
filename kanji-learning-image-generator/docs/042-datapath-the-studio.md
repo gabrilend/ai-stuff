@@ -123,6 +123,20 @@ Three things fall out of that and each is the reason for it:
 **Nothing is ever deleted.** A low tier is the record of what missed and by how
 much. Storage is cheap and judgement is expensive.
 
+**Which is why the pool is on the disk and not in the RAM tier**, where every
+other thing this project writes at runtime goes. That exception is the whole of
+`410`: it was in the RAM tier, the machine restarted, and every rating anybody
+had given vanished without a word — leaving a pool that looked exactly like one
+nobody had filled yet.
+
+The same reasoning goes one level further. A picture is large and can be made
+again, because the same description and the same seed produce the same bytes. A
+companion is a few hundred bytes holding somebody's opinion, and no seed
+regenerates an opinion. So the companions are in the record and the pictures are
+not, and a clone arrives holding every judgement ever made and none of the
+pictures — which is a supported state, and the report says so and gives the
+command that makes them again.
+
 **Counts come from a utility, never from a number written into a document.**
 
 ## The category is the world

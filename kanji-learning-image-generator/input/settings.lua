@@ -177,7 +177,16 @@ return {
 
   -- {{{ pool -- every picture ever made, kept (405)
   pool = {
-    dir = "tmp/shared-memory/pool",
+    -- On the disk, and NOT in the RAM tier where everything else this project
+    -- writes at runtime goes.
+    --
+    -- That is deliberate and it is the one exception. A pool whose first
+    -- paragraph says nothing is ever deleted cannot live in a directory the
+    -- machine empties when it restarts -- which is exactly what happened, and
+    -- every rating anybody had given was gone without a word (410). Anybody
+    -- tidying this up for consistency with the other paths should read that
+    -- ticket first.
+    dir = "pool",
     -- What a machine has to score before a rendering counts as each tier. The
     -- machine's opinion is a correlation between the finished picture and the
     -- grey field that produced it -- how much the illusion actually took. These
