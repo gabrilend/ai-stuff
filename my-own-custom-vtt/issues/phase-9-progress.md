@@ -2,7 +2,7 @@
 
 **Goal:** the art is generated, kept, judged, and the judging is watched.
 
-**Status: in progress.** Seven of nine issues complete.
+**Status: in progress.** Eight of nine issues complete; the demo remains.
 
 ## The issues
 
@@ -16,7 +16,7 @@
 | [906 the quality dial](completed/906-the-quality-dial.md) | done | Raising quality spends variety, and says so first. |
 | [907 the anchor that stops drift](completed/907-the-anchor-that-stops-drift.md) | done | A loop tuned by a grader that is itself being tuned. |
 | [908 the phase nine demo](908-the-phase-nine-demo.md) | not started | The capstone. |
-| [909 a thing wears a sprite](909-a-thing-wears-a-sprite.md) | not started | Foundational, and discovered late. |
+| [909 a thing wears a sprite](completed/909-a-thing-wears-a-sprite.md) | done | Foundational, and discovered late. |
 
 ## What is built so far
 
@@ -27,6 +27,26 @@
 | `084-calibrate` | Whether the five tiers are still five tiers. |
 | `085-sprite-pool` | Every sprite ever made, and what anybody thought of it. |
 | `087-studio` | The agreement rate, the anchor, and the dial that quotes its price. |
+
+## And two from wiring it into a session
+
+**A foundational piece was missing and nothing had noticed.** Re-tiering a sprite
+mid-session needs the command to name a picture, and nothing in the world named
+one — a thing carried a `kind` and a sprite is made from a category and a seed.
+Two goblins in one room were necessarily the same goblin or no goblin at all.
+That became [909](completed/909-a-thing-wears-a-sprite.md), which is foundational
+and numbered last, and the numbering is honest about the order it was found in
+rather than the order it belongs in.
+
+**The converter ladder had never been tested against the thing it exists for.**
+Adding two fields to a thing bumped the world file's version — and a version 2
+file could not load, because the file's stored checksum is a walk over every
+field of every record and the walk is whatever the current build's walk is. Nine
+fields per thing then, eleven now; the two answers can never agree. The ladder
+had one rung before this and that rung changed no record's shape, so nothing had
+ever exercised it. See open question 15.4, which names the real fix: a checksum
+over the file's bytes is version-independent, and one over a world's fields
+cannot be.
 
 ## Two more, from building the library
 

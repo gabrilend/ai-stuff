@@ -71,6 +71,31 @@ struct thing {
     uint32_t sheet;        /* Index into the ruleset's storage. Never read here. */
     uint32_t sight_range;  /* How far it sees. 0 means it does not see. */
 
+    /*
+     * WHICH PICTURE THIS ONE IS WEARING.
+     *
+     * A category, held as an offset into this world's string pool, and a seed.
+     * Together they are a whole description: hand them to the sprite maker and
+     * the same picture comes back, byte for byte, forever.
+     *
+     * The category is written down here rather than looked up through the
+     * ruleset -- which could supply it, since it already turns a kind into a
+     * description. A world file has to be enough on its own. Stored, a saved
+     * world regenerates every picture in it with no ruleset loaded; looked up,
+     * the same file is a set of coordinates that needs a particular Lua file in
+     * a particular version to mean anything visual, and the ruleset is the most
+     * changeable thing in the project.
+     *
+     * Zero in `sprite_category` means this thing wears nothing, by the same
+     * index-0-is-nothing convention as everywhere else.
+     *
+     * Two things of one kind with different seeds wear different pictures. That
+     * is the whole point of a generated appearance layer, and it is not
+     * reachable while a kind is all a thing has. See issue 909.
+     */
+    uint32_t sprite_category;
+    uint32_t sprite_seed;
+
     wangle   facing;       /* A full turn is 65536; wraps by overflowing. */
     uint16_t radius;       /* How much space the body takes. */
     wangle   sight_arc;    /* How wide its cone of vision is. 32768 is everything ahead. */
@@ -238,6 +263,28 @@ struct world {
      */
     uint64_t seed;
     char     origin[64];
+
+    /*
+     * WHICH FILE VERSION THIS WORLD ARRIVED AS, when it arrived as a file older
+     * than this build writes. Zero means it did not come from an old file.
+     *
+     * It is here because of a hole the sprite fields opened. A world file stores
+     * a hash of its own contents, computed by walking every field of every
+     * record -- and that walk is the CURRENT walk. Add a field and an old file's
+     * stored hash can never match again, because it was computed over a
+     * different set of fields. The check is therefore skipped for a migrated
+     * file, and a skipped check that nobody mentions is a check that quietly
+     * stopped existing.
+     *
+     * So the fact is recorded and a caller can say it out loud. See open
+     * question 15.4, which names the real fix: a checksum over the file's BYTES
+     * is version-independent, where a checksum over a world's FIELDS cannot be.
+     *
+     * Not part of the world hash. It is a fact about a file, not about a world,
+     * and two identical worlds must not hash differently because one was loaded
+     * from an older format.
+     */
+    uint32_t migrated_from;
 };
 
 /*

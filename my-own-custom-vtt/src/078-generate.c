@@ -14,6 +14,7 @@
 #include "073-rules.h"
 #include "031-region.h"
 #include "033-validate.h"
+#include "082-sprite.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -508,15 +509,121 @@ int realise(struct world *w, struct layout *l, const struct description *d,
 }
 /* }}} */
 
+/*
+ * Turn whatever a ruleset calls a kind into a category a sprite pool can hold.
+ *
+ * Lowercase letters, digits and dashes; everything else becomes a dash; runs of
+ * dashes collapse and the ends are trimmed. "Goblin Sentry" becomes
+ * "goblin-sentry", which is the same word a person would have picked.
+ *
+ * Returns 0 when nothing usable survives, which is a different thing from being
+ * given nothing at all -- see the caller.
+ */
+/* {{{ static int category_from */
+static int category_from(const char *given, char *into, uint32_t capacity)
+{
+    uint32_t written = 0;
+    uint32_t i;
+
+    for (i = 0; given[i] != '\0' && written + 1u < capacity; i++) {
+        char c = given[i];
+
+        if (c >= 'A' && c <= 'Z') {
+            c = (char)(c - 'A' + 'a');
+        }
+
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+            into[written] = c;
+            written++;
+            continue;
+        }
+
+        /* Anything else is a separator, and two separators in a row are one. */
+        if (written > 0 && into[written - 1] != '-') {
+            into[written] = '-';
+            written++;
+        }
+    }
+
+    while (written > 0 && into[written - 1] == '-') {
+        written--;
+    }
+
+    into[written] = '\0';
+    return written > 0;
+}
+/* }}} */
+
+/*
+ * Give a thing a picture to wear: which category, and which seed.
+ *
+ * WHERE THE CATEGORY COMES FROM. The ruleset names its own kinds -- it already
+ * has a hook that turns a kind into a description -- and that name, sanitised,
+ * is the category. Asked once, here, and written into the world, because a saved
+ * world has to regenerate its pictures with no ruleset loaded. See issue 909.
+ *
+ * WHEN THERE IS NO RULESET, or it has no such hook, the category is the kind's
+ * number: "kind-3". That is not a fallback papering over a failure -- the hook
+ * is optional and a world with no rules layer is a supported world -- it is the
+ * only name available, and it is a name rather than an absence.
+ *
+ * A ruleset that answers with something that sanitises away to nothing IS an
+ * error, and the caller refuses by name rather than quietly using "kind-3" for
+ * a kind somebody deliberately named.
+ */
+/* {{{ static int dress_thing */
+static int dress_thing(struct world *w, uint32_t thing, void *ruleset,
+                       struct stream_registry *streams, uint32_t appearance,
+                       const char **why)
+{
+    struct thing *t = world_thing(w, thing);
+    char described[64];
+    char category[SPRITE_NAME_MAX + 1];
+    uint32_t offset;
+
+    described[0] = '\0';
+
+    if (ruleset != NULL) {
+        rules_describe((struct ruleset *)ruleset, t->kind,
+                       described, sizeof(described));
+    }
+
+    if (described[0] == '\0') {
+        snprintf(category, sizeof(category), "kind-%u", (unsigned)t->kind);
+    } else if (!category_from(described, category, sizeof(category))) {
+        *why = "the ruleset named a kind with nothing a category can be made of";
+        return 0;
+    }
+
+    offset = string_pool_add(&w->strings, category, (uint32_t)strlen(category));
+    if (offset == 0) {
+        *why = "ran out of string pool writing a sprite category";
+        return 0;
+    }
+
+    t->sprite_category = offset;
+
+    /*
+     * A seed of its own, from a stream of its own. Two goblins in one room wear
+     * different pictures, which is the entire point of a generated appearance
+     * layer -- and the stream is named separately so that adding a draw
+     * elsewhere in furnishing does not repaint every creature in every dungeon
+     * anybody has a seed for.
+     */
+    t->sprite_seed = (uint32_t)stream_next(streams, appearance);
+
+    return 1;
+}
+/* }}} */
+
 /* {{{ int furnish */
 int furnish(struct world *w, struct layout *l, const struct description *d,
             struct stream_registry *streams, void *ruleset, const char **why)
 {
     uint32_t dressing = stream_named(streams, "dungeon-furnishing");
+    uint32_t appearance = stream_named(streams, "thing-appearance");
     uint32_t lit = 0;
     uint32_t i;
-
-    (void)ruleset;
 
     for (i = 0; i < l->node_count && lit < d->lights; i++) {
         uint32_t torch;
@@ -538,6 +645,10 @@ int furnish(struct world *w, struct layout *l, const struct description *d,
             t->radius = (uint16_t)(WC_ONE / 4);
             t->flags = THING_EMITS_LIGHT;
             t->region = region_deepest_containing(w, x, y);
+        }
+
+        if (!dress_thing(w, torch, ruleset, streams, appearance, why)) {
+            return 0;
         }
 
         light = world_add_light(w);
@@ -584,6 +695,10 @@ int furnish(struct world *w, struct layout *l, const struct description *d,
                 t->kind = 2;
                 t->radius = (uint16_t)(WC_ONE / 8);
                 t->region = region_deepest_containing(w, t->x, t->y);
+            }
+
+            if (!dress_thing(w, prop, ruleset, streams, appearance, why)) {
+                return 0;
             }
         }
     }

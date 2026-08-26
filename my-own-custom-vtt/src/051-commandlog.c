@@ -5,6 +5,8 @@
  */
 
 #include "051-commandlog.h"
+
+#include "085-sprite-pool.h"
 #include "070-scope.h"
 
 #include <stdlib.h>
@@ -286,6 +288,81 @@ static uint16_t apply_order_stop(struct sim *s, const struct log_entry *e)
 }
 /* }}} */
 
+/*
+ * {{{ static uint16_t apply_retier
+ *
+ * Say what somebody thought of a picture.
+ *
+ * NOTHING IN THE WORLD IS TOUCHED. Not a coordinate, not a flag, not a tick.
+ * That is what lets this arrive in the middle of a turn without a replay
+ * diverging or a world hash moving, and a test asserts exactly that.
+ *
+ * The library is borrowed by the simulation the way a ruleset is borrowed by the
+ * session -- as an opaque pointer, because the tick has no business knowing what
+ * a sprite is and the sprite pool has no business knowing what a tick is.
+ */
+static uint16_t apply_retier(struct sim *s, const struct log_entry *e)
+{
+    struct sprite_pool *library = (struct sprite_pool *)s->sprites;
+    const struct thing *t = world_thing_const(s->world, e->subject);
+    char category[SPRITE_NAME_MAX + 1];
+    char who[RATER_NAME_MAX + 1];
+    const char *bytes;
+    uint32_t length = 0;
+    uint32_t entry;
+
+    /*
+     * Strings in the pool are not null-terminated -- a length is one read where
+     * a terminator is a scan, and a scan over bytes somebody else influenced is
+     * a scan that can run off the end. So it is copied out with its length.
+     */
+    bytes = string_pool_read(&s->world->strings, t->sprite_category, &length);
+
+    if (length > SPRITE_NAME_MAX) {
+        length = SPRITE_NAME_MAX;
+    }
+    memcpy(category, bytes, length);
+    category[length] = '\0';
+
+    /*
+     * WHO RATED IT IS A SEAT, NOT A DISPLAY NAME.
+     *
+     * A viewer has a name and this deliberately does not use it. That field is
+     * marked display-only and never used to decide anything, everywhere it
+     * appears -- and a rating in a library that outlives the session is exactly
+     * the kind of durable record that must not be keyed on something somebody
+     * can change between one evening and the next. Two people who both called
+     * themselves "GM" would become one rater; one person who renamed themselves
+     * would become two.
+     *
+     * Seat 0 is the scripted driver -- a test, or a demo -- which has no seat at
+     * the table but is still somebody, and signs its work rather than leaving a
+     * rating with no rater.
+     */
+    if (e->viewer == 0) {
+        snprintf(who, sizeof(who), "%s", "the-table");
+    } else {
+        snprintf(who, sizeof(who), "seat-%u", (unsigned)e->viewer);
+    }
+
+    /*
+     * Found or made. A picture nobody had entered in the library is entered now,
+     * carrying its rating with it -- because the alternative is refusing to
+     * record an opinion somebody actually held, on the grounds of bookkeeping.
+     */
+    entry = pool_add(library, category, t->sprite_seed, s->tick);
+    if (entry == POOL_NOTHING) {
+        return REFUSED_WEARS_NOTHING;
+    }
+
+    if (!pool_rate_by_person(library, entry, (uint8_t)e->ax, who, s->tick)) {
+        return REFUSED_NOT_A_TIER;
+    }
+
+    return REFUSED_NOT_AT_ALL;
+}
+/* }}} */
+
 typedef uint16_t (*verb_handler)(struct sim *, const struct log_entry *);
 
 static const struct {
@@ -297,7 +374,8 @@ static const struct {
     { "order-move", apply_order_move },
     { "order-face", apply_order_face },
     { "order-stop", apply_order_stop },
-    { "give-scope", apply_give_scope }
+    { "give-scope", apply_give_scope },
+    { "retier",     apply_retier }
 };
 
 /* {{{ uint16_t command_check */
@@ -330,6 +408,35 @@ uint16_t command_check(struct sim *s, const struct log_entry *entry)
         }
 
         return REFUSED_NOT_AT_ALL;
+    }
+
+    /*
+     * Re-tiering is about a picture rather than about a body, but it names a
+     * body, so it takes the ordinary subject gates below AND one of its own.
+     *
+     * WHO MAY, FOR NOW: whoever may edit the world. The narrow answer, matching
+     * VERB_GIVE_SCOPE. There is no leak in letting a player re-tier a sprite
+     * they can already see -- the tier is about the kind and they are looking at
+     * one -- but a shared library any of six people can re-tier mid-session
+     * without discussion is a different social object from one the GM curates.
+     * Widening this later breaks nothing; narrowing it later would. Open
+     * question 10.2.
+     */
+    if (entry->verb == VERB_RETIER) {
+        if (entry->viewer != 0 &&
+            !viewer_has_flag(s->world, entry->viewer, SCOPE_MAY_EDIT_WORLD)) {
+            return REFUSED_MAY_NOT_EDIT;
+        }
+
+        /* Refused here rather than clamped, so a client with a ten-point scale
+         * is told so instead of having its nine quietly become a five. */
+        if (entry->ax < 1 || entry->ax > 5) {
+            return REFUSED_NOT_A_TIER;
+        }
+
+        if (s->sprites == NULL) {
+            return REFUSED_NO_LIBRARY;
+        }
     }
 
     /*
@@ -373,6 +480,16 @@ uint16_t command_check(struct sim *s, const struct log_entry *entry)
         if (!scope_style_allows(s->world, scope, entry->verb)) {
             return REFUSED_WRONG_STYLE;
         }
+    }
+
+    /*
+     * And it must be wearing a picture. A thing with no sprite has nothing for
+     * anybody to have an opinion of, and recording a tier against the empty
+     * category would put a row in the library that names nothing.
+     */
+    if (entry->verb == VERB_RETIER &&
+        world_thing_const(s->world, entry->subject)->sprite_category == 0) {
+        return REFUSED_WEARS_NOTHING;
     }
 
     /*
@@ -436,6 +553,13 @@ const char *refusal_sentence(uint16_t refusal)
         return "handing a scope over is an edit, and you may not edit the world";
     case REFUSED_NO_SUCH_SCOPE:
         return "there is no scope with that index";
+    case REFUSED_NO_LIBRARY:
+        return "there is no sprite library attached, so there is nowhere to"
+               " record what you thought";
+    case REFUSED_NOT_A_TIER:
+        return "a tier is 1 to 5 on this scale, and yours is not one of them";
+    case REFUSED_WEARS_NOTHING:
+        return "that one is not wearing a picture, so there is nothing to rate";
     case REFUSED_BY_THE_RULES:
         /*
          * A placeholder. The real sentence came from the ruleset and lives in
