@@ -1,0 +1,18 @@
+# the-old-inn -- a small place with a cellar under it.
+#
+# This is a description: a few lines that, with a seed, name a whole dungeon
+# exactly. Change one line and regenerate; the map is not a thing you replace.
+#
+# Every word below is in the vocabulary. There is no other word -- see
+# src/076-describe.info.md for the list.
+
+name = the old inn
+
+rooms = 6
+smallest = 5
+largest = 12
+loops = 1
+lights = 3
+
+require = cellar
+require = taproom

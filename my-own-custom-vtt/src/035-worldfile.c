@@ -238,6 +238,11 @@ uint64_t world_hash(const struct world *w)
     hash_u32(&h, (uint32_t)(w->tick & 0xFFFFFFFFu));
     hash_u32(&h, (uint32_t)(w->tick >> 32));
 
+    /* Where it came from is part of what a world is, so it is part of the hash. */
+    hash_u32(&h, (uint32_t)(w->seed & 0xFFFFFFFFu));
+    hash_u32(&h, (uint32_t)(w->seed >> 32));
+    hash_bytes(&h, w->origin, sizeof(w->origin));
+
     return h;
 }
 /* }}} */
@@ -281,8 +286,13 @@ int worldfile_write(const struct world *w, FILE *out, struct worldfile_error *er
         !put32(out, (uint32_t)w->max_x) ||
         !put32(out, (uint32_t)w->max_y) ||
         !put64(out, w->tick) ||
+        !put64(out, w->seed) ||
         !put64(out, world_hash(w))) {
         return fail(error, "could not write the world header", 0, 0);
+    }
+
+    if (fwrite(w->origin, 1, sizeof(w->origin), out) != sizeof(w->origin)) {
+        return fail(error, "could not write where this world came from", 0, 0);
     }
 
     count = world_thing_count(w);
@@ -380,16 +390,24 @@ int worldfile_write(const struct world *w, FILE *out, struct worldfile_error *er
 static int migrate_forward(struct world *w, uint32_t from_version,
                            struct worldfile_error *error)
 {
-    (void)w;
 
     /*
-     * When version 2 arrives, this becomes:
-     *
-     *     if (from_version == 1) { ...convert in place...; from_version = 2; }
-     *     if (from_version == 2) { ... }
-     *
-     * -- a ladder, each rung moving the world forward exactly one step.
+     * A ladder, each rung moving a world forward exactly one step. Version 3 to
+     * version 7 will be four converters run in sequence rather than a converter
+     * written for that particular jump -- otherwise the count grows as the
+     * square of the number of versions and nobody writes the sixteenth one.
      */
+    if (from_version == 1) {
+        /*
+         * Version 1 had no origin. Nothing to convert -- the reader already left
+         * the fields empty -- but the rung exists so that the NEXT one has
+         * something to stand on, and so that a version 1 file is accepted rather
+         * than refused for being old.
+         */
+        snprintf(w->origin, sizeof(w->origin), "%s", "unknown -- a version 1 file");
+        from_version = 2;
+    }
+
     if (from_version == WORLDFILE_VERSION) {
         return 1;
     }
@@ -464,8 +482,36 @@ int worldfile_read(struct world *w, FILE *in, struct worldfile_error *error)
 
         if (!get32(in, &min_x) || !get32(in, &min_y) ||
             !get32(in, &max_x) || !get32(in, &max_y) ||
-            !get64(in, &w->tick) || !get64(in, &stored_hash)) {
+            !get64(in, &w->tick)) {
             return fail(error, "the file is too short to hold its world header", 0, 0);
+        }
+
+        /*
+         * The origin arrived in version 2. A version 1 file simply does not
+         * carry it, and the converter below fills it with "unknown" -- which is
+         * exactly what the ladder is for, and the first time it has done
+         * anything.
+         */
+        if (version >= 2) {
+            if (!get64(in, &w->seed)) {
+                return fail(error, "the file is too short to hold its seed", 0, 0);
+            }
+        } else {
+            w->seed = 0;
+        }
+
+        if (!get64(in, &stored_hash)) {
+            return fail(error, "the file is too short to hold its hash", 0, 0);
+        }
+
+        if (version >= 2) {
+            if (fread(w->origin, 1, sizeof(w->origin), in) != sizeof(w->origin)) {
+                return fail(error,
+                            "the file is too short to hold where it came from",
+                            0, 0);
+            }
+        } else {
+            memset(w->origin, 0, sizeof(w->origin));
         }
 
         w->min_x = (wcoord)min_x;

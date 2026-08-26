@@ -33,7 +33,12 @@
  * The format this build speaks. Raised whenever a record changes shape, together
  * with a converter added to the chain in 035-worldfile.c.
  */
-#define WORLDFILE_VERSION 1u
+/*
+ * Version 2 added the origin -- the description name and seed a generated world
+ * came from. The FIRST time this number moved, and the first rung of the
+ * converter ladder that was built empty in phase 1 on purpose.
+ */
+#define WORLDFILE_VERSION 2u
 
 /*
  * What went wrong. Every failure is a sentence naming what was found and what

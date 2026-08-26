@@ -370,6 +370,8 @@ int world_copy(struct world *destination, const struct world *source)
     destination->max_x = source->max_x;
     destination->max_y = source->max_y;
     destination->tick  = source->tick;
+    destination->seed  = source->seed;
+    memcpy(destination->origin, source->origin, sizeof(destination->origin));
 
     return 1;
 }
