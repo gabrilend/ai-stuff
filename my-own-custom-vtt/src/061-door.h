@@ -46,6 +46,7 @@
 #define JOIN_NAME_TOO_LONG      3u
 #define JOIN_RANGE_FULL         4u
 #define JOIN_NO_ROOM            5u
+#define JOIN_NO_ANSWER          6u   /* Nothing there, or it never replied. */
 
 struct door {
     int      socket;          /* The always-open port. -1 when closed. */

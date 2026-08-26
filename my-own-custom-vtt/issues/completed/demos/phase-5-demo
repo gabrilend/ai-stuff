@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+#
+# phase-5-demo -- the first one you play rather than read.
+#
+# Every earlier phase proved something by printing numbers. This one proves the
+# whole spine works by letting somebody move: it starts a server, starts a
+# bridge, and hands you a URL. Walls stop you. The fog fills in behind you. The
+# corridor is dark until you walk into it.
+#
+# Three programs are involved and that is the design, not an accident. The world
+# lives in the server. The bridge holds one socket to it and serves a browser on
+# your own machine -- which is what keeps a web server out of the authoritative
+# simulation and turns "get a certificate" into "talk to localhost".
+#
+# Usage:
+#   ./phase-5-demo                 -- build, start both, print the URL
+#   ./phase-5-demo /path/to/prj    -- the same, from a checkout somewhere else
+#
+# Normally reached through ./run-phase-demo 5 in the project root.
+
+set -e
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT_NAME="my-own-custom-vtt"
+EXEC_TIER="/tmp/${PROJECT_NAME}/tmp"
+SHARED="/dev/shm/${PROJECT_NAME}"
+
+DOOR_PORT=47901
+LOCAL_PORT=12345
+
+mkdir -p "${SHARED}"
+
+echo "Building..."
+"${DIR}/build" "${DIR}" --no-test > /dev/null
+
+if [ ! -x "${EXEC_TIER}/068-server" ] || [ ! -x "${EXEC_TIER}/069-bridge" ]; then
+    echo "The build did not produce both programs."
+    exit 1
+fi
+
+SERVER_PID=""
+BRIDGE_PID=""
+
+# Both go down together. A demo that starts two processes and does not say how
+# to stop them is a demo that leaves two processes running.
+#
+# Guarded, because the interrupt trap and the exit trap both fire on ctrl-c and
+# an unguarded version says "Stopped." twice -- which reads like something went
+# wrong the second time.
+ALREADY_STOPPING=""
+
+stop_everything() {
+    if [ -n "${ALREADY_STOPPING}" ]; then return; fi
+    ALREADY_STOPPING="yes"
+
+    echo
+    echo "Stopping..."
+    if [ -n "${BRIDGE_PID}" ]; then kill "${BRIDGE_PID}" 2>/dev/null || true; fi
+    if [ -n "${SERVER_PID}" ]; then kill "${SERVER_PID}" 2>/dev/null || true; fi
+    wait 2>/dev/null || true
+    echo "Stopped."
+}
+
+trap stop_everything INT TERM EXIT
+
+echo
+echo "  ==========================================================="
+echo "   PHASE FIVE -- The bridge and the browser"
+echo "  ==========================================================="
+echo
+echo "  Starting the server..."
+
+"${EXEC_TIER}/068-server" "${DOOR_PORT}" > "${SHARED}/phase-5-server.log" 2>&1 &
+SERVER_PID=$!
+
+sleep 1
+
+if ! kill -0 "${SERVER_PID}" 2>/dev/null; then
+    echo "  The server did not start. Its output:"
+    cat "${SHARED}/phase-5-server.log"
+    exit 1
+fi
+
+echo "  Starting the bridge..."
+
+"${EXEC_TIER}/069-bridge" 127.0.0.1 "${DOOR_PORT}" player "${LOCAL_PORT}" \
+    > "${SHARED}/phase-5-bridge.log" 2>&1 &
+BRIDGE_PID=$!
+
+sleep 1.5
+
+if ! kill -0 "${BRIDGE_PID}" 2>/dev/null; then
+    echo "  The bridge did not start. Its output:"
+    cat "${SHARED}/phase-5-bridge.log"
+    exit 1
+fi
+
+echo
+echo "  ---------------------------------------------------------"
+echo "    OPEN:   http://localhost:${LOCAL_PORT}"
+echo "  ---------------------------------------------------------"
+echo
+echo "    W A S D  or the arrow keys to walk"
+echo "    click             to send yourself somewhere"
+echo
+echo "    You are not hosting anything. The world is in the server"
+echo "    process; the bridge is holding one socket to it and"
+echo "    serving your browser on loopback."
+echo
+echo "    What you can see was decided before it was sent. The dark"
+echo "    is not painted over anything -- the records for what is in"
+echo "    it never left the server."
+echo
+echo "    The shapes are placeholders. Phase 7 lets a ruleset say"
+echo "    what a thing looks like, and phase 9 generates the sprites."
+echo "    The interface is built so those are substitutions rather"
+echo "    than rewrites."
+echo
+echo "    ctrl-c to stop both."
+echo
+
+# Report while it runs, so the terminal is not simply idle.
+while kill -0 "${SERVER_PID}" 2>/dev/null; do
+    sleep 10
+    if [ -f "${SHARED}/phase-5-server.log" ]; then
+        JOINED=$(grep -c "joined on port" "${SHARED}/phase-5-server.log" || true)
+        echo "    ...still running. participants so far: ${JOINED}"
+    fi
+done

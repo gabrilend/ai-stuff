@@ -54,7 +54,7 @@ static void test_opening_the_door(void)
 
     {
         uint8_t outcome;
-        for (outcome = 0; outcome <= JOIN_NO_ROOM; outcome++) {
+        for (outcome = 0; outcome <= JOIN_NO_ANSWER; outcome++) {
             CHECK(join_sentence(outcome)[0] != '\0');
         }
         /* Including the one nobody wrote, which says so. */
