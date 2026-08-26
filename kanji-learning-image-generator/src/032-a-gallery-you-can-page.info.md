@@ -69,4 +69,4 @@ what a person reads before opening the source.
 
 ## Where it sits
 
-Used by `033-the-documentation-site`, `035-test-the-machine`.
+Used by `033-the-documentation-site`, `035-test-the-machine`, `047-the-quality-dial`.

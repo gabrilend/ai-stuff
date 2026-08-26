@@ -645,6 +645,258 @@ local function test_reading_a_picture(t)
 end
 -- }}}
 
+-- {{{ ungif(text)
+-- Enough of a reader to check the writer, written from the format description.
+--
+-- It lives here rather than in `048` because nothing in this project reads an
+-- animation -- and because a round trip through code written from the same
+-- misunderstanding proves nothing. This decodes the way an outside program
+-- would: find the frames, undo the compression, hand back the pixels.
+local function ungif(text)
+  if text:sub(1, 6) ~= "GIF89a" then return nil, "does not begin like a GIF" end
+  local width = text:byte(7) + text:byte(8) * 256
+  local height = text:byte(9) + text:byte(10) * 256
+  local flags = text:byte(11)
+  local at = 14
+  local table_size = 2 ^ ((flags % 8) + 1)
+  local palette = text:sub(at, at + table_size * 3 - 1)
+  at = at + table_size * 3
+
+  local frames = {}
+  while at <= #text do
+    local marker = text:byte(at)
+    if marker == 0x3B then break end
+
+    if marker == 0x21 then
+      -- an extension: a label, then sub-blocks
+      at = at + 2
+      while text:byte(at) and text:byte(at) ~= 0 do
+        at = at + text:byte(at) + 1
+      end
+      at = at + 1
+
+    elseif marker == 0x2C then
+      -- The frame header is ten bytes: the marker, where the frame sits, how
+      -- big it is, and one byte of flags -- so the flags are the tenth byte and
+      -- not the eleventh, and reading the eleventh gets the code size instead.
+      local local_flags = text:byte(at + 9)
+      at = at + 10
+      if local_flags and local_flags >= 128 then
+        at = at + 2 ^ ((local_flags % 8) + 1) * 3
+      end
+      local minimum = text:byte(at)
+      at = at + 1
+
+      local packed = {}
+      while text:byte(at) and text:byte(at) ~= 0 do
+        local length = text:byte(at)
+        packed[#packed + 1] = text:sub(at + 1, at + length)
+        at = at + length + 1
+      end
+      at = at + 1
+      local data = table.concat(packed)
+
+      -- the decompression, which is the whole point of this reader
+      local CLEAR, STOP = 2 ^ minimum, 2 ^ minimum + 1
+      local held, bits, position = 0, 0, 1
+      local function take(this_wide)
+        while bits < this_wide do
+          held = held + (data:byte(position) or 0) * (2 ^ bits)
+          position = position + 1
+          bits = bits + 8
+        end
+        local value = held % (2 ^ this_wide)
+        held = math.floor(held / (2 ^ this_wide))
+        bits = bits - this_wide
+        return value
+      end
+
+      local dictionary, next_code, code_width, previous
+      local function reset()
+        dictionary = {}
+        for index = 0, CLEAR - 1 do dictionary[index] = string.char(index) end
+        next_code = STOP + 1
+        code_width = minimum + 1
+        previous = nil
+      end
+      reset()
+
+      local pixels = {}
+      while true do
+        local code = take(code_width)
+        if code == CLEAR then
+          reset()
+        elseif code == STOP then
+          break
+        else
+          local run = dictionary[code]
+          if not run then
+            if not previous then
+              return nil, "a frame begins with a code that is not in the table"
+            end
+            run = previous .. previous:sub(1, 1)
+          end
+          pixels[#pixels + 1] = run
+          if previous and next_code < 4096 then
+            dictionary[next_code] = previous .. run:sub(1, 1)
+            next_code = next_code + 1
+            if next_code >= 2 ^ code_width and code_width < 12 then
+              code_width = code_width + 1
+            end
+          end
+          previous = run
+        end
+      end
+      frames[#frames + 1] = table.concat(pixels)
+
+    else
+      return nil, "an unexpected byte where a block should start"
+    end
+  end
+  return { width = width, height = height, palette = palette, frames = frames }
+end
+-- }}}
+
+-- {{{ test_the_animation(t)
+local function test_the_animation(t)
+  local animation = project.load("048-what-a-higher-tier-buys")
+  local canvas = project.load("016-the-grey-canvas")
+  local settings = project.settings()
+
+  -- A small picture with structure in it, so the compressor has both repeats
+  -- and things it has never seen. A flat one would compress to almost nothing
+  -- and would exercise none of the dictionary building.
+  local width, height = 48, 32
+  local frames = {}
+  for step = 1, 3 do
+    local indices = {}
+    for y = 0, height - 1 do
+      for x = 0, width - 1 do
+        indices[y * width + x + 1] = (x * step + y * 7) % 176
+      end
+    end
+    frames[#frames + 1] = indices
+  end
+
+  local bytes = animation.encode(frames, width, height,
+                                 animation.palette(settings), 45)
+  t.same(bytes:sub(1, 6), "GIF89a", "the file starts the way one does")
+  t.same(bytes:sub(-1), "\59", "and ends the way one does")
+
+  -- THE ASSERTION THE WHOLE FILE EXISTS FOR. A compressor that grows its code
+  -- width one entry late writes a file that decodes correctly for a while and
+  -- then falls apart -- which looks like a corrupt download rather than a bug,
+  -- and only a decoder finds it.
+  local back, why = ungif(bytes)
+  t.ok(back ~= nil, "what was written can be read again", why)
+  t.same(back.width, width, "at the width it was written")
+  t.same(back.height, height, "and the height")
+  t.same(#back.frames, #frames, "with every frame present")
+
+  local wrong = 0
+  for number, frame in ipairs(back.frames) do
+    if #frame ~= width * height then
+      wrong = wrong + 1
+    else
+      for position = 1, width * height do
+        if frame:byte(position) ~= frames[number][position] then
+          wrong = wrong + 1
+          break
+        end
+      end
+    end
+  end
+  t.same(wrong, 0, "and every pixel of every frame is the one that went in")
+
+  t.ok(#bytes < width * height * #frames,
+       "and it is smaller than the pixels were",
+       string.format("%d bytes for %d pixels", #bytes, width * height * #frames))
+
+  -- An outside opinion, where the machine has one. Two independent readers is
+  -- proof; one is an opinion.
+  local scratch = project.scratch("test-animation.gif")
+  project.write_file(scratch, bytes)
+  local probe = io.popen('identify "' .. scratch .. '" 2>/dev/null | wc -l')
+  local counted = tonumber(probe and probe:read("*l") or "")
+  if probe then probe:close() end
+  if counted and counted > 0 then
+    t.same(counted, #frames, "an outside decoder finds the same number of frames")
+    t.note("an outside decoder read it and agreed about the frames")
+  else
+    t.note("no outside decoder on this machine; only the round trip ran")
+  end
+  os.remove(scratch)
+
+  -- The palette is built to be exactly what these frames are made of, so no
+  -- pixel needs a nearest-colour search and none is placed with any error.
+  t.same(#animation.palette(settings), 256 * 3, "the palette is a full one")
+  t.same(animation.index_of(0, 0, false), 0, "black grey is the first entry")
+  t.same(animation.index_of(1, 0, false), 175, "and white is the last grey")
+  t.ok(animation.index_of(0.5, 1, false) >= 176,
+       "while anything with an arrow over it is past the greys")
+end
+-- }}}
+
+-- {{{ test_the_dial(t)
+local function test_the_dial(t)
+  local dial = project.load("047-the-quality-dial")
+  local pool = project.load("045-the-pool-that-remembers")
+
+  local settings = {}
+  for key, value in pairs(project.settings()) do settings[key] = value end
+  settings.pool = { dir = project.scratch("dial-pool"),
+                    cuts = { 0.86, 0.72, 0.55, 0.34 }, human_floor = 0.05 }
+  os.execute('rm -rf "' .. settings.pool.dir .. '"')
+  project.ensure_directory(settings.pool.dir .. "/forest")
+
+  -- A pool made by hand, so the arithmetic is checkable against numbers chosen
+  -- rather than numbers that happened.
+  local tiers = { 5, 5, 4, 4, 4, 3, 3, 2, 1, 1 }
+  for index, tier in ipairs(tiers) do
+    local stem = string.format("%s/forest/%08d-x-%06d", settings.pool.dir,
+                               index, index)
+    project.write_file(stem .. ".png", "not really a picture")
+    project.write_file(stem .. ".info.md", pool.render_companion({
+      character = "x", means = "a test", kind = "character",
+      category = "forest", codepoint = index, seed = index,
+      canvas = "a brief", ratings = {
+        { tier = tier, who = index <= 3 and "person" or "machine:squint 0.5",
+          when = "2026-01-01 00:00:00" },
+      },
+    }))
+  end
+
+  local report = dial.consider(settings, "forest")
+  t.same(report.total, 10, "the dial sees the whole category")
+  t.same(report.ladder[1], 10, "everything is tier 1 or better")
+  t.same(report.ladder[3], 7, "seven are tier 3 or better")
+  t.same(report.ladder[4], 5, "five are tier 4 or better")
+  t.same(report.ladder[5], 2, "and two are at the top")
+
+  -- The variety cost, said before it is paid. A filter that quietly returns
+  -- five things where there were seven is the failure this file exists to
+  -- prevent, so the telling is what gets tested rather than the filtering.
+  local said = table.concat(dial.describe(report, 3, 4), "\n")
+  t.ok(said:find("leaves 5 to draw from instead of 7", 1, true) ~= nil,
+       "raising a floor says what it costs, in both numbers", said:sub(1, 200))
+  t.ok(said:find("Declining costs nothing", 1, true) ~= nil,
+       "and the offer to rate more says that saying no is free")
+
+  -- Provenance is a second dial and a stricter one.
+  local strict = dial.consider(settings, "forest", true)
+  t.same(strict.ladder[4], 3,
+         "asking only for what a person rated gives a smaller set")
+  t.ok(strict.ladder[4] < report.ladder[4],
+       "which is the whole point of asking")
+
+  local kept, again = dial.choose(settings, { category = "forest", floor = 4 })
+  t.same(#kept, 5, "and what survives is what was promised")
+  t.ok(again ~= nil, "with the report handed back alongside it, always")
+
+  os.execute('rm -rf "' .. settings.pool.dir .. '"')
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -656,6 +908,8 @@ function M.run(options)
     { "the paintbrush", test_the_paintbrush },
     { "reading a picture", test_reading_a_picture },
     { "the pool and the graders", test_the_pool_and_the_graders },
+    { "the dial", test_the_dial },
+    { "the animation", test_the_animation },
     { "the two sites", test_the_two_sites },
   }
   local all_passed = true

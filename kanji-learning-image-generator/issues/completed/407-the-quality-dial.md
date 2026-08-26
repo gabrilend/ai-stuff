@@ -2,7 +2,23 @@
 
 ## Current behavior
 
-Every rendering is equal. There is no way to say *the forest ones are looking
+Done. `src/047-the-quality-dial.lua`.
+
+```
+luajit src/047-the-quality-dial.lua --category forest --floor 4
+```
+
+It reports the whole ladder rather than one number, because the question is
+never "how many at four" on its own — it is "how many do I lose going from three
+to four", and answering that needs both. The report is not optional and cannot
+be turned off: a filter that quietly returns five things where there were seven
+is the failure this file exists to prevent, and making the telling optional is
+exactly how it would come back.
+
+The tests assert the *telling* rather than the filtering, for the same reason.
+That the counts are right is arithmetic. That the cost is said out loud before
+the floor moves is the requirement, and it is the one a later tidy-up would
+drop. There is no way to say *the forest ones are looking
 bad* and have anything happen.
 
 ## Intended behavior
