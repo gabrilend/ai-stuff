@@ -4,8 +4,26 @@ Produces `src/023-corner-parity-plumbing.md`.
 
 ## Current behavior
 
-Nothing. `005` states the parity result and calls it pretty; nobody has proved it
-or used it to size anything.
+**Done.** `src/023-corner-parity-plumbing.md` exists with all three proofs
+written out and the third labelled decoration.
+
+**The uniqueness argument is the part worth having, and it was not obvious.**
+Feeding the four corners of one face keeps every point within one edge of a
+supply -- so the domination property survives -- but four of the twelve edges
+then join two fed corners, have no pressure across them, and carry no flow toward
+any load. A third of the network does nothing. The test generalises: a choice of
+four corners works exactly when no edge joins two of them, which is exactly when
+they are one side of the bipartition. There are two such choices and they are
+mirrors.
+
+**The argument became load-bearing while the phase was being written.** `016`
+withdrew the claim that the manifold is negligible, so what keeps the flow even
+is no longer that the rails are invisible -- it is that no point of either
+network is more than one edge from a port and every channel carries flow toward a
+load. That was always the stronger argument and it was simply not the one being
+relied on.
+
+**Which rail feeds which face is still not assigned**, and `024` needs it.
 
 ## Intended behavior
 

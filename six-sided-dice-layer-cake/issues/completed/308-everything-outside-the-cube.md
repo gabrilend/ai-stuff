@@ -4,8 +4,29 @@ Produces `src/027-external-loop.md`.
 
 ## Current behavior
 
-Nothing. Coolant enters at twenty-five degrees and leaves at thirty-three and no
-mechanism has been specified for making that true.
+**Done.** `src/027-external-loop.md` exists, and its real content is a trade
+rather than a component list.
+
+**The margin should be spent on removing the chiller.** A twenty-five degree
+inlet in a twenty-two degree room is a three kelvin approach, which no air-cooled
+radiator of a sensible size delivers -- it needs a refrigeration plant with its
+own several hundred watts. A fifty degree inlet needs twenty-eight kelvin, which
+a radiator and a fan manage easily, and the junction goes to about ninety with
+room still to spare. A constraint asserts that the trade is available.
+
+Pump redundancy is cheap for the reason `024` found: losing one of two pumps
+costs about four kelvin, not half the cooling.
+
+Seven constraints. The leak budget was rebuilt after the checker noticed that a
+helium leak rate is a pressure-volume throughput with the dimensions of power and
+cannot be compared against a reservoir emptying; divided by the working pressure
+it becomes a volume flow, and a hundred and sixty-six joints come to a few cubic
+millimetres a year.
+
+**The inlet is still specified cold.** The whole argument here says it should not
+be, and changing it is one edit -- not made, because the junction temperatures
+printed throughout the documentation assume the cold inlet and reconciling them
+is a pass somebody has to do deliberately.
 
 ## Intended behavior
 

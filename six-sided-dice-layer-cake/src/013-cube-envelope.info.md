@@ -49,7 +49,7 @@ Described by `201`.
 | `L_core` | `012` | 40 mm | edge of the memory block the cage encloses |
 | `L_cube` | `012` | 60 mm | outer edge length of the finished cube; follows from the four dimensions below it in the chain |
 | `L_plate` | `012` | 52 mm | edge of a face plate, once the edge rails are taken off |
-| `V_coolant` | **nothing declares this** | — | — |
+| `V_coolant` | `024` | unresolved | all of it, which is what 013 weighs and 027 has to make up when it leaks |
 | `V_cube` | `012` | 216000 mm^3 | volume of the whole object |
 | `n_corner` | `010` | 8 | corners of the cube, each a coolant manifold block |
 | `n_die` | `012` | 24 | compute dies in the machine |
@@ -76,12 +76,12 @@ Change one of these and the blueprints beside it are what break.
 | `tol_stack_n` | `013` |
 | `A_exterior` | `013` |
 | `tol_loop` | `013`, `017` |
-| `t_coldplate` | `013`, `014` |
+| `t_coldplate` | `013`, `014`, `025`, `026` |
 | `t_interposer` | `013`, `014` |
-| `t_die` | `013`, `014` |
+| `t_die` | `013`, `014`, `025`, `026` |
 | `rho_glass` | `013` |
 | `f_solid_rail` | `013`, `016` |
-| `f_solid_plate` | `013` |
+| `f_solid_plate` | `013`, `026` |
 | `L_corner` | `013`, `015`, `016`, `019` |
 | `f_solid_corner` | `013`, `015` |
 | `rho_cage` | `013` |
