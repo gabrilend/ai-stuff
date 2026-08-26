@@ -9,24 +9,14 @@ findable.
 two sections.** A phase whose blueprints all check but whose questions are still
 open is in progress, not done.
 
+**Identifiers never move.** A question keeps its label when it is answered and when
+its neighbours are answered around it, so the blocking list runs B2 and B4 with
+B1 and B3 already below in *Answered*. A label that shifted would silently
+redirect every reference in ninety tickets to the wrong question.
+
 ---
 
 ## Blocking — these change work that has already been done
-
-### B1. Is this machine for inference only?
-
-Everything specified assumes generation: weights are read and never written, there
-are no gradients, no optimiser state, and no all-reduce between faces. Training a
-seventy billion parameter model needs roughly three times the memory for optimiser
-state and a completely different traffic pattern between the faces — face-to-face
-rather than face-to-core, which the topology in `050` explicitly refuses to
-provide.
-
-If training is wanted, `050` is wrong, the core capacity in `034` is wrong, and
-the sieve schedule in `053` is wrong. If it is not, nothing here changes and the
-question closes.
-
-**Assumed for now:** inference only. Stated wherever it matters.
 
 ### B2. Water, or a dielectric?
 
@@ -43,21 +33,16 @@ go from about forty-five degrees to about sixty, still well inside limits.
 This is a reliability judgement rather than a thermal one, and it is not the
 thermal engineer's to make.
 
+**A note on the word.** *Coolant* here is a role, not a substance — it is whatever
+is pumped through the corners. Water is a coolant. A fluorocarbon is a coolant.
+The question is not water against coolant; it is water against an electrically
+non-conducting liquid, and the only reason anyone would choose the worse one is
+that water conducts electricity and this machine has water a hundred and fifty
+microns from silicon at three quarters of a volt. Every document should be read
+that way and `021` should define the term on its first page.
+
 **Assumed for now:** water, with the margin noted, and `021` written so the fluid
 is a parameter rather than an assumption.
-
-### B3. One cube, or cubes that gang?
-
-The output tube's most natural use is another cube. If cubes are meant to be
-joined — two of them sharing a bonded spout, or eight of them in a ring — then
-`069` needs an addressing scheme, `039` needs a memory model that spans cubes, and
-`080` needs a scaling curve. None of that is written.
-
-If a cube is always a single machine with a host attached, the spout is an output
-device and `067`'s cabled grade is the important one.
-
-**Assumed for now:** a single cube with a host. The bonded grade is specified but
-treated as a future.
 
 ### B4. Is the reference model the right one?
 
@@ -67,7 +52,7 @@ hundred and ninety-two, four-bit weights, thirty-five gigabytes. It sets the cor
 size, which sets the cavity, which sets the cube. It sets the layer size, which
 sets the face slice, which sets the die, which also sets the cube.
 
-`012` holds it as eleven given numbers so it can be changed, and `104` will report
+`012` holds it as eleven given numbers so it can be changed, and `095` will report
 what breaks. But the *shape* of the answer — six faces, a solid core, a slice per
 face — was chosen with this model in mind.
 
@@ -176,11 +161,6 @@ interacts with `039` in a way nobody has traced.
 
 ### Phase 9, the spout
 
-**O1. What is on the other end?** Everything in phase 9 specifies a transmitter.
-The only receiver assumed is another cube — see B3. If the far end is a host, the
-thing that turns two mebibytes in a nanosecond into something a host bus can
-absorb is not designed. **This is the largest unspecified block in the project.**
-
 **O2. Should the last projection live on face five at all?** It is the single
 largest matrix in the model, read once per token, and all but one row of its
 output is discarded. A face that could compute only the rows it needs would read a
@@ -209,7 +189,7 @@ problem. It does not solve it.
 
 **X1. Should `libs/` hold anything?** The instruments in phase 14 currently have no
 dependencies beyond the language. If the constraint evaluator grows an interval
-arithmetic mode — which `104` would benefit from, since every `measured` value has
+arithmetic mode — which `095` would benefit from, since every `measured` value has
 a tolerance nobody is propagating — that is a library.
 
 **X2. Are tolerances being propagated at all?** They are not. Every number in this
@@ -221,9 +201,52 @@ should probably become a phase 1 change to the notation itself.
 
 ## Answered
 
-*Empty. Nothing has been settled yet — the design is one day old.*
+A question moves here with the answer, the date, and what changed because of it.
+They are kept rather than deleted so that the next person to have the same idea
+can find out it was already considered and which way it went.
 
-When a question closes, it moves here with the answer, the date, and what changed
-because of it. The reason for keeping them rather than deleting them: the next
-person to have the same idea should be able to find out it was already considered
-and why it went the way it did.
+### B1. Does this machine ever train? — *2026-08-26*
+
+**Answered: whatever the hardware naturally supports.** Working out what that is
+overturned an assumption the project had been carrying.
+
+`701` had said training was foreclosed by the topology. **It is not.** Cutting a
+model into six consecutive runs of layers is pipeline parallelism, and a backward
+pass through a pipeline moves gradients from stage *n+1* to stage *n* — the same
+stage-to-stage handoff the forward pass already makes, in the other direction. The
+all-reduce that training is usually said to need belongs to data parallelism
+across replicas and to tensor parallelism inside a layer, and this machine does
+neither.
+
+What limits training is **memory**, and it is a cliff. Full-parameter training of
+the reference model needs master weights, gradients and two optimiser moments at
+about twelve bytes per parameter — eight hundred and forty gigabytes against
+sixty-four gibibytes. **Low-rank adapter training needs a few gigabytes and fits
+comfortably**, and so does training the final layer alone.
+
+Changed: `701` corrected; `1107` opened for the reverse sieve; `605` acquires a
+requirement for a transposed multiply, which is the one real piece of silicon this
+answer costs; `505` acquires reverse staging buffers and regions for activation
+checkpoints and optimiser state; `704` acquires an interleaved forward-and-backward
+schedule.
+
+### B3. One cube, or cubes that gang? — *2026-08-26*
+
+**Answered: neither, or both, with a translation unit in between.** The far end of
+the spout is a companion part that speaks panes on one side and whatever the
+receiving machine speaks on the other — a memory fabric, a peripheral bus, a
+network, or another translation unit. The cube is built once and adapters are
+built many times, which is the right way round because host interfaces change
+every few years and a cube does not.
+
+The suggestion that came with it is better than the question: **treat the cube as
+memory a normal computer reads from.** The design already has the three properties
+that makes plausible — one flat address space, no coherence to maintain, and a
+pane that is already a movable window. It reframes the machine as a large,
+fast, self-populating block of memory that can think about its own contents.
+
+Changed: `909` opened for the translation unit; `910` opened for the memory mode;
+`O1` closed by `909`; the spout's justification restated — it is not a *fast*
+output, it is a **zero-cost** one, because the cube's side of a transfer is a
+single edge and the host takes as long as it likes while the cube goes on
+generating.

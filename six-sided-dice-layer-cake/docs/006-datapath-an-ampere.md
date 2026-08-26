@@ -144,7 +144,7 @@ conversion, and `029` should be read as an argument about whether it can be
 twelve.
 
 The two totals in that table are the same number seen twice: **everything drawn
-from the supply leaves as heat.** `104` checks it as a constraint, because it is
+from the supply leaves as heat.** `095` checks it as a constraint, because it is
 the one energy statement in the project that cannot be approximately true.
 
 ## What is still open

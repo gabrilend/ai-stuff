@@ -62,7 +62,7 @@ number stops tracking the geometry.
 ## Suggested implementation steps
 
 1. Draw the six views and the isometric, dimensioned with symbol names in
-   brackets. `107` will check every name.
+   brackets. `098` will check every name.
 2. Write the tolerance band for each of the eleven given lengths in `012`, and say
    which manufacturing process produces it.
 3. Close the loop: sum the four-plate stack around one great circle of the cube and

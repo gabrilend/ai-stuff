@@ -6,10 +6,9 @@ directory, and there are ninety of each.
 
 File indices count upward across the whole project rather than per directory, so
 that a number identifies a file uniquely and a reference like `037` needs no path.
-The highest index in use is kept in `.file-index-counter` at the project root. The
-gap between `090` and `100` is deliberate: everything from `100` up is an
-instrument rather than a part of the machine, and the gap is where a reader stops
-if they only came to read the design.
+The highest index in use is kept in `.file-index-counter` at the project root.
+Everything numbered `091` and above is an instrument rather than a part of the
+machine, so `090` is where a reader stops if they came only to read the design.
 
 ```
 six-sided-dice-layer-cake/
@@ -102,7 +101,7 @@ blueprint written will very likely be an early-phase one.
 | 11 | **The Recipe** — cutting a model up and pouring it through | `075`–`080` |
 | 12 | **The Kiln** — process, assembly, yield, test, bring-up | `081`–`086` |
 | 13 | **The Whole Cake** — integration, materials, the spec sheet | `087`–`090` |
-| 14 | **The Instruments** — the programs that check all of it | `100`–`108` |
+| 14 | **The Instruments** — the programs that check all of it | `091`–`099` |
 
 Phase 13 is the capstone. Phase 14 is numbered last and built first, because
 nothing else can be checked until it exists, and none of it ships to whoever

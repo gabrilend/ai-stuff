@@ -36,16 +36,29 @@ that handoff is sixteen kibibytes against six gigabytes of weight traffic — fo
 parts in a million. Building a mesh to carry four parts in a million is not a
 trade, it is a mistake.
 
-### What the absence costs
+### What the absence costs, and what it does not
 
 **Tensor parallelism is impossible.** Splitting one layer across several faces
 requires an all-reduce between them every layer, which is exactly the face-to-face
 traffic this topology refuses. So the model must be split by layer and only by
-layer, which is `1101`'s constraint and is why `009` entry B1 — whether this
-machine ever trains — is blocking: training needs that traffic.
+layer, which is `1101`'s constraint. The blueprint must state that in those words,
+because it is the one thing this topology forecloses and somebody will want it
+later.
 
-The blueprint must state this cost in those words, because it is the one thing
-this topology forecloses and somebody will want it later.
+**Backpropagation is not foreclosed, and the blueprint must say so** — this
+correction matters because the opposite was assumed for a while. Splitting a model
+by layer is pipeline parallelism, and a backward pass through a pipeline moves
+gradients from stage *n+1* to stage *n*: the same stage-to-stage handoff the
+forward pass already uses, in the other direction. It needs a second set of
+staging buffers and nothing else from the interconnect. The all-reduce that
+training is usually said to require belongs to data parallelism across replicas
+and to tensor parallelism inside a layer, and this machine does neither.
+
+What actually limits training here is **memory, not topology**, and it is `1107`'s
+subject: full-parameter training of the reference model needs master weights,
+gradients and optimiser moments at roughly twelve bytes per parameter — eight
+hundred and forty gigabytes against sixty-four gibibytes. Low-rank adapter
+training needs a few gigabytes and fits comfortably.
 
 ### What is in the cage
 
