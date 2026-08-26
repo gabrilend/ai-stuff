@@ -41,6 +41,10 @@ my-own-custom-vtt/
 │   ├── 004-the-world-and-its-tick ............ Flat arrays, indices not pointers,
 │   │                                           zero as a sentinel, and the seven
 │   │                                           passes of the heartbeat.
+│   ├── 019-the-turn-is-a-transaction ......... Simultaneous declaration, one
+│   │                                           resolution, and an undo. What
+│   │                                           rolling back does to everybody
+│   │                                           who already watched it happen.
 │   ├── 005-a-thing-in-the-world .............. One record for a goblin, a coffee
 │   │                                           cup, and a door. Why fixed point
 │   │                                           rather than floating point.
@@ -139,18 +143,21 @@ my-own-custom-vtt/
 
 ## Reading order note
 
-Three documents sit out of numeric order in the grouping above, and all three are
-deliberate. `013-content-is-generated` is grouped with the rules layer, because
-both are things loaded rather than compiled in. `017-the-sprite-studio` is grouped
-with the dynamic picture, because it is where that picture's parts come from. And
+Four documents sit out of numeric order in the grouping above, and all four are
+deliberate. `019-the-turn-is-a-transaction` follows `004`, because a turn is built
+out of ticks and reading about one without the other is reading half a mechanism.
+`013-content-is-generated` is grouped with the rules layer, because both are things
+loaded rather than compiled in. `017-the-sprite-studio` is grouped with the dynamic
+picture, because it is where that picture's parts come from. And
 `018-the-record-log-is-an-engraving` sits before `014`, because what a session
 leaves behind belongs with what it looked like rather than with how the code is
 laid out.
 
-The numbers still count up correctly when read straight through. The grouping
-headers are a second, looser organisation laid over the same sequence, and where
-the two disagree the number wins -- a reader going from lowest to highest never
-needs the headers at all.
+The pattern is worth naming: **the numbers are creation order made permanent, and
+the grouping is meaning.** They agreed perfectly at the start and have drifted
+apart four times since, which is what a project doing new thinking looks like. If
+they ever drift far enough that the headers are load-bearing, the fix is to
+renumber the documents rather than to keep explaining the gap here.
 
 ## The phases
 
@@ -161,7 +168,7 @@ phases are the project's main organising idea and a reader should meet them earl
 | --- | --- |
 | 1 | **The world holds still** -- the data model, and a validator that refuses to guess. |
 | 2 | **The world can be seen** -- the angular sweep, fog, and the thread pool. |
-| 3 | **The world ticks** -- passes, motion, determinism, replay. |
+| 3 | **The world ticks, and turns can be taken back** -- passes, motion, determinism, replay, and undo. |
 | 4 | **People connect** -- ports, protocol, the outbound filter, leak tests. |
 | 5 | **The bridge and the browser** -- the first thing you can actually play. |
 | 6 | **Control is a dial** -- scopes in full, from one body to the whole map. |

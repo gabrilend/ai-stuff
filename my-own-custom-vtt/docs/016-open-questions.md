@@ -37,24 +37,33 @@ The rounding lives in the view and only in the view. See
 matters: **commands carry metres**, never rounded feet, because two clients that
 round differently would otherwise disagree about where a body went.
 
-### 1.2 Does anything persist between sessions? — PARTLY
+### 1.2 Does anything persist between sessions? — ANSWERED
 
-**Statistics do, as an engraving.** A text file drawn as an ornate metal carving
--- a fish, a bird, a dragon, a mammoth -- whose lines are the cell walls of the
-table it contains. Bespoke per run. Read by one script, written by another, shown
-in the action bar during play, and intentionally fragile. See
+**Both. Statistics as an engraving, and the world itself written back out.**
+
+The engraving is a text file drawn as an ornate metal carving -- a fish, a bird, a
+dragon, a mammoth -- whose lines are the cell walls of the table it contains.
+Bespoke per run, read by one script and written by another, shown in the action
+bar during play, and intentionally fragile. See
 [the record log is an engraving](018-the-record-log-is-an-engraving.md).
 
-**Whether the world persists is still open.** An engraving carries numbers, not
-geometry. A creature with last week's session in it does not contain a map, so
-"is the tavern the players burned down still burned next week" has not been
-answered.
+**And the world persists.** A session ends by writing the world out; the next one
+loads it. The tavern the players burned down is still burned next week.
 
-If the world does persist, the snapshot format in
+That has a price, and it is recurring rather than one-off. The snapshot format in
 [108](../issues/108-a-world-writes-itself-down.md) stops being a debugging
-convenience and becomes a long-lived format needing a version story and a
-migration path whenever a record changes shape. That is a real ongoing cost and
-it should be taken on deliberately rather than by drifting into it.
+convenience and becomes a **long-lived format**: it needs a version number that is
+checked and refused on mismatch, and it needs a migration path every single time a
+record changes shape. Adding one field to the thing record in phase 6 means
+writing a converter for every world file anybody already has.
+
+The cost is accepted. What it buys is the only thing that makes a campaign a
+campaign -- a place that remembers.
+
+The consequence for phase 1: **108 cannot be finished as a debugging convenience
+and then upgraded later.** The version story has to be in it from the start,
+because the first world file that gets saved without one is the first world file
+that cannot be migrated.
 
 ### 1.3 What goes in the engraving's cells?
 
@@ -101,24 +110,67 @@ six overlapping cones is a strange thing to look at.
 
 ## Blocking phase 3 — the world ticks
 
-### 3.1 Is the world continuously simulated, or turn-shaped underneath?
+### 3.1 Is the world turn-shaped, and can a turn be undone? — ANSWERED
 
-The question from [the vision](../notes/vision). [The tick](004-the-world-and-its-tick.md)
-proposes that the world always runs, and that turn structure -- if a ruleset has
-any -- is implemented as the ruleset refusing commands out of turn, rather than as
-the world stopping. That keeps the two ideas separate and lets a system with no
-turns work with no special case.
+**Turns are simultaneous and can be rolled back.** Everyone declares inside a
+window; when it closes everything resolves at once; and the whole turn can be
+taken back and run again.
 
-It has a cost worth stating: in a turn-based system, everything not currently
-acting is standing perfectly still while the world runs anyway, which may look
-worse than a world that is honestly paused.
+The server understands a turn as a **transaction** -- a window with a snapshot at
+its head and an undo -- and understands nothing else about it. No initiative, no
+rounds, no opinion on whether acting twice is legal. A ruleset wanting continuous
+play sets the window to one tick and never rolls back.
+
+Neither half needed new machinery. Simultaneous resolution is buffer-then-resolve,
+already the rule for every pass. Rollback is a head snapshot plus a deterministic
+replay, and both of those already existed for other reasons. See
+[the turn is a transaction](019-the-turn-is-a-transaction.md).
 
 ### 3.2 What is the tick rate?
 
 [The dynamic picture](012-the-dynamic-picture.md) assumes about twenty per second
 and interpolation on top. Faster costs the host's CPU, mostly in the sight pass,
 and buys tighter controls. Slower is cheaper and needs more interpolation. This
-should probably be measured in phase 2's demo rather than chosen now.
+should be measured in phase 2's demo rather than chosen now.
+
+Turns add a second question underneath it: how many ticks long is a window, and is
+that fixed or does it depend on people being finished?
+
+### 3.3 When a turn is rolled back, does the fog roll back with it?
+
+**The question with no right answer**, and the one most worth taking time over.
+
+If a player walked down a corridor during a turn now being undone, their fog
+recorded it. Roll the fog back and the program is internally consistent -- but the
+person still remembers the corridor, because they looked at it. Leave the fog
+alone and the program is honest about what they know -- but their map now shows a
+place reached in a turn that never happened, which will contradict the world the
+moment anybody walks there again.
+
+The underlying fact is that **you cannot un-see something**. A rollback at a
+tabletop has always been a social agreement rather than a memory wipe. The program
+can restore state; it cannot restore ignorance. Whichever way this goes, it should
+be chosen knowing that.
+
+### 3.4 Who may roll back a turn?
+
+A GM, presumably. But there are several GMs, and a retcon changes what somebody
+else did without asking them -- see the re-declare versus retcon table in
+[019](019-the-turn-is-a-transaction.md). Does it need agreement? Does the person
+whose command is being rewritten get told?
+
+### 3.5 What closes a turn's window?
+
+Three candidates and they are not exclusive: everybody has sent `DECLARED`; a
+timer expired; a GM said so. A timer is the one that keeps a session moving and
+also the one that will cut somebody off mid-thought.
+
+### 3.6 Does a rolled-back turn appear in the engraving?
+
+The command log keeps it, because a record that omits the parts somebody regretted
+is not a record. Whether it reaches the carving is separate -- and **the number of
+rollbacks might be the best statistic on it.** A session with eleven of them was a
+session about something.
 
 ---
 
@@ -364,36 +416,50 @@ representation the terminal can use, which is a constraint on
 
 These arrived with the bytecode decision and are downstream of it.
 
-### 12.1 Does an out-of-range value round, or refuse?
+### 12.1 Does an out-of-range value round, or refuse? — ANSWERED
 
-[Commands](010-commands-enter-through-one-door.md) resolves this by making it
-mostly moot: a slot's bit width *is* its range, so an out-of-range value is
-inexpressible rather than rejected, and a value landing between representable
-steps rounds to the nearest, which is what a fixed-width field means.
+**Round within range; refuse outside it.**
 
-The exception written in is **references**. A 32-bit index is a legal `uint32_t`
-and still points past the end of the array, and that is refused rather than
-clamped, because clamping an index silently redirects a command onto whichever
-body happened to be last.
+A slot's bit width *is* its range, so an out-of-range value is not rejected -- it
+is unsayable. Every one of the 65,536 patterns in a sixteen-bit angle slot is a
+legal angle, because a full turn is 65,536. The format makes the invalid
+unrepresentable, which beats checking for it, because a check can be forgotten and
+a bit width cannot.
 
-**The reading being checked:** "rounded to the nearest of these" was read as
-*quantise within the representable set*, not as *clamp anything larger down to the
-maximum*. Those differ exactly when a value is genuinely out of range, and
-clamping there would be a fallback -- which this project's standing rule treats as
-a warning, and a warning as an error. If the intent was the literal clamp, this
-document and that rule are in conflict and the conflict should be settled rather
-than split.
+A value landing between two representable steps **rounds to the nearest**, and
+that is not a fallback and is not reported. It is what a fixed-width field means,
+the same way storing a position rounds it to the nearest thousandth of a metre.
+Quantisation is the representation, not an error being swallowed.
 
-### 12.2 What exactly is "bitflag-sorted"?
+**References are the exception and they are refused.** A 32-bit index is a
+perfectly legal number that points past the end of the array. Clamping one would
+silently aim a command at whichever body happened to be last, which is the class
+of bug this entire design exists to prevent.
 
-Read as: a flag word after the opcode, one bit per operand, operands following in
-bit order low to high, decoder walking the set bits. That gives derivable
-instruction length with no length field a sender can lie about, absent operands
-costing nothing, and a canonical encoding so the log can be diffed byte for byte.
+So the standing rule about fallbacks is intact: nothing here quietly substitutes a
+default. The only thing that "rounds" is a value being written into the width it
+was always going to be written into.
 
-It is a coherent reading and it may not be the intended one. The phrase could also
-mean the opcode table is *sorted* by flag value so dispatch is a range check rather
-than an index, which is a different and also sensible thing.
+### 12.2 What exactly is "bitflag-sorted"? — ANSWERED
+
+**A self-terminating chain of positional flag words, bounded by configuration.**
+
+The first bit of every flag word is a continuation bit: 1 means another word
+follows, 0 means this is the last. Every other bit is an independent flag at a
+fixed position -- three bits are three separate questions, not one question with
+eight answers. There is no length field, because the words say when they stop.
+
+How many words the server will accept is read from its config, and that number is
+a hard limit rather than a hint. It is what keeps a self-terminating format from
+being a way to make the server read forever, and it is what lets the flag buffer
+be one of the pre-sized containers the decoder writes into.
+
+Written up in [commands](010-commands-enter-through-one-door.md).
+
+What is still undecided is the **word width** -- four bits, a byte, something else
+-- and therefore how many flags one word carries and how often the chain extends.
+A byte gives seven flags per word, which is probably more than one command needs
+and therefore probably right.
 
 ### 12.3 Where does the recorded value go, and how big does it get?
 
