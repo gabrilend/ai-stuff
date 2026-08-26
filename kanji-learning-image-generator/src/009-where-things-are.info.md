@@ -100,4 +100,4 @@ output/ is a mailbox, not a record. Whatever ran last is what is in there, and t
 
 ## Where it sits
 
-Used by `010-fetch-the-archives`, `012-read-the-strokes`, `013-read-the-meanings`, `019-the-kanji-record`, `020-test-the-ink`, `021-the-shape-of-a-stroke`, `022-the-structure-field`, `023-the-component-lexicon`, `024-the-scene-grammar`, `027-test-the-meaning`, `034-the-companion-pages`.
+Used by `010-fetch-the-archives`, `012-read-the-strokes`, `013-read-the-meanings`, `019-the-kanji-record`, `020-test-the-ink`, `021-the-shape-of-a-stroke`, `022-the-structure-field`, `023-the-component-lexicon`, `024-the-scene-grammar`, `025-the-words-the-machine-reads`, `027-test-the-meaning`, `034-the-companion-pages`.

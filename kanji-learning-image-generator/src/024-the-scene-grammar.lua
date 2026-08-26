@@ -629,7 +629,7 @@ function M.scene(record, store, settings, options)
   local subjects, landscape, unglossed = {}, {}, {}
   local inside_sound = sound_halves(record)
   for position, component in ipairs(record.components) do
-    if component.depth > 1 and component.element then
+    if component.element then
       local box = component_box(component, measured)
       local where, column, row = box and box_place(box) or "somewhere", nil, nil
       -- A piece inside the sound half is ground for the same reason the sound
@@ -660,14 +660,37 @@ function M.scene(record, store, settings, options)
   -- The outermost pieces are the ones a reader sees first. Deeper ones are the
   -- pieces of pieces, and naming every level would describe a tree diagram
   -- rather than a picture.
+  --
+  -- The first level is the character itself, which for a compound is not a
+  -- subject -- naming it would put "the character for rest" in a picture of a
+  -- person and a tree. For a character with no parts it is the *only* piece
+  -- there is, and skipping it left rivers and mountains with no subject at all
+  -- while the scoring, which does count it, had already put them in the right
+  -- world. So: the shallowest level below the character, or the character
+  -- itself when there is nothing below it.
   local shallowest = math.huge
   for _, subject in ipairs(subjects) do
-    if subject.depth < shallowest then shallowest = subject.depth end
+    if subject.depth > 1 and subject.depth < shallowest then
+      shallowest = subject.depth
+    end
   end
+  if shallowest == math.huge then shallowest = 1 end
   local outer = {}
   for _, subject in ipairs(subjects) do
     if subject.depth == shallowest then outer[#outer + 1] = subject end
   end
+
+  -- Largest first, so that when the sentence has to be shortened, the piece
+  -- that dominates the picture is the one that survives.
+  table.sort(outer, function(a, b)
+    local function area(one)
+      if not one.box then return 0 end
+      return (one.box[3] - one.box[1]) * (one.box[4] - one.box[2])
+    end
+    local left, right = area(a), area(b)
+    if left ~= right then return left > right end
+    return a.stroke_first < b.stroke_first
+  end)
 
   -- A role for every stroke, from its own shape and this world's vocabulary.
   local roles = {}

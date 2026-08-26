@@ -314,6 +314,74 @@ local function test_the_scene_grammar(t)
 end
 -- }}}
 
+-- {{{ test_the_words(t)
+local function test_the_words(t)
+  local words = project.load("025-the-words-the-machine-reads")
+  local store = project.load("019-the-kanji-record").store()
+  local settings = project.settings()
+
+  local rest = words.prompts(store.records["\228\188\145"], store, settings)
+  t.ok(rest ~= nil, "a prompt gets built")
+
+  -- The whole claim of this project is that the character *is* the picture,
+  -- and for "rest" that means a person and a tree, both. An earlier version
+  -- shortened the sentence by dropping whichever clause sat second from the
+  -- end, which for this character was the person -- leaving a prompt for a tree
+  -- in a wood and silently deleting the reason the picture teaches anything.
+  t.ok(rest.positive:find("figure", 1, true) ~= nil,
+       "and rest keeps its person after the sentence is shortened", rest.positive)
+  t.ok(rest.positive:find("tree", 1, true) ~= nil, "as well as its tree")
+
+  -- The photographic terms are what keep the model out of illustration, and an
+  -- illustration has flat regions of colour with no light and shade for the
+  -- strokes to hide in.
+  t.ok(rest.positive:find("photographic", 1, true) ~= nil,
+       "and the terms that keep it a photograph are never dropped")
+
+  -- The failure this project invites is a model satisfying "kanji" by painting
+  -- one -- on a wall, a banner, a carved sign. Present, useless, and good
+  -- enough to pass a careless glance. These terms are a constant and not a
+  -- setting, because a setting is a thing somebody empties.
+  for _, term in ipairs({ "kanji", "calligraphy", "text", "japanese characters",
+                          "signage", "watermark" }) do
+    t.ok(words.refusals():find(term, 1, true) ~= nil,
+         "every prompt refuses " .. term)
+  end
+
+  -- A prompt past what the encoder reads does not fail -- it quietly ignores
+  -- its own end, and the end is where the photographic terms are.
+  local longest, longest_character = 0, nil
+  local checked, missing_refusals = 0, 0
+  for index = 1, math.min(400, #store.order) do
+    local made = words.prompts(store.order[index], store, settings)
+    if made then
+      checked = checked + 1
+      if made.length.tokens > longest then
+        longest = made.length.tokens
+        longest_character = store.order[index].character
+      end
+      -- checked without asserting per character, so that four hundred passes
+      -- do not drown the handful of assertions that say something
+      if made.negative ~= words.refusals() then
+        missing_refusals = missing_refusals + 1
+      end
+    end
+  end
+  t.same(missing_refusals, 0,
+         "every prompt in a sample of " .. checked .. " carries the refusals")
+  t.ok(longest <= 80, "and none of them runs past what the encoder reads",
+       string.format("the longest was %s at about %d tokens", longest_character, longest))
+  t.note(string.format("longest prompt in %d characters: %s, about %d tokens",
+         checked, longest_character or "-", longest))
+
+  -- Two runs of the same character must produce the same sentence, or nothing
+  -- downstream can be compared between runs.
+  local once = words.prompts(store.records["\230\163\174"], store, settings)
+  local twice = words.prompts(store.records["\230\163\174"], store, settings)
+  t.same(twice.positive, once.positive, "the same character makes the same sentence")
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -322,6 +390,7 @@ function M.run(options)
     { "the structure field", test_the_structure_field },
     { "the component lexicon", test_the_component_lexicon },
     { "the scene grammar", test_the_scene_grammar },
+    { "the words", test_the_words },
   }
   local all_passed = true
   for _, group in ipairs(groups) do
