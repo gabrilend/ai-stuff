@@ -2,7 +2,43 @@
 
 ## Current behavior
 
-There are measured strokes, glossed components, and no scene.
+Done. `src/024-the-scene-grammar.lua` holds the seventeen worlds, the scoring,
+the subject selection and the role assignment, and reports on itself two ways:
+
+```
+luajit src/024-the-scene-grammar.lua --chars 休語時川
+luajit src/024-the-scene-grammar.lua --spread
+```
+
+**Two mistakes, and both put a character in the wrong world while producing a
+picture that would have looked perfectly good.**
+
+*The sound half was demoted and its insides were not.* The archive marks the
+phonetic piece and says nothing about the pieces inside it — being a component of
+a phonetic component is not a property anybody catalogues — but those inner
+pieces are exactly as unrelated to the meaning, and they vote. 語 is a speech
+radical beside a phonetic half that contains two mouths; the two mouths outvoted
+the speech radical and the scene came out as a person alone in a room. 時 is a
+sun beside a phonetic half containing earth, and the earth outvoted the sun into
+a rice paddy.
+
+*The outermost component was skipped.* It restates the character rather than
+describing it, which is true for compounds and leaves atomic characters with no
+component evidence at all. 一, 十, 大 and 車 scored nothing anywhere and were
+reported as belonging to no world — and they are among the first characters
+anybody learns.
+
+**The tie-break is not the classical radical.** The archive gives that as a
+catalogue *number*, and turning a number into a world would have needed a
+two-hundred-row table restating what the decomposition already says better. Ties
+go to the order the worlds are written in, which means nothing and is at least
+the same on every run.
+
+**Characters that match nothing are still reported and still refused.** Run
+`--spread` for how many. That refusal is the ticket's central decision and it
+holds: a default world would put an unknown share of the output into generic
+landscapes with no relation to their characters, and every one of those pictures
+would look fine.
 
 ## Intended behavior
 

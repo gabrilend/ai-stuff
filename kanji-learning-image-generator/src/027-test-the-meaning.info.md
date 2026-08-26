@@ -34,4 +34,5 @@ what a person reads before opening the source.
 | `test_measuring_a_stroke(t)` | Characters whose answers are known by looking at them. |
 | `test_the_structure_field(t)` |  |
 | `test_the_component_lexicon(t)` |  |
+| `test_the_scene_grammar(t)` | The reasoning, not the wording. |
 | `main(argv)` |  |
