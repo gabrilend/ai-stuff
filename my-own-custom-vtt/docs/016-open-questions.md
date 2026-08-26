@@ -126,15 +126,32 @@ already the rule for every pass. Rollback is a head snapshot plus a deterministi
 replay, and both of those already existed for other reasons. See
 [the turn is a transaction](019-the-turn-is-a-transaction.md).
 
-### 3.2 What is the tick rate?
+### 3.2 What is the tick rate? — MOSTLY ANSWERED
 
-[The dynamic picture](012-the-dynamic-picture.md) assumes about twenty per second
-and interpolation on top. Faster costs the host's CPU, mostly in the sight pass,
-and buys tighter controls. Slower is cheaper and needs more interpolation. This
-should be measured in phase 2's demo rather than chosen now.
+**Not constrained by sight, which is what everyone expected to constrain it.**
 
-Turns add a second question underneath it: how many ticks long is a window, and is
-that fixed or does it depend on people being finished?
+Phase 2's demo measures the sweep rather than guessing at it: about 90
+microseconds per body against seventeen walls. A table of six is roughly 550
+microseconds of sight per tick, which at twenty ticks a second is about one per
+cent of one core.
+
+Sight was the expensive pass and the reason this question existed. It is not
+expensive enough to matter at tabletop scale, so phase 3 may pick a heartbeat for
+other reasons -- how tight the controls feel, how much interpolation the view has
+to do, how much bandwidth a faster tick costs in phase 4.
+
+Twenty per second remains the working assumption. What is now known is that
+nothing in the simulation is pushing back on it.
+
+The measurement scales with wall count, not with map size, so a much more
+detailed dungeon is the case that would reopen this. The demo reports the current
+figure, so the answer stays live rather than becoming a number in a document that
+nobody re-measures.
+
+### 3.2a How long is a turn's window, in ticks?
+
+Underneath the tick rate and not answered by it. Fixed, or dependent on people
+being finished? See [3.5](#35-what-closes-a-turns-window).
 
 ### 3.3 When a turn is rolled back, does the fog roll back with it? — ANSWERED
 

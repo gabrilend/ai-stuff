@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# phase-2-demo -- shows what phase two built.
+#
+# Phase two claims that sight can be computed exactly, that memory is a
+# different thing from sight, and that the whole pass is cheap enough to run per
+# viewer per tick.
+#
+# The first two are geometric facts that a table of numbers would hide, so this
+# draws them: a body walks from one room to the other and the picture shows what
+# it can see now, what it remembers, and what it has never laid eyes on.
+#
+# The third is a measurement, reported from the run -- including the number the
+# tick rate has been waiting for.
+#
+# Usage:
+#   ./phase-2-demo                 -- build and run
+#   ./phase-2-demo /path/to/prj    -- the same, from a checkout somewhere else
+#
+# Normally reached through ./run-phase-demo 1 in the project root.
+
+set -e
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT_NAME="my-own-custom-vtt"
+EXEC_TIER="/tmp/${PROJECT_NAME}/tmp"
+DEMO="${EXEC_TIER}/046-demo-phase-2"
+
+if [ ! -x "${DIR}/build" ]; then
+    echo "No build script at ${DIR}/build."
+    echo "Either the project root is wrong, or the project has not been initialised."
+    exit 1
+fi
+
+# Built from source every time rather than trusting whatever is lying around in
+# the RAM tier, because a demo that runs a stale binary is a demo that lies.
+echo "Building..."
+"${DIR}/build" "${DIR}" --no-test > /dev/null
+
+if [ ! -x "${DEMO}" ]; then
+    echo "The build did not produce ${DEMO}."
+    exit 1
+fi
+
+exec "${DEMO}"

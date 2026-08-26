@@ -79,3 +79,31 @@ slow thing is the parallel thing.
 union, or switch between them? The union is what this file builds and what the
 security argument assumes, but six overlapping cones may simply be a strange thing
 to look at.
+
+---
+
+## Current behaviour, as of the close of phase 2
+
+**The per-body half is built and tested.** `042-sight.c` computes what one body
+can see, and `044-fog.c` folds it into a viewer's memory. The expensive part is
+done, measured, and running on the thread pool.
+
+**The union half is not, and cannot be yet**, because it is a union across *the
+bodies a viewer commands*, and neither viewers nor scopes exist until phases 4
+and 6. Building a union over a list that has no source would mean inventing the
+list, and then rebuilding it once scopes arrived.
+
+So this issue stays open, and it is the one place phase 2's work stops short of
+what this file describes. What remains:
+
+- Walking a viewer's scopes to gather the bodies with eyes.
+- Running the sweep once per such body, into a per-viewer list of fans.
+- `SEES_ALL` and `SEES_REGION` as early exits before any sweeping.
+- The "visible to this viewer" query as a loop over fans with early exit.
+
+The decision **not to merge the fans into one polygon** still stands and is worth
+restating, because merging is the obvious thing to reach for: the filter asks
+"inside any of them", which is a loop with early exit; the fog folds each in turn
+and unions in the bitmap for free; and only a renderer might want one outline,
+and even it may prefer compositing several. Polygon union is difficult, slow, and
+full of degenerate cases, and nothing here needs it.
