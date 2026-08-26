@@ -3,7 +3,7 @@
 **Phase:** 8, content generation
 **Blocked by:** [801](801-a-description-is-validated-first.md)
 **Blocks:** [803](803-the-graph-becomes-geometry.md)
-**Documents:** [content is generated](../docs/013-content-is-generated.md)
+**Documents:** [content is generated](../../docs/013-content-is-generated.md)
 
 ## Current behaviour
 

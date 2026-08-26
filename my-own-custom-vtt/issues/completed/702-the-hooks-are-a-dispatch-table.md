@@ -4,7 +4,7 @@
 **Blocked by:** [701](701-luajit-lives-in-the-server.md)
 **Blocks:** [705](705-a-ruleset-may-refuse.md),
 [706](706-what-a-viewer-may-know.md)
-**Documents:** [the rules layer](../docs/011-the-rules-layer.md)
+**Documents:** [the rules layer](../../docs/011-the-rules-layer.md)
 
 ## Current behaviour
 

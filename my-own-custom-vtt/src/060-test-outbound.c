@@ -531,6 +531,122 @@ static void test_the_update_is_whole(void)
 }
 /* }}} */
 
+/*
+ * An appearance is a thing you can see, or you are told nothing about it.
+ *
+ * This is the leak test with a new field, and it is worth having separately
+ * because a new field is exactly how a filter comes to leak: the gates are in one
+ * place and somebody adds a write somewhere else. The layers go out through the
+ * same function that writes the body, after the same gates -- and this checks the
+ * bytes rather than taking that on trust.
+ */
+/* {{{ static void test_an_appearance_needs_the_body */
+static void test_an_appearance_needs_the_body(void)
+{
+    struct rig r;
+    uint32_t hidden;
+    struct viewer *v;
+    uint32_t layers_when_unseen;
+    uint32_t layers_when_seen;
+
+    TEST_CASE("what a body looks like does not leave without the body");
+
+    /* The watcher is in the west room; the body is put in the east one, out of
+     * sight behind the corridor wall. */
+    rig_start(&r, M(5), M(10));
+
+    hidden = add_body(&r.world, M(45), M(15), 0);
+    world_thing(&r.world, hidden)->sprite_category =
+        string_pool_add(&r.world.strings, "goblin", 6);
+    world_thing(&r.world, hidden)->sprite_seed = 4242;
+
+    sim_fit_to_world(&r.session.sim);
+    viewpoint_gather(&r.from, &r.world, r.viewer);
+
+    v = viewer_at(&r.viewers, r.viewer);
+    v->layers_sent = 0;
+    outbound_build(&r.session, &r.viewers, r.viewer, &r.from);
+
+    CHECK_EQ(stream_mentions(&r, hidden), 0);
+    layers_when_unseen = v->layers_sent;
+
+    /*
+     * And inverted, because a leak test that passes by searching for the wrong
+     * thing is worse than no test -- it retires the suspicion. Move it into
+     * plain view and the same counter has to move.
+     */
+    world_thing(&r.world, hidden)->x = M(7);
+    world_thing(&r.world, hidden)->y = M(10);
+    world_thing(&r.world, hidden)->region = 1;
+
+    viewpoint_gather(&r.from, &r.world, r.viewer);
+    buffer_clear(&v->outbound);
+    v->layers_sent = 0;
+    outbound_build(&r.session, &r.viewers, r.viewer, &r.from);
+
+    CHECK_EQ(stream_mentions(&r, hidden), 1);
+    layers_when_seen = v->layers_sent;
+
+    if (layers_when_seen == 0) {
+        fprintf(stderr, "    a visible body sent no appearance at all, so this"
+                        " test cannot detect one\n");
+    }
+
+    CHECK(layers_when_seen > 0);
+    CHECK(layers_when_unseen < layers_when_seen);
+
+    rig_stop(&r);
+}
+/* }}} */
+
+/*
+ * A body wearing nothing sends no appearance, and that is not a failure.
+ *
+ * A hand-built fixture has things with no sprite, and so does any world written
+ * before things wore them. The absence has to be an absence rather than a
+ * default, because a default would be an appearance nobody chose being sent as
+ * though somebody had.
+ */
+/* {{{ static void test_a_body_wearing_nothing */
+static void test_a_body_wearing_nothing(void)
+{
+    struct rig r;
+    uint32_t bare;
+    struct viewer *v;
+    uint32_t before;
+
+    TEST_CASE("a body wearing nothing sends no appearance");
+
+    rig_start(&r, M(5), M(10));
+
+    /*
+     * Counted as a DIFFERENCE, because the fixture's own things wear faces and a
+     * flat count would be measuring them. What is being asked is what this one
+     * body added, which is nothing.
+     */
+    v = viewer_at(&r.viewers, r.viewer);
+    v->layers_sent = 0;
+    outbound_build(&r.session, &r.viewers, r.viewer, &r.from);
+    before = v->layers_sent;
+
+    bare = add_body(&r.world, M(7), M(10), 0);
+    CHECK_EQ(world_thing(&r.world, bare)->sprite_category, 0);
+
+    sim_fit_to_world(&r.session.sim);
+    viewpoint_gather(&r.from, &r.world, r.viewer);
+
+    buffer_clear(&v->outbound);
+    v->layers_sent = 0;
+    outbound_build(&r.session, &r.viewers, r.viewer, &r.from);
+
+    /* Seen, and silent about its face. */
+    CHECK_EQ(stream_mentions(&r, bare), 1);
+    CHECK_EQ(v->layers_sent, before);
+
+    rig_stop(&r);
+}
+/* }}} */
+
 /* {{{ int main */
 int main(void)
 {
@@ -542,6 +658,8 @@ int main(void)
     test_a_gm_sees_everything();
     test_refusals_and_recalls_reach_the_wire();
     test_the_update_is_whole();
+    test_an_appearance_needs_the_body();
+    test_a_body_wearing_nothing();
 
     return vtt_test_finish("060-test-outbound");
 }

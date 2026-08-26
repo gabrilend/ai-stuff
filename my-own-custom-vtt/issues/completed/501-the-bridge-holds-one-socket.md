@@ -3,7 +3,7 @@
 **Phase:** 5, the bridge and the browser
 **Blocked by:** phase 4 complete.
 **Blocks:** [502](502-the-bridge-serves-a-browser.md)
-**Documents:** [the three programs](../docs/002-the-three-programs.md)
+**Documents:** [the three programs](../../docs/002-the-three-programs.md)
 
 ## Current behaviour
 

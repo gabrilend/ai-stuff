@@ -4,8 +4,8 @@
 **Blocked by:** [301](301-the-tick-is-a-dispatch-table.md)
 **Blocks:** [303](303-bodies-collide-with-walls.md),
 [308](308-the-turn-is-a-window.md)
-**Documents:** [the world and its tick](../docs/004-the-world-and-its-tick.md),
-[the turn is a transaction](../docs/019-the-turn-is-a-transaction.md)
+**Documents:** [the world and its tick](../../docs/004-the-world-and-its-tick.md),
+[the turn is a transaction](../../docs/019-the-turn-is-a-transaction.md)
 
 ## Current behaviour
 

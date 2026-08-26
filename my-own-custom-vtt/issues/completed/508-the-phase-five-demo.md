@@ -3,7 +3,7 @@
 **Phase:** 5, the bridge and the browser
 **Blocked by:** every other issue in phase 5.
 **Blocks:** nothing. The capstone.
-**Documents:** [the roadmap](../docs/015-roadmap.md)
+**Documents:** [the roadmap](../../docs/015-roadmap.md)
 
 ## Current behaviour
 

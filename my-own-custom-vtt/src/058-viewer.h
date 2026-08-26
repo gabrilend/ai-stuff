@@ -69,6 +69,9 @@ struct viewer {
     uint32_t refusals;
     uint32_t things_sent;
     uint32_t walls_sent;
+    /* How many appearance instructions went out. Counted because the cost of
+     * sending a picture every beat should be measured rather than assumed. */
+    uint32_t layers_sent;
 };
 
 struct viewer_set {

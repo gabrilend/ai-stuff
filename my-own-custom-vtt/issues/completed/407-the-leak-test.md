@@ -3,7 +3,7 @@
 **Phase:** 4, people connect
 **Blocked by:** [404](404-one-function-writes-to-a-socket.md)
 **Blocks:** [408](408-the-phase-four-demo.md)
-**Documents:** [what a viewer is allowed to know](../docs/009-what-a-viewer-is-allowed-to-know.md)
+**Documents:** [what a viewer is allowed to know](../../docs/009-what-a-viewer-is-allowed-to-know.md)
 
 ## Current behaviour
 

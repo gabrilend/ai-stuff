@@ -3,7 +3,7 @@
 **Phase:** 8, content generation
 **Blocked by:** [802](802-the-layout-is-a-graph.md)
 **Blocks:** [804](804-furnishing-asks-the-ruleset.md)
-**Documents:** [the map is geometry](../docs/006-the-map-is-geometry-not-a-picture.md)
+**Documents:** [the map is geometry](../../docs/006-the-map-is-geometry-not-a-picture.md)
 
 ## Current behaviour
 

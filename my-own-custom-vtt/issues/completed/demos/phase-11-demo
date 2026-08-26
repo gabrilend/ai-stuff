@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+#
+# phase-11-demo -- shows what phase eleven built, and closes the project.
+#
+# Phase eleven's claim is the generate-then-view split tested at the last
+# boundary: a second consumer, written last, speaking the same protocol, with the
+# server not knowing the difference.
+#
+# It runs in two halves. The in-process half builds a world, gives two people
+# different scopes over it, and reads the bytes each would receive -- decoding
+# them the way a view does rather than asking the filter what it would have sent.
+#
+# The out-of-process half starts a real server, two real terminal views and a
+# real bridge, all looking at one session at once. Two views draw the same world
+# from different places; the bridge serves the browser and last session's
+# engraving. Nothing in the server was changed to make any of it work -- except
+# that writing the second view found a defect that had been there since phase
+# four, which is exactly what a second consumer is for.
+#
+# Then it builds the documentation site and prints the open questions that are
+# still open, because a project that reports itself finished while holding
+# thirty unanswered questions is reporting the wrong thing.
+#
+# Usage:
+#   ./phase-11-demo                 -- build and run
+#   ./phase-11-demo /path/to/prj    -- the same, from a checkout somewhere else
+#
+# Normally reached through ./run-phase-demo 11 in the project root.
+
+set -e
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT_NAME="my-own-custom-vtt"
+EXEC_TIER="/tmp/${PROJECT_NAME}/tmp"
+ARTIFACT_TIER="/dev/shm/${PROJECT_NAME}"
+
+mkdir -p "${ARTIFACT_TIER}/engravings"
+
+if [ ! -x "${DIR}/build" ]; then
+    echo "No build script at ${DIR}/build."
+    exit 1
+fi
+
+echo "Building..."
+"${DIR}/build" "${DIR}" --no-test > /dev/null
+
+# Everything started here is killed on the way out, whatever happens. A demo that
+# leaves a server running is a demo that fails the second time somebody runs it.
+STARTED=()
+
+cleanup() {
+    for PID in "${STARTED[@]}"; do
+        kill "${PID}" 2>/dev/null || true
+    done
+    wait 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# ---------------------------------------------------------------------------
+# The in-process half.
+# ---------------------------------------------------------------------------
+
+"${EXEC_TIER}/105-demo-phase-11"
+
+# ---------------------------------------------------------------------------
+# The out-of-process half.
+# ---------------------------------------------------------------------------
+
+DOOR=27411
+LOCAL=27412
+
+echo
+echo "  One session, three programs"
+echo "  ---------------------------"
+echo
+echo "    A server on port ${DOOR}, generating the old inn."
+
+"${EXEC_TIER}/068-server" "${DOOR}" \
+    --place "${DIR}/input/descriptions/the-old-inn" \
+    > "${ARTIFACT_TIER}/phase-11-server.log" 2>&1 &
+STARTED+=($!)
+
+sleep 2
+
+echo "    Two terminal views, joining as different people."
+echo
+
+# Each watches for a fixed number of updates and stops, so the demo ends. The
+# --plain flag drops the colour, because this output is going into a log as often
+# as into a terminal.
+"${EXEC_TIER}/102-watch" 127.0.0.1 "${DOOR}" ada --plain --beats 40 \
+    > "${ARTIFACT_TIER}/phase-11-ada.log" 2>&1 &
+ADA=$!
+STARTED+=(${ADA})
+
+sleep 1
+
+"${EXEC_TIER}/102-watch" 127.0.0.1 "${DOOR}" grace --plain --beats 40 \
+    > "${ARTIFACT_TIER}/phase-11-grace.log" 2>&1 &
+GRACE=$!
+STARTED+=(${GRACE})
+
+# And a bridge, so a browser could join the same session at the same time.
+"${EXEC_TIER}/069-bridge" 127.0.0.1 "${DOOR}" browser "${LOCAL}" \
+    > "${ARTIFACT_TIER}/phase-11-bridge.log" 2>&1 &
+STARTED+=($!)
+
+wait ${ADA} 2>/dev/null || true
+wait ${GRACE} 2>/dev/null || true
+
+echo "    What Ada's terminal drew:"
+echo
+# The last frame each of them drew. Stripped of the escape codes, because this is
+# being read out of a log rather than off a screen.
+sed -e 's/\x1b\[[0-9;]*[A-Za-z]//g' "${ARTIFACT_TIER}/phase-11-ada.log" \
+    | tail -34 | sed 's/^/      /'
+
+echo
+echo "    What Grace's terminal drew:"
+echo
+sed -e 's/\x1b\[[0-9;]*[A-Za-z]//g' "${ARTIFACT_TIER}/phase-11-grace.log" \
+    | tail -34 | sed 's/^/      /'
+
+echo
+echo "    Two people, one session, different rooms, different memories of the"
+echo "    walls. Neither is a filtered copy of a fuller picture -- there is no"
+echo "    fuller picture anywhere on the machine."
+
+echo
+echo "  The bridge, serving a browser at the same time"
+echo "  ----------------------------------------------"
+echo
+
+if command -v curl > /dev/null; then
+    PAGE=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${LOCAL}/" || echo "---")
+    ENGRAVING=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${LOCAL}/engraving" || echo "---")
+    OUTSIDE=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${LOCAL}/../etc/passwd" || echo "---")
+
+    echo "      GET /                 ${PAGE}"
+    echo "      GET /engraving        ${ENGRAVING}"
+    echo "      GET /../etc/passwd    ${OUTSIDE}"
+    echo
+    echo "    A fixed table matched by exact path, so \"..\" is a question this"
+    echo "    program cannot be asked. The action bar holds the last session's"
+    echo "    carving; a browser opening http://localhost:${LOCAL} would see the"
+    echo "    same world these two terminals are watching, with the sprites drawn"
+    echo "    from the same instructions."
+else
+    echo "    curl is not installed, so the bridge could not be knocked on."
+fi
+
+# ---------------------------------------------------------------------------
+# The documentation.
+# ---------------------------------------------------------------------------
+
+echo
+echo "  The documentation, built from the Markdown"
+echo "  ------------------------------------------"
+echo
+
+"${DIR}/build-docs" "${DIR}" | sed 's/^/    /'
+
+# ---------------------------------------------------------------------------
+# What is still open.
+# ---------------------------------------------------------------------------
+
+echo
+echo "  What is still open"
+echo "  ------------------"
+echo
+echo "    Eleven phases are built and the questions they raised are not"
+echo "    answered. A project that reports itself finished while holding these"
+echo "    is reporting the wrong thing."
+echo
+
+grep -c '^### [0-9]' "${DIR}/docs/016-open-questions.md" \
+    | sed 's/^/    open questions recorded: /'
+
+echo
+grep '^### [0-9]' "${DIR}/docs/016-open-questions.md" \
+    | sed 's/^### /      /' | head -60
+
+echo
+echo "    All of them, with their reasoning, are in:"
+echo "      ${DIR}/docs/016-open-questions.md"
+echo "      ${DIR}/docs/HTML/docs-016-open-questions.html"
+echo

@@ -4,8 +4,8 @@
 **Blocked by:** [108](108-a-world-writes-itself-down.md),
 [301](301-the-tick-is-a-dispatch-table.md)
 **Blocks:** [309](309-taking-a-turn-back.md) -- a retcon is an edit to this log.
-**Documents:** [commands enter through one door](../docs/010-commands-enter-through-one-door.md),
-[the turn is a transaction](../docs/019-the-turn-is-a-transaction.md)
+**Documents:** [commands enter through one door](../../docs/010-commands-enter-through-one-door.md),
+[the turn is a transaction](../../docs/019-the-turn-is-a-transaction.md)
 
 ## Current behaviour
 
@@ -26,7 +26,7 @@ Refusals are marked, not omitted -- a log that quietly drops them is a log that
 cannot answer "why did nothing happen when I pressed that".
 
 **And rolled-back turns stay in it.** A record that omits what somebody took back
-is not a record. See [3.6](../docs/016-open-questions.md) for whether that reaches
+is not a record. See [3.6](../../docs/016-open-questions.md) for whether that reaches
 the engraving; it reaches the log regardless.
 
 ### It has to be editable, which most logs do not
@@ -39,7 +39,7 @@ turn, read back, altered, and replayed.
 That requirement shapes the format. Instructions are stored decoded rather than raw
 -- as the register-file values they became, not the bytes they arrived as -- so that
 changing one does not mean re-encoding a packet. The canonical encoding from
-[commands](../docs/010-commands-enter-through-one-door.md) means the decoded form
+[commands](../../docs/010-commands-enter-through-one-door.md) means the decoded form
 and the wire form correspond exactly, so nothing is lost by storing the decoded one.
 
 ### Turn boundaries are in the log
@@ -59,7 +59,7 @@ to tick 5,392".
    them, stop where asked.
 5. Write it to disk in the RAM tier during a session and to a durable file at the
    end. A session is hours long and the log is not small --
-   [12.3](../docs/016-open-questions.md) asks whether it is capped or rotated, and
+   [12.3](../../docs/016-open-questions.md) asks whether it is capped or rotated, and
    that is not answered.
 6. Write the companion `.info.md`.
 7. Test the round trip: run a scripted session, replay from the log, compare the

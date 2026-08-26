@@ -4,7 +4,7 @@
 **Blocked by:** [905](905-the-machine-grader-is-a-heuristic.md),
 [906](906-the-quality-dial.md)
 **Blocks:** [908](908-the-phase-nine-demo.md)
-**Documents:** [the sprite studio](../docs/017-the-sprite-studio.md)
+**Documents:** [the sprite studio](../../docs/017-the-sprite-studio.md)
 
 ## Current behaviour
 
@@ -41,7 +41,7 @@ because every rating is a person's and there is nothing to drift from.
 ### The ladder
 
 Only the bottom rung is built, and the rest are named in
-[the sprite studio](../docs/017-the-sprite-studio.md) so that somebody reaching
+[the sprite studio](../../docs/017-the-sprite-studio.md) so that somebody reaching
 for the fourth without the first knows what they are missing. The pool can be
 queried for the best previous sprites in a category, which is the retrieval the
 bottom rung needs; nothing yet feeds them into a brief, because nothing yet

@@ -20,6 +20,12 @@ phase 2 waiting for scopes to exist.
 | [607 the phase six demo](completed/607-the-phase-six-demo.md) | Four seats, one table. |
 | [206 sight for a viewer is a union](completed/206-sight-for-a-viewer-is-a-union.md) | **Closed.** Open since phase 2. |
 
+## What is built
+
+`070-scope` — the dial, as two membership rules times two styles. And
+`072-demo-phase-6` — four seats at one table, and the same table printed four
+times over, once per person, so the differences between them are the whole point.
+
 ## The claim, tested
 
 `605` exists to be a test rather than a feature: **if playing a building had

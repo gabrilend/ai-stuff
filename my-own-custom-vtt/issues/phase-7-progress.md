@@ -21,7 +21,8 @@ under two rulesets and shows them disagreeing.
 
 ## What is built
 
-`073-rules` — LuaJIT embedded and sandboxed. And two rulesets in `rulesets/`,
+`073-rules` — LuaJIT embedded and sandboxed, and `075-demo-phase-7` running the
+identical world under both of them. And two rulesets in `rulesets/`,
 deliberately unlike each other:
 
 | Question | a game with rules | a table with none |

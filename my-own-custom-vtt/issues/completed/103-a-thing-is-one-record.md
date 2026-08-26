@@ -4,7 +4,7 @@
 **Blocked by:** [101](101-the-arithmetic-is-integers.md),
 [102](102-the-world-is-flat-arrays.md)
 **Blocks:** sight, motion, control, drawing -- everything that is about a body.
-**Documents:** [a thing in the world](../docs/005-a-thing-in-the-world.md)
+**Documents:** [a thing in the world](../../docs/005-a-thing-in-the-world.md)
 
 ## Current behaviour
 
@@ -16,7 +16,7 @@ One record type for everything that stands in the space. A player's character, a
 goblin, a coffee cup, a door leaf, a torch on a bracket, a tree.
 
 The field table is in
-[the document](../docs/005-a-thing-in-the-world.md) and is not repeated here.
+[the document](../../docs/005-a-thing-in-the-world.md) and is not repeated here.
 What this issue is about is the discipline around it:
 
 **There is no second record type, and there will be pressure to add one.** The
@@ -27,7 +27,7 @@ coffee cup *is* the code moving a goblin. That property is what makes the
 tavern's commander in phase 6 require no new code at all.
 
 If that unification is ever broken, it should be broken deliberately, with the
-reason written down, and [008](../docs/008-who-controls-what.md) revisited --
+reason written down, and [008](../../docs/008-who-controls-what.md) revisited --
 because the dial is built on top of this record being universal.
 
 **Appearance is not in the record.** No name, no colour, no sprite. The server
@@ -56,5 +56,5 @@ field is an index into storage the ruleset owns and the server never reads.
 ## Related
 
 The universality claim is one of the project's stated beliefs -- see
-[faith](../faith/boons-expected). If it breaks, that file is where the breakage
+[faith](../../faith/boons-expected). If it breaks, that file is where the breakage
 gets recorded.

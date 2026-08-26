@@ -3,7 +3,7 @@
 **Phase:** 10, the engraving
 **Blocked by:** [1003](1003-a-creature-is-a-tiling.md)
 **Blocks:** [1005](1005-the-reader-reads-the-picture.md)
-**Documents:** [the record log is an engraving](../docs/018-the-record-log-is-an-engraving.md)
+**Documents:** [the record log is an engraving](../../docs/018-the-record-log-is-an-engraving.md)
 
 ## Current behaviour
 
@@ -31,7 +31,7 @@ around them.
 ### It is a separate program from the reader
 
 They do not share code. This is the
-[generate-then-view split](../strategems/patterns-that-keep-working) in an
+[generate-then-view split](../../strategems/patterns-that-keep-working) in an
 unusually literal form: the writer produces the artifact and the reader consumes
 it as a stranger would, and neither can hide a bug inside the other.
 

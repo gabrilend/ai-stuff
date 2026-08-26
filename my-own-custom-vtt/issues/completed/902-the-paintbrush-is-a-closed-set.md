@@ -3,7 +3,7 @@
 **Phase:** 9, the sprite studio
 **Blocked by:** [901](901-a-sprite-is-an-animated-svg.md)
 **Blocks:** [903](903-the-pool-keeps-everything.md)
-**Documents:** [the sprite studio](../docs/017-the-sprite-studio.md)
+**Documents:** [the sprite studio](../../docs/017-the-sprite-studio.md)
 
 ## Current behaviour
 
@@ -60,7 +60,7 @@ paintbrush stops describing its project.
 ### The wall
 
 Same discipline as the description language in
-[801](completed/801-a-description-is-validated-first.md): every error names the
+[801](801-a-description-is-validated-first.md): every error names the
 entry and the field, carries the nearest legal word, all errors reported at once,
 and nothing quietly filled in.
 

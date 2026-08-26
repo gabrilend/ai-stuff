@@ -3,8 +3,8 @@
 **Phase:** 6, control is a dial
 **Blocked by:** [601](601-a-scope-is-a-record.md)
 **Blocks:** [607](607-the-phase-six-demo.md)
-**Documents:** [who controls what](../docs/008-who-controls-what.md)
-**Open questions:** [6.4](../docs/016-open-questions.md) — a party of four.
+**Documents:** [who controls what](../../docs/008-who-controls-what.md)
+**Open questions:** [6.4](../../docs/016-open-questions.md) — a party of four.
 
 ## Current behaviour
 
@@ -38,7 +38,7 @@ not more". Four bodies driven simultaneously with one keyboard is not possible.
 Four given orders is the strategy interface. **One driven and three following is a
 third thing** that is common in games and appears in no document here.
 
-Build the two styles. Leave [6.4](../docs/016-open-questions.md) open, because the
+Build the two styles. Leave [6.4](../../docs/016-open-questions.md) open, because the
 third thing is a design decision and not a missing function.
 
 ## Suggested implementation steps

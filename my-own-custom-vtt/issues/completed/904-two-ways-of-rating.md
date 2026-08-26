@@ -3,7 +3,7 @@
 **Phase:** 9, the sprite studio
 **Blocked by:** [903](903-the-pool-keeps-everything.md)
 **Blocks:** [906](906-the-quality-dial.md)
-**Documents:** [the sprite studio](../docs/017-the-sprite-studio.md)
+**Documents:** [the sprite studio](../../docs/017-the-sprite-studio.md)
 
 ## Current behaviour
 

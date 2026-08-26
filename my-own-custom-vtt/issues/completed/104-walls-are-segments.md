@@ -4,7 +4,7 @@
 **Blocked by:** [101](101-the-arithmetic-is-integers.md),
 [102](102-the-world-is-flat-arrays.md)
 **Blocks:** all of phase 2. Sight is a question asked of these segments.
-**Documents:** [the map is geometry, not a picture](../docs/006-the-map-is-geometry-not-a-picture.md)
+**Documents:** [the map is geometry, not a picture](../../docs/006-the-map-is-geometry-not-a-picture.md)
 
 ## Current behaviour
 

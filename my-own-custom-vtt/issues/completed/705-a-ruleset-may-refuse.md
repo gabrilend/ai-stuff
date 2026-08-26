@@ -3,8 +3,8 @@
 **Phase:** 7, the rules layer
 **Blocked by:** [704](704-the-narrow-window-on-the-world.md)
 **Blocks:** [709](709-the-phase-seven-demo.md)
-**Documents:** [commands enter through one door](../docs/010-commands-enter-through-one-door.md)
-**Open questions:** [7.1](../docs/016-open-questions.md) — an error mid-tick.
+**Documents:** [commands enter through one door](../../docs/010-commands-enter-through-one-door.md)
+**Open questions:** [7.1](../../docs/016-open-questions.md) — an error mid-tick.
 
 ## Current behaviour
 
@@ -41,7 +41,7 @@ somebody's homebrew should not take down the table. So:
   pretending it declined.
 - The error goes somewhere a person will read.
 
-**Which person is not settled** ([7.1](../docs/016-open-questions.md)). A GM
+**Which person is not settled** ([7.1](../../docs/016-open-questions.md)). A GM
 plausibly; everyone plausibly; a log file plausibly. Send it to whoever issued the
 command, because they are certainly interested, and leave the question open.
 

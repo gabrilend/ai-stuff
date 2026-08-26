@@ -201,6 +201,14 @@ int fixture_build_two_rooms(struct world *w)
         t->sight_range = M(30);
         t->sight_arc = WA_HALF;        /* Everything in front. */
         t->kind = 1;
+
+        /*
+         * And a face. Fixed words and fixed numbers, like everything else here:
+         * a fixture whose appearance varies is a fixture that makes a test fail
+         * for a reason that has nothing to do with what it was testing.
+         */
+        t->sprite_category = string_pool_add(&w->strings, "goblin", 6);
+        t->sprite_seed = 11;
     }
 
     /*
@@ -212,12 +220,17 @@ int fixture_build_two_rooms(struct world *w)
         if (cup == 0) return 0;
         world_thing(w, cup)->kind = 2;
         world_thing(w, cup)->radius = (uint16_t)(WC_ONE / 8);
+        world_thing(w, cup)->sprite_category =
+            string_pool_add(&w->strings, "cup", 3);
+        world_thing(w, cup)->sprite_seed = 4;
     }
 
     /* A torch on the east room's wall. */
     torch = add_thing(w, M(45), M(10), THING_EMITS_LIGHT);
     if (torch == 0) return 0;
     world_thing(w, torch)->kind = 3;
+    world_thing(w, torch)->sprite_category = string_pool_add(&w->strings, "torch", 5);
+    world_thing(w, torch)->sprite_seed = 7;
 
     light = world_add_light(w);
     if (light == 0) return 0;

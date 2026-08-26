@@ -3,8 +3,8 @@
 **Phase:** 5, the bridge and the browser
 **Blocked by:** [504](504-drawing-between-two-ticks.md)
 **Blocks:** [508](508-the-phase-five-demo.md)
-**Documents:** [the dynamic picture](../docs/012-the-dynamic-picture.md),
-[sight and what it remembers](../docs/007-sight-and-what-it-remembers.md)
+**Documents:** [the dynamic picture](../../docs/012-the-dynamic-picture.md),
+[sight and what it remembers](../../docs/007-sight-and-what-it-remembers.md)
 
 ## Current behaviour
 

@@ -4,8 +4,8 @@
 **Blocked by:** [301](301-the-tick-is-a-dispatch-table.md)
 **Blocks:** [307](307-the-world-hashes-itself.md),
 [707](707-dice-come-from-named-streams.md), and phase 8's generators.
-**Documents:** [the rules layer](../docs/011-the-rules-layer.md),
-[content is generated](../docs/013-content-is-generated.md)
+**Documents:** [the rules layer](../../docs/011-the-rules-layer.md),
+[content is generated](../../docs/013-content-is-generated.md)
 
 ## Current behaviour
 

@@ -3,7 +3,7 @@
 **Phase:** 1, the world holds still
 **Blocked by:** [102](102-the-world-is-flat-arrays.md)
 **Blocks:** anything that has to be shown to a person by name.
-**Documents:** [the world and its tick](../docs/004-the-world-and-its-tick.md)
+**Documents:** [the world and its tick](../../docs/004-the-world-and-its-tick.md)
 
 ## Current behaviour
 
@@ -34,11 +34,11 @@ that can run off the end.
 
 **Not in:** anything a ruleset owns. A ruleset's strings are the ruleset's
 business, held in Lua, and never enter the world. A creature's name is not a
-world concept -- see [a thing in the world](../docs/005-a-thing-in-the-world.md),
+world concept -- see [a thing in the world](../../docs/005-a-thing-in-the-world.md),
 which has no name field on purpose.
 
 **Not in:** chat text. That travels as a command payload and is never stored in
-the world. See [010](../docs/010-commands-enter-through-one-door.md).
+the world. See [010](../../docs/010-commands-enter-through-one-door.md).
 
 ## Suggested implementation steps
 

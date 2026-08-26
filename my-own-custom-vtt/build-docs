@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# build-docs -- turns this project's Markdown into a linked HTML site.
+#
+# The project's thinking lives in about a hundred and thirty Markdown files
+# across six directories: the design, the vision it came from, every issue that
+# built it, and a companion file for every piece of source. Read one at a time in
+# an editor they are a pile. This turns them into a directory of pages with a
+# table of contents down the left of every one, where every mention of an issue,
+# a document or a source file is a link to it.
+#
+# Nothing in docs/HTML/ is ever edited. It is regenerated, and it is not
+# committed -- a generated file in a repository is a file somebody eventually
+# edits and then wonders why the tool disagrees with it.
+#
+# It reports what it could not resolve, and that report is the point as much as
+# the site is. A dead link found by the tool is a documentation bug found for
+# free.
+#
+# Usage:
+#   ./build-docs                 -- build the site
+#   ./build-docs /path/to/prj    -- from a checkout somewhere else
+
+set -e
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+TOOL="${DIR}/src/103-build-documentation.lua"
+
+if [ ! -f "${TOOL}" ]; then
+    echo "No documentation tool at ${TOOL}."
+    echo "Either the project root is wrong, or the project has not been initialised."
+    exit 1
+fi
+
+# LuaJIT, because it is already a dependency -- the rules layer needs it -- and
+# because this project prefers it. Plain lua will do if luajit is not installed.
+LUA="luajit"
+if ! command -v "${LUA}" > /dev/null; then
+    LUA="lua"
+fi
+
+if ! command -v "${LUA}" > /dev/null; then
+    echo "Neither luajit nor lua is installed, and the documentation tool is"
+    echo "written in Lua. The rules layer needs luajit too, so this project"
+    echo "cannot be built at all without it."
+    exit 1
+fi
+
+echo "Building the documentation site..."
+echo
+
+exec "${LUA}" "${TOOL}" "${DIR}"

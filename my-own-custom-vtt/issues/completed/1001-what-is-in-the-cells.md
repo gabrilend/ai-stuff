@@ -3,7 +3,7 @@
 **Phase:** 10, the engraving
 **Blocked by:** phase 9 complete.
 **Blocks:** everything else in phase 10.
-**Documents:** [the record log is an engraving](../docs/018-the-record-log-is-an-engraving.md)
+**Documents:** [the record log is an engraving](../../docs/018-the-record-log-is-an-engraving.md)
 
 ## Current behaviour
 
@@ -53,7 +53,7 @@ adding. Here it costs a redrawn animal.
 
 ### The candidates
 
-[The goodbye](../output/goodbye) already lists them, and it was written before any
+[The goodbye](../../output/goodbye) already lists them, and it was written before any
 of this existed, which makes it the honest source rather than a guess made now:
 
 | Cell | Why it earns a place |

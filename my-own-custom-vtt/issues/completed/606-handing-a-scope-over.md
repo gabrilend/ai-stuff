@@ -3,9 +3,9 @@
 **Phase:** 6, control is a dial
 **Blocked by:** [604](604-a-viewer-holds-several-scopes.md)
 **Blocks:** [607](607-the-phase-six-demo.md)
-**Documents:** [who controls what](../docs/008-who-controls-what.md)
-**Open questions:** [6.3](../docs/016-open-questions.md) — orders in flight;
-[4.4](../docs/016-open-questions.md) — what a departure does.
+**Documents:** [who controls what](../../docs/008-who-controls-what.md)
+**Open questions:** [6.3](../../docs/016-open-questions.md) — orders in flight;
+[4.4](../../docs/016-open-questions.md) — what a departure does.
 
 ## Current behaviour
 
@@ -26,7 +26,7 @@ Standing orders belong to the **bodies**, not to the scope. So a handover leaves
 six goblins already walking somewhere, and the new commander inherits an intention
 they were not told about.
 
-Three answers, none argued out ([6.3](../docs/016-open-questions.md)):
+Three answers, none argued out ([6.3](../../docs/016-open-questions.md)):
 
 - Keep them. The world does not stop because somebody changed seats.
 - Clear them. The new commander starts from stillness.
@@ -42,7 +42,7 @@ whatever they held. An unheld scope is a normal thing: the forest exists whether
 or not anybody is playing it tonight.
 
 Whether the departed person's **character** should keep standing there, be driven
-by a GM, or vanish is [4.4](../docs/016-open-questions.md) and is still open. What
+by a GM, or vanish is [4.4](../../docs/016-open-questions.md) and is still open. What
 this issue settles is only that the *scope* survives.
 
 ### Only somebody who may

@@ -3,8 +3,8 @@
 **Phase:** 7, the rules layer
 **Blocked by:** phase 6 complete.
 **Blocks:** everything else in phase 7.
-**Documents:** [the rules layer](../docs/011-the-rules-layer.md)
-**Open questions:** [7.1](../docs/016-open-questions.md) — what happens when a
+**Documents:** [the rules layer](../../docs/011-the-rules-layer.md)
+**Open questions:** [7.1](../../docs/016-open-questions.md) — what happens when a
 ruleset raises an error mid-tick.
 
 ## Current behaviour
