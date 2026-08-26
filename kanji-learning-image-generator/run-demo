@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+#
+# run-demo -- asks which completed phase to show, and shows it.
+#
+# For a general: each finished phase leaves behind a demonstration that prints
+# real numbers and makes real pictures rather than describing features. This
+# lists the ones that exist, asks for a number, and runs the chosen one. They
+# are part of what this project delivers, not a development leftover.
+
+# {{{ DIR -- the project root, hard-coded, overridable by an argument
+DIR="/mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator"
+if [ -n "${1:-}" ] && [ -d "$1" ]; then DIR="$1"; shift; fi
+# }}}
+
+set -u
+DEMOS_DIR="${DIR}/issues/completed/demos"
+
+DEMOS=()
+for demo in "${DEMOS_DIR}"/phase-*.sh; do
+  [ -e "$demo" ] || continue
+  DEMOS+=("$demo")
+done
+
+if [ "${#DEMOS[@]}" -eq 0 ]; then
+  echo "no phase demonstrations exist yet"
+  exit 1
+fi
+
+echo
+echo "the demonstrations that exist:"
+echo
+number=0
+for demo in "${DEMOS[@]}"; do
+  number=$((number + 1))
+  name=$(basename "$demo" .sh)
+  # The line under the name in each demo's own header, so what a demonstration
+  # shows is written in the demonstration rather than here, where it would drift
+  # out of date the first time one of them changed. Everything after the first
+  # " -- ", because every demo's name has hyphens in it.
+  summary=$(grep -m1 -- " -- " "$demo" | sed 's/^# *//; s/^[^ ]* -- //')
+  printf "  %d)  %-24s %s\n" "$number" "$name" "$summary"
+done
+echo
+
+if [ -n "${1:-}" ]; then
+  choice="$1"
+else
+  printf "which one? [1-%d]  " "${#DEMOS[@]}"
+  read -r choice
+fi
+
+case "$choice" in
+  ''|*[!0-9]*)
+    echo "that is not a number"
+    exit 1
+    ;;
+esac
+
+if [ "$choice" -lt 1 ] || [ "$choice" -gt "${#DEMOS[@]}" ]; then
+  echo "there is no demonstration $choice"
+  exit 1
+fi
+
+exec bash "${DEMOS[$((choice - 1))]}" "$DIR"

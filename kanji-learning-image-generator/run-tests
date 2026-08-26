@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+#
+# run-tests -- every test in the project, in order, with a tally at the end.
+#
+# For a general: each phase has one test file covering what that phase claims.
+# This runs all of them and says whether anything failed. Tests here are cheap
+# and there are a lot of them, so there needs to be one command that runs the
+# lot.
+
+# {{{ DIR -- the project root, hard-coded, overridable by an argument
+DIR="/mnt/mtwo/programming/ai-stuff/kanji-learning-image-generator"
+if [ -n "${1:-}" ] && [ -d "$1" ]; then DIR="$1"; shift; fi
+# }}}
+
+set -u
+
+if [ ! -f "${DIR}/assets/kanjivg.xml" ] || [ ! -f "${DIR}/assets/kanjidic2.xml" ]; then
+  echo "The two archives are not in assets/ yet, and most of these tests read"
+  echo "them. Get them with:"
+  echo "    luajit ${DIR}/src/010-fetch-the-archives.lua"
+  exit 1
+fi
+
+failed=0
+ran=0
+
+for test_file in "${DIR}"/src/*test*.lua; do
+  [ -e "$test_file" ] || continue
+  ran=$((ran + 1))
+  echo
+  if ! luajit "$test_file" --dir "$DIR"; then
+    failed=$((failed + 1))
+  fi
+done
+
+# The companion page beside each source file is generated from that file's own
+# comments, so a page that has drifted means somebody edited the source and did
+# not sweep. Checked rather than rewritten here: a test that silently fixes what
+# it is testing is not a test.
+echo
+if luajit "${DIR}/src/034-the-companion-pages.lua" --dir "$DIR" --check; then
+  echo "companion pages          all up to date"
+else
+  echo "companion pages          OUT OF DATE -- run:"
+  echo "    luajit ${DIR}/src/034-the-companion-pages.lua"
+  failed=$((failed + 1))
+fi
+
+echo
+echo "-------------------------------------------------------------"
+if [ "$failed" -eq 0 ]; then
+  echo "  $ran test files, and everything passed"
+  echo
+  exit 0
+fi
+echo "  $ran test files, $failed of them had something fail"
+echo
+exit 1

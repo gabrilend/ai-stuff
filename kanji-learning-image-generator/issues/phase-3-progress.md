@@ -16,7 +16,7 @@ the difference between a demonstration and a learning material.
 | `303` | The whole alphabet at once | **completed** — every character, in parallel, with a report that found ten real gaps on its first run |
 | `304` | A gallery you can page through | **completed** — thumbnails first, because thumbnail is where the illusion has to work |
 | `305` | The documentation as a website | **completed** — every reference a link, and the build fails if one does not resolve |
-| `306` | The demos, and the thing that runs them | not started |
+| `306` | The demos, and the thing that runs them | **completed** — three demonstrations, a runner, and one command that runs every test |
 | `307` | Slow down when the machine runs hot | **completed** — a share of the machine, politely asked for, resting when it climbs |
 
 ## Where the risk is
