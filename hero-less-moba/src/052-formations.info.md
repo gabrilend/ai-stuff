@@ -1,112 +1,106 @@
 # 052-formations
 
-How a host arranges itself before it fights.
+A wave leaves the base **already in formation**, and marches as one body.
 
 ## What it is for
 
-**The lane decides the path you take toward the enemy. It does not decide how you
-are arranged when you engage.**
+Not a column that deploys into a line when it meets something. There is no moment
+of forming up, because there is no moment at which the wave was not formed: it
+walks out of the library in its ranks and is battle-ready the whole way down the
+lane.
 
-A host walks its lane in column while there is nothing to fight. When an enemy
-comes into view — and *before* anything is in weapon reach — it leaves the path,
-draws a line through the mass of the enemy, and forms its ranks parallel to that
-line. Melee in front, ranged behind at their own reach, cavalry behind that to
-flank whichever of the enemy's flanks is weak.
-
-Once swords cross, cohesion stops being enforced. The formation was for getting
-there.
+The only thing in this game that ever walks out in single file is a **siege-surge**,
+which is a stream rather than a wave and has no formation at all.
 
 ## Exports
 
 | Function | Arguments | Returns |
 | --- | --- | --- |
-| `begin(world)` | | — Allocates the per-host records. Once, at assembly. |
-| `plan(world)` | | — Every host's line and slots. Once per tick, before the brain. |
-| `step_to_slot(world, id)` | | `true` once the body is standing in its slot. |
-| `side_of_line(world, id)` | | −1, 0 or +1 — which side of the enemy's line a body is on. |
+| `begin(world)` | | — Allocates the scratch list. Once, at assembly. |
+| `plan(world)` | | — Advances every wave's anchor and shares out the cohesion budget. Once per tick, before the brain. |
+| `assign_wave_slots(world, id, lane, role_index, role, melee_total)` | | — Gives a body its place, once, at birth. |
+| `target_of(world, id)` | | Where that place currently is, in lane coordinates. |
+| `files_for(lane)` | | How many bodies stand abreast marching down this lane. |
+| `file_offset(files, file)` | | Where the nth body in a rank stands across the lane. |
+| `side_of_line(world, id)` | | −1, 0 or +1 — which side of the lane a body is on. |
 
-## A host
+## Held in lane coordinates, which is why a rank survives a corner
 
-**One team's non-guard bodies in one lane.** Not a wave — waves overlap, and two
-waves fighting side by side are one battle line rather than two. Guards are
-excluded because a guard is not going anywhere; it is standing on a piece of
-ground it has been told not to leave.
+A body's place is two numbers: **how far along the lane** its wave's anchor has got
+plus this body's offset from it, and **how far across** the lane it stands. Its
+world position is derived from those against the lane's own curve.
 
-## The line, and its two consumers
+That is the whole trick. Hold a formation in world coordinates and a rank going
+round a bend either tears apart or scythes through the inside of the turn, because
+the bodies on the outside have further to walk and nothing tells them so. Hold it
+in lane coordinates and **the formation curves to match the path it is on** for
+free — every body in a rank shares one distance-along, and the lane carries the
+line round the corner as a line.
 
-The line through the enemy's mass is not a new idea. It is already how a ranged
-body with nothing to shoot decides which way to orbit — a body on the left of it
-drifts left, one on the right drifts right, so both sides send their long-reach
-bodies to the same flanks and they end up facing each other.
+Measured: a wave marching the top lane holds a 42 × 68 pace box on the way up, 23 ×
+68 as it turns, and 70 × 32 along the top — the sides swap and the block does not
+break. Its worst lag through the whole turn is one tick's pace.
 
-This file computes it **once per host per tick** and hands it to both consumers.
-Computing it twice in two places, slightly differently, is how those two behaviours
-would quietly stop agreeing about which way is left.
+## Cohesion is a budget, not a bonus
 
-The axis is the principal component of the two-by-two covariance of their
-positions, which in two dimensions is a **closed form** — half the arctangent of
-twice the off-diagonal over the difference of the diagonals — and not something to
-reach for a matrix library over.
+Fighting, dying and blocking still pull a formation out of shape. So bodies out of
+place correct, and **the correction is conserved**: those furthest behind their
+place hurry, and what they gain is taken from those in front of them.
 
-## The per-host record
+It is expressed as a deviation from the wave's own **mean lag**, which makes the
+conservation structural rather than something arithmetic has to be careful about —
+the deviations sum to zero, so the speed handed out equals the speed given up,
+exactly, without anybody checking.
 
-| Field | Meaning |
+The mean matters as much as the deviation. A wave whose every member is behind is
+not out of formation; it is a wave whose anchor has got ahead of it, and speeding
+all of them up would be a wave that accelerates for no reason.
+
+**Only bodies still marching are in the budget.** One that has closed on an enemy
+has left the formation's business, and including it would be the formation trying
+to drag a body out of a fight by the collar. It also keeps the budget honest: a
+body that has charged is a very long way from its place, and averaging that in
+would tell every body still in line that it was badly out of position when it is
+standing exactly where it should be.
+
+The clamps at either end are allowed to break the conservation, and are supposed to
+— a straggler that could sprint would read as teleporting. Each wave records how
+far off its own books came out, so a *systematic* drift would be visible; a test
+asserts it stays small.
+
+## The arrangement
+
+| Rank | Holds |
 | --- | --- |
-| `live` | 1 when there is an enemy group to form against. |
-| `count` | Bodies in the host. |
-| `deployed` | How many of them are near enough to have a place in the line. |
-| `centre_x`, `centre_y` | The enemy group's centroid. |
-| `axis_x`, `axis_y` | Along their line. Ranks are parallel to this. |
-| `forward_x`, `forward_y` | Perpendicular, pointed at them. |
-| `anchor_x`, `anchor_y` | Where the front rank stands. |
-| `extent` | Half the width of their line. Sets how wide a rank is. |
-| `depth` | How far their group reaches toward us. Sets how far short to stop. |
+| front | the captain, in the middle, then melee outward from it |
+| behind | more melee, until they run out |
+| behind that, with a gap | ranged, shooting over the line |
 
-## Three mistakes this file has already made, kept as comments in it
+A rank's positions are laid out evenly and **centred on the lane**, but the *order
+they are handed out in* runs from the middle outward. So the captain — always given
+the first place — stands in the centre where it is most useful and most visible,
+and a rank that is not full is short at its edges rather than at its middle, which
+is what a thinning line should look like.
 
-**Anchoring off their centre.** Both hosts anchor against each other, so if each
-front rank aims a fixed distance short of the other's *centre of mass*, and the
-hosts are three hundred paces apart, each destination is behind the other's front
-rank. The two lines walk straight through one another. It anchors off their **near
-edge** instead.
+## Where the lane's width earns its keep
 
-**Taking the line through their whole host.** A host marching down a lane is strung
-out over hundreds of paces, and a line drawn through all of it runs *along* the lane
-rather than across it — so you form a column beside their column, which is
-geometrically what was asked for and tactically nothing. "The enemy group" is the
-cluster within a contact spread of their nearest body, not their tail.
+`files_for` reads it, and it is the only thing that does.
 
-**Letting the axis point along the approach.** Even with the group narrowed, two
-columns that have not deployed yet reach a stable useless arrangement: each sees a
-line running away from it and forms alongside. So if the computed axis comes out
-more parallel to the approach than across it, the enemy has no front yet and the
-host forms across its own line of advance.
+It does **not** decide how many bodies may fight at once — nothing does; the world
+is flat and a lane is a suggestion. It decides how wide a formation *travels*,
+which is a different question with a real answer: a road's width is how many people
+can walk down it side by side without leaving it.
 
-## Two rules that keep it stable
+The consequence is the one the wide centre lane always wanted. A wave marching up
+the middle arrives with more of itself abreast, so more of it is in contact the
+moment contact happens, and a numerical advantage tells sooner.
 
-**Bodies are ordered within their role by where they already are along the line.**
-A body keeps its left-to-right place and nobody crosses the whole formation to
-reach a slot. Without it the slots reshuffle every tick and the formation shimmers
-instead of forming.
+## When the wave stops
 
-**Only bodies near the anchor deploy.** A host is not everything that shares a
-lane. Bodies fresh from the library are hundreds of paces back, and giving them a
-rear-rank slot — which is only a few ranks behind the front — would send them
-beelining across open ground, cutting every corner the lane bends around. They
-march until they are close enough to have somewhere to stand.
+The anchor is the formation's **front**, not its centre of mass, so stopping it when
+an enemy is near the front stops the whole wave at the point of contact rather than
+letting the ranks behind push the front through the enemy.
 
-## How wide is a rank?
-
-**As wide as theirs**, bounded by how many bodies there are to put in it. A host
-with more bodies than the enemy's line is wide puts the surplus in the ranks
-behind, which is where a numerical advantage belongs.
-
-Note what this does *not* read: the lane's width. The world is flat and the lanes
-are suggestions. What that costs is [open question G8](../docs/020-open-questions.md).
-
-## The one place something moves without the graph
-
-`step_to_slot` and the free movement it uses are the only motion in this game that
-is not "read the next node out of an array". The body's node and progress are kept
-current underneath by re-projection, so push depth stays honest and a body that
-loses its formation rejoins the lane where it actually is rather than where it left.
+A wave advances at its slowest member's pace — the captain's — and keeps that pace
+after the captain dies. A wave that sped up when it lost the most valuable body in
+it would be a wave rewarded for losing it.

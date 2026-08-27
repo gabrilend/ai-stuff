@@ -338,6 +338,7 @@ function M.assemble(modules, parameters)
   world.commands   = modules.commands
   world.snapshot   = modules.snapshot
   world.formations = modules.formations
+  world.map_builder = modules.map_builder
 
   -- The three world-level helpers the systems call by name. Hung here rather than
   -- required, for the same reason as everything above.

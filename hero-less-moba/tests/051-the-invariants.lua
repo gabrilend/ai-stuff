@@ -291,6 +291,117 @@ local function test_placement_moves_a_frontline()
 end
 -- }}}
 
+-- {{{ local function test_formation_turns_a_corner()
+-- A wave marching round a bend must arrive on the far side still in its ranks.
+--
+-- This is what holding a formation in lane coordinates buys, and it is worth a
+-- test because the alternative fails so quietly: held in world coordinates a
+-- turning rank either tears apart or scythes through the inside of the bend, and
+-- both look like "the soldiers are a bit scruffy" rather than like a bug.
+local function test_formation_turns_a_corner()
+  local world, modules = fresh_world(tick_module)
+  local soldier = world.soldier
+
+  -- An unopposed march: the far team and every tower removed, so one wave can be
+  -- watched the whole way round without a fight breaking its shape for reasons
+  -- that are supposed to break its shape.
+  for _, structure in ipairs(world.structure) do
+    structure.alive = 0
+  end
+
+  local watched, worst_lag, saw_bend = 0, 0, false
+  local before_box, after_box = 0, 0
+
+  for _ = 1, 2400 do
+    tick_module.advance(world)
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 and soldier.team[id] == 2 then
+        world.release(world, id)
+      end
+    end
+    if watched == 0 then
+      for _, wave in ipairs(world.wave) do
+        if wave.team == 1 and wave.lane == 1 then
+          watched = wave.id
+          break
+        end
+      end
+    end
+    if watched ~= 0 then
+      local wave = world.wave[watched]
+      local min_x, max_x, min_y, max_y = math.huge, -math.huge, math.huge, -math.huge
+      local alive = 0
+      for id = 1, world.high_water do
+        if soldier.alive[id] == 1 and soldier.wave[id] == watched then
+          alive = alive + 1
+          local lag = math.abs(wave.lag_of[id] or 0)
+          if lag > worst_lag then worst_lag = lag end
+          if soldier.x[id] < min_x then min_x = soldier.x[id] end
+          if soldier.x[id] > max_x then max_x = soldier.x[id] end
+          if soldier.y[id] < min_y then min_y = soldier.y[id] end
+          if soldier.y[id] > max_y then max_y = soldier.y[id] end
+        end
+      end
+      if alive > 0 then
+        local box = (max_x - min_x) * (max_y - min_y)
+        if wave.anchor < 900 then before_box = box end
+        if wave.anchor > 1550 then after_box = box ; saw_bend = true end
+      end
+    end
+  end
+
+  check("a wave marching round a bend keeps its ranks",
+        worst_lag < 12,
+        string.format("worst lag through the turn was %.1f paces", worst_lag))
+
+  -- The formation is a block, and a block turning ninety degrees stays about the
+  -- same area while its sides swap. A formation that tore apart would grow.
+  check("the formation turns rather than stretching",
+        saw_bend and after_box < before_box * 1.8,
+        string.format("box area %.0f before the bend, %.0f after", before_box, after_box))
+end
+-- }}}
+
+-- {{{ local function test_cohesion_is_conserved()
+-- The speed a straggler gains is taken from somebody, and the books balance every
+-- tick.
+--
+-- Stated as a property because it is easy to write a cohesion rule that only ever
+-- hands speed out -- and a wave whose every member is quietly being hurried is a
+-- wave that is faster than its catalogue says, which nothing else in the game
+-- would ever report.
+local function test_cohesion_is_conserved()
+  local world = fresh_world(tick_module)
+  local soldier = world.soldier
+
+  local worst_error, worst_where = 0, ""
+  for _ = 1, 2500 do
+    tick_module.advance(world)
+    for _, wave in ipairs(world.wave) do
+      -- Read the balance the wave recorded when it shared the budget out, not one
+      -- recomputed afterwards. Bodies die between the sharing and the looking, and
+      -- a surviving subset of a balanced set is not itself balanced.
+      local shared = wave.speed_shared_among
+      if shared ~= nil and shared > 1 then
+        local error = math.abs(wave.speed_balance) / shared
+        if error > worst_error then
+          worst_error = error
+          worst_where = string.format("wave %d, shared among %d, off by %.3f",
+            wave.id, shared, wave.speed_balance)
+        end
+      end
+    end
+  end
+
+  -- Not exactly zero: the clamps at either end are allowed to break conservation,
+  -- and they are supposed to -- a straggler that could sprint would read as
+  -- teleporting. What must not happen is a systematic drift.
+  check("the cohesion budget is shared out, not handed out",
+        worst_error < 0.16,
+        string.format("worst imbalance %.1f%% -- %s", worst_error * 100, worst_where))
+end
+-- }}}
+
 -- {{{ local function test_no_nil_fields()
 -- Nil is not an option. Every per-body array must hold a number in every slot it
 -- has ever used, because the simulation has no nil checks in it and is only safe
@@ -328,6 +439,8 @@ test_camera_home()
 test_camera_floor()
 test_wide_query()
 test_no_nil_fields()
+test_formation_turns_a_corner()
+test_cohesion_is_conserved()
 test_reproducibility()
 test_placement_moves_a_frontline()
 print("")

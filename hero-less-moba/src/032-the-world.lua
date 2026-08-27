@@ -160,16 +160,26 @@ local function make_soldier_arrays(capacity, kind_count)
   -- guard. Read by the re-stamp sweep, which has to find every body standing
   -- under a tower whose slot just changed.
   soldier.guard_of          = zeroed(capacity)
-  -- Where this body's place in its host's formation is, and whether it has one.
-  -- A body with a live slot has **left the lane** and is moving across open
-  -- ground; the lane is the path it took to get here, not the shape it fights in.
-  soldier.slot_x            = zeroed(capacity)
-  soldier.slot_y            = zeroed(capacity)
-  soldier.slot_live         = zeroed(capacity)
-  -- 1 while the body is off the path graph. Its node and progress are kept
-  -- current underneath by re-projection, so push depth stays honest and so it can
-  -- rejoin the lane where it actually is rather than where it left.
-  soldier.off_lane          = zeroed(capacity)
+  -- **Where a body on a lane actually is**, in lane coordinates: how far along the
+  -- lane it has got, and how far to one side of the lane's centre it stands.
+  --
+  -- These two are authoritative and x, y are derived from them. That is what makes
+  -- a rank stay a rank around a corner -- every body in it shares one distance
+  -- along, and the lane's own curve carries the whole line round together. Holding
+  -- the formation in world coordinates instead would make a turning rank either
+  -- break apart or scythe through the inside of the bend.
+  --
+  -- A guard has no lane and does not use these; it walks the graph directly.
+  soldier.lane_along        = zeroed(capacity)
+  soldier.lane_across       = zeroed(capacity)
+  -- This body's place in its wave's formation, as offsets from the wave's anchor.
+  -- Assigned once, at birth, and kept for life -- a body's place in the line is not
+  -- something that gets reshuffled while it marches.
+  soldier.slot_along        = zeroed(capacity)
+  soldier.slot_across       = zeroed(capacity)
+  -- This tick's cohesion multiplier on speed. Bodies behind their place hurry and
+  -- bodies ahead of it wait, and the two are the same budget moved around.
+  soldier.speed_scale       = zeroed(capacity)
 
   -- Modifiers. One flat array per upgrade kind rather than one table per
   -- soldier: the sweep that re-stamps a lane's guards touches one kind across
@@ -386,10 +396,11 @@ function M.release(world, id)
   soldier.leash_node[id] = 0
   soldier.wander_node[id] = 0
   soldier.guard_of[id] = 0
-  soldier.slot_x[id] = 0
-  soldier.slot_y[id] = 0
-  soldier.slot_live[id] = 0
-  soldier.off_lane[id] = 0
+  soldier.lane_along[id] = 0
+  soldier.lane_across[id] = 0
+  soldier.slot_along[id] = 0
+  soldier.slot_across[id] = 0
+  soldier.speed_scale[id] = 0
   for kind = 1, #soldier.upgrade_count do
     soldier.upgrade_count[kind][id] = 0
   end
