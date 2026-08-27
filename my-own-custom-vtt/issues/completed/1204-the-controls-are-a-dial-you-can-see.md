@@ -3,17 +3,60 @@
 **Phase:** 12, the table as it is actually played
 **Blocked by:** phase 11 complete.
 **Blocks:** [1205](1205-the-state-is-drawn-back-to-you.md)
-**Documents:** [who controls what](../docs/008-who-controls-what.md),
-[the dynamic picture](../docs/012-the-dynamic-picture.md)
+**Documents:** [who controls what](../../docs/008-who-controls-what.md),
+[the dynamic picture](../../docs/012-the-dynamic-picture.md)
 
 ## Current behaviour
 
-The browser drives one body with the arrow keys and gives orders by clicking. A
-person commanding four bodies can drive one of them.
+**Done.** `106-controls` holds the three dials and the arithmetic; the browser
+holds the keys and the drawing; the bridge generates the compass into `tables.js`
+so the two cannot drift apart about what north-east means.
 
-The vision says a player controls "up to an entire party at once, but generally
-not more", and nothing in the project says how four bodies and one keyboard
-are supposed to meet.
+| Key | Turns |
+| --- | --- |
+| `[` `]` | the direction, wrapping |
+| `-` `=` | the distance, clamping |
+| `tab` | everybody → each of them → everybody |
+
+| Key | Does |
+| --- | --- |
+| `g` | walk there |
+| `f` | look that way, without moving |
+| `x` | stop |
+
+Turning a dial costs nothing and is undoable. **Only three keys ever cause
+anything to happen**, and that separation is the whole scheme.
+
+### Three decisions that came out of building it
+
+**A direction wraps and a distance does not.** Distance is a line rather than a
+circle, and somebody pressing *further* three times expects the far end rather
+than to be back where they started. A control you can walk off the end of needs a
+boundary check every time it is read, which is why the direction does wrap.
+
+**The whole party is a position on the same dial**, not a separate mode. That is
+what makes pointing at all four as few keystrokes as pointing at one, and one key
+walks the whole cycle.
+
+**A diagonal is 724 of 1024 rather than a full unit on both axes**, because a
+diagonal that moved a full unit each way would travel forty per cent further for
+the same key. A person feels that without being able to say what is wrong, so
+there is a test that checks every direction covers the same distance — compared
+as squares, so no square root is needed and no floating point enters a project
+that has banned it.
+
+### The distances are rooms
+
+Three metres is inside the room with you, eight is across it, sixteen is the far
+wall. Chosen by what a tabletop distance means rather than by doubling, because a
+person aiming a squad is thinking in rooms.
+
+### Nothing about it reaches the server
+
+The dials resolve into a point and an ordinary `order-move` goes out. A server
+that knew what "north-east, far" meant would be a server with an opinion about
+how people play — and it means a second view can grow the same dial without a
+protocol change, which is the phase 11 claim being cashed again.
 
 ## Intended behaviour
 
@@ -54,7 +97,7 @@ and say *go*, point at one and say *stay*, point northeast-far and say *attack*.
 
 **It composes with what already exists.** The dial's output is an ordinary order
 to an ordinary scope, so the two styles on the existing control dial —
-[driven and ordered](../docs/008-who-controls-what.md) — are what the verbs
+[driven and ordered](../../docs/008-who-controls-what.md) — are what the verbs
 resolve into. Nothing new reaches the server.
 
 **It is closed.** Four dials with small ranges is the same shape as the

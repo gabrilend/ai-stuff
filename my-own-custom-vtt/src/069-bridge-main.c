@@ -18,6 +18,7 @@
 
 #include "061-door.h"
 #include "064-httpd.h"
+#include "106-controls.h"
 #include "096-engrave.h"
 
 /*
@@ -66,8 +67,9 @@ static uint32_t build_tables_js(char *out, uint32_t capacity)
     uint32_t written = 0;
     uint8_t opcodes[] = {
         VERB_DRIVE, VERB_ORDER_MOVE, VERB_ORDER_FACE, VERB_ORDER_STOP,
+        VERB_INTERACT,
         OP_HELLO, OP_TICK, OP_WALL, OP_THING, OP_FAN, OP_REFUSAL,
-        OP_RECALL, OP_END
+        OP_RECALL, OP_END, OP_LAYER
     };
     uint32_t i;
 
@@ -98,10 +100,53 @@ static uint32_t build_tables_js(char *out, uint32_t capacity)
         "TABLES.op.DRIVE=%u; TABLES.op.ORDER_MOVE=%u; TABLES.op.ORDER_FACE=%u;\n"
         "TABLES.op.ORDER_STOP=%u; TABLES.op.HELLO=%u; TABLES.op.TICK=%u;\n"
         "TABLES.op.WALL=%u; TABLES.op.THING=%u; TABLES.op.FAN=%u;\n"
-        "TABLES.op.REFUSAL=%u; TABLES.op.RECALL=%u; TABLES.op.END=%u;\n",
+        "TABLES.op.REFUSAL=%u; TABLES.op.RECALL=%u; TABLES.op.END=%u;\n"
+        "TABLES.op.LAYER=%u; TABLES.op.INTERACT=%u;\n",
         VERB_DRIVE, VERB_ORDER_MOVE, VERB_ORDER_FACE, VERB_ORDER_STOP,
         OP_HELLO, OP_TICK, OP_WALL, OP_THING, OP_FAN, OP_REFUSAL,
-        OP_RECALL, OP_END);
+        OP_RECALL, OP_END, OP_LAYER, VERB_INTERACT);
+
+    /*
+     * And the compass, from the same table the server's own arithmetic uses.
+     *
+     * The dials belong to the view and the server never hears about them -- but
+     * WHAT NORTH-EAST MEANS is a number, and two copies of a number drift. So the
+     * view is handed the one that 106-controls holds, along with the distances
+     * and the words, and there is nowhere for a second opinion to live.
+     */
+    written += (uint32_t)snprintf(out + written, capacity - written,
+        "TABLES.compass = [];\nTABLES.reach = [];\n");
+
+    {
+        uint8_t aim;
+        uint8_t reach;
+
+        for (aim = 0; aim < AIM_COUNT; aim++) {
+            struct dial d;
+            wcoord x = 0;
+            wcoord y = 0;
+
+            dial_init(&d);
+            d.aim = aim;
+            d.reach = REACH_NEAR;
+            dial_resolve(&d, 0, 0, &x, &y);
+
+            /* As the point one "near" step away from the origin, so the view
+             * divides rather than being handed a unit it has to scale. */
+            written += (uint32_t)snprintf(out + written, capacity - written,
+                "TABLES.compass[%u] = {x:%d, y:%d, name:\"%s\"};\n",
+                aim, (int)x, (int)y, aim_name(aim));
+        }
+
+        for (reach = 0; reach < REACH_COUNT; reach++) {
+            written += (uint32_t)snprintf(out + written, capacity - written,
+                "TABLES.reach[%u] = {metres:%u, name:\"%s\"};\n",
+                reach, reach_in_metres(reach), reach_name(reach));
+        }
+
+        written += (uint32_t)snprintf(out + written, capacity - written,
+            "TABLES.nearMetres = %u;\n", reach_in_metres(REACH_NEAR));
+    }
 
     /*
      * And the refusal sentences, from the same table the server refuses with. A
