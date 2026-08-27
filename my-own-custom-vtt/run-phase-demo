@@ -49,7 +49,7 @@ fi
 # Collect the demos that actually exist. A phase demo is named phase-N-demo and
 # is executable; anything else in the directory is a support file for one of them.
 DEMOS=()
-for N in 1 2 3 4 5 6 7 8 9 10 11; do
+for N in 1 2 3 4 5 6 7 8 9 10 11 12; do
     CANDIDATE="${DEMO_DIR}/phase-${N}-demo"
     if [ -x "${CANDIDATE}" ]; then
         DEMOS+=("${N}")

@@ -141,6 +141,15 @@ Same shape as the ruleset's request queue, and for the same reason: the thing th
 decides and the thing that acts are different, and a queue between them means
 neither has to know about the other's timing.
 
+### Unwind first, then remove
+
+The order matters. Who holds a scope is world state, so a rollback that reaches
+back past a removal **undoes the removal**, and the person is back at the table.
+
+Nothing is wrong with either piece; the order is a fact about how they compose,
+and it lives in whatever uses both rather than in either of them. It was found by
+a demo trying them the wrong way round.
+
 ### What this does not solve, said plainly
 
 **They can knock again.** There is no ban list, no memory of who was removed, and
