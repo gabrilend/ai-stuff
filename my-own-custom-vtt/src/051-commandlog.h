@@ -73,7 +73,23 @@
  * See session_command_from, which performs it, and issue 1201.
  */
 #define VERB_INTERACT    7u
-#define VERB_COUNT       8u
+/*
+ * Remove somebody from the table.
+ *
+ * NOTHING CHECKS WHO ANYBODY IS, and that is the decided answer rather than an
+ * oversight waiting for a login system. It is how a kitchen table works: nobody
+ * proves their identity, and somebody behaving badly is asked to leave and what
+ * they did is undone by agreement.
+ *
+ * That position is only honest if the host can actually remove somebody. This is
+ * that half; session_expunge is the other.
+ *
+ * `subject` is the SEAT being removed, not a body. Their bodies are not deleted:
+ * removing a person is not removing a character, and the party still has four
+ * members with one of them now unheld.
+ */
+#define VERB_EVICT       8u
+#define VERB_COUNT       9u
 
 /* Why a command was refused. Every refusal is a sentence, not a number. */
 #define REFUSED_NOT_AT_ALL       0u
@@ -107,7 +123,12 @@
 #define REFUSED_CANNOT_SEE_IT     12u
 /* Nothing knows what your intent means. */
 #define REFUSED_NO_RULES_FOR_THAT 13u
-#define REFUSED_COUNT             14u
+/* Removing yourself is almost certainly a mistake, and the recovery is a
+ * restart. Refused by name rather than performed. */
+#define REFUSED_NOT_YOURSELF      14u
+/* More seats removed in one beat than the queue holds. */
+#define REFUSED_TOO_MANY_AT_ONCE  15u
+#define REFUSED_COUNT             16u
 
 struct log_entry {
     uint64_t tick;

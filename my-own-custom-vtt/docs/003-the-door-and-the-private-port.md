@@ -100,3 +100,58 @@ crosses NAT without a conversation -- has not been argued out yet. It is in
   a participant is through the door.
 - [What a viewer is allowed to know](009-what-a-viewer-is-allowed-to-know.md) --
   the filter that binds to the socket.
+
+
+## Nothing checks who you are
+
+That is the decided answer, not an oversight waiting for a login system.
+
+> Nothing. If the host wants to they can kick a player and roll back any actions
+> taken.
+
+Which is how a kitchen table works. Nobody at one proves their identity; somebody
+behaving badly is asked to leave and what they did is undone by agreement. The
+program's job is to make both of those possible, not to prevent the first from
+being necessary.
+
+**The position is only honest because both halves exist**, and neither did when
+it was decided. A statement of the shape *we do not need authentication because
+the host can remove somebody* with nothing behind it is worse than no position at
+all.
+
+| Half | What it is |
+| --- | --- |
+| Removing somebody | `VERB_EVICT`. Their socket closes, their port goes back to the range, their scopes are unheld. |
+| Unwinding what they did | `session_expunge`. The turn is replayed forward without that seat's commands, and everybody else's survive exactly. |
+
+### Their bodies are not deleted
+
+Removing a person is not removing a character. The party still has four members
+and one of them is now unheld, which is a normal state — the forest exists whether
+anybody is playing it. Deleting the body would be the program making a decision
+about the fiction, which is not its job.
+
+### The decision and the sockets are separated
+
+The session decides — the command goes through the same gauntlet as everything
+else, gated on may-edit-the-world, refusing to remove yourself by name — and
+queues the seat. The server drains the queue and does the socket work.
+
+Same shape as the ruleset's request queue, and for the same reason: the thing that
+decides and the thing that acts are different, and a queue between them means
+neither has to know about the other's timing.
+
+### What this does not solve, said plainly
+
+**They can knock again.** There is no ban list, no memory of who was removed, and
+no way to have one without the identity this project has decided not to have.
+
+So the honest description of the security model is: **anyone who can reach the
+port can join, and the host can remove them and undo what they did.** For a table
+of friends on one machine that is the right trade. For anything else it is not,
+and the answer to that is not to bolt a password on — it is to not put this on a
+public port.
+
+See issues
+[1202](../issues/completed/1202-the-host-can-remove-somebody.md) and
+[1203](../issues/completed/1203-and-undo-what-they-did.md).

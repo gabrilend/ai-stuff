@@ -279,12 +279,34 @@ first evening a real table tries this.
 Both of those stay written down. If the expectation turns out right, this is the
 decision to revisit, and the argument above is what would have to be given up.
 
-### 4.2 What is in the `secret` field of a join request?
+### 4.2 What is in the `secret` field of a join request? — ANSWERED
 
-A shared password for the table? One password per participant? A public key?
-Something the host reads out over voice chat when the session starts? The field is
-thirty-two bytes and its contents are entirely undecided.
+**Nothing, and that is the decision.**
 
+> Nothing. If the host wants to they can kick a player and roll back any actions
+> taken.
+
+Which is how a kitchen table works, and it is a real answer rather than a
+deferral — but it is only honest because both of those things now exist, and
+neither did when it was decided.
+
+| Half | What it is |
+| --- | --- |
+| removing somebody | `VERB_EVICT`, through the same gauntlet as everything else |
+| unwinding what they did | `session_expunge`, which replays a turn forward without one seat's commands |
+
+The second one needed nothing new in the log, because the log already recorded
+**who** issued every entry. That is a sign it was recorded at the right grain.
+
+**What it does not solve, stated rather than hidden:** they can knock again. There
+is no ban list and no way to have one without the identity this project has
+decided not to have. So the honest description is *anyone who can reach the port
+can join, and the host can remove them and undo what they did* — which is the
+right trade for a table of friends on one machine and the wrong one for anything
+else. The answer to "anything else" is not to bolt a password on; it is to not put
+this on a public port.
+
+See [the door and the private port](003-the-door-and-the-private-port.md).
 ### 4.3 How large can a table get?
 
 Sets the port range, the thread pool size, and how hard the sight pass has to

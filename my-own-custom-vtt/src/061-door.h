@@ -109,6 +109,23 @@ const char *join_sentence(uint8_t outcome);
 uint32_t door_ports_in_use(const struct door *d);
 
 /*
+ * Show somebody out.
+ *
+ * Closes their socket, releases their private port back to the range, and empties
+ * their slot -- the same three steps a clean hang-up takes, done on purpose
+ * rather than because the far end went away.
+ *
+ * It does NOT touch their bodies or their scopes. Removing a person is not
+ * removing a character, and the scopes were already unheld by the session, which
+ * is where that decision was made and where world state belongs.
+ *
+ * Returns 1 when somebody was shown out, 0 when that seat was already empty --
+ * which is not an error, because two beats of the same decision can arrive
+ * together.
+ */
+int door_show_out(struct door *d, struct viewer_set *set, uint32_t viewer);
+
+/*
  * A test client, so the phase demo can run several participants in one process.
  * A demo that needs three terminals is a demo nobody runs.
  *

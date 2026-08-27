@@ -2,16 +2,39 @@
 
 **Phase:** 12, the table as it is actually played
 **Blocked by:** [1202](1202-the-host-can-remove-somebody.md)
-**Blocks:** [1206](1206-the-phase-twelve-demo.md)
-**Documents:** [the turn is a transaction](../docs/019-the-turn-is-a-transaction.md)
+**Blocks:** [1206](../1206-the-phase-twelve-demo.md)
+**Documents:** [the turn is a transaction](../../docs/019-the-turn-is-a-transaction.md)
 
 ## Current behaviour
 
-A rollback restores the world to the head of a turn and either discards
-everything declared since or replays it forward.
+**Done.** `session_expunge(session, seat, turn)` restores the head of that turn
+and replays every command forward except that seat's.
 
-Both are **all or nothing**. There is no way to undo one person's actions and
-keep everybody else's.
+**Nothing had to be added to the log to make it possible**, because the log
+already recorded who issued every entry. That is a sign it was recorded at the
+right grain — the feature was one condition inside a loop that already existed.
+
+The expunged entries stay in the log, marked refused, because a log that quietly
+omits the parts somebody regretted is not a log.
+
+`session_earliest_turn_touched_by` answers *how far back do I have to go*, so a
+refusal can say which turn rather than just failing.
+
+### The test compares against a world where they never spoke
+
+Two identical worlds, two identical sessions, the same seed. In one a guest gives
+orders and is then expunged; in the other they never say anything. The two are
+compared **by world hash**, because "it looks about right" is not a comparison —
+and they diverge first, so that the comparison at the end means something.
+
+It refuses for the same reasons any rollback refuses: the turn fell out of the
+ring, or its sheets could not be copied. Same paths, same sentences.
+
+### What it cannot undo, unchanged
+
+The people at the table still remember the corridor. Fog is restored and memory
+is not, which was already true of every rollback and is written down in
+[the turn is a transaction](../../docs/019-the-turn-is-a-transaction.md).
 
 ## Intended behaviour
 
@@ -40,7 +63,7 @@ possible, which is a sign the log was recorded at the right grain.
 **It cannot undo what people saw.** Fog only grows, and a rollback restores the
 fog bitmap — but the people at the table still remember the corridor. That was
 already true of every rollback and it is written down in
-[the turn is a transaction](../docs/019-the-turn-is-a-transaction.md).
+[the turn is a transaction](../../docs/019-the-turn-is-a-transaction.md).
 
 **It cannot undo further back than the ring.** A troublemaker who was quiet for
 an hour and then acted cannot be unwound to before the hour. The ring is finite
