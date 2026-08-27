@@ -94,3 +94,51 @@ the whole program.
 Generalises: when a property must hold everywhere, build a single choke point
 where it can be checked, and forbid the bypass. A rule enforced in one place is a
 rule; a rule enforced in forty places is a habit.
+
+## Make the state its own display.
+
+Not a display *derived from* the state. The same object, read two ways.
+
+A separate rendering of a mode can disagree with the mode, and it will, and the
+disagreement is invisible until somebody acts on the wrong one. A picture drawn
+from the state cannot disagree with it, because there is nothing else for it to
+be drawn from.
+
+This has now arrived three times, from three unrelated directions:
+
+- **The engraving** is a text file that is a picture that is a spreadsheet. Its
+  lines are the cell walls. Reading the drawing and reading the database are the
+  same act, so a value of the wrong width bends the animal — the checksum is
+  something you can see from across the room.
+- **The sprite paintbrush** is a closed set of moves that is also its own
+  documentation. The list the wall checks against is the list the contract is
+  printed from, so they cannot describe different paintbrushes.
+- **The control dial** draws itself. Seven characters square, `o` for you and `X`
+  for where the order lands, generated from the dial positions rather than from a
+  copy of them.
+
+The third arrived because a modal control scheme whose mode is invisible is a
+control scheme nobody can hold in their head — which is a different problem from
+the other two and produced the same answer.
+
+**When something is both a fact and a thing somebody has to see, resist splitting
+it.** Splitting it is the obvious engineering instinct, it produces two things
+that are each easier to reason about, and it introduces the one failure the
+combined version cannot have.
+
+## A name that lies will generate questions nobody can answer.
+
+A field was called `window_ticks`. Nothing in the program ever waited: commands
+were accepted every beat and applied on the beat they arrived, and the number was
+the gap between one rollback checkpoint and the next.
+
+But a *window* is a thing you wait in. So the documents grew a paragraph about
+everybody declaring and everything resolving when the window closed — describing
+something more ceremonious than anything that existed. Two open questions
+accumulated about it. Three plausible answers were written down for one of them,
+and all three were answers about a thing that does not exist.
+
+It is called `beats_between_checkpoints` now and both questions dissolved.
+
+**When a question has several plausible answers and none of them can be checked
+against the code, suspect the noun.**

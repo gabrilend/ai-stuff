@@ -2,12 +2,47 @@
 
 **Phase:** 12, the table as it is actually played
 **Blocked by:** [1204](1204-the-controls-are-a-dial-you-can-see.md)
-**Blocks:** [1206](1206-the-phase-twelve-demo.md)
-**Documents:** [the dynamic picture](../docs/012-the-dynamic-picture.md)
+**Blocks:** [1206](../1206-the-phase-twelve-demo.md)
+**Documents:** [the dynamic picture](../../docs/012-the-dynamic-picture.md)
 
 ## Current behaviour
 
-A dial with three positions and no way to see where it points.
+**Done.** Seven characters square, in the bottom-left corner, always there.
+
+```
+       
+     X 
+    /  
+   o   
+       
+   all 4, north-east, near (8 m)
+   [ ] turn  - = reach  tab pick  g go  f face  x stop
+```
+
+`o` is you, `X` is where the order lands, and the line between is the direction
+while its length is the distance. Odd on both axes so there *is* a middle; seven
+because the far reach needs three cells of line to look further than the near one.
+
+**Drawn from the dial rather than from a copy of it**, so it cannot disagree with
+the state it is showing. The verb row is there too, because a scheme where a key
+means one thing in one mode and something else in another has to say which.
+
+### The pattern has now arrived three times
+
+| Where | The artifact |
+| --- | --- |
+| the engraving | a file that is a picture and a database at once |
+| the sprite paintbrush | a closed set of moves that is also its own documentation |
+| here | a control state that is also a picture of itself |
+
+Three unrelated problems, one answer: **make the state its own display.** Not a
+display derived from the state — the same object, read two ways. A separate
+rendering of a mode can disagree with the mode, and the disagreement is invisible
+until somebody acts on the wrong one.
+
+Written into [the strategems](../../strategems/patterns-that-keep-working) where the
+other two are described, along with the second thing this phase taught: *a name
+that lies will generate questions nobody can answer.*
 
 ## Intended behaviour
 
@@ -32,8 +67,8 @@ state machine with two hundred and forty positions.
 
 | Where | The artifact |
 | --- | --- |
-| [the engraving](../docs/018-the-record-log-is-an-engraving.md) | a file that is a picture and a database at once |
-| [the sprite paintbrush](../docs/017-the-sprite-studio.md) | a closed set of moves that is also its own documentation |
+| [the engraving](../../docs/018-the-record-log-is-an-engraving.md) | a file that is a picture and a database at once |
+| [the sprite paintbrush](../../docs/017-the-sprite-studio.md) | a closed set of moves that is also its own documentation |
 | here | a control state that is also a picture of itself |
 
 **The pattern is worth naming**, because it has now arrived three times from three
