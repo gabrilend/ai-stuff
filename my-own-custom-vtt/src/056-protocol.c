@@ -59,7 +59,10 @@ static const struct opcode_spec inbound[VERB_COUNT] = {
      * kinds of interaction is a ruleset this server should be able to carry
      * without having had an opinion about how many there would be.
      */
-    { "interact",   { 32, 32, 0 } }
+    { "interact",   { 32, 32, 0 } },
+    /* evict: which seat. Nothing else -- removing somebody is not a thing with
+     * options, and a reason belongs in whatever people say to each other. */
+    { "evict",      { 32, 0 } }
 };
 
 /* Server to client. */

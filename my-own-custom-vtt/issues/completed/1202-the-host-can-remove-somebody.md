@@ -3,15 +3,42 @@
 **Phase:** 12, the table as it is actually played
 **Blocked by:** phase 11 complete.
 **Blocks:** [1203](1203-and-undo-what-they-did.md)
-**Documents:** [the door and the private port](../docs/003-the-door-and-the-private-port.md)
+**Documents:** [the door and the private port](../../docs/003-the-door-and-the-private-port.md)
 
 ## Current behaviour
 
-The door admits whoever knocks and hands them a body. The join request carries a
-`secret` field that nothing reads.
+**Done.** `VERB_EVICT` takes a seat, is gated on may-edit-the-world, and refuses
+to remove yourself by name — that is almost certainly a mistake and the recovery
+from it is restarting the server.
 
-There is no way to remove somebody. A connection ends when the far end closes it
-or the socket breaks.
+**The decision and the sockets are separated.** The session unholds their scopes,
+because that is world state and the session owns the world, and queues the seat.
+The server drains the queue and calls `door_show_out`, which closes the socket and
+releases the port — the same three steps a clean hang-up already took, done on
+purpose rather than because the far end went away.
+
+Same shape as the ruleset's request queue, and for the same reason: the thing that
+decides and the thing that acts are different.
+
+Their bodies are untouched. The party still has four members and one of them is
+unheld.
+
+Being asked to remove more seats in one beat than the queue holds is refused by
+name, and the server says out loud when more were asked for than it handled —
+somebody who was supposed to be removed and was not is exactly the thing a host
+needs to know immediately.
+
+Removing a seat that is already empty returns 0 rather than failing, because two
+beats of the same decision can arrive together and somebody who hung up in between
+is simply already out.
+
+### What it does not solve, and the documents say so
+
+They can knock again. There is no ban list and no way to have one without the
+identity this project has decided not to have. The honest description of the
+security model is now written into
+[the door and the private port](../../docs/003-the-door-and-the-private-port.md)
+rather than left for somebody to discover.
 
 ## Intended behaviour
 
@@ -61,7 +88,7 @@ no way to have one without the identity this project has decided not to have.
 At a table of friends on one machine that is fine, and the honest description of
 the security model is: *anyone who can reach the port can join, and the host can
 remove them.* Written down in
-[the door and the private port](../docs/003-the-door-and-the-private-port.md)
+[the door and the private port](../../docs/003-the-door-and-the-private-port.md)
 rather than left for somebody to discover.
 
 ## Suggested implementation steps

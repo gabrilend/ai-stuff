@@ -436,6 +436,37 @@ uint32_t door_connect_waiting(struct door *d, struct viewer_set *set)
 }
 /* }}} */
 
+/* {{{ int door_show_out */
+int door_show_out(struct door *d, struct viewer_set *set, uint32_t viewer)
+{
+    struct viewer *v;
+
+    if (viewer == 0 || viewer >= viewer_count(set)) {
+        return 0;
+    }
+
+    v = viewer_at(set, viewer);
+
+    if (v->state == VIEWER_EMPTY) {
+        /*
+         * Already gone. Not an error: the session queues a removal and the
+         * server drains the queue, so two beats of the same decision can arrive
+         * together, and a person who hung up in between is simply already out.
+         */
+        return 0;
+    }
+
+    if (v->socket >= 0) {
+        close(v->socket);
+    }
+
+    viewer_departs(set, viewer);
+    release_port(d, v->port);
+
+    return 1;
+}
+/* }}} */
+
 /* {{{ uint32_t door_drain */
 uint32_t door_drain(struct door *d, struct viewer_set *set)
 {

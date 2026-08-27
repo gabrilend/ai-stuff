@@ -392,6 +392,35 @@ uint16_t session_command_from(struct session *s, uint32_t viewer,
      * made -- remembered, not recomputed. Two answers to "can this person see
      * that" is how a permission model develops a hole nobody can find.
      */
+    /*
+     * REMOVING SOMEBODY. Queued rather than done: the session owns the decision,
+     * which just went through the gauntlet, and the server owns the sockets.
+     *
+     * Their scopes are unheld here and now, because that is world state and the
+     * session owns the world. Their bodies are not touched -- removing a person
+     * is not removing a character.
+     */
+    if (refusal == REFUSED_NOT_AT_ALL && verb == VERB_EVICT) {
+        if (s->evicting_count >= SESSION_MAX_EVICTIONS) {
+            refusal = REFUSED_TOO_MANY_AT_ONCE;
+        } else {
+            scope_unhold_all(s->world, subject);
+
+            s->evicting[s->evicting_count] = subject;
+            s->evicting_count++;
+
+            /* And whatever they had been told about is forgotten, so a seat
+             * index reused by somebody else does not inherit their sight. */
+            session_forget_what_was_told(s, subject);
+        }
+
+        if (refusal != REFUSED_NOT_AT_ALL) {
+            log_mark_refused(&s->log, index, refusal);
+        }
+
+        return refusal;
+    }
+
     if (refusal == REFUSED_NOT_AT_ALL && verb == VERB_INTERACT) {
         /*
          * Viewer 0 is the scripted driver, inside the process, with no seat at
@@ -589,6 +618,120 @@ int session_was_told(const struct session *s, uint32_t viewer, uint32_t thing)
     }
 
     return s->told_about[(size_t)viewer * s->told_things + thing] != 0;
+}
+/* }}} */
+
+/* {{{ uint32_t session_take_evictions */
+uint32_t session_take_evictions(struct session *s, uint32_t *into,
+                                uint32_t capacity)
+{
+    uint32_t found = s->evicting_count;
+    uint32_t i;
+
+    for (i = 0; i < found && i < capacity; i++) {
+        into[i] = s->evicting[i];
+    }
+
+    s->evicting_count = 0;
+
+    /* The TRUE count, which may be more than fitted. A caller given fewer than
+     * there were must be able to say so rather than silently leaving somebody
+     * at a table they were removed from. */
+    return found;
+}
+/* }}} */
+
+/* {{{ uint32_t session_earliest_turn_touched_by */
+uint32_t session_earliest_turn_touched_by(const struct session *s, uint32_t viewer)
+{
+    uint32_t earliest = s->turn;
+    uint32_t i;
+
+    for (i = 0; i < s->log.count; i++) {
+        if (s->log.entries[i].viewer == viewer && s->log.entries[i].turn < earliest) {
+            earliest = s->log.entries[i].turn;
+        }
+    }
+
+    return earliest;
+}
+/* }}} */
+
+/* {{{ int session_expunge */
+int session_expunge(struct session *s, uint32_t viewer, uint32_t turn)
+{
+    struct turn_state *head = find_turn(s, turn);
+    uint32_t log_end;
+    uint32_t entry;
+    uint64_t replay_to;
+
+    if (head == NULL || !head->sheets_copied) {
+        return 0;
+    }
+
+    log_end = s->log.count;
+    replay_to = s->sim.tick;
+
+    if (!state_restore(s, head)) {
+        return 0;
+    }
+
+    if (s->rules != NULL) {
+        const char *why = "";
+
+        if (!rules_restore_sheets((struct ruleset *)s->rules, turn, &why)) {
+            return 0;
+        }
+    }
+
+    s->rollbacks++;
+
+    /*
+     * The retcon, with one condition inside it.
+     *
+     * That is the whole of the difference, and it is possible only because the
+     * log records WHO issued every entry. Nothing had to be added to make this
+     * work, which is a sign the log was recorded at the right grain.
+     */
+    entry = head->log_position;
+
+    while (s->sim.tick < replay_to) {
+        while (entry < log_end && s->log.entries[entry].tick <= s->sim.tick) {
+            if (s->log.entries[entry].viewer == viewer) {
+                /*
+                 * Skipped, and MARKED rather than deleted. A log that quietly
+                 * omits the parts somebody regretted is not a log, and the
+                 * refusal reason says which of the two kinds of not-happening
+                 * this was.
+                 */
+                log_mark_refused(&s->log, entry, REFUSED_NOT_YOURS);
+            } else {
+                uint16_t refusal = command_apply(&s->sim, &s->log.entries[entry]);
+
+                log_mark_refused(&s->log, entry, refusal);
+            }
+
+            entry++;
+        }
+
+        sim_tick(&s->sim);
+
+        if (s->sim.tick - s->turn_first_tick >= s->beats_between_checkpoints) {
+            /* Turn boundaries replayed without re-snapshotting, the same as an
+             * ordinary retcon, and for the same reason. */
+            s->turn++;
+            s->turn_first_tick = s->sim.tick;
+        }
+    }
+
+    while (entry < log_end) {
+        if (s->log.entries[entry].viewer != viewer) {
+            command_apply(&s->sim, &s->log.entries[entry]);
+        }
+        entry++;
+    }
+
+    return 1;
 }
 /* }}} */
 

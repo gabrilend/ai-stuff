@@ -14,6 +14,7 @@
 #include "037-fixture.h"
 #include "035-worldfile.h"
 #include "033-validate.h"
+#include "070-scope.h"
 #include "085-sprite-pool.h"
 
 #include <string.h>
@@ -683,6 +684,212 @@ static void test_a_retcon_leaves_the_earlier_heads_usable(void)
 }
 /* }}} */
 
+/*
+ * The two halves of "nothing checks who you are".
+ *
+ * That is the decided answer -- a kitchen table does not check identity either --
+ * and it is only honest if the host can remove somebody and unwind what they
+ * did. A statement of that shape with nothing behind it is worse than no position
+ * at all, so this is the test that says both halves exist.
+ */
+/* {{{ static void test_removing_somebody */
+static void test_removing_somebody(void)
+{
+    struct world w;
+    struct pool *p = pool_start(1);
+    struct session s;
+    uint32_t body;
+    uint32_t host = 1;
+    uint32_t guest = 2;
+    uint32_t taken[SESSION_MAX_EVICTIONS];
+    uint32_t scope;
+
+    TEST_CASE("the host can remove somebody, and only the host");
+
+    CHECK(fixture_make_two_rooms(&w) == 1);
+    body = add_body(&w, M(4), M(4));
+
+    CHECK(session_start(&s, &w, p, 1, 8, 5) == 1);
+    sim_fit_to_world(&s.sim);
+
+    scope = scope_make_list(&w, guest, STYLE_DRIVEN, &body, 1, "the guest");
+    CHECK(scope != 0);
+
+    /* The host holds a scope that may edit the world. */
+    {
+        uint32_t nothing = 0;
+        uint32_t theirs = scope_make_list(&w, host, STYLE_ORDERED, &nothing, 0,
+                                          "the host");
+
+        CHECK(theirs != 0);
+        world_scope(&w, theirs)->flags |= SCOPE_MAY_EDIT_WORLD;
+    }
+
+    /* A guest cannot remove the host. */
+    CHECK_EQ(session_command_from(&s, guest, VERB_EVICT, host, 0, 0),
+             REFUSED_MAY_NOT_EDIT);
+
+    /* The host cannot remove themselves -- almost certainly a mistake, and the
+     * recovery from it is restarting the server. */
+    CHECK_EQ(session_command_from(&s, host, VERB_EVICT, host, 0, 0),
+             REFUSED_NOT_YOURSELF);
+    CHECK(strstr(refusal_sentence(REFUSED_NOT_YOURSELF), "yourself") != NULL);
+
+    /* And nobody is nobody. */
+    CHECK_EQ(session_command_from(&s, host, VERB_EVICT, 0, 0, 0),
+             REFUSED_SUBJECT_IS_NOTHING);
+
+    TEST_CASE("removing them unholds their scopes and keeps their bodies");
+
+    CHECK_EQ(session_command_from(&s, host, VERB_EVICT, guest, 0, 0),
+             REFUSED_NOT_AT_ALL);
+
+    /* Their scope is unheld, which is a normal state -- the forest exists
+     * whether anybody is playing it. */
+    CHECK_EQ(world_scope(&w, scope)->viewer, 0);
+
+    /* Their body still exists. Removing a person is not removing a character. */
+    CHECK(world_thing_const(&w, body)->radius > 0);
+    CHECK_EQ(world_thing_count(&w) > body, 1);
+
+    /* And the seat is queued for the server, which owns the sockets. */
+    CHECK_EQ(session_take_evictions(&s, taken, SESSION_MAX_EVICTIONS), 1);
+    CHECK_EQ(taken[0], guest);
+
+    /* Drained, so a second call finds nothing. */
+    CHECK_EQ(session_take_evictions(&s, taken, SESSION_MAX_EVICTIONS), 0);
+
+    session_release(&s);
+    world_release(&w);
+    pool_stop(p);
+}
+/* }}} */
+
+/*
+ * And unwinding what they did, without losing anybody else's evening.
+ *
+ * Compared against a run where the removed person never issued anything at all --
+ * by world hash, because "it looks about right" is not a comparison.
+ */
+/* {{{ static void test_unwinding_one_persons_actions */
+static void test_unwinding_one_persons_actions(void)
+{
+    struct world troubled;
+    struct world clean;
+    struct pool *p = pool_start(1);
+    struct session with_them;
+    struct session without_them;
+    uint32_t theirs_a, ours_a;
+    uint32_t theirs_b, ours_b;
+    uint32_t guest = 2;
+    uint32_t host = 1;
+    uint32_t earliest;
+    int beat;
+
+    TEST_CASE("one seat's actions are unwound and everybody else's survive");
+
+    /*
+     * Two identical worlds. In one, a guest gives orders and is then expunged.
+     * In the other they never say anything. The two must end identical.
+     */
+    CHECK(fixture_make_two_rooms(&troubled) == 1);
+    theirs_a = add_body(&troubled, M(4), M(4));
+    ours_a = add_body(&troubled, M(6), M(4));
+
+    CHECK(fixture_make_two_rooms(&clean) == 1);
+    theirs_b = add_body(&clean, M(4), M(4));
+    ours_b = add_body(&clean, M(6), M(4));
+
+    CHECK_EQ(theirs_a, theirs_b);
+    CHECK_EQ(ours_a, ours_b);
+    CHECK_EQ(world_hash(&troubled), world_hash(&clean));
+
+    CHECK(session_start(&with_them, &troubled, p, 909, 16, 4) == 1);
+    CHECK(session_start(&without_them, &clean, p, 909, 16, 4) == 1);
+    sim_fit_to_world(&with_them.sim);
+    sim_fit_to_world(&without_them.sim);
+
+    scope_make_list(&troubled, guest, STYLE_ORDERED, &theirs_a, 1, "guest");
+    scope_make_list(&troubled, host, STYLE_ORDERED, &ours_a, 1, "host");
+    scope_make_list(&clean, guest, STYLE_ORDERED, &theirs_b, 1, "guest");
+    scope_make_list(&clean, host, STYLE_ORDERED, &ours_b, 1, "host");
+
+    /* Let a turn open in both, so there is a head to come back to. */
+    while (with_them.turn == 0) {
+        session_tick(&with_them);
+        session_tick(&without_them);
+    }
+
+    earliest = with_them.turn;
+
+    for (beat = 0; beat < 12; beat++) {
+        if (beat % 4 == 0) {
+            /* The host acts in both worlds. */
+            session_command_from(&with_them, host, VERB_ORDER_MOVE, ours_a,
+                                 M(9), M(7));
+            session_command_from(&without_them, host, VERB_ORDER_MOVE, ours_b,
+                                 M(9), M(7));
+
+            /* The guest acts only in the troubled one. */
+            session_command_from(&with_them, guest, VERB_ORDER_MOVE, theirs_a,
+                                 M(2), M(9));
+        }
+
+        session_tick(&with_them);
+        session_tick(&without_them);
+    }
+
+    /* They diverged, which is what makes the comparison below mean something. */
+    CHECK(world_hash(&troubled) != world_hash(&clean));
+
+    /* How far back the host has to go. */
+    CHECK_EQ(session_earliest_turn_touched_by(&with_them, guest), earliest);
+
+    CHECK_EQ(session_expunge(&with_them, guest, earliest), 1);
+
+    /*
+     * And now the two worlds are the same. Not approximately: the same number.
+     */
+    if (world_hash(&troubled) != world_hash(&clean)) {
+        fprintf(stderr, "    after expunging, %016llx against %016llx\n",
+                (unsigned long long)world_hash(&troubled),
+                (unsigned long long)world_hash(&clean));
+    }
+    CHECK_EQ(world_hash(&troubled), world_hash(&clean));
+
+    TEST_CASE("their commands are still in the log, marked");
+
+    {
+        uint32_t i;
+        uint32_t theirs_found = 0;
+        uint32_t theirs_refused = 0;
+
+        for (i = 0; i < with_them.log.count; i++) {
+            if (with_them.log.entries[i].viewer == guest) {
+                theirs_found++;
+                if (with_them.log.entries[i].refusal != REFUSED_NOT_AT_ALL) {
+                    theirs_refused++;
+                }
+            }
+        }
+
+        /* A log that quietly omits the parts somebody regretted is not a log. */
+        CHECK(theirs_found > 0);
+        CHECK_EQ(theirs_refused, theirs_found);
+    }
+
+    TEST_CASE("a turn that has fallen out of the ring is refused");
+
+    CHECK_EQ(session_expunge(&with_them, guest, 99999), 0);
+
+    session_release(&with_them);
+    session_release(&without_them);
+    world_release(&troubled);
+    world_release(&clean);
+    pool_stop(p);
+}
+/* }}} */
+
 /* {{{ int main */
 int main(void)
 {
@@ -697,6 +904,8 @@ int main(void)
     test_the_world_survives_it_all();
     test_a_sprite_is_retiered_mid_session();
     test_a_retcon_leaves_the_earlier_heads_usable();
+    test_removing_somebody();
+    test_unwinding_one_persons_actions();
 
     return vtt_test_finish("054-test-session");
 }
