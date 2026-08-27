@@ -20,6 +20,12 @@ hero-less-moba/
 ├── run-prototype ............................. The front door. Opens the window,
 │                                               or runs the same match headless,
 │                                               in a terminal, or as a screenshot.
+├── run-scenario .............................. Loads a described world and holds
+│                                               it at a gate. Step it, or run it
+│                                               until something happens.
+├── run-many-matches .......................... Plays it a great many times with
+│                                               nobody watching, and prints the
+│                                               table you read in the morning.
 ├── run-tests ................................. Both halves at once: the document
 │                                               validator and the invariants.
 ├── run-phase-demo ............................ Asks which phase demo to run,
@@ -50,6 +56,9 @@ hero-less-moba/
 ├── tests/ .................................... The invariants, and a sandbox that
 │                                               measures the formation on a bare
 │                                               field. Both run by ./run-tests.
+├── scenarios/ ................................ Described worlds, written by hand.
+│                                               A scenario that reproduces a bug is
+│                                               a bug report anybody can run.
 │
 ├── notes/
 │   ├── vision ................................ Where all of this came from, in the

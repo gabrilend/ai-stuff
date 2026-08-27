@@ -13,7 +13,7 @@ applied to the project's own prose.
 | 702 | The map draws itself | built |
 | 703 | The chest panel and the drag | built |
 | 704 | Locks, objections, and refusals are loud | refusals built, locks not |
-| 705 | The sign-posts are clickable in the world | not started |
+| 705 | The sign-posts are clickable in the world | built |
 | 706 | The documentation becomes HTML | not started |
 | 707 | The way in | not started |
 | 708 | The camera is a lens you push into | built |

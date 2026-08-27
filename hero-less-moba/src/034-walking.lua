@@ -112,7 +112,10 @@ local function next_while_wandering(world, id)
   local node = world.map.node
   local here = node[soldier.node_from[id]]
   local leash = node[soldier.leash_node[id]]
-  local radius = world.parameters.structure.tower.leash_radius
+  local tower = world.structure[soldier.guard_of[id]]
+  local radius = (tower ~= nil and tower.kind == 2)
+    and world.parameters.structure.tower.base_leash_radius
+    or world.parameters.structure.tower.leash_radius
 
   local candidates = {}
   for _, neighbour_id in ipairs(here.neighbour) do

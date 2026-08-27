@@ -107,7 +107,16 @@ local function put_guard_on_the_ground(world, structure)
   -- Zero, because a guard is not in a wave. The reap pass reads this to know
   -- whose living count to decrement, and a guard's death must decrement nothing.
   soldier.wave[id] = 0
-  soldier.leash_node[id] = structure.node
+  -- A base tower's guards are leashed to the **library**, not to the tower that put
+  -- them out, because the three towers inside a base share one patrol area. That one
+  -- line is the whole of "the base is one open room": the guards range across the
+  -- interior and answer whichever lane is invaded, rather than each standing in its
+  -- own corridor waiting for trouble that may arrive somewhere else.
+  if structure.kind == 2 then
+    soldier.leash_node[id] = world.map.library_node[structure.team]
+  else
+    soldier.leash_node[id] = structure.node
+  end
   soldier.guard_of[id] = structure.id
 
   world.walking.place_at_node(world, id, structure.node)
@@ -123,7 +132,7 @@ end
 -- that have drifted too far turn round and go home.
 function M.guard_pass(world)
   local soldier = world.soldier
-  local leash_radius = world.parameters.structure.tower.leash_radius
+  local tower_row = world.parameters.structure.tower
 
   for _, structure in ipairs(world.structure) do
     if structure.alive == 1 and structure.kind ~= 3 then
@@ -158,9 +167,13 @@ function M.guard_pass(world)
     if soldier.alive[id] == 1 and soldier.flavour[id] == 3
        and soldier.state[id] ~= 4 and soldier.leash_node[id] ~= 0 then
       local leash = world.map.node[soldier.leash_node[id]]
+      -- A base guard has the run of the whole interior; a lane guard has its tower.
+      local tower = world.structure[soldier.guard_of[id]]
+      local radius = (tower ~= nil and tower.kind == 2)
+        and tower_row.base_leash_radius or tower_row.leash_radius
       local dx = soldier.x[id] - leash.x
       local dy = soldier.y[id] - leash.y
-      if dx * dx + dy * dy > leash_radius * leash_radius then
+      if dx * dx + dy * dy > radius * radius then
         soldier.state[id] = 4   -- leashing
       end
     end

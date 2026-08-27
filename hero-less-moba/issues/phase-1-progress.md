@@ -19,7 +19,7 @@ works blind.
 | 107 | Snapshots and replays | snapshots built, replays not |
 | 108 | The headless runner | built |
 | 109 | A terminal viewer, so we are not blind | built |
-| 110 | A scenario you can hold at the gate | not started |
+| 110 | A scenario you can hold at the gate | built, with a gate |
 
 **Blocking:** nothing. E2 used to block this phase and phase 2 — fixed point or
 floating point — and it is answered: **doubles are fine.** The project is not
@@ -54,7 +54,21 @@ systematic rather than random are in; a canonical tie-break ordering, which is w
 exact symmetry would cost, is not, because whether it is worth the price is a
 question for a person.
 
-Two things 101 asked for that were not built: a scenario you can hold at the gate
-(110), and the replay log (107). One thing it asked for that turned out to be
-already stale: 101's own text says four junctions, and the map document says three.
-See G7.
+**110 is built and it is the most useful thing in the phase.** A scenario is a
+described world in a hand-written file — which phase, which tick, which towers are
+rubble, what is placed where, what anybody is holding — loaded into a fresh world and
+**held until released**. The gate is the point: a match that starts running the instant
+it loads cannot be looked at before it moves, and the most useful moment when
+something is going wrong is almost always the tick before it does. It can be stepped a
+fixed number of ticks or run until any event the simulation already announces.
+
+It found a bug in itself immediately. Jumping the clock forward left the spawn timer a
+whole match behind, and the spawner produced every wave it thought it owed, one per
+tick — a thousand bodies in four hundred ticks. Setting the tick now moves every clock
+with it, and the spawner snaps its own forward and **says so** if it ever finds itself
+more than an interval behind.
+
+**107 is half.** Snapshots are built; the replay log is not.
+
+One thing 101 asked for that turned out to be already stale: its own text says four
+junctions, and the map document says three. See G7.

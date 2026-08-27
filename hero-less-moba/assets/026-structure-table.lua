@@ -57,6 +57,21 @@ M.tower = {
   -- How far a guard may drift from its tower before it gives up whatever it is
   -- doing and walks home.
   leash_radius  = 128,
+
+  -- And how far a **base** guard may drift, which is much further, because the three
+  -- towers inside a base share one patrol area rather than three.
+  --
+  -- **The interior of a base is one open space, not three corridors.** Guards spawned
+  -- by any base tower move to attack invaders from any lane, and what stops that
+  -- turning the base into an impenetrable ball is the towers themselves: a tower's
+  -- arrows are a plain radius around it, so in practice each one only reaches the
+  -- mouth of the lane it sits at. **Bodies flow across a base freely; arrows do not.**
+  --
+  -- The consequence worth telling players: pushing into a base means fighting every
+  -- guard in it at once, but only under the arrows of the one tower you walked past.
+  -- Splitting a push across two lanes into the same base is therefore meaningfully
+  -- better than doubling up on one, which is another shove away from tunnel vision.
+  base_leash_radius = 340,
 }
 -- }}}
 
