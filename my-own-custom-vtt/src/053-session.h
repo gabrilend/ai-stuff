@@ -36,6 +36,13 @@
  * the rollback path needs to say which turn it is restoring into, and CLOSED is
  * what a turn becomes the instant it is no longer the current one.
  */
+/*
+ * How many seats can be removed between one drain and the next. Small, because
+ * removing more than a handful of people in one beat is a mistake rather than a
+ * thing anybody meant.
+ */
+#define SESSION_MAX_EVICTIONS 8
+
 #define TURN_OPEN      0u
 #define TURN_CLOSED    1u
 
@@ -152,6 +159,21 @@ struct session {
     uint8_t *told_about;
     uint32_t told_viewers;
     uint32_t told_things;
+
+    /*
+     * Seats the table has decided to remove, waiting to be drained.
+     *
+     * QUEUED RATHER THAN DONE. Removing somebody means closing a socket and
+     * releasing a port, and the session owns neither -- the server does. So the
+     * session owns the DECISION, which went through the gauntlet like every
+     * other decision, and the server owns the sockets.
+     *
+     * Same shape as the ruleset's request queue, and for the same reason: the
+     * thing that decides and the thing that acts are different, and putting a
+     * queue between them means neither has to know about the other's timing.
+     */
+    uint32_t evicting[SESSION_MAX_EVICTIONS];
+    uint32_t evicting_count;
 
     /*
      * How many beats pass between one rollback checkpoint and the next.
@@ -282,6 +304,47 @@ void session_note_told(struct session *s, uint32_t viewer, uint32_t thing);
 
 /* Whether they were told, in the most recent update built for them. */
 int session_was_told(const struct session *s, uint32_t viewer, uint32_t thing);
+
+/*
+ * Take the list of seats to remove, and clear it.
+ *
+ * The server calls this every beat and does the socket work. Returns how many
+ * there were, which may exceed `capacity` -- the caller is told the true count
+ * so it can report having been given fewer, rather than silently dropping
+ * somebody who was supposed to be removed.
+ */
+uint32_t session_take_evictions(struct session *s, uint32_t *into,
+                                uint32_t capacity);
+
+/*
+ * Replay a turn forward without one seat's commands.
+ *
+ * The other half of "nothing checks who you are". A host who has just removed
+ * somebody wants the table to be where it would have been if that person had
+ * never touched it, and NOT to lose four other people's evening doing it.
+ *
+ * The command log already records who issued every entry, so this is the
+ * existing retcon with one condition inside it. Nothing had to be added to make
+ * it possible, which is a sign the log was recorded at the right grain.
+ *
+ * The expunged entries stay in the log, marked refused, because a log that
+ * quietly omits the parts somebody regretted is not a log.
+ *
+ * Returns 1, or 0 for the same reasons any rollback returns 0 -- the turn fell
+ * out of the ring, or its sheets could not be copied.
+ */
+int session_expunge(struct session *s, uint32_t viewer, uint32_t turn);
+
+/*
+ * The earliest turn still in the ring that this seat issued a command in, or the
+ * current turn if they issued none.
+ *
+ * What a host needs in order to ask "how far back do I have to go", and what
+ * lets a refusal say "seat 3's earliest command is in turn 41, which has fallen
+ * out of the ring" rather than "could not undo that".
+ */
+uint32_t session_earliest_turn_touched_by(const struct session *s,
+                                          uint32_t viewer);
 
 /* How deep the ring is, and how many turns it currently holds. */
 uint32_t session_ring_depth(const struct session *s);

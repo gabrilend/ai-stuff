@@ -388,7 +388,10 @@ static const struct {
      * command_apply -- the scripted path with no session behind it -- cannot
      * perform an interaction at all, which is correct rather than a hole.
      */
-    { "interact",   NULL }
+    { "interact",   NULL },
+    /* Also the session's, because removing somebody means closing a socket and
+     * this layer has never heard of one. */
+    { "evict",      NULL }
 };
 
 /* {{{ uint16_t command_check */
@@ -459,6 +462,28 @@ uint16_t command_check(struct sim *s, const struct log_entry *entry)
      * membership is sight, which the session applies because it is the only
      * thing that knows what this viewer was told about.
      */
+    /*
+     * Removing somebody is about a SEAT rather than a body, so the subject gates
+     * below do not apply to it at all -- and neither does membership, for the
+     * same reason handing a scope over does not.
+     */
+    if (entry->verb == VERB_EVICT) {
+        if (entry->viewer != 0 &&
+            !viewer_has_flag(s->world, entry->viewer, SCOPE_MAY_EDIT_WORLD)) {
+            return REFUSED_MAY_NOT_EDIT;
+        }
+
+        if (entry->subject == 0) {
+            return REFUSED_SUBJECT_IS_NOTHING;
+        }
+
+        if (entry->subject == entry->viewer) {
+            return REFUSED_NOT_YOURSELF;
+        }
+
+        return REFUSED_NOT_AT_ALL;
+    }
+
     if (entry->verb == VERB_INTERACT) {
         if (entry->subject == 0) {
             return REFUSED_SUBJECT_IS_NOTHING;
@@ -606,6 +631,11 @@ const char *refusal_sentence(uint16_t refusal)
         return "you have not been told that is there, so you cannot act on it";
     case REFUSED_NO_RULES_FOR_THAT:
         return "nothing here knows what you were trying to do";
+    case REFUSED_NOT_YOURSELF:
+        return "you cannot remove yourself from the table";
+    case REFUSED_TOO_MANY_AT_ONCE:
+        return "more people are being removed at once than the table can"
+               " process in one beat";
     case REFUSED_BY_THE_RULES:
         /*
          * A placeholder. The real sentence came from the ruleset and lives in

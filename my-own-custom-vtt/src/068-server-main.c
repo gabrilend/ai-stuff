@@ -314,6 +314,38 @@ int main(int argc, char **argv)
 
         door_drain(&d, &viewers);
 
+        /*
+         * Anybody the table decided to remove. The session owns the decision --
+         * it went through the gauntlet like every other decision -- and this owns
+         * the sockets, so the queue between them means neither has to know about
+         * the other's timing.
+         */
+        {
+            uint32_t shown_out[SESSION_MAX_EVICTIONS];
+            uint32_t asked = session_take_evictions(&session, shown_out,
+                                                    SESSION_MAX_EVICTIONS);
+            uint32_t n;
+
+            for (n = 0; n < asked && n < SESSION_MAX_EVICTIONS; n++) {
+                if (door_show_out(&d, &viewers, shown_out[n])) {
+                    bodies[shown_out[n]] = 0;
+                    printf("  seat %u was removed from the table\n",
+                           (unsigned)shown_out[n]);
+                }
+            }
+
+            /*
+             * Said rather than swallowed. Somebody who was supposed to be
+             * removed and was not is exactly the thing a host needs to know
+             * immediately.
+             */
+            if (asked > SESSION_MAX_EVICTIONS) {
+                printf("  %u seats were to be removed and only %u could be"
+                       " handled this beat -- ask again\n",
+                       (unsigned)asked, (unsigned)SESSION_MAX_EVICTIONS);
+            }
+        }
+
         for (i = 1; i < viewer_count(&viewers) && i < 64; i++) {
             struct viewer *v = viewer_at(&viewers, i);
             struct instruction in;
