@@ -57,6 +57,11 @@ hero-less-moba/
 │   │                                           like and what your hands do. Runes
 │   │                                           on the towers, and a camera that
 │   │                                           zooms out when you pick one up.
+│   ├── what-the-first-boss-looks-like ........ Four graphite drawings, and what
+│   │                                           this project should take from
+│   │                                           them. Monsters are bone, not a
+│   │                                           third team colour, and red belongs
+│   │                                           to them alone.
 │   └── vision-3 .............................. The third vision: what the enemy
 │                                               actually is. Coal statues that
 │                                               emit fear, the paladins who answer
