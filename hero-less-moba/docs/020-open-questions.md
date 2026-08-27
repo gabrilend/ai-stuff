@@ -4102,6 +4102,37 @@ is enough is still the open part**, and so is whether the middle should get
 something else besides. Option 4 — real terrain — remains the largest and is
 explicitly deferred by G3's answer.
 
+## G9. What happens to a boon nobody chose? — **OPEN**
+
+The only fallback in the prototype, and it is announced rather than silent: a boon
+still unchosen when the calm runs out is **taken for the player**, first of the two
+offered, with an event saying so.
+
+It exists because the alternative is worse. An unmade choice would sit in the offer
+table forever and quietly deny that team a modifier the other team has — a team
+punished, permanently, for one player looking away for thirty seconds.
+
+But taking it for them breaks a rule this project otherwise keeps absolutely:
+**nothing decides for a player.** Every refusal is named and handed back, no spawn is
+ever redirected, and no upgrade is ever moved except by somebody's own hand. This is
+the one place that is not true.
+
+Three ways out:
+
+1. **Keep it, and make the automatic pick visible and undoable** — the boon is taken,
+   the player is told, and they may swap it for the other one until the next surge.
+   Cheapest, and it turns a decision made for you into a default you can reject.
+2. **Hold the calm open** until everybody has picked. Honest, and it hands one
+   inattentive player a lever over five other people's match, which is a worse
+   failure than the one it fixes.
+3. **Let it lapse.** No boon, and the team is down one. Consistent with the rest of
+   the design — you were offered, you did not take it — and brutal in a game where
+   the offer arrives during the one phase with nothing else happening.
+
+The bot takes the first offered too, and that is a different decision for a different
+reason: whichever it preferred would become an invisible constant in every number a
+balance run produced.
+
 ## G7. Issue 101 describes four junctions — **OPEN**
 
 The issue that builds the path graph says the side lanes "bend once near each

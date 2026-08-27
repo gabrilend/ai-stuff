@@ -56,6 +56,11 @@ end
 
 -- {{{ local function apply_commands()
 local function apply_commands(world)
+  -- The bot thinks first, so whatever it decides is applied on this same tick and
+  -- goes through the ordinary queue -- exactly as a person's click does, and in the
+  -- same fixed order. A bot with a private path into the world would be a second
+  -- door, and the whole point of the first one is that there is only one.
+  world.bot_module.run(world)
   world.commands.apply_all(world)
 end
 -- }}}
@@ -313,6 +318,7 @@ M.cast = {
   {name = "abilities",        file = "055-abilities"},
   {name = "signposts",        file = "056-signposts"},
   {name = "phases",           file = "058-phases"},
+  {name = "bot",              file = "059-a-bot-that-plays"},
 }
 -- }}}
 
@@ -364,6 +370,7 @@ function M.assemble(modules, parameters)
   world.abilities  = modules.abilities
   world.signposts  = modules.signposts
   world.phases     = modules.phases
+  world.bot_module = modules.bot
 
   -- The three world-level helpers the systems call by name. Hung here rather than
   -- required, for the same reason as everything above.
@@ -386,6 +393,7 @@ function M.assemble(modules, parameters)
   modules.commanders.begin(world)
   modules.signposts.begin(world)
   modules.phases.begin(world)
+  modules.bot.begin(world, parameters.bots)
   -- Scratch the surge deals into, allocated once. A surge deals every upgrade a
   -- team owns across three bodies several times a second, and doing that through
   -- fresh tables would be the noisiest allocator in the game.

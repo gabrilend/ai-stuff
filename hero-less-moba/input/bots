@@ -1,0 +1,9 @@
+# Which teams are played by the bot rather than by a person.
+#
+# One team number per line, or "none". A bot behind both teams is what the balance
+# runs use; a bot behind team 2 is what a person plays against.
+#
+# The bot here is the measuring one -- cheap, deterministic, and dull on purpose.
+# An opponent worth playing against is a different program and is not built.
+1
+2

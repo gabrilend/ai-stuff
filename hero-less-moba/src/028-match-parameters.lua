@@ -176,8 +176,24 @@ function M.load()
     end
   end
 
+  -- Which teams a bot plays. Optional, and absent means nobody -- the one input
+  -- file that is allowed to be missing, because "nobody is a bot" is a real answer
+  -- rather than an unmade decision.
+  local bots = {}
+  local handle = io.open(M.root .. "/input/bots", "r")
+  if handle ~= nil then
+    handle:close()
+    for _, line in ipairs(read_input_list("bots")) do
+      local number = tonumber(line)
+      if number ~= nil then
+        bots[#bots + 1] = number
+      end
+    end
+  end
+
   return {
     root       = M.root,
+    bots       = bots,
     seed       = seed,
     team_size  = team_size,
     lane_count = team_size,
