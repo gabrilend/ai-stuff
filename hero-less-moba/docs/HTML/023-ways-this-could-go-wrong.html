@@ -1,0 +1,498 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>023 — Ways This Could Go Wrong -- hero-less-moba</title><style>:root {
+  --ground:   #0d0f13;
+  --panel:    #14171d;
+  --edge:     #232833;
+  --ink:      #c7ccd6;
+  --dim:      #7d8492;
+  --warm:     #f5a83d;
+  --cold:     #5cc7ee;
+  --bone:     #e0ded8;
+  --blood:    #b81313;
+  --green:    #78c96e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 15.5px/1.65 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+a { color: var(--cold); text-decoration: none; border-bottom: 1px solid #2b4d5c; }
+a:hover { color: var(--warm); border-bottom-color: var(--warm); }
+
+#shell { display: flex; min-height: 100vh; }
+
+#contents {
+  width: 292px; flex: 0 0 292px; background: var(--panel);
+  border-right: 1px solid var(--edge); padding: 20px 0 60px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+#contents h1 {
+  font-size: 15px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--warm); margin: 0 20px 4px; font-weight: 600;
+}
+#contents .tagline { margin: 0 20px 18px; color: var(--dim); font-size: 12.5px; font-style: italic; }
+#contents section { margin-bottom: 14px; }
+#contents h2 {
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--dim); margin: 14px 20px 5px; font-weight: 600;
+}
+#contents a {
+  display: block; padding: 3px 20px 3px 20px; border: 0;
+  font-size: 13.5px; color: var(--ink); line-height: 1.4;
+}
+#contents a:hover { background: #1b1f27; color: var(--warm); }
+#contents a.here { background: #1b1f27; color: var(--warm); border-left: 3px solid var(--warm); padding-left: 17px; }
+#contents .index { color: var(--dim); font-variant-numeric: tabular-nums; margin-right: 7px; }
+
+#filter {
+  margin: 0 20px 12px; width: calc(100% - 40px); background: var(--ground);
+  border: 1px solid var(--edge); color: var(--ink); padding: 6px 9px;
+  font: inherit; font-size: 13px; border-radius: 3px;
+}
+#filter:focus { outline: 0; border-color: var(--warm); }
+
+#page { flex: 1; min-width: 0; padding: 42px 56px 120px; max-width: 900px; }
+h1, h2, h3, h4 { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; line-height: 1.25; }
+h1 { font-size: 30px; color: var(--warm); margin: 0 0 26px; font-weight: 600; }
+h2 { font-size: 21px; color: var(--bone); margin: 38px 0 12px; font-weight: 600;
+     border-bottom: 1px solid var(--edge); padding-bottom: 7px; }
+h3 { font-size: 16.5px; color: var(--cold); margin: 26px 0 8px; font-weight: 600; }
+h4 { font-size: 14.5px; color: var(--dim); margin: 20px 0 6px;
+     text-transform: uppercase; letter-spacing: .09em; }
+p { margin: 0 0 15px; }
+strong { color: var(--bone); font-weight: 600; }
+em { color: var(--dim); }
+hr { border: 0; border-top: 1px solid var(--edge); margin: 34px 0; }
+
+blockquote {
+  margin: 20px 0; padding: 3px 0 3px 20px; border-left: 3px solid var(--warm);
+  color: var(--bone); font-style: italic;
+}
+blockquote p { margin: 0 0 8px; }
+blockquote p:last-child { margin: 0; }
+
+ul, ol { margin: 0 0 15px; padding-left: 24px; }
+li { margin-bottom: 5px; }
+
+table { border-collapse: collapse; margin: 20px 0; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+th { color: var(--dim); font-weight: 600; text-transform: uppercase;
+     letter-spacing: .08em; font-size: 11.5px; }
+tr:hover td { background: #161a21; }
+
+code {
+  font-family: "Berkeley Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px; background: #191d25; padding: 1.5px 5px; border-radius: 3px;
+  color: var(--bone);
+}
+pre {
+  background: #10131a; border: 1px solid var(--edge); border-left: 3px solid var(--cold);
+  padding: 14px 17px; overflow-x: auto; border-radius: 3px; margin: 18px 0;
+}
+pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.6; }
+
+.kw { color: #d68fd6; }
+.str { color: var(--green); }
+.num { color: var(--warm); }
+.cmt { color: #5d6472; font-style: italic; }
+
+.issue-link { border-bottom: 1px dotted var(--warm); color: var(--warm); }
+.badge {
+  display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle;
+  font-family: "Inter", sans-serif;
+}
+.badge.built { background: #1c3320; color: var(--green); }
+.badge.part  { background: #33301c; color: var(--warm); }
+.badge.none  { background: #22262e; color: var(--dim); }
+
+figure { margin: 24px 0; }
+figcaption { color: var(--dim); font-size: 13px; font-style: italic; margin-top: 8px; }
+svg { max-width: 100%; }
+
+#page > footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--edge);
+                 color: var(--dim); font-size: 13px; }
+</style></head><body><div id='shell'><nav id='contents'>
+<h1>hero-less-moba</h1>
+<p class='tagline'>a lane-pushing game with the heroes subtracted out</p>
+<input id='filter' placeholder='filter&hellip;' autocomplete='off'>
+<a href='index.html'>the front page</a>
+<section><h2>start here</h2>
+<a href='vision.html'>vision</a>
+<a href='vision-2.html'>vision-2</a>
+<a href='vision-3.html'>vision-3</a>
+<a href='what-the-first-boss-looks-like.html'>what-the-first-boss-looks-like</a>
+</section>
+<section><h2>the design</h2>
+<a href='001-what-this-game-is.html'><span class='index'>001</span>What This Game Is</a>
+<a href='002-the-map-and-its-milestones.html'><span class='index'>002</span>The Map and Its Milestones</a>
+<a href='003-the-simulation-tick.html'><span class='index'>003</span>The Simulation Tick</a>
+<a href='004-a-unit-and-what-it-carries.html'><span class='index'>004</span>A Unit and What It Carries</a>
+<a href='005-waves-and-when-one-is-finished.html'><span class='index'>005</span>Waves, and When One Is Finished</a>
+<a href='006-combat-and-damage.html'><span class='index'>006</span>Combat and Damage</a>
+<a href='007-guard-towers-and-their-guards.html'><span class='index'>007</span>Guard Towers and Their Guards</a>
+<a href='008-the-base-and-the-library.html'><span class='index'>008</span>The Base and the Library</a>
+<a href='009-the-shared-upgrade-pool.html'><span class='index'>009</span>The Shared Upgrade Pool</a>
+<a href='010-upgrades-slotted-into-stone.html'><span class='index'>010</span>Upgrades Slotted Into Stone</a>
+<a href='011-commanders-and-personal-resource.html'><span class='index'>011</span>Commanders and Personal Resource</a>
+<a href='012-hero-units.html'><span class='index'>012</span>Hero Units</a>
+<a href='013-signposts-and-lane-routing.html'><span class='index'>013</span>Sign-Posts and Lane Routing</a>
+<a href='014-the-siege-surge.html'><span class='index'>014</span>The Siege-Surge</a>
+<a href='015-boons-and-the-challenge.html'><span class='index'>015</span>Boons and the Challenge</a>
+<a href='016-players-teams-and-commands.html'><span class='index'>016</span>Players, Teams, and Commands</a>
+<a href='017-the-viewing-layer.html'><span class='index'>017</span>The Viewing Layer</a>
+<a href='018-the-shape-of-the-code.html'><span class='index'>018</span>The Shape of the Code</a>
+<a href='019-roadmap.html'><span class='index'>019</span>Roadmap</a>
+<a href='020-open-questions.html'><span class='index'>020</span>Open Questions</a>
+<a href='021-nobody-remembers-why.html'><span class='index'>021</span>Nobody Remembers Why</a>
+<a href='022-standing-off-and-falling-back.html'><span class='index'>022</span>Standing Off and Falling Back</a>
+<a href='023-ways-this-could-go-wrong.html' class='here'><span class='index'>023</span>Ways This Could Go Wrong</a>
+</section>
+<section><h2>issues</h2>
+<a href='101-the-path-graph-is-built-by-a-tool.html'><span class='index'>101</span>The Path Graph Is Built by a Tool</a>
+<a href='102-milestones-measure-a-push.html'><span class='index'>102</span>Milestones Measure a Push</a>
+<a href='103-the-world-is-flat-arrays.html'><span class='index'>103</span>The World Is Flat Arrays</a>
+<a href='104-the-tick-is-a-dispatch-table.html'><span class='index'>104</span>The Tick Is a Dispatch Table</a>
+<a href='105-randomness-comes-from-named-streams.html'><span class='index'>105</span>Randomness Comes From Named Streams</a>
+<a href='106-commands-enter-through-one-door.html'><span class='index'>106</span>Commands Enter Through One Door</a>
+<a href='107-snapshots-and-replays.html'><span class='index'>107</span>Snapshots and Replays</a>
+<a href='108-the-headless-runner.html'><span class='index'>108</span>The Headless Runner</a>
+<a href='109-a-terminal-viewer-so-we-are-not-blind.html'><span class='index'>109</span>A Terminal Viewer, So We Are Not Blind</a>
+<a href='110-a-scenario-you-can-hold-at-the-gate.html'><span class='index'>110</span>A Scenario You Can Hold at the Gate</a>
+<a href='201-a-soldier-is-one-record.html'><span class='index'>201</span>A Soldier Is One Record</a>
+<a href='202-walking-an-edge-of-the-graph.html'><span class='index'>202</span>Walking an Edge of the Graph</a>
+<a href='203-the-brain-is-five-states.html'><span class='index'>203</span>The Brain Is Five States</a>
+<a href='204-choosing-what-to-attack.html'><span class='index'>204</span>Choosing What to Attack</a>
+<a href='205-damage-is-buffered-then-applied.html'><span class='index'>205</span>Damage Is Buffered, Then Applied</a>
+<a href='206-the-frontline-is-a-queue.html'><span class='index'>206</span>The Frontline Is a Queue</a>
+<a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
+<a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
+<a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
+<a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
+<a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
+<a href='304-guards-are-leashed.html'><span class='index'>304</span>Guards Are Leashed</a>
+<a href='305-the-base-is-one-open-room.html'><span class='index'>305</span>The Base Is One Open Room</a>
+<a href='306-felling-a-tower-pays-three.html'><span class='index'>306</span>Felling a Tower Pays Three</a>
+<a href='307-the-library-ends-the-game.html'><span class='index'>307</span>The Library Ends the Game</a>
+<a href='401-the-upgrade-catalogue.html'><span class='index'>401</span>The Upgrade Catalogue</a>
+<a href='402-an-instance-is-a-thing-in-a-place.html'><span class='index'>402</span>An Instance Is a Thing in a Place</a>
+<a href='403-wiping-a-wave-draws-an-upgrade.html'><span class='index'>403</span>Wiping a Wave Draws an Upgrade</a>
+<a href='404-placing-an-upgrade-into-a-lane.html'><span class='index'>404</span>Placing an Upgrade Into a Lane</a>
+<a href='405-a-soldier-is-stamped-at-birth.html'><span class='index'>405</span>A Soldier Is Stamped at Birth</a>
+<a href='408-slotting-upgrades-into-stone.html'><span class='index'>408</span>Slotting Upgrades Into Stone</a>
+<a href='409-the-base-inherits-every-lane.html'><span class='index'>409</span>The Base Inherits Every Lane</a>
+<a href='410-the-library-slot-is-the-last-stand.html'><span class='index'>410</span>The Library Slot Is the Last Stand</a>
+<a href='411-rerolling-the-deck.html'><span class='index'>411</span>Rerolling the Deck</a>
+<a href='412-contributing-a-stone.html'><span class='index'>412</span>Contributing a Stone</a>
+<a href='413-staking-a-die-to-share.html'><span class='index'>413</span>Staking a Die to Share</a>
+<a href='501-the-commander-catalogue.html'><span class='index'>501</span>The Commander Catalogue</a>
+<a href='502-killing-pays-everyone-on-the-team.html'><span class='index'>502</span>Killing Pays Everyone on the Team</a>
+<a href='503-a-hero-is-a-soldier-you-bought.html'><span class='index'>503</span>A Hero Is a Soldier You Bought</a>
+<a href='504-abilities-are-a-dispatch-table.html'><span class='index'>504</span>Abilities Are a Dispatch Table</a>
+<a href='505-spawning-onto-a-wave.html'><span class='index'>505</span>Spawning Onto a Wave</a>
+<a href='506-spawning-onto-a-tower-and-being-pushed-back.html'><span class='index'>506</span>Spawning Onto a Tower, and Being Pushed Back</a>
+<a href='507-spawning-onto-the-library-picks-the-worst-lane.html'><span class='index'>507</span>Spawning Onto the Library Picks the Worst Lane</a>
+<a href='508-signposts-stand-at-the-corners.html'><span class='index'>508</span>Sign-Posts Stand at the Corners</a>
+<a href='509-five-heroes-for-the-first-commander.html'><span class='index'>509</span>Five Heroes for the First Commander</a>
+<a href='510-the-healers-and-what-they-remember.html'><span class='index'>510</span>The Healers, and What They Remember</a>
+<a href='601-the-phase-table.html'><span class='index'>601</span>The Phase Table</a>
+<a href='602-the-surge-turns-waves-into-a-stream.html'><span class='index'>602</span>The Surge Turns Waves Into a Stream</a>
+<a href='603-the-chest-dealt-across-the-three.html'><span class='index'>603</span>The Chest, Dealt Across the Three</a>
+<a href='605-boons-and-the-calm.html'><span class='index'>605</span>Boons, and the Calm They Are Chosen In</a>
+<a href='606-what-walks-out-of-the-middle.html'><span class='index'>606</span>What Walks Out of the Middle</a>
+<a href='607-every-lane-spawns-into-the-center.html'><span class='index'>607</span>Every Lane Spawns Into the Center</a>
+<a href='608-the-deadline-is-the-walk.html'><span class='index'>608</span>The Deadline Is the Walk</a>
+<a href='701-the-window-and-the-two-snapshots.html'><span class='index'>701</span>The Window and the Two Snapshots</a>
+<a href='702-the-map-draws-itself.html'><span class='index'>702</span>The Map Draws Itself</a>
+<a href='703-the-chest-panel-and-the-drag.html'><span class='index'>703</span>The Chest Panel and the Drag</a>
+<a href='704-locks-objections-and-refusals-are-loud.html'><span class='index'>704</span>Locks, Objections, and Refusals Are Loud</a>
+<a href='705-the-signposts-are-clickable-in-the-world.html'><span class='index'>705</span>The Sign-Posts Are Clickable in the World</a>
+<a href='706-the-documentation-becomes-html.html'><span class='index'>706</span>The Documentation Becomes HTML</a>
+<a href='707-the-way-in.html'><span class='index'>707</span>The Way In</a>
+<a href='708-the-camera-is-a-lens-you-push-into.html'><span class='index'>708</span>The Camera Is a Lens You Push Into</a>
+<a href='801-reconciling-across-machines.html'><span class='index'>801</span>Reconciling Across Machines</a>
+<a href='802-the-lobby-and-commander-selection.html'><span class='index'>802</span>The Lobby and Commander Selection</a>
+<a href='803-a-bot-that-places-upgrades.html'><span class='index'>803</span>A Bot That Places Upgrades</a>
+<a href='804-ten-thousand-matches-overnight.html'><span class='index'>804</span>Ten Thousand Matches Overnight</a>
+<a href='805-a-full-match-end-to-end.html'><span class='index'>805</span>A Full Match, End to End</a>
+<a href='806-three-people-can-finally-talk.html'><span class='index'>806</span>Three People Can Finally Talk</a>
+<a href='901-what-a-bot-is-allowed-to-see.html'><span class='index'>901</span>What a Bot Is Allowed to See</a>
+<a href='902-reading-a-board-into-a-handful-of-numbers.html'><span class='index'>902</span>Reading a Board Into a Handful of Numbers</a>
+<a href='903-a-teammate-that-does-not-trample-you.html'><span class='index'>903</span>A Teammate That Does Not Trample You</a>
+<a href='904-buying-bodies-and-pointing-them.html'><span class='index'>904</span>Buying Bodies and Pointing Them</a>
+<a href='905-difficulty-without-cheating.html'><span class='index'>905</span>Difficulty Without Cheating</a>
+<a href='906-one-person-five-bots.html'><span class='index'>906</span>One Person, Five Bots</a>
+</section>
+<section><h2>progress</h2>
+<a href='phase-1-progress.html'>Phase 1 Progress — The Ground and the Clock</a>
+<a href='phase-2-progress.html'>Phase 2 Progress — Things That Walk and Fight</a>
+<a href='phase-3-progress.html'>Phase 3 Progress — Things That Stand and Hold</a>
+<a href='phase-4-progress.html'>Phase 4 Progress — The Shared Chest</a>
+<a href='phase-5-progress.html'>Phase 5 Progress — Commanders and Heroes</a>
+<a href='phase-6-progress.html'>Phase 6 Progress — The Surge and the Challenge</a>
+<a href='phase-7-progress.html'>Phase 7 Progress — Watching It Happen</a>
+<a href='phase-8-progress.html'>Phase 8 Progress — Six Players</a>
+<a href='phase-9-progress.html'>Phase 9 Progress — An Opponent Worth Playing</a>
+</section>
+<section><h2>the simulation</h2>
+<a href='028-match-parameters.info.html'><span class='index'>028</span>match-parameters</a>
+<a href='029-random-streams.info.html'><span class='index'>029</span>random-streams</a>
+<a href='030-map-builder.info.html'><span class='index'>030</span>map-builder</a>
+<a href='031-map-validator.info.html'><span class='index'>031</span>map-validator</a>
+<a href='032-the-world.info.html'><span class='index'>032</span>the-world</a>
+<a href='033-commands.info.html'><span class='index'>033</span>commands</a>
+<a href='034-walking.info.html'><span class='index'>034</span>walking</a>
+<a href='035-targeting.info.html'><span class='index'>035</span>targeting</a>
+<a href='036-the-frontline.info.html'><span class='index'>036</span>the-frontline</a>
+<a href='037-the-brain.info.html'><span class='index'>037</span>the-brain</a>
+<a href='038-combat.info.html'><span class='index'>038</span>combat</a>
+<a href='039-waves.info.html'><span class='index'>039</span>waves</a>
+<a href='040-structures.info.html'><span class='index'>040</span>structures</a>
+<a href='041-the-chest.info.html'><span class='index'>041</span>the-chest</a>
+<a href='042-the-tick.info.html'><span class='index'>042</span>the-tick</a>
+<a href='043-snapshot.info.html'><span class='index'>043</span>snapshot</a>
+<a href='044-headless-runner.info.html'><span class='index'>044</span>headless-runner</a>
+<a href='045-terminal-viewer.info.html'><span class='index'>045</span>terminal-viewer</a>
+<a href='046-the-camera.info.html'><span class='index'>046</span>the-camera</a>
+<a href='047-the-renderer.info.html'><span class='index'>047</span>the-renderer</a>
+<a href='048-the-panel.info.html'><span class='index'>048</span>the-panel</a>
+<a href='049-input.info.html'><span class='index'>049</span>input</a>
+<a href='050-the-viewer.info.html'><span class='index'>050</span>the-viewer</a>
+<a href='052-formations.info.html'><span class='index'>052</span>formations</a>
+<a href='054-commanders.info.html'><span class='index'>054</span>commanders</a>
+<a href='055-abilities.info.html'><span class='index'>055</span>abilities</a>
+<a href='056-signposts.info.html'><span class='index'>056</span>signposts</a>
+<a href='058-phases.info.html'><span class='index'>058</span>phases</a>
+<a href='059-a-bot-that-plays.info.html'><span class='index'>059</span>a-bot-that-plays</a>
+<a href='061-the-stones.info.html'><span class='index'>061</span>the-stones</a>
+<a href='062-the-rest-of-the-brain.info.html'><span class='index'>062</span>the-rest-of-the-brain</a>
+<a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
+<a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
+</section>
+<section><h2>the catalogues</h2>
+<a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
+<a href='025-unit-table.info.html'><span class='index'>025</span>unit-table</a>
+<a href='026-structure-table.info.html'><span class='index'>026</span>structure-table</a>
+<a href='027-upgrade-table.info.html'><span class='index'>027</span>upgrade-table</a>
+<a href='053-commander-table.info.html'><span class='index'>053</span>commander-table</a>
+<a href='057-boon-table.info.html'><span class='index'>057</span>boon-table</a>
+</section>
+<section><h2>the tests</h2>
+<a href='051-the-invariants.info.html'><span class='index'>051</span>the-invariants</a>
+<a href='060-the-formation-sandbox.info.html'><span class='index'>060</span>the-formation-sandbox</a>
+</section>
+</nav><main id='page'><h1>023 — Ways This Could Go Wrong</h1>
+<p>Not open questions and not balance values. <strong>Failure modes</strong> — shapes the game</p>
+<p>could settle into that would make it worse, which nobody has decided to build and</p>
+<p>which no single rule causes.</p>
+<p>Each entry says the same four things: <strong>what it looks like</strong>, **why it would</p>
+<p>happen<strong>, </strong>what already resists it<strong>, and </strong>what would show it**. The last is the</p>
+<p>important one. A pitfall nobody can detect is a worry, and this project has</p>
+<p>enough of those.</p>
+<p>None of these is a bug. Every one of them is the game working exactly as written,</p>
+<p>arriving somewhere nobody wanted.</p>
+<hr>
+<h2>1. One lane holds everything</h2>
+<p><strong>What it looks like.</strong> A team puts every stone into the centre, buys every hero</p>
+<p>into the centre, and pushes through by weight. The other two lanes are a</p>
+<p>formality held by towers. A match becomes one fight, decided by who drew better</p>
+<p>in the first five minutes.</p>
+<p><strong>Why it would happen.</strong> Concentration beats distribution whenever the payoff is</p>
+<p>linear and the cost is not — and several things here lean that way. **The centre</p>
+<p>lane is wider**, so more bodies fight at once and a numerical advantage converts</p>
+<p>faster. <strong>Challenges funnel everything into the centre</strong> three times a match, so</p>
+<p>the centre is where the deciding fights already are. And a stacked lane is simply</p>
+<p>easier to think about than three balanced ones, which matters more than any</p>
+<p>mechanic when people are busy.</p>
+<p><strong>What already resists it</strong>, and there is more than it first appears:</p>
+<ul>
+<li><strong>Heroes carry no lane upgrades.</strong> *This is the rule that exists for this</li>
+</ul>
+<p>  pitfall specifically<em> — A14's reasoning is exactly the failure above: </em>"a team</p>
+<p>  could stack every upgrade into one lane, buy every hero into that same lane,</p>
+<p>  and get a compounding payoff for a decision it only had to make once."*</p>
+<p>  Removing it removes the main defence.</p>
+<ul>
+<li><strong>Stones belong to individual players.</strong> Three separate holdings resist</li>
+</ul>
+<p>  concentration by default; pooling them into one lane is a coordination three</p>
+<p>  people have to actively perform, and contributing to the communal pool is the</p>
+<p>  step that makes it possible.</p>
+<ul>
+<li><strong>The surge flattens it three times a match</strong>, dealing everything a team owns</li>
+</ul>
+<p>  across every lane at once.</p>
+<ul>
+<li><strong>A lane has finite towers.</strong> Three per side. Fell them and the lane stops</li>
+</ul>
+<p>  paying tower rewards, while six unclaimed towers stand in the lanes you</p>
+<p>  ignored. <strong>A won lane is a lane that has stopped earning.</strong></p>
+<ul>
+<li><strong>And every lane carries a captain, every wave</strong> — a body worth three times an</li>
+</ul>
+<p>  ordinary one in bounty. So ignoring a lane is declining to be paid, not merely</p>
+<p>  declining to fight, and it happens on every single wave.</p>
+<ul>
+<li><strong>The base guards answer any lane but the base towers do not.</strong> Splitting a push</li>
+</ul>
+<p>  across two lanes into the same base is better than doubling one, which is a</p>
+<p>  shove away from concentration at exactly the moment it matters most.</p>
+<ul>
+<li><strong>And it is matching pennies.</strong> A stacked centre against a stacked centre</li>
+</ul>
+<p>  cancels; a stacked centre against a stacked top wins one lane and loses one.</p>
+<p>  Concentration is only dominant if it is <em>unilaterally</em> dominant, and it is not.</p>
+<p><strong>What would show it.</strong> Issue 804, and it needs a specific number rather than a</p>
+<p>general watch: **the distribution of a team's stones across lanes, measured</p>
+<p>against whether that team won.** If the winners are consistently more</p>
+<p>concentrated than the losers, this pitfall is real. If there is no correlation,</p>
+<p>it is not — and *"players are allowed to put all their upgrades in one lane, this</p>
+<p>is fine"* stays true, as the vision says it should.</p>
+<p>Watch two supporting figures beside it: <strong>which lane</strong> the concentration happens</p>
+<p>in (if it is always the centre, the width is the cause), and <strong>how early</strong> it</p>
+<p>starts (if teams commit in the first three minutes, the problem is that nothing</p>
+<p>punishes an early wrong guess).</p>
+<p><strong>What to try, if it is real</strong>, in the order worth trying:</p>
+<ul>
+<li><strong>Lean harder on the captains, which are already there.</strong> Every lane gets a</li>
+</ul>
+<p>   captain every wave, and a captain pays three dice where an ordinary body pays</p>
+<p>   one — so <strong>a lane you never contest is a captain you never collect</strong>, three</p>
+<p>   times a wave, for the whole match. The income pressure against ignoring a lane</p>
+<p>   already exists and is uniform across all of them.</p>
+<p>   Which means the first thing to try is not a new mechanic but a <strong>number</strong>: if</p>
+<p>   concentration is winning, the captain's bounty multiple is too small relative</p>
+<p>   to what a stacked lane earns by killing faster. Raising it makes the third</p>
+<p>   lane's captain worth going to get. That is a balance change rather than a</p>
+<p>   rule, which is the cheapest kind of fix and the first one to reach for.</p>
+<ul>
+<li><strong>Narrow the centre and widen the challenge.</strong> The centre is wide because a</li>
+</ul>
+<p>   monster must fight a whole team at once. That is a requirement of the</p>
+<p>   <em>challenge</em>, not of normal play, and it could be met by the challenge widening</p>
+<p>   the corridor while it runs rather than by the lane being permanently broad.</p>
+<p>   Costs a rule that switches on, which this design has avoided — but it removes</p>
+<p>   the strongest structural pull toward the middle.</p>
+<ul>
+<li><strong>Diminishing returns per lane.</strong> The simplest and the worst. It works, it is</li>
+</ul>
+<p>   arbitrary, it contradicts the vision directly, and it makes a player's</p>
+<p>   twentieth stone feel like a punishment for having played well. Last resort.</p>
+<p><strong>And the thing not to do</strong>, because it is the tempting one: **do not let heroes</p>
+<p>inherit lane upgrades.** It looks like it would encourage spreading, since a hero</p>
+<p>would want to walk where the stones are. It does the opposite — it makes stacking</p>
+<p>one lane pay twice for the same decision, which is the exact compounding A14 was</p>
+<p>written to prevent. The reason it looks appealing is a different problem that has</p>
+<p>already been solved: healers needed to scale with their lane, and they do, because</p>
+<p><strong>healers are wave units</strong> (F40).</p>
+<hr>
+<h2>2. The board becomes something people agree in chat and then execute</h2>
+<p><strong>What it looks like.</strong> Three players discuss the arrangement in text, reach a</p>
+<p>plan, and then spend the match carrying it out. The placement layer stops being</p>
+<p>where decisions happen and becomes data entry.</p>
+<p><strong>Why it would happen.</strong> Talking is faster than acting, and a plan agreed in</p>
+<p>words is easier to hold than one negotiated through the board.</p>
+<p><strong>What already resists it.</strong> Chat is deliberately the weakest verb — rate</p>
+<p>limited, ignorable, and silent when ignored. The two involuntary verbs (a synced</p>
+<p>cursor, a placement that announces itself for a whole wave) mean a great deal is</p>
+<p>communicated without anybody choosing to. And a placement takes a wave to land,</p>
+<p>so a plan agreed now describes a board two waves from now.</p>
+<p><strong>What would show it.</strong> Nothing measures this. It needs six people in a room, and</p>
+<p>the tell is whether locking — sorry, <strong>contributing and dismissing</strong> — get used at</p>
+<p>all, or whether everything is settled before anybody touches a stone. Tracked as</p>
+<p>F26.</p>
+<hr>
+<h2>3. Captains make heroes feel pointless</h2>
+<p><strong>What it looks like.</strong> A captain is 2.5× health and 1.5× damage <em>and</em> carries its</p>
+<p>lane's stones. A hero is roughly 2.5× combat weight and carries nothing. In a</p>
+<p>lane holding a dozen stones the captain is enormous and the hero beside it is</p>
+<p>not, so buying a hero feels like buying a worse version of something that arrives</p>
+<p>free.</p>
+<p><strong>Why it would happen.</strong> It is the chest economy out-scaling the wallet economy,</p>
+<p>which is <strong>correct</strong> — the chest is the slow accumulating layer and should win a</p>
+<p>long game. The pitfall is not the scaling; it is the scaling being *legible as a</p>
+<p>comparison*, because the two bodies stand next to each other in the same lane.</p>
+<p><strong>What already resists it.</strong> A hero brings <strong>abilities and timing</strong> — it arrives</p>
+<p>where and when you choose and does something a wave unit cannot do at all. That</p>
+<p>is a different axis from strength, and heroes are the only bodies on it.</p>
+<p><strong>What would show it.</strong> Hero purchase rate late in a match compared with early.</p>
+<p>If players stop buying heroes once lanes are well stocked, the roster is the</p>
+<p>problem rather than the captain — and issue <a class='issue-link' href='804-ten-thousand-matches-overnight.html'>804</a> should report the two curves</p>
+<p>together.</p>
+<hr>
+<h2>4. A flat catalogue turns "no comeback mechanic" into "no comeback"</h2>
+<p><strong>What it looks like.</strong> Whichever team wins the first few minutes wins the match,</p>
+<p>because nothing they could have drawn later would have changed the shape of it.</p>
+<p><strong>Why it would happen.</strong> C3 blessed the snowball on an explicit condition: **the</p>
+<p>catalogue must contain kinds whose value changes across a match**, some strong</p>
+<p>immediately and fading, some weak on a bare body and enormous on a stacked one.</p>
+<p>Without that, a stone drawn at minute twenty is worth what one drawn at minute two</p>
+<p>was worth, and a team that fell behind can never out-place its way back.</p>
+<p><strong>What already resists it.</strong> Nothing yet. The catalogue is unwritten and this is</p>
+<p>a requirement on it, recorded with B7.</p>
+<p><strong>What would show it.</strong> Not <em>does the leader win too often</em> — the leader is</p>
+<p>supposed to win. **Does a team that fell behind and then out-placed its opponent</p>
+<p>ever come back?** If never, the catalogue is flat. Issue 804.</p>
+<hr>
+<h2>5. Asking becomes nagging</h2>
+<p><strong>What it looks like.</strong> A player spends the match pointing at teammates' stones</p>
+<p>and requesting them, one after another. The request verb becomes a channel for</p>
+<p>managing other people's pockets, which is the thing it was built to prevent.</p>
+<p><strong>Why it would happen.</strong> Asking is free and giving is not.</p>
+<p><strong>What already resists it.</strong> One outstanding request at a time, rate limited,</p>
+<p>expiring on its own, addressed to a specific stone rather than to a person — and</p>
+<p><strong>ignoring one is free and silent</strong>, with no notification and no record. A request</p>
+<p>that can be held against you is a demand.</p>
+<p><strong>What would show it.</strong> Requests issued per player per match, against requests</p>
+<p>granted. A high ratio of asked-to-given is the tell.</p>
+<hr>
+<h2>6. The bot teammate teaches people not to touch the board</h2>
+<p><strong>What it looks like.</strong> A person playing alone places a stone, a bot re-places it</p>
+<p>a few seconds later, and the person stops bothering. Single-player becomes</p>
+<p>watching.</p>
+<p><strong>Why it would happen.</strong> Nothing in the simulation stops a bot from moving a</p>
+<p>communal stone, because nothing stops a <em>person</em> either — that is the whole point</p>
+<p>of the communal pool. The restraint has to live inside the bot, where it fails</p>
+<p>silently.</p>
+<p><strong>What already resists it.</strong> The rule is written down (issue <a class='issue-link' href='903-a-teammate-that-does-not-trample-you.html'>903</a>) and asserted in</p>
+<p>a test. That is thinner protection than a rule the simulation enforces, and the</p>
+<p>issue says so.</p>
+<p><strong>What would show it.</strong> A person playing a match and being asked afterwards</p>
+<p>whether they felt like it was their board. There is no instrument for this one.</p>
+<hr>
+<h2>7. Fear is not fun</h2>
+<p><strong>What it looks like.</strong> Fear <em>"subtly diminishing decision-making"</em> is a status</p>
+<p>effect on a <strong>player</strong> rather than on a body — the only thing in this design that</p>
+<p>reaches through the screen. Done badly it is a game that makes your interface</p>
+<p>worse while you are losing, which is a punishment for being behind, arriving</p>
+<p>exactly when a player is least able to enjoy it.</p>
+<p><strong>Why it would happen.</strong> It is a genuinely novel idea, and novel ideas about</p>
+<p>player-facing degradation have a poor record.</p>
+<p><strong>What already resists it.</strong> Nothing built yet. Fortitude answers fear, which</p>
+<p>means there is a counter-play — that is the thing to protect. **Fear a player can</p>
+<p>do nothing about is the failure; fear they can answer is the mechanic.**</p>
+<p><strong>What would show it.</strong> Whether anybody enjoys the third challenge.</p>
+<hr>
+<p>Related: <a href='020-open-questions.html'>open questions</a> for decisions rather than</p>
+<p>failure modes · <a href='019-roadmap.html'>the roadmap</a>, whose "deliberately not in any</p>
+<p>phase" list is the sibling of this page — things ruled out rather than watched</p>
+<p>for.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+// Filtering the contents. The only script on the page, and it exists because there
+// are more than eighty documents here and scrolling a list of eighty things to find
+// one is not navigation.
+var box = document.getElementById('filter');
+box.addEventListener('input', function () {
+  var want = box.value.toLowerCase();
+  var rail = document.getElementById('contents');
+  rail.querySelectorAll('section').forEach(function (section) {
+    var shown = 0;
+    section.querySelectorAll('a').forEach(function (link) {
+      var match = link.textContent.toLowerCase().indexOf(want) !== -1;
+      link.style.display = match ? '' : 'none';
+      if (match) { shown++; }
+    });
+    section.style.display = shown ? '' : 'none';
+  });
+});
+</script>
+</body></html>

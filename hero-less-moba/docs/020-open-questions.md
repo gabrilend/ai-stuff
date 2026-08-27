@@ -4010,7 +4010,7 @@ and is raised as **G8** rather than buried in this answer.
 **Changed:** issue 206, which is now a formation issue rather than a queue issue,
 and keeps the paragraph above verbatim.
 
-## G4. Is one draw per wave wipe far too generous? — **AWAITING EVIDENCE**
+## G4. Is one draw per wave wipe far too generous? — **ANSWERED, and it was the wrong question**
 
 Measured rather than argued, so it belongs in Group B's spirit even though it was
 found here.
@@ -4034,6 +4034,25 @@ Three readings, and they are not exclusive:
 The third is most likely and is why this is awaiting evidence rather than open:
 the number should be re-measured once a match can actually end, not tuned now
 against a match shape that will not exist.
+
+### The evidence, and it reverses the question
+
+Twelve matches, both sides played, every one of them finishing: **167 upgrades drawn
+per match and 89% of them placed.**
+
+So the draw rate is not too generous. The chest is not filling faster than a team can
+empty it — a team that is *playing* empties nearly all of it. The hundred and ninety
+unplaced stones that prompted this question were the product of a match with **nobody
+in the chair**, which is not a finding about the economy at all.
+
+That is worth keeping as a lesson rather than just an answer. The measurement was taken
+from an unattended match because that was the only kind of match that existed, and it
+described the absence of a player rather than the design. **A number taken from a game
+nobody is playing is a number about nobody playing.**
+
+What the same run *did* turn up is a real imbalance, and it is on the other side of the
+economy: five hundred heroes bought per match and five thousand points of income
+thrown away on top of that. See `balance-updates.md`. The wallet, not the chest.
 
 ## G5. Should the side lanes be so much longer than the centre? — **OPEN**
 

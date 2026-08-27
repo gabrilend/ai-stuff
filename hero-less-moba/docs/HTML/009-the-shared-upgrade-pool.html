@@ -1,0 +1,762 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>009 — The Shared Upgrade Pool -- hero-less-moba</title><style>:root {
+  --ground:   #0d0f13;
+  --panel:    #14171d;
+  --edge:     #232833;
+  --ink:      #c7ccd6;
+  --dim:      #7d8492;
+  --warm:     #f5a83d;
+  --cold:     #5cc7ee;
+  --bone:     #e0ded8;
+  --blood:    #b81313;
+  --green:    #78c96e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 15.5px/1.65 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+a { color: var(--cold); text-decoration: none; border-bottom: 1px solid #2b4d5c; }
+a:hover { color: var(--warm); border-bottom-color: var(--warm); }
+
+#shell { display: flex; min-height: 100vh; }
+
+#contents {
+  width: 292px; flex: 0 0 292px; background: var(--panel);
+  border-right: 1px solid var(--edge); padding: 20px 0 60px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+#contents h1 {
+  font-size: 15px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--warm); margin: 0 20px 4px; font-weight: 600;
+}
+#contents .tagline { margin: 0 20px 18px; color: var(--dim); font-size: 12.5px; font-style: italic; }
+#contents section { margin-bottom: 14px; }
+#contents h2 {
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--dim); margin: 14px 20px 5px; font-weight: 600;
+}
+#contents a {
+  display: block; padding: 3px 20px 3px 20px; border: 0;
+  font-size: 13.5px; color: var(--ink); line-height: 1.4;
+}
+#contents a:hover { background: #1b1f27; color: var(--warm); }
+#contents a.here { background: #1b1f27; color: var(--warm); border-left: 3px solid var(--warm); padding-left: 17px; }
+#contents .index { color: var(--dim); font-variant-numeric: tabular-nums; margin-right: 7px; }
+
+#filter {
+  margin: 0 20px 12px; width: calc(100% - 40px); background: var(--ground);
+  border: 1px solid var(--edge); color: var(--ink); padding: 6px 9px;
+  font: inherit; font-size: 13px; border-radius: 3px;
+}
+#filter:focus { outline: 0; border-color: var(--warm); }
+
+#page { flex: 1; min-width: 0; padding: 42px 56px 120px; max-width: 900px; }
+h1, h2, h3, h4 { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; line-height: 1.25; }
+h1 { font-size: 30px; color: var(--warm); margin: 0 0 26px; font-weight: 600; }
+h2 { font-size: 21px; color: var(--bone); margin: 38px 0 12px; font-weight: 600;
+     border-bottom: 1px solid var(--edge); padding-bottom: 7px; }
+h3 { font-size: 16.5px; color: var(--cold); margin: 26px 0 8px; font-weight: 600; }
+h4 { font-size: 14.5px; color: var(--dim); margin: 20px 0 6px;
+     text-transform: uppercase; letter-spacing: .09em; }
+p { margin: 0 0 15px; }
+strong { color: var(--bone); font-weight: 600; }
+em { color: var(--dim); }
+hr { border: 0; border-top: 1px solid var(--edge); margin: 34px 0; }
+
+blockquote {
+  margin: 20px 0; padding: 3px 0 3px 20px; border-left: 3px solid var(--warm);
+  color: var(--bone); font-style: italic;
+}
+blockquote p { margin: 0 0 8px; }
+blockquote p:last-child { margin: 0; }
+
+ul, ol { margin: 0 0 15px; padding-left: 24px; }
+li { margin-bottom: 5px; }
+
+table { border-collapse: collapse; margin: 20px 0; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+th { color: var(--dim); font-weight: 600; text-transform: uppercase;
+     letter-spacing: .08em; font-size: 11.5px; }
+tr:hover td { background: #161a21; }
+
+code {
+  font-family: "Berkeley Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px; background: #191d25; padding: 1.5px 5px; border-radius: 3px;
+  color: var(--bone);
+}
+pre {
+  background: #10131a; border: 1px solid var(--edge); border-left: 3px solid var(--cold);
+  padding: 14px 17px; overflow-x: auto; border-radius: 3px; margin: 18px 0;
+}
+pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.6; }
+
+.kw { color: #d68fd6; }
+.str { color: var(--green); }
+.num { color: var(--warm); }
+.cmt { color: #5d6472; font-style: italic; }
+
+.issue-link { border-bottom: 1px dotted var(--warm); color: var(--warm); }
+.badge {
+  display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle;
+  font-family: "Inter", sans-serif;
+}
+.badge.built { background: #1c3320; color: var(--green); }
+.badge.part  { background: #33301c; color: var(--warm); }
+.badge.none  { background: #22262e; color: var(--dim); }
+
+figure { margin: 24px 0; }
+figcaption { color: var(--dim); font-size: 13px; font-style: italic; margin-top: 8px; }
+svg { max-width: 100%; }
+
+#page > footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--edge);
+                 color: var(--dim); font-size: 13px; }
+</style></head><body><div id='shell'><nav id='contents'>
+<h1>hero-less-moba</h1>
+<p class='tagline'>a lane-pushing game with the heroes subtracted out</p>
+<input id='filter' placeholder='filter&hellip;' autocomplete='off'>
+<a href='index.html'>the front page</a>
+<section><h2>start here</h2>
+<a href='vision.html'>vision</a>
+<a href='vision-2.html'>vision-2</a>
+<a href='vision-3.html'>vision-3</a>
+<a href='what-the-first-boss-looks-like.html'>what-the-first-boss-looks-like</a>
+</section>
+<section><h2>the design</h2>
+<a href='001-what-this-game-is.html'><span class='index'>001</span>What This Game Is</a>
+<a href='002-the-map-and-its-milestones.html'><span class='index'>002</span>The Map and Its Milestones</a>
+<a href='003-the-simulation-tick.html'><span class='index'>003</span>The Simulation Tick</a>
+<a href='004-a-unit-and-what-it-carries.html'><span class='index'>004</span>A Unit and What It Carries</a>
+<a href='005-waves-and-when-one-is-finished.html'><span class='index'>005</span>Waves, and When One Is Finished</a>
+<a href='006-combat-and-damage.html'><span class='index'>006</span>Combat and Damage</a>
+<a href='007-guard-towers-and-their-guards.html'><span class='index'>007</span>Guard Towers and Their Guards</a>
+<a href='008-the-base-and-the-library.html'><span class='index'>008</span>The Base and the Library</a>
+<a href='009-the-shared-upgrade-pool.html' class='here'><span class='index'>009</span>The Shared Upgrade Pool</a>
+<a href='010-upgrades-slotted-into-stone.html'><span class='index'>010</span>Upgrades Slotted Into Stone</a>
+<a href='011-commanders-and-personal-resource.html'><span class='index'>011</span>Commanders and Personal Resource</a>
+<a href='012-hero-units.html'><span class='index'>012</span>Hero Units</a>
+<a href='013-signposts-and-lane-routing.html'><span class='index'>013</span>Sign-Posts and Lane Routing</a>
+<a href='014-the-siege-surge.html'><span class='index'>014</span>The Siege-Surge</a>
+<a href='015-boons-and-the-challenge.html'><span class='index'>015</span>Boons and the Challenge</a>
+<a href='016-players-teams-and-commands.html'><span class='index'>016</span>Players, Teams, and Commands</a>
+<a href='017-the-viewing-layer.html'><span class='index'>017</span>The Viewing Layer</a>
+<a href='018-the-shape-of-the-code.html'><span class='index'>018</span>The Shape of the Code</a>
+<a href='019-roadmap.html'><span class='index'>019</span>Roadmap</a>
+<a href='020-open-questions.html'><span class='index'>020</span>Open Questions</a>
+<a href='021-nobody-remembers-why.html'><span class='index'>021</span>Nobody Remembers Why</a>
+<a href='022-standing-off-and-falling-back.html'><span class='index'>022</span>Standing Off and Falling Back</a>
+<a href='023-ways-this-could-go-wrong.html'><span class='index'>023</span>Ways This Could Go Wrong</a>
+</section>
+<section><h2>issues</h2>
+<a href='101-the-path-graph-is-built-by-a-tool.html'><span class='index'>101</span>The Path Graph Is Built by a Tool</a>
+<a href='102-milestones-measure-a-push.html'><span class='index'>102</span>Milestones Measure a Push</a>
+<a href='103-the-world-is-flat-arrays.html'><span class='index'>103</span>The World Is Flat Arrays</a>
+<a href='104-the-tick-is-a-dispatch-table.html'><span class='index'>104</span>The Tick Is a Dispatch Table</a>
+<a href='105-randomness-comes-from-named-streams.html'><span class='index'>105</span>Randomness Comes From Named Streams</a>
+<a href='106-commands-enter-through-one-door.html'><span class='index'>106</span>Commands Enter Through One Door</a>
+<a href='107-snapshots-and-replays.html'><span class='index'>107</span>Snapshots and Replays</a>
+<a href='108-the-headless-runner.html'><span class='index'>108</span>The Headless Runner</a>
+<a href='109-a-terminal-viewer-so-we-are-not-blind.html'><span class='index'>109</span>A Terminal Viewer, So We Are Not Blind</a>
+<a href='110-a-scenario-you-can-hold-at-the-gate.html'><span class='index'>110</span>A Scenario You Can Hold at the Gate</a>
+<a href='201-a-soldier-is-one-record.html'><span class='index'>201</span>A Soldier Is One Record</a>
+<a href='202-walking-an-edge-of-the-graph.html'><span class='index'>202</span>Walking an Edge of the Graph</a>
+<a href='203-the-brain-is-five-states.html'><span class='index'>203</span>The Brain Is Five States</a>
+<a href='204-choosing-what-to-attack.html'><span class='index'>204</span>Choosing What to Attack</a>
+<a href='205-damage-is-buffered-then-applied.html'><span class='index'>205</span>Damage Is Buffered, Then Applied</a>
+<a href='206-the-frontline-is-a-queue.html'><span class='index'>206</span>The Frontline Is a Queue</a>
+<a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
+<a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
+<a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
+<a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
+<a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
+<a href='304-guards-are-leashed.html'><span class='index'>304</span>Guards Are Leashed</a>
+<a href='305-the-base-is-one-open-room.html'><span class='index'>305</span>The Base Is One Open Room</a>
+<a href='306-felling-a-tower-pays-three.html'><span class='index'>306</span>Felling a Tower Pays Three</a>
+<a href='307-the-library-ends-the-game.html'><span class='index'>307</span>The Library Ends the Game</a>
+<a href='401-the-upgrade-catalogue.html'><span class='index'>401</span>The Upgrade Catalogue</a>
+<a href='402-an-instance-is-a-thing-in-a-place.html'><span class='index'>402</span>An Instance Is a Thing in a Place</a>
+<a href='403-wiping-a-wave-draws-an-upgrade.html'><span class='index'>403</span>Wiping a Wave Draws an Upgrade</a>
+<a href='404-placing-an-upgrade-into-a-lane.html'><span class='index'>404</span>Placing an Upgrade Into a Lane</a>
+<a href='405-a-soldier-is-stamped-at-birth.html'><span class='index'>405</span>A Soldier Is Stamped at Birth</a>
+<a href='408-slotting-upgrades-into-stone.html'><span class='index'>408</span>Slotting Upgrades Into Stone</a>
+<a href='409-the-base-inherits-every-lane.html'><span class='index'>409</span>The Base Inherits Every Lane</a>
+<a href='410-the-library-slot-is-the-last-stand.html'><span class='index'>410</span>The Library Slot Is the Last Stand</a>
+<a href='411-rerolling-the-deck.html'><span class='index'>411</span>Rerolling the Deck</a>
+<a href='412-contributing-a-stone.html'><span class='index'>412</span>Contributing a Stone</a>
+<a href='413-staking-a-die-to-share.html'><span class='index'>413</span>Staking a Die to Share</a>
+<a href='501-the-commander-catalogue.html'><span class='index'>501</span>The Commander Catalogue</a>
+<a href='502-killing-pays-everyone-on-the-team.html'><span class='index'>502</span>Killing Pays Everyone on the Team</a>
+<a href='503-a-hero-is-a-soldier-you-bought.html'><span class='index'>503</span>A Hero Is a Soldier You Bought</a>
+<a href='504-abilities-are-a-dispatch-table.html'><span class='index'>504</span>Abilities Are a Dispatch Table</a>
+<a href='505-spawning-onto-a-wave.html'><span class='index'>505</span>Spawning Onto a Wave</a>
+<a href='506-spawning-onto-a-tower-and-being-pushed-back.html'><span class='index'>506</span>Spawning Onto a Tower, and Being Pushed Back</a>
+<a href='507-spawning-onto-the-library-picks-the-worst-lane.html'><span class='index'>507</span>Spawning Onto the Library Picks the Worst Lane</a>
+<a href='508-signposts-stand-at-the-corners.html'><span class='index'>508</span>Sign-Posts Stand at the Corners</a>
+<a href='509-five-heroes-for-the-first-commander.html'><span class='index'>509</span>Five Heroes for the First Commander</a>
+<a href='510-the-healers-and-what-they-remember.html'><span class='index'>510</span>The Healers, and What They Remember</a>
+<a href='601-the-phase-table.html'><span class='index'>601</span>The Phase Table</a>
+<a href='602-the-surge-turns-waves-into-a-stream.html'><span class='index'>602</span>The Surge Turns Waves Into a Stream</a>
+<a href='603-the-chest-dealt-across-the-three.html'><span class='index'>603</span>The Chest, Dealt Across the Three</a>
+<a href='605-boons-and-the-calm.html'><span class='index'>605</span>Boons, and the Calm They Are Chosen In</a>
+<a href='606-what-walks-out-of-the-middle.html'><span class='index'>606</span>What Walks Out of the Middle</a>
+<a href='607-every-lane-spawns-into-the-center.html'><span class='index'>607</span>Every Lane Spawns Into the Center</a>
+<a href='608-the-deadline-is-the-walk.html'><span class='index'>608</span>The Deadline Is the Walk</a>
+<a href='701-the-window-and-the-two-snapshots.html'><span class='index'>701</span>The Window and the Two Snapshots</a>
+<a href='702-the-map-draws-itself.html'><span class='index'>702</span>The Map Draws Itself</a>
+<a href='703-the-chest-panel-and-the-drag.html'><span class='index'>703</span>The Chest Panel and the Drag</a>
+<a href='704-locks-objections-and-refusals-are-loud.html'><span class='index'>704</span>Locks, Objections, and Refusals Are Loud</a>
+<a href='705-the-signposts-are-clickable-in-the-world.html'><span class='index'>705</span>The Sign-Posts Are Clickable in the World</a>
+<a href='706-the-documentation-becomes-html.html'><span class='index'>706</span>The Documentation Becomes HTML</a>
+<a href='707-the-way-in.html'><span class='index'>707</span>The Way In</a>
+<a href='708-the-camera-is-a-lens-you-push-into.html'><span class='index'>708</span>The Camera Is a Lens You Push Into</a>
+<a href='801-reconciling-across-machines.html'><span class='index'>801</span>Reconciling Across Machines</a>
+<a href='802-the-lobby-and-commander-selection.html'><span class='index'>802</span>The Lobby and Commander Selection</a>
+<a href='803-a-bot-that-places-upgrades.html'><span class='index'>803</span>A Bot That Places Upgrades</a>
+<a href='804-ten-thousand-matches-overnight.html'><span class='index'>804</span>Ten Thousand Matches Overnight</a>
+<a href='805-a-full-match-end-to-end.html'><span class='index'>805</span>A Full Match, End to End</a>
+<a href='806-three-people-can-finally-talk.html'><span class='index'>806</span>Three People Can Finally Talk</a>
+<a href='901-what-a-bot-is-allowed-to-see.html'><span class='index'>901</span>What a Bot Is Allowed to See</a>
+<a href='902-reading-a-board-into-a-handful-of-numbers.html'><span class='index'>902</span>Reading a Board Into a Handful of Numbers</a>
+<a href='903-a-teammate-that-does-not-trample-you.html'><span class='index'>903</span>A Teammate That Does Not Trample You</a>
+<a href='904-buying-bodies-and-pointing-them.html'><span class='index'>904</span>Buying Bodies and Pointing Them</a>
+<a href='905-difficulty-without-cheating.html'><span class='index'>905</span>Difficulty Without Cheating</a>
+<a href='906-one-person-five-bots.html'><span class='index'>906</span>One Person, Five Bots</a>
+</section>
+<section><h2>progress</h2>
+<a href='phase-1-progress.html'>Phase 1 Progress — The Ground and the Clock</a>
+<a href='phase-2-progress.html'>Phase 2 Progress — Things That Walk and Fight</a>
+<a href='phase-3-progress.html'>Phase 3 Progress — Things That Stand and Hold</a>
+<a href='phase-4-progress.html'>Phase 4 Progress — The Shared Chest</a>
+<a href='phase-5-progress.html'>Phase 5 Progress — Commanders and Heroes</a>
+<a href='phase-6-progress.html'>Phase 6 Progress — The Surge and the Challenge</a>
+<a href='phase-7-progress.html'>Phase 7 Progress — Watching It Happen</a>
+<a href='phase-8-progress.html'>Phase 8 Progress — Six Players</a>
+<a href='phase-9-progress.html'>Phase 9 Progress — An Opponent Worth Playing</a>
+</section>
+<section><h2>the simulation</h2>
+<a href='028-match-parameters.info.html'><span class='index'>028</span>match-parameters</a>
+<a href='029-random-streams.info.html'><span class='index'>029</span>random-streams</a>
+<a href='030-map-builder.info.html'><span class='index'>030</span>map-builder</a>
+<a href='031-map-validator.info.html'><span class='index'>031</span>map-validator</a>
+<a href='032-the-world.info.html'><span class='index'>032</span>the-world</a>
+<a href='033-commands.info.html'><span class='index'>033</span>commands</a>
+<a href='034-walking.info.html'><span class='index'>034</span>walking</a>
+<a href='035-targeting.info.html'><span class='index'>035</span>targeting</a>
+<a href='036-the-frontline.info.html'><span class='index'>036</span>the-frontline</a>
+<a href='037-the-brain.info.html'><span class='index'>037</span>the-brain</a>
+<a href='038-combat.info.html'><span class='index'>038</span>combat</a>
+<a href='039-waves.info.html'><span class='index'>039</span>waves</a>
+<a href='040-structures.info.html'><span class='index'>040</span>structures</a>
+<a href='041-the-chest.info.html'><span class='index'>041</span>the-chest</a>
+<a href='042-the-tick.info.html'><span class='index'>042</span>the-tick</a>
+<a href='043-snapshot.info.html'><span class='index'>043</span>snapshot</a>
+<a href='044-headless-runner.info.html'><span class='index'>044</span>headless-runner</a>
+<a href='045-terminal-viewer.info.html'><span class='index'>045</span>terminal-viewer</a>
+<a href='046-the-camera.info.html'><span class='index'>046</span>the-camera</a>
+<a href='047-the-renderer.info.html'><span class='index'>047</span>the-renderer</a>
+<a href='048-the-panel.info.html'><span class='index'>048</span>the-panel</a>
+<a href='049-input.info.html'><span class='index'>049</span>input</a>
+<a href='050-the-viewer.info.html'><span class='index'>050</span>the-viewer</a>
+<a href='052-formations.info.html'><span class='index'>052</span>formations</a>
+<a href='054-commanders.info.html'><span class='index'>054</span>commanders</a>
+<a href='055-abilities.info.html'><span class='index'>055</span>abilities</a>
+<a href='056-signposts.info.html'><span class='index'>056</span>signposts</a>
+<a href='058-phases.info.html'><span class='index'>058</span>phases</a>
+<a href='059-a-bot-that-plays.info.html'><span class='index'>059</span>a-bot-that-plays</a>
+<a href='061-the-stones.info.html'><span class='index'>061</span>the-stones</a>
+<a href='062-the-rest-of-the-brain.info.html'><span class='index'>062</span>the-rest-of-the-brain</a>
+<a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
+<a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
+</section>
+<section><h2>the catalogues</h2>
+<a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
+<a href='025-unit-table.info.html'><span class='index'>025</span>unit-table</a>
+<a href='026-structure-table.info.html'><span class='index'>026</span>structure-table</a>
+<a href='027-upgrade-table.info.html'><span class='index'>027</span>upgrade-table</a>
+<a href='053-commander-table.info.html'><span class='index'>053</span>commander-table</a>
+<a href='057-boon-table.info.html'><span class='index'>057</span>boon-table</a>
+</section>
+<section><h2>the tests</h2>
+<a href='051-the-invariants.info.html'><span class='index'>051</span>the-invariants</a>
+<a href='060-the-formation-sandbox.info.html'><span class='index'>060</span>the-formation-sandbox</a>
+</section>
+</nav><main id='page'><h1>009 — The Shared Upgrade Pool</h1>
+<p><strong>Datapath document.</strong> Covers the chest: what an upgrade is, how one is drawn,</p>
+<p>where it can be put, and the lock-and-objection negotiation that keeps three players</p>
+<p>from undoing each other's work.</p>
+<p>This is the centre of the game. Everything else feeds it or is fed by it.</p>
+<h2>An upgrade is an instance of a kind</h2>
+<p>Two records, and keeping them apart matters.</p>
+<h3>upgrade kind — the catalogue, fixed at build time</h3>
+<table><thead>
+<tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>id</code></td><td>integer</td><td>Row in the catalogue.</td></tr>
+<tr><td><code>name</code></td><td>string</td><td>Shown to players.</td></tr>
+<tr><td><code>weight</code></td><td>integer</td><td>Relative likelihood of being drawn.</td></tr>
+<tr><td><code>index</code></td><td>integer</td><td>Which slot this kind occupies in a body's upgrade count vector.</td></tr>
+<tr><td><code>add</code></td><td>double[]</td><td>Flat additions, one per modifiable stat.</td></tr>
+<tr><td><code>mul</code></td><td>double[]</td><td>Multipliers, one per modifiable stat.</td></tr>
+<tr><td><code>behaviour</code></td><td>integer</td><td>Index into a behaviour dispatch table, or <strong>0</strong> for a pure stat change.</td></tr>
+</tbody></table>
+<p>The modifiable stats are the soldier fields worth touching: damage, armour,</p>
+<p>health, range, speed, attack cooldown. Behaviours are for anything that is not a</p>
+<p>number — a splash on hit, a death rattle, a shield on the front rank. They are</p>
+<p>dispatch-table entries so that adding one is adding a row, not editing the combat</p>
+<p>loop.</p>
+<h3>There is one kind of upgrade, and no field says who it is for</h3>
+<p><strong>Nothing in that record tags an audience</strong>, and that is deliberate. *Settled;</p>
+<p>see <a href='020-open-questions.html'>open questions</a>, F28.* An upgrade modifies stats, and</p>
+<p><strong>a body benefits to the extent that it has those stats and uses them.</strong> No</p>
+<p>routing, no categories, no refusals.</p>
+<p>There are three things upgrades affect — <strong>wave units, guards, and towers</strong> — and</p>
+<p>one catalogue works for all of them because they overlap almost completely:</p>
+<table><thead>
+<tr><th></th><th>Has feet</th><th>Has a blade</th><th>Throws bone</th><th>Has health</th></tr>
+</thead><tbody>
+<tr><td><strong>melee wave unit</strong></td><td>yes</td><td>yes</td><td>no</td><td>yes</td></tr>
+<tr><td><strong>ranged wave unit</strong></td><td>yes</td><td>no</td><td>yes</td><td>yes</td></tr>
+<tr><td><strong>guard</strong></td><td>yes</td><td>yes</td><td>no</td><td>yes</td></tr>
+<tr><td><strong>tower</strong></td><td><strong>no — it is stone</strong></td><td>no</td><td>yes</td><td>yes</td></tr>
+</tbody></table>
+<p>A guard and a tower are <strong>opposites with everything in common.</strong> One has feet,</p>
+<p>the other has stone. One has a blade, the other throws bone. Every property</p>
+<p>either of them has, something else in the list has too — **every effect is shared</p>
+<p>at least once**, which is precisely what makes one catalogue possible instead of</p>
+<p>three.</p>
+<p>So a health upgrade helps all four with no rule saying so. A movement upgrade</p>
+<p>helps three and does nothing for a tower, because a tower's speed is zero and</p>
+<p>always was. A ranged-damage upgrade helps the ranged bodies and the tower.</p>
+<p><strong>An earlier draft carried two fields for this</strong> — <code>applies_to</code>, saying which</p>
+<p>slots a kind could enter, and <code>shape</code>, sorting kinds into melee, ranged, and</p>
+<p>common. Both are gone. A tag is a second description of a thing that already</p>
+<p>describes itself, and the two descriptions can disagree — which they would, the</p>
+<p>first time somebody wrote an upgrade adding both movement speed and ranged damage</p>
+<p>and had to pick a category for it.</p>
+<p><strong>Nothing is refused on the grounds of what an upgrade is.</strong> Any upgrade may be</p>
+<p>placed in any slot. What it does there is however much of it applies.</p>
+<h3>Upgrades never touch hero units</h3>
+<p><strong>A lane's upgrades apply to wave units and to nothing else.</strong> A hero unit walking</p>
+<p>through a lane stacked with every upgrade the team owns fights at exactly its</p>
+<p>catalogue values. <em>Settled; see <a href='020-open-questions.html'>open questions</a>, A14.</em></p>
+<p>There is no per-kind exception and no way to write one — heroes are excluded by</p>
+<p><strong>flavour</strong>, in the routine that stamps a body, not by anything in the catalogue.</p>
+<p>That is the only audience rule left in the game, and it is a rule about the shape</p>
+<p>of the game rather than a balance figure, which is why it lives in one place</p>
+<p>rather than in a field somebody has to set correctly on every row.</p>
+<p>The reason is that the two economies must not multiply. The chest is filled by</p>
+<p>killing and spent on <strong>placements</strong>; personal resource is filled by killing and</p>
+<p>spent on <strong>bodies</strong>. If a lane's upgrades also pumped the heroes standing in it,</p>
+<p>a team could stack every upgrade into one lane, buy every hero into that same</p>
+<p>lane, and get a compounding payoff for a decision it only had to make once. The</p>
+<p>game would collapse into whichever lane the team picked, and the other two would</p>
+<p>be a formality — which is the same collapse the surge's even dealing of upgrades</p>
+<p>across all three lanes exists to prevent, arriving through a different door.</p>
+<p>The price of the rule is legibility: a hero fighting alongside enormously</p>
+<p>upgraded wave units looks strangely unaffected by whatever is making them</p>
+<p>enormous, and there is no obvious way to draw "this body is exempt." That is</p>
+<p>accepted. It is the smaller problem.</p>
+<p>Note what this leaves: the only way a player's spending and their team's chest</p>
+<p>interact is <strong>indirectly, through play.</strong> A hero that turns a stalled enemy queue</p>
+<p>into a wipe has just bought its team an upgrade draw. That is the only exchange</p>
+<p>rate between the two economies, it runs one way, and it has to be earned.</p>
+<h3>upgrade instance — a specific thing sitting in a specific place</h3>
+<table><thead>
+<tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>id</code></td><td>integer</td><td>Index in the team's instance array.</td></tr>
+<tr><td><code>kind</code></td><td>integer</td><td>Row in the catalogue above.</td></tr>
+<tr><td><code>team</code></td><td>integer</td><td>1 or 2. An instance never changes teams.</td></tr>
+<tr><td><code>slot_kind</code></td><td>integer</td><td><strong>0</strong> unplaced (in the chest), 1 lane, 2 lane towers, 3 library.</td></tr>
+<tr><td><code>slot_lane</code></td><td>integer</td><td>1–3 when <code>slot_kind</code> is 1 or 2; <strong>0</strong> otherwise.</td></tr>
+<tr><td><code>held_by</code></td><td>integer</td><td>The player who owns this stone, or <strong>0</strong> if it has been contributed to the communal pool.</td></tr>
+<tr><td><code>dismissed_mask</code></td><td>integer</td><td>Bit set of players who have marked this <em>not my problem</em>. When every player is set, it clears and the stone is visible to all of them again. Communal stones only.</td></tr>
+<tr><td><code>placed_tick</code></td><td>integer</td><td>When it last arrived somewhere. Drives the UI's recency sort.</td></tr>
+<tr><td><code>is_boon</code></td><td>integer</td><td>1 if this is a boon. No slot, never dealt out by a surge.</td></tr>
+<tr><td><code>owner</code></td><td>integer</td><td>Player number 1–6, <strong>boons only</strong>. <strong>0</strong> on everything else, which belongs to the team.</td></tr>
+<tr><td><code>moving_to_kind</code></td><td>integer</td><td>Destination slot kind while in transit, or <strong>0</strong>.</td></tr>
+<tr><td><code>moving_to_lane</code></td><td>integer</td><td>Destination lane while in transit, or <strong>0</strong>.</td></tr>
+<tr><td><code>arrives_wave</code></td><td>integer</td><td>The wave id a transit lands with. <strong>0</strong> if not in transit.</td></tr>
+</tbody></table>
+<p>The important thing about this split: **there is no such thing as "the team's</p>
+<p>Sharpened Blades upgrade."** A team can hold three instances of the same kind and</p>
+<p>put them in three different lanes, or pile all three into one. **Duplicates</p>
+<p>stack.** The catalogue is fixed; the instance array grows all match.</p>
+<h3>Which is why a body carries counts, not a bit set</h3>
+<p>**What a soldier carries is an array of small integers — one slot per catalogue</p>
+<p>kind, holding how many copies of that kind it has.*<em> </em>Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, F3.*</p>
+<p>This is worth stating where the stacking rule is stated, because an earlier draft</p>
+<p>had a body carry a <strong>bit set</strong>: one integer, one bit per kind. A bit set cannot</p>
+<p>count. Two copies of a kind and one copy of that kind produce exactly the same</p>
+<p>integer, so the stacking rule above had no way to take effect and nobody noticed</p>
+<p>for the length of a whole design.</p>
+<p>Two consequences fall out of the change and both are improvements.</p>
+<p><strong>The catalogue is no longer capped at the width of an integer.</strong> LuaJIT's bit</p>
+<p>library is thirty-two wide, so a bit set silently limited the entire game to</p>
+<p>thirty-two upgrade kinds — boons included — and that number was written down</p>
+<p>nowhere. With a count vector the limit is memory, and the catalogue's size is</p>
+<p>free to be chosen on its merits.</p>
+<p><strong>Applying upgrades is a walk with a multiply in it.</strong> The old arithmetic walked</p>
+<p>set bits; the new one walks the vector and multiplies each modifier by its count.</p>
+<p>Slightly more work per swing, and it is still a flat pass over a small fixed-size</p>
+<p>array with no pointer chasing, which is the cheap kind.</p>
+<p>One thing it does <strong>not</strong> settle, and it belongs with the catalogue rather than</p>
+<p>here: <strong>how a duplicate composes.</strong> Two copies of a flat addition presumably add</p>
+<p>twice. Two copies of a multiplier could multiply twice or add the excess once,</p>
+<p>and those are very different curves at four copies. That is one rule for every</p>
+<p>kind in the catalogue, not a per-kind field.</p>
+<h2>Drawing: one deck, both teams, same order</h2>
+<p>**There is one deck for the whole match, and both teams draw from it in the same</p>
+<p>order.*<em> Team 1's fifth draw and team 2's fifth draw are the same kind. </em>Settled;</p>
+<p>see <a href='020-open-questions.html'>open questions</a>, A11 and A11b.*</p>
+<p>The deck is a sequence of kinds, generated once at match start from the</p>
+<p>catalogue's weights using the <code>deck</code> stream, long enough that no match reaches</p>
+<p>the end of it. Each team holds an <strong>index</strong> into that sequence, not a stream of</p>
+<p>its own.</p>
+<p>A draw is: read the kind at your index, append an instance with <code>slot_kind = 0</code>,</p>
+<p>advance your index by one, raise an event.</p>
+<p>Draws happen on two events — a wave wiped (one) and a tower felled (three). Boons</p>
+<p>come from somewhere else entirely; see</p>
+<p><a href='015-boons-and-the-challenge.html'>boons and the challenge</a>.</p>
+<h3>Why one shared sequence</h3>
+<p><strong>It removes the last source of asymmetry that is not a decision.</strong></p>
+<p>The map is exactly symmetric. The spawn intervals are identical. The surge is on</p>
+<p>a clock both teams can see. And now the upgrades are the same upgrades in the</p>
+<p>same order. If a team is ahead, it is ahead because of <strong>placements</strong> — because</p>
+<p>they crafted a better strategy out of the same material — and there is no run</p>
+<p>where somebody simply drew better.</p>
+<p>It also makes the enemy's chest legible without any interface for it. A team that</p>
+<p>is four draws behind is holding <strong>your own chest from two minutes ago.</strong> You know</p>
+<p>exactly what they have, because you had it. What you do not know is where they</p>
+<p>put it, and that is the only thing worth not knowing.</p>
+<p>A team that is killing more reaches its fifth draw sooner. **The leader is ahead</p>
+<p>on the same track**, not holding different cards — which is a race, and a race is</p>
+<p>legible in a way a lottery is not.</p>
+<p>The cost, and it is real: the roguelike texture of <em>this run went strangely</em></p>
+<p>disappears. Two evenly matched teams get identical resources with no variance to</p>
+<p>break a stalemate. Whether that is a loss worth caring about is what issue <a class='issue-link' href='804-ten-thousand-matches-overnight.html'>804</a> is</p>
+<p>for.</p>
+<h3>Rerolling</h3>
+<p>**A player may spend personal resource to send one of their team's upgrades to</p>
+<p>the bottom of the deck and immediately draw the next card.**</p>
+<p>This is the only exchange between the two economies in the entire game, and it</p>
+<p>runs one way. It does not buy an upgrade — your instance count is unchanged. It</p>
+<p>does not buy a <em>better</em> upgrade — you get whatever the deck says is next. What it</p>
+<p>buys is <strong>deviation from the shared sequence.</strong></p>
+<p>Every reroll is a hero that never existed. A player who rerolls freely has a</p>
+<p>well-shaped chest and nothing to put on the ground with it.</p>
+<p>Mechanically: the rerolled instance's kind is appended to that team's own tail of</p>
+<p>the deck, the instance is destroyed, the team's index advances by one, and a new</p>
+<p>instance of the kind now at the index is appended. **The other team's deck is</p>
+<p>untouched** — which means the two sequences agree until somebody pays to break</p>
+<p>them, and from then on the divergence is exactly the record of who paid what.</p>
+<p><strong>You do not see the next card before you pay.</strong> *Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, A11b-i.* You know exactly what you are</p>
+<p>discarding and nothing about what you are getting, so a reroll is a <strong>gamble</strong></p>
+<p>rather than a calculation — the one place in a design that has systematically</p>
+<p>removed luck where luck is put back on purpose.</p>
+<p>The reason is that a visible next card would turn "should I reroll this" into</p>
+<p>"should I reroll this <em>now</em>", and a player would sit reading the deck, waiting</p>
+<p>for it to line up. The deck is meant to be received, not farmed.</p>
+<p><strong>A reroll costs a flat price, roughly that of the cheapest hero on a roster.</strong></p>
+<p><em>Settled; see <a href='020-open-questions.html'>open questions</a>, A11b-ii.</em> One reroll equals</p>
+<p>one small body, which states the tradeoff in the most direct terms available and</p>
+<p>needs no explaining at all. Defining it against a catalogue entry rather than as</p>
+<p>a loose number also means it tracks hero pricing automatically.</p>
+<p>One interaction to watch: the resource ceiling <strong>grows</strong> as a match goes on, and</p>
+<p>a flat reroll cost does not. So rerolling gets cheaper in real terms the longer a</p>
+<p>match runs, and late chests end up better shaped than early ones. That is</p>
+<p>probably right — with a shared deck, late rerolling is the main way two teams</p>
+<p>holding the same cards end up holding different ones — but it is a curve nobody</p>
+<p>chose deliberately and issue <a class='issue-link' href='804-ten-thousand-matches-overnight.html'>804</a> should be watching it.</p>
+<p>Full mechanics in issue <a class='issue-link' href='411-rerolling-the-deck.html'>411</a>.</p>
+<p>Draws are never automatically placed. An upgrade in the chest is doing nothing</p>
+<p>for anybody, which is the pressure that makes a team look at the chest.</p>
+<h2>During a siege-surge, arrangement stops mattering — but you can still arrange</h2>
+<p>Two rules, and they are easier to hold together than they look.</p>
+<p><strong>Nothing is taken away, moved, or emptied.</strong> *Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, F11.* Whatever is slotted into the top</p>
+<p>lane is still slotted into the top lane for the whole surge. The chest is not</p>
+<p>dumped. Placements are not disturbed. **Upgrades in this game are never moved</p>
+<p>except by a player's own hand**, and a surge is not an exception to that — it is</p>
+<p>the reason the rule is worth stating.</p>
+<p><strong>Instead, the surge reads everything the team owns as one flat list</strong> and deals</p>
+<p>it out to the bodies coming off the spawn points. Every half a second or so, one</p>
+<p>body appears at each lane's start point; the deal picks a random one of them to</p>
+<p>begin with, takes a random upgrade from the team's whole holding, assigns it to</p>
+<p>that body, moves to the next body in rotation, and keeps going until every</p>
+<p>upgrade the team owns has been assigned. Then it happens again at the next spawn,</p>
+<p>from scratch, starting somewhere else.</p>
+<p>The upgrades are <strong>assigned, not removed.</strong> A placed upgrade and an unplaced one</p>
+<p>are equally on the field during a surge, because the deal does not look at slots</p>
+<p>at all.</p>
+<p>So the stream is not a column of identical soldiers. It is your entire chest</p>
+<p>walking down three lanes at once, split three ways, in a different arrangement</p>
+<p>every half second. It does not make you weaker — nothing is held back, and every</p>
+<p>upgrade you own is on the field at every instant. <strong>It makes you incoherent.</strong></p>
+<p>The three upgrades that worked together in your top lane are all still out there,</p>
+<p>just never on the same body twice running. What the surge suspends is not</p>
+<p>strength; it is <em>arrangement</em>, which is the only thing in this game you actually</p>
+<p>built.</p>
+<p>It is self-balancing in a way a flat penalty is not: a team with twelve upgrades</p>
+<p>has a great deal disturbed by being dealt three ways, and a team with three has</p>
+<p>almost nothing. **The surge disrupts in proportion to how much there was to</p>
+<p>disrupt** — the right shape for the design's only brake on a snowball.</p>
+<h3>And placement stays open the whole time</h3>
+<p><strong>Players may place, move, withdraw, lock, and object freely during a surge.</strong></p>
+<p><em>Settled; see <a href='020-open-questions.html'>open questions</a>, F12.</em></p>
+<p>There is no reason to forbid it. Rearranging during a surge changes nothing about</p>
+<p>the surge, because the deal ignores where things sit — so a refusal would be a</p>
+<p>rule with no purpose that also left players with nothing to do for a minute at a</p>
+<p>time.</p>
+<p>What it does change is <strong>what comes next.</strong> A surge is followed immediately by a</p>
+<p>challenge, and a challenge is one enormous body where a wave is many small ones.</p>
+<p>The build that was right for grinding a frontline is usually wrong for a monster.</p>
+<p>So the surge becomes the window in which a team retools for the thing walking out</p>
+<p>of the middle, while the fighting carries on without waiting for them to finish</p>
+<p>thinking.</p>
+<p>The same freedom holds during the calm.</p>
+<p>Boons sit outside all of this. They have no slot, they are not dealt, and they</p>
+<p>are on every body the team fields in every phase — heroes included. See</p>
+<p><a href='015-boons-and-the-challenge.html'>boons and the challenge</a>.</p>
+<h2>Placing, and the wave it takes to move</h2>
+<p>A placement command names an instance and a destination slot. It is applied in</p>
+<p>the command pass at the top of a tick, and it is refused — with a reason the</p>
+<p>viewer can show — if any of these hold:</p>
+<ul>
+<li>The instance is locked by a different player.</li>
+<li>The instance is already in transit — cancel it first.</li>
+<li>The destination is where it already is.</li>
+<li>The instance is in the freeze window before a queued destination takes effect;</li>
+</ul>
+<p>  see <a href='016-players-teams-and-commands.html'>players, teams, and commands</a>.</p>
+<p>A siege-surge is <strong>not</strong> on this list. Placement stays open in every phase; see</p>
+<p>above.</p>
+<h3>Moving takes one full wave</h3>
+<p>**An upgrade does not arrive the instant you place it. It is marked to move, and</p>
+<p>it takes one full wave to get there.*<em> </em>Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, D3.*</p>
+<p>While it is in transit it keeps applying at its <strong>old</strong> slot, and the wave that</p>
+<p>spawns during that transit is stamped accordingly. The wave after that is the</p>
+<p>first one born with it in its new home. So a placement lands **two waves after</p>
+<p>the command**, with one wave of unchanged behaviour in between.</p>
+<p>The transit replaces the reassignment cooldown entirely — there is no second</p>
+<p>timer. The cost of moving an upgrade is that it takes a wave to move, which is a</p>
+<p>cost a player can see rather than a number they get refused by.</p>
+<p>Two things follow, and the second is the more interesting.</p>
+<p><strong>Placement is a bet placed two waves ahead.</strong> A team that can move every upgrade</p>
+<p>every tick would simply keep all of them wherever the fighting currently is, and</p>
+<p>the whole negotiation layer evaporates. The delay is what makes a placement a</p>
+<p>commitment worth locking, objecting, and arguing about.</p>
+<p><strong>Marked-to-move is a message.</strong> Every teammate can see that an instance is in</p>
+<p>transit and where it is going, for a full wave, before it lands — and unlike a</p>
+<p>lock or an objection, it is <strong>not opt-in.</strong> You cannot move an upgrade quietly.</p>
+<p>Your teammates get a wave's notice, which is exactly enough time to say something</p>
+<p>about it.</p>
+<h3>The eight verbs of the team's conversation</h3>
+<p>Three people each hold their own stones, and almost everything they say about</p>
+<p>them they say by doing something. Everything they can say to each other is in</p>
+<p>this table, and it is worth keeping the list short and the meanings distinct.</p>
+<table><thead>
+<tr><th></th><th>Says</th><th>Opt-in?</th><th>Costs</th></tr>
+</thead><tbody>
+<tr><td><strong>Contribute</strong></td><td><em>anyone can use this now.</em></td><td>yes</td><td>the stone, permanently</td></tr>
+<tr><td><strong>Offer</strong></td><td><em>you specifically should have this.</em></td><td>yes</td><td>the stone, to one person</td></tr>
+<tr><td><strong>Dismiss</strong></td><td><em>not my problem.</em></td><td>yes</td><td>nothing; expires when everybody agrees</td></tr>
+<tr><td><strong>Cursor</strong></td><td><em>I am about to touch this.</em></td><td><strong>no</strong> — always on</td><td>nothing</td></tr>
+<tr><td><strong>Marked-to-move</strong></td><td><em>this is going there.</em></td><td><strong>no</strong> — automatic</td><td>a wave</td></tr>
+<tr><td><strong>Ping</strong></td><td><em>look at this place.</em></td><td>yes</td><td>rate-limited</td></tr>
+<tr><td><strong>Request</strong></td><td><em>I would like that one.</em></td><td>yes</td><td>rate-limited; one at a time; expires</td></tr>
+<tr><td><strong>Chat</strong></td><td><em>anything at all</em></td><td>yes</td><td>rate-limited; team only</td></tr>
+</tbody></table>
+<p><strong>Two of the eight are involuntary, and those two are the load-bearing ones.</strong> A</p>
+<p>player's cursor is synced continuously and a placement announces itself for a</p>
+<p>whole wave, which together mean **you can see a teammate reaching for something</p>
+<p>before they touch it, and see what they did for a wave after.**</p>
+<p><strong>Three of them move a stone and one asks about one</strong>, which is new — under the</p>
+<p>old shared chest nothing could be given, because everything was already</p>
+<p>everybody's. Contributing and offering are the same act aimed differently: one</p>
+<p>puts a stone where anybody might pick it up, the other puts it in one person's</p>
+<p>hands.</p>
+<p><strong>Requesting is the odd one out and the one to be careful with.</strong> It changes</p>
+<p>nothing by itself, and it was built for a reason worth remembering: **refusing to</p>
+<p>build it does not prevent it.** Players will ask over voice, where the design</p>
+<p>cannot rate-limit it, cannot make it ignorable without awkwardness, and cannot</p>
+<p>stop it becoming a running commentary on what a teammate is holding.</p>
+<p>So it exists, and it is deliberately the weakest verb here. **Giving must stay</p>
+<p>easier than asking** — a request names one specific stone, only one can be</p>
+<p>outstanding, it expires on its own, and <strong>ignoring one is free and silent.</strong> No</p>
+<p>notification that you declined, no record, nothing anybody can bring up later. A</p>
+<p>request that can be held against you is a demand, and this game is supposed to be</p>
+<p>about building each other up rather than managing each other's pockets.</p>
+<p><strong>One of them is a refusal to act</strong>, and it is the only verb in the game that</p>
+<p>works by <em>subtraction</em>. Dismissing removes a thing from your attention rather</p>
+<p>than adding anything to anybody's, and it is the replacement for the whole</p>
+<p>lock-and-objection system — see above for why a disclaim is a better instrument</p>
+<p>than a claim.</p>
+<p>A ping is the only one of the eight that is not about the stones at all.</p>
+<p><strong>Chat is the newest and the one that changes the others.</strong> An earlier draft of</p>
+<p>this document opened this section with *"three people share one chest and mostly</p>
+<p>cannot talk about it in words,"* and built a lock system partly on that. Words</p>
+<p>exist now — see issue <a class='issue-link' href='806-three-people-can-finally-talk.html'>806</a> — and they arrived because of a specific hole: **when a</p>
+<p>boon is chosen, nothing being decided is on the board yet**, so every other verb</p>
+<p>is useless and a team has to coordinate blind.</p>
+<p>The distinction that survives the lock system's removal: **chat persuades, the</p>
+<p>other six do.** A message asks for something; contributing, offering and</p>
+<p>dismissing actually move the board, and they do it in a way a teammate who was</p>
+<p>not reading still sees. A team that talks well will hand things around more</p>
+<p>deliberately — which is the two working together rather than one replacing the</p>
+<p>other.</p>
+<p>Whether that survives six people in a room is</p>
+<p><a href='020-open-questions.html'>open questions</a>, F26.</p>
+<h3>A move can be called back, freely, until it lands</h3>
+<p>**Cancelling a transit costs nothing and can be done any time before it</p>
+<p>arrives.*<em> </em>Settled; see <a href='020-open-questions.html'>open questions</a>, D3b.* The</p>
+<p>instance simply stays where it already was.</p>
+<p>This is the kind answer to a misclick, and the reason it is safe is that a</p>
+<p>transit is not a resource — nothing was spent, nothing was consumed, and the</p>
+<p>upgrade has been applying at its old slot the entire time. Refusing a cancel</p>
+<p>would be punishing a player for a slip with a full wave of watching their mistake</p>
+<p>crawl toward them, for no benefit to anybody.</p>
+<p>It does cost something, and the cost is honest: **the marked-to-move message your</p>
+<p>teammates were reading can evaporate.** A teammate who saw the mark, decided it</p>
+<p>was fine, and moved on will not be told it never happened. So the notice a</p>
+<p>transit gives is a <em>statement of intent</em>, not a promise — which is exactly what</p>
+<p>a lock is for when you want the stronger thing.</p>
+<p><strong>There is no cap on how many stones a lane can hold.</strong> The vision says so</p>
+<p>outright: "players are allowed to put all their upgrades in one lane. This is</p>
+<p>fine." Stacking everything in one lane is a real strategy with a real cost — the</p>
+<p>other two lanes are then running on nothing, and the base guards will be meeting</p>
+<p>whatever walks out of them.</p>
+<p><strong>It is also the failure mode most worth watching</strong>, and there is a difference</p>
+<p>between <em>allowed</em> and <em>correct</em>. If concentration turns out to be simply better,</p>
+<p>a match stops being three strategies and becomes one, decided early. The forces</p>
+<p>already pushing against it, what would show it happening, and what to do about it</p>
+<p>if it does — including the tempting fix that would make it worse — are set out in</p>
+<p><a href='023-ways-this-could-go-wrong.html'>ways this could go wrong</a>.</p>
+<h2>What the enemy can see</h2>
+<p><strong>They can see your upgrades on your soldiers, and nothing else.</strong></p>
+<p>Because the deck is shared, an opponent already knows roughly <em>what</em> you hold —</p>
+<p>count their own draws and they are looking at their own chest from a few minutes</p>
+<p>ago. What they do not know is your <strong>arrangement</strong>, and the only way to learn it</p>
+<p>is to look at the bodies you send at them.</p>
+<p>A soldier carries a visible record of what it was stamped with. Read the</p>
+<p>frontline and you can read the lane's build.</p>
+<p><strong>So your board is visible, two or three waves late.</strong> A change has to be marked,</p>
+<p>transit for a wave, spawn into the next wave, and then walk far enough forward to</p>
+<p>be seen. By the time an opponent can read your new arrangement, you have known it</p>
+<p>for the better part of a minute.</p>
+<p>That delay is the whole information design, and it falls out of rules that exist</p>
+<p>for other reasons — stamp-at-birth, the transit wave, and the length of a lane.</p>
+<p>Nothing had to be hidden deliberately. <strong>The fog is made of walking.</strong></p>
+<h2>Contributing, and dismissing</h2>
+<p><strong>A stone belongs to the player who drew it.</strong> Nobody can take it, nobody can</p>
+<p>move what you placed with it, and there is no lock, because there is nothing to</p>
+<p>lock it against. *Settled; see <a href='020-open-questions.html'>open questions</a>, F29 and</p>
+<p>F31.*</p>
+<p>Two verbs let a team be a team anyway, and they point in opposite directions.</p>
+<h3>Contribute — letting go of one completely</h3>
+<p>A player may <strong>contribute</strong> any of their stones to a <strong>communal pool</strong>. Once</p>
+<p>there, any teammate may place it, move it, and place it again, as often as they</p>
+<p>like.</p>
+<p><strong>And it appears to each of them as simply one of the stones they have.</strong> No</p>
+<p>owner shown, no <em>this one is Sam's</em>, no asking. The point is not to hide who gave</p>
+<p>what — it is that **a shared thing you have to remember is shared is not</p>
+<p>shared.** Remembering costs a small permanent tax of attention and etiquette, and</p>
+<p>that tax is what made a lock system necessary in the first place. Contributing</p>
+<p>means letting go completely: *they forget they ever didn't own it, and they just</p>
+<p>use it as they please.*</p>
+<p>Contributing is one-way. A stone in the pool does not come back to you, because</p>
+<p>"whose is it really" is exactly the question the pool exists to delete.</p>
+<h3>Dismiss — saying <em>not my problem</em>, and the floor that closes</h3>
+<p>The failure mode of a communal pool is not theft. It is <strong>neglect</strong> — three</p>
+<p>people each quietly assuming somebody else has it in hand.</p>
+<p>So a player may mark a communal stone <strong>not my problem</strong>, and it vanishes from</p>
+<p>their view. Not from the pool; from <em>theirs</em>.</p>
+<blockquote><p>**When every player has dismissed the same stone, it comes back to all of</p></blockquote>
+<blockquote><p>them.** The dismissals clear and it is everybody's again.</p></blockquote>
+<p>That single rule is what makes the pool safe, and it is worth reading twice. **A</p>
+<p>stone cannot fall through the floor, because the floor closes.** The moment</p>
+<p>nobody is looking at it, everybody is. It turns <em>I assumed you had it</em> — which is</p>
+<p>silent, and permanent, and only discovered when a lane collapses — into something</p>
+<p>that resurfaces on its own.</p>
+<h3>Why a disclaim beats a claim</h3>
+<p>*<em>A lock says </em>I am doing something here***, which is a statement about intent</p>
+<p>that a teammate must take on trust and cannot check.</p>
+<p>*<em>A dismissal says </em>I am not doing anything here***, which is a statement about</p>
+<p>attention and is simply true at the moment it is made.</p>
+<p>Three things follow, and each was a real problem with the old design:</p>
+<ul>
+<li><strong>It cannot be forgotten.</strong> A lock left on for a whole match held a placement</li>
+</ul>
+<p>  hostage, which is why the interface owed a player a running count of what they</p>
+<p>  had locked. A dismissal that everybody forgets is a dismissal that expires.</p>
+<ul>
+<li>*<em>Nothing is ever done </em>to<em> anybody.</em>* The two-objection rule existed to open a</li>
+</ul>
+<p>  lock against its holder's wishes — a whole mechanism, with a timeout to tune,</p>
+<p>  for one situation. There is no such situation here.</p>
+<ul>
+<li><strong>It scales to any team size</strong> with no rule change at all. "Everybody has</li>
+</ul>
+<p>  dismissed it" means the same thing at two players as at four, where "two</p>
+<p>  objections" never did.</p>
+<h3>And the third verb: offer</h3>
+<p><strong>A player may offer one of their own stones to a specific teammate</strong>, and it</p>
+<p>becomes theirs — to place, to contribute, or to offer on.</p>
+<p>It is the only verb in the game that <strong>transfers</strong> anything, and it is the one to</p>
+<p>reach for when the communal pool is too vague: contributing puts a stone where</p>
+<p>anybody might use it, offering puts it in one person's hands because you think</p>
+<p>they specifically should have it.</p>
+<p>Offering costs the giver something real and visible, cannot be done by accident,</p>
+<p>and cannot be done <em>to</em> somebody. It is a strictly kinder verb than a lock ever</p>
+<p>was.</p>
+<h2>The team's view of its own chest</h2>
+<table><thead>
+<tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>instance</code></td><td>array of upgrade instances</td><td>Everything this team has ever drawn.</td></tr>
+<tr><td><code>lane_count</code></td><td>integer[lanes][kinds]</td><td>Cached count vector per lane — how many copies of each kind sit there. Rebuilt whenever a placement changes; read at spawn.</td></tr>
+<tr><td><code>tower_count</code></td><td>integer[lanes][kinds]</td><td>The same, for upgrades slotted into each lane's towers.</td></tr>
+<tr><td><code>library_count</code></td><td>integer[kinds]</td><td>Upgrades slotted into the library.</td></tr>
+<tr><td><code>base_tower_count</code></td><td>integer[kinds]</td><td>The sum of every <code>tower_count</code> row and <code>library_count</code>. What the base towers fire with, and what their guards read — see <a href='010-upgrades-slotted-into-stone.html'>upgrades slotted into stone</a>.</td></tr>
+<tr><td><code>all_count</code></td><td>integer[kinds]</td><td>Every upgrade the team owns, placed or not. What a siege-surge deals from, and nothing else reads it.</td></tr>
+<tr><td><code>deck_index</code></td><td>integer</td><td>How far this team has drawn into the shared deck. The gap between the two teams' indices is the whole of the economy's asymmetry.</td></tr>
+<tr><td><code>unplaced_count</code></td><td>integer</td><td>How many instances are sitting in the chest doing nothing. Shown large, on purpose.</td></tr>
+</tbody></table>
+<p>These are caches, and the word matters: they are <strong>sums over the instance array</strong>,</p>
+<p>rebuilt on placement, which is rare, and read on spawn, which is constant. The</p>
+<p>alternative — walking every instance at every spawn — is the same answer computed</p>
+<p>hundreds of times more often. A validator should check them against the instance</p>
+<p>array at load and after every phase change, because a stale cache here is an</p>
+<p>upgrade that silently stops working.</p>
+<p>Note that <code>base_tower_count</code> sums rather than unions. Under a bit set the base</p>
+<p>towers merged three lanes' stone and lost the duplicates; with counts, a team</p>
+<p>that slotted the same kind into two different lanes' towers gets both copies in</p>
+<p>the base. That is a real change in what the base is worth and it follows directly</p>
+<p>from stacking.</p>
+<p>Related: <a href='005-waves-and-when-one-is-finished.html'>waves</a> ·</p>
+<p><a href='010-upgrades-slotted-into-stone.html'>upgrades slotted into stone</a> ·</p>
+<p><a href='014-the-siege-surge.html'>the siege-surge</a> ·</p>
+<p><a href='016-players-teams-and-commands.html'>players, teams, and commands</a></p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+// Filtering the contents. The only script on the page, and it exists because there
+// are more than eighty documents here and scrolling a list of eighty things to find
+// one is not navigation.
+var box = document.getElementById('filter');
+box.addEventListener('input', function () {
+  var want = box.value.toLowerCase();
+  var rail = document.getElementById('contents');
+  rail.querySelectorAll('section').forEach(function (section) {
+    var shown = 0;
+    section.querySelectorAll('a').forEach(function (link) {
+      var match = link.textContent.toLowerCase().indexOf(want) !== -1;
+      link.style.display = match ? '' : 'none';
+      if (match) { shown++; }
+    });
+    section.style.display = shown ? '' : 'none';
+  });
+});
+</script>
+</body></html>

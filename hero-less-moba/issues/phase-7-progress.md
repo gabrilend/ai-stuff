@@ -14,7 +14,7 @@ applied to the project's own prose.
 | 703 | The chest panel and the drag | built |
 | 704 | Locks, objections, and refusals are loud | refusals built, locks not |
 | 705 | The sign-posts are clickable in the world | built |
-| 706 | The documentation becomes HTML | not started |
+| 706 | The documentation becomes HTML | built |
 | 707 | The way in | not started |
 | 708 | The camera is a lens you push into | built |
 
@@ -80,6 +80,14 @@ standing on ground rather than marks on a surface.
 **704 is half.** Refusals are loud and fade over several seconds. Locks and
 objections are not built, because they need 402's instances.
 
-**705, 706 and 707 are not started**, and 703 is a drag onto the world rather than
-onto a panel target — which is what the second vision asks for and what the viewing
-layer document does not.
+**705 and 706 are built.** Sign-posts are clickable where they stand, because a
+sign-post is a piece of the world with a position and not an entry in a menu. And the
+documentation is a browsable site: 152 pages, a filterable contents rail, every issue
+number a link, and a front page with the map drawn from the map builder and the shape
+of a match drawn from the timing table — so neither picture can go stale.
+
+**707 is not started.** There is no front door: `./run-prototype` opens straight into
+a match, and nothing offers a choice of anything.
+
+703 is a drag onto the world rather than onto a panel target — which is what the second
+vision asks for and what the viewing layer document does not.
