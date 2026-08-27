@@ -220,6 +220,129 @@ local function test_the_surge_deals_everything()
 end
 -- }}}
 
+-- {{{ local function test_the_opening_is_symmetric()
+-- The match is **set up** as a mirror. It is not kept that way.
+--
+-- This used to be written as "the two teams' states are exact mirrors at every
+-- tick", which is a much stronger claim and the wrong one. Two even sides diverge
+-- almost immediately and are supposed to: a tie broken one way in one lane is
+-- broken the other way in another, and by the second exchange the two halves of the
+-- field are different games. Holding the mirror past the opening would cost a
+-- canonical ordering on every tie in the hottest loop in the simulation, bought to
+-- preserve something with no gameplay meaning after the first ten seconds.
+--
+-- So: set it up symmetrically, and let it go.
+local function test_the_opening_is_symmetric()
+  local world, modules = fresh_world(tick_module)
+  local soldier = world.soldier
+  local problems = {}
+
+  -- Stone. Both teams, same kinds, same milestones, same health.
+  local mine, theirs = {}, {}
+  for _, structure in ipairs(world.structure) do
+    local key = structure.kind .. ":" .. structure.lane .. ":" .. structure.milestone
+    local into = (structure.team == 1) and mine or theirs
+    into[key] = (into[key] or 0) + structure.health_max
+  end
+  for key, value in pairs(mine) do
+    if math.abs((theirs[key] or 0) - value) > 0.0001 then
+      problems[#problems + 1] = "stone differs at " .. key
+    end
+  end
+  for key in pairs(theirs) do
+    if mine[key] == nil then
+      problems[#problems + 1] = "team 2 has stone at " .. key .. " and team 1 does not"
+    end
+  end
+
+  -- Wallets, chests and slots all start empty and equal.
+  for colour = 1, world.colour_count do
+    if world.player[1].points[colour] ~= world.player[world.parameters.team_size + 1].points[colour] then
+      problems[#problems + 1] = "wallets do not start equal"
+    end
+  end
+
+  -- Run to just after the first wave and check that the same bodies left both
+  -- bases, in the same shape, the same distance from their own end.
+  local settings = world.parameters.unit.wave
+  for _ = 1, settings.first_at + 40 do
+    tick_module.advance(world)
+  end
+
+  local shape = {{}, {}}
+  for id = 1, world.high_water do
+    if soldier.alive[id] == 1 and soldier.flavour[id] == 1 and soldier.lane[id] ~= 0 then
+      local lane = world.map.lane[soldier.lane[id]]
+      -- Distance from its **own** library, so the two teams are described in the
+      -- same terms rather than in the path array's.
+      local from_home = (soldier.team[id] == 1) and soldier.lane_along[id]
+                                                 or (lane.length - soldier.lane_along[id])
+      local key = string.format("%d:%d:%.2f:%.2f", soldier.lane[id], soldier.archetype[id],
+                                from_home, soldier.lane_across[id])
+      local into = shape[soldier.team[id]]
+      into[key] = (into[key] or 0) + 1
+    end
+  end
+
+  for key, count in pairs(shape[1]) do
+    if shape[2][key] ~= count then
+      problems[#problems + 1] = "the first waves differ at " .. key
+    end
+  end
+  for key in pairs(shape[2]) do
+    if shape[1][key] == nil then
+      problems[#problems + 1] = "team 2's first wave has " .. key .. " and team 1's does not"
+    end
+  end
+
+  check("the opening is a mirror -- same stone, same wallets, same first wave",
+        #problems == 0, problems[1])
+end
+-- }}}
+
+-- {{{ local function test_an_unchosen_boon_waits()
+-- A boon nobody picked stays on offer. Nothing takes it for them.
+--
+-- The rule this replaces was the only place in the project where something decided
+-- for a player, and the alternative that looked best was worse: taking it but
+-- allowing a swap makes *never choosing* the correct play -- let the timer run out,
+-- see how the match develops, then swap into whatever turned out to matter.
+--
+-- Being slow costs you the use of it in the meantime and costs your team nothing.
+local function test_an_unchosen_boon_waits()
+  local world = fresh_world(tick_module)
+  -- Nobody playing, so nobody picks.
+  world.bot = {}
+
+  local offered_at, still_open_at = 0, 0
+  local watched = 1
+
+  for _ = 1, 20000 do
+    if not tick_module.advance(world) then break end
+    if offered_at == 0 and world.boon_offer[watched] ~= nil then
+      offered_at = world.tick
+    end
+    -- Well past the end of the calm it was offered in.
+    if offered_at > 0 and world.tick > offered_at + world.parameters.boon.timing.calm + 600 then
+      if world.boon_offer[watched] ~= nil then
+        still_open_at = world.tick
+      end
+      break
+    end
+  end
+
+  check("a boon nobody chose is still on offer long after the calm ends",
+        offered_at > 0 and still_open_at > 0,
+        offered_at == 0 and "no boon was ever offered"
+          or "the offer was taken away or taken for them")
+
+  check("and no team was granted a boon it did not choose",
+        #world.boons[1] == 0 and #world.boons[2] == 0,
+        string.format("team 1 holds %d boons and team 2 holds %d, with nobody playing",
+          #world.boons[1], #world.boons[2]))
+end
+-- }}}
+
 -- {{{ local function test_reproducibility()
 -- The same seed and the same (empty) command list must produce the same match,
 -- tick for tick. Compared on a fingerprint of every body's position rather than
@@ -418,6 +541,10 @@ end
 local function test_placement_moves_a_frontline()
   local function play(stack_into, ticks)
     local world, modules, parameters = fresh_world(tick_module)
+    -- Nobody else playing. The comparison is between a lane that was stacked and one
+    -- that was not, and a bot placing into both of them on its own initiative would
+    -- be answering a different question -- and answering it against itself.
+    world.bot = {}
     while world.tick < ticks do
       if not tick_module.advance(world) then break end
       if stack_into ~= 0 then
@@ -608,6 +735,16 @@ local function test_a_hero_obeys_one_signpost()
   local world, modules = fresh_world(tick_module)
   local soldier = world.soldier
 
+  -- Nobody playing, and no stone. What is being tested is whether a hero reads the
+  -- sign at its junction -- not whether one can fight its way there alone. The
+  -- junction sits at the midpoint of the lane, which is exactly where a live match
+  -- puts its frontline, so a hero walking up on its own dies just short of the thing
+  -- under test and the failure says "it never turned" rather than "it never arrived".
+  world.bot = {}
+  for _, structure in ipairs(world.structure) do
+    structure.alive = 0
+  end
+
   -- Point team 1's top-lane post at its connector, then buy a hero into that lane
   -- with a full wallet.
   modules.signposts.cycle(world, 1, 1, 1)
@@ -628,6 +765,13 @@ local function test_a_hero_obeys_one_signpost()
   local crossed, rejoined_lane = false, 0
   for _ = 1, 4000 do
     tick_module.advance(world)
+    -- Keep the far side off the board, so the walk is about the sign and nothing
+    -- else. Waves keep spawning; they simply do not survive to interfere.
+    for other = 1, world.high_water do
+      if soldier.alive[other] == 1 and soldier.team[other] == 2 then
+        world.release(world, other)
+      end
+    end
     if soldier.alive[id] ~= 1 then
       break
     end
@@ -688,6 +832,8 @@ test_a_hero_obeys_one_signpost()
 test_no_nil_fields()
 test_formation_turns_a_corner()
 test_cohesion_is_conserved()
+test_the_opening_is_symmetric()
+test_an_unchosen_boon_waits()
 test_reproducibility()
 test_placement_moves_a_frontline()
 test_the_surge_deals_everything()

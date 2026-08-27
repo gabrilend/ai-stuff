@@ -92,9 +92,29 @@ M.parameters = {
   -- stacking the centre is a bet on quantity.
   lane_width = {
     [1] = 62,     -- top
-    [2] = 104,    -- centre -- the wide one
+    -- The centre, and the number is derived rather than chosen. Three formations
+    -- stand abreast here during a challenge -- a side lane's, the centre's, and the
+    -- other side lane's -- and this is how much road that takes: the centre's own
+    -- radius, plus a side lane's on either side of it, plus the gaps.
+    --
+    -- **That is what the centre lane is wide for**, and it is the reason the
+    -- document gave for widening it before anybody had arithmetic to put behind it.
+    [2] = 140,    -- centre -- the wide one
     [3] = 62,     -- bottom
   },
+
+  -- How the junction's corner is rounded.
+  --
+  -- A lane bends ninety-odd degrees at its junction, and a vertex is a corner a
+  -- formation cannot walk round: the body on the outside would have to cover most
+  -- of an arc in a single step. So the nodes either side of the bend are relaxed
+  -- toward their neighbours, a few passes over, which cuts the corner into a curve.
+  --
+  -- The window is how many nodes each way are allowed to move, and therefore how
+  -- wide the curve is; the passes are how round it gets. Both are shape rather than
+  -- balance, but they live here because they are numbers and numbers live here.
+  bend_smoothing_window = 12,
+  bend_smoothing_passes = 60,
 
   -- How far apart two bodies stand when they are queueing. The frontline queue
   -- measures in these; the renderer draws bodies about this size.

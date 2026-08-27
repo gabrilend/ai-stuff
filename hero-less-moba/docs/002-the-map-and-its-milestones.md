@@ -42,6 +42,10 @@ With team 1's base at the bottom-left and team 2's at the top-right:
 - **Lane 3 (bottom)** mirrors lane 1 along the bottom and right edges, bending
   once at the bottom-right corner.
 
+Each side lane's bend is **rounded into a curve** rather than left as a vertex. A
+formation cannot walk round a corner with no radius: the body on the outside would
+have to cover most of an arc in a single step. See the shape parameters.
+
 **There are three junctions, not four**, and they sit on the field's *other*
 diagonal: the top-left corner, the middle of the field, and the bottom-right
 corner. Each side lane bends once, at its own corner; the centre lane's junction
@@ -71,17 +75,19 @@ Each lane carries a **width** in paces.
 **The center lane is wider than the side lanes.** Permanently, as topography —
 not as a rule that switches on during a challenge.
 
-**What that width currently does is draw the lane, and nothing else.** It used to
-say how many bodies could stand abreast before the ones behind had to queue, and
-that is no longer how a frontline forms — a host arranges itself against the line
-through the enemy's mass rather than against the corridor it walked down, so the
-enemy sets the width of a rank and the lane does not. See G3, and see
-[the frontline](../issues/206-the-frontline-is-a-queue.md).
+**The width decides how wide a wave marches**, and the centre's is derived rather
+than chosen: three formations stand abreast there during a challenge — a side lane's,
+the centre's, and the other side lane's — and the width is how much road that takes.
 
-The rest of this section is the reasoning that made the centre wide in the first
-place. It is left standing because the width is still there in the table and still
-drawn, and because whatever the middle turns out to be for, this is the argument it
-will have to answer. **G8 is that question and it is open.**
+That is what the centre lane is wide for, and it is the reason this document gave
+before there was arithmetic to put behind it. The consequence the section below
+describes still holds, by a slightly different route: a wave marching up the middle
+arrives with more of itself abreast, so more of it is in contact the moment contact
+happens, and a numerical advantage tells sooner.
+
+A rank stops widening at a fixed number of files however wide the road is, because
+the sizing is otherwise circular — a wider lane makes the centre's own formation
+wider, which pushes the other two further out. See G8.
 
 The immediate reason is the third challenge. All three lanes' worth of soldiers
 funnel into the center during a challenge, and a challenge monster has to be able
@@ -130,10 +136,9 @@ rather than one shared corridor. That is a different-feeling match, and it is a
 reason 3v3 is the shape the prototype is balanced against rather than merely its
 default size.
 
-The width feeds **one** thing today: how wide the renderer draws the lane. It is
-not a movement constraint and never was — soldiers walk the path graph regardless
-— and it is no longer a formation constraint either. Whether it should become one
-again, or whether the middle should be distinguished some other way, is G8.
+The width feeds two things: **how wide a wave marches down it**, and how wide the
+renderer draws it. It is not a movement constraint and never was — a body walks the
+path regardless of how far to one side it is standing.
 
 ## Milestones: the only measure of progress
 

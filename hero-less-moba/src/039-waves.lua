@@ -144,10 +144,12 @@ function M.spawn_body(world, team, lane_id, archetype, wave_id, role, role_index
 
   -- Its place in the line, decided before it is put anywhere, so that the body
   -- appears standing in the formation rather than walking into it.
-  world.formations.assign_wave_slots(world, id, lane, role_index, role, melee_total)
+  world.formations.assign_wave_slots(world, id, world.map.lane[world.wave[wave_id].shape_lane],
+                                     role_index, role, melee_total)
   local wave = world.wave[wave_id]
   local along = wave.anchor + soldier.slot_along[id] * soldier.facing[id]
-  world.walking.set_lane_position(world, id, along, soldier.slot_across[id])
+  world.walking.set_lane_position(world, id, along,
+    soldier.slot_across[id] + (world.wave[wave_id].across_offset or 0))
 
   -- Stamped at birth, and never corrected afterwards. Moving an upgrade out of a
   -- lane does not weaken the soldiers already walking in it -- they finish their
@@ -221,6 +223,28 @@ local function queue_wave(world, team, lane, turn)
   local walks = world.phases.spawn_lane_for(world, lane)
   local wave_id = new_wave(world, team, walks, total)
   world.wave[wave_id].upgrade_lane = lane
+  -- Where this wave stands across the lane it walks. Zero in ordinary play; during
+  -- a challenge the three funnelled waves stand abreast rather than through one
+  -- another.
+  -- Only during a challenge, and only then. In ordinary play a wave has its whole
+  -- lane to itself and sits down the middle of it.
+  --
+  -- Multiplied by facing, which is what makes the two teams mirror. `across` is
+  -- measured against the lane's own fixed direction rather than against the body's,
+  -- so the same signed value is the same side of the world for both teams -- and
+  -- two armies walking at each other need the group that is on *my* left to be on
+  -- *their* right, which is what the sign flip produces.
+  local offset = 0
+  if world.phase == 3 then
+    offset = world.formations.abreast_offset(world.map, lane, 2)
+             * ((team == 1) and 1 or -1)
+  end
+  world.wave[wave_id].across_offset = offset
+  -- The shape it forms in is its **own** lane's, not the one it is walking. A wave
+  -- raised for a side lane was formed for a side lane, and during a challenge it
+  -- arrives in the middle still looking like one -- which is what lets a player see
+  -- which of the three groups converging on the monster came from where.
+  world.wave[wave_id].shape_lane = lane
 
   -- **The commanders take turns sending waves**, so a third of what leaves a base
   -- is somebody else's captain and somebody else's mixture. That is what makes

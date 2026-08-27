@@ -387,6 +387,49 @@ function M.project_onto_lane(world, lane_id, x, y, hint)
 end
 -- }}}
 
+-- {{{ function M.move_limited()
+-- Moves a body by a lane-space step, but **no faster than its speed in the world.**
+--
+-- This is the correction for the one thing lane coordinates get wrong, and the
+-- error was invisible until somebody asked for it to be measured. Holding a
+-- formation in lane coordinates makes a turn free: every body in a rank shares one
+-- distance-along, so going round a bend costs each of them the same number, and
+-- their world positions simply follow the curve. But the body on the **outside** of
+-- that bend has further to walk in the world, and nothing was telling it so -- it
+-- was covering that extra ground for nothing, moving faster than its own speed,
+-- silently.
+--
+-- So the step is measured after it is taken and scaled back if it was too far. The
+-- outer body then genuinely falls behind its place, the inner one gets ahead, and
+-- **the cohesion budget does the rest**: whoever is behind hurries, taken from
+-- whoever is in front. Turning left, the left of the line slows and the right
+-- hurries, which is what keeps it a line.
+--
+-- Three passes rather than a solve. Displacement is monotonic in the fraction, the
+-- first correction is nearly exact, and a fixed pass count keeps the cost the same
+-- every tick -- which a search would not.
+function M.move_limited(world, id, delta_along, delta_across, allowance)
+  local soldier = world.soldier
+  local from_x, from_y = soldier.x[id], soldier.y[id]
+  local along = soldier.lane_along[id]
+  local across = soldier.lane_across[id]
+
+  local fraction = 1
+  for _ = 1, 3 do
+    M.set_lane_position(world, id, along + delta_along * fraction,
+                                   across + delta_across * fraction)
+    local dx = soldier.x[id] - from_x
+    local dy = soldier.y[id] - from_y
+    local moved = math.sqrt(dx * dx + dy * dy)
+    if moved <= allowance or moved < 0.000001 then
+      return moved
+    end
+    fraction = fraction * (allowance / moved)
+  end
+  return allowance
+end
+-- }}}
+
 -- {{{ function M.step_in_formation()
 -- Moves a body toward its place in its wave's formation.
 --
@@ -403,28 +446,25 @@ function M.step_in_formation(world, id)
   if scale <= 0 then scale = 1 end
   local forward = soldier.speed[id] * scale
 
-  local along = soldier.lane_along[id]
-  local gap = target_along - along
+  local gap = target_along - soldier.lane_along[id]
   if gap > forward then
-    along = along + forward
+    gap = forward
   elseif gap < -forward then
-    along = along - forward
-  else
-    along = target_along
+    gap = -forward
   end
 
   local lateral = soldier.speed[id] * 0.55
-  local across = soldier.lane_across[id]
-  local side_gap = target_across - across
+  local side_gap = target_across - soldier.lane_across[id]
   if side_gap > lateral then
-    across = across + lateral
+    side_gap = lateral
   elseif side_gap < -lateral then
-    across = across - lateral
-  else
-    across = target_across
+    side_gap = -lateral
   end
 
-  M.set_lane_position(world, id, along, across)
+  -- The allowance is the body's own speed with this tick's cohesion multiplier on
+  -- it, and it is a limit **in the world**, not along the lane. A body on the
+  -- outside of a bend cannot buy extra ground by being offset.
+  M.move_limited(world, id, gap, side_gap, forward)
 end
 -- }}}
 
@@ -438,10 +478,8 @@ function M.step_toward_point(world, id, target_along, target_across)
   local soldier = world.soldier
   local speed = soldier.speed[id]
 
-  local along = soldier.lane_along[id]
-  local across = soldier.lane_across[id]
-  local dx = target_along - along
-  local dy = target_across - across
+  local dx = target_along - soldier.lane_along[id]
+  local dy = target_across - soldier.lane_across[id]
   local distance = math.sqrt(dx * dx + dy * dy)
 
   if distance <= speed then
@@ -449,8 +487,7 @@ function M.step_toward_point(world, id, target_along, target_across)
     return true
   end
 
-  M.set_lane_position(world, id, along + dx / distance * speed,
-                                 across + dy / distance * speed)
+  M.move_limited(world, id, dx / distance * speed, dy / distance * speed, speed)
   return false
 end
 -- }}}
