@@ -99,7 +99,7 @@ static void test_a_window_of_one_is_continuous_play(void)
 
         fixture_make_two_rooms(&w2);
         CHECK(session_start(&zero, &w2, p, 1, 4, 0) == 1);
-        CHECK_EQ(zero.window_ticks, 1);
+        CHECK_EQ(zero.beats_between_checkpoints, 1);
 
         session_release(&zero);
         world_release(&w2);

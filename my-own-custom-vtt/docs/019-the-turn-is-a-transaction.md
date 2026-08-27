@@ -1,30 +1,45 @@
 # The turn is a transaction
 
-Turns are **simultaneous**, and they **can be rolled back**.
+Actions are **simultaneous**, and they **can be taken back**.
 
-Everyone declares inside a window. When the window closes, everything resolves at
-once. And if it resolved wrongly -- somebody misunderstood, a rule was misapplied,
-a connection dropped mid-declaration, the GM changed their mind -- the turn can be
-taken back and run again.
+## Play runs continuously
 
-The server understands a turn as a **transaction**: a window with a snapshot at
-its head, resolution at its close, and an undo. It does not understand initiative,
-rounds, actions per turn, or whether acting twice is legal. Those are the
-ruleset's. A ruleset that wants continuous play sets the window to one tick and
-never rolls anything back, and the machinery below simply never fires.
+**Nothing waits.** This document used to say that everyone declares inside a
+*window* and that everything resolves when the window closes. That was never what
+the program did, and the word did real damage: a window is a thing you wait in, so
+an ordinary interval sounded like a rule about how a table plays. It generated a
+question — *what closes a window?* — with three plausible answers, all of them
+answers about something that does not exist.
 
-## Simultaneous
+Commands are accepted on every beat and applied on the beat they arrive.
 
-Inside the window, commands accumulate. Nothing moves because somebody typed
-first. When the window closes, every declared intention is resolved together.
+**A turn is a place you can go back to.** That is the whole of what it is. The
+number that decides how often one happens is called `beats_between_checkpoints`
+for that reason, and it is a trade between how finely a rollback can be aimed and
+how often the world is copied — ten beats at twenty a second is a checkpoint every
+half second.
 
-This needed no new mechanism, because
+The server understands a turn as a **transaction**: a snapshot at its head, and an
+undo. It does not understand initiative, rounds, actions per turn, or whether
+acting twice is legal. Those are the ruleset's.
+
+## Simultaneous, at the scale of a beat
+
+Two people pressing a key in the same fiftieth of a second are simultaneous, and
+neither of them moves because they typed first.
+
+That needed no new mechanism, because
 [buffer-then-resolve](004-the-world-and-its-tick.md) was already the rule for
 every pass in the tick: intentions are written into an array, and a second pass
 settles them. Two bodies reaching for the same doorway both write, and the resolve
-decides. Simultaneity at the scale of a turn is the same idea at a larger scale.
+decides.
 
-**Declarations are not revealed before resolution.** A viewer is not sent what
+**Simultaneity is a property of the beat, not of the turn.** That is the version
+that survives play running continuously, and it is the version that was actually
+built — the turn-scale reading was the document describing something more
+ceremonious than the code.
+
+**Declarations are not revealed before they resolve.** A viewer is not sent what
 other viewers have declared. That is a filtering rule and it lives with all the
 others in
 [what a viewer is allowed to know](009-what-a-viewer-is-allowed-to-know.md).
@@ -69,7 +84,7 @@ world ever grows large enough for that to hurt, the hybrid is there.
 
 | | What happens | What it is for |
 | --- | --- | --- |
-| **Re-declare** | Restore the head snapshot. Discard the declarations. Reopen the window. | Somebody's connection dropped. Somebody misread the situation. Everybody gets another go. |
+| **Re-declare** | Restore the head snapshot. Discard what was declared since. Carry on from there. | Somebody's connection dropped. Somebody misread the situation. Everybody gets another go. |
 | **Retcon** | Restore the head snapshot. Keep the declarations, change one, replay forward. | The GM ruled wrongly and wants the turn to have gone differently, with everything downstream following from the correction. |
 
 The second is the interesting one and it is only possible because the command log

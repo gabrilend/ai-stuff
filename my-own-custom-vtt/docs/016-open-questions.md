@@ -169,11 +169,14 @@ detailed dungeon is the case that would reopen this. The demo reports the curren
 figure, so the answer stays live rather than becoming a number in a document that
 nobody re-measures.
 
-### 3.2a How long is a turn's window, in ticks?
+### 3.2a How long is a turn's window, in ticks? — ANSWERED, AND THE QUESTION WAS WRONG
 
-Underneath the tick rate and not answered by it. Fixed, or dependent on people
-being finished? See [3.5](#35-what-closes-a-turns-window).
+See [3.5](#q-3-5). There is no window; there is an interval between rollback
+checkpoints, and the question of how long it should be is a question about
+rollback granularity rather than about how a table plays.
 
+Ten beats is the default, which at twenty beats a second is a checkpoint every
+half second. One is legal and expensive rather than special.
 ### 3.3 When a turn is rolled back, does the fog roll back with it? — ANSWERED
 
 **Fog rolls back with the world.**
@@ -213,12 +216,29 @@ else did without asking them -- see the re-declare versus retcon table in
 [019](019-the-turn-is-a-transaction.md). Does it need agreement? Does the person
 whose command is being rewritten get told?
 
-### 3.5 What closes a turn's window?
+### 3.5 What closes a turn's window? — ANSWERED, AND THE QUESTION WAS WRONG
 
-Three candidates and they are not exclusive: everybody has sent `DECLARED`; a
-timer expired; a GM said so. A timer is the one that keeps a session moving and
-also the one that will cut somebody off mid-thought.
+**There is no window.** Play runs continuously.
 
+The question was asked and the answer came back as another question: *what do you
+mean by a window?* Which was the right response, because nothing in the program
+ever waited. Commands are accepted on every beat and applied on the beat they
+arrive. A turn boundary copies the world aside and the next turn opens on the
+same beat.
+
+So the thing that was called a window is **the interval between rollback
+checkpoints**, and the field is named `beats_between_checkpoints` now. A turn is
+a place you can go back to. That is the whole of what it is.
+
+The number is a trade between how finely you can aim a rollback and how often the
+world is copied — ten beats at twenty a second is a checkpoint every half second.
+It is not a rule about how a table plays, and calling it a window made an ordinary
+interval sound like one, which is why the question could not be answered as asked.
+
+**The general shape, worth keeping: a name that implies a behaviour the code does
+not have will generate questions nobody can answer.** Three plausible answers had
+been written down for this one — everybody has declared, a timer, the GM says so
+— and all three were answers to a question about a thing that does not exist.
 ### 3.6 Does a rolled-back turn appear in the engraving? — ANSWERED
 
 Yes. `rollbacks` is one of the eight cells.
