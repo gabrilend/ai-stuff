@@ -201,6 +201,10 @@ local function make_soldier_arrays(capacity, kind_count)
   soldier.crossing          = zeroed(capacity)
   soldier.crossing_step     = zeroed(capacity)
   soldier.crossing_dir      = zeroed(capacity)
+  -- 1 while this body is walking off the map during a calm. Everything on the
+  -- field turns round when a monster dies; the wave units simply vanish when they
+  -- arrive, and the heroes hand back what they cost.
+  soldier.going_home        = zeroed(capacity)
 
   -- Modifiers. One flat array per upgrade kind rather than one table per
   -- soldier: the sweep that re-stamps a lane's guards touches one kind across
@@ -429,6 +433,7 @@ function M.release(world, id)
   soldier.crossing[id] = 0
   soldier.crossing_step[id] = 0
   soldier.crossing_dir[id] = 0
+  soldier.going_home[id] = 0
   for kind = 1, #soldier.upgrade_count do
     soldier.upgrade_count[kind][id] = 0
   end

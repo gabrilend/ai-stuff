@@ -119,6 +119,34 @@ function M.attack_pass(world)
         soldier.cooldown[id] = soldier.cooldown[id] - 1
       end
 
+      -- The Golem does not take targets and does not stop. It swings at whatever it
+      -- has walked into, which is the whole of its behaviour and the reason it is
+      -- the one body in the game that is not the state machine.
+      local row = world.parameters.unit.archetype[soldier.archetype[id]]
+      if row ~= nil and row.deathless and soldier.cooldown[id] <= 0 then
+        local landed = false
+        world.targeting.for_each_near(world, soldier.x[id], soldier.y[id], soldier.range[id],
+          function(other)
+            if world.targeting.hostile(soldier.team[id], soldier.team[other]) then
+              M.strike(world, other, soldier.damage[id])
+              landed = true
+            end
+          end)
+        for _, structure in ipairs(world.structure) do
+          if structure.alive == 1 and world.targeting.hostile(soldier.team[id], structure.team) then
+            local node = world.map.node[structure.node]
+            local dx, dy = node.x - soldier.x[id], node.y - soldier.y[id]
+            if dx * dx + dy * dy <= soldier.range[id] ^ 2 then
+              M.strike_structure(world, structure.id, soldier.damage[id])
+              landed = true
+            end
+          end
+        end
+        if landed then
+          soldier.cooldown[id] = soldier.cooldown_max[id]
+        end
+      end
+
       if soldier.cooldown[id] <= 0 and soldier.state[id] == 3 then
         local target = soldier.target[id]
         if target ~= 0 and soldier.alive[target] == 1 then
@@ -163,6 +191,13 @@ function M.resolve_pass(world)
 
   for id = 1, world.high_water do
     if soldier.alive[id] == 1 and pending[id] > 0 then
+      -- The Golem cannot be hurt at all. Not very tough -- **deathless**, which is a
+      -- different thing and needs saying in the one place damage is applied, or
+      -- somebody will spend an afternoon tuning its health.
+      local row = world.parameters.unit.archetype[soldier.archetype[id]]
+      if row ~= nil and row.deathless then
+        pending[id] = 0
+      end
       soldier.health[id] = soldier.health[id] - pending[id]
       if soldier.health[id] <= 0 then
         soldier.health[id] = 0
@@ -215,6 +250,12 @@ function M.reap_pass(world)
       -- Nothing asks what killed it.
       world.commanders.pay_for_kill(world, dead_team, soldier.flavour[id],
                                     soldier.archetype[id], soldier.bounty_colour[id])
+
+      if soldier.flavour[id] == 4 then
+        -- A monster's death pays the team it was a **test for**, whoever landed the
+        -- blow, so nobody can reach into the middle and take the enemy's reward.
+        world.phases.monster_died(world, soldier.assigned_team[id], soldier.archetype[id])
+      end
 
       if soldier.flavour[id] == 2 then
         -- A hero is gone, and the resource that bought it is gone with it. There

@@ -446,6 +446,31 @@ function M.buy(world, player_number, hero_row, where, target)
 end
 -- }}}
 
+-- {{{ function M.refund_hero()
+-- A hero that survived a challenge hands back what it cost.
+--
+-- The one exception to heroes being spent permanently, and it is narrow on purpose:
+-- it applies to nothing else, and a hero lost in ordinary play is lost the ordinary
+-- way. What it buys is that **throwing everything you have at a monster is the
+-- correct move rather than a gamble against your own next three minutes** -- the one
+-- fight in the game designed to be fought all-in is the one fight you are allowed to
+-- go all-in on.
+function M.refund_hero(world, id)
+  local soldier = world.soldier
+  local player = world.player[soldier.owner[id]]
+  if player == nil then
+    return
+  end
+  local cost = world.parameters.commander.hero_cost[soldier.archetype[id]]
+  if cost ~= nil then
+    for colour, amount in pairs(cost) do
+      M.credit(world, player, colour, amount)
+    end
+  end
+  world.raise(world, "hero_refunded", {player = player.number, hero = soldier.archetype[id]})
+end
+-- }}}
+
 -- {{{ function M.hero_died()
 function M.hero_died(world, owner)
   local player = world.player[owner]

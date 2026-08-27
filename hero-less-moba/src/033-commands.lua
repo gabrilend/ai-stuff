@@ -223,6 +223,12 @@ local function set_signpost(world, command)
 end
 -- }}}
 
+-- {{{ local function choose_boon()
+local function choose_boon(world, command)
+  return world.phases.choose_boon(world, command.player, command.boon)
+end
+-- }}}
+
 -- {{{ M.verb
 -- The verb dispatch table. Adding a command is adding a row here, not a branch
 -- somewhere in the apply loop.
@@ -233,6 +239,7 @@ M.verb = {
   recall           = recall,
   buy_hero         = buy_hero,
   set_signpost     = set_signpost,
+  choose_boon      = choose_boon,
 }
 -- }}}
 

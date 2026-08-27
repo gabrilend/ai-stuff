@@ -69,6 +69,16 @@ local function make_frame(world)
     tick  = 0,
     phase = 1,
     winner = 0,
+    challenge_index = 0,
+    -- When the current phase ends, so the banner can count down. **A visible clock
+    -- on purpose**: a surge a team can see coming becomes an event they play
+    -- toward, and the minutes before one are their own phase of the match. A hidden
+    -- trigger produces one interesting moment; a visible one produces an
+    -- interesting approach to that moment, three times.
+    phase_ends_at = 0,
+    -- The two a player has been offered, or empty. Nothing else in this project
+    -- decides for a player, so this being empty means the choice is already made.
+    boon_offer = {},
 
     -- Per body, indexed by soldier id.
     alive     = zeroed(capacity),
@@ -182,6 +192,20 @@ function M.stamp(world)
   frame.tick   = world.tick
   frame.phase  = world.phase
   frame.winner = world.winner
+  frame.challenge_index = world.challenge_index
+  frame.phase_ends_at = world.phase_ends_at or 0
+
+  for index = #frame.boon_offer, 1, -1 do
+    frame.boon_offer[index] = nil
+  end
+  local watching_player = (world.viewing_team == 2)
+    and (world.parameters.team_size + 1) or 1
+  local offer = world.boon_offer[watching_player]
+  if offer ~= nil then
+    for index, boon_id in ipairs(offer) do
+      frame.boon_offer[index] = boon_id
+    end
+  end
 
   -- Bodies. Only the living are written; the dead keep whatever they had, and
   -- nothing reads them because the live list does not name them.
