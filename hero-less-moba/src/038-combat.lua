@@ -125,7 +125,14 @@ function M.attack_pass(world)
           local dx = soldier.x[target] - soldier.x[id]
           local dy = soldier.y[target] - soldier.y[id]
           if dx * dx + dy * dy <= soldier.range[id] ^ 2 then
-            M.strike(world, target, soldier.damage[id])
+            -- A frightened body hits softer. Fear is not damage and never was --
+            -- it is what the enemy actually does to you, and it is inflicted on
+            -- purpose by something that meant to.
+            local blow = soldier.damage[id]
+            if soldier.fear[id] > 0 then
+              blow = blow * world.abilities.FEAR_MULTIPLIER
+            end
+            M.strike(world, target, blow)
             soldier.cooldown[id] = soldier.cooldown_max[id]
           end
         elseif soldier.target_structure[id] ~= 0 then
@@ -203,6 +210,18 @@ function M.reap_pass(world)
         x       = soldier.x[id],
         y       = soldier.y[id],
       })
+
+      -- Every player on the other team is paid, in full, in this body's colour.
+      -- Nothing asks what killed it.
+      world.commanders.pay_for_kill(world, dead_team, soldier.flavour[id],
+                                    soldier.archetype[id], soldier.bounty_colour[id])
+
+      if soldier.flavour[id] == 2 then
+        -- A hero is gone, and the resource that bought it is gone with it. There
+        -- is no respawn: what a player forms an attachment to is the decision, not
+        -- the body.
+        world.commanders.hero_died(world, soldier.owner[id])
+      end
 
       if wave_id ~= 0 then
         world.waves.member_died(world, wave_id)

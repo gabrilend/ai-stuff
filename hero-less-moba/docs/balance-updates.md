@@ -103,3 +103,42 @@ arrangement at all. If the badges get smaller, this number goes up.
 
 **The floor is not a number**, it is the whole-map framing, computed from the map's
 own bounds — so changing the field size reframes the view with no second edit.
+
+## 2026-08-26 — the second economy's first numbers
+
+Nothing → the commander catalogue. Six colours, two commanders, six heroes, and
+the die ladder that caps a wallet.
+
+    colours              6, one per attribute score, each with its own display
+                         shape as well as its own hue
+    wallet ceiling       the die ladder -- 4, 6, 8, 10, 12 -- climbing a rung
+                         every 2400 ticks and stopping at a d12
+    bounty per kill      1 for a wave body, 3 for a captain, 5 for a hero,
+                         40 for a challenge monster; **per player**, not a pot
+    hero costs           two colours each, 5 or 6 points in total
+
+Observed on the first run:
+
+- **Players waste far more than they hold.** A hundred seconds in, each player had
+  banked six might against a ceiling of six and thrown away fifty. That is the
+  "spend it or waste it" pressure doing exactly what it is for, but the ratio says
+  the early ceiling is very tight against the early income. Left alone for now,
+  because the ladder climbs and because it is the kind of number that should be
+  read off a long match rather than a short one.
+- **A pair of commanders defines an economy.** With both in circulation every hero
+  on both rosters is buyable; facing only one, half of them are not. That is the
+  design working -- you farm what the enemy fields -- and it is also a trap, which
+  is why the catalogue now says so out loud.
+
+## 2026-08-26 — fear, and what it does instead of damage
+
+Nothing → a frightened body swings at **0.62** of its damage for **180 ticks**.
+
+Fear is the enemy's actual weapon and it is deliberately not a second way of doing
+what swords already do. It is inflicted, on purpose, by something that meant to,
+and it makes a crowd worse rather than better -- which is why the ability that
+carries it fires on a crowd.
+
+The number is a guess and wants a real fight to be read against. What it must not
+become is large enough that a feared line simply stops working; the statue is
+definitely slayable, you just have to have a stronger spirit.

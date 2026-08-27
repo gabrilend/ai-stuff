@@ -455,6 +455,70 @@ function M.step_toward_point(world, id, target_along, target_across)
 end
 -- }}}
 
+-- {{{ function M.begin_crossing()
+-- Puts a body onto a connector, heading for the far end.
+--
+-- The only time anything leaves a lane on purpose. A hero that has obeyed a
+-- sign-post walks the connector node by node and joins the lane at the other end --
+-- which is the whole of what a sign-post buys: **the ability to move a body into a
+-- neighbouring lane, once, with a delay**, the delay being the walk.
+function M.begin_crossing(world, id, connector, from_lane)
+  local soldier = world.soldier
+  soldier.crossing[id] = connector.id
+  if connector.lane_a == from_lane then
+    soldier.crossing_step[id] = 1
+    soldier.crossing_dir[id] = 1
+  else
+    soldier.crossing_step[id] = #connector.path
+    soldier.crossing_dir[id] = -1
+  end
+  -- Off any lane for the duration. Nothing counts a body on a connector toward a
+  -- push, no wave spawns onto one, and no tower covers it.
+  soldier.lane[id] = 0
+  soldier.turns_left[id] = 0
+end
+-- }}}
+
+-- {{{ function M.step_crossing()
+-- Advances a body along the connector it is on. Returns true once it has arrived
+-- and been put back onto a lane.
+function M.step_crossing(world, id)
+  local soldier = world.soldier
+  local connector = world.map.connector[soldier.crossing[id]]
+  local direction = soldier.crossing_dir[id]
+  local next_step = soldier.crossing_step[id] + direction
+
+  if next_step < 1 or next_step > #connector.path then
+    -- Arrived. Join the lane at this end, at the junction it came out at.
+    local lane_id = (direction == 1) and connector.lane_b or connector.lane_a
+    local lane = world.map.lane[lane_id]
+    local junction_index = lane.milestone_index[4]
+
+    soldier.crossing[id] = 0
+    soldier.crossing_step[id] = 0
+    soldier.crossing_dir[id] = 0
+    soldier.lane[id] = lane_id
+    soldier.path_index[id] = junction_index
+    M.set_lane_position(world, id, lane.cumulative[junction_index], 0)
+    return true
+  end
+
+  local node = world.map.node[connector.path[next_step]]
+  local dx, dy = node.x - soldier.x[id], node.y - soldier.y[id]
+  local distance = math.sqrt(dx * dx + dy * dy)
+  local speed = soldier.speed[id]
+
+  if distance <= speed then
+    soldier.x[id], soldier.y[id] = node.x, node.y
+    soldier.crossing_step[id] = next_step
+  else
+    soldier.x[id] = soldier.x[id] + dx / distance * speed
+    soldier.y[id] = soldier.y[id] + dy / distance * speed
+  end
+  return false
+end
+-- }}}
+
 -- {{{ function M.place_on_lane()
 -- Puts a body onto a lane at a given path index, facing a given direction. The
 -- one way a body enters a lane, used by the wave spawner and by hero placement

@@ -44,9 +44,9 @@ hero-less-moba/
 │                                               Numbered 028 upward. Not listed
 │                                               here — each file is found through
 │                                               its companion .info.md page.
-├── assets/ ................................... The catalogue tables, 024 to 027.
-│                                               Every balance number in the game is
-│                                               in one of these and in no document.
+├── assets/ ................................... The catalogue tables. Every balance
+│                                               number in the game is in one of
+│                                               these and in no document.
 ├── tests/ .................................... The invariants, 051.
 │
 ├── notes/
