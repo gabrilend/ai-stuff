@@ -135,6 +135,25 @@ void rules_may_know(struct ruleset *r, uint32_t viewer, uint32_t thing,
 /* What the view should be told about a kind's appearance. */
 void rules_describe(struct ruleset *r, uint32_t kind, char *into, uint32_t capacity);
 
+/*
+ * Somebody acted on something they do not command.
+ *
+ * OWNERSHIP IS THE RIGHT TO MOVE A PIECE. It is not a fence around it. A forest
+ * commander owns their goblin patrol and moves it; when it walks into somebody
+ * else's tavern, the tavern's owner cannot move it and can absolutely poison its
+ * drink, spring a trapdoor under it, or refuse it mead.
+ *
+ * The server has no opinion about any of that. What it knows is that the person
+ * could SEE the thing, and what intent number they sent. This hook is where
+ * "but you better explain how" lives, and a ruleset that does not have it means
+ * a table where you cannot poison a drink -- which is correct rather than a gap.
+ *
+ * Returns 1 when the ruleset allowed it. On a refusal the sentence is in
+ * `last_refusal`, the same way gate 6 works.
+ */
+int rules_on_interact(struct ruleset *r, uint32_t viewer, uint32_t actor,
+                      uint32_t subject, uint32_t intent);
+
 /* Everything game-specific arrives through this one door. */
 uint16_t rules_on_action(struct ruleset *r, uint32_t viewer,
                          const struct log_entry *entry);
