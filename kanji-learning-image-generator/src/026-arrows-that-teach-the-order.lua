@@ -52,7 +52,7 @@ local SEGMENTS = {
 }
 -- }}}
 
--- {{{ segment_line(digit_x, digit_y, width, height, which)
+-- {{{ segment_line(x, y, width, height, which)
 -- Where one segment of a figure runs, as two points.
 local function segment_line(x, y, width, height, which)
   local half = height * 0.5
@@ -66,7 +66,7 @@ local function segment_line(x, y, width, height, which)
 end
 -- }}}
 
--- {{{ sheet(resolution)
+-- {{{ sheet(width, height)
 -- Four surfaces: three colours and a transparency.
 --
 -- Four separate surfaces rather than one holding four numbers per pixel, so
@@ -149,7 +149,19 @@ function M.build(record, settings, options)
   options = options or {}
   local measured = options.measured or shape.measure_record(record)
   local placement = field_of.placement(settings, record)
-  local arrows = settings.arrows
+
+  -- Every one of these is a length inside the picture, so every one scales with
+  -- the picture (`413`). Copied rather than mutated, because the settings table
+  -- is shared and a run that quietly doubled the numbers in it would double
+  -- them again on the next character.
+  local arrows = {}
+  for key, value in pairs(settings.arrows) do arrows[key] = value end
+  for _, key in ipairs({ "head_length", "head_width", "shaft_length",
+                         "number_size", "line_width", "outline", "clearance" }) do
+    if type(arrows[key]) == "number" then
+      arrows[key] = field_of.scaled(settings, arrows[key])
+    end
+  end
 
   local surfaces = sheet(placement.width, placement.height)
   local placed = {}

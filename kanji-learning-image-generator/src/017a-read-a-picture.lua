@@ -99,7 +99,7 @@ local function huffman(lengths)
 end
 -- }}}
 
--- {{{ decode(reader, table)
+-- {{{ decode(reader, tree)
 -- One symbol.
 --
 -- Codes are stored highest bit first while everything else in the stream is
@@ -267,7 +267,7 @@ function M.inflate(text, from)
 end
 -- }}}
 
--- {{{ unfilter(rows, width, height, channels)
+-- {{{ unfilter(bytes, width, height, channels)
 -- The row transformations undone.
 --
 -- Every row is prefixed by a byte saying how its bytes were transformed, and

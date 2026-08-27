@@ -40,9 +40,9 @@ what a person reads before opening the source.
 | `self.take(width)` | A plain number, lowest bit first. |
 | `self.align()` | Forget the rest of the current byte. Stored blocks begin on a boundary. |
 | `huffman(lengths)` | A code table, from how many bits each symbol is given. |
-| `decode(reader, table)` | One symbol. |
+| `decode(reader, tree)` | One symbol. |
 | `push(byte)` |  |
-| `unfilter(rows, width, height, channels)` | The row transformations undone. |
+| `unfilter(bytes, width, height, channels)` | The row transformations undone. |
 | `project_read(path)` | Reading a file without dragging the whole project in. |
 
 ## Where it sits

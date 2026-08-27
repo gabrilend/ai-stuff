@@ -17,6 +17,7 @@ luajit src/044-run-the-pictures.lua --chars 木火水
 luajit src/044-run-the-pictures.lua --grade 1 --limit 20
 luajit src/044-run-the-pictures.lua --phrases
 luajit src/044-run-the-pictures.lua --chars 時語 --style wimmelbild
+luajit src/044-run-the-pictures.lua --chars 木 --resolution 1536
 ```
 
 ## What it offers
@@ -29,7 +30,6 @@ luajit src/044-run-the-pictures.lua --chars 時語 --style wimmelbild
 | `M.where(settings)` | The address the picture program is listening on. |
 | `M.input_folder(settings)` | The folder that program reads its inputs from. |
 | `M.listening(settings)` | Whether there is anything there, and what it says about itself. |
-| `M.explain_silence(settings)` |  |
 | `M.submit(settings, graph_text)` | One workflow, posted. Returns the identifier the far end gave it. |
 | `M.wait_for(settings, identifier, patience)` | Poll until the picture is made, or give up. |
 | `M.collect(settings, filename, subfolder)` | The finished picture, fetched. |
@@ -82,6 +82,7 @@ what a person reads before opening the source.
 |---|---|
 | `quote(text)` |  |
 | `unescape(text)` | A string out of the far end's reply, with its escapes turned back. |
+| `explain_silence(settings)` |  |
 | `main(argv)` |  |
 
 ## Where it sits

@@ -23,6 +23,13 @@ were finished and reframed what the project is for. Read that first.
 | `410` | The pool was living in memory | **completed** — kept where a thing that is never deleted has to be kept |
 | `409` | The card is also the screen | **completed** — asked of the card what `307` asked of the processor |
 | `408` | What a higher tier buys | **completed** — a stroke-order animation, and an encoder checked by decoding it |
+| `414` | The numbers were all secretly at 768 | **completed** — a pixel number scales with the frame, and doubling the frame was measured and refused |
+| `413` | The picture grows a panel | **open** — where a panel is allowed to appear, which follows from what the graders must not see |
+
+Three tickets outside this phase are open and belong to it in spirit: `107`,
+letters the archive already drew; `207`, the words a person reads; and `208`,
+the panel under the picture, which `413` places. They are numbered where their
+foundations are rather than when they were written.
 
 `405` is the foundation the last three stand on. `404` is the one that cannot be
 finished on this machine alone.
@@ -81,3 +88,20 @@ equal or higher minor one. And a phrase list with a typo in it was treated as no
 phrase list at all.
 
 The pattern across all five: ask the thing, do not reason about it.
+
+**A sixth turned up last and is the largest.** Twelve numbers in the settings
+file were measured in pixels at one particular frame size, said so only in their
+comments, and did not move when that size did. Nobody would have found this by
+reading; it was found by trying to change the resolution and getting a picture
+that looked like the idea failing rather than the arithmetic.
+
+The fix made the experiment interpretable and the experiment then said no —
+1536 costs eight times as long and stops the model composing scenes at all.
+That is a result worth having, and the only reason it is trustworthy is that
+the strokes provably covered the same fraction of the frame at both sizes.
+
+**And the thing that catches this class of drift is now a test.** The companion
+pages every source file carries are built by reading the fold header above each
+function, not the code, so a header that still lists old arguments publishes a
+signature nobody can call. One walk over the tree comparing the two found
+fifteen more, in files nobody had touched in weeks.

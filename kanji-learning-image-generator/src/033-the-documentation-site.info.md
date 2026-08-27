@@ -55,7 +55,7 @@ what a person reads before opening the source.
 | `escape(text)` |  |
 | `highlight(code)` | Lua source with its keywords, strings, numbers and comments marked. |
 | `inline(text, known)` | The marks that happen inside a line: code, emphasis, links. |
-| `gather(known)` | Every file the site will hold, and the name its page gets. |
+| `gather()` | Every file the site will hold, and the name its page gets. |
 | `contents(known, here)` | The column that is always there. |
 | `main(argv)` |  |
 

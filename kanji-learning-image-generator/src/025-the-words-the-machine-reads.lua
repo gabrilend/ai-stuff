@@ -165,7 +165,7 @@ function M.token_estimate(text)
 end
 -- }}}
 
--- {{{ M.positive(scene, settings)
+-- {{{ M.positive(scene, settings, style_name)
 -- The scene, as the sentence describing it.
 --
 -- Every clause carries a rank, and the sentence is shortened by dropping the
@@ -299,7 +299,7 @@ function M.positive(scene, settings, style_name)
 end
 -- }}}
 
--- {{{ M.prompts(record, store, settings)
+-- {{{ M.prompts(record, store, settings, options)
 -- One record, all the way to the two sentences. Or nil and a reason.
 function M.prompts(record, store, settings, options)
   options = options or {}

@@ -224,3 +224,38 @@ desktop on it is never at zero before anything of ours has run. Same shape as
 picture program**, in the installer, the walkthrough and the message shown when
 nothing is listening. A correct default nobody is told about is a default that
 gets dropped the first time somebody types the command from memory.
+
+## The frame stayed at 768, and now says why
+
+Asked whether the pictures were failing for want of room, `414` made every
+pixel-valued knob scale with the frame so the question could be asked honestly,
+and then the answer came back **no**.
+
+| Knob | Was | Now | Why |
+|---|---|---|---|
+| `field.reference` | — | 768 | The size every other pixel number below was measured at. Not a size the picture is drawn at — a unit for reading the rest of the file. |
+| `field.resolution` | 768 | 768 | **Unchanged after measuring 1536 and finding it worse.** Kept as the value it always was, now for a reason instead of by default. |
+
+Four characters, same seeds, same brief. At 768 they took 37 seconds each; at
+1536, **290** — not four times the pixels for four times the cost but nearly
+eight, since the card starts trading against its own memory. Eighty characters
+would be six and a half hours.
+
+**The scores split in both directions and neither was improvement.** 川 and 木
+sat still. 時 fell from 0.84 to 0.63. 語 climbed from 0.52 to 0.83 — and 語 at
+0.83 is a traced glyph on crowd texture, while 語 at 0.52 has the mouth radical
+built from a wooden crate. The number went up because the picture stopped being
+one.
+
+The cause is not a knob. The picture is composed on a grid of cells standing for
+eight-pixel squares, so 768 is 96 across and 1536 is 192, while the layers that
+let one region know what the others are doing were trained around 64 and do not
+reach further for a larger canvas. Past a point each region can only see its
+neighbours, so it tiles a texture rather than composing a scene — and with no
+scene left to bend, the only way to satisfy the structure field is to darken its
+strokes directly.
+
+**More room for the strokes remains the right instinct.** Pixels are the wrong
+currency for it. What is left to try: fewer and fatter strokes in the field
+itself, a second low-strength pass at the larger size over a picture composed at
+the smaller one, or a checkpoint trained at 1024 to begin with.

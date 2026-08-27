@@ -42,8 +42,8 @@ what a person reads before opening the source.
 
 | | |
 |---|---|
-| `segment_line(digit_x, digit_y, width, height, which)` | Where one segment of a figure runs, as two points. |
-| `sheet(resolution)` | Four surfaces: three colours and a transparency. |
+| `segment_line(x, y, width, height, which)` | Where one segment of a figure runs, as two points. |
+| `sheet(width, height)` | Four surfaces: three colours and a transparency. |
 | `line_on(surfaces, ax, ay, bx, by, width, colour)` | One straight mark, in colour, on all four surfaces at once. |
 | `wedge_on(surfaces, points, colour)` | One arrowhead, in colour. |
 | `digit_on(surfaces, value, x, y, width, height, thickness, colour)` | One figure, drawn as lit segments. |

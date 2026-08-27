@@ -38,6 +38,12 @@ return {
   -- {{{ field -- the grey image the illusion rides on (docs/003, 202)
   field = {
     resolution   = 768,   -- pixels square; matches the control nets this targets
+    -- The resolution the pixel numbers below were tuned at. Change `resolution`
+    -- and they are scaled to match, so a stroke covers the same fraction of the
+    -- frame whatever size it is drawn at (413). Without this, doubling the
+    -- resolution left hair-thin strokes and speck-sized arrows -- which looks
+    -- exactly like the idea failing rather than the arithmetic.
+    reference    = 768,
     margin       = 0.07,  -- fraction of the canvas left blank around the character
     stroke_width = 6.5,   -- at the resolution above
     taper        = 0.18,  -- fraction of each stroke thinned at either end

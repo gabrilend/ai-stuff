@@ -16,6 +16,7 @@
 --   luajit src/044-run-the-pictures.lua --grade 1 --limit 20
 --   luajit src/044-run-the-pictures.lua --phrases
 --   luajit src/044-run-the-pictures.lua --chars 時語 --style wimmelbild
+--   luajit src/044-run-the-pictures.lua --chars 木 --resolution 1536
 
 local project = dofile((debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$")) ..
                        "/009-where-things-are.lua")
@@ -160,7 +161,7 @@ function M.listening(settings)
 end
 -- }}}
 
--- {{{ M.explain_silence(settings)
+-- {{{ explain_silence(settings)
 local function explain_silence(settings)
   local kitchen = project.path("libs", "kitchen")
   return "there is nothing listening at " .. M.where(settings) .. ".\n" ..
@@ -308,6 +309,7 @@ function M.make_one(settings, record, store, options)
     -- A pool holding two styles with no way to tell them apart is a pool where
     -- every comparison between them is meaningless.
     style = built.style,
+    resolution = settings.field.resolution,
     argued = scene.argument_path, canvas = built.positive,
     source = filename,
     ratings = {},
@@ -317,7 +319,8 @@ function M.make_one(settings, record, store, options)
   -- only what somebody looked at were rated, the pool would be overwhelmingly
   -- unrated and "tier four or better" would exclude nearly all of it.
   local tier, agreement = grader.rate_on_arrival(settings, companion,
-    pool.place(settings, record, scene, seed, built.style),
+    pool.place(settings, record, scene, seed, built.style,
+               settings.field.resolution),
     made.folder .. "/field.png")
 
   return { character = record.character, world = scene.biome.name,
@@ -330,6 +333,33 @@ local function main(argv)
   local options = project.arguments(argv)
   local settings = project.hello("044-run-the-pictures")
   local store = records.store()
+
+  -- A resolution asked for on the command line replaces the one in the
+  -- settings, and every length that was written at the reference resolution is
+  -- scaled to match it (`413`). Copied rather than written into the shared
+  -- settings table, because half this project reads that table.
+  local wanted_resolution = tonumber(options.resolution)
+  if wanted_resolution then
+    local field = {}
+    for key, value in pairs(settings.field) do field[key] = value end
+    field.resolution = wanted_resolution
+    local copy = {}
+    for key, value in pairs(settings) do copy[key] = value end
+    copy.field = field
+    settings = copy
+    io.write(string.format("drawing at %d instead of %d; every length scales " ..
+             "with it\n", wanted_resolution, field.reference))
+    -- The model these recipes are written for was trained at 512 and is already
+    -- being pushed at 768. Well past that it repeats its subject -- two trees,
+    -- two figures -- because it has never seen a picture that size. Worth
+    -- trying and worth being told.
+    if wanted_resolution > 1024 then
+      io.write("NOTE: this is well past what the model was trained at. Expect " ..
+               "it to repeat\n      its subject -- two trees where there " ..
+               "should be one -- and take about\n      four times as long " ..
+               "per picture.\n")
+    end
+  end
 
   local listening, device = M.listening(settings)
   if not listening then

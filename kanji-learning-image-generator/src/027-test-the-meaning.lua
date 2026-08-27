@@ -166,6 +166,28 @@ local function test_the_structure_field(t)
   t.ok(dense >= settings.field.blur_minimum,
        "and never below the floor where softening stops working")
 
+  -- Every pixel number in the settings is a length inside the picture, so
+  -- every one is really a fraction of the frame. Written as pixels because
+  -- nobody wants to read a stroke width of 0.00846 -- and until `413` they did
+  -- not move when the resolution did, so doubling it left hair-thin strokes
+  -- and speck-sized arrows, which looks exactly like the idea failing.
+  local doubled = {}
+  for key, value in pairs(settings) do doubled[key] = value end
+  doubled.field = {}
+  for key, value in pairs(settings.field) do doubled.field[key] = value end
+  doubled.field.resolution = settings.field.reference * 2
+
+  local here = field.scaled(settings, settings.field.stroke_width)
+             / settings.field.resolution
+  local there = field.scaled(doubled, doubled.field.stroke_width)
+              / doubled.field.resolution
+  t.near(there, here, 1e-9,
+         "a stroke covers the same fraction of the frame at any resolution",
+         string.format("%.5f against %.5f", there, here))
+  t.same(field.scaled(settings, 10), 10,
+         "and a number at the reference resolution is left alone")
+  t.same(field.scaled(doubled, 10), 20, "while one at twice it is doubled")
+
   local small = field.thumbnail(surface, settings)
   t.same(small.width, settings.field.thumbnail,
          "the thumbnail is the size the illusion is specified at")

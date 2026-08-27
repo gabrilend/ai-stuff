@@ -106,7 +106,7 @@ local ROWS = { { name = "top", below = 1/3 }, { name = "middle", below = 2/3 },
                { name = "bottom", below = math.huge } }
 -- }}}
 
--- {{{ pick(table, value)
+-- {{{ pick(rows, value)
 -- The first row whose range contains this value.
 local function pick(rows, value)
   for _, row in ipairs(rows) do
