@@ -87,11 +87,18 @@ the boon goes to that team whoever landed the blow.
 The calm empties the map, refunds the heroes that survived, and offers each player
 two boons.
 
-**The one fallback in the whole prototype lives here and is announced as one.** A
-boon still unchosen when the calm ends is taken for the player. It exists because an
-unmade choice would sit there forever and quietly deny that team a modifier the other
-side has; whether the right answer is to hold the calm open instead is an open
-question.
+**There is no fallback here any more, and there is none anywhere else either.** A
+boon still unchosen when the calm ends **stays on offer**, indefinitely. Nothing is
+taken for anybody.
+
+The alternative that looked best was worse in an instructive way: taking it but
+allowing a later swap makes *never choosing* the correct play — let the timer run
+out, watch how the match develops, then swap into whatever turned out to matter. A
+rule that rewards not answering teaches an awkward, bent way of playing. Letting it
+lapse punishes a team for one player looking away.
+
+Being slow costs you the use of the boon in the meantime and costs your team
+nothing. You are only ever hurting yourself.
 
 **605 is thin.** Boons are drawn at random from a flat list of six. The design wants
 offers that are worth choosing between, which is a curation problem rather than a

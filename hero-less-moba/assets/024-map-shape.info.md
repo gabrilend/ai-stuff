@@ -36,6 +36,8 @@ Coordinates are in **paces**, with y increasing downward to match the screen.
 | `milestone_count` | integer | Nine. Walk `milestone_fraction` with this rather than with `#`. |
 | `lane_width` | double[1..3] | How many paces across each lane is. The centre's is larger. |
 | `personal_space` | double | How far apart two bodies stand when queueing. |
+| `bend_smoothing_window` | integer | How many nodes each way of a junction may move when the corner is rounded. |
+| `bend_smoothing_passes` | integer | How round it gets. |
 
 ## The two properties a reader should know
 
@@ -51,14 +53,40 @@ builder](030-map-builder.info.md) places every other milestone relative to it, s
 moving milestone 4 off the midpoint breaks the placement of all the others rather
 than merely shifting one mark.
 
+## The corner is rounded, and it has to be
+
+A lane's junction used to be an infinitely sharp corner — two straight legs meeting
+at a vertex — and a body walking it turned ninety-odd degrees between one tick and
+the next.
+
+That was invisible for as long as a formation could teleport round the outside of a
+turn, and became a hole in the map the moment movement was capped by the distance
+actually travelled: the body on the outside needed to cover most of a right angle's
+arc in one step, could not, and fell most of a formation's length behind.
+
+So the nodes either side of the bend are relaxed toward their neighbours, which cuts
+the corner into a curve. At sixty passes the sharpest turn on a side lane is about
+eleven degrees per step instead of ninety-nine, and a formation rounds it losing
+seven paces of cohesion rather than seventy-five.
+
+**Real roads do not have vertices.** And a curve is what makes "the formation curves
+to match the path it is on" a sentence with something to match.
+
+The junction node **moves and keeps its identity** — same id, same milestone index,
+same sign-post standing on it — so everything that refers to the junction goes on
+referring to the same node. The relaxation is symmetric about the bend, so a lane
+that mirrored itself before still does, which the map validator checks.
+
 ## Where the width goes
 
 `lane_width` feeds exactly two things: how many bodies the frontline queue lets
 stand abreast, and how wide the renderer draws the lane. **It is not a movement
 constraint** — soldiers walk the graph in single file regardless.
 
-The centre being wider is topography, not a rule that switches on. Two even teams
-meeting in a side lane fight rank against rank and a fourth body contributes
-nothing until somebody dies; the same teams meeting in the middle get more bodies
-into contact at once. Stacking a side lane is a bet on quality; stacking the
-centre is a bet on quantity.
+The centre's width is **derived rather than chosen**. Three formations stand abreast
+there during a challenge — a side lane's, the centre's, and the other side lane's —
+and the width is how much road that takes: the centre's own radius, plus a side
+lane's on either side, plus the gaps. 136 paces of formation in 140 of road.
+
+That is what the centre lane is wide for, and it is the reason the documents gave
+for widening it before there was arithmetic to put behind it.

@@ -6,7 +6,7 @@
 | Blocked by | 202, 203 |
 | Blocks | 404, 602 |
 | Reads | [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md), [standing off and falling back](../docs/022-standing-off-and-falling-back.md) |
-| Open questions | B11 — does the frontline move at all; G8 — what the wide lane is for |
+| Open questions | B11 — does the frontline move at all |
 
 ## Current behavior
 
@@ -27,6 +27,17 @@ has to be careful about. Only bodies still marching are in it — one that has c
 on an enemy has left the formation's business.
 
 A wave stops advancing when an enemy comes near its front, and its bodies fight.
+
+Movement is capped by the distance a body actually covers in the world, so the outside
+of a bend genuinely falls behind and the budget has something to correct. Measured on
+a bare field: through a left turn the outer body covers 321 paces to the inner's 290,
+is hurried to 1.0043 while the inner gives way to 0.9972, and the line never bends
+more than 1.7 paces.
+
+The lane's corners are rounded, because a formation cannot turn a vertex.
+
+During a challenge the three funnelled waves stand **abreast** rather than through one
+another, which is what the centre lane's width is for.
 
 **What is not built:** cavalry, and therefore the rank kept for them and the flank
 they were to go round. And the enemy's line is not consulted any more — a rank is
@@ -124,9 +135,25 @@ and a lane is a suggestion. It decides how wide a formation **travels**, which i
 different question with an obvious answer: a road's width is how many people fit
 across it.
 
-That gives the wide centre lane back most of what it wanted, by a different route — a
-wave marching up the middle arrives with more of itself abreast, so more of it is in
-contact the moment contact happens. Whether that is enough is G8.
+That gives the wide centre lane back what it wanted, and the challenge settles how
+wide it has to be. **The three waves funnelled into the middle stand abreast of one
+another**, so the centre's width is the centre formation's radius plus a side lane's
+on either side plus the gaps — 136 paces of formation in 140 of road.
+
+A rank stops widening at a fixed number of files however wide the road is, because
+the sizing is otherwise circular: a wider lane makes the centre's own formation
+wider, which pushes the other two further out. A road wider than the cap is room.
+
+### And the corner has to have a radius
+
+A lane's junction was a vertex — two straight legs meeting at a point — which is a
+corner no formation can walk round: capped by the distance actually travelled, the
+body on the outside would have to cover most of a right angle's arc in one step.
+
+So the bend is rounded before anything measures the lane. **Real roads do not have
+vertices**, and a curve is what makes "curve the formation to match the path" a
+sentence with something to match. The junction node moves and keeps its identity, so
+the sign-post standing on it is standing on the same node.
 
 ### The one thing that walks in a line
 
@@ -156,9 +183,17 @@ thousand bodies is a frame-rate problem wearing a costume.
    members only, clamped at both ends.
 6. Have each wave record how far off its own books came out, so a systematic drift is
    visible from outside without recomputing anything.
-7. Test that a wave rounding a bend keeps its ranks, and that its bounding box turns
+7. **Cap the step by the distance actually travelled in the world**, not along the
+   lane. Without this a turn is free and the body on the outside covers more ground
+   than its own speed allows, silently — which is the error that made everything
+   below worth writing.
+8. **Round the lane's corners**, because a formation cannot turn a vertex.
+9. Test that a wave rounding a bend keeps its ranks, and that its bounding box turns
    rather than growing.
-8. Test that the budget balances.
+10. Test that the budget balances.
+11. Build a sandbox that measures all of it on a bare field, with a lane made from
+    any list of points, so a failure points at the formation rather than at whatever
+    else was running.
 
 ## Related documents and tools
 

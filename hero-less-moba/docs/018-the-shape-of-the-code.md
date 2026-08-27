@@ -147,9 +147,20 @@ fix. Two tests matter more than the rest and run on every build:
    network reconciles rather than agreeing, but it is still the best regression
    test here: it fails the day someone adds a global random call or iterates a
    hash table whose order is not stable.
-2. **Symmetry.** Run a match with no player commands at all and check that the
-   two teams' states are exact mirrors at every tick. Any asymmetry in an
-   untouched game is a bug, and this test finds it the day it is introduced.
+2. **Symmetry of the starting conditions.** The map is a mirror of itself, both
+   teams begin with the same stone in the same places, and the same bodies leave
+   both bases at the same tick. Any asymmetry *there* is a bug and this test finds
+   it the day it is introduced.
+
+   **Not tick-for-tick mirroring, which was the earlier claim and was wrong.** Two
+   even sides diverge almost immediately and are supposed to: a tie broken one way
+   in one lane is broken the other way in another, and by the second exchange the
+   two halves of the field are different games. Trying to hold the mirror past the
+   opening would mean a canonical ordering on every tie in the hottest loop in the
+   simulation, bought to preserve a property that has no gameplay meaning after the
+   first ten seconds.
+
+   Set it up symmetrically. Do not try to keep it that way.
 
 ## Balance numbers do not live in prose
 

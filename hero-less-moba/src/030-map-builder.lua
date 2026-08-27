@@ -183,6 +183,55 @@ local function fill_between(map, lane, first_id, second_id, spacing)
 end
 -- }}}
 
+-- {{{ local function smooth_the_bend()
+-- Rounds a lane's corner, in place, by relaxing the node positions around it.
+--
+-- Each node in a window centred on the junction is pulled toward the midpoint of
+-- its two neighbours, a few times over, with the two ends of the window pinned. On
+-- a straight that does nothing; at a vertex it cuts the corner, and repeating it
+-- turns the cut into an arc.
+--
+-- **The junction node moves and keeps its identity.** Its id, its milestone index
+-- and the sign-post standing on it are all unchanged -- only its position shifts
+-- inward, to the apex of the new curve. Everything that refers to the junction goes
+-- on referring to the same node.
+--
+-- The window is symmetric about the junction and the relaxation is symmetric, so a
+-- lane that was a mirror of itself before still is afterwards. The map validator
+-- checks that, which is what makes this safe to do to a finished lane.
+local function smooth_the_bend(map, lane, shape)
+  local junction = lane.path_index[lane.milestone_node[4]]
+  if junction == nil then
+    return
+  end
+
+  local window = shape.bend_smoothing_window
+  local passes = shape.bend_smoothing_passes
+  local first = junction - window
+  local last  = junction + window
+  if first < 2 then first = 2 end
+  if last > #lane.path - 1 then last = #lane.path - 1 end
+  if last - first < 2 then
+    return
+  end
+
+  for _ = 1, passes do
+    -- Read from a copy so that every node in a pass moves against the same
+    -- positions. Relaxing in place would sweep the curve toward one end.
+    local was_x, was_y = {}, {}
+    for index = first - 1, last + 1 do
+      local node = map.node[lane.path[index]]
+      was_x[index], was_y[index] = node.x, node.y
+    end
+    for index = first, last do
+      local node = map.node[lane.path[index]]
+      node.x = (was_x[index - 1] + was_x[index] * 2 + was_x[index + 1]) * 0.25
+      node.y = (was_y[index - 1] + was_y[index] * 2 + was_y[index + 1]) * 0.25
+    end
+  end
+end
+-- }}}
+
 -- {{{ local function build_lane()
 -- Emits one lane: its nine milestone nodes, the plain nodes between them, and
 -- the tower and library sites standing on it.
@@ -226,16 +275,42 @@ local function build_lane(map, shape, lane_id, width,
                  shape.node_spacing)
   end
 
+  -- Where each node sits in this lane's path, built first because the bend
+  -- smoothing below needs to find the junction and everything after it needs the
+  -- positions the smoothing settles on.
+  lane.path_index = {}
+  for index, node_id in ipairs(lane.path) do
+    -- A library is both the first and last entry of every lane's path. The first
+    -- wins, because a body entering a lane is always entering it from team 1's
+    -- end; team 2's bodies are placed by index directly rather than by lookup.
+    if lane.path_index[node_id] == nil then
+      lane.path_index[node_id] = index
+    end
+  end
+
+  -- Round the bend, before anything measures the lane.
+  --
+  -- A lane's junction was an infinitely sharp corner -- two straight legs meeting at
+  -- a vertex -- and a body walking it turned ninety-odd degrees between one tick and
+  -- the next. That was invisible while a formation could teleport round the outside
+  -- of a turn, and became a hole in the map the moment movement was capped by the
+  -- distance actually travelled: the body on the outside needed to cover most of a
+  -- right angle's arc in one step, could not, and fell most of a formation's length
+  -- behind.
+  --
+  -- **Real roads do not have vertices.** And a curve is what makes "the formation
+  -- curves to match the path it is on" a sentence with something to match.
+  smooth_the_bend(map, lane, shape)
+
   -- The length of every step along the path, and the lane's total.
   --
-  -- Precomputed because the move pass divides a body's speed by the length of
-  -- the edge it is on, once per body per tick. Computing that square root a
-  -- thousand times a tick to get an answer that cannot change is the definition
-  -- of work the map should have done once.
+  -- Precomputed because the move pass divides a body's speed by the length of the
+  -- edge it is on, once per body per tick. Computing that square root a thousand
+  -- times a tick to get an answer that cannot change is the definition of work the
+  -- map should have done once.
   --
-  -- step_length[i] is the distance from path[i] to path[i + 1], so a body
-  -- walking forward from index i uses step_length[i] and one walking backward
-  -- from index i uses step_length[i - 1].
+  -- **After the smoothing**, because the smoothing moves nodes and every one of
+  -- these numbers is a distance between two of them.
   lane.step_length = {}
   -- How far along the lane each path node sits, measured from team 1's library.
   --
@@ -256,41 +331,6 @@ local function build_lane(map, shape, lane_id, width,
     lane.cumulative[index + 1] = total
   end
   lane.length = total
-
-  -- Where each node sits in this lane's path, so that a body joining the lane
-  -- can find its index without scanning. The two libraries appear in all three
-  -- lanes; here each lane records only its own view of them.
-  lane.path_index = {}
-  for index, node_id in ipairs(lane.path) do
-    -- A library is both the first and last entry of every lane's path. The first
-    -- wins, because a body entering a lane is always entering it from team 1's
-    -- end; team 2's bodies are placed by index directly rather than by lookup.
-    if lane.path_index[node_id] == nil then
-      lane.path_index[node_id] = index
-    end
-  end
-
-  -- The stone. Milestones 1, 2, 3 are team 1's base tower, inner tower and outer
-  -- tower; 7, 6, 5 are team 2's, mirrored. The milestone field on the site is
-  -- counted from the *owning* team's end, which is why team 2's outer tower at
-  -- lane milestone 5 records a 3.
-  local sites = {
-    {team = 1, m = 1, own = 1, kind = M.STRUCTURE_BASE_TOWER},
-    {team = 1, m = 2, own = 2, kind = M.STRUCTURE_LANE_TOWER},
-    {team = 1, m = 3, own = 3, kind = M.STRUCTURE_LANE_TOWER},
-    {team = 2, m = 5, own = 3, kind = M.STRUCTURE_LANE_TOWER},
-    {team = 2, m = 6, own = 2, kind = M.STRUCTURE_LANE_TOWER},
-    {team = 2, m = 7, own = 1, kind = M.STRUCTURE_BASE_TOWER},
-  }
-  for _, site in ipairs(sites) do
-    map.site[#map.site + 1] = {
-      team      = site.team,
-      kind      = site.kind,
-      lane      = lane_id,
-      milestone = site.own,
-      node      = lane.milestone_node[site.m],
-    }
-  end
 
   -- Where each milestone sits in the path array, so that "how far has this lane
   -- been pushed" is an integer comparison rather than a geometry problem.
@@ -424,6 +464,97 @@ function M.build(parameters)
     if node.y > max_y then max_y = node.y end
   end
   map.bounds = {min_x = min_x, min_y = min_y, max_x = max_x, max_y = max_y}
+
+  return map
+end
+-- }}}
+
+-- {{{ function M.lane_from_polyline()
+-- Builds a single lane along an arbitrary path, with no milestones, no stone and
+-- no second lane, and returns a map holding only that.
+--
+-- **This exists so that the formation can be tested without a match.** Asking
+-- "does a rank stay a rank round a bend" through a whole world -- two teams, three
+-- lanes, waves on a cadence, a chest, an economy, a phase clock -- means the answer
+-- arrives buried in the noise of everything else, and means a change to any of
+-- those can break the test for reasons that have nothing to do with formations.
+--
+-- A test that wants a sine wave should be able to ask for a sine wave.
+--
+-- `points` is a flat list of x, y pairs. `spacing` is the target distance between
+-- generated nodes; the polyline is resampled to it, so a caller can hand over three
+-- corners or three hundred samples of a curve and get the same kind of lane back.
+function M.lane_from_polyline(points, width, spacing)
+  local map = {node = {}, lane = {}, site = {}, connector = {}, library_node = {0, 0}}
+
+  local lane = {
+    id = 1, path = {}, milestone_node = {}, milestone_index = {},
+    junction = {}, step_length = {}, cumulative = {}, path_index = {},
+    length = 0, width = width,
+  }
+
+  -- Resample the polyline at the requested spacing, so that step lengths are even
+  -- and the arc-length arithmetic behaves the way it does on a real lane.
+  local corner_count = #points / 2
+  local previous_x, previous_y = points[1], points[2]
+  local emitted = {previous_x, previous_y}
+
+  for corner = 2, corner_count do
+    local target_x, target_y = points[corner * 2 - 1], points[corner * 2]
+    local dx, dy = target_x - previous_x, target_y - previous_y
+    local run = math.sqrt(dx * dx + dy * dy)
+    local steps = math.floor(run / spacing + 0.5)
+    if steps < 1 then steps = 1 end
+    for step = 1, steps do
+      local u = step / steps
+      emitted[#emitted + 1] = previous_x + dx * u
+      emitted[#emitted + 1] = previous_y + dy * u
+    end
+    previous_x, previous_y = target_x, target_y
+  end
+
+  for index = 1, #emitted / 2 do
+    local id = add_node(map, emitted[index * 2 - 1], emitted[index * 2],
+                        M.NODE_PLAIN, 1, 0)
+    lane.path[index] = id
+    lane.path_index[id] = index
+    if index > 1 then
+      join(map, lane.path[index - 1], id)
+    end
+  end
+
+  local total = 0
+  lane.cumulative[1] = 0
+  for index = 1, #lane.path - 1 do
+    local a, b = map.node[lane.path[index]], map.node[lane.path[index + 1]]
+    local step = math.sqrt((b.x - a.x) ^ 2 + (b.y - a.y) ^ 2)
+    lane.step_length[index] = step
+    total = total + step
+    lane.cumulative[index + 1] = total
+  end
+  lane.length = total
+
+  -- Milestones evenly spaced along it, so that anything reading them finds nine
+  -- and does not have to know this lane was made for a test.
+  for m = 0, 8 do
+    local want = total * (m / 8)
+    local at = 1
+    for index = 1, #lane.path do
+      if lane.cumulative[index] <= want then at = index end
+    end
+    lane.milestone_index[m] = at
+    lane.milestone_node[m] = lane.path[at]
+  end
+  lane.junction[1] = lane.milestone_node[4]
+
+  map.lane[1] = lane
+  map.bounds = {min_x = math.huge, min_y = math.huge, max_x = -math.huge, max_y = -math.huge}
+  for _, node in ipairs(map.node) do
+    if node.x < map.bounds.min_x then map.bounds.min_x = node.x end
+    if node.y < map.bounds.min_y then map.bounds.min_y = node.y end
+    if node.x > map.bounds.max_x then map.bounds.max_x = node.x end
+    if node.y > map.bounds.max_y then map.bounds.max_y = node.y end
+  end
 
   return map
 end
