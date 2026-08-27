@@ -26,14 +26,14 @@ luajit src/031-make-them-all.lua --phrases
 
 | | |
 |---|---|
-| `M.processors()` | How many workers this machine should run. |
+| `M.processors(settings)` | How many workers this machine should run. |
 | `M.shard(chosen, index, howmany)` | One worker's share of the set. |
 | `M.work(chosen, store, settings, options)` | One worker's actual job: make its characters, write down what happened. |
 | `M.write_shard_report(report, path)` | A worker's findings, as flat lines for the parent to read. |
 | `M.read_shard_reports(paths)` | Every worker's findings, added up. |
 | `M.describe(total, elapsed, out_dir, settings)` | The run, as lines of text. |
 
-### `M.processors()`
+### `M.processors(settings)`
 
 How many workers this machine should run.
 

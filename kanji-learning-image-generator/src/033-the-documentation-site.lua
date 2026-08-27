@@ -310,7 +310,7 @@ function M.to_html(markdown, known)
 end
 -- }}}
 
--- {{{ gather(known)
+-- {{{ gather()
 -- Every file the site will hold, and the name its page gets.
 local function gather()
   local known = { doc = {}, issue = {}, source = {}, pages = {} }

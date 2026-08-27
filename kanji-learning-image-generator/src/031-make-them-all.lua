@@ -28,7 +28,7 @@ local phrases = project.load("019a-a-phrase-is-a-record-too")
 
 local M = {}
 
--- {{{ M.processors()
+-- {{{ M.processors(settings)
 -- How many workers this machine should run.
 --
 -- Not simply how many processors it has. Taking every core is what makes a

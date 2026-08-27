@@ -1000,6 +1000,64 @@ local function test_the_card_is_also_the_screen(t)
 end
 -- }}}
 
+-- {{{ test_the_folds_say_what_the_functions_take(t)
+-- Every function in this project opens with a fold header naming it, and the
+-- companion pages are built by reading those headers rather than the code. So a
+-- header that still lists the arguments a function used to take does not look
+-- like a stale comment -- it looks like documentation, and it publishes a
+-- signature nobody can call.
+--
+-- That happened: the naming function in the pool grew a style and a resolution,
+-- its header kept saying `scene, seed`, and the page said so too until somebody
+-- read the source. This walks every file and compares the two.
+local function test_the_folds_say_what_the_functions_take(t)
+  local listing = io.popen("ls " .. project.path("src") .. "/*.lua")
+  local drifted, checked = {}, 0
+  for path in listing:lines() do
+    local file = io.open(path, "r")
+    local header = nil
+    for line in file:lines() do
+      -- A fold header naming a call: the name, then a parenthesised list. Fold
+      -- headers that name a table or describe a section have no parentheses and
+      -- are not signatures, so they are skipped rather than failed.
+      local named, took = line:match("^%-%- {{{ ([%w_%.]+)%((.*)%)%s*$")
+      if named then
+        header = { name = named, took = took }
+      elseif header then
+        -- The definition, if the very next thing is one. A header followed by
+        -- comment lines is normal and keeps looking; a header followed by a
+        -- different function means this one was never defined here.
+        local defined, takes =
+          line:match("^local function ([%w_%.]+)%((.*)%)%s*$")
+        if not defined then
+          defined, takes = line:match("^function ([%w_%.]+)%((.*)%)%s*$")
+        end
+        if defined then
+          if defined == header.name and takes ~= header.took then
+            drifted[#drifted + 1] = string.format(
+              "%s: fold says %s(%s), code takes (%s)",
+              path:match("[^/]*$"), header.name, header.took, takes)
+          end
+          if defined == header.name then checked = checked + 1 end
+          header = nil
+        elseif line:match("^%-%-") or line:match("^%s*$") then
+          -- still in the explanation between the header and the code
+        else
+          header = nil
+        end
+      end
+    end
+    file:close()
+  end
+  listing:close()
+
+  t.ok(checked > 100, "there are fold headers to check",
+       string.format("%d of them name a function that follows", checked))
+  t.ok(#drifted == 0, "and every one lists the arguments its function takes",
+       #drifted > 0 and table.concat(drifted, "; ") or nil)
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -1015,6 +1073,8 @@ function M.run(options)
     { "the dial", test_the_dial },
     { "the animation", test_the_animation },
     { "the two sites", test_the_two_sites },
+    { "the folds say what the functions take",
+      test_the_folds_say_what_the_functions_take },
   }
   local all_passed = true
   for _, group in ipairs(groups) do

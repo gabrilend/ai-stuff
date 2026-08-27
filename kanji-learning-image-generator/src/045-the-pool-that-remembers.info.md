@@ -45,8 +45,8 @@ luajit src/045-the-pool-that-remembers.lua --list --category forest --floor 4
 | | |
 |---|---|
 | `M.root(settings)` |  |
-| `M.stem(record, scene, seed)` | What one rendering is called, without an extension. |
-| `M.place(settings, record, scene, seed)` | The two paths one rendering occupies. |
+| `M.stem(record, seed, style, resolution)` | What one rendering is called, without an extension. |
+| `M.place(settings, record, scene, seed, style, resolution)` | The two paths one rendering occupies. |
 | `M.render_companion(entry)` | Everything true about one rendering, as the text of its companion. |
 | `M.read_companion(path)` | One companion, back as a table. |
 | `M.tier_of(entry)` | The tier that counts, and who set it. |
@@ -57,13 +57,13 @@ luajit src/045-the-pool-that-remembers.lua --list --category forest --floor 4
 | `M.walk(settings, filter)` | Every rendering that matches, as entries. |
 | `M.counts(settings)` | How many of what, and how often the machine agrees with a person. |
 
-### `M.stem(record, scene, seed)`
+### `M.stem(record, seed, style, resolution)`
 
 What one rendering is called, without an extension.
 
 The number first so a folder sorts in a stable order, the character next so a person can read the listing, and the seed last because the same character can be rendered more than once and those are different pictures.
 
-### `M.place(settings, record, scene, seed)`
+### `M.place(settings, record, scene, seed, style, resolution)`
 
 The two paths one rendering occupies.
 

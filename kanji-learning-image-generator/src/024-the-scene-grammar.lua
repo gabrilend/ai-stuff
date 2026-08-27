@@ -463,7 +463,7 @@ local TERRAIN = {
 function M.biomes() return BIOMES end
 -- }}}
 
--- {{{ component_box(record, component, measured)
+-- {{{ component_box(component, measured, record)
 -- Where a piece of a character actually sits, as a box.
 --
 -- Read off the strokes the piece owns rather than from the archive's position
@@ -494,7 +494,7 @@ local function component_box(component, measured, record)
 end
 -- }}}
 
--- {{{ box_place(box)
+-- {{{ box_place(box, cells)
 -- A box, as a phrase about where it is in the frame.
 local function box_place(box, cells)
   local across = CANVAS * (cells or 1)
@@ -557,7 +557,7 @@ end
 M.sound_halves = sound_halves
 -- }}}
 
--- {{{ M.score(record, measured, settings)
+-- {{{ M.score(record, measured, store, settings)
 -- How much evidence there is for each world, and which wins.
 --
 -- Scoring rather than branching. Three kinds of evidence, weighted differently

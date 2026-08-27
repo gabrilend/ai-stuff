@@ -41,4 +41,5 @@ what a person reads before opening the source.
 | `test_the_animation(t)` |  |
 | `test_the_dial(t)` |  |
 | `test_the_card_is_also_the_screen(t)` | `307` asked whether the processor was getting hot and answered it properly. |
+| `test_the_folds_say_what_the_functions_take(t)` | Every function in this project opens with a fold header naming it, and the |
 | `main(argv)` |  |

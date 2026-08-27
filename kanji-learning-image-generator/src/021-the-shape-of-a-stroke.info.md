@@ -60,7 +60,7 @@ what a person reads before opening the source.
 
 | | |
 |---|---|
-| `pick(table, value)` | The first row whose range contains this value. |
+| `pick(rows, value)` | The first row whose range contains this value. |
 | `calibrate()` | The report the tables above were built from. |
 | `main(argv)` |  |
 

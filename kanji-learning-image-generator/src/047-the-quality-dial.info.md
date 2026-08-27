@@ -39,11 +39,11 @@ luajit src/047-the-quality-dial.lua --category forest --floor 4
 
 | | |
 |---|---|
-| `M.consider(settings, category, floor, by_a_person)` | What a floor would leave, at every tier, before anybody commits to one. |
+| `M.consider(settings, category, by_a_person)` | What a floor would leave, at every tier, before anybody commits to one. |
 | `M.describe(report, from_floor, to_floor)` | The trade, in the words somebody would use. |
 | `M.choose(settings, wanted)` | The pictures that survive a floor -- and the report, always, first. |
 
-### `M.consider(settings, category, floor, by_a_person)`
+### `M.consider(settings, category, by_a_person)`
 
 What a floor would leave, at every tier, before anybody commits to one.
 

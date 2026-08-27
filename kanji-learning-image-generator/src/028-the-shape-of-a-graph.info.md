@@ -17,10 +17,10 @@ run the sweep again.*
 | `M.known(kind)` |  |
 | `M.catalogue()` |  |
 | `M.new()` | An empty graph. |
-| `M.connections_from_api(text_object)` | The wires an emitted posting-format graph describes. |
+| `M.connections_from_api(api, graph)` | The wires an emitted posting-format graph describes. |
 | `M.connections_from_ui(ui)` | The same, read back out of the editor-format graph. |
 
-### `M.connections_from_api(text_object)`
+### `M.connections_from_api(api, graph)`
 
 The wires an emitted posting-format graph describes.
 

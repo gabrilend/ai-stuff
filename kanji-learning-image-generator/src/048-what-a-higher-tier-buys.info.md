@@ -26,7 +26,7 @@ luajit src/048-what-a-higher-tier-buys.lua --do-the-work
 | | |
 |---|---|
 | `M.palette(settings)` | The 256 colours a frame may use, as bytes. |
-| `M.index_of(grey, arrow_alpha, arrow_colour)` | Which palette entry one pixel is, exactly. |
+| `M.index_of(red, green, blue, alpha, is_outline)` | Which palette entry one pixel is, exactly. |
 | `M.encode(frames, width, height, palette, hundredths)` | A whole animation, as the bytes of a file. |
 | `M.frames_for(record, settings, background)` | One frame per stroke, each showing one more of them arrowed. |
 | `M.animate(settings, entry, store)` | The animation one rendering earned, written beside it. |

@@ -62,35 +62,42 @@ function M.root(settings)
 end
 -- }}}
 
--- {{{ M.stem(record, scene, seed)
+-- {{{ M.stem(record, seed, style, resolution)
 -- What one rendering is called, without an extension.
 --
 -- The number first so a folder sorts in a stable order, the character next so a
 -- person can read the listing, and the seed last because the same character can
 -- be rendered more than once and those are different pictures.
-function M.stem(record, seed, style)
-  -- The style is part of the name. The seed comes from the character, so the
-  -- same character in two styles would otherwise land on one name and the
-  -- second would quietly replace the first -- in a pool whose first paragraph
-  -- says nothing is ever deleted.
+function M.stem(record, seed, style, resolution)
+  -- Anything that makes a different picture is part of the name.
+  --
+  -- The seed comes from the character, so two renderings that differ only by a
+  -- setting would land on one name and the second would quietly replace the
+  -- first -- in a pool whose first paragraph says nothing is ever deleted. It
+  -- happened once with the style and would have happened again the first time
+  -- somebody changed the resolution.
   local tail = ""
   if style and style ~= "photographic" then
-    tail = "-" .. tostring(style):gsub("%W", "")
+    tail = tail .. "-" .. tostring(style):gsub("%W", "")
+  end
+  if resolution then
+    tail = tail .. "-" .. tostring(math.floor(resolution))
   end
   return string.format("%08X-%s-%06x%s", record.codepoint, record.character,
                        seed % 0x1000000, tail)
 end
 -- }}}
 
--- {{{ M.place(settings, record, scene, seed)
+-- {{{ M.place(settings, record, scene, seed, style, resolution)
 -- The two paths one rendering occupies.
 --
 -- Arranged by category, because quality is never discussed globally -- it is
 -- always *these* that are looking bad, and the unit somebody says that about
 -- here is the world.
-function M.place(settings, record, scene, seed, style)
+function M.place(settings, record, scene, seed, style, resolution)
   local folder = M.root(settings) .. "/" .. scene.biome.name
-  local stem = M.stem(record, seed, style)
+  local stem = M.stem(record, seed, style,
+                      resolution ~= settings.field.reference and resolution or nil)
   return folder .. "/" .. stem .. ".png",
          folder .. "/" .. stem .. ".info.md",
          folder
@@ -135,6 +142,7 @@ function M.render_companion(entry)
   field("means", entry.means)
   field("what", what)
   field("style", entry.style)
+  field("resolution", entry.resolution)
   field("kind", entry.kind)
   field("category", entry.category)
   field("character", entry.character)
@@ -272,7 +280,8 @@ end
 -- recoverable; the second is a lie.
 function M.add(settings, entry, picture_bytes)
   local picture_path, companion_path, folder =
-    M.place(settings, entry.record, entry.scene, entry.seed, entry.style)
+    M.place(settings, entry.record, entry.scene, entry.seed, entry.style,
+            entry.resolution)
   project.ensure_directory(folder)
 
   local handle = assert(io.open(picture_path .. ".partial", "wb"))
