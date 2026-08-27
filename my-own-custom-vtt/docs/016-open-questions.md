@@ -120,13 +120,31 @@ for a corridor you only glanced into. A metre cell that is set because one corne
 of it fell inside your vision claims you remember a square metre of floor you
 barely saw.
 
-### 2.2 Does a viewer with many bodies see the union, or switch between them?
+### 2.2 Does a viewer with many bodies see the union, or switch between them? — ANSWERED
 
-A commander with six goblins: is their screen everything all six can see at once,
-or the view from whichever one is selected? The union is the honest answer for
-sight-as-security and it is what the documents assume. But it may play badly --
-six overlapping cones is a strange thing to look at.
+**The union**, and it is a loop with an early exit rather than a merged polygon.
 
+A thing is visible if it is inside *any* of this viewer's eyes' wedges. That is
+why the visibility fans were never merged into one shape: merging would have
+bought a harder geometry problem in order to answer the same question, and the
+question is answered by asking each eye in turn and stopping at the first yes.
+
+Two other ways of seeing sit beside it, and both skip the geometry rather than
+running it and winning:
+
+| Scope flag | Sees |
+| --- | --- |
+| `SCOPE_SEES_ALL` | everything. What a GM has. |
+| `SCOPE_SEES_REGION` | everything standing in its region, without a sweep — a tavern knows where its own crockery is. |
+| neither | the union of its bodies' wedges |
+
+And separately: **you always know about what you command**, whether or not you
+can currently see it, which is why a commander does not lose track of a goblin
+that walks behind a pillar.
+
+The question mattered more once [1204](../issues/completed/1204-the-controls-are-a-dial-you-can-see.md)
+made commanding four bodies a real thing somebody does. The union is what makes
+a squad feel like a squad rather than like four separate periscopes.
 ---
 
 ## Blocking phase 3 — the world ticks
@@ -398,14 +416,29 @@ the bodies, not to the scope, so mechanically they would continue -- which means
 the new commander inherits six goblins already walking somewhere for reasons they
 were not told.
 
-### 6.4 Does a player with a party of four drive all four, or one at a time?
+### 6.4 Does a player with a party of four drive all four, or one at a time? — ANSWERED
 
-The vision says a player controls "up to an entire party at once, but generally
-not more". Four bodies driven simultaneously with one keyboard is not really
-possible; four bodies given orders is the strategy-game interface; one driven and
-three following is a third thing that is common in games and is not in the
-documents at all.
+**Neither, and the answer came from somebody's actual keybinds.**
 
+The three options written down here — drive one and have three follow, order all
+four RTS-style, drive one at a time — are each half of what somebody wants. The
+answer is a **dial**: point at all four and say *go*, point at one and say *stay*,
+point north-east-far and say *reach*.
+
+A command is *(which units) × (which way) × (how far) × (what to do)*, and the
+first three are state that keys change rather than arguments a key carries.
+Turning a dial costs nothing and is undoable; only three keys ever cause anything
+to happen.
+
+The whole party is a **position on the same dial** rather than a separate mode,
+which is what makes pointing at all four as few keystrokes as pointing at one.
+
+It resolves into ordinary orders, so the answer is a superset of the second
+option rather than a replacement for it — and the server never learns that a
+direction or a distance was involved.
+
+See [106-controls](../src/106-controls.info.md) and
+[1204](../issues/completed/1204-the-controls-are-a-dial-you-can-see.md).
 ### 6.5 Does `HIDDEN` hide a thing from other GMs? — ANSWERED BY THE MECHANISM
 
 **It falls out of gate ordering rather than needing a rule of its own.**
