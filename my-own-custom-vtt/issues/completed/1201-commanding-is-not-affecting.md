@@ -2,7 +2,7 @@
 
 **Phase:** 12, the table as it is actually played
 **Blocked by:** phase 11 complete.
-**Blocks:** [1206](../1206-the-phase-twelve-demo.md)
+**Blocks:** [1206](1206-the-phase-twelve-demo.md)
 **Documents:** [who controls what](../../docs/008-who-controls-what.md),
 [the rules layer](../../docs/011-the-rules-layer.md)
 

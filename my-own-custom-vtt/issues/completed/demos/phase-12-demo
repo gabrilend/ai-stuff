@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+#
+# phase-12-demo -- shows what phase twelve built.
+#
+# Four decisions made after the first eleven phases were finished, each of which
+# turned out to be a design the documents did not have.
+#
+# A goblin patrol standing in somebody else's tavern: the forest's commander
+# moves it and the tavern's owner cannot, and the tavern's owner poisons its
+# drink and the forest's commander cannot stop them. Owning a piece is the right
+# to move it, not a fence around it -- and "but you better explain how" is the
+# ruleset's job, because the server has no idea what a drink is.
+#
+# Nothing checking who anybody is, which is the decided answer and is only
+# honest because the host can remove somebody and unwind what they did. Both
+# shown, in the order that works, which the demo itself found: unwind first, then
+# remove, because a rollback that reaches back past a removal undoes it.
+#
+# The dial: three positions and a picture of where they point, turned through
+# several settings with the world point each one resolves to.
+#
+# And that nothing was ever waiting -- twelve commands accepted on twelve
+# consecutive beats across three turn boundaries.
+#
+# Usage:
+#   ./phase-12-demo                 -- build and run
+#   ./phase-12-demo /path/to/prj    -- the same, from a checkout somewhere else
+#
+# Normally reached through ./run-phase-demo 12 in the project root.
+
+set -e
+
+# The project root. Hard-coded so the script works from any directory, and
+# overridable as the first argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/my-own-custom-vtt"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT_NAME="my-own-custom-vtt"
+EXEC_TIER="/tmp/${PROJECT_NAME}/tmp"
+DEMO="${EXEC_TIER}/108-demo-phase-12"
+
+if [ ! -x "${DIR}/build" ]; then
+    echo "No build script at ${DIR}/build."
+    exit 1
+fi
+
+# Built from source every time rather than trusting whatever is lying around in
+# the RAM tier, because a demo that runs a stale binary is a demo that lies.
+echo "Building..."
+"${DIR}/build" "${DIR}" --no-test > /dev/null
+
+if [ ! -x "${DEMO}" ]; then
+    echo "The build did not produce ${DEMO}."
+    exit 1
+fi
+
+exec "${DEMO}"

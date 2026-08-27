@@ -2,7 +2,7 @@
 
 **Phase:** 12, the table as it is actually played
 **Blocked by:** [1202](1202-the-host-can-remove-somebody.md)
-**Blocks:** [1206](../1206-the-phase-twelve-demo.md)
+**Blocks:** [1206](1206-the-phase-twelve-demo.md)
 **Documents:** [the turn is a transaction](../../docs/019-the-turn-is-a-transaction.md)
 
 ## Current behaviour
@@ -29,6 +29,21 @@ and they diverge first, so that the comparison at the end means something.
 
 It refuses for the same reasons any rollback refuses: the turn fell out of the
 ring, or its sheets could not be copied. Same paths, same sentences.
+
+### Unwind first, then remove
+
+The order matters and it is not obvious. **Who holds a scope is world state**, so
+a rollback that reaches back past a removal undoes the removal — and the person
+is back at the table.
+
+Nothing is wrong with either piece. The order is a fact about how the two
+compose, and it was not written down anywhere until the phase twelve demo tried
+them the other way round and reported a checksum mismatch that belonged to
+itself.
+
+The general shape: **two correct operations can have an order, and the order is
+not a property of either of them.** It lives in whatever uses both, which means
+nothing local will ever tell you about it.
 
 ### What it cannot undo, unchanged
 

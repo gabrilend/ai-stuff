@@ -270,6 +270,15 @@ pressed.
 **Proves:** that the permission model separates *who moves this* from *who may act
 on this*, and that a party of four is playable with one keyboard.
 
+*What it turned out to teach:* [phase 12 progress](../issues/phase-12-progress.md)
+
+**Built.** All four answers, and every one of them was more interesting than the
+options offered for it. The one that mattered most was the shortest: asked what
+closes a turn's window, the answer was another question — *what do you mean by a
+window?* Nothing had ever waited, the noun had been lying for eleven phases, and
+renaming it dissolved two open questions and three plausible answers to a
+non-existent problem.
+
 ---
 
 ## What is deliberately not in any phase

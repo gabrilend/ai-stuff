@@ -2,7 +2,7 @@
 
 **Phase:** 12, the table as it is actually played
 **Blocked by:** [1204](1204-the-controls-are-a-dial-you-can-see.md)
-**Blocks:** [1206](../1206-the-phase-twelve-demo.md)
+**Blocks:** [1206](1206-the-phase-twelve-demo.md)
 **Documents:** [the dynamic picture](../../docs/012-the-dynamic-picture.md)
 
 ## Current behaviour
