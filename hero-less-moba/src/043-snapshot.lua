@@ -116,6 +116,15 @@ local function make_frame(world)
     -- a real match: a wallet is the one thing in this game that belongs to a single
     -- person, and the enemy's is not on the machine at all.
     wallet = {},
+    -- The stones this player can see: their own, and the communal ones they have
+    -- not set aside. A dismissed stone is gone from **theirs**, not from the pool --
+    -- everybody else still sees it.
+    stone = {},
+    stone_count = 0,
+    -- What each teammate is pointing at. Synced continuously and never opt-in, which
+    -- is half of why you can see somebody reaching for a thing before they touch it.
+    cursor = {},
+
     -- One per lane, for the viewing team only. The enemy's are not drawn greyed
     -- out or drawn without a direction -- they are not drawn.
     signpost = {},
@@ -148,6 +157,10 @@ local function make_frame(world)
   for lane = 1, lane_count do
     frame.signpost[lane] = {branch = 0, set_by = 0, set_tick = 0, options = 0,
                             x = 0, y = 0}
+  end
+
+  for number = 1, world.parameters.team_size * 2 do
+    frame.cursor[number] = {x = 0, y = 0, tick = 0, team = 0}
   end
 
   for team = 1, 2 do
@@ -310,6 +323,41 @@ function M.stamp(world)
       wallet.affordable[index] = world.commanders.can_afford(world, player, row) and 1 or 0
     end
   end
+
+  -- The stones, for the player being watched.
+  local watching = (world.viewing_team == 2)
+    and (world.parameters.team_size + 1) or 1
+  local shown = 0
+  for _, stone in ipairs(world.stone[world.viewing_team or 1]) do
+    if world.stones.visible_to(world, stone, watching) then
+      shown = shown + 1
+      local view = frame.stone[shown]
+      if view == nil then
+        view = {}
+        frame.stone[shown] = view
+      end
+      view.id = stone.id
+      view.kind = stone.kind
+      view.slot_kind = stone.slot_kind
+      view.slot_lane = stone.slot_lane
+      -- Whether it is mine or in the pool. **Never whose it was** -- a shared thing
+      -- you have to remember is shared is not shared, and the point of the pool is
+      -- to delete the question rather than to answer it discreetly.
+      view.mine = (stone.held_by == watching) and 1 or 0
+      view.communal = (stone.held_by == 0) and 1 or 0
+      view.moving_to_kind = stone.moving_to_kind
+      view.moving_to_lane = stone.moving_to_lane
+      view.arrives_turn = stone.arrives_turn
+    end
+  end
+  frame.stone_count = shown
+
+  for number, cursor in ipairs(world.cursor) do
+    local view = frame.cursor[number]
+    view.x, view.y, view.tick = cursor.x, cursor.y, cursor.tick
+    view.team = world.player[number].team
+  end
+  frame.wave_turn = world.wave_turn or 0
 
   -- Sign-posts, for the team being watched.
   for lane_id = 1, world.parameters.lane_count do

@@ -11,16 +11,16 @@ soldiers carrying three upgrades, and the frontline moving.
 | Issue | | Status |
 | --- | --- | --- |
 | 401 | The upgrade catalogue | built |
-| 402 | An instance is a thing in a place | counts, not instances |
+| 402 | An instance is a thing in a place | built |
 | 403 | Wiping a wave draws an upgrade | built |
 | 404 | Placing an upgrade into a lane | built |
 | 405 | A soldier is stamped at birth | built |
 | 408 | Slotting upgrades into stone | built |
 | 409 | The base inherits every lane | built |
 | 410 | The library slot is the last stand | built |
-| 411 | Rerolling the deck | not started |
-| 412 | Contributing a stone | not started |
-| 413 | Staking a die to share | not started |
+| 411 | Rerolling the deck | built |
+| 412 | Contributing a stone | built, as contribute |
+| 413 | Staking a die to share | built, as offer |
 
 **Blocking:** nothing.
 
@@ -66,10 +66,34 @@ an upgrade out of a lane does not weaken the soldiers already walking in it, whi
 guard *is* re-stamped, because it stands under the thing it copied from for its
 whole life.
 
-**402 is approximate.** Upgrades are counts per kind rather than instances with
-identities, which is enough for placing, recalling, and stamping, and is not enough
-for anything that needs to point at one particular upgrade — a lock, an objection, a
-transit mark. 411, 412 and 413 are not started for the same reason.
+**402 is built, and it changed the shape of the rest of the phase.** An upgrade is
+an instance now — a specific thing, in a specific place, **belonging to somebody** —
+and everything that needs to point at one particular stone became possible at once.
+
+**A stone belongs to whoever drew it, and there is no lock**, because there is
+nothing to lock it against. That is the design's second answer to the same problem
+and it is shaped by the first's failure: locks needed a timeout to tune, an interface
+that reminded you what you were holding hostage, and a mechanism whose whole purpose
+was doing something to somebody against their wishes.
+
+**Moving takes a wave**, applying at the old slot the whole way, so a placement lands
+two waves after the command. That delay is the negotiation layer — without it a team
+would simply keep everything wherever the fighting is — and it is a message nobody
+opted into: you cannot move a stone quietly, and your teammates get a wave's notice.
+Cancelling is free until it lands.
+
+**Contribute, offer and dismiss are in**, which is 412 and 413 arriving under
+different names than the roadmap gave them. The floor closes: when everybody has set
+the same communal stone aside it comes back to all of them, so a stone cannot fall
+through neglect. **Request** is in and is deliberately the weakest verb — it changes
+nothing, only one can stand at a time, and ignoring one is free and silent.
+
+**411 is built.** A reroll trades a stone for the next card, priced in two colours,
+and it is the only thing personal resource can do to the chest.
+
+**Not built:** chat, which is issue 806 and belongs to phase 8; and the interface for
+offering to a *specific* teammate, which needs a way to name one and has no
+single-player meaning yet.
 
 **One deviation from the written design**, raised as G6: the modifiers are folded
 into a body's fields at stamp time rather than walked on every swing. Identical

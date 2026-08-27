@@ -79,29 +79,35 @@ end
 -- }}}
 
 -- {{{ local function place_something()
--- Puts one upgrade somewhere, if there is one to put.
+-- Puts one of a player's own stones somewhere, if they are holding one.
 --
 -- The whole policy, and it is two lines of judgement: **reinforce where you are
 -- losing, unless you are losing nowhere, in which case press where you are
--- winning.** A person would do more than this. A measuring bot should not, because
--- every extra rule is another thing that has to be held constant while something
--- else is being measured.
+-- winning.** A person would do more. A measuring bot should not, because every extra
+-- rule is another thing that has to be held constant while something else is being
+-- measured.
 --
--- Stone gets a share, on a fixed rotation rather than a judgement, so that both
--- halves of the placement decision appear in the numbers instead of only the one
--- the bot happened to prefer.
-local function place_something(world, team_id, brain)
-  local team = world.team[team_id]
-  local kind_count = #world.parameters.upgrade.kind
+-- Stone gets a share on a fixed rotation rather than a judgement, so that both
+-- halves of the placement decision appear in the numbers instead of only the one the
+-- bot happened to prefer.
+--
+-- **Placed per player, not per team.** A stone belongs to whoever drew it, and one
+-- brain acting as a single seat would leave the other two players' stones sitting in
+-- the drawer for the whole match -- which would make every balance number a
+-- measurement of one third of an economy.
+local function place_something(world, team_id, player_number, brain)
+  local stones = world.stone[team_id]
 
-  local kind = 0
-  for candidate = 1, kind_count do
-    if team.chest[candidate] > 0 then
-      kind = candidate
+  local mine = 0
+  for _, stone in ipairs(stones) do
+    if stone.slot_kind == world.stones.IN_CHEST
+       and stone.arrives_turn == 0
+       and world.stones.may_touch(stone, player_number) then
+      mine = stone.id
       break
     end
   end
-  if kind == 0 then
+  if mine == 0 then
     return
   end
 
@@ -116,11 +122,12 @@ local function place_something(world, team_id, brain)
   local into_stone = (brain.placements % 4 == 0)
 
   world.commands.queue(world, {
-    verb   = into_stone and "place_in_stone" or "place_in_lane",
-    team   = team_id,
-    player = brain.player,
-    kind   = kind,
-    lane   = lane,
+    verb       = "place_stone",
+    team       = team_id,
+    player     = player_number,
+    stone      = mine,
+    slot_kind  = into_stone and world.stones.IN_STONE or world.stones.IN_LANE,
+    slot_lane  = lane,
   })
 end
 -- }}}
@@ -215,9 +222,8 @@ function M.run(world)
       -- Placing during a surge is allowed and does nothing until it ends, which is
       -- exactly the right thing for a bot to keep doing -- the board it is building
       -- is the one the challenge will be fought with.
-      place_something(world, team_id, brain)
-
       for _, number in ipairs(world.team_players[team_id]) do
+        place_something(world, team_id, number, brain)
         take_a_boon(world, number)
         buy_something(world, number, brain)
       end

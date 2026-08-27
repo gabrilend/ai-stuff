@@ -322,6 +322,10 @@ function M.spawn_pass(world)
 
   if world.tick >= world.next_wave_tick then
     world.wave_turn = (world.wave_turn or 0) + 1
+    -- Anything whose wave has come moves **before** this wave is raised, so the
+    -- bodies leaving are stamped from the board as it now is. A transit that landed
+    -- after the spawn would be a wave late, every time, invisibly.
+    world.stones.land_transits(world, world.wave_turn)
     for team = 1, 2 do
       for lane = 1, world.parameters.lane_count do
         queue_wave(world, team, lane, world.wave_turn)
@@ -363,7 +367,7 @@ function M.member_died(world, wave_id)
       lane          = wave.lane,
     })
 
-    world.chest.draw(world, killing_team,
+    world.stones.draw(world, killing_team,
                      world.parameters.structure.reward.wave_wiped_draws)
   end
 end

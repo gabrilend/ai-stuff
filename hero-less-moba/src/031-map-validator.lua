@@ -212,6 +212,64 @@ local function check_sites(map, problems)
 end
 -- }}}
 
+-- {{{ local function check_site_count()
+-- Both teams get the same stone, and there is the right amount of it.
+--
+-- This check exists because the site emission was once deleted by accident during a
+-- refactor, and **everything still worked**: the map built, the validator passed,
+-- every existing check was about sites that were there rather than sites that should
+-- be. A match ran for two hundred seconds with no towers on it at all before anybody
+-- noticed the number in a report.
+--
+-- The lesson generalises past this one bug. A validator that only checks what it
+-- finds cannot notice an absence, and an absence is exactly what a refactor
+-- produces.
+local function check_site_count(map, parameters, problems)
+  local lanes = parameters.lane_count
+  -- Three towers per lane per team -- an outer, an inner, and one at the lane's
+  -- mouth inside the base -- plus one library each.
+  local want_towers = lanes * 3
+  local seen = {[1] = {tower = 0, library = 0}, [2] = {tower = 0, library = 0}}
+
+  for _, site in ipairs(map.site) do
+    local side = seen[site.team]
+    if side == nil then
+      complain(problems, "a structure site belongs to team %s", tostring(site.team))
+    elseif site.kind == 3 then
+      side.library = side.library + 1
+    else
+      side.tower = side.tower + 1
+    end
+  end
+
+  for team = 1, 2 do
+    if seen[team].tower ~= want_towers then
+      complain(problems, "team %d has %d towers and should have %d",
+               team, seen[team].tower, want_towers)
+    end
+    if seen[team].library ~= 1 then
+      complain(problems, "team %d has %d libraries and should have exactly one",
+               team, seen[team].library)
+    end
+  end
+
+  -- And every tower's opposite number exists, so the two halves hold the same stone
+  -- in the same places rather than merely the same amount of it.
+  local mine = {}
+  for _, site in ipairs(map.site) do
+    if site.kind ~= 3 then
+      local key = site.lane .. ":" .. site.milestone .. ":" .. site.kind
+      mine[key] = (mine[key] or 0) + ((site.team == 1) and 1 or -1)
+    end
+  end
+  for key, balance in pairs(mine) do
+    if balance ~= 0 then
+      complain(problems, "the two teams' stone does not match at %s", key)
+    end
+  end
+end
+-- }}}
+
 -- {{{ local function check_reachable()
 -- Every node is reachable from team 1's library. Catches a connector that was
 -- built between the wrong pair of junctions, or a lane that was emitted and
@@ -255,6 +313,7 @@ function M.check(map, parameters)
   check_lane_paths(map, problems)
   check_mirror(map, problems)
   check_sites(map, problems)
+  check_site_count(map, parameters, problems)
   check_reachable(map, problems)
   return problems
 end
