@@ -1,0 +1,73 @@
+what the first challenge boss looks like, from four drawings dropped into
+inspiration/ on 2026-08-26 while the phase table was being built.
+
+    Warriors, by Myke
+
+credit first, because it is somebody's work and this file is a note about how to
+be influenced by it rather than a licence to copy it.
+
+--
+
+# what is in them
+
+Four graphite and ink drawings. Enormous horned brutes, and the drawing itself is
+doing as much work as the subject.
+
+**They are monochrome.** Graphite grey, paper white, ink black, and the whole
+tonal range in between worked with crosshatch and smudge. Not stylised flat
+shading -- rendered, heavily, the way a pencil renders when somebody has spent a
+long time on it.
+
+**With exactly one colour, and it is blood.** In the third drawing the only red on
+the page is what is coming off the flail and what is pooling under the body on the
+ground. Nothing else in the frame is coloured at all. That restraint is the whole
+effect: a monochrome page with one red in it does not read as a black-and-white
+picture, it reads as a picture where **the only thing worth colouring is the
+killing**.
+
+**They are covered in what they have killed.** Skulls hung off the belt, tusks,
+trophies lashed to the arms. Not decoration -- a record.
+
+**They stand over things.** Two of the four are mid-stride across a body. The
+posture is not a fighting stance; it is the moment after.
+
+**Knotwork.** Carved stone behind one of them, deep-relief interlace. Somebody
+built that wall and it was a long time ago.
+
+--
+
+# what this project should take from it
+
+**The monsters are not a third team colour. They are the absence of one.**
+
+Both sides of this game are colour -- one warm, one cold -- and that is the whole
+visual read of the map. A monster drawn in a third hue is a third faction. A
+monster drawn in **bone and graphite**, with no team colour anywhere on it, is
+something that does not belong to the colour system at all, which is exactly what a
+body on nobody's side should look like.
+
+**And one red accent, used for nothing else in the game.** Not a health bar, not a
+refusal, not a warning. Red belongs to the monsters, so that the first time a
+player sees it they know what it means without being told.
+
+**The trophies are a rendering idea for later**, when there are sprites rather than
+discs: what a monster carries could be what it has killed this match. Nothing needs
+that now and it would be the wrong thing to build first, but it is the kind of
+detail that pays for itself, because it makes the second challenge look different
+from the first without anybody drawing a second monster.
+
+--
+
+# what it does not settle
+
+The setting's visual language is still open -- see issue 702. This says what the
+things out of the middle look like. It does not say what the towers look like, or
+the bodies, or the ground, and it should not be stretched into saying so: an
+automated war nobody started is a colder image than these drawings, and the two
+have to be reconciled by somebody rather than assumed to agree.
+
+The one thing it does argue for beyond the monsters: **this world is drawn, not
+rendered.** Hatching, weight, the pencil visible. That is a long way from what is
+on screen now, which is discs on a dark field, and it is worth knowing that the
+discs are a placeholder for something with a hand in it rather than the intended
+end state.

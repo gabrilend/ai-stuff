@@ -61,13 +61,30 @@ local COLOUR = {
   team        = {
     [1] = {0.960, 0.660, 0.240},
     [2] = {0.360, 0.780, 0.930},
-    [3] = {0.760, 0.520, 0.900},
+    -- The monsters are **bone and graphite**, and that is not a third team colour --
+    -- it is the absence of one. Both sides of this game are colour, one warm and
+    -- one cold, and that is the whole visual read of the map; a monster drawn in a
+    -- third hue is a third faction, while a monster drawn in no team colour at all
+    -- is what a body on nobody's side should look like.
+    --
+    -- From four graphite drawings -- *Warriors*, by Myke -- in inspiration/. See
+    -- notes/what-the-first-boss-looks-like.
+    [3] = {0.880, 0.870, 0.845},
   },
   team_dim    = {
     [1] = {0.420, 0.290, 0.110},
     [2] = {0.150, 0.330, 0.400},
-    [3] = {0.330, 0.230, 0.390},
+    [3] = {0.300, 0.295, 0.285},
   },
+  -- The one red in the game, and it belongs to the monsters. Not a health bar, not
+  -- a refusal, not a warning -- so that the first time a player sees it, they know
+  -- what it means without being told.
+  --
+  -- The drawings are monochrome with exactly one colour in them, and it is what is
+  -- coming off the weapon. A monochrome page with one red in it does not read as a
+  -- black-and-white picture; it reads as a picture where the only thing worth
+  -- colouring is the killing.
+  monster_blood = {0.72, 0.075, 0.075},
   rubble      = {0.200, 0.200, 0.215},
   health_full = {0.470, 0.830, 0.420},
   health_low  = {0.880, 0.330, 0.290},
@@ -449,6 +466,53 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
     set_colour(COLOUR.team[newest.team[id]], 0.95)
     love.graphics.setLineWidth(2 / camera.drawn_scale)
     love.graphics.circle("line", hero_x[index], hero_y[index], radius + 3.5, 14)
+  end
+
+  -- The monsters, drawn afterwards and by hand rather than batched. There are two
+  -- of them and they are the largest things on the field; batching them would save
+  -- nothing and would forbid the one thing they need, which is not being the same
+  -- shape as everything else.
+  for index = 1, newest.live_count do
+    local id = newest.live[index]
+    if newest.flavour[id] == 4 then
+      local x, y = interpolated_position(previous, newest, id, blend)
+      local radius = BODY_RADIUS[newest.archetype[id]] or 26
+
+      love.graphics.setColor(0, 0, 0, 0.5)
+      love.graphics.circle("fill", x + SHADOW_OFFSET * 2, y + SHADOW_OFFSET * 2, radius * 0.95, 20)
+
+      set_colour(COLOUR.team[3], 0.92)
+      love.graphics.circle("fill", x, y, radius, 20)
+      -- Hatched rather than flat: the drawings are pencil and the pencil is visible
+      -- in them, and a solid disc is the one thing that would say "this is a
+      -- diagram" about the only body on the field that should not.
+      set_colour(COLOUR.team_dim[3], 0.85)
+      love.graphics.setLineWidth(1.6 / camera.drawn_scale)
+      for step = -3, 3 do
+        local offset = step * radius * 0.28
+        local span = math.sqrt(math.max(0, radius * radius - offset * offset))
+        love.graphics.line(x - span, y + offset, x + span, y + offset)
+      end
+
+      -- The red. It is what the thing has already done, so it grows as the monster
+      -- takes the field rather than as it takes damage.
+      local blooded = 1 - newest.health_fraction[id]
+      if newest.archetype[id] == 14 then
+        -- The Golem cannot be hurt, so its health fraction never moves. It gets the
+        -- red anyway, and all of it: it is the one that does not stop.
+        blooded = 1
+      end
+      if blooded > 0.02 then
+        set_colour(COLOUR.monster_blood, 0.55 + 0.45 * blooded)
+        love.graphics.setLineWidth(3.2 / camera.drawn_scale)
+        love.graphics.arc("line", "open", x, y, radius * 0.78,
+                          -0.6, -0.6 + 5.0 * blooded, 18)
+      end
+
+      set_colour(COLOUR.team[3])
+      love.graphics.setLineWidth(2.4 / camera.drawn_scale)
+      love.graphics.circle("line", x, y, radius, 20)
+    end
   end
 end
 -- }}}
