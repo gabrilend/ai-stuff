@@ -279,6 +279,202 @@ local function draw_lane_row(world, frame, team_id, lane, x, y, width)
 end
 -- }}}
 
+-- {{{ local function draw_colour_mark()
+-- One resource colour, drawn as its own **shape** as well as its own hue.
+--
+-- Written down in the design as an accessibility requirement and worth reading as a
+-- principle: **never encode meaning in hue alone.** Somebody who cannot tell the red
+-- from the green can still tell pips from a card from a ring.
+local function draw_colour_mark(shape, x, y, size, rgb)
+  set_colour(rgb)
+  if shape == "pips" then
+    -- Three dots in a row, like a die's face.
+    for index = 0, 2 do
+      love.graphics.circle("fill", x + 3 + index * 5, y + size * 0.5, 1.8, 6)
+    end
+  elseif shape == "bar" then
+    love.graphics.rectangle("fill", x + 2, y + size * 0.5 - 2, size - 4, 4, 1, 1)
+  elseif shape == "script" then
+    -- A stroke with a flick in it. Not a letter; a mark.
+    love.graphics.setLineWidth(1.6)
+    love.graphics.line(x + 3, y + size - 4, x + size * 0.5, y + 3, x + size - 3, y + size - 4)
+  elseif shape == "card" then
+    love.graphics.rectangle("line", x + 3, y + 2, size - 6, size - 4, 2, 2)
+    love.graphics.circle("fill", x + size * 0.5, y + size * 0.5, 1.8, 6)
+  elseif shape == "ring" then
+    love.graphics.setLineWidth(1.8)
+    love.graphics.circle("line", x + size * 0.5, y + size * 0.5, size * 0.28, 12)
+  else
+    love.graphics.rectangle("fill", x + 3, y + 3, size - 6, size - 6, 1, 1)
+  end
+end
+-- }}}
+
+-- {{{ local function draw_wallet()
+-- What this player holds, per colour, against its ceiling.
+--
+-- The **waste** is the number that matters and it is drawn where it will nag:
+-- income arriving at a full colour is lost, not stored, and a player who is
+-- throwing away spirit needs to be told it is spirit. "You are wasting resource" is
+-- a shrug; "you are wasting spirit" is an instruction.
+local function draw_wallet(world, frame, player_number, x, y, width)
+  local catalogue = world.parameters.commander
+  local wallet = frame.wallet[player_number]
+
+  love.graphics.setFont(M.font)
+  set_colour(M.renderer.COLOUR.text, 0.65)
+  love.graphics.print("WALLET", x, y)
+  set_colour(M.renderer.COLOUR.text, 0.3)
+  love.graphics.setFont(M.font_small)
+  love.graphics.printf(catalogue.commander[wallet.commander].name ..
+                       "  --  d" .. catalogue.ceiling[wallet.rung],
+                       x, y + 2, width, "right")
+  y = y + 20
+
+  local size = 22
+  local gap = 4
+  for colour = 1, #catalogue.colour do
+    local row = catalogue.colour[colour]
+    local chip_x = x + (colour - 1) * (size + gap + 16)
+
+    love.graphics.setColor(0.10, 0.11, 0.135, 0.9)
+    love.graphics.rectangle("fill", chip_x, y, size, size, 3, 3)
+    draw_colour_mark(row.shape, chip_x, y, size, row.rgb)
+
+    local held = wallet.points[colour]
+    local ceiling = wallet.points_max[colour]
+    -- Full is drawn in the colour's own hue and bright, because full means
+    -- **bleeding**: the next kill in this colour is thrown away.
+    if held >= ceiling then
+      set_colour(row.rgb)
+    else
+      set_colour(M.renderer.COLOUR.text, 0.7)
+    end
+    love.graphics.setFont(M.font_small)
+    love.graphics.print(tostring(held), chip_x + size + 2, y + 5)
+  end
+
+  return y + size + 8
+end
+-- }}}
+
+-- {{{ local function draw_roster()
+-- The heroes this commander may buy, with what each costs and whether it is
+-- affordable right now.
+--
+-- Affordability is read off the snapshot rather than worked out here. "Can I buy
+-- this" is a question about the world, and the viewer is not allowed to decide
+-- anything the simulation could decide.
+local function draw_roster(world, frame, player_number, x, y, width, held_hero)
+  local catalogue = world.parameters.commander
+  local wallet = frame.wallet[player_number]
+  local roster = catalogue.commander[wallet.commander].roster
+
+  love.graphics.setFont(M.font)
+  set_colour(M.renderer.COLOUR.text, 0.65)
+  love.graphics.print("HEROES", x, y)
+  if wallet.hero_alive > 0 then
+    set_colour(M.renderer.COLOUR.text, 0.4)
+    love.graphics.setFont(M.font_small)
+    love.graphics.printf(wallet.hero_alive .. " on the field", x, y + 2, width, "right")
+  end
+  y = y + 20
+
+  local height = 26
+  for index, row in ipairs(roster) do
+    local affordable = wallet.affordable[index] == 1
+    local unit = world.parameters.unit.archetype[row]
+
+    love.graphics.setColor(0.10, 0.11, 0.135, affordable and 0.95 or 0.5)
+    love.graphics.rectangle("fill", x, y, width, height, 3, 3)
+    if held_hero == row then
+      set_colour(M.renderer.COLOUR.team[wallet.team], 0.9)
+      love.graphics.setLineWidth(2)
+      love.graphics.rectangle("line", x, y, width, height, 3, 3)
+    end
+
+    love.graphics.setFont(M.font_small)
+    set_colour(M.renderer.COLOUR.text, affordable and 0.9 or 0.35)
+    love.graphics.print(unit.name, x + 6, y + 7)
+
+    -- The bill, as marks rather than as numbers, so the shape of what it wants is
+    -- readable at a glance next to the wallet directly above it.
+    local cost = catalogue.hero_cost[row]
+    local mark_x = x + width - 8
+    for colour = #catalogue.colour, 1, -1 do
+      local amount = cost[colour]
+      if amount ~= nil then
+        mark_x = mark_x - 16
+        local enough = wallet.points[colour] >= amount
+        love.graphics.setColor(catalogue.colour[colour].rgb[1],
+                               catalogue.colour[colour].rgb[2],
+                               catalogue.colour[colour].rgb[3],
+                               enough and 1 or 0.3)
+        love.graphics.rectangle("fill", mark_x, y + 8, 10, 10, 2, 2)
+        set_colour(M.renderer.COLOUR.text, enough and 0.85 or 0.3)
+        love.graphics.print(tostring(amount), mark_x + 11, y + 6)
+        mark_x = mark_x - 6
+      end
+    end
+
+    if affordable then
+      add_hot("hero", {x, y, width, height}, {hero = row})
+    end
+    y = y + height + 4
+  end
+
+  return y
+end
+-- }}}
+
+-- {{{ local function draw_signposts()
+-- The three standing orders, and who set them.
+--
+-- Drawn because a teammate changing one **silently redirects every hero you have
+-- inbound**, which makes it the only unnegotiated change one player can make to
+-- another's plans. It happens without warning, so it had better be visible.
+local function draw_signposts(world, frame, x, y, width)
+  love.graphics.setFont(M.font)
+  set_colour(M.renderer.COLOUR.text, 0.65)
+  love.graphics.print("SIGN-POSTS", x, y)
+  y = y + 20
+
+  local names = {"top", "centre", "bottom"}
+  local size = 26
+  for lane = 1, world.parameters.lane_count do
+    local post = frame.signpost[lane]
+    local post_x = x + (lane - 1) * (size + 62)
+
+    love.graphics.setColor(0.10, 0.11, 0.135, 0.9)
+    love.graphics.rectangle("fill", post_x, y, size, size, 3, 3)
+
+    -- Straight on is the default everywhere, so a player who never touches one
+    -- gets exactly what they would expect from a game that did not have them.
+    if post.branch == 0 then
+      set_colour(M.renderer.COLOUR.text, 0.45)
+      love.graphics.setLineWidth(2)
+      love.graphics.line(post_x + size * 0.5, y + size - 5, post_x + size * 0.5, y + 5)
+      love.graphics.line(post_x + size * 0.5 - 4, y + 9, post_x + size * 0.5, y + 5)
+      love.graphics.line(post_x + size * 0.5 + 4, y + 9, post_x + size * 0.5, y + 5)
+    else
+      set_colour(M.renderer.COLOUR.team[1])
+      love.graphics.setLineWidth(2)
+      love.graphics.line(post_x + 5, y + size * 0.5, post_x + size - 5, y + size * 0.5)
+      love.graphics.line(post_x + size - 9, y + size * 0.5 - 4, post_x + size - 5, y + size * 0.5)
+      love.graphics.line(post_x + size - 9, y + size * 0.5 + 4, post_x + size - 5, y + size * 0.5)
+    end
+
+    love.graphics.setFont(M.font_small)
+    set_colour(M.renderer.COLOUR.text, 0.5)
+    love.graphics.print(names[lane] or lane, post_x + size + 5, y + 7)
+
+    add_hot("signpost", {post_x, y, size + 56, size}, {lane = lane})
+    end
+
+  return y + size + 8
+end
+-- }}}
+
 -- {{{ local function draw_refusals()
 local function draw_refusals(x, y, width)
   local now = love.timer.getTime()
@@ -299,7 +495,8 @@ end
 
 -- {{{ function M.draw()
 -- The whole panel. Rebuilds the hot-region list as it goes.
-function M.draw(world, camera, frame, team_id, held_kind, mouse_x, mouse_y, speed, paused)
+function M.draw(world, camera, frame, team_id, held_kind, mouse_x, mouse_y, speed, paused,
+                player_number, held_hero)
   for index = #M.hot, 1, -1 do
     M.hot[index] = nil
   end
@@ -350,12 +547,20 @@ function M.draw(world, camera, frame, team_id, held_kind, mouse_x, mouse_y, spee
 
   -- What the deck has paid out, which is the number that says whether the upgrade
   -- economy is doing anything at all.
-  y = y + 6
+  y = y + 4
   set_colour(M.renderer.COLOUR.text, 0.4)
   love.graphics.setFont(M.font_small)
   love.graphics.print(string.format("%d drawn this match", frame.team_view[team_id].draws_taken),
                       inner_x, y)
-  y = y + 22
+  y = y + 20
+
+  -- The second economy. Kept below the chest because the chest is the game's centre
+  -- and this is the fast layer beside it -- and because a player's eyes travel down
+  -- the panel in the order the design says they should.
+  y = draw_wallet(world, frame, player_number, inner_x, y, inner_w)
+  y = draw_roster(world, frame, player_number, inner_x, y, inner_w, held_hero)
+  y = y + 4
+  y = draw_signposts(world, frame, inner_x, y, inner_w)
 
   draw_refusals(inner_x, screen_h - 96, inner_w)
 
@@ -387,6 +592,18 @@ function M.draw(world, camera, frame, team_id, held_kind, mouse_x, mouse_y, spee
   if held_kind ~= 0 then
     draw_chip(world.parameters.upgrade.kind, held_kind, 1,
               mouse_x - 20, mouse_y - 20, 40, true)
+  end
+
+  -- A hero riding the cursor, waiting for somewhere to be put down.
+  if held_hero ~= nil and held_hero ~= 0 then
+    local unit = world.parameters.unit.archetype[held_hero]
+    love.graphics.setColor(0.06, 0.07, 0.09, 0.92)
+    love.graphics.rectangle("fill", mouse_x - 60, mouse_y - 14, 120, 28, 4, 4)
+    set_colour(M.renderer.COLOUR.team[team_id])
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", mouse_x - 60, mouse_y - 14, 120, 28, 4, 4)
+    love.graphics.setFont(M.font_small)
+    love.graphics.printf(unit.name, mouse_x - 60, mouse_y - 6, 120, "center")
   end
 end
 -- }}}

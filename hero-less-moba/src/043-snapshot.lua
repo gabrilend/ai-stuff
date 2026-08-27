@@ -102,6 +102,13 @@ local function make_frame(world)
 
     structure = {},
     team_view = {},
+    -- One per player, but **only the viewing player's team is ever filled in** on
+    -- a real match: a wallet is the one thing in this game that belongs to a single
+    -- person, and the enemy's is not on the machine at all.
+    wallet = {},
+    -- One per lane, for the viewing team only. The enemy's are not drawn greyed
+    -- out or drawn without a direction -- they are not drawn.
+    signpost = {},
     event = {},
   }
 
@@ -115,6 +122,22 @@ local function make_frame(world)
       x = 0, y = 0, health_fraction = 0, command_radius = 0,
       guard_count = 0, upgrade_count = zeroed(kind_count),
     }
+  end
+
+  local colours = #world.parameters.commander.colour
+  for number = 1, world.parameters.team_size * 2 do
+    frame.wallet[number] = {
+      team = 0, commander = 0, rung = 1, hero_alive = 0,
+      points = zeroed(colours),
+      points_max = zeroed(colours),
+      points_wasted = zeroed(colours),
+      affordable = {},
+    }
+  end
+
+  for lane = 1, lane_count do
+    frame.signpost[lane] = {branch = 0, set_by = 0, set_tick = 0, options = 0,
+                            x = 0, y = 0}
   end
 
   for team = 1, 2 do
@@ -239,6 +262,41 @@ function M.stamp(world)
       view.waves_lost[lane] = team.waves_lost[lane]
     end
     view.draws_taken = team.draws_taken
+  end
+
+  -- Wallets. Both teams' are copied because this prototype runs both sides on one
+  -- machine; a real match would fill in one.
+  local catalogue = world.parameters.commander
+  for number, player in ipairs(world.player) do
+    local wallet = frame.wallet[number]
+    wallet.team = player.team
+    wallet.commander = player.commander
+    wallet.rung = player.rung
+    wallet.hero_alive = player.hero_alive
+    for colour = 1, #catalogue.colour do
+      wallet.points[colour] = player.points[colour]
+      wallet.points_max[colour] = player.points_max[colour]
+      wallet.points_wasted[colour] = player.points_wasted[colour]
+    end
+    -- Worked out here rather than in the panel, because "can I buy this" is a
+    -- question about the world and the viewer is not allowed to decide anything the
+    -- simulation could decide.
+    local roster = catalogue.commander[player.commander].roster
+    for index, row in ipairs(roster) do
+      wallet.affordable[index] = world.commanders.can_afford(world, player, row) and 1 or 0
+    end
+  end
+
+  -- Sign-posts, for the team being watched.
+  for lane_id = 1, world.parameters.lane_count do
+    local post = world.signpost[world.viewing_team or 1][lane_id]
+    local node = world.map.node[post.node]
+    local view = frame.signpost[lane_id]
+    view.branch = post.branch
+    view.set_by = post.set_by
+    view.set_tick = post.set_tick
+    view.options = #post.options
+    view.x, view.y = node.x, node.y
   end
 
   -- Events raised this tick. These fire the popups, and every one of them must be

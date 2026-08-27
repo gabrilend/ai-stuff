@@ -136,6 +136,7 @@ end
 --   unit         table    from assets/025-unit-table.lua
 --   structure    table    from assets/026-structure-table.lua
 --   upgrade      table    from assets/027-upgrade-table.lua
+--   commander    table    from assets/053-commander-table.lua
 function M.load()
   local seed = tonumber(read_input_file("seed"))
   if seed == nil then
@@ -167,7 +168,8 @@ function M.load()
     loaded[key] = chunk()
   end
 
-  local required = {"map-shape", "unit-table", "structure-table", "upgrade-table"}
+  local required = {"map-shape", "unit-table", "structure-table", "upgrade-table",
+                    "commander-table"}
   for _, key in ipairs(required) do
     if loaded[key] == nil then
       error("input/catalogues never named a " .. key .. " -- the match cannot start")
@@ -183,6 +185,7 @@ function M.load()
     unit       = loaded["unit-table"],
     structure  = loaded["structure-table"],
     upgrade    = loaded["upgrade-table"],
+    commander  = loaded["commander-table"],
   }
 end
 -- }}}

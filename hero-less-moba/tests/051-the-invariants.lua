@@ -402,6 +402,100 @@ local function test_cohesion_is_conserved()
 end
 -- }}}
 
+-- {{{ local function test_every_hero_is_buyable()
+-- The colours in circulation must be able to pay for the heroes on offer.
+--
+-- The bug this exists for was silent in the worst way. Both commanders paid might
+-- and neither paid wit, so two of the five heroes on one of their own rosters could
+-- not be bought in any match ever -- not rarely, not expensively: never, with no
+-- refusal to read, because nobody could get far enough to be refused. Nothing in
+-- the game would have reported it and nothing in a playtest would have looked like
+-- anything except those heroes being unpopular.
+local function test_every_hero_is_buyable()
+  local modules = tick_module.load_cast(ROOT)
+  local parameters = modules.match_parameters.load()
+  local catalogue = parameters.commander
+
+  -- Every colour any commander pays out, since a match fields all of them.
+  local in_circulation = {}
+  for _, commander in ipairs(catalogue.commander) do
+    for colour in pairs(commander.bounty) do
+      in_circulation[colour] = true
+    end
+  end
+
+  local unpayable = {}
+  for _, commander in ipairs(catalogue.commander) do
+    for _, row in ipairs(commander.roster) do
+      local cost = catalogue.hero_cost[row]
+      if cost == nil then
+        unpayable[#unpayable + 1] = parameters.unit.archetype[row].name .. " has no price"
+      else
+        for colour in pairs(cost) do
+          if not in_circulation[colour] then
+            unpayable[#unpayable + 1] = string.format("%s wants %s, which nobody pays",
+              parameters.unit.archetype[row].name, catalogue.colour[colour].name)
+          end
+        end
+      end
+    end
+  end
+
+  check("every hero on every roster can be paid for",
+        #unpayable == 0, unpayable[1])
+end
+-- }}}
+
+-- {{{ local function test_a_hero_obeys_one_signpost()
+-- A hero takes the branch a sign points at, and then goes straight on at every
+-- junction for the rest of its life.
+--
+-- That one rule is the whole reason this is not a routing system, so it is worth a
+-- test of its own: without it there would be nothing stopping a player chaining
+-- posts to walk a body round the anti-diagonal.
+local function test_a_hero_obeys_one_signpost()
+  local world, modules = fresh_world(tick_module)
+  local soldier = world.soldier
+
+  -- Point team 1's top-lane post at its connector, then buy a hero into that lane
+  -- with a full wallet.
+  modules.signposts.cycle(world, 1, 1, 1)
+  for colour = 1, world.colour_count do
+    world.player[1].points[colour] = 12
+  end
+  local roster = world.parameters.commander.commander[world.player[1].commander].roster
+  local verdict = modules.commanders.buy(world, 1, roster[1], "library", 0)
+
+  -- The library sends a hero to the worst-pressed lane, which need not be the top
+  -- one. Put it in the top lane explicitly so the sign is the thing being tested.
+  local id = verdict.id
+  local lane = world.map.lane[1]
+  soldier.lane[id] = 1
+  soldier.path_index[id] = 1
+  modules.walking.set_lane_position(world, id, 0, 0)
+
+  local crossed, rejoined_lane = false, 0
+  for _ = 1, 4000 do
+    tick_module.advance(world)
+    if soldier.alive[id] ~= 1 then
+      break
+    end
+    if soldier.crossing[id] ~= 0 then
+      crossed = true
+    elseif crossed and rejoined_lane == 0 then
+      rejoined_lane = soldier.lane[id]
+    end
+  end
+
+  check("a hero obeys the sign at its junction and crosses to the next lane",
+        crossed, "it never left the top lane")
+  check("and comes out on the centre lane, with its one turn spent",
+        rejoined_lane == 2 and soldier.turns_left[id] == 0,
+        string.format("rejoined lane %d, turns left %d",
+          rejoined_lane, soldier.turns_left[id] or -1))
+end
+-- }}}
+
 -- {{{ local function test_no_nil_fields()
 -- Nil is not an option. Every per-body array must hold a number in every slot it
 -- has ever used, because the simulation has no nil checks in it and is only safe
@@ -438,6 +532,8 @@ test_camera_anchor()
 test_camera_home()
 test_camera_floor()
 test_wide_query()
+test_every_hero_is_buyable()
+test_a_hero_obeys_one_signpost()
 test_no_nil_fields()
 test_formation_turns_a_corner()
 test_cohesion_is_conserved()

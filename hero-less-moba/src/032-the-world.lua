@@ -180,6 +180,27 @@ local function make_soldier_arrays(capacity, kind_count)
   -- This tick's cohesion multiplier on speed. Bodies behind their place hurry and
   -- bodies ahead of it wait, and the two are the same budget moved around.
   soldier.speed_scale       = zeroed(capacity)
+  -- Which colour this body pays out when it dies, decided by the commander that
+  -- fielded it. **You farm what the enemy fields**, so their commander selection
+  -- decides what you can afford.
+  soldier.bounty_colour     = zeroed(capacity)
+  -- How many sign-posts this body will still obey. One for a hero, zero for
+  -- everything else -- and once a hero has turned, it goes straight on at every
+  -- junction for the rest of its life, whatever the next sign says.
+  soldier.turns_left        = zeroed(capacity)
+  -- Ticks until this body's ability may fire again.
+  soldier.ability_cooldown  = zeroed(capacity)
+  -- Ticks of fear remaining. Fear is the enemy's actual weapon and it is not
+  -- damage: a frightened body hits softer. **Fear is evil. It is inflicted** --
+  -- it is not an environmental hazard and not a resource, it is something one
+  -- thing does to another on purpose, and it has an author.
+  soldier.fear              = zeroed(capacity)
+  -- Which connector this body is crossing, and how far along it. Zero for anything
+  -- walking a lane, which is nearly everything -- only a hero that has obeyed a
+  -- sign-post is ever out here.
+  soldier.crossing          = zeroed(capacity)
+  soldier.crossing_step     = zeroed(capacity)
+  soldier.crossing_dir      = zeroed(capacity)
 
   -- Modifiers. One flat array per upgrade kind rather than one table per
   -- soldier: the sweep that re-stamps a lane's guards touches one kind across
@@ -401,6 +422,13 @@ function M.release(world, id)
   soldier.slot_along[id] = 0
   soldier.slot_across[id] = 0
   soldier.speed_scale[id] = 0
+  soldier.bounty_colour[id] = 0
+  soldier.turns_left[id] = 0
+  soldier.ability_cooldown[id] = 0
+  soldier.fear[id] = 0
+  soldier.crossing[id] = 0
+  soldier.crossing_step[id] = 0
+  soldier.crossing_dir[id] = 0
   for kind = 1, #soldier.upgrade_count do
     soldier.upgrade_count[kind][id] = 0
   end

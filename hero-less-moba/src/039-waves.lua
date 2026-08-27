@@ -162,10 +162,19 @@ end
 -- {{{ local function queue_wave()
 -- Creates a wave record and schedules its bodies to leave the library a few
 -- ticks apart, so a wave walks out as a column rather than as one stacked point.
-local function queue_wave(world, team, lane)
+local function queue_wave(world, team, lane, turn)
   local settings = world.parameters.unit.wave
   local total = settings.melee_count + settings.ranged_count + settings.captain_count
   local wave_id = new_wave(world, team, lane, total)
+
+  -- **The commanders take turns sending waves**, so a third of what leaves a base
+  -- is somebody else's captain and somebody else's mixture. That is what makes
+  -- commander selection a team conversation in the lobby rather than three private
+  -- preferences -- and it is why a player learns the enemy's roster by watching
+  -- rather than by being told.
+  local commander_id = world.commanders.commander_for_wave(world, team, turn)
+  local commander = world.parameters.commander.commander[commander_id]
+  world.wave[wave_id].commander = commander_id
 
   -- **The whole wave appears at once, in its ranks.** There is no column that
   -- files out and arranges itself later: it is emitted from the base already in
@@ -176,18 +185,34 @@ local function queue_wave(world, team, lane)
   -- The captain takes index zero of the front rank, which puts it in the middle of
   -- the line -- both where it is most useful and where an opponent can see it
   -- coming, which matters because a captain is the one body a commander chooses.
-  local melee_total = settings.captain_count + settings.melee_count
+  --
+  -- The mixture is the commander's: how much of the wave is melee and how much is
+  -- ranged. The bodies themselves are identical for every commander in the game --
+  -- what differs is the ratio, the captain, and the colours they pay in.
+  local body_count = settings.melee_count + settings.ranged_count
+  local melee_count = math.floor(body_count * commander.melee_share + 0.5)
+  local ranged_count = body_count - melee_count
+  local melee_total = settings.captain_count + melee_count
+
+  local bounty_index = 0
+  local function born(archetype, role, role_index)
+    bounty_index = bounty_index + 1
+    local id = M.spawn_body(world, team, lane, archetype, wave_id, role, role_index, melee_total)
+    world.commanders.stamp_bounty(world, id, commander_id, bounty_index)
+    return id
+  end
+
   local front_index = 0
   for _ = 1, settings.captain_count do
-    M.spawn_body(world, team, lane, CAPTAIN, wave_id, "front", front_index, melee_total)
+    born(commander.captain, "front", front_index)
     front_index = front_index + 1
   end
-  for _ = 1, settings.melee_count do
-    M.spawn_body(world, team, lane, MELEE, wave_id, "front", front_index, melee_total)
+  for _ = 1, melee_count do
+    born(MELEE, "front", front_index)
     front_index = front_index + 1
   end
-  for index = 0, settings.ranged_count - 1 do
-    M.spawn_body(world, team, lane, RANGED, wave_id, "back", index, melee_total)
+  for index = 0, ranged_count - 1 do
+    born(RANGED, "back", index)
   end
 
   return wave_id
@@ -204,9 +229,10 @@ function M.spawn_pass(world)
   local settings = world.parameters.unit.wave
 
   if world.tick >= world.next_wave_tick then
+    world.wave_turn = (world.wave_turn or 0) + 1
     for team = 1, 2 do
       for lane = 1, world.parameters.lane_count do
-        queue_wave(world, team, lane)
+        queue_wave(world, team, lane, world.wave_turn)
       end
     end
     world.next_wave_tick = world.next_wave_tick + settings.interval
@@ -255,6 +281,7 @@ end
 -- Sets the cadence running. Called once, at world creation.
 function M.begin(world)
   world.spawn_queue = {}
+  world.wave_turn = 0
   world.next_wave_tick = world.parameters.unit.wave.first_at
 end
 -- }}}

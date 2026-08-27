@@ -151,6 +151,11 @@ function M.load(root)
     queue         = function(command)
       M.modules.commands.queue(M.world, command)
     end,
+    -- Which player the person at the keyboard is. A real match has one and it is
+    -- fixed; the prototype lets you switch teams, so it derives one from that.
+    player_number = function(state)
+      return (state.watching == 1) and 1 or (M.world.parameters.team_size + 1)
+    end,
   }
 end
 -- }}}
@@ -189,6 +194,10 @@ function M.update(delta_time)
     M.accumulator = 0
     return
   end
+
+  -- The snapshot only ever fills in one team's sign-posts, so it has to be told
+  -- which. On a real match this would be fixed at the lobby and never change.
+  M.world.viewing_team = M.state.watching
 
   M.accumulator = M.accumulator + delta_time * M.state.speed
 
@@ -261,11 +270,14 @@ function M.draw()
     blend = 1
   end
 
+  local player_number = M.context.player_number(M.state)
+
   M.renderer.draw(M.world, M.camera, previous, newest, blend,
-                  M.state.held_kind, M.state.watching)
+                  M.state.held_kind, M.state.watching, M.state.held_hero)
   M.panel.draw(M.world, M.camera, newest, M.state.watching,
                M.state.held_kind, M.state.mouse_x, M.state.mouse_y,
-               M.state.speed, M.state.paused)
+               M.state.speed, M.state.paused,
+               player_number, M.state.held_hero)
 
   -- The one banner. A finished match is the only thing in the game that takes
   -- over the screen, because it is the only thing after which nothing else is

@@ -59,6 +59,11 @@ function M.create()
   return {
     -- The upgrade kind riding the cursor, or 0 for none.
     held_kind = 0,
+    -- The hero row riding the cursor, waiting for a destination. Heroes and
+    -- upgrades use the same gesture -- pick up, the board pulls back, the places it
+    -- could go light up -- because they are the same question asked of two
+    -- different economies.
+    held_hero = 0,
     -- Which team's board is on screen. A prototype affordance; a real match has
     -- no such thing, because the other team's board is not on this machine.
     watching = 1,
@@ -111,6 +116,59 @@ local function structure_under(world, team_id, world_x, world_y)
       end
     end
   end
+  return nil
+end
+-- }}}
+
+-- {{{ function M.hero_drop()
+-- What dropping a hero at a screen point would mean.
+--
+-- Three destinations, all of them ground the buying team already holds. There is no
+-- putting a hero down behind enemy lines.
+--
+--   a tower   -- unless enemies are inside its command radius, in which case the
+--                purchase is **refused and named**, never quietly moved somewhere
+--                else. A silent redirect is a fallback, and a fallback in a game
+--                where a hero costs a minute of income is a purchase you did not
+--                make.
+--   a wave    -- arrives at the frontline immediately, in formation, and fragile
+--   a library -- always available, and slow: a long walk to the worst-pressed lane
+--
+-- That trade -- arrive now and fragile, arrive late and intact -- is the entire
+-- spend decision.
+function M.hero_drop(world, camera_module, camera, team_id, player_number, hero, screen_x, screen_y)
+  local world_x, world_y = camera_module.screen_to_world(camera, screen_x, screen_y)
+
+  local structure = structure_under(world, team_id, world_x, world_y)
+  if structure ~= nil then
+    if structure.kind == 3 then
+      return {verb = "buy_hero", team = team_id, player = player_number,
+              hero = hero, where = "library", target = 0}
+    end
+    return {verb = "buy_hero", team = team_id, player = player_number,
+            hero = hero, where = "tower", target = structure.id}
+  end
+
+  -- A wave, found by its anchor rather than by its bodies: the anchor is the
+  -- formation's front and is where the hero would appear, so aiming at it is aiming
+  -- at the thing that will happen.
+  local best, best_distance = 0, math.huge
+  for _, wave in ipairs(world.wave) do
+    if wave.team == team_id and wave.living_count > 0 then
+      local lane = world.map.lane[wave.lane]
+      local x, y = world.map_builder.point_at(world.map, lane, wave.anchor, wave.hint)
+      local dx, dy = x - world_x, y - world_y
+      local distance = dx * dx + dy * dy
+      if distance < best_distance then
+        best, best_distance = wave.id, distance
+      end
+    end
+  end
+  if best ~= 0 and best_distance <= 110 * 110 then
+    return {verb = "buy_hero", team = team_id, player = player_number,
+            hero = hero, where = "wave", target = best}
+  end
+
   return nil
 end
 -- }}}
@@ -212,7 +270,20 @@ function M.mousepressed(state, context, x, y, button)
 
   local hot = context.panel.hit_test(x, y)
   if hot ~= nil then
-    if hot.kind == "chest_chip" then
+    if hot.kind == "hero" then
+      -- The same gesture as picking up a rune, for the same reason: choosing where
+      -- a hero goes is a question about the whole board, and the act of pulling
+      -- back is the act of asking it.
+      state.held_hero = hot.hero
+      state.held_kind = 0
+      context.camera_module.pull_back(context.camera)
+    elseif hot.kind == "signpost" then
+      -- Instant, reversible, and needing no negotiation -- so it is a click rather
+      -- than a drag. What it costs is that it silently redirects every hero a
+      -- teammate has inbound, which is why the simulation raises an event about it.
+      context.queue({verb = "set_signpost", team = state.watching,
+                     player = context.player_number(state), lane = hot.lane})
+    elseif hot.kind == "chest_chip" then
       -- Picked up. It is not removed from the chest here -- nothing is moved
       -- until a command is applied at the top of a tick, and a chip that vanished
       -- on pick-up would be the viewer holding state the simulation needs.
@@ -248,7 +319,28 @@ function M.mousereleased(state, context, x, y, button)
     return
   end
 
-  if button ~= 1 or state.held_kind == 0 then
+  if button ~= 1 then
+    return
+  end
+
+  -- A hero being put down.
+  if state.held_hero ~= 0 then
+    local hero = state.held_hero
+    state.held_hero = 0
+    context.camera_module.return_to_remembered(context.camera)
+
+    if x < context.panel.panel_left() then
+      local command = M.hero_drop(context.world, context.camera_module, context.camera,
+                                  state.watching, context.player_number(state),
+                                  hero, x, y)
+      if command ~= nil then
+        context.queue(command)
+      end
+    end
+    return
+  end
+
+  if state.held_kind == 0 then
     return
   end
 
