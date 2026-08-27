@@ -33,6 +33,21 @@ local M = {}
 local CANVAS = 109
 -- }}}
 
+-- {{{ M.scaled(settings, value)
+-- A length written at the reference resolution, in the resolution actually
+-- being drawn at.
+--
+-- Every pixel number in the settings file is a length inside the picture, so
+-- every one of them is really a fraction of the frame. They are written as
+-- pixels because nobody wants to read a stroke width of 0.00846, and converted
+-- here so the file a person edits keeps saying 6.5.
+function M.scaled(settings, value)
+  local reference = settings.field.reference or settings.field.resolution
+  if reference == settings.field.resolution then return value end
+  return value * settings.field.resolution / reference
+end
+-- }}}
+
 -- {{{ M.placement(settings, record)
 -- How the archive's boxes map onto the picture.
 --
@@ -109,8 +124,9 @@ function M.blur_for(count, settings)
   local falloff = field.blur_falloff or 0
   if falloff <= 0 then return field.blur_radius end
   local reference = field.blur_reference or 8
-  local radius = field.blur_radius * (reference / math.max(count, 1)) ^ falloff
-  local floor = field.blur_minimum or 1
+  local radius = M.scaled(settings, field.blur_radius)
+                 * (reference / math.max(count, 1)) ^ falloff
+  local floor = M.scaled(settings, field.blur_minimum or 1)
   if radius < floor then radius = floor end
   return radius
 end
@@ -149,7 +165,7 @@ function M.build(record, settings, options)
 
     local box = M.where(placement, record.strokes[index])
     canvas.stroke(surface, one.flat, {
-      width = field.stroke_width,
+      width = M.scaled(settings, field.stroke_width),
       strength = ramp,
       taper = field.taper,
       scale = box.scale,
@@ -206,7 +222,7 @@ function M.thumbnail(surface, settings)
 end
 -- }}}
 
--- {{{ M.inspect(surface, measured, settings)
+-- {{{ M.inspect(surface, measured, settings, record)
 -- What the field looks like from the outside, as numbers a test can assert on.
 --
 -- Per stroke: the average darkness of the pixels along that stroke's own line.

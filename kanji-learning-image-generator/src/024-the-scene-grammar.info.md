@@ -22,11 +22,11 @@ luajit src/024-the-scene-grammar.lua --spread
 | | |
 |---|---|
 | `M.biomes()` | Every world there is, in order. |
-| `M.score(record, measured, settings)` | How much evidence there is for each world, and which wins. |
+| `M.score(record, measured, store, settings)` | How much evidence there is for each world, and which wins. |
 | `M.scene(record, store, settings, options)` | One record in, one scene out. Or nil and a reason. |
 | `M.spread(store, settings)` | Which worlds the whole set lands in. |
 
-### `M.score(record, measured, settings)`
+### `M.score(record, measured, store, settings)`
 
 How much evidence there is for each world, and which wins.
 
@@ -53,8 +53,8 @@ what a person reads before opening the source.
 
 | | |
 |---|---|
-| `component_box(record, component, measured)` | Where a piece of a character actually sits, as a box. |
-| `box_place(box)` | A box, as a phrase about where it is in the frame. |
+| `component_box(component, measured, record)` | Where a piece of a character actually sits, as a box. |
+| `box_place(box, cells)` | A box, as a phrase about where it is in the frame. |
 | `sound_halves(record)` | Which pieces are inside the half of the character chosen for its sound. |
 | `main(argv)` |  |
 

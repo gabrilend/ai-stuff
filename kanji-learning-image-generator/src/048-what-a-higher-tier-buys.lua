@@ -91,7 +91,7 @@ function M.palette(settings)
 end
 -- }}}
 
--- {{{ M.index_of(grey, arrow_alpha, arrow_colour)
+-- {{{ M.index_of(red, green, blue, alpha, is_outline)
 -- Which palette entry one pixel is, exactly.
 function M.index_of(red, green, blue, alpha, is_outline)
   if alpha < 0.02 then

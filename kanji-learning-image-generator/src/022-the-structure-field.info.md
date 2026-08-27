@@ -22,13 +22,22 @@ luajit src/022-the-structure-field.lua --chars 森休川 [--out DIR]
 
 | | |
 |---|---|
+| `M.scaled(settings, value)` | A length written at the reference resolution, in the resolution actually |
 | `M.placement(settings, record)` | How the archive's boxes map onto the picture. |
 | `M.where(placement, stroke)` | Which box a stroke is drawn in. |
 | `M.blur_for(count, settings)` | How far to soften a character with this many strokes. |
 | `M.build(record, settings, options)` | One character's structure field. |
 | `M.thumbnail(surface, settings)` | The same field at the size the illusion is supposed to work at. |
-| `M.inspect(surface, measured, settings)` | What the field looks like from the outside, as numbers a test can assert on. |
+| `M.inspect(surface, measured, settings, record)` | What the field looks like from the outside, as numbers a test can assert on. |
 | `M.edge_ink(surface)` | The most extreme value found anywhere on the outer border. |
+
+### `M.scaled(settings, value)`
+
+A length written at the reference resolution, in the resolution actually
+
+being drawn at.
+
+Every pixel number in the settings file is a length inside the picture, so every one of them is really a fraction of the frame. They are written as pixels because nobody wants to read a stroke width of 0.00846, and converted here so the file a person edits keeps saying 6.5.
 
 ### `M.placement(settings, record)`
 
@@ -68,7 +77,7 @@ The same field at the size the illusion is supposed to work at.
 
 The specification of this whole project is that a person sees the character in the thumbnail and not at full size (`docs/003`). This is the same computation at a different size rather than a second implementation, so the thing being looked at is the thing that was made.
 
-### `M.inspect(surface, measured, settings)`
+### `M.inspect(surface, measured, settings, record)`
 
 What the field looks like from the outside, as numbers a test can assert on.
 

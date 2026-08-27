@@ -368,7 +368,7 @@ function Graph:ui()
 end
 -- }}}
 
--- {{{ M.connections_from_api(text_object)
+-- {{{ M.connections_from_api(api, graph)
 -- The wires an emitted posting-format graph describes.
 --
 -- Read back out of what was written rather than off the graph it came from,

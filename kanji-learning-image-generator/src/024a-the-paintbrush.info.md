@@ -42,7 +42,7 @@ luajit src/024a-the-paintbrush.lua --check 時
 | `M.check(argument, record, store)` | Every complaint the wall has, at once. |
 | `M.path_for(character)` |  |
 | `M.load_for(record, store)` | The argument somebody has written for this character, checked. |
-| `M.apply(scene, argument)` | A scene, with a person's argument laid over it. |
+| `M.apply(scene, argument, path)` | A scene, with a person's argument laid over it. |
 | `M.scene(record, store, settings, options)` | The scene for a character, argued with if somebody has argued with it. |
 
 ### `M.contract()`
@@ -63,7 +63,7 @@ The argument somebody has written for this character, checked.
 
 Returns the argument and its path, or nil when there is none. Errors, with every complaint at once, when there is one and it is wrong -- because an argument that was written and then silently ignored is worse than no argument at all: the picture does not change and nothing says why.
 
-### `M.apply(scene, argument)`
+### `M.apply(scene, argument, path)`
 
 A scene, with a person's argument laid over it.
 

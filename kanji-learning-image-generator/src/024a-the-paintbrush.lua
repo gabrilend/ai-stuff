@@ -373,7 +373,7 @@ function M.load_for(record, store)
 end
 -- }}}
 
--- {{{ M.apply(scene, argument)
+-- {{{ M.apply(scene, argument, path)
 -- A scene, with a person's argument laid over it.
 --
 -- Only what the argument actually says is changed. Everything else stays as the

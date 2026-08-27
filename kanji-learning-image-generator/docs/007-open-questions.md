@@ -222,6 +222,21 @@ is generating illustrations or diagrams.
 Until it exists, **looking is the only defence**, and the phase demonstrations
 exist for that reason.
 
+**A second measurement arrived, unasked, from the resolution experiment.** The
+same four characters were drawn at 768 and at 1536. 語 went from **0.52 to
+0.83** — and the picture that scored 0.83 is a thin traced glyph over an even
+crowd texture, while the one that scored 0.52 is a field with the mouth radical
+built out of a wooden crate. The higher number is the worse picture, and not
+marginally: it is the difference between a scene and a diagram.
+
+That closes the question of whether the effect is real. It is real, it is large,
+and it runs in the direction that hurts. What remains open is the shape of the
+second measurement, and the resolution run suggests where to start: the traced
+glyph has **uniform stroke width across the whole character**, which the
+built-from-objects version never does. Measuring the variance of dark-run
+thickness along the field's strokes may separate them without needing to
+understand the scene at all.
+
 
 
 The machine grader (`406`) measures whether the finished picture's light and

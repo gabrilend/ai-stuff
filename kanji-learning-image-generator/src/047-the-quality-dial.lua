@@ -41,7 +41,7 @@ local pool = project.load("045-the-pool-that-remembers")
 
 local M = {}
 
--- {{{ M.consider(settings, category, floor, by_a_person)
+-- {{{ M.consider(settings, category, by_a_person)
 -- What a floor would leave, at every tier, before anybody commits to one.
 --
 -- Returns the whole ladder rather than one number, because the question is
