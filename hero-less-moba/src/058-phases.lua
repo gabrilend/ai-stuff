@@ -214,7 +214,15 @@ local function put_monsters_out(world)
     soldier.facing[id] = (team == 1) and -1 or 1
     soldier.path_index[id] = lane.milestone_index[4]
     world.walking.set_lane_position(world, id, midpoint, (team == 1) and -18 or 18)
-    world.monster[#world.monster + 1] = id
+    -- **With its generation.** Slots are recycled, so an id alone is not a body -- a
+    -- dead monster's slot is handed to the next thing that spawns, and asking
+    -- "is this still alive" of the id alone gets a cheerful yes about a stranger.
+    --
+    -- That is not hypothetical. Without the generation the challenge never ended: the
+    -- phase clock counted a wave unit standing in a dead monster's slot as a monster
+    -- still standing, and a match ran to its tick limit with one surge, one
+    -- challenge, and no calm ever beginning.
+    world.monster[#world.monster + 1] = {id = id, generation = soldier.generation[id]}
   end
 
   world.raise(world, "challenge_began", {index = index, name = row.name})
@@ -375,8 +383,9 @@ function M.advance(world)
 
   if world.phase == M.CHALLENGE then
     local standing = 0
-    for _, id in ipairs(world.monster) do
-      if world.soldier.alive[id] == 1 then
+    for _, monster in ipairs(world.monster) do
+      if world.soldier.alive[monster.id] == 1
+         and world.soldier.generation[monster.id] == monster.generation then
         standing = standing + 1
       end
     end

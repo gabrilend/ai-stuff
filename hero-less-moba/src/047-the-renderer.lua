@@ -104,10 +104,11 @@ local BODY_RADIUS = {
   -- economy in a lane somebody committed to, and a hero standing beside an enormous
   -- captain is **meant** to look unaffected, because lane upgrades never touch it.
   [6] = 7.2, [7] = 6.8, [8] = 7.4, [9] = 6.6, [10] = 6.4, [11] = 7.2,
+  [12] = 6.6, [13] = 6.6, [14] = 6.4, [15] = 6.6,
   -- The three that come out of the middle. Enormous, and drawn in the third team's
   -- colour, which is neither side's -- a monster aimed at your base is not an ally
   -- of the other team and must not look like one.
-  [12] = 26, [13] = 32, [14] = 38,
+  [16] = 26, [17] = 32, [18] = 38,
 }
 
 -- Below this zoom fraction a body is a dot and nothing else. Above it, detail

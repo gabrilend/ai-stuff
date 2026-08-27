@@ -94,7 +94,7 @@ M.commander = {
     -- is that a *pair* of commanders defines an economy, and the catalogue owes a
     -- check that the pairing can pay for the rosters it offers.
     bounty      = {[4] = 3, [2] = 2, [3] = 1},
-    roster      = {6, 7, 8, 9, 10},
+    roster      = {6, 9, 12, 13, 10},
   },
 
   {
@@ -102,7 +102,7 @@ M.commander = {
     captain     = 3,          -- a hobgoblin: the melee captain
     melee_share = 0.74,
     bounty      = {[1] = 3, [5] = 2, [6] = 1},
-    roster      = {11, 7, 8, 6, 10},
+    roster      = {11, 7, 8, 14, 15},
   },
 }
 -- }}}
@@ -124,6 +124,10 @@ M.hero_cost = {
   [9]  = {[4] = 4, [3] = 1},          -- sunlight paladin: spirit
   [10] = {[2] = 3, [3] = 2},          -- longbow ranger: grace and wit
   [11] = {[1] = 4, [4] = 2},          -- coal warden: might and spirit
+  [12] = {[4] = 3, [3] = 2},          -- priest: spirit and wit
+  [13] = {[2] = 3, [4] = 2},          -- druid: grace and spirit
+  [14] = {[4] = 2, [6] = 3},          -- curse-doctor: spirit and luck
+  [15] = {[3] = 2, [6] = 3},          -- rain shaman: wit and luck
 }
 -- }}}
 
@@ -143,6 +147,15 @@ M.ability = {
   mend           = {condition = "ally_soonest_to_die",effect = "heal",    cooldown = 110, power = 90,  radius = 128},
   volley         = {condition = "enemies_crowded",    effect = "splash",  cooldown = 190, power = 26,  radius = 96},
   dread          = {condition = "enemies_crowded",    effect = "wither",  cooldown = 170, power = 18,  radius = 104},
+
+  -- The five that mend. Each pairs a **different chooser** with an effect, which is
+  -- the whole of what makes them five units rather than five numbers -- the matching
+  -- problem is present, spread, absent, inverted and sequential in turn.
+  mend_deeply    = {condition = "priest_target",       effect = "heal",       cooldown = 100, power = 130, radius = 132},
+  regrowth       = {condition = "druid_target",        effect = "regenerate", cooldown = 70,  power = 5,   radius = 128, duration = 300},
+  sunlight       = {condition = "allies_hurt_nearby",  effect = "shield",     cooldown = 150, power = 55,  radius = 118},
+  affliction     = {condition = "curse_target",        effect = "curse",      cooldown = 140, power = 8,   radius = 150, duration = 420},
+  chain_tide     = {condition = "shaman_target",       effect = "chain",      cooldown = 160, power = 60,  radius = 140, bounces = 4},
 }
 -- }}}
 
