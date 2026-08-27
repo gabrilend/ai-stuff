@@ -19,7 +19,7 @@ visibly distinct.
 | 507 | Spawning onto the library picks the worst lane | built |
 | 508 | Sign-posts stand at the corners | built |
 | 509 | Five heroes for the first commander | built, five of them |
-| 510 | The healers, and what they remember | one healer, not five |
+| 510 | The healers, and what they remember | built, five of them |
 
 **Blocking:** nothing.
 
@@ -74,10 +74,27 @@ heroes and nothing else. A hero takes one branch and then goes straight on forev
 it walks the connector node by node and joins the far lane at its junction. Tested
 end to end.
 
-**510 is a stub.** One healing ability exists — mend, which picks the ally who will
-die soonest from health *and* incoming damage rather than from health alone. The
-five distinct healers, and the positional obligation that keeps two of them from
-reaching for the same body, are not built.
+**510 is built.** Five healers, differing in **shape** rather than in strength: the
+priest has the matching problem in full, the paladin's area needs no selection at all,
+the druid's regeneration spreads it over time, the curse-doctor inverts it by aiming
+at an enemy, and the shaman's chain resolves it one bounce at a time. The answer to
+"how do we solve the assignment" turned out to be that we do not solve it once.
+
+A healer only takes a target nobody else has claimed, and the rule relaxes rather than
+deadlocking when there are not enough wounded to go round — somebody gets doubled up,
+which is a waste, and a healer with nothing to do is worse than one doing something
+redundant.
+
+**And the rest of the brain came with it.** Ranged bodies give ground at half speed
+rather than letting anything close, and orbit toward the shoulder they are already on
+when there is nothing to shoot — so both sides send their long-reach bodies wide and
+they end up facing each other, which puts a fight on the flanks that nobody wrote a
+rule for. Wounded bodies leave the line when their side can spare them and come back
+when it cannot, which is one rule read twice: the line pulls its wounded out while it
+is winning and feeds them back in while it is losing.
+
+**Not built:** the bidding half of the resource design — rolling a die per attribute
+and paying more for a high pick — which is a large open question rather than a gap.
 
 **A catalogue trap was found and is now asserted against.** Both commanders paid
 might and neither paid wit, which made two heroes on one of their own rosters

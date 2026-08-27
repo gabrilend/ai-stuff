@@ -204,7 +204,10 @@ M.archetype = {
     acquire_range = 130,
     speed        = 1.05,
     cooldown_max = 30,
-    ability      = {"mend"},
+    -- An **area**, which needs no selection at all -- which is precisely why this is
+    -- a different unit from the priest rather than a weaker one. The matching problem
+    -- appears and disappears across the five healers, and this is where it is absent.
+    ability      = {"sunlight"},
   },
 
   -- 10 -- reaches past the line.
@@ -236,6 +239,61 @@ M.archetype = {
     speed        = 1.0,
     cooldown_max = 23,
     ability      = {"dread"},
+  },
+
+  -- ---------------------------------------------------------------------------
+  -- The five that mend. They differ in **shape**, not in strength, and each answers
+  -- the who-heals-whom problem a different way -- which is the design rather than a
+  -- side effect. The answer to "how do we solve the assignment" is that we do not
+  -- solve it once.
+  -- ---------------------------------------------------------------------------
+
+  -- 12 -- one target, slowly and powerfully. Has the matching problem in full.
+  {
+    name         = "priest",
+    flavour      = 2,
+    reach        = 2,
+    health       = 200, damage = 12, armour = 3,
+    range        = 96, acquire_range = 132,
+    speed        = 1.05, cooldown_max = 32,
+    ability      = {"mend_deeply"},
+  },
+
+  -- 13 -- a regeneration that ticks up, so many can run at once.
+  {
+    name         = "druid",
+    flavour      = 2,
+    reach        = 2,
+    health       = 210, damage = 13, armour = 3,
+    range        = 92, acquire_range = 128,
+    speed        = 1.1, cooldown_max = 26,
+    ability      = {"regrowth"},
+  },
+
+  -- The area healer is **row 9**, which already existed as one of the paladin
+  -- commander's roster. It is not repeated here: two rows with the same name is how
+  -- a catalogue starts disagreeing with itself, and the one that came first wins.
+
+  -- 14 -- aims at an enemy, and heals whoever is fighting it.
+  {
+    name         = "curse-doctor",
+    flavour      = 2,
+    reach        = 2,
+    health       = 195, damage = 15, armour = 2,
+    range        = 104, acquire_range = 140,
+    speed        = 1.1, cooldown_max = 30,
+    ability      = {"affliction"},
+  },
+
+  -- 15 -- a chain, resolved one bounce at a time.
+  {
+    name         = "rain shaman",
+    flavour      = 2,
+    reach        = 2,
+    health       = 205, damage = 13, armour = 3,
+    range        = 98, acquire_range = 134,
+    speed        = 1.08, cooldown_max = 34,
+    ability      = {"chain_tide"},
   },
 
   -- ---------------------------------------------------------------------------
@@ -326,6 +384,17 @@ M.wave = {
   -- wave leaves as a column rather than as a single stacked point. Purely how it
   -- looks and how the queue forms; nothing reads it afterwards.
   stagger       = 9,
+}
+-- }}}
+
+-- {{{ M.recovery
+-- What a body pulled out of the line gets back.
+--
+-- Slow enough that withdrawing is a real cost rather than a free reset -- a body that
+-- healed quickly would make the whole line a rotation, and the decision to fall back
+-- would stop being a decision.
+M.recovery = {
+  regeneration = 0.45,   -- health per tick while recovering at your own stone
 }
 -- }}}
 

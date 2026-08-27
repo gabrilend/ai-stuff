@@ -205,6 +205,20 @@ local function make_soldier_arrays(capacity, kind_count)
   -- field turns round when a monster dies; the wave units simply vanish when they
   -- arrive, and the heroes hand back what they cost.
   soldier.going_home        = zeroed(capacity)
+  -- Which shoulder of the fight a ranged body has committed to, and the milestone it
+  -- committed at. It holds that direction for as long as it stays in the same
+  -- milestone, so orbiting reads as a decision rather than as dithering.
+  soldier.orbit_side        = zeroed(capacity)
+  soldier.orbit_milestone   = zeroed(capacity)
+  -- Ticks of regeneration remaining, and how much a tick of it is worth. A druid's
+  -- heal is a thing that runs rather than a thing that lands, which is what lets it
+  -- have many going at once.
+  soldier.regenerating      = zeroed(capacity)
+  soldier.regen_rate        = zeroed(capacity)
+  -- Ticks of curse remaining. On an **enemy**: a curse-doctor heals whoever is in
+  -- melee range of it, which makes its choice a targeting decision about the other
+  -- side rather than about its own.
+  soldier.cursed            = zeroed(capacity)
 
   -- Modifiers. One flat array per upgrade kind rather than one table per
   -- soldier: the sweep that re-stamps a lane's guards touches one kind across
@@ -434,6 +448,11 @@ function M.release(world, id)
   soldier.crossing_step[id] = 0
   soldier.crossing_dir[id] = 0
   soldier.going_home[id] = 0
+  soldier.orbit_side[id] = 0
+  soldier.orbit_milestone[id] = 0
+  soldier.regenerating[id] = 0
+  soldier.regen_rate[id] = 0
+  soldier.cursed[id] = 0
   for kind = 1, #soldier.upgrade_count do
     soldier.upgrade_count[kind][id] = 0
   end

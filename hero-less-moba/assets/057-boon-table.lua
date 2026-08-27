@@ -32,14 +32,14 @@ local M = {}
 -- {{{ M.challenge
 -- Which body walks out, and whether killing it pays anything.
 M.challenge = {
-  {archetype = 12, name = "the Pillar Orc",    pays_a_boon = true},
-  {archetype = 13, name = "the Field Dragon",  pays_a_boon = true},
+  {archetype = 16, name = "the Pillar Orc",    pays_a_boon = true},
+  {archetype = 17, name = "the Field Dragon",  pays_a_boon = true},
   -- Pays nothing, cannot be killed, and ends the match by arriving. **The deadline
   -- is the walk.** There is no separate timer, because a timer is a number on a
   -- panel and a monster walking down the centre lane is a thing you can see -- a
   -- player who has never read a rules screen knows exactly how long is left,
   -- because the time left is distance.
-  {archetype = 14, name = "the Eternal Golem", pays_a_boon = false},
+  {archetype = 18, name = "the Eternal Golem", pays_a_boon = false},
 }
 -- }}}
 

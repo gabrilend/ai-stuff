@@ -88,6 +88,10 @@ local brain = loadfile(ROOT .. "/src/037-the-brain.lua")()
 local combat = loadfile(ROOT .. "/src/038-combat.lua")()
 local formations = loadfile(ROOT .. "/src/052-formations.lua")()
 local random_streams = loadfile(ROOT .. "/src/029-random-streams.lua")()
+-- The brain reaches for this the moment anything stands off, orbits or falls back,
+-- which is the sandbox discovering a dependency rather than assuming one. It is
+-- listed at the bottom of the log with the others.
+local rest_of_brain = loadfile(ROOT .. "/src/062-the-rest-of-the-brain.lua")()
 
 -- {{{ local function sandbox()
 -- A world containing one lane and whatever bodies the caller asks for.
@@ -106,6 +110,7 @@ local function sandbox(polyline, width)
   world.brain = brain
   world.combat = combat
   world.formations = formations
+  world.rest_of_brain = rest_of_brain
   world.map_builder = map_builder
   world.allocate = world_module.allocate
   world.release = world_module.release
@@ -118,6 +123,7 @@ local function sandbox(polyline, width)
   end
   world.grid = targeting.make_grid(world)
   formations.begin(world)
+  rest_of_brain.begin(world)
 
   return world, parameters, map
 end
@@ -512,6 +518,11 @@ note("")
 note("== couplings this sandbox could not avoid ==")
 note("The formation reaches the spatial grid, because a wave stops when something")
 note("hostile is near its front, and 'near' is a query. That is a real dependency.")
+note("")
+note("And the brain reaches the rest of itself -- standing off, orbiting, falling")
+note("back -- the moment two lines are close enough to do any of those. Also real:")
+note("what a body does when it is being shot at is not separable from what it does")
+note("while it walks.")
 note("")
 note("Everything else it touches -- the world's arrays, the lane, the movement -- is")
 note("what it is measuring. It does not run the tick, so no spawner, no chest, no")
