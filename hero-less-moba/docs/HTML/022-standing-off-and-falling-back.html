@@ -1,0 +1,472 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>022 — Standing Off and Falling Back -- hero-less-moba</title><style>:root {
+  --ground:   #0d0f13;
+  --panel:    #14171d;
+  --edge:     #232833;
+  --ink:      #c7ccd6;
+  --dim:      #7d8492;
+  --warm:     #f5a83d;
+  --cold:     #5cc7ee;
+  --bone:     #e0ded8;
+  --blood:    #b81313;
+  --green:    #78c96e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 15.5px/1.65 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+a { color: var(--cold); text-decoration: none; border-bottom: 1px solid #2b4d5c; }
+a:hover { color: var(--warm); border-bottom-color: var(--warm); }
+
+#shell { display: flex; min-height: 100vh; }
+
+#contents {
+  width: 292px; flex: 0 0 292px; background: var(--panel);
+  border-right: 1px solid var(--edge); padding: 20px 0 60px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+#contents h1 {
+  font-size: 15px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--warm); margin: 0 20px 4px; font-weight: 600;
+}
+#contents .tagline { margin: 0 20px 18px; color: var(--dim); font-size: 12.5px; font-style: italic; }
+#contents section { margin-bottom: 14px; }
+#contents h2 {
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--dim); margin: 14px 20px 5px; font-weight: 600;
+}
+#contents a {
+  display: block; padding: 3px 20px 3px 20px; border: 0;
+  font-size: 13.5px; color: var(--ink); line-height: 1.4;
+}
+#contents a:hover { background: #1b1f27; color: var(--warm); }
+#contents a.here { background: #1b1f27; color: var(--warm); border-left: 3px solid var(--warm); padding-left: 17px; }
+#contents .index { color: var(--dim); font-variant-numeric: tabular-nums; margin-right: 7px; }
+
+#filter {
+  margin: 0 20px 12px; width: calc(100% - 40px); background: var(--ground);
+  border: 1px solid var(--edge); color: var(--ink); padding: 6px 9px;
+  font: inherit; font-size: 13px; border-radius: 3px;
+}
+#filter:focus { outline: 0; border-color: var(--warm); }
+
+#page { flex: 1; min-width: 0; padding: 42px 56px 120px; max-width: 900px; }
+h1, h2, h3, h4 { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; line-height: 1.25; }
+h1 { font-size: 30px; color: var(--warm); margin: 0 0 26px; font-weight: 600; }
+h2 { font-size: 21px; color: var(--bone); margin: 38px 0 12px; font-weight: 600;
+     border-bottom: 1px solid var(--edge); padding-bottom: 7px; }
+h3 { font-size: 16.5px; color: var(--cold); margin: 26px 0 8px; font-weight: 600; }
+h4 { font-size: 14.5px; color: var(--dim); margin: 20px 0 6px;
+     text-transform: uppercase; letter-spacing: .09em; }
+p { margin: 0 0 15px; }
+strong { color: var(--bone); font-weight: 600; }
+em { color: var(--dim); }
+hr { border: 0; border-top: 1px solid var(--edge); margin: 34px 0; }
+
+blockquote {
+  margin: 20px 0; padding: 3px 0 3px 20px; border-left: 3px solid var(--warm);
+  color: var(--bone); font-style: italic;
+}
+blockquote p { margin: 0 0 8px; }
+blockquote p:last-child { margin: 0; }
+
+ul, ol { margin: 0 0 15px; padding-left: 24px; }
+li { margin-bottom: 5px; }
+
+table { border-collapse: collapse; margin: 20px 0; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+th { color: var(--dim); font-weight: 600; text-transform: uppercase;
+     letter-spacing: .08em; font-size: 11.5px; }
+tr:hover td { background: #161a21; }
+
+code {
+  font-family: "Berkeley Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px; background: #191d25; padding: 1.5px 5px; border-radius: 3px;
+  color: var(--bone);
+}
+pre {
+  background: #10131a; border: 1px solid var(--edge); border-left: 3px solid var(--cold);
+  padding: 14px 17px; overflow-x: auto; border-radius: 3px; margin: 18px 0;
+}
+pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.6; }
+
+.kw { color: #d68fd6; }
+.str { color: var(--green); }
+.num { color: var(--warm); }
+.cmt { color: #5d6472; font-style: italic; }
+
+.issue-link { border-bottom: 1px dotted var(--warm); color: var(--warm); }
+.badge {
+  display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle;
+  font-family: "Inter", sans-serif;
+}
+.badge.built { background: #1c3320; color: var(--green); }
+.badge.part  { background: #33301c; color: var(--warm); }
+.badge.none  { background: #22262e; color: var(--dim); }
+
+figure { margin: 24px 0; }
+figcaption { color: var(--dim); font-size: 13px; font-style: italic; margin-top: 8px; }
+svg { max-width: 100%; }
+
+#page > footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--edge);
+                 color: var(--dim); font-size: 13px; }
+</style></head><body><div id='shell'><nav id='contents'>
+<h1>hero-less-moba</h1>
+<p class='tagline'>a lane-pushing game with the heroes subtracted out</p>
+<input id='filter' placeholder='filter&hellip;' autocomplete='off'>
+<a href='index.html'>the front page</a>
+<section><h2>start here</h2>
+<a href='vision.html'>vision</a>
+<a href='vision-2.html'>vision-2</a>
+<a href='vision-3.html'>vision-3</a>
+<a href='what-the-first-boss-looks-like.html'>what-the-first-boss-looks-like</a>
+</section>
+<section><h2>the design</h2>
+<a href='001-what-this-game-is.html'><span class='index'>001</span>What This Game Is</a>
+<a href='002-the-map-and-its-milestones.html'><span class='index'>002</span>The Map and Its Milestones</a>
+<a href='003-the-simulation-tick.html'><span class='index'>003</span>The Simulation Tick</a>
+<a href='004-a-unit-and-what-it-carries.html'><span class='index'>004</span>A Unit and What It Carries</a>
+<a href='005-waves-and-when-one-is-finished.html'><span class='index'>005</span>Waves, and When One Is Finished</a>
+<a href='006-combat-and-damage.html'><span class='index'>006</span>Combat and Damage</a>
+<a href='007-guard-towers-and-their-guards.html'><span class='index'>007</span>Guard Towers and Their Guards</a>
+<a href='008-the-base-and-the-library.html'><span class='index'>008</span>The Base and the Library</a>
+<a href='009-the-shared-upgrade-pool.html'><span class='index'>009</span>The Shared Upgrade Pool</a>
+<a href='010-upgrades-slotted-into-stone.html'><span class='index'>010</span>Upgrades Slotted Into Stone</a>
+<a href='011-commanders-and-personal-resource.html'><span class='index'>011</span>Commanders and Personal Resource</a>
+<a href='012-hero-units.html'><span class='index'>012</span>Hero Units</a>
+<a href='013-signposts-and-lane-routing.html'><span class='index'>013</span>Sign-Posts and Lane Routing</a>
+<a href='014-the-siege-surge.html'><span class='index'>014</span>The Siege-Surge</a>
+<a href='015-boons-and-the-challenge.html'><span class='index'>015</span>Boons and the Challenge</a>
+<a href='016-players-teams-and-commands.html'><span class='index'>016</span>Players, Teams, and Commands</a>
+<a href='017-the-viewing-layer.html'><span class='index'>017</span>The Viewing Layer</a>
+<a href='018-the-shape-of-the-code.html'><span class='index'>018</span>The Shape of the Code</a>
+<a href='019-roadmap.html'><span class='index'>019</span>Roadmap</a>
+<a href='020-open-questions.html'><span class='index'>020</span>Open Questions</a>
+<a href='021-nobody-remembers-why.html'><span class='index'>021</span>Nobody Remembers Why</a>
+<a href='022-standing-off-and-falling-back.html' class='here'><span class='index'>022</span>Standing Off and Falling Back</a>
+<a href='023-ways-this-could-go-wrong.html'><span class='index'>023</span>Ways This Could Go Wrong</a>
+</section>
+<section><h2>issues</h2>
+<a href='101-the-path-graph-is-built-by-a-tool.html'><span class='index'>101</span>The Path Graph Is Built by a Tool</a>
+<a href='102-milestones-measure-a-push.html'><span class='index'>102</span>Milestones Measure a Push</a>
+<a href='103-the-world-is-flat-arrays.html'><span class='index'>103</span>The World Is Flat Arrays</a>
+<a href='104-the-tick-is-a-dispatch-table.html'><span class='index'>104</span>The Tick Is a Dispatch Table</a>
+<a href='105-randomness-comes-from-named-streams.html'><span class='index'>105</span>Randomness Comes From Named Streams</a>
+<a href='106-commands-enter-through-one-door.html'><span class='index'>106</span>Commands Enter Through One Door</a>
+<a href='107-snapshots-and-replays.html'><span class='index'>107</span>Snapshots and Replays</a>
+<a href='108-the-headless-runner.html'><span class='index'>108</span>The Headless Runner</a>
+<a href='109-a-terminal-viewer-so-we-are-not-blind.html'><span class='index'>109</span>A Terminal Viewer, So We Are Not Blind</a>
+<a href='110-a-scenario-you-can-hold-at-the-gate.html'><span class='index'>110</span>A Scenario You Can Hold at the Gate</a>
+<a href='201-a-soldier-is-one-record.html'><span class='index'>201</span>A Soldier Is One Record</a>
+<a href='202-walking-an-edge-of-the-graph.html'><span class='index'>202</span>Walking an Edge of the Graph</a>
+<a href='203-the-brain-is-five-states.html'><span class='index'>203</span>The Brain Is Five States</a>
+<a href='204-choosing-what-to-attack.html'><span class='index'>204</span>Choosing What to Attack</a>
+<a href='205-damage-is-buffered-then-applied.html'><span class='index'>205</span>Damage Is Buffered, Then Applied</a>
+<a href='206-the-frontline-is-a-queue.html'><span class='index'>206</span>The Frontline Is a Queue</a>
+<a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
+<a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
+<a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
+<a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
+<a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
+<a href='304-guards-are-leashed.html'><span class='index'>304</span>Guards Are Leashed</a>
+<a href='305-the-base-is-one-open-room.html'><span class='index'>305</span>The Base Is One Open Room</a>
+<a href='306-felling-a-tower-pays-three.html'><span class='index'>306</span>Felling a Tower Pays Three</a>
+<a href='307-the-library-ends-the-game.html'><span class='index'>307</span>The Library Ends the Game</a>
+<a href='401-the-upgrade-catalogue.html'><span class='index'>401</span>The Upgrade Catalogue</a>
+<a href='402-an-instance-is-a-thing-in-a-place.html'><span class='index'>402</span>An Instance Is a Thing in a Place</a>
+<a href='403-wiping-a-wave-draws-an-upgrade.html'><span class='index'>403</span>Wiping a Wave Draws an Upgrade</a>
+<a href='404-placing-an-upgrade-into-a-lane.html'><span class='index'>404</span>Placing an Upgrade Into a Lane</a>
+<a href='405-a-soldier-is-stamped-at-birth.html'><span class='index'>405</span>A Soldier Is Stamped at Birth</a>
+<a href='408-slotting-upgrades-into-stone.html'><span class='index'>408</span>Slotting Upgrades Into Stone</a>
+<a href='409-the-base-inherits-every-lane.html'><span class='index'>409</span>The Base Inherits Every Lane</a>
+<a href='410-the-library-slot-is-the-last-stand.html'><span class='index'>410</span>The Library Slot Is the Last Stand</a>
+<a href='411-rerolling-the-deck.html'><span class='index'>411</span>Rerolling the Deck</a>
+<a href='412-contributing-a-stone.html'><span class='index'>412</span>Contributing a Stone</a>
+<a href='413-staking-a-die-to-share.html'><span class='index'>413</span>Staking a Die to Share</a>
+<a href='501-the-commander-catalogue.html'><span class='index'>501</span>The Commander Catalogue</a>
+<a href='502-killing-pays-everyone-on-the-team.html'><span class='index'>502</span>Killing Pays Everyone on the Team</a>
+<a href='503-a-hero-is-a-soldier-you-bought.html'><span class='index'>503</span>A Hero Is a Soldier You Bought</a>
+<a href='504-abilities-are-a-dispatch-table.html'><span class='index'>504</span>Abilities Are a Dispatch Table</a>
+<a href='505-spawning-onto-a-wave.html'><span class='index'>505</span>Spawning Onto a Wave</a>
+<a href='506-spawning-onto-a-tower-and-being-pushed-back.html'><span class='index'>506</span>Spawning Onto a Tower, and Being Pushed Back</a>
+<a href='507-spawning-onto-the-library-picks-the-worst-lane.html'><span class='index'>507</span>Spawning Onto the Library Picks the Worst Lane</a>
+<a href='508-signposts-stand-at-the-corners.html'><span class='index'>508</span>Sign-Posts Stand at the Corners</a>
+<a href='509-five-heroes-for-the-first-commander.html'><span class='index'>509</span>Five Heroes for the First Commander</a>
+<a href='510-the-healers-and-what-they-remember.html'><span class='index'>510</span>The Healers, and What They Remember</a>
+<a href='601-the-phase-table.html'><span class='index'>601</span>The Phase Table</a>
+<a href='602-the-surge-turns-waves-into-a-stream.html'><span class='index'>602</span>The Surge Turns Waves Into a Stream</a>
+<a href='603-the-chest-dealt-across-the-three.html'><span class='index'>603</span>The Chest, Dealt Across the Three</a>
+<a href='605-boons-and-the-calm.html'><span class='index'>605</span>Boons, and the Calm They Are Chosen In</a>
+<a href='606-what-walks-out-of-the-middle.html'><span class='index'>606</span>What Walks Out of the Middle</a>
+<a href='607-every-lane-spawns-into-the-center.html'><span class='index'>607</span>Every Lane Spawns Into the Center</a>
+<a href='608-the-deadline-is-the-walk.html'><span class='index'>608</span>The Deadline Is the Walk</a>
+<a href='701-the-window-and-the-two-snapshots.html'><span class='index'>701</span>The Window and the Two Snapshots</a>
+<a href='702-the-map-draws-itself.html'><span class='index'>702</span>The Map Draws Itself</a>
+<a href='703-the-chest-panel-and-the-drag.html'><span class='index'>703</span>The Chest Panel and the Drag</a>
+<a href='704-locks-objections-and-refusals-are-loud.html'><span class='index'>704</span>Locks, Objections, and Refusals Are Loud</a>
+<a href='705-the-signposts-are-clickable-in-the-world.html'><span class='index'>705</span>The Sign-Posts Are Clickable in the World</a>
+<a href='706-the-documentation-becomes-html.html'><span class='index'>706</span>The Documentation Becomes HTML</a>
+<a href='707-the-way-in.html'><span class='index'>707</span>The Way In</a>
+<a href='708-the-camera-is-a-lens-you-push-into.html'><span class='index'>708</span>The Camera Is a Lens You Push Into</a>
+<a href='801-reconciling-across-machines.html'><span class='index'>801</span>Reconciling Across Machines</a>
+<a href='802-the-lobby-and-commander-selection.html'><span class='index'>802</span>The Lobby and Commander Selection</a>
+<a href='803-a-bot-that-places-upgrades.html'><span class='index'>803</span>A Bot That Places Upgrades</a>
+<a href='804-ten-thousand-matches-overnight.html'><span class='index'>804</span>Ten Thousand Matches Overnight</a>
+<a href='805-a-full-match-end-to-end.html'><span class='index'>805</span>A Full Match, End to End</a>
+<a href='806-three-people-can-finally-talk.html'><span class='index'>806</span>Three People Can Finally Talk</a>
+<a href='901-what-a-bot-is-allowed-to-see.html'><span class='index'>901</span>What a Bot Is Allowed to See</a>
+<a href='902-reading-a-board-into-a-handful-of-numbers.html'><span class='index'>902</span>Reading a Board Into a Handful of Numbers</a>
+<a href='903-a-teammate-that-does-not-trample-you.html'><span class='index'>903</span>A Teammate That Does Not Trample You</a>
+<a href='904-buying-bodies-and-pointing-them.html'><span class='index'>904</span>Buying Bodies and Pointing Them</a>
+<a href='905-difficulty-without-cheating.html'><span class='index'>905</span>Difficulty Without Cheating</a>
+<a href='906-one-person-five-bots.html'><span class='index'>906</span>One Person, Five Bots</a>
+</section>
+<section><h2>progress</h2>
+<a href='phase-1-progress.html'>Phase 1 Progress — The Ground and the Clock</a>
+<a href='phase-2-progress.html'>Phase 2 Progress — Things That Walk and Fight</a>
+<a href='phase-3-progress.html'>Phase 3 Progress — Things That Stand and Hold</a>
+<a href='phase-4-progress.html'>Phase 4 Progress — The Shared Chest</a>
+<a href='phase-5-progress.html'>Phase 5 Progress — Commanders and Heroes</a>
+<a href='phase-6-progress.html'>Phase 6 Progress — The Surge and the Challenge</a>
+<a href='phase-7-progress.html'>Phase 7 Progress — Watching It Happen</a>
+<a href='phase-8-progress.html'>Phase 8 Progress — Six Players</a>
+<a href='phase-9-progress.html'>Phase 9 Progress — An Opponent Worth Playing</a>
+</section>
+<section><h2>the simulation</h2>
+<a href='028-match-parameters.info.html'><span class='index'>028</span>match-parameters</a>
+<a href='029-random-streams.info.html'><span class='index'>029</span>random-streams</a>
+<a href='030-map-builder.info.html'><span class='index'>030</span>map-builder</a>
+<a href='031-map-validator.info.html'><span class='index'>031</span>map-validator</a>
+<a href='032-the-world.info.html'><span class='index'>032</span>the-world</a>
+<a href='033-commands.info.html'><span class='index'>033</span>commands</a>
+<a href='034-walking.info.html'><span class='index'>034</span>walking</a>
+<a href='035-targeting.info.html'><span class='index'>035</span>targeting</a>
+<a href='036-the-frontline.info.html'><span class='index'>036</span>the-frontline</a>
+<a href='037-the-brain.info.html'><span class='index'>037</span>the-brain</a>
+<a href='038-combat.info.html'><span class='index'>038</span>combat</a>
+<a href='039-waves.info.html'><span class='index'>039</span>waves</a>
+<a href='040-structures.info.html'><span class='index'>040</span>structures</a>
+<a href='041-the-chest.info.html'><span class='index'>041</span>the-chest</a>
+<a href='042-the-tick.info.html'><span class='index'>042</span>the-tick</a>
+<a href='043-snapshot.info.html'><span class='index'>043</span>snapshot</a>
+<a href='044-headless-runner.info.html'><span class='index'>044</span>headless-runner</a>
+<a href='045-terminal-viewer.info.html'><span class='index'>045</span>terminal-viewer</a>
+<a href='046-the-camera.info.html'><span class='index'>046</span>the-camera</a>
+<a href='047-the-renderer.info.html'><span class='index'>047</span>the-renderer</a>
+<a href='048-the-panel.info.html'><span class='index'>048</span>the-panel</a>
+<a href='049-input.info.html'><span class='index'>049</span>input</a>
+<a href='050-the-viewer.info.html'><span class='index'>050</span>the-viewer</a>
+<a href='052-formations.info.html'><span class='index'>052</span>formations</a>
+<a href='054-commanders.info.html'><span class='index'>054</span>commanders</a>
+<a href='055-abilities.info.html'><span class='index'>055</span>abilities</a>
+<a href='056-signposts.info.html'><span class='index'>056</span>signposts</a>
+<a href='058-phases.info.html'><span class='index'>058</span>phases</a>
+<a href='059-a-bot-that-plays.info.html'><span class='index'>059</span>a-bot-that-plays</a>
+<a href='061-the-stones.info.html'><span class='index'>061</span>the-stones</a>
+<a href='062-the-rest-of-the-brain.info.html'><span class='index'>062</span>the-rest-of-the-brain</a>
+<a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
+<a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
+</section>
+<section><h2>the catalogues</h2>
+<a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
+<a href='025-unit-table.info.html'><span class='index'>025</span>unit-table</a>
+<a href='026-structure-table.info.html'><span class='index'>026</span>structure-table</a>
+<a href='027-upgrade-table.info.html'><span class='index'>027</span>upgrade-table</a>
+<a href='053-commander-table.info.html'><span class='index'>053</span>commander-table</a>
+<a href='057-boon-table.info.html'><span class='index'>057</span>boon-table</a>
+</section>
+<section><h2>the tests</h2>
+<a href='051-the-invariants.info.html'><span class='index'>051</span>the-invariants</a>
+<a href='060-the-formation-sandbox.info.html'><span class='index'>060</span>the-formation-sandbox</a>
+</section>
+</nav><main id='page'><h1>022 — Standing Off and Falling Back</h1>
+<p><strong>Datapath document.</strong> Covers what a body does that is not walking forward and</p>
+<p>swinging: how a ranged body keeps its distance, how a wounded one leaves and</p>
+<p>comes back, how a healer picks who to mend, and why the last of those is a</p>
+<p>harder question than it looks.</p>
+<p>Everything here is the <strong>soldier brain</strong>, which is still one brain. Nothing below</p>
+<p>is a second controller or a special case for a flavour — it is rules on the</p>
+<p>common record, which is the constraint that keeps the brain small enough to be</p>
+<p>good. See <a href='004-a-unit-and-what-it-carries.html'>a unit and what it carries</a>.</p>
+<h2>The standoff</h2>
+<p>**A ranged body backs away when an enemy is inside its weapon range but nearer</p>
+<p>than the maximum.<strong> It retreats at </strong>half speed** while doing so, which is what</p>
+<p>makes the behaviour a tendency rather than a flinch.</p>
+<p>The intent is simple to state and does most of the work: **a ranged body should</p>
+<p>spend most of its life at the far edge of its own reach.** Close enough to shoot,</p>
+<p>far enough that closing on it costs something.</p>
+<p><strong>It is contestable.</strong> Another ranged body can push into that space and trade</p>
+<p>shots at a distance where neither is comfortable — so a standoff is a position two</p>
+<p>sides can argue about rather than a guarantee. That is the whole reason to make</p>
+<p>it a movement rule rather than a fixed spacing.</p>
+<h3>Orbiting, when there is nothing to shoot</h3>
+<p>A ranged body with <strong>nothing in sight</strong> does not stand still and does not walk</p>
+<p>into the line. <strong>It orbits.</strong></p>
+<p>It moves laterally around the fight, holding its own maximum range, until</p>
+<p>something comes into view — and it keeps doing that whenever there is nothing</p>
+<p>else to do. A druid with no line of sight to an enemy and no ally needing a</p>
+<p>regeneration does exactly this.</p>
+<p><strong>Which way it goes is not random.</strong> Draw a line through the mass of the enemy</p>
+<p>formation; a ranged body already on the left of that line orbits left, and one on</p>
+<p>the right orbits right. **It commits to that direction and holds it for as long</p>
+<p>as it stays within the same milestone**, so the behaviour reads as a decision</p>
+<p>rather than as dithering.</p>
+<p>That is a better rule than picking a side at random, and the reason is worth</p>
+<p>stating because it is the whole point:</p>
+<blockquote><p>**Both sides' ranged bodies do this, so they drift toward the same flanks, and</p></blockquote>
+<blockquote><p>end up facing each other.**</p></blockquote>
+<p>Nothing anywhere says <em>ranged units should fight ranged units</em>. It falls out of</p>
+<p>two formations each sending their long-reach bodies wide, and it produces the</p>
+<p>thing every lane battle should have — **a fight at the shoulders as well as one</p>
+<p>in the middle**, with the flanks resolving on their own timetable while the melee</p>
+<p>grinds.</p>
+<p>It also gives a lane a shape a player can read from a distance: bodies bunched in</p>
+<p>the centre and thinner arcs at the edges, with the arcs moving.</p>
+<p><strong>The anchor is the friendly line, not the enemy.</strong> A body orbits at its own</p>
+<p>weapon range from the fighting, which means it stays close enough to be useful</p>
+<p>and far enough to be safe — and when the line moves, the orbit moves with it,</p>
+<p>with no separate rule for retreating.</p>
+<h3>Once engaged, the two kinds move at different rates</h3>
+<table><thead>
+<tr><th></th><th>Speed while engaged</th></tr>
+</thead><tbody>
+<tr><td><strong>melee</strong></td><td><strong>1.0×</strong> — full</td></tr>
+<tr><td><strong>ranged, and healers</strong></td><td><strong>0.5×</strong> — half</td></tr>
+</tbody></table>
+<p>That single asymmetry produces most of what a frontline looks like. Melee closes</p>
+<p>at full speed and ranged gives ground at half, so **a melee body that commits</p>
+<p>will reach a ranged one** — eventually, having been shot the whole way. The</p>
+<p>question a player is watching is whether it arrives with anything left.</p>
+<p>It is also why a healer standing in the wrong place cannot simply run home. Half</p>
+<p>speed means the decision about where to stand was made some time ago.</p>
+<h2>Falling back, and coming back</h2>
+<p>A body that is taking damage does not simply die where it stands.</p>
+<p><strong>It withdraws when its side can spare it.</strong> If a body is under fire and **its</p>
+<p>team has more health nearby than the enemy team does**, it pulls out of the line</p>
+<p>to recover. The team is ahead on the ground it is standing on, so it can afford</p>
+<p>to be one body lighter for a while.</p>
+<p><strong>And it returns when its side cannot.</strong> If the frontline turns — **the enemy has</p>
+<p>more health on it than we do** — the recovering body goes back in. It is needed</p>
+<p>now, in whatever condition it is in.</p>
+<p>Read those two together and they are one rule: **the line pulls its wounded out</p>
+<p>while it is winning and feeds them back in while it is losing.** Nothing decides</p>
+<p>that centrally, no player issues it, and it produces a frontline that visibly</p>
+<p>thickens and thins.</p>
+<h3>Where a body recovers</h3>
+<ul>
+<li><strong>Beside a healer, if one is near.</strong> Wait there.</li>
+<li><strong>At its own tower, otherwise</strong>, where it regenerates naturally.</li>
+</ul>
+<p>So a tower is not only a thing that shoots — it is the place a lane's wounded go,</p>
+<p>which gives the ground behind a tower a job it did not have and makes losing one</p>
+<p>cost more than its arrows.</p>
+<h3>And where it goes when it comes back</h3>
+<p><strong>To the ally taking the most damage — by rate, not by total.</strong> A body that has</p>
+<p>lost most of its health slowly is not in trouble; a body losing it quickly is.</p>
+<p>Reinforcement follows the derivative.</p>
+<h2>Choosing what to attack</h2>
+<p><strong>The lowest-health enemy in range.</strong> Not the nearest, not the most dangerous —</p>
+<p>the one closest to dying.</p>
+<p>That is a change from the older rule, which took the nearest enemy inside</p>
+<p>acquisition range, and it is worth naming what it buys: <strong>bodies finish things</strong>.</p>
+<p>A rank that spreads its damage across everything in front of it kills nothing and</p>
+<p>loses anyway; a rank that concentrates removes an enemy from the fight and</p>
+<p>reduces the incoming damage for everybody behind it. Focus is how a smaller force</p>
+<p>beats a larger one, and it should not require a player to arrange it.</p>
+<h2>Healers</h2>
+<h3>Who a healer mends</h3>
+<p><strong>The ally who will die soonest</strong>, which is not the same as the ally with the</p>
+<p>least health.</p>
+<p>The value is built from two things:</p>
+<ul>
+<li>the target's <strong>current health</strong>, as an absolute number rather than a fraction</li>
+<li>the <strong>damage per second currently aimed at it</strong> — the output of everything that</li>
+</ul>
+<p>  has taken it as a target</p>
+<p>A body at four hundred health with nothing attacking it is fine. A body at four</p>
+<p>hundred with three enemies on it is next. **Percentage is the wrong measure and</p>
+<p>absolute health alone is only half of one*<em>; what a healer is answering is </em>how</p>
+<p>long has this one got.*</p>
+<h3>The rule that keeps two healers from wasting each other</h3>
+<p><strong>A healer only heals a target nobody else is already healing.</strong></p>
+<p>That sounds like a courtesy and it is not — it is the thing that stops the</p>
+<p>obvious failure, which is two healers both reaching for the most wounded body in</p>
+<p>sight while everything else bleeds out beside it.</p>
+<p>And it comes with a positional obligation that is the more interesting half:</p>
+<blockquote><p>**A healer keeps itself in range of enough wounded bodies that the other</p></blockquote>
+<blockquote><p>healers who could claim them cannot claim them all** — so that there is always</p></blockquote>
+<blockquote><p>at least one left for it.</p></blockquote>
+<p>**That is Hall's condition, expressed as a movement goal rather than a selection</p>
+<p>rule**, and it is a genuinely nice way out of a hard problem. Rather than solving</p>
+<p>an assignment across the whole field, each healer *positions so that the</p>
+<p>assignment is easy* — keeping its own neighbourhood of reachable wounded larger</p>
+<p>than the demand on it. In practice that means **in range of at least three valid</p>
+<p>wounded targets**, while staying out of reach of enemy melee and enemy ranged.</p>
+<p><strong>When there are not enough wounded to go round</strong>, the rule relaxes rather than</p>
+<p>deadlocking: heal whoever has the <strong>fewest healers on them</strong>, breaking ties by</p>
+<p>lowest health nearby. Somebody gets doubled up, which is a waste, but nobody</p>
+<p>stands idle — and a healer with nothing to do is worse than a healer doing</p>
+<p>something redundant.</p>
+<h3>Five ways to heal, and they are five different units</h3>
+<p>The archetypes differ in <strong>shape</strong>, not in strength, and each one answers the</p>
+<p>who-heals-whom problem differently. That is the design rather than a side effect.</p>
+<table><thead>
+<tr><th></th><th>Heals</th><th>Chooses</th></tr>
+</thead><tbody>
+<tr><td><strong>Priest</strong></td><td>one target, slowly and powerfully</td><td>the soonest to die</td></tr>
+<tr><td><strong>Druid</strong></td><td>one target, as a regeneration that ticks up over time — so it can have many running at once, building up as it applies them one at a time</td><td>the soonest to die, among those not already regenerating</td></tr>
+<tr><td><strong>Paladin</strong></td><td>an <strong>area</strong>, as an aura, plus a periodic minor heal</td><td>for the minor heal: the wounded ally <strong>nearest full health whose gap the heal still fills</strong> — a little overheal is fine, so a 350 heal wants a body missing about 400</td></tr>
+<tr><td><strong>Curse-doctor</strong></td><td>allies in <strong>melee range of a cursed enemy</strong></td><td>which enemy to curse, which is a targeting decision about the other side</td></tr>
+<tr><td><strong>Rain shaman</strong></td><td>a <strong>chain</strong> — <em>chain tide</em> — bouncing between allies</td><td>each bounce prefers the <strong>farthest wounded ally that can fully accept the bounce's value</strong></td></tr>
+</tbody></table>
+<p>Read down that table and the matching problem from F39 appears and disappears</p>
+<p>several times. <strong>The priest has it fully</strong> — one target, contested, assignment</p>
+<p>required. <strong>The paladin does not have it at all</strong>, since an area effect needs no</p>
+<p>selection. The druid has it spread over time rather than over bodies, the</p>
+<p>curse-doctor inverts it by aiming at an enemy, and the rain shaman resolves it</p>
+<p>sequentially, one bounce at a time.</p>
+<p>**So the answer to "how do we solve the assignment" is that we do not solve it</p>
+<p>once.** Five units answer it five ways, and the difference between them is what</p>
+<p>makes them different units rather than five numbers.</p>
+<p>Two of them share a preference worth noticing: the paladin's minor heal and the</p>
+<p>shaman's bounce both aim at <strong>the body whose gap the heal fits</strong>, rather than at</p>
+<p>the worst-off. That is a completely different instinct from the priest's — *spend</p>
+<p>it where none of it is wasted<em> against </em>spend it where it is needed most* — and a</p>
+<p>team fielding both has two healers who will reliably disagree about who matters.</p>
+<h3>Fortitude</h3>
+<p>A priest also buffs <strong>fortitude</strong>, which <strong>reduces damage taken</strong>. It draws on the</p>
+<p>priest's <strong>constitution</strong> die where the heal draws on its <strong>strength</strong> die — so a</p>
+<p>priest's two jobs are paid for out of two different attributes, and a priest that</p>
+<p>is good at one need not be good at the other.</p>
+<p><strong>It is cast on bodies the enemy is already looking at</strong>, preferring allies with</p>
+<p><strong>the most health and the most eyes on them.</strong></p>
+<p>That preference is the opposite of the healing rule and deliberately so. **A heal</p>
+<p>goes to whoever is closest to dying; fortitude goes to whoever is being hit</p>
+<p>hardest and can still take it.** Mending answers damage that has happened;</p>
+<p>fortitude answers damage that is about to. Putting it on the body already at</p>
+<p>death's door would be spending a reduction on a life that is ending anyway.</p>
+<p>Related: <a href='004-a-unit-and-what-it-carries.html'>a unit and what it carries</a> ·</p>
+<p><a href='006-combat-and-damage.html'>combat and damage</a> ·</p>
+<p><a href='005-waves-and-when-one-is-finished.html'>waves</a> ·</p>
+<p><a href='011-commanders-and-personal-resource.html'>commanders and personal resource</a></p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+// Filtering the contents. The only script on the page, and it exists because there
+// are more than eighty documents here and scrolling a list of eighty things to find
+// one is not navigation.
+var box = document.getElementById('filter');
+box.addEventListener('input', function () {
+  var want = box.value.toLowerCase();
+  var rail = document.getElementById('contents');
+  rail.querySelectorAll('section').forEach(function (section) {
+    var shown = 0;
+    section.querySelectorAll('a').forEach(function (link) {
+      var match = link.textContent.toLowerCase().indexOf(want) !== -1;
+      link.style.display = match ? '' : 'none';
+      if (match) { shown++; }
+    });
+    section.style.display = shown ? '' : 'none';
+  });
+});
+</script>
+</body></html>

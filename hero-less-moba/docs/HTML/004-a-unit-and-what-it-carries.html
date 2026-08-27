@@ -1,0 +1,579 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>004 — A Unit and What It Carries -- hero-less-moba</title><style>:root {
+  --ground:   #0d0f13;
+  --panel:    #14171d;
+  --edge:     #232833;
+  --ink:      #c7ccd6;
+  --dim:      #7d8492;
+  --warm:     #f5a83d;
+  --cold:     #5cc7ee;
+  --bone:     #e0ded8;
+  --blood:    #b81313;
+  --green:    #78c96e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 15.5px/1.65 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+a { color: var(--cold); text-decoration: none; border-bottom: 1px solid #2b4d5c; }
+a:hover { color: var(--warm); border-bottom-color: var(--warm); }
+
+#shell { display: flex; min-height: 100vh; }
+
+#contents {
+  width: 292px; flex: 0 0 292px; background: var(--panel);
+  border-right: 1px solid var(--edge); padding: 20px 0 60px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+#contents h1 {
+  font-size: 15px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--warm); margin: 0 20px 4px; font-weight: 600;
+}
+#contents .tagline { margin: 0 20px 18px; color: var(--dim); font-size: 12.5px; font-style: italic; }
+#contents section { margin-bottom: 14px; }
+#contents h2 {
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--dim); margin: 14px 20px 5px; font-weight: 600;
+}
+#contents a {
+  display: block; padding: 3px 20px 3px 20px; border: 0;
+  font-size: 13.5px; color: var(--ink); line-height: 1.4;
+}
+#contents a:hover { background: #1b1f27; color: var(--warm); }
+#contents a.here { background: #1b1f27; color: var(--warm); border-left: 3px solid var(--warm); padding-left: 17px; }
+#contents .index { color: var(--dim); font-variant-numeric: tabular-nums; margin-right: 7px; }
+
+#filter {
+  margin: 0 20px 12px; width: calc(100% - 40px); background: var(--ground);
+  border: 1px solid var(--edge); color: var(--ink); padding: 6px 9px;
+  font: inherit; font-size: 13px; border-radius: 3px;
+}
+#filter:focus { outline: 0; border-color: var(--warm); }
+
+#page { flex: 1; min-width: 0; padding: 42px 56px 120px; max-width: 900px; }
+h1, h2, h3, h4 { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; line-height: 1.25; }
+h1 { font-size: 30px; color: var(--warm); margin: 0 0 26px; font-weight: 600; }
+h2 { font-size: 21px; color: var(--bone); margin: 38px 0 12px; font-weight: 600;
+     border-bottom: 1px solid var(--edge); padding-bottom: 7px; }
+h3 { font-size: 16.5px; color: var(--cold); margin: 26px 0 8px; font-weight: 600; }
+h4 { font-size: 14.5px; color: var(--dim); margin: 20px 0 6px;
+     text-transform: uppercase; letter-spacing: .09em; }
+p { margin: 0 0 15px; }
+strong { color: var(--bone); font-weight: 600; }
+em { color: var(--dim); }
+hr { border: 0; border-top: 1px solid var(--edge); margin: 34px 0; }
+
+blockquote {
+  margin: 20px 0; padding: 3px 0 3px 20px; border-left: 3px solid var(--warm);
+  color: var(--bone); font-style: italic;
+}
+blockquote p { margin: 0 0 8px; }
+blockquote p:last-child { margin: 0; }
+
+ul, ol { margin: 0 0 15px; padding-left: 24px; }
+li { margin-bottom: 5px; }
+
+table { border-collapse: collapse; margin: 20px 0; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+th { color: var(--dim); font-weight: 600; text-transform: uppercase;
+     letter-spacing: .08em; font-size: 11.5px; }
+tr:hover td { background: #161a21; }
+
+code {
+  font-family: "Berkeley Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px; background: #191d25; padding: 1.5px 5px; border-radius: 3px;
+  color: var(--bone);
+}
+pre {
+  background: #10131a; border: 1px solid var(--edge); border-left: 3px solid var(--cold);
+  padding: 14px 17px; overflow-x: auto; border-radius: 3px; margin: 18px 0;
+}
+pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.6; }
+
+.kw { color: #d68fd6; }
+.str { color: var(--green); }
+.num { color: var(--warm); }
+.cmt { color: #5d6472; font-style: italic; }
+
+.issue-link { border-bottom: 1px dotted var(--warm); color: var(--warm); }
+.badge {
+  display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle;
+  font-family: "Inter", sans-serif;
+}
+.badge.built { background: #1c3320; color: var(--green); }
+.badge.part  { background: #33301c; color: var(--warm); }
+.badge.none  { background: #22262e; color: var(--dim); }
+
+figure { margin: 24px 0; }
+figcaption { color: var(--dim); font-size: 13px; font-style: italic; margin-top: 8px; }
+svg { max-width: 100%; }
+
+#page > footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--edge);
+                 color: var(--dim); font-size: 13px; }
+</style></head><body><div id='shell'><nav id='contents'>
+<h1>hero-less-moba</h1>
+<p class='tagline'>a lane-pushing game with the heroes subtracted out</p>
+<input id='filter' placeholder='filter&hellip;' autocomplete='off'>
+<a href='index.html'>the front page</a>
+<section><h2>start here</h2>
+<a href='vision.html'>vision</a>
+<a href='vision-2.html'>vision-2</a>
+<a href='vision-3.html'>vision-3</a>
+<a href='what-the-first-boss-looks-like.html'>what-the-first-boss-looks-like</a>
+</section>
+<section><h2>the design</h2>
+<a href='001-what-this-game-is.html'><span class='index'>001</span>What This Game Is</a>
+<a href='002-the-map-and-its-milestones.html'><span class='index'>002</span>The Map and Its Milestones</a>
+<a href='003-the-simulation-tick.html'><span class='index'>003</span>The Simulation Tick</a>
+<a href='004-a-unit-and-what-it-carries.html' class='here'><span class='index'>004</span>A Unit and What It Carries</a>
+<a href='005-waves-and-when-one-is-finished.html'><span class='index'>005</span>Waves, and When One Is Finished</a>
+<a href='006-combat-and-damage.html'><span class='index'>006</span>Combat and Damage</a>
+<a href='007-guard-towers-and-their-guards.html'><span class='index'>007</span>Guard Towers and Their Guards</a>
+<a href='008-the-base-and-the-library.html'><span class='index'>008</span>The Base and the Library</a>
+<a href='009-the-shared-upgrade-pool.html'><span class='index'>009</span>The Shared Upgrade Pool</a>
+<a href='010-upgrades-slotted-into-stone.html'><span class='index'>010</span>Upgrades Slotted Into Stone</a>
+<a href='011-commanders-and-personal-resource.html'><span class='index'>011</span>Commanders and Personal Resource</a>
+<a href='012-hero-units.html'><span class='index'>012</span>Hero Units</a>
+<a href='013-signposts-and-lane-routing.html'><span class='index'>013</span>Sign-Posts and Lane Routing</a>
+<a href='014-the-siege-surge.html'><span class='index'>014</span>The Siege-Surge</a>
+<a href='015-boons-and-the-challenge.html'><span class='index'>015</span>Boons and the Challenge</a>
+<a href='016-players-teams-and-commands.html'><span class='index'>016</span>Players, Teams, and Commands</a>
+<a href='017-the-viewing-layer.html'><span class='index'>017</span>The Viewing Layer</a>
+<a href='018-the-shape-of-the-code.html'><span class='index'>018</span>The Shape of the Code</a>
+<a href='019-roadmap.html'><span class='index'>019</span>Roadmap</a>
+<a href='020-open-questions.html'><span class='index'>020</span>Open Questions</a>
+<a href='021-nobody-remembers-why.html'><span class='index'>021</span>Nobody Remembers Why</a>
+<a href='022-standing-off-and-falling-back.html'><span class='index'>022</span>Standing Off and Falling Back</a>
+<a href='023-ways-this-could-go-wrong.html'><span class='index'>023</span>Ways This Could Go Wrong</a>
+</section>
+<section><h2>issues</h2>
+<a href='101-the-path-graph-is-built-by-a-tool.html'><span class='index'>101</span>The Path Graph Is Built by a Tool</a>
+<a href='102-milestones-measure-a-push.html'><span class='index'>102</span>Milestones Measure a Push</a>
+<a href='103-the-world-is-flat-arrays.html'><span class='index'>103</span>The World Is Flat Arrays</a>
+<a href='104-the-tick-is-a-dispatch-table.html'><span class='index'>104</span>The Tick Is a Dispatch Table</a>
+<a href='105-randomness-comes-from-named-streams.html'><span class='index'>105</span>Randomness Comes From Named Streams</a>
+<a href='106-commands-enter-through-one-door.html'><span class='index'>106</span>Commands Enter Through One Door</a>
+<a href='107-snapshots-and-replays.html'><span class='index'>107</span>Snapshots and Replays</a>
+<a href='108-the-headless-runner.html'><span class='index'>108</span>The Headless Runner</a>
+<a href='109-a-terminal-viewer-so-we-are-not-blind.html'><span class='index'>109</span>A Terminal Viewer, So We Are Not Blind</a>
+<a href='110-a-scenario-you-can-hold-at-the-gate.html'><span class='index'>110</span>A Scenario You Can Hold at the Gate</a>
+<a href='201-a-soldier-is-one-record.html'><span class='index'>201</span>A Soldier Is One Record</a>
+<a href='202-walking-an-edge-of-the-graph.html'><span class='index'>202</span>Walking an Edge of the Graph</a>
+<a href='203-the-brain-is-five-states.html'><span class='index'>203</span>The Brain Is Five States</a>
+<a href='204-choosing-what-to-attack.html'><span class='index'>204</span>Choosing What to Attack</a>
+<a href='205-damage-is-buffered-then-applied.html'><span class='index'>205</span>Damage Is Buffered, Then Applied</a>
+<a href='206-the-frontline-is-a-queue.html'><span class='index'>206</span>The Frontline Is a Queue</a>
+<a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
+<a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
+<a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
+<a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
+<a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
+<a href='304-guards-are-leashed.html'><span class='index'>304</span>Guards Are Leashed</a>
+<a href='305-the-base-is-one-open-room.html'><span class='index'>305</span>The Base Is One Open Room</a>
+<a href='306-felling-a-tower-pays-three.html'><span class='index'>306</span>Felling a Tower Pays Three</a>
+<a href='307-the-library-ends-the-game.html'><span class='index'>307</span>The Library Ends the Game</a>
+<a href='401-the-upgrade-catalogue.html'><span class='index'>401</span>The Upgrade Catalogue</a>
+<a href='402-an-instance-is-a-thing-in-a-place.html'><span class='index'>402</span>An Instance Is a Thing in a Place</a>
+<a href='403-wiping-a-wave-draws-an-upgrade.html'><span class='index'>403</span>Wiping a Wave Draws an Upgrade</a>
+<a href='404-placing-an-upgrade-into-a-lane.html'><span class='index'>404</span>Placing an Upgrade Into a Lane</a>
+<a href='405-a-soldier-is-stamped-at-birth.html'><span class='index'>405</span>A Soldier Is Stamped at Birth</a>
+<a href='408-slotting-upgrades-into-stone.html'><span class='index'>408</span>Slotting Upgrades Into Stone</a>
+<a href='409-the-base-inherits-every-lane.html'><span class='index'>409</span>The Base Inherits Every Lane</a>
+<a href='410-the-library-slot-is-the-last-stand.html'><span class='index'>410</span>The Library Slot Is the Last Stand</a>
+<a href='411-rerolling-the-deck.html'><span class='index'>411</span>Rerolling the Deck</a>
+<a href='412-contributing-a-stone.html'><span class='index'>412</span>Contributing a Stone</a>
+<a href='413-staking-a-die-to-share.html'><span class='index'>413</span>Staking a Die to Share</a>
+<a href='501-the-commander-catalogue.html'><span class='index'>501</span>The Commander Catalogue</a>
+<a href='502-killing-pays-everyone-on-the-team.html'><span class='index'>502</span>Killing Pays Everyone on the Team</a>
+<a href='503-a-hero-is-a-soldier-you-bought.html'><span class='index'>503</span>A Hero Is a Soldier You Bought</a>
+<a href='504-abilities-are-a-dispatch-table.html'><span class='index'>504</span>Abilities Are a Dispatch Table</a>
+<a href='505-spawning-onto-a-wave.html'><span class='index'>505</span>Spawning Onto a Wave</a>
+<a href='506-spawning-onto-a-tower-and-being-pushed-back.html'><span class='index'>506</span>Spawning Onto a Tower, and Being Pushed Back</a>
+<a href='507-spawning-onto-the-library-picks-the-worst-lane.html'><span class='index'>507</span>Spawning Onto the Library Picks the Worst Lane</a>
+<a href='508-signposts-stand-at-the-corners.html'><span class='index'>508</span>Sign-Posts Stand at the Corners</a>
+<a href='509-five-heroes-for-the-first-commander.html'><span class='index'>509</span>Five Heroes for the First Commander</a>
+<a href='510-the-healers-and-what-they-remember.html'><span class='index'>510</span>The Healers, and What They Remember</a>
+<a href='601-the-phase-table.html'><span class='index'>601</span>The Phase Table</a>
+<a href='602-the-surge-turns-waves-into-a-stream.html'><span class='index'>602</span>The Surge Turns Waves Into a Stream</a>
+<a href='603-the-chest-dealt-across-the-three.html'><span class='index'>603</span>The Chest, Dealt Across the Three</a>
+<a href='605-boons-and-the-calm.html'><span class='index'>605</span>Boons, and the Calm They Are Chosen In</a>
+<a href='606-what-walks-out-of-the-middle.html'><span class='index'>606</span>What Walks Out of the Middle</a>
+<a href='607-every-lane-spawns-into-the-center.html'><span class='index'>607</span>Every Lane Spawns Into the Center</a>
+<a href='608-the-deadline-is-the-walk.html'><span class='index'>608</span>The Deadline Is the Walk</a>
+<a href='701-the-window-and-the-two-snapshots.html'><span class='index'>701</span>The Window and the Two Snapshots</a>
+<a href='702-the-map-draws-itself.html'><span class='index'>702</span>The Map Draws Itself</a>
+<a href='703-the-chest-panel-and-the-drag.html'><span class='index'>703</span>The Chest Panel and the Drag</a>
+<a href='704-locks-objections-and-refusals-are-loud.html'><span class='index'>704</span>Locks, Objections, and Refusals Are Loud</a>
+<a href='705-the-signposts-are-clickable-in-the-world.html'><span class='index'>705</span>The Sign-Posts Are Clickable in the World</a>
+<a href='706-the-documentation-becomes-html.html'><span class='index'>706</span>The Documentation Becomes HTML</a>
+<a href='707-the-way-in.html'><span class='index'>707</span>The Way In</a>
+<a href='708-the-camera-is-a-lens-you-push-into.html'><span class='index'>708</span>The Camera Is a Lens You Push Into</a>
+<a href='801-reconciling-across-machines.html'><span class='index'>801</span>Reconciling Across Machines</a>
+<a href='802-the-lobby-and-commander-selection.html'><span class='index'>802</span>The Lobby and Commander Selection</a>
+<a href='803-a-bot-that-places-upgrades.html'><span class='index'>803</span>A Bot That Places Upgrades</a>
+<a href='804-ten-thousand-matches-overnight.html'><span class='index'>804</span>Ten Thousand Matches Overnight</a>
+<a href='805-a-full-match-end-to-end.html'><span class='index'>805</span>A Full Match, End to End</a>
+<a href='806-three-people-can-finally-talk.html'><span class='index'>806</span>Three People Can Finally Talk</a>
+<a href='901-what-a-bot-is-allowed-to-see.html'><span class='index'>901</span>What a Bot Is Allowed to See</a>
+<a href='902-reading-a-board-into-a-handful-of-numbers.html'><span class='index'>902</span>Reading a Board Into a Handful of Numbers</a>
+<a href='903-a-teammate-that-does-not-trample-you.html'><span class='index'>903</span>A Teammate That Does Not Trample You</a>
+<a href='904-buying-bodies-and-pointing-them.html'><span class='index'>904</span>Buying Bodies and Pointing Them</a>
+<a href='905-difficulty-without-cheating.html'><span class='index'>905</span>Difficulty Without Cheating</a>
+<a href='906-one-person-five-bots.html'><span class='index'>906</span>One Person, Five Bots</a>
+</section>
+<section><h2>progress</h2>
+<a href='phase-1-progress.html'>Phase 1 Progress — The Ground and the Clock</a>
+<a href='phase-2-progress.html'>Phase 2 Progress — Things That Walk and Fight</a>
+<a href='phase-3-progress.html'>Phase 3 Progress — Things That Stand and Hold</a>
+<a href='phase-4-progress.html'>Phase 4 Progress — The Shared Chest</a>
+<a href='phase-5-progress.html'>Phase 5 Progress — Commanders and Heroes</a>
+<a href='phase-6-progress.html'>Phase 6 Progress — The Surge and the Challenge</a>
+<a href='phase-7-progress.html'>Phase 7 Progress — Watching It Happen</a>
+<a href='phase-8-progress.html'>Phase 8 Progress — Six Players</a>
+<a href='phase-9-progress.html'>Phase 9 Progress — An Opponent Worth Playing</a>
+</section>
+<section><h2>the simulation</h2>
+<a href='028-match-parameters.info.html'><span class='index'>028</span>match-parameters</a>
+<a href='029-random-streams.info.html'><span class='index'>029</span>random-streams</a>
+<a href='030-map-builder.info.html'><span class='index'>030</span>map-builder</a>
+<a href='031-map-validator.info.html'><span class='index'>031</span>map-validator</a>
+<a href='032-the-world.info.html'><span class='index'>032</span>the-world</a>
+<a href='033-commands.info.html'><span class='index'>033</span>commands</a>
+<a href='034-walking.info.html'><span class='index'>034</span>walking</a>
+<a href='035-targeting.info.html'><span class='index'>035</span>targeting</a>
+<a href='036-the-frontline.info.html'><span class='index'>036</span>the-frontline</a>
+<a href='037-the-brain.info.html'><span class='index'>037</span>the-brain</a>
+<a href='038-combat.info.html'><span class='index'>038</span>combat</a>
+<a href='039-waves.info.html'><span class='index'>039</span>waves</a>
+<a href='040-structures.info.html'><span class='index'>040</span>structures</a>
+<a href='041-the-chest.info.html'><span class='index'>041</span>the-chest</a>
+<a href='042-the-tick.info.html'><span class='index'>042</span>the-tick</a>
+<a href='043-snapshot.info.html'><span class='index'>043</span>snapshot</a>
+<a href='044-headless-runner.info.html'><span class='index'>044</span>headless-runner</a>
+<a href='045-terminal-viewer.info.html'><span class='index'>045</span>terminal-viewer</a>
+<a href='046-the-camera.info.html'><span class='index'>046</span>the-camera</a>
+<a href='047-the-renderer.info.html'><span class='index'>047</span>the-renderer</a>
+<a href='048-the-panel.info.html'><span class='index'>048</span>the-panel</a>
+<a href='049-input.info.html'><span class='index'>049</span>input</a>
+<a href='050-the-viewer.info.html'><span class='index'>050</span>the-viewer</a>
+<a href='052-formations.info.html'><span class='index'>052</span>formations</a>
+<a href='054-commanders.info.html'><span class='index'>054</span>commanders</a>
+<a href='055-abilities.info.html'><span class='index'>055</span>abilities</a>
+<a href='056-signposts.info.html'><span class='index'>056</span>signposts</a>
+<a href='058-phases.info.html'><span class='index'>058</span>phases</a>
+<a href='059-a-bot-that-plays.info.html'><span class='index'>059</span>a-bot-that-plays</a>
+<a href='061-the-stones.info.html'><span class='index'>061</span>the-stones</a>
+<a href='062-the-rest-of-the-brain.info.html'><span class='index'>062</span>the-rest-of-the-brain</a>
+<a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
+<a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
+</section>
+<section><h2>the catalogues</h2>
+<a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
+<a href='025-unit-table.info.html'><span class='index'>025</span>unit-table</a>
+<a href='026-structure-table.info.html'><span class='index'>026</span>structure-table</a>
+<a href='027-upgrade-table.info.html'><span class='index'>027</span>upgrade-table</a>
+<a href='053-commander-table.info.html'><span class='index'>053</span>commander-table</a>
+<a href='057-boon-table.info.html'><span class='index'>057</span>boon-table</a>
+</section>
+<section><h2>the tests</h2>
+<a href='051-the-invariants.info.html'><span class='index'>051</span>the-invariants</a>
+<a href='060-the-formation-sandbox.info.html'><span class='index'>060</span>the-formation-sandbox</a>
+</section>
+</nav><main id='page'><h1>004 — A Unit and What It Carries</h1>
+<p><strong>Datapath document.</strong> Covers the only actor in the game: the soldier. What is</p>
+<p>stored about one, how it decides what to do, and why heroes, guards, and</p>
+<p>challenge monsters are all the same thing with different numbers.</p>
+<h2>There is one kind of body</h2>
+<p>The vision is blunt about it: hero units "behave like regular units so we better</p>
+<p>make sure that our unit AI is top notch." That is taken literally. There is one</p>
+<p>soldier record, one movement routine, one targeting routine, one attack routine.</p>
+<p>The four flavours differ only in the values in their fields:</p>
+<table><thead>
+<tr><th>Flavour</th><th>How it differs</th></tr>
+</thead><tbody>
+<tr><td><strong>wave unit</strong></td><td>The baseline. Ability slot empty. Spawned by wave or surge timers. <strong>Three archetypes</strong> — see below.</td></tr>
+<tr><td><strong>hero unit</strong></td><td>Roughly 2.5× a wave unit's combat weight, carries abilities, obeys <strong>one</strong> sign-post in its life and then goes straight on forever after, bought with personal resource.</td></tr>
+<tr><td><strong>guard</strong></td><td>Spawned by a guard tower. Patrols near its tower instead of walking the lane, and will not leave its leash.</td></tr>
+<tr><td><strong>challenge monster</strong></td><td>Very large numbers, walks the centre lane, ignores everything a normal soldier would stop for. On its own third team, hostile to both sides, and assigned to whichever team it is a test for.</td></tr>
+</tbody></table>
+<h3>A wave is three kinds of body</h3>
+<p><code>flavour = 1</code> covers three archetypes, and a wave contains all of them.</p>
+<p><em>Settled; see <a href='020-open-questions.html'>open questions</a>, F22.</em></p>
+<table><thead>
+<tr><th></th><th>Health</th><th>Damage</th><th>Reach</th></tr>
+</thead><tbody>
+<tr><td><strong>melee</strong></td><td>1×</td><td>1×</td><td>a small nonzero number</td></tr>
+<tr><td><strong>ranged</strong></td><td>1×</td><td>1×</td><td>stands off</td></tr>
+<tr><td><strong>captain</strong></td><td><strong>2.5×</strong></td><td><strong>1.5×</strong></td><td>melee <em>or</em> ranged, depending on the captain</td></tr>
+</tbody></table>
+<p>All three are ordinary wave units with different rows in the unit catalogue, all</p>
+<p>three spawn with the wave, and **all three are stamped with the lane's</p>
+<p>upgrades** — which is what separates a captain from a hero. A hero is roughly</p>
+<p>2.5× combat weight with abilities and <strong>no lane upgrades, ever</strong>. A captain is</p>
+<p>2.5× health and 1.5× damage <em>plus</em> everything sitting in its lane.</p>
+<p>So in a lane carrying a dozen upgrades the captain walking out of it is enormous</p>
+<p>and the hero beside it is not. That is not an oversight — it is the chest economy</p>
+<p>out-scaling the wallet economy in a lane somebody committed to, which is the</p>
+<p>right relationship, since the chest is the slow accumulating layer and should win</p>
+<p>a long game. What a hero brings instead is <strong>abilities and timing</strong>: it arrives</p>
+<p>where and when you choose, and does something a wave unit cannot do at all.</p>
+<p>The reach difference is the part with teeth. **Ranged bodies stop further back</p>
+<p>than melee bodies**, which the frontline queue at the end of this document was</p>
+<p>not written for. See issue <a class='issue-link' href='206-the-frontline-is-a-queue.html'>206</a>.</p>
+<p>Having one body type is a design constraint with teeth: any behaviour worth</p>
+<p>giving a hero has to be expressible as a field on the common record, which keeps</p>
+<p>the brain small enough to actually be good. The alternative — a separate hero</p>
+<p>controller — is how lane-pushers end up with soldiers that are visibly stupider</p>
+<p>than heroes, and in a game with no heroes at the centre of it, visibly stupid</p>
+<p>soldiers are the whole product.</p>
+<h2>The record</h2>
+<p>Stored as parallel flat arrays indexed by soldier id, not as a table per soldier.</p>
+<p>The grouping below is how the fields cluster in the tick, which is also how they</p>
+<p>cluster in memory.</p>
+<h3>Identity</h3>
+<table><thead>
+<tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>alive</code></td><td>integer</td><td>1 or 0. Dead slots are reused; ids are recycled with a generation counter.</td></tr>
+<tr><td><code>generation</code></td><td>integer</td><td>Bumped each time a slot is reused, so a stale id can be detected instead of pointing at a stranger.</td></tr>
+<tr><td><code>team</code></td><td>integer</td><td>1 or 2 — or <strong>3</strong>, the monsters' team, which is allied with nobody and hostile to everything. <em>See F13.</em></td></tr>
+<tr><td><code>flavour</code></td><td>integer</td><td>1 wave, 2 hero, 3 guard, 4 monster.</td></tr>
+<tr><td><code>owner</code></td><td>integer</td><td>Player number that paid for this body, or <strong>0</strong> if the team spawned it. Numbers run 1 to twice the team size; six is not a constant. <em>See F10.</em></td></tr>
+<tr><td><code>archetype</code></td><td>integer</td><td>Row in the unit table: which hero, which monster, which guard.</td></tr>
+<tr><td><code>wave</code></td><td>integer</td><td>The wave this body was spawned with, or <strong>0</strong> for anything not in a wave. Heroes, guards, monsters, and <strong>every body a siege-surge puts on the ground</strong> carry zero — a surge emits a stream, not countable groups, which is why no wipe can be detected during one. The reap pass decrements this wave's living count and nothing else scans.</td></tr>
+<tr><td><code>assigned_team</code></td><td>integer</td><td><strong>Monsters only.</strong> Which team this monster is a test for, and therefore which team is paid its boon regardless of who lands the killing blow. <strong>0</strong> on everything else.</td></tr>
+</tbody></table>
+<h3>Place</h3>
+<table><thead>
+<tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>lane</code></td><td>integer</td><td>1 to the lane count, or <strong>0</strong> while crossing a connector.</td></tr>
+<tr><td><code>node_from</code>, <code>node_to</code></td><td>integer</td><td>The edge currently being walked.</td></tr>
+<tr><td><code>progress</code></td><td>double</td><td>0 to 1 along that edge.</td></tr>
+<tr><td><code>x</code>, <code>y</code></td><td>double</td><td>Derived each move pass from the above. The renderer reads these; nothing else does.</td></tr>
+<tr><td><code>facing</code></td><td>integer</td><td>+1 toward team 2's base, −1 toward team 1's. Guards use 0 while patrolling.</td></tr>
+<tr><td><code>milestone</code></td><td>integer</td><td>Deepest milestone index this body has reached. Feeds the team's push depth.</td></tr>
+</tbody></table>
+<h3>Body</h3>
+<table><thead>
+<tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>health</code>, <code>health_max</code></td><td>double</td><td>Current and full.</td></tr>
+<tr><td><code>damage</code></td><td>double</td><td>Per swing, before upgrades.</td></tr>
+<tr><td><code>armour</code></td><td>double</td><td>Flat subtraction, floored so a hit never heals.</td></tr>
+<tr><td><code>range</code></td><td>double</td><td>In paces. Melee is a small nonzero number, not a special case.</td></tr>
+<tr><td><code>acquire_range</code></td><td>double</td><td>In paces, and wider than <code>range</code>, so a body commits to a fight slightly before it can hit. Copied from the archetype row like every other body value, because it varies by archetype — a challenge monster's is deliberately <strong>small relative to its size</strong> so that it wades through a frontline instead of parking in it.</td></tr>
+<tr><td><code>speed</code></td><td>double</td><td>Paces per tick.</td></tr>
+<tr><td><code>cooldown</code>, <code>cooldown_max</code></td><td>integer</td><td>Ticks until the next swing is allowed.</td></tr>
+</tbody></table>
+<h3>Mind</h3>
+<table><thead>
+<tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>state</code></td><td>integer</td><td>1 walking, 2 closing, 3 fighting, 4 leashing home, 5 dying, 6 waiting, <strong>7 recovering</strong>.</td></tr>
+<tr><td><code>incoming_dps</code></td><td>double</td><td>Damage per second currently aimed at this body — the summed output of everything that has taken it as a target. Maintained rather than recomputed. Read by the healer's choice of who to mend and by the decision to fall back.</td></tr>
+<tr><td><code>target</code></td><td>integer</td><td>Soldier id, or <strong>0</strong> for none. Structures are targeted through a separate field.</td></tr>
+<tr><td><code>target_structure</code></td><td>integer</td><td>Structure id, or <strong>0</strong>.</td></tr>
+<tr><td><code>target_generation</code></td><td>integer</td><td>Checked against the target's generation before every use.</td></tr>
+<tr><td><code>leash_node</code></td><td>integer</td><td>The node a guard must not stray far from. <strong>0</strong> for everything else.</td></tr>
+<tr><td><code>ability_cooldown</code></td><td>integer[2]</td><td>Ticks remaining on each of up to two abilities.</td></tr>
+</tbody></table>
+<h3>Modifiers</h3>
+<table><thead>
+<tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>upgrade_count</code></td><td>integer[kinds]</td><td>How many copies of each catalogue kind this body carries. One small integer per kind, not a bit set — duplicates stack, and a bit set cannot count. <em>See <a href='020-open-questions.html'>open questions</a>, F3.</em></td></tr>
+</tbody></table>
+<p><strong>What is in that vector depends entirely on the flavour</strong>, and the four cases</p>
+<p>are genuinely different from each other. This table is the whole of it:</p>
+<table><thead>
+<tr><th>Flavour</th><th>Its lane's upgrades</th><th>Its tower's upgrades</th><th>Boons</th></tr>
+</thead><tbody>
+<tr><td><strong>wave unit</strong></td><td><strong>yes</strong>, from the lane it was spawned for</td><td>—</td><td>yes</td></tr>
+<tr><td><strong>hero unit</strong></td><td><strong>never, at any strength</strong></td><td>—</td><td>yes</td></tr>
+<tr><td><strong>guard</strong></td><td>—</td><td><strong>yes</strong>, from the tower it belongs to</td><td>yes</td></tr>
+<tr><td><strong>challenge monster</strong></td><td>never</td><td>—</td><td><strong>no</strong> — it is on nobody's team</td></tr>
+</tbody></table>
+<h3>Everything is stamped. Nothing is ever read through a reference.</h3>
+<p><strong>Every body's vector is a copy it owns.</strong> *Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, F23.* Nothing in the swing path</p>
+<p>dereferences a lane, a tower, or a team record to find out how strong a body is.</p>
+<p>The vector is right there, in the body's own slot, and applying it is a flat walk</p>
+<p>over a small array.</p>
+<p>That is the whole performance argument, and it is also a correctness argument:</p>
+<p>there is no such thing as a stale reference to a slot that moved, because nothing</p>
+<p>holds a reference to a slot.</p>
+<p><strong>The price is that the copies have to be corrected when the source changes</strong>,</p>
+<p>and that is done by an explicit sweep rather than by anybody re-reading anything:</p>
+<blockquote><p><strong>Clear, then re-stamp.</strong> When the thing a body's vector was copied from</p></blockquote>
+<blockquote><p>changes, every affected body has its vector cleared and rebuilt from scratch.</p></blockquote>
+<blockquote><p>Not patched — cleared. A rebuild from the current truth cannot drift; an</p></blockquote>
+<blockquote><p>incremental adjustment can, and will, in the direction nobody tests.</p></blockquote>
+<p>There are exactly three moments that trigger a sweep:</p>
+<table><thead>
+<tr><th>When</th><th>Which bodies are swept</th></tr>
+</thead><tbody>
+<tr><td>An upgrade <strong>arrives at or leaves a lane's towers</strong> — which happens at a wave spawn, not the instant it is queued</td><td>every guard in that lane</td></tr>
+<tr><td>A <strong>boon is chosen</strong></td><td>every living body that team owns, which during a calm means the heroes waiting at the library and nothing else</td></tr>
+<tr><td>A body <strong>spawns</strong></td><td>that body, from its lane or its tower, plus its team's boons</td></tr>
+</tbody></table>
+<p><strong>Wave units are never swept.</strong> They are stamped at birth and keep what they were</p>
+<p>born with until they die — which is not an oversight, it is the design consequence</p>
+<p>that makes the whole chest worth arguing about: **moving an upgrade out of a lane</p>
+<p>does not weaken the soldiers already walking in it.** They finish their lives</p>
+<p>carrying it. Players should be told this outright, because it turns every</p>
+<p>reassignment into a decision with a delay, and a delay is what makes a</p>
+<p>reassignment worth arguing about.</p>
+<p><strong>Guards are swept, and wave units are not</strong>, and the difference is worth a</p>
+<p>comment at both call sites so that nobody later "fixes" the inconsistency. A wave</p>
+<p>unit walks away from its lane and dies somewhere else; a guard stands at the</p>
+<p>thing it copied from for its whole life, so a guard whose tower has changed and</p>
+<p>whose vector has not is a visible lie. Note also that a lane's tower slot</p>
+<p>delivers <strong>melee</strong> upgrades to the guards and <strong>ranged</strong> upgrades to the tower</p>
+<p>itself, with common ones going to both — see F21.</p>
+<p><strong>Lane upgrades never touch heroes.</strong> <em>See A14.</em> A hero walking through a lane</p>
+<p>stacked with every upgrade the team owns fights at exactly its catalogue values,</p>
+<p>because the two economies must not multiply: if a lane's upgrades also pumped the</p>
+<p>heroes standing in it, a team could stack one lane, buy every hero into it, and</p>
+<p>compound a decision it only had to make once.</p>
+<p><strong>Boons are the thing that reaches everybody.</strong> <em>See F4.</em> They are not in a lane</p>
+<p>and have no slot, so there is no placement decision for them to multiply with —</p>
+<p>which is exactly why they are allowed where a lane upgrade is not. A boon is best</p>
+<p>understood as a modifier on the commander that radiates out to everything that</p>
+<p>team fields, heroes included. Monsters get none, having no team to belong to.</p>
+<h2>The brain</h2>
+<p>The state field indexes a <strong>dispatch table of behaviour functions</strong>, one per</p>
+<p>state, each returning the next state. There is no chain of conditionals deciding</p>
+<p>what a soldier is doing; the soldier already knows, and the table says what</p>
+<p>knowing that means.</p>
+<p><strong>Walking.</strong> Advance along the lane. Each tick, ask whether anything hostile is</p>
+<p>within <em>acquisition range</em> — a radius wider than weapon range, so soldiers commit</p>
+<p>to a fight slightly before they can hit. If yes, take a target and go to closing.</p>
+<p>If the next node carries an enemy structure and no enemy soldier is nearer, take</p>
+<p>the structure as a target.</p>
+<p><strong>Closing.</strong> Keep advancing toward the target until it is inside weapon range,</p>
+<p>then go to fighting. Recheck the target's generation every tick; if it died,</p>
+<p>drop back to walking rather than walking into empty air.</p>
+<p><strong>Fighting.</strong> Stop. Swing when the cooldown allows. Heroes check their ability</p>
+<p>cooldowns here. If the target dies, go back to walking on the same tick rather</p>
+<p>than idling for one — an idle tick per kill is invisible individually and adds up</p>
+<p>to a visibly limp frontline.</p>
+<p><strong>Leashing.</strong> Guards only. Walk back toward the leash node, refusing to acquire</p>
+<p>anything on the way.</p>
+<p><strong>Dying.</strong> One tick of bookkeeping: pay every player on the opposing team,</p>
+<p>decrement this body's wave's living count, free the slot.</p>
+<p><strong>Waiting.</strong> A hero bought during the calm, standing at its own library until</p>
+<p>spawning resumes. It does not advance, does not acquire, and cannot be hurt by</p>
+<p>anything, because by then the map is empty in both directions. On the tick the</p>
+<p>calm ends it goes to walking and marches out with the first wave of the new</p>
+<p>phase. <em>Settled; see <a href='020-open-questions.html'>open questions</a>, A17 and F24.</em></p>
+<p>This is one of the two states where a body is doing</p>
+<p>nothing useful — which makes it the only place in the game where a body can have</p>
+<p>a personality. A waiting hero should **meander, idle, and turn to look at the</p>
+<p>other bodies standing around it.** Nothing about that is mechanical and none of</p>
+<p>it may touch the world; it is the one moment a player watches a body they paid</p>
+<p>for and nothing is at stake. Spend it.</p>
+<p>Note the deliberate asymmetry with walking home at the <em>start</em> of a calm, which</p>
+<p>is <strong>not</strong> a state — it reuses leashing, with the leash set to the team's own</p>
+<p>library. Leaving the map is a thing the brain already knows how to do. Standing</p>
+<p>still with intent is not.</p>
+<p><strong>Recovering.</strong> A wounded body that has pulled out of the line to mend, either</p>
+<p>waiting beside a healer or regenerating at its own tower. It returns to walking</p>
+<p>when the frontline turns against its team — **the line pulls its wounded out while</p>
+<p>it is winning and feeds them back in while it is losing**, with nobody deciding</p>
+<p>that centrally. The full rule, including where it goes when it comes back, is in</p>
+<p><a href='022-standing-off-and-falling-back.html'>standing off and falling back</a>.</p>
+<p>This is the seventh state, and it is the one most likely to be got wrong by being</p>
+<p>made too eager. A body that withdraws at the first scratch is a body that spends</p>
+<p>the match walking; the condition is about <strong>the health on the ground around it</strong>,</p>
+<p>not about its own.</p>
+<h3>The Golem does not use this</h3>
+<p>The Eternal Golem never enters closing and never enters fighting. **It walks, and</p>
+<p>it attacks whatever it walks into, and it does not stop for either.** There is no</p>
+<p>target acquisition, because it is not going anywhere except the library — it</p>
+<p>walks the centre lane in a straight line and the frontline is something that</p>
+<p>happens to it on the way.</p>
+<p>That makes it the one body in the game whose brain is not the five-state machine,</p>
+<p>and the exception has to be written where somebody will find it rather than</p>
+<p>discovered by whoever wonders why the Golem parks. See</p>
+<p><a href='015-boons-and-the-challenge.html'>boons and the challenge</a>.</p>
+<h3>Choosing a target</h3>
+<p>Ranked, cheapest test first, ties broken by the <code>tie</code> random stream so that two</p>
+<p>identical soldiers do not both pick the leftmost enemy every single time:</p>
+<ul>
+<li>An enemy soldier already attacking me.</li>
+<li><strong>The lowest-health enemy soldier</strong> within acquisition range.</li>
+<li>An enemy structure within weapon range.</li>
+<li>Nothing — keep walking.</li>
+</ul>
+<p><strong>Lowest health, not nearest</strong>, and the change is worth its own sentence:</p>
+<p><strong>bodies should finish things.</strong> A rank that spreads its damage across everything</p>
+<p>in front of it kills nothing and dies anyway; a rank that concentrates removes an</p>
+<p>enemy from the fight and lowers the incoming damage for everybody behind it.</p>
+<p>Focus is how a smaller force beats a larger one, and this design has no way for a</p>
+<p>player to arrange it by hand — so the brain has to do it.</p>
+<p>Structures rank below soldiers deliberately. A soldier that walks past a</p>
+<p>defended tower to chew on the tower is a soldier that dies for free, and a</p>
+<p>frontline made of those never moves.</p>
+<p><strong>There is more to the brain than this</strong>, and it lives in</p>
+<p><a href='022-standing-off-and-falling-back.html'>standing off and falling back</a>: how a</p>
+<p>ranged body keeps its distance, how a wounded one leaves the line and comes back,</p>
+<p>and how a healer chooses. Those are rules on this same record and this same</p>
+<p>dispatch table — not a second controller — but they are enough of them to want</p>
+<p>their own page.</p>
+<h2>Forming a frontline</h2>
+<p>Soldiers do not overlap and do not push each other. When a soldier in the</p>
+<p>closing state would end its move inside the personal space of a friendly soldier</p>
+<p>ahead of it, it stops short instead. The result is a queue: the front rank</p>
+<p>fights, the ranks behind stack up along the lane and step forward as the front</p>
+<p>rank dies. This is what makes a wave read as a <em>wave</em> rather than a smear, and</p>
+<p>it is what makes a lane upgrade legible — a stronger front rank visibly holds</p>
+<p>its ground while the enemy queue backs up.</p>
+<h3>Ranged bodies do not queue</h3>
+<p><strong>A rank is a melee thing.</strong> <em>See <a href='020-open-questions.html'>open questions</a>, F22.</em></p>
+<p>The rule above was written when every body wanted the same place — the front —</p>
+<p>and everything behind was waiting its turn to get there. A ranged body does not</p>
+<p>want the front and never did.</p>
+<p>So the queue has two behaviours rather than one:</p>
+<ul>
+<li><strong>Melee bodies form the rank.</strong> Front rank fights, the ones behind stop short</li>
+</ul>
+<p>  and step forward as it thins. Unchanged.</p>
+<ul>
+<li><strong>Ranged bodies hold at their own reach behind the rank</strong> and shoot over it.</li>
+</ul>
+<p>  They are not queuing for a place they will eventually take, so treating them as</p>
+<p>  ranks-in-waiting pushes them into melee range and deletes the distinction</p>
+<p>  entirely.</p>
+<p>A captain does whichever its own reach says, which is the whole of what makes a</p>
+<p>melee captain and a ranged captain different bodies.</p>
+<p>The consequence for how a frontline reads: <strong>a lane's depth is now informative.</strong></p>
+<p>A wave that has lost its melee rank but kept its ranged bodies is a wave that is</p>
+<p>about to evaporate, and it looks different from one that has lost everything —</p>
+<p>which is a thing a player can see and act on from across the map, without a</p>
+<p>number anywhere.</p>
+<p>Related: <a href='002-the-map-and-its-milestones.html'>the map</a> ·</p>
+<p><a href='006-combat-and-damage.html'>combat and damage</a> ·</p>
+<p><a href='005-waves-and-when-one-is-finished.html'>waves</a> ·</p>
+<p><a href='012-hero-units.html'>hero units</a></p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+// Filtering the contents. The only script on the page, and it exists because there
+// are more than eighty documents here and scrolling a list of eighty things to find
+// one is not navigation.
+var box = document.getElementById('filter');
+box.addEventListener('input', function () {
+  var want = box.value.toLowerCase();
+  var rail = document.getElementById('contents');
+  rail.querySelectorAll('section').forEach(function (section) {
+    var shown = 0;
+    section.querySelectorAll('a').forEach(function (link) {
+      var match = link.textContent.toLowerCase().indexOf(want) !== -1;
+      link.style.display = match ? '' : 'none';
+      if (match) { shown++; }
+    });
+    section.style.display = shown ? '' : 'none';
+  });
+});
+</script>
+</body></html>

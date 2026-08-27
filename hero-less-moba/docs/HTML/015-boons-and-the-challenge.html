@@ -1,0 +1,676 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>015 — Boons and the Challenge -- hero-less-moba</title><style>:root {
+  --ground:   #0d0f13;
+  --panel:    #14171d;
+  --edge:     #232833;
+  --ink:      #c7ccd6;
+  --dim:      #7d8492;
+  --warm:     #f5a83d;
+  --cold:     #5cc7ee;
+  --bone:     #e0ded8;
+  --blood:    #b81313;
+  --green:    #78c96e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 15.5px/1.65 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+a { color: var(--cold); text-decoration: none; border-bottom: 1px solid #2b4d5c; }
+a:hover { color: var(--warm); border-bottom-color: var(--warm); }
+
+#shell { display: flex; min-height: 100vh; }
+
+#contents {
+  width: 292px; flex: 0 0 292px; background: var(--panel);
+  border-right: 1px solid var(--edge); padding: 20px 0 60px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+#contents h1 {
+  font-size: 15px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--warm); margin: 0 20px 4px; font-weight: 600;
+}
+#contents .tagline { margin: 0 20px 18px; color: var(--dim); font-size: 12.5px; font-style: italic; }
+#contents section { margin-bottom: 14px; }
+#contents h2 {
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--dim); margin: 14px 20px 5px; font-weight: 600;
+}
+#contents a {
+  display: block; padding: 3px 20px 3px 20px; border: 0;
+  font-size: 13.5px; color: var(--ink); line-height: 1.4;
+}
+#contents a:hover { background: #1b1f27; color: var(--warm); }
+#contents a.here { background: #1b1f27; color: var(--warm); border-left: 3px solid var(--warm); padding-left: 17px; }
+#contents .index { color: var(--dim); font-variant-numeric: tabular-nums; margin-right: 7px; }
+
+#filter {
+  margin: 0 20px 12px; width: calc(100% - 40px); background: var(--ground);
+  border: 1px solid var(--edge); color: var(--ink); padding: 6px 9px;
+  font: inherit; font-size: 13px; border-radius: 3px;
+}
+#filter:focus { outline: 0; border-color: var(--warm); }
+
+#page { flex: 1; min-width: 0; padding: 42px 56px 120px; max-width: 900px; }
+h1, h2, h3, h4 { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; line-height: 1.25; }
+h1 { font-size: 30px; color: var(--warm); margin: 0 0 26px; font-weight: 600; }
+h2 { font-size: 21px; color: var(--bone); margin: 38px 0 12px; font-weight: 600;
+     border-bottom: 1px solid var(--edge); padding-bottom: 7px; }
+h3 { font-size: 16.5px; color: var(--cold); margin: 26px 0 8px; font-weight: 600; }
+h4 { font-size: 14.5px; color: var(--dim); margin: 20px 0 6px;
+     text-transform: uppercase; letter-spacing: .09em; }
+p { margin: 0 0 15px; }
+strong { color: var(--bone); font-weight: 600; }
+em { color: var(--dim); }
+hr { border: 0; border-top: 1px solid var(--edge); margin: 34px 0; }
+
+blockquote {
+  margin: 20px 0; padding: 3px 0 3px 20px; border-left: 3px solid var(--warm);
+  color: var(--bone); font-style: italic;
+}
+blockquote p { margin: 0 0 8px; }
+blockquote p:last-child { margin: 0; }
+
+ul, ol { margin: 0 0 15px; padding-left: 24px; }
+li { margin-bottom: 5px; }
+
+table { border-collapse: collapse; margin: 20px 0; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+th { color: var(--dim); font-weight: 600; text-transform: uppercase;
+     letter-spacing: .08em; font-size: 11.5px; }
+tr:hover td { background: #161a21; }
+
+code {
+  font-family: "Berkeley Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px; background: #191d25; padding: 1.5px 5px; border-radius: 3px;
+  color: var(--bone);
+}
+pre {
+  background: #10131a; border: 1px solid var(--edge); border-left: 3px solid var(--cold);
+  padding: 14px 17px; overflow-x: auto; border-radius: 3px; margin: 18px 0;
+}
+pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.6; }
+
+.kw { color: #d68fd6; }
+.str { color: var(--green); }
+.num { color: var(--warm); }
+.cmt { color: #5d6472; font-style: italic; }
+
+.issue-link { border-bottom: 1px dotted var(--warm); color: var(--warm); }
+.badge {
+  display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle;
+  font-family: "Inter", sans-serif;
+}
+.badge.built { background: #1c3320; color: var(--green); }
+.badge.part  { background: #33301c; color: var(--warm); }
+.badge.none  { background: #22262e; color: var(--dim); }
+
+figure { margin: 24px 0; }
+figcaption { color: var(--dim); font-size: 13px; font-style: italic; margin-top: 8px; }
+svg { max-width: 100%; }
+
+#page > footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--edge);
+                 color: var(--dim); font-size: 13px; }
+</style></head><body><div id='shell'><nav id='contents'>
+<h1>hero-less-moba</h1>
+<p class='tagline'>a lane-pushing game with the heroes subtracted out</p>
+<input id='filter' placeholder='filter&hellip;' autocomplete='off'>
+<a href='index.html'>the front page</a>
+<section><h2>start here</h2>
+<a href='vision.html'>vision</a>
+<a href='vision-2.html'>vision-2</a>
+<a href='vision-3.html'>vision-3</a>
+<a href='what-the-first-boss-looks-like.html'>what-the-first-boss-looks-like</a>
+</section>
+<section><h2>the design</h2>
+<a href='001-what-this-game-is.html'><span class='index'>001</span>What This Game Is</a>
+<a href='002-the-map-and-its-milestones.html'><span class='index'>002</span>The Map and Its Milestones</a>
+<a href='003-the-simulation-tick.html'><span class='index'>003</span>The Simulation Tick</a>
+<a href='004-a-unit-and-what-it-carries.html'><span class='index'>004</span>A Unit and What It Carries</a>
+<a href='005-waves-and-when-one-is-finished.html'><span class='index'>005</span>Waves, and When One Is Finished</a>
+<a href='006-combat-and-damage.html'><span class='index'>006</span>Combat and Damage</a>
+<a href='007-guard-towers-and-their-guards.html'><span class='index'>007</span>Guard Towers and Their Guards</a>
+<a href='008-the-base-and-the-library.html'><span class='index'>008</span>The Base and the Library</a>
+<a href='009-the-shared-upgrade-pool.html'><span class='index'>009</span>The Shared Upgrade Pool</a>
+<a href='010-upgrades-slotted-into-stone.html'><span class='index'>010</span>Upgrades Slotted Into Stone</a>
+<a href='011-commanders-and-personal-resource.html'><span class='index'>011</span>Commanders and Personal Resource</a>
+<a href='012-hero-units.html'><span class='index'>012</span>Hero Units</a>
+<a href='013-signposts-and-lane-routing.html'><span class='index'>013</span>Sign-Posts and Lane Routing</a>
+<a href='014-the-siege-surge.html'><span class='index'>014</span>The Siege-Surge</a>
+<a href='015-boons-and-the-challenge.html' class='here'><span class='index'>015</span>Boons and the Challenge</a>
+<a href='016-players-teams-and-commands.html'><span class='index'>016</span>Players, Teams, and Commands</a>
+<a href='017-the-viewing-layer.html'><span class='index'>017</span>The Viewing Layer</a>
+<a href='018-the-shape-of-the-code.html'><span class='index'>018</span>The Shape of the Code</a>
+<a href='019-roadmap.html'><span class='index'>019</span>Roadmap</a>
+<a href='020-open-questions.html'><span class='index'>020</span>Open Questions</a>
+<a href='021-nobody-remembers-why.html'><span class='index'>021</span>Nobody Remembers Why</a>
+<a href='022-standing-off-and-falling-back.html'><span class='index'>022</span>Standing Off and Falling Back</a>
+<a href='023-ways-this-could-go-wrong.html'><span class='index'>023</span>Ways This Could Go Wrong</a>
+</section>
+<section><h2>issues</h2>
+<a href='101-the-path-graph-is-built-by-a-tool.html'><span class='index'>101</span>The Path Graph Is Built by a Tool</a>
+<a href='102-milestones-measure-a-push.html'><span class='index'>102</span>Milestones Measure a Push</a>
+<a href='103-the-world-is-flat-arrays.html'><span class='index'>103</span>The World Is Flat Arrays</a>
+<a href='104-the-tick-is-a-dispatch-table.html'><span class='index'>104</span>The Tick Is a Dispatch Table</a>
+<a href='105-randomness-comes-from-named-streams.html'><span class='index'>105</span>Randomness Comes From Named Streams</a>
+<a href='106-commands-enter-through-one-door.html'><span class='index'>106</span>Commands Enter Through One Door</a>
+<a href='107-snapshots-and-replays.html'><span class='index'>107</span>Snapshots and Replays</a>
+<a href='108-the-headless-runner.html'><span class='index'>108</span>The Headless Runner</a>
+<a href='109-a-terminal-viewer-so-we-are-not-blind.html'><span class='index'>109</span>A Terminal Viewer, So We Are Not Blind</a>
+<a href='110-a-scenario-you-can-hold-at-the-gate.html'><span class='index'>110</span>A Scenario You Can Hold at the Gate</a>
+<a href='201-a-soldier-is-one-record.html'><span class='index'>201</span>A Soldier Is One Record</a>
+<a href='202-walking-an-edge-of-the-graph.html'><span class='index'>202</span>Walking an Edge of the Graph</a>
+<a href='203-the-brain-is-five-states.html'><span class='index'>203</span>The Brain Is Five States</a>
+<a href='204-choosing-what-to-attack.html'><span class='index'>204</span>Choosing What to Attack</a>
+<a href='205-damage-is-buffered-then-applied.html'><span class='index'>205</span>Damage Is Buffered, Then Applied</a>
+<a href='206-the-frontline-is-a-queue.html'><span class='index'>206</span>The Frontline Is a Queue</a>
+<a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
+<a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
+<a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
+<a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
+<a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
+<a href='304-guards-are-leashed.html'><span class='index'>304</span>Guards Are Leashed</a>
+<a href='305-the-base-is-one-open-room.html'><span class='index'>305</span>The Base Is One Open Room</a>
+<a href='306-felling-a-tower-pays-three.html'><span class='index'>306</span>Felling a Tower Pays Three</a>
+<a href='307-the-library-ends-the-game.html'><span class='index'>307</span>The Library Ends the Game</a>
+<a href='401-the-upgrade-catalogue.html'><span class='index'>401</span>The Upgrade Catalogue</a>
+<a href='402-an-instance-is-a-thing-in-a-place.html'><span class='index'>402</span>An Instance Is a Thing in a Place</a>
+<a href='403-wiping-a-wave-draws-an-upgrade.html'><span class='index'>403</span>Wiping a Wave Draws an Upgrade</a>
+<a href='404-placing-an-upgrade-into-a-lane.html'><span class='index'>404</span>Placing an Upgrade Into a Lane</a>
+<a href='405-a-soldier-is-stamped-at-birth.html'><span class='index'>405</span>A Soldier Is Stamped at Birth</a>
+<a href='408-slotting-upgrades-into-stone.html'><span class='index'>408</span>Slotting Upgrades Into Stone</a>
+<a href='409-the-base-inherits-every-lane.html'><span class='index'>409</span>The Base Inherits Every Lane</a>
+<a href='410-the-library-slot-is-the-last-stand.html'><span class='index'>410</span>The Library Slot Is the Last Stand</a>
+<a href='411-rerolling-the-deck.html'><span class='index'>411</span>Rerolling the Deck</a>
+<a href='412-contributing-a-stone.html'><span class='index'>412</span>Contributing a Stone</a>
+<a href='413-staking-a-die-to-share.html'><span class='index'>413</span>Staking a Die to Share</a>
+<a href='501-the-commander-catalogue.html'><span class='index'>501</span>The Commander Catalogue</a>
+<a href='502-killing-pays-everyone-on-the-team.html'><span class='index'>502</span>Killing Pays Everyone on the Team</a>
+<a href='503-a-hero-is-a-soldier-you-bought.html'><span class='index'>503</span>A Hero Is a Soldier You Bought</a>
+<a href='504-abilities-are-a-dispatch-table.html'><span class='index'>504</span>Abilities Are a Dispatch Table</a>
+<a href='505-spawning-onto-a-wave.html'><span class='index'>505</span>Spawning Onto a Wave</a>
+<a href='506-spawning-onto-a-tower-and-being-pushed-back.html'><span class='index'>506</span>Spawning Onto a Tower, and Being Pushed Back</a>
+<a href='507-spawning-onto-the-library-picks-the-worst-lane.html'><span class='index'>507</span>Spawning Onto the Library Picks the Worst Lane</a>
+<a href='508-signposts-stand-at-the-corners.html'><span class='index'>508</span>Sign-Posts Stand at the Corners</a>
+<a href='509-five-heroes-for-the-first-commander.html'><span class='index'>509</span>Five Heroes for the First Commander</a>
+<a href='510-the-healers-and-what-they-remember.html'><span class='index'>510</span>The Healers, and What They Remember</a>
+<a href='601-the-phase-table.html'><span class='index'>601</span>The Phase Table</a>
+<a href='602-the-surge-turns-waves-into-a-stream.html'><span class='index'>602</span>The Surge Turns Waves Into a Stream</a>
+<a href='603-the-chest-dealt-across-the-three.html'><span class='index'>603</span>The Chest, Dealt Across the Three</a>
+<a href='605-boons-and-the-calm.html'><span class='index'>605</span>Boons, and the Calm They Are Chosen In</a>
+<a href='606-what-walks-out-of-the-middle.html'><span class='index'>606</span>What Walks Out of the Middle</a>
+<a href='607-every-lane-spawns-into-the-center.html'><span class='index'>607</span>Every Lane Spawns Into the Center</a>
+<a href='608-the-deadline-is-the-walk.html'><span class='index'>608</span>The Deadline Is the Walk</a>
+<a href='701-the-window-and-the-two-snapshots.html'><span class='index'>701</span>The Window and the Two Snapshots</a>
+<a href='702-the-map-draws-itself.html'><span class='index'>702</span>The Map Draws Itself</a>
+<a href='703-the-chest-panel-and-the-drag.html'><span class='index'>703</span>The Chest Panel and the Drag</a>
+<a href='704-locks-objections-and-refusals-are-loud.html'><span class='index'>704</span>Locks, Objections, and Refusals Are Loud</a>
+<a href='705-the-signposts-are-clickable-in-the-world.html'><span class='index'>705</span>The Sign-Posts Are Clickable in the World</a>
+<a href='706-the-documentation-becomes-html.html'><span class='index'>706</span>The Documentation Becomes HTML</a>
+<a href='707-the-way-in.html'><span class='index'>707</span>The Way In</a>
+<a href='708-the-camera-is-a-lens-you-push-into.html'><span class='index'>708</span>The Camera Is a Lens You Push Into</a>
+<a href='801-reconciling-across-machines.html'><span class='index'>801</span>Reconciling Across Machines</a>
+<a href='802-the-lobby-and-commander-selection.html'><span class='index'>802</span>The Lobby and Commander Selection</a>
+<a href='803-a-bot-that-places-upgrades.html'><span class='index'>803</span>A Bot That Places Upgrades</a>
+<a href='804-ten-thousand-matches-overnight.html'><span class='index'>804</span>Ten Thousand Matches Overnight</a>
+<a href='805-a-full-match-end-to-end.html'><span class='index'>805</span>A Full Match, End to End</a>
+<a href='806-three-people-can-finally-talk.html'><span class='index'>806</span>Three People Can Finally Talk</a>
+<a href='901-what-a-bot-is-allowed-to-see.html'><span class='index'>901</span>What a Bot Is Allowed to See</a>
+<a href='902-reading-a-board-into-a-handful-of-numbers.html'><span class='index'>902</span>Reading a Board Into a Handful of Numbers</a>
+<a href='903-a-teammate-that-does-not-trample-you.html'><span class='index'>903</span>A Teammate That Does Not Trample You</a>
+<a href='904-buying-bodies-and-pointing-them.html'><span class='index'>904</span>Buying Bodies and Pointing Them</a>
+<a href='905-difficulty-without-cheating.html'><span class='index'>905</span>Difficulty Without Cheating</a>
+<a href='906-one-person-five-bots.html'><span class='index'>906</span>One Person, Five Bots</a>
+</section>
+<section><h2>progress</h2>
+<a href='phase-1-progress.html'>Phase 1 Progress — The Ground and the Clock</a>
+<a href='phase-2-progress.html'>Phase 2 Progress — Things That Walk and Fight</a>
+<a href='phase-3-progress.html'>Phase 3 Progress — Things That Stand and Hold</a>
+<a href='phase-4-progress.html'>Phase 4 Progress — The Shared Chest</a>
+<a href='phase-5-progress.html'>Phase 5 Progress — Commanders and Heroes</a>
+<a href='phase-6-progress.html'>Phase 6 Progress — The Surge and the Challenge</a>
+<a href='phase-7-progress.html'>Phase 7 Progress — Watching It Happen</a>
+<a href='phase-8-progress.html'>Phase 8 Progress — Six Players</a>
+<a href='phase-9-progress.html'>Phase 9 Progress — An Opponent Worth Playing</a>
+</section>
+<section><h2>the simulation</h2>
+<a href='028-match-parameters.info.html'><span class='index'>028</span>match-parameters</a>
+<a href='029-random-streams.info.html'><span class='index'>029</span>random-streams</a>
+<a href='030-map-builder.info.html'><span class='index'>030</span>map-builder</a>
+<a href='031-map-validator.info.html'><span class='index'>031</span>map-validator</a>
+<a href='032-the-world.info.html'><span class='index'>032</span>the-world</a>
+<a href='033-commands.info.html'><span class='index'>033</span>commands</a>
+<a href='034-walking.info.html'><span class='index'>034</span>walking</a>
+<a href='035-targeting.info.html'><span class='index'>035</span>targeting</a>
+<a href='036-the-frontline.info.html'><span class='index'>036</span>the-frontline</a>
+<a href='037-the-brain.info.html'><span class='index'>037</span>the-brain</a>
+<a href='038-combat.info.html'><span class='index'>038</span>combat</a>
+<a href='039-waves.info.html'><span class='index'>039</span>waves</a>
+<a href='040-structures.info.html'><span class='index'>040</span>structures</a>
+<a href='041-the-chest.info.html'><span class='index'>041</span>the-chest</a>
+<a href='042-the-tick.info.html'><span class='index'>042</span>the-tick</a>
+<a href='043-snapshot.info.html'><span class='index'>043</span>snapshot</a>
+<a href='044-headless-runner.info.html'><span class='index'>044</span>headless-runner</a>
+<a href='045-terminal-viewer.info.html'><span class='index'>045</span>terminal-viewer</a>
+<a href='046-the-camera.info.html'><span class='index'>046</span>the-camera</a>
+<a href='047-the-renderer.info.html'><span class='index'>047</span>the-renderer</a>
+<a href='048-the-panel.info.html'><span class='index'>048</span>the-panel</a>
+<a href='049-input.info.html'><span class='index'>049</span>input</a>
+<a href='050-the-viewer.info.html'><span class='index'>050</span>the-viewer</a>
+<a href='052-formations.info.html'><span class='index'>052</span>formations</a>
+<a href='054-commanders.info.html'><span class='index'>054</span>commanders</a>
+<a href='055-abilities.info.html'><span class='index'>055</span>abilities</a>
+<a href='056-signposts.info.html'><span class='index'>056</span>signposts</a>
+<a href='058-phases.info.html'><span class='index'>058</span>phases</a>
+<a href='059-a-bot-that-plays.info.html'><span class='index'>059</span>a-bot-that-plays</a>
+<a href='061-the-stones.info.html'><span class='index'>061</span>the-stones</a>
+<a href='062-the-rest-of-the-brain.info.html'><span class='index'>062</span>the-rest-of-the-brain</a>
+<a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
+<a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
+</section>
+<section><h2>the catalogues</h2>
+<a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
+<a href='025-unit-table.info.html'><span class='index'>025</span>unit-table</a>
+<a href='026-structure-table.info.html'><span class='index'>026</span>structure-table</a>
+<a href='027-upgrade-table.info.html'><span class='index'>027</span>upgrade-table</a>
+<a href='053-commander-table.info.html'><span class='index'>053</span>commander-table</a>
+<a href='057-boon-table.info.html'><span class='index'>057</span>boon-table</a>
+</section>
+<section><h2>the tests</h2>
+<a href='051-the-invariants.info.html'><span class='index'>051</span>the-invariants</a>
+<a href='060-the-formation-sandbox.info.html'><span class='index'>060</span>the-formation-sandbox</a>
+</section>
+</nav><main id='page'><h1>015 — Boons and the Challenge</h1>
+<p><strong>Datapath document.</strong> Covers the three named things that come out of the middle,</p>
+<p>what you are given for killing two of them, and the quiet minute afterwards.</p>
+<h2>Where this sits in the shape of a match</h2>
+<p>The phase grid — what spawns, where it goes, what it carries, what the towers are</p>
+<p>doing — is in <a href='014-the-siege-surge.html'>the siege-surge</a>, and it is not repeated</p>
+<p>here. It used to be, in three places at once, and the three copies had already</p>
+<p>drifted apart from each other by the time anybody read them together.</p>
+<p>What matters for this document: a challenge begins on the tick a surge ends, it</p>
+<p>runs on ordinary waves rather than the surge's stream, and every lane's</p>
+<p>production goes into the middle for the duration.</p>
+<h2>The challenge phase</h2>
+<p>On the tick a surge ends, a monster appears at the midpoint of the centre lane</p>
+<p>for each team, walking toward that team's base. They do not fight each other and</p>
+<p>never meet.</p>
+<p>Nothing happens to the chest. Whatever a team arranged during the surge is what</p>
+<p>its first wave into the centre carries — see</p>
+<p><a href='014-the-siege-surge.html'>the siege-surge</a>.</p>
+<p>**There are three challenges in a match and they are always the same three, in</p>
+<p>the same order:**</p>
+<table><thead>
+<tr><th></th><th>Challenge</th><th></th><th></th></tr>
+</thead><tbody>
+<tr><td>1</td><td><strong>The Pillar Orc</strong></td><td>killable</td><td>pays a boon</td></tr>
+<tr><td>2</td><td><strong>The Field Dragon</strong></td><td>killable</td><td>pays a boon</td></tr>
+<tr><td>3</td><td><strong>The Eternal Golem</strong></td><td><strong>cannot be killed</strong></td><td><strong>pays nothing, and ends the match</strong></td></tr>
+</tbody></table>
+<p>A fixed, named sequence rather than a random draw. A player who has played one</p>
+<p>match knows what is coming in the next and can build toward it — the same</p>
+<p>reasoning that put the surge on a visible clock. The escalation is the point: the</p>
+<p>first two can be beaten, and then the third one cannot.</p>
+<h3>Waves come back, and everything goes to the middle</h3>
+<p>During a challenge the spawner returns to <strong>waves at the normal interval</strong> — not</p>
+<p>the surge's stream — and redirects all three lanes' worth into the center lane.</p>
+<p>The lull between waves is the point. A stream would pin a monster in place</p>
+<p>indefinitely, because there would always be another body arriving. Waves give the</p>
+<p>monster room to <strong>lurch</strong>: it walks while the lane is empty and slows when the</p>
+<p>next wave lands on it. A challenge you can watch advancing in stages is readable</p>
+<p>in a way a continuous grind is not, and a team that loses one wave badly can</p>
+<p><em>see</em> the ground that cost them.</p>
+<p>The side lanes empty out for the duration. Their towers hold nothing, and the</p>
+<p>entire match compresses into one corridor.</p>
+<p><strong>A funnelled soldier carries the upgrades of the lane it was spawned for</strong>, not</p>
+<p>the center's. <em>Settled; see <a href='020-open-questions.html'>open questions</a>, A10.</em> So</p>
+<p>placing into the top lane during a challenge still means something — you are</p>
+<p>strengthening one of three groups converging on the middle, and a team that had</p>
+<p>invested heavily in one lane does not watch that investment evaporate for the</p>
+<p>duration. The cost is legibility: three soldiers walking side by side can have</p>
+<p>wildly different strength, and there is no obvious way to draw it.</p>
+<h3>The center lane is wider</h3>
+<p>Topographically, permanently, not only during a challenge. All three lanes'</p>
+<p>production arriving in one corridor has to be a battle rather than a single file</p>
+<p>waiting its turn to die, and a monster has to be able to fight a whole team at</p>
+<p>once.</p>
+<p>The permanent consequence is larger: **the center lane is where numbers matter</p>
+<p>most**, all match long. That is the only real difference between the three lanes,</p>
+<p>and it is one number in the map builder. See</p>
+<p><a href='002-the-map-and-its-milestones.html'>the map</a>.</p>
+<h3>What a monster is</h3>
+<p>A soldier record with <code>flavour = 4</code> and very large numbers. Same movement, same</p>
+<p>combat, same buffered damage. For the <strong>Pillar Orc and the Field Dragon</strong>, three</p>
+<p>behavioural differences, all of them values in fields rather than special cases:</p>
+<ul>
+<li><strong>Ignores sign-posts.</strong> Nothing reroutes it out of the centre lane.</li>
+<li><strong><code>acquire_range</code> is small relative to its size</strong>, so it wades through a</li>
+</ul>
+<p>  frontline toward the base rather than parking in it.</p>
+<ul>
+<li><strong>Targets structures at soldier priority</strong> rather than below it, so it does not</li>
+</ul>
+<p>  walk past a tower to be shot in the back.</p>
+<p><strong>The Eternal Golem is not like this.</strong> It does not acquire targets at all — it</p>
+<p>walks at the library in a straight line and attacks what it walks into. It never</p>
+<p>enters the closing or fighting states, and it is the only body in the game whose</p>
+<p>behaviour is not the five-state brain. See below, and</p>
+<p><a href='004-a-unit-and-what-it-carries.html'>a unit and what it carries</a>.</p>
+<h3>A monster is on nobody's side</h3>
+<p><strong>Monsters are a third team.</strong> *Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, F13.* Not team 1's, not team 2's,</p>
+<p>allied with nobody and hostile to everything. That matters because during a</p>
+<p>challenge both teams' waves are walking down the same corridor as both monsters,</p>
+<p>and without a third team a monster aimed at team 1's base would be functionally</p>
+<p>an ally of team 2 for the whole phase — fighting alongside them, in their</p>
+<p>direction, at no cost to them. That is not a thing anybody designed and it is</p>
+<p>what falls out of a two-team world by default.</p>
+<p>Each monster is nevertheless <strong>assigned</strong> to one player-team: the one whose base</p>
+<p>it is walking at, and whose test it is. The assignment is bookkeeping rather than</p>
+<p>allegiance, and it decides one thing — **the assigned team receives the boon when</p>
+<p>that monster dies, no matter who landed the killing blow.** A team cannot reach</p>
+<p>into the middle, finish off the enemy's monster, and take their reward, and</p>
+<p>nobody has to position a hero to steal or protect a last hit.</p>
+<p>Which connects to something worth stating once, in the document where the</p>
+<p>temptation is strongest: **there is no last-hit accounting anywhere in this</p>
+<p>game.** Resource is paid to a team rather than to a player, there is no</p>
+<p>experience, and no rule reads who struck last. A body dies and the opposing team</p>
+<p>is paid.</p>
+<h3>The deadline is the walk</h3>
+<p>**There is no separate timer. The deadline is how long the monster takes to reach</p>
+<p>your library. If it arrives, it destroys the library, and the team whose library</p>
+<p>it destroyed loses** — by the ordinary win condition, not a special rule.</p>
+<p>A timer is a number on a panel; a monster walking down the center lane is a thing</p>
+<p>you can see. A player who has never read a rules screen knows exactly how long is</p>
+<p>left, because the time left is <em>distance</em>.</p>
+<p>Killing one pays an enormous amount to every player on the <strong>assigned</strong> team —</p>
+<p>the largest single payout in the game, and it cannot be stolen.</p>
+<h2>Dying, waiting, and the calm</h2>
+<p>Three stages, and the middle one is the surprising one.</p>
+<p><strong>1. Your monster dies, and your side goes home.</strong> Your wave units and your</p>
+<p>heroes turn around and walk back. The wave units simply disappear when they</p>
+<p>arrive. <strong>The heroes refund what they cost.</strong> *Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, F14.*</p>
+<p>That refund changes what a hero is, in this one context. Heroes still die</p>
+<p>permanently in ordinary play and the resource dies with them — nothing about that</p>
+<p>has moved. But a hero bought <em>for a challenge</em> is only spent if it fails, which</p>
+<p>is what makes throwing everything you have at a monster the correct move rather</p>
+<p>than a gamble against your own next three minutes. The commander economy is</p>
+<p>allowed to go all-in on the thing that is designed to be fought all-in.</p>
+<p><strong>2. You wait.</strong> Until the other team has finished theirs, there is nothing to do</p>
+<p>but watch them fight. No push, no free ground, no tempo — your bodies have</p>
+<p>already left the field. <strong>This answers A8c</strong>, and it answers it in the least</p>
+<p>generous direction available: finishing first buys time to think, and nothing</p>
+<p>else.</p>
+<p><strong>3. The calm.</strong> Once both monsters are down and both sides are walking home, the</p>
+<p>quiet window opens.</p>
+<p><strong>The challenge ends when both monsters are dead, and then everyone goes home.</strong></p>
+<p>Spawning stops, and **every soldier still on the field turns around and walks</p>
+<p>back to its own base**, where it leaves the game. Nobody fights on the way. The</p>
+<p>map empties out.</p>
+<p>The calm lasts <strong>somewhere between thirty seconds and a minute</strong> — a balance</p>
+<p>value, and one that has to be found by watching people use it rather than by</p>
+<p>reasoning. In that window:</p>
+<ul>
+<li><strong>Each player chooses a boon, from two offered.</strong> *Settled; see</li>
+</ul>
+<p>  <a href='020-open-questions.html'>open questions</a>, F5 and F6.* One pick per player, made</p>
+<p>  independently, so a three-player team gains three boons at once and each of</p>
+<p>  them applies to everything the team fields.</p>
+<ul>
+<li><strong>The same two are offered to everybody.</strong> One pair is drawn per event and all</li>
+</ul>
+<p>  six players see it — not per player, not per team, per <em>match</em>. Nobody is ever</p>
+<p>  handed a better menu than anybody else.</p>
+<ul>
+<li><strong>The board can be rearranged</strong>, as it can in every other phase. Nothing was</li>
+</ul>
+<p>  dumped and nothing needs rebuilding; this is simply an unhurried minute in</p>
+<p>  which to do it.</p>
+<p><strong>This is the only moment a boon ever arrives</strong>, and it happens <strong>twice a match</strong></p>
+<p>— after the Pillar Orc and after the Field Dragon, never after the Eternal Golem,</p>
+<p>which is never slain.</p>
+<p>The rejected alternative was the vision's own timing: a boon at the end of each</p>
+<p>surge, before the challenge, as equipment for fighting it. Three events instead</p>
+<p>of two. It is rejected because a boon issued then is a menu opening while</p>
+<p>something enormous starts walking — three players reading two lists each, with a</p>
+<p>deadline, at the most frightening point in the match — and because equipment</p>
+<p>chosen against a monster you have not met yet is a guess rather than a read.</p>
+<p>Payment for the kill, in the quiet afterwards, is a reward with room to enjoy it,</p>
+<p>and that is the whole reason the calm exists as a phase.</p>
+<h3>One pair, six players, and the argument you cannot have</h3>
+<p>Everybody is offered the same two. That is the shared-deck principle arriving</p>
+<p>somewhere new — <strong>remove every source of asymmetry that is not a decision</strong> — and</p>
+<p>it has three consequences worth designing toward rather than discovering.</p>
+<p><strong>A team can take three of the same boon.</strong> Duplicates stack, so three players who</p>
+<p>all pick the left-hand option are running it at triple strength. Nothing forbids</p>
+<p>it, and choosing between concentrating and spreading is the actual decision.</p>
+<p><strong>It is the one negotiation with no board underneath it.</strong> Three teammates look</p>
+<p>at the same two cards, each guessing what the others will take. There is nothing</p>
+<p>to lock, object to, mark, or point at, because the thing being decided is not on</p>
+<p>the map yet — every verb a team has for talking <em>about the chest</em> works by doing</p>
+<p>something to the chest, and here there is nothing to do.</p>
+<p><strong>This is the moment that bought the game a chat channel.</strong> <em>See issue <a class='issue-link' href='806-three-people-can-finally-talk.html'>806</a>.</em> It</p>
+<p>is the only decision in a match where a team has to coordinate in advance rather</p>
+<p>than react to each other, and words were the only way to do it. Everything else a</p>
+<p>team says, it says by acting.</p>
+<p><strong>The enemy's boons are legible without an interface.</strong> They chose from the same</p>
+<p>pair you did, so after a calm you know their three are some split of two kinds you</p>
+<p>are holding yourself. What you do not know is the split. Which is the same shape</p>
+<p>as every other information rule in this design: you know <em>what</em>, never *how much</p>
+<p>of which*.</p>
+<p>Then spawning resumes and normal play starts again.</p>
+<h3>Why everyone walks home</h3>
+<p>Two reasons, and the second one is the bigger.</p>
+<p><strong>It makes the calm actually calm.</strong> A quiet minute with a frontline still</p>
+<p>grinding away in it is not a quiet minute; it is a minute where you are supposed</p>
+<p>to be choosing and are actually watching a lane collapse. Draining the map is</p>
+<p>what turns the window into a reward rather than a distraction.</p>
+<p><strong>It resets the frontlines to nothing.</strong> After each of the first two challenges,</p>
+<p>both teams start pushing again from their own bases, with whatever stone is still</p>
+<p>standing. A match therefore has <strong>three fresh starts</strong> rather than one long</p>
+<p>accumulation — the territory resets, the stone does not, and the chest does not.</p>
+<p>What carries forward is what you built, not where you happened to be standing.</p>
+<p>That has a consequence for the push-depth numbers: they are a measure of where</p>
+<p>your <strong>living</strong> soldiers are, not a high-water mark, so a calm drops every lane's</p>
+<p>push depth back to the base. The system that maintains them incrementally needs a</p>
+<p>full recompute at the end of a calm — the one moment in a match where the</p>
+<p>frontline moves backwards for everybody at once. See</p>
+<p><a href='002-the-map-and-its-milestones.html'>the map</a>.</p>
+<p><strong>During the challenge itself, push depth is ignored entirely.</strong> *Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, F17.* Every lane's production is in the</p>
+<p>middle and the side lanes are empty, so the only bodies left standing in them are</p>
+<p>each team's own tower guards, sitting at their own towers. The number would read</p>
+<p>each team's stone back at them and mean nothing. Nothing consults it while a</p>
+<p>challenge runs, and the rule that picks a lane for a hero spawned on the library</p>
+<p>does not apply either, because there is only one lane anything is walking down.</p>
+<h3>Why a boon is paid for the kill</h3>
+<p><strong>A boon is payment for slaying a challenge monster</strong>, not for surviving a surge.</p>
+<p>That distinction is the whole reason the calm exists. A boon handed out at the</p>
+<p>moment a monster <em>appears</em> would be a menu opening while something enormous</p>
+<p>starts walking — three players reading three lists each, with a deadline, at the</p>
+<p>most frightening point in the match. A boon paid for the kill, in the quiet</p>
+<p>afterwards, is a reward you get to enjoy.</p>
+<p>Three people each picking from three options is a lot of choosing. Giving it its</p>
+<p>own phase, with an empty map, is what makes that a good minute rather than a</p>
+<p>chaotic one. **If the calm is ever shortened for pacing, the boon choice stops</p>
+<p>being a choice and becomes a thing you click through.**</p>
+<h3>What a boon is</h3>
+<table><thead>
+<tr><th></th><th>Ordinary upgrade</th><th>Boon</th></tr>
+</thead><tbody>
+<tr><td>Where it applies</td><td>one slot the players choose</td><td><strong>all three lanes at once</strong>, automatically</td></tr>
+<tr><td>Can be moved</td><td>yes</td><td>no. It has no slot.</td></tr>
+<tr><td>Survives a surge</td><td>no — a surge dumps everything into the chest</td><td><strong>yes.</strong> Kept for the rest of the match.</td></tr>
+<tr><td>Scattered by a surge</td><td>yes — dealt three ways</td><td><strong>no.</strong> A boon is on every body, always.</td></tr>
+<tr><td>Who owns it</td><td>the team</td><td><strong>the player who chose it</strong></td></tr>
+</tbody></table>
+<p>That last row is new and it matters. Everything else in the chest belongs to the</p>
+<p>whole team and can be moved by any of them. **A boon is the one thing in the game</p>
+<p>that is yours** — chosen by you, permanent, unmovable, and applying to everything</p>
+<p>your team puts on the field. In a design built almost entirely out of shared</p>
+<p>property and negotiation, a boon is a player's only moment of sole ownership.</p>
+<p><strong>And a boon reaches heroes.</strong> *Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, F4.* A lane's upgrades never do — that</p>
+<p>is A14, and it exists so that stacking one lane and buying heroes into it cannot</p>
+<p>compound. A boon is not in a lane. It has no slot, it cannot be aimed, and it is</p>
+<p>best understood as **a buff on the commander that radiates out to everything that</p>
+<p>team puts on the field.** There is no placement decision for it to multiply with,</p>
+<p>which is exactly why it is allowed where a lane upgrade is not.</p>
+<p><strong>How many accumulate</strong>, in one table, because the numbers are easy to state</p>
+<p>wrongly and this document has done so before:</p>
+<table><thead>
+<tr><th></th><th>Per event</th><th>Over a match</th></tr>
+</thead><tbody>
+<tr><td>Boon events</td><td>—</td><td><strong>two</strong> — after the Orc, after the Dragon</td></tr>
+<tr><td>Offered to each player</td><td>two</td><td>2 + 2</td></tr>
+<tr><td>Chosen by each player</td><td>one</td><td><strong>two boons per player</strong></td></tr>
+<tr><td>Gained by a three-player team</td><td>three</td><td><strong>3, then 6 — six per team</strong></td></tr>
+</tbody></table>
+<p>So both sides finish a match running six permanent, team-wide upgrades nobody can</p>
+<p>move and nothing can take away, and soldiers late in a match are simply bigger</p>
+<p>than soldiers early in one. <strong>That accumulating floor is the match's arc.</strong></p>
+<p>And each player gets exactly <strong>two moments of sole ownership</strong> in a design</p>
+<p>otherwise built entirely out of shared property and negotiation — both of them</p>
+<p>paid for by killing something enormous.</p>
+<hr>
+<h2>The Eternal Golem</h2>
+<p>**The third challenge, always. Two of them, one per team, and neither can be</p>
+<p>killed.**</p>
+<p>This is what ends a match. Three surges is a finite structure, and without</p>
+<p>something after the third one a match has no escalation left and could grind</p>
+<p>indefinitely. The Golem is that something, and it is not a timer or a scoring</p>
+<p>rule — it is a body, walking, that nobody can stop.</p>
+<h3>Health <em>is</em> speed, and the wound heals faster the deeper it is</h3>
+<p>The Golem needs no new systems and almost no new numbers. It has ordinary health,</p>
+<p>takes ordinary damage through the ordinary buffered pass, and two rules do the</p>
+<p>rest:</p>
+<ul>
+<li><strong>Its speed is a function of its health fraction.</strong> Full health is full speed.</li>
+</ul>
+<p>   The more damaged it is, the slower it walks.</p>
+<ul>
+<li><strong>Its health regenerates, and regenerates faster the lower it is.</strong> A Golem at</li>
+</ul>
+<p>   a sliver heals ferociously. A Golem near full barely heals at all.</p>
+<p>Those two together are the whole endgame, and they produce three things nobody</p>
+<p>had to design separately.</p>
+<p><strong>It cannot be killed, and not by a rule saying so.</strong> The regeneration curve</p>
+<p>climbs as the health falls, so the damage required to push it the last stretch</p>
+<p>toward zero rises without limit. Nothing needs an immunity flag or a special case</p>
+<p>in the resolve pass. <strong>It is unkillable arithmetically</strong>, which is a much better</p>
+<p>kind of unkillable than a checkbox — a team can watch themselves failing to do it</p>
+<p>and understand exactly why.</p>
+<p><strong>It finds an equilibrium.</strong> For any sustained damage output there is a health</p>
+<p>level where incoming damage and regeneration cancel, and therefore a speed the</p>
+<p>Golem settles at. A team is not chipping something down; **they are holding a</p>
+<p>needle at a number.** Push harder and the needle moves and stays moved. Slack off</p>
+<p>for ten seconds and it snaps back, because low health means fast healing.</p>
+<p><strong>Progress is never kept.</strong> Every other fight in this game is an accumulation —</p>
+<p>you chip a thing down and what you did stays done. The Golem is the one fight</p>
+<p>where it does not. You are not reducing something, you are holding something</p>
+<p>back, and the moment you stop holding, it returns to exactly where it was before</p>
+<p>you started, quickly.</p>
+<p>So it is, explicitly, a <strong>damage check on a timer</strong>: the two teams are running</p>
+<p>the same test side by side, and the one that sustains more damage output holds</p>
+<p>its needle lower for longer. That is the whole of what the endgame measures.</p>
+<p>For the viewer, this has a consequence that is either a problem or a gift: **the</p>
+<p>Golem's health bar is a speedometer.** It is the only body in the game where that</p>
+<p>bar does not mean "how close to dead" — it means "how fast is it coming." Drawing</p>
+<p>it as an ordinary health bar would be an active lie, so it should not be one.</p>
+<h3>It does not path. It walks at the library.</h3>
+<p><strong>The Golem does not acquire targets and does not go around anything.</strong> It walks</p>
+<p>the centre lane in a straight line toward the library and never deviates. There</p>
+<p>is no closing state and no fighting state for it — the frontline is not something</p>
+<p>it engages, it is something that happens to it on the way.</p>
+<p>That is what makes the fight legible from any distance. Nothing a team does</p>
+<p>changes <em>where</em> it is going or whether it will stop, because it will not stop.</p>
+<p>The only variable in the entire endgame is <strong>how fast</strong>, and a player can read</p>
+<p>that off the map without a number anywhere.</p>
+<h3>What it does to what it walks into</h3>
+<p>It is not harmless while it walks. It kills what it meets, and it kills melee and</p>
+<p>ranged bodies differently:</p>
+<ul>
+<li><strong>Melee bodies it reaches, it grabs and crushes.</strong> Anything that closed to</li>
+</ul>
+<p>  swinging distance is inside its arms.</p>
+<ul>
+<li><strong>Ranged bodies standing off, it answers at range</strong> — something thrown, or</li>
+</ul>
+<p>  something worse.</p>
+<p>What exactly the ranged answer is has not been decided and is <strong>F25</strong>. What is</p>
+<p>decided is the shape: **standing close to it is lethal, and standing back is not</p>
+<p>safe either**, so there is no distance at which a team is farming it for free.</p>
+<p>Its damage is what makes sustaining the damage check hard, because the bodies</p>
+<p>doing the damage keep dying.</p>
+<h3>The waves are its rhythm</h3>
+<p>With spawning back to waves and all three lanes funnelling into the wide center,</p>
+<p>a Golem fights a whole team at once — and then, in the gap before the next wave,</p>
+<p>it speeds up and takes ground. A match's final minutes are that pulse: slow,</p>
+<p>lurch, slow, lurch, each lurch a little closer to somebody's library.</p>
+<h3>It pays nothing, and there is no calm afterwards</h3>
+<p><strong>No boon, and no payout for the kill, because there is no kill.</strong> The Golem</p>
+<p>cannot die, so there is nothing to be paid for killing it and nothing to</p>
+<p>position a hero for. It is the one thing on the map that gives back nothing at</p>
+<p>all.</p>
+<p><strong>Everything else still pays.</strong> *Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, F9.* Waves keep spawning into the</p>
+<p>centre at the normal interval, bodies keep dying, and every death still pays</p>
+<p>every player on the opposing team. An earlier draft of this document called the</p>
+<p>third challenge "the one stretch of a match with no economy in it at all," which</p>
+<p>took a true statement about the Golem and made it a false one about the phase.</p>
+<p>What is genuinely gone is the <em>other</em> economy and the future. There is no calm</p>
+<p>coming, so no boon and no raise to the wallet's ceiling; and every upgrade the</p>
+<p>team owns is already applying to the wave units in the centre, so there is</p>
+<p>nothing left to arrange. The chest has stopped being a decision.</p>
+<p>So the endgame is the stretch where **personal resource is the only live</p>
+<p>variable.** Heroes are the only thing a team can still add to the corridor, they</p>
+<p>are bought out of a wallet that will never be raised again, and how long a team</p>
+<p>holds its Golem back is very largely how well it spends.</p>
+<h3>It advances until a library falls</h3>
+<p>The Golem does not despawn, cannot be killed, and has no end condition of its</p>
+<p>own. Each team's Golem advances until it reaches that team's library, and the</p>
+<p>first one to arrive anywhere ends the match. The two teams never touch each</p>
+<p>other's; each is holding back its own, and <strong>the winner is whoever held longest.</strong></p>
+<h3>What it is</h3>
+<p>Quoted as it was first written, because it is the most important sentence anybody</p>
+<p>has written about this game:</p>
+<blockquote><p>It doesn't die! It's eternal! It's deathless! It's the same golem in every</p></blockquote>
+<blockquote><p>game, watching you play and learning how you fight! Too bad it can't do much</p></blockquote>
+<blockquote><p>about it because it's made out of [redacted].</p></blockquote>
+<p><strong>It is the same Golem in every match.</strong> Not a fresh instance of a monster type —</p>
+<p><em>the</em> Golem, the one from last time, and the time before. It watches. It learns.</p>
+<p>And it can do nothing with what it knows, because of what it is made of.</p>
+<p>In a world where <a href='021-nobody-remembers-why.html'>nobody remembers why</a>, the Golem</p>
+<p>is the only thing that remembers everything, and it is built out of something that</p>
+<p>prevents it acting on the memory.</p>
+<p>Mechanically it learns nothing and no part of the simulation consults a previous</p>
+<p>match. Those two facts are allowed to sit next to each other. Making it actually</p>
+<p>adapt would require the game to remember matches, which is a large feature in</p>
+<p>service of a line that works better unimplemented.</p>
+<p>What it is made of is not written down, and should stay not written down.</p>
+<p>Related: <a href='014-the-siege-surge.html'>the siege-surge</a> ·</p>
+<p><a href='002-the-map-and-its-milestones.html'>the map</a> ·</p>
+<p><a href='008-the-base-and-the-library.html'>the base and the library</a> ·</p>
+<p><a href='021-nobody-remembers-why.html'>nobody remembers why</a> ·</p>
+<p><a href='004-a-unit-and-what-it-carries.html'>a unit and what it carries</a></p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+// Filtering the contents. The only script on the page, and it exists because there
+// are more than eighty documents here and scrolling a list of eighty things to find
+// one is not navigation.
+var box = document.getElementById('filter');
+box.addEventListener('input', function () {
+  var want = box.value.toLowerCase();
+  var rail = document.getElementById('contents');
+  rail.querySelectorAll('section').forEach(function (section) {
+    var shown = 0;
+    section.querySelectorAll('a').forEach(function (link) {
+      var match = link.textContent.toLowerCase().indexOf(want) !== -1;
+      link.style.display = match ? '' : 'none';
+      if (match) { shown++; }
+    });
+    section.style.display = shown ? '' : 'none';
+  });
+});
+</script>
+</body></html>

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+#
+# build-documentation -- turns every document, issue and companion into browsable,
+# cross-linked HTML.
+#
+# This project is read far more than it is run. There are more words in it than code,
+# the words came first, and reconstructing the software means reading them -- but they
+# reference each other constantly, and a directory of files is a bad way to follow a
+# reference.
+#
+# So: every page reachable from every other, a table of contents down the side that
+# can be filtered, and every issue number a link. That last one matters more than it
+# sounds; the documents mention issues by number a couple of hundred times, and
+# following one by hand means knowing the naming convention, guessing the description,
+# and listing a directory.
+#
+# The Markdown is the data and these pages are a view of it, generated rather than
+# maintained -- the same rule the simulation and the viewer follow, applied to the
+# project's own prose. Do not edit the output.
+#
+# Usage:
+#   ./build-documentation              -- build into docs/HTML/
+#   ./build-documentation /path/to/prj
+
+DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
+if [ -d "$1/issues" ] && [ -d "$1/src" ]; then
+    DIR="$1"
+fi
+
+luajit -e "
+local root = '${DIR}'
+local tick_module = loadfile(root .. '/src/042-the-tick.lua')()
+local modules = tick_module.load_cast(root)
+local builder = loadfile(root .. '/src/064-the-documentation-becomes-html.lua')()
+local written, where = builder.build(root, modules)
+print(string.format('%d pages written to %s', written, where))
+print('open ' .. where .. '/index.html')
+"

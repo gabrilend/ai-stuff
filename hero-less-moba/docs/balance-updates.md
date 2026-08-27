@@ -178,3 +178,62 @@ defect, but it means the escalation has to outrun the compounding, and 31000 doe
 by enough.
 
 Related open questions: B2 (surge length and stream rate), B11.
+
+## 2026-08-27 — the first numbers from playing it many times
+
+No knobs turned. This is the first run of `./run-many-matches`, which is the thing
+every question marked *awaiting evidence* has been waiting on, and what it produced is
+a list of things to turn rather than a turn.
+
+Twelve matches to a 30000-tick limit, both sides played by the measuring bot:
+
+    team 1 won                     5 of 12
+    team 2 won                     7 of 12
+    drawn                          0
+    never finished                 0
+    a decided match lasts          9.6 minutes
+    upgrades drawn per match       167
+    of those, ever placed          89%
+    heroes bought per match        531
+    income thrown away per match   4788
+    surges / challenges per match  1.7 / 1.7
+
+**Every match finished.** None hit the tick limit and none was a draw, which is the
+phase table doing its job — before it existed, two even sides ground until somebody
+stopped watching.
+
+**Heroes are far too cheap.** Five hundred and thirty-one purchases across six players
+in under ten minutes is a hero every six seconds each. They are supposed to be a
+decision — when to bank, when to spend, which of the five — and at this price there is
+no decision, only a rate. Either costs go up sharply or income comes down, and the
+next number says which.
+
+**Income overwhelms everything.** Nearly five thousand points thrown away per match
+*after* buying five hundred heroes. A full colour loses what arrives at it, so that
+figure is pure overflow: the wallets are full essentially all the time. The die ladder
+was meant to be pressure to spend; it is currently a wall that income sits against.
+
+The two together point at the payout rather than at the prices. A body is worth 1 and
+a captain 3, per player, and both teams kill a great many bodies — which was sized
+before there was anything to spend it on.
+
+**A match ends before the third challenge**, at 1.7 of them. The Golem almost never
+arrives, which means the design's guarantee of termination is being provided by
+somebody winning normally rather than by the thing built to provide it. Not wrong, but
+worth knowing: the Golem is currently a safety net rather than an ending.
+
+Related open questions: B5 through B9 all now have a first measurement, and **G4 is
+answered below**.
+
+## 2026-08-27 — the runner had to be made parallel before it was any use
+
+One match is a single-threaded walk over flat arrays and will not go faster. A thousand
+matches are a thousand independent walks and were being done one at a time, at thirty
+seconds each — which puts ten thousand matches at three and a half days, and the entire
+point of the thing is that you read the table in the morning.
+
+It splits the seed range across one worker per core now. Sixteen matches in ninety-seven
+seconds on fourteen cores, so ten thousand is a long night rather than a long weekend.
+
+Each worker takes every Nth seed rather than a contiguous block, so a short run still
+spreads across the range instead of giving one worker all the low seeds.

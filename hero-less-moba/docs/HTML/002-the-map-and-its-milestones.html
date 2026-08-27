@@ -1,0 +1,515 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>002 — The Map and Its Milestones -- hero-less-moba</title><style>:root {
+  --ground:   #0d0f13;
+  --panel:    #14171d;
+  --edge:     #232833;
+  --ink:      #c7ccd6;
+  --dim:      #7d8492;
+  --warm:     #f5a83d;
+  --cold:     #5cc7ee;
+  --bone:     #e0ded8;
+  --blood:    #b81313;
+  --green:    #78c96e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 15.5px/1.65 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+a { color: var(--cold); text-decoration: none; border-bottom: 1px solid #2b4d5c; }
+a:hover { color: var(--warm); border-bottom-color: var(--warm); }
+
+#shell { display: flex; min-height: 100vh; }
+
+#contents {
+  width: 292px; flex: 0 0 292px; background: var(--panel);
+  border-right: 1px solid var(--edge); padding: 20px 0 60px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+#contents h1 {
+  font-size: 15px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--warm); margin: 0 20px 4px; font-weight: 600;
+}
+#contents .tagline { margin: 0 20px 18px; color: var(--dim); font-size: 12.5px; font-style: italic; }
+#contents section { margin-bottom: 14px; }
+#contents h2 {
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--dim); margin: 14px 20px 5px; font-weight: 600;
+}
+#contents a {
+  display: block; padding: 3px 20px 3px 20px; border: 0;
+  font-size: 13.5px; color: var(--ink); line-height: 1.4;
+}
+#contents a:hover { background: #1b1f27; color: var(--warm); }
+#contents a.here { background: #1b1f27; color: var(--warm); border-left: 3px solid var(--warm); padding-left: 17px; }
+#contents .index { color: var(--dim); font-variant-numeric: tabular-nums; margin-right: 7px; }
+
+#filter {
+  margin: 0 20px 12px; width: calc(100% - 40px); background: var(--ground);
+  border: 1px solid var(--edge); color: var(--ink); padding: 6px 9px;
+  font: inherit; font-size: 13px; border-radius: 3px;
+}
+#filter:focus { outline: 0; border-color: var(--warm); }
+
+#page { flex: 1; min-width: 0; padding: 42px 56px 120px; max-width: 900px; }
+h1, h2, h3, h4 { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; line-height: 1.25; }
+h1 { font-size: 30px; color: var(--warm); margin: 0 0 26px; font-weight: 600; }
+h2 { font-size: 21px; color: var(--bone); margin: 38px 0 12px; font-weight: 600;
+     border-bottom: 1px solid var(--edge); padding-bottom: 7px; }
+h3 { font-size: 16.5px; color: var(--cold); margin: 26px 0 8px; font-weight: 600; }
+h4 { font-size: 14.5px; color: var(--dim); margin: 20px 0 6px;
+     text-transform: uppercase; letter-spacing: .09em; }
+p { margin: 0 0 15px; }
+strong { color: var(--bone); font-weight: 600; }
+em { color: var(--dim); }
+hr { border: 0; border-top: 1px solid var(--edge); margin: 34px 0; }
+
+blockquote {
+  margin: 20px 0; padding: 3px 0 3px 20px; border-left: 3px solid var(--warm);
+  color: var(--bone); font-style: italic;
+}
+blockquote p { margin: 0 0 8px; }
+blockquote p:last-child { margin: 0; }
+
+ul, ol { margin: 0 0 15px; padding-left: 24px; }
+li { margin-bottom: 5px; }
+
+table { border-collapse: collapse; margin: 20px 0; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+th { color: var(--dim); font-weight: 600; text-transform: uppercase;
+     letter-spacing: .08em; font-size: 11.5px; }
+tr:hover td { background: #161a21; }
+
+code {
+  font-family: "Berkeley Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px; background: #191d25; padding: 1.5px 5px; border-radius: 3px;
+  color: var(--bone);
+}
+pre {
+  background: #10131a; border: 1px solid var(--edge); border-left: 3px solid var(--cold);
+  padding: 14px 17px; overflow-x: auto; border-radius: 3px; margin: 18px 0;
+}
+pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.6; }
+
+.kw { color: #d68fd6; }
+.str { color: var(--green); }
+.num { color: var(--warm); }
+.cmt { color: #5d6472; font-style: italic; }
+
+.issue-link { border-bottom: 1px dotted var(--warm); color: var(--warm); }
+.badge {
+  display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle;
+  font-family: "Inter", sans-serif;
+}
+.badge.built { background: #1c3320; color: var(--green); }
+.badge.part  { background: #33301c; color: var(--warm); }
+.badge.none  { background: #22262e; color: var(--dim); }
+
+figure { margin: 24px 0; }
+figcaption { color: var(--dim); font-size: 13px; font-style: italic; margin-top: 8px; }
+svg { max-width: 100%; }
+
+#page > footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--edge);
+                 color: var(--dim); font-size: 13px; }
+</style></head><body><div id='shell'><nav id='contents'>
+<h1>hero-less-moba</h1>
+<p class='tagline'>a lane-pushing game with the heroes subtracted out</p>
+<input id='filter' placeholder='filter&hellip;' autocomplete='off'>
+<a href='index.html'>the front page</a>
+<section><h2>start here</h2>
+<a href='vision.html'>vision</a>
+<a href='vision-2.html'>vision-2</a>
+<a href='vision-3.html'>vision-3</a>
+<a href='what-the-first-boss-looks-like.html'>what-the-first-boss-looks-like</a>
+</section>
+<section><h2>the design</h2>
+<a href='001-what-this-game-is.html'><span class='index'>001</span>What This Game Is</a>
+<a href='002-the-map-and-its-milestones.html' class='here'><span class='index'>002</span>The Map and Its Milestones</a>
+<a href='003-the-simulation-tick.html'><span class='index'>003</span>The Simulation Tick</a>
+<a href='004-a-unit-and-what-it-carries.html'><span class='index'>004</span>A Unit and What It Carries</a>
+<a href='005-waves-and-when-one-is-finished.html'><span class='index'>005</span>Waves, and When One Is Finished</a>
+<a href='006-combat-and-damage.html'><span class='index'>006</span>Combat and Damage</a>
+<a href='007-guard-towers-and-their-guards.html'><span class='index'>007</span>Guard Towers and Their Guards</a>
+<a href='008-the-base-and-the-library.html'><span class='index'>008</span>The Base and the Library</a>
+<a href='009-the-shared-upgrade-pool.html'><span class='index'>009</span>The Shared Upgrade Pool</a>
+<a href='010-upgrades-slotted-into-stone.html'><span class='index'>010</span>Upgrades Slotted Into Stone</a>
+<a href='011-commanders-and-personal-resource.html'><span class='index'>011</span>Commanders and Personal Resource</a>
+<a href='012-hero-units.html'><span class='index'>012</span>Hero Units</a>
+<a href='013-signposts-and-lane-routing.html'><span class='index'>013</span>Sign-Posts and Lane Routing</a>
+<a href='014-the-siege-surge.html'><span class='index'>014</span>The Siege-Surge</a>
+<a href='015-boons-and-the-challenge.html'><span class='index'>015</span>Boons and the Challenge</a>
+<a href='016-players-teams-and-commands.html'><span class='index'>016</span>Players, Teams, and Commands</a>
+<a href='017-the-viewing-layer.html'><span class='index'>017</span>The Viewing Layer</a>
+<a href='018-the-shape-of-the-code.html'><span class='index'>018</span>The Shape of the Code</a>
+<a href='019-roadmap.html'><span class='index'>019</span>Roadmap</a>
+<a href='020-open-questions.html'><span class='index'>020</span>Open Questions</a>
+<a href='021-nobody-remembers-why.html'><span class='index'>021</span>Nobody Remembers Why</a>
+<a href='022-standing-off-and-falling-back.html'><span class='index'>022</span>Standing Off and Falling Back</a>
+<a href='023-ways-this-could-go-wrong.html'><span class='index'>023</span>Ways This Could Go Wrong</a>
+</section>
+<section><h2>issues</h2>
+<a href='101-the-path-graph-is-built-by-a-tool.html'><span class='index'>101</span>The Path Graph Is Built by a Tool</a>
+<a href='102-milestones-measure-a-push.html'><span class='index'>102</span>Milestones Measure a Push</a>
+<a href='103-the-world-is-flat-arrays.html'><span class='index'>103</span>The World Is Flat Arrays</a>
+<a href='104-the-tick-is-a-dispatch-table.html'><span class='index'>104</span>The Tick Is a Dispatch Table</a>
+<a href='105-randomness-comes-from-named-streams.html'><span class='index'>105</span>Randomness Comes From Named Streams</a>
+<a href='106-commands-enter-through-one-door.html'><span class='index'>106</span>Commands Enter Through One Door</a>
+<a href='107-snapshots-and-replays.html'><span class='index'>107</span>Snapshots and Replays</a>
+<a href='108-the-headless-runner.html'><span class='index'>108</span>The Headless Runner</a>
+<a href='109-a-terminal-viewer-so-we-are-not-blind.html'><span class='index'>109</span>A Terminal Viewer, So We Are Not Blind</a>
+<a href='110-a-scenario-you-can-hold-at-the-gate.html'><span class='index'>110</span>A Scenario You Can Hold at the Gate</a>
+<a href='201-a-soldier-is-one-record.html'><span class='index'>201</span>A Soldier Is One Record</a>
+<a href='202-walking-an-edge-of-the-graph.html'><span class='index'>202</span>Walking an Edge of the Graph</a>
+<a href='203-the-brain-is-five-states.html'><span class='index'>203</span>The Brain Is Five States</a>
+<a href='204-choosing-what-to-attack.html'><span class='index'>204</span>Choosing What to Attack</a>
+<a href='205-damage-is-buffered-then-applied.html'><span class='index'>205</span>Damage Is Buffered, Then Applied</a>
+<a href='206-the-frontline-is-a-queue.html'><span class='index'>206</span>The Frontline Is a Queue</a>
+<a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
+<a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
+<a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
+<a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
+<a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
+<a href='304-guards-are-leashed.html'><span class='index'>304</span>Guards Are Leashed</a>
+<a href='305-the-base-is-one-open-room.html'><span class='index'>305</span>The Base Is One Open Room</a>
+<a href='306-felling-a-tower-pays-three.html'><span class='index'>306</span>Felling a Tower Pays Three</a>
+<a href='307-the-library-ends-the-game.html'><span class='index'>307</span>The Library Ends the Game</a>
+<a href='401-the-upgrade-catalogue.html'><span class='index'>401</span>The Upgrade Catalogue</a>
+<a href='402-an-instance-is-a-thing-in-a-place.html'><span class='index'>402</span>An Instance Is a Thing in a Place</a>
+<a href='403-wiping-a-wave-draws-an-upgrade.html'><span class='index'>403</span>Wiping a Wave Draws an Upgrade</a>
+<a href='404-placing-an-upgrade-into-a-lane.html'><span class='index'>404</span>Placing an Upgrade Into a Lane</a>
+<a href='405-a-soldier-is-stamped-at-birth.html'><span class='index'>405</span>A Soldier Is Stamped at Birth</a>
+<a href='408-slotting-upgrades-into-stone.html'><span class='index'>408</span>Slotting Upgrades Into Stone</a>
+<a href='409-the-base-inherits-every-lane.html'><span class='index'>409</span>The Base Inherits Every Lane</a>
+<a href='410-the-library-slot-is-the-last-stand.html'><span class='index'>410</span>The Library Slot Is the Last Stand</a>
+<a href='411-rerolling-the-deck.html'><span class='index'>411</span>Rerolling the Deck</a>
+<a href='412-contributing-a-stone.html'><span class='index'>412</span>Contributing a Stone</a>
+<a href='413-staking-a-die-to-share.html'><span class='index'>413</span>Staking a Die to Share</a>
+<a href='501-the-commander-catalogue.html'><span class='index'>501</span>The Commander Catalogue</a>
+<a href='502-killing-pays-everyone-on-the-team.html'><span class='index'>502</span>Killing Pays Everyone on the Team</a>
+<a href='503-a-hero-is-a-soldier-you-bought.html'><span class='index'>503</span>A Hero Is a Soldier You Bought</a>
+<a href='504-abilities-are-a-dispatch-table.html'><span class='index'>504</span>Abilities Are a Dispatch Table</a>
+<a href='505-spawning-onto-a-wave.html'><span class='index'>505</span>Spawning Onto a Wave</a>
+<a href='506-spawning-onto-a-tower-and-being-pushed-back.html'><span class='index'>506</span>Spawning Onto a Tower, and Being Pushed Back</a>
+<a href='507-spawning-onto-the-library-picks-the-worst-lane.html'><span class='index'>507</span>Spawning Onto the Library Picks the Worst Lane</a>
+<a href='508-signposts-stand-at-the-corners.html'><span class='index'>508</span>Sign-Posts Stand at the Corners</a>
+<a href='509-five-heroes-for-the-first-commander.html'><span class='index'>509</span>Five Heroes for the First Commander</a>
+<a href='510-the-healers-and-what-they-remember.html'><span class='index'>510</span>The Healers, and What They Remember</a>
+<a href='601-the-phase-table.html'><span class='index'>601</span>The Phase Table</a>
+<a href='602-the-surge-turns-waves-into-a-stream.html'><span class='index'>602</span>The Surge Turns Waves Into a Stream</a>
+<a href='603-the-chest-dealt-across-the-three.html'><span class='index'>603</span>The Chest, Dealt Across the Three</a>
+<a href='605-boons-and-the-calm.html'><span class='index'>605</span>Boons, and the Calm They Are Chosen In</a>
+<a href='606-what-walks-out-of-the-middle.html'><span class='index'>606</span>What Walks Out of the Middle</a>
+<a href='607-every-lane-spawns-into-the-center.html'><span class='index'>607</span>Every Lane Spawns Into the Center</a>
+<a href='608-the-deadline-is-the-walk.html'><span class='index'>608</span>The Deadline Is the Walk</a>
+<a href='701-the-window-and-the-two-snapshots.html'><span class='index'>701</span>The Window and the Two Snapshots</a>
+<a href='702-the-map-draws-itself.html'><span class='index'>702</span>The Map Draws Itself</a>
+<a href='703-the-chest-panel-and-the-drag.html'><span class='index'>703</span>The Chest Panel and the Drag</a>
+<a href='704-locks-objections-and-refusals-are-loud.html'><span class='index'>704</span>Locks, Objections, and Refusals Are Loud</a>
+<a href='705-the-signposts-are-clickable-in-the-world.html'><span class='index'>705</span>The Sign-Posts Are Clickable in the World</a>
+<a href='706-the-documentation-becomes-html.html'><span class='index'>706</span>The Documentation Becomes HTML</a>
+<a href='707-the-way-in.html'><span class='index'>707</span>The Way In</a>
+<a href='708-the-camera-is-a-lens-you-push-into.html'><span class='index'>708</span>The Camera Is a Lens You Push Into</a>
+<a href='801-reconciling-across-machines.html'><span class='index'>801</span>Reconciling Across Machines</a>
+<a href='802-the-lobby-and-commander-selection.html'><span class='index'>802</span>The Lobby and Commander Selection</a>
+<a href='803-a-bot-that-places-upgrades.html'><span class='index'>803</span>A Bot That Places Upgrades</a>
+<a href='804-ten-thousand-matches-overnight.html'><span class='index'>804</span>Ten Thousand Matches Overnight</a>
+<a href='805-a-full-match-end-to-end.html'><span class='index'>805</span>A Full Match, End to End</a>
+<a href='806-three-people-can-finally-talk.html'><span class='index'>806</span>Three People Can Finally Talk</a>
+<a href='901-what-a-bot-is-allowed-to-see.html'><span class='index'>901</span>What a Bot Is Allowed to See</a>
+<a href='902-reading-a-board-into-a-handful-of-numbers.html'><span class='index'>902</span>Reading a Board Into a Handful of Numbers</a>
+<a href='903-a-teammate-that-does-not-trample-you.html'><span class='index'>903</span>A Teammate That Does Not Trample You</a>
+<a href='904-buying-bodies-and-pointing-them.html'><span class='index'>904</span>Buying Bodies and Pointing Them</a>
+<a href='905-difficulty-without-cheating.html'><span class='index'>905</span>Difficulty Without Cheating</a>
+<a href='906-one-person-five-bots.html'><span class='index'>906</span>One Person, Five Bots</a>
+</section>
+<section><h2>progress</h2>
+<a href='phase-1-progress.html'>Phase 1 Progress — The Ground and the Clock</a>
+<a href='phase-2-progress.html'>Phase 2 Progress — Things That Walk and Fight</a>
+<a href='phase-3-progress.html'>Phase 3 Progress — Things That Stand and Hold</a>
+<a href='phase-4-progress.html'>Phase 4 Progress — The Shared Chest</a>
+<a href='phase-5-progress.html'>Phase 5 Progress — Commanders and Heroes</a>
+<a href='phase-6-progress.html'>Phase 6 Progress — The Surge and the Challenge</a>
+<a href='phase-7-progress.html'>Phase 7 Progress — Watching It Happen</a>
+<a href='phase-8-progress.html'>Phase 8 Progress — Six Players</a>
+<a href='phase-9-progress.html'>Phase 9 Progress — An Opponent Worth Playing</a>
+</section>
+<section><h2>the simulation</h2>
+<a href='028-match-parameters.info.html'><span class='index'>028</span>match-parameters</a>
+<a href='029-random-streams.info.html'><span class='index'>029</span>random-streams</a>
+<a href='030-map-builder.info.html'><span class='index'>030</span>map-builder</a>
+<a href='031-map-validator.info.html'><span class='index'>031</span>map-validator</a>
+<a href='032-the-world.info.html'><span class='index'>032</span>the-world</a>
+<a href='033-commands.info.html'><span class='index'>033</span>commands</a>
+<a href='034-walking.info.html'><span class='index'>034</span>walking</a>
+<a href='035-targeting.info.html'><span class='index'>035</span>targeting</a>
+<a href='036-the-frontline.info.html'><span class='index'>036</span>the-frontline</a>
+<a href='037-the-brain.info.html'><span class='index'>037</span>the-brain</a>
+<a href='038-combat.info.html'><span class='index'>038</span>combat</a>
+<a href='039-waves.info.html'><span class='index'>039</span>waves</a>
+<a href='040-structures.info.html'><span class='index'>040</span>structures</a>
+<a href='041-the-chest.info.html'><span class='index'>041</span>the-chest</a>
+<a href='042-the-tick.info.html'><span class='index'>042</span>the-tick</a>
+<a href='043-snapshot.info.html'><span class='index'>043</span>snapshot</a>
+<a href='044-headless-runner.info.html'><span class='index'>044</span>headless-runner</a>
+<a href='045-terminal-viewer.info.html'><span class='index'>045</span>terminal-viewer</a>
+<a href='046-the-camera.info.html'><span class='index'>046</span>the-camera</a>
+<a href='047-the-renderer.info.html'><span class='index'>047</span>the-renderer</a>
+<a href='048-the-panel.info.html'><span class='index'>048</span>the-panel</a>
+<a href='049-input.info.html'><span class='index'>049</span>input</a>
+<a href='050-the-viewer.info.html'><span class='index'>050</span>the-viewer</a>
+<a href='052-formations.info.html'><span class='index'>052</span>formations</a>
+<a href='054-commanders.info.html'><span class='index'>054</span>commanders</a>
+<a href='055-abilities.info.html'><span class='index'>055</span>abilities</a>
+<a href='056-signposts.info.html'><span class='index'>056</span>signposts</a>
+<a href='058-phases.info.html'><span class='index'>058</span>phases</a>
+<a href='059-a-bot-that-plays.info.html'><span class='index'>059</span>a-bot-that-plays</a>
+<a href='061-the-stones.info.html'><span class='index'>061</span>the-stones</a>
+<a href='062-the-rest-of-the-brain.info.html'><span class='index'>062</span>the-rest-of-the-brain</a>
+<a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
+<a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
+</section>
+<section><h2>the catalogues</h2>
+<a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
+<a href='025-unit-table.info.html'><span class='index'>025</span>unit-table</a>
+<a href='026-structure-table.info.html'><span class='index'>026</span>structure-table</a>
+<a href='027-upgrade-table.info.html'><span class='index'>027</span>upgrade-table</a>
+<a href='053-commander-table.info.html'><span class='index'>053</span>commander-table</a>
+<a href='057-boon-table.info.html'><span class='index'>057</span>boon-table</a>
+</section>
+<section><h2>the tests</h2>
+<a href='051-the-invariants.info.html'><span class='index'>051</span>the-invariants</a>
+<a href='060-the-formation-sandbox.info.html'><span class='index'>060</span>the-formation-sandbox</a>
+</section>
+</nav><main id='page'><h1>002 — The Map and Its Milestones</h1>
+<p><strong>Datapath document.</strong> Covers the static world: what the ground is made of, how a</p>
+<p>soldier knows which way to walk, and how the game answers "which lane is in the</p>
+<p>most trouble?" without ever measuring a straight-line distance.</p>
+<h2>The ground is a graph, not a grid</h2>
+<p>There is no terrain, no jungle, and no off-road movement. Everything that walks,</p>
+<p>walks on a <strong>path graph</strong>: a fixed set of numbered points joined by edges. A</p>
+<p>soldier's position is always "on the edge between point 14 and point 15, 0.62 of</p>
+<p>the way along." This is chosen over a tile grid or free 2D steering for three</p>
+<p>reasons:</p>
+<ul>
+<li>Pathfinding collapses to "read the next node id out of an array." No A*, no</li>
+</ul>
+<p>   flow field, no per-tick search. With a thousand soldiers on the map that</p>
+<p>   difference is the whole frame budget.</p>
+<ul>
+<li>"How far has this lane been pushed" becomes a small integer comparison rather</li>
+</ul>
+<p>   than a geometry problem. See <em>milestones</em>, below.</p>
+<ul>
+<li>The graph is authored once and never changes at runtime, so it can live in a</li>
+</ul>
+<p>   flat, cache-friendly array and be shared read-only across every worker thread</p>
+<p>   in the simulation's pool.</p>
+<p>The graph is generated by a map-building tool, not typed out by hand. There is no</p>
+<p>map editor and no map file format to hand-edit; the tool takes the handful of</p>
+<p>shape parameters below and emits the node array.</p>
+<h2>The shape</h2>
+<p>Two bases at opposite corners of a square field, and **one lane per player on a</p>
+<p>team** — three of them at the size this prototype targets. See</p>
+<p><a href='016-players-teams-and-commands.html'>players, teams, and commands</a>, and F10 in</p>
+<p><a href='020-open-questions.html'>open questions</a>: the lane count, and therefore the tower</p>
+<p>count and the milestone count, are all derived from the team size rather than</p>
+<p>written down as constants.</p>
+<p>With team 1's base at the bottom-left and team 2's at the top-right:</p>
+<ul>
+<li><strong>Lane 1 (top)</strong> leaves team 1's base heading up the left edge, **bends once at</li>
+</ul>
+<p>  the top-left corner**, runs along the top edge, and enters team 2's base.</p>
+<ul>
+<li><strong>Lane 2 (center)</strong> runs corner to corner in a straight diagonal.</li>
+<li><strong>Lane 3 (bottom)</strong> mirrors lane 1 along the bottom and right edges, bending</li>
+</ul>
+<p>  once at the bottom-right corner.</p>
+<p>Each side lane's bend is <strong>rounded into a curve</strong> rather than left as a vertex. A</p>
+<p>formation cannot walk round a corner with no radius: the body on the outside would</p>
+<p>have to cover most of an arc in a single step. See the shape parameters.</p>
+<p><strong>There are three junctions, not four</strong>, and they sit on the field's <em>other</em></p>
+<p>diagonal: the top-left corner, the middle of the field, and the bottom-right</p>
+<p>corner. Each side lane bends once, at its own corner; the centre lane's junction</p>
+<p>is its midpoint, which is a plain point on a straight line rather than a bend.</p>
+<p>A short <strong>connector</strong> edge joins each side lane's junction to the middle. That</p>
+<p>diagonal is the ground that used to be jungle, with everything that made it</p>
+<p>jungle taken out of it. Nothing spawns on a connector, nothing camps there, and</p>
+<p>no tower covers it. Side lanes do not touch each other; the only way from top to</p>
+<p>bottom is through the centre.</p>
+<p><strong>Both connectors land on the same node</strong> — the centre lane's midpoint — which is</p>
+<p>what makes the middle a single place every cross-map route passes through rather</p>
+<p>than two separate crossings. It is also why that one node has four neighbours</p>
+<p>where every other junction has three.</p>
+<p>Giving the centre lane a junction of its own is what makes the middle a place a</p>
+<p>body can leave. The earlier four-junction layout put every junction on a side</p>
+<p>lane, so anything that walked into the centre was committed to it permanently —</p>
+<p>which was never a decision anybody made. See</p>
+<p><a href='013-signposts-and-lane-routing.html'>sign-posts and lane routing</a>.</p>
+<h2>Lanes have a width, and the center's is greater</h2>
+<p>Each lane carries a <strong>width</strong> in paces.</p>
+<p><strong>The center lane is wider than the side lanes.</strong> Permanently, as topography —</p>
+<p>not as a rule that switches on during a challenge.</p>
+<p><strong>The width decides how wide a wave marches</strong>, and the centre's is derived rather</p>
+<p>than chosen: three formations stand abreast there during a challenge — a side lane's,</p>
+<p>the centre's, and the other side lane's — and the width is how much road that takes.</p>
+<p>That is what the centre lane is wide for, and it is the reason this document gave</p>
+<p>before there was arithmetic to put behind it. The consequence the section below</p>
+<p>describes still holds, by a slightly different route: a wave marching up the middle</p>
+<p>arrives with more of itself abreast, so more of it is in contact the moment contact</p>
+<p>happens, and a numerical advantage tells sooner.</p>
+<p>A rank stops widening at a fixed number of files however wide the road is, because</p>
+<p>the sizing is otherwise circular — a wider lane makes the centre's own formation</p>
+<p>wider, which pushes the other two further out. See G8.</p>
+<p>The immediate reason is the third challenge. All three lanes' worth of soldiers</p>
+<p>funnel into the center during a challenge, and a challenge monster has to be able</p>
+<p>to fight a whole team at once; in a single-file corridor that is not a battle,</p>
+<p>it is a queue waiting its turn to die. See</p>
+<p><a href='015-boons-and-the-challenge.html'>boons and the challenge</a>.</p>
+<p>The consequence is permanent and larger than that, and it is worth stating as a</p>
+<p>design property rather than a side effect: **the center lane is where numbers</p>
+<p>matter most.** Two even teams meeting in a side lane fight rank against rank, and</p>
+<p>a fourth soldier behind the front three contributes nothing until somebody dies.</p>
+<p>The same two teams meeting in the middle get more of their bodies into contact at</p>
+<p>once, so a numerical advantage converts into a killing advantage faster.</p>
+<p>That makes the three lanes meaningfully different from each other for the first</p>
+<p>time, and it does so without a single special rule — one number in the map</p>
+<p>builder's parameter table, read by the frontline queue. A team that has stacked</p>
+<p>its upgrades into the top lane is playing a game about <em>quality</em>, because the top</p>
+<p>lane will only ever let three of them fight. A team that has stacked the center</p>
+<p>is playing a game about <em>quantity</em>.</p>
+<h3>Which lane is the wide one, when there is no middle</h3>
+<p>The lane count follows the team size, so a map does not always have a middle</p>
+<p>lane to widen. **The builder picks the innermost lane; when there are two</p>
+<p>innermost lanes, it assigns one to each team, mirrored.*<em> </em>Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, F20.*</p>
+<table><thead>
+<tr><th>Lanes</th><th>The wide one</th></tr>
+</thead><tbody>
+<tr><td>1</td><td>that lane, shared</td></tr>
+<tr><td>2</td><td>one each, opposite</td></tr>
+<tr><td>3</td><td>the middle lane, shared</td></tr>
+<tr><td>4</td><td>the two interior lanes, one each, opposite</td></tr>
+<tr><td>5</td><td>the middle lane, shared</td></tr>
+</tbody></table>
+<p>Assigning one to each team does <strong>not</strong> introduce an asymmetry, which was the</p>
+<p>worry: rotate the field half a turn and it is the same field, which is the only</p>
+<p>symmetry this design has ever needed. Both teams have a wide lane and neither has</p>
+<p>an advantage — they simply have different ones.</p>
+<p>What it does change is the endgame. On an odd map both challenge monsters walk</p>
+<p>the same corridor in opposite directions, past each other, never meeting. On an</p>
+<p>even map <strong>each team's monster walks its own lane</strong>, which is two separate sieges</p>
+<p>rather than one shared corridor. That is a different-feeling match, and it is a</p>
+<p>reason 3v3 is the shape the prototype is balanced against rather than merely its</p>
+<p>default size.</p>
+<p>The width feeds two things: <strong>how wide a wave marches down it</strong>, and how wide the</p>
+<p>renderer draws it. It is not a movement constraint and never was — a body walks the</p>
+<p>path regardless of how far to one side it is standing.</p>
+<h2>Milestones: the only measure of progress</h2>
+<p>Each lane carries an ordered list of nine <strong>milestones</strong>, numbered 0 through 8,</p>
+<p>running from team 1's library to team 2's library:</p>
+<table><thead>
+<tr><th>Index</th><th>What stands there</th></tr>
+</thead><tbody>
+<tr><td>0</td><td>Team 1's library</td></tr>
+<tr><td>1</td><td>Team 1's base guard tower for this lane</td></tr>
+<tr><td>2</td><td>Team 1's inner lane tower</td></tr>
+<tr><td>3</td><td>Team 1's outer lane tower</td></tr>
+<tr><td>4</td><td>The midpoint — where waves meet on an even game</td></tr>
+<tr><td>5</td><td>Team 2's outer lane tower</td></tr>
+<tr><td>6</td><td>Team 2's inner lane tower</td></tr>
+<tr><td>7</td><td>Team 2's base guard tower for this lane</td></tr>
+<tr><td>8</td><td>Team 2's library</td></tr>
+</tbody></table>
+<p>A team's <strong>push depth</strong> in a lane is the highest milestone index reached by any of</p>
+<p>its <strong>living</strong> soldiers there, from that team's point of view. Team 1 pushing to</p>
+<p>index 6 and team 2 pushing to index 2 describe the same lane from opposite ends,</p>
+<p>and the code stores one number per team per lane rather than trying to keep a</p>
+<p>single signed value.</p>
+<p><strong>Living</strong>, not a high-water mark — so push depth can go down. It creeps up as</p>
+<p>soldiers advance, and it collapses when they die. It collapses completely at each</p>
+<p><strong>calm</strong>, when every soldier on the field turns around and walks home. That is</p>
+<p>the one moment where maintaining the number incrementally is not enough and a</p>
+<p>full recompute is needed, and it is worth a comment at the call site saying so.</p>
+<p>See <a href='015-boons-and-the-challenge.html'>boons and the challenge</a>.</p>
+<p><strong>And it is ignored outright during a challenge.</strong> *Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, F17.* Every lane's production goes into</p>
+<p>the middle for the duration, so the only bodies left standing in the side lanes</p>
+<p>are each team's own tower guards, sitting at their own towers — the number would</p>
+<p>read a team's stone back at it and mean nothing. Nothing consults push depth</p>
+<p>while a challenge runs, including the rule below that picks a lane for a hero.</p>
+<p>Every question the game asks about lane state is a comparison of these small</p>
+<p>integers. In particular: when a hero is spawned on the library and has to pick a</p>
+<p>lane, it picks the lane where the <strong>enemy's</strong> push depth is greatest. The vision</p>
+<p>is explicit that this is not a distance question — a lane where the enemy sits</p>
+<p>one pace past the first tower is in less trouble than a lane where the enemy is</p>
+<p>inside the base, even if the base is physically closer to the library. Milestone</p>
+<p>comparison gets that right for free; a distance check gets it exactly backwards.</p>
+<h2>The records</h2>
+<p>Everything below is a plain array-of-structs laid out once at map build time.</p>
+<p>Fields are given down to the primitive.</p>
+<h3>node</h3>
+<table><thead>
+<tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>id</code></td><td>integer</td><td>Its own index in the node array. 1-based.</td></tr>
+<tr><td><code>x</code>, <code>y</code></td><td>double</td><td>Position on the field, in paces. Used for drawing and for weapon range only.</td></tr>
+<tr><td><code>kind</code></td><td>integer</td><td>1 = plain lane point, 2 = junction, 3 = tower site, 4 = base spawn, 5 = library site.</td></tr>
+<tr><td><code>lane</code></td><td>integer</td><td>1 top, 2 center, 3 bottom. <strong>0</strong> if the node belongs to no lane — connectors and base interiors.</td></tr>
+<tr><td><code>milestone</code></td><td>integer</td><td>0–8 if this node is a milestone; <strong>0</strong> otherwise. Read together with <code>kind</code>, never alone.</td></tr>
+<tr><td><code>team</code></td><td>integer</td><td>0 neutral, 1, or 2. Which half of the field the node sits in.</td></tr>
+<tr><td><code>neighbour</code></td><td>integer[]</td><td>Node ids reachable in one step. Length 2 for plain lane points; <strong>3 for a side lane's junction</strong> — two along the lane plus its connector — and <strong>4 for the centre lane's midpoint</strong>, because both connectors land there.</td></tr>
+<tr><td><code>structure</code></td><td>integer</td><td>Id of the tower or library standing here, or <strong>0</strong> for none.</td></tr>
+</tbody></table>
+<p>There are no nil fields anywhere in this structure. A node with no structure</p>
+<p>stores the integer zero, not an absent value. A nil check is a question about</p>
+<p>whether the map builder did its job, and that question belongs in the map</p>
+<p>validator, not in the movement loop that runs a thousand times a tick.</p>
+<h3>lane</h3>
+<table><thead>
+<tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>id</code></td><td>integer</td><td>1, 2, or 3.</td></tr>
+<tr><td><code>path</code></td><td>integer[]</td><td>Node ids in order from team 1's library to team 2's library.</td></tr>
+<tr><td><code>milestone_node</code></td><td>integer[9]</td><td>Node id for each milestone index 0–8.</td></tr>
+<tr><td><code>junction</code></td><td>integer[]</td><td>Node ids on this lane that carry a sign-post. Exactly one per lane, the centre included.</td></tr>
+<tr><td><code>length</code></td><td>double</td><td>Total path length in paces. Cached because the renderer wants it constantly.</td></tr>
+<tr><td><code>width</code></td><td>double</td><td>How many paces across. The center lane's is greater. Feeds the frontline queue and the renderer, nothing else.</td></tr>
+</tbody></table>
+<h3>How a soldier uses it</h3>
+<p>A soldier stores <code>lane</code>, <code>node_from</code>, <code>node_to</code>, and <code>progress</code> (a double from 0</p>
+<p>to 1). Advancing is: add speed × tick to <code>progress</code>; if it passes 1, set</p>
+<p><code>node_from = node_to</code>, look up the next node along the lane's path in the</p>
+<p>direction the soldier is travelling, and carry the remainder. At a junction, the</p>
+<p>soldier asks the sign-post standing there which neighbour to take — see</p>
+<p><a href='013-signposts-and-lane-routing.html'>sign-posts and lane routing</a>. Ordinary wave</p>
+<p>units ignore sign-posts entirely and always continue along their own lane.</p>
+<h2>What this document does not decide</h2>
+<p>The exact field size, the spacing between milestones, the connector length, and</p>
+<p>whether the field is square or rectangular are balance values, not design values.</p>
+<p>They live in the map builder's parameter table and are reported by the map</p>
+<p>validator; do not copy them into prose here, because they will change and this</p>
+<p>page will not.</p>
+<p>Related: <a href='003-the-simulation-tick.html'>the simulation tick</a> ·</p>
+<p><a href='007-guard-towers-and-their-guards.html'>guard towers</a> ·</p>
+<p><a href='013-signposts-and-lane-routing.html'>sign-posts</a> ·</p>
+<p><a href='008-the-base-and-the-library.html'>the base and the library</a></p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+// Filtering the contents. The only script on the page, and it exists because there
+// are more than eighty documents here and scrolling a list of eighty things to find
+// one is not navigation.
+var box = document.getElementById('filter');
+box.addEventListener('input', function () {
+  var want = box.value.toLowerCase();
+  var rail = document.getElementById('contents');
+  rail.querySelectorAll('section').forEach(function (section) {
+    var shown = 0;
+    section.querySelectorAll('a').forEach(function (link) {
+      var match = link.textContent.toLowerCase().indexOf(want) !== -1;
+      link.style.display = match ? '' : 'none';
+      if (match) { shown++; }
+    });
+    section.style.display = shown ? '' : 'none';
+  });
+});
+</script>
+</body></html>

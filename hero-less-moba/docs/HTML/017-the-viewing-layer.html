@@ -1,0 +1,450 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>017 — The Viewing Layer -- hero-less-moba</title><style>:root {
+  --ground:   #0d0f13;
+  --panel:    #14171d;
+  --edge:     #232833;
+  --ink:      #c7ccd6;
+  --dim:      #7d8492;
+  --warm:     #f5a83d;
+  --cold:     #5cc7ee;
+  --bone:     #e0ded8;
+  --blood:    #b81313;
+  --green:    #78c96e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 15.5px/1.65 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+a { color: var(--cold); text-decoration: none; border-bottom: 1px solid #2b4d5c; }
+a:hover { color: var(--warm); border-bottom-color: var(--warm); }
+
+#shell { display: flex; min-height: 100vh; }
+
+#contents {
+  width: 292px; flex: 0 0 292px; background: var(--panel);
+  border-right: 1px solid var(--edge); padding: 20px 0 60px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+#contents h1 {
+  font-size: 15px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--warm); margin: 0 20px 4px; font-weight: 600;
+}
+#contents .tagline { margin: 0 20px 18px; color: var(--dim); font-size: 12.5px; font-style: italic; }
+#contents section { margin-bottom: 14px; }
+#contents h2 {
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--dim); margin: 14px 20px 5px; font-weight: 600;
+}
+#contents a {
+  display: block; padding: 3px 20px 3px 20px; border: 0;
+  font-size: 13.5px; color: var(--ink); line-height: 1.4;
+}
+#contents a:hover { background: #1b1f27; color: var(--warm); }
+#contents a.here { background: #1b1f27; color: var(--warm); border-left: 3px solid var(--warm); padding-left: 17px; }
+#contents .index { color: var(--dim); font-variant-numeric: tabular-nums; margin-right: 7px; }
+
+#filter {
+  margin: 0 20px 12px; width: calc(100% - 40px); background: var(--ground);
+  border: 1px solid var(--edge); color: var(--ink); padding: 6px 9px;
+  font: inherit; font-size: 13px; border-radius: 3px;
+}
+#filter:focus { outline: 0; border-color: var(--warm); }
+
+#page { flex: 1; min-width: 0; padding: 42px 56px 120px; max-width: 900px; }
+h1, h2, h3, h4 { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; line-height: 1.25; }
+h1 { font-size: 30px; color: var(--warm); margin: 0 0 26px; font-weight: 600; }
+h2 { font-size: 21px; color: var(--bone); margin: 38px 0 12px; font-weight: 600;
+     border-bottom: 1px solid var(--edge); padding-bottom: 7px; }
+h3 { font-size: 16.5px; color: var(--cold); margin: 26px 0 8px; font-weight: 600; }
+h4 { font-size: 14.5px; color: var(--dim); margin: 20px 0 6px;
+     text-transform: uppercase; letter-spacing: .09em; }
+p { margin: 0 0 15px; }
+strong { color: var(--bone); font-weight: 600; }
+em { color: var(--dim); }
+hr { border: 0; border-top: 1px solid var(--edge); margin: 34px 0; }
+
+blockquote {
+  margin: 20px 0; padding: 3px 0 3px 20px; border-left: 3px solid var(--warm);
+  color: var(--bone); font-style: italic;
+}
+blockquote p { margin: 0 0 8px; }
+blockquote p:last-child { margin: 0; }
+
+ul, ol { margin: 0 0 15px; padding-left: 24px; }
+li { margin-bottom: 5px; }
+
+table { border-collapse: collapse; margin: 20px 0; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+th { color: var(--dim); font-weight: 600; text-transform: uppercase;
+     letter-spacing: .08em; font-size: 11.5px; }
+tr:hover td { background: #161a21; }
+
+code {
+  font-family: "Berkeley Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px; background: #191d25; padding: 1.5px 5px; border-radius: 3px;
+  color: var(--bone);
+}
+pre {
+  background: #10131a; border: 1px solid var(--edge); border-left: 3px solid var(--cold);
+  padding: 14px 17px; overflow-x: auto; border-radius: 3px; margin: 18px 0;
+}
+pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.6; }
+
+.kw { color: #d68fd6; }
+.str { color: var(--green); }
+.num { color: var(--warm); }
+.cmt { color: #5d6472; font-style: italic; }
+
+.issue-link { border-bottom: 1px dotted var(--warm); color: var(--warm); }
+.badge {
+  display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle;
+  font-family: "Inter", sans-serif;
+}
+.badge.built { background: #1c3320; color: var(--green); }
+.badge.part  { background: #33301c; color: var(--warm); }
+.badge.none  { background: #22262e; color: var(--dim); }
+
+figure { margin: 24px 0; }
+figcaption { color: var(--dim); font-size: 13px; font-style: italic; margin-top: 8px; }
+svg { max-width: 100%; }
+
+#page > footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--edge);
+                 color: var(--dim); font-size: 13px; }
+</style></head><body><div id='shell'><nav id='contents'>
+<h1>hero-less-moba</h1>
+<p class='tagline'>a lane-pushing game with the heroes subtracted out</p>
+<input id='filter' placeholder='filter&hellip;' autocomplete='off'>
+<a href='index.html'>the front page</a>
+<section><h2>start here</h2>
+<a href='vision.html'>vision</a>
+<a href='vision-2.html'>vision-2</a>
+<a href='vision-3.html'>vision-3</a>
+<a href='what-the-first-boss-looks-like.html'>what-the-first-boss-looks-like</a>
+</section>
+<section><h2>the design</h2>
+<a href='001-what-this-game-is.html'><span class='index'>001</span>What This Game Is</a>
+<a href='002-the-map-and-its-milestones.html'><span class='index'>002</span>The Map and Its Milestones</a>
+<a href='003-the-simulation-tick.html'><span class='index'>003</span>The Simulation Tick</a>
+<a href='004-a-unit-and-what-it-carries.html'><span class='index'>004</span>A Unit and What It Carries</a>
+<a href='005-waves-and-when-one-is-finished.html'><span class='index'>005</span>Waves, and When One Is Finished</a>
+<a href='006-combat-and-damage.html'><span class='index'>006</span>Combat and Damage</a>
+<a href='007-guard-towers-and-their-guards.html'><span class='index'>007</span>Guard Towers and Their Guards</a>
+<a href='008-the-base-and-the-library.html'><span class='index'>008</span>The Base and the Library</a>
+<a href='009-the-shared-upgrade-pool.html'><span class='index'>009</span>The Shared Upgrade Pool</a>
+<a href='010-upgrades-slotted-into-stone.html'><span class='index'>010</span>Upgrades Slotted Into Stone</a>
+<a href='011-commanders-and-personal-resource.html'><span class='index'>011</span>Commanders and Personal Resource</a>
+<a href='012-hero-units.html'><span class='index'>012</span>Hero Units</a>
+<a href='013-signposts-and-lane-routing.html'><span class='index'>013</span>Sign-Posts and Lane Routing</a>
+<a href='014-the-siege-surge.html'><span class='index'>014</span>The Siege-Surge</a>
+<a href='015-boons-and-the-challenge.html'><span class='index'>015</span>Boons and the Challenge</a>
+<a href='016-players-teams-and-commands.html'><span class='index'>016</span>Players, Teams, and Commands</a>
+<a href='017-the-viewing-layer.html' class='here'><span class='index'>017</span>The Viewing Layer</a>
+<a href='018-the-shape-of-the-code.html'><span class='index'>018</span>The Shape of the Code</a>
+<a href='019-roadmap.html'><span class='index'>019</span>Roadmap</a>
+<a href='020-open-questions.html'><span class='index'>020</span>Open Questions</a>
+<a href='021-nobody-remembers-why.html'><span class='index'>021</span>Nobody Remembers Why</a>
+<a href='022-standing-off-and-falling-back.html'><span class='index'>022</span>Standing Off and Falling Back</a>
+<a href='023-ways-this-could-go-wrong.html'><span class='index'>023</span>Ways This Could Go Wrong</a>
+</section>
+<section><h2>issues</h2>
+<a href='101-the-path-graph-is-built-by-a-tool.html'><span class='index'>101</span>The Path Graph Is Built by a Tool</a>
+<a href='102-milestones-measure-a-push.html'><span class='index'>102</span>Milestones Measure a Push</a>
+<a href='103-the-world-is-flat-arrays.html'><span class='index'>103</span>The World Is Flat Arrays</a>
+<a href='104-the-tick-is-a-dispatch-table.html'><span class='index'>104</span>The Tick Is a Dispatch Table</a>
+<a href='105-randomness-comes-from-named-streams.html'><span class='index'>105</span>Randomness Comes From Named Streams</a>
+<a href='106-commands-enter-through-one-door.html'><span class='index'>106</span>Commands Enter Through One Door</a>
+<a href='107-snapshots-and-replays.html'><span class='index'>107</span>Snapshots and Replays</a>
+<a href='108-the-headless-runner.html'><span class='index'>108</span>The Headless Runner</a>
+<a href='109-a-terminal-viewer-so-we-are-not-blind.html'><span class='index'>109</span>A Terminal Viewer, So We Are Not Blind</a>
+<a href='110-a-scenario-you-can-hold-at-the-gate.html'><span class='index'>110</span>A Scenario You Can Hold at the Gate</a>
+<a href='201-a-soldier-is-one-record.html'><span class='index'>201</span>A Soldier Is One Record</a>
+<a href='202-walking-an-edge-of-the-graph.html'><span class='index'>202</span>Walking an Edge of the Graph</a>
+<a href='203-the-brain-is-five-states.html'><span class='index'>203</span>The Brain Is Five States</a>
+<a href='204-choosing-what-to-attack.html'><span class='index'>204</span>Choosing What to Attack</a>
+<a href='205-damage-is-buffered-then-applied.html'><span class='index'>205</span>Damage Is Buffered, Then Applied</a>
+<a href='206-the-frontline-is-a-queue.html'><span class='index'>206</span>The Frontline Is a Queue</a>
+<a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
+<a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
+<a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
+<a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
+<a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
+<a href='304-guards-are-leashed.html'><span class='index'>304</span>Guards Are Leashed</a>
+<a href='305-the-base-is-one-open-room.html'><span class='index'>305</span>The Base Is One Open Room</a>
+<a href='306-felling-a-tower-pays-three.html'><span class='index'>306</span>Felling a Tower Pays Three</a>
+<a href='307-the-library-ends-the-game.html'><span class='index'>307</span>The Library Ends the Game</a>
+<a href='401-the-upgrade-catalogue.html'><span class='index'>401</span>The Upgrade Catalogue</a>
+<a href='402-an-instance-is-a-thing-in-a-place.html'><span class='index'>402</span>An Instance Is a Thing in a Place</a>
+<a href='403-wiping-a-wave-draws-an-upgrade.html'><span class='index'>403</span>Wiping a Wave Draws an Upgrade</a>
+<a href='404-placing-an-upgrade-into-a-lane.html'><span class='index'>404</span>Placing an Upgrade Into a Lane</a>
+<a href='405-a-soldier-is-stamped-at-birth.html'><span class='index'>405</span>A Soldier Is Stamped at Birth</a>
+<a href='408-slotting-upgrades-into-stone.html'><span class='index'>408</span>Slotting Upgrades Into Stone</a>
+<a href='409-the-base-inherits-every-lane.html'><span class='index'>409</span>The Base Inherits Every Lane</a>
+<a href='410-the-library-slot-is-the-last-stand.html'><span class='index'>410</span>The Library Slot Is the Last Stand</a>
+<a href='411-rerolling-the-deck.html'><span class='index'>411</span>Rerolling the Deck</a>
+<a href='412-contributing-a-stone.html'><span class='index'>412</span>Contributing a Stone</a>
+<a href='413-staking-a-die-to-share.html'><span class='index'>413</span>Staking a Die to Share</a>
+<a href='501-the-commander-catalogue.html'><span class='index'>501</span>The Commander Catalogue</a>
+<a href='502-killing-pays-everyone-on-the-team.html'><span class='index'>502</span>Killing Pays Everyone on the Team</a>
+<a href='503-a-hero-is-a-soldier-you-bought.html'><span class='index'>503</span>A Hero Is a Soldier You Bought</a>
+<a href='504-abilities-are-a-dispatch-table.html'><span class='index'>504</span>Abilities Are a Dispatch Table</a>
+<a href='505-spawning-onto-a-wave.html'><span class='index'>505</span>Spawning Onto a Wave</a>
+<a href='506-spawning-onto-a-tower-and-being-pushed-back.html'><span class='index'>506</span>Spawning Onto a Tower, and Being Pushed Back</a>
+<a href='507-spawning-onto-the-library-picks-the-worst-lane.html'><span class='index'>507</span>Spawning Onto the Library Picks the Worst Lane</a>
+<a href='508-signposts-stand-at-the-corners.html'><span class='index'>508</span>Sign-Posts Stand at the Corners</a>
+<a href='509-five-heroes-for-the-first-commander.html'><span class='index'>509</span>Five Heroes for the First Commander</a>
+<a href='510-the-healers-and-what-they-remember.html'><span class='index'>510</span>The Healers, and What They Remember</a>
+<a href='601-the-phase-table.html'><span class='index'>601</span>The Phase Table</a>
+<a href='602-the-surge-turns-waves-into-a-stream.html'><span class='index'>602</span>The Surge Turns Waves Into a Stream</a>
+<a href='603-the-chest-dealt-across-the-three.html'><span class='index'>603</span>The Chest, Dealt Across the Three</a>
+<a href='605-boons-and-the-calm.html'><span class='index'>605</span>Boons, and the Calm They Are Chosen In</a>
+<a href='606-what-walks-out-of-the-middle.html'><span class='index'>606</span>What Walks Out of the Middle</a>
+<a href='607-every-lane-spawns-into-the-center.html'><span class='index'>607</span>Every Lane Spawns Into the Center</a>
+<a href='608-the-deadline-is-the-walk.html'><span class='index'>608</span>The Deadline Is the Walk</a>
+<a href='701-the-window-and-the-two-snapshots.html'><span class='index'>701</span>The Window and the Two Snapshots</a>
+<a href='702-the-map-draws-itself.html'><span class='index'>702</span>The Map Draws Itself</a>
+<a href='703-the-chest-panel-and-the-drag.html'><span class='index'>703</span>The Chest Panel and the Drag</a>
+<a href='704-locks-objections-and-refusals-are-loud.html'><span class='index'>704</span>Locks, Objections, and Refusals Are Loud</a>
+<a href='705-the-signposts-are-clickable-in-the-world.html'><span class='index'>705</span>The Sign-Posts Are Clickable in the World</a>
+<a href='706-the-documentation-becomes-html.html'><span class='index'>706</span>The Documentation Becomes HTML</a>
+<a href='707-the-way-in.html'><span class='index'>707</span>The Way In</a>
+<a href='708-the-camera-is-a-lens-you-push-into.html'><span class='index'>708</span>The Camera Is a Lens You Push Into</a>
+<a href='801-reconciling-across-machines.html'><span class='index'>801</span>Reconciling Across Machines</a>
+<a href='802-the-lobby-and-commander-selection.html'><span class='index'>802</span>The Lobby and Commander Selection</a>
+<a href='803-a-bot-that-places-upgrades.html'><span class='index'>803</span>A Bot That Places Upgrades</a>
+<a href='804-ten-thousand-matches-overnight.html'><span class='index'>804</span>Ten Thousand Matches Overnight</a>
+<a href='805-a-full-match-end-to-end.html'><span class='index'>805</span>A Full Match, End to End</a>
+<a href='806-three-people-can-finally-talk.html'><span class='index'>806</span>Three People Can Finally Talk</a>
+<a href='901-what-a-bot-is-allowed-to-see.html'><span class='index'>901</span>What a Bot Is Allowed to See</a>
+<a href='902-reading-a-board-into-a-handful-of-numbers.html'><span class='index'>902</span>Reading a Board Into a Handful of Numbers</a>
+<a href='903-a-teammate-that-does-not-trample-you.html'><span class='index'>903</span>A Teammate That Does Not Trample You</a>
+<a href='904-buying-bodies-and-pointing-them.html'><span class='index'>904</span>Buying Bodies and Pointing Them</a>
+<a href='905-difficulty-without-cheating.html'><span class='index'>905</span>Difficulty Without Cheating</a>
+<a href='906-one-person-five-bots.html'><span class='index'>906</span>One Person, Five Bots</a>
+</section>
+<section><h2>progress</h2>
+<a href='phase-1-progress.html'>Phase 1 Progress — The Ground and the Clock</a>
+<a href='phase-2-progress.html'>Phase 2 Progress — Things That Walk and Fight</a>
+<a href='phase-3-progress.html'>Phase 3 Progress — Things That Stand and Hold</a>
+<a href='phase-4-progress.html'>Phase 4 Progress — The Shared Chest</a>
+<a href='phase-5-progress.html'>Phase 5 Progress — Commanders and Heroes</a>
+<a href='phase-6-progress.html'>Phase 6 Progress — The Surge and the Challenge</a>
+<a href='phase-7-progress.html'>Phase 7 Progress — Watching It Happen</a>
+<a href='phase-8-progress.html'>Phase 8 Progress — Six Players</a>
+<a href='phase-9-progress.html'>Phase 9 Progress — An Opponent Worth Playing</a>
+</section>
+<section><h2>the simulation</h2>
+<a href='028-match-parameters.info.html'><span class='index'>028</span>match-parameters</a>
+<a href='029-random-streams.info.html'><span class='index'>029</span>random-streams</a>
+<a href='030-map-builder.info.html'><span class='index'>030</span>map-builder</a>
+<a href='031-map-validator.info.html'><span class='index'>031</span>map-validator</a>
+<a href='032-the-world.info.html'><span class='index'>032</span>the-world</a>
+<a href='033-commands.info.html'><span class='index'>033</span>commands</a>
+<a href='034-walking.info.html'><span class='index'>034</span>walking</a>
+<a href='035-targeting.info.html'><span class='index'>035</span>targeting</a>
+<a href='036-the-frontline.info.html'><span class='index'>036</span>the-frontline</a>
+<a href='037-the-brain.info.html'><span class='index'>037</span>the-brain</a>
+<a href='038-combat.info.html'><span class='index'>038</span>combat</a>
+<a href='039-waves.info.html'><span class='index'>039</span>waves</a>
+<a href='040-structures.info.html'><span class='index'>040</span>structures</a>
+<a href='041-the-chest.info.html'><span class='index'>041</span>the-chest</a>
+<a href='042-the-tick.info.html'><span class='index'>042</span>the-tick</a>
+<a href='043-snapshot.info.html'><span class='index'>043</span>snapshot</a>
+<a href='044-headless-runner.info.html'><span class='index'>044</span>headless-runner</a>
+<a href='045-terminal-viewer.info.html'><span class='index'>045</span>terminal-viewer</a>
+<a href='046-the-camera.info.html'><span class='index'>046</span>the-camera</a>
+<a href='047-the-renderer.info.html'><span class='index'>047</span>the-renderer</a>
+<a href='048-the-panel.info.html'><span class='index'>048</span>the-panel</a>
+<a href='049-input.info.html'><span class='index'>049</span>input</a>
+<a href='050-the-viewer.info.html'><span class='index'>050</span>the-viewer</a>
+<a href='052-formations.info.html'><span class='index'>052</span>formations</a>
+<a href='054-commanders.info.html'><span class='index'>054</span>commanders</a>
+<a href='055-abilities.info.html'><span class='index'>055</span>abilities</a>
+<a href='056-signposts.info.html'><span class='index'>056</span>signposts</a>
+<a href='058-phases.info.html'><span class='index'>058</span>phases</a>
+<a href='059-a-bot-that-plays.info.html'><span class='index'>059</span>a-bot-that-plays</a>
+<a href='061-the-stones.info.html'><span class='index'>061</span>the-stones</a>
+<a href='062-the-rest-of-the-brain.info.html'><span class='index'>062</span>the-rest-of-the-brain</a>
+<a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
+<a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
+</section>
+<section><h2>the catalogues</h2>
+<a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
+<a href='025-unit-table.info.html'><span class='index'>025</span>unit-table</a>
+<a href='026-structure-table.info.html'><span class='index'>026</span>structure-table</a>
+<a href='027-upgrade-table.info.html'><span class='index'>027</span>upgrade-table</a>
+<a href='053-commander-table.info.html'><span class='index'>053</span>commander-table</a>
+<a href='057-boon-table.info.html'><span class='index'>057</span>boon-table</a>
+</section>
+<section><h2>the tests</h2>
+<a href='051-the-invariants.info.html'><span class='index'>051</span>the-invariants</a>
+<a href='060-the-formation-sandbox.info.html'><span class='index'>060</span>the-formation-sandbox</a>
+</section>
+</nav><main id='page'><h1>017 — The Viewing Layer</h1>
+<p><strong>Datapath document.</strong> Covers the second program: the one that draws. What it is</p>
+<p>allowed to read, what it is forbidden to do, and why the line is drawn where it</p>
+<p>is.</p>
+<h2>The rule</h2>
+<p><strong>The viewer reads world states and writes commands. It does nothing else.</strong></p>
+<p>It does not hold game state of its own that the simulation would need. It does</p>
+<p>not decide anything the simulation could decide. It does not write into the world</p>
+<p>under any circumstances. Every arrow points one way:</p>
+<p>    input  →  command queue  →  simulation  →  snapshot  →  viewer  →  screen</p>
+<p>The payoff is that every bug has a side. If the frontline moved wrong, the viewer</p>
+<p>is innocent, because it cannot move a frontline. If a health bar is in the wrong</p>
+<p>place, the simulation is innocent, because it does not know what a health bar is.</p>
+<p>In a game whose entire subject is a thousand small bodies interacting, being able</p>
+<p>to cut the search space in half by asking one question is worth a great deal.</p>
+<p>The second payoff: the simulation can run with no viewer at all, as fast as the</p>
+<p>machine allows. Balance work is running ten thousand matches overnight and</p>
+<p>reading a table in the morning. That is not possible if drawing is welded to</p>
+<p>simulating.</p>
+<h2>Snapshots</h2>
+<p>Two different objects have been called a snapshot in this project and they are</p>
+<p>not the same thing. Naming them apart, because the collision already produced two</p>
+<p>documents that flatly contradicted each other:</p>
+<ul>
+<li><strong>The viewer's frame</strong> — what this section is about. Stamped locally at the end</li>
+</ul>
+<p>  of every tick, read by the renderer, never sent anywhere.</p>
+<ul>
+<li><strong>The accepted sync</strong> — positions and health only, published to every other</li>
+</ul>
+<p>  machine about once a second by whichever peer's turn it is. Described in</p>
+<p>  <a href='016-players-teams-and-commands.html'>players, teams, and commands</a>.</p>
+<p>The rest of this section is about the first one.</p>
+<p>At the end of each tick the simulation stamps a <strong>viewer frame</strong>: a flat,</p>
+<p>read-only copy of everything the viewer needs. Not the whole world — the viewer</p>
+<p>has no use for cooldown timers, target generations, or pending damage.</p>
+<p>It holds <strong>your own team's</strong> chest, slots, wallets, and sign-posts, and the</p>
+<p>enemy's only as bodies on the ground. That is not the viewer being discreet: the</p>
+<p>enemy's chest is not on this machine at all. See</p>
+<p><a href='020-open-questions.html'>open questions</a>, F7.</p>
+<table><thead>
+<tr><th>The viewer frame contains</th><th>Why</th></tr>
+</thead><tbody>
+<tr><td><code>tick</code></td><td>To interpolate against.</td></tr>
+<tr><td>Per soldier: x, y, facing, team, flavour, archetype, health fraction, alive</td><td>Everything drawn about a body.</td></tr>
+<tr><td>Per soldier: the upgrades it was stamped with</td><td>Reading an enemy's build off their frontline is the only way to learn their arrangement. Enemy bodies carry this; enemy <em>chests</em> do not exist here.</td></tr>
+<tr><td>Per structure: health fraction, alive, command radius</td><td>Towers and libraries. The radius is drawn for both teams — see <a href='007-guard-towers-and-their-guards.html'>guard towers</a>.</td></tr>
+<tr><td><strong>Own team only</strong>: chest contents, slot assignments, transit marks, lock and objection state, boons</td><td>The panel.</td></tr>
+<tr><td>Per lane: push depth, both teams'</td><td>The lane-pressure read. Ignored during a challenge.</td></tr>
+<tr><td><strong>Own team only</strong>, per player: resource, ceiling, hero count, teammate cursors</td><td>The player's own bar, and the presence channel.</td></tr>
+<tr><td><strong>Own team only</strong>, per sign-post: position and direction</td><td>Each team has its own three. The enemy's are absent from the frame entirely — not hidden, not present. See <a href='013-signposts-and-lane-routing.html'>sign-posts</a>, F16.</td></tr>
+<tr><td>Phase, surge timer, challenge state</td><td>The banner across the top.</td></tr>
+<tr><td>Events raised this tick</td><td>Draws, kills, refusals, tower falls. Fires the popups.</td></tr>
+</tbody></table>
+<p>The viewer keeps the two most recent snapshots and interpolates positions between</p>
+<p>them. It is allowed to be behind and is never allowed to be ahead — a viewer that</p>
+<p>extrapolates is a viewer that shows things that did not happen, and in a game</p>
+<p>where a player is judging a frontline by eye, showing a frontline that is not</p>
+<p>really there is a lie that changes decisions.</p>
+<h2>What the screen has to show</h2>
+<p>Roughly in order of how much a player looks at it:</p>
+<ul>
+<li><strong>The three lanes and where the frontlines are.</strong> The primary read. A glance</li>
+</ul>
+<p>   should answer "which lane am I losing" without a number anywhere.</p>
+<ul>
+<li><strong>The chest.</strong> Unplaced upgrades, large and impossible to ignore. An upgrade</li>
+</ul>
+<p>   doing nothing should be visually annoying.</p>
+<ul>
+<li><strong>The slots.</strong> What is in each lane, what is in each lane's towers, what is in</li>
+</ul>
+<p>   the library, who locked what, what has been objected and by whom.</p>
+<ul>
+<li><strong>My resource, and what I could buy with it right now.</strong> Affordable heroes</li>
+</ul>
+<p>   distinguished from unaffordable at a glance.</p>
+<ul>
+<li><strong>The phase.</strong> How long until the next surge; during a surge, how long left;</li>
+</ul>
+<p>   during a challenge, where the monsters are.</p>
+<ul>
+<li><strong>Refusals.</strong> Every rejected command, with its reason, immediately.</li>
+</ul>
+<p>The chest and the lanes are the two things a player is constantly moving their</p>
+<p>eyes between, so they should be arranged so that a placement is a short drag and</p>
+<p>not a trip across the screen.</p>
+<h2>The camera: everything by default, zoom to inspect</h2>
+<p>**The default view is the whole map, always, and a player can push in to read</p>
+<p>detail and pull back out.*<em> </em>Settled; see</p>
+<p><a href='020-open-questions.html'>open questions</a>, D7.*</p>
+<p>The default matters more than the zoom. The entire design rests on a player being</p>
+<p>able to judge three lanes by looking at them — that is what makes an upgrade</p>
+<p>"legible from across the map," which is one of the three reasons the chest</p>
+<p>replaced heroes in the first place. A view that starts anywhere but the whole map</p>
+<p>breaks that, and hands the chest panel a job the map was supposed to do.</p>
+<p>Zoom exists because there is now real detail worth reading. A soldier carries a</p>
+<p>visible record of what it was stamped with, and reading an enemy's build off</p>
+<p>their frontline is the only way to learn their arrangement at all — see</p>
+<p><a href='009-the-shared-upgrade-pool.html'>the shared upgrade pool</a>. At whole-map scale a</p>
+<p>soldier is a few pixels; you need to be able to lean in.</p>
+<h3>One rule for the camera</h3>
+<blockquote><p><strong>Zoom reveals detail. It never reveals events.</strong></p></blockquote>
+<p>Anything a player must react to — a tower falling, a surge starting, a monster</p>
+<p>appearing, a teammate marking an upgrade to move, a lock breaking, their own</p>
+<p>wallet overflowing — has to be legible at the default view, without zooming and</p>
+<p>without a camera move. Zooming in is a thing a player does when they have a</p>
+<p>moment, not a thing the game requires them to do to stay informed.</p>
+<p>The failure this prevents is the one every game with a camera has: a player who</p>
+<p>is looking at the wrong place at the wrong time and is punished for it by</p>
+<p>information they were never going to have. In a game where three people share one</p>
+<p>chest, that failure would land on the whole team.</p>
+<h3>And it should always be one press back</h3>
+<p>Returning to the whole map is a single, instant, unmissable action. A player who</p>
+<p>has zoomed in should never be <em>lost</em>. If getting back to the default view is ever</p>
+<p>a small navigation task, players will stop zooming in at all, and the detail this</p>
+<p>camera exists to show will go unread.</p>
+<h2>The drawing library is LÖVE</h2>
+<p><em>Settled; see <a href='020-open-questions.html'>open questions</a>, D1.</em></p>
+<p>It is already LuaJIT, so there is no FFI boundary between the viewer and the</p>
+<p>simulation — the snapshot is read directly, in the same language, with no</p>
+<p>marshalling. It brings a window, input, audio, and a sprite batcher for free, and</p>
+<p>the sprite batcher is the one that matters: this game draws hundreds to thousands</p>
+<p>of near-identical bodies every frame, and batching them is the only performance</p>
+<p>question the viewer has.</p>
+<p>The rejected alternative was an FFI binding to something lower-level, which is</p>
+<p>more control over exactly how those bodies get drawn, in exchange for writing the</p>
+<p>window, the loop, and the batcher before anything appears on screen at all. That</p>
+<p>trade would be worth making if the drawing were unusual. It is not: this is</p>
+<p>thousands of small sprites on a fixed view.</p>
+<p>What comes with it, and is accepted: LÖVE's choices about how a frame works, and</p>
+<p>LÖVE's distribution story.</p>
+<p><strong>The terminal viewer from issue <a class='issue-link' href='109-a-terminal-viewer-so-we-are-not-blind.html'>109</a> stays.</strong> It is not a stepping stone to be</p>
+<p>discarded once there is a real window — it is faster to debug in, it works over</p>
+<p>a connection where nothing graphical does, its output can be piped to a file and</p>
+<p>diffed, and it keeps the viewing layer honest by existing as a second consumer of</p>
+<p>the same snapshots. Two viewers means neither one can quietly become part of the</p>
+<p>simulation.</p>
+<p>The project's documentation is generated into browsable HTML pages under</p>
+<p><code>docs/HTML/</code>, sharing one stylesheet and a table of contents down the left side,</p>
+<p>with every document reachable from every other. Where a document names a source</p>
+<p>file, the link goes to that file's companion <code>.info.md</code> page. Where it names an</p>
+<p>issue, the link goes to the issue.</p>
+<p>That is the same separation again: the Markdown is the data, the HTML is a view</p>
+<p>of it, and the view is generated by a tool rather than maintained by hand.</p>
+<p>Related: <a href='003-the-simulation-tick.html'>the simulation tick</a> ·</p>
+<p><a href='016-players-teams-and-commands.html'>players, teams, and commands</a> ·</p>
+<p><a href='018-the-shape-of-the-code.html'>the shape of the code</a></p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+// Filtering the contents. The only script on the page, and it exists because there
+// are more than eighty documents here and scrolling a list of eighty things to find
+// one is not navigation.
+var box = document.getElementById('filter');
+box.addEventListener('input', function () {
+  var want = box.value.toLowerCase();
+  var rail = document.getElementById('contents');
+  rail.querySelectorAll('section').forEach(function (section) {
+    var shown = 0;
+    section.querySelectorAll('a').forEach(function (link) {
+      var match = link.textContent.toLowerCase().indexOf(want) !== -1;
+      link.style.display = match ? '' : 'none';
+      if (match) { shown++; }
+    });
+    section.style.display = shown ? '' : 'none';
+  });
+});
+</script>
+</body></html>
