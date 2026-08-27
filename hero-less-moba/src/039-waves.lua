@@ -153,8 +153,59 @@ function M.spawn_body(world, team, lane_id, archetype, wave_id, role, role_index
   -- lane does not weaken the soldiers already walking in it -- they finish their
   -- lives carrying it. That delay is what makes a reassignment a decision worth
   -- arguing about instead of a switch.
-  world.chest.stamp_from_lane(world, id, team, lane_id)
+  --
+  -- **From the lane it was spawned *for*, not the lane it walks.** During a
+  -- challenge those differ: every lane's production funnels into the middle, and a
+  -- funnelled body still carries its own lane's upgrades, so a team that invested
+  -- heavily in the top lane does not watch that investment evaporate.
+  world.chest.stamp_from_lane(world, id, team, world.wave[wave_id].upgrade_lane)
 
+  return id
+end
+-- }}}
+
+-- {{{ function M.spawn_stream_body()
+-- One body of a siege-surge's stream.
+--
+-- It belongs to **no wave**, and that is the whole reason the chest cannot grow
+-- during a surge: "wiped" is a statement about a group, and a stream has no groups
+-- in it. Nothing can detect a wipe, so nothing pays a draw -- and with towers
+-- unkillable for the duration there is no tower reward either.
+--
+-- It gets no formation for the same reason. A surge is the one thing in this game
+-- that walks out in a line.
+function M.spawn_stream_body(world, team, lane_id, archetype)
+  local id = world.allocate(world)
+  local soldier = world.soldier
+  local row = world.parameters.unit.archetype[archetype]
+  local lane = world.map.lane[lane_id]
+
+  world.give_body(world, id, row)
+  soldier.team[id] = team
+  soldier.archetype[id] = archetype
+  soldier.owner[id] = 0
+  soldier.wave[id] = 0
+  soldier.leash_node[id] = 0
+  soldier.speed_scale[id] = 1
+  soldier.lane[id] = lane_id
+  soldier.facing[id] = (team == 1) and 1 or -1
+  soldier.path_index[id] = (team == 1) and 1 or #lane.path
+  soldier.milestone[id] = (team == 1) and 0 or 8
+  soldier.slot_along[id] = 0
+  soldier.slot_across[id] = 0
+
+  local along = (team == 1) and 40 or (lane.length - 40)
+  world.walking.set_lane_position(world, id, along, 0)
+
+  -- Its colour still comes from a commander -- whoever's turn it would have been.
+  local commander_id = world.commanders.commander_for_wave(world, team, world.wave_turn + 1)
+  world.commanders.stamp_bounty(world, id, commander_id, world.stream_index or 1)
+  world.stream_index = (world.stream_index or 0) + 1
+
+  -- No stamp from a lane. What it carries is dealt to it by the surge, from
+  -- everything the team owns, an instant after it appears.
+  world.chest.apply_boons(world, id)
+  soldier.health[id] = soldier.health_max[id]
   return id
 end
 -- }}}
@@ -165,7 +216,11 @@ end
 local function queue_wave(world, team, lane, turn)
   local settings = world.parameters.unit.wave
   local total = settings.melee_count + settings.ranged_count + settings.captain_count
-  local wave_id = new_wave(world, team, lane, total)
+  -- Where it walks, which during a challenge is the middle whatever lane it was
+  -- raised for.
+  local walks = world.phases.spawn_lane_for(world, lane)
+  local wave_id = new_wave(world, team, walks, total)
+  world.wave[wave_id].upgrade_lane = lane
 
   -- **The commanders take turns sending waves**, so a third of what leaves a base
   -- is somebody else's captain and somebody else's mixture. That is what makes
@@ -202,6 +257,7 @@ local function queue_wave(world, team, lane, turn)
     return id
   end
 
+  lane = walks
   local front_index = 0
   for _ = 1, settings.captain_count do
     born(commander.captain, "front", front_index)
@@ -227,6 +283,18 @@ end
 -- symmetric and any asymmetry on screen is the players' doing.
 function M.spawn_pass(world)
   local settings = world.parameters.unit.wave
+
+  -- Nothing spawns during a calm: the map is emptying and a body put down then
+  -- would have nowhere to go and nothing to fight.
+  if world.phase == 4 then
+    return
+  end
+
+  -- A surge is a stream, not waves, and it has its own spawner.
+  if world.phase == 2 then
+    world.phases.stream_pass(world)
+    return
+  end
 
   if world.tick >= world.next_wave_tick then
     world.wave_turn = (world.wave_turn or 0) + 1

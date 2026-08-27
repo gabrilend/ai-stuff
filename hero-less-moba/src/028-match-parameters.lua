@@ -169,7 +169,7 @@ function M.load()
   end
 
   local required = {"map-shape", "unit-table", "structure-table", "upgrade-table",
-                    "commander-table"}
+                    "commander-table", "boon-table"}
   for _, key in ipairs(required) do
     if loaded[key] == nil then
       error("input/catalogues never named a " .. key .. " -- the match cannot start")
@@ -186,6 +186,7 @@ function M.load()
     structure  = loaded["structure-table"],
     upgrade    = loaded["upgrade-table"],
     commander  = loaded["commander-table"],
+    boon       = loaded["boon-table"],
   }
 end
 -- }}}

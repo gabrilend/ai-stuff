@@ -161,7 +161,12 @@ function M.make_set(seed)
     -- team's luck depend on how often the *other* team had a tie to break, which
     -- is a coupling between the two sides that nothing in the design asked for and
     -- that shows up as an unexplainable asymmetry in a match nobody touched.
-    tie     = { M.new(seed, "tie-1"), M.new(seed, "tie-2") },
+    -- Three, not two. The monsters are their own team -- allied with nobody and
+    -- hostile to everything -- and they break ties in target selection like
+    -- anything else does. Indexing a two-entry table by team three is the kind of
+    -- mistake that only surfaces the first time a challenge starts, several minutes
+    -- into a match nobody was watching.
+    tie     = { M.new(seed, "tie-1"), M.new(seed, "tie-2"), M.new(seed, "tie-3") },
     -- Which three boons a player is offered in the calm after a challenge.
     boon    = M.new(seed, "boon"),
     -- The deal order when the chest is dealt across a surge spawn.

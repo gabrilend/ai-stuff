@@ -177,7 +177,18 @@ local function measure(world)
     -- counting it would read a team's own stone back at it as though it were a
     -- push -- every lane would report a permanent depth of 2 or 3 with nobody
     -- having advanced anywhere.
-    if soldier.alive[id] == 1 and soldier.flavour[id] ~= 3 and soldier.lane[id] ~= 0 then
+    -- **Push depth is ignored outright during a challenge.** Every lane's
+    -- production goes into the middle for the duration, so the only bodies left in
+    -- the side lanes are each team's own tower guards sitting at their own towers,
+    -- and the number would read a team's stone back at it and mean nothing.
+    -- Guards are excluded because a guard stands at its own tower for its whole
+    -- life, so counting it would read a team's own stone back at it as a push.
+    -- **Monsters are excluded because they are on nobody's team** -- there is no
+    -- third push depth to contribute to, and asking for one indexes past the end of
+    -- a two-entry table several minutes into a match nobody was watching.
+    if soldier.alive[id] == 1 and soldier.flavour[id] ~= 3 and soldier.flavour[id] ~= 4
+       and soldier.lane[id] ~= 0 and soldier.team[id] ~= 3
+       and world.phase ~= 3 then
       local team = soldier.team[id]
       local lane_id = soldier.lane[id]
       local lane = world.map.lane[lane_id]
@@ -215,6 +226,7 @@ end
 -- function that already runs in the right place.
 local function phase(world)
   world.commanders.climb_ladder(world)
+  world.phases.advance(world)
   if world.winner ~= 0 then
     world.phase = 5
   end
@@ -300,6 +312,7 @@ M.cast = {
   {name = "commanders",       file = "054-commanders"},
   {name = "abilities",        file = "055-abilities"},
   {name = "signposts",        file = "056-signposts"},
+  {name = "phases",           file = "058-phases"},
 }
 -- }}}
 
@@ -350,6 +363,7 @@ function M.assemble(modules, parameters)
   world.commanders = modules.commanders
   world.abilities  = modules.abilities
   world.signposts  = modules.signposts
+  world.phases     = modules.phases
 
   -- The three world-level helpers the systems call by name. Hung here rather than
   -- required, for the same reason as everything above.
@@ -371,6 +385,13 @@ function M.assemble(modules, parameters)
   modules.formations.begin(world)
   modules.commanders.begin(world)
   modules.signposts.begin(world)
+  modules.phases.begin(world)
+  -- Scratch the surge deals into, allocated once. A surge deals every upgrade a
+  -- team owns across three bodies several times a second, and doing that through
+  -- fresh tables would be the noisiest allocator in the game.
+  world.surge_scratch = {}
+  world.surge_bodies = {}
+  world.surge_deal = {}
   modules.chest.build_deck(world)
   modules.waves.begin(world)
   modules.structures.begin(world)

@@ -172,11 +172,78 @@ function M.apply_counts(world, id, counts)
 end
 -- }}}
 
+-- {{{ function M.apply_boons()
+-- Folds a team's boons into a body, on top of whatever else it was stamped with.
+--
+-- **Boons are the thing that reaches everybody.** They are not in a lane and have
+-- no slot, so there is no placement decision for them to multiply with -- which is
+-- exactly why they are allowed where a lane upgrade is not. A boon is a modifier on
+-- the commander that radiates out to everything that team fields, heroes included.
+-- Monsters get none, having no team to belong to.
+function M.apply_boons(world, id)
+  local soldier = world.soldier
+  local team = soldier.team[id]
+  if team ~= 1 and team ~= 2 then
+    return
+  end
+  local catalogue = world.parameters.boon.boon
+
+  for _, boon_id in ipairs(world.boons[team]) do
+    local row = catalogue[boon_id]
+    local add = row.add or {}
+    if add.health then soldier.health_max[id] = soldier.health_max[id] + add.health end
+    if add.damage then soldier.damage[id] = soldier.damage[id] + add.damage end
+    if add.armour then soldier.armour[id] = soldier.armour[id] + add.armour end
+    if add.speed  then soldier.speed[id]  = soldier.speed[id]  + add.speed end
+    if add.range  then soldier.range[id]  = soldier.range[id]  + add.range end
+    if add.acquire_range then
+      soldier.acquire_range[id] = soldier.acquire_range[id] + add.acquire_range
+    end
+  end
+  for _, boon_id in ipairs(world.boons[team]) do
+    local mul = catalogue[boon_id].mul or {}
+    if mul.health then soldier.health_max[id] = soldier.health_max[id] * mul.health end
+    if mul.damage then soldier.damage[id] = soldier.damage[id] * mul.damage end
+    if mul.cooldown_max then
+      soldier.cooldown_max[id] = math.floor(soldier.cooldown_max[id] * mul.cooldown_max + 0.5)
+      if soldier.cooldown_max[id] < 1 then soldier.cooldown_max[id] = 1 end
+    end
+  end
+end
+-- }}}
+
+-- {{{ function M.restamp_team()
+-- Every living body a team owns, cleared and rebuilt.
+--
+-- One of the three moments a sweep happens, and the rarest: a boon has been chosen.
+-- During a calm that means the heroes waiting at the library and nothing else,
+-- because everything else has walked off the map.
+function M.restamp_team(world, team_id)
+  local soldier = world.soldier
+  for id = 1, world.high_water do
+    if soldier.alive[id] == 1 and soldier.team[id] == team_id then
+      local fraction = soldier.health[id] / soldier.health_max[id]
+      local keep_state = soldier.state[id]
+      world.give_body(world, id, world.parameters.unit.archetype[soldier.archetype[id]])
+      soldier.state[id] = keep_state
+      if soldier.flavour[id] == 3 and soldier.guard_of[id] ~= 0 then
+        M.apply_counts(world, id, M.stone_counts(world, world.structure[soldier.guard_of[id]]))
+      elseif soldier.flavour[id] == 1 and soldier.lane[id] ~= 0 then
+        M.apply_counts(world, id, world.team[team_id].lane_slot[soldier.lane[id]])
+      end
+      M.apply_boons(world, id)
+      soldier.health[id] = soldier.health_max[id] * fraction
+    end
+  end
+end
+-- }}}
+
 -- {{{ function M.stamp_from_lane()
 -- A wave body takes its lane's upgrades at birth, and keeps them until it dies.
 function M.stamp_from_lane(world, id, team_id, lane_id)
   local soldier = world.soldier
   M.apply_counts(world, id, world.team[team_id].lane_slot[lane_id])
+  M.apply_boons(world, id)
   soldier.health[id] = soldier.health_max[id]
   soldier.cooldown[id] = soldier.cooldown_max[id]
 end
@@ -327,6 +394,7 @@ end
 function M.stamp_from_stone(world, id, tower)
   local soldier = world.soldier
   M.apply_counts(world, id, M.stone_counts(world, tower))
+  M.apply_boons(world, id)
   soldier.health[id] = soldier.health_max[id]
   soldier.cooldown[id] = soldier.cooldown_max[id]
 end

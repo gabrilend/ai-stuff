@@ -47,7 +47,8 @@ hero-less-moba/
 ├── assets/ ................................... The catalogue tables. Every balance
 │                                               number in the game is in one of
 │                                               these and in no document.
-├── tests/ .................................... The invariants, 051.
+├── tests/ .................................... The invariants. Twenty-one of them,
+│                                               run by ./run-tests.
 │
 ├── notes/
 │   ├── vision ................................ Where all of this came from, in the

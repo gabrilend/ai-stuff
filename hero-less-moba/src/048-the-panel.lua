@@ -279,6 +279,95 @@ local function draw_lane_row(world, frame, team_id, lane, x, y, width)
 end
 -- }}}
 
+-- {{{ local function draw_phase_banner()
+-- What kind of match this is, right now, and how long until it stops being that.
+--
+-- Across the top, always, in the colour of the thing that is happening -- because a
+-- surge and a challenge change every rule on the board at once, and a player who
+-- has not noticed which one they are in is playing the wrong game. **Zoom reveals
+-- detail, never events**, and a phase change is the largest event there is.
+local function draw_phase_banner(world, frame, x, y, width)
+  local names = {"", "SIEGE-SURGE", "CHALLENGE", "THE CALM", "OVER"}
+  local phase = frame.phase
+
+  if phase == 1 then
+    -- Ordinary play says so quietly, and counts down to the thing that is not.
+    local left = math.max(0, frame.phase_ends_at - frame.tick)
+    set_colour(M.renderer.COLOUR.text, 0.35)
+    love.graphics.setFont(M.font_small)
+    love.graphics.printf(string.format("surge in %d:%02d",
+      math.floor(left / 30 / 60), math.floor(left / 30) % 60), x, y, width, "left")
+    return y + 16
+  end
+
+  local tint = {0.90, 0.55, 0.25}
+  if phase == 3 then tint = {0.76, 0.52, 0.90} end
+  if phase == 4 then tint = {0.50, 0.72, 0.62} end
+
+  love.graphics.setColor(tint[1], tint[2], tint[3], 0.18)
+  love.graphics.rectangle("fill", x - 6, y - 3, width + 12, 26, 3, 3)
+  set_colour(tint)
+  love.graphics.setFont(M.font)
+  love.graphics.print(names[phase] or "", x, y + 2)
+
+  love.graphics.setFont(M.font_small)
+  if phase == 3 then
+    local row = world.parameters.boon.challenge[frame.challenge_index]
+    set_colour(tint, 0.8)
+    love.graphics.printf(row and row.name or "", x, y + 4, width, "right")
+  else
+    local left = math.max(0, frame.phase_ends_at - frame.tick)
+    set_colour(tint, 0.7)
+    love.graphics.printf(string.format("%d:%02d",
+      math.floor(left / 30 / 60), math.floor(left / 30) % 60), x, y + 4, width, "right")
+  end
+  return y + 30
+end
+-- }}}
+
+-- {{{ local function draw_boon_offer()
+-- Two boons, and a player picks one.
+--
+-- Drawn over everything else, because during a calm there is nothing else to do and
+-- the choice is the whole of the phase. Two rather than three: a choice between two
+-- is a decision and a choice between six is a menu.
+local function draw_boon_offer(world, frame, x, y, width)
+  if #frame.boon_offer == 0 then
+    return y
+  end
+  local catalogue = world.parameters.boon.boon
+
+  set_colour(M.renderer.COLOUR.text, 0.75)
+  love.graphics.setFont(M.font)
+  love.graphics.print("CHOOSE A BOON", x, y)
+  y = y + 20
+
+  local height = 34
+  for _, boon_id in ipairs(frame.boon_offer) do
+    local row = catalogue[boon_id]
+    love.graphics.setColor(row.colour[1], row.colour[2], row.colour[3], 0.22)
+    love.graphics.rectangle("fill", x, y, width, height, 3, 3)
+    set_colour(row.colour, 0.9)
+    love.graphics.setLineWidth(1.5)
+    love.graphics.rectangle("line", x, y, width, height, 3, 3)
+
+    set_colour(row.colour)
+    love.graphics.rectangle("fill", x + 6, y + 9, 16, 16, 2, 2)
+    love.graphics.setColor(0.06, 0.07, 0.09, 0.9)
+    love.graphics.setFont(M.font_small)
+    love.graphics.printf(row.glyph, x + 6, y + 12, 16, "center")
+
+    set_colour(M.renderer.COLOUR.text, 0.9)
+    love.graphics.setFont(M.font)
+    love.graphics.print(row.name, x + 30, y + 9)
+
+    add_hot("boon", {x, y, width, height}, {boon = boon_id})
+    y = y + height + 5
+  end
+  return y + 4
+end
+-- }}}
+
 -- {{{ local function draw_colour_mark()
 -- One resource colour, drawn as its own **shape** as well as its own hue.
 --
@@ -526,6 +615,9 @@ function M.draw(world, camera, frame, team_id, held_kind, mouse_x, mouse_y, spee
   love.graphics.printf(paused and "PAUSED" or string.format("x%d", speed),
                        inner_x, y + 5, inner_w, "right")
   y = y + 30
+
+  y = draw_phase_banner(world, frame, inner_x, y, inner_w)
+  y = draw_boon_offer(world, frame, inner_x, y, inner_w)
 
   -- Which team's board this is. Marked as a prototype affordance rather than
   -- offered as a feature -- a real match cannot show you the other side's chest,
