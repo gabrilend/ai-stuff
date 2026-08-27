@@ -71,53 +71,23 @@ end
 -- Only friendly bodies block. An enemy in the way is not an obstacle, it is a
 -- target, and the targeting pass has already had its say by the time this is
 -- asked.
-function M.blocked(world, id, dir_x, dir_y)
+function M.blocked(world, id)
   local soldier = world.soldier
 
   -- A body with no lane -- a guard on patrol -- is not in anybody's queue. Guards
   -- wander; they are not going anywhere that queueing would help them reach.
-  if soldier.path_index[id] == 0 then
+  if soldier.path_index[id] == 0 or soldier.lane[id] == 0 then
     return false
-  end
-
-  -- A body off the lane is not in the lane's queue either. It is standing in a
-  -- rank, or walking across open ground toward one, and "further along the path"
-  -- has stopped meaning "in front of me" -- two bodies side by side in the same
-  -- rank sit at almost the same path index and would each report the other as
-  -- blocking. So the test becomes the honest one: is a friend actually in the way
-  -- of where I am going.
-  if soldier.off_lane[id] == 1 then
-    if dir_x == nil then
-      return false
-    end
-    local spacing = world.parameters.shape.personal_space
-    if soldier.reach[id] == 2 then
-      spacing = spacing * 0.6
-    end
-    local blocked = false
-    M.for_each_candidate(world, id, spacing, function(other)
-      if blocked then return end
-      if soldier.team[other] == soldier.team[id] then
-        local dx = soldier.x[other] - soldier.x[id]
-        local dy = soldier.y[other] - soldier.y[id]
-        if dx * dir_x + dy * dir_y > 0 then
-          blocked = true
-        end
-      end
-    end)
-    return blocked
   end
 
   local lane = soldier.lane[id]
   local team = soldier.team[id]
   local facing = soldier.facing[id]
-  local mine = lane_position(world, id)
+  local mine = soldier.lane_along[id]
   local spacing = world.parameters.shape.personal_space
 
   -- A ranged body keeps a smaller bubble than a melee one. It is not waiting for
-  -- the front, so it only needs enough room not to stand inside a friend -- and
-  -- giving it a full rank's spacing would push the back of a wave a long way
-  -- down the lane for no reason.
+  -- the front, so it only needs enough room not to stand inside a friend.
   if soldier.reach[id] == 2 then
     spacing = spacing * 0.6
   end
@@ -127,15 +97,18 @@ function M.blocked(world, id, dir_x, dir_y)
     if blocked then
       return
     end
-    if soldier.team[other] == team
-       and soldier.lane[other] == lane
-       and soldier.path_index[other] > 0 then
-      local theirs = lane_position(world, other)
-      -- Ahead means further along in the direction I am walking. Multiplying by
-      -- facing folds the two directions into one comparison, so team 2's bodies
-      -- walking backwards down the path array queue exactly like team 1's.
-      if (theirs - mine) * facing > 0 then
-        blocked = true
+    if soldier.team[other] == team and soldier.lane[other] == lane then
+      -- Ahead means further along in the direction I am walking, and *in roughly
+      -- the same file* -- a body one rank forward and two files over is beside me,
+      -- not in front of me, and treating it as an obstacle would stop a rank
+      -- forming at all.
+      local sideways = soldier.lane_across[other] - soldier.lane_across[id]
+      if sideways < 0 then sideways = -sideways end
+      if sideways < spacing then
+        local theirs = soldier.lane_along[other]
+        if (theirs - mine) * facing > 0 then
+          blocked = true
+        end
       end
     end
   end)

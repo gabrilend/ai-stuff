@@ -4083,8 +4083,24 @@ Four ways out, and they are not equally good:
    mixture of plains, forests, mountains"* — and let the middle be open ground while
    the flanks are not. That is the largest of the four by a wide margin.
 
-Nothing has been changed. The map still emits a wider centre and the renderer still
-draws it, so whichever of these is chosen, the number is already there to hang it on.
+### A partial answer arrived from building it
+
+**The lane's width now sets how wide a wave marches.** Not how many bodies may
+fight at once — nothing sets that — but how many walk abreast down the road, which
+is a different question with an obvious answer: a road's width is how many people
+fit across it.
+
+That gives the centre back most of what it wanted, by a different route. A wave
+marching up the middle arrives with more of itself abreast, so more of it is in
+contact the moment contact happens, and a numerical advantage tells sooner. The
+difference from the old rule is that it is decided on the way there rather than at
+the moment of contact — which suits a design where waves are formed before they
+leave the base.
+
+It is option 2 above in substance, arrived at from the other direction. **Whether it
+is enough is still the open part**, and so is whether the middle should get
+something else besides. Option 4 — real terrain — remains the largest and is
+explicitly deferred by G3's answer.
 
 ## G7. Issue 101 describes four junctions — **OPEN**
 

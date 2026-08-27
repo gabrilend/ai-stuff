@@ -237,13 +237,23 @@ local function build_lane(map, shape, lane_id, width,
   -- walking forward from index i uses step_length[i] and one walking backward
   -- from index i uses step_length[i - 1].
   lane.step_length = {}
+  -- How far along the lane each path node sits, measured from team 1's library.
+  --
+  -- This is what lets a body's position be a **single number** -- how far down the
+  -- lane it is -- rather than an edge and a fraction of it. A formation is a set of
+  -- offsets from one such number, so a rank stays a rank when the lane bends: every
+  -- body in it is at the same distance along, and the lane's own curve carries them
+  -- round the corner together.
+  lane.cumulative = {}
   local total = 0
+  lane.cumulative[1] = 0
   for index = 1, #lane.path - 1 do
     local a = map.node[lane.path[index]]
     local b = map.node[lane.path[index + 1]]
     local step = math.sqrt((b.x - a.x) ^ 2 + (b.y - a.y) ^ 2)
     lane.step_length[index] = step
     total = total + step
+    lane.cumulative[index + 1] = total
   end
   lane.length = total
 
@@ -400,6 +410,55 @@ function M.build(parameters)
   map.bounds = {min_x = min_x, min_y = min_y, max_x = max_x, max_y = max_y}
 
   return map
+end
+-- }}}
+
+-- {{{ function M.point_at()
+-- Where a lane is, a given distance along it, and which way it is heading there.
+--
+-- Returns x, y, the unit tangent, and the path index the point falls in. The
+-- **normal** -- across the lane -- is the tangent turned a quarter turn, and every
+-- caller derives it that way rather than being handed it, so there is one
+-- definition of which side is which.
+--
+-- `hint` is the path index to start searching from. A body asking where it is has
+-- barely moved since last tick, so the search is two or three steps rather than a
+-- scan of the whole lane. Passing a wrong hint is slow but never incorrect.
+function M.point_at(map, lane, distance, hint)
+  local last = #lane.path
+
+  if distance <= 0 then
+    local a, b = map.node[lane.path[1]], map.node[lane.path[2]]
+    local dx, dy = b.x - a.x, b.y - a.y
+    local length = math.sqrt(dx * dx + dy * dy)
+    return a.x, a.y, dx / length, dy / length, 1
+  end
+  if distance >= lane.length then
+    local a, b = map.node[lane.path[last - 1]], map.node[lane.path[last]]
+    local dx, dy = b.x - a.x, b.y - a.y
+    local length = math.sqrt(dx * dx + dy * dy)
+    return b.x, b.y, dx / length, dy / length, last
+  end
+
+  local index = hint
+  if index == nil or index < 1 or index > last - 1 then
+    index = 1
+  end
+  -- Walk to whichever step contains the distance. Both directions, because a body
+  -- can be behind its hint as well as ahead of it -- a rank re-forming after a turn
+  -- has bodies moving backwards relative to the formation.
+  while index > 1 and lane.cumulative[index] > distance do
+    index = index - 1
+  end
+  while index < last - 1 and lane.cumulative[index + 1] <= distance do
+    index = index + 1
+  end
+
+  local a, b = map.node[lane.path[index]], map.node[lane.path[index + 1]]
+  local step = lane.step_length[index]
+  local u = (distance - lane.cumulative[index]) / step
+  local dx, dy = b.x - a.x, b.y - a.y
+  return a.x + dx * u, a.y + dy * u, dx / step, dy / step, index
 end
 -- }}}
 

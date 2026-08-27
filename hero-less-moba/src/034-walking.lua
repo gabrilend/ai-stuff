@@ -297,94 +297,161 @@ function M.step(world, id)
 end
 -- }}}
 
--- {{{ function M.graph_position()
--- Where on the path graph a body currently belongs, regardless of where its body
--- actually is. A body off the lane keeps this current; it is the place it rejoins.
-function M.graph_position(world, id)
-  local soldier = world.soldier
-  local node = world.map.node
-  local from = node[soldier.node_from[id]]
-  local to   = node[soldier.node_to[id]]
-  local u = soldier.progress[id]
-  return from.x + (to.x - from.x) * u, from.y + (to.y - from.y) * u
-end
--- }}}
-
--- {{{ function M.step_free()
--- Moves a body toward a point across open ground, ignoring the graph entirely.
+-- {{{ function M.set_lane_position()
+-- Writes a body's lane coordinates and derives everything else from them.
 --
--- The one kind of movement in this game that is not "read the next node out of an
--- array", and it exists for one reason: a host arranges itself against the enemy
--- rather than against the corridor it walked down, so a body forming up is walking
--- to a place the graph has no opinion about.
+-- **These two numbers are the truth for a body on a lane** -- how far along it has
+-- got, and how far to one side of the centre it stands. Its world position, its
+-- path index, and the edge it is nominally on are all read off them.
 --
--- Returns true once it has arrived.
-function M.step_free(world, id, goal_x, goal_y, tolerance)
-  local soldier = world.soldier
-  local dx, dy = goal_x - soldier.x[id], goal_y - soldier.y[id]
-  local distance = math.sqrt(dx * dx + dy * dy)
-
-  if distance <= tolerance then
-    return true
-  end
-
-  local speed = soldier.speed[id]
-  if speed >= distance then
-    soldier.x[id], soldier.y[id] = goal_x, goal_y
-    return true
-  end
-
-  soldier.x[id] = soldier.x[id] + dx / distance * speed
-  soldier.y[id] = soldier.y[id] + dy / distance * speed
-  return false
-end
--- }}}
-
--- {{{ function M.reproject()
--- Slides a body's graph position along its lane to whichever point is nearest to
--- where the body has actually got to.
---
--- Without this, a body that leaves the lane to form up freezes its path index, and
--- push depth -- which is measured in path indices -- stops describing the world. A
--- host could fight its way to the enemy base and the lane would still report the
--- milestone it was standing on when it deployed.
---
--- Searched in a window around the current index rather than along the whole lane.
--- A body cannot have moved far since last tick, and scanning a hundred nodes per
--- body per tick to find that out would cost more than everything else in the move
--- pass put together.
-function M.reproject(world, id)
+-- Deriving rather than storing is what makes a rank survive a corner. Every body
+-- in a rank shares one distance-along, so the lane's own curve carries the whole
+-- line round the bend together; nothing has to notice that the outside of the turn
+-- is longer, because nothing is measuring the turn.
+function M.set_lane_position(world, id, along, across)
   local soldier = world.soldier
   local lane = world.map.lane[soldier.lane[id]]
-  if lane == nil then
-    return
-  end
 
-  local here = soldier.path_index[id]
-  local first = here - 12
-  local last  = here + 12
-  if first < 1 then first = 1 end
-  if last > #lane.path then last = #lane.path end
+  if along < 0 then along = 0 end
+  if along > lane.length then along = lane.length end
 
-  local best, best_distance = here, math.huge
-  for index = first, last do
-    local node = world.map.node[lane.path[index]]
-    local dx, dy = node.x - soldier.x[id], node.y - soldier.y[id]
-    local distance = dx * dx + dy * dy
-    if distance < best_distance then
-      best, best_distance = index, distance
-    end
-  end
+  soldier.lane_along[id] = along
+  soldier.lane_across[id] = across
 
-  soldier.path_index[id] = best
-  soldier.progress[id] = 0
-  soldier.node_from[id] = lane.path[best]
-  local next_index = best + soldier.facing[id]
+  local x, y, tx, ty, index =
+    world.map_builder.point_at(world.map, lane, along, soldier.path_index[id])
+
+  -- The normal is the tangent turned a quarter turn. Derived here and nowhere else,
+  -- so there is one definition of which side of a lane is the positive one.
+  soldier.x[id] = x - ty * across
+  soldier.y[id] = y + tx * across
+
+  soldier.path_index[id] = index
+  soldier.node_from[id] = lane.path[index]
+  local next_index = index + soldier.facing[id]
   if next_index < 1 or next_index > #lane.path then
-    soldier.node_to[id] = lane.path[best]
+    soldier.node_to[id] = lane.path[index]
   else
     soldier.node_to[id] = lane.path[next_index]
   end
+  -- Kept roughly current so that anything still reading progress sees something
+  -- sensible; nothing on a lane depends on it any more.
+  local step = lane.step_length[index]
+  if step ~= nil and step > 0 then
+    soldier.progress[id] = (along - lane.cumulative[index]) / step
+  else
+    soldier.progress[id] = 0
+  end
+end
+-- }}}
+
+-- {{{ function M.project_onto_lane()
+-- Where a world point falls in a lane's coordinates: how far along, and how far
+-- across.
+--
+-- Used when a body's target is not on its own lane -- a tower guard, mostly. The
+-- search is a window around a hint rather than the whole lane, for the same reason
+-- everything else here is: a body has not moved far since last tick.
+function M.project_onto_lane(world, lane_id, x, y, hint)
+  local lane = world.map.lane[lane_id]
+  local node = world.map.node
+
+  local first = (hint or 1) - 14
+  local last  = (hint or 1) + 14
+  if first < 1 then first = 1 end
+  if last > #lane.path - 1 then last = #lane.path - 1 end
+
+  local best_along, best_across, best_distance = 0, 0, math.huge
+  for index = first, last do
+    local a = node[lane.path[index]]
+    local b = node[lane.path[index + 1]]
+    local step = lane.step_length[index]
+    local tx, ty = (b.x - a.x) / step, (b.y - a.y) / step
+    local dx, dy = x - a.x, y - a.y
+
+    local along = dx * tx + dy * ty
+    if along < 0 then along = 0 end
+    if along > step then along = step end
+
+    local px, py = a.x + tx * along, a.y + ty * along
+    local distance = (x - px) ^ 2 + (y - py) ^ 2
+    if distance < best_distance then
+      best_distance = distance
+      best_along = lane.cumulative[index] + along
+      -- Signed against the normal, so which side is which agrees with
+      -- set_lane_position.
+      best_across = (x - px) * (-ty) + (y - py) * tx
+    end
+  end
+  return best_along, best_across
+end
+-- }}}
+
+-- {{{ function M.step_in_formation()
+-- Moves a body toward its place in its wave's formation.
+--
+-- The forward correction carries this tick's cohesion multiplier -- bodies behind
+-- their place hurry and bodies in front of it wait, out of one conserved budget.
+-- The sideways correction does not, and is slower than walking: sliding back into
+-- file costs forward progress, so a wave bent by a turn visibly takes a moment to
+-- straighten rather than snapping back into shape.
+function M.step_in_formation(world, id)
+  local soldier = world.soldier
+  local target_along, target_across = world.formations.target_of(world, id)
+
+  local scale = soldier.speed_scale[id]
+  if scale <= 0 then scale = 1 end
+  local forward = soldier.speed[id] * scale
+
+  local along = soldier.lane_along[id]
+  local gap = target_along - along
+  if gap > forward then
+    along = along + forward
+  elseif gap < -forward then
+    along = along - forward
+  else
+    along = target_along
+  end
+
+  local lateral = soldier.speed[id] * 0.55
+  local across = soldier.lane_across[id]
+  local side_gap = target_across - across
+  if side_gap > lateral then
+    across = across + lateral
+  elseif side_gap < -lateral then
+    across = across - lateral
+  else
+    across = target_across
+  end
+
+  M.set_lane_position(world, id, along, across)
+end
+-- }}}
+
+-- {{{ function M.step_toward_point()
+-- Moves a body toward a point given in its own lane's coordinates.
+--
+-- Used when closing on something. Cohesion is not applied: once a body is going
+-- for an enemy it has left the formation's business, and *once fighting begins it
+-- is less important to retain cohesion.*
+function M.step_toward_point(world, id, target_along, target_across)
+  local soldier = world.soldier
+  local speed = soldier.speed[id]
+
+  local along = soldier.lane_along[id]
+  local across = soldier.lane_across[id]
+  local dx = target_along - along
+  local dy = target_across - across
+  local distance = math.sqrt(dx * dx + dy * dy)
+
+  if distance <= speed then
+    M.set_lane_position(world, id, target_along, target_across)
+    return true
+  end
+
+  M.set_lane_position(world, id, along + dx / distance * speed,
+                                 across + dy / distance * speed)
+  return false
 end
 -- }}}
 
@@ -392,23 +459,14 @@ end
 -- Puts a body onto a lane at a given path index, facing a given direction. The
 -- one way a body enters a lane, used by the wave spawner and by hero placement
 -- alike, so that there is one definition of what "being in a lane" means.
-function M.place_on_lane(world, id, lane_id, path_index, facing)
+function M.place_on_lane(world, id, lane_id, path_index, facing, across)
   local soldier = world.soldier
   local lane = world.map.lane[lane_id]
 
   soldier.lane[id] = lane_id
   soldier.facing[id] = facing
   soldier.path_index[id] = path_index
-  soldier.node_from[id] = lane.path[path_index]
-
-  local next_index = path_index + facing
-  if next_index < 1 or next_index > #lane.path then
-    soldier.node_to[id] = soldier.node_from[id]
-  else
-    soldier.node_to[id] = lane.path[next_index]
-  end
-  soldier.progress[id] = 0
-  position_of(world, id)
+  M.set_lane_position(world, id, lane.cumulative[path_index], across or 0)
 end
 -- }}}
 

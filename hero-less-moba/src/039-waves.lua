@@ -69,6 +69,27 @@ local function new_wave(world, team, lane, member_count)
     carried[kind] = world.team[team].lane_slot[lane][kind]
   end
 
+  local lane_record = world.map.lane[lane]
+  local facing = (team == 1) and 1 or -1
+
+  -- The formation's front, as a distance along the lane. It starts a few ranks in
+  -- from the library so that the wave is **already in its ranks the moment it
+  -- appears** rather than piling up against the end of the lane and sorting itself
+  -- out afterwards.
+  local start_in = 70
+  local anchor = (team == 1) and start_in or (lane_record.length - start_in)
+
+  -- A wave advances at its slowest member's pace, so it does not walk away from
+  -- its own rear rank. That is the captain's speed -- and it stays the captain's
+  -- speed after the captain dies, because a wave that sped up when it lost the most
+  -- valuable body in it would be a wave rewarded for losing it.
+  local pace = math.huge
+  for _, row in ipairs(world.parameters.unit.archetype) do
+    if row.flavour == 1 and row.speed < pace then
+      pace = row.speed
+    end
+  end
+
   world.wave[id] = {
     id           = id,
     team         = team,
@@ -79,6 +100,17 @@ local function new_wave(world, team, lane, member_count)
     killed_any   = 0,
     settled      = 0,
     upgrade_count = carried,
+
+    anchor       = anchor,
+    pace         = pace,
+    facing       = facing,
+    engaged      = 0,
+    hint         = (team == 1) and 1 or #lane_record.path,
+    -- How far behind its place each member currently is, rebuilt every tick by the
+    -- cohesion pass. Kept on the wave rather than on the bodies because it is a
+    -- statement about the group -- a body's lag only means anything next to its
+    -- neighbours'.
+    lag_of       = {},
   }
   return id
 end
@@ -90,7 +122,7 @@ end
 -- Team 1 enters its lane at path index 1 walking forward; team 2 enters at the
 -- far end walking backward. One path array, read in two directions, which is why
 -- every "how far along" comparison in the project multiplies by facing.
-function M.spawn_body(world, team, lane_id, archetype, wave_id)
+function M.spawn_body(world, team, lane_id, archetype, wave_id, role, role_index, melee_total)
   local id = world.allocate(world)
   local soldier = world.soldier
   local row = world.parameters.unit.archetype[archetype]
@@ -102,15 +134,20 @@ function M.spawn_body(world, team, lane_id, archetype, wave_id)
   soldier.wave[id] = wave_id
   soldier.assigned_team[id] = 0
   soldier.leash_node[id] = 0
+  soldier.speed_scale[id] = 1
 
   local lane = world.map.lane[lane_id]
-  if team == 1 then
-    world.walking.place_on_lane(world, id, lane_id, 1, 1)
-    soldier.milestone[id] = 0
-  else
-    world.walking.place_on_lane(world, id, lane_id, #lane.path, -1)
-    soldier.milestone[id] = 8
-  end
+  soldier.lane[id] = lane_id
+  soldier.facing[id] = (team == 1) and 1 or -1
+  soldier.path_index[id] = (team == 1) and 1 or #lane.path
+  soldier.milestone[id] = (team == 1) and 0 or 8
+
+  -- Its place in the line, decided before it is put anywhere, so that the body
+  -- appears standing in the formation rather than walking into it.
+  world.formations.assign_wave_slots(world, id, lane, role_index, role, melee_total)
+  local wave = world.wave[wave_id]
+  local along = wave.anchor + soldier.slot_along[id] * soldier.facing[id]
+  world.walking.set_lane_position(world, id, along, soldier.slot_across[id])
 
   -- Stamped at birth, and never corrected afterwards. Moving an upgrade out of a
   -- lane does not weaken the soldiers already walking in it -- they finish their
@@ -130,23 +167,27 @@ local function queue_wave(world, team, lane)
   local total = settings.melee_count + settings.ranged_count + settings.captain_count
   local wave_id = new_wave(world, team, lane, total)
 
-  -- The order bodies leave in, and it is deliberate. The captain leads, the
-  -- melee follow, and the ranged come last -- so that by the time the column
-  -- meets anything, the bodies that want the front are already in front of the
-  -- bodies that do not.
-  local order = {}
-  for _ = 1, settings.captain_count do order[#order + 1] = CAPTAIN end
-  for _ = 1, settings.melee_count   do order[#order + 1] = MELEE   end
-  for _ = 1, settings.ranged_count  do order[#order + 1] = RANGED  end
-
-  for position, archetype in ipairs(order) do
-    world.spawn_queue[#world.spawn_queue + 1] = {
-      due       = world.tick + (position - 1) * settings.stagger,
-      team      = team,
-      lane      = lane,
-      archetype = archetype,
-      wave      = wave_id,
-    }
+  -- **The whole wave appears at once, in its ranks.** There is no column that
+  -- files out and arranges itself later: it is emitted from the base already in
+  -- formation and it is battle-ready from the first tick. The only thing in this
+  -- game that walks out in a line is a siege-surge, which is a stream and has no
+  -- formation at all.
+  --
+  -- The captain takes index zero of the front rank, which puts it in the middle of
+  -- the line -- both where it is most useful and where an opponent can see it
+  -- coming, which matters because a captain is the one body a commander chooses.
+  local melee_total = settings.captain_count + settings.melee_count
+  local front_index = 0
+  for _ = 1, settings.captain_count do
+    M.spawn_body(world, team, lane, CAPTAIN, wave_id, "front", front_index, melee_total)
+    front_index = front_index + 1
+  end
+  for _ = 1, settings.melee_count do
+    M.spawn_body(world, team, lane, MELEE, wave_id, "front", front_index, melee_total)
+    front_index = front_index + 1
+  end
+  for index = 0, settings.ranged_count - 1 do
+    M.spawn_body(world, team, lane, RANGED, wave_id, "back", index, melee_total)
   end
 
   return wave_id
@@ -172,16 +213,6 @@ function M.spawn_pass(world)
     world.raise(world, "wave_spawned", {tick = world.tick})
   end
 
-  -- Anything due. Walked backwards so that removing an entry does not move the
-  -- entries that have not been looked at yet.
-  local queue = world.spawn_queue
-  for index = #queue, 1, -1 do
-    local entry = queue[index]
-    if world.tick >= entry.due then
-      M.spawn_body(world, entry.team, entry.lane, entry.archetype, entry.wave)
-      table.remove(queue, index)
-    end
-  end
 end
 -- }}}
 
