@@ -3857,7 +3857,7 @@ design. Each entry is a place where the documents are either **not consistent**,
 choose**, and every one of them wants an answer from a person rather than from
 whoever next reads the file.
 
-## G1. Does the centre lane's junction have three neighbours or four? — **OPEN**
+## G1. Does the centre lane's junction have three neighbours or four? — **ANSWERED**
 
 [The map](002-the-map-and-its-milestones.md)'s node record says a junction has
 three neighbours, and adds "the centre lane's midpoint is a junction too, so it
@@ -3884,7 +3884,18 @@ described shape produces. Three readings are available:
    different game.
 
 The first is a one-line documentation fix. The second and third are design
-changes. Nothing has been changed pending an answer.
+changes.
+
+**Answer: four is correct, and the document was wrong.**
+
+The number is a fact about the graph rather than a rule anybody plays by, and
+nothing in the design rests on it. Both connectors landing on the same node is
+also the better shape: it makes the middle a single place every cross-map route
+passes through, rather than two crossings that happen to be near each other.
+
+**Changed:** [002](002-the-map-and-its-milestones.md)'s node record, and the
+paragraph about connectors now says outright that both of them land on the
+midpoint and why that leaves it with four neighbours.
 
 ## G2. Exact mirror symmetry does not hold, and it is asked for by name — **OPEN**
 
@@ -3918,7 +3929,7 @@ that price**, or is the test better written as a tolerance — the two teams' pu
 depths within one milestone of each other over a long unattended match — which
 would catch every real asymmetry and cost nothing.
 
-## G3. Lane width does nothing — **OPEN**
+## G3. Lane width does nothing — **ANSWERED, and it is not the question it looked like**
 
 Three documents say a lane's width feeds exactly two things: how wide the renderer
 draws it, and **how many bodies the frontline queue lets stand abreast.** The
@@ -3935,10 +3946,47 @@ This also blocks **B1**, which instructs that a wave should be *wider than the
 lane can fit abreast* so that ranks queue visibly. That instruction cannot be
 followed while the answer to "how many fit abreast" is always one.
 
-The shape of the fix is clear enough — a lane holds a small number of parallel
-files, and a body picks the nearest free one — but it is a real piece of design
-about how bodies are offset across a lane, and it changes what the renderer draws
-and what a frontline looks like. It has not been guessed at.
+The shape of the fix looked clear enough — a lane holds a small number of
+parallel files, and a body picks the nearest free one.
+
+**That was the wrong question, and the answer replaces it rather than settling
+it.** Recorded as it was given:
+
+> draw a line toward the enemy, then arrange your formation for the advance. a
+> basic one is lines of melee in front of lines of ranged, with cavalry behind so
+> they can flank toward the flank of theirs that's weak. Draw a line through the
+> enemy like the way the healers do to orient themselves, and then make your rank
+> lines parallel to that. The lanes are mostly suggestions, the world is actually
+> just a dense mixture of plains, forests, mountains, etc... But for our purposes
+> just say it's flat everywhere. The lanes should determine the path that you take
+> toward the enemy, but not how you should be arranged when you engage. You should
+> make a line parallel to the line through the enemy group, and arrange your guys
+> oriented to that line. Once fighting begins it's less important to retain
+> cohesion, but the approach is how you engage.
+
+**So a lane never constrains a formation at all.** The lane is the *path*; the
+enemy is the *arrangement*. A host draws the line through the mass of the enemy
+formation — the same line a ranged body already uses to decide which way to orbit,
+which is why this needs no new mechanism — and forms its ranks parallel to it:
+melee in front, ranged behind at their own reach, cavalry behind that to flank
+whichever of the enemy's flanks is weak.
+
+A rank is therefore **as wide as theirs**, not as wide as the corridor. A host
+with more bodies than the enemy's line is wide puts the surplus in the ranks
+behind, which is where a numerical advantage belongs.
+
+Two things fall out and both are worth stating.
+
+**The world is flat, deliberately and consciously.** *"the world is actually just
+a dense mixture of plains, forests, mountains, etc... But for our purposes just
+say it's flat everywhere."* That is a simplification being accepted with its eyes
+open rather than an absence of terrain, and it should stay visible as a choice.
+
+**The centre lane's whole mechanical purpose evaporates**, which is a real cost
+and is raised as **G8** rather than buried in this answer.
+
+**Changed:** issue 206, which is now a formation issue rather than a queue issue,
+and keeps the paragraph above verbatim.
 
 ## G4. Is one draw per wave wipe far too generous? — **AWAITING EVIDENCE**
 
@@ -4004,6 +4052,39 @@ So this is a documentation question and not a behaviour one: **which should the
 document describe?** The written version is easier to reason about; the built
 version is what runs. Leaving them different is the thing that must not happen,
 because a reader who trusts the page will look for a loop that is not there.
+
+## G8. What is the wide centre lane for, now that width does not cap a rank? — **OPEN**
+
+Created by **G3**'s answer, not settled by it.
+
+The centre lane is wider than the side lanes, permanently, as topography. Every
+document that mentions it gives the same reason: more bodies get into contact at
+once there, so **the centre is where numbers matter most** — stacking a side lane
+is a bet on quality and stacking the centre is a bet on quantity. That was the
+only real difference between the three lanes, and it was one number in the map
+builder's table.
+
+G3 removes the mechanism it rested on. If a rank is as wide as the enemy's line
+rather than as wide as the corridor, then a fight in a side lane and a fight in
+the middle are the same fight, and the width is a drawing.
+
+Four ways out, and they are not equally good:
+
+1. **Let it go.** The centre already has three other things: it is the shortest
+   lane so contact happens there first, it is where both connectors land so it is
+   the only route between the flanks, and it is where the challenge monsters walk.
+   That may be enough to make it distinct without a width rule.
+2. **Width caps the formation after all**, as a soft maximum — the enemy sets the
+   rank's width, but the corridor sets a ceiling on it. Keeps the property and
+   costs the clean statement that the lane never constrains arrangement.
+3. **Give the middle something else.** It is the ground the jungle used to occupy
+   and the place a body can leave; there may be a better property there than width.
+4. **Make the terrain real**, which G3's answer explicitly defers — *"a dense
+   mixture of plains, forests, mountains"* — and let the middle be open ground while
+   the flanks are not. That is the largest of the four by a wide margin.
+
+Nothing has been changed. The map still emits a wider centre and the renderer still
+draws it, so whichever of these is chosen, the number is already there to hang it on.
 
 ## G7. Issue 101 describes four junctions — **OPEN**
 

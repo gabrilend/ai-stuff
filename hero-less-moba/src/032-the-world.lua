@@ -160,6 +160,16 @@ local function make_soldier_arrays(capacity, kind_count)
   -- guard. Read by the re-stamp sweep, which has to find every body standing
   -- under a tower whose slot just changed.
   soldier.guard_of          = zeroed(capacity)
+  -- Where this body's place in its host's formation is, and whether it has one.
+  -- A body with a live slot has **left the lane** and is moving across open
+  -- ground; the lane is the path it took to get here, not the shape it fights in.
+  soldier.slot_x            = zeroed(capacity)
+  soldier.slot_y            = zeroed(capacity)
+  soldier.slot_live         = zeroed(capacity)
+  -- 1 while the body is off the path graph. Its node and progress are kept
+  -- current underneath by re-projection, so push depth stays honest and so it can
+  -- rejoin the lane where it actually is rather than where it left.
+  soldier.off_lane          = zeroed(capacity)
 
   -- Modifiers. One flat array per upgrade kind rather than one table per
   -- soldier: the sweep that re-stamps a lane's guards touches one kind across
@@ -376,6 +386,10 @@ function M.release(world, id)
   soldier.leash_node[id] = 0
   soldier.wander_node[id] = 0
   soldier.guard_of[id] = 0
+  soldier.slot_x[id] = 0
+  soldier.slot_y[id] = 0
+  soldier.slot_live[id] = 0
+  soldier.off_lane[id] = 0
   for kind = 1, #soldier.upgrade_count do
     soldier.upgrade_count[kind][id] = 0
   end

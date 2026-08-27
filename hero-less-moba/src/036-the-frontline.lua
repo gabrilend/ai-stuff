@@ -71,13 +71,41 @@ end
 -- Only friendly bodies block. An enemy in the way is not an obstacle, it is a
 -- target, and the targeting pass has already had its say by the time this is
 -- asked.
-function M.blocked(world, id)
+function M.blocked(world, id, dir_x, dir_y)
   local soldier = world.soldier
 
   -- A body with no lane -- a guard on patrol -- is not in anybody's queue. Guards
   -- wander; they are not going anywhere that queueing would help them reach.
   if soldier.path_index[id] == 0 then
     return false
+  end
+
+  -- A body off the lane is not in the lane's queue either. It is standing in a
+  -- rank, or walking across open ground toward one, and "further along the path"
+  -- has stopped meaning "in front of me" -- two bodies side by side in the same
+  -- rank sit at almost the same path index and would each report the other as
+  -- blocking. So the test becomes the honest one: is a friend actually in the way
+  -- of where I am going.
+  if soldier.off_lane[id] == 1 then
+    if dir_x == nil then
+      return false
+    end
+    local spacing = world.parameters.shape.personal_space
+    if soldier.reach[id] == 2 then
+      spacing = spacing * 0.6
+    end
+    local blocked = false
+    M.for_each_candidate(world, id, spacing, function(other)
+      if blocked then return end
+      if soldier.team[other] == soldier.team[id] then
+        local dx = soldier.x[other] - soldier.x[id]
+        local dy = soldier.y[other] - soldier.y[id]
+        if dx * dir_x + dy * dir_y > 0 then
+          blocked = true
+        end
+      end
+    end)
+    return blocked
   end
 
   local lane = soldier.lane[id]

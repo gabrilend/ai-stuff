@@ -53,6 +53,11 @@ jungle taken out of it. Nothing spawns on a connector, nothing camps there, and
 no tower covers it. Side lanes do not touch each other; the only way from top to
 bottom is through the centre.
 
+**Both connectors land on the same node** — the centre lane's midpoint — which is
+what makes the middle a single place every cross-map route passes through rather
+than two separate crossings. It is also why that one node has four neighbours
+where every other junction has three.
+
 Giving the centre lane a junction of its own is what makes the middle a place a
 body can leave. The earlier four-junction layout put every junction on a side
 lane, so anything that walked into the centre was committed to it permanently —
@@ -61,11 +66,22 @@ which was never a decision anybody made. See
 
 ## Lanes have a width, and the center's is greater
 
-Each lane carries a **width** in paces: how many bodies can stand abreast in it
-before the ones behind have to queue.
+Each lane carries a **width** in paces.
 
 **The center lane is wider than the side lanes.** Permanently, as topography —
 not as a rule that switches on during a challenge.
+
+**What that width currently does is draw the lane, and nothing else.** It used to
+say how many bodies could stand abreast before the ones behind had to queue, and
+that is no longer how a frontline forms — a host arranges itself against the line
+through the enemy's mass rather than against the corridor it walked down, so the
+enemy sets the width of a rank and the lane does not. See G3, and see
+[the frontline](../issues/206-the-frontline-is-a-queue.md).
+
+The rest of this section is the reasoning that made the centre wide in the first
+place. It is left standing because the width is still there in the table and still
+drawn, and because whatever the middle turns out to be for, this is the argument it
+will have to answer. **G8 is that question and it is open.**
 
 The immediate reason is the third challenge. All three lanes' worth of soldiers
 funnel into the center during a challenge, and a challenge monster has to be able
@@ -114,12 +130,10 @@ rather than one shared corridor. That is a different-feeling match, and it is a
 reason 3v3 is the shape the prototype is balanced against rather than merely its
 default size.
 
-The width feeds two things and nothing else: how many bodies the frontline queue
-lets stand abreast (see
-[a unit and what it carries](004-a-unit-and-what-it-carries.md)), and how wide
-the renderer draws the lane. It is not a movement constraint — soldiers still
-walk the path graph, and width only decides how many of them may stop at the same
-point on it.
+The width feeds **one** thing today: how wide the renderer draws the lane. It is
+not a movement constraint and never was — soldiers walk the path graph regardless
+— and it is no longer a formation constraint either. Whether it should become one
+again, or whether the middle should be distinguished some other way, is G8.
 
 ## Milestones: the only measure of progress
 
@@ -181,7 +195,7 @@ Fields are given down to the primitive.
 | `lane` | integer | 1 top, 2 center, 3 bottom. **0** if the node belongs to no lane — connectors and base interiors. |
 | `milestone` | integer | 0–8 if this node is a milestone; **0** otherwise. Read together with `kind`, never alone. |
 | `team` | integer | 0 neutral, 1, or 2. Which half of the field the node sits in. |
-| `neighbour` | integer[] | Node ids reachable in one step. Length 2 for plain lane points, 3 for junctions — the centre lane's midpoint is a junction too, so it has three. |
+| `neighbour` | integer[] | Node ids reachable in one step. Length 2 for plain lane points; **3 for a side lane's junction** — two along the lane plus its connector — and **4 for the centre lane's midpoint**, because both connectors land there. |
 | `structure` | integer | Id of the tower or library standing here, or **0** for none. |
 
 There are no nil fields anywhere in this structure. A node with no structure

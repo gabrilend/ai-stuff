@@ -79,6 +79,18 @@ local function index_the_field(world)
 end
 -- }}}
 
+-- {{{ local function form_up()
+-- Every host draws the line through the enemy in front of it and takes up its
+-- ranks parallel to that line.
+--
+-- Before the brain runs, because a body's whole decision about where to walk this
+-- tick depends on whether it has a place to walk to. After the grid is built,
+-- because finding the enemy's mass is a query against it.
+local function form_up(world)
+  world.formations.plan(world)
+end
+-- }}}
+
 -- {{{ local function retarget()
 -- Every soldier without a living target looks for one.
 --
@@ -228,6 +240,7 @@ M.system = {
   {name = "commands", run = apply_commands},
   {name = "spawn",    run = spawn},
   {name = "index",    run = index_the_field},
+  {name = "form",     run = form_up},
   {name = "retarget", run = retarget},
   {name = "move",     run = move},
   {name = "attack",   run = attack},
@@ -278,6 +291,7 @@ M.cast = {
   {name = "structures",       file = "040-structures"},
   {name = "chest",            file = "041-the-chest"},
   {name = "snapshot",         file = "043-snapshot"},
+  {name = "formations",       file = "052-formations"},
 }
 -- }}}
 
@@ -323,6 +337,7 @@ function M.assemble(modules, parameters)
   world.chest      = modules.chest
   world.commands   = modules.commands
   world.snapshot   = modules.snapshot
+  world.formations = modules.formations
 
   -- The three world-level helpers the systems call by name. Hung here rather than
   -- required, for the same reason as everything above.
@@ -341,6 +356,7 @@ function M.assemble(modules, parameters)
   world.grid = modules.targeting.make_grid(world)
   world.command_queue = {}
 
+  modules.formations.begin(world)
   modules.chest.build_deck(world)
   modules.waves.begin(world)
   modules.structures.begin(world)
