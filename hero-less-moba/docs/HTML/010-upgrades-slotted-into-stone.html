@@ -1,0 +1,466 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>010 — Upgrades Slotted Into Stone -- hero-less-moba</title><style>:root {
+  --ground:   #0d0f13;
+  --panel:    #14171d;
+  --edge:     #232833;
+  --ink:      #c7ccd6;
+  --dim:      #7d8492;
+  --warm:     #f5a83d;
+  --cold:     #5cc7ee;
+  --bone:     #e0ded8;
+  --blood:    #b81313;
+  --green:    #78c96e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 15.5px/1.65 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+a { color: var(--cold); text-decoration: none; border-bottom: 1px solid #2b4d5c; }
+a:hover { color: var(--warm); border-bottom-color: var(--warm); }
+
+#shell { display: flex; min-height: 100vh; }
+
+#contents {
+  width: 292px; flex: 0 0 292px; background: var(--panel);
+  border-right: 1px solid var(--edge); padding: 20px 0 60px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+#contents h1 {
+  font-size: 15px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--warm); margin: 0 20px 4px; font-weight: 600;
+}
+#contents .tagline { margin: 0 20px 18px; color: var(--dim); font-size: 12.5px; font-style: italic; }
+#contents section { margin-bottom: 14px; }
+#contents h2 {
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--dim); margin: 14px 20px 5px; font-weight: 600;
+}
+#contents a {
+  display: block; padding: 3px 20px 3px 20px; border: 0;
+  font-size: 13.5px; color: var(--ink); line-height: 1.4;
+}
+#contents a:hover { background: #1b1f27; color: var(--warm); }
+#contents a.here { background: #1b1f27; color: var(--warm); border-left: 3px solid var(--warm); padding-left: 17px; }
+#contents .index { color: var(--dim); font-variant-numeric: tabular-nums; margin-right: 7px; }
+
+#filter {
+  margin: 0 20px 12px; width: calc(100% - 40px); background: var(--ground);
+  border: 1px solid var(--edge); color: var(--ink); padding: 6px 9px;
+  font: inherit; font-size: 13px; border-radius: 3px;
+}
+#filter:focus { outline: 0; border-color: var(--warm); }
+
+#page { flex: 1; min-width: 0; padding: 42px 56px 120px; max-width: 900px; }
+h1, h2, h3, h4 { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; line-height: 1.25; }
+h1 { font-size: 30px; color: var(--warm); margin: 0 0 26px; font-weight: 600; }
+h2 { font-size: 21px; color: var(--bone); margin: 38px 0 12px; font-weight: 600;
+     border-bottom: 1px solid var(--edge); padding-bottom: 7px; }
+h3 { font-size: 16.5px; color: var(--cold); margin: 26px 0 8px; font-weight: 600; }
+h4 { font-size: 14.5px; color: var(--dim); margin: 20px 0 6px;
+     text-transform: uppercase; letter-spacing: .09em; }
+p { margin: 0 0 15px; }
+strong { color: var(--bone); font-weight: 600; }
+em { color: var(--dim); }
+hr { border: 0; border-top: 1px solid var(--edge); margin: 34px 0; }
+
+blockquote {
+  margin: 20px 0; padding: 3px 0 3px 20px; border-left: 3px solid var(--warm);
+  color: var(--bone); font-style: italic;
+}
+blockquote p { margin: 0 0 8px; }
+blockquote p:last-child { margin: 0; }
+
+ul, ol { margin: 0 0 15px; padding-left: 24px; }
+li { margin-bottom: 5px; }
+
+table { border-collapse: collapse; margin: 20px 0; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+th { color: var(--dim); font-weight: 600; text-transform: uppercase;
+     letter-spacing: .08em; font-size: 11.5px; }
+tr:hover td { background: #161a21; }
+
+code {
+  font-family: "Berkeley Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px; background: #191d25; padding: 1.5px 5px; border-radius: 3px;
+  color: var(--bone);
+}
+pre {
+  background: #10131a; border: 1px solid var(--edge); border-left: 3px solid var(--cold);
+  padding: 14px 17px; overflow-x: auto; border-radius: 3px; margin: 18px 0;
+}
+pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.6; }
+
+.kw { color: #d68fd6; }
+.str { color: var(--green); }
+.num { color: var(--warm); }
+.cmt { color: #5d6472; font-style: italic; }
+
+.issue-link { border-bottom: 1px dotted var(--warm); color: var(--warm); }
+.badge {
+  display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle;
+  font-family: "Inter", sans-serif;
+}
+.badge.built { background: #1c3320; color: var(--green); }
+.badge.part  { background: #33301c; color: var(--warm); }
+.badge.none  { background: #22262e; color: var(--dim); }
+
+figure { margin: 24px 0; }
+figcaption { color: var(--dim); font-size: 13px; font-style: italic; margin-top: 8px; }
+svg { max-width: 100%; }
+
+#page > footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--edge);
+                 color: var(--dim); font-size: 13px; }
+</style></head><body><div id='shell'><nav id='contents'>
+<h1>hero-less-moba</h1>
+<p class='tagline'>a lane-pushing game with the heroes subtracted out</p>
+<input id='filter' placeholder='filter&hellip;' autocomplete='off'>
+<a href='index.html'>the front page</a>
+<section><h2>start here</h2>
+<a href='vision.html'>vision</a>
+<a href='vision-2.html'>vision-2</a>
+<a href='vision-3.html'>vision-3</a>
+<a href='what-the-first-boss-looks-like.html'>what-the-first-boss-looks-like</a>
+</section>
+<section><h2>the design</h2>
+<a href='001-what-this-game-is.html'><span class='index'>001</span>What This Game Is</a>
+<a href='002-the-map-and-its-milestones.html'><span class='index'>002</span>The Map and Its Milestones</a>
+<a href='003-the-simulation-tick.html'><span class='index'>003</span>The Simulation Tick</a>
+<a href='004-a-unit-and-what-it-carries.html'><span class='index'>004</span>A Unit and What It Carries</a>
+<a href='005-waves-and-when-one-is-finished.html'><span class='index'>005</span>Waves, and When One Is Finished</a>
+<a href='006-combat-and-damage.html'><span class='index'>006</span>Combat and Damage</a>
+<a href='007-guard-towers-and-their-guards.html'><span class='index'>007</span>Guard Towers and Their Guards</a>
+<a href='008-the-base-and-the-library.html'><span class='index'>008</span>The Base and the Library</a>
+<a href='009-the-shared-upgrade-pool.html'><span class='index'>009</span>The Shared Upgrade Pool</a>
+<a href='010-upgrades-slotted-into-stone.html' class='here'><span class='index'>010</span>Upgrades Slotted Into Stone</a>
+<a href='011-commanders-and-personal-resource.html'><span class='index'>011</span>Commanders and Personal Resource</a>
+<a href='012-hero-units.html'><span class='index'>012</span>Hero Units</a>
+<a href='013-signposts-and-lane-routing.html'><span class='index'>013</span>Sign-Posts and Lane Routing</a>
+<a href='014-the-siege-surge.html'><span class='index'>014</span>The Siege-Surge</a>
+<a href='015-boons-and-the-challenge.html'><span class='index'>015</span>Boons and the Challenge</a>
+<a href='016-players-teams-and-commands.html'><span class='index'>016</span>Players, Teams, and Commands</a>
+<a href='017-the-viewing-layer.html'><span class='index'>017</span>The Viewing Layer</a>
+<a href='018-the-shape-of-the-code.html'><span class='index'>018</span>The Shape of the Code</a>
+<a href='019-roadmap.html'><span class='index'>019</span>Roadmap</a>
+<a href='020-open-questions.html'><span class='index'>020</span>Open Questions</a>
+<a href='021-nobody-remembers-why.html'><span class='index'>021</span>Nobody Remembers Why</a>
+<a href='022-standing-off-and-falling-back.html'><span class='index'>022</span>Standing Off and Falling Back</a>
+<a href='023-ways-this-could-go-wrong.html'><span class='index'>023</span>Ways This Could Go Wrong</a>
+</section>
+<section><h2>issues</h2>
+<a href='101-the-path-graph-is-built-by-a-tool.html'><span class='index'>101</span>The Path Graph Is Built by a Tool</a>
+<a href='102-milestones-measure-a-push.html'><span class='index'>102</span>Milestones Measure a Push</a>
+<a href='103-the-world-is-flat-arrays.html'><span class='index'>103</span>The World Is Flat Arrays</a>
+<a href='104-the-tick-is-a-dispatch-table.html'><span class='index'>104</span>The Tick Is a Dispatch Table</a>
+<a href='105-randomness-comes-from-named-streams.html'><span class='index'>105</span>Randomness Comes From Named Streams</a>
+<a href='106-commands-enter-through-one-door.html'><span class='index'>106</span>Commands Enter Through One Door</a>
+<a href='107-snapshots-and-replays.html'><span class='index'>107</span>Snapshots and Replays</a>
+<a href='108-the-headless-runner.html'><span class='index'>108</span>The Headless Runner</a>
+<a href='109-a-terminal-viewer-so-we-are-not-blind.html'><span class='index'>109</span>A Terminal Viewer, So We Are Not Blind</a>
+<a href='110-a-scenario-you-can-hold-at-the-gate.html'><span class='index'>110</span>A Scenario You Can Hold at the Gate</a>
+<a href='201-a-soldier-is-one-record.html'><span class='index'>201</span>A Soldier Is One Record</a>
+<a href='202-walking-an-edge-of-the-graph.html'><span class='index'>202</span>Walking an Edge of the Graph</a>
+<a href='203-the-brain-is-five-states.html'><span class='index'>203</span>The Brain Is Five States</a>
+<a href='204-choosing-what-to-attack.html'><span class='index'>204</span>Choosing What to Attack</a>
+<a href='205-damage-is-buffered-then-applied.html'><span class='index'>205</span>Damage Is Buffered, Then Applied</a>
+<a href='206-the-frontline-is-a-queue.html'><span class='index'>206</span>The Frontline Is a Queue</a>
+<a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
+<a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
+<a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
+<a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
+<a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
+<a href='304-guards-are-leashed.html'><span class='index'>304</span>Guards Are Leashed</a>
+<a href='305-the-base-is-one-open-room.html'><span class='index'>305</span>The Base Is One Open Room</a>
+<a href='306-felling-a-tower-pays-three.html'><span class='index'>306</span>Felling a Tower Pays Three</a>
+<a href='307-the-library-ends-the-game.html'><span class='index'>307</span>The Library Ends the Game</a>
+<a href='401-the-upgrade-catalogue.html'><span class='index'>401</span>The Upgrade Catalogue</a>
+<a href='402-an-instance-is-a-thing-in-a-place.html'><span class='index'>402</span>An Instance Is a Thing in a Place</a>
+<a href='403-wiping-a-wave-draws-an-upgrade.html'><span class='index'>403</span>Wiping a Wave Draws an Upgrade</a>
+<a href='404-placing-an-upgrade-into-a-lane.html'><span class='index'>404</span>Placing an Upgrade Into a Lane</a>
+<a href='405-a-soldier-is-stamped-at-birth.html'><span class='index'>405</span>A Soldier Is Stamped at Birth</a>
+<a href='408-slotting-upgrades-into-stone.html'><span class='index'>408</span>Slotting Upgrades Into Stone</a>
+<a href='409-the-base-inherits-every-lane.html'><span class='index'>409</span>The Base Inherits Every Lane</a>
+<a href='410-the-library-slot-is-the-last-stand.html'><span class='index'>410</span>The Library Slot Is the Last Stand</a>
+<a href='411-rerolling-the-deck.html'><span class='index'>411</span>Rerolling the Deck</a>
+<a href='412-contributing-a-stone.html'><span class='index'>412</span>Contributing a Stone</a>
+<a href='413-staking-a-die-to-share.html'><span class='index'>413</span>Staking a Die to Share</a>
+<a href='501-the-commander-catalogue.html'><span class='index'>501</span>The Commander Catalogue</a>
+<a href='502-killing-pays-everyone-on-the-team.html'><span class='index'>502</span>Killing Pays Everyone on the Team</a>
+<a href='503-a-hero-is-a-soldier-you-bought.html'><span class='index'>503</span>A Hero Is a Soldier You Bought</a>
+<a href='504-abilities-are-a-dispatch-table.html'><span class='index'>504</span>Abilities Are a Dispatch Table</a>
+<a href='505-spawning-onto-a-wave.html'><span class='index'>505</span>Spawning Onto a Wave</a>
+<a href='506-spawning-onto-a-tower-and-being-pushed-back.html'><span class='index'>506</span>Spawning Onto a Tower, and Being Pushed Back</a>
+<a href='507-spawning-onto-the-library-picks-the-worst-lane.html'><span class='index'>507</span>Spawning Onto the Library Picks the Worst Lane</a>
+<a href='508-signposts-stand-at-the-corners.html'><span class='index'>508</span>Sign-Posts Stand at the Corners</a>
+<a href='509-five-heroes-for-the-first-commander.html'><span class='index'>509</span>Five Heroes for the First Commander</a>
+<a href='510-the-healers-and-what-they-remember.html'><span class='index'>510</span>The Healers, and What They Remember</a>
+<a href='601-the-phase-table.html'><span class='index'>601</span>The Phase Table</a>
+<a href='602-the-surge-turns-waves-into-a-stream.html'><span class='index'>602</span>The Surge Turns Waves Into a Stream</a>
+<a href='603-the-chest-dealt-across-the-three.html'><span class='index'>603</span>The Chest, Dealt Across the Three</a>
+<a href='605-boons-and-the-calm.html'><span class='index'>605</span>Boons, and the Calm They Are Chosen In</a>
+<a href='606-what-walks-out-of-the-middle.html'><span class='index'>606</span>What Walks Out of the Middle</a>
+<a href='607-every-lane-spawns-into-the-center.html'><span class='index'>607</span>Every Lane Spawns Into the Center</a>
+<a href='608-the-deadline-is-the-walk.html'><span class='index'>608</span>The Deadline Is the Walk</a>
+<a href='701-the-window-and-the-two-snapshots.html'><span class='index'>701</span>The Window and the Two Snapshots</a>
+<a href='702-the-map-draws-itself.html'><span class='index'>702</span>The Map Draws Itself</a>
+<a href='703-the-chest-panel-and-the-drag.html'><span class='index'>703</span>The Chest Panel and the Drag</a>
+<a href='704-locks-objections-and-refusals-are-loud.html'><span class='index'>704</span>Locks, Objections, and Refusals Are Loud</a>
+<a href='705-the-signposts-are-clickable-in-the-world.html'><span class='index'>705</span>The Sign-Posts Are Clickable in the World</a>
+<a href='706-the-documentation-becomes-html.html'><span class='index'>706</span>The Documentation Becomes HTML</a>
+<a href='707-the-way-in.html'><span class='index'>707</span>The Way In</a>
+<a href='708-the-camera-is-a-lens-you-push-into.html'><span class='index'>708</span>The Camera Is a Lens You Push Into</a>
+<a href='801-reconciling-across-machines.html'><span class='index'>801</span>Reconciling Across Machines</a>
+<a href='802-the-lobby-and-commander-selection.html'><span class='index'>802</span>The Lobby and Commander Selection</a>
+<a href='803-a-bot-that-places-upgrades.html'><span class='index'>803</span>A Bot That Places Upgrades</a>
+<a href='804-ten-thousand-matches-overnight.html'><span class='index'>804</span>Ten Thousand Matches Overnight</a>
+<a href='805-a-full-match-end-to-end.html'><span class='index'>805</span>A Full Match, End to End</a>
+<a href='806-three-people-can-finally-talk.html'><span class='index'>806</span>Three People Can Finally Talk</a>
+<a href='901-what-a-bot-is-allowed-to-see.html'><span class='index'>901</span>What a Bot Is Allowed to See</a>
+<a href='902-reading-a-board-into-a-handful-of-numbers.html'><span class='index'>902</span>Reading a Board Into a Handful of Numbers</a>
+<a href='903-a-teammate-that-does-not-trample-you.html'><span class='index'>903</span>A Teammate That Does Not Trample You</a>
+<a href='904-buying-bodies-and-pointing-them.html'><span class='index'>904</span>Buying Bodies and Pointing Them</a>
+<a href='905-difficulty-without-cheating.html'><span class='index'>905</span>Difficulty Without Cheating</a>
+<a href='906-one-person-five-bots.html'><span class='index'>906</span>One Person, Five Bots</a>
+</section>
+<section><h2>progress</h2>
+<a href='phase-1-progress.html'>Phase 1 Progress — The Ground and the Clock</a>
+<a href='phase-2-progress.html'>Phase 2 Progress — Things That Walk and Fight</a>
+<a href='phase-3-progress.html'>Phase 3 Progress — Things That Stand and Hold</a>
+<a href='phase-4-progress.html'>Phase 4 Progress — The Shared Chest</a>
+<a href='phase-5-progress.html'>Phase 5 Progress — Commanders and Heroes</a>
+<a href='phase-6-progress.html'>Phase 6 Progress — The Surge and the Challenge</a>
+<a href='phase-7-progress.html'>Phase 7 Progress — Watching It Happen</a>
+<a href='phase-8-progress.html'>Phase 8 Progress — Six Players</a>
+<a href='phase-9-progress.html'>Phase 9 Progress — An Opponent Worth Playing</a>
+</section>
+<section><h2>the simulation</h2>
+<a href='028-match-parameters.info.html'><span class='index'>028</span>match-parameters</a>
+<a href='029-random-streams.info.html'><span class='index'>029</span>random-streams</a>
+<a href='030-map-builder.info.html'><span class='index'>030</span>map-builder</a>
+<a href='031-map-validator.info.html'><span class='index'>031</span>map-validator</a>
+<a href='032-the-world.info.html'><span class='index'>032</span>the-world</a>
+<a href='033-commands.info.html'><span class='index'>033</span>commands</a>
+<a href='034-walking.info.html'><span class='index'>034</span>walking</a>
+<a href='035-targeting.info.html'><span class='index'>035</span>targeting</a>
+<a href='036-the-frontline.info.html'><span class='index'>036</span>the-frontline</a>
+<a href='037-the-brain.info.html'><span class='index'>037</span>the-brain</a>
+<a href='038-combat.info.html'><span class='index'>038</span>combat</a>
+<a href='039-waves.info.html'><span class='index'>039</span>waves</a>
+<a href='040-structures.info.html'><span class='index'>040</span>structures</a>
+<a href='041-the-chest.info.html'><span class='index'>041</span>the-chest</a>
+<a href='042-the-tick.info.html'><span class='index'>042</span>the-tick</a>
+<a href='043-snapshot.info.html'><span class='index'>043</span>snapshot</a>
+<a href='044-headless-runner.info.html'><span class='index'>044</span>headless-runner</a>
+<a href='045-terminal-viewer.info.html'><span class='index'>045</span>terminal-viewer</a>
+<a href='046-the-camera.info.html'><span class='index'>046</span>the-camera</a>
+<a href='047-the-renderer.info.html'><span class='index'>047</span>the-renderer</a>
+<a href='048-the-panel.info.html'><span class='index'>048</span>the-panel</a>
+<a href='049-input.info.html'><span class='index'>049</span>input</a>
+<a href='050-the-viewer.info.html'><span class='index'>050</span>the-viewer</a>
+<a href='052-formations.info.html'><span class='index'>052</span>formations</a>
+<a href='054-commanders.info.html'><span class='index'>054</span>commanders</a>
+<a href='055-abilities.info.html'><span class='index'>055</span>abilities</a>
+<a href='056-signposts.info.html'><span class='index'>056</span>signposts</a>
+<a href='058-phases.info.html'><span class='index'>058</span>phases</a>
+<a href='059-a-bot-that-plays.info.html'><span class='index'>059</span>a-bot-that-plays</a>
+<a href='061-the-stones.info.html'><span class='index'>061</span>the-stones</a>
+<a href='062-the-rest-of-the-brain.info.html'><span class='index'>062</span>the-rest-of-the-brain</a>
+<a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
+<a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
+</section>
+<section><h2>the catalogues</h2>
+<a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
+<a href='025-unit-table.info.html'><span class='index'>025</span>unit-table</a>
+<a href='026-structure-table.info.html'><span class='index'>026</span>structure-table</a>
+<a href='027-upgrade-table.info.html'><span class='index'>027</span>upgrade-table</a>
+<a href='053-commander-table.info.html'><span class='index'>053</span>commander-table</a>
+<a href='057-boon-table.info.html'><span class='index'>057</span>boon-table</a>
+</section>
+<section><h2>the tests</h2>
+<a href='051-the-invariants.info.html'><span class='index'>051</span>the-invariants</a>
+<a href='060-the-formation-sandbox.info.html'><span class='index'>060</span>the-formation-sandbox</a>
+</section>
+</nav><main id='page'><h1>010 — Upgrades Slotted Into Stone</h1>
+<p><strong>Datapath document.</strong> Covers the second thing you can do with an upgrade: put it</p>
+<p>into a lane's towers instead of a lane's soldiers, and the rule that quietly</p>
+<p>makes every lane's stone contribute to the defence of the base.</p>
+<h2>The two destinations</h2>
+<p>An upgrade instance placed at a lane sits in one of two different slots, and the</p>
+<p>player picks which:</p>
+<table><thead>
+<tr><th>Slot</th><th>Who receives it</th></tr>
+</thead><tbody>
+<tr><td><strong>the lane</strong></td><td>Wave units this team spawns into that lane — the melee ones, the ranged ones, or both, according to the upgrade.</td></tr>
+<tr><td><strong>the lane's towers</strong></td><td>Both guard towers standing on that lane — <em>and</em> all three towers inside the base.</td></tr>
+</tbody></table>
+<p>An upgrade is in one slot or the other, never both. Slotting into stone is</p>
+<p>therefore a real trade: soldiers that walk forward and die, or stone that stays</p>
+<p>put and does not. A team with an early lead wants the former; a team that has</p>
+<p>lost its outer towers wants the latter.</p>
+<h3>Both slots have two audiences</h3>
+<p>An upgrade is never delivered to one recipient. Each slot feeds two things that</p>
+<p>are built differently, and **how much of the upgrade lands depends on which of</p>
+<p>its stats they have.*<em> </em>Settled; see <a href='020-open-questions.html'>open questions</a>,</p>
+<p>F28.*</p>
+<table><thead>
+<tr><th>Slot</th><th>Its two recipients</th><th>What separates them</th></tr>
+</thead><tbody>
+<tr><td><strong>a lane</strong></td><td>melee bodies, ranged bodies</td><td>one closes and swings, one stands off and throws</td></tr>
+<tr><td><strong>a lane's towers</strong></td><td>the guards, the tower</td><td>one has feet and a blade, one is stone and throws bone</td></tr>
+</tbody></table>
+<p><strong>Nothing tags an upgrade with an audience.</strong> There is no melee upgrade and no</p>
+<p>tower upgrade — there is an upgrade, and there are the things it happens to help.</p>
+<p>A movement upgrade helps everything with feet and does nothing for a tower,</p>
+<p>because a tower's speed is zero and always was. A health upgrade helps all four</p>
+<p>equally. None of that is written anywhere; it falls out of the numbers.</p>
+<p><strong>So nothing is ever refused for being the wrong kind</strong>, and a placement is never</p>
+<p>flatly <em>wrong</em> — it does exactly as much as it can do. The question a player is</p>
+<p>answering stays what it always was: <strong>where is this worth the most</strong>, not *will</p>
+<p>this slot accept it*.</p>
+<h3>Which makes the tower slot a wider purchase than it looks</h3>
+<p>An upgrade here applies to the guards and <em>possibly</em> the tower. A melee damage</p>
+<p>upgrade buys a harder patrol and does nothing for the arrows; a ranged one buys</p>
+<p>arrows and does nothing for the patrol; health buys both. **All three are</p>
+<p>sensible purchases out of the same slot**, and a player choosing between them is</p>
+<p>choosing whether they want bodies or arrows on that lane.</p>
+<p><strong>An earlier version of this document got this badly wrong</strong>, and the wrongness</p>
+<p>is worth recording because the reasoning was so plausible: it said *"speed and</p>
+<p>health upgrades on an immobile building are meaningless"* and refused them here.</p>
+<p>That holds only if the slot feeds a building. It feeds a patrol as well — so a</p>
+<p>movement-speed upgrade slotted into a lane's towers makes its guards cover their</p>
+<p>ground faster and answer a breach sooner, which is a real purchase and one of the</p>
+<p>more interesting ones available.</p>
+<p>The lesson generalises past this slot: **a rule that refuses something is a claim</p>
+<p>about who is listening, and this design kept getting that claim wrong.** Deleting</p>
+<p>the refusals rather than repairing them is what finally fixed it.</p>
+<p>Nothing is consumed by any of this. An upgrade sitting in a slot is a **standing</p>
+<p>property of that slot**, not a resource spent into bodies — it applies for as long</p>
+<p>as it sits there, and moving it away is the only thing that stops it.</p>
+<h2>The base inherits everything</h2>
+<p>This is the rule worth reading twice.</p>
+<blockquote><p>*<em>An upgrade slotted into </em>any<em> lane's towers also applies to </em>all three* of</p></blockquote>
+<blockquote><p>your base guard towers.**</p></blockquote>
+<p>So the three towers inside a base receive the union of:</p>
+<ul>
+<li>upgrades slotted into the top lane's towers, plus</li>
+<li>upgrades slotted into the center lane's towers, plus</li>
+<li>upgrades slotted into the bottom lane's towers, plus</li>
+<li>upgrades slotted directly into the library.</li>
+</ul>
+<p>The vision's own worked example: your left flank is falling apart and the enemy</p>
+<p>is inside your base, but your tower upgrades are all sitting in the center and</p>
+<p>right lanes. Those upgrades are nevertheless firing out of the base tower</p>
+<p>covering the left. Your investment in two healthy lanes is what is holding the</p>
+<p>third one's doorway.</p>
+<p>Two things follow that are worth saying to players in as many words:</p>
+<ul>
+<li><strong>Tower upgrades are never wasted.</strong> A tower upgrade in a lane whose towers</li>
+</ul>
+<p>   have already fallen is still doing work, because the base towers still exist.</p>
+<p>   This is the opposite of how tower investment usually behaves in a lane-pusher,</p>
+<p>   where losing the tower loses the investment.</p>
+<ul>
+<li><strong>The base is strongest when the game is going well</strong>, which is exactly</li>
+</ul>
+<p>   backwards from a comeback mechanic and entirely on purpose. A team that is</p>
+<p>   being ground down does not get a fortress handed to them. What they get is the</p>
+<p>   library slot, below, which costs them something.</p>
+<h2>The library slot</h2>
+<p>Upgrades cannot be slotted into base guard towers directly. The only way to give</p>
+<p>the base something the lanes are not already giving it is to slot an upgrade into</p>
+<p>the <strong>library</strong>, which applies it to the three base towers and nothing else.</p>
+<p>The vision calls this rare and says it usually only comes up once all the lane</p>
+<p>towers are destroyed. That is the shape it should have: the library slot is where</p>
+<p>a losing team puts its upgrades, because the lanes it would rather be</p>
+<p>strengthening have no stone left standing to hold them. Every upgrade a team</p>
+<p>commits to the library is an upgrade not making its soldiers stronger, at a</p>
+<p>moment when its soldiers are the only thing that can push the frontline back out</p>
+<p>of its base.</p>
+<p>There is no cap on library slots any more than there is on lane placements. A</p>
+<p>last stand is allowed to be total.</p>
+<h2>How a tower reads its upgrades</h2>
+<p>Towers, unlike soldiers, are <strong>not</strong> stamped once. A soldier is born, carries</p>
+<p>what it was born with, and dies; a tower stands for the whole match, so it reads</p>
+<p>its counts live — it is the only thing in the game that does:</p>
+<ul>
+<li>A lane tower on lane L reads <code>tower_count[L]</code>.</li>
+<li>A base tower reads the <strong>sum</strong> of every lane's <code>tower_count</code> row and</li>
+</ul>
+<p>  <code>library_count</code>, precomputed into <code>base_tower_count</code> whenever any placement</p>
+<p>  changes.</p>
+<p>Note that it sums rather than unions. Under the old bit set the base towers</p>
+<p>merged three lanes' stone and silently lost the duplicates; with counts, a team</p>
+<p>that slotted the same kind into two different lanes' towers gets both copies in</p>
+<p>the base. That follows directly from stacking, and it makes the base meaningfully</p>
+<p>stronger than the old rule did.</p>
+<p><strong>A tower's guards each carry their own copy</strong>, cleared and re-stamped from the</p>
+<p>tower whenever its slot changes — see</p>
+<p><a href='007-guard-towers-and-their-guards.html'>guard towers</a> and F23. Nothing in the</p>
+<p>swing path follows a reference to a tower; the sweep is what keeps the copies</p>
+<p>honest.</p>
+<p>The consequence is that a tower upgrade takes effect <strong>immediately</strong> on</p>
+<p>placement, while a lane upgrade takes effect on the <strong>next wave</strong>. That asymmetry</p>
+<p>is not an inconsistency to be smoothed out; it is the reason a player under</p>
+<p>pressure reaches for the stone. Stone is the fast option and soldiers are the</p>
+<p>slow one.</p>
+<p>One caveat on "immediately," and it is the one that touches guards: an upgrade</p>
+<p><strong>queued to move</strong> does not leave until the next wave spawns, so a tower and its</p>
+<p>guards keep what they have until that instant and then change together. There is</p>
+<p>exactly one moment in the match's rhythm when anything changes hands.</p>
+<h2>When the stone falls</h2>
+<p><strong>Nothing happens.</strong> <em>Settled; see <a href='020-open-questions.html'>open questions</a>, A5.</em></p>
+<p>An upgrade is slotted into a lane's stone <strong>as a whole</strong>, never into one specific</p>
+<p>tower, so a felled tower has nothing in it to lose. The lane's other tower keeps</p>
+<p>the upgrade. And when both of a lane's towers are gone, the upgrade is still</p>
+<p>working — through the three base towers, which have been inheriting every lane's</p>
+<p>stone the whole time.</p>
+<p>The consequence is worth being blunt about, because it is larger than the rule</p>
+<p>looks: **a tower upgrade cannot be taken away from you by anything the enemy</p>
+<p>does.** The only thing in the game that can dislodge one is a siege-surge.</p>
+<p>That makes stone and soldiers asymmetric investments, and the asymmetry has to be</p>
+<p>paid for in the numbers:</p>
+<table><thead>
+<tr><th></th><th>A lane upgrade</th><th>A stone upgrade</th></tr>
+</thead><tbody>
+<tr><td>Applies to</td><td>every wave unit you spawn into that lane, forever</td><td>that lane's towers and all three base towers, forever</td></tr>
+<tr><td>Takes effect</td><td>on the next wave</td><td>immediately</td></tr>
+<tr><td>Enemy can reduce its value by</td><td>killing your waves faster than you make them</td><td><strong>nothing</strong></td></tr>
+<tr><td>Can be lost to</td><td>a siege-surge</td><td>a siege-surge</td></tr>
+<tr><td>Pushes a frontline</td><td>yes</td><td>no — it only holds one</td></tr>
+</tbody></table>
+<p>Read that table as a design instruction rather than a description. Stone must be</p>
+<p><strong>worse at pushing</strong> than soldiers are, by enough to be obvious, or the</p>
+<p>unlosability makes it the default and nobody puts an upgrade in a lane. The</p>
+<p>balance validator should report the two side by side, and issue <a class='issue-link' href='804-ten-thousand-matches-overnight.html'>804</a> should be</p>
+<p>watching the ratio of stone placements to lane placements as a headline number:</p>
+<p>if it drifts hard toward stone, this rule is why.</p>
+<h2>What this does to a last stand</h2>
+<p>A team that invested in stone and then lost all six lane towers still has three</p>
+<p>fully upgraded base towers. Its investment did not evaporate with the buildings.</p>
+<p>That is <strong>not</strong> a comeback mechanic — it does not reward being behind, and a team</p>
+<p>that never invested in stone gets nothing. But it does mean an investment made</p>
+<p>while winning is still working while losing, which is the difference between</p>
+<p>defending a base and merely being present while it falls.</p>
+<p>Related: <a href='009-the-shared-upgrade-pool.html'>the shared upgrade pool</a> ·</p>
+<p><a href='007-guard-towers-and-their-guards.html'>guard towers</a> ·</p>
+<p><a href='008-the-base-and-the-library.html'>the base and the library</a></p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+// Filtering the contents. The only script on the page, and it exists because there
+// are more than eighty documents here and scrolling a list of eighty things to find
+// one is not navigation.
+var box = document.getElementById('filter');
+box.addEventListener('input', function () {
+  var want = box.value.toLowerCase();
+  var rail = document.getElementById('contents');
+  rail.querySelectorAll('section').forEach(function (section) {
+    var shown = 0;
+    section.querySelectorAll('a').forEach(function (link) {
+      var match = link.textContent.toLowerCase().indexOf(want) !== -1;
+      link.style.display = match ? '' : 'none';
+      if (match) { shown++; }
+    });
+    section.style.display = shown ? '' : 'none';
+  });
+});
+</script>
+</body></html>

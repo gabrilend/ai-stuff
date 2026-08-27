@@ -24,8 +24,11 @@ hero-less-moba/
 │                                               it at a gate. Step it, or run it
 │                                               until something happens.
 ├── run-many-matches .......................... Plays it a great many times with
-│                                               nobody watching, and prints the
-│                                               table you read in the morning.
+│                                               nobody watching, one worker per
+│                                               core, and prints the table you read
+│                                               in the morning.
+├── build-documentation ....................... Turns all of this into browsable,
+│                                               cross-linked HTML in docs/HTML/.
 ├── run-tests ................................. Both halves at once: the document
 │                                               validator and the invariants.
 ├── run-phase-demo ............................ Asks which phase demo to run,

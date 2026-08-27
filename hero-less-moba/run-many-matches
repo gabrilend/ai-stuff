@@ -29,110 +29,121 @@ fi
 COUNT="${1:-50}"
 LIMIT="${2:-60000}"
 
+# How many at once. One match is a single-threaded walk over flat arrays and will not
+# go faster; a thousand matches are a thousand independent walks and should not be
+# done one at a time.
+#
+# The first version of this ran them in sequence and took thirty seconds a match,
+# which puts ten thousand matches at three and a half days. The whole point of the
+# thing is that you read the table in the morning.
+WORKERS="${3:-$(nproc 2>/dev/null || echo 4)}"
+
 mkdir -p "/dev/shm/hero-less-moba"
 LOG="/dev/shm/hero-less-moba/many-matches.csv"
 
-echo "Playing ${COUNT} matches, up to ${LIMIT} ticks each."
+echo "Playing ${COUNT} matches, up to ${LIMIT} ticks each, ${WORKERS} at a time."
 echo "Per-match rows go to ${LOG}"
 echo
 
-luajit -e "
-local root = '${DIR}'
-local tick_module = loadfile(root .. '/src/042-the-tick.lua')()
+# Each worker takes every Nth seed, so a short run still spreads across the range
+# rather than giving one worker all the low seeds.
+PARTS="/dev/shm/hero-less-moba/parts"
+rm -rf "${PARTS}"
+mkdir -p "${PARTS}"
 
-local count, limit = ${COUNT}, ${LIMIT}
-local log = io.open('${LOG}', 'w')
-log:write('seed,winner,ticks,drawn_1,drawn_2,placed_1,placed_2,wasted_1,wasted_2,' ..
-          'heroes_1,heroes_2,towers_1,towers_2,surges,challenges\n')
-
-local wins = {0, 0, 0, 0}
-local total_ticks, finished = 0, 0
-local total_drawn, total_placed, total_wasted, total_heroes = 0, 0, 0, 0
-local total_surges, total_challenges = 0, 0
-local started = os.clock()
-
-for match = 1, count do
-  local modules = tick_module.load_cast(root)
-  local parameters = modules.match_parameters.load()
-  -- A different match each time, and the seed is the only thing that differs.
-  parameters = setmetatable({seed = parameters.seed + match}, {__index = parameters})
-  local world = tick_module.assemble(modules, parameters)
-
-  local surges, challenges = 0, 0
-  while world.tick < limit do
-    if not tick_module.advance(world) then break end
-    for _, e in ipairs(world.event) do
-      if e.name == 'surge_began' then surges = surges + 1 end
-      if e.name == 'challenge_began' then challenges = challenges + 1 end
-    end
-  end
-
-  local drawn, placed, wasted, heroes = {}, {}, {}, {}
-  for team = 1, 2 do
-    drawn[team] = world.team[team].draws_taken
-    local _, in_lanes, in_stone = world.chest.total_held(world, team)
-    placed[team] = in_lanes + in_stone
-    wasted[team] = 0
-    heroes[team] = 0
-    for _, number in ipairs(world.team_players[team]) do
-      local player = world.player[number]
-      for colour = 1, world.colour_count do
-        wasted[team] = wasted[team] + player.points_wasted[colour]
+STARTED="$(date +%s)"
+for WORKER in $(seq 0 $((WORKERS - 1))); do
+    luajit -e "
+    local root = '${DIR}'
+    local tick_module = loadfile(root .. '/src/042-the-tick.lua')()
+    local out = io.open('${PARTS}/${WORKER}', 'w')
+    for match = 1, ${COUNT} do
+      if match % ${WORKERS} == ${WORKER} then
+        local modules = tick_module.load_cast(root)
+        local parameters = modules.match_parameters.load()
+        parameters = setmetatable({seed = parameters.seed + match}, {__index = parameters})
+        local world = tick_module.assemble(modules, parameters)
+        local surges, challenges = 0, 0
+        while world.tick < ${LIMIT} do
+          if not tick_module.advance(world) then break end
+          for _, e in ipairs(world.event) do
+            if e.name == 'surge_began' then surges = surges + 1 end
+            if e.name == 'challenge_began' then challenges = challenges + 1 end
+          end
+        end
+        local drawn, placed, wasted, heroes = {}, {}, {}, {}
+        for team = 1, 2 do
+          drawn[team] = world.team[team].draws_taken
+          local _, in_lanes, in_stone = world.chest.total_held(world, team)
+          placed[team] = in_lanes + in_stone
+          wasted[team], heroes[team] = 0, 0
+          for _, number in ipairs(world.team_players[team]) do
+            local player = world.player[number]
+            for colour = 1, world.colour_count do
+              wasted[team] = wasted[team] + player.points_wasted[colour]
+            end
+            heroes[team] = heroes[team] + player.heroes_bought
+          end
+        end
+        local towers = {0, 0}
+        for _, s in ipairs(world.structure) do
+          if s.alive == 1 and s.kind ~= 3 then towers[s.team] = towers[s.team] + 1 end
+        end
+        out:write(string.format('%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n',
+          parameters.seed, world.winner, world.tick,
+          drawn[1], drawn[2], placed[1], placed[2], wasted[1], wasted[2],
+          heroes[1], heroes[2], towers[1], towers[2], surges, challenges))
+        out:flush()
       end
-      heroes[team] = heroes[team] + player.heroes_bought
     end
-  end
-  local towers = {0, 0}
-  for _, s in ipairs(world.structure) do
-    if s.alive == 1 and s.kind ~= 3 then towers[s.team] = towers[s.team] + 1 end
-  end
+    out:close()
+    " &
+done
+wait
+ELAPSED=$(( $(date +%s) - STARTED ))
 
-  -- Winner 0 means it never finished, which is itself a finding.
-  wins[world.winner + 1] = wins[world.winner + 1] + 1
-  if world.winner ~= 0 then
-    finished = finished + 1
-    total_ticks = total_ticks + world.tick
-  end
-  total_drawn = total_drawn + drawn[1] + drawn[2]
-  total_placed = total_placed + placed[1] + placed[2]
-  total_wasted = total_wasted + wasted[1] + wasted[2]
-  total_heroes = total_heroes + heroes[1] + heroes[2]
-  total_surges = total_surges + surges
-  total_challenges = total_challenges + challenges
+echo 'seed,winner,ticks,drawn_1,drawn_2,placed_1,placed_2,wasted_1,wasted_2,heroes_1,heroes_2,towers_1,towers_2,surges,challenges' > "${LOG}"
+cat "${PARTS}"/* >> "${LOG}"
 
-  log:write(string.format('%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n',
-    parameters.seed, world.winner, world.tick,
-    drawn[1], drawn[2], placed[1], placed[2], wasted[1], wasted[2],
-    heroes[1], heroes[2], towers[1], towers[2], surges, challenges))
+python3 - "${LOG}" "${ELAPSED}" <<'SUMMARY'
+import csv, sys
 
-  if match % 10 == 0 then
-    io.write(string.format('  %d/%d\r', match, count))
-    io.flush()
-  end
-end
-log:close()
+rows = list(csv.DictReader(open(sys.argv[1])))
+elapsed = int(sys.argv[2])
+count = len(rows)
+if count == 0:
+    print("no matches completed")
+    raise SystemExit(1)
 
-local elapsed = os.clock() - started
-print(string.format('%d matches in %.1fs -- %.1f a second', count, elapsed, count / elapsed))
-print('')
-print(string.format('  team 1 won      %5d  (%.0f%%)', wins[2], 100 * wins[2] / count))
-print(string.format('  team 2 won      %5d  (%.0f%%)', wins[3], 100 * wins[3] / count))
-print(string.format('  drawn           %5d  (%.0f%%)', wins[4], 100 * wins[4] / count))
-print(string.format('  never finished  %5d  (%.0f%%)', wins[1], 100 * wins[1] / count))
-print('')
-if finished > 0 then
-  print(string.format('  a decided match lasts %.1f minutes on average',
-    total_ticks / finished / 30 / 60))
-end
-print(string.format('  %.0f upgrades drawn per match, %.0f%% of them ever placed',
-  total_drawn / count, 100 * total_placed / math.max(1, total_drawn)))
-print(string.format('  %.0f heroes bought per match', total_heroes / count))
-print(string.format('  %.0f points of income thrown away per match -- a full wallet loses it',
-  total_wasted / count))
-print(string.format('  %.1f surges and %.1f challenges per match',
-  total_surges / count, total_challenges / count))
-print('')
-print('Two numbers to read first. A side winning far more than half is an asymmetry')
-print('nobody put there. And a large share of upgrades never placed means the chest is')
-print('filling faster than anybody can empty it, which is B-series question G4.')
-"
+def total(field):
+    return sum(int(r[field]) for r in rows)
+
+wins = {0: 0, 1: 0, 2: 0, 3: 0}
+for r in rows:
+    wins[int(r["winner"])] += 1
+
+decided = [r for r in rows if int(r["winner"]) in (1, 2)]
+
+print(f"{count} matches in {elapsed}s -- {count / max(1, elapsed):.1f} a second")
+print()
+for team, label in ((1, "team 1 won"), (2, "team 2 won")):
+    print(f"  {label:<16}{wins[team]:5d}  ({100 * wins[team] / count:.0f}%)")
+print(f"  {'drawn':<16}{wins[3]:5d}  ({100 * wins[3] / count:.0f}%)")
+print(f"  {'never finished':<16}{wins[0]:5d}  ({100 * wins[0] / count:.0f}%)")
+print()
+if decided:
+    ticks = sum(int(r["ticks"]) for r in decided) / len(decided)
+    print(f"  a decided match lasts {ticks / 30 / 60:.1f} minutes on average")
+drawn = total("drawn_1") + total("drawn_2")
+placed = total("placed_1") + total("placed_2")
+heroes = total("heroes_1") + total("heroes_2")
+wasted = total("wasted_1") + total("wasted_2")
+print(f"  {drawn / count:.0f} upgrades drawn per match, {100 * placed / max(1, drawn):.0f}% of them ever placed")
+print(f"  {heroes / count:.0f} heroes bought per match")
+print(f"  {wasted / count:.0f} points of income thrown away per match -- a full wallet loses it")
+print(f"  {(total('surges')) / count:.1f} surges and {(total('challenges')) / count:.1f} challenges per match")
+print()
+print("Two numbers to read first. A side winning far more than half is an asymmetry")
+print("nobody put there. And a large share of upgrades never placed means the chest is")
+print("filling faster than anybody can empty it.")
+SUMMARY
