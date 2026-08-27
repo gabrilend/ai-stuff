@@ -74,122 +74,68 @@ local function check_lane(world, lane)
 end
 -- }}}
 
--- {{{ local function place_in_lane()
--- Moves one upgrade from the chest into a lane, where it will be stamped onto
--- every body that lane spawns from now on.
---
--- It does not touch the bodies already walking in that lane, and it never will.
--- They keep what they were born with until they die -- which is the rule that
--- makes a placement a bet rather than a switch, and turns every reassignment
--- into a decision with a delay.
-local function place_in_lane(world, command)
-  local team = world.team[command.team]
-  local verdict = check_kind(world, team, command.kind)
-  if not verdict.accepted then return verdict end
-  verdict = check_lane(world, command.lane)
-  if not verdict.accepted then return verdict end
+-- {{{ local function place_stone()
+-- Marks one stone to move to a slot. It does not arrive for a full wave.
+local function place_stone(world, command)
+  return world.stones.place(world, command.player, command.stone,
+                            command.slot_kind, command.slot_lane or 0)
+end
+-- }}}
 
-  team.chest[command.kind] = team.chest[command.kind] - 1
-  team.lane_slot[command.lane][command.kind] =
-    team.lane_slot[command.lane][command.kind] + 1
+-- {{{ local function cancel_move()
+local function cancel_move(world, command)
+  return world.stones.cancel(world, command.player, command.stone)
+end
+-- }}}
+
+-- {{{ local function contribute()
+-- *Anyone can use this now.* One-way, permanently.
+local function contribute(world, command)
+  return world.stones.contribute(world, command.player, command.stone)
+end
+-- }}}
+
+-- {{{ local function offer()
+-- *You specifically should have this.* The only verb that transfers anything, and
+-- the only one that cannot be done **to** somebody.
+local function offer(world, command)
+  return world.stones.offer(world, command.player, command.stone, command.to)
+end
+-- }}}
+
+-- {{{ local function dismiss()
+-- *Not my problem.* The floor closes: when everybody has dismissed the same stone
+-- it comes back to all of them.
+local function dismiss(world, command)
+  return world.stones.dismiss(world, command.player, command.stone)
+end
+-- }}}
+
+-- {{{ local function request()
+-- *I would like that one.* Ignoring one is free and silent -- no notification that
+-- you declined, no record, nothing anybody can bring up later.
+local function request(world, command)
+  return world.stones.request(world, command.player, command.stone)
+end
+-- }}}
+
+-- {{{ local function move_cursor()
+-- Where a player is pointing. Involuntary and continuous.
+local function move_cursor(world, command)
+  world.stones.move_cursor(world, command.player, command.x, command.y)
   return ACCEPTED
 end
 -- }}}
 
--- {{{ local function place_in_stone()
--- Slots one upgrade into a lane's towers. Not into one tower -- into the lane's
--- stone as a whole, which is why felling a tower never returns anything: there
--- is nothing in a felled tower to give back, and the lane's other tower keeps
--- the upgrade.
---
--- The base towers inherit every lane's stone, so this is also, quietly, an
--- investment in the base.
-local function place_in_stone(world, command)
-  local team = world.team[command.team]
-  local verdict = check_kind(world, team, command.kind)
-  if not verdict.accepted then return verdict end
-  verdict = check_lane(world, command.lane)
-  if not verdict.accepted then return verdict end
-
-  team.chest[command.kind] = team.chest[command.kind] - 1
-  team.tower_slot[command.lane][command.kind] =
-    team.tower_slot[command.lane][command.kind] + 1
-  -- The stone's copies are corrected now rather than lazily. A guard stands at
-  -- the thing it copied from for its whole life, so a guard whose tower has
-  -- changed and whose numbers have not is a visible lie -- the player can see the
-  -- upgrade in the slot and the body standing under it, not benefiting.
-  world.restamp_stone(world, command.team, command.lane)
-  return ACCEPTED
+-- {{{ local function ping()
+local function ping(world, command)
+  return world.stones.ping(world, command.player, command.x, command.y)
 end
 -- }}}
 
--- {{{ local function place_in_library()
--- The last stand. Upgrades cannot be slotted into base guard towers directly;
--- they go into the library, which applies them to all three base towers at once.
--- Usually only reached when the lane towers are already gone.
-local function place_in_library(world, command)
-  local team = world.team[command.team]
-  local verdict = check_kind(world, team, command.kind)
-  if not verdict.accepted then return verdict end
-
-  team.chest[command.kind] = team.chest[command.kind] - 1
-  team.library_slot[command.kind] = team.library_slot[command.kind] + 1
-  for lane = 1, world.parameters.lane_count do
-    world.restamp_stone(world, command.team, lane)
-  end
-  return ACCEPTED
-end
--- }}}
-
--- {{{ local function recall()
--- Takes an upgrade back out of a slot and returns it to the chest, so it can be
--- put somewhere else.
---
--- Recalling from a lane does not weaken anything already walking in it, for the
--- same reason placing into one does not strengthen it. The bodies out there were
--- stamped at birth and are nobody's to change.
-local function recall(world, command)
-  local team = world.team[command.team]
-  local kind_count = #world.parameters.upgrade.kind
-  if type(command.kind) ~= "number" or command.kind < 1 or command.kind > kind_count then
-    return refuse("there is no upgrade kind " .. tostring(command.kind))
-  end
-
-  local source
-  if command.from == "lane" then
-    local verdict = check_lane(world, command.lane)
-    if not verdict.accepted then return verdict end
-    source = team.lane_slot[command.lane]
-  elseif command.from == "stone" then
-    local verdict = check_lane(world, command.lane)
-    if not verdict.accepted then return verdict end
-    source = team.tower_slot[command.lane]
-  elseif command.from == "library" then
-    source = team.library_slot
-  else
-    return refuse("there is nowhere called '" .. tostring(command.from) .. "'")
-  end
-
-  if source[command.kind] < 1 then
-    return refuse("there is no " .. world.parameters.upgrade.kind[command.kind].name ..
-                  " there to take back")
-  end
-
-  source[command.kind] = source[command.kind] - 1
-  team.chest[command.kind] = team.chest[command.kind] + 1
-  if command.from ~= "lane" then
-    -- Stone changed, so the bodies standing under it are rebuilt from what the
-    -- tower currently holds. Cleared and rebuilt, never patched -- a rebuild from
-    -- the current truth cannot drift, and an incremental adjustment will.
-    if command.from == "library" then
-      for lane = 1, world.parameters.lane_count do
-        world.restamp_stone(world, command.team, lane)
-      end
-    else
-      world.restamp_stone(world, command.team, command.lane)
-    end
-  end
-  return ACCEPTED
+-- {{{ local function reroll()
+local function reroll(world, command)
+  return world.stones.reroll(world, command.player, command.stone)
 end
 -- }}}
 
@@ -233,10 +179,15 @@ end
 -- The verb dispatch table. Adding a command is adding a row here, not a branch
 -- somewhere in the apply loop.
 M.verb = {
-  place_in_lane    = place_in_lane,
-  place_in_stone   = place_in_stone,
-  place_in_library = place_in_library,
-  recall           = recall,
+  place_stone      = place_stone,
+  cancel_move      = cancel_move,
+  contribute       = contribute,
+  offer            = offer,
+  dismiss          = dismiss,
+  request          = request,
+  ping             = ping,
+  move_cursor      = move_cursor,
+  reroll           = reroll,
   buy_hero         = buy_hero,
   set_signpost     = set_signpost,
   choose_boon      = choose_boon,

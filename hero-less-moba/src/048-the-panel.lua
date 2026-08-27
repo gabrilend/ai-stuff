@@ -136,26 +136,36 @@ end
 -- }}}
 
 -- {{{ local function draw_chest()
--- The unplaced upgrades. Loud on purpose.
-local function draw_chest(world, frame, team_id, x, y, width)
+-- The unplaced stones. Loud on purpose.
+--
+-- **An upgrade doing nothing should be visually annoying.** A stone in the chest is
+-- a decision nobody has made yet and the interface should say so — a drawer nobody
+-- is emptying is the most common way a team throws a match it was winning.
+--
+-- Every stone is drawn individually rather than as a count, because they are
+-- individual things: this one is mine, that one is in the pool, that one is already
+-- on its way somewhere. A count could not say any of that.
+local function draw_chest(world, frame, x, y, width)
   local kinds = world.parameters.upgrade.kind
-  local view = frame.team_view[team_id]
 
-  local total = 0
-  for kind = 1, #kinds do
-    total = total + view.chest[kind]
+  local unplaced, in_transit = 0, 0
+  for index = 1, frame.stone_count do
+    local stone = frame.stone[index]
+    if stone.slot_kind == 0 and stone.arrives_turn == 0 then
+      unplaced = unplaced + 1
+    end
+    if stone.arrives_turn ~= 0 then
+      in_transit = in_transit + 1
+    end
   end
 
   love.graphics.setFont(M.font)
   set_colour(M.renderer.COLOUR.text, 0.65)
   love.graphics.print("CHEST", x, y)
-  if total > 0 then
-    -- The count is drawn in the team's own colour and grows in weight with the
-    -- pile, because a chest nobody is emptying is the single most common way a
-    -- team throws a match it was winning.
-    set_colour(M.renderer.COLOUR.team[team_id])
+  if unplaced > 0 then
+    set_colour(M.renderer.COLOUR.team[frame.watching or 1])
     love.graphics.setFont(M.font_big)
-    love.graphics.printf(tostring(total) .. " unplaced", x, y - 3, width, "right")
+    love.graphics.printf(tostring(unplaced) .. " unplaced", x, y - 3, width, "right")
   else
     set_colour(M.renderer.COLOUR.text, 0.3)
     love.graphics.setFont(M.font_small)
@@ -163,17 +173,33 @@ local function draw_chest(world, frame, team_id, x, y, width)
   end
 
   y = y + 24
-  local size = 40
-  local gap = 6
+  local size = 34
+  local gap = 5
   local column = 0
   local per_row = math.floor((width + gap) / (size + gap))
 
-  for kind = 1, #kinds do
-    local held = view.chest[kind]
-    if held > 0 then
+  for index = 1, frame.stone_count do
+    local stone = frame.stone[index]
+    if stone.slot_kind == 0 and stone.arrives_turn == 0 then
       local chip_x = x + column * (size + gap)
-      draw_chip(kinds, kind, held, chip_x, y, size, true)
-      add_hot("chest_chip", {chip_x, y, size, size}, {kind = kind, upgrade = kind})
+      local row = kinds[stone.kind]
+
+      set_colour(row.colour, 1)
+      love.graphics.rectangle("fill", chip_x, y, size, size, 3, 3)
+      love.graphics.setColor(0.06, 0.07, 0.09, 0.92)
+      love.graphics.setFont(M.font)
+      love.graphics.printf(row.glyph, chip_x, y + size * 0.5 - 9, size, "center")
+
+      -- A stone in the pool is marked, and marked **only** as being in the pool.
+      -- Not with whose it was: the point is not to hide who gave what, it is that a
+      -- shared thing you have to remember is shared is not shared.
+      if stone.communal == 1 then
+        love.graphics.setColor(0.06, 0.07, 0.09, 0.75)
+        love.graphics.setLineWidth(2)
+        love.graphics.circle("line", chip_x + size - 7, y + 7, 4, 10)
+      end
+
+      add_hot("stone", {chip_x, y, size, size}, {stone = stone.id, kind = stone.kind})
       column = column + 1
       if column >= per_row then
         column = 0
@@ -183,6 +209,36 @@ local function draw_chest(world, frame, team_id, x, y, width)
   end
   if column > 0 then
     y = y + size + gap
+  end
+
+  -- What is on its way, and where. **Not opt-in**: you cannot move a stone quietly,
+  -- and a teammate gets a wave's notice, which is exactly enough time to say
+  -- something about it.
+  if in_transit > 0 then
+    local names = {[1] = "bodies", [2] = "stone", [3] = "library"}
+    set_colour(M.renderer.COLOUR.text, 0.5)
+    love.graphics.setFont(M.font_small)
+    for index = 1, frame.stone_count do
+      local stone = frame.stone[index]
+      if stone.arrives_turn ~= 0 then
+        local row = kinds[stone.kind]
+        set_colour(row.colour, 0.9)
+        love.graphics.rectangle("fill", x, y + 2, 8, 8, 2, 2)
+        set_colour(M.renderer.COLOUR.text, 0.55)
+        local where = names[stone.moving_to_kind] or "the chest"
+        if stone.moving_to_lane > 0 then
+          where = where .. " in lane " .. stone.moving_to_lane
+        end
+        love.graphics.print(string.format("%s -> %s, in %d wave%s",
+          row.name, where,
+          math.max(0, stone.arrives_turn - (frame.wave_turn or 0)),
+          (stone.arrives_turn - (frame.wave_turn or 0)) == 1 and "" or "s"),
+          x + 12, y)
+        add_hot("transit", {x, y, width, 13}, {stone = stone.id})
+        y = y + 14
+      end
+    end
+    y = y + 4
   end
 
   return y
@@ -237,12 +293,11 @@ local function draw_lane_row(world, frame, team_id, lane, x, y, width)
     end
   end
 
-  -- The two slots.
+  -- The two slots, drawn from the stones actually sitting in them.
   local slot_y = y + 24
   local slot_w = (width - 24) * 0.5
   local labels = {"bodies", "stone"}
-  local sources = {view.lane_slot[lane], view.tower_slot[lane]}
-  local drops   = {"place_in_lane", "place_in_stone"}
+  local wants = {1, 2}   -- IN_LANE, IN_STONE
 
   for half = 1, 2 do
     local slot_x = x + 8 + (half - 1) * (slot_w + 8)
@@ -254,25 +309,18 @@ local function draw_lane_row(world, frame, team_id, lane, x, y, width)
     love.graphics.print(labels[half], slot_x + 4, slot_y + 17)
 
     local pip_x = slot_x + 4
-    for kind = 1, #kinds do
-      local held = sources[half][kind]
-      if held > 0 then
-        set_colour(kinds[kind].colour)
+    for index = 1, frame.stone_count do
+      local stone = frame.stone[index]
+      if stone.slot_kind == wants[half] and stone.slot_lane == lane then
+        set_colour(kinds[stone.kind].colour, stone.arrives_turn ~= 0 and 0.4 or 1)
         love.graphics.rectangle("fill", pip_x, slot_y + 4, 9, 9, 2, 2)
-        if held > 1 then
-          set_colour(M.renderer.COLOUR.text, 0.8)
-          love.graphics.print(tostring(held), pip_x + 10, slot_y + 2)
-          pip_x = pip_x + 9
-        end
+        add_hot("placed", {pip_x, slot_y + 4, 9, 9}, {stone = stone.id})
         pip_x = pip_x + 11
-        add_hot("slot_pip", {pip_x - 11, slot_y + 4, 9, 9},
-                {upgrade = kind, lane = lane,
-                 from = (half == 1) and "lane" or "stone"})
       end
     end
 
     add_hot("drop", {slot_x, slot_y, slot_w, 30},
-            {verb = drops[half], lane = lane})
+            {slot_kind = wants[half], lane = lane})
   end
 
   return y + height + 6
@@ -636,7 +684,8 @@ function M.draw(world, camera, frame, team_id, held_kind, mouse_x, mouse_y, spee
   love.graphics.printf("tab switches -- prototype only", inner_x, y + 2, inner_w, "right")
   y = y + 24
 
-  y = draw_chest(world, frame, team_id, inner_x, y, inner_w)
+  frame.watching = team_id
+  y = draw_chest(world, frame, inner_x, y, inner_w)
   y = y + 8
 
   for lane = 1, world.parameters.lane_count do
@@ -668,7 +717,11 @@ function M.draw(world, camera, frame, team_id, held_kind, mouse_x, mouse_y, spee
   love.graphics.setFont(M.font_small)
   love.graphics.print(
     "wheel zooms to cursor  --  right-drag pans  --  HOME or SPACE frames the map  --  " ..
-    "drag an upgrade onto a lane or a tower  --  P pauses  --  1/2/3 speed",
+    "P pauses  --  1/2/3 speed",
+    PAD, screen_h - 36)
+  love.graphics.print(
+    "drag a stone onto a lane, a tower or your library -- it takes a wave to get there  --  " ..
+    "SHIFT-click gives it to the pool  --  CTRL-click sets it aside  --  ALT-click rerolls it",
     PAD, screen_h - 22)
 
   -- The zoom indicator. Small, and only interesting while it is not at rest.

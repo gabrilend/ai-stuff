@@ -345,6 +345,28 @@ local function build_lane(map, shape, lane_id, width,
     lane.milestone_index[m] = lane.path_index[lane.milestone_node[m]]
   end
 
+  -- The stone. Milestones 1, 2, 3 are team 1's base tower, inner tower and outer
+  -- tower; 7, 6, 5 are team 2's, mirrored. The milestone recorded on the site is
+  -- counted from the **owning** team's end, which is why team 2's outer tower at
+  -- lane milestone 5 records a 3.
+  local sites = {
+    {team = 1, m = 1, own = 1, kind = M.STRUCTURE_BASE_TOWER},
+    {team = 1, m = 2, own = 2, kind = M.STRUCTURE_LANE_TOWER},
+    {team = 1, m = 3, own = 3, kind = M.STRUCTURE_LANE_TOWER},
+    {team = 2, m = 5, own = 3, kind = M.STRUCTURE_LANE_TOWER},
+    {team = 2, m = 6, own = 2, kind = M.STRUCTURE_LANE_TOWER},
+    {team = 2, m = 7, own = 1, kind = M.STRUCTURE_BASE_TOWER},
+  }
+  for _, site in ipairs(sites) do
+    map.site[#map.site + 1] = {
+      team      = site.team,
+      kind      = site.kind,
+      lane      = lane_id,
+      milestone = site.own,
+      node      = lane.milestone_node[site.m],
+    }
+  end
+
   map.lane[lane_id] = lane
   return lane
 end

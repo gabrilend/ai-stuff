@@ -272,10 +272,23 @@ function M.draw()
 
   local player_number = M.context.player_number(M.state)
 
+  -- What kind the held stone is, looked up from the frame rather than remembered.
+  -- The viewer holds no state the simulation needs, and "which kind is stone 47"
+  -- is the simulation's answer.
+  local held_kind = 0
+  if M.state.held_stone ~= 0 then
+    for index = 1, newest.stone_count do
+      if newest.stone[index].id == M.state.held_stone then
+        held_kind = newest.stone[index].kind
+        break
+      end
+    end
+  end
+
   M.renderer.draw(M.world, M.camera, previous, newest, blend,
-                  M.state.held_kind, M.state.watching, M.state.held_hero)
+                  held_kind, M.state.watching, M.state.held_hero)
   M.panel.draw(M.world, M.camera, newest, M.state.watching,
-               M.state.held_kind, M.state.mouse_x, M.state.mouse_y,
+               held_kind, M.state.mouse_x, M.state.mouse_y,
                M.state.speed, M.state.paused,
                player_number, M.state.held_hero)
 

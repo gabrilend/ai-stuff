@@ -270,7 +270,7 @@ function M.tower_fell(world, structure)
   structure.guard_slot = {}
 
   local destroying_team = (structure.team == 1) and 2 or 1
-  world.chest.draw(world, destroying_team,
+  world.stones.draw(world, destroying_team,
                    world.parameters.structure.reward.tower_felled_draws)
 end
 -- }}}

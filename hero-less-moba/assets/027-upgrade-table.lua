@@ -146,6 +146,14 @@ M.deck = {
   -- knowable in aggregate -- you learn *where they put it* by looking at what
   -- walks at you, and that is the whole of the fog.
   copies_per_kind = 6,
+
+  -- What it costs to send a stone to the bottom of the deck and take the next card.
+  --
+  -- **The only thing personal resource can do to the chest**, and it trades rather
+  -- than adds -- resource can never buy an upgrade outright. Priced in two colours
+  -- like a hero, and deliberately cheap next to one: a reroll should be the thing
+  -- you do with an awkward remainder rather than a purchase you save for.
+  reroll_cost = {[3] = 1, [6] = 1},
 }
 -- }}}
 
