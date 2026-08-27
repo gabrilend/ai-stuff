@@ -169,12 +169,15 @@ local function test_the_surge_deals_everything()
 
   -- Give one team something to be dealt, all of it in a lane nobody will spawn a
   -- surge body into by accident.
-  modules.chest.draw(world, 1, 8)
-  for kind = 1, #parameters.upgrade.kind do
-    while world.team[1].chest[kind] > 0 do
-      modules.commands.verb.place_in_lane(world, {team = 1, kind = kind, lane = 3})
-    end
+  --
+  -- Placed by hand rather than through the command queue, because a placement takes
+  -- a full wave to land and this test is about the surge rather than about transit.
+  modules.stones.draw(world, 1, 8)
+  for _, stone in ipairs(world.stone[1]) do
+    stone.slot_kind = modules.stones.IN_LANE
+    stone.slot_lane = 3
   end
+  modules.stones.rebuild_counts(world, 1)
   local placed_before = 0
   for kind = 1, #parameters.upgrade.kind do
     placed_before = placed_before + world.team[1].lane_slot[3][kind]
@@ -340,6 +343,177 @@ local function test_an_unchosen_boon_waits()
         #world.boons[1] == 0 and #world.boons[2] == 0,
         string.format("team 1 holds %d boons and team 2 holds %d, with nobody playing",
           #world.boons[1], #world.boons[2]))
+end
+-- }}}
+
+-- {{{ local function test_a_move_takes_a_wave()
+-- **An upgrade does not arrive the instant you place it.**
+--
+-- It is marked to move and takes one full wave to get there, applying at its **old**
+-- slot the whole time, so a placement lands two waves after the command with one
+-- wave of unchanged behaviour in between.
+--
+-- That delay is the entire negotiation layer. A team that could move every stone
+-- every tick would simply keep all of them wherever the fighting currently is, and
+-- there would be nothing to lock, object to, or argue about -- which is why the delay
+-- gets a test rather than being left as a number somebody might tune to zero.
+local function test_a_move_takes_a_wave()
+  local world, modules = fresh_world(tick_module)
+  world.bot = {}
+
+  modules.stones.draw(world, 1, 1)
+  local stone = world.stone[1][1]
+  local kind = stone.kind
+  local holder = stone.held_by
+
+  local verdict = modules.stones.place(world, holder, stone.id,
+                                       modules.stones.IN_LANE, 2)
+  check("a stone can be marked to move", verdict.accepted, verdict.reason)
+
+  check("and it is still in the chest the instant after",
+        stone.slot_kind == modules.stones.IN_CHEST
+          and world.team[1].chest[kind] == 1,
+        "it moved immediately")
+
+  -- Run until the wave after next.
+  local started = world.wave_turn
+  while world.wave_turn < started + 1 do
+    tick_module.advance(world)
+  end
+  check("and still in the chest after one wave",
+        stone.slot_kind == modules.stones.IN_CHEST,
+        "it arrived a wave early")
+
+  while world.wave_turn < started + 2 do
+    tick_module.advance(world)
+  end
+  check("and lands on the second",
+        stone.slot_kind == modules.stones.IN_LANE and stone.slot_lane == 2
+          and world.team[1].lane_slot[2][kind] == 1,
+        string.format("it is in slot kind %d lane %d", stone.slot_kind, stone.slot_lane))
+end
+-- }}}
+
+-- {{{ local function test_a_move_can_be_called_back()
+-- Cancelling costs nothing and can be done any time before it lands.
+--
+-- Nothing was spent and the stone has been applying at its old slot the whole time,
+-- so refusing would punish a misclick with a full wave of watching a mistake crawl
+-- toward you, for nobody's benefit.
+local function test_a_move_can_be_called_back()
+  local world, modules = fresh_world(tick_module)
+  world.bot = {}
+
+  modules.stones.draw(world, 1, 1)
+  local stone = world.stone[1][1]
+  local holder = stone.held_by
+
+  modules.stones.place(world, holder, stone.id, modules.stones.IN_LANE, 2)
+  local verdict = modules.stones.cancel(world, holder, stone.id)
+  check("a move can be called back", verdict.accepted, verdict.reason)
+
+  local started = world.wave_turn
+  while world.wave_turn < started + 3 do
+    tick_module.advance(world)
+  end
+  check("and then it simply stays where it was",
+        stone.slot_kind == modules.stones.IN_CHEST and stone.arrives_turn == 0,
+        "it went anyway")
+end
+-- }}}
+
+-- {{{ local function test_the_floor_closes()
+-- The failure of a communal pool is not theft, it is **neglect** -- three people each
+-- quietly assuming somebody else has it in hand.
+--
+-- So a dismissed stone vanishes from that player's view, and **when everybody has
+-- dismissed the same stone it comes back to all of them.** A stone cannot fall
+-- through the floor, because the floor closes: the moment nobody is looking at it,
+-- everybody is.
+local function test_the_floor_closes()
+  local world, modules = fresh_world(tick_module)
+  world.bot = {}
+
+  modules.stones.draw(world, 1, 1)
+  local stone = world.stone[1][1]
+  local team_players = world.team_players[1]
+  local owner = stone.held_by
+
+  -- A stone somebody owns cannot be set aside by anybody -- there is nothing to
+  -- neglect, because exactly one person is responsible for it.
+  local verdict = modules.stones.dismiss(world, team_players[1], stone.id)
+  check("a stone somebody owns cannot be set aside",
+        not verdict.accepted, "it was dismissed while still owned")
+
+  modules.stones.contribute(world, owner, stone.id)
+  check("but it can be given to the pool",
+        stone.held_by == modules.stones.COMMUNAL, "it stayed owned")
+
+  -- Everybody but the last one sets it aside.
+  for index = 1, #team_players - 1 do
+    modules.stones.dismiss(world, team_players[index], stone.id)
+  end
+  local still_seen = 0
+  for _, number in ipairs(team_players) do
+    if modules.stones.visible_to(world, stone, number) then
+      still_seen = still_seen + 1
+    end
+  end
+  check("each dismissal removes it from one player's view and nobody else's",
+        still_seen == 1,
+        string.format("%d of %d players can still see it", still_seen, #team_players))
+
+  -- And the last one.
+  modules.stones.dismiss(world, team_players[#team_players], stone.id)
+  local seen_again = 0
+  for _, number in ipairs(team_players) do
+    if modules.stones.visible_to(world, stone, number) then
+      seen_again = seen_again + 1
+    end
+  end
+  check("and when everybody has set it aside, it comes back to all of them",
+        seen_again == #team_players and stone.dismissed_mask == 0,
+        string.format("%d of %d can see it", seen_again, #team_players))
+end
+-- }}}
+
+-- {{{ local function test_giving_is_easier_than_asking()
+-- Offering transfers a stone. Requesting changes nothing at all.
+--
+-- Requesting is deliberately the weakest verb here, and it exists for a reason worth
+-- keeping: **refusing to build it does not prevent it.** Players will ask over voice,
+-- where the design cannot rate-limit it and cannot make it ignorable without
+-- awkwardness. So it exists, one at a time, and ignoring one is free and silent --
+-- there is nothing anybody can bring up later.
+local function test_giving_is_easier_than_asking()
+  local world, modules = fresh_world(tick_module)
+  world.bot = {}
+
+  modules.stones.draw(world, 1, 2)
+  local stone = world.stone[1][1]
+  local players = world.team_players[1]
+  local owner = stone.held_by
+  local other = 0
+  for _, number in ipairs(players) do
+    if number ~= owner then other = number break end
+  end
+
+  local asked = modules.stones.request(world, other, stone.id)
+  check("a request can be made", asked.accepted, asked.reason)
+  check("and changes nothing by itself",
+        stone.held_by == owner, "asking moved it")
+
+  -- Nobody may take it, including the person who asked.
+  local taken = modules.stones.place(world, other, stone.id, modules.stones.IN_LANE, 1)
+  check("and nobody can take a stone that is not theirs",
+        not taken.accepted, "somebody else moved it")
+
+  local given = modules.stones.offer(world, owner, stone.id, other)
+  check("but the owner can give it", given.accepted, given.reason)
+  check("and then it is theirs to place",
+        stone.held_by == other
+          and modules.stones.place(world, other, stone.id, modules.stones.IN_LANE, 1).accepted,
+        "the transfer did not take")
 end
 -- }}}
 
@@ -548,11 +722,20 @@ local function test_placement_moves_a_frontline()
     while world.tick < ticks do
       if not tick_module.advance(world) then break end
       if stack_into ~= 0 then
-        for kind = 1, #parameters.upgrade.kind do
-          while world.team[1].chest[kind] > 0 do
-            modules.commands.verb.place_in_lane(world, {
-              team = 1, kind = kind, lane = stack_into})
+        -- Everything the team holds, moved into one lane, immediately. The transit
+        -- delay is a real rule and is tested elsewhere; here it would only mean the
+        -- comparison measured a lane two waves behind the one being stacked.
+        local moved = false
+        for _, stone in ipairs(world.stone[1]) do
+          if stone.slot_kind ~= modules.stones.IN_LANE or stone.slot_lane ~= stack_into then
+            stone.slot_kind = modules.stones.IN_LANE
+            stone.slot_lane = stack_into
+            stone.arrives_turn = 0
+            moved = true
           end
+        end
+        if moved then
+          modules.stones.rebuild_counts(world, 1)
         end
       end
     end
@@ -834,6 +1017,10 @@ test_formation_turns_a_corner()
 test_cohesion_is_conserved()
 test_the_opening_is_symmetric()
 test_an_unchosen_boon_waits()
+test_a_move_takes_a_wave()
+test_a_move_can_be_called_back()
+test_the_floor_closes()
+test_giving_is_easier_than_asking()
 test_reproducibility()
 test_placement_moves_a_frontline()
 test_the_surge_deals_everything()

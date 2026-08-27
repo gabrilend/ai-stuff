@@ -319,6 +319,7 @@ M.cast = {
   {name = "signposts",        file = "056-signposts"},
   {name = "phases",           file = "058-phases"},
   {name = "bot",              file = "059-a-bot-that-plays"},
+  {name = "stones",           file = "061-the-stones"},
 }
 -- }}}
 
@@ -371,6 +372,7 @@ function M.assemble(modules, parameters)
   world.signposts  = modules.signposts
   world.phases     = modules.phases
   world.bot_module = modules.bot
+  world.stones     = modules.stones
 
   -- The three world-level helpers the systems call by name. Hung here rather than
   -- required, for the same reason as everything above.
@@ -401,6 +403,7 @@ function M.assemble(modules, parameters)
   world.surge_bodies = {}
   world.surge_deal = {}
   modules.chest.build_deck(world)
+  modules.stones.begin(world)
   modules.waves.begin(world)
   modules.structures.begin(world)
   modules.snapshot.begin(world)

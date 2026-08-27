@@ -57,8 +57,12 @@ local STONE_DROP_REACH = 46
 -- watched.
 function M.create()
   return {
-    -- The upgrade kind riding the cursor, or 0 for none.
+    -- The stone riding the cursor, or 0 for none. A stone rather than a kind,
+    -- because a stone is a specific thing that belongs to somebody and two of the
+    -- same kind are not interchangeable -- one may be yours and one in the pool, one
+    -- placed and one already on its way somewhere else.
     held_kind = 0,
+    held_stone = 0,
     -- The hero row riding the cursor, waiting for a destination. Heroes and
     -- upgrades use the same gesture -- pick up, the board pulls back, the places it
     -- could go light up -- because they are the same question asked of two
@@ -286,27 +290,40 @@ function M.mousepressed(state, context, x, y, button)
       -- teammate has inbound, which is why the simulation raises an event about it.
       context.queue({verb = "set_signpost", team = state.watching,
                      player = context.player_number(state), lane = hot.lane})
-    elseif hot.kind == "chest_chip" then
-      -- Picked up. It is not removed from the chest here -- nothing is moved
-      -- until a command is applied at the top of a tick, and a chip that vanished
-      -- on pick-up would be the viewer holding state the simulation needs.
-      state.held_kind = hot.upgrade
-      -- And the camera pulls back to the whole map, because **the act of zooming
-      -- out is the act of asking where to put it.** Picking a rune up is a
-      -- question about the whole board -- which lane is losing, where the enemy
-      -- armies are, which stone is still standing -- and none of that is visible
-      -- from inside the fight you were watching a moment ago.
-      --
-      -- Eased rather than instant, unlike home: the motion is the question being
-      -- asked, so it has to be seen being asked.
-      context.camera_module.pull_back(context.camera)
-    elseif hot.kind == "slot_pip" then
-      -- Taking one back out. Recalling from a lane does not weaken anything
-      -- already walking in it, for the same reason placing into one does not
-      -- strengthen it -- those bodies were stamped at birth and are nobody's to
-      -- change any more.
-      context.queue({verb = "recall", team = state.watching, player = state.watching,
-                     kind = hot.upgrade, lane = hot.lane, from = hot.from})
+    elseif hot.kind == "stone" or hot.kind == "placed" then
+      local player = context.player_number(state)
+      -- The verbs that are not "put this somewhere" hang off modifiers, because
+      -- they are things you say rather than things you do and they should not each
+      -- cost a button.
+      if love.keyboard.isDown("lshift", "rshift") then
+        -- *Anyone can use this now.* One-way, permanently.
+        context.queue({verb = "contribute", team = state.watching,
+                       player = player, stone = hot.stone})
+      elseif love.keyboard.isDown("lctrl", "rctrl") then
+        -- *Not my problem.* And when everybody has said it, the stone comes back to
+        -- all of them.
+        context.queue({verb = "dismiss", team = state.watching,
+                       player = player, stone = hot.stone})
+      elseif love.keyboard.isDown("lalt", "ralt") then
+        context.queue({verb = "reroll", team = state.watching,
+                       player = player, stone = hot.stone})
+      else
+        -- Picked up. It is not removed from the chest here -- nothing is moved
+        -- until a command is applied at the top of a tick, and a chip that vanished
+        -- on pick-up would be the viewer holding state the simulation needs.
+        state.held_stone = hot.stone
+        state.held_kind = hot.kind_id or 0
+        -- And the camera pulls back to the whole map, because **the act of zooming
+        -- out is the act of asking where to put it.** Picking a stone up is a
+        -- question about the whole board -- which lane is losing, where the enemy
+        -- armies are, which stone is still standing -- and none of that is visible
+        -- from inside the fight you were watching a moment ago.
+        context.camera_module.pull_back(context.camera)
+      end
+    elseif hot.kind == "transit" then
+      -- Calling a move back. Free, and available any time before it lands.
+      context.queue({verb = "cancel_move", team = state.watching,
+                     player = context.player_number(state), stone = hot.stone})
     end
   end
 end
@@ -343,11 +360,12 @@ function M.mousereleased(state, context, x, y, button)
     return
   end
 
-  if state.held_kind == 0 then
+  if state.held_stone == 0 then
     return
   end
 
-  local kind = state.held_kind
+  local stone = state.held_stone
+  state.held_stone = 0
   state.held_kind = 0
   -- Whatever happens to the drop, the question has been answered, so the camera
   -- goes back to whatever the player was watching before it was asked -- unless
@@ -358,15 +376,17 @@ function M.mousereleased(state, context, x, y, button)
   -- Dropped on the panel: one of the two slot targets in a lane row.
   local hot = context.panel.hit_test(x, y)
   if hot ~= nil and hot.kind == "drop" then
-    context.queue({verb = hot.verb, team = state.watching, player = state.watching,
-                   kind = kind, lane = hot.lane})
+    context.queue({verb = "place_stone", team = state.watching,
+                   player = context.player_number(state), stone = stone,
+                   slot_kind = hot.slot_kind, slot_lane = hot.lane})
     return
   end
 
   -- Dropped on the map.
   if x < context.panel.panel_left() then
     local command = M.world_drop(context.world, context.camera_module, context.camera,
-                                 state.watching, kind, x, y)
+                                 state.watching, context.player_number(state),
+                                 stone, x, y)
     if command ~= nil then
       if command.note ~= nil then
         context.panel.note_refusal(command.note)
@@ -383,6 +403,25 @@ function M.mousemoved(state, context, x, y)
   state.mouse_x, state.mouse_y = x, y
   if state.panning then
     context.camera_module.drag_to(context.camera, x, y)
+  end
+
+  -- Where this player is pointing, in the world, sent to their teammates.
+  --
+  -- **Never opt-in, always on.** One of only two involuntary verbs, and the two of
+  -- them are the load-bearing ones: a cursor is synced continuously and a placement
+  -- announces itself for a whole wave, so you can see a teammate reaching for
+  -- something before they touch it and see what they did for a wave afterwards.
+  --
+  -- Throttled, because this is a message rather than an instruction and nothing
+  -- reads it more often than a person can look.
+  if x < context.panel.panel_left() then
+    state.cursor_countdown = (state.cursor_countdown or 0) - 1
+    if state.cursor_countdown <= 0 then
+      state.cursor_countdown = 6
+      local wx, wy = context.camera_module.screen_to_world(context.camera, x, y)
+      context.queue({verb = "move_cursor", team = state.watching,
+                     player = context.player_number(state), x = wx, y = wy})
+    end
   end
 end
 -- }}}
