@@ -881,6 +881,65 @@ void rules_describe(struct ruleset *r, uint32_t kind, char *into, uint32_t capac
 }
 /* }}} */
 
+/* {{{ int rules_on_interact */
+int rules_on_interact(struct ruleset *r, uint32_t viewer, uint32_t actor,
+                      uint32_t subject, uint32_t intent)
+{
+    lua_State *L = r->state;
+
+    r->last_refusal[0] = '\0';
+
+    if (!rules_has(r, HOOK_ON_INTERACT)) {
+        /*
+         * No hook means no rules about acting on things, which means you cannot.
+         * Refused rather than allowed: the server does not know what an intent
+         * means, and allowing something it cannot describe would be the server
+         * having an opinion by the back door.
+         */
+        snprintf(r->last_refusal, sizeof(r->last_refusal),
+                 "this ruleset has no rules about acting on things you do not"
+                 " command");
+        return 0;
+    }
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, r->hook[HOOK_ON_INTERACT]);
+    lua_pushinteger(L, (lua_Integer)viewer);
+    lua_pushinteger(L, (lua_Integer)actor);
+    lua_pushinteger(L, (lua_Integer)subject);
+    lua_pushinteger(L, (lua_Integer)intent);
+
+    if (lua_pcall(L, 4, 2, 0) != 0) {
+        note_failure(r, HOOK_ON_INTERACT);
+        snprintf(r->last_refusal, sizeof(r->last_refusal),
+                 "the ruleset failed while deciding: %.180s", r->last_error);
+        return 0;
+    }
+
+    {
+        int allowed = lua_toboolean(L, -2);
+
+        if (lua_isstring(L, -1)) {
+            snprintf(r->last_refusal, sizeof(r->last_refusal),
+                     "%s", lua_tostring(L, -1));
+        } else if (!allowed) {
+            snprintf(r->last_refusal, sizeof(r->last_refusal),
+                     "the ruleset declined, without saying why");
+        }
+
+        lua_settop(L, lua_gettop(L) - 2);
+
+        /*
+         * Whatever it asked for is drained here, the same as every other hook --
+         * a hook does not touch the world, it queues, so a hook that failed
+         * part-way has its queue cleared and nothing it asked for happens.
+         */
+        drain_requests(r);
+
+        return allowed;
+    }
+}
+/* }}} */
+
 /* {{{ uint16_t rules_on_action */
 uint16_t rules_on_action(struct ruleset *r, uint32_t viewer,
                          const struct log_entry *entry)

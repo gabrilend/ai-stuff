@@ -333,19 +333,36 @@ that should stop a decision from being made quietly.
 
 ## Blocking phase 6 — control is a dial
 
-### 6.1 When a goblin patrol walks out of the forest and into the tavern, whose is it?
+### 6.1 When a goblin patrol walks out of the forest and into the tavern, whose is it? — ANSWERED
 
-The question from [the vision](../notes/vision). Region membership is evaluated
-from the thing's current region, so mechanically the answer is "the tavern's, the
-moment it crosses". Whether that is wanted is another matter: the forest's
-commander may have been walking that patrol for ten minutes with an intention, and
-having it taken away at a doorway is a strange experience.
+**It stays the forest's, and the tavern's owner can still do things to it.**
 
-Alternatives that have not been argued: the patrol keeps its origin scope until
-somebody hands it over; a thing can be in a list scope *and* a region scope, with
-the list winning; the boundary crossing is a request the receiving commander
-accepts.
+> Player ownership refers to the ability to move the pieces on the board and
+> wield them to do things. It does not determine who is able to affect other
+> things — you can absolutely kill the goblins, tavern-owner. But you better
+> explain how.
 
+The question had been unanswerable because the model had one gate where it needed
+two. Every verb asked *is this yours*, so a tavern owner could do nothing at all
+to a patrol standing in their common room.
+
+| Question | Gate |
+| --- | --- |
+| May I **move** this? | membership — only what is in a scope you hold |
+| May I **act on** this? | sight, then the ruleset |
+
+"But you better explain how" is the whole design of the second one. The server
+knows the person could see the thing and knows an intent number; it has no
+opinion about what any of them mean, and the `on_interact` hook — in the hook
+table since phase 7 and never called by anything — is where the explaining
+happens.
+
+The gate is **what the outbound filter told you about**, remembered rather than
+recomputed, because two answers to "can this person see that" is how a permission
+model develops a hole nobody can find.
+
+See [who controls what](008-who-controls-what.md) and issue
+[1201](../issues/completed/1201-commanding-is-not-affecting.md).
 ### 6.2 Is "usually weaker but not always" a rule or a convention?
 
 Whether the program enforces anything about the strength of a commander's bodies,

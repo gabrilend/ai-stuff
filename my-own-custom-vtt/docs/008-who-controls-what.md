@@ -113,3 +113,58 @@ at a time.
 
 - [What a viewer is allowed to know](009-what-a-viewer-is-allowed-to-know.md).
 - [Commands enter through one door](010-commands-enter-through-one-door.md).
+
+
+## Owning a piece is not a fence around it
+
+The question this document could not answer for six phases: a commander owns the
+forest and its goblin patrols, another owns the tavern, and a patrol walks out of
+the forest and through the tavern door. **Whose is it?**
+
+It is the forest's. It obeys the forest's commands. And the tavern's owner can
+spring a trapdoor under it, poison its drink, refuse it mead, or put a bounty on
+its head.
+
+> Player ownership refers to the ability to move the pieces on the board and
+> wield them to do things. It does not determine who is able to affect other
+> things — you can absolutely kill the goblins, tavern-owner. **But you better
+> explain how.**
+
+### Two questions that had one gate between them
+
+| Question | The gate | The answer |
+| --- | --- | --- |
+| May I **move** this? | membership | Only if it is in a scope you hold. |
+| May I **act on** this? | sight, then the ruleset | If you were told it is there, you may try. The ruleset says what happens. |
+
+The first is every verb this project had. The second is one verb, `interact`,
+carrying an intent number the **ruleset** catalogues — because the server has no
+opinion about what acting on something means and therefore nothing with which to
+tell one kind from another.
+
+A ruleset that wants twelve kinds gives them twelve numbers. A ruleset with no
+`on_interact` hook means a table where you cannot poison a drink, and that is
+correct rather than a gap: a server that allowed something it could not describe
+would be having an opinion by the back door.
+
+### The gate is what you were told, and that is not a shortcut
+
+It would have been easy to work visibility out again inside the command path.
+That would be a **second answer** to *can this person see that*, and two answers
+to a permission question is how a model develops a hole nobody can find.
+
+So the outbound filter — the one function allowed to put a thing on a socket —
+records what it sent, and the gate reads that record. It is the same decision,
+remembered. And it is free, because the answer was already computed this beat in
+order to decide what to send.
+
+Stated as the thing it actually is: **you may act on what you were told about.**
+Which is a stronger and simpler sentence than any description of sight cones and
+walls.
+
+The record is cleared at the top of every update, for the same reason the buffer
+is: an update is the whole picture. A body that walks out of sight stops being
+actionable on the beat it leaves, rather than staying actionable because it was
+visible once.
+
+See issue [1201](../issues/completed/1201-commanding-is-not-affecting.md).

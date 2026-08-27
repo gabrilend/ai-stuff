@@ -136,6 +136,24 @@ struct session {
     void *rules;
 
     /*
+     * WHAT EACH VIEWER WAS TOLD ABOUT, one bit per viewer per thing.
+     *
+     * Written by the one function that is allowed to put a thing on a socket,
+     * and read by the gate on acting-on-something-you-do-not-command. It is
+     * deliberately the SAME DECISION rather than a second one that agrees most
+     * of the time: two answers to "can this person see that" is how a permission
+     * model develops a hole nobody can find.
+     *
+     * Stated as the thing it actually is: **you may act on what you were told
+     * about.** Which is a stronger and simpler sentence than any description of
+     * sight cones and walls, and it is free, because the answer was already
+     * computed once this beat in order to decide what to send.
+     */
+    uint8_t *told_about;
+    uint32_t told_viewers;
+    uint32_t told_things;
+
+    /*
      * How many beats pass between one rollback checkpoint and the next.
      *
      * THIS IS NOT A WINDOW ANYBODY WAITS IN, and it used to be called one, which
@@ -247,6 +265,23 @@ int session_can_roll_back_to(const struct session *s, uint32_t turn);
  * function at .attack" is.
  */
 const char *session_why_not_rollbackable(const struct session *s, uint32_t turn);
+
+/*
+ * Forget everything this viewer had been told about. Called at the top of
+ * building their update, because an update is the whole picture -- so what they
+ * were told about is exactly what is in the one they are about to receive, and
+ * not an accumulation.
+ *
+ * That matters: a body that walked out of sight must stop being actionable on
+ * the beat it leaves, not stay actionable because it was visible once.
+ */
+void session_forget_what_was_told(struct session *s, uint32_t viewer);
+
+/* Note that this viewer is being told about this thing. */
+void session_note_told(struct session *s, uint32_t viewer, uint32_t thing);
+
+/* Whether they were told, in the most recent update built for them. */
+int session_was_told(const struct session *s, uint32_t viewer, uint32_t thing);
 
 /* How deep the ring is, and how many turns it currently holds. */
 uint32_t session_ring_depth(const struct session *s);

@@ -375,7 +375,20 @@ static const struct {
     { "order-face", apply_order_face },
     { "order-stop", apply_order_stop },
     { "give-scope", apply_give_scope },
-    { "retier",     apply_retier }
+    { "retier",     apply_retier },
+    /*
+     * DELIBERATELY NO HANDLER.
+     *
+     * Acting on something you do not command needs two things this layer does
+     * not have: whether the sender was told about the subject, and a ruleset to
+     * say what the intent means. Both live on the session, so the session
+     * performs it -- the same place gate 6 already sits.
+     *
+     * A null here is not an omission. command_perform refuses it by name, so
+     * command_apply -- the scripted path with no session behind it -- cannot
+     * perform an interaction at all, which is correct rather than a hole.
+     */
+    { "interact",   NULL }
 };
 
 /* {{{ uint16_t command_check */
@@ -437,6 +450,26 @@ uint16_t command_check(struct sim *s, const struct log_entry *entry)
         if (s->sprites == NULL) {
             return REFUSED_NO_LIBRARY;
         }
+    }
+
+    /*
+     * ACTING ON SOMETHING IS NOT COMMANDING IT, so the membership gate below is
+     * skipped for it entirely. The subject still has to exist -- an index past
+     * the end is wrong however you meant it -- and the gate that replaces
+     * membership is sight, which the session applies because it is the only
+     * thing that knows what this viewer was told about.
+     */
+    if (entry->verb == VERB_INTERACT) {
+        if (entry->subject == 0) {
+            return REFUSED_SUBJECT_IS_NOTHING;
+        }
+
+        if (entry->subject >= world_thing_count(s->world) ||
+            entry->subject >= s->capacity) {
+            return REFUSED_NO_SUCH_SUBJECT;
+        }
+
+        return REFUSED_NOT_AT_ALL;
     }
 
     /*
@@ -509,6 +542,15 @@ uint16_t command_perform(struct sim *s, const struct log_entry *entry)
         return REFUSED_UNKNOWN_VERB;
     }
 
+    /*
+     * A verb with no handler here is one the SESSION performs, because it needs
+     * something this layer does not have. Refused by name rather than crashed
+     * into: a null in a dispatch table is a hole the first caller falls through.
+     */
+    if (verb_table[entry->verb].handle == NULL) {
+        return REFUSED_NO_RULES_FOR_THAT;
+    }
+
     return verb_table[entry->verb].handle(s, entry);
 }
 /* }}} */
@@ -560,6 +602,10 @@ const char *refusal_sentence(uint16_t refusal)
         return "a tier is 1 to 5 on this scale, and yours is not one of them";
     case REFUSED_WEARS_NOTHING:
         return "that one is not wearing a picture, so there is nothing to rate";
+    case REFUSED_CANNOT_SEE_IT:
+        return "you have not been told that is there, so you cannot act on it";
+    case REFUSED_NO_RULES_FOR_THAT:
+        return "nothing here knows what you were trying to do";
     case REFUSED_BY_THE_RULES:
         /*
          * A placeholder. The real sentence came from the ruleset and lives in

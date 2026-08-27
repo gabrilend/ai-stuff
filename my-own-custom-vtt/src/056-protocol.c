@@ -50,7 +50,16 @@ static const struct opcode_spec inbound[VERB_COUNT] = {
      * gate refuses anything off the scale BY NAME, which is the layer where a
      * client with a ten-point scale should be told so.
      */
-    { "retier",     { 32, 8, 0 } }
+    { "retier",     { 32, 8, 0 } },
+    /*
+     * interact: which thing, which intent
+     *
+     * Thirty-two bits for an intent the SERVER never interprets. Not eight: the
+     * numbers belong to a ruleset's catalogue and a ruleset with three hundred
+     * kinds of interaction is a ruleset this server should be able to carry
+     * without having had an opinion about how many there would be.
+     */
+    { "interact",   { 32, 32, 0 } }
 };
 
 /* Server to client. */
