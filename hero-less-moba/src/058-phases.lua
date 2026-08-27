@@ -306,24 +306,29 @@ end
 -- }}}
 
 -- {{{ local function close_the_calm()
--- Anything still unchosen when the calm ends is taken for the player.
+-- Nothing. An offer outlives the calm it was made in.
 --
--- **This is a fallback and it is announced as one.** Nothing else in this project
--- decides for a player, and it exists only because a boon that is never chosen
--- would sit in the offer table forever and quietly deny that team a modifier the
--- other team has. Whether the right answer is instead to hold the calm open until
--- everybody has picked is an open question.
+-- This used to take the first boon for anybody who had not chosen, which was the
+-- only place in the whole project where something decided for a player. It is gone,
+-- and the reasoning against every alternative is worth keeping because each one
+-- looked reasonable:
+--
+--   **Take it for them.** Breaks the rule the rest of the design keeps absolutely --
+--   every refusal is named and handed back, no spawn is redirected, no upgrade
+--   moves except by somebody's own hand.
+--
+--   **Take it, but let them swap it later.** Worse, and worse in an instructive
+--   way: it makes never choosing the correct play. Let the timer run out, see how
+--   the match develops, then swap into whatever turned out to matter. A rule that
+--   rewards not answering is a rule that teaches an awkward, bent way of playing.
+--
+--   **Let it lapse.** Punishes a team for one player looking away.
+--
+-- So the calm is simply long enough to choose in, and **the offer stays open
+-- afterwards.** A player who is slow gets their boon late, which costs them the use
+-- of it in the meantime and costs their team nothing. You are only ever hurting
+-- yourself by being slow, and no amount of slowness curses anybody else.
 local function close_the_calm(world)
-  for number, offer in pairs(world.boon_offer) do
-    if offer ~= nil and #offer > 0 then
-      world.raise(world, "boon_taken_for_you", {
-        player = number,
-        name = world.parameters.boon.boon[offer[1]].name,
-      })
-      M.choose_boon(world, number, offer[1])
-    end
-  end
-  world.boon_offer = {}
 end
 -- }}}
 

@@ -93,10 +93,24 @@ throwing everything you have at a monster is the correct move rather than a gamb
 against your own next three minutes — the one fight designed to be fought all-in is
 the one you are allowed to go all-in on.
 
-## The one fallback in the file, and it is announced
+## An offer outlives the calm it was made in
 
-A boon still unchosen when the calm ends is **taken for the player**, with an event
-saying so. Nothing else in this project decides for a player. It exists only because
-an unmade choice would sit in the offer table forever and quietly deny that team a
-modifier the other team has. Whether the right answer is instead to hold the calm
-open until everybody has picked is an open question.
+A boon still unchosen when the calm ends **stays on offer**. Nothing is taken for
+anybody, here or anywhere else in the project.
+
+Three ways of handling it were considered and two are worth recording because each
+looked reasonable:
+
+**Take it for them** breaks the rule the rest of the design keeps absolutely — every
+refusal is named and handed back, no spawn is redirected, no upgrade moves except by
+somebody's own hand.
+
+**Take it, but allow a swap later** is worse, and worse in an instructive way: it
+makes never choosing the correct play. Let the timer run out, see how the match
+develops, then swap into whatever turned out to matter. A rule that rewards not
+answering teaches an awkward, bent way of playing.
+
+**Letting it lapse** punishes a team for one player looking away.
+
+So the calm is simply long enough to choose in, and the offer stays open. Being slow
+costs you the use of it in the meantime and costs your team nothing.

@@ -92,10 +92,18 @@ function M.begin(world)
 
   for number = 1, per_team * 2 do
     local team = (number <= per_team) and 1 or 2
-    -- Commanders are dealt round-robin from the catalogue. A lobby would let
-    -- people choose; the prototype deals, so that a match has more than one
-    -- mixture on each side without anybody having to pick.
-    local commander_id = ((number - 1) % #catalogue.commander) + 1
+    -- Commanders are dealt round-robin **within a team**, not across all six.
+    --
+    -- Dealing across all six looked identical and was not: at three a side and two
+    -- commanders it gives one team two paladins and a noble, and the other a paladin
+    -- and two nobles. Different captains, different mixtures, different bounty
+    -- colours -- an asymmetric match before anybody has done anything, which is the
+    -- one thing an untouched match must not be.
+    --
+    -- A lobby would let people choose and the two sides would rightly differ. The
+    -- prototype deals, so it deals both sides the same hand.
+    local seat = ((number - 1) % per_team) + 1
+    local commander_id = ((seat - 1) % #catalogue.commander) + 1
 
     local player = {
       number = number,

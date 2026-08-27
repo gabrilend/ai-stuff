@@ -3897,7 +3897,7 @@ passes through, rather than two crossings that happen to be near each other.
 paragraph about connectors now says outright that both of them land on the
 midpoint and why that leaves it with four neighbours.
 
-## G2. Exact mirror symmetry does not hold, and it is asked for by name — **OPEN**
+## G2. Exact mirror symmetry does not hold, and it is asked for by name — **ANSWERED**
 
 [The shape of the code](018-the-shape-of-the-code.md) names two tests that run on
 every build. Reproducibility is implemented and passes. **Symmetry is not, and
@@ -3928,6 +3928,28 @@ So the question is not "how do we fix it" but **is exact mirror symmetry worth
 that price**, or is the test better written as a tolerance — the two teams' push
 depths within one milestone of each other over a long unattended match — which
 would catch every real asymmetry and cost nothing.
+
+**Answer: neither. The simulation is set up symmetrically and then allowed to
+diverge.**
+
+> The simulation should be set-up in a symmetrical fashion, but it will very
+> quickly diverge, so there's no reason to try and maintain it beyond the starting
+> conditions.
+
+That reframes what the test is for. Symmetry is a property of the **opening**, not
+of the match: the map mirrors, both teams start with the same stone in the same
+places, and the same bodies leave both bases on the same tick. Past that, two even
+sides are supposed to come apart — a tie broken one way in one lane is broken the
+other way in another, and by the second exchange the two halves are different games.
+
+Holding the mirror any longer would cost a canonical ordering on every tie in the
+hottest loop in the simulation, bought to preserve something with no gameplay
+meaning after the first ten seconds. The per-team tie streams stay, because they fix
+a real coupling — each team's luck depending on how often the *other* team had a tie
+— which is worth fixing regardless of symmetry.
+
+**Changed:** [018](018-the-shape-of-the-code.md)'s two standing tests, and the
+invariants, which now assert the opening rather than every tick.
 
 ## G3. Lane width does nothing — **ANSWERED, and it is not the question it looked like**
 
@@ -4053,7 +4075,7 @@ document describe?** The written version is easier to reason about; the built
 version is what runs. Leaving them different is the thing that must not happen,
 because a reader who trusts the page will look for a loop that is not there.
 
-## G8. What is the wide centre lane for, now that width does not cap a rank? — **OPEN**
+## G8. What is the wide centre lane for, now that width does not cap a rank? — **ANSWERED**
 
 Created by **G3**'s answer, not settled by it.
 
@@ -4097,12 +4119,42 @@ difference from the old rule is that it is decided on the way there rather than 
 the moment of contact — which suits a design where waves are formed before they
 leave the base.
 
-It is option 2 above in substance, arrived at from the other direction. **Whether it
-is enough is still the open part**, and so is whether the middle should get
-something else besides. Option 4 — real terrain — remains the largest and is
-explicitly deferred by G3's answer.
+### And then the challenge answered it properly
 
-## G9. What happens to a boon nobody chose? — **OPEN**
+> during the challenge monster fight, the three waves that are concentrated into the
+> central lane should spawn abreast from one another. So, if the width of a wave is
+> about 10, then at -12 and +12 from the central wave's center there should be the
+> center of the left and right lane - + and - twelve because 5 for the "radius" of
+> the circle that is the formation, 5 for the other formation, and 2 for a bit of
+> gap between them.
+
+**The centre lane is wide because three formations have to stand abreast in it.**
+Which is what every document always said the reason was — "all three lanes' worth of
+soldiers funnel into the center during a challenge, and a monster has to be able to
+fight a whole team at once" — now with arithmetic behind it instead of an intention.
+
+The width is therefore **derived**, not chosen: the centre formation's radius, plus a
+side lane's on either side of it, plus the gaps. At the current file spacing that is
+136 paces of formation, and the centre lane is 140.
+
+One thing had to be added to make it work, and it is worth recording because the
+problem was not obvious. **A rank stops widening at a fixed number of files.**
+Without a cap the sizing is circular in a way that widening cannot fix: the centre is
+wide so three formations fit, but a wider lane makes the centre's *own* formation
+wider, which pushes the other two further out, which needs a wider lane. Every
+attempt to make the corridor contain them made them bigger.
+
+So a road wider than the cap is simply **room** — which is the right relationship
+anyway. A road twice as wide does not make an army twice as broad; it makes it
+comfortable.
+
+Option 4 — real terrain — remains untouched and is explicitly deferred by G3's
+answer.
+
+**Changed:** [002](002-the-map-and-its-milestones.md), the map shape parameters, and
+issue 206.
+
+## G9. What happens to a boon nobody chose? — **ANSWERED**
 
 The only fallback in the prototype, and it is announced rather than silent: a boon
 still unchosen when the calm runs out is **taken for the player**, first of the two

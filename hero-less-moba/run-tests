@@ -51,6 +51,14 @@ if [ "${WHICH}" = "all" ] || [ "${WHICH}" = "code" ]; then
     if [ "$?" -ne 0 ]; then
         FAILED=1
     fi
+
+    # The formation on a bare field, separately, because a failure here should point
+    # at the formation rather than at whatever else happened to be running.
+    echo
+    luajit "${DIR}/tests/060-the-formation-sandbox.lua"
+    if [ "$?" -ne 0 ]; then
+        FAILED=1
+    fi
 fi
 
 exit "${FAILED}"

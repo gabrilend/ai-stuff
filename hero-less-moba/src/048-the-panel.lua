@@ -340,6 +340,12 @@ local function draw_boon_offer(world, frame, x, y, width)
   set_colour(M.renderer.COLOUR.text, 0.75)
   love.graphics.setFont(M.font)
   love.graphics.print("CHOOSE A BOON", x, y)
+  -- It does not expire. Being slow costs you the use of it in the meantime and
+  -- costs your team nothing, so there is no clock on this and nothing is taken for
+  -- you if you look away.
+  set_colour(M.renderer.COLOUR.text, 0.3)
+  love.graphics.setFont(M.font_small)
+  love.graphics.printf("no hurry", x, y + 2, width, "right")
   y = y + 20
 
   local height = 34

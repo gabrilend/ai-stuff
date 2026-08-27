@@ -81,6 +81,23 @@ local SPEED_FLOOR = 0.55
 -- has been bent by a turn visibly takes a moment to straighten.
 local LATERAL_RATE = 0.55
 
+-- How much clear ground between two formations standing abreast. Small: enough that
+-- they read as two lines rather than one wide one, and no more.
+local ABREAST_GAP = 4
+
+-- The most bodies that ever stand abreast, however wide the road is.
+--
+-- Without a cap this is circular in a way that cannot be solved by widening
+-- anything: the centre lane is wide so that three formations fit abreast during a
+-- challenge, but a wider lane makes the centre's own formation wider, which pushes
+-- the other two further out, which needs a wider lane. Every attempt to make the
+-- corridor contain them made them bigger.
+--
+-- So a rank stops growing at some point and a lane wider than that is simply
+-- **room**. Which is the right relationship anyway: a road twice as wide does not
+-- make an army twice as broad, it makes it comfortable.
+local MAX_FILES = 5
+
 -- How near an enemy has to be to the front of a wave before the wave stops
 -- advancing and lets its bodies fight.
 local CONTACT_RANGE = 62
@@ -100,7 +117,57 @@ local CONTACT_RANGE = 62
 function M.files_for(lane)
   local files = math.floor((lane.width * WIDTH_USE) / FILE_SPACING)
   if files < 2 then files = 2 end
+  if files > MAX_FILES then files = MAX_FILES end
   return files
+end
+-- }}}
+
+-- {{{ function M.radius_of()
+-- The formation's **radius**: half the width of the rank, so that a circle of this
+-- radius drawn about the formation's centre has its edges touching the left and
+-- right of the line as it walks.
+--
+-- It is what decides how far apart two formations stand when they have to stand
+-- abreast -- one radius for this one, one for the other, and a small gap so they
+-- read as two lines rather than one wide one.
+function M.radius_of(lane)
+  local files = M.files_for(lane)
+  return (files - 1) * 0.5 * FILE_SPACING
+end
+-- }}}
+
+-- {{{ function M.abreast_offset()
+-- Where a wave raised for one lane stands, across the lane it is actually walking.
+--
+-- Zero everywhere except during a challenge, when all three lanes' production goes
+-- into the middle. There, **the three waves stand abreast of one another** rather
+-- than on top of each other: the centre lane's wave keeps the middle, and the side
+-- lanes' waves sit one full formation to either side.
+--
+-- The spacing is derived rather than chosen -- this formation's radius, plus the
+-- neighbour's, plus a small gap -- so widening a wave moves them apart by exactly
+-- as much as it needs to and never has to be re-tuned alongside.
+--
+-- And **this is what the centre lane is wide for.** Three formations abreast is the
+-- thing the width has to accommodate, which is the reason the document gave for
+-- widening it in the first place, now with an arithmetic behind it instead of an
+-- intention.
+function M.abreast_offset(map, from_lane, centre_lane)
+  if from_lane == centre_lane then
+    return 0
+  end
+  -- **This formation's radius, plus the neighbour's, plus a gap.** Not twice one
+  -- radius: a wave funnelled in from a side lane keeps its own lane's shape -- the
+  -- same principle that has it keep its own lane's upgrades -- so the two circles
+  -- being separated are different sizes, and using either one twice would either
+  -- overlap them or leave a hole.
+  local step = M.radius_of(map.lane[from_lane])
+             + M.radius_of(map.lane[centre_lane])
+             + ABREAST_GAP
+  -- The lane that was raised on the low side sits on the low side, so the three
+  -- keep their left-to-right order and a player watching can still tell which
+  -- group came from where.
+  return (from_lane < centre_lane) and -step or step
 end
 -- }}}
 
@@ -192,7 +259,7 @@ function M.target_of(world, id)
     return soldier.lane_along[id], soldier.lane_across[id]
   end
   return wave.anchor + soldier.slot_along[id] * soldier.facing[id],
-         soldier.slot_across[id]
+         soldier.slot_across[id] + (wave.across_offset or 0)
 end
 -- }}}
 

@@ -36,6 +36,31 @@ rather than a branch inside the move loop.
 
 All four are "read one number out of a table." None searches.
 
+## Movement is capped by speed **in the world**
+
+`move_limited` takes a step in lane coordinates, measures how far the body actually
+moved, and scales the step back if it went too far.
+
+This is the correction for the one thing lane coordinates get wrong, and the error
+was invisible until somebody asked for it to be measured. Holding a formation in
+lane coordinates makes a turn free: every body in a rank shares one distance-along,
+so going round a bend costs each of them the same number. But the body on the
+**outside** has further to walk in the world, and nothing was telling it so — it was
+covering that extra ground for nothing, moving faster than its own speed, silently.
+
+Now the outer body genuinely falls behind its place, the inner one gets ahead, and
+the cohesion budget does the rest. Turning left, the left of the line gives way and
+the right hurries, which is what keeps it a line.
+
+Measured in [the sandbox](../tests/060-the-formation-sandbox.info.md): through a
+left bend the outer body covers 321 paces to the inner's 290, is hurried to a
+multiplier of 1.0043 while the inner gives way to 0.9972, and the line never bends
+more than 1.7 paces.
+
+Three passes rather than a solve. Displacement is monotonic in the fraction, the
+first correction is nearly exact, and a fixed pass count keeps the cost the same
+every tick — which a search would not.
+
 ## Facing, and the one path array read two ways
 
 Team 1 walks **up** the path array and team 2 walks **down** it. `facing` is +1 or
