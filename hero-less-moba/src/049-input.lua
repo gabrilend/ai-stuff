@@ -270,7 +270,10 @@ function M.mousepressed(state, context, x, y, button)
 
   local hot = context.panel.hit_test(x, y)
   if hot ~= nil then
-    if hot.kind == "hero" then
+    if hot.kind == "boon" then
+      context.queue({verb = "choose_boon", team = state.watching,
+                     player = context.player_number(state), boon = hot.boon})
+    elseif hot.kind == "hero" then
       -- The same gesture as picking up a rune, for the same reason: choosing where
       -- a hero goes is a question about the whole board, and the act of pulling
       -- back is the act of asking it.

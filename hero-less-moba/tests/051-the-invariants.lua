@@ -69,6 +69,109 @@ end
 
 local tick_module = loadfile(ROOT .. "/src/042-the-tick.lua")()
 
+-- {{{ local function test_a_match_ends()
+-- Left entirely alone, a match must finish.
+--
+-- This is the phase table's whole reason for existing. Without it two even teams
+-- grind for as long as anybody is willing to watch -- which is not a stalemate the
+-- design is trying to produce, it is the absence of an ending. **The deadline is
+-- the walk**: the third monster cannot be killed, and it arrives.
+--
+-- The test asserts the arc as well as the ending, because a match that ended for
+-- some other reason -- a lucky push, an arithmetic overflow -- would pass a bare
+-- "did it stop" check while proving nothing.
+local function test_a_match_ends()
+  local world = fresh_world(tick_module)
+  local seen = {surge = 0, challenge = 0, calm = 0, slain = 0}
+
+  local limit = 60000
+  while world.tick < limit do
+    if not tick_module.advance(world) then
+      break
+    end
+    for _, event in ipairs(world.event) do
+      if event.name == "surge_began" then seen.surge = seen.surge + 1 end
+      if event.name == "challenge_began" then seen.challenge = seen.challenge + 1 end
+      if event.name == "calm_began" then seen.calm = seen.calm + 1 end
+      if event.name == "monster_slain" then seen.slain = seen.slain + 1 end
+    end
+  end
+
+  check("a match left alone reaches an ending",
+        world.winner ~= 0,
+        string.format("still running at tick %d", world.tick))
+
+  check("and gets there through three surges and three challenges",
+        seen.surge == 3 and seen.challenge == 3,
+        string.format("%d surges, %d challenges, %d calms, %d monsters slain",
+          seen.surge, seen.challenge, seen.calm, seen.slain))
+
+  check("the first two monsters die and the third does not",
+        seen.slain == 4,
+        string.format("%d monsters slain -- two per challenge for the first two, " ..
+                      "and none for the Golem", seen.slain))
+end
+-- }}}
+
+-- {{{ local function test_the_surge_deals_everything()
+-- During a surge a body carries **a share of everything the team owns**, not the
+-- contents of the lane it is walking down.
+--
+-- And nothing is taken to do it. The slots still hold exactly what they held --
+-- upgrades are never moved except by a player's own hand, and an earlier draft of
+-- this design confiscated the board for the duration and handed it back, which was
+-- frustrating in a way nothing bought back.
+local function test_the_surge_deals_everything()
+  local world, modules, parameters = fresh_world(tick_module)
+
+  -- Give one team something to be dealt, all of it in a lane nobody will spawn a
+  -- surge body into by accident.
+  modules.chest.draw(world, 1, 8)
+  for kind = 1, #parameters.upgrade.kind do
+    while world.team[1].chest[kind] > 0 do
+      modules.commands.verb.place_in_lane(world, {team = 1, kind = kind, lane = 3})
+    end
+  end
+  local placed_before = 0
+  for kind = 1, #parameters.upgrade.kind do
+    placed_before = placed_before + world.team[1].lane_slot[3][kind]
+  end
+
+  -- Run to the first surge.
+  while world.phase ~= 2 and world.tick < 20000 do
+    tick_module.advance(world)
+  end
+  for _ = 1, 60 do
+    tick_module.advance(world)
+  end
+
+  local soldier = world.soldier
+  local carried_outside_lane_three = 0
+  for id = 1, world.high_water do
+    if soldier.alive[id] == 1 and soldier.team[id] == 1
+       and soldier.lane[id] ~= 3 and soldier.wave[id] == 0 then
+      for kind = 1, #parameters.upgrade.kind do
+        carried_outside_lane_three = carried_outside_lane_three + soldier.upgrade_count[kind][id]
+      end
+    end
+  end
+
+  local placed_after = 0
+  for kind = 1, #parameters.upgrade.kind do
+    placed_after = placed_after + world.team[1].lane_slot[3][kind]
+  end
+
+  check("a surge deals the whole holding to bodies in every lane",
+        carried_outside_lane_three > 0,
+        "bodies outside the stacked lane carried nothing")
+
+  check("and takes nothing out of the slots to do it",
+        placed_after == placed_before,
+        string.format("lane 3 held %d before the surge and %d during it",
+          placed_before, placed_after))
+end
+-- }}}
+
 -- {{{ local function test_reproducibility()
 -- The same seed and the same (empty) command list must produce the same match,
 -- tick for tick. Compared on a fingerprint of every body's position rather than
@@ -539,6 +642,8 @@ test_formation_turns_a_corner()
 test_cohesion_is_conserved()
 test_reproducibility()
 test_placement_moves_a_frontline()
+test_the_surge_deals_everything()
+test_a_match_ends()
 print("")
 print(string.format("%d passed, %d failed", passed, failed))
 print("")

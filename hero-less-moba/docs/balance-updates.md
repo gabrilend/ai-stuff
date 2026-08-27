@@ -142,3 +142,39 @@ carries it fires on a crowd.
 The number is a guess and wants a real fight to be read against. What it must not
 become is large enough that a feared line simply stops working; the statue is
 definitely slayable, you just have to have a stronger spirit.
+
+## 2026-08-26 — the shape of a match, and monsters worth the name
+
+Nothing → the phase timings, the stream rate, and three monsters.
+
+    first normal stretch   5400 ticks (three minutes) before the first surge
+    later normal stretches 4200 ticks
+    surge                  1500 ticks
+    calm                   900 ticks
+    stream interval        15 ticks -- one body per lane, all lanes together
+
+The stream rate against the wave rate is the ratio that matters, and it lands at
+about forty to one: a wave leaves each lane every 620 ticks, and a surge puts a body
+down in every lane every 15. The lull disappears entirely, which is the whole feel of
+the phase.
+
+**The monsters were tripled after the first measurement.** At 5200 and 8600 health
+the Pillar Orc and the Field Dragon died in about thirteen seconds each, which is not
+a challenge — it is an interruption. At 19000 and 31000:
+
+    challenge 1   monster fell 30 seconds in
+    challenge 2   monster fell 16 seconds in
+    challenge 3   never; the match ended at 13 minutes
+
+Thirty seconds is close to right, and the reason is worth writing down because it is
+the number the tuning should be against rather than the health figure. **The deadline
+is the walk**: from the midpoint of the centre lane to a library is about 720 paces,
+and at 0.60 paces per tick that is forty seconds. A monster that dies at thirty has
+got three quarters of the way, which is the tension the phase is for.
+
+The second one dying faster than the first, despite being half again as tough, is the
+boons compounding — both teams are stronger by then. That is the design and not a
+defect, but it means the escalation has to outrun the compounding, and 31000 does not
+by enough.
+
+Related open questions: B2 (surge length and stream rate), B11.

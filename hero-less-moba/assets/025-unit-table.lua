@@ -237,6 +237,75 @@ M.archetype = {
     cooldown_max = 23,
     ability      = {"dread"},
   },
+
+  -- ---------------------------------------------------------------------------
+  -- The three that come out of the middle. Very large numbers, and three
+  -- behavioural differences that are **all values in fields rather than special
+  -- cases**:
+  --
+  --   * they ignore sign-posts, so nothing reroutes them out of the centre
+  --   * `acquire_range` is small relative to their size, so they wade through a
+  --     frontline toward the base instead of parking in it
+  --   * they take structures at soldier priority rather than below it, so they do
+  --     not walk past a tower to be shot in the back
+  --
+  -- A monster is on **nobody's** side. Without that, one aimed at team 1's base
+  -- would be functionally an ally of team 2 for the whole phase -- fighting
+  -- alongside them, in their direction, at no cost to them.
+  -- ---------------------------------------------------------------------------
+
+  -- 12 -- the first challenge. Killable, and pays a boon.
+  {
+    name         = "the Pillar Orc",
+    flavour      = 4,
+    reach        = 1,
+    health       = 19000,
+    damage       = 95,
+    armour       = 12,
+    range        = 46,
+    acquire_range = 62,
+    speed        = 0.60,
+    cooldown_max = 30,
+  },
+
+  -- 13 -- the second. Harder, and still killable.
+  {
+    name         = "the Field Dragon",
+    flavour      = 4,
+    reach        = 1,
+    health       = 31000,
+    damage       = 140,
+    armour       = 16,
+    range        = 58,
+    acquire_range = 74,
+    speed        = 0.66,
+    cooldown_max = 28,
+  },
+
+  -- 14 -- the last one, and it does not die.
+  --
+  -- **It never enters closing and never enters fighting.** It walks, and it
+  -- attacks whatever it walks into, and it does not stop for either. There is no
+  -- target acquisition, because it is not going anywhere except the library --
+  -- the frontline is something that happens to it on the way.
+  --
+  -- It is the same Golem in every match. It watches, it learns, and it can do
+  -- nothing with what it knows, because of what it is made of: the perfect archive
+  -- and the perfectly useless one, walking toward the imperfect archive that
+  -- everybody is dying over.
+  {
+    name         = "the Eternal Golem",
+    flavour      = 4,
+    reach        = 1,
+    health       = 1,          -- unused; it cannot be hurt at all
+    damage       = 260,
+    armour       = 0,
+    range        = 64,
+    acquire_range = 0,         -- it acquires nothing, ever
+    speed        = 0.52,
+    cooldown_max = 24,
+    deathless    = true,
+  },
 }
 -- }}}
 

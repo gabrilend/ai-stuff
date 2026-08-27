@@ -77,6 +77,38 @@ local function walking(world, id)
     return 1
   end
 
+  -- Walking off the map during a calm. It has turned round, it acquires nothing,
+  -- and it vanishes when it arrives -- a hero handing back what it cost on the way
+  -- out, because the one fight designed to be fought all-in is the one you are
+  -- allowed to go all-in on.
+  if soldier.going_home[id] == 1 then
+    local lane = world.map.lane[soldier.lane[id]]
+    if lane ~= nil then
+      local home = (soldier.facing[id] == 1) and lane.length or 0
+      local along = soldier.lane_along[id] + soldier.speed[id] * soldier.facing[id]
+      local arrived = (soldier.facing[id] == 1) and (along >= home) or (along <= home)
+      if arrived then
+        if soldier.flavour[id] == 2 then
+          world.commanders.refund_hero(world, id)
+        end
+        soldier.health[id] = 0
+        soldier.state[id] = 5
+        return 5
+      end
+      world.walking.set_lane_position(world, id, along, soldier.lane_across[id])
+    end
+    return 1
+  end
+
+  -- The Golem walks and nothing else. No acquisition, no closing, no fighting.
+  local row = world.parameters.unit.archetype[soldier.archetype[id]]
+  if row ~= nil and row.deathless then
+    local lane = world.map.lane[soldier.lane[id]]
+    local along = soldier.lane_along[id] + soldier.speed[id] * soldier.facing[id]
+    world.walking.set_lane_position(world, id, along, soldier.lane_across[id])
+    return 1
+  end
+
   -- A hero crossing a connector is committed to it: it has already obeyed its one
   -- sign-post and there is nothing on this ground to fight.
   if soldier.crossing[id] ~= 0 then
