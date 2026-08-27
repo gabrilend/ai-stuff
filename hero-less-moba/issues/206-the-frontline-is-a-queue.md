@@ -6,30 +6,41 @@
 | Blocked by | 202, 203 |
 | Blocks | 404, 602 |
 | Reads | [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md), [standing off and falling back](../docs/022-standing-off-and-falling-back.md) |
-| Open questions | B11 — does the frontline move at all |
+| Open questions | B11 — does the frontline move at all; G8 — what the wide lane is for |
 
 ## Current behavior
 
-Bodies do not overlap. A melee body closing on a fight stops short behind a
-friendly body ahead of it in the same lane, and ranged bodies keep a smaller
-bubble and hold behind the rank at their own reach. That produces ranks, and the
-ranks read correctly on screen.
+**A wave is emitted from the base already in its ranks and marches as one body.**
+Captain in the centre of the front rank, melee beside and behind it, ranged behind
+those at a gap. It is battle-ready from the tick it appears; there is no moment at
+which it is a column.
 
-**But they are single file, and they are oriented by the lane.** A lane's width
-is drawn and never read, so the wide centre is currently only a picture. And the
-ranks form along whatever direction the lane's path happens to run at the point of
-contact, which means two hosts meeting at a bend meet corner-first rather than
-line-to-line.
+Its place is held in **lane coordinates** — a distance along the lane plus an
+offset across it — so the formation curves to match the path. A wave rounding the
+top lane's bend holds its block through the turn: the long side and the short side
+swap and nothing tears.
 
-The queue is therefore the shape of the corridor rather than the shape of the
-fight, which is the thing the section below replaces.
+Cohesion is a **conserved budget**. Bodies behind their place hurry and bodies in
+front of it wait, taken from one another, expressed as deviations from the wave's
+own mean lag so the books balance structurally rather than by arithmetic anybody
+has to be careful about. Only bodies still marching are in it — one that has closed
+on an enemy has left the formation's business.
+
+A wave stops advancing when an enemy comes near its front, and its bodies fight.
+
+**What is not built:** cavalry, and therefore the rank kept for them and the flank
+they were to go round. And the enemy's line is not consulted any more — a rank is
+perpendicular to the lane, which is parallel to the enemy's line whenever the enemy
+is coming down the same lane, and is not when they are not. See *still open*.
 
 ## Intended behavior
 
-**The lane decides the path you take toward the enemy. It does not decide how you
-are arranged when you engage.**
+Two descriptions arrived, in that order, and the second one supersedes the first
+where they disagree. Both are recorded verbatim, because between them they are the
+whole of this issue and because the first one is still the argument the second one
+rests on.
 
-Recorded as it was given, because the whole of this issue is in it:
+### The first: the lane is the path, not the arrangement
 
 > draw a line toward the enemy, then arrange your formation for the advance. a
 > basic one is lines of melee in front of lines of ranged, with cavalry behind so
@@ -43,140 +54,136 @@ Recorded as it was given, because the whole of this issue is in it:
 > oriented to that line. Once fighting begins it's less important to retain
 > cohesion, but the approach is how you engage.
 
-### The line through the enemy already exists
+### The second: they are formed before they leave
 
-It is not a new idea and it does not need a new mechanism. It is already how a
-ranged body with nothing to shoot decides which way to orbit — *draw a line
-through the mass of the enemy formation; a body on the left of that line orbits
-left, one on the right orbits right.* See
-[standing off and falling back](../docs/022-standing-off-and-falling-back.md).
+> the waves should be emitted from the base in their formations already, and they
+> should move generally as a unit. If they are out of formation, because of turning
+> or something, then those that are farthest from their intended location in the
+> formation get a speed bonus by taking from those who are in front of or ahead or
+> closest, in that order. So that they slow down, and meet them. When they turn
+> through the lanes in the map, they should curve the formation to match the path
+> they are on. This way they are always battle ready, instead of walking out in
+> those lines - they should only do that during the siege-surge.
 
-This issue takes that same line and gives it a second job: **it is the line your
-own ranks are parallel to.**
+**There is no forming-up step.** The first description was read as *march in
+column, then deploy on contact*, and that is wrong: a wave is in its ranks from the
+moment it exists. What the first description is really about is that the corridor
+does not dictate the shape — which remains true, and is what makes the formation
+worth having at all.
 
-One line, computed once per host per tick, answering two questions — which way do
-my archers drift, and which way do my ranks face. That is worth saying plainly
-because computing it twice, slightly differently, in two files, is how those two
-behaviours would quietly stop agreeing with each other.
+### Held in lane coordinates
 
-### Two regimes, and the transition between them is the interesting part
+A body's place is two numbers: **how far along the lane** its wave's anchor has got
+plus this body's own offset from it, and **how far across** the lane it stands. The
+world position is derived from those against the lane's own curve.
 
-| | |
-| --- | --- |
-| **Marching** | No enemy host in sight. Walk the lane graph in the ordinary way. The lane is the path. |
-| **Forming** | An enemy host is ahead but not yet in reach. **Leave the lane.** Take a slot in a formation oriented to the enemy's line, and move to it in open ground. |
-| **Engaged** | In reach. Fight. Cohesion stops being enforced — *once fighting begins it's less important to retain cohesion.* |
+That is what makes *curve the formation to match the path* fall out rather than be
+implemented. Every body in a rank shares one distance-along, so the lane carries the
+whole line round a corner as a line. Holding the formation in world coordinates
+instead would make a turning rank either tear apart or scythe through the inside of
+the bend, because the bodies on the outside have further to walk and nothing tells
+them so.
 
-**The approach is how you engage.** The formation is not a thing that happens when
-swords cross; it is a thing that is already finished by then. So the trigger to
-start forming is deliberately **wider than acquisition range** — a body should be
-in its slot before it can hit anything, or the formation is a thing that assembles
-during the fight, which is not a formation.
+### Cohesion is a conserved budget
+
+Turning is not the only thing that pulls a formation out of shape — dying and
+blocking do too. So bodies out of place correct, and **the correction is taken from
+somebody**: *those that are farthest from their intended location get a speed bonus
+by taking from those who are in front of or ahead or closest, in that order. So that
+they slow down, and meet them.*
+
+Expressed as a deviation from the wave's own **mean lag**, which makes the
+conservation structural: the deviations sum to zero, so the speed handed out equals
+the speed given up, exactly, without anybody counting. It also gets the mean right,
+which matters — a wave whose every member is behind is not out of formation, it is a
+wave whose anchor has got ahead of it, and hurrying all of them would be a wave that
+accelerates for no reason.
+
+Only bodies **still marching** are in the budget. One that has closed on an enemy has
+left the formation's business, and including it would be the formation trying to drag
+a body out of a fight by the collar.
 
 ### The arrangement
 
-Ranks are lines **parallel to the enemy's line**, stacked back away from it.
-
 | Rank | Holds |
 | --- | --- |
-| front | melee |
-| behind | ranged, at their own reach from the front rank |
-| behind that | cavalry, positioned to flank toward whichever of the enemy's flanks is weak |
+| front | the captain, in the middle, then melee outward from it |
+| behind | more melee, until they run out |
+| behind that, with a gap | ranged, shooting over the line |
+| behind that | cavalry, to flank whichever of theirs is weak — **not built** |
 
-There is no cavalry archetype yet. The rank exists in the arrangement so that the
-place it goes is decided before there is anything to put in it, rather than being
-bolted on afterwards — and because *which flank is weak* is a question the
-formation is already computing the answer to when it measures the enemy's line.
+Positions in a rank are laid out evenly and **centred on the lane**, but the order
+they are handed out in runs from the middle outward — so the captain always stands in
+the centre, and a rank that is not full is short at its edges rather than at its
+middle, which is what a thinning line should look like.
 
-### How wide is a rank?
+### The lane's width decides how wide you travel
 
-**As wide as theirs.** The formation's width follows the extent of the enemy's
-line, bounded by how many bodies there are to put in it.
+It does not decide how many bodies may fight at once. Nothing does; the world is flat
+and a lane is a suggestion. It decides how wide a formation **travels**, which is a
+different question with an obvious answer: a road's width is how many people fit
+across it.
 
-That is the answer to a question this issue used to ask differently. The old text
-said a rank is N abreast where N is the lane's width. **It is not.** The world is
-flat, the lanes are suggestions, and a host forms a line to match the line it is
-walking into. A host with more bodies than the enemy's line is wide puts the
-surplus in the ranks behind, which is where a numerical advantage should go.
+That gives the wide centre lane back most of what it wanted, by a different route — a
+wave marching up the middle arrives with more of itself abreast, so more of it is in
+contact the moment contact happens. Whether that is enough is G8.
 
-### What this costs, and it is worth naming
+### The one thing that walks in a line
 
-**The centre lane being wider stops meaning anything mechanical.** Its whole
-stated purpose was that more bodies get into contact at once there, and that
-followed from width capping the rank. Under this design the rank is capped by the
-enemy, not by the corridor, so a fight in a side lane and a fight in the middle
-are the same fight.
-
-That is a real loss and it is not obviously the wrong trade — a formation system
-gives the middle other things to be — but it wants a decision rather than a
-silence. Raised as its own question rather than settled here.
+*This way they are always battle ready, instead of walking out in those lines - they
+should only do that during the siege-surge.* A surge is a stream, one body at a time,
+and has no formation at all. That is a note for whoever builds it.
 
 ### What does not change
 
-Deliberately **not** included: pushing, flowing around, or any collision
-resolution that moves a body which did not choose to move. A body either advances
-into free space or waits. Anything more is a physics problem, and a physics
-problem with a thousand bodies is a frame-rate problem wearing a costume.
-
-Personal space still applies. Bodies still do not overlap. A ranged body still
-wants the deepest position inside its own reach rather than the front — that is
-the same rule as before, now expressed as *which rank am I in* rather than *how
-far behind do I stop*.
-
-### Why this is not cosmetic
-
-1. **Two hosts meet line-to-line rather than corner-first.** At a lane's bend the
-   old queue produced a fight that started with two bodies and widened over
-   several seconds; a formation arrives already deployed.
-2. **A lane upgrade stays legible.** A stronger front rank visibly holds while the
-   enemy's ranks back up, which is the same read as before but on a line the
-   player can actually see the shape of.
-3. **The flanks become a place.** Ranged bodies already drift to the shoulders and
-   end up facing each other; with ranks oriented to the enemy's line, the shoulders
-   are a definite position rather than wherever the corridor happened to bulge.
-4. **The stalemate becomes visible**, which is what the phase-2 demo is for.
+Deliberately **not** included: pushing, flowing around, or any collision resolution
+that moves a body which did not choose to move. A body either advances into free
+space or waits. Anything more is a physics problem, and a physics problem with a
+thousand bodies is a frame-rate problem wearing a costume.
 
 ## Suggested implementation steps
 
-1. Compute the **enemy line** for a host: the centroid of the enemy bodies near it,
-   and the dominant axis of their positions. In two dimensions the axis is a closed
-   form on the covariance, not an iterative solve — worth a comment saying so, so
-   nobody reaches for a library.
-2. Derive the formation frame from it: **along** the line, and **forward**
-   perpendicular to it, pointed at the enemy centroid. Anchor the front rank at
-   engagement distance from the enemy line rather than from any individual body.
-3. Assign slots. Sort the host by role, then within a role **by each body's current
-   projection onto the along-axis**, so bodies keep their left-to-right order and
-   nobody crosses the whole line to reach a slot. That ordering is what makes the
-   assignment stable between ticks; without it the formation shimmers.
-4. Give a body a goal position rather than a lane step while forming, and steer to
-   it in open ground. Keep the lane's node and progress current underneath, so that
-   a body which loses its formation can rejoin the path it was on.
-5. Drop cohesion on engagement. A body in reach fights whatever the targeting rules
-   say; the slot was for the approach.
-6. Recompute per host per tick rather than per body. One line, two consumers.
-7. Write a test: two hosts approaching along a bend meet with their front ranks
-   parallel, not corner-first.
-8. Write a test that a host outnumbering another forms deeper rather than wider.
+1. Give each lane a **cumulative arc length** per path node, and a function that
+   answers "where is this lane, this far along, and which way is it heading."
+2. Make a body's lane position two numbers rather than an edge and a fraction, and
+   derive its world position, its path index and its milestone from them.
+3. Assign each body its rank and file **at spawn**, from its role and the lane's
+   width, and put it down already standing there.
+4. Advance the wave's anchor at its slowest member's pace. Stop it when an enemy is
+   near the **front** — the anchor is the front, not the centre, so the ranks behind
+   cannot push the front through the enemy.
+5. Share out the cohesion budget as deviations from the mean lag, over the marching
+   members only, clamped at both ends.
+6. Have each wave record how far off its own books came out, so a systematic drift is
+   visible from outside without recomputing anything.
+7. Test that a wave rounding a bend keeps its ranks, and that its bounding box turns
+   rather than growing.
+8. Test that the budget balances.
 
 ## Related documents and tools
 
-- [Standing off and falling back](../docs/022-standing-off-and-falling-back.md) —
-  the line through the enemy, and the orbit that already uses it
+- [Standing off and falling back](../docs/022-standing-off-and-falling-back.md) — the
+  line through the enemy, and the orbit that uses it
 - [A unit and what it carries](../docs/004-a-unit-and-what-it-carries.md)
 - The phase-2 demo, which shows the stalemate this makes visible
 
 ## Still open
 
-**Does the frontline actually move once upgrades exist?** First evidence is in:
-left alone a match stalemates, and one team stacking a lane walks it to the enemy
-library. See B11.
+**The enemy's line is no longer consulted.** A rank is perpendicular to the lane,
+which is parallel to the enemy's line exactly when the enemy is coming down the same
+lane — which is nearly always, and will stop being so during a challenge, when all
+three lanes' bodies funnel into the centre from three directions. At that point
+either the ranks turn to face what is in front of them or the formation stops meaning
+anything, and the first description above already says which.
 
-**What is the wide centre lane for now?** Its mechanical purpose was capping the
-rank, and the rank is now capped by the enemy instead.
+**Cavalry do not exist**, so neither does the rank kept for them, nor the flanking
+that was the reason for it.
 
-**Is the world really flat?** *"the world is actually just a dense mixture of
-plains, forests, mountains, etc... But for our purposes just say it's flat
-everywhere."* Flat is what is being built. The sentence says it is a simplification
-being consciously accepted, and that is worth keeping visible rather than
-forgetting it was ever a choice.
+**Does the frontline actually move once upgrades exist?** First evidence is in: left
+alone a match stalemates, and one team stacking a lane walks it to the enemy library.
+See B11.
+
+**Is the world really flat?** *"the world is actually just a dense mixture of plains,
+forests, mountains, etc... But for our purposes just say it's flat everywhere."* Flat
+is what is being built. The sentence says it is a simplification consciously
+accepted, and that is worth keeping visible rather than forgetting it was a choice.
