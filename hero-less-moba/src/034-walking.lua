@@ -297,6 +297,97 @@ function M.step(world, id)
 end
 -- }}}
 
+-- {{{ function M.graph_position()
+-- Where on the path graph a body currently belongs, regardless of where its body
+-- actually is. A body off the lane keeps this current; it is the place it rejoins.
+function M.graph_position(world, id)
+  local soldier = world.soldier
+  local node = world.map.node
+  local from = node[soldier.node_from[id]]
+  local to   = node[soldier.node_to[id]]
+  local u = soldier.progress[id]
+  return from.x + (to.x - from.x) * u, from.y + (to.y - from.y) * u
+end
+-- }}}
+
+-- {{{ function M.step_free()
+-- Moves a body toward a point across open ground, ignoring the graph entirely.
+--
+-- The one kind of movement in this game that is not "read the next node out of an
+-- array", and it exists for one reason: a host arranges itself against the enemy
+-- rather than against the corridor it walked down, so a body forming up is walking
+-- to a place the graph has no opinion about.
+--
+-- Returns true once it has arrived.
+function M.step_free(world, id, goal_x, goal_y, tolerance)
+  local soldier = world.soldier
+  local dx, dy = goal_x - soldier.x[id], goal_y - soldier.y[id]
+  local distance = math.sqrt(dx * dx + dy * dy)
+
+  if distance <= tolerance then
+    return true
+  end
+
+  local speed = soldier.speed[id]
+  if speed >= distance then
+    soldier.x[id], soldier.y[id] = goal_x, goal_y
+    return true
+  end
+
+  soldier.x[id] = soldier.x[id] + dx / distance * speed
+  soldier.y[id] = soldier.y[id] + dy / distance * speed
+  return false
+end
+-- }}}
+
+-- {{{ function M.reproject()
+-- Slides a body's graph position along its lane to whichever point is nearest to
+-- where the body has actually got to.
+--
+-- Without this, a body that leaves the lane to form up freezes its path index, and
+-- push depth -- which is measured in path indices -- stops describing the world. A
+-- host could fight its way to the enemy base and the lane would still report the
+-- milestone it was standing on when it deployed.
+--
+-- Searched in a window around the current index rather than along the whole lane.
+-- A body cannot have moved far since last tick, and scanning a hundred nodes per
+-- body per tick to find that out would cost more than everything else in the move
+-- pass put together.
+function M.reproject(world, id)
+  local soldier = world.soldier
+  local lane = world.map.lane[soldier.lane[id]]
+  if lane == nil then
+    return
+  end
+
+  local here = soldier.path_index[id]
+  local first = here - 12
+  local last  = here + 12
+  if first < 1 then first = 1 end
+  if last > #lane.path then last = #lane.path end
+
+  local best, best_distance = here, math.huge
+  for index = first, last do
+    local node = world.map.node[lane.path[index]]
+    local dx, dy = node.x - soldier.x[id], node.y - soldier.y[id]
+    local distance = dx * dx + dy * dy
+    if distance < best_distance then
+      best, best_distance = index, distance
+    end
+  end
+
+  soldier.path_index[id] = best
+  soldier.progress[id] = 0
+  soldier.node_from[id] = lane.path[best]
+  local next_index = best + soldier.facing[id]
+  if next_index < 1 or next_index > #lane.path then
+    soldier.node_to[id] = lane.path[best]
+  else
+    soldier.node_to[id] = lane.path[next_index]
+  end
+end
+-- }}}
+
 -- {{{ function M.place_on_lane()
 -- Puts a body onto a lane at a given path index, facing a given direction. The
 -- one way a body enters a lane, used by the wave spawner and by hero placement
