@@ -12,6 +12,7 @@
 #include "073-rules.h"
 #include "037-fixture.h"
 #include "053-session.h"
+#include "070-scope.h"
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -535,6 +536,159 @@ static void test_a_real_rollback_restores_the_sheets(void)
 }
 /* }}} */
 
+/*
+ * Owning a piece is the right to move it. It is not a fence around it.
+ *
+ * A forest commander owns their goblin patrol. It walks into somebody else's
+ * tavern. The tavern's owner cannot move it, and can absolutely poison its
+ * drink -- but they had better explain how, and explaining how is the ruleset's
+ * job rather than the server's.
+ *
+ * The gate that replaces ownership is SIGHT, and it is the same decision the
+ * outbound path made rather than a second one that agrees most of the time. Two
+ * answers to "can this person see that" is how a permission model develops a
+ * hole nobody can find.
+ */
+/* {{{ static void test_commanding_is_not_affecting */
+static void test_commanding_is_not_affecting(void)
+{
+    struct world w;
+    struct pool *threads = pool_start(1);
+    struct session s;
+    struct ruleset rules;
+    const char *why = NULL;
+    uint32_t patrol;
+    uint32_t innkeeper;
+    uint32_t forest_seat = 1;
+    uint32_t tavern_seat = 2;
+
+    TEST_CASE("you cannot move what you do not command");
+
+    fixture_make_two_rooms(&w);
+
+    patrol = world_add_thing(&w);
+    world_thing(&w, patrol)->x = M(5);
+    world_thing(&w, patrol)->y = M(5);
+    world_thing(&w, patrol)->radius = (uint16_t)(WC_ONE / 2);
+    world_thing(&w, patrol)->region = 1;
+
+    innkeeper = world_add_thing(&w);
+    world_thing(&w, innkeeper)->x = M(6);
+    world_thing(&w, innkeeper)->y = M(5);
+    world_thing(&w, innkeeper)->radius = (uint16_t)(WC_ONE / 2);
+    world_thing(&w, innkeeper)->region = 1;
+
+    CHECK_EQ(session_start(&s, &w, threads, 4207, 8, 5), 1);
+    sim_fit_to_world(&s.sim);
+
+    CHECK_EQ(rules_load(&rules, &w, &s.sim, RULESETS "/a-game-with-rules", &why), 1);
+    session_attach_rules(&s, &rules);
+
+    scope_make_list(&w, forest_seat, STYLE_ORDERED, &patrol, 1, "the forest");
+    scope_make_list(&w, tavern_seat, STYLE_ORDERED, &innkeeper, 1, "the tavern");
+
+    /* The forest moves its own patrol. */
+    CHECK_EQ(session_command_from(&s, forest_seat, VERB_ORDER_MOVE, patrol,
+                                  M(8), M(8)), REFUSED_NOT_AT_ALL);
+
+    /* The tavern cannot. */
+    CHECK_EQ(session_command_from(&s, tavern_seat, VERB_ORDER_MOVE, patrol,
+                                  M(2), M(2)), REFUSED_NOT_YOURS);
+
+    TEST_CASE("and you can absolutely poison its drink");
+
+    /*
+     * Told about it first, because the gate is what the outbound path decided.
+     * In a running server that happens every beat; here it is done directly, so
+     * that the test is about the gate rather than about ray casting.
+     */
+    session_note_told(&s, tavern_seat, patrol);
+
+    CHECK_EQ(session_command_from(&s, tavern_seat, VERB_INTERACT, patrol,
+                                  1 /* poison the drink */, 0),
+             REFUSED_NOT_AT_ALL);
+
+    /* Whatever happened, the ruleset said it in words. */
+    CHECK(rules.last_refusal[0] != '\0');
+
+    TEST_CASE("but not to something you were not told about");
+
+    session_forget_what_was_told(&s, tavern_seat);
+
+    CHECK_EQ(session_command_from(&s, tavern_seat, VERB_INTERACT, patrol,
+                                  1, 0),
+             REFUSED_CANNOT_SEE_IT);
+
+    /* And the refusal is a sentence about being told, not about ownership --
+     * because the two are now different questions. */
+    CHECK(strstr(refusal_sentence(REFUSED_CANNOT_SEE_IT), "told") != NULL);
+
+    TEST_CASE("an intent this game has no rule for is refused, in its words");
+
+    session_note_told(&s, tavern_seat, patrol);
+
+    CHECK_EQ(session_command_from(&s, tavern_seat, VERB_INTERACT, patrol,
+                                  9999, 0),
+             REFUSED_BY_THE_RULES);
+    CHECK(strstr(rules.last_refusal, "no rule in this game") != NULL);
+
+    rules_release(&rules);
+    session_release(&s);
+    world_release(&w);
+    pool_stop(threads);
+}
+/* }}} */
+
+/*
+ * A ruleset with no opinion about acting on things means a table where you
+ * cannot. Refused rather than allowed: the server does not know what an intent
+ * means, and allowing something it cannot describe would be the server having an
+ * opinion by the back door.
+ */
+/* {{{ static void test_a_table_with_no_rules_about_it */
+static void test_a_table_with_no_rules_about_it(void)
+{
+    struct world w;
+    struct pool *threads = pool_start(1);
+    struct session s;
+    struct ruleset rules;
+    const char *why = NULL;
+    uint32_t thing;
+
+    TEST_CASE("a ruleset with no interact hook refuses, and says why");
+
+    fixture_make_two_rooms(&w);
+
+    thing = world_add_thing(&w);
+    world_thing(&w, thing)->x = M(5);
+    world_thing(&w, thing)->y = M(5);
+    world_thing(&w, thing)->region = 1;
+
+    CHECK_EQ(session_start(&s, &w, threads, 1, 8, 5), 1);
+    sim_fit_to_world(&s.sim);
+
+    CHECK_EQ(rules_load(&rules, &w, &s.sim, RULESETS "/a-table-with-none", &why), 1);
+    session_attach_rules(&s, &rules);
+
+    session_note_told(&s, 1, thing);
+
+    CHECK_EQ(session_command_from(&s, 1, VERB_INTERACT, thing, 1, 0),
+             REFUSED_BY_THE_RULES);
+    CHECK(strstr(rules.last_refusal, "no rules about acting") != NULL);
+
+    TEST_CASE("and no ruleset at all refuses differently");
+
+    session_attach_rules(&s, NULL);
+    CHECK_EQ(session_command_from(&s, 1, VERB_INTERACT, thing, 1, 0),
+             REFUSED_NO_RULES_FOR_THAT);
+
+    rules_release(&rules);
+    session_release(&s);
+    world_release(&w);
+    pool_stop(threads);
+}
+/* }}} */
+
 /* {{{ int main */
 int main(void)
 {
@@ -545,6 +699,8 @@ int main(void)
     test_sheets_survive_a_rollback();
     test_an_uncopyable_sheet();
     test_a_real_rollback_restores_the_sheets();
+    test_commanding_is_not_affecting();
+    test_a_table_with_no_rules_about_it();
 
     return vtt_test_finish("074-test-rules");
 }

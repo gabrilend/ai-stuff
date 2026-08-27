@@ -13,6 +13,7 @@
 
 #include "053-session.h"
 #include "073-rules.h"
+#include "070-scope.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -127,6 +128,8 @@ void session_release(struct session *s)
 
     log_release(&s->log);
     sim_release(&s->sim);
+
+    free(s->told_about);
 
     memset(s, 0, sizeof(struct session));
 }
@@ -378,6 +381,53 @@ uint16_t session_command_from(struct session *s, uint32_t viewer,
      */
     refusal = command_check(&s->sim, &entry);
 
+    /*
+     * ACTING ON SOMETHING YOU DO NOT COMMAND takes a different path, because it
+     * takes a different gate and a different hook. It is performed here rather
+     * than in the verb table for the same reason gate 6 runs here: this is the
+     * only place that has both the ruleset and the record of what this viewer
+     * was told about.
+     *
+     * The gate is SIGHT, and it is the same decision the outbound path already
+     * made -- remembered, not recomputed. Two answers to "can this person see
+     * that" is how a permission model develops a hole nobody can find.
+     */
+    if (refusal == REFUSED_NOT_AT_ALL && verb == VERB_INTERACT) {
+        /*
+         * Viewer 0 is the scripted driver, inside the process, with no seat at
+         * the table and no update ever built for it. It is allowed, the same way
+         * it is allowed everything else -- and nothing arriving on a socket can
+         * be viewer 0, because a viewer index comes from the port the bytes
+         * arrived on.
+         */
+        if (viewer != 0 && !session_was_told(s, viewer, subject)) {
+            refusal = REFUSED_CANNOT_SEE_IT;
+        } else if (s->rules == NULL) {
+            refusal = REFUSED_NO_RULES_FOR_THAT;
+        } else {
+            struct ruleset *rules = (struct ruleset *)s->rules;
+            uint32_t actor = 0;
+            uint32_t eyes[1];
+
+            /* Who did it, as a body rather than a seat, because a ruleset
+             * reasons about creatures and not about sockets. */
+            if (scope_eyes_of_viewer(s->world, viewer, eyes, 1) > 0) {
+                actor = eyes[0];
+            }
+
+            if (!rules_on_interact(rules, viewer, actor, subject,
+                                   (uint32_t)ax)) {
+                refusal = REFUSED_BY_THE_RULES;
+            }
+        }
+
+        if (refusal != REFUSED_NOT_AT_ALL) {
+            log_mark_refused(&s->log, index, refusal);
+        }
+
+        return refusal;
+    }
+
     if (refusal == REFUSED_NOT_AT_ALL && s->rules != NULL) {
         refusal = rules_on_command((struct ruleset *)s->rules, viewer, &entry);
     }
@@ -450,6 +500,95 @@ static struct turn_state *find_turn(struct session *s, uint32_t turn)
     }
 
     return NULL;
+}
+/* }}} */
+
+/* ------------------------------------------------------------------------- *
+ * What each viewer was told about
+ *
+ * One bit per viewer per thing, written by the outbound path and read by the
+ * gate on acting-on-something-you-do-not-command.
+ *
+ * THE SAME DECISION, NOT A SECOND ONE. Working out visibility again in the
+ * command path would be a second answer to "can this person see that", and two
+ * answers to a permission question is how a model develops a hole nobody can
+ * find. This is the first answer, remembered.
+ * ------------------------------------------------------------------------- */
+
+/* {{{ static int fit_the_told_table */
+static int fit_the_told_table(struct session *s, uint32_t viewer, uint32_t thing)
+{
+    uint32_t viewers = (viewer + 1u > s->told_viewers) ? viewer + 1u : s->told_viewers;
+    uint32_t things = world_thing_count(s->world);
+
+    if (thing + 1u > things) {
+        things = thing + 1u;
+    }
+
+    if (viewers == s->told_viewers && things <= s->told_things
+        && s->told_about != NULL) {
+        return 1;
+    }
+
+    {
+        uint8_t *grown = calloc((size_t)viewers * (size_t)things, 1);
+        uint32_t v;
+
+        if (grown == NULL) {
+            return 0;
+        }
+
+        /* Carried over rather than cleared, because growing the table happens
+         * when somebody joins and the people already at the table have not
+         * stopped being able to see anything. */
+        for (v = 0; v < s->told_viewers && s->told_about != NULL; v++) {
+            memcpy(grown + (size_t)v * things,
+                   s->told_about + (size_t)v * s->told_things,
+                   (size_t)s->told_things);
+        }
+
+        free(s->told_about);
+        s->told_about = grown;
+        s->told_viewers = viewers;
+        s->told_things = things;
+    }
+
+    return 1;
+}
+/* }}} */
+
+/* {{{ void session_forget_what_was_told */
+void session_forget_what_was_told(struct session *s, uint32_t viewer)
+{
+    if (s->told_about == NULL || viewer >= s->told_viewers) {
+        return;
+    }
+
+    memset(s->told_about + (size_t)viewer * s->told_things, 0,
+           (size_t)s->told_things);
+}
+/* }}} */
+
+/* {{{ void session_note_told */
+void session_note_told(struct session *s, uint32_t viewer, uint32_t thing)
+{
+    if (!fit_the_told_table(s, viewer, thing)) {
+        return;
+    }
+
+    s->told_about[(size_t)viewer * s->told_things + thing] = 1;
+}
+/* }}} */
+
+/* {{{ int session_was_told */
+int session_was_told(const struct session *s, uint32_t viewer, uint32_t thing)
+{
+    if (s->told_about == NULL || viewer >= s->told_viewers
+        || thing >= s->told_things) {
+        return 0;
+    }
+
+    return s->told_about[(size_t)viewer * s->told_things + thing] != 0;
 }
 /* }}} */
 

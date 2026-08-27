@@ -124,6 +124,74 @@ function on_action(viewer, subject, a, b)
 end
 -- }}}
 
+--[[
+Somebody acted on something they do not command.
+
+THIS IS WHERE "BUT YOU BETTER EXPLAIN HOW" LIVES. The server knows the person
+could see the thing and knows an intent number. It has no opinion about what any
+of them mean, and it should not -- a server that knew what poisoning a drink was
+would not be a system-agnostic tabletop.
+
+So this ruleset catalogues four intents. Another ruleset would catalogue
+different ones, or none, and a table with no rules about poisoning drinks is a
+table where you cannot poison a drink -- which is correct rather than a gap.
+
+The tavern's owner cannot MOVE the goblin patrol standing in their common room.
+They can absolutely poison its drink.
+]]
+
+INTENT_POISON_THE_DRINK  = 1
+INTENT_SPRING_A_TRAPDOOR = 2
+INTENT_REFUSE_THEM_MEAD  = 3
+INTENT_OFFER_A_BOUNTY    = 4
+
+-- {{{ function on_interact
+function on_interact(viewer, actor, subject, intent)
+    local sheet = vtt.sheet(subject)
+
+    if intent == INTENT_POISON_THE_DRINK then
+        -- A saving throw, which is the sort of thing a ruleset has and a server
+        -- must never learn about.
+        local roll = attack:between(1, 20)
+
+        if roll >= 9 then
+            sheet.hp = (sheet.hp or 10) - attack:between(2, 8)
+            sheet.poisoned = true
+
+            return true, string.format(
+                "the drink was poisoned -- it fails on %d and has %d left",
+                roll, sheet.hp)
+        end
+
+        return false, string.format(
+            "it smells the drink and pushes it away, saving on %d", roll)
+    end
+
+    if intent == INTENT_SPRING_A_TRAPDOOR then
+        sheet.hp = (sheet.hp or 10) - attack:between(1, 6)
+        sheet.fell_through_the_floor = true
+
+        return true, string.format(
+            "the floor opens and it goes through -- %d left", sheet.hp)
+    end
+
+    if intent == INTENT_REFUSE_THEM_MEAD then
+        sheet.refused_service = true
+
+        return true, "it is told there is no mead, and it does not believe you"
+    end
+
+    if intent == INTENT_OFFER_A_BOUNTY then
+        -- Nothing happens to the subject at all. An interaction is not required
+        -- to be an attack, and a ruleset that only allowed attacks would have
+        -- quietly turned this into a combat system.
+        return true, "word goes around that somebody is paying for bugbears"
+    end
+
+    return false, "there is no rule in this game for whatever that was"
+end
+-- }}}
+
 -- {{{ function on_region_enter
 function on_region_enter(thing, left, entered)
     local where = vtt.region_name(entered)

@@ -240,6 +240,36 @@ finishing an issue and moving it into `completed/`.
 
 And the sprites reach the table, as numbers on the wire, because the paintbrush
 was closed.
+## Phase 12 — The table, as it is actually played
+
+Four decisions made after the first eleven phases were built, each of which turned
+out to be a design the documents did not have.
+
+**Commanding is not affecting.** A forest commander owns their goblin patrol and
+moves it. When it walks into somebody else's tavern, the tavern's owner cannot
+move it — and can absolutely poison its drink, spring a trapdoor under it, refuse
+it mead, or kill it. *But they had better explain how.* Owning a piece is the
+right to move it on the board. It is not a fence around what anybody else may do
+to it.
+
+**Nothing checks who you are, and that is the answer.** The door admits whoever
+knocks. The remedy for somebody behaving badly is the remedy a real table has: the
+host removes them, and takes back what they did. Both of those have to exist for
+the answer to be honest, and neither did.
+
+**The controls are a state machine you can see.** Three dials — which units, which
+direction, how far — and a handful of verbs applied to whatever they are pointing
+at. The state is drawn back to you as a small diagram, because a modal control
+scheme whose mode is invisible is a control scheme nobody can hold in their head.
+
+**Ends with:** a demo in which one person moves a squad of four with key
+combinations while another person poisons one of them; a host removing somebody
+and unwinding what they did; and the dial's own diagram changing as the keys are
+pressed.
+
+**Proves:** that the permission model separates *who moves this* from *who may act
+on this*, and that a party of four is playable with one keyboard.
+
 ---
 
 ## What is deliberately not in any phase

@@ -56,7 +56,24 @@
  * better question and it can only be asked while playing.
  */
 #define VERB_RETIER      6u
-#define VERB_COUNT       7u
+/*
+ * Act on something you do not command.
+ *
+ * OWNERSHIP IS THE RIGHT TO MOVE A PIECE, not a fence around it. A forest
+ * commander owns their goblin patrol and moves it. When it walks into somebody
+ * else's tavern, the tavern's owner cannot move it -- and can absolutely poison
+ * its drink, spring a trapdoor under it, or refuse it mead. **But they had
+ * better explain how**, and that sentence is the ruleset's job.
+ *
+ * `subject` is the thing being acted on. `ax` is an intent number the RULESET
+ * catalogues -- the server has no opinion about what any of them mean, so one
+ * verb with a number is the whole of what it can honestly express.
+ *
+ * The gate is SIGHT, not membership: you may act on what you were told about.
+ * See session_command_from, which performs it, and issue 1201.
+ */
+#define VERB_INTERACT    7u
+#define VERB_COUNT       8u
 
 /* Why a command was refused. Every refusal is a sentence, not a number. */
 #define REFUSED_NOT_AT_ALL       0u
@@ -80,7 +97,17 @@
 #define REFUSED_NOT_A_TIER        10u
 /* The thing is not wearing a picture, so there is nothing to have an opinion of. */
 #define REFUSED_WEARS_NOTHING     11u
-#define REFUSED_COUNT             12u
+/*
+ * You cannot act on what you were not told about.
+ *
+ * The same rule as not being told it is there, and it must be the same DECISION
+ * rather than a second one that agrees most of the time -- otherwise this becomes
+ * a way to probe the dark.
+ */
+#define REFUSED_CANNOT_SEE_IT     12u
+/* Nothing knows what your intent means. */
+#define REFUSED_NO_RULES_FOR_THAT 13u
+#define REFUSED_COUNT             14u
 
 struct log_entry {
     uint64_t tick;

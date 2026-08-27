@@ -361,6 +361,14 @@ uint32_t outbound_build(struct session *s,
     buffer_clear(&v->outbound);
 
     /*
+     * And forget what they had been told, for the same reason the buffer is
+     * cleared: an update is the whole picture. A body that walked out of sight
+     * must stop being actionable on the beat it leaves, not stay actionable
+     * because it was visible once.
+     */
+    session_forget_what_was_told((struct session *)s, viewer_index);
+
+    /*
      * WHO YOU ARE AND HOW BIG THE WORLD IS, in every update.
      *
      * It used to be written once, when somebody joined, and it never arrived --
@@ -428,6 +436,13 @@ uint32_t outbound_build(struct session *s,
         }
 
         if (write_thing(v, s->world, i)) {
+            /*
+             * Remembered, so that the gate on acting-on-something-you-do-not-
+             * command can be the SAME decision rather than a second one. This
+             * is the only place in the server that decides a person may know a
+             * body is there, so it is the only place that may answer it.
+             */
+            session_note_told((struct session *)s, viewer_index, i);
             written++;
         }
     }
