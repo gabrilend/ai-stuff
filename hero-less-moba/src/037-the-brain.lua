@@ -127,6 +127,14 @@ local function walking(world, id)
     return 1
   end
 
+  -- Nothing to shoot, and a long reach. It does not stand still and does not walk
+  -- into the line -- it keeps station off the shoulder of the fight, and both sides
+  -- doing that is what puts a second battle on the flanks that nobody wrote a rule
+  -- for.
+  if soldier.reach[id] == 2 and world.rest_of_brain.orbit(world, id) then
+    return 1
+  end
+
   -- A hero belongs to no wave, so it has no place in a formation to hold. It walks
   -- its lane on its own -- which is also what makes it fragile in a way a wave body
   -- is not, and part of what the purchase is buying.
@@ -240,6 +248,18 @@ local function fighting(world, id)
     if distance_to_target(world, id) > soldier.range[id] then
       return 2
     end
+
+    -- Hurt, and the line can spare it. **The line pulls its wounded out while it is
+    -- winning and feeds them back in while it is losing**, and nothing decides that
+    -- centrally.
+    if world.rest_of_brain.should_fall_back(world, id) then
+      return 7   -- recovering
+    end
+
+    -- A ranged body gives ground rather than letting anything close. It should spend
+    -- most of its life at the far edge of its own reach: close enough to shoot, far
+    -- enough that closing on it costs something.
+    world.rest_of_brain.stand_off(world, id)
     return 3
   end
 
@@ -322,9 +342,12 @@ end
 -- The condition is about the health on the ground *around* it, not about its
 -- own. Made too eager, this is a body that spends the match walking.
 --
--- Not built. The row exists for the same reason `waiting` does.
 local function recovering(world, id)
-  return 1
+  if world.rest_of_brain.should_return(world, id) then
+    return 1
+  end
+  world.rest_of_brain.recover(world, id)
+  return 7
 end
 -- }}}
 

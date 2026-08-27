@@ -712,154 +712,64 @@ end
 -- {{{ local function test_placement_moves_a_frontline()
 -- The premise. If stacking a lane does not move a frontline, nothing else here
 -- matters.
+--
+-- Measured **within one run**, comparing the stacked lane against the two beside it,
+-- rather than between two runs. Two runs of a game with a fight in it diverge for
+-- their own reasons, and the earlier version of this test spent its time measuring
+-- that divergence instead of the chest.
+--
+-- Stopped before the first surge, for the same reason. During a challenge every
+-- lane's waves are recorded as the centre's and push depth is ignored outright, so a
+-- comparison that runs past one is comparing two different things.
 local function test_placement_moves_a_frontline()
-  local function play(stack_into, ticks)
-    local world, modules, parameters = fresh_world(tick_module)
-    -- Nobody else playing. The comparison is between a lane that was stacked and one
-    -- that was not, and a bot placing into both of them on its own initiative would
-    -- be answering a different question -- and answering it against itself.
-    world.bot = {}
-    while world.tick < ticks do
-      if not tick_module.advance(world) then break end
-      if stack_into ~= 0 then
-        -- Everything the team holds, moved into one lane, immediately. The transit
-        -- delay is a real rule and is tested elsewhere; here it would only mean the
-        -- comparison measured a lane two waves behind the one being stacked.
-        local moved = false
-        for _, stone in ipairs(world.stone[1]) do
-          if stone.slot_kind ~= modules.stones.IN_LANE or stone.slot_lane ~= stack_into then
-            stone.slot_kind = modules.stones.IN_LANE
-            stone.slot_lane = stack_into
-            stone.arrives_turn = 0
-            moved = true
-          end
-        end
-        if moved then
-          modules.stones.rebuild_counts(world, 1)
-        end
-      end
-    end
-    return world
-  end
+  local world, modules, parameters = fresh_world(tick_module)
+  world.bot = {}
 
-  local untouched = play(0, 12000)
-  local stacked   = play(2, 12000)
+  local stack_into = 2
+  local before_the_surge = parameters.boon.timing.first_normal - 200
 
-  check("stacking a lane pushes its frontline further than leaving it alone",
-        stacked.team[1].push_depth[2] > untouched.team[1].push_depth[2],
-        string.format("untouched reached %d, stacked reached %d",
-          untouched.team[1].push_depth[2], stacked.team[1].push_depth[2]))
-end
--- }}}
-
--- {{{ local function test_formation_turns_a_corner()
--- A wave marching round a bend must arrive on the far side still in its ranks.
---
--- This is what holding a formation in lane coordinates buys, and it is worth a
--- test because the alternative fails so quietly: held in world coordinates a
--- turning rank either tears apart or scythes through the inside of the bend, and
--- both look like "the soldiers are a bit scruffy" rather than like a bug.
-local function test_formation_turns_a_corner()
-  local world, modules = fresh_world(tick_module)
-  local soldier = world.soldier
-
-  -- An unopposed march: the far team and every tower removed, so one wave can be
-  -- watched the whole way round without a fight breaking its shape for reasons
-  -- that are supposed to break its shape.
-  for _, structure in ipairs(world.structure) do
-    structure.alive = 0
-  end
-
-  local watched, worst_lag, saw_bend = 0, 0, false
-  local before_box, after_box = 0, 0
-
-  for _ = 1, 2400 do
+  while world.tick < before_the_surge do
     tick_module.advance(world)
-    for id = 1, world.high_water do
-      if soldier.alive[id] == 1 and soldier.team[id] == 2 then
-        world.release(world, id)
+    -- Everything team 1 draws goes into one lane, at once. The transit delay is a
+    -- real rule tested elsewhere; here it would only mean the lane lags two waves
+    -- behind the thing being measured.
+    local moved = false
+    for _, stone in ipairs(world.stone[1]) do
+      if stone.slot_kind ~= modules.stones.IN_LANE or stone.slot_lane ~= stack_into then
+        stone.slot_kind = modules.stones.IN_LANE
+        stone.slot_lane = stack_into
+        stone.arrives_turn = 0
+        moved = true
       end
     end
-    if watched == 0 then
-      for _, wave in ipairs(world.wave) do
-        if wave.team == 1 and wave.lane == 1 then
-          watched = wave.id
-          break
-        end
-      end
-    end
-    if watched ~= 0 then
-      local wave = world.wave[watched]
-      local min_x, max_x, min_y, max_y = math.huge, -math.huge, math.huge, -math.huge
-      local alive = 0
-      for id = 1, world.high_water do
-        if soldier.alive[id] == 1 and soldier.wave[id] == watched then
-          alive = alive + 1
-          local lag = math.abs(wave.lag_of[id] or 0)
-          if lag > worst_lag then worst_lag = lag end
-          if soldier.x[id] < min_x then min_x = soldier.x[id] end
-          if soldier.x[id] > max_x then max_x = soldier.x[id] end
-          if soldier.y[id] < min_y then min_y = soldier.y[id] end
-          if soldier.y[id] > max_y then max_y = soldier.y[id] end
-        end
-      end
-      if alive > 0 then
-        local box = (max_x - min_x) * (max_y - min_y)
-        if wave.anchor < 900 then before_box = box end
-        if wave.anchor > 1550 then after_box = box ; saw_bend = true end
-      end
+    if moved then
+      modules.stones.rebuild_counts(world, 1)
     end
   end
 
-  check("a wave marching round a bend keeps its ranks",
-        worst_lag < 12,
-        string.format("worst lag through the turn was %.1f paces", worst_lag))
-
-  -- The formation is a block, and a block turning ninety degrees stays about the
-  -- same area while its sides swap. A formation that tore apart would grow.
-  check("the formation turns rather than stretching",
-        saw_bend and after_box < before_box * 1.8,
-        string.format("box area %.0f before the bend, %.0f after", before_box, after_box))
-end
--- }}}
-
--- {{{ local function test_cohesion_is_conserved()
--- The speed a straggler gains is taken from somebody, and the books balance every
--- tick.
---
--- Stated as a property because it is easy to write a cohesion rule that only ever
--- hands speed out -- and a wave whose every member is quietly being hurried is a
--- wave that is faster than its catalogue says, which nothing else in the game
--- would ever report.
-local function test_cohesion_is_conserved()
-  local world = fresh_world(tick_module)
-  local soldier = world.soldier
-
-  local worst_error, worst_where = 0, ""
-  for _ = 1, 2500 do
-    tick_module.advance(world)
-    for _, wave in ipairs(world.wave) do
-      -- Read the balance the wave recorded when it shared the budget out, not one
-      -- recomputed afterwards. Bodies die between the sharing and the looking, and
-      -- a surviving subset of a balanced set is not itself balanced.
-      local shared = wave.speed_shared_among
-      if shared ~= nil and shared > 1 then
-        local error = math.abs(wave.speed_balance) / shared
-        if error > worst_error then
-          worst_error = error
-          worst_where = string.format("wave %d, shared among %d, off by %.3f",
-            wave.id, shared, wave.speed_balance)
-        end
-      end
+  local stacked = world.team[1].push_depth[stack_into]
+  local others = 0
+  local lanes = 0
+  for lane = 1, parameters.lane_count do
+    if lane ~= stack_into then
+      others = others + world.team[1].push_depth[lane]
+      lanes = lanes + 1
     end
   end
+  local average_elsewhere = others / lanes
 
-  -- Not exactly zero: the clamps at either end are allowed to break conservation,
-  -- and they are supposed to -- a straggler that could sprint would read as
-  -- teleporting. What must not happen is a systematic drift.
-  check("the cohesion budget is shared out, not handed out",
-        worst_error < 0.16,
-        string.format("worst imbalance %.1f%% -- %s", worst_error * 100, worst_where))
+  local held = 0
+  for kind = 1, #parameters.upgrade.kind do
+    held = held + world.team[1].lane_slot[stack_into][kind]
+  end
+
+  check("the stacked lane actually holds the upgrades",
+        held > 4, string.format("only %d upgrades ended up in it", held))
+
+  check("and its frontline is further forward than the lanes beside it",
+        stacked > average_elsewhere,
+        string.format("stacked lane reached %d, the others averaged %.1f",
+          stacked, average_elsewhere))
 end
 -- }}}
 
@@ -971,6 +881,117 @@ local function test_a_hero_obeys_one_signpost()
         rejoined_lane == 2 and soldier.turns_left[id] == 0,
         string.format("rejoined lane %d, turns left %d",
           rejoined_lane, soldier.turns_left[id] or -1))
+end
+-- }}}
+
+-- {{{ local function test_formation_turns_a_corner()
+-- A wave marching round a bend must arrive on the far side still in its ranks.
+--
+-- This is what holding a formation in lane coordinates buys, and it is worth a
+-- test because the alternative fails so quietly: held in world coordinates a
+-- turning rank either tears apart or scythes through the inside of the bend, and
+-- both look like "the soldiers are a bit scruffy" rather than like a bug.
+local function test_formation_turns_a_corner()
+  local world, modules = fresh_world(tick_module)
+  local soldier = world.soldier
+
+  -- An unopposed march: the far team and every tower removed, so one wave can be
+  -- watched the whole way round without a fight breaking its shape for reasons
+  -- that are supposed to break its shape.
+  for _, structure in ipairs(world.structure) do
+    structure.alive = 0
+  end
+
+  local watched, worst_lag, saw_bend = 0, 0, false
+  local before_box, after_box = 0, 0
+
+  for _ = 1, 2400 do
+    tick_module.advance(world)
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 and soldier.team[id] == 2 then
+        world.release(world, id)
+      end
+    end
+    if watched == 0 then
+      for _, wave in ipairs(world.wave) do
+        if wave.team == 1 and wave.lane == 1 then
+          watched = wave.id
+          break
+        end
+      end
+    end
+    if watched ~= 0 then
+      local wave = world.wave[watched]
+      local min_x, max_x, min_y, max_y = math.huge, -math.huge, math.huge, -math.huge
+      local alive = 0
+      for id = 1, world.high_water do
+        if soldier.alive[id] == 1 and soldier.wave[id] == watched then
+          alive = alive + 1
+          local lag = math.abs(wave.lag_of[id] or 0)
+          if lag > worst_lag then worst_lag = lag end
+          if soldier.x[id] < min_x then min_x = soldier.x[id] end
+          if soldier.x[id] > max_x then max_x = soldier.x[id] end
+          if soldier.y[id] < min_y then min_y = soldier.y[id] end
+          if soldier.y[id] > max_y then max_y = soldier.y[id] end
+        end
+      end
+      if alive > 0 then
+        local box = (max_x - min_x) * (max_y - min_y)
+        if wave.anchor < 900 then before_box = box end
+        if wave.anchor > 1550 then after_box = box ; saw_bend = true end
+      end
+    end
+  end
+
+  check("a wave marching round a bend keeps its ranks",
+        worst_lag < 12,
+        string.format("worst lag through the turn was %.1f paces", worst_lag))
+
+  -- The formation is a block, and a block turning ninety degrees stays about the
+  -- same area while its sides swap. A formation that tore apart would grow.
+  check("the formation turns rather than stretching",
+        saw_bend and after_box < before_box * 1.8,
+        string.format("box area %.0f before the bend, %.0f after", before_box, after_box))
+end
+-- }}}
+
+-- {{{ local function test_cohesion_is_conserved()
+-- The speed a straggler gains is taken from somebody, and the books balance every
+-- tick.
+--
+-- Stated as a property because it is easy to write a cohesion rule that only ever
+-- hands speed out -- and a wave whose every member is quietly being hurried is a
+-- wave that is faster than its catalogue says, which nothing else in the game
+-- would ever report.
+local function test_cohesion_is_conserved()
+  local world = fresh_world(tick_module)
+  local soldier = world.soldier
+
+  local worst_error, worst_where = 0, ""
+  for _ = 1, 2500 do
+    tick_module.advance(world)
+    for _, wave in ipairs(world.wave) do
+      -- Read the balance the wave recorded when it shared the budget out, not one
+      -- recomputed afterwards. Bodies die between the sharing and the looking, and
+      -- a surviving subset of a balanced set is not itself balanced.
+      local shared = wave.speed_shared_among
+      if shared ~= nil and shared > 1 then
+        local error = math.abs(wave.speed_balance) / shared
+        if error > worst_error then
+          worst_error = error
+          worst_where = string.format("wave %d, shared among %d, off by %.3f",
+            wave.id, shared, wave.speed_balance)
+        end
+      end
+    end
+  end
+
+  -- Not exactly zero: the clamps at either end are allowed to break conservation,
+  -- and they are supposed to -- a straggler that could sprint would read as
+  -- teleporting. What must not happen is a systematic drift.
+  check("the cohesion budget is shared out, not handed out",
+        worst_error < 0.16,
+        string.format("worst imbalance %.1f%% -- %s", worst_error * 100, worst_where))
 end
 -- }}}
 

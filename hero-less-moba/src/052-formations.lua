@@ -70,6 +70,18 @@ local WIDTH_USE = 0.78
 local COHESION_GAIN = 0.9
 local COHESION_SCALE = 34
 
+-- How far behind its place a body can be and still be **in** the formation.
+--
+-- Beyond this it is not out of position, it is **rejoining** -- it fell out of the
+-- line to mend and is walking back up, or it was spawned late, or it got round the
+-- wrong side of something. Either way it is a long way from where it should be, and
+-- averaging it into the budget tells every body that is standing exactly right that
+-- it is badly ahead.
+--
+-- So a rejoining body is outside the budget: it neither takes speed nor gives any,
+-- and simply walks back at its own pace. It rejoins when it arrives.
+local REJOIN_DISTANCE = 70
+
 -- The most and least a body's speed may be scaled to. A straggler that could
 -- sprint would catch up in a way that reads as teleporting; a leader that could
 -- stop dead would be overtaken by its own second rank.
@@ -341,9 +353,15 @@ local function share_out_speed(world, wave, members, count)
       -- one sign, so team 2 lags the same way team 1 does.
       local lag = (target_along - soldier.lane_along[id]) * soldier.facing[id]
       wave.lag_of[id] = lag
-      marching_count = marching_count + 1
-      marching[marching_count] = id
-      sum = sum + lag
+
+      if lag > REJOIN_DISTANCE or lag < -REJOIN_DISTANCE then
+        -- Rejoining rather than out of position. Outside the budget entirely.
+        soldier.speed_scale[id] = 1
+      else
+        marching_count = marching_count + 1
+        marching[marching_count] = id
+        sum = sum + lag
+      end
     else
       wave.lag_of[id] = 0
       soldier.speed_scale[id] = 1

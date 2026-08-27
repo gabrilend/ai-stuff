@@ -118,6 +118,37 @@ M.condition = {
   end,
   -- }}}
 
+  -- {{{ priest_target
+  -- The ally who will die soonest, contested -- nobody else already healing them.
+  priest_target = function(world, id, ability)
+    return world.rest_of_brain.healer.priest(world, id, ability)
+  end,
+  -- }}}
+
+  -- {{{ druid_target
+  -- The same, **among those not already regenerating** -- the matching problem spread
+  -- over time rather than over bodies.
+  druid_target = function(world, id, ability)
+    return world.rest_of_brain.healer.druid(world, id, ability)
+  end,
+  -- }}}
+
+  -- {{{ curse_target
+  -- An **enemy**, chosen for how many of ours are fighting it. The matching problem
+  -- inverted: the choice is about the other side.
+  curse_target = function(world, id, ability)
+    return world.rest_of_brain.healer.curse_doctor(world, id, ability)
+  end,
+  -- }}}
+
+  -- {{{ shaman_target
+  -- The farthest wounded ally that can fully accept the bounce. Resolved
+  -- sequentially, one link at a time.
+  shaman_target = function(world, id, ability)
+    return world.rest_of_brain.healer.rain_shaman(world, id, ability)
+  end,
+  -- }}}
+
   -- {{{ allies_hurt_nearby
   -- Two or more wounded allies close by. Fires on the state of the line rather than
   -- on the caster's own state, which is the difference between a body that props up
@@ -205,6 +236,66 @@ M.effect = {
   end,
   -- }}}
 
+  -- {{{ regenerate
+  -- A heal that **runs** rather than one that lands, which is what lets a druid have
+  -- many going at once and build them up one at a time.
+  regenerate = function(world, id, target, ability)
+    local soldier = world.soldier
+    soldier.regenerating[target] = ability.duration
+    soldier.regen_rate[target] = ability.power / 30
+    return 1
+  end,
+  -- }}}
+
+  -- {{{ curse
+  -- Marks an enemy. While it is marked, everything of ours in melee range of it is
+  -- mended -- so the healing follows the fighting rather than being aimed at it.
+  curse = function(world, id, target, ability)
+    world.soldier.cursed[target] = ability.duration
+    return 1
+  end,
+  -- }}}
+
+  -- {{{ chain
+  -- A bounce, and then another, each one to the **farthest** wounded ally that can
+  -- take the whole value -- so a chain reaches across a line rather than pooling on
+  -- whoever is nearest.
+  chain = function(world, id, target, ability)
+    local soldier = world.soldier
+    local at = target
+    local healed = 0
+    local already = {[id] = true}
+
+    for _ = 1, ability.bounces do
+      if at == 0 or already[at] then
+        break
+      end
+      already[at] = true
+      soldier.health[at] = soldier.health[at] + ability.power
+      if soldier.health[at] > soldier.health_max[at] then
+        soldier.health[at] = soldier.health_max[at]
+      end
+      healed = healed + 1
+
+      local next_link, farthest = 0, -1
+      world.targeting.for_each_near(world, soldier.x[at], soldier.y[at], ability.radius,
+        function(other)
+          if not already[other] and soldier.team[other] == soldier.team[id]
+             and soldier.health_max[other] - soldier.health[other] >= ability.power then
+            local dx = soldier.x[other] - soldier.x[at]
+            local dy = soldier.y[other] - soldier.y[at]
+            local distance = dx * dx + dy * dy
+            if distance > farthest then
+              next_link, farthest = other, distance
+            end
+          end
+        end)
+      at = next_link
+    end
+    return healed
+  end,
+  -- }}}
+
   -- {{{ wither
   -- Fear, inflicted. Not damage -- a frightened body **hits softer** for a while,
   -- which is the enemy's actual weapon rather than a second way of doing the same
@@ -237,10 +328,38 @@ function M.run(world)
   local soldier = world.soldier
   local catalogue = world.parameters.commander.ability
 
+  -- Nobody is claimed yet this tick. Rebuilt rather than maintained: a claim that
+  -- outlived its healer would leave a body permanently un-healable by anybody else,
+  -- and nothing would ever notice.
+  world.rest_of_brain.begin_tick(world)
+
   for id = 1, world.high_water do
     if soldier.alive[id] == 1 then
       if soldier.fear[id] > 0 then
         soldier.fear[id] = soldier.fear[id] - 1
+      end
+      if soldier.cursed[id] > 0 then
+        soldier.cursed[id] = soldier.cursed[id] - 1
+      end
+      if soldier.regenerating[id] > 0 then
+        soldier.regenerating[id] = soldier.regenerating[id] - 1
+        soldier.health[id] = soldier.health[id] + soldier.regen_rate[id]
+        if soldier.health[id] > soldier.health_max[id] then
+          soldier.health[id] = soldier.health_max[id]
+        end
+      end
+      -- A cursed enemy mends whoever is fighting it. The one heal in the game that
+      -- is not aimed at an ally at all.
+      if soldier.cursed[id] > 0 then
+        world.targeting.for_each_near(world, soldier.x[id], soldier.y[id], 40,
+          function(other)
+            if world.targeting.hostile(soldier.team[id], soldier.team[other]) then
+              soldier.health[other] = soldier.health[other] + 0.25
+              if soldier.health[other] > soldier.health_max[other] then
+                soldier.health[other] = soldier.health_max[other]
+              end
+            end
+          end)
       end
       if soldier.ability_cooldown[id] > 0 then
         soldier.ability_cooldown[id] = soldier.ability_cooldown[id] - 1
