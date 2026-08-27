@@ -13,7 +13,7 @@ seeded coin-flip's worth of asymmetry, and the report says which lane did it.
 | 302 | A tower picks a target and keeps it | built |
 | 303 | Towers put guards on the ground | built |
 | 304 | Guards are leashed | built |
-| 305 | The base is one open room | geometry built, shared patrol not |
+| 305 | The base is one open room | built |
 | 306 | Felling a tower pays three | built |
 | 307 | The library ends the game | built |
 

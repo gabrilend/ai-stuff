@@ -52,6 +52,11 @@ local LANE_DROP_REACH = 90
 -- cursor is genuinely on it.
 local STONE_DROP_REACH = 46
 
+-- How near a sign-post the cursor has to be to turn it. Generous, because a post is a
+-- small thing standing at a junction that is usually crowded, and missing it costs a
+-- player the only steering they have.
+local SIGNPOST_REACH = 40
+
 -- {{{ function M.create()
 -- The input state: what is held, what is being dragged, which team is being
 -- watched.
@@ -121,6 +126,25 @@ local function structure_under(world, team_id, world_x, world_y)
     end
   end
   return nil
+end
+-- }}}
+
+-- {{{ local function signpost_under()
+-- The viewing team's sign-post under the cursor, if any.
+--
+-- **A sign-post is a piece of the world with a position, not an entry in a menu**,
+-- and players click it where it stands. The panel's row is a convenience for finding
+-- one; this is the object itself.
+local function signpost_under(world, team_id, world_x, world_y)
+  for lane_id = 1, world.parameters.lane_count do
+    local post = world.signpost[team_id][lane_id]
+    local node = world.map.node[post.node]
+    local dx, dy = node.x - world_x, node.y - world_y
+    if dx * dx + dy * dy <= SIGNPOST_REACH * SIGNPOST_REACH then
+      return lane_id
+    end
+  end
+  return 0
 end
 -- }}}
 
@@ -270,6 +294,18 @@ function M.mousepressed(state, context, x, y, button)
 
   if button ~= 1 then
     return
+  end
+
+  -- A click on the map, with nothing in hand: the only thing out there that answers
+  -- one is a sign-post.
+  if x < context.panel.panel_left() and state.held_stone == 0 and state.held_hero == 0 then
+    local wx, wy = context.camera_module.screen_to_world(context.camera, x, y)
+    local lane = signpost_under(context.world, state.watching, wx, wy)
+    if lane ~= 0 then
+      context.queue({verb = "set_signpost", team = state.watching,
+                     player = context.player_number(state), lane = lane})
+      return
+    end
   end
 
   local hot = context.panel.hit_test(x, y)

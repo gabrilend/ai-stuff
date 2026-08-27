@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+#
+# run-many-matches -- play the game a great many times with nobody watching, and
+# print the table you read in the morning.
+#
+# This is the other half of the reason the simulation and the viewer are separate
+# programs. A window shows one match at one speed; this shows a thousand, and every
+# question in the open-questions page marked "awaiting evidence" is waiting on it.
+# Those are not decisions nobody has made -- they are measurements nobody has taken.
+#
+# Each match runs from a different seed with the measuring bot behind both sides. What
+# comes out is deliberately made of the numbers a balance question is asked in: who
+# won, how long it took, how far each lane got, how much of the chest was ever placed,
+# and how much income was thrown away because a wallet was full.
+#
+# Usage:
+#   ./run-many-matches              -- 50 matches
+#   ./run-many-matches 1000         -- a thousand
+#   ./run-many-matches 1000 60000   -- and a longer tick limit each
+#   ./run-many-matches /path/to/prj 1000
+
+DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
+
+if [ -d "$1/issues" ] && [ -d "$1/src" ]; then
+    DIR="$1"
+    shift
+fi
+
+COUNT="${1:-50}"
+LIMIT="${2:-60000}"
+
+mkdir -p "/dev/shm/hero-less-moba"
+LOG="/dev/shm/hero-less-moba/many-matches.csv"
+
+echo "Playing ${COUNT} matches, up to ${LIMIT} ticks each."
+echo "Per-match rows go to ${LOG}"
+echo
+
+luajit -e "
+local root = '${DIR}'
+local tick_module = loadfile(root .. '/src/042-the-tick.lua')()
+
+local count, limit = ${COUNT}, ${LIMIT}
+local log = io.open('${LOG}', 'w')
+log:write('seed,winner,ticks,drawn_1,drawn_2,placed_1,placed_2,wasted_1,wasted_2,' ..
+          'heroes_1,heroes_2,towers_1,towers_2,surges,challenges\n')
+
+local wins = {0, 0, 0, 0}
+local total_ticks, finished = 0, 0
+local total_drawn, total_placed, total_wasted, total_heroes = 0, 0, 0, 0
+local total_surges, total_challenges = 0, 0
+local started = os.clock()
+
+for match = 1, count do
+  local modules = tick_module.load_cast(root)
+  local parameters = modules.match_parameters.load()
+  -- A different match each time, and the seed is the only thing that differs.
+  parameters = setmetatable({seed = parameters.seed + match}, {__index = parameters})
+  local world = tick_module.assemble(modules, parameters)
+
+  local surges, challenges = 0, 0
+  while world.tick < limit do
+    if not tick_module.advance(world) then break end
+    for _, e in ipairs(world.event) do
+      if e.name == 'surge_began' then surges = surges + 1 end
+      if e.name == 'challenge_began' then challenges = challenges + 1 end
+    end
+  end
+
+  local drawn, placed, wasted, heroes = {}, {}, {}, {}
+  for team = 1, 2 do
+    drawn[team] = world.team[team].draws_taken
+    local _, in_lanes, in_stone = world.chest.total_held(world, team)
+    placed[team] = in_lanes + in_stone
+    wasted[team] = 0
+    heroes[team] = 0
+    for _, number in ipairs(world.team_players[team]) do
+      local player = world.player[number]
+      for colour = 1, world.colour_count do
+        wasted[team] = wasted[team] + player.points_wasted[colour]
+      end
+      heroes[team] = heroes[team] + player.heroes_bought
+    end
+  end
+  local towers = {0, 0}
+  for _, s in ipairs(world.structure) do
+    if s.alive == 1 and s.kind ~= 3 then towers[s.team] = towers[s.team] + 1 end
+  end
+
+  -- Winner 0 means it never finished, which is itself a finding.
+  wins[world.winner + 1] = wins[world.winner + 1] + 1
+  if world.winner ~= 0 then
+    finished = finished + 1
+    total_ticks = total_ticks + world.tick
+  end
+  total_drawn = total_drawn + drawn[1] + drawn[2]
+  total_placed = total_placed + placed[1] + placed[2]
+  total_wasted = total_wasted + wasted[1] + wasted[2]
+  total_heroes = total_heroes + heroes[1] + heroes[2]
+  total_surges = total_surges + surges
+  total_challenges = total_challenges + challenges
+
+  log:write(string.format('%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n',
+    parameters.seed, world.winner, world.tick,
+    drawn[1], drawn[2], placed[1], placed[2], wasted[1], wasted[2],
+    heroes[1], heroes[2], towers[1], towers[2], surges, challenges))
+
+  if match % 10 == 0 then
+    io.write(string.format('  %d/%d\r', match, count))
+    io.flush()
+  end
+end
+log:close()
+
+local elapsed = os.clock() - started
+print(string.format('%d matches in %.1fs -- %.1f a second', count, elapsed, count / elapsed))
+print('')
+print(string.format('  team 1 won      %5d  (%.0f%%)', wins[2], 100 * wins[2] / count))
+print(string.format('  team 2 won      %5d  (%.0f%%)', wins[3], 100 * wins[3] / count))
+print(string.format('  drawn           %5d  (%.0f%%)', wins[4], 100 * wins[4] / count))
+print(string.format('  never finished  %5d  (%.0f%%)', wins[1], 100 * wins[1] / count))
+print('')
+if finished > 0 then
+  print(string.format('  a decided match lasts %.1f minutes on average',
+    total_ticks / finished / 30 / 60))
+end
+print(string.format('  %.0f upgrades drawn per match, %.0f%% of them ever placed',
+  total_drawn / count, 100 * total_placed / math.max(1, total_drawn)))
+print(string.format('  %.0f heroes bought per match', total_heroes / count))
+print(string.format('  %.0f points of income thrown away per match -- a full wallet loses it',
+  total_wasted / count))
+print(string.format('  %.1f surges and %.1f challenges per match',
+  total_surges / count, total_challenges / count))
+print('')
+print('Two numbers to read first. A side winning far more than half is an asymmetry')
+print('nobody put there. And a large share of upgrades never placed means the chest is')
+print('filling faster than anybody can empty it, which is B-series question G4.')
+"

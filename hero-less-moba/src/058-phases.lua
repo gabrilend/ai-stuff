@@ -181,10 +181,10 @@ function M.stream_pass(world)
 end
 -- }}}
 
--- {{{ local function put_monsters_out()
+-- {{{ function M.put_monsters_out()
 -- Two monsters, at the midpoint of the centre lane, each walking at one team's
 -- base. They do not fight each other and never meet.
-local function put_monsters_out(world)
+function M.put_monsters_out(world)
   local index = world.challenge_index
   local row = world.parameters.boon.challenge[index]
   local lane = world.map.lane[2]
@@ -376,7 +376,7 @@ function M.advance(world)
       -- A challenge begins on the tick a surge ends.
       world.phase = M.CHALLENGE
       world.challenge_index = world.challenge_index + 1
-      put_monsters_out(world)
+      M.put_monsters_out(world)
     end
     return
   end

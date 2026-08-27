@@ -332,6 +332,20 @@ function M.spawn_pass(world)
       end
     end
     world.next_wave_tick = world.next_wave_tick + settings.interval
+
+    -- If the timer has fallen more than one interval behind -- which happens when
+    -- something moves the clock rather than the clock moving itself -- it is snapped
+    -- forward rather than allowed to catch up a wave at a time.
+    --
+    -- **Loudly.** Catching up is not obviously wrong and would put a match's worth of
+    -- bodies on the field in a few seconds, so this is the kind of thing that has to
+    -- announce itself rather than be quietly corrected.
+    if world.tick - world.next_wave_tick > settings.interval then
+      world.raise(world, "spawn_clock_snapped", {
+        was = world.next_wave_tick, now = world.tick + settings.interval,
+      })
+      world.next_wave_tick = world.tick + settings.interval
+    end
     world.raise(world, "wave_spawned", {tick = world.tick})
   end
 
