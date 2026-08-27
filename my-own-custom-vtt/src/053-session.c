@@ -65,7 +65,7 @@ int session_start(struct session *s,
                   struct pool *pool,
                   uint64_t seed,
                   uint32_t ring_depth,
-                  uint32_t window_ticks)
+                  uint32_t beats_between_checkpoints)
 {
     uint32_t i;
 
@@ -79,7 +79,7 @@ int session_start(struct session *s,
      * rather than a degenerate one. Zero is not, so it is corrected to one --
      * a window of no beats would close before anybody could say anything.
      */
-    s->window_ticks = (window_ticks == 0) ? 1 : window_ticks;
+    s->beats_between_checkpoints = (beats_between_checkpoints == 0) ? 1 : beats_between_checkpoints;
 
     if (!sim_init(&s->sim, world, pool, seed)) {
         return 0;
@@ -421,12 +421,18 @@ void session_tick(struct session *s)
     }
 
     /*
-     * The window closes when it has been open long enough, and the next one
-     * opens immediately. Three things could close a window -- everybody having
-     * declared, a timer, or a GM saying so -- and only the timer exists yet;
-     * which of them a session uses is open question 3.5.
+     * A checkpoint, and the next turn opens on the same beat.
+     *
+     * NOTHING WAITS HERE. Commands were accepted on every beat above and applied
+     * on the beat they arrived; this is only where the world is copied aside so
+     * that somebody can come back to it. Play runs continuously and a turn is a
+     * place you can go back to.
+     *
+     * That is worth stating in the code because the field used to be called a
+     * window, and a window is a thing you wait in -- which made a perfectly
+     * ordinary interval sound like a rule about how the table plays.
      */
-    if (s->sim.tick - s->turn_first_tick >= s->window_ticks) {
+    if (s->sim.tick - s->turn_first_tick >= s->beats_between_checkpoints) {
         begin_turn(s, s->turn + 1);
     }
 }
@@ -570,7 +576,7 @@ int session_rollback(struct session *s, uint32_t turn, uint8_t mode)
 
         sim_tick(&s->sim);
 
-        if (s->sim.tick - s->turn_first_tick >= s->window_ticks) {
+        if (s->sim.tick - s->turn_first_tick >= s->beats_between_checkpoints) {
             /*
              * Turn boundaries are replayed too, but WITHOUT re-snapshotting --
              * the ring already holds these heads, and overwriting them would

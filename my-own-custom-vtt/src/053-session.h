@@ -28,6 +28,14 @@
 #include "044-fog.h"
 
 /* What a window is doing. */
+/*
+ * A turn is OPEN from the checkpoint that starts it until the next one.
+ *
+ * There is no closed state anybody waits through -- the next checkpoint opens
+ * the next turn on the same beat that ends this one. The two names exist because
+ * the rollback path needs to say which turn it is restoring into, and CLOSED is
+ * what a turn becomes the instant it is no longer the current one.
+ */
 #define TURN_OPEN      0u
 #define TURN_CLOSED    1u
 
@@ -128,11 +136,20 @@ struct session {
     void *rules;
 
     /*
-     * How many beats a window stays open. ONE IS A REAL CONFIGURATION, not a
-     * degenerate one -- it is continuous play, and it must run through exactly
-     * the same code as any other window rather than down a special path.
+     * How many beats pass between one rollback checkpoint and the next.
+     *
+     * THIS IS NOT A WINDOW ANYBODY WAITS IN, and it used to be called one, which
+     * made it impossible to answer a question about it. Nothing blocks on a turn
+     * boundary. Commands are accepted on every beat and applied on the beat they
+     * arrive. PLAY RUNS CONTINUOUSLY.
+     *
+     * A turn is a place you can go back to. That is all it is. The number here is
+     * how finely you can aim a rollback, traded against how often the world is
+     * copied -- ten beats at twenty a second is a checkpoint every half second,
+     * and one beat is a checkpoint every beat, which is legal and expensive
+     * rather than special.
      */
-    uint32_t window_ticks;
+    uint32_t beats_between_checkpoints;
 };
 
 /*
@@ -145,7 +162,7 @@ int session_start(struct session *s,
                   struct pool *pool,
                   uint64_t seed,
                   uint32_t ring_depth,
-                  uint32_t window_ticks);
+                  uint32_t beats_between_checkpoints);
 
 void session_release(struct session *s);
 

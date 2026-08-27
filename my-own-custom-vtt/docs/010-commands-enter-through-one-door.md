@@ -141,8 +141,8 @@ flag layout, a validator, and a handler.
 | `EDIT_WORLD` | -- | Move a wall, place a thing, redraw a region. Requires `MAY_EDIT_WORLD`. |
 | `SAY` | -- | Text. Routed by the same visibility rules as everything else, which is why it is a command and not a side channel. |
 | `RETIER` | -- | Change a sprite's quality tier, mid-session. Changes nothing in the world; comes through this door anyway. See [the sprite studio](017-the-sprite-studio.md). |
-| `DECLARED` | both | "I am done deciding." One of the three things that can close a turn's window. See [the turn is a transaction](019-the-turn-is-a-transaction.md). |
-| `ROLLBACK` | -- | Take back a turn. Restore the snapshot at its head, and either reopen the window or replay a corrected log forward. Heavily permissioned. |
+| `DECLARED` | both | "I am done deciding." Reserved: play runs continuously and nothing waits for it, so it is a courtesy to the table rather than a thing the server acts on. See [the turn is a transaction](019-the-turn-is-a-transaction.md). |
+| `ROLLBACK` | -- | Take back a turn. Restore the snapshot at its head, and either carry on from there or replay a corrected log forward. Heavily permissioned. |
 
 ## The gauntlet
 

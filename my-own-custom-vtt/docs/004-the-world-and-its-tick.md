@@ -94,14 +94,18 @@ with any number of threads.
 ## Time, turns, and undoing
 
 The tick is the heartbeat. The **turn** is a larger thing built out of ticks, and
-it is a transaction: commands accumulate inside it, everything resolves at once
-when it closes, and it can be taken back.
+it is a transaction: a snapshot at its head, and an undo.
+
+**Nothing waits for it.** Play runs continuously — commands are accepted on every
+beat and applied on the beat they arrive, and a turn boundary is where the world
+is copied aside so somebody can come back to it. A turn is a place you can go back
+to, and the number that decides how often one happens is called
+`beats_between_checkpoints` for that reason.
 
 That is a server concept, not a ruleset one, and the distinction is what keeps the
-server ignorant of games. The server knows **a turn is a window that can be
+server ignorant of games. The server knows **a turn is a stretch that can be
 undone**. It does not know what initiative is, what a round means, or whether
-acting twice is legal. A ruleset that wants continuous play sets the window to one
-tick and never rolls anything back, and nothing special happens.
+acting twice is legal.
 
 Turns are described in full in
 [the turn is a transaction](019-the-turn-is-a-transaction.md). What matters here

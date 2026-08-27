@@ -57,9 +57,9 @@ The dispatch table of passes. Motion, and collision against walls.
 Buffer-then-resolve. Named random streams. The command log, and replay from a
 snapshot plus a log.
 
-Then the turn, which is a transaction: a window in which declarations accumulate,
+Then the turn, which is a transaction: a stretch of beats over which actions land,
 a simultaneous resolution when it closes, a snapshot at its head, and an undo.
-Both re-declaring and retconning -- restoring the head and reopening the window,
+Both re-declaring and retconning -- restoring the head and carrying on from it,
 and restoring the head and replaying a corrected log forward.
 
 Still single-process, driven by a scripted command file rather than by people.
