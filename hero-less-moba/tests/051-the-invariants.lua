@@ -84,6 +84,15 @@ local function test_a_match_ends()
   local world = fresh_world(tick_module)
   local seen = {surge = 0, challenge = 0, calm = 0, slain = 0}
 
+  -- Nobody playing. The arc below is a statement about the **phase clock**, and a
+  -- bot that wins in the second challenge would end the match before the third one
+  -- arrives -- which is correct behaviour and would still fail an assertion about
+  -- three of everything.
+  --
+  -- That is not a hypothetical. It is what happened the first time something was
+  -- put behind both teams, and the test was wrong rather than the game.
+  world.bot = {}
+
   local limit = 60000
   while world.tick < limit do
     if not tick_module.advance(world) then
@@ -110,6 +119,40 @@ local function test_a_match_ends()
         seen.slain == 4,
         string.format("%d monsters slain -- two per challenge for the first two, " ..
                       "and none for the Golem", seen.slain))
+end
+-- }}}
+
+-- {{{ local function test_a_played_match_is_decisive()
+-- With something making decisions, a match should be **won**, not drawn.
+--
+-- Two passive sides are exact mirrors and both Golems arrive at both libraries on
+-- the same tick, which is a draw and is the right answer to a match nobody played.
+-- The moment anybody places anything, that symmetry is gone -- and if it were not,
+-- the chest would not be doing anything.
+local function test_a_played_match_is_decisive()
+  local world = fresh_world(tick_module)
+
+  local limit = 60000
+  while world.tick < limit do
+    if not tick_module.advance(world) then
+      break
+    end
+  end
+
+  local placed = 0
+  for team = 1, 2 do
+    local _, in_lanes, in_stone = world.chest.total_held(world, team)
+    placed = placed + in_lanes + in_stone
+  end
+
+  check("a match somebody plays is won rather than drawn",
+        world.winner == 1 or world.winner == 2,
+        world.winner == 3 and "it was a draw -- nothing broke the symmetry"
+                          or string.format("still running at tick %d", world.tick))
+
+  check("and the chest was actually used to do it",
+        placed > 60,
+        string.format("only %d upgrades ever left a chest", placed))
 end
 -- }}}
 
@@ -165,8 +208,13 @@ local function test_the_surge_deals_everything()
         carried_outside_lane_three > 0,
         "bodies outside the stacked lane carried nothing")
 
+  -- Never **fewer**, rather than exactly the same. The first version of this
+  -- asserted equality and was right until something started playing: **placement
+  -- stays open during a surge**, and a bot placing into that lane while the test
+  -- watched made the count go up. Going up is the phase working. What must never
+  -- happen is going down, because that would be the surge taking something.
   check("and takes nothing out of the slots to do it",
-        placed_after == placed_before,
+        placed_after >= placed_before,
         string.format("lane 3 held %d before the surge and %d during it",
           placed_before, placed_after))
 end
@@ -644,6 +692,7 @@ test_reproducibility()
 test_placement_moves_a_frontline()
 test_the_surge_deals_everything()
 test_a_match_ends()
+test_a_played_match_is_decisive()
 print("")
 print(string.format("%d passed, %d failed", passed, failed))
 print("")
