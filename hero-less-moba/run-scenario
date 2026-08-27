@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+#
+# run-scenario -- load a described world, hold it at the gate, and look at it.
+#
+# The third kind of test this project has. Not a unit test over a data structure, and
+# not the headless runner playing a whole match at speed: a **simulation test**, which
+# puts the world somewhere interesting and lets you step it from there.
+#
+# The gate is the point. Nothing advances until you say so, because the most useful
+# moment when something is going wrong is almost always the tick before it does, and a
+# match that starts running the instant it loads cannot be looked at then.
+#
+# Usage:
+#   ./run-scenario <name>              -- load it, describe it, and hold
+#   ./run-scenario <name> step 300     -- advance 300 ticks, describe, hold
+#   ./run-scenario <name> until <event> -- advance until an event is raised
+#   ./run-scenario <name> go 5000      -- run it out to a limit
+#   ./run-scenario /path/to/prj <name> ...
+#
+# Scenario files live in scenarios/ and are written by hand. A scenario that
+# reproduces a bug is a bug report anybody can run.
+
+DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
+
+if [ -d "$1/issues" ] && [ -d "$1/src" ]; then
+    DIR="$1"
+    shift
+fi
+
+NAME="$1"
+MODE="${2:-hold}"
+AMOUNT="${3:-600}"
+
+if [ -z "${NAME}" ]; then
+    echo "run-scenario: no scenario named."
+    echo
+    echo "Available:"
+    ls -1 "${DIR}/scenarios" 2>/dev/null | sed 's/^/    /'
+    exit 1
+fi
+
+SCENARIO="${DIR}/scenarios/${NAME}"
+if [ ! -f "${SCENARIO}" ]; then
+    echo "No scenario at ${SCENARIO}"
+    exit 1
+fi
+
+luajit -e "
+local root = '${DIR}'
+local tick_module = loadfile(root .. '/src/042-the-tick.lua')()
+local modules = tick_module.load_cast(root)
+local world = tick_module.assemble(modules, modules.match_parameters.load())
+local gate = modules.gate
+
+gate.load(world, '${SCENARIO}')
+print('')
+print('loaded ${NAME}, held at the gate')
+print('')
+print(gate.describe(world))
+
+local mode, amount = '${MODE}', tonumber('${AMOUNT}') or 600
+if mode == 'step' or mode == 'go' then
+  gate.step(world, tick_module, amount)
+  print('')
+  print('after ' .. amount .. ' ticks:')
+  print('')
+  print(gate.describe(world))
+elseif mode == 'until' then
+  local reached, why = gate.until_event(world, tick_module, '${AMOUNT}', 20000)
+  print('')
+  print(reached and ('reached: ' .. why) or ('gave up: ' .. why))
+  print('')
+  print(gate.describe(world))
+end
+print('')
+"

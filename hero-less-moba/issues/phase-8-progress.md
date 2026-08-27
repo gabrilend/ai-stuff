@@ -12,7 +12,7 @@ lobby to library, on separate machines, recorded and replayed.
 | 801 | Reconciling across machines | not started |
 | 802 | The lobby and commander selection | not started |
 | 803 | A bot that places upgrades | a measuring bot, one brain per side |
-| 804 | Ten thousand matches overnight | not started |
+| 804 | Ten thousand matches overnight | built |
 | 805 | A full match, end to end — **capstone** | not started |
 | 806 | Three people can finally talk | not started |
 

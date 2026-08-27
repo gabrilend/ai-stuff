@@ -321,6 +321,7 @@ M.cast = {
   {name = "bot",              file = "059-a-bot-that-plays"},
   {name = "stones",           file = "061-the-stones"},
   {name = "rest_of_brain",    file = "062-the-rest-of-the-brain"},
+  {name = "gate",             file = "063-the-gate"},
 }
 -- }}}
 
@@ -375,6 +376,7 @@ function M.assemble(modules, parameters)
   world.bot_module = modules.bot
   world.stones     = modules.stones
   world.rest_of_brain = modules.rest_of_brain
+  world.gate_module = modules.gate
 
   -- The three world-level helpers the systems call by name. Hung here rather than
   -- required, for the same reason as everything above.

@@ -1,0 +1,41 @@
+# A challenge already under way: the Field Dragon standing in the middle of the
+# centre lane, both teams' production funnelling into it, and one team's stone
+# already knocked out of the top lane.
+#
+# This is what a scenario is for. Reaching this state by playing takes eight
+# minutes; reaching it by loading takes no time at all, and it arrives held, so it
+# can be looked at before it moves.
+#
+# Run it with:   ./run-scenario the-dragon-at-the-midpoint
+
+tick 14000
+challenge 2
+
+# Team 1 has lost both of its lane towers in the top lane, which is the shape of a
+# team that has been losing there for a while.
+rubble 1 1 3
+rubble 1 1 2
+
+# And has answered by committing everything it holds to the middle.
+stone 1 1 lane 2
+stone 1 1 lane 2
+stone 1 3 lane 2
+stone 1 7 lane 2
+stone 1 4 towers 2
+
+# Team 2 has spread its holding instead.
+stone 2 1 lane 1
+stone 2 3 lane 2
+stone 2 5 lane 3
+stone 2 2 towers 1
+
+# Both sides have bodies already in the corridor.
+wave 1 2 3
+wave 2 2 5
+
+# Somebody has money to spend and is about to.
+points 1 1 8
+points 1 5 8
+
+# And thirty seconds in, they spend it.
+at 14900 points 1 1 8
