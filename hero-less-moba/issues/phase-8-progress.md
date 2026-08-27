@@ -11,7 +11,7 @@ lobby to library, on separate machines, recorded and replayed.
 | --- | --- | --- |
 | 801 | Reconciling across machines | not started |
 | 802 | The lobby and commander selection | not started |
-| 803 | A bot that places upgrades | not started |
+| 803 | A bot that places upgrades | a measuring bot, one brain per side |
 | 804 | Ten thousand matches overnight | not started |
 | 805 | A full match, end to end — **capstone** | not started |
 | 806 | Three people can finally talk | not started |
@@ -45,3 +45,37 @@ single-player — which decides how good the bot has to be and probably deserves
 its own phase.
 
 **Demo:** not yet built.
+
+## Where the prototype got to
+
+**Only 803, and only half of it.** There is a bot, it is the measuring kind — cheap,
+deterministic and dull on purpose — and it plays a whole side rather than one seat.
+
+It exists for the obvious reason and for a less obvious one. Ten thousand matches
+need somebody to play them; but also, **without it a match does not demonstrate its
+own premise.** Left alone the chest fills and nothing happens, because nothing is
+placing it, so the one thing the design is about is the one thing an unattended
+match never shows. That is not a stalemate anybody predicted — it is an empty chair.
+
+Its whole policy is two lines: reinforce where you are losing, unless you are losing
+nowhere, in which case press where you are winning. Stone gets every fourth
+placement on a fixed rotation rather than a judgement, so both halves of the
+placement decision reach the numbers. It takes the first boon offered, deliberately,
+because whichever it preferred would become an invisible constant in every figure a
+balance run produced.
+
+Everything it does goes through the ordinary command queue on the ordinary tick. A
+bot with a private path into the world would be a second door, and the point of the
+first one is that there is only one.
+
+**What it produced:** from one seed, both sides played, team 1 wins at about thirteen
+minutes with 128 upgrades drawn and 9 still unplaced. Push depths of 7/7/2 against
+0/0/5 — two lanes taken and one held. The first match this project has produced with
+a shape somebody could describe afterwards.
+
+**It sidesteps the hard problem and says so.** One brain per side, not three sharing
+a chest. A teammate bot that places into lanes a person is also placing into,
+respects their locks and decides whether to object is phase nine, and it is the part
+that does not exist in the games this one is subtracted from.
+
+**Nothing else in this phase is built.** No networking, no lobby, no overnight runs.
