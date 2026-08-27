@@ -193,6 +193,36 @@ local function recall(world, command)
 end
 -- }}}
 
+-- {{{ local function buy_hero()
+-- Spends a player's own resource on a body that fights until it dies.
+--
+-- The whole purchase lives in the commanders module; this is the door it comes
+-- through, so that a hero bought by a person, by a bot, and by a replay all arrive
+-- by the same route.
+local function buy_hero(world, command)
+  return world.commanders.buy(world, command.player, command.hero,
+                              command.where, command.target)
+end
+-- }}}
+
+-- {{{ local function set_signpost()
+-- Turns one of a team's three posts.
+--
+-- **No lock and no objection.** Any player on a team may set any of their three at
+-- any time: sign-posts are cheap, instant and reversible, and a negotiation layer
+-- over something undoable in one click would be ceremony with no stakes underneath
+-- it. What it costs is that a teammate can silently redirect every hero you have
+-- inbound -- which is why the change raises an event rather than happening quietly.
+local function set_signpost(world, command)
+  if type(command.lane) ~= "number"
+     or command.lane < 1 or command.lane > world.parameters.lane_count then
+    return refuse("there is no lane " .. tostring(command.lane))
+  end
+  world.signposts.cycle(world, command.team, command.lane, command.player)
+  return ACCEPTED
+end
+-- }}}
+
 -- {{{ M.verb
 -- The verb dispatch table. Adding a command is adding a row here, not a branch
 -- somewhere in the apply loop.
@@ -201,6 +231,8 @@ M.verb = {
   place_in_stone   = place_in_stone,
   place_in_library = place_in_library,
   recall           = recall,
+  buy_hero         = buy_hero,
+  set_signpost     = set_signpost,
 }
 -- }}}
 

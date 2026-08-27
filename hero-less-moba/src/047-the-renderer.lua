@@ -79,8 +79,14 @@ local COLOUR = {
 local BODY_RADIUS = {
   [1] = 5.0,   -- melee
   [2] = 4.2,   -- ranged
-  [3] = 8.0,   -- captain
+  [3] = 8.0,   -- captain, melee
   [4] = 5.2,   -- guard
+  [5] = 8.0,   -- captain, ranged
+  -- Heroes. Bigger than a wave body and smaller than a captain in a stacked lane,
+  -- which is the right relationship: the chest economy out-scales the wallet
+  -- economy in a lane somebody committed to, and a hero standing beside an enormous
+  -- captain is **meant** to look unaffected, because lane upgrades never touch it.
+  [6] = 7.2, [7] = 6.8, [8] = 7.4, [9] = 6.6, [10] = 6.4, [11] = 7.2,
 }
 
 -- Below this zoom fraction a body is a dot and nothing else. Above it, detail
@@ -150,6 +156,7 @@ function M.load(world, camera_module)
   -- flattening into a diagram.
   M.shadow_batch = love.graphics.newSpriteBatch(M.disc, 4096, "stream")
 
+  M.hero_list, M.hero_x, M.hero_y = {}, {}, {}
   M.font_small = love.graphics.newFont(11)
   M.font_badge = love.graphics.newFont(10)
   M.world = world
@@ -392,6 +399,12 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
 
   local disc_size = M.disc:getWidth()
   local left, top, right, bottom = M.camera_module.visible_rectangle(camera)
+  -- Heroes are collected as they are batched and ringed afterwards. A hero is a
+  -- purchase somebody made and has to be findable on a crowded field at any zoom --
+  -- and it carries **no lane upgrades ever**, so a hero standing in an enormously
+  -- stacked lane is meant to look unaffected. A player who cannot tell which body
+  -- is the hero is watching that rule and thinking it is a bug.
+  local hero_list, hero_x, hero_y, hero_count = M.hero_list, M.hero_x, M.hero_y, 0
 
   for index = 1, newest.live_count do
     local id = newest.live[index]
@@ -403,6 +416,12 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
     if x >= left and x <= right and y >= top and y <= bottom then
       local radius = BODY_RADIUS[newest.archetype[id]] or 5
       local scale = (radius * 2) / disc_size
+      if newest.flavour[id] == 2 then
+        hero_count = hero_count + 1
+        hero_list[hero_count] = id
+        hero_x[hero_count] = x
+        hero_y[hero_count] = y
+      end
       M.batch[newest.team[id]]:add(x - radius, y - radius, 0, scale, scale)
       -- Offset down and to the right, and flattened, so the light is consistently
       -- from the upper left across the whole field. One light source, never
@@ -418,6 +437,14 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
   for team = 1, 3 do
     set_colour(COLOUR.team[team])
     love.graphics.draw(M.batch[team])
+  end
+
+  for index = 1, hero_count do
+    local id = hero_list[index]
+    local radius = BODY_RADIUS[newest.archetype[id]] or 6
+    set_colour(COLOUR.team[newest.team[id]], 0.95)
+    love.graphics.setLineWidth(2 / camera.drawn_scale)
+    love.graphics.circle("line", hero_x[index], hero_y[index], radius + 3.5, 14)
   end
 end
 -- }}}
@@ -572,9 +599,123 @@ local function draw_destinations(world, camera, frame, team_id)
 end
 -- }}}
 
+-- {{{ local function draw_signposts()
+-- The three standing orders, where they stand.
+--
+-- **A sign-post is a piece of the world with a position, not an entry in a menu**,
+-- and players click it where it stands. Only the viewing team's are drawn: the
+-- enemy's are not greyed out and not drawn without a direction -- they are not
+-- drawn, because under the networking model their routing is not on this machine at
+-- all, which is what makes the secrecy real rather than polite.
+local function draw_signposts(world, camera, frame, team_id)
+  for lane_id = 1, world.parameters.lane_count do
+    local post = frame.signpost[lane_id]
+    local recent = (frame.tick - post.set_tick) < 180 and post.set_tick > 0
+
+    -- A teammate changing one silently redirects every hero you have inbound, so a
+    -- recent change gets a halo. It is the only unnegotiated change one player can
+    -- make to another's plans and it must not be possible to miss.
+    if recent then
+      local pulse = 0.4 + 0.6 * math.sin(love.timer.getTime() * 7)
+      set_colour(COLOUR.team[team_id], 0.5 * pulse)
+      love.graphics.circle("fill", post.x, post.y, 34, 20)
+    end
+
+    set_colour(COLOUR.team[team_id], post.branch == 0 and 0.5 or 1.0)
+    love.graphics.setLineWidth(2.5 / camera.drawn_scale)
+    love.graphics.circle("line", post.x, post.y, 15, 8)
+    if post.branch ~= 0 then
+      -- Turned. Filled, so a junction that will divert your heroes reads
+      -- differently from one that will not, from across the map.
+      love.graphics.circle("fill", post.x, post.y, 8, 8)
+    end
+  end
+end
+-- }}}
+
+-- {{{ local function draw_hero_destinations()
+-- Where the hero in your hand could be put down.
+--
+-- A tower whose ground is **not** clear is drawn as a refusal rather than left dark,
+-- because the refusal is the texture of hero spawning: you cannot reinforce the
+-- tower that is actually under attack, you reinforce the one behind it and walk the
+-- hero up. A player who can see which towers are shut before they click learns the
+-- rule once; one who finds out by being refused thinks it is a bug.
+local function draw_hero_destinations(world, camera, frame, team_id)
+  local pulse = 0.55 + 0.45 * math.sin(love.timer.getTime() * 3.4)
+
+  for _, view in ipairs(frame.structure) do
+    if view.alive == 1 and view.team == team_id then
+      local blocked = false
+      if view.kind ~= 3 then
+        for index = 1, frame.live_count do
+          local id = frame.live[index]
+          if frame.team[id] ~= team_id and frame.team[id] ~= 0 then
+            local dx, dy = frame.x[id] - view.x, frame.y[id] - view.y
+            if dx * dx + dy * dy <= view.command_radius * view.command_radius then
+              blocked = true
+              break
+            end
+          end
+        end
+      end
+
+      local radius = (view.kind == 3) and 44 or 26
+      if blocked then
+        love.graphics.setColor(0.85, 0.30, 0.26, 0.20 + 0.20 * pulse)
+        love.graphics.circle("fill", view.x, view.y, radius, 24)
+        love.graphics.setColor(0.85, 0.30, 0.26, 0.7)
+        love.graphics.setLineWidth(2.5 / camera.drawn_scale)
+        -- A cross through it. Shut, and shut for a reason you can see.
+        local arm = radius * 0.6
+        love.graphics.line(view.x - arm, view.y - arm, view.x + arm, view.y + arm)
+        love.graphics.line(view.x - arm, view.y + arm, view.x + arm, view.y - arm)
+      else
+        set_colour(COLOUR.team[team_id], 0.20 + 0.30 * pulse)
+        love.graphics.circle("fill", view.x, view.y, radius, 24)
+        set_colour(COLOUR.team[team_id], 0.55 + 0.45 * pulse)
+        love.graphics.setLineWidth(2.5 / camera.drawn_scale)
+        love.graphics.circle("line", view.x, view.y, radius, 24)
+      end
+    end
+  end
+
+  -- And every living wave of yours, at its front, where the hero would appear.
+  for _, wave in ipairs(world.wave) do
+    if wave.team == team_id and wave.living_count > 0 then
+      local lane = world.map.lane[wave.lane]
+      local x, y = M.camera_module and world.map_builder.point_at(world.map, lane, wave.anchor, wave.hint)
+      if x ~= nil then
+        set_colour(COLOUR.team[team_id], 0.45 + 0.35 * pulse)
+        love.graphics.setLineWidth(2 / camera.drawn_scale)
+        love.graphics.circle("line", x, y, 30, 18)
+        love.graphics.circle("line", x, y, 20, 18)
+      end
+    end
+  end
+end
+-- }}}
+
+-- {{{ local function draw_events()
+-- The flashes. An ability going off is drawn where it went off, at the size it
+-- reached, and fades over about a second.
+local function draw_events(world, camera, frame)
+  for _, event in ipairs(frame.event) do
+    if event.name == "ability" and event.radius and event.radius > 0 then
+      local age = (frame.tick - event.tick) / 30
+      if age < 1 then
+        set_colour(COLOUR.team[event.team], 0.5 * (1 - age))
+        love.graphics.setLineWidth(3 / camera.drawn_scale)
+        love.graphics.circle("line", event.x, event.y, event.radius * (0.4 + age * 0.7), 28)
+      end
+    end
+  end
+end
+-- }}}
+
 -- {{{ function M.draw()
 -- One frame of the world, under the camera's transform.
-function M.draw(world, camera, previous, newest, blend, held_kind, watching)
+function M.draw(world, camera, previous, newest, blend, held_kind, watching, held_hero)
   -- How far in the camera is, 0 at the whole map and 1 at the ceiling. Every
   -- decision about how much detail to draw reads this one number, so that the
   -- thresholds are comparable and a reader can see they are in order.
@@ -595,12 +736,17 @@ function M.draw(world, camera, previous, newest, blend, held_kind, watching)
   if held_kind ~= nil and held_kind ~= 0 then
     draw_destinations(world, camera, newest, watching)
   end
+  if held_hero ~= nil and held_hero ~= 0 then
+    draw_hero_destinations(world, camera, newest, watching)
+  end
   draw_structures(world, camera, newest, detail)
   draw_libraries(world, camera, newest)
   draw_bodies(world, camera, previous, newest, blend, detail)
   if detail >= DETAIL_HEALTH then
     draw_body_detail(world, camera, previous, newest, blend, detail)
   end
+  draw_signposts(world, camera, newest, watching)
+  draw_events(world, camera, newest)
 
   love.graphics.pop()
 end

@@ -134,6 +134,10 @@ end
 local function attack(world)
   world.combat.attack_pass(world)
   world.structures.tower_pass(world)
+  -- Abilities fire here, through the same buffer an ordinary swing uses, on the
+  -- same tick boundary, with the same armour arithmetic. There is no second damage
+  -- system and this row is what says so.
+  world.abilities.run(world)
 end
 -- }}}
 
@@ -210,6 +214,7 @@ end
 -- roadmap and are not built; the row exists so that adding them is adding to a
 -- function that already runs in the right place.
 local function phase(world)
+  world.commanders.climb_ladder(world)
   if world.winner ~= 0 then
     world.phase = 5
   end
@@ -292,6 +297,9 @@ M.cast = {
   {name = "chest",            file = "041-the-chest"},
   {name = "snapshot",         file = "043-snapshot"},
   {name = "formations",       file = "052-formations"},
+  {name = "commanders",       file = "054-commanders"},
+  {name = "abilities",        file = "055-abilities"},
+  {name = "signposts",        file = "056-signposts"},
 }
 -- }}}
 
@@ -339,6 +347,9 @@ function M.assemble(modules, parameters)
   world.snapshot   = modules.snapshot
   world.formations = modules.formations
   world.map_builder = modules.map_builder
+  world.commanders = modules.commanders
+  world.abilities  = modules.abilities
+  world.signposts  = modules.signposts
 
   -- The three world-level helpers the systems call by name. Hung here rather than
   -- required, for the same reason as everything above.
@@ -358,6 +369,8 @@ function M.assemble(modules, parameters)
   world.command_queue = {}
 
   modules.formations.begin(world)
+  modules.commanders.begin(world)
+  modules.signposts.begin(world)
   modules.chest.build_deck(world)
   modules.waves.begin(world)
   modules.structures.begin(world)

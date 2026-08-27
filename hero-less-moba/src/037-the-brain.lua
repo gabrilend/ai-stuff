@@ -77,8 +77,32 @@ local function walking(world, id)
     return 1
   end
 
+  -- A hero crossing a connector is committed to it: it has already obeyed its one
+  -- sign-post and there is nothing on this ground to fight.
+  if soldier.crossing[id] ~= 0 then
+    world.walking.step_crossing(world, id)
+    return 1
+  end
+
   if soldier.target[id] ~= 0 or soldier.target_structure[id] ~= 0 then
     return 2   -- closing
+  end
+
+  -- A hero with a turn still in it asks the sign standing at its lane's junction.
+  -- Checked before moving, so a hero that would step past the junction this tick
+  -- turns at it instead of over it.
+  if soldier.turns_left[id] > 0 and world.signposts.check_junction(world, id) then
+    return 1
+  end
+
+  -- A hero belongs to no wave, so it has no place in a formation to hold. It walks
+  -- its lane on its own -- which is also what makes it fragile in a way a wave body
+  -- is not, and part of what the purchase is buying.
+  if soldier.wave[id] == 0 then
+    local lane = world.map.lane[soldier.lane[id]]
+    local along = soldier.lane_along[id] + soldier.speed[id] * soldier.facing[id]
+    world.walking.set_lane_position(world, id, along, soldier.lane_across[id])
+    return 1
   end
 
   world.walking.step_in_formation(world, id)

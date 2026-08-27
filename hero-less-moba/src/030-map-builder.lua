@@ -319,9 +319,16 @@ end
 -- body standing on one. The only thing a connector is for is letting a body
 -- leave the middle, which is a decision the four-junction layout never allowed
 -- anybody to make.
-local function build_connector(map, from_node, to_node, count)
+local function build_connector(map, from_node, to_node, count, lane_a, lane_b)
   local first = map.node[from_node]
   local last  = map.node[to_node]
+
+  -- The chain is recorded as an explicit list, because it is the one piece of
+  -- ground in the game that a body walks without being on a lane. A hero that has
+  -- obeyed a sign-post is out here, following this list node by node, and it needs
+  -- to be a list rather than something rediscovered from the neighbour graph --
+  -- the middle junction has four neighbours and two of them are connectors.
+  local path = {from_node}
 
   local previous = from_node
   for step = 1, count do
@@ -329,9 +336,18 @@ local function build_connector(map, from_node, to_node, count)
     local x, y = interpolate(first.x, first.y, last.x, last.y, u)
     local id = add_node(map, x, y, M.NODE_PLAIN, 0, 0)
     join(map, previous, id)
+    path[#path + 1] = id
     previous = id
   end
   join(map, previous, to_node)
+  path[#path + 1] = to_node
+
+  map.connector[#map.connector + 1] = {
+    id = #map.connector + 1,
+    path = path,
+    lane_a = lane_a,   -- the lane at path[1]
+    lane_b = lane_b,   -- the lane at path[#path]
+  }
 end
 -- }}}
 
@@ -354,7 +370,7 @@ function M.build(parameters)
   local size  = shape.field_size
   local inset = shape.base_inset
 
-  local map = { node = {}, lane = {}, site = {} }
+  local map = { node = {}, lane = {}, site = {}, connector = {} }
 
   -- The two libraries, created before any lane, because all three lanes share
   -- them and a lane cannot be built until its endpoints exist.
@@ -393,9 +409,9 @@ function M.build(parameters)
 
   -- The two connectors, from each side lane's junction to the middle.
   build_connector(map, map.lane[1].junction[1], map.lane[2].junction[1],
-                  shape.connector_nodes)
+                  shape.connector_nodes, 1, 2)
   build_connector(map, map.lane[3].junction[1], map.lane[2].junction[1],
-                  shape.connector_nodes)
+                  shape.connector_nodes, 3, 2)
 
   -- What the camera frames at rest, computed from the map rather than written
   -- down, so that changing the field size reframes the view with no second edit.
