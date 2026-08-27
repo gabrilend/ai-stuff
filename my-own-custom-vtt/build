@@ -142,7 +142,7 @@ emit_c_string() {
 # The server's own translation units.
 # ---------------------------------------------------------------------------
 
-MODULES="021-fixed-point 023-blocks 025-strings 027-world 029-geometry 031-region 033-validate 035-worldfile 037-fixture 040-threadpool 042-sight 044-fog 047-streams 049-tick 051-commandlog 053-session 056-protocol 058-viewer 059-outbound 061-door 064-httpd 070-scope 073-rules 076-describe 078-generate 082-sprite 085-sprite-pool 087-studio 090-record 092-canvas 094-creature 096-engrave 097-read-engraving"
+MODULES="021-fixed-point 023-blocks 025-strings 027-world 029-geometry 031-region 033-validate 035-worldfile 037-fixture 040-threadpool 042-sight 044-fog 047-streams 049-tick 051-commandlog 053-session 056-protocol 058-viewer 059-outbound 061-door 064-httpd 070-scope 073-rules 076-describe 078-generate 082-sprite 085-sprite-pool 087-studio 090-record 092-canvas 094-creature 096-engrave 097-read-engraving 106-controls"
 
 OBJECTS=""
 for MODULE in ${MODULES}; do
