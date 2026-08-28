@@ -4446,3 +4446,66 @@ one core.
 
 **Changed:** issue 209, [the simulation tick](003-the-simulation-tick.md), and the
 phase-2 progress file.
+
+## H4. Do milestones stay nine, or become thirty-three? — **NEEDS A DECISION**
+
+Raised by the request in [issue 211](../issues/211-waypoints-and-the-zones-they-sit-in.md)
+to make the measure of how far along a lane a wave is "about four times more
+discrete."
+
+A lane currently has **nine milestones**, at fixed fractions of its length, and they
+do two jobs at once: they are where the towers stand, and they are the unit push
+depth is counted in. Push depth is the number the whole game runs on.
+
+Four times finer means thirty-two intervals instead of eight. Two ways to get there.
+
+1. **Milestones stay; zones are added underneath.** Each milestone interval is
+   divided into four, so every milestone is still exactly on a zone boundary, no
+   tower moves, and nothing that says "milestone" changes meaning. Push depth moves
+   from counting milestones to counting zones. Two concepts where there was one, and
+   somebody will eventually ask which of them a given number is in.
+2. **Milestones themselves become thirty-three**, with the towers at every fourth
+   one. One concept, no ambiguity, and exactly the same geometry — but every piece of
+   code that says "milestone" now means something four times finer: the structure
+   sites, the sign-posts, the chest's slot addressing, the renderer's marks along
+   each lane, the terminal viewer, the bot. Each of those is a small change and
+   there are a lot of them, and any one missed is an off-by-four in a number nobody
+   prints.
+
+The safer of the two is the first, and safety is worth something here specifically
+because push depth is read in so many places that a silent factor of four would be
+found by a player rather than by a test.
+
+## H5. Does a waypoint steer the formation, or replace the lane? — **NEEDS A DECISION**
+
+The other half of [issue 211](../issues/211-waypoints-and-the-zones-they-sit-in.md).
+
+A wave is to approach a **waypoint** — a point at a random position inside the next
+zone — rather than simply advancing a number, so that its approach angle varies a
+little and two waves walking the same lane do not lay their feet in the same places.
+"It's hard to tell exactly which direction is optimal while on the ground, so you
+just sorta go toward that direction."
+
+The question is what "approach" means against the way movement is built.
+
+A formation is held in **lane coordinates**: how far along the lane, and how far
+across it. World position is derived from those against the lane's own curve. That
+is not an implementation detail, it is the reason a rank survives a corner — every
+body in a rank shares one distance-along, so the road carries the line round the
+bend as a line. Hold a formation in world coordinates instead and it either tears
+apart on a turn or scythes through the inside of it.
+
+1. **The waypoint steers within the lane.** The wave still advances along the lane at
+   its pace; the waypoint sets *how far across* the formation is heading, and the
+   formation eases toward it. The approach angle varies, the wander is real, and the
+   lane still carries the shape round every corner for free. The waypoint's
+   along-position then does little except decide when to pick the next one.
+2. **The waypoint is a destination in the world.** The wave genuinely navigates to a
+   point, and its progress along the lane becomes a consequence of walking there.
+   Faithful to the description, and it means lane coordinates stop being what a
+   formation is held in — which is the load-bearing property the formation work has
+   been built on and measured against from the beginning.
+
+The first delivers the visible effect asked for and costs nothing. The second is a
+rewrite of the movement model, and would need the corner behaviour re-solved from
+scratch by some other means.
