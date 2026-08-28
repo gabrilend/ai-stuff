@@ -167,6 +167,7 @@ svg { max-width: 100%; }
 <a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
 <a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -297,8 +298,33 @@ svg { max-width: 100%; }
 <tr><td><code>strike_structure(world, structure_id, raw)</code></td><td></td><td>— One blow landing on stone.</td></tr>
 <tr><td><code>attack_pass(world)</code></td><td></td><td>— Every body whose cooldown came up and whose target is in reach.</td></tr>
 <tr><td><code>resolve_pass(world)</code></td><td></td><td>— Adds the buffer into health; marks the dead.</td></tr>
-<tr><td><code>reap_pass(world)</code></td><td></td><td>— Turns deaths into consequences, then frees the slots.</td></tr>
+<tr><td><code>reap_pass(world)</code></td><td></td><td>— Starts a decay for the fallen, and finishes one for the certain.</td></tr>
 </tbody></table>
+<h2>A death is a two-second process</h2>
+<p>The reap pass is two sweeps, not one.</p>
+<p><strong>The fallen.</strong> A body at zero health has <code>alive</code> set to zero and a decay counter</p>
+<p>started. That single flag is what everything in the simulation already tests, so the</p>
+<p>body stops fighting, stops being a target, stops holding a place in the frontline</p>
+<p>queue, stops counting toward push depth and leaves the spatial grid — with no change</p>
+<p>to any of those passes. It keeps its slot and every one of its numbers.</p>
+<p><strong>The certain.</strong> Decay counters come down, and a body whose counter reaches zero has</p>
+<p>everything happen at once: the kill announced, the team paid, the wave counter</p>
+<p>decremented, the guard replaced, the challenge ended if it was a monster, the slot</p>
+<p>released.</p>
+<p><strong>Why.</strong> Machines correct each other about once a second, and a body that died here</p>
+<p>and did not die on the authority's machine cannot be repaired once its slot is gone —</p>
+<p>there is nothing left to write onto. Deaths are the hinge everything hangs from:</p>
+<p>health makes deaths, deaths make wipes, wipes make draws, draws make the chest. Two</p>
+<p>seconds is two correction cycles, so every machine has had its say before anything is</p>
+<p>committed, and undoing a death is clearing one number.</p>
+<p><strong>The cost.</strong> Every consequence of a death lands two seconds late, uniformly, so it</p>
+<p>is a delay and not a distortion. Paying immediately and undoing it later does not</p>
+<p>work: a payment can be unmade only if it has not been spent, and a chest draw that</p>
+<p>has already been placed cannot be unmade at all. A consequence that has been acted on</p>
+<p>is not revertible, so the boundary sits before the consequence.</p>
+<p>This is the same shape as the buffered damage below, one step later — a two-stage</p>
+<p>split so that an outcome is decided in one place and committed in another. See</p>
+<p>issue <a class='issue-link' href='210-a-death-decays-before-it-is-final.html'>210</a>.</p>
 <h2>Damage is buffered, then applied</h2>
 <p>Nothing writes to a health value during the attack pass. Attacks write into</p>
 <p><code>pending_damage</code>, cleared at the top of every tick; a separate pass adds it into</p>
@@ -341,6 +367,7 @@ svg { max-width: 100%; }
 <p>When a body dies, the opposing team is paid. That is the whole rule. The reap pass</p>
 <p>reads the <strong>dead body's own team</strong> and pays the other one; it never asks what killed</p>
 <p>it, because it does not need to.</p>
+<p>It pays two seconds after the blow rather than at it, for the reason below.</p>
 <p>So there is no last-hit accounting in this game at all — nothing to steal, and no</p>
 <p>reason to position a body for a finishing blow. Three consequences:</p>
 <ul>

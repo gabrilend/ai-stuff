@@ -220,6 +220,23 @@ local function make_soldier_arrays(capacity, kind_count)
   -- side rather than about its own.
   soldier.cursed            = zeroed(capacity)
 
+  -- Ticks of decay remaining. **A death is a two-second process, not an instant.**
+  --
+  -- A body at zero health stops being alive immediately and then holds its slot,
+  -- and every one of its numbers, for a fixed span before anything about its death
+  -- is made final. Nothing else can be allocated into the slot, its generation
+  -- counter has not moved, and every reference to it is still a valid reference to
+  -- it -- so the death can be undone by clearing this one number.
+  --
+  -- That is the only way a death can ever be corrected. Machines reconcile
+  -- continuous state on a cycle, and a body that died here and did not die on the
+  -- authority's machine cannot be repaired once its slot is gone: there is nothing
+  -- left to write the corrected numbers onto. Two seconds is two reconciliation
+  -- cycles, which is long enough for every machine to have had its say.
+  --
+  -- Zero for everything that is not decaying, including everything alive.
+  soldier.decaying          = zeroed(capacity)
+
   -- Modifiers. One flat array per upgrade kind rather than one table per
   -- soldier: the sweep that re-stamps a lane's guards touches one kind across
   -- many bodies, which is a walk down one array.
@@ -407,7 +424,14 @@ end
 -- single most confusing class of bug this design can produce.
 function M.release(world, id)
   local soldier = world.soldier
+  -- A slot released without having decayed -- which is what happens when a match is
+  -- torn down, or a test frees one directly -- still has to leave the living count.
+  -- A slot released at the end of its decay left it two seconds ago.
+  if soldier.alive[id] == 1 then
+    world.live_count = world.live_count - 1
+  end
   soldier.alive[id] = 0
+  soldier.decaying[id] = 0
   soldier.team[id] = 0
   soldier.flavour[id] = 0
   soldier.owner[id] = 0
@@ -465,7 +489,59 @@ function M.release(world, id)
   world.pending_damage[id] = 0
 
   world.free_slot[#world.free_slot + 1] = id
+end
+-- }}}
+
+-- {{{ function M.begin_decay()
+-- Takes a body off the field without taking its slot.
+--
+-- Everything in the simulation gates on `alive`, so setting it to zero here is what
+-- makes a decaying body stop fighting, stop being a target, stop holding a place in
+-- the frontline queue, stop counting toward push depth, and leave the spatial grid
+-- -- with no change to any of those passes. That is why the flag goes here and not
+-- somewhere the passes would each have to learn about.
+--
+-- What it does **not** do is pay anybody. Every consequence of a death waits until
+-- the decay runs out, because a consequence that has been acted on is not
+-- revertible: a payment can be unmade only if it has not been spent, and a chest
+-- draw that has already been placed cannot be unmade at all. The only honest place
+-- for the boundary is before the consequence rather than after it.
+function M.begin_decay(world, id, span)
+  local soldier = world.soldier
+  if soldier.alive[id] ~= 1 then
+    error("a body that is not alive cannot begin decaying: slot " .. id)
+  end
+  soldier.alive[id] = 0
+  soldier.decaying[id] = span
   world.live_count = world.live_count - 1
+end
+-- }}}
+
+-- {{{ function M.revive()
+-- Puts a decaying body back on the field.
+--
+-- The whole reason the slot is held. Everything about the body is still there, so
+-- undoing the death is clearing one number and giving it some health back -- and
+-- because nothing has been paid out yet, there is nothing to unpay.
+--
+-- The caller supplies the health, because the caller is the thing that disagreed
+-- about the death and therefore the thing that knows what the health should be.
+function M.revive(world, id, health)
+  local soldier = world.soldier
+  if soldier.decaying[id] == 0 then
+    error("only a decaying body can be revived: slot " .. id)
+  end
+  soldier.decaying[id] = 0
+  soldier.alive[id] = 1
+  soldier.health[id] = health
+  -- Out of the dying state and back into standing. Whatever it was doing when it
+  -- fell is not resumed: its target may be dead, its queue place is taken, and the
+  -- brain is entitled to decide all of that again on the next tick.
+  soldier.state[id] = 1
+  soldier.target[id] = 0
+  soldier.target_generation[id] = 0
+  soldier.target_structure[id] = 0
+  world.live_count = world.live_count + 1
 end
 -- }}}
 

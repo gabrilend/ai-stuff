@@ -65,6 +65,12 @@ hero-less-moba/
 ├── scenarios/ ................................ Described worlds, written by hand.
 │                                               A scenario that reproduces a bug is
 │                                               a bug report anybody can run.
+├── inspiration/ .............................. Reference images for the challenge
+│   └── NOTICE.md ............................. monsters. **Not ours and not under
+│                                               the project's licence** -- read the
+│                                               notice before doing anything with
+│                                               them. Nothing in the program reads
+│                                               this directory.
 │
 ├── notes/
 │   ├── vision ................................ Where all of this came from, in the

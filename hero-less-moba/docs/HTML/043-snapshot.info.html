@@ -167,6 +167,7 @@ svg { max-width: 100%; }
 <a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
 <a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -314,9 +315,17 @@ svg { max-width: 100%; }
 <p>search and no identity map. A packed frame would have to be joined against the previous</p>
 <p>one every frame, and a body that moved slots between them would be drawn as a teleport.</p>
 <p><code>live</code> and <code>live_count</code> give the renderer a dense list to walk, so it never scans slots.</p>
+<p><code>fading</code> and <code>fading_count</code> are the same for bodies that have fallen and are still</p>
+<p>decaying, with <code>fade[id]</code> running from 1 the moment they fell down toward 0. **A</p>
+<p>separate list, never folded into the live one**: a viewer counting bodies must not</p>
+<p>count corpses, and everything that walks the live list is counting something. What</p>
+<p>the renderer draws from it is a body that genuinely still exists — a fallen body holds</p>
+<p>its slot and its numbers for two seconds, so the fade is real rather than an animation</p>
+<p>invented here. See issue <a class='issue-link' href='210-a-death-decays-before-it-is-final.html'>210</a>.</p>
 <h2>What a frame holds</h2>
 <p><strong>Per body</strong>: <code>alive</code>, <code>x</code>, <code>y</code>, <code>facing</code>, <code>team</code>, <code>flavour</code>, <code>archetype</code>, <code>reach</code>,</p>
 <p><code>lane</code>, <code>milestone</code>, <code>health_fraction</code>, <code>spawned_lane</code>, and <code>upgrade_count[kind][id]</code>.</p>
+<p><strong>Per fallen body</strong>: <code>fade</code>, plus the position, team, flavour, archetype, reach and lane it had when it fell.</p>
 <p><strong>Per structure</strong>: <code>team</code>, <code>kind</code>, <code>lane</code>, <code>alive</code>, <code>x</code>, <code>y</code>, <code>health_fraction</code>,</p>
 <p><code>command_radius</code>, <code>guard_count</code>, <code>upgrade_count</code>.</p>
 <p><strong>Per team</strong>: <code>chest</code>, <code>lane_slot</code>, <code>tower_slot</code>, <code>library_slot</code>, <code>push_depth</code>,</p>

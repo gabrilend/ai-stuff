@@ -430,6 +430,8 @@ function M.assemble(modules, parameters)
   -- required, for the same reason as everything above.
   world.allocate  = modules.world.allocate
   world.release   = modules.world.release
+  world.begin_decay = modules.world.begin_decay
+  world.revive    = modules.world.revive
   world.raise     = modules.world.raise
   world.give_body = modules.world.give_body
   world.restamp_stone = modules.chest.restamp_stone

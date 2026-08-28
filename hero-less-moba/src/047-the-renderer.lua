@@ -456,6 +456,33 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
   love.graphics.setColor(0, 0, 0, 0.42)
   love.graphics.draw(M.shadow_batch)
 
+  -- The fallen, **under** the living, so a corpse never obscures a body somebody
+  -- has to make a decision about.
+  --
+  -- Drawn one at a time rather than batched: each one has its own alpha, and a
+  -- sprite batch has one colour for the whole batch. There are a handful of them at
+  -- any moment against hundreds of the living, so the loop that matters is still the
+  -- batched one.
+  --
+  -- What is drawn here is not an animation invented by the renderer. A body decays
+  -- for two seconds after it falls, holding its slot and every one of its numbers,
+  -- and the fade is how far through that it is -- so the picture is of something
+  -- that is genuinely still there. See issue 210.
+  for index = 1, newest.fading_count do
+    local id = newest.fading[index]
+    local x, y = newest.x[id], newest.y[id]
+    if x >= left and x <= right and y >= top and y <= bottom then
+      local radius = BODY_RADIUS[newest.archetype[id]] or 5
+      local fade = newest.fade[id]
+      -- Shrinking as well as fading, and to two thirds rather than to nothing, so
+      -- that what the eye reads is a body going down rather than a body walking
+      -- away into the distance.
+      local scale = (radius * 2 * (0.66 + fade * 0.34)) / disc_size
+      set_colour(COLOUR.team[newest.team[id]], fade * 0.55)
+      love.graphics.draw(M.disc, x - radius, y - radius, 0, scale, scale)
+    end
+  end
+
   for team = 1, 3 do
     set_colour(COLOUR.team[team])
     love.graphics.draw(M.batch[team])

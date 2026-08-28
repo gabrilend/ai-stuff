@@ -74,9 +74,13 @@ of readable data instead of something buried in a function body.
    simultaneous kills work the same way every run — two soldiers that would kill
    each other on the same tick both die, and neither one's death cancels the
    other's blow.
-11. **Reap.** Dead bodies are removed, deaths are turned into events: personal
-   resource paid out, wave-completion counters decremented, tower-destroyed
-   rewards issued.
+11. **Reap.** Two sweeps. Bodies at zero health **leave the field and begin decaying**
+   — off the grid, out of every queue, out of the living count, and still holding
+   their slot. Bodies whose decay has run out become final: personal resource paid
+   out, wave-completion counters decremented, tower-destroyed rewards issued, slot
+   released. **A death is a two-second process**, because a death is the one thing a
+   correction from another machine can never reach once the slot is gone. See issue
+   210.
 12. **Measure.** Push depth, recomputed from the living. **After the reap**, because
    it is a statement about who is still standing.
 13. **Phase.** The match clock advances. The wallet ladder climbs, surges start and
@@ -191,6 +195,7 @@ slicing an array of tables is a pointer chase.
 | `player` | array[6] of player record | Commander, resource per colour, ceiling per colour, and what has been wasted. **No lock or objection state** — a stone belongs to whoever drew it, so there is nothing to lock it against. |
 | `stream` | table of named generators | The random streams above. |
 | `pending_damage` | double[] | One slot per soldier, cleared every tick. |
+| `soldier.decaying` | integer[] | Ticks of decay remaining. Zero for everything alive and everything gone. |
 | `capacity` | integer | How many soldier slots exist. Written down rather than left as the length of one of the arrays, so anything allocating a parallel array asks the world how big it is. |
 | `replay` | record | The replay log. Present whether or not anything is recording — **not recording is a state, not an absence**, and its sink is the integer 0. |
 

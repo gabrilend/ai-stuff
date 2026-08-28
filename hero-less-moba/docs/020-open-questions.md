@@ -4301,7 +4301,7 @@ a path it is not on — which crashes the walk, which is how this was found.
    rather than assigning a number to it. More faithful and considerably more code,
    and it makes the receiver's simulation subordinate rather than corrected.
 
-## H2. A machine that killed the wrong body can never be corrected — **NEEDS A DECISION**
+## H2. A machine that killed the wrong body can never be corrected — **ANSWERED**
 
 The same experiment, and the more serious of the two.
 
@@ -4353,11 +4353,39 @@ Three ways out, in the order they look promising:
    threshold, resynchronise the whole world rather than a keyframe. Cheapest, and
    it turns a permanent slow error into a periodic visible hitch.
 
-Nothing here is decidable until there is a network at all — this is issue 801's
-problem, and it is written down now because the replay log found it and the
-finding would otherwise be lost.
+**Answer: a death decays before it is final.** None of the three above, and a fourth
+that is better than all of them.
 
-## H3. A pool of coroutines is not parallel — **NEEDS A DECISION**
+A body that reaches zero health leaves the field immediately — it stops fighting,
+stops being a target, stops holding a place in the queue, stops counting toward push
+depth — and then **holds its slot, and every one of its numbers, for two seconds**
+before anything about the death is made final. Nobody is paid, no wave counter moves,
+no guard is replaced, no challenge ends. Two seconds is two reconciliation cycles,
+which is long enough for every machine to have had its say, and undoing the death is
+then a matter of clearing one number.
+
+Why this beats the three that were offered: it does not enlarge the message
+(option 1), it does not turn thousands of deaths into network events (option 2), and
+it converges rather than accepting a permanent drift (option 3). What it costs is
+that **every consequence of a death lands two seconds late** — uniformly, for all of
+them, so it is a delay rather than a distortion.
+
+The alternative of paying immediately and undoing it if the death is reverted was
+rejected, and the reason is worth keeping: a payment can be unmade only if it has not
+been spent, and a chest draw that has already been placed cannot be unmade at all.
+**A consequence that has been acted on is not revertible**, so the only honest place
+for the boundary is before the consequence rather than after it.
+
+It is also simply the better thing to look at. A body that fades rather than blinking
+out is the least artificial version of the moment, and the fade is real data rather
+than an animation the renderer invented.
+
+**Built:** issue 210. **Changed:** the world record, the reap pass, the snapshot, the
+renderer, and [the simulation tick](003-the-simulation-tick.md).
+
+H1 is still open, and it is the smaller one.
+
+## H3. A pool of coroutines is not parallel — **ANSWERED**
 
 [The thread pool slices the tick](../issues/209-the-thread-pool-slices-the-tick.md)
 asks for "a pool of coroutines over shared memory," and
@@ -4402,6 +4430,19 @@ Three ways, in the order they look promising:
    than it saves is a pool that should not exist, and the issue itself says so in
    its fifth step.
 
-**Whatever is decided, the documents have to stop saying "a pool of coroutines"
-means parallel execution**, because that sentence is currently in three places and
-is not true in any of them.
+**Answer: the prototype is single-threaded, and it says so.** The coroutine pool is
+the shape of the idea rather than a working parallelism, and every document that
+implied otherwise has been corrected — that sentence was in three places and was not
+true in any of them.
+
+When it needs to scale, **the parts that matter move to a C core**, which is where
+real parallelism lives anyway: separate execution over memory addressed by pointer,
+which is what the flat-array layout was always for. That is a later expansion and not
+a rewrite of the prototype.
+
+Nothing is being built for issue 209 now. The census makes the case for waiting: the
+field holds hundreds of bodies and a match already runs at many times real time on
+one core.
+
+**Changed:** issue 209, [the simulation tick](003-the-simulation-tick.md), and the
+phase-2 progress file.

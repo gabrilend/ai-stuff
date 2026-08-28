@@ -223,56 +223,97 @@ function M.resolve_pass(world)
 end
 -- }}}
 
+-- {{{ local function make_it_final()
+-- Everything a death causes, once the death is certain.
+--
+-- Lifted out of the reap pass because it now happens two seconds after the body
+-- fell rather than in the same breath. A body's death decrements exactly one wave's
+-- living count; nothing scans every wave every tick.
+local function make_it_final(world, id)
+  local soldier = world.soldier
+  local dead_team = soldier.team[id]
+  local wave_id = soldier.wave[id]
+
+  world.raise(world, "killed", {
+    team    = dead_team,
+    flavour = soldier.flavour[id],
+    lane    = soldier.lane[id],
+    x       = soldier.x[id],
+    y       = soldier.y[id],
+  })
+
+  -- Every player on the other team is paid, in full, in this body's colour.
+  -- Nothing asks what killed it.
+  world.commanders.pay_for_kill(world, dead_team, soldier.flavour[id],
+                                soldier.archetype[id], soldier.bounty_colour[id])
+
+  if soldier.flavour[id] == 4 then
+    -- A monster's death pays the team it was a **test for**, whoever landed the
+    -- blow, so nobody can reach into the middle and take the enemy's reward.
+    world.phases.monster_died(world, soldier.assigned_team[id], soldier.archetype[id])
+  end
+
+  if soldier.flavour[id] == 2 then
+    -- A hero is gone, and the resource that bought it is gone with it. There
+    -- is no respawn: what a player forms an attachment to is the decision, not
+    -- the body.
+    world.commanders.hero_died(world, soldier.owner[id])
+  end
+
+  if wave_id ~= 0 then
+    world.waves.member_died(world, wave_id)
+  end
+
+  if soldier.flavour[id] == 3 and soldier.leash_node[id] ~= 0 then
+    world.structures.guard_died(world, id)
+  end
+
+  world.release(world, id)
+end
+-- }}}
+
 -- {{{ function M.reap_pass()
--- Turns deaths into consequences, then frees the slots.
+-- Two sweeps: bodies that have just fallen, and bodies whose fall is now certain.
+--
+-- **A death is a two-second process, not an instant.** A body at zero health leaves
+-- the field immediately -- it stops fighting, stops being a target, stops holding a
+-- place in the queue, stops counting toward push depth -- and then holds its slot,
+-- and every one of its numbers, while it decays. Nobody is paid, no wave counter
+-- moves, no guard is replaced and no challenge ends until the decay runs out.
+--
+-- That is the only way a death can ever be corrected. A body that died here and did
+-- not die on another machine cannot be repaired once its slot is gone, and deaths
+-- are the hinge everything downstream hangs from: health makes deaths, deaths make
+-- wipes, wipes make draws, draws make the chest. One soldier's difference puts a
+-- machine permanently out of step. Two seconds is two reconciliation cycles, which
+-- is long enough for every machine to have had its say.
+--
+-- The cost, stated where somebody will read it: **every consequence of a death lands
+-- two seconds late.** Uniformly, for all of them, so it is a delay and not a
+-- distortion. Paying immediately and undoing it later was the alternative and it
+-- does not work -- a payment can be unmade only if it has not been spent, and a
+-- chest draw that has already been placed cannot be unmade at all.
 --
 -- Runs on one thread. It mutates shared structures -- wave counters, team chests,
 -- the free list -- and it is short.
 function M.reap_pass(world)
   local soldier = world.soldier
+  local span = world.parameters.unit.decay_ticks
 
-  -- Bodies first. A body's death decrements exactly one wave's living count;
-  -- nothing scans every wave every tick.
+  -- The fallen. Off the field, slot held.
   for id = 1, world.high_water do
     if soldier.alive[id] == 1 and soldier.state[id] == 5 then
-      local dead_team = soldier.team[id]
-      local wave_id = soldier.wave[id]
+      world.begin_decay(world, id, span)
+    end
+  end
 
-      world.raise(world, "killed", {
-        team    = dead_team,
-        flavour = soldier.flavour[id],
-        lane    = soldier.lane[id],
-        x       = soldier.x[id],
-        y       = soldier.y[id],
-      })
-
-      -- Every player on the other team is paid, in full, in this body's colour.
-      -- Nothing asks what killed it.
-      world.commanders.pay_for_kill(world, dead_team, soldier.flavour[id],
-                                    soldier.archetype[id], soldier.bounty_colour[id])
-
-      if soldier.flavour[id] == 4 then
-        -- A monster's death pays the team it was a **test for**, whoever landed the
-        -- blow, so nobody can reach into the middle and take the enemy's reward.
-        world.phases.monster_died(world, soldier.assigned_team[id], soldier.archetype[id])
+  -- The certain. Counted down, and finished when the count runs out.
+  for id = 1, world.high_water do
+    if soldier.decaying[id] > 0 then
+      soldier.decaying[id] = soldier.decaying[id] - 1
+      if soldier.decaying[id] == 0 then
+        make_it_final(world, id)
       end
-
-      if soldier.flavour[id] == 2 then
-        -- A hero is gone, and the resource that bought it is gone with it. There
-        -- is no respawn: what a player forms an attachment to is the decision, not
-        -- the body.
-        world.commanders.hero_died(world, soldier.owner[id])
-      end
-
-      if wave_id ~= 0 then
-        world.waves.member_died(world, wave_id)
-      end
-
-      if soldier.flavour[id] == 3 and soldier.leash_node[id] ~= 0 then
-        world.structures.guard_died(world, id)
-      end
-
-      world.release(world, id)
     end
   end
 

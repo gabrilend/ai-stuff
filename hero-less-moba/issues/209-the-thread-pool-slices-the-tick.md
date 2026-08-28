@@ -6,7 +6,7 @@
 | Blocked by | 103, 202, 204, 205, 206 |
 | Blocks | 804 |
 | Reads | [the simulation tick](../docs/003-the-simulation-tick.md), [the shape of the code](../docs/018-the-shape-of-the-code.md) |
-| Open questions | H3 — whether a coroutine pool can be parallel at all |
+| Open questions | none |
 
 ## Current behavior
 
