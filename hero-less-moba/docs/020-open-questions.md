@@ -4356,3 +4356,52 @@ Three ways out, in the order they look promising:
 Nothing here is decidable until there is a network at all — this is issue 801's
 problem, and it is written down now because the replay log found it and the
 finding would otherwise be lost.
+
+## H3. A pool of coroutines is not parallel — **NEEDS A DECISION**
+
+[The thread pool slices the tick](../issues/209-the-thread-pool-slices-the-tick.md)
+asks for "a pool of coroutines over shared memory," and
+[the shape of the code](018-the-shape-of-the-code.md) repeats it. The sentiment is
+right and the mechanism does not do what the sentiment wants.
+
+**Coroutines in Lua all run on one operating-system thread.** They hand control to
+each other; they never hold it at the same time. A pool of them over a tick that is
+thousands of soldiers doing arithmetic is a more complicated way to take exactly as
+long, and on a machine with sixteen idle cores it will use one of them.
+
+Coroutines are the right tool when the work is waiting — a file, a socket, a reply
+from another machine. None of the tick is waiting. All of it is arithmetic.
+
+Real parallelism in this environment means separate Lua states, which cannot share a
+table, so the world would have to stop being tables of numbers and become memory
+allocated through the FFI, addressed by pointer, with the flat-array layout it
+already has. That layout is the half of the job already done and done for exactly
+this reason — the argument for a struct of arrays was always that slicing one is a
+pair of integer bounds. What is not done is that every file which reads a body reads
+it out of a Lua table today.
+
+Now measurable, which changes the question: `./run-prototype headless` prints a
+census of how crowded the field gets. It is **hundreds of bodies, not thousands**,
+and very uneven — an ordinary phase is a fraction of a challenge. A pool has to earn
+its place at the ordinary figure, because that is where a match spends most of its
+time.
+
+Three ways, in the order they look promising:
+
+1. **Do the slicing, execute it serially, and be honest about it.** Cutting each
+   pass into independent slices is most of the work and most of the value: it forces
+   the question of what each pass is allowed to touch, and answering it is how the
+   attack pass turned out to be safe only because damage is buffered. A pool whose
+   size is a number and whose speed is the same at every size is a scaffold with a
+   truthful label. Swapping the executor later is contained.
+2. **Move the world into FFI memory and use real threads.** The design this project
+   has been describing all along, and a change that touches every file that reads a
+   body. Worth doing if the body count ever justifies it; the census says it does
+   not yet.
+3. **Close the issue with the measurement as the reason.** A pool that costs more
+   than it saves is a pool that should not exist, and the issue itself says so in
+   its fifth step.
+
+**Whatever is decided, the documents have to stop saying "a pool of coroutines"
+means parallel execution**, because that sentence is currently in three places and
+is not true in any of them.
