@@ -18,6 +18,15 @@ It is kept rather than discarded: it is faster to debug in, works where nothing
 graphical does, pipes to a file and diffs, and keeps the viewing layer honest by being
 a second consumer of the same snapshots.
 
+It also watches replays: `./run-prototype replay <file> watch` draws a recorded match
+as it plays back. Through the **same** playback loop the reporting mode uses, hooked
+per tick — a second loop written for the sake of drawing would be a second program
+that agreed with the first right up until it did not, and nothing would say when.
+
+Not built: the step mode. There is no advance-one-tick-per-keypress here; that job is
+done by the gate in issue 110, which steps a described world by a named number of
+ticks or until a named event.
+
 ## Intended behavior
 
 A viewer that draws the match as text: three lanes as three rows of characters,

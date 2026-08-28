@@ -54,13 +54,29 @@ local function clear_buffers(world)
 end
 -- }}}
 
+-- {{{ local function think()
+-- The bots decide what to do, and queue it.
+--
+-- Its own row rather than a call hidden at the top of the command pass. It was the
+-- latter until the replay log went in and recorded nothing: the recorder sat
+-- between the two and saw an empty queue, because the thing filling the queue was
+-- inside the row after it.
+--
+-- Which is the argument for the dispatch table in the first place. The order of the
+-- simulation is supposed to be readable as data; a system folded into another
+-- system's function body is a step that happens and cannot be seen happening.
+--
+-- **Before the commands are applied**, so a bot's intent lands on this same tick,
+-- through the ordinary queue, in the same fixed order a person's click does. A bot
+-- with a private path into the world would be a second door, and the whole point of
+-- the first one is that there is only one.
+local function think(world)
+  world.bot_module.run(world)
+end
+-- }}}
+
 -- {{{ local function apply_commands()
 local function apply_commands(world)
-  -- The bot thinks first, so whatever it decides is applied on this same tick and
-  -- goes through the ordinary queue -- exactly as a person's click does, and in the
-  -- same fixed order. A bot with a private path into the world would be a second
-  -- door, and the whole point of the first one is that there is only one.
-  world.bot_module.run(world)
   world.commands.apply_all(world)
 end
 -- }}}
@@ -238,6 +254,33 @@ local function phase(world)
 end
 -- }}}
 
+-- {{{ local function record_commands()
+-- Writes this tick's commands down, **before** they are applied.
+--
+-- Before, for two reasons. Applying them empties the queue, so afterwards there is
+-- nothing to write. And a command that gets refused still belongs in the record: a
+-- replay holding only the accepted commands is a replay in which nobody ever made a
+-- mistake, and the refusals are half of what anybody watches a replay to understand.
+--
+-- Costs nothing when nobody is recording -- the sink is the integer 0 and the
+-- function returns immediately.
+local function record_commands(world)
+  world.replay_module.record_commands(world)
+end
+-- }}}
+
+-- {{{ local function log_keyframe()
+-- Writes the accepted state down, once a second, at the very end of the tick.
+--
+-- Last, because a keyframe is a statement about a finished tick. Anywhere earlier
+-- and it would record a world halfway through being brought up to date, which is a
+-- state no other machine will ever be in and therefore a state nothing can usefully
+-- be compared against.
+local function log_keyframe(world)
+  world.replay_module.log_keyframe(world, false)
+end
+-- }}}
+
 -- {{{ local function stamp_snapshot()
 local function stamp_snapshot(world)
   world.snapshot.stamp(world)
@@ -259,6 +302,8 @@ end
 --     would report a depth held by a body that died this tick.
 M.system = {
   {name = "clear",    run = clear_buffers},
+  {name = "think",    run = think},
+  {name = "record",   run = record_commands},
   {name = "commands", run = apply_commands},
   {name = "spawn",    run = spawn},
   {name = "index",    run = index_the_field},
@@ -271,6 +316,7 @@ M.system = {
   {name = "measure",  run = measure},
   {name = "phase",    run = phase},
   {name = "snapshot", run = stamp_snapshot},
+  {name = "log",      run = log_keyframe},
 }
 -- }}}
 
@@ -322,6 +368,7 @@ M.cast = {
   {name = "stones",           file = "061-the-stones"},
   {name = "rest_of_brain",    file = "062-the-rest-of-the-brain"},
   {name = "gate",             file = "063-the-gate"},
+  {name = "replay",           file = "066-the-replay-log"},
 }
 -- }}}
 
@@ -377,6 +424,7 @@ function M.assemble(modules, parameters)
   world.stones     = modules.stones
   world.rest_of_brain = modules.rest_of_brain
   world.gate_module = modules.gate
+  world.replay_module = modules.replay
 
   -- The three world-level helpers the systems call by name. Hung here rather than
   -- required, for the same reason as everything above.
@@ -412,6 +460,9 @@ function M.assemble(modules, parameters)
   modules.waves.begin(world)
   modules.structures.begin(world)
   modules.snapshot.begin(world)
+  -- After the structures exist, because the log preallocates one slot per piece of
+  -- stone as well as one per body.
+  modules.replay.begin(world)
 
   -- The first snapshot, so that a viewer attaching before tick 1 has something
   -- to draw rather than an empty screen it cannot distinguish from a bug.

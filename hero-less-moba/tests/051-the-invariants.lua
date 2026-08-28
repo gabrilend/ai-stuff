@@ -1122,6 +1122,154 @@ local function test_the_bypass_reaches_the_gate()
 end
 -- }}}
 
+-- {{{ local function test_a_replay_is_the_match_that_was_played()
+-- Record a match, play it back, and get the same match.
+--
+-- The claim being tested is narrower than it sounds and the narrowness is the
+-- point. A replay is not "the seed and the commands" -- that would reproduce *a*
+-- match rather than *the* match, because under a rotating network authority the
+-- world is periodically overwritten from outside. So a replay carries keyframes of
+-- the accepted state, and this asserts that the record and the replay agree at
+-- every one of them.
+--
+-- Played with the corrections switched **off**, so what is being checked is the
+-- simulation reproducing the match on its own rather than the keyframes dragging it
+-- into place. The keyframes are checked separately, below.
+local function test_a_replay_is_the_match_that_was_played()
+  local into = "/dev/shm/hero-less-moba/the-invariants.replay"
+  local world, modules, parameters = fresh_world(tick_module)
+
+  modules.replay.record_into(world, into)
+  for _ = 1, 4000 do
+    if not tick_module.advance(world) then break end
+  end
+  local frames = modules.replay.close(world, world.winner)
+
+  check("a match records keyframes as it is played", frames > 100,
+        tostring(frames) .. " keyframes")
+
+  local replay = modules.replay.read(into)
+  check("and the file reads back as the match that was recorded",
+        replay.seed == parameters.seed and replay.ended_at == world.tick,
+        "seed " .. tostring(replay.seed) .. ", ended " .. tostring(replay.ended_at))
+
+  -- The bots played this match, so there are commands in it. A replay of a match
+  -- with no commands in it would pass everything below while proving nothing about
+  -- the command stream.
+  check("and the commands somebody made are in it", world.replay.commands > 0,
+        tostring(world.replay.commands) .. " commands")
+
+  local again = fresh_world(tick_module)
+  local report = modules.replay.play(again, replay, tick_module, {})
+  check("and playing it back reproduces the match at every keyframe",
+        report.frames > 0 and report.agreed == report.frames,
+        string.format("%d of %d agreed, first drift at %d",
+                      report.agreed, report.frames, report.first_drift))
+end
+-- }}}
+
+-- {{{ local function test_the_keyframes_repair_a_divergence()
+-- And the keyframes are load-bearing rather than decorative.
+--
+-- A machine that has drifted is simulated directly: the playback is stopped halfway,
+-- every living body is moved a little, and it is let go again. Two things then have
+-- to be true, and the second is the one worth having.
+--
+--   * the hash notices, and says which tick it noticed at
+--   * playing on **with corrections** keeps the world near the record, where playing
+--     on without them lets it wander
+--
+-- Measured as a distance rather than as a hash match, because after a correction the
+-- hash is the wrong instrument: it is taken before the correction lands, and it
+-- answers a yes-or-no question about a world that is now approximately right. The
+-- distance says *how* approximately, which is the thing being claimed.
+--
+-- Without this, a replay would be a nice picture of a match that had already stopped
+-- being the one that was played.
+local function test_the_keyframes_repair_a_divergence()
+  local into = "/dev/shm/hero-less-moba/the-divergence.replay"
+  local world, modules = fresh_world(tick_module)
+
+  modules.replay.record_into(world, into)
+  for _ = 1, 3000 do
+    if not tick_module.advance(world) then break end
+  end
+  modules.replay.close(world, world.winner)
+  local replay = modules.replay.read(into)
+
+  -- The nudge. A tenth of a world unit is far below anything a person could see and
+  -- well above the sixty-fourth the hash measures in, which is the gap it is meant
+  -- to sit in: invisible to a player, obvious to the record.
+  local function drifting_playback(correcting)
+    local drifted = fresh_world(tick_module)
+    modules.replay.play(drifted, replay, tick_module,
+                        {correcting = correcting, until_tick = 1500})
+    for id = 1, drifted.high_water do
+      if drifted.soldier.alive[id] == 1 then
+        drifted.soldier.x[id] = drifted.soldier.x[id] + 0.1
+      end
+    end
+    return modules.replay.play(drifted, replay, tick_module, {correcting = correcting})
+  end
+
+  local loose = drifting_playback(false)
+  check("a world that has drifted stops matching the record",
+        loose.first_drift > 0,
+        "first drift at " .. tostring(loose.first_drift))
+
+  local held = drifting_playback(true)
+  check("and the keyframes hold it near the match that was played",
+        held.worst_gap < loose.worst_gap,
+        string.format("%.3f units adrift at worst, against %.3f uncorrected",
+                      held.worst_gap, loose.worst_gap))
+
+  -- The correction is a second's worth of walking away from perfect, not a rounding
+  -- error: a body moves a few units in the thirty ticks between keyframes, so the
+  -- gap that is allowed to reopen is of that size. What it must not do is grow.
+  check("and it does not wander further as the match goes on",
+        held.last_gap <= held.worst_gap + 0.0001,
+        string.format("%.3f at the end, %.3f at worst",
+                      held.last_gap, held.worst_gap))
+end
+-- }}}
+
+-- {{{ local function test_a_replay_knows_which_rules_it_was_played_under()
+-- A replay recorded under different numbers is refused rather than migrated.
+--
+-- Refused, because playing it under the current numbers produces a match that
+-- diverges within seconds and blames the replay system for it. The stamp is
+-- computed from the parameter tree rather than written down by a person, so it
+-- changes the moment somebody edits a catalogue -- which is the whole reason it can
+-- be trusted. A version number a person maintains is a version number that is wrong
+-- the first time somebody forgets replays exist.
+local function test_a_replay_knows_which_rules_it_was_played_under()
+  local _, modules, parameters = fresh_world(tick_module)
+
+  local stamp = modules.replay.rules_stamp(parameters)
+  check("the rules stamp is the same twice for the same rules",
+        stamp == modules.replay.rules_stamp(parameters), tostring(stamp))
+
+  -- One number changed, deep in a catalogue. Restored afterwards, because these
+  -- tests share one parameter table and a soldier left with four extra health would
+  -- quietly change every test that runs after this one.
+  local was = parameters.unit.archetype[1].health
+  parameters.unit.archetype[1].health = was + 1
+  local moved = modules.replay.rules_stamp(parameters)
+  parameters.unit.archetype[1].health = was
+
+  check("and changing one number anywhere in the rules changes it",
+        moved ~= stamp, tostring(moved) .. " against " .. tostring(stamp))
+
+  check("and putting the number back puts the stamp back",
+        modules.replay.rules_stamp(parameters) == stamp)
+
+  local pretend = {rules = stamp + 1}
+  local agreed = modules.replay.check_rules(pretend, parameters)
+  check("and a replay from other rules is refused rather than migrated",
+        agreed == false)
+end
+-- }}}
+
 print("")
 print("the invariants")
 print("")
@@ -1148,6 +1296,9 @@ test_a_match_ends()
 test_a_played_match_is_decisive()
 test_the_menu_can_be_bypassed()
 test_the_bypass_reaches_the_gate()
+test_a_replay_knows_which_rules_it_was_played_under()
+test_a_replay_is_the_match_that_was_played()
+test_the_keyframes_repair_a_divergence()
 print("")
 print(string.format("%d passed, %d failed", passed, failed))
 print("")

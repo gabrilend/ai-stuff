@@ -23,12 +23,32 @@ That is not a stalemate the design predicted; it is an empty chair.
 
 | Function | Arguments | Returns |
 | --- | --- | --- |
-| `begin(world, teams)` | array of team numbers | — Puts a bot behind each. |
+| `begin(world, teams)` | array of team numbers | — Puts a bot behind each, and no bot behind the rest. Called again with an empty list to switch every bot off, which is what a replay playback does. |
 | `run(world)` | | — Every bot looks at the board, on its own slow clock. |
 
 Which teams are bot-played comes from `input/bots`, which is the one input file
 allowed to be missing — "nobody is a bot" is a real answer rather than an unmade
 decision.
+
+## How the bots are held
+
+`world.bot` is an array with **one slot per team**, holding the integer 0 where
+nobody is played by a bot. It is walked as a counted loop in team order.
+
+It used to be a table keyed only by the teams that had one, walked with `pairs()` —
+an iteration whose order Lua does not promise, inside a project whose first invariant
+is that the same seed plays the same match. It happened to be stable and it was one
+edit away from not being.
+
+Switching every bot off is `begin(world, {})`, and a replay playback does exactly
+that: the bots' decisions are already in the record, and letting them decide again
+applies every one twice, so the match diverges within a couple of minutes while every
+part of the machinery looks correct. During a playback the command stream is the only
+thing allowed to want anything.
+
+The bots think in their **own row of the tick**, before the commands are applied,
+rather than being called from inside the command pass. They were the latter until the
+replay log recorded nothing.
 
 ## The whole policy
 

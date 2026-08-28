@@ -288,6 +288,12 @@ function M.create(parameters, map, stream)
     map        = map,
     stream     = stream,
 
+    -- How many soldier slots exist. Written down rather than left as the length of
+    -- one of the arrays, because anything that has to walk every slot -- the replay
+    -- log preallocating its own parallel arrays, for one -- should be asking the
+    -- world how big it is rather than asking one of its fields.
+    capacity = capacity,
+
     soldier = make_soldier_arrays(capacity, kind_count),
     -- One slot per soldier, cleared at the top of every tick. Attacks write here
     -- and a separate pass adds it into health, which is what makes two soldiers

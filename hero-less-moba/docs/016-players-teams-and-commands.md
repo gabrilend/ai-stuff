@@ -177,6 +177,33 @@ value must **not** raise a death, a wipe, or a draw as a side effect. Health is
 written; the ordinary resolve pass notices the zero on the next tick and
 everything downstream follows through the normal path.
 
+#### What a position actually is, and what this section still owes
+
+"Positions" is doing more work in the paragraphs above than it looks like, and
+building the replay log — which records the same thing this sync records — walked
+into it first.
+
+**A body's x and y are derived, not stored.** A body walking a lane is held as how
+far along the lane it is and how far across it; x and y are recomputed from those on
+every move pass. Sending an x and a y and writing them onto the receiver's body
+accomplishes precisely nothing: the next move pass overwrites them a fraction of a
+second later, while every counter in the system reports the correction was applied.
+What has to cross the wire is the authoritative set — lane coordinates, which
+segment of the path, and which edge a body not on a lane is walking.
+
+Two questions follow that this document cannot answer on its own, both written up in
+[open questions](020-open-questions.md):
+
+- **H1.** Which lane a body is in is a *decision*, taken once at a junction — not a
+  number that drifts. Two machines that disagree about it have taken different turns
+  rather than drifted apart, and this section's model has no answer for that.
+- **H2.** A machine that killed a body the authority did not **can never be
+  corrected**. The slot is freed and recycled; there is nothing left to write the
+  numbers onto. Since deaths are the hinge everything downstream hangs from — deaths
+  to wipes to draws to the chest — that is the more serious of the two, and it is
+  measurable: the divergence check in the invariants suite prints how far two runs
+  get apart with and without correction.
+
 ### Presence — every player's cursor, continuously
 
 Each player's mouse position is synced to their **teammates**. This is a few
