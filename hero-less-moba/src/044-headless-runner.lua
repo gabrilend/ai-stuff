@@ -43,10 +43,39 @@ local M = {}
 -- Advances a world until it ends or the tick limit is reached. Returns the world
 -- so a caller can read whatever it wants off it.
 function M.run(world, tick_module, limit, on_tick)
+  -- The census, taken as the match runs because it cannot be taken afterwards: how
+  -- crowded the field gets is a fact about the whole match and the final tick knows
+  -- nothing about it.
+  --
+  -- It is here rather than in a document because it is exactly the sort of number a
+  -- document gets wrong. Anything that wants to know how many bodies are on the
+  -- field -- the thread pool in issue 209 most of all, whose entire value depends on
+  -- the answer -- should run a match and read it, not look it up.
+  world.census = {}
+  for phase = 1, 5 do
+    world.census[phase] = {ticks = 0, sum = 0, peak = 0}
+  end
+  world.census.peak = 0
+  world.census.peak_tick = 0
+  world.census.peak_phase = 0
+
   while world.tick < limit do
     if not tick_module.advance(world) then
       break
     end
+
+    local row = world.census[world.phase]
+    row.ticks = row.ticks + 1
+    row.sum = row.sum + world.live_count
+    if world.live_count > row.peak then
+      row.peak = world.live_count
+    end
+    if world.live_count > world.census.peak then
+      world.census.peak = world.live_count
+      world.census.peak_tick = world.tick
+      world.census.peak_phase = world.phase
+    end
+
     if on_tick ~= nil then
       on_tick(world)
     end
@@ -70,6 +99,27 @@ function M.report(world)
   lines[#lines + 1] = string.format("tick %d -- %s", world.tick, outcome)
   lines[#lines + 1] = string.format("%d bodies on the field, %d waves spawned",
                                     world.live_count, #world.wave)
+
+  -- How crowded it got, by phase. The number the thread pool's worth turns on, and
+  -- the reason it is printed rather than written into a document: the moment
+  -- anything about spawning changes, a written figure is a lie and this is not.
+  if world.census ~= nil then
+    local name = {"normal", "surge", "challenge", "calm", "over"}
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = "how crowded      ticks   mean   peak"
+    for phase = 1, 5 do
+      local row = world.census[phase]
+      if row.ticks > 0 then
+        lines[#lines + 1] = string.format("  %-12s %6d %6d %6d", name[phase],
+                                          row.ticks, row.sum / row.ticks, row.peak)
+      end
+    end
+    lines[#lines + 1] = string.format("  most at once %6s %6s %6d  at tick %d, during %s",
+                                      "", "", world.census.peak,
+                                      world.census.peak_tick,
+                                      name[world.census.peak_phase] or "?")
+    lines[#lines + 1] = string.format("  the world holds %d slots", world.capacity)
+  end
 
   lines[#lines + 1] = ""
   lines[#lines + 1] = "                     lane 1   lane 2   lane 3"

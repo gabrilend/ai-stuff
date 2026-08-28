@@ -309,10 +309,21 @@ luajit src/044-headless-runner.lua 40000 trace    -- a line every 600 ticks</cod
 <p><code>main</code> is kept apart from <code>run</code> so a test can drive a match without going through</p>
 <p>argument parsing.</p>
 <h2>What the report says</h2>
-<p>Outcome and tick count; bodies on the field and waves spawned; then, per lane per team,</p>
-<p><strong>push depth</strong> and <strong>waves lost</strong>; then upgrades drawn and where they are sitting; then</p>
-<p>towers standing and each library's health.</p>
+<p>Outcome and tick count; bodies on the field and waves spawned; <strong>the census</strong>; then,</p>
+<p>per lane per team, <strong>push depth</strong> and <strong>waves lost</strong>; then upgrades drawn and where</p>
+<p>they are sitting; then towers standing and each library's health.</p>
 <p>Deliberately made of the numbers a balance question is asked in, rather than of prose.</p>
+<h3>The census</h3>
+<p>How crowded the field gets: ticks, mean bodies, and peak bodies, one row per phase,</p>
+<p>plus the single worst moment and the tick it happened on, against how many slots the</p>
+<p>world holds.</p>
+<p>Taken while the match runs rather than at the end, because it is a fact about a whole</p>
+<p>match and the final tick knows nothing about it.</p>
+<p>It is printed rather than written into a document on purpose. The thread pool in</p>
+<p>issue <a class='issue-link' href='209-the-thread-pool-slices-the-tick.html'>209</a> is worth building or not building entirely according to this number, and</p>
+<p>the moment anything about spawning changes, a figure quoted in a document is a lie</p>
+<p>while this is not. **Anything that wants to know how crowded it gets should run a</p>
+<p>match and read it.**</p>
 <h2>How it knows it was invoked directly</h2>
 <p><code>arg[0]</code> — the script the interpreter was asked to run — compared against this file's</p>
 <p>own name. The usual trick of checking <code>...</code> cannot tell the difference here, because a</p>
