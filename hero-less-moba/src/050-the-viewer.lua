@@ -108,6 +108,49 @@ local function take_capture(plan)
 end
 -- }}}
 
+-- {{{ function M.choose_opening()
+-- Which screen the program opens on. **Pure**, and separate from acting on the
+-- answer, so that a test can ask the question without a window.
+--
+-- That separation is not tidiness. This decision was once four lines inside the
+-- window setup, in the wrong order, and asking for a screenshot of a scenario
+-- quietly photographed an ordinary match instead -- the picture looked like a game,
+-- so nothing in it said the scenario had not loaded. A wrong answer here is
+-- invisible by construction, which is exactly the kind of answer that has to be
+-- asserted rather than looked at.
+--
+-- Three inputs, all of them what the outside world said:
+--
+--   start          -- the HLM_START string, or nil for "nobody said"
+--   capturing      -- whether a screenshot was asked for at all
+--   capturing_menu -- whether the screenshot wanted the menu itself
+--
+-- Returns one of "menu", "match", "scenario", and for a scenario, its name.
+--
+-- The order is most-specific-first. A named start beats a capture plan, because
+-- HLM_START says *what to run* and HLM_CAPTURE only says *photograph whatever is
+-- running*; the one exception is HLM_CAPTURE_MENU, which is the only way to point
+-- a camera at this screen and so has to outrank everything.
+function M.choose_opening(start, capturing, capturing_menu)
+  if capturing and capturing_menu then
+    return "menu"
+  end
+
+  local scenario = (start ~= nil) and start:match("^scenario:(.+)$") or nil
+  if scenario ~= nil then
+    return "scenario", scenario
+  end
+
+  -- A capture with nothing named still wants a game to photograph, and so does a
+  -- plain HLM_START=match. Anything else -- including a malformed start -- leaves
+  -- the menu up, where a person can see what happened.
+  if capturing or start == "match" then
+    return "match"
+  end
+  return "menu"
+end
+-- }}}
+
 -- {{{ function M.load()
 -- Builds everything and opens the window.
 function M.load(root)
@@ -119,7 +162,40 @@ function M.load(root)
   M.renderer    = loadfile(root .. "/src/047-the-renderer.lua")()
   M.panel       = loadfile(root .. "/src/048-the-panel.lua")()
   M.input       = loadfile(root .. "/src/049-input.lua")()
+  M.way_in      = loadfile(root .. "/src/065-the-way-in.lua")()
 
+  M.way_in.load()
+  M.way_in.colours = M.modules.match_parameters.load().commander.colour
+  M.menu = M.way_in.begin(root)
+
+  -- Read here rather than inside the match setup, because whether there is a capture
+  -- plan decides **which screen to open on** -- and a plan read after that decision
+  -- has already missed it.
+  M.capture = read_capture_plan()
+
+  -- **Every path the menu offers is reachable without it.** Not a convenience: the
+  -- batch runner and every automated test start a game with nobody present, and a
+  -- menu that cannot be bypassed is a menu that gets bypassed by a second code path
+  -- nobody tests. So the bypass goes through the same two functions the menu calls.
+  local opening, name = M.choose_opening(os.getenv("HLM_START"),
+                                         M.capture ~= nil,
+                                         os.getenv("HLM_CAPTURE_MENU") ~= nil)
+  if opening == "menu" then
+    if M.capture ~= nil then
+      M.capture.on_the_menu = true
+    end
+  elseif opening == "scenario" then
+    M.begin_scenario(name)
+  elseif opening == "match" then
+    M.begin_match()
+  end
+end
+-- }}}
+
+-- {{{ function M.begin_match()
+-- Builds a world and hands the viewer to it. The menu names this; it does not do it.
+function M.begin_match()
+  local root = M.root
   local parameters = M.modules.match_parameters.load()
   M.world = M.tick_module.assemble(M.modules, parameters)
 
@@ -136,9 +212,14 @@ function M.load(root)
                                     M.panel.panel_left(),
                                     love.graphics.getHeight())
   M.state = M.input.create()
-  M.capture = read_capture_plan()
   if M.capture ~= nil then
     M.state.speed = M.capture.speed
+  end
+  -- Opening held, when somebody asked to look before anything moves. The same
+  -- thing a scenario does by default, offered to an ordinary match, because the
+  -- opening arrangement is worth reading and it is gone two seconds later.
+  if os.getenv("HLM_PAUSED") ~= nil then
+    M.state.paused = true
   end
 
   -- What the input layer is handed. Assembled once so that every callback sees
@@ -157,6 +238,21 @@ function M.load(root)
       return (state.watching == 1) and 1 or (M.world.parameters.team_size + 1)
     end,
   }
+
+  M.menu.screen = M.way_in.PLAYING
+end
+-- }}}
+
+-- {{{ function M.begin_scenario()
+-- The same, and then a described world loaded on top of it, **held**.
+--
+-- Held is the point: it starts paused, so the thing a scenario was written to show can
+-- be looked at before it moves.
+function M.begin_scenario(name)
+  M.begin_match()
+  M.modules.gate.load(M.world, M.root .. "/scenarios/" .. name)
+  M.state.paused = true
+  M.modules.snapshot.stamp(M.world)
 end
 -- }}}
 
@@ -175,26 +271,14 @@ local function drain_events(world, frame, watching)
 end
 -- }}}
 
--- {{{ function M.update()
-function M.update(delta_time)
-  -- A frame that took a very long time -- the window was dragged, the machine
-  -- slept -- is truncated rather than simulated through. Catching up on four
-  -- seconds of ticks in one frame produces a longer frame, which produces more
-  -- catching up, and the window stops responding entirely.
-  if delta_time > 0.25 then
-    delta_time = 0.25
-  end
-
-  M.input.update(M.state, M.context, delta_time)
-  M.camera_module.update(M.camera, delta_time)
-
-  if M.state.paused then
-    -- The accumulator is dropped rather than kept. Keeping it would make
-    -- unpausing spend the pause's worth of real time on a burst of ticks.
-    M.accumulator = 0
-    return
-  end
-
+-- {{{ local function consider_the_clock()
+-- Spends elapsed real time on whole ticks, and leaves the remainder as the blend.
+--
+-- Lifted out of the update so that a **held** world -- a scenario, a paused match --
+-- can skip the clock without skipping everything after it. When this was inline
+-- behind an early return, pausing also switched off the screenshot path, and a
+-- scenario, which opens paused, could never be photographed at all.
+local function consider_the_clock(delta_time)
   -- The snapshot only ever fills in one team's sign-posts, so it has to be told
   -- which. On a real match this would be fixed at the lobby and never change.
   M.world.viewing_team = M.state.watching
@@ -213,6 +297,37 @@ function M.update(delta_time)
     end
     drain_events(M.world, M.modules.snapshot.newest(M.world), M.state.watching)
     budget = budget - 1
+  end
+end
+-- }}}
+
+-- {{{ function M.update()
+function M.update(delta_time)
+  if M.menu.screen ~= M.way_in.PLAYING then
+    return
+  end
+
+  -- A frame that took a very long time -- the window was dragged, the machine
+  -- slept -- is truncated rather than simulated through. Catching up on four
+  -- seconds of ticks in one frame produces a longer frame, which produces more
+  -- catching up, and the window stops responding entirely.
+  if delta_time > 0.25 then
+    delta_time = 0.25
+  end
+
+  M.input.update(M.state, M.context, delta_time)
+  M.camera_module.update(M.camera, delta_time)
+
+  if M.state.paused then
+    -- The accumulator is dropped rather than kept. Keeping it would make
+    -- unpausing spend the pause's worth of real time on a burst of ticks.
+    M.accumulator = 0
+    -- Falls through rather than returning, so that the capture below still happens.
+    -- A scenario opens **held**, and a held world that could not be photographed
+    -- would make the one thing scenarios exist for -- looking at a described moment
+    -- -- the one thing the camera could not be pointed at.
+  else
+    consider_the_clock(delta_time)
   end
 
   -- The unattended capture, if one was asked for. Checked after the ticks so the
@@ -253,6 +368,14 @@ end
 
 -- {{{ function M.draw()
 function M.draw()
+  if M.menu.screen ~= M.way_in.PLAYING then
+    M.way_in.draw(M.menu)
+    if M.capture ~= nil and M.capture.on_the_menu and not M.capture.taken then
+      take_capture(M.capture)
+    end
+    return
+  end
+
   love.graphics.clear(M.renderer.COLOUR.ground)
 
   local newest   = M.modules.snapshot.newest(M.world)
@@ -321,6 +444,9 @@ end
 
 -- {{{ function M.resize()
 function M.resize(width, height)
+  if M.camera == nil then
+    return
+  end
   M.camera_module.reframe(M.camera, 0, 0, M.panel.panel_left(), height)
   -- The rest framing changed, so a camera sitting at the old floor is now below
   -- the new one. Nudging it back by zooming about the centre by a factor of one
@@ -331,10 +457,50 @@ end
 
 -- The LOVE callbacks, forwarded. Kept as one block so that the whole surface this
 -- program presents to the engine is visible in one place.
-function M.keypressed(key)          M.input.keypressed(M.state, M.context, key) end
-function M.wheelmoved(dx, dy)       M.input.wheel(M.state, M.context, dx, dy) end
-function M.mousepressed(x, y, b)    M.input.mousepressed(M.state, M.context, x, y, b) end
-function M.mousereleased(x, y, b)   M.input.mousereleased(M.state, M.context, x, y, b) end
-function M.mousemoved(x, y)         M.input.mousemoved(M.state, M.context, x, y) end
+function M.keypressed(key)
+  if M.menu.screen ~= M.way_in.PLAYING then
+    M.way_in.keypressed(M.menu, key)
+  else
+    M.input.keypressed(M.state, M.context, key)
+  end
+end
+
+function M.wheelmoved(dx, dy)
+  if M.menu.screen == M.way_in.PLAYING then
+    M.input.wheel(M.state, M.context, dx, dy)
+  end
+end
+
+function M.mousepressed(x, y, b)
+  if M.menu.screen ~= M.way_in.PLAYING then
+    -- The menu returns a **choice**, and the viewer acts on it. It never builds a
+    -- world itself, which is what keeps a screen that feels like the owner of the
+    -- game from becoming one.
+    local choice = M.way_in.mousepressed(M.menu, x, y)
+    if choice ~= nil then
+      if choice.start == "match" then
+        M.begin_match()
+      elseif choice.start == "scenario" then
+        M.begin_scenario(choice.name)
+      end
+    end
+  else
+    M.input.mousepressed(M.state, M.context, x, y, b)
+  end
+end
+
+function M.mousereleased(x, y, b)
+  if M.menu.screen == M.way_in.PLAYING then
+    M.input.mousereleased(M.state, M.context, x, y, b)
+  end
+end
+
+function M.mousemoved(x, y)
+  if M.menu.screen ~= M.way_in.PLAYING then
+    M.way_in.mousemoved(M.menu, x, y)
+  else
+    M.input.mousemoved(M.state, M.context, x, y)
+  end
+end
 
 return M

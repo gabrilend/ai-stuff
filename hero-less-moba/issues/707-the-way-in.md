@@ -10,8 +10,25 @@
 
 ## Current behavior
 
-The game starts by being run with a scenario or a match configuration. There is
-no way in that does not involve a command line.
+There is a menu. It draws the title, one line of setting, and a column: **Play**,
+**Scenarios**, **Settings**, **Out**. Play builds an ordinary match. Scenarios
+lists what is in `scenarios/`, read at startup, and loads the chosen one held at
+the gate. Settings cycles each resource colour's shape, because the shapes are the
+readable channel and hue alone is not one.
+
+It holds no world. Clicking returns a **description of what was chosen** — either
+"a match" or "that scenario, by name" — and the viewer builds from it, through the
+same two functions the command line calls.
+
+The bypass is `HLM_START`, taking `match` or `scenario:<name>`, and the decision
+about which screen to open on is a pure function with no window anywhere near it,
+so a test can ask it. `./run-prototype` opens the menu, `play` goes straight in,
+`watch` goes straight in held, `scenario <name>` opens a described world held, and
+`shot` can photograph any of them.
+
+**Not here yet: Replays, and the lobby.** There is no replay to open (issue 107)
+and no lobby to walk into (issue 802), so Play goes directly to a match against
+nobody. Both are listed below and both are still owed.
 
 ## Intended behavior
 
