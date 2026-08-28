@@ -20,6 +20,7 @@ problem statement, rendered, and phase 4's demo is the answer to it.
 | 208 | A wave knows when it is gone | built |
 | 209 | The thread pool slices the tick | not started — H3 |
 | 210 | A death decays before it is final | built |
+| 211 | Waypoints, and the zones they sit in | in progress — H4 and H5 |
 
 **Blocking:** nothing.
 
@@ -93,3 +94,20 @@ passes. Which is the whole argument for having one flag everything agrees on.
 It also happens to be the better thing to look at: a body that fades rather than
 blinking out is the least artificial version of the moment, and the data behind the
 fade is real rather than invented by the renderer.
+
+**211 is in progress and waiting on two decisions.** A lane's measure of how far
+along a wave has got is to become four times finer, and a wave is to approach
+**waypoints** — points at random positions inside each of those finer stretches —
+rather than simply advancing a number, so that its angle of approach varies and two
+waves walking the same road do not tread in the same places.
+
+What is not settled is whether the finer measure replaces the milestones or sits
+underneath them, and whether a waypoint steers the formation inside its lane or
+becomes a destination in the world. The second matters most: a formation is held in
+lane coordinates, and that is the whole reason a rank survives a corner. See H4 and
+H5.
+
+**The map was resized alongside it** and is written up in the balance ledger rather
+than here: bodies further apart, drawn smaller, roads wider — and the map checker
+now refuses a map whose roads no longer carry the number of bodies abreast that the
+shape file says they should.

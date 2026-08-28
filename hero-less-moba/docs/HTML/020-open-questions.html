@@ -168,6 +168,7 @@ svg { max-width: 100%; }
 <a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
 <a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
+<a href='211-waypoints-and-the-zones-they-sit-in.html'><span class='index'>211</span>Waypoints, and the Zones They Sit In</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -3902,7 +3903,65 @@ svg { max-width: 100%; }
 <p>field holds hundreds of bodies and a match already runs at many times real time on</p>
 <p>one core.</p>
 <p><strong>Changed:</strong> issue <a class='issue-link' href='209-the-thread-pool-slices-the-tick.html'>209</a>, <a href='003-the-simulation-tick.html'>the simulation tick</a>, and the</p>
-<p>phase-2 progress file.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>phase-2 progress file.</p>
+<h2>H4. Do milestones stay nine, or become thirty-three? — <strong>NEEDS A DECISION</strong></h2>
+<p>Raised by the request in <a href='211-waypoints-and-the-zones-they-sit-in.html'>issue <a class='issue-link' href='211-waypoints-and-the-zones-they-sit-in.html'>211</a></a></p>
+<p>to make the measure of how far along a lane a wave is "about four times more</p>
+<p>discrete."</p>
+<p>A lane currently has <strong>nine milestones</strong>, at fixed fractions of its length, and they</p>
+<p>do two jobs at once: they are where the towers stand, and they are the unit push</p>
+<p>depth is counted in. Push depth is the number the whole game runs on.</p>
+<p>Four times finer means thirty-two intervals instead of eight. Two ways to get there.</p>
+<ul>
+<li><strong>Milestones stay; zones are added underneath.</strong> Each milestone interval is</li>
+</ul>
+<p>   divided into four, so every milestone is still exactly on a zone boundary, no</p>
+<p>   tower moves, and nothing that says "milestone" changes meaning. Push depth moves</p>
+<p>   from counting milestones to counting zones. Two concepts where there was one, and</p>
+<p>   somebody will eventually ask which of them a given number is in.</p>
+<ul>
+<li><strong>Milestones themselves become thirty-three</strong>, with the towers at every fourth</li>
+</ul>
+<p>   one. One concept, no ambiguity, and exactly the same geometry — but every piece of</p>
+<p>   code that says "milestone" now means something four times finer: the structure</p>
+<p>   sites, the sign-posts, the chest's slot addressing, the renderer's marks along</p>
+<p>   each lane, the terminal viewer, the bot. Each of those is a small change and</p>
+<p>   there are a lot of them, and any one missed is an off-by-four in a number nobody</p>
+<p>   prints.</p>
+<p>The safer of the two is the first, and safety is worth something here specifically</p>
+<p>because push depth is read in so many places that a silent factor of four would be</p>
+<p>found by a player rather than by a test.</p>
+<h2>H5. Does a waypoint steer the formation, or replace the lane? — <strong>NEEDS A DECISION</strong></h2>
+<p>The other half of <a href='211-waypoints-and-the-zones-they-sit-in.html'>issue <a class='issue-link' href='211-waypoints-and-the-zones-they-sit-in.html'>211</a></a>.</p>
+<p>A wave is to approach a <strong>waypoint</strong> — a point at a random position inside the next</p>
+<p>zone — rather than simply advancing a number, so that its approach angle varies a</p>
+<p>little and two waves walking the same lane do not lay their feet in the same places.</p>
+<p>"It's hard to tell exactly which direction is optimal while on the ground, so you</p>
+<p>just sorta go toward that direction."</p>
+<p>The question is what "approach" means against the way movement is built.</p>
+<p>A formation is held in <strong>lane coordinates</strong>: how far along the lane, and how far</p>
+<p>across it. World position is derived from those against the lane's own curve. That</p>
+<p>is not an implementation detail, it is the reason a rank survives a corner — every</p>
+<p>body in a rank shares one distance-along, so the road carries the line round the</p>
+<p>bend as a line. Hold a formation in world coordinates instead and it either tears</p>
+<p>apart on a turn or scythes through the inside of it.</p>
+<ul>
+<li><strong>The waypoint steers within the lane.</strong> The wave still advances along the lane at</li>
+</ul>
+<p>   its pace; the waypoint sets <em>how far across</em> the formation is heading, and the</p>
+<p>   formation eases toward it. The approach angle varies, the wander is real, and the</p>
+<p>   lane still carries the shape round every corner for free. The waypoint's</p>
+<p>   along-position then does little except decide when to pick the next one.</p>
+<ul>
+<li><strong>The waypoint is a destination in the world.</strong> The wave genuinely navigates to a</li>
+</ul>
+<p>   point, and its progress along the lane becomes a consequence of walking there.</p>
+<p>   Faithful to the description, and it means lane coordinates stop being what a</p>
+<p>   formation is held in — which is the load-bearing property the formation work has</p>
+<p>   been built on and measured against from the beginning.</p>
+<p>The first delivers the visible effect asked for and costs nothing. The second is a</p>
+<p>rewrite of the movement model, and would need the corner behaviour re-solved from</p>
+<p>scratch by some other means.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

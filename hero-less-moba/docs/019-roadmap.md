@@ -70,6 +70,7 @@ problem statement, rendered.
 | 208 | A wave knows when it is gone |
 | 209 | The thread pool slices the tick |
 | 210 | A death decays before it is final |
+| 211 | Waypoints, and the zones they sit in |
 
 ## Phase 3 — Things That Stand and Hold
 
