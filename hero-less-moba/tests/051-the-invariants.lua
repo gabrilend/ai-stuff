@@ -1023,6 +1023,105 @@ local function test_no_nil_fields()
 end
 -- }}}
 
+-- {{{ local function test_the_menu_can_be_bypassed()
+-- Every path the menu offers must be reachable without it.
+--
+-- The requirement is issue 707's, and it is a requirement rather than a
+-- convenience: the batch runner and every automated test start a game with nobody
+-- present, thousands of times, and **a menu that cannot be bypassed is a menu that
+-- gets bypassed by a second code path nobody tests**. Two start-up paths drift.
+--
+-- The bug this is the regression for: asking for a screenshot of a scenario opened
+-- an ordinary match instead, because the capture question was asked before the
+-- named-start question. Nothing about the picture said so -- it looked like a game.
+-- A wrong answer here is invisible by construction, so it has to be asserted.
+--
+-- Note what this loads: the viewer, with no window anywhere. That is the point of
+-- the decision being a pure function separate from acting on it.
+local function test_the_menu_can_be_bypassed()
+  local viewer = loadfile(ROOT .. "/src/050-the-viewer.lua")()
+
+  local opening = viewer.choose_opening(nil, false, false)
+  check("with nobody saying anything, the way in is the menu", opening == "menu",
+        tostring(opening))
+
+  opening = viewer.choose_opening("match", false, false)
+  check("and a named match skips it", opening == "match", tostring(opening))
+
+  local name
+  opening, name = viewer.choose_opening("scenario:the-dragon-at-the-midpoint",
+                                        false, false)
+  check("and a named scenario skips it, carrying its name",
+        opening == "scenario" and name == "the-dragon-at-the-midpoint",
+        tostring(opening) .. " / " .. tostring(name))
+
+  opening, name = viewer.choose_opening("scenario:the-dragon-at-the-midpoint",
+                                        true, false)
+  check("and a camera pointed at a scenario still gets the scenario",
+        opening == "scenario" and name == "the-dragon-at-the-midpoint",
+        tostring(opening) .. " / " .. tostring(name))
+
+  opening = viewer.choose_opening(nil, true, false)
+  check("a camera with nothing named gets an ordinary match to photograph",
+        opening == "match", tostring(opening))
+
+  opening = viewer.choose_opening(nil, true, true)
+  check("and a camera pointed at the menu gets the menu", opening == "menu",
+        tostring(opening))
+
+  -- A malformed start leaves the menu up rather than guessing, because the menu is
+  -- where a person can see what happened. "scenario:" with nothing after it is the
+  -- shape a shell produces from an empty variable.
+  opening = viewer.choose_opening("scenario:", false, false)
+  check("and a start naming no scenario leaves the menu up", opening == "menu",
+        tostring(opening))
+end
+-- }}}
+
+-- {{{ local function test_the_bypass_reaches_the_gate()
+-- And the far end of it: a named scenario, loaded, actually arrives somewhere.
+--
+-- The chooser test above proves the right door is opened. This proves there is a
+-- room behind it -- the described world is applied, the clock has jumped, and what
+-- the scenario asked for is standing in the world. Held, and not yet advanced.
+local function test_the_bypass_reaches_the_gate()
+  local world, modules = fresh_world(tick_module)
+  local path = ROOT .. "/scenarios/the-dragon-at-the-midpoint"
+
+  modules.gate.load(world, path)
+
+  -- The scenario names tick 14000 and challenge 2. Both have to have landed, and
+  -- the clock is the one that catches a gate that silently did nothing: a fresh
+  -- world is at tick 0, so any number here at all means the file was read.
+  check("a scenario loaded at the gate moves the clock to where it says",
+        world.tick == 14000, "tick " .. tostring(world.tick))
+  check("and the described phase is the one standing when it opens",
+        world.phase == 3 and world.challenge_index == 2,
+        "phase " .. tostring(world.phase) ..
+        ", challenge " .. tostring(world.challenge_index))
+
+  -- The monster the scenario is named after. Its team is the monsters' own, which
+  -- is the third team and not either player's.
+  local monsters = 0
+  for id = 1, world.high_water do
+    if world.soldier.alive[id] == 1 and world.soldier.team[id] == 3 then
+      monsters = monsters + 1
+    end
+  end
+  check("and the monster it is named after is standing in it", monsters > 0,
+        tostring(monsters) .. " on the monsters' team")
+
+  -- Held. The gate's whole reason for existing is that the most useful moment is
+  -- almost always the tick before something goes wrong, and a world that starts
+  -- running when it loads cannot be looked at then.
+  local before = world.tick
+  modules.gate.step(world, tick_module, 1)
+  check("and it was standing still until something asked it to move",
+        world.tick == before + 1,
+        tostring(before) .. " then " .. tostring(world.tick))
+end
+-- }}}
+
 print("")
 print("the invariants")
 print("")
@@ -1047,6 +1146,8 @@ test_placement_moves_a_frontline()
 test_the_surge_deals_everything()
 test_a_match_ends()
 test_a_played_match_is_decisive()
+test_the_menu_can_be_bypassed()
+test_the_bypass_reaches_the_gate()
 print("")
 print(string.format("%d passed, %d failed", passed, failed))
 print("")

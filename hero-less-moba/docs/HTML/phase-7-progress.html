@@ -268,6 +268,7 @@ svg { max-width: 100%; }
 <a href='062-the-rest-of-the-brain.info.html'><span class='index'>062</span>the-rest-of-the-brain</a>
 <a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
 <a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
+<a href='065-the-way-in.info.html'><span class='index'>065</span>the-way-in</a>
 </section>
 <section><h2>the catalogues</h2>
 <a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
@@ -296,7 +297,7 @@ svg { max-width: 100%; }
 <tr><td>704</td><td>Locks, objections, and refusals are loud</td><td>refusals built, locks not</td></tr>
 <tr><td>705</td><td>The sign-posts are clickable in the world</td><td>built</td></tr>
 <tr><td>706</td><td>The documentation becomes HTML</td><td>built</td></tr>
-<tr><td>707</td><td>The way in</td><td>not started</td></tr>
+<tr><td>707</td><td>The way in</td><td>menu built, replays and lobby still owed</td></tr>
 <tr><td>708</td><td>The camera is a lens you push into</td><td>built</td></tr>
 </tbody></table>
 <p><strong>Blocking:</strong> nothing. D1 was the last decision in the project with a deadline</p>
@@ -366,8 +367,19 @@ svg { max-width: 100%; }
 <p>documentation is a browsable site: 152 pages, a filterable contents rail, every issue</p>
 <p>number a link, and a front page with the map drawn from the map builder and the shape</p>
 <p>of a match drawn from the timing table — so neither picture can go stale.</p>
-<p><strong>707 is not started.</strong> There is no front door: <code>./run-prototype</code> opens straight into</p>
-<p>a match, and nothing offers a choice of anything.</p>
+<p><strong>707 is most of the way.</strong> There is a front door now: <code>./run-prototype</code> opens the</p>
+<p>menu, which offers Play, the list of described worlds, the resource-shape settings,</p>
+<p>and Out. It holds no world — clicking returns a <strong>description of what was chosen</strong></p>
+<p>and the viewer builds from it, through the same two functions the command line calls.</p>
+<p>The bypass is the part that had to be got right, because the batch runner and every</p>
+<p>test start a game with nobody present: a menu that cannot be bypassed is a menu that</p>
+<p>gets bypassed by a second code path nobody tests. It is one pure function with no</p>
+<p>window near it, asserted seven ways. It had to be, because the bug it now guards was</p>
+<p>invisible — asking for a photograph of a scenario silently photographed an ordinary</p>
+<p>match, and the picture looked like a game.</p>
+<p>What 707 still owes: <strong>Replays</strong>, which need issue <a class='issue-link' href='107-snapshots-and-replays.html'>107</a> to exist first, and the</p>
+<p><strong>lobby</strong>, which is issue <a class='issue-link' href='802-the-lobby-and-commander-selection.html'>802</a>. Play therefore goes straight to a match against</p>
+<p>nobody.</p>
 <p>703 is a drag onto the world rather than onto a panel target — which is what the second</p>
 <p>vision asks for and what the viewing layer document does not.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there

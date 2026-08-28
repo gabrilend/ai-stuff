@@ -1,4 +1,4 @@
-<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>041-the-chest -- hero-less-moba</title><style>:root {
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>065-the-way-in -- hero-less-moba</title><style>:root {
   --ground:   #0d0f13;
   --panel:    #14171d;
   --edge:     #232833;
@@ -248,7 +248,7 @@ svg { max-width: 100%; }
 <a href='038-combat.info.html'><span class='index'>038</span>combat</a>
 <a href='039-waves.info.html'><span class='index'>039</span>waves</a>
 <a href='040-structures.info.html'><span class='index'>040</span>structures</a>
-<a href='041-the-chest.info.html' class='here'><span class='index'>041</span>the-chest</a>
+<a href='041-the-chest.info.html'><span class='index'>041</span>the-chest</a>
 <a href='042-the-tick.info.html'><span class='index'>042</span>the-tick</a>
 <a href='043-snapshot.info.html'><span class='index'>043</span>snapshot</a>
 <a href='044-headless-runner.info.html'><span class='index'>044</span>headless-runner</a>
@@ -268,7 +268,7 @@ svg { max-width: 100%; }
 <a href='062-the-rest-of-the-brain.info.html'><span class='index'>062</span>the-rest-of-the-brain</a>
 <a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
 <a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
-<a href='065-the-way-in.info.html'><span class='index'>065</span>the-way-in</a>
+<a href='065-the-way-in.info.html' class='here'><span class='index'>065</span>the-way-in</a>
 </section>
 <section><h2>the catalogues</h2>
 <a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
@@ -282,80 +282,94 @@ svg { max-width: 100%; }
 <a href='051-the-invariants.info.html'><span class='index'>051</span>the-invariants</a>
 <a href='060-the-formation-sandbox.info.html'><span class='index'>060</span>the-formation-sandbox</a>
 </section>
-</nav><main id='page'><h1>041-the-chest</h1>
-<p>The shared upgrade pool: the deck, the draws, the slots, and the stamp a body takes</p>
-<p>at birth.</p>
+</nav><main id='page'><h1>065-the-way-in</h1>
+<p>The screen before the match: a menu that picks a file and then gets out of the way.</p>
+<p>Read this file rather than the source. The source is for when one specific</p>
+<p>function is misbehaving; this is for everything else.</p>
 <h2>What it is for</h2>
-<p>The centre of the game. Everything about how an upgrade turns into a larger number on</p>
-<p>a specific blow lives here.</p>
+<p>The front door. It draws a title, a short line of setting, and a column of</p>
+<p>choices — play, scenarios, settings, out — and when one is clicked it **returns a</p>
+<p>description of what was chosen**. It does not start anything itself.</p>
+<p>That is the whole design, and it is the one rule this file exists to keep. A menu</p>
+<p>feels like the thing that owns the game, which makes it the easiest place in the</p>
+<p>project to cross the line the viewing layer is drawn on. It holds no world, no</p>
+<p>match parameters, nothing half-built; the viewer in <code>050-the-viewer</code> receives the</p>
+<p>choice and builds from it, through the same two functions the command line uses.</p>
+<p>The second rule is that <strong>every path this screen offers is reachable without it</strong>.</p>
+<p><code>./run-prototype play</code>, <code>./run-scenario &lt;name&gt;</code>, and the batch runner all start a</p>
+<p>game with nobody at the keyboard, thousands of times. A menu that cannot be</p>
+<p>bypassed acquires a second start-up path that nobody tests, and the two drift.</p>
+<p>So the environment variable <code>HLM_START</code> takes <code>match</code> or <code>scenario:&lt;name&gt;</code> and</p>
+<p>calls the same functions the mouse does.</p>
 <h2>Exports</h2>
 <table><thead>
 <tr><th>Function</th><th>Arguments</th><th>Returns</th></tr>
 </thead><tbody>
-<tr><td><code>build_deck(world)</code></td><td></td><td>— The one shared sequence, generated once at match start.</td></tr>
-<tr><td><code>draw(world, team_id, count)</code></td><td></td><td>— Takes upgrades off the deck into a chest.</td></tr>
-<tr><td><code>apply_counts(world, id, counts)</code></td><td></td><td>— Folds a count vector into a body's fields.</td></tr>
-<tr><td><code>stamp_from_lane(world, id, team, lane)</code></td><td></td><td>— A wave body takes its lane's upgrades at birth.</td></tr>
-<tr><td><code>stamp_from_stone(world, id, tower)</code></td><td></td><td>— A guard takes its tower's.</td></tr>
-<tr><td><code>stone_counts(world, structure)</code></td><td></td><td>What a given piece of stone currently holds.</td></tr>
-<tr><td><code>restamp_stone(world, team, lane)</code></td><td></td><td>— Rebuilds one lane's towers and their guards.</td></tr>
-<tr><td><code>restamp_guard(world, id, tower)</code></td><td></td><td>— Clears one guard's vector and rebuilds it.</td></tr>
-<tr><td><code>total_held(world, team_id)</code></td><td></td><td>Three numbers: in chest, in lanes, in stone.</td></tr>
+<tr><td><code>M.load</code></td><td>none</td><td>nothing — builds the four fonts, once, after the window exists</td></tr>
+<tr><td><code>M.begin</code></td><td><code>root</code> (string, absolute path to the project)</td><td>a fresh menu state table</td></tr>
+<tr><td><code>M.draw</code></td><td><code>state</code></td><td>nothing — draws the current page and refills the hot-rectangle list</td></tr>
+<tr><td><code>M.mousemoved</code></td><td><code>state</code>, <code>x</code>, <code>y</code> (numbers, window pixels)</td><td>nothing — records what is under the cursor</td></tr>
+<tr><td><code>M.mousepressed</code></td><td><code>state</code>, <code>x</code>, <code>y</code></td><td><code>nil</code>, or a choice table (below)</td></tr>
+<tr><td><code>M.keypressed</code></td><td><code>state</code>, <code>key</code> (string)</td><td>nothing — escape goes back a page, or quits from the top</td></tr>
 </tbody></table>
-<h2>Everything is stamped, nothing is read through a reference</h2>
-<p>Every body's modifiers are a <strong>copy it owns.</strong> Nothing in the swing path dereferences a</p>
-<p>lane, a tower, or a team record to find out how strong a body is — the numbers are in</p>
-<p>the body's own slot, already multiplied out.</p>
-<p>That is a performance argument and a correctness argument at once. There is no such</p>
-<p>thing as a stale reference to a slot that moved, because nothing holds a reference to</p>
-<p>a slot.</p>
-<h2>The one place this deviates from the written design</h2>
-<p>The documents describe the swing path walking the count vector and applying each entry</p>
-<p>on every blow. **This folds the modifiers into the body's fields at stamp time</p>
-<p>instead.**</p>
-<p>The two produce identical numbers, and folding does the multiplication once per body</p>
-<p>rather than once per blow. They are equivalent because a wave unit's vector never</p>
-<p>changes after birth and a guard's only changes when its tower does — which is precisely</p>
-<p>when it is re-stamped. The count vector is still carried on the body, because the</p>
-<p>renderer reads it to draw the badges an opponent learns your arrangement from.</p>
-<h2>Clear, then re-stamp</h2>
-<p>When the thing a body copied from changes, the body is **cleared and rebuilt from</p>
-<p>scratch.** Not patched — cleared. A rebuild from the current truth cannot drift; an</p>
-<p>incremental adjustment can, and will, in the direction nobody tests.</p>
-<p>Three moments trigger a sweep and only three: an upgrade arrives at or leaves a lane's</p>
-<p>towers (every guard in that lane), a boon is chosen (every living body that team owns),</p>
-<p>and a body spawns (that body).</p>
-<p><strong>Wave units are never swept</strong>, and that is not an oversight — it is the rule that makes</p>
-<p>the whole chest worth arguing about. Moving an upgrade out of a lane does not weaken</p>
-<p>the soldiers already walking in it; they finish their lives carrying it.</p>
-<p><strong>Guards are swept.</strong> From either side the other looks like a bug, so: a wave unit</p>
-<p>walks away from its lane and dies somewhere else, so what it was born with is a fact</p>
-<p>about its birth. A guard stands at the thing it copied from for its entire life.</p>
-<p>A re-stamp keeps the <strong>wound</strong> while rebuilding the numbers. "Cleared and rebuilt" is</p>
-<p>about the modifier vector, not about damage already taken — stone that healed itself</p>
-<p>every time somebody moved an upgrade would be unkillable by fiddling.</p>
-<h2>What each piece of stone holds</h2>
+<p><code>M.colours</code> is written from outside, by the viewer, before the first draw: it is</p>
+<p>the commander colour table out of <code>053-commander-table</code>, so the settings page can</p>
+<p>show each colour's shape without this file reaching for the catalogue itself.</p>
+<h3>The two constants</h3>
 <table><thead>
-<tr><th>Kind</th><th>Inherits</th></tr>
+<tr><th>Name</th><th>Value</th><th>Meaning</th></tr>
 </thead><tbody>
-<tr><td>lane tower</td><td>its own lane's slot</td></tr>
-<tr><td>base tower</td><td><strong>every</strong> lane's slot, plus the library slot</td></tr>
-<tr><td>library</td><td>nothing; it does not fight</td></tr>
+<tr><td><code>M.MENU</code></td><td>1</td><td>the menu is up and the world, if any, is not being ticked</td></tr>
+<tr><td><code>M.PLAYING</code></td><td>2</td><td>a match or scenario is running and this file draws nothing</td></tr>
 </tbody></table>
-<p>A team that invested in stone and then lost all six lane towers still has three fully</p>
-<p>upgraded base towers, because the base was inheriting those upgrades the whole time.</p>
-<p>That is not a comeback mechanic and does not reward losing — it means an investment</p>
-<p>made while winning is still working while losing, which is what makes defending a base</p>
-<p>something other than a formality.</p>
-<h2>Order of operations</h2>
-<p>Additive terms in one loop, multiplicative in a second, so the ordering is</p>
-<p><strong>structural</strong> rather than a convention somebody has to remember. A cooldown is rounded</p>
-<p>back to a whole number of ticks and floored at 1, because every duration in the game is</p>
-<p>an integer and that is the property two machines have to agree on.</p>
-<h2>The deck wraps</h2>
-<p>A long match can draw more cards than the deck holds. It wraps rather than running out;</p>
-<p>refusing to pay a team that earned a draw would silently switch the economy off in</p>
-<p>exactly the matches where it matters most.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>The viewer stores one of these in <code>state.screen</code> and reads it at the top of both</p>
+<p>its update and its draw. There is no third value and no transition state — the</p>
+<p>menu is either in front of everything or entirely absent.</p>
+<h2>Data structures it owns</h2>
+<h3>The menu state, from <code>M.begin</code></h3>
+<table><thead>
+<tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>screen</code></td><td>integer</td><td><code>M.MENU</code> or <code>M.PLAYING</code>. The viewer writes this; the menu reads it.</td></tr>
+<tr><td><code>root</code></td><td>string</td><td>The project directory, kept so the scenario list can be re-read.</td></tr>
+<tr><td><code>page</code></td><td>string</td><td><code>"top"</code>, <code>"scenarios"</code>, or <code>"settings"</code> — which column is drawn.</td></tr>
+<tr><td><code>scenarios</code></td><td>array of string</td><td>Directory names under <code>scenarios/</code>, sorted, read once at <code>M.begin</code>.</td></tr>
+<tr><td><code>shape_override</code></td><td>table, colour index → shape name</td><td>A player's own choice of shape per resource colour. Empty means the catalogue's shape.</td></tr>
+<tr><td><code>hovering_kind</code></td><td>string or nil</td><td>The kind of choice under the cursor, for the highlight.</td></tr>
+<tr><td><code>hovering_detail</code></td><td>string or nil</td><td>Its name, so two scenarios do not light up together.</td></tr>
+<tr><td><code>hot</code></td><td>array of hot rectangle</td><td>Rebuilt every draw.</td></tr>
+</tbody></table>
+<h3>A hot rectangle</h3>
+<p>The menu has no widget objects. Each frame, drawing a choice appends the rectangle</p>
+<p>it just drew to <code>state.hot</code>, and the mouse handlers walk that list. The list is</p>
+<p>cleared at the top of every draw, so a page that is not drawn cannot be clicked —</p>
+<p>which is the whole of the "you cannot click through a page" logic.</p>
+<table><thead>
+<tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>kind</code></td><td>string</td><td><code>"play"</code>, <code>"scenario"</code>, <code>"page"</code>, <code>"shape"</code>, or <code>"quit"</code>.</td></tr>
+<tr><td><code>x</code>, <code>y</code>, <code>w</code>, <code>h</code></td><td>numbers</td><td>Window pixels.</td></tr>
+<tr><td><code>name</code></td><td>string, optional</td><td>The scenario or page named by this rectangle.</td></tr>
+<tr><td><code>colour</code></td><td>integer, optional</td><td>Which resource colour a shape-cycling rectangle belongs to.</td></tr>
+</tbody></table>
+<h3>A choice, returned from <code>M.mousepressed</code></h3>
+<p>Two shapes only, and both are read by <code>love.mousepressed</code> in <code>050-the-viewer</code>:</p>
+<table><thead>
+<tr><th>Choice</th><th>Meaning</th></tr>
+</thead><tbody>
+<tr><td><code>{start = "match"}</code></td><td>build an ordinary match</td></tr>
+<tr><td><code>{start = "scenario", name = &lt;string&gt;}</code></td><td>build a match, then load that described world on top of it, held</td></tr>
+</tbody></table>
+<p><code>nil</code> means the click did something local — turned a page, cycled a shape, quit —</p>
+<p>and the viewer should do nothing.</p>
+<h2>Related</h2>
+<ul>
+<li><a href='701-the-window-and-the-two-snapshots.html'>The window and the two snapshots</a></li>
+<li><a href='707-the-way-in.html'>The way in</a></li>
+<li><a href='017-the-viewing-layer.html'>The viewing layer</a></li>
+<li><code>050-the-viewer</code> — receives the choice and builds from it</li>
+<li><code>063-the-gate</code> — loads the described world a scenario choice names</li>
+</ul><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.
