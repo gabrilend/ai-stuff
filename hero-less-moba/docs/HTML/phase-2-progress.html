@@ -168,6 +168,7 @@ svg { max-width: 100%; }
 <a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
 <a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
+<a href='211-waypoints-and-the-zones-they-sit-in.html'><span class='index'>211</span>Waypoints, and the Zones They Sit In</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -305,6 +306,7 @@ svg { max-width: 100%; }
 <tr><td>208</td><td>A wave knows when it is gone</td><td>built</td></tr>
 <tr><td>209</td><td>The thread pool slices the tick</td><td>not started — H3</td></tr>
 <tr><td>210</td><td>A death decays before it is final</td><td>built</td></tr>
+<tr><td>211</td><td>Waypoints, and the zones they sit in</td><td>in progress — H4 and H5</td></tr>
 </tbody></table>
 <p><strong>Blocking:</strong> nothing.</p>
 <p><strong>Carry into the work:</strong></p>
@@ -367,7 +369,21 @@ svg { max-width: 100%; }
 <p>passes. Which is the whole argument for having one flag everything agrees on.</p>
 <p>It also happens to be the better thing to look at: a body that fades rather than</p>
 <p>blinking out is the least artificial version of the moment, and the data behind the</p>
-<p>fade is real rather than invented by the renderer.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>fade is real rather than invented by the renderer.</p>
+<p><strong>211 is in progress and waiting on two decisions.</strong> A lane's measure of how far</p>
+<p>along a wave has got is to become four times finer, and a wave is to approach</p>
+<p><strong>waypoints</strong> — points at random positions inside each of those finer stretches —</p>
+<p>rather than simply advancing a number, so that its angle of approach varies and two</p>
+<p>waves walking the same road do not tread in the same places.</p>
+<p>What is not settled is whether the finer measure replaces the milestones or sits</p>
+<p>underneath them, and whether a waypoint steers the formation inside its lane or</p>
+<p>becomes a destination in the world. The second matters most: a formation is held in</p>
+<p>lane coordinates, and that is the whole reason a rank survives a corner. See H4 and</p>
+<p>H5.</p>
+<p><strong>The map was resized alongside it</strong> and is written up in the balance ledger rather</p>
+<p>than here: bodies further apart, drawn smaller, roads wider — and the map checker</p>
+<p>now refuses a map whose roads no longer carry the number of bodies abreast that the</p>
+<p>shape file says they should.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.
