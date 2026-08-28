@@ -24,6 +24,8 @@ things, and there are twenty structures.
 | `create(parameters, map, stream)` | | The world record. |
 | `allocate(world)` | | A fresh soldier id, generation bumped. |
 | `release(world, id)` | | — Frees a slot, clearing **every** field on it. |
+| `begin_decay(world, id, span)` | ticks | — Takes a body off the field without taking its slot. |
+| `revive(world, id, health)` | | — Puts a decaying body back, intact. |
 | `give_body(world, id, row)` | archetype row | — Copies a catalogue row into a body's slot. |
 | `raise(world, name, detail)` | | — Records an event for this tick. |
 | `empty_counts(kind_count)` | | One integer per upgrade kind, all zero. |
@@ -48,6 +50,7 @@ phases, and `SOLDIER_CAPACITY`.
 | `pending_structure_damage` | double[] | Kept separate so neither can index into the other by an arithmetic mistake. |
 | `free_slot` | integer[] | The free list. |
 | `high_water` | integer | The highest slot ever used — every sweep runs to here, not to capacity. |
+| `soldier.decaying` | integer[] | Ticks of decay remaining; 0 for everything alive and everything gone. |
 | `capacity` | integer | How many soldier slots exist. Written down rather than left as the length of one of the arrays, so anything allocating a parallel array asks the world how big it is rather than asking one of its fields. |
 | `event` | array | Raised this tick, cleared at the top of the next. |
 
@@ -81,6 +84,21 @@ class of bug this design can produce.
 **`allocate` refuses rather than growing.** Running out of slots means something is
 spawning without bound. A silent reallocation would move every array out from under
 any worker holding a slice of one.
+
+**A death goes through `begin_decay` first, and `release` two seconds later.** In
+between, the body is not alive and its slot is not free: nothing can be allocated
+over it, its generation counter has not moved, and every reference to it is still a
+valid reference to it. `revive` undoes the death by clearing one number.
+
+`alive` is the flag everything in the simulation already tests, which is why the
+decaying state is expressed by clearing it rather than by a new condition each pass
+would have to learn — targeting, the frontline queue, push depth, the grid and the
+brain all exclude a decaying body with no change at all. That is the payoff of having
+one flag everything agrees on, and it is the reason the flag is where it is.
+
+`release` still decrements the living count when it is handed a body that is somehow
+still alive — a match being torn down, a test freeing a slot directly — and does not
+when the body left the field two seconds ago. See issue 210.
 
 **`generation` is what makes recycled slots safe.** A stale id can be detected
 instead of pointing at a stranger who moved in after the original died.

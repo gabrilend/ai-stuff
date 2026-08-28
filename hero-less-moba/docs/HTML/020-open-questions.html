@@ -167,6 +167,7 @@ svg { max-width: 100%; }
 <a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
 <a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -3769,7 +3770,7 @@ svg { max-width: 100%; }
 <p>   and receiving a lane change means rebuilding the body's path state from scratch</p>
 <p>   rather than assigning a number to it. More faithful and considerably more code,</p>
 <p>   and it makes the receiver's simulation subordinate rather than corrected.</p>
-<h2>H2. A machine that killed the wrong body can never be corrected — <strong>NEEDS A DECISION</strong></h2>
+<h2>H2. A machine that killed the wrong body can never be corrected — <strong>ANSWERED</strong></h2>
 <p>The same experiment, and the more serious of the two.</p>
 <p>The sync carries health, and <a href='016-players-teams-and-commands.html'>players, teams, and commands</a></p>
 <p>already says the right thing about applying it: writing a health value must not</p>
@@ -3821,10 +3822,32 @@ svg { max-width: 100%; }
 <p>   the replay already computes, and when two machines are further apart than some</p>
 <p>   threshold, resynchronise the whole world rather than a keyframe. Cheapest, and</p>
 <p>   it turns a permanent slow error into a periodic visible hitch.</p>
-<p>Nothing here is decidable until there is a network at all — this is issue <a class='issue-link' href='801-reconciling-across-machines.html'>801</a>'s</p>
-<p>problem, and it is written down now because the replay log found it and the</p>
-<p>finding would otherwise be lost.</p>
-<h2>H3. A pool of coroutines is not parallel — <strong>NEEDS A DECISION</strong></h2>
+<p><strong>Answer: a death decays before it is final.</strong> None of the three above, and a fourth</p>
+<p>that is better than all of them.</p>
+<p>A body that reaches zero health leaves the field immediately — it stops fighting,</p>
+<p>stops being a target, stops holding a place in the queue, stops counting toward push</p>
+<p>depth — and then <strong>holds its slot, and every one of its numbers, for two seconds</strong></p>
+<p>before anything about the death is made final. Nobody is paid, no wave counter moves,</p>
+<p>no guard is replaced, no challenge ends. Two seconds is two reconciliation cycles,</p>
+<p>which is long enough for every machine to have had its say, and undoing the death is</p>
+<p>then a matter of clearing one number.</p>
+<p>Why this beats the three that were offered: it does not enlarge the message</p>
+<p>(option 1), it does not turn thousands of deaths into network events (option 2), and</p>
+<p>it converges rather than accepting a permanent drift (option 3). What it costs is</p>
+<p>that <strong>every consequence of a death lands two seconds late</strong> — uniformly, for all of</p>
+<p>them, so it is a delay rather than a distortion.</p>
+<p>The alternative of paying immediately and undoing it if the death is reverted was</p>
+<p>rejected, and the reason is worth keeping: a payment can be unmade only if it has not</p>
+<p>been spent, and a chest draw that has already been placed cannot be unmade at all.</p>
+<p><strong>A consequence that has been acted on is not revertible</strong>, so the only honest place</p>
+<p>for the boundary is before the consequence rather than after it.</p>
+<p>It is also simply the better thing to look at. A body that fades rather than blinking</p>
+<p>out is the least artificial version of the moment, and the fade is real data rather</p>
+<p>than an animation the renderer invented.</p>
+<p><strong>Built:</strong> issue <a class='issue-link' href='210-a-death-decays-before-it-is-final.html'>210</a>. <strong>Changed:</strong> the world record, the reap pass, the snapshot, the</p>
+<p>renderer, and <a href='003-the-simulation-tick.html'>the simulation tick</a>.</p>
+<p>H1 is still open, and it is the smaller one.</p>
+<h2>H3. A pool of coroutines is not parallel — <strong>ANSWERED</strong></h2>
 <p><a href='209-the-thread-pool-slices-the-tick.html'>The thread pool slices the tick</a></p>
 <p>asks for "a pool of coroutines over shared memory," and</p>
 <p><a href='018-the-shape-of-the-code.html'>the shape of the code</a> repeats it. The sentiment is</p>
@@ -3867,9 +3890,19 @@ svg { max-width: 100%; }
 </ul>
 <p>   than it saves is a pool that should not exist, and the issue itself says so in</p>
 <p>   its fifth step.</p>
-<p>**Whatever is decided, the documents have to stop saying "a pool of coroutines"</p>
-<p>means parallel execution**, because that sentence is currently in three places and</p>
-<p>is not true in any of them.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p><strong>Answer: the prototype is single-threaded, and it says so.</strong> The coroutine pool is</p>
+<p>the shape of the idea rather than a working parallelism, and every document that</p>
+<p>implied otherwise has been corrected — that sentence was in three places and was not</p>
+<p>true in any of them.</p>
+<p>When it needs to scale, <strong>the parts that matter move to a C core</strong>, which is where</p>
+<p>real parallelism lives anyway: separate execution over memory addressed by pointer,</p>
+<p>which is what the flat-array layout was always for. That is a later expansion and not</p>
+<p>a rewrite of the prototype.</p>
+<p>Nothing is being built for issue <a class='issue-link' href='209-the-thread-pool-slices-the-tick.html'>209</a> now. The census makes the case for waiting: the</p>
+<p>field holds hundreds of bodies and a match already runs at many times real time on</p>
+<p>one core.</p>
+<p><strong>Changed:</strong> issue <a class='issue-link' href='209-the-thread-pool-slices-the-tick.html'>209</a>, <a href='003-the-simulation-tick.html'>the simulation tick</a>, and the</p>
+<p>phase-2 progress file.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

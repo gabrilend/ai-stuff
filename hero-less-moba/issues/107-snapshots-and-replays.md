@@ -6,7 +6,7 @@
 | Blocked by | 104, 105, 106 |
 | Blocks | 109, 701, 801, 804 |
 | Reads | [the viewing layer](../docs/017-the-viewing-layer.md), [the simulation tick](../docs/003-the-simulation-tick.md) |
-| Open questions | H1, H2 — both found here, both belong to issue 801 |
+| Open questions | H1 |
 
 ## Current behavior
 

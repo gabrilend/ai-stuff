@@ -1,6 +1,6 @@
 # Conversation Summary: bf8216a7-c949-45c4-930b-b48a72f99cb3
 
-Generated on: 2026-08-24 16:25:12
+Generated on: 2026-08-24 16:52:14
 
 --------------------------------------------------------------------------------
 
@@ -1606,6 +1606,153 @@ Five empty directories would have vanished — git doesn't track those — so
 `src/`, `libs/`, `assets/`, `docs/HTML/` and `issues/completed/demos/` each
 carry a short `.gitkeep` saying what belongs there. The `tmp/` symlink is
 correctly excluded, and `run-phase-demo` kept its executable bit.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 4
+
+oh... no we should have hero-less-moba be part of the monorepo. Sorry.
+
+
+are all the issue files written? If so, can you do another audit to try and
+catch any mistakes or open questions? Also, if you could succinctize them now
+that they're all written by referencing documentation when appropriate, that'll
+help.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 4
+
+Undoing that first — my mistake, and it's clean to reverse since the content
+is untouched.
+
+
+Back in the monorepo as untracked, exactly as it was. Now the audit — starting
+with what's mechanically checkable.
+
+
+Now the substantive audit — hunting for claims that later answers invalidated.
+
+
+Let me stop fighting sed on that block and fix it properly.
+
+
+Issue 404 has three separate statements about a cooldown that no longer exists.
+That's the succinctization problem in miniature — let me rewrite it as the
+model for the rest.
+
+
+156 lines to 84, with the contradictions gone. Applying the same treatment to
+the rest of the bloated files:
+
+
+Normalizing the section names first, then compressing the redundant rationale:
+
+
+Now the remaining "Settled" sections — these are the pure duplication of doc
+rationale:
+
+
+Now normalizing the header tables so every issue points at its documents the
+same way:
+
+
+That's the real find — 30 issue headers cite questions that have since been
+answered. Let me fix them, and one genuinely dangling reference:
+
+
+These validators have ongoing use, so they belong in the project rather than my
+scratchpad:
+
+
+Now updating the open-questions summary to match what the validator actually
+reports:
+
+
+phase-1 still claims a blocker that was answered. Let me rewrite all eight
+trackers to a consistent, tight shape:
+
+
+Audit clean and the writing is tighter. Committing to the monorepo now, staging
+only this project:
+
+
+Committed as `1b0a4370` on top of the existing monorepo history, alongside its
+siblings. 113 files tracked, working tree clean for this project, and the 18
+modified sibling files plus their untracked ones are exactly as I found them.
+
+
+## The repo fix
+
+
+Removed the nested `.git` and staged only `hero-less-moba/` by explicit path, so
+the commit touched nothing belonging to the other projects. The standalone
+commit's content was identical, so nothing was lost — but it's worth saying
+plainly: **that commit's history is gone**, since the nested repository was
+deleted rather than merged. Only ever one commit's worth, and its message is
+preserved in this one.
+
+
+## The audit found real rot
+
+
+Structural checks passed, so I went looking for semantic drift instead. Three
+classes of problem:
+
+
+**Stale mechanics.** Four places still referenced a per-team `draw` stream,
+which stopped existing when both teams started drawing from one shared deck. Two
+documents still described the `is_boon` field as "came from surviving a surge,"
+which stopped being true when boons became payment for slaying a monster. The
+instance record was missing `owner`, `deck_index`, and the three transit fields
+entirely — they'd been described in prose but never added to the tables.
+
+
+**Thirty stale question citations.** This is the one worth flagging. Every issue
+header carries an "open questions" row, and **26 of them cited questions that
+had since been answered** — issue 104 still claiming to wait on fixed-point,
+issue 702 still waiting on three separate D-group questions. Answering a
+question means editing the document it changes, and it's easy to leave a dozen
+issue files claiming to be blocked on something settled. One reference, `E7` in
+the bot issue, pointed at a question that had never existed; I wrote it (whether
+this ships single-player, which decides how good the bot must be).
+
+
+**A contradiction inside one file.** Issue 404 stated three separate times that
+there was a reassignment cooldown, a rule replaced by the one-wave transit, and
+still had an implementation step telling you to build it.
+
+
+Because that fourth class of rot will recur every time a question gets answered,
+I turned the throwaway checks into `./validate-documentation` — a real project
+tool with the standard `${DIR}` header. It's a compiler for the written half:
+links, issue structure, roadmap agreement, and stale question citations. It
+exits non-zero, so it can go in a build.
+
+
+## The succinctization
+
+
+Issues went from 5,553 lines to 4,891; the phase trackers from 531 to 346. The
+pattern was accretion — every answer had appended a "Settled" section
+restating rationale that already lived in the documents. Those are now
+two-to-four-line statements of *what to build* plus a link to the document
+explaining *why*, and the header tables link their documents by title instead of
+naming bare paths.
+
+
+Where an issue kept prose, it's because the fact isn't in a document and would
+be lost: that `tower_mask` must never be cleared by a tower dying, that the deal
+is only possible because all three lanes share one spawn timer, that if leashing
+is ever loosened the guards-inherit-stone rule is the one that breaks first.
+
+
+**The one thing I'd flag as still unsatisfying:** A4 — whether the vision's
+"guards in the base" meant soldiers or towers. Issue 305 implements both
+readings, which is defensible and is not a decision. It isn't blocking anything,
+but it's the last place where the documentation is hedging rather than choosing.
 
 
 --------------------------------------------------------------------------------

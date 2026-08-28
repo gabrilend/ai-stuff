@@ -53,6 +53,7 @@ enemy's chest is not on this machine at all. See
 | `tick` | To interpolate against. |
 | Per soldier: x, y, facing, team, flavour, archetype, health fraction, alive | Everything drawn about a body. |
 | Per soldier: the upgrades it was stamped with | Reading an enemy's build off their frontline is the only way to learn their arrangement. Enemy bodies carry this; enemy *chests* do not exist here. |
+| The fallen, and how far through fading each one is | A body that reaches zero health stays in its slot for two more seconds — see issue 210 — so a fading corpse is a body that genuinely still exists rather than an animation the renderer invented. **Kept in its own list, never in the live one**: a viewer counting bodies must not count corpses, and everything that walks the live list is counting something. |
 | Per structure: health fraction, alive, command radius | Towers and libraries. The radius is drawn for both teams — see [guard towers](007-guard-towers-and-their-guards.md). |
 | **Own team only**: every stone the player can see — its kind, where it sits, whether it is theirs or in the pool, and where it is going if it is moving — plus boons | The panel. A stone somebody has set aside is absent from **their** frame and present in everybody else's. |
 | Per lane: push depth, both teams' | The lane-pressure read. Ignored during a challenge. |

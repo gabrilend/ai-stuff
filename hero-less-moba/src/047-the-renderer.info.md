@@ -44,8 +44,15 @@ they are not really.
    simulation does.
 5. **Stone** — command radius, body, health bar, and a badge per slotted upgrade.
 6. **Libraries**, last and brightest.
-7. **Bodies**, batched.
-8. **Body detail**, only above a zoom threshold.
+7. **The fallen**, fading and shrinking, drawn one at a time **under** the living so
+   a corpse never obscures a body somebody has to make a decision about. Each one
+   needs its own alpha and a sprite batch has one colour for the whole batch, which
+   is why these are not batched — and there are about a dozen at once against
+   hundreds of the living, so the loop that matters is still the batched one. What is
+   drawn is real: a fallen body holds its slot and its numbers for two seconds, so
+   this is not an animation invented here. See issue 210.
+8. **Bodies**, batched.
+9. **Body detail**, only above a zoom threshold.
 
 ## Detail arrives with zoom, and never an event
 

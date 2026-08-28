@@ -167,6 +167,7 @@ svg { max-width: 100%; }
 <a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
 <a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -304,6 +305,8 @@ svg { max-width: 100%; }
 <tr><td><code>create(parameters, map, stream)</code></td><td></td><td>The world record.</td></tr>
 <tr><td><code>allocate(world)</code></td><td></td><td>A fresh soldier id, generation bumped.</td></tr>
 <tr><td><code>release(world, id)</code></td><td></td><td>— Frees a slot, clearing <strong>every</strong> field on it.</td></tr>
+<tr><td><code>begin_decay(world, id, span)</code></td><td>ticks</td><td>— Takes a body off the field without taking its slot.</td></tr>
+<tr><td><code>revive(world, id, health)</code></td><td></td><td>— Puts a decaying body back, intact.</td></tr>
 <tr><td><code>give_body(world, id, row)</code></td><td>archetype row</td><td>— Copies a catalogue row into a body's slot.</td></tr>
 <tr><td><code>raise(world, name, detail)</code></td><td></td><td>— Records an event for this tick.</td></tr>
 <tr><td><code>empty_counts(kind_count)</code></td><td></td><td>One integer per upgrade kind, all zero.</td></tr>
@@ -327,6 +330,7 @@ svg { max-width: 100%; }
 <tr><td><code>pending_structure_damage</code></td><td>double[]</td><td>Kept separate so neither can index into the other by an arithmetic mistake.</td></tr>
 <tr><td><code>free_slot</code></td><td>integer[]</td><td>The free list.</td></tr>
 <tr><td><code>high_water</code></td><td>integer</td><td>The highest slot ever used — every sweep runs to here, not to capacity.</td></tr>
+<tr><td><code>soldier.decaying</code></td><td>integer[]</td><td>Ticks of decay remaining; 0 for everything alive and everything gone.</td></tr>
 <tr><td><code>capacity</code></td><td>integer</td><td>How many soldier slots exist. Written down rather than left as the length of one of the arrays, so anything allocating a parallel array asks the world how big it is rather than asking one of its fields.</td></tr>
 <tr><td><code>event</code></td><td>array</td><td>Raised this tick, cleared at the top of the next.</td></tr>
 </tbody></table>
@@ -353,6 +357,18 @@ svg { max-width: 100%; }
 <p><strong><code>allocate</code> refuses rather than growing.</strong> Running out of slots means something is</p>
 <p>spawning without bound. A silent reallocation would move every array out from under</p>
 <p>any worker holding a slice of one.</p>
+<p><strong>A death goes through <code>begin_decay</code> first, and <code>release</code> two seconds later.</strong> In</p>
+<p>between, the body is not alive and its slot is not free: nothing can be allocated</p>
+<p>over it, its generation counter has not moved, and every reference to it is still a</p>
+<p>valid reference to it. <code>revive</code> undoes the death by clearing one number.</p>
+<p><code>alive</code> is the flag everything in the simulation already tests, which is why the</p>
+<p>decaying state is expressed by clearing it rather than by a new condition each pass</p>
+<p>would have to learn — targeting, the frontline queue, push depth, the grid and the</p>
+<p>brain all exclude a decaying body with no change at all. That is the payoff of having</p>
+<p>one flag everything agrees on, and it is the reason the flag is where it is.</p>
+<p><code>release</code> still decrements the living count when it is handed a body that is somehow</p>
+<p>still alive — a match being torn down, a test freeing a slot directly — and does not</p>
+<p>when the body left the field two seconds ago. See issue <a class='issue-link' href='210-a-death-decays-before-it-is-final.html'>210</a>.</p>
 <p><strong><code>generation</code> is what makes recycled slots safe.</strong> A stale id can be detected</p>
 <p>instead of pointing at a stranger who moved in after the original died.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there

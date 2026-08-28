@@ -167,6 +167,7 @@ svg { max-width: 100%; }
 <a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
 <a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -458,13 +459,21 @@ svg { max-width: 100%; }
 <p>  number that drifts. Two machines that disagree about it have taken different turns</p>
 <p>  rather than drifted apart, and this section's model has no answer for that.</p>
 <ul>
-<li><strong>H2.</strong> A machine that killed a body the authority did not **can never be</li>
+<li><strong>H2 — answered, and built.</strong> A machine that killed a body the authority did not</li>
 </ul>
-<p>  corrected**. The slot is freed and recycled; there is nothing left to write the</p>
-<p>  numbers onto. Since deaths are the hinge everything downstream hangs from — deaths</p>
-<p>  to wipes to draws to the chest — that is the more serious of the two, and it is</p>
-<p>  measurable: the divergence check in the invariants suite prints how far two runs</p>
-<p>  get apart with and without correction.</p>
+<p>  could never be corrected: the slot was freed and recycled, and there was nothing</p>
+<p>  left to write the numbers onto. Since deaths are the hinge everything downstream</p>
+<p>  hangs from — deaths to wipes to draws to the chest — that was the more serious of</p>
+<p>  the two.</p>
+<p>  <strong>A death is now a two-second process.</strong> A body at zero health leaves the field</p>
+<p>  immediately and then holds its slot, and every one of its numbers, for two</p>
+<p>  correction cycles before anything about the death is made final — nobody paid, no</p>
+<p>  wave counter moved, no guard replaced, no challenge ended. Undoing it is clearing</p>
+<p>  one number. This section's message therefore has a body to write onto for as long</p>
+<p>  as any peer could still disagree, which is the whole requirement.</p>
+<p>  The cost lands here rather than on the wire: **every consequence of a death is two</p>
+<p>  seconds late**, uniformly. See issue <a class='issue-link' href='210-a-death-decays-before-it-is-final.html'>210</a>. How far two runs drift apart, with and</p>
+<p>  without correction, is printed by the divergence check in the invariants suite.</p>
 <h3>Presence — every player's cursor, continuously</h3>
 <p>Each player's mouse position is synced to their <strong>teammates</strong>. This is a few</p>
 <p>bytes and it is not a nicety: it is one of the eight verbs a team has for talking</p>

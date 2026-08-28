@@ -197,12 +197,22 @@ Two questions follow that this document cannot answer on its own, both written u
 - **H1.** Which lane a body is in is a *decision*, taken once at a junction — not a
   number that drifts. Two machines that disagree about it have taken different turns
   rather than drifted apart, and this section's model has no answer for that.
-- **H2.** A machine that killed a body the authority did not **can never be
-  corrected**. The slot is freed and recycled; there is nothing left to write the
-  numbers onto. Since deaths are the hinge everything downstream hangs from — deaths
-  to wipes to draws to the chest — that is the more serious of the two, and it is
-  measurable: the divergence check in the invariants suite prints how far two runs
-  get apart with and without correction.
+- **H2 — answered, and built.** A machine that killed a body the authority did not
+  could never be corrected: the slot was freed and recycled, and there was nothing
+  left to write the numbers onto. Since deaths are the hinge everything downstream
+  hangs from — deaths to wipes to draws to the chest — that was the more serious of
+  the two.
+
+  **A death is now a two-second process.** A body at zero health leaves the field
+  immediately and then holds its slot, and every one of its numbers, for two
+  correction cycles before anything about the death is made final — nobody paid, no
+  wave counter moved, no guard replaced, no challenge ended. Undoing it is clearing
+  one number. This section's message therefore has a body to write onto for as long
+  as any peer could still disagree, which is the whole requirement.
+
+  The cost lands here rather than on the wire: **every consequence of a death is two
+  seconds late**, uniformly. See issue 210. How far two runs drift apart, with and
+  without correction, is printed by the divergence check in the invariants suite.
 
 ### Presence — every player's cursor, continuously
 
