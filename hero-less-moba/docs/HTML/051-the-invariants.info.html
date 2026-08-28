@@ -269,6 +269,8 @@ svg { max-width: 100%; }
 <a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
 <a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
 <a href='065-the-way-in.info.html'><span class='index'>065</span>the-way-in</a>
+<a href='066-the-replay-log.info.html'><span class='index'>066</span>the-replay-log</a>
+<a href='067-record-and-replay.info.html'><span class='index'>067</span>record-and-replay</a>
 </section>
 <section><h2>the catalogues</h2>
 <a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
@@ -362,6 +364,18 @@ svg { max-width: 100%; }
 <tr><td>With nobody saying anything the way in is the menu; a named match or scenario skips it; a camera pointed at a scenario still gets the scenario; a camera with nothing named gets a match; a camera pointed at the menu gets the menu; a start naming no scenario leaves the menu up</td><td>…reorders the start-up questions. This is the regression for a real bug: asking for a screenshot of a scenario photographed an ordinary match instead, and nothing about the picture said so, because it looked like a game.</td></tr>
 <tr><td>A scenario loaded at the gate moves the clock to where it says, stands the described phase and monster up, and was holding still until something asked it to move</td><td>…breaks the far end of the bypass. The check above proves the right door opens; this proves there is a room behind it.</td></tr>
 </tbody></table>
+<h3>The replay</h3>
+<table><thead>
+<tr><th>Check</th><th>Fails the day somebody…</th></tr>
+</thead><tbody>
+<tr><td>A match records keyframes as it is played, the file reads back as the match that was recorded, the commands somebody made are in it, and playing it back reproduces the match at every keyframe</td><td>…breaks the recording or the playback. Played with corrections <strong>off</strong>, so what is checked is the simulation reproducing the match on its own rather than the keyframes dragging it into place.</td></tr>
+<tr><td>A world that has drifted stops matching the record, the keyframes hold it near the match that was played, and it does not wander further as the match goes on</td><td>…makes the keyframes decorative. Measured as a <strong>distance in world units</strong> rather than as a hash match, because after a correction the hash is the wrong instrument — it is taken before the correction lands and answers yes-or-no about a world that is now approximately right.</td></tr>
+<tr><td>The rules stamp is the same twice for the same rules, changing one number anywhere changes it, putting the number back puts it back, and a replay from other rules is refused rather than migrated</td><td>…lets a replay recorded before a balance change play under the new numbers. It diverges within seconds and every symptom points at the replay system rather than at the catalogue somebody edited.</td></tr>
+</tbody></table>
+<p>The divergence check is also the project's only measurement of **how far apart two</p>
+<p>runs can get**, which is a question the network design needs and cannot answer by</p>
+<p>argument. It prints both numbers — corrected and uncorrected — and they are the</p>
+<p>evidence behind H1 and H2 in the open questions.</p>
 <h2>Three of them earn their place above the others</h2>
 <p><strong>Reproducibility</strong> is the project's most valuable regression test. It is compared</p>
 <p>on a fingerprint of every body's position and health rather than on a summary,</p>

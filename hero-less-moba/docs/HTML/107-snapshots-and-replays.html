@@ -269,6 +269,8 @@ svg { max-width: 100%; }
 <a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
 <a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
 <a href='065-the-way-in.info.html'><span class='index'>065</span>the-way-in</a>
+<a href='066-the-replay-log.info.html'><span class='index'>066</span>the-replay-log</a>
+<a href='067-record-and-replay.info.html'><span class='index'>067</span>record-and-replay</a>
 </section>
 <section><h2>the catalogues</h2>
 <a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
@@ -290,14 +292,36 @@ svg { max-width: 100%; }
 <tr><td>Blocked by</td><td>104, 105, 106</td></tr>
 <tr><td>Blocks</td><td>109, 701, 801, 804</td></tr>
 <tr><td>Reads</td><td><a href='017-the-viewing-layer.html'>the viewing layer</a>, <a href='003-the-simulation-tick.html'>the simulation tick</a></td></tr>
-<tr><td>Open questions</td><td>none</td></tr>
+<tr><td>Open questions</td><td>H1, H2 — both found here, both belong to issue <a class='issue-link' href='801-reconciling-across-machines.html'>801</a></td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
 <p>Snapshots are built: two frames, indexed by soldier id so that matching a body</p>
 <p>across them is reading the same index twice, with the viewer's blend clamped so it can</p>
 <p>be behind and never ahead.</p>
-<p><strong>The replay log is not built.</strong> Under a rotating authority a replay has to record the</p>
-<p>accepted snapshots as well as the commands, and nothing records either yet.</p>
+<p>The replay log is built. Three streams — a header, the commands as they are queued,</p>
+<p>and a keyframe of the accepted state once a second, delta-encoded against the one</p>
+<p>before. Two rows in the tick: <strong>record</strong>, before the commands are applied, because</p>
+<p>applying them empties the queue and because a refused command still belongs in the</p>
+<p>record; and <strong>log</strong>, last, because a keyframe is a statement about a finished tick.</p>
+<p>The world hash is built and every keyframe carries one, so a disagreement names the</p>
+<p>tick it started at rather than only that there was one. Alongside it there is a</p>
+<p>distance — the mean gap in world units between where the bodies are and where the</p>
+<p>record says they were — because the hash has a cliff and cannot say <em>how far</em>.</p>
+<p>The rules stamp is computed from the parameter tree rather than written down, so it</p>
+<p>changes the moment a catalogue changes; a replay whose stamp disagrees is refused</p>
+<p>rather than migrated. <code>./run-prototype record</code> and <code>./run-prototype replay</code> drive</p>
+<p>both halves and print numbers.</p>
+<p>Building it turned up two things about the network design that had never been asked,</p>
+<p>and both are open questions rather than guesses. **A position here is not an x and a</p>
+<p>y** — those are derived on every move pass, so the first version of the correction</p>
+<p>did nothing at all while reporting success. And **a machine that killed a body the</p>
+<p>authority did not can never be corrected**, because the slot is gone. See</p>
+<p><a href='020-open-questions.html'>open questions</a>, H1 and H2.</p>
+<p>Putting the recorder in also lifted the bots out of the command pass into a <strong>think</strong></p>
+<p>row of their own. They had been called from inside it, so the recorder sat between</p>
+<p>the two and saw an empty queue.</p>
+<p><strong>Not built: where replays live.</strong> They are written wherever they are asked for,</p>
+<p>nothing thins them, and nothing keeps or expires them. See "still open" below.</p>
 <h2>Intended behavior</h2>
 <p>Two outputs, from the same place in the tick, serving two different readers.</p>
 <h3>A snapshot</h3>
@@ -372,10 +396,25 @@ svg { max-width: 100%; }
 <li>The determinism test and world-hash function (this issue creates both)</li>
 </ul>
 <h2>Still open</h2>
-<p>A replay is now large rather than tiny, which changes E5 from a filing question</p>
-<p>into a storage one: where they live, how long they are kept, whether the snapshot</p>
-<p>stream can be thinned on write, and whether an old replay should be refused</p>
-<p>loudly or migrated.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>A replay is large rather than tiny, and it is now measured: about ten kilobytes per</p>
+<p>second of play, so a full ten-minute match is around six megabytes. That changes E5</p>
+<p>from a filing question into a storage one, and three parts of it are still unanswered:</p>
+<ul>
+<li><strong>Where they live and how long they are kept.</strong> Currently: wherever they are asked</li>
+</ul>
+<p>  for, forever.</p>
+<ul>
+<li><strong>Whether the keyframe stream can be thinned on write.</strong> One a second is the rate</li>
+</ul>
+<p>  the network reconciles at, which is the reason it was chosen, and it is not</p>
+<p>  obviously the right rate for a file being kept.</p>
+<ul>
+<li>Answered, at least: an old replay is <strong>refused loudly</strong>, not migrated. Playing one</li>
+</ul>
+<p>  under changed numbers produces a match that diverges within seconds and blames the</p>
+<p>  replay system for a catalogue edit.</p>
+<p>And the two network questions this issue uncovered, H1 and H2, which belong to issue</p>
+<p>801 and cannot be settled until there is a network at all.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

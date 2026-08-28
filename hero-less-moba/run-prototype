@@ -20,6 +20,11 @@
 #   ./run-prototype trace            -- headless with a line every twenty seconds
 #   ./run-prototype terminal         -- the text viewer, redrawn in place
 #   ./run-prototype scenario <name>  -- a described world, in the window, held
+#   ./run-prototype record out.replay -- play a match with nobody watching, and
+#                                        write down everything that happened
+#   ./run-prototype replay out.replay -- play one back and report how closely the
+#                                        simulation reproduced it
+#   ./run-prototype replay f watch    -- the same, drawn in the terminal as it goes
 #   ./run-prototype shot out.png 240 -- a screenshot of minute four, no hands
 #   ./run-prototype shot a.png 0 "" <name>  -- a screenshot of a scenario
 #   ./run-prototype /path/to/project ...  -- any of the above, elsewhere
@@ -110,6 +115,32 @@ case "${MODE}" in
         luajit "${DIR}/src/044-headless-runner.lua" "${LIMIT}"
         ;;
 
+    record)
+        # A match nobody is watching, written down completely enough that it can be
+        # watched later. The bots play both sides, so the command stream has real
+        # decisions in it rather than being empty.
+        OUT="${2:-/dev/shm/hero-less-moba/match.replay}"
+        LIMIT="${3:-30000}"
+        luajit "${DIR}/src/067-record-and-replay.lua" record "${OUT}" "${LIMIT}"
+        ;;
+
+    replay)
+        # Plays it back and reports how closely the simulation reproduced it. On one
+        # machine that should be exactly; the report exists because on two machines
+        # it will not be, and the number is the whole point of keeping keyframes.
+        #
+        # A second argument of "watch" draws it in the terminal viewer as it goes,
+        # through the same playback loop -- issue 109 asked for that, and a separate
+        # loop written for the sake of drawing would be a second program that agreed
+        # with the first right up until it did not.
+        IN="${2:-/dev/shm/hero-less-moba/match.replay}"
+        VERB="play"
+        if [ "${3}" = "watch" ]; then
+            VERB="watch"
+        fi
+        luajit "${DIR}/src/067-record-and-replay.lua" "${VERB}" "${IN}"
+        ;;
+
     trace)
         LIMIT="${2:-30000}"
         luajit "${DIR}/src/044-headless-runner.lua" "${LIMIT}" trace
@@ -162,7 +193,8 @@ case "${MODE}" in
 
     *)
         echo "run-prototype: no mode called '${MODE}'."
-        echo "Modes are: menu, play, watch, scenario, headless, trace, terminal, shot."
+        echo "Modes are: menu, play, watch, scenario, headless, trace,"
+        echo "           terminal, shot, record, replay."
         exit 1
         ;;
 esac

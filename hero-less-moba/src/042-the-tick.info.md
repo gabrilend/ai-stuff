@@ -26,19 +26,23 @@ is much easier to find when the order is a list you can read.
 | # | System | Does |
 | --- | --- | --- |
 | 1 | clear | Zeroes both damage buffers and last tick's events. |
-| 2 | commands | Drains the command queue. The only moment player intent changes anything. |
-| 3 | spawn | Wave timers and guard replacement. Everything that adds a body. |
-| 4 | index | Drops every living body into the spatial grid. |
-| 5 | retarget | Every soldier without a living target looks for one; then the attacker sweep. |
-| 6 | move | The brain, once per living body. |
-| 7 | attack | Cooldowns down; anything ready writes into the buffer. Towers too. |
-| 8 | resolve | The buffer is applied; the dead are marked. |
-| 9 | reap | Deaths become consequences; slots are freed. |
-| 10 | measure | Push depth, recomputed from the living. |
-| 11 | phase | The match clock and the game-over condition. |
-| 12 | snapshot | The state is stamped for the viewer. |
+| 2 | think | Every bot decides what it wants and queues it. |
+| 3 | record | Writes this tick's commands into the replay, if anything is recording. |
+| 4 | commands | Drains the command queue. The only moment player intent changes anything. |
+| 5 | spawn | Wave timers and guard replacement. Everything that adds a body. |
+| 6 | index | Drops every living body into the spatial grid. |
+| 7 | form | Every wave advances its anchor and shares out the cohesion budget. |
+| 8 | retarget | Every soldier without a living target looks for one; then the attacker sweep. |
+| 9 | move | The brain, once per living body. |
+| 10 | attack | Cooldowns down; anything ready writes into the buffer. Towers too. |
+| 11 | resolve | The buffer is applied; the dead are marked. |
+| 12 | reap | Deaths become consequences; slots are freed. |
+| 13 | measure | Push depth, recomputed from the living. |
+| 14 | phase | The match clock and the game-over condition. |
+| 15 | snapshot | The state is stamped for the viewer. |
+| 16 | log | Once a second, the accepted state becomes a replay keyframe. |
 
-## Two orderings that are load-bearing
+## Four orderings that are load-bearing
 
 **Resolve after attack, reap after resolve.** Attacks write into a buffer; resolve
 applies it; reap frees slots. Freeing a slot inside the resolve pass would let a later
@@ -47,6 +51,22 @@ body in the same pass be handed a slot the pass still refers to.
 **Measure after reap.** Push depth is a statement about the living, so it has to be
 taken after the dead have been removed. Measured before, a lane would report a depth
 held by a body that died this tick.
+
+**Think before record, record before commands.** The bots used to be called from
+inside the command pass rather than standing in the table on their own, and when the
+replay log went in it recorded nothing — the recorder sat between the two and saw an
+empty queue, because the thing filling the queue was inside the row after it. Which
+is the whole argument for the table: a system folded into another system's function
+body is a step that happens and cannot be seen happening.
+
+And the recording is before the applying because applying empties the queue — and
+because a refused command still belongs in the record. A replay holding only the
+accepted commands is a replay in which nobody ever made a mistake.
+
+**Log last.** A keyframe is a statement about a finished tick. Anywhere earlier and it
+would record a world halfway through being brought up to date, which is a state no
+other machine will ever be in and therefore a state nothing can usefully be compared
+against.
 
 ## Push depth
 

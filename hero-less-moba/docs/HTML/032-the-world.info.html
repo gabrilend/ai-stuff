@@ -269,6 +269,8 @@ svg { max-width: 100%; }
 <a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
 <a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
 <a href='065-the-way-in.info.html'><span class='index'>065</span>the-way-in</a>
+<a href='066-the-replay-log.info.html'><span class='index'>066</span>the-replay-log</a>
+<a href='067-record-and-replay.info.html'><span class='index'>067</span>record-and-replay</a>
 </section>
 <section><h2>the catalogues</h2>
 <a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
@@ -325,6 +327,7 @@ svg { max-width: 100%; }
 <tr><td><code>pending_structure_damage</code></td><td>double[]</td><td>Kept separate so neither can index into the other by an arithmetic mistake.</td></tr>
 <tr><td><code>free_slot</code></td><td>integer[]</td><td>The free list.</td></tr>
 <tr><td><code>high_water</code></td><td>integer</td><td>The highest slot ever used — every sweep runs to here, not to capacity.</td></tr>
+<tr><td><code>capacity</code></td><td>integer</td><td>How many soldier slots exist. Written down rather than left as the length of one of the arrays, so anything allocating a parallel array asks the world how big it is rather than asking one of its fields.</td></tr>
 <tr><td><code>event</code></td><td>array</td><td>Raised this tick, cleared at the top of the next.</td></tr>
 </tbody></table>
 <h2>The soldier arrays</h2>

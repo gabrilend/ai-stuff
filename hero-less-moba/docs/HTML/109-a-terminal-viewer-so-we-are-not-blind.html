@@ -269,6 +269,8 @@ svg { max-width: 100%; }
 <a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
 <a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
 <a href='065-the-way-in.info.html'><span class='index'>065</span>the-way-in</a>
+<a href='066-the-replay-log.info.html'><span class='index'>066</span>the-replay-log</a>
+<a href='067-record-and-replay.info.html'><span class='index'>067</span>record-and-replay</a>
 </section>
 <section><h2>the catalogues</h2>
 <a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
@@ -299,6 +301,13 @@ svg { max-width: 100%; }
 <p>It is kept rather than discarded: it is faster to debug in, works where nothing</p>
 <p>graphical does, pipes to a file and diffs, and keeps the viewing layer honest by being</p>
 <p>a second consumer of the same snapshots.</p>
+<p>It also watches replays: <code>./run-prototype replay &lt;file&gt; watch</code> draws a recorded match</p>
+<p>as it plays back. Through the <strong>same</strong> playback loop the reporting mode uses, hooked</p>
+<p>per tick — a second loop written for the sake of drawing would be a second program</p>
+<p>that agreed with the first right up until it did not, and nothing would say when.</p>
+<p>Not built: the step mode. There is no advance-one-tick-per-keypress here; that job is</p>
+<p>done by the gate in issue <a class='issue-link' href='110-a-scenario-you-can-hold-at-the-gate.html'>110</a>, which steps a described world by a named number of</p>
+<p>ticks or until a named event.</p>
 <h2>Intended behavior</h2>
 <p>A viewer that draws the match as text: three lanes as three rows of characters,</p>
 <p>one character per few paces, with each team's soldiers as different glyphs, the</p>

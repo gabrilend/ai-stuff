@@ -269,6 +269,8 @@ svg { max-width: 100%; }
 <a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
 <a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
 <a href='065-the-way-in.info.html'><span class='index'>065</span>the-way-in</a>
+<a href='066-the-replay-log.info.html'><span class='index'>066</span>the-replay-log</a>
+<a href='067-record-and-replay.info.html'><span class='index'>067</span>record-and-replay</a>
 </section>
 <section><h2>the catalogues</h2>
 <a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
@@ -322,6 +324,19 @@ svg { max-width: 100%; }
 </ul>
 <p>   be applied twice and a viewer reading a snapshot sees exactly that tick's events.</p>
 <ul>
+<li><strong>Think.</strong> Every bot decides what it wants and queues it. Its own step rather</li>
+</ul>
+<p>   than something folded into the next one, and it was the latter until the replay</p>
+<p>   log went in and recorded nothing — the recorder sat between the two and saw an</p>
+<p>   empty queue, because the thing filling the queue was inside the step after it.</p>
+<p>   Which is the argument for the table: a system hidden inside another system's</p>
+<p>   function body is a step that happens and cannot be seen happening.</p>
+<ul>
+<li><strong>Record.</strong> If anything is recording, this tick's commands are written down —</li>
+</ul>
+<p>   <strong>before</strong> they are applied, because applying them empties the queue, and because</p>
+<p>   a command that gets refused still belongs in the record. See issue <a class='issue-link' href='107-snapshots-and-replays.html'>107</a>.</p>
+<ul>
 <li><strong>Apply commands.</strong> Every command queued since the last tick is applied, in a</li>
 </ul>
 <p>   fixed order by player number, then by arrival index. This is the only moment in</p>
@@ -373,7 +388,12 @@ svg { max-width: 100%; }
 <p>   end, challenges begin, the game-over condition is checked.</p>
 <ul>
 <li><strong>Snapshot.</strong> The state is stamped for the viewer.</li>
+<li><strong>Log.</strong> If anything is recording, once a second the accepted state is written</li>
 </ul>
+<p>   down as a keyframe. <strong>Last</strong>, because a keyframe is a statement about a finished</p>
+<p>   tick; anywhere earlier and it would record a world halfway through being brought</p>
+<p>   up to date, which is a state no other machine will ever be in and therefore a</p>
+<p>   state nothing can usefully be compared against.</p>
 <h2>Where randomness lives</h2>
 <p>Randomness is not global and is never taken from the system clock. The world</p>
 <p>holds a small set of <strong>named random streams</strong>, each one a seeded generator that</p>
@@ -417,7 +437,13 @@ svg { max-width: 100%; }
 </ul>
 <p>  lockstep, where nothing outside the simulation ever writes into it. Under a</p>
 <p>  rotating authority the world is periodically overwritten from another machine,</p>
-<p>  so a replay has to record the accepted snapshots as well. See issue <a class='issue-link' href='107-snapshots-and-replays.html'>107</a>.</p>
+<p>  so a replay has to record the accepted snapshots as well. Built: see issue <a class='issue-link' href='107-snapshots-and-replays.html'>107</a>.</p>
+<p>Building that turned up two things the network design had not been asked yet, and</p>
+<p>both are written down as questions rather than guessed at. **A position in this</p>
+<p>simulation is not an x and a y** — those are derived on every move pass, so writing</p>
+<p>them onto a body accomplishes nothing at all. And **a machine that killed a body the</p>
+<p>authority did not can never be corrected**, because the slot is gone. See</p>
+<p><a href='020-open-questions.html'>open questions</a>, H1 and H2.</p>
 <h2>Where the threads go</h2>
 <p>The tick is mostly a loop over thousands of soldiers doing identical arithmetic,</p>
 <p>which is the shape work has to have before a thread pool helps. The rule the</p>
@@ -458,6 +484,8 @@ svg { max-width: 100%; }
 <tr><td><code>player</code></td><td>array[6] of player record</td><td>Commander, resource per colour, ceiling per colour, and what has been wasted. <strong>No lock or objection state</strong> — a stone belongs to whoever drew it, so there is nothing to lock it against.</td></tr>
 <tr><td><code>stream</code></td><td>table of named generators</td><td>The random streams above.</td></tr>
 <tr><td><code>pending_damage</code></td><td>double[]</td><td>One slot per soldier, cleared every tick.</td></tr>
+<tr><td><code>capacity</code></td><td>integer</td><td>How many soldier slots exist. Written down rather than left as the length of one of the arrays, so anything allocating a parallel array asks the world how big it is.</td></tr>
+<tr><td><code>replay</code></td><td>record</td><td>The replay log. Present whether or not anything is recording — <strong>not recording is a state, not an absence</strong>, and its sink is the integer 0.</td></tr>
 </tbody></table>
 <p>Related: <a href='004-a-unit-and-what-it-carries.html'>a unit and what it carries</a> ·</p>
 <p><a href='006-combat-and-damage.html'>combat and damage</a> ·</p>

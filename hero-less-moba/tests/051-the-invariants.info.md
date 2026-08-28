@@ -88,6 +88,19 @@ cheap standing versions, kept here so a whole-match run notices.
 | With nobody saying anything the way in is the menu; a named match or scenario skips it; a camera pointed at a scenario still gets the scenario; a camera with nothing named gets a match; a camera pointed at the menu gets the menu; a start naming no scenario leaves the menu up | …reorders the start-up questions. This is the regression for a real bug: asking for a screenshot of a scenario photographed an ordinary match instead, and nothing about the picture said so, because it looked like a game. |
 | A scenario loaded at the gate moves the clock to where it says, stands the described phase and monster up, and was holding still until something asked it to move | …breaks the far end of the bypass. The check above proves the right door opens; this proves there is a room behind it. |
 
+### The replay
+
+| Check | Fails the day somebody… |
+| --- | --- |
+| A match records keyframes as it is played, the file reads back as the match that was recorded, the commands somebody made are in it, and playing it back reproduces the match at every keyframe | …breaks the recording or the playback. Played with corrections **off**, so what is checked is the simulation reproducing the match on its own rather than the keyframes dragging it into place. |
+| A world that has drifted stops matching the record, the keyframes hold it near the match that was played, and it does not wander further as the match goes on | …makes the keyframes decorative. Measured as a **distance in world units** rather than as a hash match, because after a correction the hash is the wrong instrument — it is taken before the correction lands and answers yes-or-no about a world that is now approximately right. |
+| The rules stamp is the same twice for the same rules, changing one number anywhere changes it, putting the number back puts it back, and a replay from other rules is refused rather than migrated | …lets a replay recorded before a balance change play under the new numbers. It diverges within seconds and every symptom points at the replay system rather than at the catalogue somebody edited. |
+
+The divergence check is also the project's only measurement of **how far apart two
+runs can get**, which is a question the network design needs and cannot answer by
+argument. It prints both numbers — corrected and uncorrected — and they are the
+evidence behind H1 and H2 in the open questions.
+
 ## Three of them earn their place above the others
 
 **Reproducibility** is the project's most valuable regression test. It is compared

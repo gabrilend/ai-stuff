@@ -17,9 +17,12 @@ hero-less-moba/
 ├── COPYING.md ................................ What the AGPL asks of you, and the
 │                                               notice every source file carries.
 │
-├── run-prototype ............................. The front door. Opens the window,
-│                                               or runs the same match headless,
-│                                               in a terminal, or as a screenshot.
+├── run-prototype ............................. The front door. Opens the menu, a
+│                                               match, a described world, or the
+│                                               same match with no window at all --
+│                                               headless, in a terminal, as a
+│                                               screenshot, or recorded to a replay
+│                                               and played back.
 ├── run-scenario .............................. Loads a described world and holds
 │                                               it at a gate. Step it, or run it
 │                                               until something happens.
