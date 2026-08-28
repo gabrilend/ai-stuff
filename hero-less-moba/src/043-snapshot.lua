@@ -110,6 +110,18 @@ local function make_frame(world)
     live = {},
     live_count = 0,
 
+    -- The fallen, and how far through fading they are: 1 the moment they fell, down
+    -- toward 0. **Kept apart from the live list on purpose** -- a viewer counting
+    -- bodies must not count corpses, and everything that walks the live list is
+    -- counting something.
+    --
+    -- They are here at all because the fade is real rather than invented. A body
+    -- decays for two seconds after it falls, holding its slot and its numbers, so
+    -- what the renderer draws is a body that genuinely still exists. See issue 210.
+    fading = {},
+    fading_count = 0,
+    fade = zeroed(capacity),
+
     structure = {},
     team_view = {},
     -- One per player, but **only the viewing player's team is ever filled in** on
@@ -255,6 +267,32 @@ function M.stamp(world)
     live[index] = 0
   end
   frame.live_count = count
+
+  -- The fallen. A second sweep rather than a branch inside the first, because the
+  -- two lists mean different things and the cost of walking the slots twice is a
+  -- comparison per slot.
+  local fading = frame.fading
+  local fading_count = 0
+  local span = world.parameters.unit.decay_ticks
+  for id = 1, world.high_water do
+    if soldier.decaying[id] > 0 then
+      fading_count = fading_count + 1
+      fading[fading_count] = id
+      frame.fade[id]      = soldier.decaying[id] / span
+      frame.x[id]         = soldier.x[id]
+      frame.y[id]         = soldier.y[id]
+      frame.facing[id]    = soldier.facing[id]
+      frame.team[id]      = soldier.team[id]
+      frame.flavour[id]   = soldier.flavour[id]
+      frame.archetype[id] = soldier.archetype[id]
+      frame.reach[id]     = soldier.reach[id]
+      frame.lane[id]      = soldier.lane[id]
+    end
+  end
+  for index = fading_count + 1, frame.fading_count do
+    fading[index] = 0
+  end
+  frame.fading_count = fading_count
 
   -- Stone.
   for _, structure in ipairs(world.structure) do

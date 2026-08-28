@@ -167,6 +167,7 @@ svg { max-width: 100%; }
 <a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
 <a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -301,6 +302,8 @@ svg { max-width: 100%; }
 <tr><th>Name</th><th>Type</th><th>Meaning</th></tr>
 </thead><tbody>
 <tr><td><code>ticks_per_second</code></td><td>integer</td><td>How many ticks the world advances per second of wall clock. Every duration in every catalogue is a whole number of these.</td></tr>
+<tr><td><code>sync_cycle_seconds</code></td><td>integer</td><td>How often machines correct each other's arithmetic.</td></tr>
+<tr><td><code>decay_ticks</code></td><td>integer</td><td>How long a fallen body holds its slot before its death is final. <strong>Two sync cycles</strong>, written as that multiplication rather than as a number, so that changing the cadence carries this with it. See issue <a class='issue-link' href='210-a-death-decays-before-it-is-final.html'>210</a>.</td></tr>
 <tr><td><code>archetype</code></td><td>array of rows</td><td>One row per kind of body. A body's <code>archetype</code> field is an index into this.</td></tr>
 <tr><td><code>wave</code></td><td>table</td><td>What a wave is made of and how often one leaves the base.</td></tr>
 </tbody></table>

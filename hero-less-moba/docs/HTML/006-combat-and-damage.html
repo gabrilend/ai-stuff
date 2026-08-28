@@ -167,6 +167,7 @@ svg { max-width: 100%; }
 <a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
 <a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -343,10 +344,36 @@ svg { max-width: 100%; }
 <ul>
 <li><strong>Reset.</strong> <code>cooldown</code> is set to <code>cooldown_max</code>.</li>
 </ul>
+<h2>A death is a two-second process, not an instant</h2>
+<p>A body that reaches zero health **leaves the field immediately and stays in its slot</p>
+<p>for two more seconds.** During that span it is not alive: it stops fighting, stops</p>
+<p>being a target, stops holding a place in the frontline queue, stops counting toward</p>
+<p>push depth, and is not in the spatial grid. But it is not gone either — its slot is</p>
+<p>not free, its generation counter has not moved, and every one of its numbers is still</p>
+<p>there.</p>
+<p>Only when the span runs out does any of the rest below happen: the payment, the wave</p>
+<p>counter, the guard replacement, the challenge ending.</p>
+<p><strong>Why.</strong> Machines correct each other's arithmetic about once a second, and a body</p>
+<p>that died on one machine and did not die on another cannot be repaired once its slot</p>
+<p>has been recycled — there is nothing left to write the corrected numbers onto. Deaths</p>
+<p>are the hinge everything downstream hangs from: health makes deaths, deaths make wave</p>
+<p>wipes, wipes make draws, draws make the chest. One soldier's difference puts a machine</p>
+<p>permanently out of step. Two seconds is two correction cycles, which is long enough</p>
+<p>for every machine to have had its say, and undoing a death is then clearing one number.</p>
+<p><strong>What it costs.</strong> Every consequence of a death lands two seconds late. Uniformly,</p>
+<p>for all of them, so it is a delay rather than a distortion. Paying immediately and</p>
+<p>undoing it if the death is reverted was the alternative and it does not survive</p>
+<p>contact: a payment can be unmade only if it has not been spent, and a chest draw that</p>
+<p>has already been placed cannot be unmade at all. **A consequence that has been acted</p>
+<p>on is not revertible**, so the boundary has to sit before the consequence.</p>
+<p>The visible half is a bonus rather than the reason. A body that fades rather than</p>
+<p>blinking out is the least artificial version of the moment, and what the renderer</p>
+<p>draws is a body that genuinely still exists.</p>
+<p>See issue <a class='issue-link' href='210-a-death-decays-before-it-is-final.html'>210</a>, and <a href='020-open-questions.html'>open questions</a>, H2.</p>
 <h2>Kill attribution: there isn't any</h2>
 <p><strong>When a body dies, the opposing team is paid. That is the whole rule.</strong></p>
 <p><em>Settled; see <a href='020-open-questions.html'>open questions</a>, A2 and F13.</em></p>
-<p>The resolve pass finds a soldier at zero health, reads **the dead body's own</p>
+<p>The reap pass finds a soldier whose decay has run out, reads **the dead body's own</p>
 <p>team**, and pays every player on the other one. It does not ask what killed it,</p>
 <p>because it does not need to — a body only ever takes damage from the other side</p>
 <p>or from a challenge monster, and a monster's kills pay the team opposite the one</p>

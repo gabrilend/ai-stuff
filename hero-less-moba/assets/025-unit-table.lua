@@ -36,6 +36,20 @@ local M = {}
 -- every table is a whole number of these.
 M.ticks_per_second = 30
 
+-- How long a fallen body decays before its death is final: it leaves the field at
+-- once and holds its slot, and every one of its numbers, for this long afterward.
+--
+-- **Two reconciliation cycles**, and it is written as that rather than as a number
+-- of seconds, because that is what it means. Machines correct each other about once
+-- a second, and a body has to survive long enough for every machine to have had its
+-- say -- otherwise a death is the one thing a correction can never reach, since the
+-- slot is gone and there is nothing left to correct.
+--
+-- If the reconciliation cadence ever changes, this follows it. That is why the two
+-- numbers are multiplied here rather than stated apart.
+M.sync_cycle_seconds = 1
+M.decay_ticks = M.ticks_per_second * M.sync_cycle_seconds * 2
+
 -- {{{ M.archetype
 -- Archetype ids are rows in this array, and a body stores its row rather than
 -- its stats -- except that it does not, quite: a body copies the row's values

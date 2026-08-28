@@ -167,6 +167,7 @@ svg { max-width: 100%; }
 <a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
 <a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -363,6 +364,13 @@ svg { max-width: 100%; }
 </thead><tbody>
 <tr><td>With nobody saying anything the way in is the menu; a named match or scenario skips it; a camera pointed at a scenario still gets the scenario; a camera with nothing named gets a match; a camera pointed at the menu gets the menu; a start naming no scenario leaves the menu up</td><td>…reorders the start-up questions. This is the regression for a real bug: asking for a screenshot of a scenario photographed an ordinary match instead, and nothing about the picture said so, because it looked like a game.</td></tr>
 <tr><td>A scenario loaded at the gate moves the clock to where it says, stands the described phase and monster up, and was holding still until something asked it to move</td><td>…breaks the far end of the bypass. The check above proves the right door opens; this proves there is a room behind it.</td></tr>
+</tbody></table>
+<h3>Death</h3>
+<table><thead>
+<tr><th>Check</th><th>Fails the day somebody…</th></tr>
+</thead><tbody>
+<tr><td>Bodies fall and begin decaying rather than vanishing; a decaying body is not alive, is not in the living count, still holds its own slot halfway through, can be brought back intact, and nobody was paid for a death that was taken back</td><td>…makes a death instant again. The slot being reachable is the entire mechanism by which a death can ever be corrected from another machine — once it is recycled there is nothing left to write onto.</td></tr>
+<tr><td>Bodies spend time decaying over a whole match, their deaths are announced when they become certain, a finished decay hands the slot back, and nothing decays for longer than its span</td><td>…breaks the far end. A body stuck decaying would hold its slot for the rest of the match and never pay anybody, and the free list would drain until the world ran out of room.</td></tr>
 </tbody></table>
 <h3>The replay</h3>
 <table><thead>

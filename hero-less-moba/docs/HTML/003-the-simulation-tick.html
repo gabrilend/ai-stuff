@@ -167,6 +167,7 @@ svg { max-width: 100%; }
 <a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
 <a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -374,10 +375,14 @@ svg { max-width: 100%; }
 <p>   each other on the same tick both die, and neither one's death cancels the</p>
 <p>   other's blow.</p>
 <ul>
-<li><strong>Reap.</strong> Dead bodies are removed, deaths are turned into events: personal</li>
+<li><strong>Reap.</strong> Two sweeps. Bodies at zero health <strong>leave the field and begin decaying</strong></li>
 </ul>
-<p>   resource paid out, wave-completion counters decremented, tower-destroyed</p>
-<p>   rewards issued.</p>
+<p>   — off the grid, out of every queue, out of the living count, and still holding</p>
+<p>   their slot. Bodies whose decay has run out become final: personal resource paid</p>
+<p>   out, wave-completion counters decremented, tower-destroyed rewards issued, slot</p>
+<p>   released. <strong>A death is a two-second process</strong>, because a death is the one thing a</p>
+<p>   correction from another machine can never reach once the slot is gone. See issue</p>
+<p>   210.</p>
 <ul>
 <li><strong>Measure.</strong> Push depth, recomputed from the living. <strong>After the reap</strong>, because</li>
 </ul>
@@ -492,6 +497,7 @@ svg { max-width: 100%; }
 <tr><td><code>player</code></td><td>array[6] of player record</td><td>Commander, resource per colour, ceiling per colour, and what has been wasted. <strong>No lock or objection state</strong> — a stone belongs to whoever drew it, so there is nothing to lock it against.</td></tr>
 <tr><td><code>stream</code></td><td>table of named generators</td><td>The random streams above.</td></tr>
 <tr><td><code>pending_damage</code></td><td>double[]</td><td>One slot per soldier, cleared every tick.</td></tr>
+<tr><td><code>soldier.decaying</code></td><td>integer[]</td><td>Ticks of decay remaining. Zero for everything alive and everything gone.</td></tr>
 <tr><td><code>capacity</code></td><td>integer</td><td>How many soldier slots exist. Written down rather than left as the length of one of the arrays, so anything allocating a parallel array asks the world how big it is.</td></tr>
 <tr><td><code>replay</code></td><td>record</td><td>The replay log. Present whether or not anything is recording — <strong>not recording is a state, not an absence</strong>, and its sink is the integer 0.</td></tr>
 </tbody></table>

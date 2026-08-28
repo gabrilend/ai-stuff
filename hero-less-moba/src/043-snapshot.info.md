@@ -37,10 +37,20 @@ one every frame, and a body that moved slots between them would be drawn as a te
 
 `live` and `live_count` give the renderer a dense list to walk, so it never scans slots.
 
+`fading` and `fading_count` are the same for bodies that have fallen and are still
+decaying, with `fade[id]` running from 1 the moment they fell down toward 0. **A
+separate list, never folded into the live one**: a viewer counting bodies must not
+count corpses, and everything that walks the live list is counting something. What
+the renderer draws from it is a body that genuinely still exists — a fallen body holds
+its slot and its numbers for two seconds, so the fade is real rather than an animation
+invented here. See issue 210.
+
 ## What a frame holds
 
 **Per body**: `alive`, `x`, `y`, `facing`, `team`, `flavour`, `archetype`, `reach`,
 `lane`, `milestone`, `health_fraction`, `spawned_lane`, and `upgrade_count[kind][id]`.
+
+**Per fallen body**: `fade`, plus the position, team, flavour, archetype, reach and lane it had when it fell.
 
 **Per structure**: `team`, `kind`, `lane`, `alive`, `x`, `y`, `health_fraction`,
 `command_radius`, `guard_count`, `upgrade_count`.

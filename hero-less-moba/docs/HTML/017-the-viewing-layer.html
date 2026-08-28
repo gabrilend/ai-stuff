@@ -167,6 +167,7 @@ svg { max-width: 100%; }
 <a href='207-waves-spawn-on-a-cadence.html'><span class='index'>207</span>Waves Spawn on a Cadence</a>
 <a href='208-a-wave-knows-when-it-is-gone.html'><span class='index'>208</span>A Wave Knows When It Is Gone</a>
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
+<a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -330,6 +331,7 @@ svg { max-width: 100%; }
 <tr><td><code>tick</code></td><td>To interpolate against.</td></tr>
 <tr><td>Per soldier: x, y, facing, team, flavour, archetype, health fraction, alive</td><td>Everything drawn about a body.</td></tr>
 <tr><td>Per soldier: the upgrades it was stamped with</td><td>Reading an enemy's build off their frontline is the only way to learn their arrangement. Enemy bodies carry this; enemy <em>chests</em> do not exist here.</td></tr>
+<tr><td>The fallen, and how far through fading each one is</td><td>A body that reaches zero health stays in its slot for two more seconds — see issue <a class='issue-link' href='210-a-death-decays-before-it-is-final.html'>210</a> — so a fading corpse is a body that genuinely still exists rather than an animation the renderer invented. <strong>Kept in its own list, never in the live one</strong>: a viewer counting bodies must not count corpses, and everything that walks the live list is counting something.</td></tr>
 <tr><td>Per structure: health fraction, alive, command radius</td><td>Towers and libraries. The radius is drawn for both teams — see <a href='007-guard-towers-and-their-guards.html'>guard towers</a>.</td></tr>
 <tr><td><strong>Own team only</strong>: every stone the player can see — its kind, where it sits, whether it is theirs or in the pool, and where it is going if it is moving — plus boons</td><td>The panel. A stone somebody has set aside is absent from <strong>their</strong> frame and present in everybody else's.</td></tr>
 <tr><td>Per lane: push depth, both teams'</td><td>The lane-pressure read. Ignored during a challenge.</td></tr>

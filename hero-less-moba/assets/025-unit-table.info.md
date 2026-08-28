@@ -21,6 +21,8 @@ is the mixture and the captain, not a private stat block.
 | Name | Type | Meaning |
 | --- | --- | --- |
 | `ticks_per_second` | integer | How many ticks the world advances per second of wall clock. Every duration in every catalogue is a whole number of these. |
+| `sync_cycle_seconds` | integer | How often machines correct each other's arithmetic. |
+| `decay_ticks` | integer | How long a fallen body holds its slot before its death is final. **Two sync cycles**, written as that multiplication rather than as a number, so that changing the cadence carries this with it. See issue 210. |
 | `archetype` | array of rows | One row per kind of body. A body's `archetype` field is an index into this. |
 | `wave` | table | What a wave is made of and how often one leaves the base. |
 

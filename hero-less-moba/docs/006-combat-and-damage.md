@@ -58,12 +58,45 @@ worker is writing.
    who dealt it.
 7. **Reset.** `cooldown` is set to `cooldown_max`.
 
+## A death is a two-second process, not an instant
+
+A body that reaches zero health **leaves the field immediately and stays in its slot
+for two more seconds.** During that span it is not alive: it stops fighting, stops
+being a target, stops holding a place in the frontline queue, stops counting toward
+push depth, and is not in the spatial grid. But it is not gone either — its slot is
+not free, its generation counter has not moved, and every one of its numbers is still
+there.
+
+Only when the span runs out does any of the rest below happen: the payment, the wave
+counter, the guard replacement, the challenge ending.
+
+**Why.** Machines correct each other's arithmetic about once a second, and a body
+that died on one machine and did not die on another cannot be repaired once its slot
+has been recycled — there is nothing left to write the corrected numbers onto. Deaths
+are the hinge everything downstream hangs from: health makes deaths, deaths make wave
+wipes, wipes make draws, draws make the chest. One soldier's difference puts a machine
+permanently out of step. Two seconds is two correction cycles, which is long enough
+for every machine to have had its say, and undoing a death is then clearing one number.
+
+**What it costs.** Every consequence of a death lands two seconds late. Uniformly,
+for all of them, so it is a delay rather than a distortion. Paying immediately and
+undoing it if the death is reverted was the alternative and it does not survive
+contact: a payment can be unmade only if it has not been spent, and a chest draw that
+has already been placed cannot be unmade at all. **A consequence that has been acted
+on is not revertible**, so the boundary has to sit before the consequence.
+
+The visible half is a bonus rather than the reason. A body that fades rather than
+blinking out is the least artificial version of the moment, and what the renderer
+draws is a body that genuinely still exists.
+
+See issue 210, and [open questions](020-open-questions.md), H2.
+
 ## Kill attribution: there isn't any
 
 **When a body dies, the opposing team is paid. That is the whole rule.**
 *Settled; see [open questions](020-open-questions.md), A2 and F13.*
 
-The resolve pass finds a soldier at zero health, reads **the dead body's own
+The reap pass finds a soldier whose decay has run out, reads **the dead body's own
 team**, and pays every player on the other one. It does not ask what killed it,
 because it does not need to — a body only ever takes damage from the other side
 or from a challenge monster, and a monster's kills pay the team opposite the one

@@ -88,6 +88,13 @@ cheap standing versions, kept here so a whole-match run notices.
 | With nobody saying anything the way in is the menu; a named match or scenario skips it; a camera pointed at a scenario still gets the scenario; a camera with nothing named gets a match; a camera pointed at the menu gets the menu; a start naming no scenario leaves the menu up | …reorders the start-up questions. This is the regression for a real bug: asking for a screenshot of a scenario photographed an ordinary match instead, and nothing about the picture said so, because it looked like a game. |
 | A scenario loaded at the gate moves the clock to where it says, stands the described phase and monster up, and was holding still until something asked it to move | …breaks the far end of the bypass. The check above proves the right door opens; this proves there is a room behind it. |
 
+### Death
+
+| Check | Fails the day somebody… |
+| --- | --- |
+| Bodies fall and begin decaying rather than vanishing; a decaying body is not alive, is not in the living count, still holds its own slot halfway through, can be brought back intact, and nobody was paid for a death that was taken back | …makes a death instant again. The slot being reachable is the entire mechanism by which a death can ever be corrected from another machine — once it is recycled there is nothing left to write onto. |
+| Bodies spend time decaying over a whole match, their deaths are announced when they become certain, a finished decay hands the slot back, and nothing decays for longer than its span | …breaks the far end. A body stuck decaying would hold its slot for the rest of the match and never pay anybody, and the free list would drain until the world ran out of room. |
+
 ### The replay
 
 | Check | Fails the day somebody… |

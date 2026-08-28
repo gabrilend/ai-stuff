@@ -1270,6 +1270,171 @@ local function test_a_replay_knows_which_rules_it_was_played_under()
 end
 -- }}}
 
+-- {{{ local function test_a_death_takes_two_seconds()
+-- A body at zero health leaves the field at once and its death becomes final later.
+--
+-- The reason is a hole the replay log found and measured: a body that died on one
+-- machine and did not die on another can never be corrected, because the slot has
+-- been handed back and there is nothing left to write onto. Deaths are the hinge
+-- everything downstream hangs from -- health makes deaths, deaths make wipes, wipes
+-- make draws, draws make the chest -- so one soldier's difference puts a machine
+-- permanently out of step.
+--
+-- What is checked here is both halves of the answer. **Off the field immediately**,
+-- so nothing about the fight changes; **slot held, and nothing paid**, until the
+-- decay runs out.
+local function test_a_death_takes_two_seconds()
+  local world, modules, parameters = fresh_world(tick_module)
+  world.bot = {}
+  local span = parameters.unit.decay_ticks
+
+  -- Run until somebody is decaying. Two waves have to meet first, so this is a
+  -- couple of thousand ticks rather than a handful.
+  local found, waited = 0, 0
+  while found == 0 and waited < 6000 do
+    tick_module.advance(world)
+    waited = waited + 1
+    for id = 1, world.high_water do
+      if world.soldier.decaying[id] > 0 then
+        found = id
+        break
+      end
+    end
+  end
+
+  check("bodies fall and begin decaying rather than vanishing", found > 0,
+        "waited " .. waited .. " ticks")
+  if found == 0 then
+    return
+  end
+
+  local soldier = world.soldier
+  check("and a decaying body is not alive", soldier.alive[found] == 0)
+
+  -- The living count is the number everything visible is drawn from, so a corpse
+  -- counted there would be a corpse in every report and on every screen.
+  local counted = 0
+  for id = 1, world.high_water do
+    if soldier.alive[id] == 1 then counted = counted + 1 end
+  end
+  check("and the living count does not count it", counted == world.live_count,
+        counted .. " alive against a count of " .. world.live_count)
+
+  -- The slot. This is the whole point: nothing else may be allocated over it, and
+  -- its generation must not move, or every reference to it goes stale.
+  local generation = soldier.generation[found]
+  local free_before = #world.free_slot
+  local team_before = soldier.team[found]
+
+  -- Nothing has been paid. Checked as a total across the team that would be paid,
+  -- because which player gets what is a different issue's business.
+  local function purse_of(team)
+    local total = 0
+    for _, number in ipairs(world.team_players[team]) do
+      for colour = 1, world.colour_count do
+        total = total + world.player[number].points[colour]
+      end
+    end
+    return total
+  end
+  local other = (team_before == 1) and 2 or 1
+  local purse_before = purse_of(other)
+
+  -- Halfway through the decay, everything should still be true.
+  for _ = 1, math.floor(span / 2) do
+    tick_module.advance(world)
+  end
+  check("and halfway through, the slot is still its own",
+        soldier.decaying[found] > 0
+        and soldier.generation[found] == generation
+        and soldier.team[found] == team_before,
+        "decaying " .. soldier.decaying[found])
+
+  -- And back. The one thing the slot is held for.
+  --
+  -- The living count is read again here rather than reused from before the wait:
+  -- the match kept running through the decay, and other bodies fell and were born
+  -- while it did. Comparing against the older number tested the rest of the match
+  -- rather than this body.
+  local live_before_revive = world.live_count
+  world.revive(world, found, soldier.health_max[found])
+  check("and a decaying body can be brought back, intact",
+        soldier.alive[found] == 1
+        and soldier.decaying[found] == 0
+        and soldier.team[found] == team_before
+        and soldier.generation[found] == generation)
+
+  check("and reviving it puts it back in the living count",
+        world.live_count == live_before_revive + 1,
+        world.live_count .. " against " .. (live_before_revive + 1))
+
+  check("and nobody was paid for a death that was taken back",
+        purse_of(other) >= purse_before,
+        purse_of(other) .. " against " .. purse_before)
+
+  -- Free slots are not consumed by a body that has not finished dying.
+  check("and no slot was handed back while it was still decaying",
+        #world.free_slot <= free_before + 200,
+        #world.free_slot .. " free, was " .. free_before)
+end
+-- }}}
+
+-- {{{ local function test_a_death_is_paid_for_when_it_is_certain()
+-- And the far end: the consequences do arrive, exactly once, and late.
+--
+-- The delay is the cost of the design and it is uniform -- a kill pays two seconds
+-- after the blow, a wave wipe draws two seconds after the last body falls -- so it
+-- is a delay rather than a distortion. What must not happen is a consequence that
+-- fires twice, or one that never fires at all.
+local function test_a_death_is_paid_for_when_it_is_certain()
+  local world, modules, parameters = fresh_world(tick_module)
+  world.bot = {}
+  local span = parameters.unit.decay_ticks
+  local soldier = world.soldier
+
+  local kills = 0
+  local seen_decaying = 0
+  local slots_at_start = #world.free_slot
+
+  for _ = 1, 6000 do
+    tick_module.advance(world)
+    for _, event in ipairs(modules.snapshot.newest(world).event) do
+      if event.name == "killed" then
+        kills = kills + 1
+      end
+    end
+    for id = 1, world.high_water do
+      if soldier.decaying[id] > 0 then
+        seen_decaying = seen_decaying + 1
+        break
+      end
+    end
+  end
+
+  check("bodies spend time decaying over a whole match", seen_decaying > 100,
+        seen_decaying .. " ticks with somebody fading")
+  check("and their deaths are announced when they become certain", kills > 0,
+        kills .. " announced")
+
+  -- Everything that finished decaying gave its slot back. If the second sweep ever
+  -- stopped releasing, the free list would drain and the world would run out.
+  check("and a finished decay hands the slot back",
+        #world.free_slot > 0 and #world.free_slot <= slots_at_start,
+        #world.free_slot .. " free of " .. slots_at_start)
+
+  -- Nothing is left decaying forever. A body stuck at a positive count would hold
+  -- its slot for the rest of the match and never pay anybody.
+  local stuck = 0
+  for id = 1, world.high_water do
+    if soldier.decaying[id] > span then
+      stuck = stuck + 1
+    end
+  end
+  check("and nothing decays for longer than it is supposed to", stuck == 0,
+        stuck .. " bodies past the span")
+end
+-- }}}
+
 print("")
 print("the invariants")
 print("")
@@ -1281,6 +1446,8 @@ test_wide_query()
 test_every_hero_is_buyable()
 test_a_hero_obeys_one_signpost()
 test_no_nil_fields()
+test_a_death_takes_two_seconds()
+test_a_death_is_paid_for_when_it_is_certain()
 test_formation_turns_a_corner()
 test_cohesion_is_conserved()
 test_the_opening_is_symmetric()

@@ -69,6 +69,7 @@ problem statement, rendered.
 | 207 | Waves spawn on a cadence |
 | 208 | A wave knows when it is gone |
 | 209 | The thread pool slices the tick |
+| 210 | A death decays before it is final |
 
 ## Phase 3 — Things That Stand and Hold
 
