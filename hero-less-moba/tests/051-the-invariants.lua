@@ -903,6 +903,7 @@ local function test_formation_turns_a_corner()
   end
 
   local watched, worst_lag, saw_bend = 0, 0, false
+  local worst_lag_leaving = 0
   local before_box, after_box = 0, 0
 
   for _ = 1, 2400 do
@@ -922,13 +923,27 @@ local function test_formation_turns_a_corner()
     end
     if watched ~= 0 then
       local wave = world.wave[watched]
+      -- **Only once the wave is clear of its own base.** A body's place is a fixed
+      -- distance behind the anchor, and until the anchor has walked further than the
+      -- formation is deep, the rear ranks want to stand behind the library -- where
+      -- there is no lane. They are clamped to its start and read as badly out of
+      -- position while standing as far back as the ground allows.
+      --
+      -- That is correct, it sorts itself out within the first hundred paces, and it
+      -- is asserted on its own below. Folding it into this measurement made a
+      -- statement about a corner into a statement about a wall, and the tolerance
+      -- here happened to sit just above it until the ranks were spread out.
+      local clear_of_the_base = wave.anchor > 200
       local min_x, max_x, min_y, max_y = math.huge, -math.huge, math.huge, -math.huge
       local alive = 0
       for id = 1, world.high_water do
         if soldier.alive[id] == 1 and soldier.wave[id] == watched then
           alive = alive + 1
           local lag = math.abs(wave.lag_of[id] or 0)
-          if lag > worst_lag then worst_lag = lag end
+          if clear_of_the_base and lag > worst_lag then worst_lag = lag end
+          if not clear_of_the_base and lag > worst_lag_leaving then
+            worst_lag_leaving = lag
+          end
           if soldier.x[id] < min_x then min_x = soldier.x[id] end
           if soldier.x[id] > max_x then max_x = soldier.x[id] end
           if soldier.y[id] < min_y then min_y = soldier.y[id] end
@@ -952,6 +967,18 @@ local function test_formation_turns_a_corner()
   check("the formation turns rather than stretching",
         saw_bend and after_box < before_box * 1.8,
         string.format("box area %.0f before the bend, %.0f after", before_box, after_box))
+
+  -- And the wall, asserted rather than accidentally measured. A wave leaving the
+  -- library is compressed against the start of its lane, because a formation cannot
+  -- extend backwards through a building. What matters is that it happens **only**
+  -- there and that it is bounded by the formation's own depth -- a wave that came
+  -- out of the base more compressed than it is deep would be a spawner fault, and a
+  -- wave still compressed a quarter of the way down the lane would be a wave that
+  -- never forms up.
+  local depth = modules.formations.RANK_SPACING * 4
+  check("and a wave leaving its base is compressed, but no worse than it is deep",
+        worst_lag_leaving > 0 and worst_lag_leaving < depth,
+        string.format("%.1f paces against a depth of %.0f", worst_lag_leaving, depth))
 end
 -- }}}
 

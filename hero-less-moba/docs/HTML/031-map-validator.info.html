@@ -320,7 +320,27 @@ svg { max-width: 100%; }
 <tr><td>The fraction table is symmetric, and milestone 4 is at 0.5</td><td>A bad shape parameter, reported as a bad parameter rather than as a crooked map.</td></tr>
 <tr><td>Every structure site stands on the right kind of node</td><td>A tower placed on plain ground.</td></tr>
 <tr><td>Every node reachable from team 1's library</td><td>A connector built between the wrong pair of junctions.</td></tr>
+<tr><td>The right number of towers, on both sides, matching each other</td><td>An absence — the site emission was once deleted by accident and every existing check passed, because they were all about sites that were there.</td></tr>
+<tr><td><strong>Each lane is wide enough for the formation it carries</strong></td><td>Spreading the ranks out without widening the roads. A lane then quietly carries one body fewer in every rank, every wave in it is a third thinner, and nothing else in the project notices.</td></tr>
+<tr><td>The centre lane holds three formations abreast</td><td>The thing the centre lane is <em>for</em>. During a challenge all three lanes' waves fight in the middle standing side by side; a centre that cannot hold them has stopped being for anything.</td></tr>
 </tbody></table>
+<h2>Two checks that assert an absence, and why they had to</h2>
+<p>Most of the table above inspects what the builder produced. Two of them instead</p>
+<p>state what <em>should</em> be there and complain if it is not, and both were added after</p>
+<p>something disappeared and nothing noticed.</p>
+<p><strong>The tower count.</strong> The site emission was deleted during a refactor and everything</p>
+<p>still worked: the map built, the validator passed, a match ran for two hundred</p>
+<p>seconds with no towers on it. Every check was about sites that existed rather than</p>
+<p>sites that should. A validator that only checks what it finds cannot notice an</p>
+<p>absence, and an absence is exactly what a refactor produces.</p>
+<p><strong>The lane widths.</strong> How many bodies stand abreast is the lane's width divided by</p>
+<p>the formation module's file spacing — two numbers in two files that can be edited</p>
+<p>apart. When they were, a side lane went from three abreast to two and the only</p>
+<p>symptom was that the game played differently. So the shape parameters now write down</p>
+<p>how many bodies each lane is <em>meant</em> to carry, and this asks the formation module</p>
+<p>whether the widths still deliver it. It borrows the arithmetic rather than repeating</p>
+<p>it: a validator holding its own copy of a rule can only check that the copy agrees</p>
+<p>with itself.</p>
 <h2>The mirror check, and why it is first among equals</h2>
 <p>The mirror is the reflection about the junction diagonal, which swaps x and y.</p>
 <p>Under it <strong>every lane maps onto itself with its milestones reversed</strong>, because each</p>

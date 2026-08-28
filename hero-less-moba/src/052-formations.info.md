@@ -37,9 +37,13 @@ in lane coordinates and **the formation curves to match the path it is on** for
 free — every body in a rank shares one distance-along, and the lane carries the
 line round the corner as a line.
 
-Measured: a wave marching the top lane holds a 42 × 68 pace box on the way up, 23 ×
-68 as it turns, and 70 × 32 along the top — the sides swap and the block does not
-break. Its worst lag through the whole turn is one tick's pace.
+**Measured by [the sandbox](../tests/060-the-formation-sandbox.info.md) and by the
+invariants, and not written down here.** A wave marching a side lane holds its box
+through the corner: the sides swap and the block does not break. Run either one to
+see by how much.
+
+The figures used to be in this paragraph, and then the ranks were spread out and the
+paragraph was describing a formation that no longer exists.
 
 ## Cohesion is a budget, not a bonus
 
@@ -85,6 +89,13 @@ is what a thinning line should look like.
 ## Where the lane's width earns its keep
 
 `files_for` reads it, and it is the only thing that does.
+
+**Which means the width and the file spacing are one number wearing two hats.**
+Spread the ranks out without widening the road and a lane silently carries one body
+fewer in every rank — every wave in it a third thinner, and nothing anywhere saying
+so. The shape parameters therefore write down how many bodies each lane is *meant*
+to carry, and [the map validator](031-map-validator.info.md) refuses a map whose
+widths no longer deliver it.
 
 It does **not** decide how many bodies may fight at once — nothing does; the world
 is flat and a lane is a suggestion. It decides how wide a formation *travels*,

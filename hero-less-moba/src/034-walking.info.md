@@ -52,10 +52,15 @@ Now the outer body genuinely falls behind its place, the inner one gets ahead, a
 the cohesion budget does the rest. Turning left, the left of the line gives way and
 the right hurries, which is what keeps it a line.
 
-Measured in [the sandbox](../tests/060-the-formation-sandbox.info.md): through a
-left bend the outer body covers 321 paces to the inner's 290, is hurried to a
-multiplier of 1.0043 while the inner gives way to 0.9972, and the line never bends
-more than 1.7 paces.
+**Run [the sandbox](../tests/060-the-formation-sandbox.info.md) for the numbers.**
+It walks a formation through a left bend and writes out how much ground the outer
+and inner bodies each covered, what multiplier each was given, and the worst the
+line bent — into a log, every run.
+
+They are not quoted here on purpose. They were, and then the bodies were spread
+further apart, and the paragraph went on stating measurements of a formation the
+game had stopped building. A number in a document is a number that will be wrong;
+the tool that produces it cannot be.
 
 Three passes rather than a solve. Displacement is monotonic in the fraction, the
 first correction is nearly exact, and a fixed pass count keeps the cost the same
