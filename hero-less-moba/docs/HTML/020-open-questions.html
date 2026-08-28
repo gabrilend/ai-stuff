@@ -3517,7 +3517,7 @@ svg { max-width: 100%; }
 <p>and is raised as <strong>G8</strong> rather than buried in this answer.</p>
 <p><strong>Changed:</strong> issue <a class='issue-link' href='206-the-frontline-is-a-queue.html'>206</a>, which is now a formation issue rather than a queue issue,</p>
 <p>and keeps the paragraph above verbatim.</p>
-<h2>G4. Is one draw per wave wipe far too generous? — <strong>AWAITING EVIDENCE</strong></h2>
+<h2>G4. Is one draw per wave wipe far too generous? — <strong>ANSWERED, and it was the wrong question</strong></h2>
 <p>Measured rather than argued, so it belongs in Group B's spirit even though it was</p>
 <p>found here.</p>
 <p>Nearly every wave in a stalemated match is eventually wiped, because a wave that</p>
@@ -3542,7 +3542,21 @@ svg { max-width: 100%; }
 <p>The third is most likely and is why this is awaiting evidence rather than open:</p>
 <p>the number should be re-measured once a match can actually end, not tuned now</p>
 <p>against a match shape that will not exist.</p>
-<h2>G5. Should the side lanes be so much longer than the centre? — <strong>OPEN</strong></h2>
+<h3>The evidence, and it reverses the question</h3>
+<p>Twelve matches, both sides played, every one of them finishing: **167 upgrades drawn</p>
+<p>per match and 89% of them placed.**</p>
+<p>So the draw rate is not too generous. The chest is not filling faster than a team can</p>
+<p>empty it — a team that is <em>playing</em> empties nearly all of it. The hundred and ninety</p>
+<p>unplaced stones that prompted this question were the product of a match with **nobody</p>
+<p>in the chair**, which is not a finding about the economy at all.</p>
+<p>That is worth keeping as a lesson rather than just an answer. The measurement was taken</p>
+<p>from an unattended match because that was the only kind of match that existed, and it</p>
+<p>described the absence of a player rather than the design. **A number taken from a game</p>
+<p>nobody is playing is a number about nobody playing.**</p>
+<p>What the same run <em>did</em> turn up is a real imbalance, and it is on the other side of the</p>
+<p>economy: five hundred heroes bought per match and five thousand points of income</p>
+<p>thrown away on top of that. See <code>balance-updates.md</code>. The wallet, not the chest.</p>
+<h2>G5. Should the side lanes be so much longer than the centre? — <strong>ANSWERED</strong></h2>
 <p>The described shape produces side lanes about <strong>1.7 times</strong> the centre lane's</p>
 <p>length, because a side lane runs out to a corner and back while the centre cuts</p>
 <p>the diagonal. Nothing in any document says whether that is intended.</p>
@@ -3558,7 +3572,14 @@ svg { max-width: 100%; }
 <p>The alternative is bending the side lanes inward so all three are closer in</p>
 <p>length, which costs the clean "out to the corner" shape and the neat fact that</p>
 <p>milestone 4 is exactly the bend.</p>
-<h2>G6. Are upgrades applied per swing or folded in at birth? — <strong>OPEN</strong></h2>
+<p><strong>Answer: intended, and now written down.</strong></p>
+<p>It gives the centre a distinction beyond being wide: <strong>it is where the match starts.</strong></p>
+<p>First contact of every match happens there, the side lanes develop later, and a team</p>
+<p>learns what it is facing in the middle first. The three lanes are therefore not</p>
+<p>interchangeable in time as well as in shape, which is worth having in a game whose</p>
+<p>whole read is a comparison between three of them.</p>
+<p><strong>Changed:</strong> <a href='002-the-map-and-its-milestones.html'>002</a>.</p>
+<h2>G6. Are upgrades applied per swing or folded in at birth? — <strong>ANSWERED</strong></h2>
 <p><a href='006-combat-and-damage.html'>Combat and damage</a> describes step 4 of a swing as</p>
 <p>walking the attacker's count vector and applying each nonzero entry.</p>
 <p>The prototype <strong>folds the modifiers into the body's own fields at stamp time</strong></p>
@@ -3572,6 +3593,14 @@ svg { max-width: 100%; }
 <p>document describe?** The written version is easier to reason about; the built</p>
 <p>version is what runs. Leaving them different is the thing that must not happen,</p>
 <p>because a reader who trusts the page will look for a loop that is not there.</p>
+<p><strong>Answer: the document describes what runs, which is folding at birth.</strong></p>
+<p>And this should not have been a question. A page that no longer matches the software</p>
+<p>is a bug of the same severity as a wrong answer from a function, and it is fixed the</p>
+<p>same way — immediately, by whoever noticed, without asking. There is nothing here to</p>
+<p>rule on. That rule is now written into</p>
+<p><a href='018-the-shape-of-the-code.html'>the shape of the code</a> so that the next one is not</p>
+<p>asked either.</p>
+<p><strong>Changed:</strong> <a href='006-combat-and-damage.html'>006</a>.</p>
 <h2>G8. What is the wide centre lane for, now that width does not cap a rank? — <strong>ANSWERED</strong></h2>
 <p>Created by <strong>G3</strong>'s answer, not settled by it.</p>
 <p>The centre lane is wider than the side lanes, permanently, as topography. Every</p>
@@ -3672,7 +3701,7 @@ svg { max-width: 100%; }
 <p>The bot takes the first offered too, and that is a different decision for a different</p>
 <p>reason: whichever it preferred would become an invisible constant in every number a</p>
 <p>balance run produced.</p>
-<h2>G7. Issue 101 describes four junctions — <strong>OPEN</strong></h2>
+<h2>G7. Issue 101 describes four junctions — <strong>ANSWERED</strong></h2>
 <p>The issue that builds the path graph says the side lanes "bend once near each</p>
 <p>base — four bends in total, and those bends are the junctions," and that the</p>
 <p>centre lane "has no junctions."</p>
@@ -3680,10 +3709,14 @@ svg { max-width: 100%; }
 <p>explains why: three junctions, one per lane, on the field's other diagonal, and</p>
 <p>giving the centre a junction of its own is what makes the middle a place a body</p>
 <p>can leave. The builder follows the document.</p>
-<p>The issue is simply stale — it predates the change and nobody went back. It is</p>
-<p>listed here rather than quietly edited because issue files are the blueprint this</p>
-<p>project is meant to be rebuildable from, and a blueprint that contradicts the</p>
-<p>building is worth a moment's decision about which one moved.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>The issue is simply stale — it predates the change and nobody went back.</p>
+<p><strong>Answer: the issue was wrong and has been corrected</strong>, along with the note that its</p>
+<p>bends are now rounded rather than sharp.</p>
+<p>Listing it here as a question was itself the mistake. Issue files are the blueprint</p>
+<p>this project is meant to be rebuildable from, which is exactly why a blueprint that</p>
+<p>contradicts the building gets fixed rather than catalogued. **An issue is not closed</p>
+<p>while the pages around it still read false.**</p>
+<p><strong>Changed:</strong> issue <a class='issue-link' href='101-the-path-graph-is-built-by-a-tool.html'>101</a>.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

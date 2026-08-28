@@ -292,8 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>The map has tower sites and library sites marked on it and nothing standing on</p>
-<p>them.</p>
+<p>Structures are records with health, standing on the map's sites: three towers per</p>
+<p>lane per team and one library each. A felled one stays in the array as rubble, so the</p>
+<p>renderer can draw it and the report can find it.</p>
+<p>The map validator counts them, which it did not used to — a refactor once deleted the</p>
+<p>line that placed them and every existing check passed.</p>
 <h2>Intended behavior</h2>
 <p>One <strong>structure record</strong> covering guard towers, base guard towers, and libraries.</p>
 <p>Same store, same damage path, distinguished by a <code>kind</code> field.</p>

@@ -292,9 +292,12 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>A match with no commands runs perfectly symmetrically to a stalemate or to</p>
-<p>whichever side a seeded coin flip favours. There is nothing to play against and</p>
-<p>nothing to run ten thousand matches with.</p>
+<p>A measuring bot — cheap, deterministic and dull on purpose — plays a whole side.</p>
+<p>Its policy is two lines: reinforce where you are losing, unless you are losing</p>
+<p>nowhere, in which case press where you are winning. Stone gets every fourth placement</p>
+<p>on a rotation rather than a judgement.</p>
+<p>It goes through the ordinary command queue. It plays one seat per side rather than</p>
+<p>three sharing a chest, and says so.</p>
 <h2>Intended behavior</h2>
 <p>A bot that issues commands through the same door a human does. **It has no</p>
 <p>special access.** It reads snapshots and writes commands, exactly like a viewer</p>

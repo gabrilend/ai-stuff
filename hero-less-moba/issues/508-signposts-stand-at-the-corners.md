@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-The junction branch in the move pass returns "straight on" from a stub. Heroes
-walk the lane they were spawned into and cannot be steered.
+Six posts, one per lane per team, standing at the junctions and clickable where
+they stand as well as in the panel. A click cycles: straight on, then each connector
+leaving that junction, then back. The middle has two alternatives and the side lanes
+one each.
+
+Heroes obey them and nothing else does. Only the viewing team's are drawn.
 
 ## Intended behavior
 

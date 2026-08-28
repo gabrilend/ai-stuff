@@ -42,9 +42,9 @@ right relationship, since the chest is the slow accumulating layer and should wi
 a long game. What a hero brings instead is **abilities and timing**: it arrives
 where and when you choose, and does something a wave unit cannot do at all.
 
-The reach difference is the part with teeth. **Ranged bodies stop further back
-than melee bodies**, which the frontline queue at the end of this document was
-not written for. See issue 206.
+The reach difference is the part with teeth. **Ranged bodies stand further back than
+melee bodies**, which is a rank in the formation rather than a place in a queue — see
+*forming a frontline* below, and issue 206.
 
 Having one body type is a design constraint with teeth: any behaviour worth
 giving a hero has to be expressible as a field on the common record, which keeps
@@ -77,9 +77,12 @@ cluster in memory.
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `lane` | integer | 1 to the lane count, or **0** while crossing a connector. |
-| `node_from`, `node_to` | integer | The edge currently being walked. |
-| `progress` | double | 0 to 1 along that edge. |
-| `x`, `y` | double | Derived each move pass from the above. The renderer reads these; nothing else does. |
+| `lane_along` | double | **How far down the lane this body is.** Authoritative for anything on one. |
+| `lane_across` | double | **How far to one side of the lane's centre it stands.** Also authoritative. |
+| `slot_along`, `slot_across` | double | Its place in its wave's formation, as offsets from the wave's anchor. Given at birth and kept for life. |
+| `speed_scale` | double | This tick's cohesion multiplier. Bodies behind their place hurry and bodies in front of it wait, out of one conserved budget. |
+| `node_from`, `node_to`, `progress`, `path_index` | integer / double | The graph position, **derived** from the two lane numbers above. A guard, which has no lane, uses these directly instead. |
+| `x`, `y` | double | Derived from the lane position against the lane's own curve. The renderer reads these; nothing else does. |
 | `facing` | integer | +1 toward team 2's base, −1 toward team 1's. Guards use 0 while patrolling. |
 | `milestone` | integer | Deepest milestone index this body has reached. Feeds the team's push depth. |
 
@@ -105,7 +108,16 @@ cluster in memory.
 | `target_structure` | integer | Structure id, or **0**. |
 | `target_generation` | integer | Checked against the target's generation before every use. |
 | `leash_node` | integer | The node a guard must not stray far from. **0** for everything else. |
-| `ability_cooldown` | integer[2] | Ticks remaining on each of up to two abilities. |
+| `ability_cooldown` | integer | Ticks until this body's ability may fire again. |
+| `fear` | integer | Ticks of fear remaining. A frightened body hits softer. |
+| `regenerating`, `regen_rate` | integer / double | A druid's heal is a thing that runs rather than one that lands. |
+| `cursed` | integer | On an **enemy**: a curse-doctor mends whoever is fighting it. |
+| `orbit_side`, `orbit_milestone` | integer | Which shoulder a ranged body has committed to, and where it committed. |
+| `turns_left` | integer | Sign-posts this body will still obey. One for a hero, zero for everything else. |
+| `going_home` | integer | 1 while walking off the map during a calm. |
+| `crossing`, `crossing_step`, `crossing_dir` | integer | Which connector a hero is crossing, and how far along. |
+| `guard_of` | integer | Which tower this body is a guard of. |
+| `bounty_colour` | integer | Which colour killing it pays. |
 
 ### Modifiers
 
@@ -280,13 +292,28 @@ their own page.
 
 ## Forming a frontline
 
-Soldiers do not overlap and do not push each other. When a soldier in the
-closing state would end its move inside the personal space of a friendly soldier
-ahead of it, it stops short instead. The result is a queue: the front rank
-fights, the ranks behind stack up along the lane and step forward as the front
-rank dies. This is what makes a wave read as a *wave* rather than a smear, and
-it is what makes a lane upgrade legible — a stronger front rank visibly holds
-its ground while the enemy queue backs up.
+**A wave leaves the base already in its ranks and marches as one body.** There is no
+moment at which it is a column and no moment of forming up: captain in the centre of
+the front rank, melee beside and behind it, ranged behind those at a gap, battle-ready
+from the tick it appears.
+
+A body's place is held in **lane coordinates** — a distance along the lane plus an
+offset across it — which is what makes a rank survive a corner. Every body in a rank
+shares one distance-along, so the lane's own curve carries the whole line round the
+bend as a line; held in world coordinates instead, a turning rank would either tear
+apart or scythe through the inside of the turn.
+
+Bodies still do not overlap and still do not push each other. What holds the shape
+together when fighting, dying or turning pulls it apart is a **conserved budget**:
+whoever has fallen furthest behind their place hurries, and what they gain is taken
+from those in front of them. Only bodies still marching are in it — one that has closed
+on an enemy has left the formation's business, because *once fighting begins it is less
+important to retain cohesion.*
+
+**The lane's width decides how wide a wave travels**, not how many may fight at once.
+Nothing decides that: the world is flat and a lane is a suggestion. A road's width is
+how many people fit across it, and the centre's is set by the three formations that
+have to stand abreast in it during a challenge.
 
 ### Ranged bodies do not queue
 
@@ -295,14 +322,19 @@ The rule above was written when every body wanted the same place — the front �
 and everything behind was waiting its turn to get there. A ranged body does not
 want the front and never did.
 
-So the queue has two behaviours rather than one:
+So the arrangement has two halves rather than one:
 
-- **Melee bodies form the rank.** Front rank fights, the ones behind stop short
-  and step forward as it thins. Unchanged.
-- **Ranged bodies hold at their own reach behind the rank** and shoot over it.
-  They are not queuing for a place they will eventually take, so treating them as
-  ranks-in-waiting pushes them into melee range and deletes the distinction
-  entirely.
+- **Melee bodies take the front ranks.** The captain in the middle of the first one,
+  melee outward from it, more melee behind.
+- **Ranged bodies stand behind them at a gap**, shooting over the line. They are not
+  queuing for a place they will eventually take, so putting them in the rank would
+  push them into melee range and delete the distinction entirely.
+
+And when there is nothing in reach, a ranged body does not stand still — it drifts to
+the shoulder it is already nearest and holds there. Both sides do that, so both sides'
+long-reach bodies end up on the same flanks facing each other, which puts a second
+battle on the wings that nobody wrote a rule for. See
+[standing off and falling back](022-standing-off-and-falling-back.md).
 
 A captain does whichever its own reach says, which is the whole of what makes a
 melee captain and a ranged captain different bodies.

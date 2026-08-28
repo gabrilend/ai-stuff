@@ -4054,7 +4054,7 @@ What the same run *did* turn up is a real imbalance, and it is on the other side
 economy: five hundred heroes bought per match and five thousand points of income
 thrown away on top of that. See `balance-updates.md`. The wallet, not the chest.
 
-## G5. Should the side lanes be so much longer than the centre? — **OPEN**
+## G5. Should the side lanes be so much longer than the centre? — **ANSWERED**
 
 The described shape produces side lanes about **1.7 times** the centre lane's
 length, because a side lane runs out to a corner and back while the centre cuts
@@ -4075,7 +4075,17 @@ The alternative is bending the side lanes inward so all three are closer in
 length, which costs the clean "out to the corner" shape and the neat fact that
 milestone 4 is exactly the bend.
 
-## G6. Are upgrades applied per swing or folded in at birth? — **OPEN**
+**Answer: intended, and now written down.**
+
+It gives the centre a distinction beyond being wide: **it is where the match starts.**
+First contact of every match happens there, the side lanes develop later, and a team
+learns what it is facing in the middle first. The three lanes are therefore not
+interchangeable in time as well as in shape, which is worth having in a game whose
+whole read is a comparison between three of them.
+
+**Changed:** [002](002-the-map-and-its-milestones.md).
+
+## G6. Are upgrades applied per swing or folded in at birth? — **ANSWERED**
 
 [Combat and damage](006-combat-and-damage.md) describes step 4 of a swing as
 walking the attacker's count vector and applying each nonzero entry.
@@ -4093,6 +4103,17 @@ So this is a documentation question and not a behaviour one: **which should the
 document describe?** The written version is easier to reason about; the built
 version is what runs. Leaving them different is the thing that must not happen,
 because a reader who trusts the page will look for a loop that is not there.
+
+**Answer: the document describes what runs, which is folding at birth.**
+
+And this should not have been a question. A page that no longer matches the software
+is a bug of the same severity as a wrong answer from a function, and it is fixed the
+same way — immediately, by whoever noticed, without asking. There is nothing here to
+rule on. That rule is now written into
+[the shape of the code](018-the-shape-of-the-code.md) so that the next one is not
+asked either.
+
+**Changed:** [006](006-combat-and-damage.md).
 
 ## G8. What is the wide centre lane for, now that width does not cap a rank? — **ANSWERED**
 
@@ -4204,7 +4225,7 @@ The bot takes the first offered too, and that is a different decision for a diff
 reason: whichever it preferred would become an invisible constant in every number a
 balance run produced.
 
-## G7. Issue 101 describes four junctions — **OPEN**
+## G7. Issue 101 describes four junctions — **ANSWERED**
 
 The issue that builds the path graph says the side lanes "bend once near each
 base — four bends in total, and those bends are the junctions," and that the
@@ -4215,7 +4236,14 @@ explains why: three junctions, one per lane, on the field's other diagonal, and
 giving the centre a junction of its own is what makes the middle a place a body
 can leave. The builder follows the document.
 
-The issue is simply stale — it predates the change and nobody went back. It is
-listed here rather than quietly edited because issue files are the blueprint this
-project is meant to be rebuildable from, and a blueprint that contradicts the
-building is worth a moment's decision about which one moved.
+The issue is simply stale — it predates the change and nobody went back.
+
+**Answer: the issue was wrong and has been corrected**, along with the note that its
+bends are now rounded rather than sharp.
+
+Listing it here as a question was itself the mistake. Issue files are the blueprint
+this project is meant to be rebuildable from, which is exactly why a blueprint that
+contradicts the building gets fixed rather than catalogued. **An issue is not closed
+while the pages around it still read false.**
+
+**Changed:** issue 101.

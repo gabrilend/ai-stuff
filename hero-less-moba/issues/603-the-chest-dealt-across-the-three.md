@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-A siege-surge changes how soldiers spawn and leaves every placement exactly where
-it was.
+At every stream spawn the team's **whole holding** — placed, slotted and unplaced
+alike — is dealt across the three bodies leaving that instant, from a random start, one
+upgrade at a time. Then again from scratch, half a second later.
+
+Nothing is taken to do it. Placement stays open the entire time and simply has no
+effect until the surge ends.
 
 ## Intended behavior
 

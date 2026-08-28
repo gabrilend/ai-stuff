@@ -10,7 +10,10 @@
 
 ## Current behavior
 
-A hero spawned at the library has no lane and stands there.
+A hero bought at the library enters the lane where the enemy has pushed deepest,
+measured in **milestones** rather than distance — a lane where they sit one pace past
+your first tower is in less trouble than one where they are inside your base, even
+though the base is nearer.
 
 ## Intended behavior
 

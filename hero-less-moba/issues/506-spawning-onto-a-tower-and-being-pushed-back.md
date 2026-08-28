@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-Heroes can be dropped onto a wave or at the library. There is no way to reinforce
-a position.
+A hero can be bought onto any of its team's standing towers, **unless an enemy
+stands inside that tower's command radius** — in which case the purchase is refused and
+the refusal names the nearest tower behind it that would accept one.
+
+Refused, never redirected. A silent redirect is a purchase you did not make, and in a
+game where a hero costs a minute of income that matters.
 
 ## Intended behavior
 

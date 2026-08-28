@@ -10,8 +10,13 @@
 
 ## Current behavior
 
-Heroes are wave units with bigger numbers. Nothing distinguishes one hero from
-another except how much health it has.
+An ability is a (condition, effect, cooldown) triple assembled from two dispatch
+tables, firing by itself when the cooldown is ready and the condition is met. There is
+no cast key and no manual control of any kind.
+
+Which puts a hero's whole personality in its condition — two with identical stats and
+different conditions are two genuinely different purchases. Ten conditions and nine
+effects exist.
 
 ## Intended behavior
 

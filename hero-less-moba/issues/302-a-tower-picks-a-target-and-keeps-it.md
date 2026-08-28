@@ -10,7 +10,13 @@
 
 ## Current behavior
 
-Towers stand there and can be knocked down without doing anything about it.
+A tower shoots the nearest enemy in range and keeps that target while it lives and
+stays in range. Sticky rather than nearest-every-tick: one that re-picks spreads its
+damage across a wave and kills nothing, which feels like weather rather than a
+defence.
+
+Nearest rather than lowest-health, unlike a body — a tower is defending a piece of
+ground, and the thing about to walk past it is what matters.
 
 ## Intended behavior
 

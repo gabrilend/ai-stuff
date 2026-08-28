@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-Locks and objections exist in the simulation and appear in the snapshot. Nothing
-shows them. Refused commands vanish.
+Every refusal arrives at the bottom of the panel in the colour of a warning and
+fades over several seconds. Transits are listed with where they are going and how many
+waves out. A sign-post changed recently gets a halo in the world.
+
+Locks and objections are not built and will not be: they were replaced by ownership,
+contributing and dismissing.
 
 ## Intended behavior
 

@@ -282,18 +282,57 @@ svg { max-width: 100%; }
 <a href='060-the-formation-sandbox.info.html'><span class='index'>060</span>the-formation-sandbox</a>
 </section>
 </nav><main id='page'><h1>064-the-documentation-becomes-html</h1>
-<p>Turns every document, issue and companion into browsable, cross-linked HTML.</p>
-<p>Read this file rather than the source. The source is for when one specific</p>
-<p>function is misbehaving; this is for everything else.</p>
+<p>Every document, issue and companion, turned into pages you can browse.</p>
+<h2>Running it</h2>
+<pre><code>./build-documentation</code></pre>
+<p>Writes 152 pages into <code>docs/HTML/</code>. Open <code>index.html</code>.</p>
 <h2>What it is for</h2>
-<p>TODO</p>
+<p>This project is read far more than it is run. There are more words in it than code, the</p>
+<p>words came first, and reconstructing the software means reading them — but they</p>
+<p>reference each other constantly, and a directory of files is a bad way to follow a</p>
+<p>reference.</p>
+<p>So: every page reachable from every other, a contents rail down the side that can be</p>
+<p>filtered, and <strong>every issue number a link.</strong> That last one matters more than it sounds.</p>
+<p>The documents mention issues by number a couple of hundred times, and following one by</p>
+<p>hand means knowing the naming convention, guessing the description, and listing a</p>
+<p>directory.</p>
+<h2>The same separation, one level up</h2>
+<p><strong>The Markdown is the data and the HTML is a view of it</strong>, generated rather than</p>
+<p>maintained — the same rule the simulation and the viewer follow, applied to the</p>
+<p>project's own prose. A hand-kept second copy of anything is a copy that will disagree</p>
+<p>with the first.</p>
+<p>Do not edit the output.</p>
 <h2>Exports</h2>
 <table><thead>
 <tr><th>Function</th><th>Arguments</th><th>Returns</th></tr>
 </thead><tbody>
+<tr><td><code>build(root, modules)</code></td><td></td><td>Pages written, and where.</td></tr>
+<tr><td><code>render(markdown, links)</code></td><td></td><td>HTML for one document.</td></tr>
+<tr><td><code>PALETTE</code>, <code>STYLE</code></td><td><em>(strings)</em></td><td>The stylesheet, in the game's own colours.</td></tr>
 </tbody></table>
-<h2>Data structures it owns</h2>
-<p>TODO</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<h2>A deliberately incomplete Markdown</h2>
+<p>Headings, lists, tables, quotes, fenced code, rules, and the inline marks. Nothing</p>
+<p>else.</p>
+<p>A complete Markdown parser is a large thing with many decisions in it, and every one of</p>
+<p>those decisions is a way for a generated page to differ from what the author meant.</p>
+<p>What is here is what every document in this project actually uses, established by</p>
+<p>reading them.</p>
+<p>Syntax highlighting for Lua is three passes over a line rather than a lexer, for the</p>
+<p>same reason: the thing being highlighted is already correct Lua that a real compiler</p>
+<p>has read, and this only has to make it easier to look at. A lexer would be a second</p>
+<p>parser to keep in step with the language.</p>
+<h2>The front page has the only pictures</h2>
+<p>The map is drawn as SVG <strong>from the map builder</strong>, and the shape of a match is drawn from</p>
+<p>the timing table — so neither can go stale. A diagram nobody generates is a diagram that</p>
+<p>will be wrong, which is the whole reason this file exists.</p>
+<h2>The bug worth knowing about</h2>
+<p>Lua patterns are bytes. A character class written <code>[-—]</code> is a class containing the</p>
+<p>three separate bytes of an em-dash, and it will happily match one of them and leave the</p>
+<p>other two — producing a file that is no longer valid UTF-8.</p>
+<p>Every generated page was corrupt in exactly that way, and the symptom was not an error:</p>
+<p>it was <code>grep</code> quietly deciding the files were binary and reporting nothing, which read</p>
+<p>as "the tables did not render". The fix is to match the em-dash as a whole string, and</p>
+<p>the comment at the site says so.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

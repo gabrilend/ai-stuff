@@ -292,8 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>Nothing is random yet, and the temptation when something first needs to be is to</p>
-<p>reach for a global generator seeded from the clock.</p>
+<p>Named streams, one per purpose, seeded from the match seed mixed with the stream's</p>
+<p>own name. Per-team for <code>draw</code>, <code>surge</code> and <code>tie</code>, and three of <code>tie</code> rather than two</p>
+<p>because the monsters are their own team.</p>
+<p>xorshift32 through LuaJIT's bit library. A test asserts that the same seed plays the</p>
+<p>same match tick for tick, compared on every body's position rather than on a summary.</p>
 <h2>Intended behavior</h2>
 <p>Randomness is <strong>never</strong> global and <strong>never</strong> taken from the system clock. The</p>
 <p>world holds a small set of <strong>named streams</strong>, each a seeded generator that</p>

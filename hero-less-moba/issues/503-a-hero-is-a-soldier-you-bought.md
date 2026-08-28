@@ -10,7 +10,12 @@
 
 ## Current behavior
 
-Resource accumulates and buys nothing.
+A hero is the same body record with `flavour = 2`, bought with personal resource,
+carrying an ability, obeying exactly one sign-post, and **never touched by lane
+upgrades at any strength**. It fights until it dies and then it is gone.
+
+The one exception is built: a hero that survives a challenge hands back what it
+cost.
 
 ## Intended behavior
 

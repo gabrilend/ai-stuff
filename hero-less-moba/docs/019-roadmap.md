@@ -92,7 +92,8 @@ did it.
 ## Phase 4 — The Shared Chest
 
 The centre of the game. Upgrades, the pool they sit in, the lanes and stone they
-go into, and the lock-and-objection negotiation between teammates.
+go into, and the negotiation between teammates that owning one makes possible —
+giving, setting aside, and a move that takes a wave and announces itself.
 
 Ends with: the phase-2 stalemate broken — the same two waves, but one lane's
 soldiers are carrying three upgrades and the frontline is moving.
@@ -199,7 +200,7 @@ varied, surprising, and occasionally wrong in the way a person is wrong. Issue
 
 **The hard problem here is not the opponent.** Playing alone in a 3v3 means five
 bots, and **two of them are on your side, sharing your chest.** A teammate bot has
-to place into lanes a person is also placing into, respect their locks, decide
+to place into lanes a person is also placing into, leave their stones alone, decide
 whether to object, and — since issue 806 — say something about it. Too eager and
 it tramples the human's arrangement every wave; too passive and the shared chest
 becomes single-player. That is the negotiation layer played from the other side,

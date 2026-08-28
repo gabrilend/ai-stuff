@@ -292,7 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>Upgrades accumulate in a chest and there is no way to move them anywhere.</p>
+<p>Placing names a stone and a destination, and it **takes a full wave to get</p>
+<p>there**, applying at its old slot the whole way — so a placement lands two waves after</p>
+<p>the command. Cancelling is free until it lands.</p>
+<p>The move announces itself for that whole wave, and nobody opted into that: you cannot</p>
+<p>move a stone quietly.</p>
 <h2>Intended behavior</h2>
 <p>Three verbs — <code>place_upgrade</code>, <code>withdraw_upgrade</code>, <code>cancel_move</code> — applied in the</p>
 <p>command pass at the top of a tick.</p>

@@ -292,7 +292,10 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>A match runs until the runner's tick limit. Nothing can be won.</p>
+<p>A library at zero health ends the match on that tick. Both libraries falling in</p>
+<p>the same buffered pass is recorded as a draw rather than resolved by team number,</p>
+<p>which happens in practice: two passive sides are mirrors and both Golems arrive</p>
+<p>together.</p>
 <h2>Intended behavior</h2>
 <p>**When a library's health reaches zero, the team that destroyed it wins, and the</p>
 <p>match ends on that tick.** There is no second objective, no throne behind it, and</p>

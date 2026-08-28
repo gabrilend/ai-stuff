@@ -292,8 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>There is one way a match runs, and the game-over state is a special case tested</p>
-<p>separately by whichever system remembers to.</p>
+<p>Four phases and the transitions between them, as one table: normal, siege-surge,</p>
+<p>challenge, calm. Three surges and three challenges a match, on a visible clock, and the</p>
+<p>third challenge is the one that does not end.</p>
+<p>The clock is what makes a match finish. Before it, two even sides ground until somebody</p>
+<p>stopped watching.</p>
 <h2>Intended behavior</h2>
 <p>**Five rows, read by the spawner, the placement validator, the stamping step, and</p>
 <p>the challenge system**, rather than each holding its own conditionals. Adding a</p>

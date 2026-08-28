@@ -10,8 +10,10 @@
 
 ## Current behavior
 
-Monsters walk toward the bases and, if they get there, do damage like anything
-else. Nothing about a challenge is urgent.
+There is no separate timer. The deadline is how long a monster takes to walk to a
+library, and if it arrives the library falls by the ordinary win condition. A player
+who has never read a rules screen knows how long is left, because the time left is
+distance.
 
 ## Intended behavior
 

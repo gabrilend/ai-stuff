@@ -292,9 +292,12 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>The graph knows where things are in paces. Nothing knows how far a fight has</p>
-<p>travelled, and the only tool available for asking is straight-line distance,</p>
-<p>which gives the wrong answer to the one question that matters.</p>
+<p>Milestones are placed at fractions along each lane and their path indices are</p>
+<p>precomputed, so "how far has this lane been pushed" is an integer comparison. Push</p>
+<p>depth is recomputed from the living every tick — never a high-water mark, so it</p>
+<p>collapses when bodies die — and is ignored outright during a challenge, when every</p>
+<p>lane's production is in the middle and the number would read a team's own stone back</p>
+<p>at it.</p>
 <h2>Intended behavior</h2>
 <p>Each lane carries an ordered list of <strong>nine milestones</strong>, indexed 0 through 8,</p>
 <p>running from team 1's library to team 2's library. Index 0 and 8 are the two</p>

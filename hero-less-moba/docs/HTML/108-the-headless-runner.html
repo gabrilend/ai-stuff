@@ -292,7 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>There is no way to run a match. Everything so far is a library with no caller.</p>
+<p><code>./run-prototype headless</code> plays a whole match with no window and prints a report</p>
+<p>made of the numbers a balance question is asked in — push depth and waves lost per</p>
+<p>lane, upgrades drawn and where they went, towers standing, library health.</p>
+<p><code>./run-many-matches</code> does the same a great many times, one worker per core, and writes</p>
+<p>a row per match plus a summary table.</p>
 <h2>Intended behavior</h2>
 <p>A script that builds a world, optionally loads a replay, advances it to a stop</p>
 <p>condition, and writes a report. It opens no window, reads no keyboard, and knows</p>

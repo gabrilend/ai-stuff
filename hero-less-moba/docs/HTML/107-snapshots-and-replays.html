@@ -292,8 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>The world advances and nothing can see it. There is also no way to prove that</p>
-<p>advancing it twice from the same starting point produces the same world.</p>
+<p>Snapshots are built: two frames, indexed by soldier id so that matching a body</p>
+<p>across them is reading the same index twice, with the viewer's blend clamped so it can</p>
+<p>be behind and never ahead.</p>
+<p><strong>The replay log is not built.</strong> Under a rotating authority a replay has to record the</p>
+<p>accepted snapshots as well as the commands, and nothing records either yet.</p>
 <h2>Intended behavior</h2>
 <p>Two outputs, from the same place in the tick, serving two different readers.</p>
 <h3>A snapshot</h3>

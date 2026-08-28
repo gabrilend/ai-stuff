@@ -10,9 +10,12 @@
 
 ## Current behavior
 
-A tower is a point that shoots. The ground around it is perfectly safe, so a lone
-strong body can stand next to a tower and hit it with impunity as long as it
-out-heals the arrows.
+Towers put guards on the ground up to a cap, and **only while no enemy stands
+inside the command radius** — the inversion is the mechanic. The timer is held rather
+than reset while the ground is contested, so one body touching the edge of the circle
+cannot shut a tower down permanently.
+
+A guard is stamped from its tower's slot and re-stamped when that slot changes.
 
 ## Intended behavior
 

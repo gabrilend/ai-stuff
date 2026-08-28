@@ -292,8 +292,12 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>Heroes are wave units with bigger numbers. Nothing distinguishes one hero from</p>
-<p>another except how much health it has.</p>
+<p>An ability is a (condition, effect, cooldown) triple assembled from two dispatch</p>
+<p>tables, firing by itself when the cooldown is ready and the condition is met. There is</p>
+<p>no cast key and no manual control of any kind.</p>
+<p>Which puts a hero's whole personality in its condition — two with identical stats and</p>
+<p>different conditions are two genuinely different purchases. Ten conditions and nine</p>
+<p>effects exist.</p>
 <h2>Intended behavior</h2>
 <p>Each hero carries one or two <strong>abilities</strong>. An ability is an entry in a dispatch</p>
 <p>table: a function of (world, caster, target) that fires automatically when its</p>

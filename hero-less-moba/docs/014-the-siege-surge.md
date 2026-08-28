@@ -167,7 +167,7 @@ rather than a disruption of it.
 
 Everything they normally do, and one thing more.
 
-They place, move, withdraw, lock, and object exactly as they always can — *see
+They place, move, withdraw, give and set aside exactly as they always can — *see
 [open questions](020-open-questions.md), F12* — and none of it changes what the
 stream is carrying, because the deal does not look at slots. They buy heroes.
 They point sign-posts.

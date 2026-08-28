@@ -10,9 +10,13 @@
 
 ## Current behavior
 
-The simulation can run and report on itself in numbers. Nobody can watch it
-happen, which means every behavioural bug from phase 2 onward has to be inferred
-from a table.
+The terminal viewer draws the field as text — the three lanes, the connectors
+marked apart, stone, rubble, and the bodies — plus the lane-pressure bars and one
+team's chest. `./run-prototype terminal` redraws it in place.
+
+It is kept rather than discarded: it is faster to debug in, works where nothing
+graphical does, pipes to a file and diffs, and keeps the viewing layer honest by being
+a second consumer of the same snapshots.
 
 ## Intended behavior
 

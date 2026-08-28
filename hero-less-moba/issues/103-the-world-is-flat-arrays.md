@@ -10,7 +10,14 @@
 
 ## Current behavior
 
-There is nowhere to put a soldier.
+The world is flat arrays, allocated once at creation and never reallocated. Every
+per-body field is its own array; upgrade counts are one array per catalogue kind, so
+the sweep that re-stamps a lane's guards is a walk down one array rather than a walk
+through many tables.
+
+No field is ever nil. Slots are recycled through a free list with a generation
+counter, and releasing one clears every field on it — a slot that kept its old target
+or its old leash would hand them to the next body that moved in.
 
 ## Intended behavior
 

@@ -10,8 +10,13 @@
 
 ## Current behavior
 
-Nothing heals. A body that has lost health has lost it for the rest of its life,
-and the only support role in the game is a guard tower.
+Five healers that differ in **shape** rather than in strength. The priest has the
+assignment problem in full, the paladin's area has none of it, the druid spreads it
+over time, the curse-doctor inverts it by aiming at an enemy, and the shaman's chain
+resolves it one bounce at a time.
+
+A healer only takes a target nobody else has claimed, and the rule relaxes rather than
+deadlocking when there are not enough wounded to go round.
 
 ## Intended behavior
 

@@ -198,7 +198,7 @@ it, and choosing between concentrating and spreading is the actual decision.
 
 **It is the one negotiation with no board underneath it.** Three teammates look
 at the same two cards, each guessing what the others will take. There is nothing
-to lock, object to, mark, or point at, because the thing being decided is not on
+to give, set aside, mark, or point at, because the thing being decided is not on
 the map yet — every verb a team has for talking *about the chest* works by doing
 something to the chest, and here there is nothing to do.
 

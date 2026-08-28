@@ -10,7 +10,8 @@
 
 ## Current behavior
 
-Sign-posts work in the simulation and can only be set from a command line.
+Sign-posts are clickable where they stand. Only the viewing team's are drawn — not
+greyed out, not drawn without a direction: not drawn.
 
 ## Intended behavior
 

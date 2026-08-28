@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-The map has tower sites and library sites marked on it and nothing standing on
-them.
+Structures are records with health, standing on the map's sites: three towers per
+lane per team and one library each. A felled one stays in the array as rubble, so the
+renderer can draw it and the report can find it.
+
+The map validator counts them, which it did not used to — a refactor once deleted the
+line that placed them and every existing check passed.
 
 ## Intended behavior
 

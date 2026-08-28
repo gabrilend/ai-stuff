@@ -292,8 +292,12 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>B11 — does the frontline actually move</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>Balance is a set of numbers somebody guessed, and the only evidence about them is</p>
-<p>however many matches a person has had the patience to watch.</p>
+<p><code>./run-many-matches</code> plays the game many times with nobody watching, one worker per</p>
+<p>core, and writes a row per match plus the summary table. Sixteen matches in ninety-seven</p>
+<p>seconds on fourteen cores.</p>
+<p>It had to be made parallel before it was any use: one at a time put ten thousand</p>
+<p>matches at three and a half days, and the whole point is reading the table in the</p>
+<p>morning.</p>
 <h2>Intended behavior</h2>
 <p>A batch runner that plays thousands of matches with no window open, varying seed,</p>
 <p>bot strategy, and catalogue values, and writes one line per match into a table</p>

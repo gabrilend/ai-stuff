@@ -10,7 +10,13 @@
 
 ## Current behavior
 
-Soldiers walk past each other without noticing.
+Ranked, cheapest test first: somebody already swinging at me, then the
+lowest-health enemy in acquisition range, then a structure in weapon range, then
+nothing. Lowest health rather than nearest, because bodies should finish things.
+
+Ties are broken by the team's own tie stream with reservoir sampling, which advances
+the stream a fixed number of times so a replay stays reproducible. A spatial grid
+rebuilt each tick keeps the search from being every body asking every other.
 
 ## Intended behavior
 

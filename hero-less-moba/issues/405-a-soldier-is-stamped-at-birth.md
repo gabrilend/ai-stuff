@@ -10,8 +10,13 @@
 
 ## Current behavior
 
-Upgrades can be placed into lanes and nothing reads them. Every soldier is
-identical to every other soldier of its archetype.
+A body is stamped at birth from its lane's slot plus its team's boons, and the
+modifiers are folded into its own fields rather than walked on every swing. It is
+never corrected afterwards — moving an upgrade out of a lane does not weaken the
+soldiers already walking in it.
+
+A guard is the exception and is re-stamped when its tower changes, because it stands
+at the thing it copied from for its whole life.
 
 ## Intended behavior
 

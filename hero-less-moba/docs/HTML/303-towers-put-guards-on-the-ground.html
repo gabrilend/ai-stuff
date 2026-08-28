@@ -292,9 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>B10</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>A tower is a point that shoots. The ground around it is perfectly safe, so a lone</p>
-<p>strong body can stand next to a tower and hit it with impunity as long as it</p>
-<p>out-heals the arrows.</p>
+<p>Towers put guards on the ground up to a cap, and **only while no enemy stands</p>
+<p>inside the command radius** — the inversion is the mechanic. The timer is held rather</p>
+<p>than reset while the ground is contested, so one body touching the edge of the circle</p>
+<p>cannot shut a tower down permanently.</p>
+<p>A guard is stamped from its tower's slot and re-stamped when that slot changes.</p>
 <h2>Intended behavior</h2>
 <p>Each tower keeps a small standing patrol. On a timer, if it has an empty guard</p>
 <p>slot, it puts a soldier on the ground at its own node.</p>
