@@ -68,6 +68,9 @@ end
 -- }}}
 
 -- {{{ function M.report()
+-- The counts in a page, for a person. Exits non-zero while any symbol is still
+-- a `target`, because a blueprint set with a goal left in it is not a design --
+-- which makes this runnable as the project's own finished-or-not test.
 function M.report(n, out)
   out = out or io.stdout
   local function say(fmt, ...)

@@ -73,6 +73,18 @@ end
 -- }}}
 
 -- {{{ function M.load()
+-- Read every blueprint in a directory and resolve it into one object the rest
+-- of the project asks questions of.
+--
+-- What comes back carries the blueprints in file order, every symbol keyed by
+-- name with its declaration and its resolved quantity, every constraint with
+-- its relation already parsed, the order symbols had to be resolved in, a
+-- reverse index of who reads what, and four lists of things that are wrong.
+--
+-- It never raises. A set that will not resolve is a normal state during
+-- construction, so the failures come back as data and the caller decides
+-- whether that is a problem -- 095 treats them as fatal, 096 and 099 carry on
+-- and describe what they can.
 function M.load(dir, opts)
   dir = dir or DIR
   opts = opts or {}

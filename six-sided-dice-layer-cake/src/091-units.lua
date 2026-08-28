@@ -27,6 +27,11 @@ local M = {}
 -- blueprint. Without these slots nothing catches it; with them, the addition
 -- simply refuses. Three extra integers to make a whole class of error
 -- impossible is the cheapest thing in this project.
+-- The ten slots a dimension is a vector over: the seven SI base units, and
+-- three of this project's own. Bits, tokens and floating-point operations are
+-- all dimensionless to physics and are three different things here, which is
+-- what makes a bandwidth, a token rate and a clock frequency refuse to be added
+-- to one another.
 M.SLOTS = { "m", "kg", "s", "A", "K", "mol", "cd", "bit", "tok", "flop" }
 local NSLOT = 10
 
@@ -41,6 +46,10 @@ end
 -- }}}
 
 -- {{{ local function dim_equal()
+-- Whether two quantities are the same kind of thing. Compares all ten slots,
+-- because two dimensions that agree on nine and differ on the tenth are exactly
+-- the pair worth catching -- bits a second against hertz, tokens a second
+-- against either.
 local function dim_equal(a, b)
   for i = 1, NSLOT do
     if a[i] ~= b[i] then return false end
@@ -206,6 +215,14 @@ end
 -- }}}
 
 -- {{{ local function parse_unit()
+-- Turn a written unit into a scale and a dimension. "mm" gives a thousandth and
+-- a length; "W/(m^2*K)" gives one and the dimension a convection coefficient
+-- has. Raises on a unit it does not know rather than guessing, because a
+-- guessed unit is a wrong number that looks right.
+--
+-- The scale is what converts the declared number into base units, and every
+-- value in this project is stored in base units and converted back only when
+-- something is printed.
 local function parse_unit(s)
   local tk = unit_tokens(s)
   local pos = 1
@@ -298,6 +315,13 @@ Q.__index = Q
 local MARK = "quantity/091"
 
 -- {{{ local function isq()
+-- Whether a value is one of this engine's quantities.
+--
+-- It tests a marker field rather than the metatable, and that is not
+-- fastidiousness. Two modules each reaching for this file with `dofile` load it
+-- twice, and `dofile` does not cache -- so there are two metatables, and a
+-- quantity built by one copy is rejected by the other with a message saying it
+-- is not a quantity. Correct, baffling, and cost an afternoon.
 local function isq(x)
   return type(x) == "table" and rawget(x, "mark") == MARK
 end
@@ -318,6 +342,9 @@ end
 -- }}}
 
 -- {{{ function M.new()
+-- A quantity from a number and a written unit: `M.new(52, "mm")`. The number is
+-- converted to base units on the way in, so everything downstream compares
+-- like with like without knowing what anybody wrote.
 function M.new(value, unit)
   local sc, d = parse_unit(unit or "1")
   return setmetatable({ mark = MARK, v = value * sc, d = d }, Q)
@@ -333,6 +360,8 @@ end
 -- }}}
 
 M.isq = isq
+-- The dimension of a pure number. Every literal in this notation has it, which
+-- is the rule that stops an unlabelled physical quantity entering the project.
 M.DIMENSIONLESS = newdim()
 
 -- {{{ local function require_same()
