@@ -37,11 +37,13 @@ local M = {}
 -- the whole plumbing scheme rests on what that parity does to an edge.
 
 -- {{{ local function label()
+-- A corner's written name, C followed by its three coordinate bits.
+--
+-- 010 writes a corner as C followed by x, y, z in that order, so the bits come
+-- out of the integer in the opposite order to the way an integer is usually
+-- written. Getting this backwards would relabel the cube without changing any
+-- of the arithmetic, which is the kind of mistake that survives a long time.
 local function label(c)
-  -- 010 writes a corner as C followed by x, y, z in that order, so the bits come
-  -- out of the integer in the opposite order to the way an integer is usually
-  -- written. Getting this backwards would relabel the cube without changing any
-  -- of the arithmetic, which is the kind of mistake that survives a long time.
   local x = c % 2
   local y = math.floor(c / 2) % 2
   local z = math.floor(c / 4) % 2
@@ -50,6 +52,10 @@ end
 -- }}}
 
 -- {{{ local function parity()
+-- A corner's parity: the exclusive-or of its three coordinate bits. Zero means
+-- coolant enters there and one means it leaves, and that single bit is what the
+-- whole plumbing scheme rests on -- an edge changes exactly one coordinate, so
+-- every edge joins a corner of one parity to a corner of the other.
 local function parity(c)
   local p, n = 0, c
   while n > 0 do p = p + n % 2; n = math.floor(n / 2) end

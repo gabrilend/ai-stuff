@@ -209,18 +209,6 @@ error in any of them. Two of the three solids now carry one.
 term, and there is no reason to expect the other clusters to be cleaner. The
 remaining orphans are worth walking rather than deleting.
 
-### The instruments have no companion pages
-
-Every source file in this project is supposed to have an `.info.md` beside it
-saying what it offers, and `096` generates one for every blueprint. Nothing
-generates them for the eleven programs. `102` and `103` have hand-written ones and
-the other nine have none, so the fastest way into the instruments is still reading
-their source, which is the thing companion pages exist to avoid.
-
-Writing the generator is better than writing nine files, and it is harder: a
-blueprint's declarations are a table a program can read, and a Lua module's public
-surface is whatever it happens to assign to `M`.
-
 ### Smaller, and worth recording
 
 **Two mappings are rules rather than permutations** (`063`, `068`): bit to pad and
@@ -239,6 +227,41 @@ lengths, re-resolving in the browser.
 A question moves here with the answer, the date, and what changed because of it.
 They are kept rather than deleted so that the next person to have the same idea
 finds out it was considered and which way it went.
+
+### The instruments had no companion pages — *2026-08-27*
+
+**Closed, and the sweep found the interface was forty per cent undocumented.**
+
+Every source file here is supposed to have a page beside it saying what it
+offers. `096` generates one for each of the eighty-four blueprints; nothing did it
+for the programs, and the two hand-written ones were worse than none, because they
+established a format nine files silently did not follow.
+
+`104` generates them now, and what makes that possible is a convention adopted for
+an unrelated reason. Lua does not state what a module exports, and finding out
+normally means running the file or parsing the language. But every function in
+this project is wrapped in a vimfold that opens with a comment carrying its name,
+followed by prose, followed by the definition — a name, a description and a
+signature, in a fixed shape, on consecutive lines. **The fold convention was
+adopted so a long file collapses neatly in an editor, and it turns out to be a
+machine-readable interface declaration.** Every page says so at the bottom.
+
+Because the method depends on the convention, the generator also enforces it: a
+fold with no definition under it, a fold whose name disagrees with the definition
+it opens, and a public name with nothing said about it anywhere are each reported.
+
+**Of fifty-six public entry points, twenty-three had no description at all** —
+including `094`'s `load`, which is the ledger's entire interface and the thing
+every other program calls. All fifty-six have one now, and the count is zero on
+every run.
+
+Two of the generator's own findings were the generator being wrong rather than the
+source being thin, and both are worth recording because a documentation tool that
+cries wolf gets ignored. Most modules define a function privately and assign it to
+the module table at the bottom, so the first version reported nine of `102`'s
+twelve exports as undocumented when their descriptions were sitting on the private
+names. And a public constant has no fold at all, so its description is whatever
+comment sits directly above it. Both are followed now.
 
 ### The flow network — *2026-08-26*
 

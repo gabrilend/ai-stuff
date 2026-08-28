@@ -29,6 +29,9 @@ local M = {}
 -- written as a number. The two cannot be told apart with certainty, so this is
 -- a warning rather than an error, and a line carrying this marker is left
 -- alone.
+-- What a drawing's caption says when it is a diagram of relationships rather
+-- than of sizes, and calls out no dimensions on purpose. Without a way to say
+-- so, every schematic in the project would be reported as unfinished forever.
 M.SUPPRESS = "[not-dimensioned]"
 
 -- {{{ local function suspicious_numbers()
@@ -56,6 +59,12 @@ end
 -- }}}
 
 -- {{{ function M.run()
+-- Check every drawing in the blueprint set against the symbols that exist.
+--
+-- A drawing calls its dimensions out in square brackets, and those brackets are
+-- the only place in this project where a name is written outside a declaration
+-- or an expression. So they are the one place a name can quietly stop meaning
+-- anything, and this is what notices.
 function M.run(dir)
   dir = dir or DIR
   local L = ledger.load(dir)
@@ -94,6 +103,9 @@ end
 -- }}}
 
 -- {{{ function M.report()
+-- Every bracketed name that matches no symbol, and every drawing that calls out
+-- no dimensions at all -- which is not an error, but is usually a drawing
+-- somebody has not finished.
 function M.report(R, out)
   out = out or io.stdout
   local function say(fmt, ...)

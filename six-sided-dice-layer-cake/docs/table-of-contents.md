@@ -46,9 +46,9 @@ six-sided-dice-layer-cake/
 │
 ├── src/
 │   ├── 010–090 ...................... eighty-four blueprints, one per component
-│   ├── *.info.md .................... one companion per blueprint: what it exports
+│   ├── *.info.md .................... one companion per file: what it offers
 │   ├── 091–100 ...................... ten instruments; the programs that read the above
-│   └── 102–103 ...................... two more, which answer what the notation cannot ask
+│   └── 102–104 ...................... three more, which answer what the notation cannot ask
 │
 ├── issues/
 │   ├── phase-N-progress.md .......... fourteen, one per phase; what is done and what is not
@@ -139,7 +139,7 @@ the step before it, which would have melted the joint it was standing on.
 | 11 | **The Recipe** — cutting a model up and pouring it through | `075`–`080` |
 | 12 | **The Kiln** — process, assembly, yield, test, bring-up | `081`–`086` |
 | 13 | **The Whole Cake** — integration, materials, the spec sheet | `087`–`090` |
-| 14 | **The Instruments** — the programs that check all of it | `091`–`100`, `102`–`103` |
+| 14 | **The Instruments** — the programs that check all of it | `091`–`100`, `102`–`104` |
 
 Phase 13 is the capstone. Phase 14 is numbered last and built first, because
 nothing else can be checked until it exists, and none of it ships to whoever

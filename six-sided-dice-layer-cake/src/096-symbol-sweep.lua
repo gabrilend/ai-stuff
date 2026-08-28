@@ -181,6 +181,11 @@ end
 -- }}}
 
 -- {{{ function M.run()
+-- Rewrite the companion page beside every blueprint, and report which
+-- blueprints are thin.
+--
+-- Pass `dry` in the options to work out everything and write nothing, which is
+-- how to see what a change would do to two hundred pages before doing it.
 function M.run(dir, opts)
   dir = dir or DIR
   opts = opts or {}
@@ -221,6 +226,9 @@ end
 -- }}}
 
 -- {{{ function M.report()
+-- The coverage report: how many pages were written, and the four ways a
+-- blueprint can be thin -- declaring nothing, asserting nothing, drawing
+-- nothing, or publishing only symbols nothing reads.
 function M.report(R, out)
   out = out or io.stdout
   local function say(fmt, ...)

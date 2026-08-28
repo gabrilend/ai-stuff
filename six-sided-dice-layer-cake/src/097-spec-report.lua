@@ -232,6 +232,14 @@ end
 -- }}}
 
 -- {{{ function M.run()
+-- Write the three generated documents: the specification sheet, the bill of
+-- materials, and the listing of every symbol in the project with its
+-- derivation.
+--
+-- All three come from templates with `{symbol:unit}` markers in them, so the
+-- words are written once by a person and the numbers are filled in by the
+-- ledger. A marker naming a symbol that does not exist is reported rather than
+-- left blank, because a blank is what a stale document looks like.
 function M.run(dir, opts)
   dir = dir or DIR
   opts = opts or {}
@@ -255,6 +263,8 @@ end
 -- }}}
 
 -- {{{ function M.report()
+-- Which documents were written, and every template marker that could not be
+-- filled.
 function M.report(R, out)
   out = out or io.stdout
   local function say(fmt, ...)

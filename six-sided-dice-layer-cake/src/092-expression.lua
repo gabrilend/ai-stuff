@@ -78,6 +78,14 @@ local ARITY = {
 }
 
 -- {{{ function M.parse()
+-- An expression as written, into a tree. `where` is the file and line, used
+-- only to say where a syntax error was, which is the difference between a
+-- message somebody can act on and one they have to hunt with.
+--
+-- Every literal in the tree is dimensionless. That is the central rule of the
+-- notation and it lives here: a number written in an expression carries no
+-- unit, so multiplying by a thousand to convert millimetres is a silent error
+-- the arithmetic cannot catch -- which is why 095 sweeps for it separately.
 function M.parse(s, where)
   local tk = tokenise(s, where)
   local pos = 1
