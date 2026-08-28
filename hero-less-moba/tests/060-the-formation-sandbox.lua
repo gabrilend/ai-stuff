@@ -93,6 +93,22 @@ local random_streams = loadfile(ROOT .. "/src/029-random-streams.lua")()
 -- listed at the bottom of the log with the others.
 local rest_of_brain = loadfile(ROOT .. "/src/062-the-rest-of-the-brain.lua")()
 
+-- How wide the sandbox builds its lanes: **the real side lane's width**, read from
+-- the shape parameters rather than written down here.
+--
+-- It was a literal 62, which was the side lane's width when this was written and
+-- stopped being it the day the bodies were spread out. The sandbox went on measuring
+-- a two-abreast formation the game no longer builds, and passed, which is the worst
+-- way for a test to be wrong: it agrees with itself about the wrong thing.
+local A_SIDE_LANE = parameters_module.load().shape.lane_width[1]
+
+-- How far along a lane a test formation is put down.
+--
+-- Derived from the rank spacing rather than chosen, because it exists to clear the
+-- formation's own depth: eight ranks' worth is comfortably more than any formation
+-- this sandbox builds, and it moves on its own if the spacing changes.
+local CLEAR_OF_THE_WALL = formations.RANK_SPACING * 8
+
 -- {{{ local function sandbox()
 -- A world containing one lane and whatever bodies the caller asks for.
 local function sandbox(polyline, width)
@@ -135,6 +151,13 @@ end
 -- Built by hand rather than through the spawner, because the spawner reaches for a
 -- commander, a chest, a bounty and a wave cadence -- none of which this is testing,
 -- and all of which would have to be standing for it to run.
+--
+-- **Put it down further along than the formation is deep.** A body's place is a
+-- fixed distance behind the anchor, and a place behind the start of the lane is not
+-- a place -- the position is clamped to the lane's beginning and the body reads as
+-- badly out of position until the anchor has walked far enough forward. That is
+-- correct behaviour and it is measured on its own further down; a test about a curve
+-- that starts the wave against the wall is measuring the wall.
 local function put_a_wave_down(world, parameters, team, at, facing, melee, ranged)
   local lane = world.map.lane[1]
   local wave_id = #world.wave + 1
@@ -170,6 +193,22 @@ local function put_a_wave_down(world, parameters, team, at, facing, melee, range
     walking.set_lane_position(world, id,
       at + soldier.slot_along[id] * facing, soldier.slot_across[id])
     ids[#ids + 1] = id
+
+    -- A place behind the start of the lane is not a place. Setting a position
+    -- outside the lane clamps it to the end, and the body then reads as badly out of
+    -- formation when it is standing as far back as the ground allows -- so a test
+    -- that starts a wave against the wall measures the wall.
+    --
+    -- Loud rather than nudged, because the number that decides how deep a formation
+    -- is lives in the formation module and can be changed there without anybody
+    -- thinking about this file. The failure it produces is a lag that looks exactly
+    -- like a turning fault.
+    local place = at + soldier.slot_along[id] * facing
+    if place < 0 or place > lane.length then
+      error(string.format(
+        "a wave put down at %.0f has a place at %.0f, which is off the lane -- " ..
+        "start it at least %.0f along", at, place, math.abs(soldier.slot_along[id])))
+    end
   end
   return wave_id, ids
 end
@@ -254,8 +293,8 @@ end
 local function test_the_circle()
   note("")
   note("== the formation's circle ==")
-  local world, parameters, map = sandbox({0, 0, 2000, 0}, 62)
-  local wave_id = put_a_wave_down(world, parameters, 1, 60, 1, 5, 2)
+  local world, parameters, map = sandbox({0, 0, 2000, 0}, A_SIDE_LANE)
+  local wave_id = put_a_wave_down(world, parameters, 1, CLEAR_OF_THE_WALL, 1, 5, 2)
   local radius = formations.radius_of(map.lane[1])
 
   for _ = 1, 200 do
@@ -312,8 +351,8 @@ local function test_a_turn()
   corner[#corner + 1] = 1000
   corner[#corner + 1] = -400
 
-  local world, parameters, map = sandbox(corner, 62)
-  local wave_id = put_a_wave_down(world, parameters, 1, 60, 1, 5, 2)
+  local world, parameters, map = sandbox(corner, A_SIDE_LANE)
+  local wave_id = put_a_wave_down(world, parameters, 1, CLEAR_OF_THE_WALL, 1, 5, 2)
 
   local inner_scale, outer_scale, samples = 0, 0, 0
   local inner_distance, outer_distance = 0, 0
@@ -405,8 +444,8 @@ local function test_a_sine_wave()
     points[#points + 1] = 400 + math.sin(index * 0.22) * 180
   end
 
-  local world, parameters, map = sandbox(points, 62)
-  local wave_id = put_a_wave_down(world, parameters, 1, 60, 1, 5, 2)
+  local world, parameters, map = sandbox(points, A_SIDE_LANE)
+  local wave_id = put_a_wave_down(world, parameters, 1, CLEAR_OF_THE_WALL, 1, 5, 2)
 
   local worst_lag, worst_off_file, worst_scale = 0, 0, 0
   local balance_error = 0
@@ -452,11 +491,11 @@ end
 local function test_two_formations_meet()
   note("")
   note("== two formations meeting ==")
-  local world, parameters, map = sandbox({0, 0, 2400, 0}, 62)
+  local world, parameters, map = sandbox({0, 0, 2400, 0}, A_SIDE_LANE)
   local length = map.lane[1].length
 
-  local mine = put_a_wave_down(world, parameters, 1, 80, 1, 5, 2)
-  local theirs = put_a_wave_down(world, parameters, 2, length - 80, -1, 5, 2)
+  local mine = put_a_wave_down(world, parameters, 1, CLEAR_OF_THE_WALL, 1, 5, 2)
+  local theirs = put_a_wave_down(world, parameters, 2, length - CLEAR_OF_THE_WALL, -1, 5, 2)
 
   local met_at, mine_met, theirs_met = 0, 0, 0
   for tick = 1, 2000 do

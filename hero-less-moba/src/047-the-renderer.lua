@@ -93,22 +93,38 @@ local COLOUR = {
 
 -- How large each archetype is drawn, in paces. A captain is visibly the biggest
 -- thing in a wave, which is the point of there being one in every lane.
+--
+-- **Much smaller than the room a body keeps.** The formation walks at a spacing set
+-- in the formation module and a body is drawn at roughly a sixth of it, because a
+-- rank drawn at the spacing it walks at is a solid bar, and what a player has to be
+-- able to do is count a line and see it thin. The two numbers are deliberately
+-- unrelated: one is about standing in a crowd and this one is about looking at it.
+--
+-- A parallel table indexed by archetype is a thing that goes stale -- add an
+-- archetype to the catalogue and it silently draws at the fallback size. That is a
+-- real fragility and it is accepted here rather than solved, because the alternative
+-- is putting a drawing number into the simulation's catalogue, and the line between
+-- the two programs is worth more than this table is dangerous.
 local BODY_RADIUS = {
-  [1] = 5.0,   -- melee
-  [2] = 4.2,   -- ranged
-  [3] = 8.0,   -- captain, melee
-  [4] = 5.2,   -- guard
-  [5] = 8.0,   -- captain, ranged
+  [1] = 3.6,   -- melee
+  [2] = 3.0,   -- ranged
+  [3] = 5.8,   -- captain, melee
+  [4] = 3.8,   -- guard
+  [5] = 5.8,   -- captain, ranged
   -- Heroes. Bigger than a wave body and smaller than a captain in a stacked lane,
   -- which is the right relationship: the chest economy out-scales the wallet
   -- economy in a lane somebody committed to, and a hero standing beside an enormous
   -- captain is **meant** to look unaffected, because lane upgrades never touch it.
-  [6] = 7.2, [7] = 6.8, [8] = 7.4, [9] = 6.6, [10] = 6.4, [11] = 7.2,
-  [12] = 6.6, [13] = 6.6, [14] = 6.4, [15] = 6.6,
+  [6] = 5.2, [7] = 4.9, [8] = 5.4, [9] = 4.8, [10] = 4.6, [11] = 5.2,
+  [12] = 4.8, [13] = 4.8, [14] = 4.6, [15] = 4.8,
   -- The three that come out of the middle. Enormous, and drawn in the third team's
   -- colour, which is neither side's -- a monster aimed at your base is not an ally
   -- of the other team and must not look like one.
-  [16] = 26, [17] = 32, [18] = 38,
+  --
+  -- Shrunk less than the wave bodies were, on purpose. Everything else got smaller
+  -- so a rank reads as countable people rather than a bar; these are not part of a
+  -- rank and the whole point of them is that the field is not big enough.
+  [16] = 21, [17] = 26, [18] = 31,
 }
 
 -- Below this zoom fraction a body is a dot and nothing else. Above it, detail
