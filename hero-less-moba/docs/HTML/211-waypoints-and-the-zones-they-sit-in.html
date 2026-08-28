@@ -169,6 +169,7 @@ svg { max-width: 100%; }
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
 <a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='211-waypoints-and-the-zones-they-sit-in.html' class='here'><span class='index'>211</span>Waypoints, and the Zones They Sit In</a>
+<a href='212-a-beaten-body-gets-one-roll.html'><span class='index'>212</span>A Beaten Body Gets One Roll</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -292,117 +293,80 @@ svg { max-width: 100%; }
 </thead><tbody>
 <tr><td>Phase</td><td>2 — Things That Walk and Fight</td></tr>
 <tr><td>Blocked by</td><td>202, 206, 207</td></tr>
-<tr><td>Blocks</td><td>—</td></tr>
+<tr><td>Blocks</td><td>212</td></tr>
 <tr><td>Reads</td><td><a href='002-the-map-and-its-milestones.html'>the map and its milestones</a>, <a href='005-waves-and-when-one-is-finished.html'>waves and when one is finished</a></td></tr>
-<tr><td>Open questions</td><td>H4, H5</td></tr>
+<tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
+<p><strong>This is the umbrella.</strong> The work is in four sub-issues, listed at the bottom, and</p>
+<p>they should be read in order — each one is the ground the next stands on.</p>
 <h2>Current behavior</h2>
-<p>A wave has a single number for where it is: its <strong>anchor</strong>, a double holding how</p>
-<p>far along its lane the front of the formation has got. Every tick the anchor moves</p>
+<p>A wave has a single number for where it is: its <strong>anchor</strong>, a double holding how far</p>
+<p>along its lane the <em>front</em> of the formation has got. Every tick the anchor moves</p>
 <p>forward by the wave's pace, and every body's place is that number plus its own fixed</p>
-<p>offset. There is no destination. There is no aiming. The wave is walking a number up</p>
-<p>toward the lane's length and its shape follows the road because the road is what the</p>
-<p>numbers are measured against.</p>
-<p>Progress is measured separately, in <strong>milestones</strong>: nine points per lane, at fixed</p>
-<p>fractions of the lane's length, which are also where the towers stand. Push depth --</p>
-<p>the number the whole game runs on -- counts milestones.</p>
-<p>Both of those are coarse and neither has any play in it. Every wave in a lane walks</p>
-<p>the exact centre line, at the exact same distances, forever.</p>
+<p>offset. There is no destination, no aiming, no route. The wave walks a number up</p>
+<p>toward the lane's length, and its shape follows the road because the road is what</p>
+<p>the numbers are measured against.</p>
+<p>Progress is measured separately, in <strong>milestones</strong>: nine per lane, at fixed</p>
+<p>fractions of its length, which are also where the towers stand. Push depth — the</p>
+<p>number the whole game runs on — counts milestones.</p>
+<p>Both are coarse and neither has any play in it. Every wave in a lane walks the exact</p>
+<p>centre line, at the exact same distances, forever.</p>
 <h2>Intended behavior</h2>
-<p>Two changes that fit together.</p>
-<h3>Zones: the same measure, four times finer</h3>
-<p>Split each lane into <strong>zones</strong> -- short stretches of it, about four times as many as</p>
-<p>there are milestone intervals. A zone is a range of distance along a lane, nothing</p>
-<p>more, and it is the unit push depth is measured in.</p>
-<p>Milestones stay exactly as they are. They are where the towers stand and what a</p>
-<p>player reads off the map, and moving them would move every tower. Zones sit</p>
-<p>underneath them: each milestone interval is divided into four, so every milestone is</p>
-<p>still exactly on a zone boundary and nothing about the map's shape changes.</p>
-<p>What it buys is resolution. Push depth in milestones is a number between 0 and 8 and</p>
-<p>a lane can be badly lost while reading the same as one that is merely losing. In</p>
-<p>zones it is a number between 0 and 32, and a frontline that has moved half a</p>
-<p>milestone says so.</p>
-<h3>Waypoints: a wave aims at a place, not at a number</h3>
-<p>Every zone carries a <strong>waypoint</strong>: one point inside it, at a random position, chosen</p>
-<p>once from a named seeded stream. A wave marching a lane does not advance a number --</p>
-<p>it <strong>approaches its waypoint</strong>, and when the centre of the formation enters that</p>
+<p>Two ideas, and the second is larger than it first sounds.</p>
+<h3>A wave aims at places, not at numbers</h3>
+<p>Each lane is cut into <strong>zones</strong>, four times finer than its milestone intervals. Each</p>
+<p>zone holds a <strong>waypoint</strong>: one point at a random position inside it. A wave marching</p>
+<p>a lane approaches its waypoint, and when the <strong>centre</strong> of the formation enters that</p>
 <p>zone, the waypoint becomes the next zone's.</p>
-<p>The point is the variation. A wave should not walk the exact centre of the road at</p>
-<p>the exact same distance every time; it should approach from slightly off, because</p>
-<p><strong>nobody on the ground knows exactly which direction is optimal.</strong> You go roughly</p>
-<p>that way. Two waves marching the same lane on the same map should not lay their feet</p>
-<p>in the same places.</p>
-<h3>The two sets of zones are stored together and kept apart</h3>
-<p>The distance zones and the waypoint zones are <strong>identical</strong> -- the same boundaries at</p>
-<p>the same distances -- and are stored as <strong>two separate arrays in the same place</strong>, on</p>
-<p>the lane record next to the milestone arrays.</p>
-<p>Separate, so that either can be moved without moving the other: the distances a</p>
-<p>wave routes through and the distances a push is measured in are the same question</p>
-<p>today and are not the same <em>kind</em> of question, and the first thing anybody will want</p>
-<p>is to shift one without disturbing the other.</p>
-<p>Together, so they can be found. A pair of arrays side by side on the lane record is</p>
-<p>a thing somebody reads and understands; the same two arrays in two files is a thing</p>
-<p>somebody edits one of.</p>
+<p>The variation is the point. Nobody standing on the ground knows exactly which</p>
+<p>direction is optimal, so you go roughly that way. Two waves marching the same road</p>
+<p>on the same map should not put their feet in the same places.</p>
+<h3>A formation is a circle with a facing</h3>
+<p>Not a wide thing at a distance-along. <strong>An oriented disc.</strong></p>
+<p>Its position is the <strong>centre of its bodies</strong>, not the front of it. Its **radius is</p>
+<p>exactly half its width*<em>. Its diameter is the </em>face of the line* — that is the</p>
+<p>formation's own local X — and its local Y points at whatever it is walking toward.</p>
+<p>So a formation turns to face where it is going, and the rank is always across that</p>
+<p>direction.</p>
+<p>And what it faces, when there is an enemy, is that enemy's <strong>frontline</strong> rather than</p>
+<p>their formation: their diameter displaced along their own Y. Aiming at the middle of</p>
+<p>an enemy block is aiming past the people who will actually be hit.</p>
+<p>Two things fall out of that and are their own work:</p>
+<ul>
+<li>A turn moves a body's intended place away from where it is standing, so a body has</li>
+</ul>
+<p>  to be able to <strong>accelerate to catch it</strong> and slow to let the line come back.</p>
+<ul>
+<li><strong>Marching speed is not running speed</strong>, and running turns out to belong to one</li>
+</ul>
+<p>  specific moment, which is issue <a class='issue-link' href='212-a-beaten-body-gets-one-roll.html'>212</a>.</p>
 <h2>Suggested implementation steps</h2>
-<ul>
-<li>Add a zone count to the shape parameters, expressed as **divisions per milestone</li>
-</ul>
-<p>   interval** rather than as a total, so that every milestone stays on a boundary by</p>
-<p>   construction rather than by arithmetic that has to be checked.</p>
-<ul>
-<li>Build both arrays in the map builder, from the same loop, and have the validator</li>
-</ul>
-<p>   assert they agree and that every milestone lands on a boundary of both.</p>
-<ul>
-<li>Add a named random stream for waypoints, per team. Everything random in this</li>
-</ul>
-<p>   project comes from a named seeded stream and nothing takes from the clock; a</p>
-<p>   waypoint chosen from an unnamed source would break the replay on its first tick.</p>
-<ul>
-<li>Bound the waypoint's offset across the lane by the <strong>formation's own radius</strong>, so</li>
-</ul>
-<p>   that a wave aiming at one still has all of itself on the road. A waypoint at the</p>
-<p>   verge would put half a rank in the ditch.</p>
-<ul>
-<li>Give each wave a current waypoint, and advance it when the formation's centre</li>
-</ul>
-<p>   crosses into its zone. The centre is the anchor minus half the formation's depth,</p>
-<p>   measured along the direction of travel -- the anchor is the <strong>front</strong>, deliberately,</p>
-<p>   and the question here is about the middle.</p>
-<ul>
-<li>Measure push depth in zones. Every reader of push depth changes: the sign-post</li>
-</ul>
-<p>   display, the lane-pressure bars, the bot's "which lane am I losing" and the</p>
-<p>   headless report all read a number that is now four times bigger.</p>
-<ul>
-<li>Extend the formation sandbox: a wave walking a straight lane should <strong>not</strong> walk a</li>
-</ul>
-<p>   straight line, and the amount it wanders should be bounded by the lane's width</p>
-<p>   less the formation's radius. That bound is the test.</p>
+<p><strong>In the sub-issues, and in this order</strong>, because each is the ground the next stands</p>
+<p>on: the zones have to exist before anything can be put inside one, a waypoint has to</p>
+<p>exist before a formation can face it, and a formation has to rotate before anybody</p>
+<p>can say how much a body needs to accelerate to keep up with a rotation.</p>
+<p>The one step that belongs here rather than in any of them: **stop when the sandbox</p>
+<p>says a formation still holds its line.** Every one of these four changes something</p>
+<p>the formation work was measured on, and the measurements are the only reason to</p>
+<p>believe any of it. A sub-issue that lands with the sandbox unhappy is not finished</p>
+<p>regardless of what it was trying to do.</p>
+<h2>The sub-issues</h2>
+<table><thead>
+<tr><th></th><th></th></tr>
+</thead><tbody>
+<tr><td><a href='211a-the-lane-is-cut-into-zones.html'>211a</a></td><td>The lane is cut into zones, and push is measured in them</td></tr>
+<tr><td><a href='211b-every-zone-holds-a-waypoint.html'>211b</a></td><td>Every zone holds a waypoint, and a wave walks to it</td></tr>
+<tr><td><a href='211c-a-formation-is-a-circle-that-faces.html'>211c</a></td><td>A formation is a circle that faces where it is going</td></tr>
+<tr><td><a href='211d-marching-speed-is-not-running-speed.html'>211d</a></td><td>Marching speed is not running speed</td></tr>
+</tbody></table>
 <h2>Related documents and tools</h2>
 <ul>
 <li><a href='002-the-map-and-its-milestones.html'>The map and its milestones</a></li>
 <li><a href='005-waves-and-when-one-is-finished.html'>Waves and when one is finished</a></li>
-<li>The formation sandbox, which is where the wander gets measured</li>
-<li>The map validator, which is where "every milestone is on a zone boundary" gets</li>
+<li>The formation sandbox, which is where all of this gets measured</li>
+<li><a href='212-a-beaten-body-gets-one-roll.html'>212 — a beaten body's one roll</a>, which is</li>
 </ul>
-<p>  asserted rather than assumed</p>
-<h2>Still open</h2>
-<p>Two questions, both of which change what gets built rather than how well.</p>
-<p><strong>H4 -- do milestones stay nine?</strong> Written above as: milestones stay, zones are a</p>
-<p>finer measure underneath them, push depth moves to zones. The other reading of "four</p>
-<p>times more discrete" is that the milestone table itself becomes thirty-three entries,</p>
-<p>with the towers at every fourth one. That preserves the tower positions equally well</p>
-<p>and makes one concept instead of two, at the cost of touching every piece of code</p>
-<p>that says "milestone" -- the structure sites, the sign-posts, the chest's slot</p>
-<p>addressing, the renderer's marks.</p>
-<p><strong>H5 -- does a waypoint steer the formation, or replace the lane?</strong> Written above as:</p>
-<p>the wave still advances along the lane, and the waypoint decides <em>where across it</em></p>
-<p>the formation is heading, so the approach angle varies and the shape still curves</p>
-<p>with the road for free. The other reading is that a waypoint is a genuine</p>
-<p>destination in the world and the wave navigates to it, which would mean lane</p>
-<p>coordinates stop being what a formation is held in -- and lane coordinates are the</p>
-<p>entire reason a rank survives a corner.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>  what running is for</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

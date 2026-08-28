@@ -169,6 +169,7 @@ svg { max-width: 100%; }
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
 <a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='211-waypoints-and-the-zones-they-sit-in.html'><span class='index'>211</span>Waypoints, and the Zones They Sit In</a>
+<a href='212-a-beaten-body-gets-one-roll.html'><span class='index'>212</span>A Beaten Body Gets One Roll</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -3904,7 +3905,7 @@ svg { max-width: 100%; }
 <p>one core.</p>
 <p><strong>Changed:</strong> issue <a class='issue-link' href='209-the-thread-pool-slices-the-tick.html'>209</a>, <a href='003-the-simulation-tick.html'>the simulation tick</a>, and the</p>
 <p>phase-2 progress file.</p>
-<h2>H4. Do milestones stay nine, or become thirty-three? — <strong>NEEDS A DECISION</strong></h2>
+<h2>H4. Do milestones stay nine, or become thirty-three? — <strong>ANSWERED</strong></h2>
 <p>Raised by the request in <a href='211-waypoints-and-the-zones-they-sit-in.html'>issue <a class='issue-link' href='211-waypoints-and-the-zones-they-sit-in.html'>211</a></a></p>
 <p>to make the measure of how far along a lane a wave is "about four times more</p>
 <p>discrete."</p>
@@ -3931,7 +3932,12 @@ svg { max-width: 100%; }
 <p>The safer of the two is the first, and safety is worth something here specifically</p>
 <p>because push depth is read in so many places that a silent factor of four would be</p>
 <p>found by a player rather than by a test.</p>
-<h2>H5. Does a waypoint steer the formation, or replace the lane? — <strong>NEEDS A DECISION</strong></h2>
+<p><strong>Answer: milestones stay, and zones sit underneath them.</strong> Each milestone interval</p>
+<p>divides into four, every milestone lands exactly on a zone boundary, no tower moves,</p>
+<p>and nothing that currently says "milestone" changes meaning. Push depth moves from</p>
+<p>counting milestones to counting zones.</p>
+<p><strong>Built:</strong> issue <a class='issue-link' href='211-waypoints-and-the-zones-they-sit-in.html'>211</a>a.</p>
+<h2>H5. Does a waypoint steer the formation, or replace the lane? — <strong>ANSWERED</strong></h2>
 <p>The other half of <a href='211-waypoints-and-the-zones-they-sit-in.html'>issue <a class='issue-link' href='211-waypoints-and-the-zones-they-sit-in.html'>211</a></a>.</p>
 <p>A wave is to approach a <strong>waypoint</strong> — a point at a random position inside the next</p>
 <p>zone — rather than simply advancing a number, so that its approach angle varies a</p>
@@ -3961,7 +3967,80 @@ svg { max-width: 100%; }
 <p>   been built on and measured against from the beginning.</p>
 <p>The first delivers the visible effect asked for and costs nothing. The second is a</p>
 <p>rewrite of the movement model, and would need the corner behaviour re-solved from</p>
-<p>scratch by some other means.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>scratch by some other means.</p>
+<p><strong>Answer: neither, and the question was the wrong shape.</strong> What came back was a</p>
+<p>redefinition of what a formation <em>is</em>, which makes "steer or navigate" stop being a</p>
+<p>choice between two things.</p>
+<p><strong>A formation is a circle with its own frame.</strong> Its position is the **centre of its</p>
+<p>bodies<strong> — not, as now, the front of it. Its </strong>radius is exactly half its width**.</p>
+<p>The diameter is the <em>face of the line</em>: it lies along the formation's own local X,</p>
+<p>and the formation's local Y points at whatever it is walking toward. So a formation</p>
+<p>is not a thing at a distance-along that happens to be wide; it is an oriented disc</p>
+<p>that turns to face where it is going.</p>
+<p><strong>And what it faces is the enemy's frontline, not the enemy's formation.</strong> A</p>
+<p>frontline is that formation's diameter displaced along its own Y — the front rank,</p>
+<p>not the middle of the block. Aiming at the middle of an enemy block means aiming</p>
+<p>past the people who will actually be hit.</p>
+<p>When there is no enemy, the thing it faces is the waypoint.</p>
+<p>Two consequences fall out and were named alongside:</p>
+<ul>
+<li><strong>A turn moves a body's intended place away from where it is standing</strong>, so a body</li>
+</ul>
+<p>  must be able to accelerate to catch it, and to decelerate to let the line come</p>
+<p>  back. The current clamps allow a little of both; a formation that genuinely rotates</p>
+<p>  needs more.</p>
+<ul>
+<li><strong>Marching speed is not running speed</strong>, which is where H7 comes from.</li>
+</ul>
+<p><strong>Built:</strong> issues <a class='issue-link' href='211-waypoints-and-the-zones-they-sit-in.html'>211</a>b and 211c.</p>
+<h2>H6. How far may a wave wander off the centre of its road? — <strong>ANSWERED</strong></h2>
+<p>Asked because a waypoint at a random position inside a zone can be placed at the</p>
+<p>verge, and a formation aiming at the verge puts half a rank in the ditch.</p>
+<p>**Answer: a road is about three times the width of the formation walking it, and the</p>
+<p>centre lane is nine.** So a side lane carries one formation with a formation's width</p>
+<p>of clear ground either side of it, and the centre carries one with four widths</p>
+<p>either side — which is also what lets three of them stand abreast there during a</p>
+<p>challenge with room to spare, rather than exactly fitting.</p>
+<p><strong>And a wave generally marches straight on a straight road.</strong> The wander is not a</p>
+<p>weave. It is a variation in where a wave sits and what angle it comes in at, which</p>
+<p>shows most where the road bends and where two waves are closing.</p>
+<p><strong>Changed:</strong> the map's shape parameters. <strong>Built:</strong> issue <a class='issue-link' href='211-waypoints-and-the-zones-they-sit-in.html'>211</a>b.</p>
+<h2>H7. Marching speed is not running speed — <strong>ANSWERED as it was raised</strong></h2>
+<p>Raised in the same breath as H5, and settled in the same breath.</p>
+<p><strong>A body has two speeds.</strong> It marches at one and runs at the other, and the</p>
+<p>difference is not a modifier — they are two numbers about a body, in the catalogue,</p>
+<p>like reach and armour.</p>
+<p><strong>Nobody runs when chasing a kill.</strong> Closing on an enemy is done at marching pace. A</p>
+<p>game where bodies sprint at whatever they want to hit turns every engagement into a</p>
+<p>scramble and destroys the thing the formation work exists to produce.</p>
+<p><strong>Running is for leaving.</strong> A body that is beaten and cannot continue runs — and</p>
+<p>whether it gets to is the mechanic in H8.</p>
+<p><strong>Built:</strong> issue <a class='issue-link' href='211-waypoints-and-the-zones-they-sit-in.html'>211</a>d.</p>
+<h2>H8. What a beaten body does — <strong>ANSWERED as it was raised</strong></h2>
+<p>The mechanic that arrived attached to H7, and it is the sharpest thing in this</p>
+<p>document. Recorded in the terms it was given, because the sense of it is in the</p>
+<p>inversion and paraphrasing would flatten it:</p>
+<blockquote><p>Units run away when they are beaten and cannot continue — a will save, once,</p></blockquote>
+<blockquote><p>determines if they sacrifice themselves. A fail means they live to fight again. A</p></blockquote>
+<blockquote><p>success means they get one single hit on the enemy — through these means, any foe</p></blockquote>
+<blockquote><p>(save the eternal golem)'s demise may be achieved.</p></blockquote>
+<p><strong>Note which way round it is.</strong> Passing the save is what makes a body stay and die.</p>
+<p>Failing it is what lets it live. The save is not against fear; it is against</p>
+<p>self-preservation, and the thing being resisted is the sensible choice.</p>
+<p>One roll, once, for each body, at the moment it is beaten. Then:</p>
+<table><thead>
+<tr><th>Outcome</th><th>What happens</th></tr>
+</thead><tbody>
+<tr><td><strong>Fail</strong></td><td>It runs. At running speed, which is the only time anything runs. It lives to fight again.</td></tr>
+<tr><td><strong>Pass</strong></td><td>It stays, lands <strong>one single hit</strong>, and dies.</td></tr>
+</tbody></table>
+<p><strong>And this is how big things die.</strong> A monster is not brought down by a frontline</p>
+<p>out-damaging it. It is brought down by the accumulated last blows of everything it</p>
+<p>beat — every body that passed its save and spent itself on one strike. Which makes</p>
+<p>the third monster's deathlessness a statement about scale rather than about numbers:</p>
+<p>the Eternal Golem is the one thing that cannot be killed this way, and there is no</p>
+<p>other way.</p>
+<p><strong>Built:</strong> issue <a class='issue-link' href='212-a-beaten-body-gets-one-roll.html'>212</a>.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

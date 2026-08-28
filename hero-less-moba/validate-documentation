@@ -56,6 +56,22 @@ for f in list(docs.rglob("*.md")) + list(issues.rglob("*.md")):
             fail(f"broken link: {f.name} -> {link}")
 
 # -- 2. issue files are well formed ---------------------------------------
+def identity_of(path):
+    """An issue's number, including a sub-issue's letter.
+
+    A large feature is broken into sub-issues named {phase}{id}{index} -- 211a, 211b
+    and so on -- and each of those is its own issue with its own row on the roadmap
+    and in the progress file. Reading the first three characters and stopping made
+    every sub-issue of 211 claim to *be* 211, so four of them reported a title that
+    disagreed with the roadmap while the roadmap was perfectly correct.
+    """
+    match = re.match(r"^(\d{3}[a-z]?)-", path.name)
+    if not match:
+        fail(f"unreadable issue name: {path.name}")
+        return path.name[:3]
+    return match.group(1)
+
+
 required = ("## Current behavior", "## Intended behavior",
             "## Suggested implementation steps")
 issue_files = sorted(issues.glob("[0-9]*.md"))
@@ -64,14 +80,14 @@ for f in issue_files:
     for section in required:
         if section not in text:
             fail(f"missing section: {f.name} -> {section}")
-    ident = f.name[:3]
+    ident = identity_of(f)
     progress = issues / f"phase-{ident[0]}-progress.md"
     if not progress.exists():
         fail(f"no progress file for phase {ident[0]}")
     elif f"| {ident} |" not in progress.read_text():
         fail(f"not in progress file: {f.name}")
 
-have = {f.name[:3] for f in issue_files}
+have = {identity_of(f) for f in issue_files}
 for f in issue_files:
     row = re.search(r"^\| Block(?:s|ed by) \| ([0-9, ]+)\|", f.read_text(), re.M)
     for block in re.findall(r"^\| Block(?:s|ed by) \| ([0-9, ]+)\|", f.read_text(), re.M):
@@ -81,18 +97,18 @@ for f in issue_files:
 
 # -- 3. the roadmap agrees with the files ---------------------------------
 roadmap = (docs / "019-roadmap.md").read_text()
-listed  = dict(re.findall(r"^\| (\d{3}) \| ([^|]+?) *\|", roadmap, re.M))
+listed  = dict(re.findall(r"^\| (\d{3}[a-z]?) \| ([^|]+?) *\|", roadmap, re.M))
 if set(listed) != have:
     for missing in sorted(have - set(listed)):
         fail(f"roadmap missing issue {missing}")
     for extra in sorted(set(listed) - have):
         fail(f"roadmap lists issue {extra}, which has no file")
 for f in issue_files:
-    ident = f.name[:3]
+    ident = identity_of(f)
     if ident not in listed:
         continue
     title = f.read_text().split("\n", 1)[0]
-    title = re.sub(r"^# \d{3} — ", "", title).lower()
+    title = re.sub(r"^# \d{3}[a-z]? — ", "", title).lower()
     want  = re.sub(r" — \*\*capstone\*\*$", "", listed[ident]).lower()
     if title != want:
         fail(f"title mismatch {ident}: file '{title}' vs roadmap '{want}'")
