@@ -10,7 +10,12 @@
 
 ## Current behavior
 
-Upgrades accumulate in a chest and there is no way to move them anywhere.
+Placing names a stone and a destination, and it **takes a full wave to get
+there**, applying at its old slot the whole way — so a placement lands two waves after
+the command. Cancelling is free until it lands.
+
+The move announces itself for that whole wave, and nobody opted into that: you cannot
+move a stone quietly.
 
 ## Intended behavior
 

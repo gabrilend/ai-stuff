@@ -10,7 +10,13 @@
 
 ## Current behavior
 
-Nothing advances. There is a world and no time.
+The tick is an ordered array of systems: clear, commands, spawn, index, form,
+retarget, move, attack, resolve, reap, measure, phase, snapshot. Adding a system is
+adding a row.
+
+Two orderings in it are load-bearing and commented as such — resolve after attack and
+reap after resolve, so nothing frees a slot the pass still refers to; and measure
+after reap, because push depth is a statement about the living.
 
 ## Intended behavior
 

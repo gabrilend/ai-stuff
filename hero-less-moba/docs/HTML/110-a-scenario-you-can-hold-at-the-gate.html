@@ -292,9 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>To look at anything you start a match from the beginning and wait for it to get</p>
-<p>there. There is no way to say <em>put the world in this state and stop</em> — so every</p>
-<p>question about the middle of a match costs the first ten minutes of one.</p>
+<p>A scenario is a hand-written file describing a world — which tick, which phase,</p>
+<p>which towers are rubble, what is placed where, who holds what, and commands that fire</p>
+<p>later — loaded into a fresh world and <strong>held</strong> until released. It can be stepped a</p>
+<p>fixed number of ticks or run until any event the simulation already announces.</p>
+<p><code>./run-scenario</code> loads one, describes it, and waits.</p>
 <h2>Intended behavior</h2>
 <p>A <strong>scenario</strong>: a described starting state, loaded into a fresh world, **held at a</p>
 <p>gate until released**.</p>

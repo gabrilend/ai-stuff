@@ -10,7 +10,12 @@
 
 ## Current behavior
 
-Players are numbers with no identity and nothing to spend.
+A commander is four things: a captain, a mixture, a bounty and a roster. Two of
+them exist, dealt round-robin **within a team** so both sides get the same hand — dealt
+across all six seats once, which handed one team two paladins and the other two nobles
+before anybody had done anything.
+
+Melee and ranged bodies are identical for every commander; only the captain differs.
 
 ## Intended behavior
 

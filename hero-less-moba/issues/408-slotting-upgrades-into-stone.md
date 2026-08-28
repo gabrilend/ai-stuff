@@ -10,8 +10,9 @@
 
 ## Current behavior
 
-Upgrades go into lanes and affect soldiers. Towers are unaffected by anything a
-player does.
+Slotting into a lane's stone applies to that lane's towers as a whole and to their
+guards, split by reach: melee kinds reach the guards, ranged kinds the tower, common
+ones both. Re-stamping keeps a tower's wound while rebuilding its numbers.
 
 ## Intended behavior
 

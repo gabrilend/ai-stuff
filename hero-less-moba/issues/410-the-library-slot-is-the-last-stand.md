@@ -10,9 +10,10 @@
 
 ## Current behavior
 
-Upgrades cannot be slotted into base guard towers, and there is no way to give
-the base anything the lanes are not already giving it. A team whose lane towers
-are all destroyed has no defensive option left at all.
+Upgrades cannot go into a base tower directly; they go into the library, which
+applies to all three at once. Dropping one on a base tower is refused **by name**,
+because a player who tries it is reaching for a real rule and deserves to be told
+which one.
 
 ## Intended behavior
 

@@ -292,8 +292,12 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>Soldiers walk in a straight line to the end of the lane and never stop for</p>
-<p>anything.</p>
+<p>A dispatch table with a row per state: walking, closing, fighting, leashing,</p>
+<p>dying, waiting and recovering. Six of the seven are built — <strong>waiting is not</strong>, and</p>
+<p>nothing enters it, because it is a hero standing at its library during a calm and</p>
+<p>heroes bought in a calm are not yet held back.</p>
+<p>The Golem is the one body that is not the state machine: it walks, it hits what it</p>
+<p>walks into, and it does not stop for either.</p>
 <h2>Intended behavior</h2>
 <p>A soldier's <code>state</code> field indexes a <strong>dispatch table of behaviour functions</strong>,</p>
 <p>one per state, each returning the next state. There is no chain of conditionals</p>

@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-The only viewer is text in a terminal. It has been enough to develop against and
-is not enough to play.
+A window, a fixed tick under a free frame rate, and two snapshots with the blend
+clamped so the viewer can be behind and never ahead. A long frame is truncated rather
+than simulated through, and pausing drops the accumulator.
+
+Above walking pace the blend is dropped entirely: a frame that spans many ticks would
+otherwise show positions between two states that were never adjacent.
 
 ## Intended behavior
 

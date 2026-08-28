@@ -10,7 +10,10 @@
 
 ## Current behavior
 
-The world has storage and nothing to put in it.
+One soldier record as parallel flat arrays, grouped as identity, place, body and
+mind. Wave units, heroes, guards and monsters are all this record with different
+numbers in it, and there is one movement routine, one targeting routine and one attack
+routine between them.
 
 ## Intended behavior
 

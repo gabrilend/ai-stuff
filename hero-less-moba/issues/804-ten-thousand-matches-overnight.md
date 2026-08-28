@@ -10,8 +10,13 @@
 
 ## Current behavior
 
-Balance is a set of numbers somebody guessed, and the only evidence about them is
-however many matches a person has had the patience to watch.
+`./run-many-matches` plays the game many times with nobody watching, one worker per
+core, and writes a row per match plus the summary table. Sixteen matches in ninety-seven
+seconds on fourteen cores.
+
+It had to be made parallel before it was any use: one at a time put ten thousand
+matches at three and a half days, and the whole point is reading the table in the
+morning.
 
 ## Intended behavior
 

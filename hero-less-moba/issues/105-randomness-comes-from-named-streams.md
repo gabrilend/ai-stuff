@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-Nothing is random yet, and the temptation when something first needs to be is to
-reach for a global generator seeded from the clock.
+Named streams, one per purpose, seeded from the match seed mixed with the stream's
+own name. Per-team for `draw`, `surge` and `tie`, and three of `tie` rather than two
+because the monsters are their own team.
+
+xorshift32 through LuaJIT's bit library. A test asserts that the same seed plays the
+same match tick for tick, compared on every body's position rather than on a summary.
 
 ## Intended behavior
 

@@ -292,7 +292,12 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>Nothing advances. There is a world and no time.</p>
+<p>The tick is an ordered array of systems: clear, commands, spawn, index, form,</p>
+<p>retarget, move, attack, resolve, reap, measure, phase, snapshot. Adding a system is</p>
+<p>adding a row.</p>
+<p>Two orderings in it are load-bearing and commented as such — resolve after attack and</p>
+<p>reap after resolve, so nothing frees a slot the pass still refers to; and measure</p>
+<p>after reap, because push depth is a statement about the living.</p>
 <h2>Intended behavior</h2>
 <p>The world advances in <strong>fixed steps</strong>. The step length is a constant, never a</p>
 <p>measured frame time, and every duration in the game is a whole number of ticks —</p>

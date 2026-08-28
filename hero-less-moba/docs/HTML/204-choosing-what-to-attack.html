@@ -292,7 +292,12 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>Soldiers walk past each other without noticing.</p>
+<p>Ranked, cheapest test first: somebody already swinging at me, then the</p>
+<p>lowest-health enemy in acquisition range, then a structure in weapon range, then</p>
+<p>nothing. Lowest health rather than nearest, because bodies should finish things.</p>
+<p>Ties are broken by the team's own tie stream with reservoir sampling, which advances</p>
+<p>the stream a fixed number of times so a replay stays reproducible. A spatial grid</p>
+<p>rebuilt each tick keeps the search from being every body asking every other.</p>
 <h2>Intended behavior</h2>
 <p>Target selection, ranked, cheapest test first:</p>
 <ul>

@@ -317,24 +317,40 @@ svg { max-width: 100%; }
 <p>means adding a row; reordering means moving a row; and the order becomes a piece</p>
 <p>of readable data instead of something buried in a function body.</p>
 <ul>
+<li><strong>Clear.</strong> Both damage buffers and last tick's events are zeroed, so nothing can</li>
+</ul>
+<p>   be applied twice and a viewer reading a snapshot sees exactly that tick's events.</p>
+<ul>
 <li><strong>Apply commands.</strong> Every command queued since the last tick is applied, in a</li>
 </ul>
-<p>   fixed order by player number, then by arrival index. This is the only moment</p>
-<p>   in the whole tick when player intent can change anything. See</p>
+<p>   fixed order by player number, then by arrival index. This is the only moment in</p>
+<p>   the whole tick when player intent can change anything — and a bot's intent</p>
+<p>   arrives the same way, through the same queue, on the same tick. See</p>
 <p>   <a href='016-players-teams-and-commands.html'>players, teams, and commands</a>.</p>
 <ul>
-<li><strong>Spawn.</strong> Wave timers, surge stream timers, guard respawns, and challenge</li>
+<li><strong>Spawn.</strong> Wave timers, the surge stream, guard replacement, and the transits</li>
 </ul>
-<p>   monsters. Everything that adds a body to the world does it here.</p>
+<p>   that land with a wave. Everything that adds a body to the world does it here.</p>
 <ul>
-<li><strong>Retarget.</strong> Every soldier without a living target looks for one.</li>
-<li><strong>Move.</strong> Every soldier that is not in contact with its target advances along</li>
+<li><strong>Index.</strong> Every living body is dropped into the spatial grid, rebuilt whole</li>
 </ul>
-<p>   its lane. Junction decisions are resolved here.</p>
+<p>   rather than maintained — a grid that is updated as bodies move is a grid that is</p>
+<p>   wrong the first time somebody forgets, and being wrong looks like soldiers</p>
+<p>   ignoring an enemy standing next to them.</p>
 <ul>
+<li><strong>Form.</strong> Every wave advances its anchor down its lane and shares out the</li>
+</ul>
+<p>   cohesion budget among the members still marching.</p>
+<ul>
+<li><strong>Retarget.</strong> Every soldier without a living target looks for one; then the</li>
+</ul>
+<p>   "who is swinging at me" map is rebuilt for the next tick to read.</p>
+<ul>
+<li><strong>Move.</strong> The brain, once per living body. Junction decisions are resolved here.</li>
 <li><strong>Attack.</strong> Cooldowns tick down; anything ready and in range deals damage into</li>
 </ul>
-<p>   a pending-damage buffer rather than straight into health.</p>
+<p>   a pending-damage buffer rather than straight into health. Towers shoot, and</p>
+<p>   abilities fire — through the same buffer, on the same boundary.</p>
 <ul>
 <li><strong>Resolve damage.</strong> The buffer is applied. This two-stage split is what makes</li>
 </ul>
@@ -347,13 +363,16 @@ svg { max-width: 100%; }
 <p>   resource paid out, wave-completion counters decremented, tower-destroyed</p>
 <p>   rewards issued.</p>
 <ul>
-<li><strong>Phase.</strong> The match clock advances. Surges start and end, challenges begin,</li>
+<li><strong>Measure.</strong> Push depth, recomputed from the living. <strong>After the reap</strong>, because</li>
 </ul>
-<p>   the game-over condition is checked.</p>
+<p>   it is a statement about who is still standing.</p>
 <ul>
-<li><strong>Snapshot.</strong> The state is stamped for the viewer and, if recording, appended</li>
+<li><strong>Phase.</strong> The match clock advances. The wallet ladder climbs, surges start and</li>
 </ul>
-<p>   to the replay log.</p>
+<p>   end, challenges begin, the game-over condition is checked.</p>
+<ul>
+<li><strong>Snapshot.</strong> The state is stamped for the viewer.</li>
+</ul>
 <h2>Where randomness lives</h2>
 <p>Randomness is not global and is never taken from the system clock. The world</p>
 <p>holds a small set of <strong>named random streams</strong>, each one a seeded generator that</p>
@@ -362,11 +381,11 @@ svg { max-width: 100%; }
 <tr><th>Stream</th><th>Used for</th></tr>
 </thead><tbody>
 <tr><td><code>draw</code></td><td>Which upgrade comes out of the chest when a wave is wiped. One stream per team.</td></tr>
-<tr><td><code>boon</code></td><td>Which three boons each player is offered in the calm after a challenge.</td></tr>
+<tr><td><code>boon</code></td><td>Which <strong>two</strong> boons each player is offered in the calm after a slain monster.</td></tr>
 <tr><td><code>deck</code></td><td>The one shared upgrade sequence both teams draw from, generated once at match start.</td></tr>
 <tr><td><code>surge</code></td><td>The deal order and starting lane when the chest is dealt across a surge spawn. One stream per team. Advances several times a second while a surge runs — far more than any other.</td></tr>
 <tr><td><code>wander</code></td><td>Where a tower's guards choose to patrol.</td></tr>
-<tr><td><code>tie</code></td><td>Breaking exact ties in target selection.</td></tr>
+<tr><td><code>tie</code></td><td>Breaking exact ties in target selection. <strong>One per team, and three of them</strong> — the monsters are their own team and break ties like anything else.</td></tr>
 </tbody></table>
 <p>Splitting them matters: if all randomness came from one stream, a cosmetic change</p>
 <p>to how guards wander would silently change which upgrades a team draws, and no</p>
@@ -434,8 +453,8 @@ svg { max-width: 100%; }
 <tr><td><code>challenge_index</code></td><td>integer</td><td>1, 2, or 3 — which of the three named monsters. The third never ends.</td></tr>
 <tr><td><code>soldier</code></td><td>struct-of-arrays</td><td>Every walking body: wave units, heroes, guards, monsters.</td></tr>
 <tr><td><code>structure</code></td><td>struct-of-arrays</td><td>Towers and libraries.</td></tr>
-<tr><td><code>team</code></td><td>array[2] of team record</td><td>Chest, push depths, boons, seeds.</td></tr>
-<tr><td><code>player</code></td><td>array[6] of player record</td><td>Commander, personal resource, lock and objection state.</td></tr>
+<tr><td><code>team</code></td><td>array[2] of team record</td><td>Push depths, boons, deck index, waves lost. The chest itself is an array of <strong>stones</strong> — instances with a holder — of which the per-slot counts are a cache.</td></tr>
+<tr><td><code>player</code></td><td>array[6] of player record</td><td>Commander, resource per colour, ceiling per colour, and what has been wasted. <strong>No lock or objection state</strong> — a stone belongs to whoever drew it, so there is nothing to lock it against.</td></tr>
 <tr><td><code>stream</code></td><td>table of named generators</td><td>The random streams above.</td></tr>
 <tr><td><code>pending_damage</code></td><td>double[]</td><td>One slot per soldier, cleared every tick.</td></tr>
 </tbody></table>

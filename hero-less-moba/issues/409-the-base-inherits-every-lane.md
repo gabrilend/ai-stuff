@@ -10,10 +10,9 @@
 
 ## Current behavior
 
-Upgrades slotted into a lane's stone affect that lane's two towers and nothing
-else. The three towers inside a base are permanently unmodified, and a team that
-has invested heavily in stone gets nothing for it once the fighting reaches the
-base.
+Base towers inherit every lane's stone plus whatever is in the library slot, so an
+investment made while winning is still working while losing. A team that lost all six
+lane towers still has three fully upgraded base towers.
 
 ## Intended behavior
 

@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-A stone belongs to the player who drew it and there is no way for it to reach
-anybody else. A team is three people playing next to each other.
+Contributing puts a stone in a communal pool where any teammate may use it,
+forever, and it appears to each of them as simply one of theirs — no owner shown. It
+is one-way, because *whose is it really* is the question the pool exists to delete.
+
+Dismissing is the safety on it: a communal stone can be set aside, and when everybody
+has set aside the same one it comes back to all of them.
 
 ## Intended behavior
 

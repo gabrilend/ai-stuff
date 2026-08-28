@@ -314,6 +314,28 @@ svg { max-width: 100%; }
 <p><strong>Read the companion, not the source.</strong> The source is for when a specific</p>
 <p>function is misbehaving. The companion is for everything else. A companion that</p>
 <p>has drifted from its source is a bug of the same severity as a wrong answer.</p>
+<h2>A document that is not true is a bug</h2>
+<p><strong>The documents are not a description of the software. They are half of it.</strong> This</p>
+<p>project had twenty-three of them and seventy-four issue files before it had a line of</p>
+<p>code, and reconstructing the software means reading them — so a page that no longer</p>
+<p>matches what runs is not untidy, it is <strong>wrong</strong>, at the same severity as a wrong</p>
+<p>answer from a function.</p>
+<p>Which means it is fixed the same way: immediately, by whoever noticed, without asking.</p>
+<p>There is nothing to decide. **An issue is not closed while the pages around it still</p>
+<p>read false**, and "the code changed and the document did not" is not a difference of</p>
+<p>opinion that somebody needs to rule on.</p>
+<p>The two things that make this survivable rather than a permanent tax:</p>
+<ul>
+<li><strong>Every source file has a companion</strong>, so the description of a thing lives beside</li>
+</ul>
+<p>  the thing and is edited in the same breath.</p>
+<ul>
+<li><strong><code>./validate-documentation</code> is a compiler for the prose.</strong> It already catches an</li>
+</ul>
+<p>  issue citing a question that has since been answered, which is the commonest way</p>
+<p>  this rots.</p>
+<p>Neither of those can catch a paragraph that quietly stopped being true, and that is</p>
+<p>what the rule above is for.</p>
 <h2>Comments say why, not what</h2>
 <p>A comment that restates the line below it is noise. The comments this project</p>
 <p>wants are:</p>

@@ -29,18 +29,26 @@ worker is writing.
    `range`. This is the *only* place in the game that uses as-the-crow-flies
    distance; everything about progress and lanes uses milestones.
 3. **Base damage.** The attacker's `damage`.
-4. **Upgrades.** The attacker's **upgrade count vector** is walked — one small
-   integer per catalogue kind, saying how many copies of that kind this body
-   carries — and each nonzero entry's modifier is applied that many times,
-   additive terms first, then multiplicative. *Settled; see
-   [open questions](020-open-questions.md), F3.*
+4. **Upgrades — which have already been applied.** There is no step here. The
+   attacker's `damage` field already carries everything its upgrades gave it,
+   because the modifiers were **folded into the body's own fields when it was
+   stamped**, at birth.
 
-   **The vector is always the body's own copy.** Nothing here dereferences a
-   lane, a tower, or a team record; the swing path touches the attacker's slot,
-   the defender's slot, and the catalogue. When a slot's contents change, the
-   bodies that copied from it are cleared and re-stamped by a sweep outside this
-   loop — see F23. That is what keeps this step a flat walk over a small array
-   with no pointer chasing anywhere in it.
+   An earlier version of this document had the swing walk the body's count vector
+   and apply each entry. That produces identical numbers and does the
+   multiplication once per blow instead of once per body, so it was replaced —
+   and it is safe to replace precisely because of a rule the design already
+   commits to elsewhere: **a wave unit's vector never changes after birth, and a
+   guard's only changes when its tower does**, which is exactly when it is
+   re-stamped. Nothing can be carrying a stale number, because nothing that could
+   go stale is ever read here.
+
+   The count vector is still on the body. Nothing in the swing path reads it; the
+   renderer does, to draw the badges an opponent learns an arrangement from.
+
+   **And nothing here dereferences a lane, a tower, or a team record.** The swing
+   path touches the attacker's slot, the defender's slot, and nothing else. See
+   F3 and F23.
 5. **Armour.** The defender's `armour` is subtracted, and the result is floored
    at a small positive minimum so that a heavily upgraded defender is very hard
    to kill but never literally immune. Immunity in a lane-pusher means a

@@ -1,7 +1,8 @@
 # 009 — The Shared Upgrade Pool
 
 **Datapath document.** Covers the chest: what an upgrade is, how one is drawn,
-where it can be put, and the lock-and-objection negotiation that keeps three players
+where it can be put, and the negotiation between three players that owning one makes
+possible
 from undoing each other's work.
 
 This is the centre of the game. Everything else feeds it or is fed by it.
@@ -278,7 +279,8 @@ disrupt** — the right shape for the design's only brake on a snowball.
 
 ### And placement stays open the whole time
 
-**Players may place, move, withdraw, lock, and object freely during a surge.**
+**Players may place, move and withdraw freely during a surge**, and give and set aside
+stones as usual.
 *Settled; see [open questions](020-open-questions.md), F12.*
 
 There is no reason to forbid it. Rearranging during a surge changes nothing about
@@ -305,7 +307,8 @@ A placement command names an instance and a destination slot. It is applied in
 the command pass at the top of a tick, and it is refused — with a reason the
 viewer can show — if any of these hold:
 
-- The instance is locked by a different player.
+- The instance belongs to a different player — and nothing can be done about that,
+  because there is no lock to break. See *contributing and dismissing*.
 - The instance is already in transit — cancel it first.
 - The destination is where it already is.
 - The instance is in the freeze window before a queued destination takes effect;
@@ -334,11 +337,12 @@ Two things follow, and the second is the more interesting.
 **Placement is a bet placed two waves ahead.** A team that can move every upgrade
 every tick would simply keep all of them wherever the fighting currently is, and
 the whole negotiation layer evaporates. The delay is what makes a placement a
-commitment worth locking, objecting, and arguing about.
+commitment worth giving away, setting aside, and arguing about.
 
 **Marked-to-move is a message.** Every teammate can see that an instance is in
 transit and where it is going, for a full wave, before it lands — and unlike a
-lock or an objection, it is **not opt-in.** You cannot move an upgrade quietly.
+a contribution or a dismissal, it is **not opt-in.** You cannot move an upgrade
+quietly.
 Your teammates get a wave's notice, which is exactly enough time to say something
 about it.
 
@@ -385,8 +389,8 @@ about building each other up rather than managing each other's pockets.
 
 **One of them is a refusal to act**, and it is the only verb in the game that
 works by *subtraction*. Dismissing removes a thing from your attention rather
-than adding anything to anybody's, and it is the replacement for the whole
-lock-and-objection system — see above for why a disclaim is a better instrument
+than adding anything to anybody's, and it is what replaced the whole
+lock-and-objection system — see below for why a disclaim is a better instrument
 than a claim.
 
 A ping is the only one of the eight that is not about the stones at all.
@@ -424,7 +428,8 @@ It does cost something, and the cost is honest: **the marked-to-move message you
 teammates were reading can evaporate.** A teammate who saw the mark, decided it
 was fine, and moved on will not be told it never happened. So the notice a
 transit gives is a *statement of intent*, not a promise — which is exactly what
-a lock is for when you want the stronger thing.
+**offering** is for when you want the stronger thing — a transit says what you mean to
+do, and handing somebody the stone is done.
 
 **There is no cap on how many stones a lane can hold.** The vision says so
 outright: "players are allowed to put all their upgrades in one lane. This is

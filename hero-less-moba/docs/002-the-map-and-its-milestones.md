@@ -51,6 +51,20 @@ diagonal: the top-left corner, the middle of the field, and the bottom-right
 corner. Each side lane bends once, at its own corner; the centre lane's junction
 is its midpoint, which is a plain point on a straight line rather than a bend.
 
+### The side lanes are longer, and that is the point
+
+A side lane runs out to a corner and back; the centre cuts straight across. So a side
+lane is about **1.7 times** the centre's length, and the two teams' first waves meet in
+the middle a good while before they meet anywhere else.
+
+That is intended. It gives the centre a distinction beyond being wide: **it is where
+the match starts.** The first contact of every match happens there, the side lanes
+develop later, and a team that wants to know what it is facing learns it in the middle
+first.
+
+It also means the three lanes are not interchangeable in time as well as in shape,
+which is worth having in a game whose whole read is a comparison between three lanes.
+
 A short **connector** edge joins each side lane's junction to the middle. That
 diagonal is the ground that used to be jungle, with everything that made it
 jungle taken out of it. Nothing spawns on a connector, nothing camps there, and

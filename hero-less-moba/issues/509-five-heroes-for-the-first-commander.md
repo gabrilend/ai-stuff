@@ -10,7 +10,9 @@
 
 ## Current behavior
 
-The commander catalogue has one entry and its roster is a placeholder.
+Eleven heroes across two rosters of five, covering distinct jobs rather than three
+grades of the same soldier: one that holds a line, one that kills a line, one that
+kills stone, and healers.
 
 ## Intended behavior
 

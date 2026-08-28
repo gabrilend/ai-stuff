@@ -54,7 +54,7 @@ enemy's chest is not on this machine at all. See
 | Per soldier: x, y, facing, team, flavour, archetype, health fraction, alive | Everything drawn about a body. |
 | Per soldier: the upgrades it was stamped with | Reading an enemy's build off their frontline is the only way to learn their arrangement. Enemy bodies carry this; enemy *chests* do not exist here. |
 | Per structure: health fraction, alive, command radius | Towers and libraries. The radius is drawn for both teams — see [guard towers](007-guard-towers-and-their-guards.md). |
-| **Own team only**: chest contents, slot assignments, transit marks, lock and objection state, boons | The panel. |
+| **Own team only**: every stone the player can see — its kind, where it sits, whether it is theirs or in the pool, and where it is going if it is moving — plus boons | The panel. A stone somebody has set aside is absent from **their** frame and present in everybody else's. |
 | Per lane: push depth, both teams' | The lane-pressure read. Ignored during a challenge. |
 | **Own team only**, per player: resource, ceiling, hero count, teammate cursors | The player's own bar, and the presence channel. |
 | **Own team only**, per sign-post: position and direction | Each team has its own three. The enemy's are absent from the frame entirely — not hidden, not present. See [sign-posts](013-signposts-and-lane-routing.md), F16. |
@@ -76,16 +76,19 @@ Roughly in order of how much a player looks at it:
 2. **The chest.** Unplaced upgrades, large and impossible to ignore. An upgrade
    doing nothing should be visually annoying.
 3. **The slots.** What is in each lane, what is in each lane's towers, what is in
-   the library, who locked what, what has been objected and by whom.
+   the library — and what is **on its way** to any of them, with how many waves
+   until it lands. A move announces itself for a full wave and nobody opted into
+   that: you cannot move a stone quietly.
 4. **My resource, and what I could buy with it right now.** Affordable heroes
    distinguished from unaffordable at a glance.
 5. **The phase.** How long until the next surge; during a surge, how long left;
    during a challenge, where the monsters are.
 6. **Refusals.** Every rejected command, with its reason, immediately.
 
-The chest and the lanes are the two things a player is constantly moving their
-eyes between, so they should be arranged so that a placement is a short drag and
-not a trip across the screen.
+The chest and the lanes are the two things a player is constantly moving their eyes
+between — and the answer to that turned out not to be arranging them close together.
+Picking a stone up pulls the camera back and lights up every place it could go, so the
+distance between the two stops mattering. See below.
 
 ## The camera: everything by default, zoom to inspect
 
@@ -110,7 +113,8 @@ soldier is a few pixels; you need to be able to lean in.
 > **Zoom reveals detail. It never reveals events.**
 
 Anything a player must react to — a tower falling, a surge starting, a monster
-appearing, a teammate marking an upgrade to move, a lock breaking, their own
+appearing, a teammate marking an upgrade to move, a stone resurfacing because
+everybody set it aside, their own
 wallet overflowing — has to be legible at the default view, without zooming and
 without a camera move. Zooming in is a thing a player does when they have a
 moment, not a thing the game requires them to do to stay informed.
@@ -119,6 +123,30 @@ The failure this prevents is the one every game with a camera has: a player who
 is looking at the wrong place at the wrong time and is punished for it by
 information they were never going to have. In a game where three people share one
 chest, that failure would land on the whole team.
+
+### And the zoom is anchored to the cursor
+
+**The point of the world under the cursor does not move while you zoom.** A camera
+that zooms about the middle of the screen moves whatever you were looking at away
+from you, so the loop becomes zoom, hunt, drag, zoom, hunt, drag — which is the same
+small navigation task the rule below bans on the trip home, and it was going unnoticed
+on the trip out. See issue 708.
+
+### Picking something up asks the question by pulling back
+
+Selecting a stone or a hero **pulls the camera out to the whole map and lights up
+everywhere it could go.** The act of zooming out is the act of asking where to put it:
+a placement is a question about the whole board — which lane is losing, where the enemy
+armies are, which stone is still standing — and none of that is visible from inside the
+fight you were watching a moment ago.
+
+Dropping it returns the camera to whatever was being watched, unless the player moved
+it themselves in the meantime.
+
+That is the second vision's gesture, and it is the one place this document has been
+overruled by it: **a placement is not a drag across a panel, it is a selection and then
+a zoom.** The stones are still listed down the side, because they have to be somewhere,
+but they are dropped onto the thing they affect.
 
 ### And it should always be one press back
 

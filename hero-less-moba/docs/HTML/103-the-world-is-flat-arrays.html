@@ -292,7 +292,13 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>There is nowhere to put a soldier.</p>
+<p>The world is flat arrays, allocated once at creation and never reallocated. Every</p>
+<p>per-body field is its own array; upgrade counts are one array per catalogue kind, so</p>
+<p>the sweep that re-stamps a lane's guards is a walk down one array rather than a walk</p>
+<p>through many tables.</p>
+<p>No field is ever nil. Slots are recycled through a free list with a generation</p>
+<p>counter, and releasing one clears every field on it — a slot that kept its old target</p>
+<p>or its old leash would hand them to the next body that moved in.</p>
 <h2>Intended behavior</h2>
 <p>The world is <strong>one table of flat arrays</strong>, not an array of tables. Every</p>
 <p>soldier's health lives in one contiguous array of doubles; every soldier's lane</p>

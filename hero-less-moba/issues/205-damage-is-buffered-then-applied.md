@@ -10,7 +10,12 @@
 
 ## Current behavior
 
-Soldiers pick targets and stand there. Nothing loses health.
+Attacks write into a buffer and a separate pass applies it, so two bodies that
+would kill each other on the same tick both do. Armour is subtracted and floored at a
+small positive minimum — a blow never heals, and nothing is ever immune.
+
+Nothing records who dealt the damage, because nothing needs to: the reap pass reads
+the dead body's own team and pays the other one.
 
 ## Intended behavior
 

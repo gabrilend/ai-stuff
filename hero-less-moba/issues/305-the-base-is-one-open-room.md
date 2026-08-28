@@ -10,9 +10,13 @@
 
 ## Current behavior
 
-The three lanes each end at a separate tower, and the interior of a base is three
-unconnected corridors. An invader in the top lane's mouth is untouchable by
-anything guarding the bottom lane's, even though they are a few paces apart.
+The base is one open room. Its three towers share one patrol area — their guards
+are leashed to the **library** rather than to the tower that put them out — so they
+range across the interior and answer whichever lane is invaded.
+
+What stops that becoming an impenetrable ball is the towers themselves: their arrows
+are a plain radius and in practice only reach the mouth of the one lane they sit at.
+Bodies flow across a base freely; arrows do not.
 
 ## Intended behavior
 

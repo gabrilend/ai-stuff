@@ -10,7 +10,12 @@
 
 ## Current behavior
 
-Soldiers exist and stand still.
+A body's position on a lane is two numbers — how far along, and how far across —
+with its world position derived from the lane's own curve. That is what makes a rank
+survive a corner, and it means the move pass never computes a square root: step
+lengths and cumulative distances are precomputed at map build time.
+
+Guards walk the graph directly instead, by neighbour, because they have no lane.
 
 ## Intended behavior
 

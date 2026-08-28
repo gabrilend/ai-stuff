@@ -10,7 +10,13 @@
 
 ## Current behavior
 
-Placements are issued from a command line. The chest is a list of numbers.
+The chest is a panel of individual stones — mine, in the pool, or already on their
+way somewhere — and a placement is a **drag onto the thing it should affect**: a lane,
+a tower, or the library, in the world. Picking one up pulls the camera back and lights
+up everywhere it could go.
+
+Which is the second vision's gesture rather than the viewing layer document's panel
+target.
 
 ## Intended behavior
 

@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-A stone contributed to the communal pool sits there until somebody places it. If
-nobody wants it, nobody does anything, and it stays.
+Offering hands a stone to one named teammate and it becomes theirs. It is the only
+verb that transfers anything, costs the giver something visible, and cannot be done
+*to* somebody.
+
+Requesting exists beside it and changes nothing: one at a time, naming one stone, and
+ignoring one is free and silent.
 
 ## Intended behavior
 

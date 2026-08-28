@@ -292,8 +292,12 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>There is no way for a person to affect the world, and no discipline in place to</p>
-<p>stop the first person who needs one from reaching in and setting a field.</p>
+<p>Every command enters through one queue and is applied at the top of a tick, sorted</p>
+<p>by player and then by arrival so that two machines resolve the same tick the same</p>
+<p>way. The verbs are a dispatch table.</p>
+<p>Every refusal is returned, named, and raised as an event the panel shows. An unknown</p>
+<p>verb stops the program, because that is a programming error rather than a player one.</p>
+<p>The bot goes through the same door.</p>
 <h2>Intended behavior</h2>
 <p><strong>Nothing a player does touches the world directly.</strong> Clicking a sign-post does</p>
 <p>not turn a sign-post; it appends a <strong>command record</strong> to a queue. At the top of</p>

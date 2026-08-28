@@ -10,7 +10,12 @@
 
 ## Current behavior
 
-Soldiers have to be placed by hand for anything to happen.
+Waves spawn on a cadence, one per lane per team, and the whole wave appears at
+once already in its ranks. The commanders take turns, so the captain and the mixture
+that walk out are somebody's in particular.
+
+During a surge the spawner is a stream instead; during a calm nothing spawns; during
+a challenge the waves go to the middle carrying their own lane's upgrades.
 
 ## Intended behavior
 

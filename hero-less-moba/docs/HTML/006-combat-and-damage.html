@@ -308,18 +308,24 @@ svg { max-width: 100%; }
 <p>   distance; everything about progress and lanes uses milestones.</p>
 <ul>
 <li><strong>Base damage.</strong> The attacker's <code>damage</code>.</li>
-<li><strong>Upgrades.</strong> The attacker's <strong>upgrade count vector</strong> is walked — one small</li>
+<li><strong>Upgrades — which have already been applied.</strong> There is no step here. The</li>
 </ul>
-<p>   integer per catalogue kind, saying how many copies of that kind this body</p>
-<p>   carries — and each nonzero entry's modifier is applied that many times,</p>
-<p>   additive terms first, then multiplicative. *Settled; see</p>
-<p>   <a href='020-open-questions.html'>open questions</a>, F3.*</p>
-<p>   <strong>The vector is always the body's own copy.</strong> Nothing here dereferences a</p>
-<p>   lane, a tower, or a team record; the swing path touches the attacker's slot,</p>
-<p>   the defender's slot, and the catalogue. When a slot's contents change, the</p>
-<p>   bodies that copied from it are cleared and re-stamped by a sweep outside this</p>
-<p>   loop — see F23. That is what keeps this step a flat walk over a small array</p>
-<p>   with no pointer chasing anywhere in it.</p>
+<p>   attacker's <code>damage</code> field already carries everything its upgrades gave it,</p>
+<p>   because the modifiers were **folded into the body's own fields when it was</p>
+<p>   stamped**, at birth.</p>
+<p>   An earlier version of this document had the swing walk the body's count vector</p>
+<p>   and apply each entry. That produces identical numbers and does the</p>
+<p>   multiplication once per blow instead of once per body, so it was replaced —</p>
+<p>   and it is safe to replace precisely because of a rule the design already</p>
+<p>   commits to elsewhere: **a wave unit's vector never changes after birth, and a</p>
+<p>   guard's only changes when its tower does**, which is exactly when it is</p>
+<p>   re-stamped. Nothing can be carrying a stale number, because nothing that could</p>
+<p>   go stale is ever read here.</p>
+<p>   The count vector is still on the body. Nothing in the swing path reads it; the</p>
+<p>   renderer does, to draw the badges an opponent learns an arrangement from.</p>
+<p>   <strong>And nothing here dereferences a lane, a tower, or a team record.</strong> The swing</p>
+<p>   path touches the attacker's slot, the defender's slot, and nothing else. See</p>
+<p>   F3 and F23.</p>
 <ul>
 <li><strong>Armour.</strong> The defender's <code>armour</code> is subtracted, and the result is floored</li>
 </ul>

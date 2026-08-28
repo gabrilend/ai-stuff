@@ -292,8 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>The only viewer is text in a terminal. It has been enough to develop against and</p>
-<p>is not enough to play.</p>
+<p>A window, a fixed tick under a free frame rate, and two snapshots with the blend</p>
+<p>clamped so the viewer can be behind and never ahead. A long frame is truncated rather</p>
+<p>than simulated through, and pausing drops the accumulator.</p>
+<p>Above walking pace the blend is dropped entirely: a frame that spans many ticks would</p>
+<p>otherwise show positions between two states that were never adjacent.</p>
 <h2>Intended behavior</h2>
 <p>A window, in <strong>LÖVE</strong>, and the interpolation loop behind it.</p>
 <p>LÖVE because it is already LuaJIT — **no FFI boundary between the viewer and the</p>

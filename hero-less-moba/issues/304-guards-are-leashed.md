@@ -10,9 +10,12 @@
 
 ## Current behavior
 
-Guards spawn and then behave like wave units: they acquire an enemy, chase it,
-and walk off down the lane, leaving the tower they were supposed to be protecting
-completely bare.
+Guards wander a random walk inside their leash using the wander stream, close on
+anything that comes near, and walk home refusing to acquire the moment they drift past
+it. They never advance with a wave and never follow a retreating enemy.
+
+They are also outside everything a line does: no formation, no cohesion budget, and
+they never fall back.
 
 ## Intended behavior
 

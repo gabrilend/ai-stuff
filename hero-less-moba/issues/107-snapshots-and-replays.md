@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-The world advances and nothing can see it. There is also no way to prove that
-advancing it twice from the same starting point produces the same world.
+Snapshots are built: two frames, indexed by soldier id so that matching a body
+across them is reading the same index twice, with the viewer's blend clamped so it can
+be behind and never ahead.
+
+**The replay log is not built.** Under a rotating authority a replay has to record the
+accepted snapshots as well as the commands, and nothing records either yet.
 
 ## Intended behavior
 

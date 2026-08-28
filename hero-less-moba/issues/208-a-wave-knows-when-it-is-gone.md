@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-Waves spawn, fight, and disappear. Nothing notices when one is gone, so nothing
-can reward it.
+A wave is a record and every body carries its id for life. A death decrements
+that one wave's living count and nothing scans. Fully defeated means the count reached
+zero **and** something killed at least one member — both halves, because a wave can
+also empty by walking into a library.
+
+The wipe pays the team that did not spawn it, one draw.
 
 ## Intended behavior
 

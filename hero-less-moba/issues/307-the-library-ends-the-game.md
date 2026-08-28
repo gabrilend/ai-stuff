@@ -10,7 +10,10 @@
 
 ## Current behavior
 
-A match runs until the runner's tick limit. Nothing can be won.
+A library at zero health ends the match on that tick. Both libraries falling in
+the same buffered pass is recorded as a draw rather than resolved by team number,
+which happens in practice: two passive sides are mirrors and both Golems arrive
+together.
 
 ## Intended behavior
 

@@ -292,8 +292,12 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>Upgrades can be placed into lanes and nothing reads them. Every soldier is</p>
-<p>identical to every other soldier of its archetype.</p>
+<p>A body is stamped at birth from its lane's slot plus its team's boons, and the</p>
+<p>modifiers are folded into its own fields rather than walked on every swing. It is</p>
+<p>never corrected afterwards — moving an upgrade out of a lane does not weaken the</p>
+<p>soldiers already walking in it.</p>
+<p>A guard is the exception and is re-stamped when its tower changes, because it stands</p>
+<p>at the thing it copied from for its whole life.</p>
 <h2>Intended behavior</h2>
 <p>At spawn, a soldier's <code>upgrade_mask</code> is copied from its lane's <code>lane_mask</code>. On</p>
 <p>every swing, the mask is walked and each set bit's modifier applied.</p>
