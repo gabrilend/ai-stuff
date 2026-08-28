@@ -20,7 +20,12 @@ problem statement, rendered, and phase 4's demo is the answer to it.
 | 208 | A wave knows when it is gone | built |
 | 209 | The thread pool slices the tick | not started — H3 |
 | 210 | A death decays before it is final | built |
-| 211 | Waypoints, and the zones they sit in | in progress — H4 and H5 |
+| 211 | Waypoints, and the zones they sit in | in progress — the umbrella |
+| 211a | The lane is cut into zones | not started |
+| 211b | Every zone holds a waypoint | not started |
+| 211c | A formation is a circle that faces where it is going | not started |
+| 211d | Marching speed is not running speed | not started |
+| 212 | A beaten body gets one roll | not started |
 
 **Blocking:** nothing.
 
@@ -95,17 +100,36 @@ It also happens to be the better thing to look at: a body that fades rather than
 blinking out is the least artificial version of the moment, and the data behind the
 fade is real rather than invented by the renderer.
 
-**211 is in progress and waiting on two decisions.** A lane's measure of how far
-along a wave has got is to become four times finer, and a wave is to approach
-**waypoints** — points at random positions inside each of those finer stretches —
-rather than simply advancing a number, so that its angle of approach varies and two
-waves walking the same road do not tread in the same places.
+**211 is in progress, decided, and split into four.** A lane's measure of how far
+along a wave has got becomes four times finer, and a wave approaches **waypoints** —
+points at random positions inside each of those finer stretches — rather than simply
+advancing a number, so its angle of approach varies and two waves walking the same
+road do not tread in the same places.
 
-What is not settled is whether the finer measure replaces the milestones or sits
-underneath them, and whether a waypoint steers the formation inside its lane or
-becomes a destination in the world. The second matters most: a formation is held in
-lane coordinates, and that is the whole reason a rank survives a corner. See H4 and
-H5.
+Both questions came back, and the second came back bigger than it was asked. The
+finer measure sits **underneath** the milestones rather than replacing them, so no
+tower moves and nothing that says "milestone" changes meaning.
+
+And a waypoint neither steers nor navigates, because **a formation stops being a
+wide thing at a distance and becomes an oriented disc**: its position is the centre
+of its bodies rather than the front of them, its radius is exactly half its width,
+its diameter is the face of the line, and it turns to point at what it is walking
+toward. What it points at, when there is an enemy, is the enemy's **frontline** —
+their diameter displaced forward — rather than the middle of their block, because
+the middle of a block is behind the people who will actually be hit.
+
+Two things fell out of that and became their own work. A disc that rotates moves a
+body's intended place out from under it, so the cohesion clamps have to open. And
+**marching speed is not running speed** — two numbers about a body rather than one
+with a modifier, with nothing running while it chases a kill.
+
+**212 is the mechanic that arrived attached to the last of those, and it is the
+sharpest thing in the phase.** A beaten body rolls once. Failing the roll lets it
+run away and live; passing it makes it stay, land one single blow, and die. That
+inversion is deliberate: the save is against self-preservation, not against fear.
+And it is how anything large dies — a monster is brought down by the accumulated
+last blows of everything it beat, which makes the Eternal Golem's deathlessness a
+statement about scale rather than about a number.
 
 **The map was resized alongside it** and is written up in the balance ledger rather
 than here: bodies further apart, drawn smaller, roads wider — and the map checker

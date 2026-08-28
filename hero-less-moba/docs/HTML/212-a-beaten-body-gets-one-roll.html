@@ -1,4 +1,4 @@
-<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>034-walking -- hero-less-moba</title><style>:root {
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>212 — A Beaten Body Gets One Roll -- hero-less-moba</title><style>:root {
   --ground:   #0d0f13;
   --panel:    #14171d;
   --edge:     #232833;
@@ -169,7 +169,7 @@ svg { max-width: 100%; }
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
 <a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='211-waypoints-and-the-zones-they-sit-in.html'><span class='index'>211</span>Waypoints, and the Zones They Sit In</a>
-<a href='212-a-beaten-body-gets-one-roll.html'><span class='index'>212</span>A Beaten Body Gets One Roll</a>
+<a href='212-a-beaten-body-gets-one-roll.html' class='here'><span class='index'>212</span>A Beaten Body Gets One Roll</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -244,7 +244,7 @@ svg { max-width: 100%; }
 <a href='031-map-validator.info.html'><span class='index'>031</span>map-validator</a>
 <a href='032-the-world.info.html'><span class='index'>032</span>the-world</a>
 <a href='033-commands.info.html'><span class='index'>033</span>commands</a>
-<a href='034-walking.info.html' class='here'><span class='index'>034</span>walking</a>
+<a href='034-walking.info.html'><span class='index'>034</span>walking</a>
 <a href='035-targeting.info.html'><span class='index'>035</span>targeting</a>
 <a href='036-the-frontline.info.html'><span class='index'>036</span>the-frontline</a>
 <a href='037-the-brain.info.html'><span class='index'>037</span>the-brain</a>
@@ -287,82 +287,115 @@ svg { max-width: 100%; }
 <a href='051-the-invariants.info.html'><span class='index'>051</span>the-invariants</a>
 <a href='060-the-formation-sandbox.info.html'><span class='index'>060</span>the-formation-sandbox</a>
 </section>
-</nav><main id='page'><h1>034-walking</h1>
-<p>How a body gets from one place to another.</p>
-<h2>What it is for</h2>
-<p><strong>There is no pathfinding in this game.</strong> No A*, no flow field, no per-tick search. A</p>
-<p>body's position is always "on the edge between node 14 and node 15, 0.62 of the way</p>
-<p>along," and advancing is: add speed divided by the edge's length to progress; if it</p>
-<p>passes 1, step to the next node and carry the remainder.</p>
-<p>With a thousand bodies on the map, that difference is the whole frame budget.</p>
-<h2>Exports</h2>
+</nav><main id='page'><h1>212 — A Beaten Body Gets One Roll</h1>
 <table><thead>
-<tr><th>Function</th><th>Arguments</th><th>Returns</th></tr>
+<tr><th></th><th></th></tr>
 </thead><tbody>
-<tr><td><code>step(world, id)</code></td><td></td><td><code>true</code> if the body crossed at least one node.</td></tr>
-<tr><td><code>place_on_lane(world, id, lane, path_index, facing)</code></td><td></td><td>— The one way a body enters a lane.</td></tr>
-<tr><td><code>place_at_node(world, id, node)</code></td><td></td><td>— A body with no lane: a guard at its tower.</td></tr>
-<tr><td><code>mode_of(world, id)</code></td><td></td><td>Which of the four ways this body is moving.</td></tr>
-<tr><td><code>position_of(world, id)</code></td><td></td><td>— Writes <code>x</code> and <code>y</code> from the edge it is on.</td></tr>
-<tr><td><code>next_node</code></td><td><em>(table)</em></td><td>The movement dispatch table.</td></tr>
+<tr><td>Phase</td><td>2 — Things That Walk and Fight</td></tr>
+<tr><td>Blocked by</td><td>211d, 210</td></tr>
+<tr><td>Blocks</td><td>—</td></tr>
+<tr><td>Reads</td><td><a href='006-combat-and-damage.html'>combat and damage</a>, <a href='004-a-unit-and-what-it-carries.html'>a unit and what it carries</a></td></tr>
+<tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
-<h2>The four ways of moving</h2>
-<p>Only <em>which node comes next</em> varies, and it is a dispatch on what the body is doing</p>
-<p>rather than a branch inside the move loop.</p>
+<h2>Current behavior</h2>
+<p>A body fights until its health reaches zero and then it dies. It never withdraws,</p>
+<p>never breaks, and never chooses anything. Losing a fight and dying in a fight are</p>
+<p>the same event.</p>
+<h2>Intended behavior</h2>
+<p>*Settled; see <a href='020-open-questions.html'>open questions</a>, H8. Recorded in the</p>
+<p>terms it was given, because the sense of it is in the inversion:*</p>
+<blockquote><p>Units run away when they are beaten and cannot continue — a will save, once,</p></blockquote>
+<blockquote><p>determines if they sacrifice themselves. A fail means they live to fight again. A</p></blockquote>
+<blockquote><p>success means they get one single hit on the enemy — through these means, any foe</p></blockquote>
+<blockquote><p>(save the eternal golem)'s demise may be achieved.</p></blockquote>
+<p><strong>A beaten body rolls once.</strong> Not every tick, not each time it is hit. Once, at the</p>
+<p>moment it is beaten, and the outcome stands.</p>
 <table><thead>
-<tr><th>Mode</th><th>Used by</th><th>Next node is</th></tr>
+<tr><th>Outcome</th><th>What happens</th></tr>
 </thead><tbody>
-<tr><td><code>lane</code></td><td>everything with a lane</td><td>the next entry in the lane's path array</td></tr>
-<tr><td><code>wander</code></td><td>a guard on patrol</td><td>a random neighbour still inside its leash</td></tr>
-<tr><td><code>home</code></td><td>a guard leashing</td><td>whichever neighbour is nearer its tower</td></tr>
-<tr><td><code>toward</code></td><td>a guard closing</td><td>whichever neighbour is nearer its target</td></tr>
+<tr><td><strong>Fail</strong></td><td>It runs. At <strong>running speed</strong> — the only time anything in this game runs. It lives to fight again.</td></tr>
+<tr><td><strong>Pass</strong></td><td>It stays, lands <strong>one single hit</strong>, and dies.</td></tr>
 </tbody></table>
-<p>All four are "read one number out of a table." None searches.</p>
-<h2>Movement is capped by speed <strong>in the world</strong></h2>
-<p><code>move_limited</code> takes a step in lane coordinates, measures how far the body actually</p>
-<p>moved, and scales the step back if it went too far.</p>
-<p>This is the correction for the one thing lane coordinates get wrong, and the error</p>
-<p>was invisible until somebody asked for it to be measured. Holding a formation in</p>
-<p>lane coordinates makes a turn free: every body in a rank shares one distance-along,</p>
-<p>so going round a bend costs each of them the same number. But the body on the</p>
-<p><strong>outside</strong> has further to walk in the world, and nothing was telling it so — it was</p>
-<p>covering that extra ground for nothing, moving faster than its own speed, silently.</p>
-<p>Now the outer body genuinely falls behind its place, the inner one gets ahead, and</p>
-<p>the cohesion budget does the rest. Turning left, the left of the line gives way and</p>
-<p>the right hurries, which is what keeps it a line.</p>
-<p><strong>Run <a href='060-the-formation-sandbox.info.html'>the sandbox</a> for the numbers.</strong></p>
-<p>It walks a formation through a left bend and writes out how much ground the outer</p>
-<p>and inner bodies each covered, what multiplier each was given, and the worst the</p>
-<p>line bent — into a log, every run.</p>
-<p>They are not quoted here on purpose. They were, and then the bodies were spread</p>
-<p>further apart, and the paragraph went on stating measurements of a formation the</p>
-<p>game had stopped building. A number in a document is a number that will be wrong;</p>
-<p>the tool that produces it cannot be.</p>
-<p>Three passes rather than a solve. Displacement is monotonic in the fraction, the</p>
-<p>first correction is nearly exact, and a fixed pass count keeps the cost the same</p>
-<p>every tick — which a search would not.</p>
-<h2>Facing, and the one path array read two ways</h2>
-<p>Team 1 walks <strong>up</strong> the path array and team 2 walks <strong>down</strong> it. <code>facing</code> is +1 or</p>
-<p>−1, and folding it into the index arithmetic is why there is one path array rather</p>
-<p>than two. It is also why every "how far along am I" comparison in the project</p>
-<p>multiplies by facing.</p>
-<h2>Three details that are load-bearing</h2>
-<p><strong>The remainder is carried.</strong> A fast body on a short edge can cross more than one</p>
-<p>node in a tick; truncating at the first would make speed upgrades quietly stop</p>
-<p>paying above a threshold nobody wrote down.</p>
-<p><strong>The crossing loop is bounded</strong> at eight steps rather than being a bare <code>while</code>. A</p>
-<p>body that somehow cannot advance would otherwise spin forever, and a frozen frame is</p>
-<p>a much worse symptom than a body that stops.</p>
-<p><strong>Reaching the end of a lane is not an error.</strong> <code>next_along_lane</code> returns 0, which</p>
-<p>means the body is standing at the enemy library. It stops there and lets targeting</p>
-<p>find the structure.</p>
-<h2>Why a guard closing gets its own mode</h2>
-<p>Without <code>toward</code>, a guard with a target would keep random-walking and reach its</p>
-<p>enemy only by luck — which reads as a guard that cannot see. The greedy</p>
-<p>nearest-neighbour step is correct here and would not be in general: a guard only</p>
-<p>ever chases inside its own leash radius, and the graph in there is a corridor. A</p>
-<p>guard that needed a real path search would already have wandered further from its</p>
-<p>tower than it is allowed to be.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<h3>Note which way round it is</h3>
+<p>**Passing the save is what makes a body stay and die. Failing it is what lets it</p>
+<p>live.**</p>
+<p>That is not a slip and it should not be quietly corrected by anybody reading this</p>
+<p>later. The save is not against fear. It is against self-preservation, and the thing</p>
+<p>being resisted is the sensible choice. A body that holds itself together enough to</p>
+<p>resist running is a body that spends itself.</p>
+<h3>This is how big things die</h3>
+<p>A challenge monster is not brought down by a frontline out-damaging it. It is</p>
+<p>brought down by <strong>the accumulated last blows of everything it beat</strong> — every body</p>
+<p>that passed its save and spent itself on one strike.</p>
+<p>Which means the third monster's deathlessness is a statement about scale rather than</p>
+<p>about a number. The Eternal Golem is the one thing that cannot be killed this way,</p>
+<p>and there is no other way.</p>
+<p>It also means a wave that is losing is not wasted. A wave that breaks and dies</p>
+<p>against a monster has still paid into its death, which is a different feeling from</p>
+<p>watching a wave evaporate — and it is the mechanical reason a team that keeps</p>
+<p>feeding a challenge eventually wins it.</p>
+<h3>What "beaten and cannot continue" means</h3>
+<p>The condition needs a definition and it is the one thing here that is not yet</p>
+<p>written. Candidates, and the shape of the answer matters more than the threshold:</p>
+<ul>
+<li><strong>health below a fraction of its maximum</strong> — simple, and makes the roll happen</li>
+</ul>
+<p>  at a predictable moment</p>
+<ul>
+<li><strong>health below what its current attacker deals in one swing</strong> — "cannot continue"</li>
+</ul>
+<p>  read literally: it is about to die whatever happens</p>
+<ul>
+<li><strong>its wave has lost the engagement</strong> — a statement about the line rather than the</li>
+</ul>
+<p>  body, which makes breaking a thing a formation does rather than a thing a soldier</p>
+<p>  does</p>
+<p>The second is the most faithful to the words. The third is the most interesting and</p>
+<p>the most work.</p>
+<h3>The roll itself</h3>
+<p>From a <strong>named seeded stream</strong>, per team, like everything else random here. A save</p>
+<p>is a die roll against a number, and the commanders already deal in dice — the ladder</p>
+<p>runs d4 through d12 — so the natural shape is a body's own die against a fixed</p>
+<p>target rather than a bare probability.</p>
+<h2>Suggested implementation steps</h2>
+<ul>
+<li>Define "beaten" and write the definition into the body's own state, so the</li>
+</ul>
+<p>   condition is read once and stored rather than recomputed by everything that asks.</p>
+<ul>
+<li>Add a <code>will</code> field to the archetype rows, and a per-body flag recording that the</li>
+</ul>
+<p>   roll has happened, so it cannot happen twice.</p>
+<ul>
+<li>Add the named stream. Document it in the tick's stream table.</li>
+<li>On failing: set the body running — this is the only caller of running speed from</li>
+</ul>
+<p>   <a href='211d-marching-speed-is-not-running-speed.html'>211d</a> — and give it a destination</p>
+<p>   behind its own lines. Take it out of its wave's formation budget; it has left.</p>
+<ul>
+<li>On passing: guarantee the single hit. It has to land even though the body is about</li>
+</ul>
+<p>   to die, which means it goes through the <strong>pending damage buffer</strong> like everything</p>
+<p>   else, and the body's own death is resolved in the same pass. The buffered design</p>
+<p>   from issue <a class='issue-link' href='205-damage-is-buffered-then-applied.html'>205</a> is what makes that expressible at all.</p>
+<ul>
+<li>Test the thing this exists for: a monster that beats an entire wave should take</li>
+</ul>
+<p>   the wave's worth of last blows, and enough waves should kill it. And the Golem,</p>
+<p>   given the same, should not.</p>
+<h2>Related documents and tools</h2>
+<ul>
+<li><a href='006-combat-and-damage.html'>Combat and damage</a></li>
+<li><a href='205-damage-is-buffered-then-applied.html'>Damage is buffered, then applied</a>, which</li>
+</ul>
+<p>  is what lets a dying body still land a blow</p>
+<ul>
+<li><a href='210-a-death-decays-before-it-is-final.html'>A death decays before it is final</a> — a</li>
+</ul>
+<p>  body that runs is a body that did not die, and the two mechanics meet here</p>
+<ul>
+<li><a href='211d-marching-speed-is-not-running-speed.html'>211d</a>, the only thing running is for</li>
+</ul><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

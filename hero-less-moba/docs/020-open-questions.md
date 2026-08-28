@@ -4447,7 +4447,7 @@ one core.
 **Changed:** issue 209, [the simulation tick](003-the-simulation-tick.md), and the
 phase-2 progress file.
 
-## H4. Do milestones stay nine, or become thirty-three? — **NEEDS A DECISION**
+## H4. Do milestones stay nine, or become thirty-three? — **ANSWERED**
 
 Raised by the request in [issue 211](../issues/211-waypoints-and-the-zones-they-sit-in.md)
 to make the measure of how far along a lane a wave is "about four times more
@@ -4476,7 +4476,14 @@ The safer of the two is the first, and safety is worth something here specifical
 because push depth is read in so many places that a silent factor of four would be
 found by a player rather than by a test.
 
-## H5. Does a waypoint steer the formation, or replace the lane? — **NEEDS A DECISION**
+**Answer: milestones stay, and zones sit underneath them.** Each milestone interval
+divides into four, every milestone lands exactly on a zone boundary, no tower moves,
+and nothing that currently says "milestone" changes meaning. Push depth moves from
+counting milestones to counting zones.
+
+**Built:** issue 211a.
+
+## H5. Does a waypoint steer the formation, or replace the lane? — **ANSWERED**
 
 The other half of [issue 211](../issues/211-waypoints-and-the-zones-they-sit-in.md).
 
@@ -4509,3 +4516,97 @@ apart on a turn or scythes through the inside of it.
 The first delivers the visible effect asked for and costs nothing. The second is a
 rewrite of the movement model, and would need the corner behaviour re-solved from
 scratch by some other means.
+
+**Answer: neither, and the question was the wrong shape.** What came back was a
+redefinition of what a formation *is*, which makes "steer or navigate" stop being a
+choice between two things.
+
+**A formation is a circle with its own frame.** Its position is the **centre of its
+bodies** — not, as now, the front of it. Its **radius is exactly half its width**.
+The diameter is the *face of the line*: it lies along the formation's own local X,
+and the formation's local Y points at whatever it is walking toward. So a formation
+is not a thing at a distance-along that happens to be wide; it is an oriented disc
+that turns to face where it is going.
+
+**And what it faces is the enemy's frontline, not the enemy's formation.** A
+frontline is that formation's diameter displaced along its own Y — the front rank,
+not the middle of the block. Aiming at the middle of an enemy block means aiming
+past the people who will actually be hit.
+
+When there is no enemy, the thing it faces is the waypoint.
+
+Two consequences fall out and were named alongside:
+
+- **A turn moves a body's intended place away from where it is standing**, so a body
+  must be able to accelerate to catch it, and to decelerate to let the line come
+  back. The current clamps allow a little of both; a formation that genuinely rotates
+  needs more.
+- **Marching speed is not running speed**, which is where H7 comes from.
+
+**Built:** issues 211b and 211c.
+
+## H6. How far may a wave wander off the centre of its road? — **ANSWERED**
+
+Asked because a waypoint at a random position inside a zone can be placed at the
+verge, and a formation aiming at the verge puts half a rank in the ditch.
+
+**Answer: a road is about three times the width of the formation walking it, and the
+centre lane is nine.** So a side lane carries one formation with a formation's width
+of clear ground either side of it, and the centre carries one with four widths
+either side — which is also what lets three of them stand abreast there during a
+challenge with room to spare, rather than exactly fitting.
+
+**And a wave generally marches straight on a straight road.** The wander is not a
+weave. It is a variation in where a wave sits and what angle it comes in at, which
+shows most where the road bends and where two waves are closing.
+
+**Changed:** the map's shape parameters. **Built:** issue 211b.
+
+## H7. Marching speed is not running speed — **ANSWERED as it was raised**
+
+Raised in the same breath as H5, and settled in the same breath.
+
+**A body has two speeds.** It marches at one and runs at the other, and the
+difference is not a modifier — they are two numbers about a body, in the catalogue,
+like reach and armour.
+
+**Nobody runs when chasing a kill.** Closing on an enemy is done at marching pace. A
+game where bodies sprint at whatever they want to hit turns every engagement into a
+scramble and destroys the thing the formation work exists to produce.
+
+**Running is for leaving.** A body that is beaten and cannot continue runs — and
+whether it gets to is the mechanic in H8.
+
+**Built:** issue 211d.
+
+## H8. What a beaten body does — **ANSWERED as it was raised**
+
+The mechanic that arrived attached to H7, and it is the sharpest thing in this
+document. Recorded in the terms it was given, because the sense of it is in the
+inversion and paraphrasing would flatten it:
+
+> Units run away when they are beaten and cannot continue — a will save, once,
+> determines if they sacrifice themselves. A fail means they live to fight again. A
+> success means they get one single hit on the enemy — through these means, any foe
+> (save the eternal golem)'s demise may be achieved.
+
+**Note which way round it is.** Passing the save is what makes a body stay and die.
+Failing it is what lets it live. The save is not against fear; it is against
+self-preservation, and the thing being resisted is the sensible choice.
+
+One roll, once, for each body, at the moment it is beaten. Then:
+
+| Outcome | What happens |
+| --- | --- |
+| **Fail** | It runs. At running speed, which is the only time anything runs. It lives to fight again. |
+| **Pass** | It stays, lands **one single hit**, and dies. |
+
+**And this is how big things die.** A monster is not brought down by a frontline
+out-damaging it. It is brought down by the accumulated last blows of everything it
+beat — every body that passed its save and spent itself on one strike. Which makes
+the third monster's deathlessness a statement about scale rather than about numbers:
+the Eternal Golem is the one thing that cannot be killed this way, and there is no
+other way.
+
+**Built:** issue 212.
+
