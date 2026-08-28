@@ -42,37 +42,51 @@ of readable data instead of something buried in a function body.
 
 0. **Clear.** Both damage buffers and last tick's events are zeroed, so nothing can
    be applied twice and a viewer reading a snapshot sees exactly that tick's events.
-1. **Apply commands.** Every command queued since the last tick is applied, in a
+1. **Think.** Every bot decides what it wants and queues it. Its own step rather
+   than something folded into the next one, and it was the latter until the replay
+   log went in and recorded nothing — the recorder sat between the two and saw an
+   empty queue, because the thing filling the queue was inside the step after it.
+   Which is the argument for the table: a system hidden inside another system's
+   function body is a step that happens and cannot be seen happening.
+2. **Record.** If anything is recording, this tick's commands are written down —
+   **before** they are applied, because applying them empties the queue, and because
+   a command that gets refused still belongs in the record. See issue 107.
+3. **Apply commands.** Every command queued since the last tick is applied, in a
    fixed order by player number, then by arrival index. This is the only moment in
    the whole tick when player intent can change anything — and a bot's intent
    arrives the same way, through the same queue, on the same tick. See
    [players, teams, and commands](016-players-teams-and-commands.md).
-2. **Spawn.** Wave timers, the surge stream, guard replacement, and the transits
+4. **Spawn.** Wave timers, the surge stream, guard replacement, and the transits
    that land with a wave. Everything that adds a body to the world does it here.
-3. **Index.** Every living body is dropped into the spatial grid, rebuilt whole
+5. **Index.** Every living body is dropped into the spatial grid, rebuilt whole
    rather than maintained — a grid that is updated as bodies move is a grid that is
    wrong the first time somebody forgets, and being wrong looks like soldiers
    ignoring an enemy standing next to them.
-4. **Form.** Every wave advances its anchor down its lane and shares out the
+6. **Form.** Every wave advances its anchor down its lane and shares out the
    cohesion budget among the members still marching.
-5. **Retarget.** Every soldier without a living target looks for one; then the
+7. **Retarget.** Every soldier without a living target looks for one; then the
    "who is swinging at me" map is rebuilt for the next tick to read.
-6. **Move.** The brain, once per living body. Junction decisions are resolved here.
-7. **Attack.** Cooldowns tick down; anything ready and in range deals damage into
+8. **Move.** The brain, once per living body. Junction decisions are resolved here.
+9. **Attack.** Cooldowns tick down; anything ready and in range deals damage into
    a pending-damage buffer rather than straight into health. Towers shoot, and
    abilities fire — through the same buffer, on the same boundary.
-8. **Resolve damage.** The buffer is applied. This two-stage split is what makes
+10. **Resolve damage.** The buffer is applied. This two-stage split is what makes
    simultaneous kills work the same way every run — two soldiers that would kill
    each other on the same tick both die, and neither one's death cancels the
    other's blow.
-9. **Reap.** Dead bodies are removed, deaths are turned into events: personal
+11. **Reap.** Dead bodies are removed, deaths are turned into events: personal
    resource paid out, wave-completion counters decremented, tower-destroyed
    rewards issued.
-10. **Measure.** Push depth, recomputed from the living. **After the reap**, because
+12. **Measure.** Push depth, recomputed from the living. **After the reap**, because
    it is a statement about who is still standing.
-11. **Phase.** The match clock advances. The wallet ladder climbs, surges start and
+13. **Phase.** The match clock advances. The wallet ladder climbs, surges start and
    end, challenges begin, the game-over condition is checked.
-12. **Snapshot.** The state is stamped for the viewer.
+14. **Snapshot.** The state is stamped for the viewer.
+15. **Log.** If anything is recording, once a second the accepted state is written
+   down as a keyframe. **Last**, because a keyframe is a statement about a finished
+   tick; anywhere earlier and it would record a world halfway through being brought
+   up to date, which is a state no other machine will ever be in and therefore a
+   state nothing can usefully be compared against.
 
 ## Where randomness lives
 
@@ -120,7 +134,14 @@ Two things follow, and the second one caught this documentation out:
 - **A replay is not simply a seed plus a command list.** That would be true under
   lockstep, where nothing outside the simulation ever writes into it. Under a
   rotating authority the world is periodically overwritten from another machine,
-  so a replay has to record the accepted snapshots as well. See issue 107.
+  so a replay has to record the accepted snapshots as well. Built: see issue 107.
+
+Building that turned up two things the network design had not been asked yet, and
+both are written down as questions rather than guessed at. **A position in this
+simulation is not an x and a y** — those are derived on every move pass, so writing
+them onto a body accomplishes nothing at all. And **a machine that killed a body the
+authority did not can never be corrected**, because the slot is gone. See
+[open questions](020-open-questions.md), H1 and H2.
 
 ## Where the threads go
 
@@ -161,6 +182,8 @@ slicing an array of tables is a pointer chase.
 | `player` | array[6] of player record | Commander, resource per colour, ceiling per colour, and what has been wasted. **No lock or objection state** — a stone belongs to whoever drew it, so there is nothing to lock it against. |
 | `stream` | table of named generators | The random streams above. |
 | `pending_damage` | double[] | One slot per soldier, cleared every tick. |
+| `capacity` | integer | How many soldier slots exist. Written down rather than left as the length of one of the arrays, so anything allocating a parallel array asks the world how big it is. |
+| `replay` | record | The replay log. Present whether or not anything is recording — **not recording is a state, not an absence**, and its sink is the integer 0. |
 
 Related: [a unit and what it carries](004-a-unit-and-what-it-carries.md) ·
 [combat and damage](006-combat-and-damage.md) ·

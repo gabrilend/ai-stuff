@@ -269,6 +269,8 @@ svg { max-width: 100%; }
 <a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
 <a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
 <a href='065-the-way-in.info.html'><span class='index'>065</span>the-way-in</a>
+<a href='066-the-replay-log.info.html'><span class='index'>066</span>the-replay-log</a>
+<a href='067-record-and-replay.info.html'><span class='index'>067</span>record-and-replay</a>
 </section>
 <section><h2>the catalogues</h2>
 <a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
@@ -437,6 +439,32 @@ svg { max-width: 100%; }
 <p>value must <strong>not</strong> raise a death, a wipe, or a draw as a side effect. Health is</p>
 <p>written; the ordinary resolve pass notices the zero on the next tick and</p>
 <p>everything downstream follows through the normal path.</p>
+<h4>What a position actually is, and what this section still owes</h4>
+<p>"Positions" is doing more work in the paragraphs above than it looks like, and</p>
+<p>building the replay log — which records the same thing this sync records — walked</p>
+<p>into it first.</p>
+<p><strong>A body's x and y are derived, not stored.</strong> A body walking a lane is held as how</p>
+<p>far along the lane it is and how far across it; x and y are recomputed from those on</p>
+<p>every move pass. Sending an x and a y and writing them onto the receiver's body</p>
+<p>accomplishes precisely nothing: the next move pass overwrites them a fraction of a</p>
+<p>second later, while every counter in the system reports the correction was applied.</p>
+<p>What has to cross the wire is the authoritative set — lane coordinates, which</p>
+<p>segment of the path, and which edge a body not on a lane is walking.</p>
+<p>Two questions follow that this document cannot answer on its own, both written up in</p>
+<p><a href='020-open-questions.html'>open questions</a>:</p>
+<ul>
+<li><strong>H1.</strong> Which lane a body is in is a <em>decision</em>, taken once at a junction — not a</li>
+</ul>
+<p>  number that drifts. Two machines that disagree about it have taken different turns</p>
+<p>  rather than drifted apart, and this section's model has no answer for that.</p>
+<ul>
+<li><strong>H2.</strong> A machine that killed a body the authority did not **can never be</li>
+</ul>
+<p>  corrected**. The slot is freed and recycled; there is nothing left to write the</p>
+<p>  numbers onto. Since deaths are the hinge everything downstream hangs from — deaths</p>
+<p>  to wipes to draws to the chest — that is the more serious of the two, and it is</p>
+<p>  measurable: the divergence check in the invariants suite prints how far two runs</p>
+<p>  get apart with and without correction.</p>
 <h3>Presence — every player's cursor, continuously</h3>
 <p>Each player's mouse position is synced to their <strong>teammates</strong>. This is a few</p>
 <p>bytes and it is not a nicety: it is one of the eight verbs a team has for talking</p>

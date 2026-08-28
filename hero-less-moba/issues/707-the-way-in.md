@@ -26,9 +26,10 @@ so a test can ask it. `./run-prototype` opens the menu, `play` goes straight in,
 `watch` goes straight in held, `scenario <name>` opens a described world held, and
 `shot` can photograph any of them.
 
-**Not here yet: Replays, and the lobby.** There is no replay to open (issue 107)
-and no lobby to walk into (issue 802), so Play goes directly to a match against
-nobody. Both are listed below and both are still owed.
+**Not here yet: Replays, and the lobby.** Replays exist now (issue 107) and can be
+recorded and played from the command line, but there is nothing on this screen that
+lists them or opens one — that is the next thing this issue owes. The lobby is issue
+802 and does not exist at all, so Play goes directly to a match against nobody.
 
 ## Intended behavior
 

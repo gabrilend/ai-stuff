@@ -269,6 +269,8 @@ svg { max-width: 100%; }
 <a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
 <a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
 <a href='065-the-way-in.info.html'><span class='index'>065</span>the-way-in</a>
+<a href='066-the-replay-log.info.html'><span class='index'>066</span>the-replay-log</a>
+<a href='067-record-and-replay.info.html'><span class='index'>067</span>record-and-replay</a>
 </section>
 <section><h2>the catalogues</h2>
 <a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
@@ -300,12 +302,27 @@ svg { max-width: 100%; }
 <table><thead>
 <tr><th>Function</th><th>Arguments</th><th>Returns</th></tr>
 </thead><tbody>
-<tr><td><code>begin(world, teams)</code></td><td>array of team numbers</td><td>— Puts a bot behind each.</td></tr>
+<tr><td><code>begin(world, teams)</code></td><td>array of team numbers</td><td>— Puts a bot behind each, and no bot behind the rest. Called again with an empty list to switch every bot off, which is what a replay playback does.</td></tr>
 <tr><td><code>run(world)</code></td><td></td><td>— Every bot looks at the board, on its own slow clock.</td></tr>
 </tbody></table>
 <p>Which teams are bot-played comes from <code>input/bots</code>, which is the one input file</p>
 <p>allowed to be missing — "nobody is a bot" is a real answer rather than an unmade</p>
 <p>decision.</p>
+<h2>How the bots are held</h2>
+<p><code>world.bot</code> is an array with <strong>one slot per team</strong>, holding the integer 0 where</p>
+<p>nobody is played by a bot. It is walked as a counted loop in team order.</p>
+<p>It used to be a table keyed only by the teams that had one, walked with <code>pairs()</code> —</p>
+<p>an iteration whose order Lua does not promise, inside a project whose first invariant</p>
+<p>is that the same seed plays the same match. It happened to be stable and it was one</p>
+<p>edit away from not being.</p>
+<p>Switching every bot off is <code>begin(world, {})</code>, and a replay playback does exactly</p>
+<p>that: the bots' decisions are already in the record, and letting them decide again</p>
+<p>applies every one twice, so the match diverges within a couple of minutes while every</p>
+<p>part of the machinery looks correct. During a playback the command stream is the only</p>
+<p>thing allowed to want anything.</p>
+<p>The bots think in their <strong>own row of the tick</strong>, before the commands are applied,</p>
+<p>rather than being called from inside the command pass. They were the latter until the</p>
+<p>replay log recorded nothing.</p>
 <h2>The whole policy</h2>
 <p>**Reinforce where you are losing, unless you are losing nowhere, in which case press</p>
 <p>where you are winning.**</p>

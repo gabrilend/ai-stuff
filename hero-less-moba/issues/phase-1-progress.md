@@ -16,7 +16,7 @@ works blind.
 | 104 | The tick is a dispatch table | built |
 | 105 | Randomness comes from named streams | built |
 | 106 | Commands enter through one door | built |
-| 107 | Snapshots and replays | snapshots built, replays not |
+| 107 | Snapshots and replays | built |
 | 108 | The headless runner | built |
 | 109 | A terminal viewer, so we are not blind | built |
 | 110 | A scenario you can hold at the gate | built, with a gate |
@@ -36,8 +36,7 @@ plus a command list; it records accepted snapshots too.
 
 ## Where the prototype got to
 
-Everything except a scenario file and the replay half of 107 is standing and
-running. The map is built by a tool from shape parameters and refused by a
+Everything in the phase is standing and running. The map is built by a tool from shape parameters and refused by a
 validator if it is malformed; the world is flat arrays allocated once; the tick is
 an ordered array of systems; randomness comes from named streams; commands enter
 through one door and every refusal is named; a headless runner plays a match with
@@ -68,7 +67,39 @@ tick — a thousand bodies in four hundred ticks. Setting the tick now moves eve
 with it, and the spawner snaps its own forward and **says so** if it ever finds itself
 more than an interval behind.
 
-**107 is half.** Snapshots are built; the replay log is not.
+**107 is whole.** Snapshots were the easy half. The replay log is three streams — a
+header, the commands as they are queued, and a keyframe of the accepted state once a
+second, delta-encoded against the one before — and it is honest about the fact that
+the keyframes are almost the entire file: about ten kilobytes per second of play, so
+a ten-minute match is roughly six megabytes. That is the price of a replay that
+records what *did* happen rather than an argument that it *could* have.
+
+It found three of its own bugs, all of the same shape: something that ran, reported
+success, and did nothing.
+
+- **The recorder recorded no commands**, because the bots were being called from
+  inside the pass that applied them, so the recorder sat between the two and saw an
+  empty queue. The bots now think in a row of their own. Which is what the dispatch
+  table was for — a system hidden inside another system's function body is a step
+  that happens and cannot be seen happening.
+- **The correction corrected nothing.** It wrote a body's x and y, which are derived
+  from its lane coordinates on every move pass; the next pass recomputed them and the
+  correction was gone, while every counter said it had been applied. Caught only
+  because a test measured the *effect* rather than whether the code ran.
+- **And then it crashed**, once it started writing the real coordinates, on a body
+  whose lane disagreed with the record. Which lane a body is in is a decision taken at
+  a junction, not a number that drifts, and two runs that disagree about it have taken
+  different turns rather than drifted apart.
+
+The last two are the network design's problems as much as this one's, and they are
+written down as H1 and H2 rather than guessed at. The second is the serious one: **a
+machine that killed a body the authority did not can never be corrected**, because
+the slot is gone — and deaths are the hinge everything hangs from.
+
+Along with it: a world hash, so a disagreement names its tick; a distance in world
+units, because the hash has a cliff and cannot say how far; and a rules stamp
+computed from the parameter tree rather than written down, so a replay recorded
+before a balance change is refused rather than silently played wrong.
 
 One thing 101 asked for that turned out to be already stale: its own text says four
 junctions, and the map document says three. See G7.

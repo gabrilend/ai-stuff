@@ -4247,3 +4247,112 @@ contradicts the building gets fixed rather than catalogued. **An issue is not cl
 while the pages around it still read false.**
 
 **Changed:** issue 101.
+
+## H1. "Positions and health" — but a position here is not an x and a y — **NEEDS A DECISION**
+
+Found while building the replay log, which records the same thing the network's
+accepted sync records and therefore ran into the same wall first.
+
+[Players, teams, and commands](016-players-teams-and-commands.md) says the
+cross-team sync carries "positions and health of bodies, projectiles, and
+structures," and reasons carefully about why that is close to the minimum that
+still works. What it does not say is **which numbers a position is**, and in this
+simulation that turns out not to be a detail.
+
+A body walking a lane is stored as *how far along the lane* and *how far across
+it*. Its x and y are derived from those on every move pass, by asking the lane's
+path where that point is. Writing an x and a y onto a body accomplishes exactly
+nothing: the next move pass recomputes them a fraction of a second later and the
+correction is gone, while every counter in the system reports that it was applied.
+
+That is not a hypothetical. It is what the first version of the replay's
+correction did, and the only reason it was caught is that a test measured whether
+the correction had any effect rather than whether the code had run.
+
+So the sync's payload has to be the authoritative set:
+
+| Field | What it is |
+| --- | --- |
+| `lane` | which of the three, or 0 for a body that is not in one |
+| `lane_along` | distance from the lane's start, in world units |
+| `lane_across` | offset from the lane's centre line, signed |
+| `path_index` | which segment of the lane's path it is standing on |
+| `node_from`, `node_to` | the edge a body **not** on a lane is walking |
+| `progress` | how far into that edge, from 0 to 1 |
+| `health` | as before |
+
+**The question is whether `lane` belongs in that list, and the answer is probably
+no.** Which lane a body is walking is not continuous state that drifts — it is a
+*decision*, taken once at a junction, and the document is emphatic that decisions
+are broadcast immediately and never rolled back. Two machines that disagree about
+which lane a body is in have not drifted apart; they have taken different turns.
+Writing the sender's lane number onto the receiver's body does not reconcile that.
+It produces a body standing in a lane it never entered, holding a path index into
+a path it is not on — which crashes the walk, which is how this was found.
+
+**Answering this needs a decision about what the sync is for.** Two readings:
+
+1. **The sync repairs arithmetic and nothing else.** A structural disagreement is
+   left standing and counted, and the count is the honest measure of how far apart
+   two machines have got. This is what the replay does today, because it is the
+   only one of the two that is certainly correct.
+2. **The sync repairs everything the authority can see.** Lane membership is sent,
+   and receiving a lane change means rebuilding the body's path state from scratch
+   rather than assigning a number to it. More faithful and considerably more code,
+   and it makes the receiver's simulation subordinate rather than corrected.
+
+## H2. A machine that killed the wrong body can never be corrected — **NEEDS A DECISION**
+
+The same experiment, and the more serious of the two.
+
+The sync carries health, and [players, teams, and commands](016-players-teams-and-commands.md)
+already says the right thing about applying it: writing a health value must not
+raise a death directly — the ordinary resolve pass notices the zero on the next
+tick and everything downstream follows the normal path. That handles one
+direction. A body that is alive here and dead there receives zero health and dies
+properly.
+
+**The other direction has no mechanism at all.** A body that died here and is
+alive there cannot be brought back. Its slot was freed and recycled, its
+generation counter has moved on, and everything that referred to it has been told
+it is gone. The accepted sync arrives describing a body this machine no longer
+has, and there is nothing to write the numbers onto.
+
+This matters more than it sounds, because deaths are the hinge the whole design
+hangs from: health determines deaths, deaths determine wave wipes, wave wipes
+determine draws, draws determine the chest. A machine that killed one soldier the
+authority did not is a machine that may be one wipe out for the rest of the match,
+and no amount of position correction closes that.
+
+How far apart it can get is measurable, and the number is unpleasant. Take a
+recorded match, perturb every living body by a tenth of a world unit — well below
+anything a player could see — and play it back:
+
+- **left alone**, the two runs end up around 580 world units apart at worst, with
+  about ten thousand body-observations across the match that could not be
+  reconciled at all
+- **corrected at every keyframe**, around 200 units and six thousand
+
+Correcting plainly helps, and just as plainly does not converge. The residue is
+almost entirely bodies that exist in one run and not the other. Run the same
+measurement yourself with the divergence check in the invariants suite, which
+prints both numbers.
+
+Three ways out, in the order they look promising:
+
+1. **Sync existence as well as health.** The authority's message says which slots
+   hold living bodies; a receiver missing one respawns it from the description and
+   a receiver holding an extra one removes it. This is the honest fix and it makes
+   the message meaningfully larger.
+2. **Make deaths a choice rather than an outcome.** Deaths are broadcast the way
+   commands are — immediately, never rolled back — and the local resolve pass only
+   proposes them. Keeps the sync small; makes every death a network round trip in
+   a game with thousands of them.
+3. **Accept it and bound it.** Measure the divergence continuously with the hash
+   the replay already computes, and when two machines are further apart than some
+   threshold, resynchronise the whole world rather than a keyframe. Cheapest, and
+   it turns a permanent slow error into a periodic visible hitch.
+
+Nothing here is decidable until there is a network at all — this is issue 801's
+problem, and it is written down now because the replay log found it and the
+finding would otherwise be lost.

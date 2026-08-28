@@ -269,6 +269,8 @@ svg { max-width: 100%; }
 <a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
 <a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
 <a href='065-the-way-in.info.html'><span class='index'>065</span>the-way-in</a>
+<a href='066-the-replay-log.info.html'><span class='index'>066</span>the-replay-log</a>
+<a href='067-record-and-replay.info.html'><span class='index'>067</span>record-and-replay</a>
 </section>
 <section><h2>the catalogues</h2>
 <a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
@@ -306,25 +308,42 @@ svg { max-width: 100%; }
 <tr><th>#</th><th>System</th><th>Does</th></tr>
 </thead><tbody>
 <tr><td>1</td><td>clear</td><td>Zeroes both damage buffers and last tick's events.</td></tr>
-<tr><td>2</td><td>commands</td><td>Drains the command queue. The only moment player intent changes anything.</td></tr>
-<tr><td>3</td><td>spawn</td><td>Wave timers and guard replacement. Everything that adds a body.</td></tr>
-<tr><td>4</td><td>index</td><td>Drops every living body into the spatial grid.</td></tr>
-<tr><td>5</td><td>retarget</td><td>Every soldier without a living target looks for one; then the attacker sweep.</td></tr>
-<tr><td>6</td><td>move</td><td>The brain, once per living body.</td></tr>
-<tr><td>7</td><td>attack</td><td>Cooldowns down; anything ready writes into the buffer. Towers too.</td></tr>
-<tr><td>8</td><td>resolve</td><td>The buffer is applied; the dead are marked.</td></tr>
-<tr><td>9</td><td>reap</td><td>Deaths become consequences; slots are freed.</td></tr>
-<tr><td>10</td><td>measure</td><td>Push depth, recomputed from the living.</td></tr>
-<tr><td>11</td><td>phase</td><td>The match clock and the game-over condition.</td></tr>
-<tr><td>12</td><td>snapshot</td><td>The state is stamped for the viewer.</td></tr>
+<tr><td>2</td><td>think</td><td>Every bot decides what it wants and queues it.</td></tr>
+<tr><td>3</td><td>record</td><td>Writes this tick's commands into the replay, if anything is recording.</td></tr>
+<tr><td>4</td><td>commands</td><td>Drains the command queue. The only moment player intent changes anything.</td></tr>
+<tr><td>5</td><td>spawn</td><td>Wave timers and guard replacement. Everything that adds a body.</td></tr>
+<tr><td>6</td><td>index</td><td>Drops every living body into the spatial grid.</td></tr>
+<tr><td>7</td><td>form</td><td>Every wave advances its anchor and shares out the cohesion budget.</td></tr>
+<tr><td>8</td><td>retarget</td><td>Every soldier without a living target looks for one; then the attacker sweep.</td></tr>
+<tr><td>9</td><td>move</td><td>The brain, once per living body.</td></tr>
+<tr><td>10</td><td>attack</td><td>Cooldowns down; anything ready writes into the buffer. Towers too.</td></tr>
+<tr><td>11</td><td>resolve</td><td>The buffer is applied; the dead are marked.</td></tr>
+<tr><td>12</td><td>reap</td><td>Deaths become consequences; slots are freed.</td></tr>
+<tr><td>13</td><td>measure</td><td>Push depth, recomputed from the living.</td></tr>
+<tr><td>14</td><td>phase</td><td>The match clock and the game-over condition.</td></tr>
+<tr><td>15</td><td>snapshot</td><td>The state is stamped for the viewer.</td></tr>
+<tr><td>16</td><td>log</td><td>Once a second, the accepted state becomes a replay keyframe.</td></tr>
 </tbody></table>
-<h2>Two orderings that are load-bearing</h2>
+<h2>Four orderings that are load-bearing</h2>
 <p><strong>Resolve after attack, reap after resolve.</strong> Attacks write into a buffer; resolve</p>
 <p>applies it; reap frees slots. Freeing a slot inside the resolve pass would let a later</p>
 <p>body in the same pass be handed a slot the pass still refers to.</p>
 <p><strong>Measure after reap.</strong> Push depth is a statement about the living, so it has to be</p>
 <p>taken after the dead have been removed. Measured before, a lane would report a depth</p>
 <p>held by a body that died this tick.</p>
+<p><strong>Think before record, record before commands.</strong> The bots used to be called from</p>
+<p>inside the command pass rather than standing in the table on their own, and when the</p>
+<p>replay log went in it recorded nothing — the recorder sat between the two and saw an</p>
+<p>empty queue, because the thing filling the queue was inside the row after it. Which</p>
+<p>is the whole argument for the table: a system folded into another system's function</p>
+<p>body is a step that happens and cannot be seen happening.</p>
+<p>And the recording is before the applying because applying empties the queue — and</p>
+<p>because a refused command still belongs in the record. A replay holding only the</p>
+<p>accepted commands is a replay in which nobody ever made a mistake.</p>
+<p><strong>Log last.</strong> A keyframe is a statement about a finished tick. Anywhere earlier and it</p>
+<p>would record a world halfway through being brought up to date, which is a state no</p>
+<p>other machine will ever be in and therefore a state nothing can usefully be compared</p>
+<p>against.</p>
 <h2>Push depth</h2>
 <p><strong>Living</strong>, not a high-water mark, so it can go down. It creeps up as soldiers advance</p>
 <p>and collapses when they die. Recomputed in full every tick rather than maintained,</p>

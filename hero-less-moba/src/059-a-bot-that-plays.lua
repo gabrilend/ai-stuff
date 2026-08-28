@@ -192,7 +192,19 @@ end
 -- {{{ function M.begin()
 -- Puts a bot behind whichever teams were asked for.
 function M.begin(world, teams)
+  -- An array with one slot per team, holding the integer 0 where nobody is played
+  -- by a bot -- rather than a table holding only the teams that have one.
+  --
+  -- Walking it is then a counted loop in team order. The version this replaces was
+  -- keyed by team and walked with pairs(), which is an iteration whose order Lua
+  -- does not promise, in a project whose first invariant is that the same seed plays
+  -- the same match. It happened to be stable and it was one edit away from not
+  -- being.
   world.bot = {}
+  for team_id = 1, #world.team do
+    world.bot[team_id] = 0
+  end
+
   for _, team_id in ipairs(teams) do
     -- One brain per team rather than one per player. Three bots sharing a chest is
     -- phase nine's problem and a genuinely hard one -- a teammate that tramples a
@@ -212,11 +224,9 @@ end
 -- {{{ function M.run()
 -- Every bot looks at the board, on its own slow clock.
 function M.run(world)
-  if world.bot == nil then
-    return
-  end
-  for team_id, brain in pairs(world.bot) do
-    if world.tick >= brain.next_think then
+  for team_id = 1, #world.bot do
+    local brain = world.bot[team_id]
+    if brain ~= 0 and world.tick >= brain.next_think then
       brain.next_think = world.tick + THINK_INTERVAL
 
       -- Placing during a surge is allowed and does nothing until it ends, which is

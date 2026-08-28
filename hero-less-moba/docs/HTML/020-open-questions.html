@@ -269,6 +269,8 @@ svg { max-width: 100%; }
 <a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
 <a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
 <a href='065-the-way-in.info.html'><span class='index'>065</span>the-way-in</a>
+<a href='066-the-replay-log.info.html'><span class='index'>066</span>the-replay-log</a>
+<a href='067-record-and-replay.info.html'><span class='index'>067</span>record-and-replay</a>
 </section>
 <section><h2>the catalogues</h2>
 <a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
@@ -3717,7 +3719,111 @@ svg { max-width: 100%; }
 <p>this project is meant to be rebuildable from, which is exactly why a blueprint that</p>
 <p>contradicts the building gets fixed rather than catalogued. **An issue is not closed</p>
 <p>while the pages around it still read false.**</p>
-<p><strong>Changed:</strong> issue <a class='issue-link' href='101-the-path-graph-is-built-by-a-tool.html'>101</a>.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p><strong>Changed:</strong> issue <a class='issue-link' href='101-the-path-graph-is-built-by-a-tool.html'>101</a>.</p>
+<h2>H1. "Positions and health" — but a position here is not an x and a y — <strong>NEEDS A DECISION</strong></h2>
+<p>Found while building the replay log, which records the same thing the network's</p>
+<p>accepted sync records and therefore ran into the same wall first.</p>
+<p><a href='016-players-teams-and-commands.html'>Players, teams, and commands</a> says the</p>
+<p>cross-team sync carries "positions and health of bodies, projectiles, and</p>
+<p>structures," and reasons carefully about why that is close to the minimum that</p>
+<p>still works. What it does not say is <strong>which numbers a position is</strong>, and in this</p>
+<p>simulation that turns out not to be a detail.</p>
+<p>A body walking a lane is stored as <em>how far along the lane</em> and *how far across</p>
+<p>it*. Its x and y are derived from those on every move pass, by asking the lane's</p>
+<p>path where that point is. Writing an x and a y onto a body accomplishes exactly</p>
+<p>nothing: the next move pass recomputes them a fraction of a second later and the</p>
+<p>correction is gone, while every counter in the system reports that it was applied.</p>
+<p>That is not a hypothetical. It is what the first version of the replay's</p>
+<p>correction did, and the only reason it was caught is that a test measured whether</p>
+<p>the correction had any effect rather than whether the code had run.</p>
+<p>So the sync's payload has to be the authoritative set:</p>
+<table><thead>
+<tr><th>Field</th><th>What it is</th></tr>
+</thead><tbody>
+<tr><td><code>lane</code></td><td>which of the three, or 0 for a body that is not in one</td></tr>
+<tr><td><code>lane_along</code></td><td>distance from the lane's start, in world units</td></tr>
+<tr><td><code>lane_across</code></td><td>offset from the lane's centre line, signed</td></tr>
+<tr><td><code>path_index</code></td><td>which segment of the lane's path it is standing on</td></tr>
+<tr><td><code>node_from</code>, <code>node_to</code></td><td>the edge a body <strong>not</strong> on a lane is walking</td></tr>
+<tr><td><code>progress</code></td><td>how far into that edge, from 0 to 1</td></tr>
+<tr><td><code>health</code></td><td>as before</td></tr>
+</tbody></table>
+<p>**The question is whether <code>lane</code> belongs in that list, and the answer is probably</p>
+<p>no.** Which lane a body is walking is not continuous state that drifts — it is a</p>
+<p><em>decision</em>, taken once at a junction, and the document is emphatic that decisions</p>
+<p>are broadcast immediately and never rolled back. Two machines that disagree about</p>
+<p>which lane a body is in have not drifted apart; they have taken different turns.</p>
+<p>Writing the sender's lane number onto the receiver's body does not reconcile that.</p>
+<p>It produces a body standing in a lane it never entered, holding a path index into</p>
+<p>a path it is not on — which crashes the walk, which is how this was found.</p>
+<p><strong>Answering this needs a decision about what the sync is for.</strong> Two readings:</p>
+<ul>
+<li><strong>The sync repairs arithmetic and nothing else.</strong> A structural disagreement is</li>
+</ul>
+<p>   left standing and counted, and the count is the honest measure of how far apart</p>
+<p>   two machines have got. This is what the replay does today, because it is the</p>
+<p>   only one of the two that is certainly correct.</p>
+<ul>
+<li><strong>The sync repairs everything the authority can see.</strong> Lane membership is sent,</li>
+</ul>
+<p>   and receiving a lane change means rebuilding the body's path state from scratch</p>
+<p>   rather than assigning a number to it. More faithful and considerably more code,</p>
+<p>   and it makes the receiver's simulation subordinate rather than corrected.</p>
+<h2>H2. A machine that killed the wrong body can never be corrected — <strong>NEEDS A DECISION</strong></h2>
+<p>The same experiment, and the more serious of the two.</p>
+<p>The sync carries health, and <a href='016-players-teams-and-commands.html'>players, teams, and commands</a></p>
+<p>already says the right thing about applying it: writing a health value must not</p>
+<p>raise a death directly — the ordinary resolve pass notices the zero on the next</p>
+<p>tick and everything downstream follows the normal path. That handles one</p>
+<p>direction. A body that is alive here and dead there receives zero health and dies</p>
+<p>properly.</p>
+<p><strong>The other direction has no mechanism at all.</strong> A body that died here and is</p>
+<p>alive there cannot be brought back. Its slot was freed and recycled, its</p>
+<p>generation counter has moved on, and everything that referred to it has been told</p>
+<p>it is gone. The accepted sync arrives describing a body this machine no longer</p>
+<p>has, and there is nothing to write the numbers onto.</p>
+<p>This matters more than it sounds, because deaths are the hinge the whole design</p>
+<p>hangs from: health determines deaths, deaths determine wave wipes, wave wipes</p>
+<p>determine draws, draws determine the chest. A machine that killed one soldier the</p>
+<p>authority did not is a machine that may be one wipe out for the rest of the match,</p>
+<p>and no amount of position correction closes that.</p>
+<p>How far apart it can get is measurable, and the number is unpleasant. Take a</p>
+<p>recorded match, perturb every living body by a tenth of a world unit — well below</p>
+<p>anything a player could see — and play it back:</p>
+<ul>
+<li><strong>left alone</strong>, the two runs end up around 580 world units apart at worst, with</li>
+</ul>
+<p>  about ten thousand body-observations across the match that could not be</p>
+<p>  reconciled at all</p>
+<ul>
+<li><strong>corrected at every keyframe</strong>, around 200 units and six thousand</li>
+</ul>
+<p>Correcting plainly helps, and just as plainly does not converge. The residue is</p>
+<p>almost entirely bodies that exist in one run and not the other. Run the same</p>
+<p>measurement yourself with the divergence check in the invariants suite, which</p>
+<p>prints both numbers.</p>
+<p>Three ways out, in the order they look promising:</p>
+<ul>
+<li><strong>Sync existence as well as health.</strong> The authority's message says which slots</li>
+</ul>
+<p>   hold living bodies; a receiver missing one respawns it from the description and</p>
+<p>   a receiver holding an extra one removes it. This is the honest fix and it makes</p>
+<p>   the message meaningfully larger.</p>
+<ul>
+<li><strong>Make deaths a choice rather than an outcome.</strong> Deaths are broadcast the way</li>
+</ul>
+<p>   commands are — immediately, never rolled back — and the local resolve pass only</p>
+<p>   proposes them. Keeps the sync small; makes every death a network round trip in</p>
+<p>   a game with thousands of them.</p>
+<ul>
+<li><strong>Accept it and bound it.</strong> Measure the divergence continuously with the hash</li>
+</ul>
+<p>   the replay already computes, and when two machines are further apart than some</p>
+<p>   threshold, resynchronise the whole world rather than a keyframe. Cheapest, and</p>
+<p>   it turns a permanent slow error into a periodic visible hitch.</p>
+<p>Nothing here is decidable until there is a network at all — this is issue <a class='issue-link' href='801-reconciling-across-machines.html'>801</a>'s</p>
+<p>problem, and it is written down now because the replay log found it and the</p>
+<p>finding would otherwise be lost.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

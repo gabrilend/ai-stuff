@@ -6,7 +6,7 @@
 | Blocked by | 104, 105, 106 |
 | Blocks | 109, 701, 801, 804 |
 | Reads | [the viewing layer](../docs/017-the-viewing-layer.md), [the simulation tick](../docs/003-the-simulation-tick.md) |
-| Open questions | none |
+| Open questions | H1, H2 — both found here, both belong to issue 801 |
 
 ## Current behavior
 
@@ -14,8 +14,35 @@ Snapshots are built: two frames, indexed by soldier id so that matching a body
 across them is reading the same index twice, with the viewer's blend clamped so it can
 be behind and never ahead.
 
-**The replay log is not built.** Under a rotating authority a replay has to record the
-accepted snapshots as well as the commands, and nothing records either yet.
+The replay log is built. Three streams — a header, the commands as they are queued,
+and a keyframe of the accepted state once a second, delta-encoded against the one
+before. Two rows in the tick: **record**, before the commands are applied, because
+applying them empties the queue and because a refused command still belongs in the
+record; and **log**, last, because a keyframe is a statement about a finished tick.
+
+The world hash is built and every keyframe carries one, so a disagreement names the
+tick it started at rather than only that there was one. Alongside it there is a
+distance — the mean gap in world units between where the bodies are and where the
+record says they were — because the hash has a cliff and cannot say *how far*.
+
+The rules stamp is computed from the parameter tree rather than written down, so it
+changes the moment a catalogue changes; a replay whose stamp disagrees is refused
+rather than migrated. `./run-prototype record` and `./run-prototype replay` drive
+both halves and print numbers.
+
+Building it turned up two things about the network design that had never been asked,
+and both are open questions rather than guesses. **A position here is not an x and a
+y** — those are derived on every move pass, so the first version of the correction
+did nothing at all while reporting success. And **a machine that killed a body the
+authority did not can never be corrected**, because the slot is gone. See
+[open questions](../docs/020-open-questions.md), H1 and H2.
+
+Putting the recorder in also lifted the bots out of the command pass into a **think**
+row of their own. They had been called from inside it, so the recorder sat between
+the two and saw an empty queue.
+
+**Not built: where replays live.** They are written wherever they are asked for,
+nothing thins them, and nothing keeps or expires them. See "still open" below.
 
 ## Intended behavior
 
@@ -97,7 +124,18 @@ so nobody mistakes a passing determinism test for cross-machine agreement.
 
 ## Still open
 
-A replay is now large rather than tiny, which changes E5 from a filing question
-into a storage one: where they live, how long they are kept, whether the snapshot
-stream can be thinned on write, and whether an old replay should be refused
-loudly or migrated.
+A replay is large rather than tiny, and it is now measured: about ten kilobytes per
+second of play, so a full ten-minute match is around six megabytes. That changes E5
+from a filing question into a storage one, and three parts of it are still unanswered:
+
+- **Where they live and how long they are kept.** Currently: wherever they are asked
+  for, forever.
+- **Whether the keyframe stream can be thinned on write.** One a second is the rate
+  the network reconciles at, which is the reason it was chosen, and it is not
+  obviously the right rate for a file being kept.
+- Answered, at least: an old replay is **refused loudly**, not migrated. Playing one
+  under changed numbers produces a match that diverges within seconds and blames the
+  replay system for a catalogue edit.
+
+And the two network questions this issue uncovered, H1 and H2, which belong to issue
+801 and cannot be settled until there is a network at all.

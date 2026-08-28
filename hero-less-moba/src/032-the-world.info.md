@@ -48,6 +48,7 @@ phases, and `SOLDIER_CAPACITY`.
 | `pending_structure_damage` | double[] | Kept separate so neither can index into the other by an arithmetic mistake. |
 | `free_slot` | integer[] | The free list. |
 | `high_water` | integer | The highest slot ever used — every sweep runs to here, not to capacity. |
+| `capacity` | integer | How many soldier slots exist. Written down rather than left as the length of one of the arrays, so anything allocating a parallel array asks the world how big it is rather than asking one of its fields. |
 | `event` | array | Raised this tick, cleared at the top of the next. |
 
 ## The soldier arrays
