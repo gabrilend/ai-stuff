@@ -268,6 +268,7 @@ svg { max-width: 100%; }
 <a href='062-the-rest-of-the-brain.info.html'><span class='index'>062</span>the-rest-of-the-brain</a>
 <a href='063-the-gate.info.html'><span class='index'>063</span>the-gate</a>
 <a href='064-the-documentation-becomes-html.info.html'><span class='index'>064</span>the-documentation-becomes-html</a>
+<a href='065-the-way-in.info.html'><span class='index'>065</span>the-way-in</a>
 </section>
 <section><h2>the catalogues</h2>
 <a href='024-map-shape.info.html'><span class='index'>024</span>map-shape</a>
@@ -292,8 +293,22 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>The game starts by being run with a scenario or a match configuration. There is</p>
-<p>no way in that does not involve a command line.</p>
+<p>There is a menu. It draws the title, one line of setting, and a column: <strong>Play</strong>,</p>
+<p><strong>Scenarios</strong>, <strong>Settings</strong>, <strong>Out</strong>. Play builds an ordinary match. Scenarios</p>
+<p>lists what is in <code>scenarios/</code>, read at startup, and loads the chosen one held at</p>
+<p>the gate. Settings cycles each resource colour's shape, because the shapes are the</p>
+<p>readable channel and hue alone is not one.</p>
+<p>It holds no world. Clicking returns a <strong>description of what was chosen</strong> — either</p>
+<p>"a match" or "that scenario, by name" — and the viewer builds from it, through the</p>
+<p>same two functions the command line calls.</p>
+<p>The bypass is <code>HLM_START</code>, taking <code>match</code> or <code>scenario:&lt;name&gt;</code>, and the decision</p>
+<p>about which screen to open on is a pure function with no window anywhere near it,</p>
+<p>so a test can ask it. <code>./run-prototype</code> opens the menu, <code>play</code> goes straight in,</p>
+<p><code>watch</code> goes straight in held, <code>scenario &lt;name&gt;</code> opens a described world held, and</p>
+<p><code>shot</code> can photograph any of them.</p>
+<p><strong>Not here yet: Replays, and the lobby.</strong> There is no replay to open (issue <a class='issue-link' href='107-snapshots-and-replays.html'>107</a>)</p>
+<p>and no lobby to walk into (issue <a class='issue-link' href='802-the-lobby-and-commander-selection.html'>802</a>), so Play goes directly to a match against</p>
+<p>nobody. Both are listed below and both are still owed.</p>
 <h2>Intended behavior</h2>
 <p>The screens before the match: a <strong>main menu</strong>, and the road from it to a lobby</p>
 <p>and into a game.</p>

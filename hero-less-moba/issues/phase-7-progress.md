@@ -15,7 +15,7 @@ applied to the project's own prose.
 | 704 | Locks, objections, and refusals are loud | refusals built, locks not |
 | 705 | The sign-posts are clickable in the world | built |
 | 706 | The documentation becomes HTML | built |
-| 707 | The way in | not started |
+| 707 | The way in | menu built, replays and lobby still owed |
 | 708 | The camera is a lens you push into | built |
 
 **Blocking:** nothing. D1 was the last decision in the project with a deadline
@@ -86,8 +86,21 @@ documentation is a browsable site: 152 pages, a filterable contents rail, every 
 number a link, and a front page with the map drawn from the map builder and the shape
 of a match drawn from the timing table — so neither picture can go stale.
 
-**707 is not started.** There is no front door: `./run-prototype` opens straight into
-a match, and nothing offers a choice of anything.
+**707 is most of the way.** There is a front door now: `./run-prototype` opens the
+menu, which offers Play, the list of described worlds, the resource-shape settings,
+and Out. It holds no world — clicking returns a **description of what was chosen**
+and the viewer builds from it, through the same two functions the command line calls.
+
+The bypass is the part that had to be got right, because the batch runner and every
+test start a game with nobody present: a menu that cannot be bypassed is a menu that
+gets bypassed by a second code path nobody tests. It is one pure function with no
+window near it, asserted seven ways. It had to be, because the bug it now guards was
+invisible — asking for a photograph of a scenario silently photographed an ordinary
+match, and the picture looked like a game.
+
+What 707 still owes: **Replays**, which need issue 107 to exist first, and the
+**lobby**, which is issue 802. Play therefore goes straight to a match against
+nobody.
 
 703 is a drag onto the world rather than onto a panel target — which is what the second
 vision asks for and what the viewing layer document does not.
