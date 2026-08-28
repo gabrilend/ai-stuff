@@ -221,6 +221,13 @@ end
 -- }}}
 
 -- {{{ function M.read()
+-- One blueprint into a table: its phase and tickets, its symbol declarations,
+-- its constraints, and its drawings.
+--
+-- Refuses a malformed declaration at the door rather than passing it on. A
+-- symbol line with four fields instead of five, a kind that is not one of the
+-- five, a `given` whose value is an expression -- each of these means something
+-- specific went wrong and the message says which, at the line it happened.
 function M.read(path)
   local fh, err = io.open(path, "r")
   if not fh then error("blueprint: cannot open " .. tostring(err), 0) end

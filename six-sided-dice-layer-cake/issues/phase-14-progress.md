@@ -1,6 +1,6 @@
 # Phase 14 — The Instruments: progress
 
-**The programs that read blueprints and check them. All eleven done.**
+**The programs that read blueprints and check them. All twelve done.**
 
 | ticket | file | state |
 |---|---|---|
@@ -15,6 +15,7 @@
 | `1409` | `099-the-documentation-site.lua` | done |
 | `1410` | `100-the-phase-demonstrations.lua` | done |
 | `1411` | the `solved` kind, and `103-the-set-counts-itself.lua` | done |
+| `1412` | `104-the-programs-described.lua` | done |
 
 Numbered last and built first, and none of it ships to whoever builds the
 machine. `102-the-cube-solved.lua` also lives here by nature and in phase 3 by
@@ -91,13 +92,28 @@ five, exactly the number that had changed kind. The second settled. It is a fixe
 point and not a defect, and `090` says so in prose so nobody concludes the checker
 is broken.
 
-## What is still open
+**A convention adopted for comfort turned out to be an interface declaration.**
+Every function here is wrapped in a vimfold opening with a comment carrying its
+name, then prose, then the definition. That was for editing comfort — a long file
+collapses neatly. It is also a name, a description and a signature in a fixed
+shape on consecutive lines, which is exactly what a companion-page generator needs
+and exactly what Lua itself refuses to say about a module. `104` reads it, and
+every page it writes says at the bottom where its information came from.
 
-**The instruments have no companion pages.** The rule is that every source file
-gets a `.info.md` beside it listing what it offers; `096` generates them for
-blueprints and nothing generates them for programs. `102` and `103` have
-hand-written ones. The other nine have none, and writing the generator is better
-than writing nine files.
+**Forty per cent of the instruments' interface had nothing said about it.** The
+sweep found twenty-three of fifty-six public entry points with no description
+anywhere, `094`'s `load` among them — the ledger's entire interface, called by
+every other program. All fifty-six have one now.
+
+**Twice the generator was wrong rather than the source being thin, and both cases
+mattered.** Most modules define a function privately and assign it to the module
+table at the bottom, so the first version reported nine of `102`'s twelve exports
+as undocumented when their descriptions were attached to the private names. And a
+public constant has no fold, so its description is whatever comment sits directly
+above it. A documentation tool that cries wolf gets ignored, so both were fixed
+before the pages were written.
+
+## What is still open
 
 `X1` in `009`: whether the constraint evaluator should grow interval arithmetic,
 which is what carrying tolerances through the design would need. Every `measured`

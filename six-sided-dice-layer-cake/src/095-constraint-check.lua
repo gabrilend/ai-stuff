@@ -24,6 +24,10 @@ local M = {}
 -- and it is the most valuable operator in the notation because it is what the
 -- cross-checks are written with: two blueprints deriving the same quantity by
 -- different routes will not agree to the last bit and should not be asked to.
+-- What "the same" means for the approximate operator, and for checking a
+-- `solved` value against the program that produced it. One part in a thousand:
+-- two blueprints deriving one quantity by different routes will not agree to
+-- the last bit and should not be asked to.
 M.TOLERANCE = 1e-3
 
 -- One comparison per operator, as a table, because the alternative is a
@@ -169,6 +173,18 @@ end
 -- }}}
 
 -- {{{ function M.run()
+-- Evaluate every constraint in a blueprint set and sort the results into the
+-- kinds of wrong they are.
+--
+-- Held and failed are the obvious two. Apart from those: a comparison between
+-- unlike dimensions, which means somebody wrote nonsense rather than the design
+-- being tight; a constraint that will not evaluate at all, which nearly always
+-- means it reaches into a blueprint nobody has written yet; a `solved` value
+-- that no longer matches the program which produced it; and a literal in a
+-- derivation that looks like somebody converting units by hand in a notation
+-- that already converts.
+--
+-- Reads the files and nothing else. M.report turns the result into words.
 function M.run(dir)
   dir = dir or DIR
   local L = ledger.load(dir)
@@ -275,6 +291,12 @@ end
 -- }}}
 
 -- {{{ function M.report()
+-- Write a run out for a person, and return the exit code the run deserves.
+--
+-- A failure line gives the tag, the file and line, the relation as written,
+-- both sides evaluated in the unit their own symbols were declared in, the
+-- margin as a percentage, and the sentence the author wrote saying why it had
+-- to hold. A line that only said a constraint failed would help nobody.
 function M.report(R, out)
   out = out or io.stdout
   local L = R.ledger

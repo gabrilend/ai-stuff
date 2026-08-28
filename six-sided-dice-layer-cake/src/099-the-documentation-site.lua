@@ -372,6 +372,14 @@ end
 -- }}}
 
 -- {{{ function M.run()
+-- Build the whole documentation site: every document, blueprint, companion page
+-- and ticket in the project as a cross-linked page, with live values from the
+-- ledger and a backlink from everything to everything that mentions it.
+--
+-- Nothing under docs/HTML/ is a source file and none of it is tracked. Every
+-- page is derived from a file already in the repository, and the whole tree
+-- rewrites whenever any dimension changes, so keeping it would put the same
+-- words in the record twice.
 function M.run(dir, opts)
   dir = dir or DIR
   opts = opts or {}
@@ -481,6 +489,9 @@ end
 -- }}}
 
 -- {{{ function M.report()
+-- How many pages were written and where. Deliberately terse: the site is the
+-- output, and a long report about building it is noise in front of the thing
+-- worth looking at.
 function M.report(R, out)
   out = out or io.stdout
   local function say(fmt, ...)
