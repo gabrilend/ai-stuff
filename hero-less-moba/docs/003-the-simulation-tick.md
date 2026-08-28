@@ -158,7 +158,16 @@ off the pile instead of waiting on the slowest one.
   one thread. They are short.
 - **Spawn** runs on one thread because it allocates ids.
 
-This is a pool of coroutines over shared memory, not one thread per soldier.
+The shape is a pool over shared memory, not one thread per soldier — slices taken
+off a pile rather than one worker per body.
+
+**None of this is built, and the mechanism named for it does not work.** The plan
+has always said "a pool of coroutines," and coroutines in Lua all run on one
+operating-system thread: they hand control to each other and never hold it at the
+same time. Over a tick that is entirely arithmetic and never waiting, that is a more
+complicated way to take exactly as long. Real parallelism here means separate Lua
+states over FFI memory, which is a change to how the world is stored. See
+[open questions](020-open-questions.md), H3.
 Nothing is ever processed one-item-at-a-time on a single thread when the items
 do not depend on each other.
 

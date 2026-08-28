@@ -34,11 +34,26 @@ argument parsing.
 
 ## What the report says
 
-Outcome and tick count; bodies on the field and waves spawned; then, per lane per team,
-**push depth** and **waves lost**; then upgrades drawn and where they are sitting; then
-towers standing and each library's health.
+Outcome and tick count; bodies on the field and waves spawned; **the census**; then,
+per lane per team, **push depth** and **waves lost**; then upgrades drawn and where
+they are sitting; then towers standing and each library's health.
 
 Deliberately made of the numbers a balance question is asked in, rather than of prose.
+
+### The census
+
+How crowded the field gets: ticks, mean bodies, and peak bodies, one row per phase,
+plus the single worst moment and the tick it happened on, against how many slots the
+world holds.
+
+Taken while the match runs rather than at the end, because it is a fact about a whole
+match and the final tick knows nothing about it.
+
+It is printed rather than written into a document on purpose. The thread pool in
+issue 209 is worth building or not building entirely according to this number, and
+the moment anything about spawning changes, a figure quoted in a document is a lie
+while this is not. **Anything that wants to know how crowded it gets should run a
+match and read it.**
 
 ## How it knows it was invoked directly
 

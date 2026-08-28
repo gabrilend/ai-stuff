@@ -3823,7 +3823,53 @@ svg { max-width: 100%; }
 <p>   it turns a permanent slow error into a periodic visible hitch.</p>
 <p>Nothing here is decidable until there is a network at all — this is issue <a class='issue-link' href='801-reconciling-across-machines.html'>801</a>'s</p>
 <p>problem, and it is written down now because the replay log found it and the</p>
-<p>finding would otherwise be lost.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>finding would otherwise be lost.</p>
+<h2>H3. A pool of coroutines is not parallel — <strong>NEEDS A DECISION</strong></h2>
+<p><a href='209-the-thread-pool-slices-the-tick.html'>The thread pool slices the tick</a></p>
+<p>asks for "a pool of coroutines over shared memory," and</p>
+<p><a href='018-the-shape-of-the-code.html'>the shape of the code</a> repeats it. The sentiment is</p>
+<p>right and the mechanism does not do what the sentiment wants.</p>
+<p><strong>Coroutines in Lua all run on one operating-system thread.</strong> They hand control to</p>
+<p>each other; they never hold it at the same time. A pool of them over a tick that is</p>
+<p>thousands of soldiers doing arithmetic is a more complicated way to take exactly as</p>
+<p>long, and on a machine with sixteen idle cores it will use one of them.</p>
+<p>Coroutines are the right tool when the work is waiting — a file, a socket, a reply</p>
+<p>from another machine. None of the tick is waiting. All of it is arithmetic.</p>
+<p>Real parallelism in this environment means separate Lua states, which cannot share a</p>
+<p>table, so the world would have to stop being tables of numbers and become memory</p>
+<p>allocated through the FFI, addressed by pointer, with the flat-array layout it</p>
+<p>already has. That layout is the half of the job already done and done for exactly</p>
+<p>this reason — the argument for a struct of arrays was always that slicing one is a</p>
+<p>pair of integer bounds. What is not done is that every file which reads a body reads</p>
+<p>it out of a Lua table today.</p>
+<p>Now measurable, which changes the question: <code>./run-prototype headless</code> prints a</p>
+<p>census of how crowded the field gets. It is <strong>hundreds of bodies, not thousands</strong>,</p>
+<p>and very uneven — an ordinary phase is a fraction of a challenge. A pool has to earn</p>
+<p>its place at the ordinary figure, because that is where a match spends most of its</p>
+<p>time.</p>
+<p>Three ways, in the order they look promising:</p>
+<ul>
+<li><strong>Do the slicing, execute it serially, and be honest about it.</strong> Cutting each</li>
+</ul>
+<p>   pass into independent slices is most of the work and most of the value: it forces</p>
+<p>   the question of what each pass is allowed to touch, and answering it is how the</p>
+<p>   attack pass turned out to be safe only because damage is buffered. A pool whose</p>
+<p>   size is a number and whose speed is the same at every size is a scaffold with a</p>
+<p>   truthful label. Swapping the executor later is contained.</p>
+<ul>
+<li><strong>Move the world into FFI memory and use real threads.</strong> The design this project</li>
+</ul>
+<p>   has been describing all along, and a change that touches every file that reads a</p>
+<p>   body. Worth doing if the body count ever justifies it; the census says it does</p>
+<p>   not yet.</p>
+<ul>
+<li><strong>Close the issue with the measurement as the reason.</strong> A pool that costs more</li>
+</ul>
+<p>   than it saves is a pool that should not exist, and the issue itself says so in</p>
+<p>   its fifth step.</p>
+<p>**Whatever is decided, the documents have to stop saying "a pool of coroutines"</p>
+<p>means parallel execution**, because that sentence is currently in three places and</p>
+<p>is not true in any of them.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

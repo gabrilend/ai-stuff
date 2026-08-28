@@ -292,16 +292,21 @@ svg { max-width: 100%; }
 <tr><td>Blocked by</td><td>103, 202, 204, 205, 206</td></tr>
 <tr><td>Blocks</td><td>804</td></tr>
 <tr><td>Reads</td><td><a href='003-the-simulation-tick.html'>the simulation tick</a>, <a href='018-the-shape-of-the-code.html'>the shape of the code</a></td></tr>
-<tr><td>Open questions</td><td>B1 — the wave size that decides how much slicing is worth doing</td></tr>
+<tr><td>Open questions</td><td>H3 — whether a coroutine pool can be parallel at all</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
 <p>Every pass of the tick runs on one thread, walking thousands of independent</p>
 <p>bodies one at a time — which is precisely the thing this project does not do.</p>
 <h2>Intended behavior</h2>
-<p>A <strong>pool of coroutines over shared memory</strong>. Memory is allocated up front; the</p>
-<p>work of filling it is handed out in slices, so a worker that finishes early takes</p>
-<p>the next slice off the pile instead of idling behind the slowest one. This is a</p>
-<p>distributed resolving of a stack of coroutines, not one thread per soldier.</p>
+<p>A <strong>pool over shared memory</strong>. Memory is allocated up front; the work of filling it</p>
+<p>is handed out in slices, so a worker that finishes early takes the next slice off</p>
+<p>the pile instead of idling behind the slowest one. Slices off a pile, not one</p>
+<p>worker per soldier.</p>
+<p>This said "a pool of coroutines" and that part is wrong — coroutines in Lua all</p>
+<p>run on one operating-system thread and never hold it at the same time. What the</p>
+<p>workers actually are is the open question this issue now carries. Everything below</p>
+<p>about <strong>which passes may be sliced and why</strong> is unaffected by that answer and is the</p>
+<p>larger half of the work.</p>
 <p>Which passes are sliced, and why each one is safe:</p>
 <table><thead>
 <tr><th>Pass</th><th>Sliced?</th><th>Why</th></tr>
@@ -329,9 +334,10 @@ svg { max-width: 100%; }
 <p>that proposal is this entire issue.</p>
 <h2>Suggested implementation steps</h2>
 <ul>
-<li>Write the pool over LuaJIT coroutines with a shared work queue of (pass, start,</li>
+<li>Write the pool with a shared work queue of (pass, start, stop) triples, with the</li>
 </ul>
-<p>   stop) triples.</p>
+<p>   thing that executes a slice behind one small interface — so that answering H3</p>
+<p>   later changes one file rather than the tick.</p>
 <ul>
 <li>Size the pool from the machine's processor count, and make a pool of size one</li>
 </ul>
@@ -353,14 +359,49 @@ svg { max-width: 100%; }
 <ul>
 <li><a href='003-the-simulation-tick.html'>The simulation tick</a></li>
 <li><a href='018-the-shape-of-the-code.html'>The shape of the code</a></li>
-<li>The world-hash function from issue <a class='issue-link' href='107-snapshots-and-replays.html'>107</a></li>
+<li>The world-hash function from issue <a class='issue-link' href='107-snapshots-and-replays.html'>107</a>, which is built — step 4's</li>
 </ul>
+<p>  parallel-equals-serial test can compare a whole world in one integer</p>
 <h2>Still open</h2>
-<p>How many bodies are on the map at once? The pool's value depends entirely on the</p>
-<p>answer, and a continuous surge stream could be a few hundred or a few thousand.</p>
-<p>Also unresolved: if the simulation moves to fixed-point arithmetic for</p>
-<p>determinism, the parallel-equals-serial test becomes much easier to satisfy, and</p>
-<p>that decision is still open.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p><strong>How many bodies are on the map at once — measured.</strong> <code>./run-prototype headless</code></p>
+<p>now prints a census: how crowded the field is on average and at worst, broken down</p>
+<p>by phase, with the tick the worst moment happened on. Run it rather than quoting a</p>
+<p>figure from here; the moment anything about spawning changes, a written number is</p>
+<p>a lie and the census is not.</p>
+<p>The shape of the answer, which is what this issue needed: it is **hundreds, not</p>
+<p>thousands**, and it is very uneven — an ordinary phase is a fraction of a challenge.</p>
+<p>The pool has to be worth having at the low figure, not the high one, because that is</p>
+<p>where a match spends most of its time.</p>
+<p><strong>Fixed-point is no longer a live question.</strong> It was raised here as a way to make</p>
+<p>the parallel-equals-serial test easier to satisfy. It is not needed: two machines</p>
+<p>are not required to agree, and the same machine agrees with itself already — see</p>
+<p><a href='003-the-simulation-tick.html'>the simulation tick</a>. The world hash this</p>
+<p>issue's step 4 calls for is built, in issue <a class='issue-link' href='107-snapshots-and-replays.html'>107</a>, and it compares a whole world in</p>
+<p>one integer.</p>
+<p><strong>And the real question, which this issue does not currently ask.</strong> The plan says a</p>
+<p>pool of coroutines, and coroutines in Lua all run on one operating-system thread.</p>
+<p>They interleave; they do not run at the same time. A pool of them over a</p>
+<p>CPU-bound tick is a more complicated way to take exactly as long.</p>
+<p>Genuine parallelism here means one of:</p>
+<ul>
+<li><strong>Keep the slicing, run it serially, and say so.</strong> The work of cutting each pass</li>
+</ul>
+<p>   into independent slices is real and is most of this issue — it forces the</p>
+<p>   question of what each pass may touch, and the answer is written down in the table</p>
+<p>   above. Executing those slices in parallel then becomes a contained change rather</p>
+<p>   than a rewrite. The honest version of this is a pool whose size is a number and</p>
+<p>   whose speed at every size is the same, recorded as such.</p>
+<ul>
+<li><strong>Separate Lua states, sharing memory through the FFI.</strong> Real threads. The world</li>
+</ul>
+<p>   stops being tables of numbers and becomes FFI arrays, because separate states</p>
+<p>   cannot share a table. That touches every file that reads a body.</p>
+<ul>
+<li><strong>Decide the pool is not worth it at this body count and close the issue,</strong></li>
+</ul>
+<p>   recording the measurement as the reason.</p>
+<p>This needs a person, and it is asked in</p>
+<p><a href='020-open-questions.html'>open questions</a>, H3.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.
