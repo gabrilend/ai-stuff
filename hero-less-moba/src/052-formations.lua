@@ -58,8 +58,18 @@ local M = {}
 M.file_order = {}
 
 -- Paces between two ranks, and between two files in a rank.
-local RANK_SPACING = 22
-local FILE_SPACING = 16
+--
+-- These are the room a body keeps, not the size a body is drawn. The renderer's
+-- radii are a good deal smaller, deliberately: a rank drawn at the spacing it walks
+-- at would be a solid bar, and what a player needs to see is a line made of
+-- countable people.
+--
+-- **Widening these widens the lanes**, because a lane's width is derived from them
+-- and the file counts it is supposed to carry. The validator asserts the derivation
+-- still holds, so raising a spacing without moving a width fails at load rather than
+-- quietly dropping a body from every rank.
+local RANK_SPACING = 30
+local FILE_SPACING = 22
 
 -- How much of the lane's width the marching formation uses. Less than all of it,
 -- so a wave looks like it is walking down a road rather than scraping both verges.
@@ -80,7 +90,9 @@ local COHESION_SCALE = 34
 --
 -- So a rejoining body is outside the budget: it neither takes speed nor gives any,
 -- and simply walks back at its own pace. It rejoins when it arrives.
-local REJOIN_DISTANCE = 70
+-- Measured in ranks rather than in paces, so that spreading a formation out does
+-- not silently redefine what counts as having fallen out of it.
+local REJOIN_DISTANCE = RANK_SPACING * 3
 
 -- The most and least a body's speed may be scaled to. A straggler that could
 -- sprint would catch up in a way that reads as teleporting; a leader that could
@@ -95,7 +107,7 @@ local LATERAL_RATE = 0.55
 
 -- How much clear ground between two formations standing abreast. Small: enough that
 -- they read as two lines rather than one wide one, and no more.
-local ABREAST_GAP = 4
+local ABREAST_GAP = 6
 
 -- The most bodies that ever stand abreast, however wide the road is.
 --

@@ -237,3 +237,55 @@ seconds on fourteen cores, so ten thousand is a long night rather than a long we
 
 Each worker takes every Nth seed rather than a contiguous block, so a short run still
 spreads across the range instead of giving one worker all the low seeds.
+
+## 2026-08-28 — the map resized: smaller bodies, more room between them, wider roads
+
+Asked for directly: bodies further apart, bodies smaller, lanes slightly wider. Three
+knobs, except that two of them were not independent and one of them was a lie.
+
+| Number | Was | Now | What it is |
+| --- | --- | --- | --- |
+| file spacing | 16 | 22 | paces between two bodies standing side by side in a rank |
+| rank spacing | 22 | 30 | paces between one rank and the next |
+| personal space | 13 | 18 | how much room a body keeps around itself when queueing |
+| side lane width | 62 | 86 | paces across, top and bottom |
+| centre lane width | 140 | 190 | paces across |
+| abreast gap | 4 | 6 | clear ground between two formations standing side by side |
+| drawn body radius | 5.0 melee | 3.6 | how big a body is **drawn**, in paces |
+| drawn monster radius | 26/32/38 | 21/26/31 | shrunk proportionally less — see below |
+
+**The widths were not free.** How many bodies stand abreast in a lane is the width
+divided by the file spacing, so spreading the ranks out and leaving the widths alone
+turns three abreast into two — every wave in a side lane a third thinner, and nothing
+anywhere saying so. That is what happened on the first attempt. The widths above are
+the ones that keep three and five, and the map validator now asserts it: the intended
+file count per lane is written in the shape parameters, and a width that no longer
+delivers it fails at load.
+
+The centre also has to hold three formations abreast during a challenge — that is what
+it is wide for — and 186 was two paces short of it. It is 190. The validator checks
+that too, by asking the formation module for the arithmetic rather than keeping its own
+copy of it.
+
+**The monsters shrank less than everything else.** Everything got smaller so a rank
+reads as countable people rather than a solid bar. A monster is not part of a rank and
+the entire point of it is that the field is not big enough for it, so taking a fifth off
+was enough.
+
+**One number was documented as doing a job it has never done.** The shape parameters
+said personal space was also the size the renderer drew a body at. It never was — the
+renderer keeps its own table of radii, one per archetype. The two are now deliberately
+far apart: a body is drawn at about a fifth of the room it keeps, which is exactly what
+makes a rank legible as a line of individuals.
+
+**Two tests were measuring a wall and calling it a corner.** A body's place is a fixed
+distance behind its wave's anchor, so until a wave has walked further than it is deep,
+its rear ranks want to stand behind the library — where there is no lane. They are
+clamped to the lane's start and read as badly out of position while standing as far back
+as the ground allows. Correct behaviour, sorts itself out in the first hundred paces,
+and both the corner test and the sine-wave test were folding it into their worst-lag
+number. The tolerances happened to sit just above it until the ranks were spread out.
+
+Both now measure what they claim to, the sandbox refuses loudly if a wave is put down
+closer to the start than it is deep, and the compression itself is asserted on its own:
+a wave leaving its base is compressed, by no more than its own depth, and only there.

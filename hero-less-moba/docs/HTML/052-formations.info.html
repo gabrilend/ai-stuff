@@ -316,9 +316,12 @@ svg { max-width: 100%; }
 <p>in lane coordinates and <strong>the formation curves to match the path it is on</strong> for</p>
 <p>free — every body in a rank shares one distance-along, and the lane carries the</p>
 <p>line round the corner as a line.</p>
-<p>Measured: a wave marching the top lane holds a 42 × 68 pace box on the way up, 23 ×</p>
-<p>68 as it turns, and 70 × 32 along the top — the sides swap and the block does not</p>
-<p>break. Its worst lag through the whole turn is one tick's pace.</p>
+<p>**Measured by <a href='060-the-formation-sandbox.info.html'>the sandbox</a> and by the</p>
+<p>invariants, and not written down here.** A wave marching a side lane holds its box</p>
+<p>through the corner: the sides swap and the block does not break. Run either one to</p>
+<p>see by how much.</p>
+<p>The figures used to be in this paragraph, and then the ranks were spread out and the</p>
+<p>paragraph was describing a formation that no longer exists.</p>
 <h2>Cohesion is a budget, not a bonus</h2>
 <p>Fighting, dying and blocking still pull a formation out of shape. So bodies out of</p>
 <p>place correct, and <strong>the correction is conserved</strong>: those furthest behind their</p>
@@ -355,6 +358,12 @@ svg { max-width: 100%; }
 <p>is what a thinning line should look like.</p>
 <h2>Where the lane's width earns its keep</h2>
 <p><code>files_for</code> reads it, and it is the only thing that does.</p>
+<p><strong>Which means the width and the file spacing are one number wearing two hats.</strong></p>
+<p>Spread the ranks out without widening the road and a lane silently carries one body</p>
+<p>fewer in every rank — every wave in it a third thinner, and nothing anywhere saying</p>
+<p>so. The shape parameters therefore write down how many bodies each lane is <em>meant</em></p>
+<p>to carry, and <a href='031-map-validator.info.html'>the map validator</a> refuses a map whose</p>
+<p>widths no longer deliver it.</p>
 <p>It does <strong>not</strong> decide how many bodies may fight at once — nothing does; the world</p>
 <p>is flat and a lane is a suggestion. It decides how wide a formation <em>travels</em>,</p>
 <p>which is a different question with a real answer: a road's width is how many people</p>

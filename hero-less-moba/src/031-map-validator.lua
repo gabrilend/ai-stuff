@@ -270,6 +270,59 @@ local function check_site_count(map, parameters, problems)
 end
 -- }}}
 
+-- {{{ local function check_lane_widths()
+-- Every lane is wide enough for the formation it is supposed to carry, and the
+-- centre is wide enough for the three that stand abreast in it.
+--
+-- A lane's width is not a number somebody liked the look of. It is how much road
+-- the formations walking it need, and the spacing those formations are built from
+-- lives in the formation module rather than here. So the two can be edited apart,
+-- and when they are, **nothing about the result looks wrong** -- a side lane simply
+-- carries two abreast instead of three, every wave in it is a third thinner, and the
+-- only symptom is that the game plays differently.
+--
+-- That is what happened the first time the bodies were spread out. This is the check
+-- that would have caught it, and the same shape of check as the site count above:
+-- assert what should be there rather than inspecting what is.
+--
+-- It reaches into the formation module for the arithmetic instead of repeating it,
+-- because a validator that keeps its own copy of the rule can only ever check that
+-- the copy agrees with itself.
+local function check_lane_widths(map, parameters, formations, problems)
+  local shape = parameters.shape
+
+  for id, lane in ipairs(map.lane) do
+    local wanted = shape.lane_files[id]
+    if wanted == nil then
+      complain(problems, "lane %d has a width but nobody said how many walk it", id)
+    else
+      local carries = formations.files_for(lane)
+      if carries ~= wanted then
+        complain(problems,
+                 "lane %d is %d paces across, which carries %d abreast, not %d",
+                 id, lane.width, carries, wanted)
+      end
+    end
+  end
+
+  -- And the centre, which has one more job than the others. During a challenge all
+  -- three lanes' waves fight in the middle, standing abreast: a side lane's, the
+  -- centre's, and the other side lane's. **That is what the centre is wide for**, so
+  -- a centre that cannot hold them is a centre that has stopped being for anything.
+  local centre = map.lane[2]
+  local side = map.lane[1]
+  if centre ~= nil and side ~= nil then
+    local step = formations.abreast_offset(map, 1, 2)
+    local span = 2 * (math.abs(step) + formations.radius_of(side))
+    if span > centre.width then
+      complain(problems,
+               "three formations abreast span %d paces and the centre lane is %d",
+               math.floor(span + 0.5), centre.width)
+    end
+  end
+end
+-- }}}
+
 -- {{{ local function check_reachable()
 -- Every node is reachable from team 1's library. Catches a connector that was
 -- built between the wrong pair of junctions, or a lane that was emitted and
@@ -314,6 +367,11 @@ function M.check(map, parameters)
   check_mirror(map, problems)
   check_sites(map, problems)
   check_site_count(map, parameters, problems)
+  -- Loaded here rather than required at the top, because the validator runs before
+  -- the world exists and the formation module is normally reached through it. It is
+  -- pure arithmetic over a lane's width; nothing it is asked here touches a world.
+  local formations = loadfile(parameters.root .. "/src/052-formations.lua")()
+  check_lane_widths(map, parameters, formations, problems)
   check_reachable(map, problems)
   return problems
 end

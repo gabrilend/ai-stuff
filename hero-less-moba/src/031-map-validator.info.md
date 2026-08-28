@@ -39,6 +39,30 @@ the cause.
 | The fraction table is symmetric, and milestone 4 is at 0.5 | A bad shape parameter, reported as a bad parameter rather than as a crooked map. |
 | Every structure site stands on the right kind of node | A tower placed on plain ground. |
 | Every node reachable from team 1's library | A connector built between the wrong pair of junctions. |
+| The right number of towers, on both sides, matching each other | An absence — the site emission was once deleted by accident and every existing check passed, because they were all about sites that were there. |
+| **Each lane is wide enough for the formation it carries** | Spreading the ranks out without widening the roads. A lane then quietly carries one body fewer in every rank, every wave in it is a third thinner, and nothing else in the project notices. |
+| The centre lane holds three formations abreast | The thing the centre lane is *for*. During a challenge all three lanes' waves fight in the middle standing side by side; a centre that cannot hold them has stopped being for anything. |
+
+## Two checks that assert an absence, and why they had to
+
+Most of the table above inspects what the builder produced. Two of them instead
+state what *should* be there and complain if it is not, and both were added after
+something disappeared and nothing noticed.
+
+**The tower count.** The site emission was deleted during a refactor and everything
+still worked: the map built, the validator passed, a match ran for two hundred
+seconds with no towers on it. Every check was about sites that existed rather than
+sites that should. A validator that only checks what it finds cannot notice an
+absence, and an absence is exactly what a refactor produces.
+
+**The lane widths.** How many bodies stand abreast is the lane's width divided by
+the formation module's file spacing — two numbers in two files that can be edited
+apart. When they were, a side lane went from three abreast to two and the only
+symptom was that the game played differently. So the shape parameters now write down
+how many bodies each lane is *meant* to carry, and this asks the formation module
+whether the widths still deliver it. It borrows the arithmetic rather than repeating
+it: a validator holding its own copy of a rule can only check that the copy agrees
+with itself.
 
 ## The mirror check, and why it is first among equals
 

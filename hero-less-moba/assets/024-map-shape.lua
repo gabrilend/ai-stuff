@@ -82,25 +82,49 @@ M.parameters = {
   milestone_count = 9,
 
   -- How many paces across each lane is. This feeds exactly two things: how many
-  -- bodies the frontline queue lets stand abreast, and how wide the renderer
-  -- draws the lane. It is not a movement constraint -- soldiers walk the graph in
-  -- single file regardless.
+  -- bodies stand abreast in a wave walking it, and how wide the renderer draws the
+  -- lane. It is not a movement constraint -- a body may stand anywhere.
   --
   -- The centre is wider, permanently, as topography. That is the only difference
   -- between the three lanes and it is this one number: stacking a side lane is a
   -- bet on quality, because only so many of your bodies will ever be in contact;
   -- stacking the centre is a bet on quantity.
+  --
+  -- **Both are derived, and the validator checks the derivation.** A width
+  -- is not a number somebody likes the look of: it is how much road the formations
+  -- that walk it need, and the formation module owns the spacing those formations
+  -- are built from. Change the spacing and these have to move with it, or a lane
+  -- silently drops a body from every rank.
+  --
+  -- That is a real failure mode rather than a hypothetical -- it is what happened
+  -- the first time the bodies were spread out and the widths were left alone, and
+  -- nothing said so except three abreast quietly becoming two.
   lane_width = {
-    [1] = 62,     -- top
-    -- The centre, and the number is derived rather than chosen. Three formations
-    -- stand abreast here during a challenge -- a side lane's, the centre's, and the
-    -- other side lane's -- and this is how much road that takes: the centre's own
-    -- radius, plus a side lane's on either side of it, plus the gaps.
+    -- A side lane carries three abreast: two gaps of the formation's file spacing,
+    -- divided by the fraction of a road a formation is allowed to occupy.
+    [1] = 86,     -- top
+    -- The centre. Three formations stand abreast here during a challenge -- a side
+    -- lane's, the centre's, and the other side lane's -- and this is how much road
+    -- that takes: the centre's own radius, plus a side lane's on either side of it,
+    -- plus the gaps.
     --
     -- **That is what the centre lane is wide for**, and it is the reason the
     -- document gave for widening it before anybody had arithmetic to put behind it.
-    [2] = 140,    -- centre -- the wide one
-    [3] = 62,     -- bottom
+    [2] = 190,    -- centre -- the wide one
+    [3] = 86,     -- bottom
+  },
+
+  -- How many bodies stand abreast in a wave walking each lane. **The intent**, which
+  -- the widths above are sized to deliver and the validator asserts they still do.
+  --
+  -- Written down separately from the widths because the two are different kinds of
+  -- fact: this one is a design decision about how a lane plays, and the width is the
+  -- arithmetic that makes it true. Keeping the decision in the file lets the
+  -- arithmetic be checked instead of trusted.
+  lane_files = {
+    [1] = 3,
+    [2] = 5,
+    [3] = 3,
   },
 
   -- How the junction's corner is rounded.
@@ -116,9 +140,16 @@ M.parameters = {
   bend_smoothing_window = 12,
   bend_smoothing_passes = 60,
 
-  -- How far apart two bodies stand when they are queueing. The frontline queue
-  -- measures in these; the renderer draws bodies about this size.
-  personal_space = 13,
+  -- How far apart two bodies stand when they are queueing, and how close a guard
+  -- has to get to its tower to call itself home. Those are the only two readers.
+  --
+  -- It used to say the renderer drew bodies about this size and that was never true
+  -- -- the renderer keeps its own table of radii, one per archetype, because how big
+  -- a thing is drawn is a question about looking at it and this is a question about
+  -- standing in a crowd. The two numbers are free to disagree and currently do: a
+  -- body is drawn a good deal smaller than the room it keeps around itself, which is
+  -- what makes a rank read as a rank rather than as a solid bar.
+  personal_space = 18,
 }
 -- }}}
 
