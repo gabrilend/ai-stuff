@@ -169,6 +169,7 @@ svg { max-width: 100%; }
 <a href='209-the-thread-pool-slices-the-tick.html'><span class='index'>209</span>The Thread Pool Slices the Tick</a>
 <a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='211-waypoints-and-the-zones-they-sit-in.html'><span class='index'>211</span>Waypoints, and the Zones They Sit In</a>
+<a href='212-a-beaten-body-gets-one-roll.html'><span class='index'>212</span>A Beaten Body Gets One Roll</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -306,7 +307,12 @@ svg { max-width: 100%; }
 <tr><td>208</td><td>A wave knows when it is gone</td><td>built</td></tr>
 <tr><td>209</td><td>The thread pool slices the tick</td><td>not started — H3</td></tr>
 <tr><td>210</td><td>A death decays before it is final</td><td>built</td></tr>
-<tr><td>211</td><td>Waypoints, and the zones they sit in</td><td>in progress — H4 and H5</td></tr>
+<tr><td>211</td><td>Waypoints, and the zones they sit in</td><td>in progress — the umbrella</td></tr>
+<tr><td>211a</td><td>The lane is cut into zones</td><td>not started</td></tr>
+<tr><td>211b</td><td>Every zone holds a waypoint</td><td>not started</td></tr>
+<tr><td>211c</td><td>A formation is a circle that faces where it is going</td><td>not started</td></tr>
+<tr><td>211d</td><td>Marching speed is not running speed</td><td>not started</td></tr>
+<tr><td>212</td><td>A beaten body gets one roll</td><td>not started</td></tr>
 </tbody></table>
 <p><strong>Blocking:</strong> nothing.</p>
 <p><strong>Carry into the work:</strong></p>
@@ -370,16 +376,32 @@ svg { max-width: 100%; }
 <p>It also happens to be the better thing to look at: a body that fades rather than</p>
 <p>blinking out is the least artificial version of the moment, and the data behind the</p>
 <p>fade is real rather than invented by the renderer.</p>
-<p><strong>211 is in progress and waiting on two decisions.</strong> A lane's measure of how far</p>
-<p>along a wave has got is to become four times finer, and a wave is to approach</p>
-<p><strong>waypoints</strong> — points at random positions inside each of those finer stretches —</p>
-<p>rather than simply advancing a number, so that its angle of approach varies and two</p>
-<p>waves walking the same road do not tread in the same places.</p>
-<p>What is not settled is whether the finer measure replaces the milestones or sits</p>
-<p>underneath them, and whether a waypoint steers the formation inside its lane or</p>
-<p>becomes a destination in the world. The second matters most: a formation is held in</p>
-<p>lane coordinates, and that is the whole reason a rank survives a corner. See H4 and</p>
-<p>H5.</p>
+<p><strong>211 is in progress, decided, and split into four.</strong> A lane's measure of how far</p>
+<p>along a wave has got becomes four times finer, and a wave approaches <strong>waypoints</strong> —</p>
+<p>points at random positions inside each of those finer stretches — rather than simply</p>
+<p>advancing a number, so its angle of approach varies and two waves walking the same</p>
+<p>road do not tread in the same places.</p>
+<p>Both questions came back, and the second came back bigger than it was asked. The</p>
+<p>finer measure sits <strong>underneath</strong> the milestones rather than replacing them, so no</p>
+<p>tower moves and nothing that says "milestone" changes meaning.</p>
+<p>And a waypoint neither steers nor navigates, because **a formation stops being a</p>
+<p>wide thing at a distance and becomes an oriented disc**: its position is the centre</p>
+<p>of its bodies rather than the front of them, its radius is exactly half its width,</p>
+<p>its diameter is the face of the line, and it turns to point at what it is walking</p>
+<p>toward. What it points at, when there is an enemy, is the enemy's <strong>frontline</strong> —</p>
+<p>their diameter displaced forward — rather than the middle of their block, because</p>
+<p>the middle of a block is behind the people who will actually be hit.</p>
+<p>Two things fell out of that and became their own work. A disc that rotates moves a</p>
+<p>body's intended place out from under it, so the cohesion clamps have to open. And</p>
+<p><strong>marching speed is not running speed</strong> — two numbers about a body rather than one</p>
+<p>with a modifier, with nothing running while it chases a kill.</p>
+<p>**212 is the mechanic that arrived attached to the last of those, and it is the</p>
+<p>sharpest thing in the phase.** A beaten body rolls once. Failing the roll lets it</p>
+<p>run away and live; passing it makes it stay, land one single blow, and die. That</p>
+<p>inversion is deliberate: the save is against self-preservation, not against fear.</p>
+<p>And it is how anything large dies — a monster is brought down by the accumulated</p>
+<p>last blows of everything it beat, which makes the Eternal Golem's deathlessness a</p>
+<p>statement about scale rather than about a number.</p>
 <p><strong>The map was resized alongside it</strong> and is written up in the balance ledger rather</p>
 <p>than here: bodies further apart, drawn smaller, roads wider — and the map checker</p>
 <p>now refuses a map whose roads no longer carry the number of bodies abreast that the</p>

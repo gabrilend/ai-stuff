@@ -71,6 +71,11 @@ problem statement, rendered.
 | 209 | The thread pool slices the tick |
 | 210 | A death decays before it is final |
 | 211 | Waypoints, and the zones they sit in |
+| 211a | The lane is cut into zones |
+| 211b | Every zone holds a waypoint |
+| 211c | A formation is a circle that faces where it is going |
+| 211d | Marching speed is not running speed |
+| 212 | A beaten body gets one roll |
 
 ## Phase 3 — Things That Stand and Hold
 
