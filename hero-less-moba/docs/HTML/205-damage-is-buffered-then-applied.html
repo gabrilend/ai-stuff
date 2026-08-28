@@ -292,7 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>Soldiers pick targets and stand there. Nothing loses health.</p>
+<p>Attacks write into a buffer and a separate pass applies it, so two bodies that</p>
+<p>would kill each other on the same tick both do. Armour is subtracted and floored at a</p>
+<p>small positive minimum — a blow never heals, and nothing is ever immune.</p>
+<p>Nothing records who dealt the damage, because nothing needs to: the reap pass reads</p>
+<p>the dead body's own team and pays the other one.</p>
 <h2>Intended behavior</h2>
 <p><strong>Nothing writes to a health value during the attack pass.</strong> Attacks write into</p>
 <p><code>pending_damage</code>, a flat array of doubles with one slot per soldier and one per</p>

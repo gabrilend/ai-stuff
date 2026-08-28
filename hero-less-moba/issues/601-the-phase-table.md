@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-There is one way a match runs, and the game-over state is a special case tested
-separately by whichever system remembers to.
+Four phases and the transitions between them, as one table: normal, siege-surge,
+challenge, calm. Three surges and three challenges a match, on a visible clock, and the
+third challenge is the one that does not end.
+
+The clock is what makes a match finish. Before it, two even sides ground until somebody
+stopped watching.
 
 ## Intended behavior
 

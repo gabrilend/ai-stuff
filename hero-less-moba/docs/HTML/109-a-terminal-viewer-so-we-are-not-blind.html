@@ -292,9 +292,12 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>The simulation can run and report on itself in numbers. Nobody can watch it</p>
-<p>happen, which means every behavioural bug from phase 2 onward has to be inferred</p>
-<p>from a table.</p>
+<p>The terminal viewer draws the field as text — the three lanes, the connectors</p>
+<p>marked apart, stone, rubble, and the bodies — plus the lane-pressure bars and one</p>
+<p>team's chest. <code>./run-prototype terminal</code> redraws it in place.</p>
+<p>It is kept rather than discarded: it is faster to debug in, works where nothing</p>
+<p>graphical does, pipes to a file and diffs, and keeps the viewing layer honest by being</p>
+<p>a second consumer of the same snapshots.</p>
 <h2>Intended behavior</h2>
 <p>A viewer that draws the match as text: three lanes as three rows of characters,</p>
 <p>one character per few paces, with each team's soldiers as different glyphs, the</p>

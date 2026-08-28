@@ -292,19 +292,34 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>There is no map. There is no ground for anything to stand on and no notion of</p>
-<p>where a lane is.</p>
+<p>The map builder emits the path graph from the shape parameters, and the map</p>
+<p>validator refuses a malformed one at load rather than repairing it — which is what</p>
+<p>lets the movement loop have no nil checks anywhere in it. Three junctions on the</p>
+<p>other diagonal, bends rounded into curves, and both halves exact mirrors of each</p>
+<p>other, which the validator asserts.</p>
+<p>It also emits a standalone lane from any list of points, which was added so the</p>
+<p>formation could be measured on a bare field.</p>
 <h2>Intended behavior</h2>
 <p>A map-building tool takes a small table of shape parameters and emits a **path</p>
 <p>graph**: a flat array of nodes, each with a position, a kind, a lane, a</p>
 <p>milestone index, a team side, a neighbour list, and a structure slot. Everything</p>
 <p>that will ever walk, walks on this graph.</p>
 <p>The standard map it emits: two bases at opposite corners of a square field, three</p>
-<p>lanes joining them. The top and bottom lanes bend once near each base — four</p>
-<p>bends in total, and those bends are the <strong>junctions</strong>. The center lane runs</p>
-<p>straight and has no junctions. Each junction is joined to the center lane by a</p>
-<p>short <strong>connector</strong> edge, which is the ground the jungle used to occupy with</p>
-<p>everything that made it jungle taken out.</p>
+<p>lanes joining them.</p>
+<p><strong>There are three junctions, not four</strong>, and they sit on the field's <em>other</em></p>
+<p>diagonal — the top-left corner, the middle of the field, the bottom-right corner.</p>
+<p>Each side lane bends once at its own corner; the centre lane's junction is its</p>
+<p>midpoint, a plain point on a straight line rather than a bend. A short</p>
+<p><strong>connector</strong> joins each side lane's junction to the middle, which is the ground</p>
+<p>the jungle used to occupy with everything that made it jungle taken out.</p>
+<p>Giving the centre a junction of its own is what makes the middle a place a body can</p>
+<p><em>leave</em>. An earlier version of this issue described four junctions, all of them on</p>
+<p>side lanes, which meant anything walking into the centre was committed to it</p>
+<p>permanently — a decision nobody ever made. See</p>
+<p><a href='002-the-map-and-its-milestones.html'>the map</a>.</p>
+<p><strong>The bends are rounded rather than sharp.</strong> A vertex is a corner no formation can</p>
+<p>walk round: capped by the distance actually travelled, the body on the outside would</p>
+<p>have to cover most of a right angle's arc in a single step.</p>
 <p>The graph is authored once and never changes at runtime. It lives in one</p>
 <p>contiguous array, is read-only during a match, and is shared across every worker</p>
 <p>in the thread pool without a lock.</p>
@@ -330,9 +345,11 @@ svg { max-width: 100%; }
 </ul>
 <p>   it is the easiest thing to check by eye.</p>
 <ul>
-<li>Emit a side lane as three straight runs joined at two junction nodes. Mirror</li>
+<li>Emit a side lane as two straight runs joined at <strong>one</strong> junction node, at its</li>
 </ul>
-<p>   it for the other side lane and for the other team's half.</p>
+<p>   own corner. Mirror it for the other side lane.</p>
+<p>4b. Round the bend before measuring anything, and measure the arc lengths after --</p>
+<p>   they are distances between nodes the rounding moves.</p>
 <ul>
 <li>Emit the connectors, joining each junction to the nearest center-lane node.</li>
 </ul>

@@ -292,7 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>Resource accumulates and buys nothing.</p>
+<p>A hero is the same body record with <code>flavour = 2</code>, bought with personal resource,</p>
+<p>carrying an ability, obeying exactly one sign-post, and **never touched by lane</p>
+<p>upgrades at any strength**. It fights until it dies and then it is gone.</p>
+<p>The one exception is built: a hero that survives a challenge hands back what it</p>
+<p>cost.</p>
 <h2>Intended behavior</h2>
 <p>A hero unit is a soldier record with <code>flavour = 2</code> and <code>owner</code> set to the buying</p>
 <p>player. Same movement, same targeting, same combat, same brain — the differences</p>

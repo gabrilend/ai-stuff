@@ -10,9 +10,12 @@
 
 ## Current behavior
 
-The graph knows where things are in paces. Nothing knows how far a fight has
-travelled, and the only tool available for asking is straight-line distance,
-which gives the wrong answer to the one question that matters.
+Milestones are placed at fractions along each lane and their path indices are
+precomputed, so "how far has this lane been pushed" is an integer comparison. Push
+depth is recomputed from the living every tick — never a high-water mark, so it
+collapses when bodies die — and is ignored outright during a challenge, when every
+lane's production is in the middle and the number would read a team's own stone back
+at it.
 
 ## Intended behavior
 

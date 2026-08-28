@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-A surge ends, the chest is dumped out, and the match returns to normal. Nothing
-comes out of the middle.
+Three named monsters in a fixed order — the Pillar Orc, the Field Dragon, the
+Eternal Golem. They are a third team, hostile to everything including each other, and
+each is assigned to the team whose base it walks at. That team is paid the boon
+whoever lands the blow.
+
+The Golem cannot be hurt at all, acquires nothing, and walks.
 
 ## Intended behavior
 

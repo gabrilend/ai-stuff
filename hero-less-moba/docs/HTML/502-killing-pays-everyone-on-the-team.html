@@ -292,8 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>B5, and a new one this rule created</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p><code>last_hit_by</code> is recorded on every death and nothing reads it. Players have a</p>
-<p>resource balance that never changes.</p>
+<p>Every kill pays every player on the other team, in full, in the colour the dead</p>
+<p>body was carrying. Nothing asks what killed it. Teammates therefore have identical</p>
+<p>incomes and the only thing separating two of them is what they do with the same money.</p>
+<p>Resource is six colours, each with its own shape as well as its own hue, and a wallet</p>
+<p>is capped by a die ladder that climbs on the match clock.</p>
 <h2>Intended behavior</h2>
 <p>In the reap pass, <code>last_hit_by</code> is read, the killer's <strong>team</strong> is taken, and</p>
 <p><strong>every player on that team is credited the full payout.</strong></p>

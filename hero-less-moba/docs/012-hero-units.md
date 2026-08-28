@@ -73,8 +73,8 @@ of manual control that gets added is a behaviour the brain no longer has to be
 good at, and the end of that road is a game where the soldiers are visibly
 stupider than the things you drive.
 
-It also protects the chest. A player's hands are busy placing, locking, and
-objecting; a hero demanding attention would compete directly with the system that
+It also protects the chest. A player's hands are busy placing, giving, and setting
+aside; a hero demanding attention would compete directly with the system that
 replaced heroes in the first place.
 
 What this concentrates the design into: **the ability condition table.** With no

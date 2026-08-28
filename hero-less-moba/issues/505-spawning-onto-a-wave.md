@@ -10,7 +10,8 @@
 
 ## Current behavior
 
-A bought hero appears at the library and has a long walk to anywhere useful.
+A hero can be bought onto any of its team's living waves and appears at that
+wave's front immediately. The aggressive option, and the fragile one.
 
 ## Intended behavior
 

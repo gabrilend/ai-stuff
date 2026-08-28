@@ -10,9 +10,12 @@
 
 ## Current behavior
 
-To look at anything you start a match from the beginning and wait for it to get
-there. There is no way to say *put the world in this state and stop* — so every
-question about the middle of a match costs the first ten minutes of one.
+A scenario is a hand-written file describing a world — which tick, which phase,
+which towers are rubble, what is placed where, who holds what, and commands that fire
+later — loaded into a fresh world and **held** until released. It can be stepped a
+fixed number of ticks or run until any event the simulation already announces.
+
+`./run-scenario` loads one, describes it, and waits.
 
 ## Intended behavior
 

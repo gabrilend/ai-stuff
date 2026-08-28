@@ -10,7 +10,13 @@
 
 ## Current behavior
 
-Upgrades are a word in the vision. Nothing exists.
+Eight kinds, each with a colour, a glyph, additive and multiplicative terms, a
+reach that decides which half of a wave it touches, and what it does to stone. A body
+carries a small integer per kind rather than a bit set, because duplicates stack and a
+bit set cannot count.
+
+One kind has an empty tower effect on purpose: stone does not walk, so Boots in a lane
+is a push and Boots in stone is a wasted slot.
 
 ## Intended behavior
 

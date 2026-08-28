@@ -328,7 +328,7 @@ svg { max-width: 100%; }
 <tr><td>Per soldier: x, y, facing, team, flavour, archetype, health fraction, alive</td><td>Everything drawn about a body.</td></tr>
 <tr><td>Per soldier: the upgrades it was stamped with</td><td>Reading an enemy's build off their frontline is the only way to learn their arrangement. Enemy bodies carry this; enemy <em>chests</em> do not exist here.</td></tr>
 <tr><td>Per structure: health fraction, alive, command radius</td><td>Towers and libraries. The radius is drawn for both teams — see <a href='007-guard-towers-and-their-guards.html'>guard towers</a>.</td></tr>
-<tr><td><strong>Own team only</strong>: chest contents, slot assignments, transit marks, lock and objection state, boons</td><td>The panel.</td></tr>
+<tr><td><strong>Own team only</strong>: every stone the player can see — its kind, where it sits, whether it is theirs or in the pool, and where it is going if it is moving — plus boons</td><td>The panel. A stone somebody has set aside is absent from <strong>their</strong> frame and present in everybody else's.</td></tr>
 <tr><td>Per lane: push depth, both teams'</td><td>The lane-pressure read. Ignored during a challenge.</td></tr>
 <tr><td><strong>Own team only</strong>, per player: resource, ceiling, hero count, teammate cursors</td><td>The player's own bar, and the presence channel.</td></tr>
 <tr><td><strong>Own team only</strong>, per sign-post: position and direction</td><td>Each team has its own three. The enemy's are absent from the frame entirely — not hidden, not present. See <a href='013-signposts-and-lane-routing.html'>sign-posts</a>, F16.</td></tr>
@@ -353,7 +353,9 @@ svg { max-width: 100%; }
 <ul>
 <li><strong>The slots.</strong> What is in each lane, what is in each lane's towers, what is in</li>
 </ul>
-<p>   the library, who locked what, what has been objected and by whom.</p>
+<p>   the library — and what is <strong>on its way</strong> to any of them, with how many waves</p>
+<p>   until it lands. A move announces itself for a full wave and nobody opted into</p>
+<p>   that: you cannot move a stone quietly.</p>
 <ul>
 <li><strong>My resource, and what I could buy with it right now.</strong> Affordable heroes</li>
 </ul>
@@ -365,9 +367,10 @@ svg { max-width: 100%; }
 <ul>
 <li><strong>Refusals.</strong> Every rejected command, with its reason, immediately.</li>
 </ul>
-<p>The chest and the lanes are the two things a player is constantly moving their</p>
-<p>eyes between, so they should be arranged so that a placement is a short drag and</p>
-<p>not a trip across the screen.</p>
+<p>The chest and the lanes are the two things a player is constantly moving their eyes</p>
+<p>between — and the answer to that turned out not to be arranging them close together.</p>
+<p>Picking a stone up pulls the camera back and lights up every place it could go, so the</p>
+<p>distance between the two stops mattering. See below.</p>
 <h2>The camera: everything by default, zoom to inspect</h2>
 <p>**The default view is the whole map, always, and a player can push in to read</p>
 <p>detail and pull back out.*<em> </em>Settled; see</p>
@@ -385,7 +388,8 @@ svg { max-width: 100%; }
 <h3>One rule for the camera</h3>
 <blockquote><p><strong>Zoom reveals detail. It never reveals events.</strong></p></blockquote>
 <p>Anything a player must react to — a tower falling, a surge starting, a monster</p>
-<p>appearing, a teammate marking an upgrade to move, a lock breaking, their own</p>
+<p>appearing, a teammate marking an upgrade to move, a stone resurfacing because</p>
+<p>everybody set it aside, their own</p>
 <p>wallet overflowing — has to be legible at the default view, without zooming and</p>
 <p>without a camera move. Zooming in is a thing a player does when they have a</p>
 <p>moment, not a thing the game requires them to do to stay informed.</p>
@@ -393,6 +397,24 @@ svg { max-width: 100%; }
 <p>is looking at the wrong place at the wrong time and is punished for it by</p>
 <p>information they were never going to have. In a game where three people share one</p>
 <p>chest, that failure would land on the whole team.</p>
+<h3>And the zoom is anchored to the cursor</h3>
+<p><strong>The point of the world under the cursor does not move while you zoom.</strong> A camera</p>
+<p>that zooms about the middle of the screen moves whatever you were looking at away</p>
+<p>from you, so the loop becomes zoom, hunt, drag, zoom, hunt, drag — which is the same</p>
+<p>small navigation task the rule below bans on the trip home, and it was going unnoticed</p>
+<p>on the trip out. See issue <a class='issue-link' href='708-the-camera-is-a-lens-you-push-into.html'>708</a>.</p>
+<h3>Picking something up asks the question by pulling back</h3>
+<p>Selecting a stone or a hero **pulls the camera out to the whole map and lights up</p>
+<p>everywhere it could go.** The act of zooming out is the act of asking where to put it:</p>
+<p>a placement is a question about the whole board — which lane is losing, where the enemy</p>
+<p>armies are, which stone is still standing — and none of that is visible from inside the</p>
+<p>fight you were watching a moment ago.</p>
+<p>Dropping it returns the camera to whatever was being watched, unless the player moved</p>
+<p>it themselves in the meantime.</p>
+<p>That is the second vision's gesture, and it is the one place this document has been</p>
+<p>overruled by it: **a placement is not a drag across a panel, it is a selection and then</p>
+<p>a zoom.** The stones are still listed down the side, because they have to be somewhere,</p>
+<p>but they are dropped onto the thing they affect.</p>
 <h3>And it should always be one press back</h3>
 <p>Returning to the whole map is a single, instant, unmissable action. A player who</p>
 <p>has zoomed in should never be <em>lost</em>. If getting back to the default view is ever</p>

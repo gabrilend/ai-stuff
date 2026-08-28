@@ -10,7 +10,11 @@
 
 ## Current behavior
 
-A tower can be knocked down and nothing happens except that it stops shooting.
+A felled tower kills its guards immediately and pays three separate draws to the
+team that knocked it down — three things to place, not one worth three times as much.
+
+The lane's slotted upgrades are untouched, because an upgrade is slotted into a lane's
+stone as a whole and there is nothing in a felled tower to give back.
 
 ## Intended behavior
 

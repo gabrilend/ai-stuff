@@ -10,8 +10,13 @@
 
 ## Current behavior
 
-Soldiers walk in a straight line to the end of the lane and never stop for
-anything.
+A dispatch table with a row per state: walking, closing, fighting, leashing,
+dying, waiting and recovering. Six of the seven are built — **waiting is not**, and
+nothing enters it, because it is a hero standing at its library during a calm and
+heroes bought in a calm are not yet held back.
+
+The Golem is the one body that is not the state machine: it walks, it hits what it
+walks into, and it does not stop for either.
 
 ## Intended behavior
 

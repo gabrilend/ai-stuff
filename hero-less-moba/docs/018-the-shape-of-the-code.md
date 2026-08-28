@@ -39,6 +39,30 @@ For each `NNN-name.lua` there is an `NNN-name.info.md` listing:
 function is misbehaving. The companion is for everything else. A companion that
 has drifted from its source is a bug of the same severity as a wrong answer.
 
+## A document that is not true is a bug
+
+**The documents are not a description of the software. They are half of it.** This
+project had twenty-three of them and seventy-four issue files before it had a line of
+code, and reconstructing the software means reading them — so a page that no longer
+matches what runs is not untidy, it is **wrong**, at the same severity as a wrong
+answer from a function.
+
+Which means it is fixed the same way: immediately, by whoever noticed, without asking.
+There is nothing to decide. **An issue is not closed while the pages around it still
+read false**, and "the code changed and the document did not" is not a difference of
+opinion that somebody needs to rule on.
+
+The two things that make this survivable rather than a permanent tax:
+
+- **Every source file has a companion**, so the description of a thing lives beside
+  the thing and is edited in the same breath.
+- **`./validate-documentation` is a compiler for the prose.** It already catches an
+  issue citing a question that has since been answered, which is the commonest way
+  this rots.
+
+Neither of those can catch a paragraph that quietly stopped being true, and that is
+what the rule above is for.
+
 ## Comments say why, not what
 
 A comment that restates the line below it is noise. The comments this project

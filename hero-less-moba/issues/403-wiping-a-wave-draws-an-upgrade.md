@@ -10,8 +10,8 @@
 
 ## Current behavior
 
-Waves are noticed being wiped and towers are noticed being felled. Both events
-fall on the floor.
+A wipe pays one draw to the team that did not spawn the wave, and the stone goes
+to one of that team's players, round-robin. Felling a tower pays three.
 
 ## Intended behavior
 

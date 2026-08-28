@@ -292,9 +292,11 @@ svg { max-width: 100%; }
 <tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
-<p>Guards spawn and then behave like wave units: they acquire an enemy, chase it,</p>
-<p>and walk off down the lane, leaving the tower they were supposed to be protecting</p>
-<p>completely bare.</p>
+<p>Guards wander a random walk inside their leash using the wander stream, close on</p>
+<p>anything that comes near, and walk home refusing to acquire the moment they drift past</p>
+<p>it. They never advance with a wave and never follow a retreating enemy.</p>
+<p>They are also outside everything a line does: no formation, no cohesion budget, and</p>
+<p>they never fall back.</p>
 <h2>Intended behavior</h2>
 <p>The <strong>leashing</strong> state, entry 4 in the brain's dispatch table. A guard enters it</p>
 <p>the moment its target dies or it finds itself outside the leash radius, and while</p>

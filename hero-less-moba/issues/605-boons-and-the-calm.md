@@ -10,8 +10,14 @@
 
 ## Current behavior
 
-A challenge monster dies and the phase returns to normal. Nothing is paid for
-having killed it beyond the personal resource of the last blow.
+Each player is offered two boons in the calm after a slain monster, and a boon
+reaches everything that team fields, heroes included — it is not in a lane and has no
+slot, which is exactly why it is allowed where a lane upgrade is not.
+
+**An unchosen offer stays open indefinitely.** Nothing is ever taken for anybody.
+
+The six on offer are drawn at random from a flat list, which is a curation problem
+rather than a mechanism one.
 
 ## Intended behavior
 

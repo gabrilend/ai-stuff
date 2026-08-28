@@ -40,28 +40,39 @@ taking the world — rather than a hand-written sequence of calls. Adding a syst
 means adding a row; reordering means moving a row; and the order becomes a piece
 of readable data instead of something buried in a function body.
 
+0. **Clear.** Both damage buffers and last tick's events are zeroed, so nothing can
+   be applied twice and a viewer reading a snapshot sees exactly that tick's events.
 1. **Apply commands.** Every command queued since the last tick is applied, in a
-   fixed order by player number, then by arrival index. This is the only moment
-   in the whole tick when player intent can change anything. See
+   fixed order by player number, then by arrival index. This is the only moment in
+   the whole tick when player intent can change anything — and a bot's intent
+   arrives the same way, through the same queue, on the same tick. See
    [players, teams, and commands](016-players-teams-and-commands.md).
-2. **Spawn.** Wave timers, surge stream timers, guard respawns, and challenge
-   monsters. Everything that adds a body to the world does it here.
-3. **Retarget.** Every soldier without a living target looks for one.
-4. **Move.** Every soldier that is not in contact with its target advances along
-   its lane. Junction decisions are resolved here.
-5. **Attack.** Cooldowns tick down; anything ready and in range deals damage into
-   a pending-damage buffer rather than straight into health.
-6. **Resolve damage.** The buffer is applied. This two-stage split is what makes
+2. **Spawn.** Wave timers, the surge stream, guard replacement, and the transits
+   that land with a wave. Everything that adds a body to the world does it here.
+3. **Index.** Every living body is dropped into the spatial grid, rebuilt whole
+   rather than maintained — a grid that is updated as bodies move is a grid that is
+   wrong the first time somebody forgets, and being wrong looks like soldiers
+   ignoring an enemy standing next to them.
+4. **Form.** Every wave advances its anchor down its lane and shares out the
+   cohesion budget among the members still marching.
+5. **Retarget.** Every soldier without a living target looks for one; then the
+   "who is swinging at me" map is rebuilt for the next tick to read.
+6. **Move.** The brain, once per living body. Junction decisions are resolved here.
+7. **Attack.** Cooldowns tick down; anything ready and in range deals damage into
+   a pending-damage buffer rather than straight into health. Towers shoot, and
+   abilities fire — through the same buffer, on the same boundary.
+8. **Resolve damage.** The buffer is applied. This two-stage split is what makes
    simultaneous kills work the same way every run — two soldiers that would kill
    each other on the same tick both die, and neither one's death cancels the
    other's blow.
-7. **Reap.** Dead bodies are removed, deaths are turned into events: personal
+9. **Reap.** Dead bodies are removed, deaths are turned into events: personal
    resource paid out, wave-completion counters decremented, tower-destroyed
    rewards issued.
-8. **Phase.** The match clock advances. Surges start and end, challenges begin,
-   the game-over condition is checked.
-9. **Snapshot.** The state is stamped for the viewer and, if recording, appended
-   to the replay log.
+10. **Measure.** Push depth, recomputed from the living. **After the reap**, because
+   it is a statement about who is still standing.
+11. **Phase.** The match clock advances. The wallet ladder climbs, surges start and
+   end, challenges begin, the game-over condition is checked.
+12. **Snapshot.** The state is stamped for the viewer.
 
 ## Where randomness lives
 
@@ -72,11 +83,11 @@ advances only when its own system asks it to:
 | Stream | Used for |
 | --- | --- |
 | `draw` | Which upgrade comes out of the chest when a wave is wiped. One stream per team. |
-| `boon` | Which three boons each player is offered in the calm after a challenge. |
+| `boon` | Which **two** boons each player is offered in the calm after a slain monster. |
 | `deck` | The one shared upgrade sequence both teams draw from, generated once at match start. |
 | `surge` | The deal order and starting lane when the chest is dealt across a surge spawn. One stream per team. Advances several times a second while a surge runs — far more than any other. |
 | `wander` | Where a tower's guards choose to patrol. |
-| `tie` | Breaking exact ties in target selection. |
+| `tie` | Breaking exact ties in target selection. **One per team, and three of them** — the monsters are their own team and break ties like anything else. |
 
 Splitting them matters: if all randomness came from one stream, a cosmetic change
 to how guards wander would silently change which upgrades a team draws, and no
@@ -146,8 +157,8 @@ slicing an array of tables is a pointer chase.
 | `challenge_index` | integer | 1, 2, or 3 — which of the three named monsters. The third never ends. |
 | `soldier` | struct-of-arrays | Every walking body: wave units, heroes, guards, monsters. |
 | `structure` | struct-of-arrays | Towers and libraries. |
-| `team` | array[2] of team record | Chest, push depths, boons, seeds. |
-| `player` | array[6] of player record | Commander, personal resource, lock and objection state. |
+| `team` | array[2] of team record | Push depths, boons, deck index, waves lost. The chest itself is an array of **stones** — instances with a holder — of which the per-slot counts are a cache. |
+| `player` | array[6] of player record | Commander, resource per colour, ceiling per colour, and what has been wasted. **No lock or objection state** — a stone belongs to whoever drew it, so there is nothing to lock it against. |
 | `stream` | table of named generators | The random streams above. |
 | `pending_damage` | double[] | One slot per soldier, cleared every tick. |
 

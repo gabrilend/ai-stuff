@@ -11,8 +11,12 @@
 
 ## Current behavior
 
-`last_hit_by` is recorded on every death and nothing reads it. Players have a
-resource balance that never changes.
+Every kill pays every player on the other team, in full, in the colour the dead
+body was carrying. Nothing asks what killed it. Teammates therefore have identical
+incomes and the only thing separating two of them is what they do with the same money.
+
+Resource is six colours, each with its own shape as well as its own hue, and a wallet
+is capped by a die ladder that climbs on the match clock.
 
 ## Intended behavior
 

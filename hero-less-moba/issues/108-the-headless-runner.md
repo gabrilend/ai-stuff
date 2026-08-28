@@ -10,7 +10,12 @@
 
 ## Current behavior
 
-There is no way to run a match. Everything so far is a library with no caller.
+`./run-prototype headless` plays a whole match with no window and prints a report
+made of the numbers a balance question is asked in — push depth and waves lost per
+lane, upgrades drawn and where they went, towers standing, library health.
+
+`./run-many-matches` does the same a great many times, one worker per core, and writes
+a row per match plus a summary table.
 
 ## Intended behavior
 

@@ -10,8 +10,11 @@
 
 ## Current behavior
 
-The documentation is Markdown files in a directory. Reading it means opening
-files one at a time and following relative links in a text editor.
+`./build-documentation` writes 152 cross-linked pages into `docs/HTML/` — every
+document, issue and companion, with a filterable contents rail, syntax-highlighted
+code, **every issue number a link**, and a front page whose map is drawn from the map
+builder and whose match timeline is drawn from the timing table, so neither can go
+stale.
 
 ## Intended behavior
 

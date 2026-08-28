@@ -10,7 +10,13 @@
 
 ## Current behavior
 
-A window that draws nothing.
+The map draws itself — three lanes at their real widths, connectors, milestone
+marks, stone with health and slotted badges, both teams' command radii, and push depth
+as a band growing along each lane from either end. Bodies are batched by team and have
+shadows.
+
+Detail arrives with zoom and never an event: health bars, then upgrade badges, then
+which lane paid for a body.
 
 ## Intended behavior
 

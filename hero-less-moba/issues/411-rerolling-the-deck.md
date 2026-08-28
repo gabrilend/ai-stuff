@@ -10,9 +10,9 @@
 
 ## Current behavior
 
-Both teams draw from one shared deck in the same order. A team that draws
-something useless holds it, and so does the enemy, and neither can do anything
-about it.
+A reroll trades a stone for the next card off the deck, priced in two colours. It
+does not add an upgrade, which is why it is the only thing personal resource can do to
+the chest and why resource can never buy one outright.
 
 ## Intended behavior
 

@@ -10,8 +10,13 @@
 
 ## Current behavior
 
-There is no way for a person to affect the world, and no discipline in place to
-stop the first person who needs one from reaching in and setting a field.
+Every command enters through one queue and is applied at the top of a tick, sorted
+by player and then by arrival so that two machines resolve the same tick the same
+way. The verbs are a dispatch table.
+
+Every refusal is returned, named, and raised as an event the panel shows. An unknown
+verb stops the program, because that is a programming error rather than a player one.
+The bot goes through the same door.
 
 ## Intended behavior
 

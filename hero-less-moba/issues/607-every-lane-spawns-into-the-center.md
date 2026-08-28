@@ -10,8 +10,12 @@
 
 ## Current behavior
 
-Monsters walk the center lane while the top and bottom lanes carry on as though
-nothing were happening.
+During a challenge every lane's waves go into the middle, and **the three stand
+abreast of one another** rather than through one another — the centre's formation in
+the middle, a side lane's to either side, spaced by their own radii.
+
+A funnelled body carries its **own** lane's upgrades, not the centre's, so a team that
+invested in the top lane does not watch that investment evaporate.
 
 ## Intended behavior
 

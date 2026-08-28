@@ -10,8 +10,14 @@
 
 ## Current behavior
 
-There is no map. There is no ground for anything to stand on and no notion of
-where a lane is.
+The map builder emits the path graph from the shape parameters, and the map
+validator refuses a malformed one at load rather than repairing it — which is what
+lets the movement loop have no nil checks anywhere in it. Three junctions on the
+other diagonal, bends rounded into curves, and both halves exact mirrors of each
+other, which the validator asserts.
+
+It also emits a standalone lane from any list of points, which was added so the
+formation could be measured on a bare field.
 
 ## Intended behavior
 
@@ -21,11 +27,24 @@ milestone index, a team side, a neighbour list, and a structure slot. Everything
 that will ever walk, walks on this graph.
 
 The standard map it emits: two bases at opposite corners of a square field, three
-lanes joining them. The top and bottom lanes bend once near each base — four
-bends in total, and those bends are the **junctions**. The center lane runs
-straight and has no junctions. Each junction is joined to the center lane by a
-short **connector** edge, which is the ground the jungle used to occupy with
-everything that made it jungle taken out.
+lanes joining them.
+
+**There are three junctions, not four**, and they sit on the field's *other*
+diagonal — the top-left corner, the middle of the field, the bottom-right corner.
+Each side lane bends once at its own corner; the centre lane's junction is its
+midpoint, a plain point on a straight line rather than a bend. A short
+**connector** joins each side lane's junction to the middle, which is the ground
+the jungle used to occupy with everything that made it jungle taken out.
+
+Giving the centre a junction of its own is what makes the middle a place a body can
+*leave*. An earlier version of this issue described four junctions, all of them on
+side lanes, which meant anything walking into the centre was committed to it
+permanently — a decision nobody ever made. See
+[the map](../docs/002-the-map-and-its-milestones.md).
+
+**The bends are rounded rather than sharp.** A vertex is a corner no formation can
+walk round: capped by the distance actually travelled, the body on the outside would
+have to cover most of a right angle's arc in a single step.
 
 The graph is authored once and never changes at runtime. It lives in one
 contiguous array, is read-only during a match, and is shared across every worker
@@ -49,8 +68,10 @@ at load, not the movement loop's question asked a thousand times a tick.
    inputs.
 3. Emit the center lane first — it is a straight run of evenly spaced nodes and
    it is the easiest thing to check by eye.
-4. Emit a side lane as three straight runs joined at two junction nodes. Mirror
-   it for the other side lane and for the other team's half.
+4. Emit a side lane as two straight runs joined at **one** junction node, at its
+   own corner. Mirror it for the other side lane.
+4b. Round the bend before measuring anything, and measure the arc lengths after --
+   they are distances between nodes the rounding moves.
 5. Emit the connectors, joining each junction to the nearest center-lane node.
    Give connector nodes `lane = 0` so nothing treats them as part of a lane.
 6. Write a **map validator** that runs at load and refuses to continue if: any

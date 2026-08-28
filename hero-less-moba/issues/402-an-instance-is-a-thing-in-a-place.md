@@ -10,7 +10,12 @@
 
 ## Current behavior
 
-There is a catalogue of upgrade kinds and no way for a team to own one.
+An upgrade is an instance — a specific thing, in a specific place, belonging to a
+specific person — with a kind, a slot, a holder, a dismissal mask and transit fields.
+The per-slot counts everything else reads are a cache rebuilt from the instances.
+
+**A stone belongs to whoever drew it, and there is no lock**, because there is nothing
+to lock it against.
 
 ## Intended behavior
 

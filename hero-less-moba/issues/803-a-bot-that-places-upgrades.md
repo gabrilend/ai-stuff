@@ -10,9 +10,13 @@
 
 ## Current behavior
 
-A match with no commands runs perfectly symmetrically to a stalemate or to
-whichever side a seeded coin flip favours. There is nothing to play against and
-nothing to run ten thousand matches with.
+A measuring bot — cheap, deterministic and dull on purpose — plays a whole side.
+Its policy is two lines: reinforce where you are losing, unless you are losing
+nowhere, in which case press where you are winning. Stone gets every fourth placement
+on a rotation rather than a judgement.
+
+It goes through the ordinary command queue. It plays one seat per side rather than
+three sharing a chest, and says so.
 
 ## Intended behavior
 

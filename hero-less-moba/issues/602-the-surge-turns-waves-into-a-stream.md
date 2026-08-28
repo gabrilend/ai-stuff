@@ -10,7 +10,12 @@
 
 ## Current behavior
 
-Waves spawn in batches on an interval, in every phase.
+A surge is a stream: one body per lane per team on one shared timer, so bodies come
+in threes. Towers stop replacing guards and are unkillable for the duration, and the
+chest cannot grow — which falls out rather than being enforced, since a stream body
+belongs to no wave and "wiped" is a statement about a group.
+
+It is the one thing in the game that walks out in a line.
 
 ## Intended behavior
 
