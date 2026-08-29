@@ -11,12 +11,13 @@ wrong.
 
 ## The finding, first, because it settles a decision made two phases ago
 
-**The walking hot spot is thermally invisible, and the antipodal face ordering in
-`010` earns nothing.**
+**The walking hot spot is thermally invisible, and the face ordering in `010`
+earns nothing.**
 
 During single-stream generation exactly one face computes at a time, changing
 every hundred and fifty microseconds, so a hot region walks around the cube once
-per token. `010` ordered the faces so consecutive stages are antipodal,
+per token. `010` ordered the faces so that as many consecutive stages as possible
+are antipodal --- three of the five steps, which is the most a cube permits ---
 reasoning that heat would then land alternately at opposite ends rather than
 crawling around one equator.
 

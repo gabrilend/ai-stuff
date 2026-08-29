@@ -10,9 +10,17 @@ by their sieve index, labels the eight corners by their coordinate bits, and
 lists the twelve edges by name so that the bipartition can be checked by reading
 rather than by trusting.
 
-The antipodal face ordering is in, with the thermal argument that motivates it
-and an explicit note that `026` has not yet confirmed the argument is worth
-anything.
+The face ordering is in, with the thermal argument that motivates it and an
+explicit note that `026` has not yet confirmed the argument is worth anything.
+
+**Its table was wrong for weeks and is now checked rather than asserted.** It
+named the opposite of stage 2 as stage 1 and the opposite of stage 4 as stage 3,
+neither of which is true of a cube, and the prose above it claimed every step of
+the pipeline was antipodal. Three of the five are, which is the ceiling: an
+ordering of six faces has to cross between opposite-pairs twice and a crossing is
+always to a neighbour. `102` now counts the steps and searches all seven hundred
+and twenty orderings for a better one, and `C-010-6` asserts that none exists.
+Nothing in the notation could have caught it, because an ordering is a list.
 
 All three parity proofs are written out. Seven counts are published and five
 geometric constraints assert them; all five hold, including Euler's formula and
@@ -49,10 +57,12 @@ The reason is thermal. During single-stream generation exactly one face is doing
 arithmetic at a time and the others are idle, so a hot region walks around the
 cube once per token. If consecutive stages were adjacent, that hot region would
 crawl around the equator and the four equatorial faces would run consistently
-warmer than the poles. Antipodal ordering makes every consecutive pair as far
-apart as two points on this object can be, so the heat is deposited alternately at
-opposite ends and the coolant sees a much flatter load. `026` is where this is
-paid off; here it is only named.
+warmer than the poles. Antipodal ordering puts consecutive pairs as far apart as
+two points on this object can be, so the heat is deposited alternately at opposite
+ends and the coolant sees a flatter load. **It cannot be done for every pair** ---
+three of the five steps is the ceiling, because an ordering of six faces has to
+cross between opposite-pairs twice and a crossing lands on a neighbour. `026` is
+where the argument is paid off; here it is only named.
 
 **The names of the eight corners.** Each corner is labelled by its three
 coordinates as bits: `C000` through `C111`. The **parity** of a corner is the
