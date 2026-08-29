@@ -109,11 +109,17 @@ enheim-tome/
 │   │
 │   └── table-of-contents ..................... This page.
 │
-├── issues/ ................................... Phase-numbered issue files.
-│   └── completed/                              Blueprints for building the
-│       └── demos/ ...........................  software, not work logs. Empty —
-│                                               the roadmap has not been broken
-│                                               into issues yet.
+├── issues/ ................................... Sixty-seven phase-numbered issue
+│   │                                           files: blueprints for building the
+│   │                                           software, not work logs. Numbered
+│   │                                           by phase, so 3xx is the tracing
+│   │                                           tool. None completed yet.
+│   ├── phase-N-progress ...................... One per phase. What that phase is
+│   │                                           for, what it settled before
+│   │                                           anything was written, and what it
+│   │                                           is blocked on.
+│   └── completed/                              Where an issue moves when it is
+│       └── demos/                              done. Each phase's demo lives here.
 │
 ├── src/ ...................................... Numbered source files, each with a
 │                                               companion .info.md. Empty.
