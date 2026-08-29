@@ -327,17 +327,37 @@ svg { max-width: 100%; }
 <p>see by how much.</p>
 <p>The figures used to be in this paragraph, and then the ranks were spread out and the</p>
 <p>paragraph was describing a formation that no longer exists.</p>
-<h2>Cohesion is a budget, not a bonus</h2>
-<p>Fighting, dying and blocking still pull a formation out of shape. So bodies out of</p>
-<p>place correct, and <strong>the correction is conserved</strong>: those furthest behind their</p>
-<p>place hurry, and what they gain is taken from those in front of them.</p>
-<p>It is expressed as a deviation from the wave's own <strong>mean lag</strong>, which makes the</p>
-<p>conservation structural rather than something arithmetic has to be careful about —</p>
-<p>the deviations sum to zero, so the speed handed out equals the speed given up,</p>
-<p>exactly, without anybody checking.</p>
-<p>The mean matters as much as the deviation. A wave whose every member is behind is</p>
-<p>not out of formation; it is a wave whose anchor has got ahead of it, and speeding</p>
-<p>all of them up would be a wave that accelerates for no reason.</p>
+<h2>Three gears, and nothing ever hurries</h2>
+<p>Fighting, dying and blocking pull a formation out of shape, so bodies out of place</p>
+<p>correct. A body is in a <strong>gear</strong>, not on a dial:</p>
+<table><thead>
+<tr><th>Gear</th><th></th><th>When</th></tr>
+</thead><tbody>
+<tr><td>walking</td><td>0.70 of its pace</td><td>it has got ahead of its place</td></tr>
+<tr><td>marching</td><td>its pace</td><td>it is where it should be, or catching up</td></tr>
+<tr><td>running</td><td>—</td><td>leaving. Not here; see issue <a class='issue-link' href='212-a-beaten-body-gets-one-roll.html'>212</a>.</td></tr>
+</tbody></table>
+<p><strong>Nothing exceeds marching pace.</strong> There is no budget and nothing is handed speed: a</p>
+<p>formation dresses itself by the inside of a turn slowing rather than by the outside</p>
+<p>sprinting, which is what a body of troops actually does. Asking the outer rank to run</p>
+<p>is how a line becomes a crowd.</p>
+<p>What was here before was a continuous multiplier with the extra taken from whoever</p>
+<p>was ahead — conserved, and it read as breathing rather than marching, because every</p>
+<p>body was always correcting at its own slightly different rate. It also could not be</p>
+<p>measured: "how fast is that soldier going" had a different answer per body per tick.</p>
+<p>Two things make the gears work.</p>
+<p><strong>A dead band.</strong> A body changes gear only when it is more than a couple of paces out</p>
+<p>of place. Without it a body a hair ahead drops into walking, arrives a hair behind,</p>
+<p>goes back to marching, and does that for ever. The width of the band trades the</p>
+<p>tidiness of the line against how often a body switches, and both numbers are printed</p>
+<p>by <a href='060-the-formation-sandbox.info.html'>the sandbox</a> every run.</p>
+<p><strong>The front waits.</strong> When the formation has fallen more than half a rank behind its</p>
+<p>own anchor, the anchor stops advancing until the line is dressed again. This is what</p>
+<p>replaces hurrying: a body on the outside of a bend has further to walk and cannot make</p>
+<p>it up by going faster, so the front stops asking.</p>
+<p>The mean lag is what the anchor reads. A wave whose every member is behind is not out</p>
+<p>of formation; it is a wave whose anchor has got ahead of it, which is precisely the</p>
+<p>case where waiting is the right answer.</p>
 <p><strong>Only bodies still marching are in the budget.</strong> One that has closed on an enemy</p>
 <p>has left the formation's business, and including it would be the formation trying</p>
 <p>to drag a body out of a fight by the collar. It also keeps the budget honest: a</p>
@@ -348,19 +368,45 @@ svg { max-width: 100%; }
 <p>— a straggler that could sprint would read as teleporting. Each wave records how</p>
 <p>far off its own books came out, so a <em>systematic</em> drift would be visible; a test</p>
 <p>asserts it stays small.</p>
-<h2>The arrangement</h2>
+<h2>The arrangement, as bearings</h2>
+<p>A body's place is written down as a **bearing and a distance from the formation's</p>
+<p>centre** — <code>slot_bearing</code> and <code>slot_distance</code> — because every question asked about a</p>
+<p>place is an angular one. Can this body shoot past that one. Is it on the flank or in</p>
+<p>the middle where the heavy troops belong. Which way should it face. None of those is</p>
+<p>a row and a column.</p>
+<p>Bearings run from 0 dead ahead, through a quarter turn at the flanks, to half a turn</p>
+<p>at the rear; the sign is which side.</p>
 <table><thead>
-<tr><th>Rank</th><th>Holds</th></tr>
+<tr><th>Bearing</th><th>Holds</th></tr>
 </thead><tbody>
-<tr><td>front</td><td>the captain, in the middle, then melee outward from it</td></tr>
-<tr><td>behind</td><td>more melee, until they run out</td></tr>
-<tr><td>behind that, with a gap</td><td>ranged, shooting over the line</td></tr>
+<tr><td>around 0</td><td>the line: the captain in the middle, melee out to either side, further ranks behind</td></tr>
+<tr><td>around five-eighths of a turn</td><td>the shoulders: bodies with a reach, behind the line and at its ends</td></tr>
 </tbody></table>
-<p>A rank's positions are laid out evenly and <strong>centred on the lane</strong>, but the *order</p>
-<p>they are handed out in* runs from the middle outward. So the captain — always given</p>
-<p>the first place — stands in the centre where it is most useful and most visible,</p>
-<p>and a rank that is not full is short at its edges rather than at its middle, which</p>
-<p>is what a thinning line should look like.</p>
+<p><strong>Ranged bodies shoot around the line, not over it.</strong> They stood directly behind it,</p>
+<p>in the same files, one gap further back — which is where you put somebody who is</p>
+<p>lobbing over the top. Only artillery does that. A body with a javelin or a sling needs</p>
+<p>a bearing to its target that does not pass through a friend, so it stands at the</p>
+<p><strong>shoulder</strong>: behind the last rank and out at its end, where the line is diagonally in</p>
+<p>front of it rather than squarely so.</p>
+<p>This is a placement and not a guarantee. **There is no line-of-fire check in this</p>
+<p>game** — nothing occludes anything, and a shot is a distance and a cooldown — so</p>
+<p>standing them where their line is clearest is the whole of the mechanism.</p>
+<p>A captain stands where its <strong>reach</strong> says, not where its rank says. A melee captain</p>
+<p>takes the first place in the line, which is the middle of the front rank, where it is</p>
+<p>most useful and most visible. A ranged captain takes the first shoulder — still the</p>
+<p>centre-most place of the group it belongs to. Given the front rank, it would be</p>
+<p>standing with a bow in front of the people whose job is to be in front of it.</p>
+<p>A rank's positions are laid out evenly and centred, but the *order they are handed</p>
+<p>out in* runs from the middle outward, so a rank that is not full is short at its ends</p>
+<p>rather than in its middle. That is what a thinning line looks like.</p>
+<h3>Why the bearings are written after the wave is built</h3>
+<p><code>settle_the_disc</code> runs once the whole wave has a place, rather than body by body as</p>
+<p>they are born. A circle has a centre and does not have a front, so a bearing has to be</p>
+<p>measured from the middle — and where the middle is depends on how deep the formation</p>
+<p>turned out to be, which is not known until the last body has somewhere to stand.</p>
+<p>Computed as they were born, every bearing came out measured from a centre that was</p>
+<p>still moving, and the front rank came out at a quarter turn from dead ahead, which is</p>
+<p>where the flanks are.</p>
 <h2>Where the lane's width earns its keep</h2>
 <p><code>files_for</code> reads it, and it is the only thing that does.</p>
 <p><strong>Which it no longer does.</strong> How many walk abreast is now <strong>declared</strong> in the shape</p>

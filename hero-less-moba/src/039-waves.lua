@@ -283,17 +283,41 @@ local function queue_wave(world, team, lane, turn)
 
   lane = walks
   local front_index = 0
+  local shoulder_index = 0
+
+  -- **A captain stands where its reach says, not where its rank says.**
+  --
+  -- A melee captain takes the first place in the line, which is the middle of the
+  -- front rank -- most useful and most visible. A *ranged* captain given that place
+  -- stands in the front rank with a bow, in front of the people whose job is to be in
+  -- front of it, which is the one arrangement that gets it killed first.
+  --
+  -- So it takes the first shoulder instead. It is still given the first place of
+  -- whichever group it belongs to, so it is still the centre-most of them.
+  local captain_row = world.parameters.unit.archetype[commander.captain]
+  local captain_shoots = (captain_row ~= nil and captain_row.reach == 2)
+
   for _ = 1, settings.captain_count do
-    born(commander.captain, "front", front_index)
-    front_index = front_index + 1
+    if captain_shoots then
+      born(commander.captain, "back", shoulder_index)
+      shoulder_index = shoulder_index + 1
+    else
+      born(commander.captain, "front", front_index)
+      front_index = front_index + 1
+    end
   end
   for _ = 1, melee_count do
     born(MELEE, "front", front_index)
     front_index = front_index + 1
   end
-  for index = 0, ranged_count - 1 do
-    born(RANGED, "back", index)
+  for _ = 1, ranged_count do
+    born(RANGED, "back", shoulder_index)
+    shoulder_index = shoulder_index + 1
   end
+
+  -- Now that every body has a place, the formation knows how deep it is, and every
+  -- place can be written down as a bearing from its centre.
+  world.formations.settle_the_disc(world, wave_id)
 
   return wave_id
 end

@@ -1049,69 +1049,49 @@ local function test_formation_turns_a_corner()
 end
 -- }}}
 
--- {{{ local function test_cohesion_is_conserved()
--- The speed a straggler gains is taken from somebody, and the books balance every
--- tick.
+-- {{{ local function test_nothing_is_ever_hurried()
+-- **No body ever moves faster than its own marching pace**, and some of them walk.
 --
--- Stated as a property because it is easy to write a cohesion rule that only ever
--- hands speed out -- and a wave whose every member is quietly being hurried is a
--- wave that is faster than its catalogue says, which nothing else in the game
--- would ever report.
-local function test_cohesion_is_conserved()
+-- This replaces a check that the cohesion budget balanced. There is no budget any
+-- more. A body's speed used to be a dial -- scaled smoothly with how far behind its
+-- place it stood, with the extra taken from the bodies in front of it -- and the
+-- claim worth making about a dial is that it conserves.
+--
+-- A body is in a gear now: walking if it has got ahead of its place, marching
+-- otherwise. Nothing exceeds marching, so a formation dresses itself by the front of
+-- it slowing rather than by the back of it sprinting. The property that replaces
+-- conservation is absolute rather than statistical, which makes it a much better
+-- thing to assert: not "it balances on average over thousands of ticks", but "this
+-- never happens".
+--
+-- Both halves matter. Without the second, a mechanism that had quietly stopped
+-- working would pass: nothing exceeds marching pace if nothing ever changes gear.
+local function test_nothing_is_ever_hurried()
   local world, modules = fresh_world(tick_module)
   local soldier = world.soldier
+  local marching = modules.formations.MARCHING
 
-  local worst_error, worst_where = 0, ""
-  -- The signed total, which is the thing actually worth knowing. See below.
-  local drift, drift_over = 0, 0
+  local fastest, gave_way, ticks_watched = 0, 0, 0
   for _ = 1, 2500 do
     tick_module.advance(world)
-    for _, wave in ipairs(world.wave) do
-      -- Read the balance the wave recorded when it shared the budget out, not one
-      -- recomputed afterwards. Bodies die between the sharing and the looking, and
-      -- a surviving subset of a balanced set is not itself balanced.
-      local shared = wave.speed_shared_among
-      if shared ~= nil and shared > 1 then
-        local error = math.abs(wave.speed_balance) / shared
-        drift = drift + wave.speed_balance / shared
-        drift_over = drift_over + 1
-        if error > worst_error then
-          worst_error = error
-          worst_where = string.format("wave %d, shared among %d, off by %.3f",
-            wave.id, shared, wave.speed_balance)
-        end
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 and soldier.wave[id] ~= 0 then
+        local scale = soldier.speed_scale[id]
+        if scale > fastest then fastest = scale end
+        if scale < marching - 0.0001 then gave_way = gave_way + 1 end
+        ticks_watched = ticks_watched + 1
       end
     end
   end
 
-  -- **The systematic drift**, which is what the budget can actually get wrong.
-  --
-  -- This check used to be a bound on the worst single tick, which is a tail rather
-  -- than a drift: the clamps at either end are allowed to break conservation and are
-  -- supposed to, so the worst tick is a measurement of how hard they bit once. It
-  -- moved every time a match played out differently, and the bound was tightened
-  -- around whatever the last match happened to do.
-  --
-  -- What must not happen is speed being handed out on average — bodies quietly
-  -- gaining ground for free, wave after wave, which is the only version of this that
-  -- changes how the game plays. Signed, so the two directions cancel: a budget that
-  -- is genuinely conserved sums to nothing over thousands of wave-ticks even when
-  -- individual ticks are off.
-  local average = (drift_over > 0) and (drift / drift_over) or 0
-  check("the cohesion budget is shared out, not handed out",
-        math.abs(average) < 0.01,
-        string.format("averaged %.4f per body over %d wave-ticks",
-                      average, drift_over))
+  check("nothing ever moves faster than its own marching pace",
+        fastest <= marching + 0.0001,
+        string.format("the fastest anything went was %.4f against a march of %.2f",
+                      fastest, marching))
 
-  -- And a bound on the worst tick after all, but derived rather than chosen: no
-  -- single tick may be off by more than one body's worth of clamping, which is what
-  -- the clamps themselves are capable of producing. Loose on purpose — its job is to
-  -- catch something badly wrong, not to police the tail.
-  local most_one_body_can_do = modules.formations.SPEED_CEILING - 1
-  check("and no tick is off by more than one body's worth of clamping",
-        worst_error < most_one_body_can_do,
-        string.format("worst imbalance %.1f%% against a clamp worth %.1f%% -- %s",
-                      worst_error * 100, most_one_body_can_do * 100, worst_where))
+  check("and bodies do give way, so the gears are not decoration",
+        gave_way > 0,
+        string.format("%d body-ticks spent walking out of %d", gave_way, ticks_watched))
 end
 -- }}}
 
@@ -1636,7 +1616,7 @@ test_no_nil_fields()
 test_a_death_takes_two_seconds()
 test_a_death_is_paid_for_when_it_is_certain()
 test_formation_turns_a_corner()
-test_cohesion_is_conserved()
+test_nothing_is_ever_hurried()
 test_the_opening_is_symmetric()
 test_an_unchosen_boon_waits()
 test_a_move_takes_a_wave()
