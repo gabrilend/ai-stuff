@@ -1,4 +1,4 @@
-# 004 — The Tracing Tool
+# 005 — The Tracing Tool
 
 A **separate program** from the game, sharing the canvas code and nothing else.
 It writes the fence network; the game only ever reads it.
@@ -15,10 +15,10 @@ that, and is not currently planned.
 
 ## What the work actually is
 
-Hand-defining a city of several hundred blocks over a painting that is 6148 by
-4092 pixels. This is the single largest piece of manual labour in the project,
-and every feature below exists to make it survivable rather than to make it
-elegant.
+Hand-defining a city of roughly two thousand blocks and ten thousand buildings
+over a painting 6148 by 4092 pixels. This is the single largest piece of manual
+labour in the project, and every feature below exists to make it survivable
+rather than to make it elegant.
 
 Blocks are traced **one loop at a time**: click around a block until it closes,
 name it, move to the next. This gives total control over what counts as a block —
@@ -76,10 +76,32 @@ forty painting pixels and will happily snap to the wrong vertex. The tool should
 refuse to place or drag vertices below some zoom rather than allow imprecise work
 that looks fine until someone zooms in.
 
+## Four other things it authors, none of them tracing
+
+Drawing block loops is the loudest part of the job but not the whole of it. The
+tool is also where these happen, and each is cheap next to the tracing:
+
+- **Naming intersections.** A corner becomes an intersection when somebody names
+  it. See [the fence network](004-the-fence-network.md).
+- **Placing building zones.** A rough shape over each roof — five to seven per
+  block, seconds each, not traced outlines. Around ten thousand of them, which is
+  real work but an order of magnitude below tracing them properly.
+- **Assigning membership.** Which district each block is in, and which quadrant
+  each district is in. Two thousand small decisions, and they buy every boundary
+  above the block for free, since those outlines are computed from membership
+  rather than drawn.
+- **Listing houses and buildings.** Names and purposes, with no geometry attached.
+
+Everything in that list can be done long after a block is traced, and most of it
+will be. The tool should make it easy to come back to a place and add one more
+thing rather than demanding a place be finished before you move on — because
+[the fill-in-forever plan](009-events-and-what-people-know.md) means most places
+will be revisited for years.
+
 ## What it must check
 
 Every save should run the network validator described in
-[the fence network](003-the-fence-network.md), and refuse or loudly warn on:
+[the fence network](004-the-fence-network.md), and refuse or loudly warn on:
 
 - an edge named by three or more blocks, which is impossible
 - an edge named by no block, which is stranded
@@ -93,10 +115,10 @@ painting fenced — since that is the only honest measure of how far the heroic
 effort has got.
 
 Whether the tool needs undo, and how deep, is undecided. See
-[open questions](010-open-questions.md).
+[open questions](012-open-questions.md).
 
 ## Related documents
 
-- [The fence network](003-the-fence-network.md) — the structure this writes
+- [The fence network](004-the-fence-network.md) — the structure this writes
 - [The map surface](002-the-map-surface.md) — the canvas code it shares with the game
-- [Open questions](010-open-questions.md)
+- [Open questions](012-open-questions.md)

@@ -1,4 +1,4 @@
-# 008 — The Shape of the Code
+# 010 — The Shape of the Code
 
 House style. What every source file in this project looks like, and the handful of
 rules that are not negotiable.
@@ -11,7 +11,7 @@ painting and nothing else:
 | | |
 | --- | --- |
 | **the game** | reads the fence network. Never writes it. |
-| **the tracing tool** | writes the fence network. See [the tracing tool](004-the-tracing-tool.md). |
+| **the tracing tool** | writes the fence network. See [the tracing tool](005-the-tracing-tool.md). |
 
 This is the project's instance of the general rule that **data generation and
 data viewing stay separate**. Defining what the city is, is generation. Playing
@@ -85,6 +85,14 @@ There are no nil checks in place of understanding. If a value could be absent,
 find out **why** it could be absent and fix that, rather than testing for it at
 the point of use.
 
+The containment chain is the worked example. Land beyond the wall has no
+quadrant, and the tempting shape is a record with a field for every level where
+one is sometimes empty — after which every piece of code that walks the hierarchy
+grows a test for nothing-there. The absence has a reason: **the wall is what makes
+a quadrant**. So the honest shape is a list of the levels a place actually has,
+walked from the outside in, and no test is needed anywhere. See
+[the places of the city](003-the-places-of-the-city.md).
+
 ## Comments explain why, and what each branch would mean
 
 Comments do not restate what the code does. They record **why it is this way**,
@@ -124,9 +132,9 @@ nobody will remember it was ever gone.
 
 The fence network in particular has invariants that can be checked without a
 window: no edge named by three blocks, every loop closed, every block named. See
-[the fence network](003-the-fence-network.md).
+[the fence network](004-the-fence-network.md).
 
 ## Related documents
 
-- [The tracing tool](004-the-tracing-tool.md) — the second program
-- [Roadmap](009-roadmap.md)
+- [The tracing tool](005-the-tracing-tool.md) — the second program
+- [Roadmap](011-roadmap.md)

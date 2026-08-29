@@ -1,4 +1,4 @@
-# 005 — Filters and the Weave
+# 006 — Filters and the Weave
 
 The datapath of everything drawn between the painting and the cage. A **filter**
 is a way of looking at the city; the map can wear several at once, and the rule
@@ -17,22 +17,44 @@ and the interesting cases here are the ones that pass through each other.
 | `angle` | number, degrees | which direction its lines run. **Adjustable by hand at any time.** |
 | `mode` | one of three | where it sits relative to the other filters — see below |
 | `parameters` | list of named controls | anything this filter alone needs |
-| `reading` | block → a number from 0 to 1, **or nothing** | the answer, per block |
+| `reading` | **(person, place)** → a number from 0 to 1, **or nothing** | the answer |
 
 The reading's spacing is what carries the value: **tighter lines mean more**.
 
+## The reading takes a person, and that is the whole of character switching
+
+A filter does not read a place. It reads a place **for somebody**.
+
+That one extra parameter is what makes it possible to select any house in the
+city, play as whoever lives there, and have the map **repaint entirely** —
+hatching rearranged, blank ground moved, a different city legible. Nothing else
+is needed for it, because nothing in the design ever assumed a particular
+observer; the map was always somebody's model, and this only makes explicit whose.
+
+What it buys is the ability to look at another person's ignorance. A servant in
+the eastern mansions has a blank harbour. A bargeman has a bright river and a
+dark walled quarter. See [what this game is](001-what-this-game-is.md).
+
+It also means a person's knowledge will come out **shaped like their quadrant** —
+dense where they actually go, blank across the divide nobody crosses — which
+draws the city's social horizon on the map without anything being built to draw
+it. See [the places of the city](003-the-places-of-the-city.md).
+
 ## Nothing is the most important value
 
-A filter is allowed to answer *nothing at all* for a block, and that is different
-from answering zero. Zero means you know the fire hazard here is low. Nothing
-means **you have no idea**, and it draws as bare painting.
+A filter is allowed to answer *nothing at all*, and that is different from
+answering zero. Zero means this person knows the fire hazard here is low. Nothing
+means **they have no idea**, and it draws as bare painting.
 
 This is why the design needs no separate confidence channel, no fog-of-war
 system, no greyed-out unknown state. Look at the city under the guilds filter and
-the hatched parts are your knowledge, the bare parts are your blindness, and the
-picture is beautiful exactly where you are ignorant. It follows directly from
-[the governing idea](001-what-this-game-is.md) that the map is a model rather
-than a camera.
+the hatched parts are their knowledge, the bare parts their blindness, and the
+picture is beautiful exactly where they are ignorant.
+
+For filters about hidden things, "nothing" is not even a special case: a person's
+knowledge **is** the set of events they hold, so a blank block is simply a block
+where they hold none. See
+[events and what people know](009-events-and-what-people-know.md).
 
 ## The three modes
 
@@ -100,7 +122,7 @@ and sweeping the city with it; the city hands you a lens per place, and
 overruling it is itself a small act of insight.
 
 How you change it from the interface is undecided. See
-[open questions](010-open-questions.md).
+[open questions](012-open-questions.md).
 
 ## The render order
 
@@ -109,7 +131,7 @@ Every frame, over the painting:
 1. **behind-always** filters, painted flat in order
 2. **the interwoven set**, resolved together in one pass by the weave rule
 3. **top-always** filters, painted flat in order
-4. the cage — see [the fence network](003-the-fence-network.md)
+4. the cage — see [the fence network](004-the-fence-network.md)
 5. the glow — see [the map surface](002-the-map-surface.md)
 
 All of steps 1 to 3 read the block-identity buffer described in
@@ -132,5 +154,5 @@ somebody cannot use.
 
 - [What this game is](001-what-this-game-is.md) — the model-not-camera idea, the colour rule
 - [The map surface](002-the-map-surface.md) — the identity buffer these read
-- [The tome](006-the-tome.md) — where filters are controlled
-- [Open questions](010-open-questions.md)
+- [The tome](007-the-tome.md) — where filters are controlled
+- [Open questions](012-open-questions.md)
