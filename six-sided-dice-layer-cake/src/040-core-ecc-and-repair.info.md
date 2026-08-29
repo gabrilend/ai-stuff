@@ -38,7 +38,7 @@ Described by `507`.
 | `B_core` | `034` | 3.072e+14 bit/s | aggregate read bandwidth, every tier delivering at once |
 | `C_core_raw` | `034` | 79.598 GB | raw capacity of the stack |
 | `f_ecc_overhead` | `034` | 0.037594 | share of raw capacity spent on check bits |
-| `t_life_seconds` | `086` | 3.156e+08 s | the life, in the unit every other blueprint's mean-time figures are in |
+| `t_life_seconds` | `086` | 3.15576e+08 s | the life, in the unit every other blueprint's mean-time figures are in |
 
 ## What consumes it
 
