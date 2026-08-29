@@ -1,0 +1,930 @@
+<title>Six-Sided Dice Layer Cake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+/* ------------------------------------------------------------------ tokens */
+:root {
+  --paper:      #ECEDEF;
+  --sheet:      #F7F8F9;
+  --ink:        #14181C;
+  --graphite:   #4A525A;
+  --faint:      #79828B;
+  --rule:       #C9CDD2;
+  --hair:       #DDE0E4;
+  --copper:     #A2603A;
+  --copper-dim: #C09A82;
+  --coolant:    #2F6E7A;
+  --coolant-dim:#7FAAB2;
+  --stamp:      #8C4F2E;
+
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-read:    "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-data:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --s-1: 0.75rem;  --s-2: 0.875rem; --s-3: 1rem;    --s-4: 1.25rem;
+  --s-5: 1.625rem; --s-6: 2.25rem;  --s-7: 3.25rem; --s-8: 4.5rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #101418;
+    --sheet:      #191E23;
+    --ink:        #E7EAEC;
+    --graphite:   #AAB3BB;
+    --faint:      #7C858D;
+    --rule:       #39414A;
+    --hair:       #262D34;
+    --copper:     #CE885B;
+    --copper-dim: #8A5B3F;
+    --coolant:    #63AEBB;
+    --coolant-dim:#3C6B74;
+    --stamp:      #D89769;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:      #101418;
+  --sheet:      #191E23;
+  --ink:        #E7EAEC;
+  --graphite:   #AAB3BB;
+  --faint:      #7C858D;
+  --rule:       #39414A;
+  --hair:       #262D34;
+  --copper:     #CE885B;
+  --copper-dim: #8A5B3F;
+  --coolant:    #63AEBB;
+  --coolant-dim:#3C6B74;
+  --stamp:      #D89769;
+}
+
+/* ------------------------------------------------------------------- frame */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-display);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem 6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3.5rem;
+}
+
+/* ------------------------------------------------------------- masthead */
+.masthead { display: flex; flex-direction: column; gap: 0.75rem; }
+.masthead .eyebrow {
+  font-family: var(--f-data);
+  font-size: var(--s-1);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.masthead h1 {
+  margin: 0;
+  font-size: var(--s-6);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.masthead p {
+  margin: 0;
+  max-width: 60ch;
+  font-family: var(--f-read);
+  font-size: var(--s-3);
+  line-height: 1.6;
+  color: var(--graphite);
+}
+.controls { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+.controls button {
+  font-family: var(--f-data);
+  font-size: var(--s-1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--rule);
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+.controls button:hover { border-color: var(--copper); color: var(--copper); }
+.controls button:focus-visible { outline: 2px solid var(--coolant); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------- a sheet */
+.plate { display: flex; flex-direction: column; gap: 0; }
+
+.sheet {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  display: grid;
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+}
+.sheet-body {
+  padding: 2.75rem 3rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-height: 0;
+  overflow: hidden;
+}
+.sheet h2 {
+  margin: 0;
+  font-size: var(--s-5);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.sheet h2.big { font-size: var(--s-7); font-weight: 700; letter-spacing: -0.03em; }
+.sheet .lede {
+  margin: 0;
+  max-width: 56ch;
+  font-size: var(--s-3);
+  line-height: 1.55;
+  color: var(--graphite);
+}
+.sheet .kicker {
+  font-family: var(--f-data);
+  font-size: var(--s-1);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--copper);
+}
+.sheet ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.55rem; }
+.sheet li { font-size: var(--s-2); line-height: 1.5; color: var(--graphite); max-width: 62ch; }
+.sheet li strong { color: var(--ink); font-weight: 600; }
+.sheet em { font-style: italic; color: var(--ink); }
+
+/* the title block along the bottom of every sheet, as a drawing set has */
+.titleblock {
+  border-top: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0 1.5rem;
+  padding: 0.55rem 3rem;
+  font-family: var(--f-data);
+  font-size: var(--s-1);
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  text-transform: uppercase;
+}
+.titleblock .sheetno { color: var(--ink); font-weight: 600; letter-spacing: 0.1em; }
+.titleblock .prov { color: var(--copper); }
+
+/* -------------------------------------------------------- speaker notes */
+.notes {
+  border: 1px solid var(--hair);
+  border-top: none;
+  background: transparent;
+  padding: 1.4rem 3rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.notes .label {
+  font-family: var(--f-data);
+  font-size: var(--s-1);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--coolant);
+}
+.notes p {
+  margin: 0;
+  font-family: var(--f-read);
+  font-size: var(--s-2);
+  line-height: 1.7;
+  color: var(--graphite);
+  max-width: 68ch;
+}
+.notes p strong { color: var(--ink); font-weight: 600; }
+
+/* ------------------------------------------------------------- data table */
+.spec { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.spec caption {
+  text-align: left;
+  font-family: var(--f-data);
+  font-size: var(--s-1);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--copper);
+  padding-bottom: 0.5rem;
+}
+.spec td { padding: 0.34rem 0; border-bottom: 1px solid var(--hair); font-size: var(--s-2); }
+.spec td:first-child { color: var(--graphite); }
+.spec td:last-child { text-align: right; font-family: var(--f-data); color: var(--ink); white-space: nowrap; }
+.specgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 3rem; min-height: 0; overflow: hidden; }
+
+/* -------------------------------------------------------- the big numbers */
+.figures { display: flex; gap: 3.5rem; flex-wrap: wrap; }
+.fig { display: flex; flex-direction: column; gap: 0.2rem; }
+.fig .n {
+  font-family: var(--f-data);
+  font-size: var(--s-7);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.fig .n.up { color: var(--copper); }
+.fig .n.down { color: var(--coolant); }
+.fig .cap { font-size: var(--s-2); color: var(--graphite); max-width: 22ch; line-height: 1.4; }
+
+/* -------------------------------------------------------------- drawing */
+.figure-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 2.5rem; align-items: center; min-height: 0; }
+svg.dwg { width: 100%; height: auto; display: block; }
+svg.dwg .out  { fill: none; stroke: var(--rule); stroke-width: 2; }
+svg.dwg .face { fill: var(--copper); opacity: 0.85; }
+svg.dwg .core { fill: var(--coolant); opacity: 0.16; stroke: var(--coolant); stroke-width: 1.5; }
+svg.dwg .fed  { fill: var(--coolant); }
+svg.dwg .drn  { fill: none; stroke: var(--coolant); stroke-width: 1.5; }
+svg.dwg .dim  { stroke: var(--faint); stroke-width: 1; }
+svg.dwg text  { font-family: var(--f-data); font-size: 11px; fill: var(--faint); letter-spacing: 0.04em; }
+svg.dwg text.hot { fill: var(--copper); }
+svg.die .fc   { fill: var(--rule); stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
+svg.die .fc.lit { fill: var(--copper); opacity: 0.9; }
+svg.die .pip  { fill: var(--ink); }
+svg.die .pip.on { fill: var(--sheet); }
+svg.die .lead { stroke: var(--faint); stroke-width: 1; }
+.titlerow { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 2.5rem; align-items: center; min-height: 0; }
+body.presenting .titlerow { gap: clamp(2rem,5vw,5rem); }
+
+/* ------------------------------------------------------------ present mode */
+body.presenting { overflow: hidden; }
+body.presenting .wrap { max-width: none; padding: 0; gap: 0; }
+body.presenting .masthead,
+body.presenting .notes,
+body.presenting .colophon { display: none; }
+body.presenting .plate { display: none; }
+body.presenting .plate.live { display: block; }
+body.presenting .sheet {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
+  border: none;
+  z-index: 40;
+}
+body.presenting .sheet-body { padding: clamp(2rem, 5vw, 5rem) clamp(2rem, 7vw, 8rem) 2rem; gap: 1.6rem; }
+body.presenting .titleblock { padding: 0.8rem clamp(2rem, 7vw, 8rem); }
+body.presenting .sheet h2 { font-size: clamp(1.75rem, 4.2vw, 3.4rem); }
+body.presenting .sheet h2.big { font-size: clamp(2.4rem, 6.4vw, 5.4rem); }
+body.presenting .sheet .lede { font-size: clamp(1rem, 1.8vw, 1.55rem); max-width: 46ch; }
+body.presenting .sheet li { font-size: clamp(0.95rem, 1.55vw, 1.35rem); }
+body.presenting .spec td { font-size: clamp(0.9rem, 1.4vw, 1.2rem); }
+body.presenting .fig .n { font-size: clamp(3rem, 8vw, 7rem); }
+body.presenting .fig .cap { font-size: clamp(0.95rem, 1.5vw, 1.3rem); }
+body.presenting .controls { position: fixed; bottom: 1rem; right: 1.25rem; z-index: 60; }
+
+.exitbar { display: none; }
+body.presenting .exitbar {
+  display: block;
+  position: fixed; bottom: 1rem; left: 1.25rem; z-index: 60;
+  font-family: var(--f-data); font-size: var(--s-1);
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint);
+}
+
+/* -------------------------------------------------------------- colophon */
+.colophon {
+  font-family: var(--f-data);
+  font-size: var(--s-1);
+  line-height: 1.7;
+  letter-spacing: 0.03em;
+  color: var(--faint);
+  border-top: 1px solid var(--rule);
+  padding-top: 1.25rem;
+}
+.colophon a { color: var(--coolant); }
+
+@media (max-width: 44rem) {
+  .sheet { aspect-ratio: auto; }
+  .sheet-body { padding: 1.75rem 1.5rem 1.25rem; }
+  .titleblock { padding: 0.5rem 1.5rem; grid-template-columns: auto 1fr; gap: 0.2rem 1rem; }
+  .titleblock .prov, .titleblock .of { display: none; }
+  .notes { padding: 1.2rem 1.5rem 1.4rem; }
+  .figure-row, .specgrid { grid-template-columns: 1fr; }
+  .figures { gap: 1.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+@media print {
+  body { background: #fff; }
+  .controls, .exitbar, .masthead .controls { display: none; }
+  .plate { break-inside: avoid; page-break-inside: avoid; }
+  .sheet { border: 1px solid #bbb; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">Concept presentation &middot; 10 sheets &middot; speaker notes below each</div>
+    <h1>Six-Sided Dice Layer Cake</h1>
+    <p>A memory-first machine for language model inference. Every figure on these
+    sheets is derived from the design's own geometry and physics and regenerated
+    from the blueprint set — none is typed by hand. Speaker notes sit below each
+    sheet.</p>
+    <div class="controls">
+      <button type="button" id="present">Present</button>
+      <button type="button" id="theme">Invert</button>
+    </div>
+  </header>
+
+  <!-- 1 --------------------------------------------------------------- -->
+  <section class="plate" data-sheet="1">
+    <article class="sheet">
+      <div class="sheet-body">
+        <div class="titlerow">
+          <div style="display:flex; flex-direction:column; gap:1.1rem;">
+            <div class="kicker">The proposition</div>
+            <h2 class="big">Half the memory.<br>Eleven times the speed of reading it.</h2>
+            <p class="lede">A 60&nbsp;mm cube. Six processors on six faces, all
+            looking inward. At the centre, a solid block of static memory holding
+            every weight of the model — which never moves, because there is
+            nowhere for it to go.</p>
+          </div>
+          <svg class="dwg die" viewBox="0 0 340 250" role="img"
+               aria-label="An isometric six-sided die. Two visible faces are compute faces; the third, in copper, is the face spent entirely on wire.">
+            <polygon class="fc" points="170,46 246,84 170,122 94,84"></polygon>
+            <polygon class="fc" points="94,84 170,122 170,198 94,160"></polygon>
+            <polygon class="fc lit" points="246,84 170,122 170,198 246,160"></polygon>
+            <circle class="pip" cx="170" cy="84" r="6.5"></circle>
+            <circle class="pip" cx="113.8" cy="113.6" r="6.5"></circle>
+            <circle class="pip" cx="150.2" cy="168.4" r="6.5"></circle>
+            <circle class="pip on" cx="226.2" cy="113.6" r="6.5"></circle>
+            <circle class="pip on" cx="208" cy="141" r="6.5"></circle>
+            <circle class="pip on" cx="189.8" cy="168.4" r="6.5"></circle>
+            <line class="lead" x1="252" y1="122" x2="286" y2="122"></line>
+            <text x="290" y="119">the spout</text>
+            <text x="290" y="133">16.8M wires</text>
+            <line class="lead" x1="88" y1="122" x2="54" y2="122"></line>
+            <text x="50" y="119" text-anchor="end">compute</text>
+            <text x="50" y="133" text-anchor="end">face</text>
+            <text x="170" y="228" text-anchor="middle">six faces &middot; three pairs of opposites</text>
+          </svg>
+        </div>
+      </div>
+      <div class="titleblock">
+        <span class="sheetno">Sheet 01</span>
+        <span>Six-Sided Dice Layer Cake</span>
+        <span class="of">Concept</span>
+        <span class="prov">Derived, not measured</span>
+      </div>
+    </article>
+    <div class="notes">
+      <div class="label">Speaker notes</div>
+      <p>Open on the trade, not on the object. If they remember one sentence it
+      should be that one — it tells them immediately what this is <em>for</em> and,
+      just as usefully, what it isn't for.</p>
+      <p>Don't dwell here. Thirty seconds. The temptation is to describe the cube
+      because the cube is the interesting bit; resist it, because a room that
+      doesn't yet know why it should care will hear engineering enthusiasm.</p>
+      <p><strong>The name is the shape, not a joke.</strong> "Layer cake" is the
+      core: twenty-four tiers of memory laminated with twenty-four cooling plates.
+      "Six-sided dice" is the six faces. If someone asks, that's the whole answer.</p>
+      <p><strong>If they push on it</strong> — a cube has three pairs of opposite
+      faces, and a token visits all six in order. Three of its five steps land on
+      the face opposite the one just used, which is the most a cube permits: an
+      ordering has to cross between opposite-pairs twice, and a crossing is always
+      to a neighbour. It's a nice detail and it is not worth volunteering.</p>
+    </div>
+  </section>
+
+  <!-- 2 --------------------------------------------------------------- -->
+  <section class="plate" data-sheet="2">
+    <article class="sheet">
+      <div class="sheet-body">
+        <div class="kicker">The problem</div>
+        <h2>Inference is a memory problem wearing a compute problem's clothes.</h2>
+        <p class="lede">Generating one token means reading every weight in the
+        model, once. The arithmetic is trivial by comparison — a modern accelerator
+        has enormous compute and spends most of it waiting.</p>
+        <ul>
+          <li>The industry's answer has been to <strong>stack memory closer to the
+          processor</strong>, which shortens the wire but keeps the arrangement:
+          a chip, with memory beside it.</li>
+          <li>Every generation buys a little more bandwidth at a lot more cost,
+          because the memory is still somewhere the processor has to reach.</li>
+        </ul>
+      </div>
+      <div class="titleblock">
+        <span class="sheetno">Sheet 02</span>
+        <span>The problem</span>
+        <span class="of">Concept</span>
+        <span class="prov">Derived, not measured</span>
+      </div>
+    </article>
+    <div class="notes">
+      <div class="label">Speaker notes</div>
+      <p>Most technical investors already believe this, so <strong>state it and get
+      agreement rather than arguing it.</strong> Ten to fifteen seconds. If you
+      spend two minutes proving a point the room already holds, you've spent your
+      credibility on the wrong thing.</p>
+      <p>The sentence that earns the next sheet is the last one: the arrangement
+      hasn't changed, only the distance. That sets up the inversion as a genuine
+      alternative rather than an increment.</p>
+      <p><strong>Likely challenge — "what about sparsity, quantisation, distillation?"</strong>
+      All real, all orthogonal. They shrink the model; this speeds up reading
+      whatever the model turns out to be. Say that and don't get drawn.</p>
+    </div>
+  </section>
+
+  <!-- 3 --------------------------------------------------------------- -->
+  <section class="plate" data-sheet="3">
+    <article class="sheet">
+      <div class="sheet-body">
+        <div class="kicker">The inversion</div>
+        <h2>Don't move the memory closer. Put the processors around it.</h2>
+        <div class="figure-row">
+          <svg class="dwg" viewBox="0 0 320 250" role="img"
+               aria-label="Cross-section of the cube: an outer boundary, four compute faces looking inward, a memory core at the centre, and coolant corners.">
+            <rect class="out" x="46" y="26" width="188" height="188"></rect>
+            <rect class="face" x="56" y="36" width="168" height="10"></rect>
+            <rect class="face" x="56" y="194" width="168" height="10"></rect>
+            <rect class="face" x="56" y="36" width="10" height="168"></rect>
+            <rect class="face" x="214" y="36" width="10" height="168"></rect>
+            <rect class="core" x="86" y="66" width="108" height="108"></rect>
+            <text x="140" y="116" text-anchor="middle" class="hot">MEMORY</text>
+            <text x="140" y="130" text-anchor="middle" class="hot">36.4 GB</text>
+            <circle class="fed" cx="46" cy="26" r="5"></circle>
+            <circle class="fed" cx="234" cy="214" r="5"></circle>
+            <circle class="drn" cx="234" cy="26" r="4.5"></circle>
+            <circle class="drn" cx="46" cy="214" r="4.5"></circle>
+            <line class="dim" x1="46" y1="234" x2="234" y2="234"></line>
+            <line class="dim" x1="46" y1="228" x2="46" y2="240"></line>
+            <line class="dim" x1="234" y1="228" x2="234" y2="240"></line>
+            <text x="140" y="248" text-anchor="middle">[60 mm]</text>
+            <line class="dim" x1="252" y1="66" x2="252" y2="174"></line>
+            <line class="dim" x1="246" y1="66" x2="258" y2="66"></line>
+            <line class="dim" x1="246" y1="174" x2="258" y2="174"></line>
+            <text x="264" y="124">[40 mm]</text>
+            <text x="264" y="34">coolant in</text>
+            <text x="264" y="212">coolant out</text>
+          </svg>
+          <ul>
+            <li><strong>Six compute faces</strong>, each owning a consecutive run of
+            the model's layers. A token falls through the six in sequence, the way
+            grain falls through a stack of sieves.</li>
+            <li><strong>No DRAM. No memory bus.</strong> No off-chip traffic for
+            weights at all — they are static memory at the geometric centre and the
+            processors read them directly.</li>
+            <li><strong>Coolant enters at four corners and leaves at the other
+            four.</strong> Not a convenience: it is the only arrangement in which no
+            supply channel joins two feed points.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="titleblock">
+        <span class="sheetno">Sheet 03</span>
+        <span>The inversion</span>
+        <span class="of">Concept</span>
+        <span class="prov">Derived, not measured</span>
+      </div>
+    </article>
+    <div class="notes">
+      <div class="label">Speaker notes</div>
+      <p><strong>This is the sheet the pitch turns on.</strong> Give it a minute and
+      let the drawing sit. The cross-section shows four faces; the other two are
+      above and below the plane — say so before anyone counts and gets confused.</p>
+      <p>The sieve image does a lot of work. Six stages, one per face, and a token
+      falls through all six. It also pre-answers "why six?" — because the model has
+      layers and they come in order.</p>
+      <p><strong>Likely challenge — "why SRAM? it's expensive per bit."</strong>
+      Correct, and that is exactly the trade on the next sheet. Don't defend it
+      here; promise the answer and deliver it in ten seconds' time.</p>
+      <p><strong>If someone asks about the corners</strong> — the cube's edges are
+      a bipartition, so feeding the four even corners is the one choice where every
+      channel carries flow toward a load. It falls out of the shape rather than
+      being designed. It's a good moment, but only if they ask.</p>
+    </div>
+  </section>
+
+  <!-- 4 --------------------------------------------------------------- -->
+  <section class="plate" data-sheet="4">
+    <article class="sheet">
+      <div class="sheet-body">
+        <div class="kicker">The number that matters</div>
+        <h2>Against an accelerator with stacked memory</h2>
+        <div class="figures">
+          <div class="fig">
+            <div class="n up">11.4&times;</div>
+            <div class="cap">the memory bandwidth</div>
+          </div>
+          <div class="fig">
+            <div class="n down">0.51&times;</div>
+            <div class="cap">the capacity</div>
+          </div>
+          <div class="fig">
+            <div class="n">216</div>
+            <div class="cap">cubic centimetres, at 1.9&nbsp;kW</div>
+          </div>
+        </div>
+        <p class="lede"><strong>Past its capacity the machine refuses rather than
+        degrading.</strong> It offers a shorter context instead of quietly paging
+        and getting slow. A hard ceiling is a narrower market and an honest one.</p>
+      </div>
+      <div class="titleblock">
+        <span class="sheetno">Sheet 04</span>
+        <span>The trade</span>
+        <span class="of">Concept</span>
+        <span class="prov">Derived, not measured</span>
+      </div>
+    </article>
+    <div class="notes">
+      <div class="label">Speaker notes</div>
+      <p>Say the trade out loud in one sentence — <strong>half the memory, eleven
+      times the speed of reading it</strong> — and then stop talking. Let the room
+      decide whether that's a machine they want. It genuinely isn't for everyone,
+      and pretending otherwise costs you the credibility you need on sheet 09.</p>
+      <p>The refusal line is deliberate and worth defending if challenged. A
+      machine that silently degrades past its limit is a machine whose benchmarks
+      lie about production. This one tells you no.</p>
+      <p><strong>Both ratios come from the design's own comparison model</strong>,
+      not from a bench measurement against a competitor's part. If someone presses
+      on that, concede it immediately and point at sheet 09 — you have nothing to
+      lose by being first to say it.</p>
+    </div>
+  </section>
+
+  <!-- 5 --------------------------------------------------------------- -->
+  <section class="plate" data-sheet="5">
+    <article class="sheet">
+      <div class="sheet-body">
+        <div class="kicker">Specification</div>
+        <div class="specgrid">
+          <table class="spec">
+            <caption>Physical &amp; power</caption>
+            <tbody>
+              <tr><td>edge</td><td>60 mm</td></tr>
+              <tr><td>volume</td><td>216 cm&sup3;</td></tr>
+              <tr><td>mass, wet</td><td>1.13 kg</td></tr>
+              <tr><td>input</td><td>48 V / 39.4 A</td></tr>
+              <tr><td>design point</td><td>1891 W</td></tr>
+              <tr><td>idle, model resident</td><td>248 W</td></tr>
+              <tr><td>coolant</td><td>3.52 L/min</td></tr>
+              <tr><td>margin to silicon's limit</td><td>59 K</td></tr>
+            </tbody>
+          </table>
+          <table class="spec">
+            <caption>Memory &amp; throughput</caption>
+            <tbody>
+              <tr><td>usable capacity</td><td>71.9 GB</td></tr>
+              <tr><td>largest model resident</td><td>36.4 GB</td></tr>
+              <tr><td>read bandwidth</td><td>38.4 TB/s</td></tr>
+              <tr><td>arithmetic, 8-bit</td><td>4404 Tflop/s</td></tr>
+              <tr><td>model load</td><td>34.1 ms</td></tr>
+              <tr><td>tokens/s, one sequence</td><td>1021</td></tr>
+              <tr><td>tokens/s, aggregate</td><td>19490</td></tr>
+              <tr><td>prompt tokens/s</td><td>25595</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="titleblock">
+        <span class="sheetno">Sheet 05</span>
+        <span>Specification</span>
+        <span class="of">Concept</span>
+        <span class="prov">Derived, not measured</span>
+      </div>
+    </article>
+    <div class="notes">
+      <div class="label">Speaker notes</div>
+      <p><strong>Don't read the table.</strong> Point at two numbers and move.</p>
+      <p>The pair worth naming is the two token rates: <strong>1,021 on one
+      sequence and 19,490 aggregate — about twenty apart.</strong> That ratio
+      governs how the machine should be used. Below a batch of roughly twenty it's
+      latency-bound and the arithmetic idles; above it, it's saturated and every
+      extra sequence is nearly free. <em>This is a serving machine, not a
+      workstation.</em></p>
+      <p>The other worth naming is 59 K of thermal margin, because it is what makes
+      the open coolant decision on sheet 09 survivable either way. Plant it here so
+      the risk lands softer later.</p>
+      <p><strong>If somebody wants the derivation of any figure</strong>, it exists
+      and is one command. That's the point of sheet 07 — you can offer it now and
+      pay it off in two sheets.</p>
+    </div>
+  </section>
+
+  <!-- 6 --------------------------------------------------------------- -->
+  <section class="plate" data-sheet="6">
+    <article class="sheet">
+      <div class="sheet-body">
+        <div class="kicker">The hard part</div>
+        <h2>1,891 watts inside 216 cubic centimetres</h2>
+        <p class="lede">This is the constraint that decides whether any of it is
+        real. Two of its results are counter-intuitive, and both reduce risk.</p>
+        <ul>
+          <li><strong>Halving the coolant flow does not halve the cooling.</strong>
+          In laminar flow the convection coefficient doesn't depend on velocity at
+          all — only the coolant's own rise doubles, and that's a fifth of the
+          chain. A pump at half speed costs about four kelvin out of fifty-nine.
+          <em>Partial pump failure is graceful.</em></li>
+          <li><strong>The coolant divides exactly evenly between the six faces.</strong>
+          Not nearly — exactly. Sixteen of the sixty-four legal plumbing
+          arrangements have a threefold symmetry that makes all six faces
+          equivalent. The other forty-eight starve one face by five per cent.</li>
+        </ul>
+      </div>
+      <div class="titleblock">
+        <span class="sheetno">Sheet 06</span>
+        <span>Thermal</span>
+        <span class="of">Concept</span>
+        <span class="prov">Derived, not measured</span>
+      </div>
+    </article>
+    <div class="notes">
+      <div class="label">Speaker notes</div>
+      <p>Lead by <strong>conceding that this is the scariest number in the deck.</strong>
+      Two kilowatts in something the size of a golf ball sounds impossible, and a
+      room that's already thinking it will not hear anything else until you say it
+      first.</p>
+      <p>The pump result is the one that de-risks. Most people's intuition is that
+      losing half the flow halves the cooling and the machine dies. It doesn't,
+      because in laminar flow the heat-transfer coefficient is independent of
+      velocity — a genuinely surprising piece of physics, and the redundancy design
+      is built on it.</p>
+      <p>The plumbing result is worth thirty seconds because of <em>how</em> it was
+      found: the fifty-branch hydraulic network was solved for all sixty-four legal
+      arrangements. <strong>And the thermal budget is built on the worst of them
+      anyway</strong>, so the design doesn't depend on the plumbing being assembled
+      to the drawing rather than merely to the rules. That's the sentence a
+      manufacturing person in the room will care about.</p>
+    </div>
+  </section>
+
+  <!-- 7 --------------------------------------------------------------- -->
+  <section class="plate" data-sheet="7">
+    <article class="sheet">
+      <div class="sheet-body">
+        <div class="kicker">What it costs to run</div>
+        <h2>The numbers somebody buying a room full of these would optimise</h2>
+        <div class="figures">
+          <div class="fig">
+            <div class="n up">10.3</div>
+            <div class="cap">tokens per second, per watt</div>
+          </div>
+          <div class="fig">
+            <div class="n up">90,231</div>
+            <div class="cap">tokens per second, per litre</div>
+          </div>
+          <div class="fig">
+            <div class="n down">19&times;</div>
+            <div class="cap">gain from serving many sequences at once</div>
+          </div>
+        </div>
+        <p class="lede">That last ratio is the machine's whole character. Below a
+        batch of about twenty it is latency-bound and the arithmetic idles; above
+        it, every additional sequence is nearly free. <strong>This is a serving
+        machine, not a workstation</strong> — and the per-litre figure is what the
+        shape actually buys.</p>
+      </div>
+      <div class="titleblock">
+        <span class="sheetno">Sheet 07</span>
+        <span>Unit economics</span>
+        <span class="of">Concept</span>
+        <span class="prov">Derived, not measured</span>
+      </div>
+    </article>
+    <div class="notes">
+      <div class="label">Speaker notes</div>
+      <p><strong>Tokens per watt is the number that decides deployments</strong>,
+      and it has been missing from the room until now. Everything before this
+      sheet was about whether the machine works; this is the first sheet about
+      whether anybody wants it.</p>
+      <p>The per-litre figure is worth pausing on because it is the one the
+      geometry earns. A conventional part spends most of its volume getting memory
+      near the processor. This spends its volume on <em>being</em> memory near the
+      processor, and the density figure is that difference expressed in something
+      a facilities person can act on.</p>
+      <p>The batch ratio is the honest caveat, so deliver it as one. <strong>Serving
+      a single user, this machine wastes most of what it is.</strong> It wants
+      load, which makes it infrastructure rather than a desktop product — and that
+      narrows who it is for, which is worth being first to say.</p>
+      <p><strong>All three are the design's own figures divided by each other</strong>,
+      not a benchmark: nineteen thousand tokens a second, 1,891 watts, 216 cubic
+      centimetres. If somebody wants the arithmetic, do it on the whiteboard.</p>
+    </div>
+  </section>
+
+  <!-- 8 --------------------------------------------------------------- -->
+  <section class="plate" data-sheet="8">
+    <article class="sheet">
+      <div class="sheet-body">
+        <div class="kicker">The obvious question</div>
+        <h2>If the arrangement is better, why doesn't it exist?</h2>
+        <ul>
+          <li><strong>Static memory costs far more per bit than DRAM.</strong> The
+          trade only pays if you want bandwidth more than capacity. That is a bet
+          about what inference workloads look like — the central bet in the design,
+          and not a fact it rests on.</li>
+          <li><strong>1,891 watts in 216 cubic centimetres cannot be air-cooled.</strong>
+          It needs liquid driven through the structure itself, so the cooling is
+          not a component bolted on afterwards. It is the frame.</li>
+          <li><strong>Nobody has a line for this.</strong> Six faces bonded around
+          a sealed liquid loop, with a nine-step bonding sequence that has to run
+          in descending temperature order, is a packaging problem rather than a
+          silicon one.</li>
+        </ul>
+        <p class="lede">Those are the barriers, and they are the only defensibility
+        identified so far. <strong>No patent position is claimed.</strong>
+        Difficulty is a weaker moat than a patent and a real one, and it is worth
+        knowing which of the two is on offer.</p>
+      </div>
+      <div class="titleblock">
+        <span class="sheetno">Sheet 08</span>
+        <span>Why not already</span>
+        <span class="of">Concept</span>
+        <span class="prov">Derived, not measured</span>
+      </div>
+    </article>
+    <div class="notes">
+      <div class="label">Speaker notes</div>
+      <p><strong>The sharpest person in the room is already holding this
+      question</strong>, and the pitch is much stronger for asking it before they
+      do. From them, every answer sounds defensive; from you, the same answers
+      sound like judgement.</p>
+      <p>The first barrier is the one to be most careful about, because it is where
+      the design could simply be wrong. <strong>Name it as a bet, not as an
+      analysis.</strong> If capacity turns out to matter more than bandwidth, this
+      is the wrong machine and no amount of engineering rescues it.</p>
+      <p>The third is what a hardware investor will weigh hardest, and it is also
+      the honest reason this is a design rather than a company: there is no
+      packaging line for it, and finding out what one would cost is much of what
+      the next step buys.</p>
+      <p><strong>Do not oversell the moat.</strong> Saying plainly that difficulty
+      is the only barrier identified costs nothing with anybody who matters.
+      Claiming a patent position that does not exist would cost everything the
+      moment somebody checked.</p>
+    </div>
+  </section>
+
+  <!-- 9 --------------------------------------------------------------- -->
+  <section class="plate" data-sheet="9">
+    <article class="sheet">
+      <div class="sheet-body">
+        <div class="kicker">What we don't know</div>
+        <h2>Stated directly, because it decides the next spend.</h2>
+        <ul>
+          <li><strong>Nothing has been fabricated.</strong> Not a die, not a cold
+          plate, not a coupling. Every figure here is derived from geometry and
+          physics. Stronger than a slide deck; weaker than a prototype.</li>
+          <li><strong>There is no price.</strong> The bill of materials gives cost
+          as ratios — silicon is 77%, memory tiers two thirds of that — and refuses
+          a currency figure. No volume, no supplier, no year.</li>
+          <li><strong>Yield is the exposed flank.</strong> Only about 64% of memory
+          tiers come off a wafer good. Making them smaller would save more than any
+          assembly improvement, and nobody has asked whether a tier must be one
+          piece.</li>
+          <li><strong>Two decisions remain open</strong> — water against a
+          dielectric coolant, and whether the model it's sized around is the right
+          anchor. Sixteen further questions are carried in the open.</li>
+        </ul>
+      </div>
+      <div class="titleblock">
+        <span class="sheetno">Sheet 09</span>
+        <span>Risk</span>
+        <span class="of">Concept</span>
+        <span class="prov">Derived, not measured</span>
+      </div>
+    </article>
+    <div class="notes">
+      <div class="label">Speaker notes</div>
+      <p><strong>Do not soften any of this, and do not let it be dragged out of
+      you.</strong> Volunteering the weaknesses is what makes the 570 credible.
+      A room that has to extract the risks stops believing the strengths.</p>
+      <p>On coolant: water cools about ten times better than anything
+      non-conducting, and there are 166 joints between water and silicon at
+      three-quarters of a volt. A leak with water is a dead cube; with a
+      fluorocarbon it's a mess. <strong>The substitution costs about eleven kelvin
+      of the fifty-nine available — so the design survives either.</strong> That
+      makes it a reliability judgement for whoever owns the failure consequences,
+      not a thermal cliff. Say that explicitly; it converts a scary-sounding open
+      question into a business decision.</p>
+      <p>On yield: don't minimise it. It is the flank, and the design says so in
+      its own bill of materials. The honest position is that the mitigation is
+      known and untried.</p>
+    </div>
+  </section>
+
+  <!-- 10 -------------------------------------------------------------- -->
+  <section class="plate" data-sheet="10">
+    <article class="sheet">
+      <div class="sheet-body">
+        <div class="kicker">The ask</div>
+        <h2 class="big">An engineering review.<br>Not a fabrication run.</h2>
+        <p class="lede">The most valuable next expenditure is somebody with process
+        and packaging experience reading the fabrication and assembly sections and
+        saying <strong>which of the 570 requirements they don't believe.</strong></p>
+        <p class="lede">That is a cheap conversation because <strong>this design is
+        written in a notation a program reads.</strong> Every dimension is either a
+        number a person chose — there are eleven — or an expression over numbers
+        that were. Each of the 570 requirements carries the author's own sentence
+        saying why it must hold, and all of them are evaluated in about a second.
+        <em>Change an assumption and watch what breaks.</em></p>
+      </div>
+      <div class="titleblock">
+        <span class="sheetno">Sheet 10</span>
+        <span>Next step</span>
+        <span class="of">Concept</span>
+        <span class="prov">Derived, not measured</span>
+      </div>
+    </article>
+    <div class="notes">
+      <div class="label">Speaker notes</div>
+      <p><strong>Ask for less than they expect.</strong> A room braced for a
+      nine-figure fab request and offered a specialist's reading time takes the
+      proposition more seriously, not less — it signals you know which risk is
+      next rather than which risk is largest.</p>
+      <p>The second paragraph is the differentiator and it belongs here rather than
+      on a sheet of its own, because it is only interesting as the answer to
+      "why is that review cheap?" <strong>If you have a laptop, run it.</strong>
+      A hardware concept that answers questions about itself in front of the room
+      is not something most investors have watched happen, and it takes a second.</p>
+      <p>Worth knowing: the notation has a category meaning <em>a number the design
+      wants and cannot yet produce</em>, and the checker refuses to call the set
+      finished while one exists. There are currently none. <strong>The design is
+      structurally unable to overstate its own completeness.</strong></p>
+      <p><strong>Likely challenge — "internal consistency isn't the same as being
+      right."</strong> Entirely correct; agree fast. What it buys is that the
+      remaining risk sits in assumptions, which are enumerated on sheet 09, rather
+      than scattered through arithmetic nobody has re-done. Examples if pressed: a
+      corner block that could not contain the chambers drawn inside it; a bonding
+      step hotter than the joint beneath it; twenty-seven hand-written unit
+      conversions, one of them silent because two errors cancelled.</p>
+      <p><strong>Close on the disconfirming question.</strong> Name what would kill
+      it — a yield number that makes the memory tiers uneconomic, or a packaging
+      house that says the bonding sequence cannot be run — and say you would rather
+      find that out for the price of a consultancy than a mask set.</p>
+    </div>
+  </section>
+
+  <div class="colophon">
+    Figures generated from the blueprint set; nothing on these sheets is entered by
+    hand except prose. Regenerate with <code>./run-checks</code> for requirement
+    status and <code>luajit src/097-spec-report.lua</code> for the specification.
+    Comparison ratios are the design's own model against an accelerator with
+    stacked memory, not a bench measurement. <strong>Nothing has been
+    fabricated.</strong>
+  </div>
+
+</div>
+
+<div class="exitbar">&larr; &rarr; to move &middot; Esc to exit</div>
+
+<script>
+(function () {
+  var body = document.body;
+  var plates = Array.prototype.slice.call(document.querySelectorAll(".plate"));
+  var at = 0;
+
+  function show(i) {
+    at = Math.max(0, Math.min(plates.length - 1, i));
+    plates.forEach(function (p, n) { p.classList.toggle("live", n === at); });
+  }
+  function enter() { body.classList.add("presenting"); show(at); }
+  function leave() {
+    body.classList.remove("presenting");
+    plates.forEach(function (p) { p.classList.remove("live"); });
+    plates[at].scrollIntoView({ block: "start" });
+  }
+
+  document.getElementById("present").addEventListener("click", function () {
+    if (body.classList.contains("presenting")) { leave(); } else { enter(); }
+  });
+
+  document.getElementById("theme").addEventListener("click", function () {
+    var root = document.documentElement;
+    var now = root.getAttribute("data-theme");
+    if (now === "dark") { root.setAttribute("data-theme", "light"); }
+    else if (now === "light") { root.setAttribute("data-theme", "dark"); }
+    else {
+      var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      root.setAttribute("data-theme", dark ? "light" : "dark");
+    }
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (!body.classList.contains("presenting")) {
+      if (e.key === "p" || e.key === "P") { enter(); }
+      return;
+    }
+    if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
+      e.preventDefault(); show(at + 1);
+    } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+      e.preventDefault(); show(at - 1);
+    } else if (e.key === "Escape") {
+      leave();
+    }
+  });
+})();
+</script>
