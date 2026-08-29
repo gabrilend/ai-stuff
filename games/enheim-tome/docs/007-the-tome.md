@@ -1,4 +1,4 @@
-# 006 — The Tome
+# 007 — The Tome
 
 The right-hand column. It holds **every word in the game**, because
 [the map holds none](001-what-this-game-is.md).
@@ -43,7 +43,7 @@ that puts the hour and the filters at the top rather than anywhere else.
 ## The top: chips, and one filter's controls
 
 Any number of filters can be active at once — see
-[filters and the weave](005-filters-and-the-weave.md) — and a fixed-height region
+[filters and the weave](006-filters-and-the-weave.md) — and a fixed-height region
 cannot hold controls for an unbounded number of them. So it holds two things:
 
 - **one small chip per active filter**, in a wrapping row. Twelve filters is
@@ -57,12 +57,12 @@ small next to the region staying a fixed size.
 Each chip must carry its **name and its hatch angle**, not only its colour, per
 [the rule about colour](001-what-this-game-is.md). How a chip stays legible at
 chip size while carrying three channels is undecided; see
-[open questions](010-open-questions.md).
+[open questions](012-open-questions.md).
 
 **The hour lives here too, above the chips**, because it is not a filter
 parameter. Both the shade filter and the whereabouts of every person read it, and
 a value two unrelated systems consult belongs to neither of them. See
-[the day and the curve](007-the-day-and-the-curve.md).
+[the day and the curve](008-the-day-and-the-curve.md).
 
 ## The middle: buttons, the queue, and go
 
@@ -82,7 +82,7 @@ and the queue is displayed in the same language as the actions that fill it.
 The tension in that: a queue is a *sequence*, and buttons in fixed positions have
 no order. The pane can show that one button has two moves pending and another has
 one, but not which happens first. Whether the ordering needs to be visible at
-all, and how, is undecided. See [open questions](010-open-questions.md).
+all, and how, is undecided. See [open questions](012-open-questions.md).
 
 ## The bottom: the text
 
@@ -95,12 +95,57 @@ exists to make the right line leap off the page. It never says anything the word
 do not.
 
 What the colour categories are is undecided. See
-[open questions](010-open-questions.md).
+[open questions](012-open-questions.md).
 
 Since the map carries no labels, this pane is where a block's name, its
 buildings, and everything known about it actually appears. Buildings are a
-positionless list — see [the fence network](003-the-fence-network.md) — so this is
+positionless list — see [the fence network](004-the-fence-network.md) — so this is
 the only place they exist at all.
+
+## Descending to a person
+
+The map stops at buildings. Everything finer happens here, as lists:
+
+```
+   block selected  ──▶  its buildings        (and its intersections,
+        │                    │                with what each connects to)
+        │                    ▼
+        │               a building     ──▶  its houses
+        │                    │                   │
+        │                    ▼                   ▼
+        │              who owns the roof,   who lives there
+        │              what the ground           │
+        │              floor trades in           ▼
+        │                                   play as them
+        ▼
+   what is known here, and what can be done
+```
+
+This is how you select any house in the city and take up whoever lives in it —
+by descending a list, which is how a Paradox game does it too. No building
+footprints are needed and the map keeps to its four marks.
+
+**A block's intersections are listed here**, each with everything it connects to,
+because [the connections are what nearness means](004-the-fence-network.md).
+Reading a block's corners tells you who its neighbours are in the only sense the
+game has.
+
+## Where an interior goes
+
+An interior — a staged view of a room — is neither a mark on the map nor a line
+of text, so it needs a home of its own. Three placements are all valid and the
+player picks:
+
+| Placement | What it costs |
+| --- | --- |
+| **in the scrolling pane** *(preferred)* | the map stays visible so you never lose your place, but the tome is about 420 pixels wide, so it is a thumbnail of a room rather than a photograph of one |
+| replacing the map pane | full size and the tome untouched, but the city is gone while you are indoors |
+| the whole window | biggest, and you lose every control while looking |
+
+Nothing generates interiors yet — see [the roadmap](011-roadmap.md) — so this is
+a frame with nothing in it for now. What such a view would have to show is
+described in [the places of the city](003-the-places-of-the-city.md): tall
+vaulted rooms used vertically, with things hung from beams at chosen heights.
 
 ## Going somewhere by name
 
@@ -115,6 +160,6 @@ so the positionless list stays findable.
 ## Related documents
 
 - [What this game is](001-what-this-game-is.md) — why the map has no text
-- [Filters and the weave](005-filters-and-the-weave.md) — what the chips control
-- [The day and the curve](007-the-day-and-the-curve.md) — the hour, and what sweeps it
-- [Open questions](010-open-questions.md)
+- [Filters and the weave](006-filters-and-the-weave.md) — what the chips control
+- [The day and the curve](008-the-day-and-the-curve.md) — the hour, and what sweeps it
+- [Open questions](012-open-questions.md)

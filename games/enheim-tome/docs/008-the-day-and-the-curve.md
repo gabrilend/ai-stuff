@@ -1,4 +1,4 @@
-# 007 — The Day and the Curve
+# 008 — The Day and the Curve
 
 How time works, why it never moves on its own, and the small horizontal object
 that lets you sweep through somebody's day.
@@ -11,7 +11,7 @@ This matters because at least two unrelated things read it: the shade filter,
 which swings the great tree's shadow across the north-west district, and **every
 person's whereabouts**, which is a function of the hour rather than a stored
 position. A value two independent systems both consult belongs to neither, so the
-hour sits above all of them, at the top of [the tome](006-the-tome.md).
+hour sits above all of them, at the top of [the tome](007-the-tome.md).
 
 Its control being one thing has a consequence worth having: drag the hour and the
 shadow swings while everyone slides along their own day, in the same motion. One
@@ -120,6 +120,6 @@ acquaintances.
 ## Related documents
 
 - [What this game is](001-what-this-game-is.md) — the model-not-camera idea
-- [The tome](006-the-tome.md) — where the hour and the curves live
+- [The tome](007-the-tome.md) — where the hour and the curves live
 - [The map surface](002-the-map-surface.md) — the glow the curve borrows
-- [Open questions](010-open-questions.md)
+- [Open questions](012-open-questions.md)

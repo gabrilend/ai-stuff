@@ -21,6 +21,26 @@ this page** — the moment a different painting arrives they are wrong here and
 right there. What follows is the arithmetic they imply, which is what actually
 matters.
 
+### A second, flat view is wanted eventually
+
+The same city seen from directly above, where scale is uniform and streets are
+clean lines. The painting comes first and the flat view later, and the
+requirement on it is exact: **it must register with the painting perfectly**, so
+that a place is the same place in both.
+
+That requirement has a consequence worth seeing early. Two independently drawn
+pictures cannot register — no amount of care makes one artist's city land on
+another's. The only way to get exact agreement is for the flat view to be
+**derived from the painting rather than drawn beside it**: work out once how the
+painting's pixels sit on a flat ground, and the traced fences project onto that
+ground as a schematic map that agrees by construction.
+
+Which quietly resurrects the ground plane this project decided it did not need.
+It was declined for distance-honesty, and it comes back for registration. Nothing
+about the pixel-only rule changes today — the fences stay in painting pixels — but
+the flat view cannot exist without a ground plane, and that is now a known cost
+rather than a surprise. See [open questions](012-open-questions.md).
+
 ### It fits in one texture, and does not need tiling
 
 25,157,616 pixels, at four bytes each, is about 96 MiB held raw. The mipmap
@@ -36,7 +56,7 @@ simplification available to the project and it is available only because the
 board is one fixed image.
 
 If a second painting ever joins it — see the seasons entry in
-[open questions](010-open-questions.md) — holding several raw would not fit, and
+[open questions](012-open-questions.md) — holding several raw would not fit, and
 they would need converting ahead of time into a compressed texture format the
 card reads natively, dropping each to roughly 24 MiB. That conversion also
 matters for a reason unrelated to memory: decoding a 25-megapixel PNG takes on
@@ -62,38 +82,70 @@ allowed at all it should look like honest blur rather than pretending to more
 city.
 
 Input bindings for panning and zooming are not decided. See
-[open questions](010-open-questions.md).
+[open questions](012-open-questions.md).
+
+## The zoom also decides what a click selects
+
+Four of the levels in [the places of the city](003-the-places-of-the-city.md) can
+be selected — building, block, district, quadrant — and **which one a click lands
+on follows the zoom**. Far out, a click takes a quadrant; descend and the same
+click takes a district, then a block, then a building.
+
+There is no control to learn, because you aim by moving closer, which you were
+doing anyway. And it costs nothing to implement: it reuses the same on-screen-size
+rule that fades the cage, so **what you can select is exactly what you can see
+outlined**. The two behaviours are one rule wearing two hats.
+
+The price is that selecting a whole district means zooming out first, even when
+you already know which one you want.
+
+## The cage is hierarchical
+
+Four nested boundaries want four line weights — quadrant heaviest, then district,
+then block, with buildings finest of all.
+
+The existing rule does the rest unmodified. Because each boundary fades on its own
+on-screen width, the whole hierarchy sorts itself out: at the city view only
+quadrants are large enough to draw, so the map shows the great divisions;
+descend and districts appear, then blocks, then buildings. **The cage thickens
+and deepens together as you go in.** Nothing new to invent.
 
 ## What the map is allowed to draw
 
 Four things, in this order, every frame:
 
 1. **the painting**
-2. **the cage** — one-pixel fences, see [the fence network](003-the-fence-network.md)
-3. **the filters** — hatching, see [filters and the weave](005-filters-and-the-weave.md)
+2. **the cage** — one-pixel fences, see [the fence network](004-the-fence-network.md)
+3. **the filters** — hatching, see [filters and the weave](006-filters-and-the-weave.md)
 4. **the glow**
 
 Nothing else, and never text. When something new wants to appear on the map, the
 first question is whether it can be expressed as a filter, because a filter costs
 the map no new rules. Where-you-are, for instance, turned out to be answerable
-without a fifth mark at all — see [the day and the curve](007-the-day-and-the-curve.md).
+without a fifth mark at all — see [the day and the curve](008-the-day-and-the-curve.md).
 
-## The block-identity buffer
+## The identity buffer
 
 Between the painting and everything drawn over it sits one offscreen image the
-size of the pane, where each pixel holds the integer identity of whichever block
-covers it, or zero for unfenced ground. It is made by filling every block's
-polygon with its own identity number.
+size of the pane, where each pixel holds the integer identity of **the finest
+place that covers it** — a building where buildings have been placed, otherwise
+the block — or zero for ground nobody has defined yet.
 
-It does two jobs, and it is worth building for either one alone:
+Everything above that resolves by walking the containment chain upward, which is
+a lookup rather than a drawing: a pixel is in this building, therefore this block,
+therefore this district, therefore this quadrant. So one buffer answers at every
+level, and no separate district buffer or quadrant buffer is ever needed.
 
-- **Hit-testing.** Which block is under the pointer is one pixel read. No
-  point-in-polygon tests, no spatial index, no bounding-box hierarchy.
+It does two jobs, and is worth building for either alone:
+
+- **Hit-testing.** What is under the pointer is one pixel read, then a walk up the
+  chain to whichever level the zoom has selected. No point-in-polygon tests, no
+  spatial index, no bounding-box hierarchy.
 - **Filter rendering.** Every filter is then a single pass: for each pixel, look
-  up its block, look up that block's reading in each active filter, evaluate the
-  hatch patterns, resolve the weave.
+  up its place, look up that place's reading **for the person whose model this is**,
+  evaluate the hatch patterns, resolve the weave.
 
-It is remade whenever the view moves, which is a few hundred filled polygons —
+It is remade whenever the view moves, which is a few thousand filled shapes —
 nothing for a graphics card, even every frame during a drag.
 
 ## The glow
@@ -117,7 +169,7 @@ the selected block is the only one fully on screen, marking it is pointless — 
 is obviously the one — so the glow flips to following the pointer instead, as an
 aiming aid. The threshold that triggers this is a tunable, not a constant, and
 the player can switch the behaviour off. The exact tunable is undecided; see
-[open questions](010-open-questions.md).
+[open questions](012-open-questions.md).
 
 ## Datapath summary
 
@@ -129,17 +181,25 @@ inspiration-pictures/vision-map.png
    one texture ────────────────┐
                                │
 the fence network ──┐          │
+building zones  ────┤          │
                     ▼          ▼
-          block-identity    the painting drawn
-             buffer         at (pan, zoom)
+              identity      the painting drawn
+               buffer       at (pan, zoom)
                     │          │
         ┌───────────┤          │
         │           │          ▼
         ▼           ▼      ┌────────────┐
    pointer →     filter    │ the pane   │
-   block id      shading ──▶            │
-                           │            │
-   selection ─── glow ─────▶            │
+   place id      shading ──▶            │
+        │          ▲        │            │
+        │          │        │            │
+   walk up    whose model   │            │
+   the chain  is this?      │            │
+   to the     (the person   │            │
+   zoom's     you are)      │            │
+   level                    │            │
+                            │            │
+   selection ─── glow ──────▶            │
    time-curve                └────────────┘
    sweep
 ```
@@ -147,6 +207,6 @@ the fence network ──┐          │
 ## Related documents
 
 - [What this game is](001-what-this-game-is.md) — why the map carries no text
-- [The fence network](003-the-fence-network.md) — where blocks come from
-- [Filters and the weave](005-filters-and-the-weave.md) — what shades them
-- [Open questions](010-open-questions.md)
+- [The fence network](004-the-fence-network.md) — where blocks come from
+- [Filters and the weave](006-filters-and-the-weave.md) — what shades them
+- [Open questions](012-open-questions.md)
