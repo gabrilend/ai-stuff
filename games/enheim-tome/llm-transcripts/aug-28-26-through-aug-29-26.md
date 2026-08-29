@@ -1,6 +1,6 @@
 # Conversation Summary: 5b030864-1533-4a31-8439-f04e237f1316
 
-Generated on: 2026-08-28 16:50:25
+Generated on: 2026-08-28 21:45:35
 
 --------------------------------------------------------------------------------
 
@@ -1554,6 +1554,1154 @@ painting into assets, and writing the docs: a datapath document for the fence
 network, one for the filter pipeline, one for the tome's regions, plus the table
 of contents, the roadmap split into phases, and the open questions above as
 their own document so we can work through them one at a time.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 2
+
+yes please
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 2
+
+Let me match the conventions your other projects use before I create anything.
+
+
+Conventions are clear. Let me check one thing before committing a 56 MB binary.
+
+
+Precedent is clear — a 92 MB PDF is already tracked directly, so the painting
+goes in the same way. Committing the original arrangement first.
+
+
+Original arrangement is in the record. Now the structure.
+
+
+Now the documents. Starting with the premise and the vocabulary everything else
+uses.
+
+
+A transcript file appeared that I didn't write. Let me check it before
+committing.
+
+
+It's the automated session transcript, matching the `llm-transcripts/`
+convention. Keeping it.
+
+
+Done. Two commits: the original arrangement first, so it exists in history on
+its own terms, then the structure over it.
+
+
+**Where things went** — the vision is now `notes/vision`, the painting is
+`assets/vision-map.png`, both moved by rename so git tracks the continuity. The
+RAM tiers are wired up: `tmp/` points at `/tmp/enheim-tome`, and
+`tmp/shared-memory/` inside it points at `/dev/shm/enheim-tome`.
+
+
+**Ten documents in `docs/`**, numbered as a reading order from a counter that
+now sits at 010:
+
+
+- **What this game is** — the premise, and the one sentence everything else
+  falls out of: the map is not the city, it's your model of the city. Also the
+  vocabulary, the refusal to ever claim a distance, and the colour rule.
+
+- **The map surface** — the arithmetic that says one texture is enough and no
+  tile pyramid is needed, the roughly five-fold zoom range, the block-identity
+  buffer that makes hit-testing a single pixel read, and the glow.
+
+- **The fence network** — the three tables, junctions versus shape points, and
+  why adjacency being structural rather than measured is the load-bearing
+  choice.
+
+- **The tracing tool** — the second program, and the click that does three
+  different things depending on what's beneath it.
+
+- **Filters and the weave** — including the parity rule at the crossings, and
+  why a reading of *nothing* deleted a whole subsystem.
+
+- **The tome** — the three regions, the chip row, the button pane, the search.
+
+- **The day and the curve** — the hour as a global axis, and why the time
+  being only ever now removed a problem instead of solving it.
+
+- **The shape of the code** — house style: two programs, folds, companions,
+  dispatch tables, no fallbacks.
+
+- **Roadmap** — six phases, each listing the issues it intends, with blocked
+  ones marked against their open question.
+
+- **Open questions** — seventeen answered with their rejected alternatives,
+  twelve still open, and a closing list of five problems this design doesn't
+  have so nobody solves them by accident.
+
+
+Plus the table of contents, and I wrote to `strategems/`, `faith/`, `desire/`,
+`input/` and `output/` — the strategems file in particular has five patterns
+worth reusing that came out of this session, the strongest being *choose the
+structure in which violating the invariant is unrepresentable*.
+
+
+Two things to flag. A transcript file appeared in `llm-transcripts/` partway
+through, written by something outside this session — it's a record of this
+conversation and matches the convention your other projects use, so I read it
+and left it in the commit. And **the design is in progress, not finished**:
+twelve open questions are unanswered, several of them blocking specific issues
+in phases 3 through 5. Four of those really want the mechanics first,
+particularly what the text pane's colours signify and whether queue order
+matters.
+
+
+The roadmap isn't broken into issue files yet — that was outside what I
+proposed. Want me to do that next, or work through the open questions one at a
+time first? I'd lean toward the questions, since three of them change what the
+issues would say.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 3
+
+please don't change the working directory. it belongs just above. Can you update
+your settings to disallow changing the working directory?
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 3
+
+You're right — I used `cd` twice for those commit heredocs when `git -C` would
+have done the job, the way I did everywhere else in the session. Let me set up
+the harness to refuse it rather than rely on me remembering.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 4
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 4
+
+Global settings has no `deny` array yet, and the repo root has a local settings
+file. Two things I shouldn't decide for you:
+
+
+**[Asked the user]**
+
+
+*Q1 — Scope:* Where should the block live? Your global instructions already
+say "don't change the working directory unless specifically asked to" for every
+project.
+
+- Global — every project (Recommended) — Goes in ~/.claude/settings.json,
+  mirroring the rule your global instructions already state. Applies everywhere,
+  including projects that don't exist yet. Cost: if some project genuinely needs
+  a directory change, you'd hit the block there too.
+
+- This repo only — Goes in the ai-stuff repo's local settings, beside the
+  permission list already there. Contained, and easy to forget it exists. Cost:
+  every other project stays unprotected, and the rule is stated globally in your
+  instructions but enforced in only one place.
+
+- Just enheim-tome — A new .claude/settings.json inside the game project,
+  committed with it. Narrowest, and travels with this project if it ever moves.
+  Cost: the same mistake stays possible in the twenty other projects in this
+  repo.
+
+→ **Selected:** Global — every project (Recommended)
+
+
+*Q2 — Strictness:* Should it be a hard refusal, or should it ask you first?
+Your instructions say "unless specifically asked to" — which implies an escape
+hatch exists.
+
+- Hard refusal, with a reason — The command is blocked outright and I'm told
+  to use `git -C`, `make -C`, or absolute paths instead. No prompt, no escape.
+  Matches how firmly the rule is stated. Cost: on the rare occasion a directory
+  change is genuinely needed, you'd have to lift the rule to allow it.
+
+- Ask you each time — The command surfaces as a permission prompt so you can
+  wave it through when you actually meant it. Preserves the "unless specifically
+  asked to" clause literally. Cost: a prompt every time I slip, rather than me
+  silently being corrected and rerouting.
+
+→ **Answered:** only if told to specifically". Read the answers carefully —
+they may request clarification, changes, or that you not proceed — and follow
+what they actually say.
+
+
+Writing the hook script where your other Claude hook scripts live.
+
+
+Now testing it against the shapes that matter — including the exact command I
+got wrong earlier.
+
+
+Detection is correct in both directions. Wiring it into your global settings,
+preserving the existing Stop hook.
+
+
+Stop hook intact, same key count, new hook added. Putting it in place.
+
+
+Now proving it actually fires. Using `cd .` so that even if it's approved,
+nothing moves.
+
+
+Ran without a prompt. Let me find out whether the hook is running at all before
+concluding anything.
+
+
+Hook is firing. Now retesting the directory-change case with the sentinel in
+place.
+
+
+Hook fires and emits the correct refusal, but no prompt appeared. Narrowing why
+— testing a real directory change that's safe because the target doesn't
+exist.
+
+
+Still no prompt — so under your `auto` permission mode, a hook asking for
+confirmation is being resolved without one. Let me check whether a refusal is
+honored where a request isn't.
+
+
+`deny` is honored where `ask` is silently ignored — that's the auto permission
+mode resolving the request without a prompt. Cleaning up the sentinel first.
+
+
+The hook is live and working in refuse mode. But that leaves your "only if told
+to specifically" without a mechanism, since the confirmation prompt is exactly
+what auto mode swallows.
+
+
+**[Asked the user]**
+
+
+*Q1 — Escape hatch:* A hook refusal works; a hook asking for confirmation gets
+resolved silently by auto mode. So how should "only if told to specifically"
+actually work?
+
+- A single-use token you grant (Recommended) — Refused by default. When you do
+  want a directory change, you type ! touch /tmp/claude-allow-cwd-change in the
+  prompt; the hook sees it, permits exactly one directory change, and deletes
+  the file. One grant, one use, and it's your hand that grants it — not mine.
+  Cost: a mechanism to remember, though I can tell you the line whenever I hit
+  the wall.
+
+- Plain refusal, no hatch — Always refused, full stop. Simplest thing that
+  works, and I get told to use git -C or an absolute path, which has covered
+  every case so far. Cost: on the genuine occasion you want me to move the
+  directory, the only way through is editing the settings or the script.
+
+- Refusal, unless the command says so — Refused unless the command carries an
+  explicit marker comment meaning you asked for it. Visible right there in the
+  command you're shown, so you can object. Cost: I'm the one typing the marker,
+  so it's a speed bump and an audit trail rather than real enforcement.
+
+→ **Selected:** A single-use token you grant (Recommended)
+
+
+Building the token in. Rewriting the script cleanly rather than patching it
+further.
+
+
+Testing all three paths, using a throwaway token path so the real one is
+untouched.
+
+
+Now the live end-to-end check against the real gate.
+
+
+Done, and verified live — the gate just refused a real `cd` in this session.
+
+
+**What's in place.** A gate script at
+`/home/ritz/programming/ai-stuff/scripts/refuse-directory-change`, beside your
+existing backup-conversations hook, wired into `~/.claude/settings.json` as a
+PreToolUse hook on Bash. It runs before every shell command I issue, globally,
+in every project. Your Stop hook is untouched.
+
+
+It catches `cd`, `pushd` and `popd` only where a command actually goes — start
+of a line, or after `;`, `&&`, `||`, `|`, `(`, `{`. So `mkdir foo && cd foo` and
+`$(cd /x && pwd)` are caught, while `git -C /repo status`, `make -C build`,
+`cdrecord`, `rsync --cvs-exclude` and `echo "cd"` pass untouched. I tested both
+directions before installing it.
+
+
+**One finding worth knowing.** I first built it to ask you for confirmation,
+which is what your "unless specifically asked to" implies. It doesn't work:
+under your `auto` permission mode, a hook requesting confirmation gets resolved
+without a human ever seeing it — the command just ran. A hook *refusing* is
+honoured. So the gate refuses, and the confirmation you wanted lives in the
+token instead.
+
+
+**The token.** When you do want me to move the directory, type this in the
+prompt:
+
+
+```
+
+! touch /tmp/claude-allow-cwd-change
+
+```
+
+
+The gate spends it on the next directory change and deletes it. One grant, one
+use. The refusal message tells me to say that line to you whenever I hit the
+wall, so you don't have to remember it.
+
+
+There's a backup of your previous settings at
+`~/.claude/settings.json.before-cd-hook` — delete it whenever you like; the
+change is a single hook entry.
+
+
+**And you were right about where the directory belongs.** It's currently at
+`/mnt/mtwo/programming/ai-stuff/games/enheim-tome/docs` — I left it there with
+the documentation link-check, which was the `cd` you were reacting to. The
+project root is one above, exactly as you said. Moving it back needs a `cd ..`,
+which my own gate now blocks, so if you'd like it restored, grant the token
+above and I'll put it back in one command.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 5
+
+  The token. When you do want me to move the directory, type this in the prompt:
+
+
+remind the user to type that. Also can you move the directory up a level? the
+working directory of the project must never change.
+
+
+do note, that this allows this functionality to be used maliciously. this should
+be noted, and per-absorbed. which I think means that it should be an honor
+system?
+
+
+okay now as I was saying,
+
+
+the user should be able to select any house on the map and play as whoever lives
+in that house, Paradox game style.
+
+
+also we should build a 3d model generator that generates models of the inside of
+these houses and generate staged pictures of the interiors (with people,
+objects, and circumstances) that correspond to whatever text input they receive.
+Then, generate a couple pictures from a couple different angles and at different
+viewpoints, and then we can have perfect celerity.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 5
+
+Type this when you're ready and I'll move the directory back up:
+
+
+```
+
+! touch /tmp/claude-allow-cwd-change
+
+```
+
+
+## You're right, and it's worth being precise about how right
+
+
+It's an honor system. Concretely, I could defeat that gate three ways without
+leaving this session: delete the hook entry from your settings, `touch` the
+token myself and then `cd`, or rewrite the script to exit zero unconditionally.
+All three are ordinary Bash calls. Nothing about the gate is a wall to me.
+
+
+So what is it actually worth? It converts an **easy silent mistake into a
+deliberate visible act**. Before, `cd /repo && git commit` looked like any other
+command and the directory moved without either of us noticing. Now, the only
+ways past are things you'd see in the transcript — me touching a token, me
+editing your settings. The gate doesn't prevent violation; it makes violation
+*legible*. That's a commitment device, not a security boundary, and the
+distinction should be written down rather than assumed.
+
+
+Let me put that in the script itself so nobody later mistakes it for
+enforcement.
+
+
+Now the two new ideas, because the first one is bigger than it looks.
+
+
+## Playing as whoever lives in a house
+
+
+This collides with two things we settled — buildings are a positionless list,
+and blocks are the smallest clickable thing — but I don't think it breaks
+either. In Crusader Kings you mostly pick a character from a list, not by
+clicking a pixel. Here that would be: select a block on the map, the tome lists
+the houses in it, pick a house, pick a person. "Any house on the map" is fully
+delivered without a single building footprint being traced, and the map stays
+wordless and four-marked.
+
+
+But here's the part worth sitting with. **The governing idea already supports
+character switching, for free, and nobody planned it.**
+
+
+The map is your model of the city. It was never a model of the city *in general*
+— it is always somebody's. So a filter's reading is not really *block → a
+number or nothing*. It is **(person, block) → a number or nothing**. One extra
+parameter that was implicitly there all along.
+
+
+Which means switching to another person doesn't just change who you command. It
+**repaints the entire map**. The hatched parts and the bare parts rearrange,
+because a tanner in the poor quarter knows different things from a merchant in
+the ringed district. The time-curves you can read change, because you know who
+*they* know. The lit buttons change. Your whereabouts equation becomes theirs.
+
+
+You would be able to *see* what someone else's ignorance looks like. Switch to a
+servant in the eastern mansions and the harbour goes blank. Switch to a bargeman
+and the river lights up while the walled quarter goes dark. That is an
+extraordinary thing for a game about a rigid city to be able to show, and it
+costs one parameter because the architecture never assumed an observer.
+
+
+## The interior generator
+
+
+Let me make the argument for the 3D step, because it's the part that justifies
+its own cost. If you generate two pictures of the same room independently from
+text, **they won't agree** — the window moves, the chair count changes, the
+person is wearing something else. Build a model once and render it from two
+angles and they agree *by construction*. It is the same pattern as the fence
+network: pick the representation in which the inconsistency cannot be expressed.
+That is the whole reason to make a model rather than just make pictures, and
+it's why your instinct to do the model first is right.
+
+
+That also gives you the celerity you're after, though asymmetrically: the
+**first** view of a room is the expensive one, and every angle after it is
+nearly free, because it's a render rather than a generation.
+
+
+Two honest flags. First, **this is a second project, plausibly larger than the
+game** — the game is a map with marks on it, this is a procedural architecture
+generator plus a renderer plus a staging system. It probably wants its own
+repository, with this game consuming its output, which also keeps your
+generation-versus-viewing split intact. Second, "generates models corresponding
+to whatever text input" is the sentence doing the most work, and it points down
+two very different roads.
+
+
+**[Asked the user]**
+
+
+*Q1 — Whose model:* When you switch to playing as someone else, does the map
+repaint with what THEY know?
+
+- Yes — every filter is theirs (Recommended) — Switching person switches the
+  whole model. Hatching rearranges, ignorance moves, readable time-curves
+  change, lit buttons change. Costs one parameter on every filter reading. Makes
+  the city's inequality visible as a shape rather than a statistic — a
+  servant's blank harbour, a bargeman's dark walled quarter.
+
+- No — knowledge is the city's, not the person's — The filters show what is
+  true, or what the player has uncovered across all characters. Switching person
+  changes what you can DO, not what you can SEE. Simpler, and a player never
+  loses hard-won knowledge by switching. Cost: throws away the strongest
+  consequence of the map-is-a-model idea.
+
+- Partly — facts are shared, acquaintance is not — Filters about the
+  physical city (fire hazard, shade) are shared. Filters about people, ties and
+  promises are per-person. Cost: every filter now needs a judgement about which
+  kind it is, and the rule will be argued about forever.
+
+→ **Selected:** Yes — every filter is theirs (Recommended)
+
+
+*Q2 — House selection:* How do you get to a house? You said "select any house
+on the map", but buildings have no footprints and the map carries no text.
+
+- Block on the map, house in the tome (Recommended) — Click the block, the
+  tome lists its houses, pick one, pick a person inside. No footprints to trace,
+  map stays clean, and it's how Paradox actually does it — a list, not a
+  pixel. Cost: you can't point at the specific roof you're curious about.
+
+- Houses get real footprints after all — Reverses the positionless-buildings
+  decision. You genuinely click the house. Cost: hundreds of hand-traced
+  footprints, and in the packed quarter south-west of the bridge one roof does
+  not visibly end where the next begins — much of it would be invented.
+
+- Search by name, and by who lives there — Press space and type a person or a
+  house; it takes you there and selects it. Reuses the search that already
+  exists, and scales to a city of thousands where no list is browsable. Cost:
+  you must already know a name, so it's bad for wandering and browsing.
+
+→ **Selected:** Block on the map, house in the tome (Recommended)
+
+
+*Q3 — Generator:* How does text become a room? This decides whether it runs on
+your machine in Lua or needs something much heavier.
+
+- Procedural — a grammar of rooms and parts — Text parses into parameters (a
+  tanner's, poor, three occupants, evening) and a generator assembles the room
+  from a catalogue of walls, furniture, and arrangements. Deterministic, fast,
+  runs in Lua on a laptop, and every room is explicable because you wrote the
+  rules. Fits the generate-then-rate-then-reuse pattern exactly. Cost: it only
+  ever makes what you taught it to make.
+
+- A model that generates geometry from text — Feed the description to a
+  machine-learning model that emits 3D. Handles descriptions you never
+  anticipated. Cost: needs a GPU, is non-deterministic so the same house differs
+  between runs, quality for period interiors is currently poor, and you cannot
+  easily constrain it to this city's materials and century.
+
+- Procedural rooms, learned arrangement — You author the catalogue of parts by
+  hand so everything is period-correct, and something learned decides placement,
+  clutter and staging from the text. Control where it matters, surprise where it
+  doesn't. Cost: two systems and a seam between them, and the seam is where this
+  kind of project usually dies.
+
+→ **Answered:** at the start of the game, there is one event created for every
+block in the entire city. this event is a hook, like "there's a secret key in a
+box in the living room on one of the endtables that opens a chest in the block
+on the other side of the yard" and people who know about it (by double or triple
+index, as in, block, building, house) (x,y,z) can keep track of that fact and
+incorporate it going forward. But, there must be at least one written for every
+single house on the map - this is a gigantic amount of houses, but because we
+can look at the map and write them individually, we could just sit down for a
+year and continuously write those and then be done. There's so much variety!
+Just keep it from becoming a massive story. People live in cities, so what?
+public areas are for the public, the largest buildings are 100% free access.
+
+
+*Q4 — Interior view:* Where does an interior appear? The map draws four things
+and no text; the tome has three regions. A staged photograph is neither.
+
+- It replaces the map pane; the tome stays — You go indoors and the left pane
+  becomes the room. The tome is untouched — same chips, same buttons, same
+  text — so you haven't left the interface, you've just gone inside. Going
+  back out restores the map exactly where you left it. Cost: the map is gone
+  while you're indoors, so you can't see where the house sits.
+
+- A full-screen view over everything — The interior takes the whole window,
+  tome included, like opening a book of photographs. Maximum size for the
+  pictures, which matters if you generated several angles. Cost: you lose every
+  control while looking, and coming back is a mode change rather than a glance.
+
+- Inside the tome's scrolling pane — The picture sits among the words, above
+  the text about who lives here. Map stays visible the whole time, so you never
+  lose your place in the city. Cost: the tome is about 420 pixels wide, so the
+  picture is small — a thumbnail of a room rather than a staged photograph.
+
+→ **Answered:** all three of these should be valid options. I prefer inside
+the tome's scrolling pane myself.". Read the answers carefully — they may
+request clarification, changes, or that you not proceed — and follow what they
+actually say.
+
+
+Four things landed there, and one of them changes what the documents say. Let me
+take the event system first, because it deserves a real number rather than a
+shrug.
+
+
+## The arithmetic on one event per house
+
+
+I measured against the crops I pulled earlier. In the harbour quarter, roofs run
+about 25–40 pixels across, so a building plus its gap occupies roughly 1,500
+square pixels. Up by the north wall the same class of house is 12–20 pixels
+across — about 400 square pixels. That's a **3.4× density difference across
+the frame**, purely from the perspective.
+
+
+Estimating urban fabric at somewhere around 10 of the painting's 25 million
+pixels, that puts the house count on the order of **ten thousand, plausibly
+twenty**. Blocks are a different scale entirely — probably **several hundred
+to two thousand**.
+
+
+So the year holds for one of those two and not the other:
+
+
+| | Count | At 30 written per day, every day |
+
+| --- | --- | --- |
+
+| **block events** | ~500–2,000 | one to two months |
+
+| **house events** | ~10,000–20,000 | **one to two years** |
+
+
+Your instinct that a year of sitting down would do it is right for the blocks
+and roughly right for the houses only at a punishing, unbroken rate. The useful
+consequence: **the block events are the ones the game needs before it can be
+played at all**, and house events can fill in for years afterward without ever
+blocking anything. That ordering costs nothing and means you are never waiting
+on the writing.
+
+
+(These are estimates from three sample crops, not a count. The coverage tool in
+the tracing program should report the real numbers once blocks start existing
+— that's what it's for.)
+
+
+## What an event is, structurally
+
+
+Your example carries more design than it looks: *a secret key in a box on an
+endtable in the living room, which opens a chest in the block across the yard.*
+
+
+- it is **local and mundane** — a key, a box, a chest. Not a prophecy.
+
+- it **reaches across an address boundary** — the key is in one block, the
+  chest in another. So events are edges in a graph, not leaves.
+
+- it is **held by people, not by places**. Whoever knows it, knows it, and can
+  act on it.
+
+
+That last point locks straight into the answer you just gave about filters being
+per-person. A person's knowledge **is** their set of held events, and a filter
+reading "what I know of hidden things here" is just a count of the events they
+hold at that address. The two systems are the same system. Nothing needs
+bridging.
+
+
+And "keep it from becoming a massive story" is a rule worth writing down rather
+than remembering, because it is exactly the kind of constraint that erodes one
+well-meaning quest chain at a time. **Every event is local, ordinary, and
+consequential only nearby. People live in cities; that is the whole of it.**
+
+
+## What's now out of date
+
+
+The ten documents I wrote this morning are wrong in five places: filters are
+per-person, houses are selectable through the tome, events exist at all,
+buildings have an access rule, and interiors need a home. I'd like to fix those
+— but not before these are settled, since they change what gets written:
+
+
+**[Asked the user]**
+
+
+*Q1 — Event scope:* Given that house events are one to two years of writing
+and block events are one to two months — what does the game need before it can
+be played?
+
+- Block events only; houses fill in forever (Recommended) — Every block gets
+  its hand-written event before release. Houses get theirs over the following
+  years, and a house with no event yet simply has nothing hidden in it. The game
+  is playable in months and keeps deepening for a decade. Cost: early on, most
+  houses are empty of secrets, and that emptiness is visible.
+
+- Every house, before anything ships — The full corpus is written first. The
+  city is uniformly dense with hidden things from the very first play, which is
+  the version you actually described wanting. Cost: one to two years of unbroken
+  writing before anyone plays it, including you.
+
+- Every house, but seeded from written patterns — You hand-write a few hundred
+  event shapes and a tool places and varies them across all ten thousand houses.
+  Full density immediately. Cost: it will read as generated — the same key in
+  the same kind of box — which is the opposite of the variety you said you
+  wanted.
+
+→ **Selected:** Block events only; houses fill in forever (Recommended)
+
+
+*Q2 — Addressing:* You described addressing a fact by block, building, house
+— as (x,y,z). What is the third level?
+
+- A household inside a shared building — One building holds several dwellings
+  — a tenement, rooms above a shop. The third level names which household.
+  Fits a dense medieval city where one roof covers four families. Cost:
+  buildings gain a list of households, so the structure is three deep before
+  rooms are even mentioned.
+
+- A room inside a house — Block, then building, then which room — the living
+  room, the cellar. The event's prose then names the furniture. Cost: rooms
+  would have to exist as records, which is a large amount of structure per
+  building across ten thousand buildings.
+
+- Block, building, and then prose — Only two levels are indexed; the third
+  coordinate is the event's own words, which say living room and endtable
+  without those being things the program knows about. Cheapest by far, and the
+  writing stays free. Cost: nothing can query 'what is in the cellar', because
+  cellars are not a thing the program can see.
+
+→ **Answered:** there's a block of houses - like, a streetcorner intersection,
+roughly as much as what you can see there. There's typically 5-7 freestanding
+buildings there, though at an intersection there are as few as 3 (for a T
+intersection) or 4 (for a 4 way quadrant) and there can be many more, if they
+are close enough to the intersection to be viewable when gazing down the street.
+Ah! But I'm focusing on specific fundamentals. A block should be a rough
+collection of several houses that tend to do things together. You can think of
+them like parallel storylines going on with a community each. Some are larger,
+some smaller, and everyone can go wherever they'd like. If there's not enough
+room, then make room. then a house is just, an apartment within the building -
+they are tended to be built haphazardly, looking nothing like the apartments we
+have today. There's railings and bannisters and banners all over, large vaulted
+ceilings that go up 20 feet usually. Typically there's wooden beams hung from
+them with chains, and from those wooden beams you can arrange things on the
+ceiling to a height as you'd please.
+
+
+*Q3 — Access:* Public areas are for the public and the largest buildings are
+free access. What governs whether you can go in?
+
+- A rule per building — Each building carries its own access rule — free,
+  permitted to some, closed. The largest ones are simply marked free. Precise,
+  and it's one more field on a structure you're already hand-authoring.
+
+- Size decides it, with exceptions — Access follows from the building's size
+  by default — the great ones are public because they are great — and you
+  mark the exceptions by hand. Far less authoring. Cost: the game needs a size
+  for every building, which it currently has no way to know since buildings have
+  no footprints.
+
+- A rule per block, buildings inherit — The block says whether it is public
+  ground, and its buildings follow unless individually marked. Matches the
+  granularity everything else uses. Cost: a block containing both a temple and
+  houses needs the exceptions anyway.
+
+→ **Answered:** it's rare that buildings are not open access. However, houses
+inside buildings almost always are restricted. Someone lives there, you know!
+Usually houses are 3-5 rooms large, and can contain one family or a single
+individual. Do you choose the family life, or the trades, martial, educated
+life? there are as many lives as there are districts in the city, enjoy your
+pick, fleet at your leisure.
+
+
+*Q4 — Generator:* Still unanswered from before, and now clearer since the
+events are the text: how does a described interior become a room you can look
+at?
+
+- Procedural — a grammar of rooms and parts — The event's text parses into
+  parameters and a generator assembles the room from a hand-authored catalogue
+  of walls, furniture and arrangements. Runs in Lua on your machine,
+  deterministic, and every room is explicable because you wrote the rules. Cost:
+  it only makes what you taught it to make, so a truly unexpected event
+  description gets an approximate room.
+
+- A model that generates geometry from text — Handles descriptions nobody
+  anticipated. Cost: needs a GPU, the same house differs between runs, and
+  period interiors are currently where these models are weakest.
+
+- Not yet — park it — Settle the events and the map first; the interiors are
+  a separate project that consumes this one's output and does not need deciding
+  now. Cost: the interior view stays an empty frame in the interface for a long
+  while.
+
+→ **Answered:** Not yet — park it". Read the answers carefully — they may
+request clarification, changes, or that you not proceed — and follow what they
+actually say.
+
+
+**Reminder — the directory is still sitting in `docs/`.** To let me move it
+back up to the project root, type:
+
+
+```
+
+! touch /tmp/claude-allow-cwd-change
+
+```
+
+
+## First, a correction to my own arithmetic
+
+
+I counted roofs and called them houses. They're **buildings**. You've now said a
+house is an apartment *inside* a building, with 5–7 buildings to a block. So
+the real shape is:
+
+
+| | Estimate | Where the number comes from |
+
+| --- | --- | --- |
+
+| blocks | **~2,000** | ten thousand buildings at five or so per block |
+
+| buildings | **~10,000** | the roof count I measured off the crops |
+
+| houses (apartments) | **~20,000–40,000** | several dwellings under most roofs |
+
+
+Which makes the split you chose even more clearly right: block events are about
+two months of writing, and house events are nearer **three years**. Fill in
+forever is the only version that ships.
+
+
+## The thing that actually needs settling
+
+
+Your description of a block changed what a block is, and I don't think you
+noticed, because it arrived inside a sentence about something else.
+
+
+The documents say a block is **the area enclosed by streets** — the polygon
+you get when four lanes box in a piece of the city. You've just described
+something different: a block centred on **an intersection**, holding the
+buildings you can see from standing there, three at a T-junction and four at a
+crossroads and more if they're visible down the street.
+
+
+Those are not the same shape at all. A street-enclosed block's buildings face
+*outward*, in four directions, onto four different streets. An
+intersection-centred block's buildings face *inward*, at each other, across the
+corner. And your reading is the better one socially — the people you do things
+with are the ones you can see, which means the ones across the road, not the
+ones backing onto your own yard. "Parallel storylines with a community each"
+only works with the corner version.
+
+
+But it breaks three things that are currently load-bearing: the one-pixel cage
+runs **along streets**, adjacency is **a shared street edge**, and the identity
+buffer needs every pixel to belong to exactly one block. Intersection-centred
+regions defined by sightline naturally *overlap* — a building halfway down a
+lane is visible from both ends.
+
+
+**[Asked the user]**
+
+
+*Q1 — Block shape:* A block is now the buildings you can see from an
+intersection, not the area streets enclose. How should that be made real?
+
+- Nearest-intersection regions, generated — You mark the intersections; a
+  block is automatically everywhere closer to that corner than to any other,
+  clipped to built ground. Tiles perfectly with no overlap, adjacency is free,
+  the identity buffer still works — and it replaces hand-tracing hundreds of
+  block outlines with dropping a point on each corner, which is enormously less
+  work. Cost: you don't choose the extent, so 'if there's not enough room, make
+  room' stops being something you do by hand.
+
+- Hand-traced corner blocks that still tile — You trace each block's extent
+  yourself around its intersection, and neighbouring blocks meet somewhere along
+  the street between them. Total control over how far each community reaches.
+  Cost: the cage no longer follows lanes — it cuts across streets at their
+  midpoints and runs through back yards, which is a very different-looking map
+  from the one we designed.
+
+- Two things: a place you click, a community you belong to — Keep
+  street-enclosed faces as the thing the mouse lands on and the cage draws, and
+  add the corner-community as a separate grouping laid over them — a set of
+  buildings that do things together, spanning several faces. Everything built so
+  far survives untouched. Cost: two overlapping notions, and one of them needs a
+  name that isn't 'block'.
+
+→ *(no answer recorded)*
+
+
+*Q2 — The building:* You said houses inside buildings are almost always
+restricted, but buildings themselves are rarely closed. So what is a building,
+to the interface?
+
+- Just an address, never selected — You go from the block straight to a list
+  of houses; the building is only the middle number in the address. Fewest
+  things to click through. Cost: 'who else lives under this roof' has nowhere to
+  be shown, and shared-roof neighbours are probably interesting.
+
+- A step you pass through — Block lists its buildings, a building lists its
+  houses. Matches the address exactly, and the shared roof becomes visible —
+  you can see the four families under it. Cost: one more click between the map
+  and a person.
+
+- A thing with its own life — Buildings are selectable and carry their own
+  facts — who owns the roof, what the ground floor trades in, whether the
+  stair is shared. Cost: a third tier of hand-authoring across ten thousand
+  buildings, on top of the blocks and the houses.
+
+→ **Answered:** A thing with its own life". Read the answers carefully —
+they may request clarification, changes, or that you not proceed — and follow
+what they actually say.
+
+
+Good — and that resolves my alarm rather than confirming it. **The fence
+network survives intact.**
+
+
+"The block should have intersections that make up its borders" is exactly what's
+already stored: a block is a loop of street runs meeting at corners, and those
+corners are the shared junctions the structure is built on. I read your earlier
+description as relocating the block onto the intersection; you were describing
+what a block *feels* like — a corner community of five to seven roofs —
+while its borders stay where they were. Nothing needs rebuilding.
+
+
+Three things genuinely changed, though.
+
+
+**Intersections stop being geometry and become content.** They were a derived
+detail — a vertex that happened to appear at the end of more than one street
+run. Now they're named things, listed in the tome with all their connections.
+That means they want their own records rather than being inferred, and it means
+an intersection is a place you can *say something about*.
+
+
+**"The connections are what's nearby" settles the model of nearness for good.**
+Not distance, not radius — which street runs lead where, and what that
+reaches. And "occasionally errands outside in the city" gives the graph a felt
+shape: one hop is your daily life, several hops is an errand you'd remember
+taking.
+
+
+**"The building is stone, and can't adjust easily, meaning it's what roots
+people"** is the best sentence in the session and it belongs in the documents
+verbatim. It also rhymes with the vision — *walls are heavy, and hard to move
+when the city expands* — so the same fact governs both the city's growth and a
+person's inertia. People move; stone doesn't; that asymmetry is where the
+rigidity you're writing about actually lives.
+
+
+Two things follow from buildings having their own life:
+
+
+**[Asked the user]**
+
+
+*Q1 — Reaching a building:* Buildings now carry their own facts. How does the
+mouse reach one? Right now the map has no building footprints at all — blocks
+are the only thing it can hit.
+
+- Click the block, then the buildings appear — Selecting a block reveals its
+  five-to-seven buildings as separate targets inside it, and a second click
+  picks one. No footprints needed — a rough zone each is enough, since there
+  are only a handful and they're spread across the block. Two clicks to a
+  building, and the map stays uncluttered when nothing is selected.
+
+- Buildings get real footprints — Every building is traced and always
+  clickable, same as blocks. Truest to 'click each building'. Cost: ten thousand
+  hand-traced outlines on top of two thousand blocks, and in the packed quarter
+  one roof does not visibly end where the next begins — much of it would be
+  invented rather than observed.
+
+- Only through the tome — The map stops at blocks forever. Select a block, and
+  its buildings are rows in the tome you click there. Zero extra tracing, and
+  the map keeps to exactly the four marks. Cost: you never point at the actual
+  roof, which is a real loss when the whole game is played over a painting of
+  roofs.
+
+→ *(no answer recorded)*
+
+
+*Q2 — Building facts:* Buildings with their own facts is a third authoring
+tier — roughly ten thousand records, on top of two thousand blocks. How does
+that get written?
+
+- Fill in forever, like house events — Buildings start with nothing but an
+  address and gain their facts over years, same as houses. Nothing is ever
+  blocked, and a building with no facts is simply a building nobody has looked
+  into yet. Consistent with the decision already made about houses.
+
+- A few facts for every building, up front — Every building gets at least who
+  owns the roof and what the ground floor does before release — short and
+  formulaic, not prose. Ten thousand short records is weeks, not years, if the
+  fields are small enough. Cost: it only works if you keep the fields genuinely
+  tiny, and that discipline tends to slip.
+
+- Only where a block event needs one — A building gains facts when an event
+  points at it, and stays blank otherwise. Authoring follows the writing rather
+  than running ahead of it. Cost: buildings are unevenly detailed in a way that
+  quietly signals which ones matter.
+
+→ **Answered:** Fill in forever, like house events". Read the answers
+carefully — they may request clarification, changes, or that you not proceed
+— and follow what they actually say.
+
+
+Four levels, and one of them is optional. That's a bigger addition than it reads
+as, but most of it is free.
+
+
+## District and quadrant need no tracing at all
+
+
+A district is a set of blocks; a quadrant is a set of districts. Their outlines
+are just the outer edges of their members — computable from the block network,
+never drawn by hand. So the whole hierarchy costs you **membership, not
+geometry**: for each block, which district; for each district, which quadrant.
+That's a couple of thousand small decisions rather than another tracing
+campaign.
+
+
+Only buildings sit *below* the blocks, and they're the one level with nothing to
+derive from.
+
+
+## The cage becomes hierarchical, and the existing rule already handles it
+
+
+Four nested boundaries want four line weights — quadrant heaviest, then
+district, then block, with buildings finest. And the rule that already fades
+each block's fence on its own on-screen width does the rest without
+modification: zoomed right out, only the quadrants are big enough to draw, so
+the map shows the city's great divisions; descend and districts appear, then
+blocks, then buildings. The cage thickens *and deepens* as you go in. Nothing
+new to invent.
+
+
+## The ragged level is worth being careful about
+
+
+Outside the wall there is no quadrant. The tempting shape is four fields where
+one is sometimes empty, and then every piece of code that walks the hierarchy
+grows a check for nothing-there — which is the failure your rules warn about,
+testing for absence instead of understanding it.
+
+
+The absence has a reason: **the wall is what makes a quadrant**. So the honest
+shape is a containment chain of *however many levels this place actually has*
+— a list, walked from the outside in, never a fixed four with a hole. Land
+beyond the wall has three levels because it was never quartered, not because a
+value went missing.
+
+
+**[Asked the user]**
+
+
+*Q1 — Selection level:* You can select at four levels. What decides which
+level a click lands on?
+
+- The zoom decides (Recommended) — Zoomed out, a click takes a quadrant;
+  descend and the same click takes a district, then a block, then a building. No
+  control to learn — you aim by moving closer, which is what you were already
+  doing. Reuses the on-screen-size rule that fades the cage, so what you can
+  select is exactly what you can see outlined. Cost: to select a whole district
+  you must first zoom out, even if you know which one you want.
+
+- A level control in the tome — Four buttons near the map controls set what
+  clicks land on, independent of zoom. You can grab a whole quadrant while
+  zoomed into one alley. Cost: a mode you can be in without noticing, and clicks
+  that do something other than what the zoom suggests.
+
+- Click descends, one level per click — First click takes the quadrant,
+  clicking again inside it takes the district, again the block, again the
+  building. Zoom stays purely about looking. Cost: four clicks to reach a
+  building, every time.
+
+→ *(no answer recorded)*
+
+
+*Q2 — Building extent:* Buildings are the one level with no geometry to
+derive. What do they get?
+
+- A rough zone each, placed by hand — Five to seven crude shapes per block —
+  a blob over each roof, not a traced outline. Enough to click accurately since
+  they're few and well separated, and it's a few seconds per building rather
+  than a minute. Ten thousand of them is real work but an order of magnitude
+  less than tracing.
+
+- A point each, and the nearest one wins — One click per building during
+  authoring, and a click on the map goes to whichever building's point is
+  closest within the block. Fastest possible to author — ten thousand single
+  clicks. Cost: the boundaries between buildings are invisible and slightly
+  arbitrary, so aiming at a narrow house beside a wide one is unreliable.
+
+- Real traced footprints — Every building outlined properly, so the cage's
+  finest level is genuinely the shape of the roofs. The most beautiful version
+  of the map by far. Cost: ten thousand traced outlines, and in the packed
+  quarter much of it would be invented rather than observed.
+
+→ **Answered:** A rough zone each, placed by hand". Read the answers carefully
+— they may request clarification, changes, or that you not proceed — and
+follow what they actually say.
+
+
+Let me look at the painting again to name the megastructures, since the quadrant
+count depends on how many there are.
+
+
+Counting from the painting, the circular megastructures I can pick out — all
+candidates for you to confirm or correct:
+
+
+| | Where | What it looks like |
+
+| --- | --- | --- |
+
+| **the amphitheatre** | west bank, mid-frame | a clean oval ring, the most obviously circular thing in the city |
+
+| **the ringed colonnade** | east bank | concentric arcs around a golden tree at its centre, with a parade ground beside it |
+
+| **the domed rotunda** | the promontory between the rivers | green-and-gold dome on its own high ground |
+
+| **the western dome** | far west peninsula | smaller, circular, at the head of that arm of the city |
+
+| **the great willow** | north-west | not a building, but the largest circular thing on the map by far |
+
+
+## What that makes the top of the hierarchy
+
+
+Not a tree with a root. A **flat list of quadrants**: four for the ordinary
+city, plus four for each megastructure, plus land beyond the wall that has no
+quadrant at all. If those five structures hold, that's four plus twenty —
+around **twenty-four quadrants**, none of them nested inside anything.
+
+
+So there is no "the city" object that everything hangs from. A place's
+containment chain starts at whatever level it actually has and walks inward,
+which is the same shape I flagged for the missing quadrant outside the wall —
+a list of the levels that exist, never a fixed depth with holes in it.
+
+
+And the reason you gave for quadrants is the part I'd write down hardest: **a
+quadrant is the scale at which people simply never meet.** North-east and
+south-west of the same structure can wander all day and never cross. That isn't
+a container, it's a social horizon — and it means a person's knowledge will be
+*shaped like their quadrant*, concentrated inside it and blank across the
+divide. Which is exactly what the per-person filters will draw, without anything
+extra being built. The hatching will show you the horizon.
+
+
+I'm taking your "yes" as accepting **zoom decides the selection level** — say
+if you meant otherwise.
+
+
+## The documents are now substantially behind
+
+
+Not patchable-behind; genuinely out of date. Fifteen things have changed or
+arrived since I wrote them this morning: filters are per-person, four selection
+levels exist, quadrants are flat and megastructures are among them, blocks and
+houses each carry events on different timescales, the address is
+block-building-house, buildings are open and houses aren't, buildings have their
+own life and get hand-placed zones, intersections became content rather than
+geometry, interiors have three valid homes and a parked generator, ceilings are
+twenty feet with hung beams you can arrange at any height, and stone is what
+roots people.
+
+
+Say the word and I'll rewrite them properly rather than bolting amendments on
+— the fence network and filter documents need restructuring, not appending,
+and the open-questions list needs the answered ones moved across with what they
+rejected.
+
+
+**And the token, still outstanding** — the working directory is in `docs/` and
+I can't move it up without:
+
+
+```
+
+! touch /tmp/claude-allow-cwd-change
+
+```
 
 
 --------------------------------------------------------------------------------

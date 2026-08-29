@@ -8,8 +8,8 @@ programs will look for rather than what they currently read.
 
 ## Both programs
 
-  painting          which file in assets/ is the board.
-                    default: vision-map.png
+  painting          which image is the board.
+                    default: inspiration-pictures/vision-map.png (a stand-in)
 
   network           which fence network to load.
                     default: assets/fences  (does not exist yet)

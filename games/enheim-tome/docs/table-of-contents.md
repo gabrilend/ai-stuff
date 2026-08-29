@@ -18,12 +18,27 @@ enheim-tome/
 │                                               rigid, and the wish to loosen it.
 │                                               Read first.
 │
-├── assets/
-│   └── vision-map.png ........................ The painting. 6148 by 4092, an
-│                                               oblique aerial view of a walled
-│                                               city at a river's confluence.
-│                                               This single image is the entire
-│                                               game board.
+├── inspiration-pictures/ ..................... **Not ours.** Reference artwork,
+│   ├── NOTICE.md ............................. gathered because it shows the city
+│   │                                           better than description can. Read
+│   │                                           the notice before doing anything
+│   │                                           with any of it.
+│   ├── vision-map.png ........................ The painting. 6148 by 4092, an
+│   │                                           oblique aerial view of a walled
+│   │                                           city at a river's confluence. The
+│   │                                           board the game is developed
+│   │                                           against, and a stand-in that
+│   │                                           cannot ship.
+│   └── vision-map-2.webp ..................... The same city flat and from above,
+│                                               2518 by 2400, districts and gates
+│                                               already lettered. A second view,
+│                                               wanted eventually, which must
+│                                               register with the painting exactly.
+│
+├── assets/ ................................... The project's own material: the
+│                                               fence network, catalogue tables,
+│                                               and one day a map that is ours.
+│                                               Empty.
 │
 ├── docs/
 │   ├── 001-what-this-game-is ................. The premise, the governing idea that
