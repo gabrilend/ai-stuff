@@ -54,7 +54,7 @@ uses one of them, it means this and not a synonym.
 
 | Word | What it is |
 | --- | --- |
-| **the painting** | The single image the whole game is played over. One file in `assets/`. |
+| **the painting** | The single image the whole game is played over. Currently `inspiration-pictures/vision-map.png`, which is **a stand-in that cannot ship** -- see the notice there. |
 | **block** | The smallest thing you can click. The area enclosed by streets. The unit the game plays at. |
 | **the cage** | All the fences drawn together — the one-pixel lines along the streets that show where the blocks divide. See [the fence network](003-the-fence-network.md). |
 | **fence** | One block's boundary. |

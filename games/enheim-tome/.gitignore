@@ -6,11 +6,9 @@ tmp
 # Deprecated temporary scripts are kept for exactly one commit and then removed,
 # so they are never ignored -- they are supposed to show up in the record once.
 
-# Converted texture forms of the painting are build artefacts. The PNG in
-# assets/ is the only original; anything derived from it is regenerated.
-assets/*.dds
-assets/*.ktx
-assets/*.ktx2
+# Converted texture forms of the painting are build artefacts and belong in the
+# RAM tier, which is already ignored above. The originals in inspiration-pictures/
+# are not ours and are never derived from in place -- see the notice there.
 
 # Editor and OS litter.
 *.swp

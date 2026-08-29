@@ -5,9 +5,15 @@ and zoom, and the strictly limited set of marks allowed on top of it.
 
 ## The painting
 
-One image in `assets/`. It is the entire game board — there is no second map, no
-minimap, no zoomed-out abstraction. Everything the game ever shows you is this
-picture with marks on it.
+One image, and it is the entire game board — there is no second map, no minimap,
+no zoomed-out abstraction. Everything the game ever shows you is this picture
+with marks on it.
+
+That image is currently `inspiration-pictures/vision-map.png`, which is **a
+stand-in and cannot ship** — it is somebody else's painting. See
+[the notice](../inspiration-pictures/NOTICE.md). Almost nothing here depends on
+*this* picture, only on there being one, in perspective, of a city with streets
+in it; what would have to be redone is the tracing, and only the tracing.
 
 Its measurements as of writing are 6148 by 4092 pixels, 8-bit RGBA. **These
 numbers should be read from the file by a reporting tool rather than trusted from
@@ -116,7 +122,7 @@ the player can switch the behaviour off. The exact tunable is undecided; see
 ## Datapath summary
 
 ```
-assets/vision-map.png
+inspiration-pictures/vision-map.png
         │
         │  loaded once, mipmapped
         ▼

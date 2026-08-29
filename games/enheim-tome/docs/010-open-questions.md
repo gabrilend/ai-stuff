@@ -213,8 +213,9 @@ Shadow at a given hour needs the sun's path across this city's sky and the great
 tree's height. Neither is measurable from the painting; both must be invented and
 then held to consistently.
 
-**Working ruling:** a small table in `assets/`, alongside the painting, since
-these are facts about *this city* rather than about the program.
+**Working ruling:** a small table in `assets/`, since these are facts about *this
+city* rather than about the program — and unlike the painting they are ours,
+which is exactly why they belong there and it does not.
 
 **Why it matters:** it sets a precedent for every filter that computes rather than
 looks up. It also raises whether the light in the painting should be measured —
