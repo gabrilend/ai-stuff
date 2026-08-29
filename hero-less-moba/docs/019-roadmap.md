@@ -76,6 +76,7 @@ problem statement, rendered.
 | 211c | A formation is a circle that faces where it is going |
 | 211d | Marching speed is not running speed |
 | 212 | A beaten body gets one roll |
+| 213 | What the lane can afford |
 
 ## Phase 3 — Things That Stand and Hold
 
