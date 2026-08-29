@@ -42,6 +42,9 @@ checker re-runs this on every pass and refuses if a copy has gone stale.
 | `M.coefficients` | `L` | Turn the blueprint set's geometry into the three coefficients of every kind of branch. |
 | `M.build_network` | `K, plan, C` | Lay the plumbing out as nodes and branches for one candidate assignment. |
 | `M.solve_network` | `N, C` | Solve the network by repeated linear solves. |
+| `M.anti_steps` | `order` | How many of the five steps through an ordering land on the opposite face. |
+| `M.best_ordering` | `K` | The most antipodal steps any ordering of the six faces can have, found by trying every one of them. |
+| `M.sieve_order` | `K` | The faces in the order a token visits them, which is the sieve index 010 gives each one rather than the order they happen to be built in. |
 | `M.prove_bipartition` | `K` | Every edge joins an even-parity corner to an odd one. |
 | `M.prove_tetrahedron` | `K` | The four fed corners are mutually two coordinates apart, so every one of their six pairwise distances is the cube's face diagonal. |
 | `M.check_document` | `K, dir` | The twelve edges are written out in 010 as prose, and until now nothing has ever compared that list to the object it describes. |
@@ -158,6 +161,23 @@ too high, which sends it too low next time, and the pair alternate without
 settling. Averaging halves the swing each round and it converges in about a
 dozen passes, which for sixty-four candidate arrangements is nothing.
 
+**`M.best_ordering`** — published from `best_ordering`
+
+The most antipodal steps any ordering of the six faces can have, found by
+trying every one of them.
+
+The answer is three, and the reason is worth having in prose as well as in a
+number: a cube has three pairs of opposite faces, an ordering visits all six,
+so it has to cross from one pair to another twice -- and a crossing between
+two different pairs is always to an adjacent face. Two of the five steps are
+therefore spent, whatever anybody does. The exhaustive search is here anyway,
+because an argument in a comment is what the false claim in 010 was.
+
+**`M.sieve_order`** — published from `sieve_order`
+
+The faces in the order a token visits them, which is the sieve index 010
+gives each one rather than the order they happen to be built in.
+
 **`M.prove_bipartition`** — published from `prove_bipartition`
 
 Every edge joins an even-parity corner to an odd one. This is what makes the
@@ -187,6 +207,7 @@ box with a label on it.
 
 | function | takes | what it is for |
 |---|---|---|
+| `antipodal` | `a, b` | Two faces are opposite when they lie on the same axis and different sides of it. |
 | `in_plane` | `face` | *(no description in the source)* |
 | `resistance` | `br, q` | The secant resistance of a branch at a given flow: the number R for which dp = R*Q at that flow, rather than the slope of dp against Q. |
 | `gauss` | `A, b, n` | Dense elimination with partial pivoting on a twenty-nine by twenty-nine. |

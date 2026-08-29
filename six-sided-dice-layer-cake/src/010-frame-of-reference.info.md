@@ -18,6 +18,9 @@ Described by `101`.
 | `n_corner_in` | 1 | derived | 4 | corners where coolant enters, the even-parity set |
 | `n_corner_out` | 1 | derived | 4 | corners where coolant leaves, the odd-parity set |
 | `n_face_pair` | 1 | derived | 3 | pairs of opposite faces |
+| `n_step_sieve` | 1 | derived | 5 | steps a token takes through the sieve, one fewer than the stages it visits |
+| `n_step_anti` | 1 | solved | 3 | of those steps, how many land on the face opposite the one just used -- from 102, which reads the ordering above rather than believing the sentence next to it |
+| `n_step_anti_max` | 1 | solved | 3 | the most any ordering of six faces could manage, found by trying all seven hundred and twenty -- from 102 |
 
 ## What it consumes
 
@@ -37,6 +40,9 @@ Change one of these and the blueprints beside it are what break.
 | `n_corner_in` | `010`, `015`, `019`, `023` |
 | `n_corner_out` | `010` |
 | `n_face_pair` | `023` |
+| `n_step_sieve` | `010` |
+| `n_step_anti` | `010` |
+| `n_step_anti_max` | `010` |
 
 ## What it asserts
 
@@ -47,6 +53,8 @@ Change one of these and the blueprints beside it are what break.
 | `C-010-3` | `n_corner_in + n_corner_out == n_corner` | every corner is a feed or a drain, and none is both |
 | `C-010-4` | `n_corner_in == n_corner_out` | the parity sets are equal in size, which is what balances the manifold in 023 |
 | `C-010-5` | `n_stage == n_face` | one pipeline stage per face; the sieve has no stage that is not a face |
+| `C-010-6` | `n_step_anti == n_step_anti_max` | the face ordering must be as good as a face ordering can be. This is the constraint that would have caught the error the table above carried: it claimed every step was antipodal, which is not a thing a cube permits, and no arithmetic here could tell, because an ordering is a list and this notation holds numbers |
+| `C-010-7` | `n_step_anti_max < n_step_sieve` | and it must be impossible to do better than that ceiling. Asserted in the direction of alarm: two of the five steps have to cross between opposite-pairs and land on an adjacent face, so a run of all six cannot be wholly antipodal -- a search returning five would mean the search was wrong rather than the cube being surprising |
 
 ## What it draws
 

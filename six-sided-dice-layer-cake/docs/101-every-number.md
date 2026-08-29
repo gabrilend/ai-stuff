@@ -15,6 +15,9 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `n_corner_in` | 1 | derived | 4 | `n_corner / 2` | corners where coolant enters, the even-parity set |
 | `n_corner_out` | 1 | derived | 4 | `n_corner / 2` | corners where coolant leaves, the odd-parity set |
 | `n_face_pair` | 1 | derived | 3 | `n_face / 2` | pairs of opposite faces |
+| `n_step_sieve` | 1 | derived | 5 | `n_stage - 1` | steps a token takes through the sieve, one fewer than the stages it visits |
+| `n_step_anti` | 1 | solved | 3 | — | of those steps, how many land on the face opposite the one just used -- from 102, which reads the ordering above rather than believing the sentence next to it |
+| `n_step_anti_max` | 1 | solved | 3 | — | the most any ordering of six faces could manage, found by trying all seven hundred and twenty -- from 102 |
 
 ## 011 — Material properties
 
@@ -1645,6 +1648,10 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `n_model_term_d` | 1 | given | 7 | — | terms in this model, which 049 must have a counter for each of |
 | `tok_s_single` | 1/s | derived | 1021 1/s | `1 / t_token_model` | tokens a second, one sequence |
 | `tok_s_agg` | 1/s | derived | 1.949e+04 1/s | `batch_design / t_step` | and aggregate at the design batch, where the weights are read once for everybody |
+| `r_tok_per_W` | 1/(s*W) | derived | 10.31 1/(s*W) | `tok_s_agg / P_heat` | tokens a second for every watt the machine burns. The figure somebody buying a room full of these optimises, as opposed to the two above, which are what somebody using one notices |
+| `r_tok_per_L` | 1/(s*L) | derived | 9.023e+04 1/(s*L) | `tok_s_agg / V_cube` | and for every litre it occupies. A cube is 0.216 of a litre, so this is the number that says what the shape is worth |
+| `r_tok_per_kg` | 1/(s*kg) | derived | 1.73e+04 1/(s*kg) | `tok_s_agg / m_cube` | and for every kilogram of it |
+| `f_batch_gain` | 1 | derived | 19.08 | `tok_s_agg / tok_s_single` | how much the machine gains by serving many sequences at once rather than one. It is the ratio that decides what this machine is for |
 | `t_prefill_tok` | s | derived | 3.907e-05 s | `flop_token / ops_achieved` | one prompt token during prefill, which is compute-bound |
 | `tok_s_prefill` | 1/s | derived | 2.559e+04 1/s | `1 / t_prefill_tok` | prompt tokens a second |
 | `gain_prefill` | 1 | derived | 25.06 | `tok_s_prefill / tok_s_single` | how much faster reading a prompt is than writing one |
@@ -1793,8 +1800,8 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `n_seam_open` | 1 | derived | 0 | `n_seam - n_seam_guarded` | seams with no constraint on them, which is what finishing this project means driving to zero |
 | `f_guarded` | 1 | derived | 1 | `n_seam_guarded / n_seam` | the share that are guarded |
 | `n_bp` | 1 | solved | 84 | — | blueprints in the set -- from 103, which loads them rather than counting them from memory |
-| `n_constraint` | 1 | solved | 566 | — | constraints in it -- from 103. Carried as a hand count until it was twelve short, which is the exact failure a self-describing document is prone to |
-| `c_per_bp` | 1 | derived | 6.738 | `n_constraint / n_bp` | constraints per blueprint, which is a crude measure of whether any file is asserting nothing |
+| `n_constraint` | 1 | solved | 570 | — | constraints in it -- from 103. Carried as a hand count until it was twelve short, which is the exact failure a self-describing document is prone to |
+| `c_per_bp` | 1 | derived | 6.786 | `n_constraint / n_bp` | constraints per blueprint, which is a crude measure of whether any file is asserting nothing |
 
 ## 088 — What it is made from, and what that costs
 
@@ -1843,12 +1850,12 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `n_software` | 1 | given | 2 | — | pieces of software assumed and not specified |
 | `n_worked_eg` | 1 | given | 1 | — | worked examples of using the package as a machine |
 | `n_bp_pkg` | 1 | derived | 84 | `n_bp` | blueprints delivered |
-| `n_sym_pkg` | 1 | solved | 1429 | — | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked |
-| `n_con_pkg` | 1 | derived | 566 | `n_constraint` | constraints |
+| `n_sym_pkg` | 1 | solved | 1436 | — | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked |
+| `n_con_pkg` | 1 | derived | 570 | `n_constraint` | constraints |
 | `n_open_pkg` | 1 | solved | 0 | — | symbols still carried as targets rather than derivations -- from 103. None: the last one was 019's service time, which became the sum of nine steps rather than one number nobody could take apart |
-| `n_solved_pkg` | 1 | solved | 20 | — | symbols a program produced because no expression in this notation could -- from 103 |
+| `n_solved_pkg` | 1 | solved | 22 | — | symbols a program produced because no expression in this notation could -- from 103 |
 | `n_q_blocking` | 1 | given | 2 | — | blocking open questions in 009 |
 | `n_q_open` | 1 | given | 18 | — | open questions altogether: the two blocking ones and sixteen carried. A hand count of 009's headings, and the one figure in this package that a program still does not produce |
-| `f_derived` | 1 | derived | 0.5878 | `(n_sym_pkg - n_given_pkg) / n_sym_pkg` | share of the project's numbers that are worked out rather than chosen or measured |
+| `f_derived` | 1 | derived | 0.5898 | `(n_sym_pkg - n_given_pkg) / n_sym_pkg` | share of the project's numbers that are worked out rather than chosen or measured |
 | `n_given_pkg` | 1 | solved | 589 | — | symbols that are chosen or measured rather than worked out -- from 103: four hundred and seventy-three a person decided and a hundred and sixteen taken from a datasheet |
 

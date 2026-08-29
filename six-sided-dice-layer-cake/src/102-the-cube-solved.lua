@@ -224,6 +224,88 @@ end
 -- }}}
 
 -- ---------------------------------------------------------------------------
+-- The order a token visits the faces in
+-- ---------------------------------------------------------------------------
+--
+-- 010 orders the six faces into the six stages of the pipeline, and wanted every
+-- consecutive pair to be on opposite sides of the cube so that the one face
+-- doing arithmetic is always as far as possible from the face that was doing it
+-- a moment ago.
+--
+-- Its table claimed that was achieved and the claim was false: two of the five
+-- steps land on an adjacent face, and the table had named the wrong face as the
+-- opposite one twice. Nothing caught it for the same reason nothing checks any
+-- of this project's orderings -- a sequence of six faces is a list, and the
+-- notation holds numbers.
+--
+-- These count it properly, and settle whether the ordering could have been
+-- better by trying all seven hundred and twenty of them.
+
+-- {{{ local function antipodal()
+-- Two faces are opposite when they lie on the same axis and different sides of
+-- it. Everything below is this one test, counted.
+local function antipodal(a, b)
+  return a.axis == b.axis and a.side ~= b.side
+end
+-- }}}
+
+-- {{{ local function anti_steps()
+-- How many of the five steps through an ordering land on the opposite face.
+local function anti_steps(order)
+  local n = 0
+  for i = 1, #order - 1 do
+    if antipodal(order[i], order[i + 1]) then n = n + 1 end
+  end
+  return n
+end
+-- }}}
+
+-- {{{ local function best_ordering()
+-- The most antipodal steps any ordering of the six faces can have, found by
+-- trying every one of them.
+--
+-- The answer is three, and the reason is worth having in prose as well as in a
+-- number: a cube has three pairs of opposite faces, an ordering visits all six,
+-- so it has to cross from one pair to another twice -- and a crossing between
+-- two different pairs is always to an adjacent face. Two of the five steps are
+-- therefore spent, whatever anybody does. The exhaustive search is here anyway,
+-- because an argument in a comment is what the false claim in 010 was.
+local function best_ordering(K)
+  local best, faces = 0, {}
+  for i = 1, #K.face do faces[i] = K.face[i] end
+
+  local order = {}
+  local used = {}
+  local function recurse(depth)
+    if depth > #faces then
+      local n = anti_steps(order)
+      if n > best then best = n end
+      return
+    end
+    for i = 1, #faces do
+      if not used[i] then
+        used[i] = true; order[depth] = faces[i]
+        recurse(depth + 1)
+        used[i] = false
+      end
+    end
+  end
+  recurse(1)
+  return best
+end
+-- }}}
+
+-- {{{ local function sieve_order()
+-- The faces in the order a token visits them, which is the sieve index 010
+-- gives each one rather than the order they happen to be built in.
+local function sieve_order(K)
+  local order = {}
+  for _, f in ipairs(K.face) do order[f.sieve + 1] = f end
+  return order
+end
+-- }}}
+
+-- ---------------------------------------------------------------------------
 -- Which rail feeds which face
 -- ---------------------------------------------------------------------------
 --
@@ -698,6 +780,7 @@ function M.solve(dir)
   local equal, pairs_total, n_fed = prove_tetrahedron(K)
   local listed, written = check_document(K, dir)
 
+  local sieve = sieve_order(K)
   local plans, tried = assignments(K)
   local best, even_count, worst_any = nil, 0, math.huge
 
@@ -751,6 +834,7 @@ function M.solve(dir)
     tetra_equal = equal, tetra_pairs = pairs_total, fed = n_fed,
     listed = listed, written = written,
     tried = tried, legal = #plans, even = even_count, worst_any = worst_any,
+    anti = anti_steps(sieve), anti_best = best_ordering(K), n_step = #sieve - 1,
     best = best,
     perpendicular = perpendicular_pairs(K, best.plan),
   }
@@ -779,6 +863,9 @@ function M.answers(dir)
     n_assign_even   = Q(R.even, "1"),
     n_assign_tried  = Q(R.tried, "1"),
     n_perp_pair     = Q(R.perpendicular, "1"),
+    -- 010, the face ordering
+    n_step_anti     = Q(R.anti, "1"),
+    n_step_anti_max = Q(R.anti_best, "1"),
     -- 024, the network
     n_node_net      = Q(#R.best.net.name, "1"),
     n_branch_net    = Q(#R.best.net.branch, "1"),
@@ -815,6 +902,10 @@ function M.report(R, out)
   say("  pairwise distances between the %d fed corners at the face diagonal: %d of %d",
       R.fed, R.tetra_equal, R.tetra_pairs)
   say("")
+  say("  steps through the sieve that land on the opposite face: %d of %d",
+      R.anti, R.n_step)
+  say("  the most any ordering of six faces could manage: %d", R.anti_best)
+  say("")
   say("  rail assignments tried: %d", R.tried)
   say("  of those legal -- no rail feeding two faces: %d", R.legal)
   say("  of those distributing the coolant exactly evenly: %d", R.even)
@@ -849,6 +940,9 @@ M.perpendicular_pairs = perpendicular_pairs
 M.coefficients = coefficients
 M.build_network = build_network
 M.solve_network = solve_network
+M.anti_steps = anti_steps
+M.best_ordering = best_ordering
+M.sieve_order = sieve_order
 M.prove_bipartition = prove_bipartition
 M.prove_tetrahedron = prove_tetrahedron
 M.check_document = check_document

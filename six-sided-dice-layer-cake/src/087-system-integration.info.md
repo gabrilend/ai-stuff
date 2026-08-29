@@ -18,8 +18,8 @@ Described by `1301`.
 | `n_seam_open` | 1 | derived | 0 | seams with no constraint on them, which is what finishing this project means driving to zero |
 | `f_guarded` | 1 | derived | 1 | the share that are guarded |
 | `n_bp` | 1 | solved | 84 | blueprints in the set -- from 103, which loads them rather than counting them from memory |
-| `n_constraint` | 1 | solved | 566 | constraints in it -- from 103. Carried as a hand count until it was twelve short, which is the exact failure a self-describing document is prone to |
-| `c_per_bp` | 1 | derived | 6.7381 | constraints per blueprint, which is a crude measure of whether any file is asserting nothing |
+| `n_constraint` | 1 | solved | 570 | constraints in it -- from 103. Carried as a hand count until it was twelve short, which is the exact failure a self-describing document is prone to |
+| `c_per_bp` | 1 | derived | 6.78571 | constraints per blueprint, which is a crude measure of whether any file is asserting nothing |
 
 ## What it consumes
 

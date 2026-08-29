@@ -95,7 +95,7 @@ Change one of these and the blueprints beside it are what break.
 | `m_corners` | `013`, `019` |
 | `m_cage` | `013`, `019` |
 | `m_coolant` | `013`, `019` |
-| `m_cube` | `013`, `019`, `088`, `089` |
+| `m_cube` | `013`, `019`, `080`, `088`, `089` |
 | `rho_mean` | `013` |
 
 ## What it asserts

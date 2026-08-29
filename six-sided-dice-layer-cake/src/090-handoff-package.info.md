@@ -16,13 +16,13 @@ Described by `1304`.
 | `n_software` | 1 | given | 2 | pieces of software assumed and not specified |
 | `n_worked_eg` | 1 | given | 1 | worked examples of using the package as a machine |
 | `n_bp_pkg` | 1 | derived | 84 | blueprints delivered |
-| `n_sym_pkg` | 1 | solved | 1429 | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked |
-| `n_con_pkg` | 1 | derived | 566 | constraints |
+| `n_sym_pkg` | 1 | solved | 1436 | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked |
+| `n_con_pkg` | 1 | derived | 570 | constraints |
 | `n_open_pkg` | 1 | solved | 0 | symbols still carried as targets rather than derivations -- from 103. None: the last one was 019's service time, which became the sum of nine steps rather than one number nobody could take apart |
-| `n_solved_pkg` | 1 | solved | 20 | symbols a program produced because no expression in this notation could -- from 103 |
+| `n_solved_pkg` | 1 | solved | 22 | symbols a program produced because no expression in this notation could -- from 103 |
 | `n_q_blocking` | 1 | given | 2 | blocking open questions in 009 |
 | `n_q_open` | 1 | given | 18 | open questions altogether: the two blocking ones and sixteen carried. A hand count of 009's headings, and the one figure in this package that a program still does not produce |
-| `f_derived` | 1 | derived | 0.587824 | share of the project's numbers that are worked out rather than chosen or measured |
+| `f_derived` | 1 | derived | 0.589833 | share of the project's numbers that are worked out rather than chosen or measured |
 | `n_given_pkg` | 1 | solved | 589 | symbols that are chosen or measured rather than worked out -- from 103: four hundred and seventy-three a person decided and a hundred and sixteen taken from a datasheet |
 
 ## What it consumes
@@ -30,7 +30,7 @@ Described by `1304`.
 | symbol | from | value | meaning |
 |---|---|---|---|
 | `n_bp` | `087` | 84 | blueprints in the set -- from 103, which loads them rather than counting them from memory |
-| `n_constraint` | `087` | 566 | constraints in it -- from 103. Carried as a hand count until it was twelve short, which is the exact failure a self-describing document is prone to |
+| `n_constraint` | `087` | 570 | constraints in it -- from 103. Carried as a hand count until it was twelve short, which is the exact failure a self-describing document is prone to |
 
 ## What consumes it
 
