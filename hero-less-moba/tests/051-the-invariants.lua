@@ -945,19 +945,38 @@ local function test_formation_turns_a_corner()
       local clear_of_the_base = wave.anchor > 200
       local min_x, max_x, min_y, max_y = math.huge, -math.huge, math.huge, -math.huge
       local alive = 0
+      -- **The spread of lag, not the worst lag.**
+      --
+      -- A wave whose every body is equally behind is not out of formation; it is a
+      -- wave whose anchor has got ahead of it, and the shape is intact. A wave whose
+      -- bodies are behind by *different* amounts is a line that has bent, and bending
+      -- is what this check is named for.
+      --
+      -- The distinction started mattering when waves began wandering toward
+      -- waypoints. A formation moving sideways while it walks forward is spending one
+      -- speed budget on two things, so every body in it falls behind its place --
+      -- together. Measured as a worst absolute lag, that reads identically to a line
+      -- coming apart, and the two are not the same event at all.
+      local behind_least, behind_most = math.huge, -math.huge
       for id = 1, world.high_water do
         if soldier.alive[id] == 1 and soldier.wave[id] == watched then
           alive = alive + 1
-          local lag = math.abs(wave.lag_of[id] or 0)
-          if clear_of_the_base and lag > worst_lag then worst_lag = lag end
-          if not clear_of_the_base and lag > worst_lag_leaving then
-            worst_lag_leaving = lag
+          local lag = wave.lag_of[id] or 0
+          if clear_of_the_base then
+            if lag < behind_least then behind_least = lag end
+            if lag > behind_most then behind_most = lag end
+          elseif math.abs(lag) > worst_lag_leaving then
+            worst_lag_leaving = math.abs(lag)
           end
           if soldier.x[id] < min_x then min_x = soldier.x[id] end
           if soldier.x[id] > max_x then max_x = soldier.x[id] end
           if soldier.y[id] < min_y then min_y = soldier.y[id] end
           if soldier.y[id] > max_y then max_y = soldier.y[id] end
         end
+      end
+      if alive > 0 and behind_most > behind_least then
+        local spread = behind_most - behind_least
+        if spread > worst_lag then worst_lag = spread end
       end
       if alive > 0 then
         local box = (max_x - min_x) * (max_y - min_y)
@@ -967,9 +986,17 @@ local function test_formation_turns_a_corner()
     end
   end
 
+  -- **The line must not bend by more than a rank.** Derived rather than chosen: at a
+  -- full rank's worth of bend the second rank has caught the first and the ranks have
+  -- stopped being ranks, which is the failure this check exists to name. The previous
+  -- bound was a number picked when nothing wandered, and it sat close enough to the
+  -- ordinary run of a match that the first real change to how waves move went through
+  -- it.
+  local a_whole_rank = modules.formations.RANK_SPACING
   check("a wave marching round a bend keeps its ranks",
-        worst_lag < 12,
-        string.format("worst lag through the turn was %.1f paces", worst_lag))
+        worst_lag < a_whole_rank,
+        string.format("the line bent by %.1f paces, against a rank of %.0f",
+                      worst_lag, a_whole_rank))
 
   -- The formation is a block, and a block turning ninety degrees stays about the
   -- same area while its sides swap. A formation that tore apart would grow.

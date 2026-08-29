@@ -307,6 +307,10 @@ svg { max-width: 100%; }
 <tr><td><code>files_for(lane)</code></td><td></td><td>How many bodies stand abreast marching down this lane.</td></tr>
 <tr><td><code>file_offset(files, file)</code></td><td></td><td>Where the nth body in a rank stands across the lane.</td></tr>
 <tr><td><code>side_of_line(world, id)</code></td><td></td><td>−1, 0 or +1 — which side of the lane a body is on.</td></tr>
+<tr><td><code>radius_of(lane)</code></td><td></td><td>Half the width of a rank walking it.</td></tr>
+<tr><td><code>abreast_offset(map, from_lane, centre_lane)</code></td><td></td><td>Where a wave raised for one lane stands, across the lane it is walking.</td></tr>
+<tr><td><code>lay_out_the_waypoints(world)</code></td><td></td><td>— One offset per zone per lane, drawn once at assembly.</td></tr>
+<tr><td><code>waypoint_across(world, lane_id, zone)</code></td><td></td><td>How far off the centre line that zone's waypoint sits.</td></tr>
 </tbody></table>
 <h2>Held in lane coordinates, which is why a rank survives a corner</h2>
 <p>A body's place is two numbers: <strong>how far along the lane</strong> its wave's anchor has got</p>
@@ -360,12 +364,16 @@ svg { max-width: 100%; }
 <p>is what a thinning line should look like.</p>
 <h2>Where the lane's width earns its keep</h2>
 <p><code>files_for</code> reads it, and it is the only thing that does.</p>
-<p><strong>Which means the width and the file spacing are one number wearing two hats.</strong></p>
-<p>Spread the ranks out without widening the road and a lane silently carries one body</p>
-<p>fewer in every rank — every wave in it a third thinner, and nothing anywhere saying</p>
-<p>so. The shape parameters therefore write down how many bodies each lane is <em>meant</em></p>
-<p>to carry, and <a href='031-map-validator.info.html'>the map validator</a> refuses a map whose</p>
-<p>widths no longer deliver it.</p>
+<p><strong>Which it no longer does.</strong> How many walk abreast is now <strong>declared</strong> in the shape</p>
+<p>parameters and read straight off the lane, and the width is the arithmetic that gives</p>
+<p>them room. Dividing the count out of the width was fine while a width was a number</p>
+<p>somebody chose, and became circular the moment a road was defined as three times the</p>
+<p>formation walking it: the road would decide the formation and the formation would</p>
+<p>decide the road. <a href='031-map-validator.info.html'>The map validator</a> checks the</p>
+<p>arithmetic in both directions.</p>
+<p>What the width decides now is <strong>room</strong>: a road is three formation widths across and</p>
+<p>the centre is nine, so a wave has a formation's width of shoulder either side to</p>
+<p>wander through.</p>
 <p>It does <strong>not</strong> decide how many bodies may fight at once — nothing does; the world</p>
 <p>is flat and a lane is a suggestion. It decides how wide a formation <em>travels</em>,</p>
 <p>which is a different question with a real answer: a road's width is how many people</p>
@@ -373,6 +381,33 @@ svg { max-width: 100%; }
 <p>The consequence is the one the wide centre lane always wanted. A wave marching up</p>
 <p>the middle arrives with more of itself abreast, so more of it is in contact the</p>
 <p>moment contact happens, and a numerical advantage tells sooner.</p>
+<h2>The wander</h2>
+<p>Every zone of a lane holds a <strong>waypoint</strong> — one offset across the road — and a wave</p>
+<p>heads for the waypoint of the zone <strong>ahead</strong> of the one its centre is in. Not the one</p>
+<p>it is standing in: that is a place it has already arrived at, and the aim has to be</p>
+<p>forward.</p>
+<p>It drifts toward it at a tenth of its marching pace, so it usually reaches one about</p>
+<p>as it is given the next, and the line it walks is a long shallow curve rather than a</p>
+<p>sequence of sidesteps. A wave generally marches straight on a straight road; the</p>
+<p>wander is a variation in where it sits and what angle it arrives at.</p>
+<p><strong>One line per road, not one per team.</strong> A waypoint belongs to the ground rather than</p>
+<p>to whoever is walking over it, so both armies follow the same wandering line — two</p>
+<p>columns of people wear the same path. And <strong>the line is a palindrome</strong>, drawn for the</p>
+<p>first half of the road and reflected onto the second, because the map is a mirror of</p>
+<p>itself and this is part of the ground now. Two halves drawn independently would send</p>
+<p>one team out into a leftward drift and the other into a rightward one, from the first</p>
+<p>wave onward, and nothing else in the project would ever say so.</p>
+<p>Drawn once at assembly, from a named seeded stream, never per tick.</p>
+<p>Three things decide how far across the road a body's place is, and they <strong>add</strong>: its</p>
+<p>place in its own rank, the shift that puts its whole formation abreast of the other</p>
+<p>two during a challenge, and the wander. A wave funnelled into the middle still</p>
+<p>wanders, and a wandering wave still keeps its place in the three.</p>
+<h2>Where a wave is, and where its middle is</h2>
+<p>The anchor is the formation's <strong>front</strong>. Which zone a wave has reached — and</p>
+<p>therefore when it takes the next waypoint — is a question about its <strong>middle</strong>, which</p>
+<p>is half the formation's depth behind the front. The depth is accumulated as bodies</p>
+<p>are given their places rather than computed from the member count, because the rear</p>
+<p>rank is the ranged one and how far back it sits depends on how many melee there were.</p>
 <h2>When the wave stops</h2>
 <p>The anchor is the formation's <strong>front</strong>, not its centre of mass, so stopping it when</p>
 <p>an enemy is near the front stops the whole wave at the point of contact rather than</p>

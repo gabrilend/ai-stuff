@@ -245,6 +245,10 @@ local function build_lane(map, shape, lane_id, width,
     junction       = {},
     length         = 0,
     width          = width,
+    -- How many bodies walk abreast down it. Carried on the lane rather than looked
+    -- up in the shape parameters every time, because a formation asks this question
+    -- once per body per spawn and a lane is the thing that knows the answer.
+    files          = shape.lane_files[lane_id],
   }
 
   -- Milestones 0 and 8 are the two libraries, and all three lanes share them --
@@ -548,13 +552,16 @@ end
 -- `points` is a flat list of x, y pairs. `spacing` is the target distance between
 -- generated nodes; the polyline is resampled to it, so a caller can hand over three
 -- corners or three hundred samples of a curve and get the same kind of lane back.
-function M.lane_from_polyline(points, width, spacing)
+function M.lane_from_polyline(points, width, spacing, files, divisions)
   local map = {node = {}, lane = {}, site = {}, connector = {}, library_node = {0, 0}}
 
   local lane = {
     id = 1, path = {}, milestone_node = {}, milestone_index = {},
     junction = {}, step_length = {}, cumulative = {}, path_index = {},
     length = 0, width = width,
+    -- How many walk it abreast. Declared here as it is on a real lane, because a
+    -- formation asks the lane and a lane made for a test has to be able to answer.
+    files = files or 3,
   }
 
   -- Resample the polyline at the requested spacing, so that step lengths are even
@@ -610,6 +617,29 @@ function M.lane_from_polyline(points, width, spacing)
     lane.milestone_node[m] = lane.path[at]
   end
   lane.junction[1] = lane.milestone_node[4]
+
+  -- And the zones, built the same way a real lane's are: each milestone interval cut
+  -- into the same number of pieces, from the same distances, into two arrays that
+  -- hold the same numbers.
+  --
+  -- A test lane without them is a lane no wave can find a waypoint on, so a test of
+  -- how a formation walks would be measuring a formation that never wanders -- which
+  -- is not the thing the game does.
+  divisions = divisions or 4
+  lane.zone_count = 8 * divisions
+  lane.zone = {}
+  lane.waypoint_zone = {}
+  for m = 0, 7 do
+    local from = lane.cumulative[lane.milestone_index[m]]
+    local to   = lane.cumulative[lane.milestone_index[m + 1]]
+    for d = 0, divisions - 1 do
+      local at = from + (to - from) * (d / divisions)
+      lane.zone[m * divisions + d] = at
+      lane.waypoint_zone[m * divisions + d] = at
+    end
+  end
+  lane.zone[lane.zone_count] = lane.length
+  lane.waypoint_zone[lane.zone_count] = lane.length
 
   map.lane[1] = lane
   map.bounds = {min_x = math.huge, min_y = math.huge, max_x = -math.huge, max_y = -math.huge}
