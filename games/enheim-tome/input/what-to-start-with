@@ -1,0 +1,62 @@
+The first thing either program does is read this directory. Nothing here is
+compiled in; everything here is a knob you can turn before the window opens.
+
+Nothing runs yet -- phase 1 has not been built -- so this file describes what the
+programs will look for rather than what they currently read.
+
+--
+
+## Both programs
+
+  painting          which file in assets/ is the board.
+                    default: vision-map.png
+
+  network           which fence network to load.
+                    default: assets/fences  (does not exist yet)
+
+  window            width and height. The tome takes a fixed slice of the width
+                    and the map gets the rest.
+                    default: 1600 x 900
+
+  tome-width        how wide the written half is, in pixels.
+                    default: 420
+
+## The game
+
+  zoom-floor        the most zoomed-out the view may go. Below "fit the pane"
+                    there is nothing to see but letterbox.
+                    default: fit the pane
+
+  zoom-ceiling      the most zoomed-in. Past native pixels the painting is being
+                    magnified rather than revealed.
+                    default: 1.0
+
+  fence-fade        the two on-screen block widths between which a fence ramps
+                    from invisible to solid.
+                    default: 24 and 64
+
+  glow-period       how long one breath takes, in seconds.
+                    default: 2.5
+
+  glow-floor        the opacity a glow never falls below.
+                    default: 0.3
+
+  filters           which filters start active, and for each one its colour, its
+                    hatch angle, and its stacking mode.
+
+  theme             how the text pane is styled. The prototype's black ground
+                    with coloured words is a starting point, not the design.
+
+## The tracing tool
+
+  snap-radius       the grab distance for adopting a vertex or an edge, measured
+                    in screen pixels rather than painting pixels, because it
+                    should match how precisely a hand can point right now.
+                    default: 8
+
+  trace-floor       the zoom below which placing and dragging vertices is
+                    refused, so that imprecise work is never silently accepted.
+
+  autosave          how often the network is written to tmp/shared-memory/,
+                    because losing an hour of tracing is the worst thing that
+                    could happen to this project.
