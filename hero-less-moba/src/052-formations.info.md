@@ -25,8 +25,7 @@ which is a stream rather than a wave and has no formation at all.
 | `side_of_line(world, id)` | | −1, 0 or +1 — which side of the lane a body is on. |
 | `radius_of(lane)` | | Half the width of a rank walking it. |
 | `abreast_offset(map, from_lane, centre_lane)` | | Where a wave raised for one lane stands, across the lane it is walking. |
-| `lay_out_the_waypoints(world)` | | — One offset per zone per lane, drawn once at assembly. |
-| `waypoint_across(world, lane_id, zone)` | | How far off the centre line that zone's waypoint sits. |
+| `live_radius(world, members, count)` | | How wide *this* formation actually is, from the places of the bodies in it. |
 
 ## Held in lane coordinates, which is why a rank survives a corner
 
@@ -115,27 +114,50 @@ The consequence is the one the wide centre lane always wanted. A wave marching u
 the middle arrives with more of itself abreast, so more of it is in contact the
 moment contact happens, and a numerical advantage tells sooner.
 
-## The wander
+## The wander, and the column it happens inside
 
-Every zone of a lane holds a **waypoint** — one offset across the road — and a wave
-heads for the waypoint of the zone **ahead** of the one its centre is in. Not the one
-it is standing in: that is a place it has already arrived at, and the aim has to be
-forward.
+A road divides into **three columns** lengthways. A wave chooses one on its way out
+and **keeps it for the whole march**: a wave that started on the left tends to stay on
+the left. Inside that column it draws a fresh destination each time it crosses into a
+new zone, and drifts toward it at a tenth of its marching pace.
 
-It drifts toward it at a tenth of its marching pace, so it usually reaches one about
-as it is given the next, and the line it walks is a long shallow curve rather than a
-sequence of sidesteps. A wave generally marches straight on a straight road; the
-wander is a variation in where it sits and what angle it arrives at.
+The commitment is the important half. A wave drawing an independent offset in every
+zone crosses the road repeatedly on the way down it, which is not an army with an
+approach — it is an army that cannot make up its mind. **The column is the decision;
+the draw inside it is the imprecision.** You know roughly which side you are going
+down, and not exactly where.
 
-**One line per road, not one per team.** A waypoint belongs to the ground rather than
-to whoever is walking over it, so both armies follow the same wandering line — two
-columns of people wear the same path. And **the line is a palindrome**, drawn for the
-first half of the road and reflected onto the second, because the map is a mirror of
-itself and this is part of the ground now. Two halves drawn independently would send
-one team out into a leftward drift and the other into a rightward one, from the first
-wave onward, and nothing else in the project would ever say so.
+Drifting rather than snapping, and slowly: a wave usually reaches one destination
+about as it is given the next, so the line it walks is a long shallow curve rather
+than a sequence of sidesteps.
 
-Drawn once at assembly, from a named seeded stream, never per tick.
+**The room is the wave's own.** Half the road, less **its own** radius — see below.
+
+**Its own stream, too**, seeded from the match seed, its team and its own number. A
+stream shared across a team is advanced by whichever wave crosses a boundary first, so
+a wave's wander would depend on how many other waves that team had walking and where
+they were. That turns the wander into an amplifier for any difference between two
+machines rather than a property of a wave: two runs a hair apart would take entirely
+different roads.
+
+## The circle is resizable, and has to be
+
+`radius_of(lane)` answers "how wide is a full rank on this road" — what the road has
+to be built to hold, and what two formations standing abreast have to be separated by.
+
+`live_radius` answers "how wide is **this** wave", which is a different number and
+moves. A wave that never had enough melee to fill its rank was born narrow, because
+places are handed out from the middle of the line outward and a short rank is short at
+its edges. A wave that has been fought down is narrower than it was, for the same
+reason from the other end.
+
+Every use of the circle needs the moving one. A bound computed from a full rank puts a
+wide formation's edge in the ditch and holds a narrow one further from the verge than
+it needs to be.
+
+Measured from the **places** rather than from the positions. A body knocked out of its
+file by a corner is not evidence that the formation got wider; it is evidence that the
+body is out of place, which the cohesion budget is already dealing with.
 
 Three things decide how far across the road a body's place is, and they **add**: its
 place in its own rank, the shift that puts its whole formation abreast of the other

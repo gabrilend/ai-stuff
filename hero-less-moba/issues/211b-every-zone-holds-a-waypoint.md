@@ -6,34 +6,41 @@
 | Blocked by | 211a |
 | Blocks | 211c |
 | Reads | [the map and its milestones](../docs/002-the-map-and-its-milestones.md), [waves and when one is finished](../docs/005-waves-and-when-one-is-finished.md) |
-| Open questions | H9 |
+| Open questions | none |
 
 ## Current behavior
 
-Every zone of every lane holds a waypoint: one offset across the road, drawn once at
-assembly from a named seeded stream. A wave heading down a lane takes the waypoint of
-the zone **ahead** of the one its centre is in, and drifts toward it — slowly, at a
-tenth of its marching pace, so it usually reaches one about as it is given the next
-and the line it walks is a long shallow curve rather than a sequence of corrections.
+A road divides into **three columns** lengthways. A wave chooses one on its way out
+and keeps it for the whole march — a wave that started on the left tends to stay on
+the left — and inside that column it draws a fresh destination each time it crosses
+into a new zone, then drifts toward it at a tenth of its marching pace.
 
-**One line per road, not one per team.** A waypoint belongs to the ground rather than
-to whoever walks over it, so both armies follow the same wandering line — the way two
-columns of people wear the same path. And **the line is a palindrome**, drawn for the
-first half of the road and reflected onto the second, because the map is a mirror of
-itself and this is part of the ground now. Two halves drawn independently would send
-one team out into a leftward drift and the other into a rightward one, from the first
-wave, forever.
+The commitment is the important half. A wave drawing an independent offset in every
+zone crosses the road repeatedly on the way down it, which is not an army with an
+approach; it is an army that cannot make up its mind. The column is the decision and
+the draw inside it is the imprecision.
 
-The offset is bounded by the road's half-width less the formation's radius, so a wave
-aiming at one still has all of itself on the road.
+**The room is the wave's own.** Half the road, less **its own** radius — not the
+road's standard formation's. A wave that never had enough melee to fill its rank was
+born narrow, and one that has been fought down is narrower than it was, because
+places are handed out from the middle outward and the flanks go first. The circle is
+measured from the places of the bodies actually present, every tick.
+
+**Each wave draws from its own stream**, seeded from the match seed, its team and its
+own number. A stream shared across a team is advanced by whichever wave crosses a
+boundary first, so a wave's wander would depend on how many other waves that team had
+walking — which turns the wander into an amplifier for any difference between two
+machines rather than a property of a wave.
 
 The roads are three formation widths across, and the centre nine. The file count each
-carries is now **declared** rather than divided out of the width — that became
-circular the moment a width was a multiple of the formation walking it — and the
-validator checks the arithmetic both ways.
+carries is **declared** rather than divided out of the width — that became circular
+the moment a width was a multiple of the formation walking it — and the validator
+checks the arithmetic both ways.
 
 Measured in the sandbox on a road with no curve in it, which is the only ground where
-a formation moving sideways is distinguishable from a formation following the road.
+a formation moving sideways is distinguishable from a formation following the road: it
+wanders, it stays inside its column, no part of it leaves the road, and stripping its
+outer file makes its circle smaller.
 
 ## Intended behavior
 
@@ -104,8 +111,5 @@ It shows most where the road bends and where two waves are closing.
 
 ## Still open
 
-**Whether every wave should follow the same line.** A waypoint belongs to a zone, so
-every wave a team sends down a road follows the same wander — the road has a
-character and both armies walk it. The alternative is re-rolling a zone's waypoint
-each time a wave takes it, which would give each wave its own line at the cost of the
-ground having none. Written up as H9.
+Nothing. H9 asked whether the wander belonged to the road or to the wave and was
+answered: to the wave, which picks a column and holds it.

@@ -309,8 +309,7 @@ svg { max-width: 100%; }
 <tr><td><code>side_of_line(world, id)</code></td><td></td><td>−1, 0 or +1 — which side of the lane a body is on.</td></tr>
 <tr><td><code>radius_of(lane)</code></td><td></td><td>Half the width of a rank walking it.</td></tr>
 <tr><td><code>abreast_offset(map, from_lane, centre_lane)</code></td><td></td><td>Where a wave raised for one lane stands, across the lane it is walking.</td></tr>
-<tr><td><code>lay_out_the_waypoints(world)</code></td><td></td><td>— One offset per zone per lane, drawn once at assembly.</td></tr>
-<tr><td><code>waypoint_across(world, lane_id, zone)</code></td><td></td><td>How far off the centre line that zone's waypoint sits.</td></tr>
+<tr><td><code>live_radius(world, members, count)</code></td><td></td><td>How wide <em>this</em> formation actually is, from the places of the bodies in it.</td></tr>
 </tbody></table>
 <h2>Held in lane coordinates, which is why a rank survives a corner</h2>
 <p>A body's place is two numbers: <strong>how far along the lane</strong> its wave's anchor has got</p>
@@ -381,23 +380,40 @@ svg { max-width: 100%; }
 <p>The consequence is the one the wide centre lane always wanted. A wave marching up</p>
 <p>the middle arrives with more of itself abreast, so more of it is in contact the</p>
 <p>moment contact happens, and a numerical advantage tells sooner.</p>
-<h2>The wander</h2>
-<p>Every zone of a lane holds a <strong>waypoint</strong> — one offset across the road — and a wave</p>
-<p>heads for the waypoint of the zone <strong>ahead</strong> of the one its centre is in. Not the one</p>
-<p>it is standing in: that is a place it has already arrived at, and the aim has to be</p>
-<p>forward.</p>
-<p>It drifts toward it at a tenth of its marching pace, so it usually reaches one about</p>
-<p>as it is given the next, and the line it walks is a long shallow curve rather than a</p>
-<p>sequence of sidesteps. A wave generally marches straight on a straight road; the</p>
-<p>wander is a variation in where it sits and what angle it arrives at.</p>
-<p><strong>One line per road, not one per team.</strong> A waypoint belongs to the ground rather than</p>
-<p>to whoever is walking over it, so both armies follow the same wandering line — two</p>
-<p>columns of people wear the same path. And <strong>the line is a palindrome</strong>, drawn for the</p>
-<p>first half of the road and reflected onto the second, because the map is a mirror of</p>
-<p>itself and this is part of the ground now. Two halves drawn independently would send</p>
-<p>one team out into a leftward drift and the other into a rightward one, from the first</p>
-<p>wave onward, and nothing else in the project would ever say so.</p>
-<p>Drawn once at assembly, from a named seeded stream, never per tick.</p>
+<h2>The wander, and the column it happens inside</h2>
+<p>A road divides into <strong>three columns</strong> lengthways. A wave chooses one on its way out</p>
+<p>and <strong>keeps it for the whole march</strong>: a wave that started on the left tends to stay on</p>
+<p>the left. Inside that column it draws a fresh destination each time it crosses into a</p>
+<p>new zone, and drifts toward it at a tenth of its marching pace.</p>
+<p>The commitment is the important half. A wave drawing an independent offset in every</p>
+<p>zone crosses the road repeatedly on the way down it, which is not an army with an</p>
+<p>approach — it is an army that cannot make up its mind. **The column is the decision;</p>
+<p>the draw inside it is the imprecision.** You know roughly which side you are going</p>
+<p>down, and not exactly where.</p>
+<p>Drifting rather than snapping, and slowly: a wave usually reaches one destination</p>
+<p>about as it is given the next, so the line it walks is a long shallow curve rather</p>
+<p>than a sequence of sidesteps.</p>
+<p><strong>The room is the wave's own.</strong> Half the road, less <strong>its own</strong> radius — see below.</p>
+<p><strong>Its own stream, too</strong>, seeded from the match seed, its team and its own number. A</p>
+<p>stream shared across a team is advanced by whichever wave crosses a boundary first, so</p>
+<p>a wave's wander would depend on how many other waves that team had walking and where</p>
+<p>they were. That turns the wander into an amplifier for any difference between two</p>
+<p>machines rather than a property of a wave: two runs a hair apart would take entirely</p>
+<p>different roads.</p>
+<h2>The circle is resizable, and has to be</h2>
+<p><code>radius_of(lane)</code> answers "how wide is a full rank on this road" — what the road has</p>
+<p>to be built to hold, and what two formations standing abreast have to be separated by.</p>
+<p><code>live_radius</code> answers "how wide is <strong>this</strong> wave", which is a different number and</p>
+<p>moves. A wave that never had enough melee to fill its rank was born narrow, because</p>
+<p>places are handed out from the middle of the line outward and a short rank is short at</p>
+<p>its edges. A wave that has been fought down is narrower than it was, for the same</p>
+<p>reason from the other end.</p>
+<p>Every use of the circle needs the moving one. A bound computed from a full rank puts a</p>
+<p>wide formation's edge in the ditch and holds a narrow one further from the verge than</p>
+<p>it needs to be.</p>
+<p>Measured from the <strong>places</strong> rather than from the positions. A body knocked out of its</p>
+<p>file by a corner is not evidence that the formation got wider; it is evidence that the</p>
+<p>body is out of place, which the cohesion budget is already dealing with.</p>
 <p>Three things decide how far across the road a body's place is, and they <strong>add</strong>: its</p>
 <p>place in its own rank, the shift that puts its whole formation abreast of the other</p>
 <p>two during a challenge, and the wander. A wave funnelled into the middle still</p>

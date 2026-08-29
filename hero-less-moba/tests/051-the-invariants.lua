@@ -285,12 +285,28 @@ local function test_the_opening_is_symmetric()
   for id = 1, world.high_water do
     if soldier.alive[id] == 1 and soldier.flavour[id] == 1 and soldier.lane[id] ~= 0 then
       local lane = world.map.lane[soldier.lane[id]]
-      -- Distance from its **own** library, so the two teams are described in the
-      -- same terms rather than in the path array's.
-      local from_home = (soldier.team[id] == 1) and soldier.lane_along[id]
-                                                 or (lane.length - soldier.lane_along[id])
-      local key = string.format("%d:%d:%.2f:%.2f", soldier.lane[id], soldier.archetype[id],
-                                from_home, soldier.lane_across[id])
+      -- **The bodies and the shape they were built in, not where they have got to.**
+      --
+      -- This compared each body's achieved position -- how far down its road it had
+      -- walked and how far across it was standing -- forty ticks after the first
+      -- wave left. That is not a statement about the opening. It is a statement that
+      -- forty ticks of simulation preserve symmetry, which the design explicitly does
+      -- not claim: the two sides are *set up* as mirrors and diverge immediately, and
+      -- being able to say so plainly is the whole of G2.
+      --
+      -- Two things broke it, both correct behaviour. Waves pick one of a road's three
+      -- columns and wander inside it, so two mirrored waves sit at different offsets
+      -- from the moment they are given somewhere to head for. And wandering costs
+      -- forward progress -- a body's speed is a budget spent on going forward and
+      -- going sideways -- so the wave that wandered further is also slightly behind.
+      --
+      -- What the opening actually claims is that **the same bodies left both bases in
+      -- the same formation**: the same archetypes, in the same lanes, in the same
+      -- ranks and files. That is what a wave is built with, it cannot be changed by
+      -- walking, and it is what a spawner getting it wrong would break.
+      local key = string.format("%d:%d:%.2f:%.2f",
+                                soldier.lane[id], soldier.archetype[id],
+                                soldier.slot_along[id], soldier.slot_across[id])
       local into = shape[soldier.team[id]]
       into[key] = (into[key] or 0) + 1
     end
@@ -305,6 +321,21 @@ local function test_the_opening_is_symmetric()
     if shape[1][key] == nil then
       problems[#problems + 1] = "team 2's first wave has " .. key .. " and team 1's does not"
     end
+  end
+
+  -- And separately: the same *number* of bodies is standing after the same time. The
+  -- shape check above cannot see a spawner that emitted a wave twice, because two
+  -- identical bodies in the same slot look like one entry counted twice -- which it
+  -- is, and which is why the counts are compared rather than the keys.
+  local standing = {0, 0}
+  for id = 1, world.high_water do
+    if soldier.alive[id] == 1 and soldier.flavour[id] == 1 then
+      standing[soldier.team[id]] = standing[soldier.team[id]] + 1
+    end
+  end
+  if standing[1] ~= standing[2] then
+    problems[#problems + 1] = string.format("%d bodies out for team 1 and %d for team 2",
+                                            standing[1], standing[2])
   end
 
   check("the opening is a mirror -- same stone, same wallets, same first wave",

@@ -4611,7 +4611,7 @@ other way.
 **Built:** issue 212.
 
 
-## H9. Does the road wander, or does each wave? — **NEEDS A DECISION**
+## H9. Does the road wander, or does each wave? — **ANSWERED**
 
 Built one way and worth asking about, because both readings fit what was described
 and they feel different.
@@ -4644,3 +4644,57 @@ A middle option exists and has not been costed: the road keeps its line, and eac
 wave is given a small additional offset of its own on top of it. The road still has a
 shape; waves still differ. It would need its own draw per wave, and the opening would
 stay a mirror as long as the two first waves drew the same one.
+
+**Answer: each wave, and it picks a lane within the lane.**
+
+The road divides into **three columns** lengthways. A wave chooses one on its way out
+and **keeps it for the whole march** — a wave that started on the left tends to stay
+on the left — and inside that column it draws a fresh destination for every stretch
+it enters.
+
+The commitment is the important half. A wave drawing an independent offset in every
+stretch crosses the road repeatedly on the way down it, which is not an army with an
+approach; it is an army that cannot make up its mind. The column is the decision and
+the draw inside it is the imprecision — you know roughly which side you are going
+down, and not exactly where.
+
+Two consequences that had to be built rather than assumed:
+
+**The circle has to be resizable.** The room a wave has is half the road less **its
+own** radius, not the road's standard formation's. A wave that never had enough melee
+to fill its rank was born narrow, and one that has been fought down is narrower than
+it was, because the places are handed out from the middle outward and the flanks go
+first. One number for the whole road puts a wide formation's edge in the ditch and
+holds a narrow one further from the verge than it needs to be.
+
+**Each wave draws from its own stream**, seeded from the match seed, its team and its
+own number. A stream shared across a team is advanced by whichever wave crosses a
+boundary first, so a wave's wander would depend on how many other waves that team had
+walking and where they were — which turns the wander into an amplifier for any
+difference between two machines rather than a property of a wave. Two runs a hair
+apart would take entirely different roads.
+
+**Changed:** the opening-is-a-mirror check, which was reading the wrong thing — see
+below. **Built:** issue 211b.
+
+### And the opening stopped being a mirror, twice, correctly
+
+Worth recording because both failures were the check being wrong rather than the game.
+
+It compared each body's **achieved position** forty ticks after the first wave left:
+how far down its road it had walked and how far across it stood. That is not a
+statement about the opening. It is a statement that forty ticks of simulation
+preserve symmetry — which this document explicitly does not claim, and G2 is the
+place it says so.
+
+Two correct behaviours broke it. Waves pick a column, so two mirrored first waves sit
+at different offsets from the moment they are given somewhere to head for. And
+**wandering costs forward progress** — a body's speed is one budget spent on going
+forward and going sideways — so the wave that wandered further is also slightly
+behind.
+
+What the opening claims is that the same bodies left both bases **in the same
+formation**: same archetypes, same lanes, same ranks and files. That is what a wave
+is built with, it cannot be changed by walking, and it is what a spawner getting it
+wrong would break. Alongside it, a separate count of how many bodies are standing,
+because two identical bodies in the same place look like one entry counted twice.

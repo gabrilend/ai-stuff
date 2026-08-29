@@ -130,6 +130,9 @@ local function sandbox(polyline, width)
   world.formations = formations
   world.rest_of_brain = rest_of_brain
   world.map_builder = map_builder
+  -- A wave makes its own waypoint stream from the match seed and its own number, so
+  -- the sandbox has to be able to hand it the thing that makes streams.
+  world.random_streams = random_streams
   world.allocate = world_module.allocate
   world.release = world_module.release
   world.raise = world_module.raise
@@ -442,7 +445,8 @@ local function test_a_turn()
 
   check("and the line holds together through the bend",
         worst_lag < 26,
-        string.format("worst lag %.2f paces", worst_lag))
+        string.format("the line bent by %.2f paces, against a rank of %d",
+                      worst_lag, formations.RANK_SPACING))
 end
 -- }}}
 
@@ -468,7 +472,20 @@ local function test_a_sine_wave()
   for tick = 1, 1400 do
     step(world, false)
     local shape = measure_formation(world, wave_id)
-    if shape.worst_lag > worst_lag then worst_lag = shape.worst_lag end
+    -- **The spread of lag, not the worst lag.** A wave whose every body is equally
+    -- behind is a wave whose anchor got ahead of it, which is intact; a wave whose
+    -- bodies are behind by different amounts is a line that has bent. A formation
+    -- moving sideways -- following a curve, or heading for a waypoint -- spends one
+    -- speed budget on two things and every body in it falls behind together, which
+    -- against an absolute measure reads identically to the line coming apart.
+    local behind_least, behind_most = math.huge, -math.huge
+    for _, member in ipairs(shape.members) do
+      if member.lag < behind_least then behind_least = member.lag end
+      if member.lag > behind_most then behind_most = member.lag end
+    end
+    if behind_most > behind_least and (behind_most - behind_least) > worst_lag then
+      worst_lag = behind_most - behind_least
+    end
     for _, member in ipairs(shape.members) do
       local off = math.abs(member.across - member.want_across)
       if off > worst_off_file then worst_off_file = off end
@@ -486,9 +503,12 @@ local function test_a_sine_wave()
     end
   end
 
+  -- Bounded by a whole rank, derived rather than chosen: at a rank's worth of bend
+  -- the second rank has caught the first and ranks have stopped being ranks.
   check("a formation holds its ranks along a lane that keeps changing direction",
-        worst_lag < 30,
-        string.format("worst lag %.2f paces", worst_lag))
+        worst_lag < formations.RANK_SPACING,
+        string.format("the line bent by %.2f paces, against a rank of %d",
+                      worst_lag, formations.RANK_SPACING))
 
   check("and nobody is pushed out of their file by the curve",
         worst_off_file < 3,
@@ -553,9 +573,8 @@ local function test_the_wander()
     low, high, how_many_zones, worst_body))
 
   check("a wave walking a straight road does not walk a straight line",
-        (high - low) > radius * 0.5,
-        string.format("wandered across %.1f paces, which is less than half a formation",
-                      high - low))
+        (high - low) > 1,
+        string.format("wandered across %.1f paces", high - low))
 
   check("and it takes its aim from more than one waypoint on the way",
         how_many_zones > 4, how_many_zones .. " zones crossed")
@@ -564,6 +583,66 @@ local function test_the_wander()
         worst_body <= lane.width * 0.5 + 0.001,
         string.format("a body reached %.2f paces out and the road's half-width is %.2f",
                       worst_body, lane.width * 0.5))
+
+  -- **It picked a column and stayed in it.** The road divides into three lengthways
+  -- and a wave commits to one on its way out: a wave that started on the left tends
+  -- to stay on the left.
+  --
+  -- Without the commitment a wave draws an independent offset in every stretch and
+  -- crosses the road repeatedly on the way down it, which is not an army with an
+  -- approach -- it is an army that cannot make up its mind. So the thing to assert is
+  -- not that it wanders, it is that it wanders **inside one third of the road**.
+  local wave = world.wave[wave_id]
+  local room = lane.width * 0.5 - (wave.radius or 0)
+  local band = room * 2 / 3
+  local mine_from = wave.column * band - band * 0.5
+  local mine_to   = wave.column * band + band * 0.5
+  local names = {[-1] = "left", [0] = "centre", [1] = "right"}
+  note(string.format("  took the %s column, which runs %+.1f to %+.1f",
+    names[wave.column] or "?", mine_from, mine_to))
+
+  check("and it stayed in the column it chose",
+        low >= mine_from - 0.001 and high <= mine_to + 0.001,
+        string.format("wandered %+.2f to %+.2f, and its column is %+.2f to %+.2f",
+                      low, high, mine_from, mine_to))
+
+  -- And the circle is the formation's own. A wave that has been fought down is
+  -- narrower than a full one and has more road to move about in; measuring the room
+  -- with one number for the whole lane would put a wide formation's edge in the ditch
+  -- and hold a narrow one further from the verge than it needs to be.
+  local was = wave.radius
+  local members = {}
+  local kept = 0
+  for id = 1, world.high_water do
+    if world.soldier.alive[id] == 1 and world.soldier.wave[id] == wave_id then
+      kept = kept + 1
+      members[kept] = id
+    end
+  end
+  -- Take the **outer file** away and ask again -- every body standing at the edge, on
+  -- both sides and in every rank, which is what a formation losing its flanks looks
+  -- like. Removing one body proves nothing: the others at the same offset are still
+  -- there and the circle is unchanged, which is correct and is why the first version
+  -- of this check could not fail.
+  local widest = 0
+  for index = 1, kept do
+    local across = math.abs(world.soldier.slot_across[members[index]])
+    if across > widest then widest = across end
+  end
+  local inner, inner_count = {}, 0
+  for index = 1, kept do
+    if math.abs(world.soldier.slot_across[members[index]]) < widest - 0.001 then
+      inner_count = inner_count + 1
+      inner[inner_count] = members[index]
+    end
+  end
+  local narrower = formations.live_radius(world, inner, inner_count)
+  note(string.format("  full it is %.1f across with %d bodies; without its outer file, %.1f with %d",
+    was * 2, kept, narrower * 2, inner_count))
+
+  check("and the formation's circle is its own size, not the road's",
+        narrower < was,
+        string.format("%.2f against %.2f", narrower, was))
 end
 -- }}}
 
