@@ -71,6 +71,110 @@ how I stored it, not a transfer of ownership. It stays under whatever terms its
 author actually granted, and the fix is to go put the license file where it
 belongs. Nothing in this document is a claim over work I did not do.
 
+A standing offer to any artist whose work is here
+-------------------------------------------------
+
+If you made art that one of these projects uses -- a painting, a drawing, music,
+a sound, a font, a typeface, a map, writing, anything I would have had to ask a
+person for -- then everything that project is, is yours for the asking.
+
+Ask, and I will send you the whole project: the source code, the documents, the
+issue files, the design notes, the tooling, the LLM transcripts, and the git
+history of that project's directory. Not a release build and not a tidied-up
+snapshot -- the working material, in whatever state it is actually in. And with
+it, permission to do anything you want with what you have been sent, under no
+conditions at all: build on it, sell it, close it, take it apart, ship it under
+your own name, license it however you like, or throw it away. You do not owe me
+the source of your version, you do not owe me credit, and you do not owe me a
+reason for asking. The one thing with a rule attached is handing this on to
+somebody else, and that rule has a bullet of its own further down.
+
+The scope is the projects that use your art, each one entire. Not this monorepo.
+If your painting is in one game, that game is the thing you can have; the dozens
+of other directories in here are not part of the offer, because they have
+nothing to do with you.
+
+Now the parts of this that are not mine to give, stated plainly, because an
+offer with an unmarked hole in it is worse than a smaller offer honestly drawn.
+
+- **Other people's work travels under its own terms.** Vendored libraries,
+  toolchains, downloaded assets: I can hand you the copy I have, and it arrives
+  under whatever license its author actually granted, exactly as it does for
+  anybody else. My grant covers my work and only my work.
+
+- **Another artist's art is theirs, and not mine to sign over to you.** If two
+  people made art for the same project, each of you can have everything I did,
+  and neither of you receives the other's work through me. Ask them yourself;
+  they may well say yes.
+
+- **Ownership here is whole, and it is shared.** You do not get a slice of this
+  sized to how much of it you made. You made part of it, so you own all of it --
+  the same all of it that I own. The one thing you cannot get is exclusive
+  title, and that is a decision rather than a limit I ran into: this should never
+  be owned by one person or a few. The code is already published under the AGPL
+  and cannot be un-published, and if a second artist asks I will say yes to them
+  on the same terms without hesitating. Nobody's ownership shrinks when another
+  person's begins. What this is made of is not in finite supply, and there is no
+  version of this where somebody else having all of it leaves you with less.
+
+  Concretely, what that ownership is made of: a permanent, irrevocable, no-cost
+  grant, sitting on top of the AGPL and free of every condition the AGPL would
+  otherwise impose, of everything I as the copyright holder am able to do with
+  the work. The practical difference is the whole of it -- the AGPL says you
+  must pass the source along, and this says you do not have to.
+
+- **It is transferrable once, and after that only by asking.** It is not stapled
+  to your person. You may sell it, or give it, to one other person. One. That
+  power is single-use: spending it spends it, and there is no second one behind
+  it. What it costs you is the power to do it again -- not the thing itself. You
+  still own everything you owned the day before, because you own it for having
+  made the art, and no sale changes the fact that you made the art. And what you
+  *make* with it is yours in the ordinary way, to sell, license, or transfer as
+  often and as freely as you please. That is your work; this rule is not about
+  your work.
+
+  It has to land somewhere it will be used. You cannot sell it to somebody who
+  cannot use it -- not to a broker, not to a shell, not to anyone acquiring it in
+  order to sit on it. This is a seat at a workbench and not an instrument, and it
+  is void the moment it is parked.
+
+  Whoever you hand it to arrives owning everything you own, and arrives with no
+  onward sale of their own. They cannot sell it. They cannot trade it. What they
+  can do is ask me first, before anything moves -- and the most I am able to say
+  yes to is their giving it away. Never their selling it on. A sale stops dead at
+  the person who bought it. This holds at every further remove: three steps down
+  the chain, money or no money, gift or trade, the rule is ask the royalty first.
+
+Two things that shape is doing, since neither falls out of the rules by reading
+them.
+
+It keeps the freedom moving on foot rather than by post. Every move is one
+person handing it to one person who will use it, which is slow, and slow is the
+whole point -- a freedom that can be forwarded arrives everywhere at once, and
+then it is not an offer to artists any more, it is a permissive license with
+extra steps and the copyleft has quietly evaporated for everybody. The copyleft
+is here to stop this being fenced off by somebody who did none of the work. It
+was never meant to hold a door shut against the person who painted it, and it is
+not meant to swing open for everyone standing behind them either.
+
+And it keeps me reachable. Every move past the first comes back through me,
+which is not a toll -- there is nothing to pay, and no royalty for the royalty
+to collect except the asking. It is that somebody ought to be able to find out
+where a copy went, and the only way that stays true is if there is a person
+standing at every link in the chain.
+
+There is no form, no fee, no NDA, and no negotiation. Email gabrilend@gmail.com
+and say which project. It applies backwards to art that is already here, it does
+not expire, I cannot revoke it, and asking does not end anything -- you may ask
+and keep working, or ask and walk away, or ask years later, and it costs you
+nothing in any of those cases.
+
+Why this exists: I am doing software design, not building a product. A project
+in here is worth more to me as a thing that got designed than as a thing whose
+copies I control. Art is the one part I cannot do myself and cannot generate my
+way around, and somebody who makes it should not end up with a weaker claim on
+the result than I have.
+
 Where the source lives, and why it is a mirror and not a link
 --------------------------------------------------------------
 
