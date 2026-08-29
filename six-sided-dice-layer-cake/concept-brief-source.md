@@ -122,6 +122,19 @@ them; the choice buys exactly zero expansion mismatch at that interface.
 Two results are worth an investor's attention because they are counter-intuitive
 and they de-risk the design.
 
+**The cooling could also be made to slosh rather than circulate.** As designed,
+coolant enters four corners and leaves the other four in a continuous loop, and
+every face sees fluid at the same inlet temperature. An alternative drives the
+column back and forth with a pump at each end: while one end is outside losing
+heat to a radiator the other is inside picking it up, and then the stroke
+reverses. It needs one channel per rail rather than two, which is the largest
+single reduction available to the cube's edge --- and every dimension in this
+design hangs off that edge. What it costs is that the junction temperature stops
+being level and becomes a ripple at the stroke frequency. Which of the two wins
+turns on the ripple amplitude against the fifty-nine kelvin of margin, and behind
+that on the fatigue cost of cycling every bond in the machine at the stroke rate
+for ten years. It is recorded as an open question rather than settled.
+
 **Halving the coolant flow does not halve the cooling.** In laminar flow the
 convection coefficient does not depend on velocity at all --- only the coolant's
 own temperature rise doubles, and that rise is a fifth of the chain. A pump at
@@ -138,6 +151,60 @@ fifty-branch hydraulic network for every legal arrangement, and the thermal budg
 is nonetheless built on the *worst* legal arrangement, so the design does not
 depend on the plumbing being assembled to the drawing rather than merely to the
 rules.
+
+## Where it wins and where it loses
+
+Against one accelerator with stacked memory. Blank cells are figures this project
+does not hold and will not invent.
+
+| | This design | Comparator | |
+|---|---|---|---|
+| memory bandwidth | 38.4 TB/s | 3.4 TB/s | 11.4 times |
+| memory capacity | 71.9 GB | 141 GB | 0.51 times |
+| tokens/s, one sequence | 1,021 | --- | latency |
+| tokens/s per watt | 10.3 | --- | density |
+| tokens/s per litre | 90,231 | --- | density |
+| model load, from storage | 34 ms | seconds | win |
+| runs an arbitrary program | no | yes | **lose** |
+| degrades past capacity | refuses | pages | differs |
+| cooling | liquid, required | air or liquid | **lose** |
+| software ecosystem | none | mature | **lose** |
+
+Four of the ten rows go against this design and one of the four --- the software
+ecosystem --- is the one that most often decides hardware outcomes.
+
+**The three unshared cases.** What this does and a general accelerator cannot:
+serve a model that fits, at very low latency, in a fraction of the volume and
+power, because the weights are already where the arithmetic is. What a general
+accelerator does and this cannot: run anything else at all --- training, a larger
+model, a different framework, a workload nobody anticipated. And where they are
+simply different: at the capacity edge, where one pages and slows and the other
+declines.
+
+The latency advantage is structural rather than tuned. A conventional part fetches
+weights from stacked memory every token; this one does not fetch them.
+
+## How long the advantage lasts
+
+The comparator improves. Assuming its memory bandwidth grows at a compound annual
+rate, the bandwidth lead closes after:
+
+| assumed annual improvement | years to parity |
+|---|---|
+| 20 per cent | 13.3 |
+| 30 per cent | 9.3 |
+| 40 per cent | 7.2 |
+
+**These are not forecasts and this project does not own them.** The growth rates
+are assumptions declared in the design so that a claim about the future is a
+number a reader can change rather than a sentence somebody wrote. Substitute your
+own rate and the answer recomputes; the arithmetic is one line.
+
+What the design asserts is the shape rather than the value: even against a
+comparator improving faster than stacked memory has sustained, the bandwidth lead
+outlives any plausible time to build one. **The capacity deficit does not close
+from this side at all** --- the comparator is ahead there now and improving too,
+and that is the permanent half of the trade.
 
 ## What it costs to run
 
@@ -192,10 +259,10 @@ anything else.
 The design is not a document describing a machine. It is written in a notation a
 program reads. Every dimension is either a number a person chose --- there are
 eleven of those --- or an expression over numbers that were. Alongside them sit
-**570 engineering requirements**, each carrying the author's own sentence saying
+**573 engineering requirements**, each carrying the author's own sentence saying
 why it must hold, and a checker evaluates every one of them in about a second.
 
-All 570 currently hold. None of the design's own goals is unresolved: the notation
+All 573 currently hold. None of the design's own goals is unresolved: the notation
 has a category for a number the design wants and cannot yet produce, and the
 checker refuses to call the set finished while one exists.
 
@@ -241,6 +308,14 @@ sixty-four per cent of them come off a wafer good. The design's own note is that
 making the tiers smaller would save more than any assembly improvement, and that
 nobody has yet asked whether a tier has to be one piece.
 
+**There is no software.** A general accelerator arrives with fifteen years of
+tooling. This design assumes two pieces that do not exist: something to pack a
+trained model into the core's format, and a reference implementation to check the
+first generated token against, bit for bit. It is a machine that runs one shape of
+workload, so it needs far less tooling than a general part --- but far less is not
+none, and nobody has written either piece. **This is the risk that most often
+kills hardware companies, and it is not an engineering problem.**
+
 **Two decisions remain open.** Whether the coolant is water or a dielectric: water
 cools about ten times better, and a leak with water across a hundred and sixty-six
 joints is a dead cube rather than a mess. The substitution costs about eleven
@@ -250,7 +325,7 @@ thermal one. And whether the model it is sized around is the right anchor, since
 that model sets the core, which sets the cavity, which sets the cube. A model half
 the size would let the whole machine shrink, and nobody has run that backwards.
 
-**Sixteen further questions are carried openly**, each naming the part of the
+**Seventeen further questions are carried openly**, each naming the part of the
 design that owns it and what it would change.
 
 ## What it is ready for
