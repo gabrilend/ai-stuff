@@ -119,6 +119,52 @@ against, bit for bit.
 
 `085` needs both on day one and neither is described anywhere.
 
+### Should the coolant circulate, or slosh? — **would halve the plumbing**
+
+Every rail in `016` carries two channels, a supply and a return, side by side.
+That is what a loop needs: fluid leaves the pump, crosses the machine, and comes
+back by a different path. Twenty-four channels for twelve edges, and the pair of
+them is what sets a rail's four-millimetre section, which in turn is a real part
+of the cube's edge.
+
+**A reciprocating loop needs one channel, not two.** Drive the fluid one way for
+half a cycle and the other way for the other half. The column never completes a
+circuit; it moves back and forth. While one end of it is outside the machine
+losing heat to a radiator, the other end is inside picking heat up, and then the
+stroke reverses and they trade jobs. Two small pumps, one at each end, and no
+return path anywhere.
+
+**What it would buy.** One channel per rail instead of two. `016` sizes the rail
+around two stacked channels plus the web between them and the wall around them;
+removing one of them is the largest single reduction available to the cube's
+edge, and the edge is the dimension every other dimension in the project hangs
+from.
+
+**What it would cost.** The junction temperature stops being flat. In the loop, a
+face sees fluid at a steady inlet temperature; in a reciprocating column it sees
+fluid that has just come from the radiator at the start of a stroke and fluid
+that has been absorbing heat all the way across by the end of one. The
+temperature ripples at the stroke frequency — a heartbeat rather than a level —
+and the amplitude of that ripple comes straight out of the stroke period against
+the thermal time constant in `026`. That constant is about three milliseconds for
+a die's multiplier region, so a stroke fast enough to keep the ripple small is a
+stroke measured in milliseconds, which is a lot of reversals over the ten years
+`086` is claiming.
+
+**What nobody has computed.** The ripple amplitude, and therefore whether the
+fifty-nine kelvin of margin absorbs it. The pumping power of accelerating and
+stopping a fluid column twice per stroke against the steady loss of a circuit.
+Whether valves are needed at all or whether the two pumps suffice. And the
+fatigue consequence of cycling every bond in the machine at the stroke frequency,
+which is the question `018` would have to answer and which is likely the one that
+decides it.
+
+This is a whole-design alternative rather than a tweak, and it arrived from
+outside the project. It is recorded here rather than acted on, because acting on
+it means re-deriving the rail, the corner block, the cube edge and the thermal
+transient, and the case for doing that starts with the ripple amplitude — which
+is an afternoon's work with `102` already holding the network.
+
 ### T2. How many channels can block?
 
 A hundred and seventy-three channels per face at a hundred and fifty microns, in a

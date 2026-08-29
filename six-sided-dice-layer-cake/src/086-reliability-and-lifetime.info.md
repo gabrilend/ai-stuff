@@ -11,20 +11,20 @@ Described by `1206`.
 | symbol | unit | kind | value | meaning |
 |---|---|---|---|---|
 | `n_yr_target` | 1 | given | 10 | years a cube must run, continuously, replaced rather than repaired |
-| `t_year` | s | measured | 3.156e+07 s | seconds in a year, as a symbol rather than a literal because a literal here would be dimensionless |
+| `t_year` | s | measured | 1 yr | seconds in a year, as a symbol rather than a literal because a literal here would be dimensionless |
 | `f_repl_annual` | 1 | given | 0.05 | annual replacement rate tolerable in a population, which is what the target is chosen against |
 | `n_mech` | 1 | given | 9 | failure mechanisms |
 | `a_silent` | 1 | given | 0.02 | share of the failure budget allowed to silent corruption, the smallest of the nine |
 | `a_inside` | 1 | given | 0.38 | share allowed to everything inside the cube that has no repair path |
 | `a_outside` | 1 | given | 0.6 | share allowed to the pump and the fluid, which are serviceable |
 | `n_cyc_life` | 1 | derived | 100000 | power cycles over the life, from 018 |
-| `t_life_seconds` | s | derived | 3.156e+08 s | the life, in the unit every other blueprint's mean-time figures are in |
-| `lam_target` | 1/s | derived | 1.58428e-09 1/s | failure rate the target implies |
-| `mtbf_target` | s | derived | 6.312e+08 s | and the mean time between failures it corresponds to |
-| `lam_silent` | 1/s | derived | 3.16857e-11 1/s | allocated to silent corruption |
-| `lam_inside` | 1/s | derived | 6.02028e-10 1/s | to everything unrepairable inside |
-| `lam_outside` | 1/s | derived | 9.5057e-10 1/s | to the serviceable loop |
-| `mtbf_silent` | s | derived | 3.156e+10 s | the mean time between silent corruptions that 040 and 069 must together beat |
+| `t_life_seconds` | s | derived | 3.15576e+08 s | the life, in the unit every other blueprint's mean-time figures are in |
+| `lam_target` | 1/s | derived | 1.5844e-09 1/s | failure rate the target implies |
+| `mtbf_target` | s | derived | 6.31152e+08 s | and the mean time between failures it corresponds to |
+| `lam_silent` | 1/s | derived | 3.16881e-11 1/s | allocated to silent corruption |
+| `lam_inside` | 1/s | derived | 6.02074e-10 1/s | to everything unrepairable inside |
+| `lam_outside` | 1/s | derived | 9.50643e-10 1/s | to the serviceable loop |
+| `mtbf_silent` | s | derived | 3.15576e+10 s | the mean time between silent corruptions that 040 and 069 must together beat |
 | `a_sum` | 1 | derived | 1 | the allocations, which must be the whole budget |
 | `ratio_asym` | 1 | derived | 1.57895 | how much more the serviceable half is allowed than the unrepairable half, which is the asymmetry 019's absence of repair justifies |
 | `n_cyc_check` | 1 | derived | 100010 | power cycles at a plausible rate over the life, for comparison against what 018 assumed |
@@ -45,7 +45,7 @@ Change one of these and the blueprints beside it are what break.
 | symbol | read by |
 |---|---|
 | `n_yr_target` | `086` |
-| `t_year` | `086` |
+| `t_year` | `080`, `086` |
 | `f_repl_annual` | `086` |
 | `n_mech` | `086` |
 | `a_silent` | `086` |

@@ -1659,6 +1659,14 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `C_ref_hbm` | GB | measured | 141 GB | — | and its capacity |
 | `gain_bw` | 1 | derived | 11.38 | `B_core / B_ref_hbm` | the ratio the machine wins on |
 | `gain_cap` | 1 | derived | 0.5103 | `C_core_usable / C_ref_hbm` | and the one it does not |
+| `t_year` | yr | given | 1 yr | — | one year as a quantity. A count of compounding periods is a pure number -- it is a ratio of two logarithms -- and multiplying by this is what turns it into a duration. The notation forbids a literal from carrying a unit, so the unit has to come from something with a name, and the ledger caught the first attempt at this: a time declared in years whose derivation was dimensionless |
+| `f_ref_slow` | 1 | given | 0.2 | — | annual improvement in the comparator's memory bandwidth, at the cautious end. **This is a number the reader supplies, not one this project knows.** It is declared here so that a claim about the future is an assumption somebody can change rather than a sentence somebody wrote |
+| `f_ref_mid` | 1 | given | 0.3 | — | the same, at the rate the last several generations of stacked memory have roughly managed |
+| `f_ref_fast` | 1 | given | 0.4 | — | and at a rate faster than has been sustained, which is the one worth quoting because it is the one that fails first |
+| `t_parity_slow` | yr | derived | 13.34 yr | `t_year * log(gain_bw) / log(1 + f_ref_slow)` | years before a comparator improving at the cautious rate reaches the bandwidth this design starts at |
+| `t_parity_mid` | yr | derived | 9.268 yr | `t_year * log(gain_bw) / log(1 + f_ref_mid)` | and at the middle rate |
+| `t_parity_min` | yr | given | 5 yr | — | the least the bandwidth advantage may last and still be worth attempting. A limit rather than a result, named so it is not a bare number sitting in a constraint |
+| `t_parity_fast` | yr | derived | 7.227 yr | `t_year * log(gain_bw) / log(1 + f_ref_fast)` | and at the fast one. This is the number an investor should be shown, because it is the least favourable of the three and it is still years away |
 
 ## 081 — Three nodes, not one
 
@@ -1770,7 +1778,6 @@ measured in, where it came from, what it comes to, and why it exists.*
 | symbol | unit | kind | value | from | meaning |
 |---|---|---|---|---|---|
 | `n_yr_target` | 1 | given | 10 | — | years a cube must run, continuously, replaced rather than repaired |
-| `t_year` | s | measured | 3.156e+07 s | — | seconds in a year, as a symbol rather than a literal because a literal here would be dimensionless |
 | `f_repl_annual` | 1 | given | 0.05 | — | annual replacement rate tolerable in a population, which is what the target is chosen against |
 | `n_mech` | 1 | given | 9 | — | failure mechanisms |
 | `a_silent` | 1 | given | 0.02 | — | share of the failure budget allowed to silent corruption, the smallest of the nine |
@@ -1781,7 +1788,7 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `lam_target` | 1/s | derived | 1.584e-09 1/s | `f_repl_annual / t_year` | failure rate the target implies |
 | `mtbf_target` | s | derived | 6.312e+08 s | `1 / lam_target` | and the mean time between failures it corresponds to |
 | `lam_silent` | 1/s | derived | 3.169e-11 1/s | `lam_target * a_silent` | allocated to silent corruption |
-| `lam_inside` | 1/s | derived | 6.02e-10 1/s | `lam_target * a_inside` | to everything unrepairable inside |
+| `lam_inside` | 1/s | derived | 6.021e-10 1/s | `lam_target * a_inside` | to everything unrepairable inside |
 | `lam_outside` | 1/s | derived | 9.506e-10 1/s | `lam_target * a_outside` | to the serviceable loop |
 | `mtbf_silent` | s | derived | 3.156e+10 s | `1 / lam_silent` | the mean time between silent corruptions that 040 and 069 must together beat |
 | `a_sum` | 1 | derived | 1 | `a_silent + a_inside + a_outside` | the allocations, which must be the whole budget |
@@ -1800,8 +1807,8 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `n_seam_open` | 1 | derived | 0 | `n_seam - n_seam_guarded` | seams with no constraint on them, which is what finishing this project means driving to zero |
 | `f_guarded` | 1 | derived | 1 | `n_seam_guarded / n_seam` | the share that are guarded |
 | `n_bp` | 1 | solved | 84 | — | blueprints in the set -- from 103, which loads them rather than counting them from memory |
-| `n_constraint` | 1 | solved | 570 | — | constraints in it -- from 103. Carried as a hand count until it was twelve short, which is the exact failure a self-describing document is prone to |
-| `c_per_bp` | 1 | derived | 6.786 | `n_constraint / n_bp` | constraints per blueprint, which is a crude measure of whether any file is asserting nothing |
+| `n_constraint` | 1 | solved | 573 | — | constraints in it -- from 103. Carried as a hand count until it was twelve short, which is the exact failure a self-describing document is prone to |
+| `c_per_bp` | 1 | derived | 6.821 | `n_constraint / n_bp` | constraints per blueprint, which is a crude measure of whether any file is asserting nothing |
 
 ## 088 — What it is made from, and what that costs
 
@@ -1850,12 +1857,12 @@ measured in, where it came from, what it comes to, and why it exists.*
 | `n_software` | 1 | given | 2 | — | pieces of software assumed and not specified |
 | `n_worked_eg` | 1 | given | 1 | — | worked examples of using the package as a machine |
 | `n_bp_pkg` | 1 | derived | 84 | `n_bp` | blueprints delivered |
-| `n_sym_pkg` | 1 | solved | 1436 | — | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked |
-| `n_con_pkg` | 1 | derived | 570 | `n_constraint` | constraints |
+| `n_sym_pkg` | 1 | solved | 1443 | — | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked |
+| `n_con_pkg` | 1 | derived | 573 | `n_constraint` | constraints |
 | `n_open_pkg` | 1 | solved | 0 | — | symbols still carried as targets rather than derivations -- from 103. None: the last one was 019's service time, which became the sum of nine steps rather than one number nobody could take apart |
 | `n_solved_pkg` | 1 | solved | 22 | — | symbols a program produced because no expression in this notation could -- from 103 |
 | `n_q_blocking` | 1 | given | 2 | — | blocking open questions in 009 |
 | `n_q_open` | 1 | given | 18 | — | open questions altogether: the two blocking ones and sixteen carried. A hand count of 009's headings, and the one figure in this package that a program still does not produce |
-| `f_derived` | 1 | derived | 0.5898 | `(n_sym_pkg - n_given_pkg) / n_sym_pkg` | share of the project's numbers that are worked out rather than chosen or measured |
-| `n_given_pkg` | 1 | solved | 589 | — | symbols that are chosen or measured rather than worked out -- from 103: four hundred and seventy-three a person decided and a hundred and sixteen taken from a datasheet |
+| `f_derived` | 1 | derived | 0.5891 | `(n_sym_pkg - n_given_pkg) / n_sym_pkg` | share of the project's numbers that are worked out rather than chosen or measured |
+| `n_given_pkg` | 1 | solved | 593 | — | symbols that are chosen or measured rather than worked out -- from 103: four hundred and seventy-three a person decided and a hundred and sixteen taken from a datasheet |
 

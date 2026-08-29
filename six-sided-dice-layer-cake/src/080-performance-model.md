@@ -89,6 +89,16 @@ B_ref_hbm     | bit/s | measured | 2.7e13 | memory bandwidth of an accelerator w
 C_ref_hbm     | GB | measured | 141.0   | and its capacity
 gain_bw       | 1 | derived | B_core / B_ref_hbm                     | the ratio the machine wins on
 gain_cap      | 1 | derived | C_core_usable / C_ref_hbm              | and the one it does not
+
+t_year        | yr | given | 1.0 | one year as a quantity. A count of compounding periods is a pure number -- it is a ratio of two logarithms -- and multiplying by this is what turns it into a duration. The notation forbids a literal from carrying a unit, so the unit has to come from something with a name, and the ledger caught the first attempt at this: a time declared in years whose derivation was dimensionless
+f_ref_slow    | 1 | given | 0.20  | annual improvement in the comparator's memory bandwidth, at the cautious end. **This is a number the reader supplies, not one this project knows.** It is declared here so that a claim about the future is an assumption somebody can change rather than a sentence somebody wrote
+f_ref_mid     | 1 | given | 0.30  | the same, at the rate the last several generations of stacked memory have roughly managed
+f_ref_fast    | 1 | given | 0.40  | and at a rate faster than has been sustained, which is the one worth quoting because it is the one that fails first
+
+t_parity_slow | yr | derived | t_year * log(gain_bw) / log(1 + f_ref_slow) | years before a comparator improving at the cautious rate reaches the bandwidth this design starts at
+t_parity_mid  | yr | derived | t_year * log(gain_bw) / log(1 + f_ref_mid)  | and at the middle rate
+t_parity_min  | yr | given | 5.0 | the least the bandwidth advantage may last and still be worth attempting. A limit rather than a result, named so it is not a bare number sitting in a constraint
+t_parity_fast | yr | derived | t_year * log(gain_bw) / log(1 + f_ref_fast) | and at the fast one. This is the number an investor should be shown, because it is the least favourable of the three and it is still years away
 ```
 
 ## Constraints
@@ -102,6 +112,9 @@ C-080-5 | gain_cap < 1                 | and it must lose on capacity. Asserted 
 C-080-6 | gain_prefill > 10            | reading a prompt must be an order of magnitude faster than writing one, which is what makes the two cases worth separating
 C-080-7 | f_batch_gain > 10            | serving many sequences at once must be worth at least an order of magnitude over serving one, or this machine has no reason to exist in a rack rather than on a desk. It comes to nineteen, and that number is the whole statement of what the machine is for
 C-080-8 | f_batch_gain < batch_design  | the gain from batching cannot exceed the batch itself. Trivially true and worth asserting: it is the one place a performance model can flatter itself without anybody noticing, by counting a sequence twice
+C-080-9 | t_parity_fast > t_parity_min | even against a comparator improving faster than stacked memory has ever sustained, the bandwidth advantage must last more than five years, or the machine is obsolete before anybody could build one. This is the constraint that decides whether the whole design is worth attempting, and it is the one most sensitive to an assumption nobody here owns
+C-080-10 | t_parity_fast < t_parity_mid | a faster-improving comparator must catch up sooner. Arithmetically certain and asserted anyway: it is the cheapest possible check that the three rates were not transcribed in the wrong order, which would invert the whole argument while every number still looked plausible
+C-080-11 | t_parity_mid < t_parity_slow | and the same for the middle against the cautious one
 ```
 
 ## What is still open
