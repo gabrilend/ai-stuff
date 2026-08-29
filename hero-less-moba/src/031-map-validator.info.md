@@ -42,6 +42,9 @@ the cause.
 | The right number of towers, on both sides, matching each other | An absence — the site emission was once deleted by accident and every existing check passed, because they were all about sites that were there. |
 | **Each lane is wide enough for the formation it carries** | Spreading the ranks out without widening the roads. A lane then quietly carries one body fewer in every rank, every wave in it is a third thinner, and nothing else in the project notices. |
 | The centre lane holds three formations abreast | The thing the centre lane is *for*. During a challenge all three lanes' waves fight in the middle standing side by side; a centre that cannot hold them has stopped being for anything. |
+| **Every milestone lands on a zone boundary** | The reason zones were built as divisions of a milestone interval rather than as a count across the lane. If it stops being true, the towers and the push measure have quietly come apart, and the symptom is a frontline reported somewhere it is not. |
+| The lane's two zone arrays agree | They hold the same numbers and are kept separate so either can be moved. This is what tells somebody who moved one that they did. |
+| The zones cover the lane, rising, end to end | An off-by-one in the loop that builds them. |
 
 ## Two checks that assert an absence, and why they had to
 

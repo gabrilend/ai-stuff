@@ -51,6 +51,7 @@ phases, and `SOLDIER_CAPACITY`.
 | `free_slot` | integer[] | The free list. |
 | `high_water` | integer | The highest slot ever used — every sweep runs to here, not to capacity. |
 | `soldier.decaying` | integer[] | Ticks of decay remaining; 0 for everything alive and everything gone. |
+| `soldier.zone` | integer[] | The zone this body has reached, counted from its **own** team's end: 0 at its own library, 31 at the enemy's. What push depth is taken from. |
 | `capacity` | integer | How many soldier slots exist. Written down rather than left as the length of one of the arrays, so anything allocating a parallel array asks the world how big it is rather than asking one of its fields. |
 | `event` | array | Raised this tick, cleared at the top of the next. |
 

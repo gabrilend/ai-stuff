@@ -171,11 +171,50 @@ running from team 1's library to team 2's library:
 | 7 | Team 2's base guard tower for this lane |
 | 8 | Team 2's library |
 
-A team's **push depth** in a lane is the highest milestone index reached by any of
-its **living** soldiers there, from that team's point of view. Team 1 pushing to
-index 6 and team 2 pushing to index 2 describe the same lane from opposite ends,
-and the code stores one number per team per lane rather than trying to keep a
-single signed value.
+## Zones: the same lane, measured four times more finely
+
+Underneath the milestones, each lane is also cut into **zones**. Each milestone
+interval divides into four, so a lane with nine milestones has thirty-two zones and
+**every milestone lands exactly on a zone boundary**. No tower moves. Nothing that
+says "milestone" changes meaning.
+
+A zone is a range of distance along a lane and nothing else. It is not a node, it
+has no neighbours, and nothing walks to one.
+
+The division is written in the shape parameters as *how many zones per milestone
+interval*, not as a total, so the milestones stay on boundaries by construction
+rather than by arithmetic somebody has to check. The map validator asserts it
+anyway.
+
+Two things read them, and each lane carries **two identical arrays** of them:
+
+| Array | Read by |
+| --- | --- |
+| the distance zones | push depth |
+| the waypoint zones | where a wave's next waypoint sits — see [211b](../issues/211b-every-zone-holds-a-waypoint.md) |
+
+They hold the same numbers, built by one loop, and they are separate so that either
+can be moved without moving the other: the distances a wave routes through and the
+distances a push is measured in are the same question today and are not the same
+*kind* of question. They sit side by side on the lane record so that somebody
+changing one can see the other.
+
+## Push depth
+
+A team's **push depth** in a lane is the deepest **zone** reached by any of its
+**living** soldiers there, from that team's point of view — a number from 0 to 31
+rather than 0 to 8. Team 1 pushing to zone 24 and team 2 pushing to zone 8 describe
+the same lane from opposite ends, and the code stores one number per team per lane
+rather than trying to keep a single signed value.
+
+It was counted in milestones, which meant a lane that was badly lost read the same
+as one that was merely losing. Four times the resolution is four times as often that
+the number changes, which is what a player watching a lane-pressure bar is actually
+reading.
+
+A body also still records the deepest **milestone** it has got past, because that is
+what the marks along a lane are drawn from and what a body's own orbiting reads.
+Both numbers are kept; only push depth moved.
 
 **Living**, not a high-water mark — so push depth can go down. It creeps up as
 soldiers advance, and it collapses when they die. It collapses completely at each
@@ -229,6 +268,9 @@ validator, not in the movement loop that runs a thousand times a tick.
 | `id` | integer | 1, 2, or 3. |
 | `path` | integer[] | Node ids in order from team 1's library to team 2's library. |
 | `milestone_node` | integer[9] | Node id for each milestone index 0–8. |
+| `zone` | double[33] | Distance along the lane at each zone boundary, 0 to `zone_count`. What push depth is measured in. |
+| `waypoint_zone` | double[33] | The same numbers, separately. What a waypoint sits inside. |
+| `zone_count` | integer | How many zones — thirty-two, being eight milestone intervals of four. |
 | `junction` | integer[] | Node ids on this lane that carry a sign-post. Exactly one per lane, the centre included. |
 | `length` | double | Total path length in paces. Cached because the renderer wants it constantly. |
 | `width` | double | How many paces across. The center lane's is greater. Feeds the frontline queue and the renderer, nothing else. |

@@ -328,6 +328,10 @@ svg { max-width: 100%; }
 <p><strong>Per body</strong>: <code>alive</code>, <code>x</code>, <code>y</code>, <code>facing</code>, <code>team</code>, <code>flavour</code>, <code>archetype</code>, <code>reach</code>,</p>
 <p><code>lane</code>, <code>milestone</code>, <code>health_fraction</code>, <code>spawned_lane</code>, and <code>upgrade_count[kind][id]</code>.</p>
 <p><strong>Per fallen body</strong>: <code>fade</code>, plus the position, team, flavour, archetype, reach and lane it had when it fell.</p>
+<p><strong>Per frame</strong>: <code>zone_count</code> — how many zones a lane holds, so a viewer drawing a</p>
+<p>push depth knows what it is a fraction <em>of</em> without reaching into the map. A viewer</p>
+<p>that has to consult the map to make sense of a number in the snapshot has been handed</p>
+<p>half a fact.</p>
 <p><strong>Per structure</strong>: <code>team</code>, <code>kind</code>, <code>lane</code>, <code>alive</code>, <code>x</code>, <code>y</code>, <code>health_fraction</code>,</p>
 <p><code>command_radius</code>, <code>guard_count</code>, <code>upgrade_count</code>.</p>
 <p><strong>Per team</strong>: <code>chest</code>, <code>lane_slot</code>, <code>tower_slot</code>, <code>library_slot</code>, <code>push_depth</code>,</p>

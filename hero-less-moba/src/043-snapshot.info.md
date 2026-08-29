@@ -52,6 +52,11 @@ invented here. See issue 210.
 
 **Per fallen body**: `fade`, plus the position, team, flavour, archetype, reach and lane it had when it fell.
 
+**Per frame**: `zone_count` — how many zones a lane holds, so a viewer drawing a
+push depth knows what it is a fraction *of* without reaching into the map. A viewer
+that has to consult the map to make sense of a number in the snapshot has been handed
+half a fact.
+
 **Per structure**: `team`, `kind`, `lane`, `alive`, `x`, `y`, `health_fraction`,
 `command_radius`, `guard_count`, `upgrade_count`.
 

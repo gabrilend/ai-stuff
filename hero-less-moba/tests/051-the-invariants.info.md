@@ -23,6 +23,8 @@ written down here goes stale the first time somebody adds one.
 | --- | --- |
 | The map validator finds nothing wrong with the map it builds | …changes a shape parameter that makes the geometry inconsistent — a lane shorter than its milestones, a tower with no site, a bend that does not close. |
 | A lane's milestones mirror across the junction diagonal | …breaks the symmetry independently of the validator noticing. An asymmetric map hands one team a shorter walk and nothing else in the project would ever say so. |
+| Every zone answers with itself when asked about its middle, and a body at either library is inside the lane rather than past it | …puts an off-by-one in the zone lookup. The validator asserts the zones are well formed; this asserts that asking about one gets the right answer, which is a different claim. |
+| **A push depth reads deeper than nine values could, and stops between towers rather than only at them** | …makes the finer measure decorative. A push depth that only ever landed on multiples of four would be milestones wearing a bigger number, and telling a badly lost lane from a merely losing one was the whole point. |
 
 ### The camera
 
