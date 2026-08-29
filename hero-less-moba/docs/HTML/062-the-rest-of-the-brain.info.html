@@ -301,7 +301,7 @@ svg { max-width: 100%; }
 </thead><tbody>
 <tr><td><code>begin(world)</code> / <code>begin_tick(world)</code></td><td></td><td>— Allocates and clears the healing claims.</td></tr>
 <tr><td><code>stand_off(world, id)</code></td><td></td><td><code>true</code> if a ranged body gave ground.</td></tr>
-<tr><td><code>orbit(world, id)</code></td><td></td><td><code>true</code> if it kept station off the shoulder.</td></tr>
+<tr><td><code>orbit(world, id)</code></td><td></td><td><code>true</code> if it fanned out or closed up.</td></tr>
 <tr><td><code>should_fall_back(world, id)</code></td><td></td><td>Whether to leave the line.</td></tr>
 <tr><td><code>should_return(world, id)</code></td><td></td><td>Whether to go back in.</td></tr>
 <tr><td><code>recover(world, id)</code></td><td></td><td>— Withdraws and mends.</td></tr>
@@ -319,22 +319,38 @@ svg { max-width: 100%; }
 <p>And it is <strong>contestable</strong> — another ranged body can push into that space and trade at</p>
 <p>a distance neither is comfortable at, which is the whole reason this is a movement</p>
 <p>rule rather than a fixed spacing.</p>
-<h2>Orbiting, and the fight at the shoulders</h2>
-<p>A ranged body with nothing to shoot does not stand still and does not walk into the</p>
-<p>line. It keeps station off the shoulder of the fight, at its own reach.</p>
-<p><strong>Which way is not random.</strong> A body already on one side goes further that way and</p>
-<p><strong>commits for as long as it stays in the same milestone</strong>, so it reads as a decision</p>
-<p>rather than as dithering. And then:</p>
-<blockquote><p>Both sides' ranged bodies do this, so they drift toward the same flanks and end up</p></blockquote>
-<blockquote><p>facing each other.</p></blockquote>
+<h2>Fanning out and concentrating</h2>
+<p>A body with a reach has two postures and which one it takes is a question about</p>
+<p><strong>threat</strong>, not about distance.</p>
+<table><thead>
+<tr><th></th><th>When</th><th>What it does</th></tr>
+</thead><tbody>
+<tr><td><strong>fan out</strong></td><td>nothing hostile within its own reach</td><td>spreads across the road, out toward the shoulder</td></tr>
+<tr><td><strong>concentrate</strong></td><td>something is there</td><td>closes toward the middle of it, and closer still if something is right on top of it</td></tr>
+</tbody></table>
+<p>Fanning is why a rank covers ground: a block of archers standing on top of each other</p>
+<p>is a block of archers most of whom cannot see anything. Concentrating is what "just</p>
+<p>enough firepower to disable whatever comes near" means when it is a group doing it</p>
+<p>rather than one body.</p>
+<p><strong>Which way is not random.</strong> The direction comes from the **mean position of the</p>
+<p>enemy across the road**, and is held for as long as the body stays in the same</p>
+<p>milestone, so it reads as a decision rather than as dithering. And then:</p>
+<blockquote><p>Both sides' bodies with a reach do this, so they end up facing each other.</p></blockquote>
 <p>Nothing anywhere says <em>ranged units should fight ranged units</em>. It falls out of two</p>
-<p>formations each sending their long-reach bodies wide, and it produces the thing every</p>
-<p>lane battle should have — a fight at the shoulders as well as one in the middle, with</p>
-<p>the flanks resolving on their own timetable while the melee grinds.</p>
-<p><strong>Only around a fight.</strong> "Nothing to shoot" means standing at a battle it cannot reach</p>
-<p>into, not three hundred paces down an empty lane. Without that gate every archer</p>
-<p>orbits from the moment it leaves the library, which is not keeping station — it is</p>
-<p>refusing to march, and it pulls the formation apart before it meets anybody.</p>
+<p>formations each arranging their long-reach bodies against the same enemy mass, and it</p>
+<p>produces the thing every lane battle should have — a fight at the shoulders as well as</p>
+<p>one in the middle, resolving on its own timetable while the melee grinds.</p>
+<p><strong>Only near a fight</strong>, and this gate is the load-bearing one. Near means the body's own</p>
+<p>wave is in contact, or something hostile is inside its own reach. Without it every</p>
+<p>archer in the game spreads to the verge the moment it leaves the library, which is not</p>
+<p>keeping station — it is refusing to march, and it pulls the formation apart before it</p>
+<p>meets anybody. Measured when the gate was briefly removed: the line bent by two and a</p>
+<p>half ranks and the formation sandbox stopped recognising it as a formation at all.</p>
+<p>An earlier version chose the side from **which half of the road the body already stood</p>
+<p>on**, and was gated on the wave being engaged and nothing else. Both were wrong. The</p>
+<p>first meant the direction had nothing to do with where the enemy was; the second meant</p>
+<p>a body only ever moved once its own front rank was already in contact, which is</p>
+<p>exactly too late for a rank whose job is to make contact expensive.</p>
 <h2>Falling back, and coming back</h2>
 <p><strong>It withdraws when its side can spare it</strong>: under fire, hurt, and its team has more</p>
 <p>health nearby than the enemy does. <strong>It returns when its side cannot</strong> — the frontline</p>

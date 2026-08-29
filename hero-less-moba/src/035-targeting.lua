@@ -52,6 +52,14 @@
 
 local M = {}
 
+-- How wide a body stands as an obstacle to a straight shot, as a fraction of the room
+-- it keeps around itself.
+--
+-- Less than the whole of it: a body's personal space is how much room it wants, not
+-- how much of it there is, and a spike passing through the gap between two soldiers
+-- standing a comfortable distance apart should get through.
+local BLOCKS_THE_VIEW = 0.45
+
 -- {{{ local function cell_index()
 -- The cell a position falls in, as a single integer, so the grid is one flat
 -- table rather than a table of tables of tables.
@@ -170,6 +178,66 @@ function M.for_each_near(world, x, y, radius, visit)
       end
     end
   end
+end
+-- }}}
+
+-- {{{ function M.can_see()
+-- Whether this body has a clear line to that one, with **its own allies** as the
+-- only blockers.
+--
+-- Not a general visibility rule and not fog of war. Nothing in this game is hidden;
+-- what this answers is whether a straight thing thrown from here would arrive, and
+-- the only things in the way are the people on your own side. An enemy between you
+-- and your target is not an obstacle -- it is a closer target, and something else has
+-- already had that thought.
+--
+-- **This is why the frontline is a targeting constraint.** A body standing behind a
+-- solid rank of its own has no line through it; a body that has a line is standing
+-- somewhere with a hole in front of it. Which gives a player something to read off
+-- the field: a druid throwing moons is a druid whose line has gaps in it.
+--
+-- Arrows are not subject to it. An arrow arcs, and a body with a bow standing behind
+-- its own line is doing the thing bows are for. What this gates is the flat, straight
+-- things -- see the moon spike in the abilities table.
+--
+-- One grid query, about the midpoint, with a radius that covers the whole segment.
+-- Then a perpendicular distance per candidate, which is two multiplies. Cheaper than
+-- walking the line in steps and exact rather than sampled.
+function M.can_see(world, id, target)
+  local soldier = world.soldier
+  local ax, ay = soldier.x[id], soldier.y[id]
+  local bx, by = soldier.x[target], soldier.y[target]
+  local dx, dy = bx - ax, by - ay
+  local length = math.sqrt(dx * dx + dy * dy)
+  if length < 0.0001 then
+    return true
+  end
+
+  local width = world.parameters.shape.personal_space * BLOCKS_THE_VIEW
+  local blocked = false
+  M.for_each_near(world, (ax + bx) * 0.5, (ay + by) * 0.5,
+                  length * 0.5 + width, function(other)
+    if blocked or other == id or other == target then
+      return
+    end
+    if soldier.alive[other] ~= 1 or soldier.team[other] ~= soldier.team[id] then
+      return
+    end
+    -- How far along the line the blocker sits, and how far off it. Outside the
+    -- segment is beside us or behind us, and neither is in the way.
+    local px, py = soldier.x[other] - ax, soldier.y[other] - ay
+    local along = (px * dx + py * dy) / length
+    if along <= 0 or along >= length then
+      return
+    end
+    local across = px * (dy / length) - py * (dx / length)
+    if across < 0 then across = -across end
+    if across < width then
+      blocked = true
+    end
+  end)
+
+  return not blocked
 end
 -- }}}
 

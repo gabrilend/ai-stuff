@@ -1,6 +1,6 @@
 # Conversation Summary: b3c0db53-4db1-4ae3-8200-fb023520ebb8
 
-Generated on: 2026-08-28 21:09:51
+Generated on: 2026-08-28 21:47:01
 
 --------------------------------------------------------------------------------
 
@@ -2990,6 +2990,274 @@ which can't be changed by walking.
 **Not yet built:** 211c (the formation as an oriented disc facing the enemy's
 frontline), 211d (marching vs running speed), 212 (the will save). Tests: 82
 invariants, 16 sandbox, 0 documentation problems.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 12
+
+  Two numbers per body, fixed at birth. slot_along — negative, how many ranks
+  behind the front — and slot_across — which file. Neither ever changes.
+  assign_wave_slots computes them once: melee get rank = index / files, file =
+  index % files; ranged start behind all the melee ranks
+
+  plus a gap, so they shoot over the line rather than standing in the back of
+  it.
+
+
+can't shoot over, gotta shoot around. I mean, you can, but only if you have
+artillery like longbowmen. Skirmishers have a shorter range than archers who can
+shoot from across a glen. Skirmishers do it when you can see them start to
+charge toward you, focusing on supplying juuuuust enough firepower to disable
+anyone that comes near. Melle heavy infantry are like gods, nearly invincible
+killing machines. Light infantry usually just have a spear, sometimes a shield,
+sometimes a sword, sometimes a sword and shield, but the most common is a spear
+and leather armor. Sometimes they have metal caps. Everyone wears gloves and
+boots.
+
+
+cavalry isn't in the game yet, but we'll add it eventually. Can you randomize
+the equipment and apply the resource costs to a hidden variable that sets the
+probability of the future waves having certain compositions? Heavier equipment
+costs "more" while lighter equipment costs "less". If we ever store more than
+double the cost, then we spawn two, but never more than two. Each lane has a
+different resource table, and different meters for each unit type. How it works
+is we determine how many resources we have to distribute, and the ones that were
+chosen more recently have fewer tickets in the draw, and units that cost more
+when we have fewer resources have more tickets in the draw, and depending on how
+the upgrades are placed sometimes they make it so a certain unit is more likely,
+with all the resource costs that implies.
+
+
+the spawning two mechanic... what I mean is if we ever have double the maximum
+amount of tickets for that particular unit, then we just spawn one
+automatically. Heavy infantry tends to be toward the center of the formation,
+while light tends to be to the sides, so they can flank better.
+
+
+  file_offset has a trick in it. Positions are laid out evenly and centred on
+  the road, but handed out from the middle outward. So the captain — always
+  given the first place — stands in the centre, and a rank that isn't full is
+  short at its edges rather than in its middle. A thinning
+
+  line looks like a thinning line.
+
+
+sounds like we aren't thinking about this suitably geometrically. Can you
+re-describe it in relation to circles and angles and such?
+
+
+  share_out_speed is the conserved cohesion budget, and it's the cleverest thing
+  in the file. For each marching body, lag = how far behind its place it is.
+  Bodies more than three ranks off are dropped from the budget entirely —
+  they're rejoining, not out of position, and averaging
+
+  them in would tell every body standing correctly that it was badly out of
+  place. Then the wave's mean lag is subtracted, and each body's multiplier
+  comes from its deviation from that mean.
+
+
+we should have two speeds, marching, walking, and running. Units should move in
+discrete speed increments, scaled to their size, so that we can measure them
+correctly. Marching should be the "catch up speed" while walking should be the
+"slowing down speed" - eventually, we'll adjust and find the right equilibrium,
+without feeling hesitant or inconsistent.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 12
+
+Several corrections and a lot of new design. Let me read the catalogue before I
+touch any of it.
+
+
+Now the geometry. Let me rebuild the layout in polar terms, which is what makes
+the shoot-around correction expressible at all.
+
+
+A skirmisher and a melee body land in the same place — the shoulders have to
+sit behind the line's last rank, not in it.
+
+
+No collisions. But the ranged captain is standing dead ahead in the front rank
+— placed by reach-blind rules.
+
+
+A ranged captain should stand where its reach says, not where its rank says.
+
+
+The computed centre is too far forward — it can't be known until every body
+has a place. That needs a settling pass.
+
+
+Now the speeds — three named gears in discrete steps, replacing the continuous
+multiplier.
+
+
+Two gears and a dead band means nobody is ever *hurried* — correction is now
+purely a brake. That's more physical, but the formation would stretch on a bend
+unless its front waits.
+
+
+The budget is gone — correction is a brake now, so nothing is ever handed
+speed. That's a stronger property than conservation, and the tests should assert
+it.
+
+
+The gears never engage on a bend — the test passes vacuously. Let me measure
+the trade-off between line-holding and gear-chatter rather than guess a number.
+
+
+A real trade-off: tighter band holds the line better but makes bodies change
+gear more often. Picking the knee, and making the chatter a permanent
+measurement so the equilibrium can be tuned rather than guessed.
+
+
+All green. Let me commit this and then write up the equipment economy, which is
+the large remaining piece.
+
+
+Now the equipment economy. It's the largest thing you've described and it has
+ambiguities I shouldn't guess at, so let me write it up before building.
+
+
+Here's the geometric re-description you asked for, and what I built to make it
+true.
+
+
+## The formation as a disc
+
+
+A place is now a **bearing and a distance from the formation's centre**, stored
+as such. Bearings run from 0 dead ahead, through a quarter turn at the flanks,
+to half a turn at the rear; the sign is which side.
+
+
+That reframing wasn't cosmetic — it's what made your correction expressible. A
+real wave now reads:
+
+
+```
+
+body              bearing  distance
+
+melee                   0°      45.0    the line
+
+melee                  26°      50.1
+
+melee                 -26°      50.1
+
+melee                   0°      15.0
+
+ranged captain        124°      26.6    the shoulders
+
+ranged               -124°      26.6
+
+ranged                154°      50.1
+
+```
+
+
+**Ranged now shoot around, not over.** They stood directly behind the line in
+the same files — which is where you put someone lofting over the top. They're
+at the **shoulders** now: behind the last rank, out at its ends, on a bearing of
+about five-eighths of a turn. The line is diagonally in front of them rather
+than squarely so.
+
+
+Being honest about what that is: **a placement, not a rule.** Nothing occludes
+anything in this game — a shot is a distance and a cooldown — so standing
+them where their line is clearest is the whole mechanism. A true archer that
+shoots over is a different unit and belongs in the economy.
+
+
+I also found a related bug: **a ranged captain was being given the front rank's
+centre.** With a bow. In front of the people whose job is to be in front of it.
+It takes the first shoulder now — still the middle of the group it belongs to.
+
+
+One subtlety: the bearings are written **after** the whole wave is built. A
+circle has a centre and no front, so a bearing must be measured from the middle
+— and the middle depends on how deep the formation turned out to be. Computed
+body-by-body, every bearing came out measured from a centre still moving, and
+the front rank landed at a quarter turn, which is where the flanks are.
+
+
+## Three speeds, in gears
+
+
+| Gear | | When |
+
+|---|---|---|
+
+| walking | 0.70 | it's ahead of its place |
+
+| marching | 1.00 | it's in place, or catching up |
+
+| running | — | leaving only — not built |
+
+
+**Nothing exceeds marching pace**, which changed the shape of the whole thing.
+There's no budget any more and nothing is handed speed: a formation dresses
+itself by the inside of a turn **slowing**, not the outside sprinting. Asking
+the outer rank to run is how a line becomes a crowd.
+
+
+What stops the outside falling behind forever is that **the front waits** —
+when the formation is more than half a rank behind its anchor, the anchor stops
+until the line is dressed.
+
+
+The dead band was measured, not picked, because it trades two things that pull
+opposite ways:
+
+
+| Band | Line bends | Gear changes per 100 body-ticks |
+
+|---|---|---|
+
+| 0.5 | 4.8 | 17.3 — once every 6 ticks. Chatter. |
+
+| **2.0** | **13.7** | **5.4 — about 1.5×/second** |
+
+| 5.0 | 24.8 | 0.9 — steady, line nearly a rank out |
+
+
+Both numbers print every run, so the equilibrium is something to look at rather
+than remember. Three tests were asserting a budget that no longer exists; the
+property that replaced it is stronger — not "it balances on average" but
+"nothing, ever, moves faster than marching."
+
+
+## The equipment economy
+
+
+Written up as an issue, not built, because three choices inside it change what
+gets made:
+
+
+- **H10** — three purses or six? Six is surely meant; three would mean the
+  *ground* has a character rather than the army.
+
+- **H11** — what fills the purse? Nothing said. Flat income makes it purely
+  about variety; kill-fed gives it teeth and is a second invisible copy of the
+  wallets, pulling the same way at the same moment.
+
+- **H12** — the scarcity thumb at the bottom. Read literally, a lane with
+  nothing has a huge ticket pile for the one thing it can't buy, draws it
+  constantly, never pays. Drawing only over what's *affordable* turns it into
+  "the most expensive thing you can afford gets likelier as you get poorer" —
+  gentler, and what the doubling rule seems to assume.
+
+
+I recorded your doubling rule as: at twice the ticket maximum one spawns
+automatically, and it can still win the draw, so two of a kind — never three.
+
+
+Tests: 82 invariants, 17 sandbox, 0 documentation problems. **Not built:** the
+formation actually *turning* to face an enemy frontline (211c's second half),
+running speed, and the will save.
 
 
 --------------------------------------------------------------------------------

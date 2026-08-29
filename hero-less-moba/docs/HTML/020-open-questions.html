@@ -4116,7 +4116,7 @@ svg { max-width: 100%; }
 <p>is built with, it cannot be changed by walking, and it is what a spawner getting it</p>
 <p>wrong would break. Alongside it, a separate count of how many bodies are standing,</p>
 <p>because two identical bodies in the same place look like one entry counted twice.</p>
-<h2>H10. Is a lane's purse per lane, or per lane per team? — <strong>NEEDS A DECISION</strong></h2>
+<h2>H10. Is a lane's purse per lane, or per lane per team? — <strong>ANSWERED</strong></h2>
 <p>From <a href='213-what-the-lane-can-afford.html'>what the lane can afford</a>: "Each</p>
 <p>lane has a different resource table, and different meters for each unit type."</p>
 <p>Three lanes and two teams, so that is either three purses or six.</p>
@@ -4130,7 +4130,10 @@ svg { max-width: 100%; }
 <p>wave, and then did not.</p>
 <p>Six is almost certainly meant. It is written down because three is a real design and</p>
 <p>the sentence does not rule it out.</p>
-<h2>H11. What fills the purse? — <strong>NEEDS A DECISION</strong></h2>
+<p><strong>Answer: one per lane per team.</strong> Six on the map as it stands, and the number is</p>
+<p>lanes times two rather than players times two — the lane count is a parameter and a</p>
+<p>larger map with more lanes than players is a thing that might happen.</p>
+<h2>H11. What fills the purse? — <strong>ANSWERED</strong></h2>
 <p>Nothing in the description of the draw says where a lane's resource comes from, only</p>
 <p>what it is spent on. Three candidates, in the order they look promising:</p>
 <ul>
@@ -4152,7 +4155,32 @@ svg { max-width: 100%; }
 <p>This interacts with the whole second economy: the personal wallets already pay every</p>
 <p>player on the killing team for every death. A lane purse fed the same way would be a</p>
 <p>second, invisible copy of that, moving in the same direction at the same time.</p>
-<h2>H12. What does the scarcity thumb do at the extremes? — <strong>NEEDS A DECISION</strong></h2>
+<p><strong>Answer: the upgrades fill it, and that is the point.</strong> None of the three above.</p>
+<p>An upgrade slotted into a lane does some mixture of:</p>
+<ul>
+<li><strong><code>+1 ticket per wave</code> for a specific unit entry.</strong> The commonest and the simplest:</li>
+</ul>
+<p>  that unit turns up more often in that lane.</p>
+<ul>
+<li><strong><code>+1 resource per wave</code>.</strong> More resource means more tickets in the pool overall,</li>
+</ul>
+<p>  which means more troops or heavier ones — because the draw distributes by *least</p>
+<p>  recently seen*, more is always straightforwardly good.</p>
+<ul>
+<li><strong>Unlocking a new entry, usually at the cost of an old one</strong> — and usually the one</li>
+</ul>
+<p>  it is taking the equipment from.</p>
+<p>The third is the interesting one, and the example given is worth keeping whole. A</p>
+<p>swordsman with a shield and an iron cap finds a magic blade. If the swordsman entry</p>
+<p>costs 3, then **3 tickets leave the swordsman entry and 3 arrive at the magic</p>
+<p>swordsman entry**, and N resources are added, where N is the cost of the sword in</p>
+<p>particular — perhaps one resource point per, for three in total.</p>
+<p>So an upgrade is not a stat bonus applied to a lane. It is a change to what that lane</p>
+<p><em>raises</em>, and where the new thing came from is visible in what stopped turning up.</p>
+<p><strong>Which is how a player customises what a lane fields</strong>: distribute the upgrades</p>
+<p>differently and different troops walk out.</p>
+<p><strong>Built:</strong> issue <a class='issue-link' href='213-what-the-lane-can-afford.html'>213</a>.</p>
+<h2>H12. How is the draw actually made? — <strong>ANSWERED</strong></h2>
 <p>The draw gives "units that cost more when we have fewer resources more tickets in the</p>
 <p>draw" — being poor makes the expensive thing <em>more</em> likely, which is deliberate and</p>
 <p>is what stops a lane going quiet.</p>
@@ -4178,7 +4206,79 @@ svg { max-width: 100%; }
 <p>   might be a death spiral.</p>
 <p>The third is the most faithful reading and the most dangerous. The first is what the</p>
 <p>doubling-up rule seems to assume, since a meter that fills toward "twice the maximum</p>
-<p>tickets" implies tickets are bounded.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>tickets" implies tickets are bounded.</p>
+<p><strong>Answer: it is a deck, not a weighted roll, and the cost is paid in discards.</strong></p>
+<p>The whole mechanism, and it dissolves the question rather than answering it:</p>
+<ul>
+<li><strong>The more resources, the more tickets go into the pool.</strong></li>
+<li>The tickets are shuffled into a <strong>deck</strong>. Drawing is taking the top card.</li>
+<li>Whatever unit that card is, <strong>N further tickets are drawn and discarded</strong>, where N</li>
+</ul>
+<p>  is that unit's resource cost. Expensive units eat the deck.</p>
+<ul>
+<li>When the deck runs out, it is reshuffled.</li>
+<li>After each wave, the discards are reshuffled and placed <strong>below</strong> the tickets that</li>
+</ul>
+<p>  have not been drawn yet.</p>
+<p>So cost is not a price checked against a balance. It is **how much of the deck a</p>
+<p>choice consumes**, which makes the scarcity question disappear: an expensive unit</p>
+<p>does not need to be affordable, it needs the deck to have enough left in it, and</p>
+<p>having drawn one you have less of everything for a while.</p>
+<h3>The shuffle, which was specified exactly and is not a shuffle</h3>
+<p>Not a random permutation. A <strong>pile shuffle</strong>, done in a fixed sequence:</p>
+<blockquote><p>deal into 3 piles, concatenate; into 4, concatenate; into 5, concatenate; into 4,</p></blockquote>
+<blockquote><p>concatenate; into 7, concatenate.</p></blockquote>
+<p>The odd counts may be reordered between shuffles — 5, 7, 3 next time — but **every</p>
+<p>other pass must be a pile of four.** It is not perfectly uniform and it is very close,</p>
+<p>and it is deterministic given the pile counts, which is worth a great deal in a</p>
+<p>project whose first invariant is that the same seed plays the same match.</p>
+<p>The alternative that was considered and rejected: inserting the discards back into</p>
+<p>the waiting deck at random positions one by one. It was rejected for a specific</p>
+<p>reason — it <em>guarantees</em> the first cards are evenly distributed, which is a worse kind</p>
+<p>of non-uniformity than the pile shuffle's, because it is a guarantee rather than a</p>
+<p>tendency.</p>
+<p><strong>Built:</strong> issue <a class='issue-link' href='213-what-the-lane-can-afford.html'>213</a>.</p>
+<h2>H13. Gears say nothing hurries; a turning formation needs somebody to — <strong>NEEDS A DECISION</strong></h2>
+<p>Two decisions that were made a few hours apart and are in direct tension. Neither is</p>
+<p>wrong on its own and they cannot both stand.</p>
+<p><strong>A body is in a gear.</strong> Walking at seven tenths of its pace, or marching at its</p>
+<p>pace, and marching is the fastest thing there is. A formation dresses itself by the</p>
+<p>inside of a turn slowing rather than the outside sprinting, which is what a body of</p>
+<p>troops actually does — asking the outer rank to run is how a line becomes a crowd.</p>
+<p><strong>A formation turns to face where it is going.</strong> Its places are laid out on a disc</p>
+<p>with a heading, so when it swings onto a new bearing, a body on the outside of that</p>
+<p>swing has its place move away from it. To keep its place it has to <strong>hurry</strong>. There</p>
+<p>is no hurrying.</p>
+<p>What that produces is not a formation that turns slowly. It is a formation</p>
+<p>permanently held at an angle to its own travel, with its line no longer square to</p>
+<p>whatever it is walking into — and a line that is not square has fewer bodies in</p>
+<p>contact, which is the entire thing a line is for. Measured over five unattended</p>
+<p>matches: about one challenge monster in six walked through a line that used to stop</p>
+<p>it, and matches ran a seventh shorter.</p>
+<p>Facing the enemy rather than the waypoint while engaged was tried first and did not</p>
+<p>recover it, which is the useful part of the measurement: **the cost is in the</p>
+<p>marching, not in the fighting.** A formation that spends its speed budget turning is</p>
+<p>a formation that arrives later, and arriving later is what lets a monster past.</p>
+<p>So the heading is maintained and nothing is turned by it yet. Three ways out:</p>
+<ul>
+<li><strong>Let the outside of a turn hurry, and only there.</strong> A third gear between marching</li>
+</ul>
+<p>   and running, reachable only by a body whose place is swinging away from it. Keeps</p>
+<p>   the rule that nothing sprints at an enemy while admitting that turning is work.</p>
+<ul>
+<li><strong>Turn the formation only when it is not walking.</strong> A wave halted at contact can</li>
+</ul>
+<p>   afford to pivot because it is not spending its speed going forward. A marching</p>
+<p>   wave stays square to its road. Cheap, and it means the approach angle the</p>
+<p>   waypoints exist for never actually shows.</p>
+<ul>
+<li><strong>Turn the shape rather than the bodies.</strong> The places rotate about the formation's</li>
+</ul>
+<p>   centre so that the <em>front</em> stays square to the road while the rank behind steps</p>
+<p>   across — an oblique order rather than a rotated block. More faithful to what a real</p>
+<p>   formation does when it comes in at an angle, and considerably more arithmetic.</p>
+<p>The first is the smallest change and directly contradicts the sentence "nobody runs</p>
+<p>when chasing a kill" — though not really, since this is not chasing anything.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

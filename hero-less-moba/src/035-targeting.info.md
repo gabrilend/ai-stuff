@@ -22,6 +22,29 @@ The ranking, cheapest test first:
 | `target_is_alive(world, id)` | | Whether the stored target is still the body it thought it was. |
 | `sweep_attackers(world)` | | — Rebuilds "who is swinging at me" and `incoming_dps`. |
 | `hostile(a, b)` | two team numbers | Whether they are enemies. |
+| `can_see(world, id, target)` | | Whether there is a clear line, with **allies** as the only blockers. |
+
+## Line of sight, and what it is not
+
+`can_see` answers one question: would a straight thing thrown from here arrive. It is
+**not** fog of war and not general visibility — nothing in this game is hidden, and
+nothing occludes anything for the purposes of seeing it.
+
+**Allies are the only blockers.** An enemy in the way is not an obstacle, it is a
+nearer target, and the ranking above has already had that thought. A body blocks a
+line if it sits within a fraction of its own personal space of it — less than the
+whole of it, because personal space is how much room a body *wants*, and a spike
+passing between two soldiers standing comfortably apart should get through.
+
+**One thing in the game uses it**, and that is the point of it: the druid's moon
+spike, thrown flat from the palm, which cannot pass through a rank the way an arrow's
+arc can. So a druid standing behind a solid line cannot cast at all, and a druid that
+is casting is standing somewhere with a hole in front of it. **The frontline becomes a
+targeting constraint**, and a player can read it off the field.
+
+One grid query about the midpoint of the line, with a radius covering the whole
+segment, then a perpendicular distance per candidate — two multiplies. Exact rather
+than sampled, and cheaper than walking the line in steps.
 
 ## Lowest health, not nearest
 

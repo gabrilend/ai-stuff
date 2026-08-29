@@ -6,7 +6,7 @@
 | Blocked by | 207, 211c |
 | Blocks | — |
 | Reads | [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md), [waves and when one is finished](../docs/005-waves-and-when-one-is-finished.md), [upgrades slotted into stone](../docs/010-upgrades-slotted-into-stone.md) |
-| Open questions | H10, H11, H12 |
+| Open questions | none |
 
 ## Current behavior
 
@@ -55,26 +55,70 @@ That is the whole loop. Nothing about it is visible as a number; what a player s
 is that a lane which has been fielding heavy infantry starts fielding lighter ones,
 and a lane that has been cheap for a while can suddenly afford something.
 
-### The draw is a lottery with three thumbs on the scale
+### The draw is a deck, and cost is paid in discards
 
-Each lane has **its own resource table and its own meter per unit type**. Each wave:
-work out how much there is to distribute, then draw.
+Not a weighted roll. **A deck of tickets**, and the more resource a lane has the more
+tickets go into it.
 
-| Thumb | Effect |
-| --- | --- |
-| **Recency** | a unit chosen more recently has **fewer** tickets, so a lane does not field the same thing eight waves running |
-| **Scarcity** | a unit that costs more, when there is less to spend, has **more** tickets |
-| **Arrangement** | what has been slotted into the lane's stone makes certain units more likely, with all the resource costs that implies |
+- Drawing is taking the **top card**.
+- Whatever unit that card names, **N more tickets are drawn and discarded**, where N
+  is that unit's resource cost. An expensive choice eats the deck.
+- When the deck runs out, it is reshuffled.
+- After each wave, the discards are reshuffled and placed **below** the tickets that
+  have not been drawn yet.
 
-The scarcity thumb is the surprising one and it is deliberate: being poor makes the
-expensive thing *more* likely, not less. What it produces is a lane that cannot go
-quiet — a run of cheap waves builds toward something.
+Cost is therefore not a price checked against a balance. It is **how much of the deck
+a choice consumes** — an expensive unit does not have to be affordable, it has to
+have enough deck left, and having taken one you have less of everything for a while.
+That is what makes a run of cheap waves build toward something, without any rule
+saying so.
 
-### Doubling up
+Two of a kind can walk out together and never three: **if a unit's meter reaches
+twice its maximum ticket count, one of that unit spawns automatically**, without
+needing to be drawn — and it can still be drawn as well.
 
-**If a unit's meter ever reaches twice its maximum number of tickets, one of that
-unit spawns automatically**, without needing to win the draw. It can still win the
-draw as well, so a wave can contain two of a type — and never more than two.
+### The shuffle, which is not a shuffle
+
+A **pile shuffle**, in a fixed sequence: deal into 3 piles and concatenate, then 4,
+then 5, then 4, then 7. The odd counts may be reordered between shuffles — 5, 7, 3
+next time — but **every other pass must be a pile of four.**
+
+Not perfectly uniform, very close, and **deterministic given the pile counts**, which
+is worth a great deal in a project whose first invariant is that the same seed plays
+the same match.
+
+The alternative — inserting the discards back into the waiting deck at random
+positions, one by one — was rejected for a precise reason. It *guarantees* the first
+cards are evenly distributed, and a guarantee is a worse kind of non-uniformity than
+a tendency.
+
+### What the upgrades do
+
+**They are what fills the purse**, and this is the whole reason the mechanism exists.
+An upgrade slotted into a lane does some mixture of:
+
+- **`+1 ticket per wave` for a specific unit entry** — that unit turns up more often
+  in this lane.
+- **`+1 resource per wave`** — more tickets in the pool overall, which means more
+  troops or heavier ones. Because the draw distributes by *least recently seen*, more
+  is always straightforwardly good.
+- **Unlocking a new entry, usually at the cost of an old one** — usually the one it is
+  taking the equipment from.
+
+The third is the interesting one. A swordsman with a shield and an iron cap finds a
+magic blade: if the swordsman entry costs 3, then **3 tickets leave the swordsman
+entry and 3 arrive at the magic swordsman entry**, and N resources are added, where N
+is the cost of the sword in particular — perhaps one point per, for three in total.
+
+So an upgrade is not a bonus applied to a lane. It is a change to what that lane
+**raises**, and where the new thing came from is visible in what stopped turning up.
+Distribute the upgrades differently and different troops walk out of the base.
+
+### Whose purse
+
+**One per lane per team** — six on the map as it stands. The number is lanes times
+two rather than players times two: the lane count is a parameter, and a larger map
+with more lanes than players is a thing that might happen.
 
 ## Suggested implementation steps
 
@@ -107,20 +151,9 @@ draw as well, so a wave can contain two of a type — and never more than two.
 
 ## Still open
 
-Three questions, all of which change what gets built.
+Nothing blocking. H10, H11 and H12 are answered above.
 
-**H10 — is the purse per lane per team, or per lane?** "Each lane has a different
-resource table" could be three purses or six. Six is the obvious reading and means
-each side's lanes evolve independently; three would mean the two teams draw against a
-shared lane character, which would be a strange and interesting thing.
-
-**H11 — what fills the purse?** Nothing in the description says where the resource
-comes from. Candidates: a fixed income per wave; income that scales with how well the
-lane is doing; income from kills in that lane. The third is the one with teeth and
-also the one that snowballs.
-
-**H12 — what does "more tickets when we have fewer resources" do at the extremes?**
-Taken literally, a lane with almost nothing has an enormous ticket count for the most
-expensive unit it cannot possibly afford. Either the tickets are capped, or affording
-it is a separate check after the draw, or the draw is over what is affordable and the
-thumb only reorders within that.
+What is not specified and will need deciding when it is built: how many tickets a
+unit starts with, what a resource point is worth against a piece of equipment, and
+what the maximum ticket count per entry is — the number the doubling rule doubles.
+Those are balance and belong in the ledger rather than here.
