@@ -100,8 +100,21 @@ my-own-custom-vtt/
 │   │                                           thread pool, and the three kinds
 │   │                                           of test.
 │   │
+│   ├── ── Phase 13, designed and not built ──
+│   ├── 109-the-world-is-an-edge-graph ........ Three dimensions. A vertex, its
+│   │                                           connections, and a material on
+│   │                                           each. The edges are the model.
+│   │                                           Structures, and the ground.
+│   ├── 110-visibility-is-one-equation ........ Authored reveal, thresholds per
+│   │                                           class, a distance field that goes
+│   │                                           round corners, and why the unseen
+│   │                                           is a surface rather than a hole.
+│   ├── 111-the-question-window ............... A key, the DM as gate, and an AI
+│   │                                           holding exactly the DM's verbs.
+│   │                                           Ignorant by arithmetic.
+│   │
 │   ├── ── What is settled and what is not ──
-│   ├── 015-roadmap ........................... Nine phases, each a cluster of
+│   ├── 015-roadmap ........................... Thirteen phases, each a cluster of
 │   │                                           functionality, each ending in a
 │   │                                           demo that is part of the product.
 │   ├── 016-open-questions .................... Every question raised and not
@@ -157,11 +170,23 @@ picture, because it is where that picture's parts come from. And
 leaves behind belongs with what it looked like rather than with how the code is
 laid out.
 
+And three sit far out of order rather than slightly: `109`, `110` and `111` are
+documents wearing source-file numbers. The document band, `001` to `019`, was
+full — the source starts at `020` — so phase 13's documents took the next values
+from the counter, which is the counter's rule working exactly as written and
+producing an answer nobody wants.
+
 The pattern is worth naming: **the numbers are creation order made permanent, and
 the grouping is meaning.** They agreed perfectly at the start and have drifted
-apart four times since, which is what a project doing new thinking looks like. If
-they ever drift far enough that the headers are load-bearing, the fix is to
-renumber the documents rather than to keep explaining the gap here.
+apart five times since, which is what a project doing new thinking looks like.
+The gap is now load-bearing rather than cosmetic, so the fix is the one this note
+has always pointed at: **renumber, rather than keep explaining.**
+
+It is **deferred on purpose**, not forgotten. It belongs with regrouping the
+thirteen phases into the six the software is actually shaped like, and the right
+moment for both is after the writing has been slimmed and it is clear how much
+there is -- not while a phase is still being designed. See
+[what would be better](../desire/what-would-be-better).
 
 ## The phases
 
@@ -181,3 +206,5 @@ phases are the project's main organising idea and a reader should meet them earl
 | 9 | **The sprite studio** -- generated appearances, a rated pool, and two ways of judging it. |
 | 10 | **The engraving** -- statistics persisted as a carving that is also a spreadsheet. |
 | 11 | **The second view** -- a terminal renderer, proving the split, and the HTML docs. |
+| 12 | **The table, as it is actually played** -- commanding is not affecting, the host can show somebody out, and one keyboard drives four bodies. |
+| 13 | **The world becomes solid** -- three dimensions, an edge graph, and visibility decided rather than computed. *Designed, not built.* |

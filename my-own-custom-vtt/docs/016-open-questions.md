@@ -108,7 +108,29 @@ including 1, 2 and 3. See [094-creature](../src/094-creature.info.md).
 
 ## Blocking phase 2 — the world can be seen
 
-### 2.1 How coarse is the fog memory grid?
+### 2.1 How coarse is the fog memory grid? — DISSOLVED TWICE, AND MOVED
+
+**There is no fog memory grid any more.** The question died twice and its
+remainder now lives at [17.3](#173-where-does-the-terrain-grids-cell-size-come-from),
+attached to the terrain format instead.
+
+*First death:* fog became per-vertex. If a vertex being seen reveals the faces it
+bounds, there is no grid — granularity is how finely the geometry was subdivided,
+which is a content decision made with the bisect tool by the person who cares.
+
+*Second death:* fog became authored. A DM organises their structures and flips a
+switch, so nothing is folded from anything and there is nothing to quantise.
+
+What survives is that **an elevation tilemap is a grid**, the reveal distance
+field wants tiles, and footing wants them regular — so a cell size has to be
+picked after all, by the terrain format, once, for three purposes.
+
+The reasoning below is kept because it was right about the direction of error,
+and that decision outlived the grid: the implementation tested a cell's **centre**
+rather than any part of it, which under-claims rather than over-claims, and
+under-claiming is still what phase 13 chooses everywhere it can.
+
+### 2.1 (original) How coarse is the fog memory grid?
 
 [Sight and what it remembers](007-sight-and-what-it-remembers.md) proposes one
 world metre per cell, which now that the scale is settled means a map a hundred
@@ -1119,3 +1141,108 @@ one file per decision — greppable, diffable, obvious — or one file with seve
 lines. The directory reads better; the single file is what somebody actually
 pastes to a friend, which is the same argument the engraving settled the other
 way.
+
+---
+
+## Raised by designing phase 13
+
+### 17.1 Who issues the notice that ends "static"?
+
+A thing is static when its velocity is zero and its mind is zero, and a static
+thing keeps its cached visibility terms **until further notice**. Nothing yet
+issues the notice.
+
+A DM drags a vertex under a static crate; a structure's reveal level changes; the
+ground beneath something is sculpted. In each case a cached term went stale and
+the thing has no idea. **This is the entire difficulty of the caching scheme**,
+and it is invisible until the session where a room lights up and somebody
+standing in it cannot see.
+
+Two shapes are available. A **generation counter** on each structure, compared
+against the one a cached term was computed under, which is cheap and catches
+everything at the cost of a comparison per lookup. Or **explicit invalidation**
+at each edit site, which is free at read time and relies on nobody ever adding a
+tenth edit site and forgetting.
+
+Not decided.
+
+### 17.2 Is mind a flag or a measurement?
+
+The world cannot currently say *this is a creature and that is furniture*. It
+separates them only by sight range, which puts a sleeping person and a coffee cup
+on the same side, and a security camera and a rock on opposite ones.
+
+Phase 13 needs the distinction for the static rule. But the field would be read
+by more than that: whoever gets a turn, whoever can be reasoned with, whoever the
+question window is allowed to speak as.
+
+A flag is enough for static. A measurement is what the other three want, and it
+belongs to the ruleset rather than to the server if it is a measurement, which
+means the static rule would be asking the ruleset a question every frame.
+
+### 17.3 Where does the terrain grid's cell size come from?
+
+[2.1](#21-how-coarse-is-the-fog-memory-grid) asked this about the fog and was
+dissolved twice. The elevation tilemap needs a cell size, the reveal distance
+field wants tiles, and footing lookups want them regular.
+
+**Three things now want one grid**, which makes it a single decision belonging to
+the terrain format rather than to the fog. It should be measured on a real
+generated world rather than guessed, and the measurement should be a tool that
+can be re-run rather than a number written here.
+
+### 17.4 What does a beat mean once the passes are a sequence?
+
+Running intent and motion in a non-periodic order means two motions can fall in a
+row, and a body then moves twice on one intent. That is coherent for both order
+kinds -- a drive is a direction that persists, a move is a destination pursued --
+but **a beat stops meaning a fixed amount of movement**.
+
+Everything that converts between beats and metres has to learn this, and the tick
+rate stops meaning "this much world per second" and starts meaning "this much on
+average, depending where in the sequence you are."
+
+Determinism is untouched. A fixed schedule replays identically.
+
+The question is whether intent should be cleared **when it is consumed** rather
+than at the start of a beat. Clearing at the start was chosen so that a cancelled
+order could never leave a body walking; under a schedule that same clear is what
+would delete an intent a second motion was about to use.
+
+### 17.5 Which AI, and running where?
+
+The question window hands a request to an AI with tool calls into the game. "A
+local AI" reads as something on the host's machine rather than a hosted call, and
+those are different programs: a local runtime with a small model, against an HTTP
+client and a key.
+
+It is a real question rather than a preference because the host of this program
+is somebody's laptop running a game for their friends. Local costs no money and
+no network and gives up capability. Hosted is the other way round, and brings the
+approval gate for free, since the tool-calling loop already offers a per-turn
+hook for exactly a human sitting between the model asking and the tool running.
+
+### 17.6 Is the ray caster kept, or is keeping it a way of not deciding?
+
+Phase 13 says the ray caster stops running during play and becomes an authoring
+tool -- a DM asks *what can be seen from here* once, at human speed, while
+deciding where a boundary goes.
+
+That is a real use. It is also exactly what somebody says about code they do not
+want to delete. **If a year passes and no DM has ever asked it anything**, it was
+kept out of sentiment, and the honest thing is to remove it and let the tests go
+with it.
+
+The check is cheap: count the calls.
+
+### 17.7 Does a non-spatial group ever need to exist?
+
+Asked during design: *the ambush* is four goblins in two rooms and a tripwire in
+a third, and structures are spatial and nested.
+
+**Answered by not needing an answer.** The tripwire is visible to whoever checks;
+the goblins become visible when they enter a revealed room, like every creature.
+The ambush is a thing that happens, not a thing that is stored.
+
+Kept here because the question was asked and the answer was that the question
+dissolved, which is worth more than the answer alone.
