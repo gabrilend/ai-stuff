@@ -323,6 +323,39 @@ function M.target_of(world, id)
 end
 -- }}}
 
+-- {{{ function M.live_radius()
+-- **How wide this formation actually is**, right now, from the bodies in it.
+--
+-- Not the road's. `radius_of` answers "how wide is a full rank on this lane", which
+-- is what the road has to be built to hold and what two formations standing abreast
+-- have to be separated by. This answers "how wide is *this* wave", which is a
+-- different number and moves.
+--
+-- It moves for two reasons. A wave that never had enough melee to fill its rank was
+-- born narrow -- the places are handed out from the middle of the line outward, so a
+-- short rank is short at its edges. And a wave that has been fought down is narrower
+-- than it was, because the bodies that die first are the ones at the front and the
+-- flanks.
+--
+-- The circle has to be resizable or every use of it is wrong in one direction or the
+-- other: a bound computed from a full rank puts a wide formation's edge in the ditch
+-- and keeps a narrow one further from the verge than it needs to be.
+--
+-- Measured from the places rather than from the positions. A body knocked out of its
+-- file by a corner is not evidence that the formation got wider; it is evidence that
+-- the body is out of place, which the cohesion budget is already dealing with.
+function M.live_radius(world, members, count)
+  local soldier = world.soldier
+  local widest = 0
+  for index = 1, count do
+    local across = soldier.slot_across[members[index]]
+    if across < 0 then across = -across end
+    if across > widest then widest = across end
+  end
+  return widest
+end
+-- }}}
+
 -- {{{ local function advance_anchor()
 -- Moves a wave's anchor down the lane, unless it has run into something.
 --
@@ -357,15 +390,54 @@ local function advance_anchor(world, wave)
   local zone = world.map_builder.zone_at(lane, centre,
                                          world.parameters.shape.zone_divisions)
 
-  -- **The next zone's waypoint, not this one's.** A wave aims at where it is going,
-  -- and the waypoint of the zone it is standing in is a place it has already
-  -- arrived at. Taking the next one is what makes the aim always forward.
   if zone ~= wave.zone then
     wave.zone = zone
-    local ahead = zone + ((facing > 0) and 1 or -1)
-    if ahead < 0 then ahead = 0 end
-    if ahead > lane.zone_count - 1 then ahead = lane.zone_count - 1 end
-    wave.wander_to = world.formations.waypoint_across(world, lane.id, ahead)
+
+    -- **The room this formation has, and it is this formation's own.**
+    --
+    -- Half the road, less **its own radius** -- not the road's standard formation's.
+    -- A wave that has been whittled down is narrower than a fresh one and has more
+    -- room to move about in; a wave that is wider has less. Measuring the room with
+    -- one number for the whole road would put the edge of a wide formation in the
+    -- ditch and keep a narrow one further from the verge than it needs to be.
+    local room = lane.width * 0.5 - (wave.radius or 0)
+    if room < 0 then room = 0 end
+
+    -- **Its own stream, made from its own id.**
+    --
+    -- Not the team's. A stream shared across a team is advanced by whichever wave
+    -- happens to cross a boundary first, so a wave's wander would depend on how many
+    -- other waves that team had walking and where they were -- which makes the
+    -- wander an amplifier for any difference between two machines rather than a
+    -- property of a wave. Two runs a hair apart would take entirely different roads.
+    --
+    -- Seeded from the match seed, the team and the wave's own number, so the answer
+    -- depends on nothing but which wave this is. Made once, on the wave, and kept.
+    local stream = wave.waypoint_stream
+    if stream == nil then
+      stream = world.random_streams.new(world.parameters.seed,
+                                        "waypoint-" .. wave.team .. "-" .. wave.id)
+      wave.waypoint_stream = stream
+    end
+
+    -- **A column, chosen once and kept.** The road divides into three lengthways,
+    -- and a wave picks one on its way out and stays in it: a wave that started on
+    -- the left tends to stay on the left.
+    --
+    -- Without this a wave draws an independent offset in every zone and crosses the
+    -- road repeatedly on the way down it, which is not an army with an approach --
+    -- it is an army that cannot make up its mind. The column is the decision; the
+    -- draw inside it is the imprecision.
+    if wave.column == nil then
+      wave.column = stream:next_below(3) - 2
+    end
+
+    -- One column's width, and the destination somewhere inside it. Three equal
+    -- bands covering the room exactly: the outer two reach the shoulder and the
+    -- middle one straddles the centre line.
+    local band = room * 2 / 3
+    wave.wander_to = wave.column * band
+                     + (stream:next_float() * 2 - 1) * band * 0.5
   end
 
   -- Eased rather than snapped, and slowly. A formation that jumped sideways the
@@ -508,6 +580,7 @@ function M.plan(world)
         end
       end
       if count > 0 then
+        wave.radius = M.live_radius(world, members, count)
         advance_anchor(world, wave)
         share_out_speed(world, wave, members, count)
       end
@@ -535,85 +608,15 @@ end
 -- {{{ function M.begin()
 function M.begin(world)
   world.formation_scratch = {}
-  M.lay_out_the_waypoints(world)
 end
 -- }}}
 
--- {{{ function M.lay_out_the_waypoints()
--- One point inside each waypoint zone of each lane, for each team, drawn once.
---
--- **Once, at assembly, not per wave.** A zone's waypoint is a property of the
--- ground rather than of whoever is walking over it: two waves down the same road
--- should follow the same wandering line, the way two columns of people follow the
--- same worn path. Drawing it fresh per wave would make it a shuffle instead of a
--- feature of the map, and would put a random draw inside the busiest loop there is.
---
--- **One line per road, not one per team.** A waypoint belongs to the ground rather
--- than to whoever is walking over it, so both armies follow the same wandering line
--- down a road. That is the more natural thing anyway -- two columns of people wear
--- the same path -- and it is what keeps the opening a mirror: two first waves that
--- wandered differently would be asymmetric before either had taken a step.
---
--- The offset is across the lane only. How far *along* a zone the point sits would
--- decide nothing: a wave takes the next zone's waypoint when its centre crosses in,
--- so the along-position is only ever "somewhere ahead", and a wave already knows how
--- to walk forward.
-function M.lay_out_the_waypoints(world)
-  world.waypoint = {}
-  for _, lane in ipairs(world.map.lane) do
-    local here = {}
-    world.waypoint[lane.id] = here
-    -- How far off the centre line a waypoint may sit: half the road, less the
-    -- formation's own radius, so a wave aiming at one still has all of itself on the
-    -- road. A waypoint at the verge would put half a rank in the ditch.
-    local room = lane.width * 0.5 - M.radius_of(lane)
-    if room < 0 then room = 0 end
-    -- **The line down a road is a palindrome**, drawn for the first half and
-    -- reflected onto the second.
-    --
-    -- Because the map is a mirror of itself and this is part of the ground now. Two
-    -- teams walk the same road from opposite ends, so a body a hundred paces from its
-    -- own library meets whatever the road does a hundred paces in -- and if the two
-    -- halves were drawn independently, that would be a different thing for each team.
-    -- One side would walk out into a leftward drift and the other into a rightward
-    -- one, from the first wave, forever. An asymmetric road hands one team a
-    -- different game and nothing else in the project would ever say so.
-    --
-    -- Each value is also symmetric about the centre **line**: a draw that only ever
-    -- wandered one way would give the road a permanent lean, and every fight in it
-    -- would happen off to one side.
-    local stream = world.stream.waypoint
-    local last = lane.zone_count - 1
-    for zone = 0, math.floor(last / 2) do
-      local offset = (stream:next_float() * 2 - 1) * room
-      here[zone] = offset
-      here[last - zone] = offset
-    end
-  end
-end
--- }}}
-
--- {{{ function M.waypoint_across()
--- How far off the centre of its lane a wave's current waypoint sits.
---
--- Zero for anything that has no waypoint to read -- a body with no wave, a lane that
--- was never laid out. Zero is the centre line, which is exactly where something with
--- no opinion about where to walk should be walking.
-function M.waypoint_across(world, lane_id, zone)
-  local lane = world.waypoint[lane_id]
-  if lane == nil then
-    return 0
-  end
-  return lane[zone] or 0
-end
--- }}}
-
+-- The numbers other files measure against, exported so that nothing keeps a copy.
+-- A tolerance written as a literal in a test is a tolerance that stops matching the
+-- thing it was chosen for the first time anybody edits these.
 M.RANK_SPACING = RANK_SPACING
 M.FILE_SPACING = FILE_SPACING
 M.CONTACT_RANGE = CONTACT_RANGE
--- Exported so that a test can derive a bound from them rather than carry a copy.
--- A tolerance written as a number in a test is a tolerance that stops matching the
--- thing it was chosen for the first time anybody touches these.
 M.SPEED_CEILING = SPEED_CEILING
 M.SPEED_FLOOR = SPEED_FLOOR
 

@@ -65,6 +65,15 @@ being read and the feature is decoration. Wander past the shoulder means the cla
 wrong and part of a rank is in the ditch — which is why the offset is bounded by the
 road's half-width **less the formation's radius** rather than by the half-width.
 
+It also checks the wave **stayed in the column it chose**. That is the property worth
+having: a road divides into three lengthways and a wave commits to one, so the thing
+to assert is not that it wanders but that it wanders inside one third.
+
+And that **the circle is the formation's own size.** Stripping the outer file — every
+body at the edge, both sides, every rank — makes it smaller. The first version of this
+removed a single body and could not fail, because the others at the same offset were
+still standing and the circle was correctly unchanged.
+
 **Two formations meeting.** They walk at each other, meet front to front in the
 middle, and one of them is left standing.
 

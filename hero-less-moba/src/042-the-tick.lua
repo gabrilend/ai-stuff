@@ -442,6 +442,7 @@ function M.assemble(modules, parameters)
   world.rest_of_brain = modules.rest_of_brain
   world.gate_module = modules.gate
   world.replay_module = modules.replay
+  world.random_streams = modules.random_streams
 
   -- The three world-level helpers the systems call by name. Hung here rather than
   -- required, for the same reason as everything above.

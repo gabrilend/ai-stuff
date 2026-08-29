@@ -1,6 +1,6 @@
 # Conversation Summary: b3c0db53-4db1-4ae3-8200-fb023520ebb8
 
-Generated on: 2026-08-28 12:35:50
+Generated on: 2026-08-28 17:34:22
 
 --------------------------------------------------------------------------------
 
@@ -2166,6 +2166,570 @@ decision and I left it alone.
 (806), teammate bots sharing a chest (phase 9), and the replay list on the menu
 — replays exist now but nothing on that screen opens one. That last is the
 cheapest and closes 707; I'll take it next unless you want something else first.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 8
+
+We need to resize the map. Can you make the units stand farther apart? But, make
+them smaller too, and the lanes slightly wider. Can you tell me how the
+pathfinding works? Specifically the destinations, how we route around curves - I
+think we should have waypoints that a wave (everyone nearby) approaches in
+formation, and zones that the waypoints rest within (the zones that determine
+how far along a wave is, but we should make them about 4x more discrete) - when
+the formation's center enters a zone, we update the waypoint to the next one.
+The location within the zone where the waypoint is spawned is random, to produce
+a bit of variation in approach angle - it's hard to tell exactly which direction
+is optimal while on the ground, so you just sorta go toward that direction. The
+zones are small and fixed to a lane, and actually these zones are identical to
+the distance zones but we store them separately so we can modify their positions
+and stuff if we need to. But we store them in the same case, so we can find them
+easily.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 8
+
+Let me read the actual routing code before I describe it.
+
+
+Now I have the full picture. Let me check what the size numbers actually feed
+before I turn them.
+
+
+Now the resize. First, a stale comment: the map-shape file claims
+`personal_space` sets the drawn body size, and it doesn't — the renderer keeps
+its own table.
+
+
+The old comment block above the widths survived the replace and now reads as two
+headers. Merging them.
+
+
+Now the formation spacing, and the drawn sizes.
+
+
+Two paces short — the centre lane doesn't quite contain the three formations
+it exists for.
+
+
+Now the validator, so neither of those derivations can drift again silently.
+
+
+Now confirming the check actually fires — a validator that never complains is
+a validator nobody has tested.
+
+
+Now the drawn sizes — smaller, as asked.
+
+
+The formation tests fail — and this is the game, not the tests. A rank 88
+paces wide instead of 64 has to get round the same corner.
+
+
+The sandbox builds its own lane at the old width, so it now walks two abreast.
+Let me find where the lag actually spikes rather than guess.
+
+
+The lag spikes at tick 90, three percent along the lane — nowhere near the
+bend. That's the spawn, not the turn: a rear rank's place is *behind* the
+library, and there is no lane there to stand on.
+
+
+Both failures are the same artifact, and it's in the tests rather than the game:
+a wave's rear ranks want to stand *behind* the library, get clamped to the
+lane's start, and both tests were folding that into a measurement of turning.
+Let me confirm before changing anything.
+
+
+Sandbox clean. Now the invariant, which should measure the bend it claims to
+measure.
+
+
+Everything green. A picture to confirm the resize reads the way you asked.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 9
+
+[Image: original 2560x1420, displayed at 2000x1109. Multiply coordinates by 1.28
+to map to original image.]
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 9
+
+Wrong spot — that's two heroes on empty road. Let me take the default
+whole-map view, which is the one the design actually rests on.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 10
+
+[Image: original 2560x1420, displayed at 2000x1109. Multiply coordinates by 1.28
+to map to original image.]
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 10
+
+The resize reads correctly at the default view. Recording the numbers, since
+these are knobs.
+
+
+The sandbox still builds its lanes at the old width, so it's measuring a
+formation the game no longer has.
+
+
+Now the two info files quoting measurements that are no longer true.
+
+
+Now the waypoint design. Writing it up as an issue first, since it's a feature.
+
+
+The write didn't land. Rerunning it.
+
+
+Resize is done and committed. Now your question, which is the interesting part.
+
+
+## There is no pathfinding
+
+
+Nothing searches. No A*, no flow field, no per-tick route-finding. A body never
+asks "how do I get there" — it only ever asks "what is the next node," and
+that is a table lookup.
+
+
+**The ground is a graph.** The map builder emits nodes — each a struct with
+`x`, `y` (doubles, in paces), a `kind`, a `lane` (1–3, or 0 for a connector),
+and a list of neighbour ids. A lane is a `path`: an integer array of node ids in
+order, running from team 1's library to team 2's. Team 1 walks *up* that array,
+team 2 walks *down* it, and `facing` (+1 or −1) is folded into the index
+arithmetic — which is why there's one path array and not two.
+
+
+**A body's position is two numbers, and its x/y are derived from them.** For
+anything walking a lane, the real state is `lane_along` (how far down the road,
+in paces) and `lane_across` (how far off the centre line, signed). Screen
+position is recomputed every move pass by asking the lane "where is distance
+812.5 on you," walking the path array to the segment containing it and
+interpolating. This is why the replay correction did nothing when it wrote x and
+y — they're scratch.
+
+
+**Curves cost nothing, and that's the whole trick.** Because a rank of soldiers
+all share one `lane_along` and differ only in `lane_across`, going round a bend
+is *free*: the road carries the line round as a line. Hold a formation in world
+coordinates instead and it either tears apart on the turn or scythes through the
+inside of it.
+
+
+The bill for that came due exactly once. A body on the *outside* of a bend has
+further to walk in the world, and nothing was telling it so — it was covering
+the extra ground for nothing, moving faster than its own speed, silently. So
+`move_limited` now takes the step, measures the actual displacement, and scales
+it back if it was too far, three passes. The outer body genuinely falls behind
+its place, the inner one gets ahead, and the cohesion budget does the rest.
+
+
+**The destination — the part you asked about — barely exists.** A wave has
+one number: its `anchor`, a double, which is the *front* of the formation, not
+its centre. Every tick, if nothing hostile is within contact range of the front,
+the anchor moves forward by the wave's pace. Every body's place is `anchor + its
+own fixed offset`. That's it. There is no aiming, no target point, no route. The
+wave is walking a number up toward the lane's length.
+
+
+The corner at each junction is a ~90° vertex in the raw graph, which a
+formation physically cannot walk — the outer body would have to cover most of
+an arc in one step. So the builder relaxes the nodes either side of the bend
+toward their neighbours, sixty passes over a twelve-node window, which cuts the
+vertex into a curve.
+
+
+Four movement modes exist for things *not* in a wave — a guard patrolling,
+leashing home, or closing on something — and all four are "read one number out
+of a table."
+
+
+## Your design, and where I stopped
+
+
+I've written it up as an issue and left it in progress, because two of the
+choices inside it change what gets built rather than how well, and both are
+yours.
+
+
+**[Asked the user]**
+
+
+*Q1 — Milestones:* You said the finer stretches are "identical to the distance
+zones". Right now a lane has nine milestones doing two jobs at once: they are
+where the towers stand, and they are the unit push depth counts in. Four times
+finer means 32 intervals instead of 8. Which way?
+
+- Milestones stay; zones sit underneath (Recommended) — Each milestone
+  interval divides into four, so every milestone stays exactly on a zone
+  boundary and no tower moves. Push depth switches from counting milestones to
+  counting zones. Two concepts where there was one, but nothing that currently
+  says "milestone" changes meaning.
+
+- Milestones themselves become 33 — Towers at every fourth one. One concept,
+  no ambiguity, identical geometry — but every place that says "milestone"
+  silently starts meaning something 4x finer: structure sites, sign-posts, the
+  chest's slot addressing, the renderer's marks, the terminal viewer, the bot.
+  Any one missed is an off-by-four in a number nobody prints.
+
+→ **Selected:** Milestones stay; zones sit underneath (Recommended)
+
+
+*Q2 — Waypoints:* A formation is held as how-far-along and how-far-across,
+with screen position derived from those against the road's curve — and that is
+the entire reason a rank can round a 90-degree corner and still be a rank. So
+what does "approach the waypoint" mean against that?
+
+- Waypoint steers within the lane (Recommended) — The wave still advances
+  along the road at its pace; the waypoint sets how far across it the formation
+  is heading, and the formation eases toward it. You get the varying approach
+  angle and the wander, the corners keep working for free, and the waypoint's
+  along-position mainly decides when to pick the next one.
+
+- Waypoint is a real destination in the world — The wave genuinely navigates
+  to a point and its progress along the road becomes a consequence of walking
+  there. Faithful to how you described it — but formations stop being held in
+  road coordinates, and the corner behaviour has to be solved again from scratch
+  by some other means.
+
+- Steer within the lane, but aim at the point — A middle reading: the waypoint
+  has both an along and an across position, and the wave walks a straight line
+  toward it in road coordinates — so the approach angle is genuinely the angle
+  to the point, not just a sideways ease. Road coordinates stay authoritative,
+  corners still work.
+
+→ **Answered:** a formation should be defined as a central point that is the
+center of all the unit's position. It's radius should be exactly 1/2 it's width.
+The diameter is the face of the line, with the diameter being the X value, and
+the Y value being the side pointed toward the waypoint / center of enemy
+frontline. Not their formation, but their frontline, which is their diameter but
+displaced on the Y axis. When the formation turns, it's curve will move the
+"intended location" of it's units away from their current position - they must
+be able to accelerate to compensate, both up and down. Their marching speed is
+not their running speed. Nobody runs when chasing a kill. Units run away when
+they are beaten and cannot continue - a will save, once, determines if they
+sacrifice themselves. A fail means they live to fight again. A success means
+they get one single hit on the enemy - through these means, any foe (save the
+eternal golem)'s demise may be achieved.
+
+
+*Q3 — Wander:* How much should a wave be allowed to wander off the centre
+line? The formation has a radius — half its rank width — so a waypoint too
+close to the verge puts part of a rank off the road.
+
+- Stay fully on the road (Recommended) — The waypoint's sideways offset is
+  bounded so the whole formation stays within the lane's width. On a side lane
+  carrying 3 abreast that leaves about 21 paces of play either side; the wide
+  centre leaves about 50.
+
+- Allow a shoulder off the road — Bound by the lane's width alone, so the edge
+  of a rank can stray onto the verge. More visible variation, and a wave
+  sometimes looks like it is spilling out of its lane.
+
+- Small wander only — Bound to roughly a third of the available play, so the
+  variation is a subtle drift rather than a visible weave. Safer for the
+  frontline read, less visible as a feature.
+
+→ **Answered:** there should be roughly 3x the width of the formation for them
+to wander through. They generally march straight when on a straight path. The
+central lane is 9x the width of a unit formation.". Read the answers carefully
+— they may request clarification, changes, or that you not proceed — and
+follow what they actually say.
+
+
+That answer redefines what a formation *is*, and adds two mechanics that weren't
+on the table. Let me record it all before building anything.
+
+
+Now splitting it into sub-issues, since this is well past one ticket.
+
+
+The validator doesn't know the sub-issue naming convention. Teaching it.
+
+
+Blueprints are in. Now building, starting with the zones since everything stands
+on them.
+
+
+Good — `cumulative` and `milestone_index` are both computed after the
+smoothing, so I can build the zones from real path distances.
+
+
+`shape` is already in scope. Now the parameter, and the lookup that finds a zone
+without scanning.
+
+
+Every milestone lands exactly on a boundary. Now push depth counts zones.
+
+
+Now the validator, so the two arrays can't drift apart.
+
+
+Every failure mode is caught. Now checking push depth actually reads four times
+finer.
+
+
+Push depth reads four times finer now — and, as the issue predicted, its
+readers are the risk. Two tests failed. Let me find every reader.
+
+
+Those two only compare lanes against each other, so scale can't affect them. Let
+me find the ones that use an absolute number.
+
+
+Two display readers will break outright — the renderer indexes a nine-entry
+table with a number up to 32. But first, the test failures, which are a
+different thing.
+
+
+A draw between two identical bots is chaos, not necessarily a defect. Let me
+measure the draw rate rather than argue about one match.
+
+
+One draw in twelve seeds. The test was asserting something with an 8% failure
+rate and passing on luck. Let me look at what it actually meant to prove.
+
+
+Two tests measuring something other than what their comments say. Fixing both to
+assert the property rather than the luck.
+
+
+Now the three display readers, which will index a nine-entry table with a number
+up to 32.
+
+
+`world.map_builder` is already used elsewhere in the renderer. Now the panel and
+terminal viewer.
+
+
+The frame needs to carry the zone count, so no viewer has to reach for the map.
+
+
+There's a fourth line with the old `8 - m` I missed — the contested-ground
+marker.
+
+
+Now a screenshot to confirm the panel and the push bands still draw.
+
+
+Let me photograph a moment outside a challenge, when push depth is actually
+drawn.
+
+
+Push bands and the pressure track both read correctly. Now the documents that
+describe push depth in milestones.
+
+
+Now the info files for the modules I changed.
+
+
+One more invariant — the validator proves the zones are well-formed, but
+nothing yet proves push depth actually *reads* finer rather than just being
+milestones times four.
+
+
+Zones are in. Now the waypoints that sit in them — starting with the widths,
+since a wave can't wander through road it doesn't have.
+
+
+Widening to 132 would make a side lane carry four abreast — because file count
+is *derived* from width, which becomes circular once width is derived from
+formation size. The declared intent should win.
+
+
+Now the shape parameters — widths derived from the formation, with the
+multiple declared.
+
+
+The lane record needs to carry its declared file count, and the validator's
+check changes shape.
+
+
+The slice grabbed the wrong region — `check_zones` sits before
+`check_lane_widths`, so the end marker came first. Let me repair it directly.
+
+
+The file's been mangled into repeated copies. Restoring from git and redoing it
+properly.
+
+
+Widths are right and every drift is caught. Let me look at it before going
+further — 396 paces is over a quarter of the field.
+
+
+The centre reads as genuinely the wide one now. Next, the waypoints themselves
+— starting with the stream, since anything random has to be named and seeded.
+
+
+Now the waypoints themselves, drawn once per zone per team at assembly.
+
+
+The wave already has a sideways offset — used to stand three abreast in a
+challenge. The waypoint has to add to it, not replace it.
+
+
+Now the measurement the issue asks for: a wave on a straight road must not walk
+a straight line.
+
+
+A wave now drifts between −21 and +21 paces of a 44-pace shoulder. Running the
+suites.
+
+
+Per-team wander breaks the opening mirror — and a single line per road is both
+simpler and truer to "waypoints rest within zones".
+
+
+Still asymmetric — the two teams meet *different* zones at the same distance
+from home. For the opening to mirror, the road's line has to be a palindrome,
+the same way the map is.
+
+
+Mirror restored. Now the bend — let me measure the trade-off rather than tune
+until it passes.
+
+
+The lag isn't monotonic in the rate, which says the measurement is wrong, not
+the number. Let me check what it's actually conflating.
+
+
+With no wander at all the spread is already 7.2 in a live match — the old
+tolerance of 12 was never much headroom. Let me bound the thing the check names:
+the line must not bend by more than a rank.
+
+
+Now the sandbox measurement the issue asks for: a wave on a straight road must
+not walk a straight line.
+
+
+The sandbox's test lanes have no zones and no file count, so they'd wander
+nowhere. Giving them both, from the same numbers.
+
+
+The circle test measures across the *lane*, but the circle belongs to the
+formation — which has now moved off the centre line.
+
+
+Both halves of the comparison need the same origin — `want_across` is still
+absolute.
+
+
+Now the test the issue actually asks for — that a wave on a straight road does
+*not* walk a straight line.
+
+
+Everything green. Committing 211b, then updating the documents.
+
+
+Here's where things stand.
+
+
+## The map, resized
+
+
+| | Was | Now |
+
+|---|---|---|
+
+| space between bodies side by side | 16 | 22 |
+
+| space between ranks | 22 | 30 |
+
+| drawn body size | 5.0 | 3.6 |
+
+| side road width | 62 | 132 |
+
+| centre road width | 140 | 396 |
+
+
+Widening wasn't free. How many walk abreast was the road's width divided by the
+space between them — so spreading the ranks out and leaving the roads alone
+turns three abreast into two, every wave a third thinner, with nothing saying
+so. That happened on the first attempt. The count is now a *declared* fact and
+the width is the arithmetic that delivers it, checked both ways at load.
+
+
+One number was documented as doing a job it has never done: the shape file
+claimed body spacing also set the drawn size. It never did. They're now
+deliberately far apart — a body is drawn at about a fifth of the room it
+keeps, which is what lets a rank read as countable people instead of a bar.
+
+
+## Pathfinding, as you asked
+
+
+**There is none.** No search, ever. The ground is a graph; a road is an ordered
+list of node ids; a body's real position is two numbers — how far *along* the
+road and how far *across* it — and its x/y are recomputed from those every
+move pass. That's why the replay correction did nothing when it wrote x/y:
+they're scratch.
+
+
+Curves are free, and that's the whole trick. A rank shares one distance-along
+and differs only in distance-across, so the road carries the line round a bend
+*as a line*. The bill came due once: a body on the outside of a bend has further
+to walk and nothing was telling it, so it was moving faster than its own speed,
+silently. Now the step is measured after it's taken and scaled back.
+
+
+**The destination barely existed.** A wave had one number — its anchor, the
+*front* — which moved forward by its pace every tick. No aiming, no route.
+
+
+## Built since
+
+
+**Zones** (211a) — each gap between posts cut into four, so the push measure
+runs 0–32 instead of 0–8. Posts didn't move; every one lands exactly on a
+division by construction. Two identical lists per road, side by side, separately
+movable.
+
+
+**Waypoints** (211b) — every stretch holds a point off centre; a wave heads
+for the one *ahead* of it. Roads got their 3× and 9× shoulders. Measured on a
+straight road: a wave drifts across ~30 of the 88 paces available.
+
+
+Getting the mirror right took three tries. Per-team lines broke it. One line per
+road still broke it — the two armies walk the same road from opposite ends, so
+at equal distance from home they meet different stretches. The line is now a
+palindrome.
+
+
+**Three measurements were wrong in the same way** — none could tell a
+formation that had *moved* from one that had come apart. The bend check watched
+the worst single body's lag; a wave moving sideways spends one budget on two
+things, so everybody falls behind *together*, which reads identically to
+bending. It watches the spread now, bounded by one whole rank.
+
+
+Tests: 82 invariants, 14 sandbox, 0 documentation problems.
+
+
+**Not built yet:** 211c (formation as an oriented disc facing the enemy's
+frontline), 211d (marching vs running speed), 212 (the will save).
+
+
+**One question, H9:** waypoints belong to *zones*, so every wave down a road
+follows the same line — the road has a character. The alternative is
+re-rolling per wave, so each wave takes its own line and the ground has none.
+Yours is the deciding vote; I built the first because "zones that the waypoints
+rest within" reads that way and it's what keeps the opening a mirror.
 
 
 --------------------------------------------------------------------------------
