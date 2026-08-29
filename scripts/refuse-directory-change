@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+#
+# refuse-directory-change
+#
+# A gate that sits in front of every shell command Claude Code tries to run and
+# refuses the ones that would move the working directory somewhere else.
+#
+# The reason it exists: the working directory belongs to the person at the
+# terminal, not to the assistant. When a command walks off to another folder,
+# every later command in the session inherits that move, and the prompt, the
+# status line, and the person's own sense of where they are all quietly
+# disagree with reality. Nearly every real need for it has a flag instead --
+# git takes -C, make takes -C, tar takes -C, and most other tools accept a
+# full path -- so refusing the move costs almost nothing and removes a whole
+# class of surprise.
+#
+# The refusal can be lifted one time, by the person and only by the person, by
+# creating the permission token named below. The gate spends the token on the
+# next directory change and deletes it, so a permission granted once is not a
+# permission granted forever.
+#
+# Asking for confirmation instead was tried first and does not work: under the
+# "auto" permission mode the confirmation is resolved without ever reaching a
+# human, which would leave this gate looking present while doing nothing. A
+# refusal is honoured; a request is not. Hence a refusal plus a token.
+#
+# WHAT THIS IS NOT
+#
+# This is not a security boundary and must never be mistaken for one. The
+# assistant it constrains can read and write this file, can delete the hook
+# entry that installs it, and can create the token itself. Any of those defeats
+# it completely, and none of them is difficult.
+#
+# What it buys is not prevention. It is that the ways around it are all things
+# a person would see: a token being touched, this script being edited, settings
+# being rewritten. Before the gate, a directory change hid inside an ordinary
+# command and nobody noticed. After it, going around costs a visible, deliberate
+# act. The gate turns a silent slip into a loud one, and that is the whole of
+# its value -- an honour system with a witness, not a lock.
+#
+# Reads the pending command as JSON on standard input. Says nothing at all when
+# the command is fine; prints a refusal when it is not.
+#
+# Usage: refuse-directory-change [token-path]
+
+set -euo pipefail
+
+# Where the person leaves a one-time permission. Overridable by argument so the
+# gate can be exercised in a test without touching the real one.
+TOKEN="${1:-/tmp/claude-allow-cwd-change}"
+
+# The command Claude is about to run. Unreadable input is treated as "nothing
+# to object to" rather than as an error -- a gate that crashes would block every
+# command in the session, which is far worse than missing one.
+pending_command="$(jq -r '.tool_input.command // ""' 2>/dev/null || printf '')"
+
+if [ -z "${pending_command}" ]; then
+    exit 0
+fi
+
+# A directory change only counts when the word sits where a command goes: at the
+# start of a line, or straight after a separator such as ; && || | ( {
+# That is what keeps `git -C /somewhere status`, `echo "cd"`, `cdrecord` and
+# `rsync --cvs-exclude` from being mistaken for the real thing, while still
+# catching `mkdir foo && cd foo` and `$(cd /x && pwd)`.
+directory_change_pattern='(^|[;&|(){}])[[:space:]]*(cd|pushd|popd)([[:space:]]|;|&|\||$)'
+
+# Nothing here moves the directory, so the command is none of this gate's
+# business and runs untouched. Almost every command takes this path.
+if ! printf '%s\n' "${pending_command}" | grep -qE "${directory_change_pattern}"; then
+    exit 0
+fi
+
+# Past this line the command does move the directory, and there are two endings.
+
+# The person left a token, so they asked for this specifically. Spend it and
+# stand aside. Deleting it before allowing means a crash after this point still
+# consumes the grant, which is the safe direction to fail -- an unspent token
+# lying around would silently permit some later, unrelated move.
+if [ -e "${TOKEN}" ]; then
+    rm -f "${TOKEN}"
+    exit 0
+fi
+
+# No token, so nobody asked for this. Refuse, and name the alternative, because
+# a refusal that does not say what to do instead just gets retried.
+cat <<REFUSAL
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "This command changes the working directory, which belongs to the user and does not move unless they specifically ask for it. Do the work from where you are: git -C <dir>, make -C <dir>, tar -C <dir>, or absolute paths. A heredoc needs no directory change either -- git -C <dir> commit -F - reads from stdin perfectly well. If the user genuinely wants the directory moved this once, ask them to type: ! touch ${TOKEN}"
+  }
+}
+REFUSAL
+
+exit 0

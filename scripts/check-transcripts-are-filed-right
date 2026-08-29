@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+#
+# check-transcripts-are-filed-right
+#
+# Asks one question of every exported conversation in every project: is this
+# filed with the project it actually came from?
+#
+# The reason it exists: the exporter decides where to write by looking at the
+# working directory it happens to be standing in. That is almost always right,
+# because the hook that runs it inherits Claude Code's own directory rather than
+# any shell's. But "right by inheritance" is a property nobody can see, and the
+# failure it guards against is silent -- a conversation written into the wrong
+# project looks exactly like one written into the right project. So this checks
+# the property rather than trusting it.
+#
+# WHAT COUNTS AS WRONG, AND WHAT DOES NOT
+#
+# A transcript is misfiled when its conversation record still exists on disk and
+# lives under a DIFFERENT project. That is a real fault: the record says one
+# place, the export went to another.
+#
+# A transcript whose conversation record no longer exists anywhere is NOT a
+# fault. Claude Code eventually clears old conversation records, and the whole
+# purpose of exporting is that the readable copy outlives the raw one. An
+# earlier version of this script treated those as errors and reported fifty-six
+# problems that were all just old. A check that cries wolf is worse than none,
+# so those are counted and named as history rather than flagged.
+#
+# It reads and reports, and never renames, moves, or deletes: the exporter is the
+# only program permitted to name transcript files, and a second program quietly
+# correcting names would simply be overruled on the exporter's next run.
+#
+# Exit 0 when everything is where it belongs, 1 when something genuinely is not,
+# so this can sit in a test run and fail a build.
+#
+# Usage: check-transcripts-are-filed-right [projects-root]
+
+set -uo pipefail
+
+# Every project directly under here that keeps an llm-transcripts directory is
+# checked.
+DIR="${1:-/mnt/mtwo/programming/ai-stuff}"
+
+# Where Claude Code keeps conversation records, in directories named for the
+# project's absolute path with the slashes turned into dashes.
+SESSIONS_ROOT="${CLAUDE_SESSIONS_ROOT:-${HOME}/.claude/projects}"
+
+if [ ! -d "${DIR}" ]; then
+    printf 'Not a directory: %s\n' "${DIR}" >&2
+    exit 1
+fi
+
+if [ ! -d "${SESSIONS_ROOT}" ]; then
+    printf 'No sessions root at %s -- nothing to check against.\n' "${SESSIONS_ROOT}" >&2
+    exit 1
+fi
+
+# An index from conversation to the project key holding its record, built once so
+# that each transcript is a lookup rather than a search. Held in a file rather
+# than an associative array so this stays portable to a plain shell.
+INDEX="$(mktemp)"
+trap 'rm -f "${INDEX}"' EXIT
+
+find "${SESSIONS_ROOT}" -mindepth 2 -maxdepth 2 -name '*.jsonl' -printf '%f %h\n' \
+    | sed 's|\.jsonl||' \
+    | sed "s|${SESSIONS_ROOT}/||" \
+    > "${INDEX}"
+
+misfiled=0
+historical=0
+current=0
+projects=0
+
+while IFS= read -r transcript_dir; do
+    project_dir="$(dirname "${transcript_dir}")"
+
+    # The key this project's records would be filed under, derived exactly as the
+    # exporter derives it: leading slash dropped, slashes to dashes, dash in front.
+    expected_key="-$(printf '%s' "${project_dir}" | sed 's|^/||' | tr '/' '-')"
+    projects=$((projects + 1))
+
+    while IFS= read -r transcript; do
+        # The exporter writes the conversation's identity into the first line. A
+        # file without one was written by something else -- a hand-written note,
+        # or an older format -- and is left alone rather than guessed about.
+        session_id="$(head -1 "${transcript}" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' || printf '')"
+        if [ -z "${session_id}" ]; then
+            continue
+        fi
+
+        holder="$(grep -m1 "^${session_id} " "${INDEX}" | cut -d' ' -f2 || printf '')"
+
+        # Three endings. No holder means the raw record is gone and this export is
+        # all that survives -- history, not a fault. A holder that matches means
+        # everything is where it belongs. A holder that differs is the real fault
+        # this script exists to catch.
+        if [ -z "${holder}" ]; then
+            historical=$((historical + 1))
+        elif [ "${holder}" = "${expected_key}" ]; then
+            current=$((current + 1))
+        else
+            printf 'MISFILED  %s\n' "$(basename "${transcript}")"
+            printf '          filed in %s\n' "${project_dir}"
+            printf '          but its conversation is recorded under %s\n' "${holder}"
+            misfiled=$((misfiled + 1))
+        fi
+    done < <(find "${transcript_dir}" -maxdepth 1 -name '*.md')
+
+done < <(find "${DIR}" -maxdepth 3 -type d -name 'llm-transcripts')
+
+printf '\n'
+printf '%s projects, %s transcripts checked against a live record, %s older than any\n' \
+    "${projects}" "${current}" "${historical}"
+printf 'surviving record (kept, and the reason exporting exists).\n'
+
+if [ "${misfiled}" -eq 0 ]; then
+    printf 'Every transcript with a live record is filed with the project it came from.\n'
+    exit 0
+fi
+
+printf '\n%s transcript(s) filed under the wrong project.\n' "${misfiled}"
+printf 'The exporter places these; run it from the right directory rather than moving\n'
+printf 'files by hand, or it will put them back where they were next time.\n'
+exit 1
