@@ -35,7 +35,7 @@ Described by `908`.
 | `n_pane_core` | `062` | 34306.2 | panes needed to move the whole core |
 | `n_pane_tile` | `063` | 4096 | tiles the pane is divided into |
 | `n_spare_pane` | `063` | 691200 | conductors held in reserve |
-| `t_life_seconds` | `086` | 3.156e+08 s | the life, in the unit every other blueprint's mean-time figures are in |
+| `t_life_seconds` | `086` | 3.15576e+08 s | the life, in the unit every other blueprint's mean-time figures are in |
 
 ## What consumes it
 

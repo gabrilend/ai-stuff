@@ -35,7 +35,7 @@ Described by `1003`.
 | `n_face` | `010` | 6 | compute faces, one per side of the cube |
 | `n_share_site` | `039` | 3 | places in this machine where two faces touch the same memory |
 | `t_cycle_face` | `070` | 714.286 ps | the face cycle time everything in 074 is budgeted against |
-| `t_life_seconds` | `086` | 3.156e+08 s | the life, in the unit every other blueprint's mean-time figures are in |
+| `t_life_seconds` | `086` | 3.15576e+08 s | the life, in the unit every other blueprint's mean-time figures are in |
 | `t_stage` | `053` | 0.000160796 s | how long one face works before the sieve moves on |
 
 ## What consumes it

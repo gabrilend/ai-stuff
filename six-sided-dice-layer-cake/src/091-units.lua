@@ -147,6 +147,12 @@ defunit("B",    8,     { 0, 0, 0, 0, 0, 0, 0, 1 })   -- byte
 defunit("L",    1e-3,  { 3 })                        -- litre
 defunit("min",  60,    { 0, 0, 1 })
 defunit("hr",   3600,  { 0, 0, 1 })
+-- The Julian year, three hundred and sixty-five and a quarter days. Spelled
+-- "yr" rather than "a" because a single letter next to a prefix table is an
+-- accident waiting: "da" would be a deci-annum to the parser and a decade to a
+-- reader. Nothing structural depends on it; it is here so that a figure about
+-- how long something takes can be written in the unit somebody thinks in.
+defunit("yr",   31557600, { 0, 0, 1 })
 defunit("bar",  1e5,   { -1, 1, -2 })
 defunit("ppm",  1e-6,  {})
 defunit("pct",  1e-2,  {})
