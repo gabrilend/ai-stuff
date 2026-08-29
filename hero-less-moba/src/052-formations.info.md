@@ -114,22 +114,34 @@ at the rear; the sign is which side.
 | around 0 | the line: the captain in the middle, melee out to either side, further ranks behind |
 | around five-eighths of a turn | the shoulders: bodies with a reach, behind the line and at its ends |
 
-**Ranged bodies shoot around the line, not over it.** They stood directly behind it,
-in the same files, one gap further back — which is where you put somebody who is
-lobbing over the top. Only artillery does that. A body with a javelin or a sling needs
-a bearing to its target that does not pass through a friend, so it stands at the
-**shoulder**: behind the last rank and out at its end, where the line is diagonally in
-front of it rather than squarely so.
+**Bodies with a reach stand behind the line**, in their own ranks, with a gap so they
+read as a second body of troops rather than as the back of the first.
 
-This is a placement and not a guarantee. **There is no line-of-fire check in this
-game** — nothing occludes anything, and a shot is a distance and a cooldown — so
-standing them where their line is clearest is the whole of the mechanism.
+They spent a while at the shoulders, on the reasoning that a body with a javelin
+cannot shoot through its own rank. Both halves of that are true and the conclusion was
+wrong. An arrow arcs; a bow behind its own line is doing the thing bows are for. The
+only weapon here that genuinely cannot pass over a rank is the druid's moon spike,
+thrown flat, and that one is **meant** to be blocked — which is what makes the
+frontline a targeting constraint and gives a player something to read. See
+[line of sight](035-targeting.info.md).
 
-A captain stands where its **reach** says, not where its rank says. A melee captain
-takes the first place in the line, which is the middle of the front rank, where it is
-most useful and most visible. A ranged captain takes the first shoulder — still the
-centre-most place of the group it belongs to. Given the front rank, it would be
-standing with a bow in front of the people whose job is to be in front of it.
+**And the shoulders belong to cavalry**, which does not exist yet and will. Putting
+the archers where the horses go means moving them again later and rebuilding whatever
+came to depend on it.
+
+A **captain stands in the middle of its own rank**, and which rank is written on its
+archetype row — the front of the line for one carrying a shield, back with the archers
+for one carrying a bow. The middle always: it is the most useful place and the most
+visible, and a player who cannot find the captain cannot read what a lane is worth.
+
+The rank number is a request rather than a promise. How many ranks the line occupies
+depends on how many bodies are in it and how wide the road is, so a rank that was
+behind the line in one lane is inside it in another — a captain with a reach is
+clamped so it can never end up standing in front of the shields.
+
+A captain does **not** consume a place in anybody's numbering. Every slot at or after
+its own is shifted by one, so the arrangement either side of it keeps the shape it
+would have had and two bodies never land on the same ground.
 
 A rank's positions are laid out evenly and centred, but the *order they are handed
 out in* runs from the middle outward, so a rank that is not full is short at its ends

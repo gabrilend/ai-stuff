@@ -296,7 +296,7 @@ svg { max-width: 100%; }
 <tr><td>Blocked by</td><td>207, 211c</td></tr>
 <tr><td>Blocks</td><td>—</td></tr>
 <tr><td>Reads</td><td><a href='004-a-unit-and-what-it-carries.html'>a unit and what it carries</a>, <a href='005-waves-and-when-one-is-finished.html'>waves and when one is finished</a>, <a href='010-upgrades-slotted-into-stone.html'>upgrades slotted into stone</a></td></tr>
-<tr><td>Open questions</td><td>H10, H11, H12</td></tr>
+<tr><td>Open questions</td><td>none</td></tr>
 </tbody></table>
 <h2>Current behavior</h2>
 <p>Every wave in every lane is the same wave: four melee, two ranged, one captain, from</p>
@@ -333,23 +333,65 @@ svg { max-width: 100%; }
 <p>That is the whole loop. Nothing about it is visible as a number; what a player sees</p>
 <p>is that a lane which has been fielding heavy infantry starts fielding lighter ones,</p>
 <p>and a lane that has been cheap for a while can suddenly afford something.</p>
-<h3>The draw is a lottery with three thumbs on the scale</h3>
-<p>Each lane has <strong>its own resource table and its own meter per unit type</strong>. Each wave:</p>
-<p>work out how much there is to distribute, then draw.</p>
-<table><thead>
-<tr><th>Thumb</th><th>Effect</th></tr>
-</thead><tbody>
-<tr><td><strong>Recency</strong></td><td>a unit chosen more recently has <strong>fewer</strong> tickets, so a lane does not field the same thing eight waves running</td></tr>
-<tr><td><strong>Scarcity</strong></td><td>a unit that costs more, when there is less to spend, has <strong>more</strong> tickets</td></tr>
-<tr><td><strong>Arrangement</strong></td><td>what has been slotted into the lane's stone makes certain units more likely, with all the resource costs that implies</td></tr>
-</tbody></table>
-<p>The scarcity thumb is the surprising one and it is deliberate: being poor makes the</p>
-<p>expensive thing <em>more</em> likely, not less. What it produces is a lane that cannot go</p>
-<p>quiet — a run of cheap waves builds toward something.</p>
-<h3>Doubling up</h3>
-<p>**If a unit's meter ever reaches twice its maximum number of tickets, one of that</p>
-<p>unit spawns automatically**, without needing to win the draw. It can still win the</p>
-<p>draw as well, so a wave can contain two of a type — and never more than two.</p>
+<h3>The draw is a deck, and cost is paid in discards</h3>
+<p>Not a weighted roll. <strong>A deck of tickets</strong>, and the more resource a lane has the more</p>
+<p>tickets go into it.</p>
+<ul>
+<li>Drawing is taking the <strong>top card</strong>.</li>
+<li>Whatever unit that card names, <strong>N more tickets are drawn and discarded</strong>, where N</li>
+</ul>
+<p>  is that unit's resource cost. An expensive choice eats the deck.</p>
+<ul>
+<li>When the deck runs out, it is reshuffled.</li>
+<li>After each wave, the discards are reshuffled and placed <strong>below</strong> the tickets that</li>
+</ul>
+<p>  have not been drawn yet.</p>
+<p>Cost is therefore not a price checked against a balance. It is **how much of the deck</p>
+<p>a choice consumes** — an expensive unit does not have to be affordable, it has to</p>
+<p>have enough deck left, and having taken one you have less of everything for a while.</p>
+<p>That is what makes a run of cheap waves build toward something, without any rule</p>
+<p>saying so.</p>
+<p>Two of a kind can walk out together and never three: **if a unit's meter reaches</p>
+<p>twice its maximum ticket count, one of that unit spawns automatically**, without</p>
+<p>needing to be drawn — and it can still be drawn as well.</p>
+<h3>The shuffle, which is not a shuffle</h3>
+<p>A <strong>pile shuffle</strong>, in a fixed sequence: deal into 3 piles and concatenate, then 4,</p>
+<p>then 5, then 4, then 7. The odd counts may be reordered between shuffles — 5, 7, 3</p>
+<p>next time — but <strong>every other pass must be a pile of four.</strong></p>
+<p>Not perfectly uniform, very close, and <strong>deterministic given the pile counts</strong>, which</p>
+<p>is worth a great deal in a project whose first invariant is that the same seed plays</p>
+<p>the same match.</p>
+<p>The alternative — inserting the discards back into the waiting deck at random</p>
+<p>positions, one by one — was rejected for a precise reason. It <em>guarantees</em> the first</p>
+<p>cards are evenly distributed, and a guarantee is a worse kind of non-uniformity than</p>
+<p>a tendency.</p>
+<h3>What the upgrades do</h3>
+<p><strong>They are what fills the purse</strong>, and this is the whole reason the mechanism exists.</p>
+<p>An upgrade slotted into a lane does some mixture of:</p>
+<ul>
+<li><strong><code>+1 ticket per wave</code> for a specific unit entry</strong> — that unit turns up more often</li>
+</ul>
+<p>  in this lane.</p>
+<ul>
+<li><strong><code>+1 resource per wave</code></strong> — more tickets in the pool overall, which means more</li>
+</ul>
+<p>  troops or heavier ones. Because the draw distributes by <em>least recently seen</em>, more</p>
+<p>  is always straightforwardly good.</p>
+<ul>
+<li><strong>Unlocking a new entry, usually at the cost of an old one</strong> — usually the one it is</li>
+</ul>
+<p>  taking the equipment from.</p>
+<p>The third is the interesting one. A swordsman with a shield and an iron cap finds a</p>
+<p>magic blade: if the swordsman entry costs 3, then **3 tickets leave the swordsman</p>
+<p>entry and 3 arrive at the magic swordsman entry**, and N resources are added, where N</p>
+<p>is the cost of the sword in particular — perhaps one point per, for three in total.</p>
+<p>So an upgrade is not a bonus applied to a lane. It is a change to what that lane</p>
+<p><strong>raises</strong>, and where the new thing came from is visible in what stopped turning up.</p>
+<p>Distribute the upgrades differently and different troops walk out of the base.</p>
+<h3>Whose purse</h3>
+<p><strong>One per lane per team</strong> — six on the map as it stands. The number is lanes times</p>
+<p>two rather than players times two: the lane count is a parameter, and a larger map</p>
+<p>with more lanes than players is a thing that might happen.</p>
 <h2>Suggested implementation steps</h2>
 <ul>
 <li>Add the unit types to the catalogue as archetypes, appended rather than</li>
@@ -392,20 +434,11 @@ svg { max-width: 100%; }
 </ul>
 <p>  gets measured</p>
 <h2>Still open</h2>
-<p>Three questions, all of which change what gets built.</p>
-<p><strong>H10 — is the purse per lane per team, or per lane?</strong> "Each lane has a different</p>
-<p>resource table" could be three purses or six. Six is the obvious reading and means</p>
-<p>each side's lanes evolve independently; three would mean the two teams draw against a</p>
-<p>shared lane character, which would be a strange and interesting thing.</p>
-<p><strong>H11 — what fills the purse?</strong> Nothing in the description says where the resource</p>
-<p>comes from. Candidates: a fixed income per wave; income that scales with how well the</p>
-<p>lane is doing; income from kills in that lane. The third is the one with teeth and</p>
-<p>also the one that snowballs.</p>
-<p><strong>H12 — what does "more tickets when we have fewer resources" do at the extremes?</strong></p>
-<p>Taken literally, a lane with almost nothing has an enormous ticket count for the most</p>
-<p>expensive unit it cannot possibly afford. Either the tickets are capped, or affording</p>
-<p>it is a separate check after the draw, or the draw is over what is affordable and the</p>
-<p>thumb only reorders within that.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>Nothing blocking. H10, H11 and H12 are answered above.</p>
+<p>What is not specified and will need deciding when it is built: how many tickets a</p>
+<p>unit starts with, what a resource point is worth against a piece of equipment, and</p>
+<p>what the maximum ticket count per entry is — the number the doubling rule doubles.</p>
+<p>Those are balance and belong in the ledger rather than here.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

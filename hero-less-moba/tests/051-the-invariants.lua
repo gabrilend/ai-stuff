@@ -1601,6 +1601,132 @@ local function test_a_push_is_measured_finely()
 end
 -- }}}
 
+-- {{{ local function test_a_friend_blocks_the_view()
+-- **Allies block a line, and nothing else does.**
+--
+-- The one visibility rule in the game, and it exists for one spell: the druid's moon
+-- spike is thrown flat from the palm, so a rank of its own side is in the way of it
+-- in a manner an arrow's arc is not. Which turns the frontline into a targeting
+-- constraint -- a druid behind a solid line cannot cast at all, and a druid that is
+-- casting is standing somewhere with a hole in front of it.
+--
+-- Built by hand rather than watched for in a match, because the arrangement being
+-- tested is three specific bodies in a line and waiting for one to occur is waiting
+-- for the wrong thing.
+local function test_a_friend_blocks_the_view()
+  local world, modules, parameters = fresh_world(tick_module)
+  local soldier = world.soldier
+  local spacing = parameters.shape.personal_space
+
+  local function put(team, x, y)
+    local id = world.allocate(world)
+    world.give_body(world, id, parameters.unit.archetype[1])
+    soldier.team[id] = team
+    soldier.archetype[id] = 1
+    soldier.lane[id] = 0
+    soldier.x[id], soldier.y[id] = x, y
+    return id
+  end
+
+  local looker = put(1, 0, 0)
+  local target = put(2, 300, 0)
+  modules.targeting.rebuild_grid(world)
+  check("with nothing in the way, a body can see its target",
+        modules.targeting.can_see(world, looker, target))
+
+  -- A friend standing squarely between them.
+  local friend = put(1, 150, 0)
+  modules.targeting.rebuild_grid(world)
+  check("and a friend standing in the way blocks it",
+        not modules.targeting.can_see(world, looker, target))
+
+  -- The same friend, off to one side. Far enough off and the line goes past.
+  soldier.x[friend], soldier.y[friend] = 150, spacing * 3
+  modules.targeting.rebuild_grid(world)
+  check("and stepping aside unblocks it",
+        modules.targeting.can_see(world, looker, target))
+
+  -- An **enemy** in the way is not an obstacle. It is a closer target, and something
+  -- else has already had that thought.
+  local stranger = put(2, 150, 0)
+  modules.targeting.rebuild_grid(world)
+  check("but an enemy in the way is not an obstacle, it is a nearer target",
+        modules.targeting.can_see(world, looker, target))
+
+  -- Behind rather than between. A body past the target, or behind the looker, is not
+  -- in the way of anything.
+  world.release(world, stranger)
+  soldier.x[friend], soldier.y[friend] = 400, 0
+  modules.targeting.rebuild_grid(world)
+  check("and a friend beyond the target is not between them",
+        modules.targeting.can_see(world, looker, target))
+
+  soldier.x[friend], soldier.y[friend] = -100, 0
+  modules.targeting.rebuild_grid(world)
+  check("nor is one standing behind the looker",
+        modules.targeting.can_see(world, looker, target))
+end
+-- }}}
+
+-- {{{ local function test_a_rank_fans_and_concentrates()
+-- A rank with a reach spreads when nothing is near it and closes up when something
+-- is.
+--
+-- Both are about a rank arranging itself against a threat, so both are gated on being
+-- near a fight. That gate is the thing worth asserting hardest: without it every
+-- archer spreads to the verge the moment it leaves the library, which is not keeping
+-- station -- it is refusing to march, and it pulls the formation apart before it ever
+-- meets anybody.
+local function test_a_rank_fans_and_concentrates()
+  local world, modules = fresh_world(tick_module)
+  local soldier = world.soldier
+  world.bot = {}
+
+  -- Walking down an empty road, a rank stays in its files. Watched over the first
+  -- stretch of a match, before anything has met anything.
+  local worst_off_file = 0
+  for _ = 1, 600 do
+    tick_module.advance(world)
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 and soldier.reach[id] == 2 and soldier.wave[id] ~= 0 then
+        local wave = world.wave[soldier.wave[id]]
+        if wave ~= nil and wave.engaged == 0 then
+          local _, want = modules.formations.target_of(world, id)
+          local off = math.abs(soldier.lane_across[id] - want)
+          if off > worst_off_file then worst_off_file = off end
+        end
+      end
+    end
+  end
+
+  check("a rank marching an empty road stays in its files",
+        worst_off_file < modules.formations.FILE_SPACING,
+        string.format("%.1f paces out of file, against a file of %d",
+                      worst_off_file, modules.formations.FILE_SPACING))
+
+  -- And once the lines meet, it moves. Run on until something is engaged, then watch
+  -- whether the bodies with a reach are still sitting exactly in their files.
+  local moved = false
+  for _ = 1, 2400 do
+    tick_module.advance(world)
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 and soldier.reach[id] == 2 and soldier.wave[id] ~= 0 then
+        local wave = world.wave[soldier.wave[id]]
+        if wave ~= nil and wave.engaged == 1 then
+          local _, want = modules.formations.target_of(world, id)
+          if math.abs(soldier.lane_across[id] - want) > 4 then
+            moved = true
+          end
+        end
+      end
+    end
+    if moved then break end
+  end
+
+  check("and once its line is in contact, it leaves them", moved)
+end
+-- }}}
+
 print("")
 print("the invariants")
 print("")
@@ -1613,6 +1739,8 @@ test_wide_query()
 test_every_hero_is_buyable()
 test_a_hero_obeys_one_signpost()
 test_no_nil_fields()
+test_a_friend_blocks_the_view()
+test_a_rank_fans_and_concentrates()
 test_a_death_takes_two_seconds()
 test_a_death_is_paid_for_when_it_is_certain()
 test_formation_turns_a_corner()

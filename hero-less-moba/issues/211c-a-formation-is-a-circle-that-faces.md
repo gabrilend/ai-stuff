@@ -6,18 +6,29 @@
 | Blocked by | 211b |
 | Blocks | 211d |
 | Reads | [waves and when one is finished](../docs/005-waves-and-when-one-is-finished.md), [the frontline is a queue](206-the-frontline-is-a-queue.md) |
-| Open questions | none |
+| Open questions | H13 |
 
 ## Current behavior
 
-A formation is a **wide thing at a distance-along**. Its position is one number, the
-anchor, which is its **front**. Every body's place is that number plus a fixed
-offset backwards, and a fixed offset sideways. It has no orientation of its own: it
-is always square to the road, because the road is what its coordinates are measured
-in, and when the road turns the whole block turns with it.
+**Half built.** A place is written down as a **bearing and a distance from the
+formation's centre** — nought dead ahead, a quarter turn at the flank, half a turn at
+the rear — because every question asked about a place is angular. And a wave keeps a
+**heading**: a unit vector, eased, pointing at the middle of whatever it has run into
+if it has run into something, and at its next waypoint otherwise.
 
-That is why a rank survives a corner, and it is also why a wave can only ever be
-pointed exactly down its lane.
+**Nothing is turned by the heading yet, and there is a reason.** Rotating every place
+by it was built and taken out. When a formation swings, a body on the outside has its
+place move away from it and must **hurry** to catch it — and the speed model has no
+hurrying in it: bodies are in gears, and marching is the fastest thing there is.
+
+What that produced was not a formation that turned slowly. It was a line permanently
+held at an angle to its own travel, with fewer bodies in contact than a square one.
+Measured over five unattended matches: about one challenge monster in six walked
+through a line that used to stop it, and matches ran a seventh shorter. Facing the
+enemy rather than the waypoint while engaged was tried and did not recover it, which
+locates the cost: **it is in the marching, not in the fighting.**
+
+The two decisions are in tension and the tension is the finding. See H13.
 
 ## Intended behavior
 

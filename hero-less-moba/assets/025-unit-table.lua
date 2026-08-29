@@ -101,6 +101,10 @@ M.archetype = {
     name         = "captain",
     flavour      = 1,
     reach        = 1,
+    -- Which rank it stands in, in the middle of it. The front, for one carrying a
+    -- shield: the most useful place to be and the most visible, and a player who
+    -- cannot find the captain cannot read what a lane is worth.
+    captain_rank = 0,
     health       = 225,
     damage       = 24,
     armour       = 4,
@@ -135,6 +139,12 @@ M.archetype = {
     name         = "ranged captain",
     flavour      = 1,
     reach        = 2,
+    -- Back with the archers. A captain carrying a bow given the front rank is a bow
+    -- standing in front of the people whose job is to be in front of it. The number
+    -- is a request rather than a promise -- how many ranks the line occupies depends
+    -- on the lane -- and the formation clamps it so this can never end up inside the
+    -- line however the wave composition changes.
+    captain_rank = 3,
     health       = 225,
     damage       = 24,
     armour       = 4,
@@ -281,7 +291,7 @@ M.archetype = {
     health       = 210, damage = 13, armour = 3,
     range        = 92, acquire_range = 128,
     speed        = 1.1, cooldown_max = 26,
-    ability      = {"regrowth"},
+    ability      = {"regrowth", "moon_spike"},
   },
 
   -- The area healer is **row 9**, which already existed as one of the paladin
