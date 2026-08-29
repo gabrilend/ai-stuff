@@ -81,6 +81,18 @@ M.parameters = {
   },
   milestone_count = 9,
 
+  -- How many zones each milestone interval is cut into.
+  --
+  -- A zone is a range of distance along a lane and nothing else -- not a node, no
+  -- neighbours, nothing walks to one. Two things read them: how deeply a lane has
+  -- been pushed, which used to be counted in milestones and was therefore a number
+  -- between 0 and 8, and where a wave's next waypoint sits.
+  --
+  -- **Written as a division rather than a total**, so every milestone stays exactly
+  -- on a zone boundary by construction. A total would have to be a multiple of eight
+  -- and somebody would eventually write a number that is not.
+  zone_divisions = 4,
+
   -- How many paces across each lane is. This feeds exactly two things: how many
   -- bodies stand abreast in a wave walking it, and how wide the renderer draws the
   -- lane. It is not a movement constraint -- a body may stand anywhere.

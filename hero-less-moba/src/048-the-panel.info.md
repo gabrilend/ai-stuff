@@ -57,6 +57,17 @@ value at all** — the only thing in the whole game that can dislodge it is a si
 The pressure track is nine cells from this team's end to the enemy's, in the two teams'
 colours. The same read as the map's push bars, in a place the eye is already looking.
 
+**Nine cells, and push depth is no longer nine of anything** — it counts zones, four
+times finer. The depths are scaled back into cells rather than compared to them.
+Nine is still the right number to draw here: this is a glance, and nobody reading a
+lane at a glance is counting to thirty-two. The finer measure is not wasted, it
+decides which cell a frontline has just crossed into, so the track moves at a quarter
+of a tower rather than a whole one.
+
+How many zones there are comes from the frame rather than from the map, because the
+panel is a viewer and a viewer that consults the map to make sense of a number in the
+snapshot has been handed half a fact.
+
 ## Every refusal is loud
 
 Refusals arrive at the bottom, in the colour of a warning, and fade over several

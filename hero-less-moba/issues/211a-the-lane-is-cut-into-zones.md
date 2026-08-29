@@ -10,13 +10,30 @@
 
 ## Current behavior
 
-A lane is measured in **milestones**: nine per lane, at fixed fractions of its
-length, stored on the lane record as a node id and a path index for each. They do
-two jobs at once — they are where the towers stand, and they are the unit push depth
-is counted in.
+Each lane carries **two identical zone arrays** beside its milestone arrays: one that
+push depth is measured in, one that a waypoint sits inside. They are built by a single
+loop out of the real path distances — not the milestone fractions, which describe the
+lane before the bend was smoothed — so every milestone lands exactly on a zone
+boundary and no tower moved.
 
-Push depth is therefore an integer from 0 to 8. A lane that is badly lost reads the
-same as one that is merely losing.
+The division is written as *zones per milestone interval*, four, so the boundaries
+line up by construction. The map validator asserts all of it: the two arrays agree,
+the boundaries rise and cover the lane end to end, and every milestone sits on one.
+
+**Push depth counts zones**, 0 to 31, and is taken from a body's distance along its
+lane rather than its path index — a zone is a range of distance and an index is not.
+A body still records the deepest milestone it has passed as well, because that is what
+the marks along a lane are drawn from.
+
+Finding which zone a distance falls in is not a scan: the milestone interval is found
+the same way it always was, then divided inside. Four times the resolution costs
+nothing per body per tick.
+
+Every reader of push depth was visited. Two would have broken outright — the map's
+push bands were indexing a nine-entry table with a number up to thirty-two — and two
+display it scaled: the panel's nine-cell track divides back down, because a player
+reading a lane at a glance is not counting to thirty-two, and the text viewer takes
+all thirty-two because it is the viewer somebody opens to see exactly what happened.
 
 ## Intended behavior
 

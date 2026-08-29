@@ -44,7 +44,8 @@ a body can leave.
 
 ## The lane bars
 
-One character per milestone, 0 through 8, read from team 1's end. `=` is team 1's
+One character per **zone** — thirty-two of them, four times finer than the
+milestones this used to draw — read from team 1's end. `=` is team 1's
 reach, `#` is team 2's, `*` is ground both claim, and a space is ground neither holds.
 
 Drawn from **push depth** rather than from anything geometric, because push depth is

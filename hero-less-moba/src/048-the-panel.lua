@@ -275,11 +275,22 @@ local function draw_lane_row(world, frame, team_id, lane, x, y, width)
   end
 
   -- The pressure read, as nine cells from this team's end to the enemy's.
-  local mine   = view.push_depth[lane]
-  local theirs = frame.team_view[other].push_depth[lane]
+  --
+  -- **Nine cells, and push depth is no longer nine of anything.** It counts zones
+  -- now, four times finer than the milestones this track was drawn to match, so the
+  -- depths are scaled back into cells rather than compared to them directly. Nine
+  -- cells is still the right number to draw: this is a glance, and a player reading
+  -- a lane at a glance is not counting to thirty-two.
+  --
+  -- The finer measure is not wasted — it decides which cell a frontline has just
+  -- crossed into, so the track moves at a quarter of a tower rather than a whole one.
+  local cells = 9
+  local per_cell = frame.zone_count / (cells - 1)
+  local mine   = view.push_depth[lane] / per_cell
+  local theirs = frame.team_view[other].push_depth[lane] / per_cell
   local cell = 15
-  local track_x = x + width - 8 - cell * 9
-  for m = 0, 8 do
+  local track_x = x + width - 8 - cell * cells
+  for m = 0, cells - 1 do
     local cx = track_x + m * cell
     love.graphics.setColor(0.16, 0.17, 0.20, 1)
     love.graphics.rectangle("fill", cx, y + 5, cell - 2, 11, 2, 2)
@@ -287,7 +298,7 @@ local function draw_lane_row(world, frame, team_id, lane, x, y, width)
       set_colour(M.renderer.COLOUR.team[team_id], 0.9)
       love.graphics.rectangle("fill", cx, y + 5, cell - 2, 11, 2, 2)
     end
-    if (8 - m) <= theirs then
+    if (cells - 1 - m) <= theirs then
       set_colour(M.renderer.COLOUR.team[other], 0.9)
       love.graphics.rectangle("fill", cx, y + 5, cell - 2, 11, 2, 2)
     end

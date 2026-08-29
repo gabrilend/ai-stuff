@@ -218,6 +218,10 @@ local function measure(world)
       -- The deepest milestone this body has got past, counted from its own team's
       -- end. Team 1 walks up the path array and team 2 walks down it, so the same
       -- loop reads both by flipping the comparison.
+      --
+      -- Still kept, and still in milestones: it is what a body's own orbiting reads
+      -- and what the renderer draws as marks along a lane. Milestones did not move
+      -- when zones arrived underneath them.
       local depth = 0
       for m = 0, 8 do
         local at = lane.milestone_index[m]
@@ -227,10 +231,23 @@ local function measure(world)
           if index <= at and (8 - m) > depth then depth = 8 - m end
         end
       end
-
       soldier.milestone[id] = depth
-      if depth > world.team[team].push_depth[lane_id] then
-        world.team[team].push_depth[lane_id] = depth
+
+      -- **Push depth is measured in zones**, which are four times finer, so a lane
+      -- that is badly lost stops reading the same as one that is merely losing.
+      --
+      -- Measured from the body's distance along the lane rather than from its path
+      -- index, because a zone is a range of distance and a path index is not. The
+      -- two agree at every milestone -- the validator asserts it -- but between them
+      -- the nodes are not evenly spaced and the index would round to the wrong zone.
+      local zone = world.map_builder.zone_at(lane, soldier.lane_along[id],
+                                             world.parameters.shape.zone_divisions)
+      -- Counted from the body's **own** end, the same flip the milestones use: team 2
+      -- walks down the lane's numbering, so its progress is the distance remaining.
+      local reached = (team == 1) and zone or (lane.zone_count - 1 - zone)
+      soldier.zone[id] = reached
+      if reached > world.team[team].push_depth[lane_id] then
+        world.team[team].push_depth[lane_id] = reached
       end
     end
   end

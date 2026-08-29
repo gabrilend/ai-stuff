@@ -106,6 +106,10 @@ local function make_frame(world)
     -- and you learn *where they put it* by looking at what walks at you.
     upgrade_count = {},
 
+    -- How many zones a lane is cut into, so a viewer knows what a push depth is a
+    -- fraction of. Filled in at every stamp; zero here only until the first one.
+    zone_count = 0,
+
     -- The live ids, so the renderer walks bodies rather than slots.
     live = {},
     live_count = 0,
@@ -215,6 +219,11 @@ function M.stamp(world)
   local kind_count = #world.parameters.upgrade.kind
 
   frame.tick   = world.tick
+  -- How many zones a lane holds, so that a viewer drawing a push depth knows what it
+  -- is a fraction **of** without reaching into the map. The viewer reads snapshots
+  -- and nothing else; a viewer that reaches for the map to make sense of a number in
+  -- the snapshot has been handed half a fact.
+  frame.zone_count = world.map.lane[1].zone_count
   frame.phase  = world.phase
   frame.winner = world.winner
   frame.challenge_index = world.challenge_index

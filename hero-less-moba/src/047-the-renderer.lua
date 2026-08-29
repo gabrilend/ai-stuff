@@ -313,11 +313,26 @@ local function draw_push_bars(world, camera, frame)
     for team = 1, 2 do
       local depth = frame.team_view[team].push_depth[lane.id]
       if depth > 0 then
+        -- **Push depth is counted in zones**, which are four times finer than the
+        -- milestones the towers stand on. This read the depth straight into the
+        -- milestone table, which has nine entries, so the day the measure got finer
+        -- it started indexing past the end of it and the band vanished.
+        --
+        -- Zones are ranges of distance rather than path indices, so the band's ends
+        -- are found by distance and turned into a path index by the same routine a
+        -- body uses to find out where it is standing.
+        local reached = lane.zone[depth]
+        if reached == nil then reached = lane.length end
         local from_index, to_index
         if team == 1 then
-          from_index, to_index = 1, lane.milestone_index[depth]
+          local _, _, _, _, index = world.map_builder.point_at(world.map, lane, reached, 1)
+          from_index, to_index = 1, index
         else
-          from_index, to_index = lane.milestone_index[8 - depth], #lane.path
+          -- Team 2 counts from the far end, so its band starts where the lane has
+          -- that much of itself left.
+          local _, _, _, _, index =
+            world.map_builder.point_at(world.map, lane, lane.length - reached, 1)
+          from_index, to_index = index, #lane.path
         end
 
         local points = {}

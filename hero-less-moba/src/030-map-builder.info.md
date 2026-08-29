@@ -14,6 +14,7 @@ nobody dares change. So this takes the shape parameters and emits the ground.
 | --- | --- | --- |
 | `build(parameters)` | the parameter record | The map record, below. |
 | `dump(map)` | a map | The graph as a printable coordinate list. |
+| `zone_at(lane, distance, divisions)` | | Which zone a distance falls in, 0 to `zone_count - 1`. |
 
 It also exports named constants for node kinds (`NODE_PLAIN`, `NODE_JUNCTION`,
 `NODE_TOWER`, `NODE_SPAWN`, `NODE_LIBRARY`) and structure kinds
@@ -57,6 +58,9 @@ tick.
 | `path_index` | table | Node id → its position in `path`. |
 | `milestone_node` | integer[0..8] | Node id for each milestone. |
 | `milestone_index` | integer[0..8] | Position in `path` for each milestone. |
+| `zone` | double[0..32] | Distance along the lane at each zone boundary. What push depth is measured in. |
+| `waypoint_zone` | double[0..32] | The same numbers, held separately. What a waypoint sits inside. |
+| `zone_count` | integer | How many zones: eight milestone intervals of four. |
 | `step_length` | double[] | Distance from `path[i]` to `path[i+1]`. |
 | `junction` | integer[] | Exactly one: the milestone-4 node. |
 | `length` | double | Total path length. |
@@ -74,6 +78,28 @@ junction diagonal, so a side lane's two legs are the same length, so the bend fa
 at exactly half the lane's length — which is where milestone 4 goes. Every pair of
 consecutive milestones is therefore joined by a **straight line**, and placing nodes
 between them is linear interpolation rather than walking a polyline by arc length.
+
+## The zones, and why they are built from `cumulative`
+
+Each milestone interval is divided into a fixed number of zones rather than the lane
+being cut into a fixed number overall. That is what keeps **every milestone exactly
+on a zone boundary** — by construction, rather than by arithmetic somebody has to go
+back and check — so no tower moves and nothing that says "milestone" changes meaning.
+
+They are built from `cumulative`, the real distance each path node sits at, rather
+than from the milestone fractions. The fractions describe the lane *before* the bend
+was smoothed, and the smoothing moves nodes; the distance a milestone actually ends
+up at is the only honest source.
+
+**Two arrays, identical, from one loop.** They are separate so that either can be
+moved without moving the other, and side by side on the same record so that somebody
+changing one can see the other. The validator asserts they still agree.
+
+`zone_at` is not a scan over thirty-three boundaries. Zones are evenly spaced *within*
+a milestone interval and the intervals are not evenly spaced against each other, so
+the answer is: find the interval — the same nine comparisons the milestone version
+already did — then divide inside it. Measuring four times more finely therefore costs
+nothing per body per tick.
 
 ## Three things a reader tends to ask
 
