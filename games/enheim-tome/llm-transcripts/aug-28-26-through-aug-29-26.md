@@ -1,6 +1,6 @@
 # Conversation Summary: 5b030864-1533-4a31-8439-f04e237f1316
 
-Generated on: 2026-08-28 23:07:51
+Generated on: 2026-08-28 23:22:55
 
 --------------------------------------------------------------------------------
 
@@ -3077,6 +3077,123 @@ the roadmap.
 before, plus quadrants nesting in their groups rather than being a flat list —
 you were right, what has no parent is the groups, not the quadrants. Say when
 and I'll do it properly rather than patching.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 7
+
+um. please do the document updates.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 7
+
+Gaps at 003 and 009 for the two new documents. Writing the hierarchy one first.
+
+
+Now updating the existing documents. Starting with the premise, since the
+governing idea itself grew.
+
+
+Now the global link renumbering across every document — each name part is
+distinct, so there's no cascade risk.
+
+
+Links done. Now adding the selection levels and hierarchical cage to the map
+surface.
+
+
+Now the fence network — intersections became content, and buildings sit below
+blocks.
+
+
+Now filters — the reading gains a person, which is what makes character
+switching work.
+
+
+Now the tome — descending to a person, the intersection list, and where
+interiors live.
+
+
+Now the roadmap, which needs restructuring rather than patching — two new
+phases and a new constraint.
+
+
+Now open questions — thirteen more answered, and several new ones opened.
+
+
+Now the table of contents, then a small addition to the code-shape document.
+
+
+The roadmap's open-question numbers drifted when I renumbered them. Fixing, and
+naming each rather than leaving a bare number.
+
+
+Renames tracked where similarity held; three show as delete-plus-add because
+they were rewritten rather than edited. Both versions are in history either way.
+
+
+Done and committed. Twelve documents, renumbered so reading 001 upward still
+explains the project rather than recording what I happened to write first.
+
+
+**Two new documents.** *The places of the city* holds the hierarchy you built
+across the last few turns — group, quadrant, district, block, building, house
+— including why a quadrant is a social horizon rather than just a container,
+and the twenty-foot vaulted ceilings with things hung from the beams. *Events,
+and what people know* holds the hidden facts, the arithmetic that separates two
+months of block events from four years of house events, and the rule against it
+becoming a story.
+
+
+**Everything shifted down to make room**, so the fence network is now 004, the
+tome 007, the roadmap 011, open questions 012. Every internal link was rewritten
+and I checked all of them resolve.
+
+
+**Three things are worth calling out from the rewrite.**
+
+
+The per-person reading turned out to be the cheapest large idea in the design. A
+filter was written as reading a place; it reads a place *for somebody*. That one
+argument is the whole of character switching, and it was already implicitly true
+— the map was never the city, it was always somebody's model of it. I've made
+that the governing sentence in 001 rather than leaving it as a consequence.
+
+
+The ragged hierarchy is now a worked example in the code-shape document, not
+just a note. Land beyond the wall has no quadrant, and the honest shape is a
+list of the levels a place has rather than a fixed depth with a hole — because
+the wall is what makes a quadrant, so the absence has a reason to model instead
+of a value to test for.
+
+
+The stand-in constraint is written into the roadmap's *deliberately absent*
+section alongside the mechanics and the seasons, with the consequence stated:
+what would be lost is the tracing and only the tracing, which is an argument for
+finishing the tracing tool before beginning the campaign — the order that was
+already there for other reasons.
+
+
+**The count moved from twelve open questions to seventeen**, even though
+thirteen were answered. The new ones are mostly yours to settle: which
+structures actually count as megastructures (I listed five candidates off the
+painting, unconfirmed), how many districts there are, whether life paths can be
+changed once chosen, and the ground plane that a registering flat view would
+need — which is the one place your pixels-only decision has a price, now
+recorded before it surprises anyone.
+
+
+Two questions are marked as mechanics and deliberately not guessed: what holding
+an event lets you do, and how one passes between people. That second one is the
+mechanism by which a city gets united, so everything else in these twelve
+documents is the instrument that would show it.
+
+
+The roadmap is still not broken into issue files — that's the next chunk
+whenever you want it.
 
 
 --------------------------------------------------------------------------------
