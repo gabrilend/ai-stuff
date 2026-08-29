@@ -322,3 +322,34 @@ reaches one waypoint about as it is given the next, so what it walks is a long
 shallow curve rather than a sequence of sidesteps. Measured on a straight road, a
 wave drifts across about thirty paces of the eighty-eight available — a variation in
 where it sits and what angle it arrives at, not a weave.
+
+## 2026-08-28 — a wave picks a side of the road and keeps to it
+
+The first version of the wander had a fixed line drawn down each road, the same for
+both armies and for every wave. It has been replaced: a road divides into **three
+columns** lengthways, a wave picks one on its way out and holds it for the whole
+march, and inside that column it draws a fresh destination each time it crosses into a
+new stretch.
+
+The commitment is what makes it read as an approach. A wave drawing independently in
+every stretch crosses the road repeatedly on the way down, which is not an army going
+somewhere — it is an army that cannot make up its mind.
+
+| Number | Value |
+| --- | --- |
+| columns per road | 3 |
+| drift rate | a tenth of marching pace |
+| room a wave has | half the road, less **its own** radius |
+
+The room being the wave's own is the part that needed building rather than tuning. A
+wave that never had enough melee to fill its rank was born narrow, and one that has
+been fought down is narrower than it was, because places are handed out from the
+middle outward and the flanks go first. One number for the whole road puts a wide
+formation's edge in the ditch and holds a narrow one further from the verge than it
+needs to be.
+
+Each wave also draws from **its own** stream now, seeded from the match seed, its team
+and its own number — rather than from one shared across the team, which is advanced by
+whichever wave happens to cross a boundary first. That version made a wave's wander
+depend on how many other waves were walking, which turns it into an amplifier for any
+difference between two machines instead of a property of a wave.

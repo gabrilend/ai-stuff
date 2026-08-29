@@ -4041,7 +4041,7 @@ svg { max-width: 100%; }
 <p>the Eternal Golem is the one thing that cannot be killed this way, and there is no</p>
 <p>other way.</p>
 <p><strong>Built:</strong> issue <a class='issue-link' href='212-a-beaten-body-gets-one-roll.html'>212</a>.</p>
-<h2>H9. Does the road wander, or does each wave? — <strong>NEEDS A DECISION</strong></h2>
+<h2>H9. Does the road wander, or does each wave? — <strong>ANSWERED</strong></h2>
 <p>Built one way and worth asking about, because both readings fit what was described</p>
 <p>and they feel different.</p>
 <p>A waypoint currently belongs to a <strong>zone</strong>: drawn once at assembly, one line per</p>
@@ -4072,7 +4072,49 @@ svg { max-width: 100%; }
 <p>A middle option exists and has not been costed: the road keeps its line, and each</p>
 <p>wave is given a small additional offset of its own on top of it. The road still has a</p>
 <p>shape; waves still differ. It would need its own draw per wave, and the opening would</p>
-<p>stay a mirror as long as the two first waves drew the same one.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>stay a mirror as long as the two first waves drew the same one.</p>
+<p><strong>Answer: each wave, and it picks a lane within the lane.</strong></p>
+<p>The road divides into <strong>three columns</strong> lengthways. A wave chooses one on its way out</p>
+<p>and <strong>keeps it for the whole march</strong> — a wave that started on the left tends to stay</p>
+<p>on the left — and inside that column it draws a fresh destination for every stretch</p>
+<p>it enters.</p>
+<p>The commitment is the important half. A wave drawing an independent offset in every</p>
+<p>stretch crosses the road repeatedly on the way down it, which is not an army with an</p>
+<p>approach; it is an army that cannot make up its mind. The column is the decision and</p>
+<p>the draw inside it is the imprecision — you know roughly which side you are going</p>
+<p>down, and not exactly where.</p>
+<p>Two consequences that had to be built rather than assumed:</p>
+<p><strong>The circle has to be resizable.</strong> The room a wave has is half the road less **its</p>
+<p>own** radius, not the road's standard formation's. A wave that never had enough melee</p>
+<p>to fill its rank was born narrow, and one that has been fought down is narrower than</p>
+<p>it was, because the places are handed out from the middle outward and the flanks go</p>
+<p>first. One number for the whole road puts a wide formation's edge in the ditch and</p>
+<p>holds a narrow one further from the verge than it needs to be.</p>
+<p><strong>Each wave draws from its own stream</strong>, seeded from the match seed, its team and its</p>
+<p>own number. A stream shared across a team is advanced by whichever wave crosses a</p>
+<p>boundary first, so a wave's wander would depend on how many other waves that team had</p>
+<p>walking and where they were — which turns the wander into an amplifier for any</p>
+<p>difference between two machines rather than a property of a wave. Two runs a hair</p>
+<p>apart would take entirely different roads.</p>
+<p><strong>Changed:</strong> the opening-is-a-mirror check, which was reading the wrong thing — see</p>
+<p>below. <strong>Built:</strong> issue <a class='issue-link' href='211-waypoints-and-the-zones-they-sit-in.html'>211</a>b.</p>
+<h3>And the opening stopped being a mirror, twice, correctly</h3>
+<p>Worth recording because both failures were the check being wrong rather than the game.</p>
+<p>It compared each body's <strong>achieved position</strong> forty ticks after the first wave left:</p>
+<p>how far down its road it had walked and how far across it stood. That is not a</p>
+<p>statement about the opening. It is a statement that forty ticks of simulation</p>
+<p>preserve symmetry — which this document explicitly does not claim, and G2 is the</p>
+<p>place it says so.</p>
+<p>Two correct behaviours broke it. Waves pick a column, so two mirrored first waves sit</p>
+<p>at different offsets from the moment they are given somewhere to head for. And</p>
+<p><strong>wandering costs forward progress</strong> — a body's speed is one budget spent on going</p>
+<p>forward and going sideways — so the wave that wandered further is also slightly</p>
+<p>behind.</p>
+<p>What the opening claims is that the same bodies left both bases **in the same</p>
+<p>formation**: same archetypes, same lanes, same ranks and files. That is what a wave</p>
+<p>is built with, it cannot be changed by walking, and it is what a spawner getting it</p>
+<p>wrong would break. Alongside it, a separate count of how many bodies are standing,</p>
+<p>because two identical bodies in the same place look like one entry counted twice.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

@@ -191,7 +191,7 @@ Two things read them, and each lane carries **two identical arrays** of them:
 | Array | Read by |
 | --- | --- |
 | the distance zones | push depth |
-| the waypoint zones | where a wave's next waypoint sits — see [211b](../issues/211b-every-zone-holds-a-waypoint.md) |
+| the waypoint zones | the stretches a wave draws its next destination inside — see [211b](../issues/211b-every-zone-holds-a-waypoint.md) |
 
 They hold the same numbers, built by one loop, and they are separate so that either
 can be moved without moving the other: the distances a wave routes through and the
