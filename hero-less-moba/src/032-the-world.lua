@@ -179,6 +179,20 @@ local function make_soldier_arrays(capacity, kind_count)
   -- This body's place in its wave's formation, as offsets from the wave's anchor.
   -- Assigned once, at birth, and kept for life -- a body's place in the line is not
   -- something that gets reshuffled while it marches.
+  -- **Where a body stands in its formation, as a bearing and a distance.**
+  --
+  -- The bearing is measured from the direction the formation is walking: 0 is dead
+  -- ahead of its centre, a quarter turn is the flank, half a turn is the rear. The
+  -- distance is how far out from the centre it stands.
+  --
+  -- This is the authoritative description and the two offsets below are derived from
+  -- it. Polar because the questions that get asked about a place are angular ones --
+  -- can this body shoot past that one, which of these is on the flank, which is in
+  -- the middle where the heavy troops belong -- and every one of them is a bearing
+  -- with a distance attached rather than a row and a column.
+  soldier.slot_bearing      = zeroed(capacity)
+  soldier.slot_distance     = zeroed(capacity)
+
   soldier.slot_along        = zeroed(capacity)
   soldier.slot_across       = zeroed(capacity)
   -- This tick's cohesion multiplier on speed. Bodies behind their place hurry and
@@ -472,6 +486,8 @@ function M.release(world, id)
   soldier.guard_of[id] = 0
   soldier.lane_along[id] = 0
   soldier.lane_across[id] = 0
+  soldier.slot_bearing[id] = 0
+  soldier.slot_distance[id] = 0
   soldier.slot_along[id] = 0
   soldier.slot_across[id] = 0
   soldier.speed_scale[id] = 0

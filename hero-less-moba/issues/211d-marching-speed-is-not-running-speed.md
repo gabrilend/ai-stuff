@@ -10,14 +10,23 @@
 
 ## Current behavior
 
-A body has one speed, a double in paces per tick, copied into its slot from its
-archetype row at birth. Everything it does, it does at that speed: marching in
-formation, closing on an enemy, walking home, wandering a patrol.
+**Half built.** A body in a formation is in a **gear** rather than on a dial:
+walking at seven tenths of its pace when it has got ahead of its place, marching at
+its pace otherwise. Nothing exceeds marching.
 
-The cohesion budget scales it — bodies behind their place hurry, bodies ahead give
-way — but only between a ceiling of about one and a half times and a floor of about
-half. Those clamps exist so that a straggler cannot appear to teleport and a leader
-cannot stop dead.
+A dead band of a couple of paces keeps it from switching every tick, and the width of
+that band trades the tidiness of the line against how often a body changes gear. Both
+numbers are printed by the formation sandbox every run — see the balance ledger for
+the table they were picked from.
+
+**The front waits** when the formation has fallen more than half a rank behind its
+anchor. That is what replaced hurrying: a body on the outside of a bend has further to
+walk and cannot make it up by going faster, so the front stops asking for it.
+
+**Running is not built.** There is one speed in the catalogue and the third gear has
+no number and no caller. It belongs to a body that has been beaten and is getting out,
+which is [issue 212](212-a-beaten-body-gets-one-roll.md), and it should be a second
+number on the archetype row rather than a multiple of the first.
 
 ## Intended behavior
 

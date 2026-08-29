@@ -353,3 +353,52 @@ and its own number — rather than from one shared across the team, which is adv
 whichever wave happens to cross a boundary first. That version made a wave's wander
 depend on how many other waves were walking, which turns it into an amplifier for any
 difference between two machines instead of a property of a wave.
+
+## 2026-08-29 — three speeds, in gears rather than on a dial
+
+A body's speed was a dial: it scaled smoothly with how far behind its place it stood,
+and the extra came out of a budget taken from the bodies in front of it. A formation
+of those never settles. Everybody is always slightly correcting, each at a slightly
+different rate, so the line breathes instead of marching — and it cannot be measured,
+because "how fast is that soldier going" has a different answer for every soldier and
+every tick.
+
+A body is now in a **gear**.
+
+| Gear | Multiple of its own pace | When |
+| --- | --- | --- |
+| walking | 0.70 | it has got ahead of its place and is letting the line catch up |
+| marching | 1.00 | it is where it should be, or catching up to where it should be |
+| running | — | leaving, and nothing else. Not built: issue 212. |
+
+The increments are fractions of a body's own pace rather than absolute numbers, so a
+slow body's gears sit close together and a fast one's far apart.
+
+**Nothing exceeds marching pace**, which changes the whole shape of the thing. There
+is no budget any more and nothing is handed speed: a formation dresses itself by the
+inside of a turn slowing rather than by the outside sprinting, which is what a real
+body of troops does. Asking the outer rank to run is how a line becomes a crowd.
+
+What stops the outer body falling behind for ever is that **the front waits.** When
+the formation is more than half a rank behind its own anchor, the anchor stops
+advancing until the line is dressed again.
+
+### The dead band, measured
+
+A body changes gear when it is more than a fixed distance out of place. That number
+trades two things against each other, and they pull opposite ways:
+
+| Band | Line bends, worst | Gear changes per hundred body-ticks |
+| --- | --- | --- |
+| 0.5 | 4.8 | 17.3 — about once every six ticks. Chatter. |
+| 1.0 | 11.8 | 9.4 |
+| **2.0** | **13.7** | **5.4 — about one and a half times a second** |
+| 3.0 | 20.7 | 3.7 |
+| 5.0 | 24.8 | 0.9 — steady, and the line is nearly a rank out |
+
+Two is the knee. Below it the line is barely tidier and bodies switch several times a
+second, which is exactly the hesitancy the band exists to prevent. Above it the shape
+goes and the gears stop engaging on a bend at all.
+
+Both numbers are printed by the formation sandbox every run, so the equilibrium is
+something to look at rather than something to remember.

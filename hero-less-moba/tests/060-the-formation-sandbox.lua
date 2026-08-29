@@ -438,10 +438,21 @@ local function test_a_turn()
         outer_distance > inner_distance * 1.02,
         string.format("outer covered %.1f, inner %.1f", outer_distance, inner_distance))
 
-  check("so the outer body is hurried and the inner one gives way",
-        outer_scale > inner_scale,
-        string.format("outer multiplier %.4f, inner %.4f -- the outside of a turn " ..
-                      "must be the one being helped", outer_scale, inner_scale))
+  -- **The inner one gives way, and nobody is hurried.**
+  --
+  -- This asked for the opposite -- that the outer body be given extra speed out of a
+  -- budget taken from the inner one. That was true while a body's speed was a dial.
+  -- With gears, nothing exceeds marching pace: a body is either marching or walking,
+  -- and a formation dresses itself by the inside of a turn **slowing** rather than by
+  -- the outside sprinting. Which is what a real body of troops does; asking the outer
+  -- rank to run is how a line becomes a crowd.
+  --
+  -- What keeps the outer body from falling behind for ever is not its own speed, it
+  -- is that the front of the formation stops and waits when the line is stretched.
+  check("so the inner body gives way, and the outer is not asked to hurry",
+        inner_scale <= outer_scale and outer_scale <= 1.0 + 0.0001,
+        string.format("inner multiplier %.4f, outer %.4f -- and nothing may exceed " ..
+                      "marching pace", inner_scale, outer_scale))
 
   check("and the line holds together through the bend",
         worst_lag < 26,
@@ -467,6 +478,7 @@ local function test_a_sine_wave()
   local wave_id = put_a_wave_down(world, parameters, 1, CLEAR_OF_THE_WALL, 1, 5, 2)
 
   local worst_lag, worst_off_file, worst_scale = 0, 0, 0
+  local was_in_gear, gear_changes, gear_body_ticks = {}, 0, 0
   local balance_error = 0
 
   for tick = 1, 1400 do
@@ -490,6 +502,11 @@ local function test_a_sine_wave()
       local off = math.abs(member.across - member.want_across)
       if off > worst_off_file then worst_off_file = off end
       if member.scale > worst_scale then worst_scale = member.scale end
+      if was_in_gear[member.id] ~= nil and was_in_gear[member.id] ~= member.scale then
+        gear_changes = gear_changes + 1
+      end
+      was_in_gear[member.id] = member.scale
+      gear_body_ticks = gear_body_ticks + 1
     end
     -- The budget must still balance while the curve keeps changing sign.
     local wave = world.wave[wave_id]
@@ -514,9 +531,28 @@ local function test_a_sine_wave()
         worst_off_file < 3,
         string.format("worst departure from file %.2f paces", worst_off_file))
 
-  check("and the cohesion budget still balances while the bend keeps reversing",
-        balance_error < 0.16,
-        string.format("worst imbalance %.1f%%", balance_error * 100))
+  -- **How often a body changes gear**, which is the measurement the speeds get tuned
+  -- with and the one that decides whether a line reads as marching or as fidgeting.
+  --
+  -- It trades against how well the line holds and pulls the opposite way: a narrower
+  -- dead band keeps the shape tighter and makes bodies switch more often. Printed
+  -- every run so the equilibrium is a thing somebody can look at.
+  note(string.format("  gear changed %.2f times per hundred body-ticks -- about once every %.0f ticks",
+    gear_changes / math.max(1, gear_body_ticks) * 100,
+    gear_body_ticks / math.max(1, gear_changes)))
+
+  check("and a body does not change gear more than about once a second",
+        gear_changes / math.max(1, gear_body_ticks) < 0.10,
+        string.format("%.2f changes per hundred body-ticks", 
+                      gear_changes / math.max(1, gear_body_ticks) * 100))
+
+  -- **Nothing was ever hurried**, however hard the curve worked. The old form of this
+  -- check asked whether a budget balanced; there is no budget now, and the property
+  -- that replaced it is absolute rather than statistical: no body, at any tick, moves
+  -- faster than its own marching pace.
+  check("and nothing was ever asked to move faster than marching",
+        worst_scale <= 1.0 + 0.0001,
+        string.format("the fastest anything went was %.4f of its pace", worst_scale))
 end
 -- }}}
 
