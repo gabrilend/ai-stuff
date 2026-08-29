@@ -221,6 +221,35 @@ body {
 .spec td:last-child { text-align: right; font-family: var(--f-data); color: var(--ink); white-space: nowrap; }
 .specgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 3rem; min-height: 0; overflow: hidden; }
 
+/* the comparison: four columns, and a chip saying which way each row falls */
+.cmp { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.cmp th {
+  text-align: left; font-family: var(--f-data); font-size: var(--s-1);
+  letter-spacing: 0.11em; text-transform: uppercase; color: var(--faint);
+  font-weight: 500; padding: 0 0 0.4rem; border-bottom: 1px solid var(--rule);
+}
+.cmp th.n, .cmp td.n { text-align: right; }
+.cmp td {
+  padding: 0.3rem 0; border-bottom: 1px solid var(--hair);
+  font-size: var(--s-2); color: var(--graphite);
+}
+.cmp td.n { font-family: var(--f-data); color: var(--ink); white-space: nowrap; }
+.cmp td.v { text-align: right; white-space: nowrap; }
+.chip {
+  font-family: var(--f-data); font-size: 0.68rem; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 0.12rem 0.42rem; border: 1px solid;
+}
+.chip.win  { color: var(--copper);  border-color: var(--copper); }
+.chip.lose { color: var(--coolant); border-color: var(--coolant); }
+.chip.same { color: var(--faint);   border-color: var(--rule); }
+.parity { display: flex; gap: 2.25rem; flex-wrap: wrap; align-items: flex-end; }
+.parity .p { display: flex; flex-direction: column; gap: 0.1rem; }
+.parity .p b {
+  font-family: var(--f-data); font-size: var(--s-6); font-weight: 600;
+  line-height: 1; color: var(--copper); font-variant-numeric: tabular-nums;
+}
+.parity .p span { font-size: var(--s-1); color: var(--graphite); }
+
 /* -------------------------------------------------------- the big numbers */
 .figures { display: flex; gap: 3.5rem; flex-wrap: wrap; }
 .fig { display: flex; flex-direction: column; gap: 0.2rem; }
@@ -247,11 +276,34 @@ svg.dwg .drn  { fill: none; stroke: var(--coolant); stroke-width: 1.5; }
 svg.dwg .dim  { stroke: var(--faint); stroke-width: 1; }
 svg.dwg text  { font-family: var(--f-data); font-size: 11px; fill: var(--faint); letter-spacing: 0.04em; }
 svg.dwg text.hot { fill: var(--copper); }
-svg.die .fc   { fill: var(--rule); stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
-svg.die .fc.lit { fill: var(--copper); opacity: 0.9; }
-svg.die .pip  { fill: var(--ink); }
-svg.die .pip.on { fill: var(--sheet); }
-svg.die .lead { stroke: var(--faint); stroke-width: 1; }
+svg.rig .fc   { fill: var(--rule); stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
+svg.rig .fc.lit { fill: var(--copper); opacity: 0.85; stroke: var(--ink); }
+svg.rig .die  { fill: none; stroke: var(--ink); stroke-width: 1; opacity: 0.55; }
+svg.rig .die2 { fill: var(--ink); opacity: 0.13; stroke: none; }
+svg.rig .pipe { fill: none; stroke-width: 3.5; stroke-linejoin: round; stroke-linecap: round; }
+svg.rig .pipe.in  { stroke: var(--coolant); }
+svg.rig .pipe.out { stroke: var(--copper); }
+svg.rig .rad, svg.flow .rad { fill: none; stroke: var(--faint); stroke-width: 1.2; }
+svg.rig .fin, svg.flow .fin { stroke: var(--faint); stroke-width: 1; }
+svg.rig .pump, svg.flow .pump { fill: var(--sheet); stroke: var(--ink); stroke-width: 1.8; }
+svg.rig .vane, svg.flow .vane { stroke: var(--ink); stroke-width: 1.4; }
+svg.rig .onrad, svg.flow .onrad { font-size: 8px; letter-spacing: 0.12em; fill: var(--faint); }
+svg.rig .key { fill: var(--rule); stroke: var(--ink); stroke-width: 1; }
+svg.rig .key.lit { fill: var(--copper); }
+
+svg.flow .tube { fill: none; stroke: var(--rule); stroke-width: 9; }
+svg.flow .cube { fill: var(--copper); opacity: 0.9; stroke: none; }
+svg.flow .onc  { font-size: 9px; letter-spacing: 0.1em; fill: var(--sheet); }
+svg.flow .arw  { fill: none; stroke: var(--coolant); stroke-width: 2; }
+svg.flow .arw2 { fill: none; stroke: var(--copper); stroke-width: 2; }
+svg.flow .ah   { fill: var(--coolant); }
+svg.flow .head { font-size: 10.5px; letter-spacing: 0.14em; fill: var(--copper); }
+svg.flow .sub  { font-size: 10px; letter-spacing: 0.02em; fill: var(--graphite); }
+svg.flow .sub2 { font-size: 9px; letter-spacing: 0.06em; fill: var(--faint); }
+svg.flow .axis { stroke: var(--rule); stroke-width: 1; }
+svg.flow .trace { fill: none; stroke-width: 2.2; stroke-linejoin: round; }
+svg.flow .trace.flat { stroke: var(--coolant); }
+svg.flow .trace.beat { stroke: var(--copper); }
 .titlerow { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 2.5rem; align-items: center; min-height: 0; }
 body.presenting .titlerow { gap: clamp(2rem,5vw,5rem); }
 
@@ -328,7 +380,7 @@ body.presenting .exitbar {
 <div class="wrap">
 
   <header class="masthead">
-    <div class="eyebrow">Concept presentation &middot; 10 sheets &middot; speaker notes below each</div>
+    <div class="eyebrow">Concept presentation &middot; 11 sheets &middot; speaker notes below each</div>
     <h1>Six-Sided Dice Layer Cake</h1>
     <p>A memory-first machine for language model inference. Every figure on these
     sheets is derived from the design's own geometry and physics and regenerated
@@ -353,24 +405,44 @@ body.presenting .exitbar {
             every weight of the model — which never moves, because there is
             nowhere for it to go.</p>
           </div>
-          <svg class="dwg die" viewBox="0 0 340 250" role="img"
-               aria-label="An isometric six-sided die. Two visible faces are compute faces; the third, in copper, is the face spent entirely on wire.">
-            <polygon class="fc" points="170,46 246,84 170,122 94,84"></polygon>
-            <polygon class="fc" points="94,84 170,122 170,198 94,160"></polygon>
-            <polygon class="fc lit" points="246,84 170,122 170,198 246,160"></polygon>
-            <circle class="pip" cx="170" cy="84" r="6.5"></circle>
-            <circle class="pip" cx="113.8" cy="113.6" r="6.5"></circle>
-            <circle class="pip" cx="150.2" cy="168.4" r="6.5"></circle>
-            <circle class="pip on" cx="226.2" cy="113.6" r="6.5"></circle>
-            <circle class="pip on" cx="208" cy="141" r="6.5"></circle>
-            <circle class="pip on" cx="189.8" cy="168.4" r="6.5"></circle>
-            <line class="lead" x1="252" y1="122" x2="286" y2="122"></line>
-            <text x="290" y="119">the spout</text>
-            <text x="290" y="133">16.8M wires</text>
-            <line class="lead" x1="88" y1="122" x2="54" y2="122"></line>
-            <text x="50" y="119" text-anchor="end">compute</text>
-            <text x="50" y="133" text-anchor="end">face</text>
-            <text x="170" y="228" text-anchor="middle">six faces &middot; three pairs of opposites</text>
+          <svg class="dwg rig" viewBox="0 0 400 286" role="img"
+          aria-label="Three chip faces of the cube in isometric. Coolant pipes leave two corners to a pump on the left and return from two corners to a pump on the right, through a radiator beneath.">
+          <polygon class="fc" points="176.0,56.0 246.0,91.0 176.0,126.0 106.0,91.0"></polygon>
+          <polygon class="fc" points="106.0,91.0 176.0,126.0 176.0,196.0 106.0,161.0"></polygon>
+          <polygon class="fc lit" points="246.0,91.0 176.0,126.0 176.0,196.0 246.0,161.0"></polygon>
+          <polygon class="die" points="176.0,68.6 220.8,91.0 176.0,113.4 131.2,91.0"></polygon>
+          <polygon class="die2" points="176.0,78.4 201.2,91.0 176.0,103.6 150.8,91.0"></polygon>
+          <polygon class="die" points="118.6,109.9 163.4,132.3 163.4,177.1 118.6,154.7"></polygon>
+          <polygon class="die2" points="128.4,124.6 153.6,137.2 153.6,162.4 128.4,149.8"></polygon>
+          <polygon class="die" points="233.4,109.9 188.6,132.3 188.6,177.1 233.4,154.7"></polygon>
+          <polygon class="die2" points="223.6,124.6 198.4,137.2 198.4,162.4 223.6,149.8"></polygon>
+          <path class="pipe in"  d="M 106.0 91.0 L 52 91 L 52 210"/>
+          <path class="pipe in"  d="M 176.0 196.0 L 176 244 L 52 244 L 52 232"/>
+          <path class="pipe out" d="M 246.0 91.0 L 300 91 L 300 210"/>
+          <path class="pipe out" d="M 176.0 56.0 L 176 36 L 300 36 L 300 208"/>
+          <circle class="pump" cx="52" cy="221" r="13"></circle>
+          <circle class="pump" cx="300" cy="221" r="13"></circle>
+          <path class="vane" d="M 46 221 L 58 221 M 52 215 L 52 227"/>
+          <path class="vane" d="M 294 221 L 306 221 M 300 215 L 300 227"/>
+          <rect class="rad" x="80" y="210" width="192" height="22" rx="2"></rect>
+          <line class="fin" x1="90" y1="213" x2="90" y2="229"/>
+          <line class="fin" x1="112" y1="213" x2="112" y2="229"/>
+          <line class="fin" x1="134" y1="213" x2="134" y2="229"/>
+          <line class="fin" x1="156" y1="213" x2="156" y2="229"/>
+          <line class="fin" x1="178" y1="213" x2="178" y2="229"/>
+          <line class="fin" x1="200" y1="213" x2="200" y2="229"/>
+          <line class="fin" x1="222" y1="213" x2="222" y2="229"/>
+          <line class="fin" x1="244" y1="213" x2="244" y2="229"/>
+          <line class="fin" x1="266" y1="213" x2="266" y2="229"/>
+          <text x="176" y="226" text-anchor="middle" class="onrad">RADIATOR</text>
+          <text x="52" y="256" text-anchor="middle">pump</text>
+          <text x="300" y="256" text-anchor="middle">pump</text>
+          <text x="8" y="120">coolant in</text>
+          <text x="392" y="120" text-anchor="end">and out</text>
+          <rect class="key" x="8" y="272" width="10" height="10"></rect>
+          <text x="24" y="281">compute face</text>
+          <rect class="key lit" x="128" y="272" width="10" height="10"></rect>
+          <text x="144" y="281">the face spent on wire</text>
           </svg>
         </div>
       </div>
@@ -415,6 +487,9 @@ body.presenting .exitbar {
           a chip, with memory beside it.</li>
           <li>Every generation buys a little more bandwidth at a lot more cost,
           because the memory is still somewhere the processor has to reach.</li>
+          <li><strong>A GPU is a general machine paying a general machine's
+          price.</strong> It runs anything, so it must fetch anything — and the
+          fetching is what the arithmetic waits on.</li>
         </ul>
       </div>
       <div class="titleblock">
@@ -532,6 +607,10 @@ body.presenting .exitbar {
         <p class="lede"><strong>Past its capacity the machine refuses rather than
         degrading.</strong> It offers a shorter context instead of quietly paging
         and getting slow. A hard ceiling is a narrower market and an honest one.</p>
+        <p class="lede">What a GPU does that this cannot: <em>run anything else at
+        all.</em> Training, a larger model, a different framework, a workload
+        nobody anticipated. That flexibility is what the arrangement is traded
+        away for, and it is not a small thing to give up.</p>
       </div>
       <div class="titleblock">
         <span class="sheetno">Sheet 04</span>
@@ -610,8 +689,12 @@ body.presenting .exitbar {
       the open coolant decision on sheet 09 survivable either way. Plant it here so
       the risk lands softer later.</p>
       <p><strong>If somebody wants the derivation of any figure</strong>, it exists
-      and is one command. That's the point of sheet 07 — you can offer it now and
-      pay it off in two sheets.</p>
+      and is one command. Offer it here and pay it off on the closing sheet.</p>
+      <p>The row a GPU person will go to first is capacity: seventy-two gigabytes
+      usable against a comparator's hundred and forty-one. <strong>Do not defend
+      it — it is on the next sheet as a loss, in a table with three other
+      losses.</strong> Getting there before they do is worth more than any answer
+      you could give here.</p>
     </div>
   </section>
 
@@ -619,21 +702,61 @@ body.presenting .exitbar {
   <section class="plate" data-sheet="6">
     <article class="sheet">
       <div class="sheet-body">
-        <div class="kicker">The hard part</div>
-        <h2>1,891 watts inside 216 cubic centimetres</h2>
-        <p class="lede">This is the constraint that decides whether any of it is
-        real. Two of its results are counter-intuitive, and both reduce risk.</p>
-        <ul>
-          <li><strong>Halving the coolant flow does not halve the cooling.</strong>
-          In laminar flow the convection coefficient doesn't depend on velocity at
-          all — only the coolant's own rise doubles, and that's a fifth of the
-          chain. A pump at half speed costs about four kelvin out of fifty-nine.
-          <em>Partial pump failure is graceful.</em></li>
-          <li><strong>The coolant divides exactly evenly between the six faces.</strong>
-          Not nearly — exactly. Sixteen of the sixty-four legal plumbing
-          arrangements have a threefold symmetry that makes all six faces
-          equivalent. The other forty-eight starve one face by five per cent.</li>
-        </ul>
+        <div class="kicker">The hard part &mdash; 1,891 watts in 216 cubic centimetres</div>
+        <svg class="dwg flow" viewBox="0 0 660 300" role="img"
+        aria-label="Two cooling topologies. A loop, in which coolant circulates continuously and the junction temperature is flat. A line, in which two pumps drive the column back and forth and the temperature ripples at the stroke frequency.">
+        <text x="16" y="20" class="head">A LOOP &mdash; as designed</text>
+        <rect class="tube" x="30" y="40" width="250" height="92" rx="10"></rect>
+        <rect class="cube" x="128" y="26" width="54" height="28" rx="3"></rect>
+        <text x="155" y="45" text-anchor="middle" class="onc">CUBE</text>
+        <rect class="rad" x="96" y="118" width="118" height="28" rx="3"></rect>
+        <line class="fin" x1="106" y1="122" x2="106" y2="142"/>
+        <line class="fin" x1="124" y1="122" x2="124" y2="142"/>
+        <line class="fin" x1="142" y1="122" x2="142" y2="142"/>
+        <line class="fin" x1="160" y1="122" x2="160" y2="142"/>
+        <line class="fin" x1="178" y1="122" x2="178" y2="142"/>
+        <line class="fin" x1="196" y1="122" x2="196" y2="142"/>
+        <text x="155" y="137" text-anchor="middle" class="onrad">RADIATOR</text>
+        <circle class="pump" cx="30" cy="86" r="14"></circle>
+        <path class="vane" d="M 24 86 L 36 86 M 30 80 L 30 92"/>
+        <text x="30" y="116" text-anchor="middle">pump</text>
+        <path class="arw" d="M 70 40 l 26 0" marker-end="url(#a)"/>
+        <path class="arw" d="M 230 40 l 26 0" marker-end="url(#a)"/>
+        <path class="arw" d="M 280 96 l 0 22" marker-end="url(#a)"/>
+        <path class="arw" d="M 30 60 l 0 -12" marker-end="url(#a)"/>
+        <text x="16" y="176" class="sub">one direction, always. the fluid entering a face is always at the same temperature.</text>
+        <polyline class="trace flat" points="30.0,239.4 33.3,239.0 36.6,238.6 39.9,238.4 43.2,238.3 46.4,238.4 49.7,238.7 53.0,239.1 56.3,239.5 59.6,240.0 62.9,240.3 66.2,240.5 69.5,240.5 72.8,240.3 76.1,240.0 79.3,239.6 82.6,239.1 85.9,238.7 89.2,238.4 92.5,238.3 95.8,238.3 99.1,238.6 102.4,238.9 105.7,239.4 108.9,239.8 112.2,240.2 115.5,240.4 118.8,240.5 122.1,240.4 125.4,240.2 128.7,239.8 132.0,239.3 135.3,238.9 138.6,238.5 141.8,238.3 145.1,238.3 148.4,238.4 151.7,238.8 155.0,239.2 158.3,239.6 161.6,240.0 164.9,240.3 168.2,240.5 171.4,240.5 174.7,240.3 178.0,239.9 181.3,239.5 184.6,239.0 187.9,238.7 191.2,238.4 194.5,238.3 197.8,238.4 201.1,238.6 204.3,239.0 207.6,239.4 210.9,239.9 214.2,240.2 217.5,240.5 220.8,240.5 224.1,240.4 227.4,240.1 230.7,239.7 233.9,239.2 237.2,238.8 240.5,238.5 243.8,238.3 247.1,238.3 250.4,238.5 253.7,238.8 257.0,239.3 260.3,239.7 263.6,240.1 266.8,240.4 270.1,240.5 273.4,240.5 276.7,240.2 280.0,239.9"/>
+        <line class="axis" x1="30" y1="258" x2="280" y2="258"/>
+        <text x="30" y="276">junction temperature, steady</text>
+        <text x="376" y="20" class="head">A LINE &mdash; an alternative</text>
+        <rect class="tube" x="390" y="72" width="250" height="26" rx="8"></rect>
+        <rect class="cube" x="488" y="60" width="54" height="28" rx="3"></rect>
+        <text x="515" y="79" text-anchor="middle" class="onc">CUBE</text>
+        <rect class="rad" x="400" y="112" width="60" height="22" rx="3"></rect>
+        <line class="fin" x1="414" y1="115" x2="414" y2="131"/>
+        <line class="fin" x1="430" y1="115" x2="430" y2="131"/>
+        <line class="fin" x1="446" y1="115" x2="446" y2="131"/>
+        <rect class="rad" x="570" y="112" width="60" height="22" rx="3"></rect>
+        <line class="fin" x1="584" y1="115" x2="584" y2="131"/>
+        <line class="fin" x1="600" y1="115" x2="600" y2="131"/>
+        <line class="fin" x1="616" y1="115" x2="616" y2="131"/>
+        <text x="430" y="150" text-anchor="middle" class="sub2">cooling</text>
+        <text x="600" y="150" text-anchor="middle" class="sub2">absorbing</text>
+        <circle class="pump" cx="390" cy="85" r="14"></circle>
+        <circle class="pump" cx="640" cy="85" r="14"></circle>
+        <path class="vane" d="M 384 85 L 396 85 M 390 79 L 390 91"/>
+        <path class="vane" d="M 634 85 L 646 85 M 640 79 L 640 91"/>
+        <path class="arw2" d="M 448 46 l 40 0" marker-end="url(#a)"/>
+        <path class="arw2" d="M 582 46 l -40 0" marker-end="url(#a)"/>
+        <text x="515" y="42" text-anchor="middle" class="sub2">back, then forth</text>
+        <text x="376" y="176" class="sub">one channel per rail instead of two. the temperature is no longer flat.</text>
+        <polyline class="trace beat" points="390.0,258.0 393.3,249.1 396.6,241.5 399.9,235.0 403.2,229.4 406.4,224.6 409.7,220.5 413.0,217.0 416.3,214.0 419.6,211.4 422.9,209.2 426.2,207.3 429.5,205.7 432.8,204.3 436.1,203.1 439.3,202.1 442.6,201.2 445.9,200.5 449.2,199.8 452.5,258.0 455.8,249.1 459.1,241.5 462.4,235.0 465.7,229.4 468.9,224.6 472.2,220.5 475.5,217.0 478.8,214.0 482.1,211.4 485.4,209.2 488.7,207.3 492.0,205.7 495.3,204.3 498.6,203.1 501.8,202.1 505.1,201.2 508.4,200.5 511.7,199.8 515.0,258.0 518.3,249.1 521.6,241.5 524.9,235.0 528.2,229.4 531.4,224.6 534.7,220.5 538.0,217.0 541.3,214.0 544.6,211.4 547.9,209.2 551.2,207.3 554.5,205.7 557.8,204.3 561.1,203.1 564.3,202.1 567.6,201.2 570.9,200.5 574.2,199.8 577.5,258.0 580.8,249.1 584.1,241.5 587.4,235.0 590.7,229.4 593.9,224.6 597.2,220.5 600.5,217.0 603.8,214.0 607.1,211.4 610.4,209.2 613.7,207.3 617.0,205.7 620.3,204.3 623.6,203.1 626.8,202.1 630.1,201.2 633.4,200.5 636.7,199.8 640.0,258.0"/>
+        <line class="axis" x1="390" y1="258" x2="640" y2="258"/>
+        <text x="390" y="276">junction temperature, a heartbeat</text>
+        <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6"
+        markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" class="ah"/></marker></defs>
+        </svg>
       </div>
       <div class="titleblock">
         <span class="sheetno">Sheet 06</span>
@@ -644,77 +767,150 @@ body.presenting .exitbar {
     </article>
     <div class="notes">
       <div class="label">Speaker notes</div>
-      <p>Lead by <strong>conceding that this is the scariest number in the deck.</strong>
+      <p>Lead by <strong>conceding this is the scariest number in the deck.</strong>
       Two kilowatts in something the size of a golf ball sounds impossible, and a
-      room that's already thinking it will not hear anything else until you say it
-      first.</p>
-      <p>The pump result is the one that de-risks. Most people's intuition is that
-      losing half the flow halves the cooling and the machine dies. It doesn't,
-      because in laminar flow the heat-transfer coefficient is independent of
-      velocity — a genuinely surprising piece of physics, and the redundancy design
-      is built on it.</p>
-      <p>The plumbing result is worth thirty seconds because of <em>how</em> it was
-      found: the fifty-branch hydraulic network was solved for all sixty-four legal
-      arrangements. <strong>And the thermal budget is built on the worst of them
-      anyway</strong>, so the design doesn't depend on the plumbing being assembled
-      to the drawing rather than merely to the rules. That's the sentence a
-      manufacturing person in the room will care about.</p>
+      room already thinking it will not hear anything else until you say it first.
+      <em>A GPU rejects a comparable load across a card the size of a book. This
+      does it through the frame, because there is no room for a heatsink.</em></p>
+      <p><strong>The loop is what is designed and costed.</strong> Coolant enters
+      four corners, leaves the other four, and every face sees fluid at the same
+      inlet temperature — which is why the junction trace is flat. Fifty-nine
+      kelvin of margin at the hottest point.</p>
+      <p><strong>The line is an alternative, and say so plainly.</strong> Two pumps
+      drive the column back and forth instead of round; while one end is outside
+      losing heat the other is inside picking it up, and then they trade. It needs
+      one channel per rail instead of two, which is the largest single reduction
+      available to the cube's edge — and every dimension in the design hangs off
+      that edge. The cost is the trace beside it: the temperature stops being
+      level and becomes a heartbeat at the stroke frequency.</p>
+      <p><strong>If asked which one wins:</strong> nobody knows yet, and the
+      honest reason is specific. The deciding number is the ripple amplitude
+      against the fifty-nine kelvin of margin, and behind it the fatigue cost of
+      cycling every bond in the machine at the stroke rate over ten years. It is
+      recorded as an open question rather than a decision, and it is an
+      afternoon's work to settle the first half.</p>
+      <p>Two results worth having ready. <strong>Halving the flow does not halve
+      the cooling</strong> — in laminar flow the heat-transfer coefficient does not
+      depend on velocity at all, so a pump at half speed costs about four kelvin
+      of the fifty-nine. And <strong>the coolant divides exactly evenly between
+      the six faces</strong>, because sixteen of the sixty-four legal plumbing
+      arrangements have a threefold symmetry that makes all six equivalent.</p>
     </div>
   </section>
+
 
   <!-- 7 --------------------------------------------------------------- -->
   <section class="plate" data-sheet="7">
     <article class="sheet">
       <div class="sheet-body">
-        <div class="kicker">What it costs to run</div>
-        <h2>The numbers somebody buying a room full of these would optimise</h2>
-        <div class="figures">
-          <div class="fig">
-            <div class="n up">10.3</div>
-            <div class="cap">tokens per second, per watt</div>
-          </div>
-          <div class="fig">
-            <div class="n up">90,231</div>
-            <div class="cap">tokens per second, per litre</div>
-          </div>
-          <div class="fig">
-            <div class="n down">19&times;</div>
-            <div class="cap">gain from serving many sequences at once</div>
-          </div>
-        </div>
-        <p class="lede">That last ratio is the machine's whole character. Below a
-        batch of about twenty it is latency-bound and the arithmetic idles; above
-        it, every additional sequence is nearly free. <strong>This is a serving
-        machine, not a workstation</strong> — and the per-litre figure is what the
-        shape actually buys.</p>
+        <div class="kicker">Against one accelerator with stacked memory</div>
+        <table class="cmp">
+          <thead>
+            <tr><th>&nbsp;</th><th class="n">This design</th><th class="n">Comparator</th><th class="n">&nbsp;</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>memory bandwidth</td><td class="n">38.4 TB/s</td><td class="n">3.4 TB/s</td><td class="v"><span class="chip win">11.4&times;</span></td></tr>
+            <tr><td>memory capacity</td><td class="n">71.9 GB</td><td class="n">141 GB</td><td class="v"><span class="chip lose">0.51&times;</span></td></tr>
+            <tr><td>tokens/s, one sequence</td><td class="n">1,021</td><td class="n">&mdash;</td><td class="v"><span class="chip win">latency</span></td></tr>
+            <tr><td>tokens/s per watt</td><td class="n">10.3</td><td class="n">&mdash;</td><td class="v"><span class="chip win">density</span></td></tr>
+            <tr><td>tokens/s per litre</td><td class="n">90,231</td><td class="n">&mdash;</td><td class="v"><span class="chip win">density</span></td></tr>
+            <tr><td>model load, from storage</td><td class="n">34 ms</td><td class="n">seconds</td><td class="v"><span class="chip win">win</span></td></tr>
+            <tr><td>runs an arbitrary program</td><td class="n">no</td><td class="n">yes</td><td class="v"><span class="chip lose">lose</span></td></tr>
+            <tr><td>degrades past capacity</td><td class="n">refuses</td><td class="n">pages</td><td class="v"><span class="chip same">differs</span></td></tr>
+            <tr><td>cooling</td><td class="n">liquid, required</td><td class="n">air or liquid</td><td class="v"><span class="chip lose">lose</span></td></tr>
+            <tr><td>software ecosystem</td><td class="n">none</td><td class="n">mature</td><td class="v"><span class="chip lose">lose</span></td></tr>
+          </tbody>
+        </table>
+        <p class="lede">Blank cells are figures this project does not hold and will
+        not invent. <strong>The comparator's own numbers are one part's published
+        bandwidth and capacity; everything else about it is left empty on
+        purpose.</strong></p>
       </div>
       <div class="titleblock">
         <span class="sheetno">Sheet 07</span>
-        <span>Unit economics</span>
+        <span>Where it wins and loses</span>
         <span class="of">Concept</span>
         <span class="prov">Derived, not measured</span>
       </div>
     </article>
     <div class="notes">
       <div class="label">Speaker notes</div>
-      <p><strong>Tokens per watt is the number that decides deployments</strong>,
-      and it has been missing from the room until now. Everything before this
-      sheet was about whether the machine works; this is the first sheet about
-      whether anybody wants it.</p>
-      <p>The per-litre figure is worth pausing on because it is the one the
-      geometry earns. A conventional part spends most of its volume getting memory
-      near the processor. This spends its volume on <em>being</em> memory near the
-      processor, and the density figure is that difference expressed in something
-      a facilities person can act on.</p>
-      <p>The batch ratio is the honest caveat, so deliver it as one. <strong>Serving
-      a single user, this machine wastes most of what it is.</strong> It wants
-      load, which makes it infrastructure rather than a desktop product — and that
-      narrows who it is for, which is worth being first to say.</p>
-      <p><strong>All three are the design's own figures divided by each other</strong>,
-      not a benchmark: nineteen thousand tokens a second, 1,891 watts, 216 cubic
-      centimetres. If somebody wants the arithmetic, do it on the whiteboard.</p>
+      <p><strong>Read the losing rows out loud and do not hurry them.</strong> Four
+      of the ten go against us and one of the four — the software ecosystem — is
+      the one that kills most hardware companies. A room that watches you present
+      your own weaknesses in the same tone as your strengths will believe both.</p>
+      <p>The three unshared use cases, if they want them named. <strong>What this
+      does and a GPU cannot:</strong> serve a model that fits, at very low latency,
+      in a fraction of the volume and power — because the weights are already
+      where the arithmetic is. <strong>What a GPU does and this cannot:</strong>
+      run anything else at all. Training, a larger model, a different framework, a
+      workload nobody anticipated. <strong>Where they are simply different:</strong>
+      at the capacity edge, where a GPU pages and slows and this one declines.</p>
+      <p>On latency: the single-sequence number is the one to press if the room is
+      interested in interactive work rather than batch. A conventional part fetches
+      weights from stacked memory every token; this one does not fetch them at all.
+      <em>That is a structural latency advantage, not a tuning one.</em></p>
+      <p><strong>The empty cells are deliberate and worth pointing at.</strong>
+      Somebody will ask why the comparator column is half blank. The answer is
+      that this project holds one bandwidth figure and one capacity figure for it,
+      taken from a published specification, and filling the rest with plausible
+      numbers would be the exact thing that destroys a deck in diligence.</p>
     </div>
   </section>
+
+  <!-- 7b -------------------------------------------------------------- -->
+  <section class="plate" data-sheet="7b">
+    <article class="sheet">
+      <div class="sheet-body">
+        <div class="kicker">How long the advantage lasts</div>
+        <h2>The comparator improves. When does it catch up?</h2>
+        <div class="parity">
+          <div class="p"><b>13.3</b><span>years, if bandwidth improves 20%/yr</span></div>
+          <div class="p"><b>9.3</b><span>years, at 30%/yr</span></div>
+          <div class="p"><b>7.2</b><span>years, at 40%/yr</span></div>
+        </div>
+        <p class="lede"><strong>These are not forecasts and this project does not
+        own them.</strong> The growth rates are assumptions declared in the design
+        so that a claim about the future is a number somebody can change rather
+        than a sentence somebody wrote. Put your own rate in and the answer
+        recomputes.</p>
+        <p class="lede">What the design does assert is the shape: <em>even against
+        a comparator improving faster than stacked memory has ever sustained, the
+        bandwidth lead outlives any plausible time to build one.</em> The capacity
+        deficit does not close from this side at all.</p>
+      </div>
+      <div class="titleblock">
+        <span class="sheetno">Sheet 07b</span>
+        <span>Time to parity</span>
+        <span class="of">Concept</span>
+        <span class="prov">Assumption, not forecast</span>
+      </div>
+    </article>
+    <div class="notes">
+      <div class="label">Speaker notes</div>
+      <p><strong>Say the words "these are not forecasts" before anybody reads the
+      numbers.</strong> This is the sheet most likely to be quoted back at you
+      wrongly, and the framing has to arrive first. You are not predicting what
+      the competition does. You are saying: here is the size of the lead, in
+      years, as a function of a rate the room supplies.</p>
+      <p>The arithmetic is one line and worth showing on a whiteboard if pressed —
+      how many times does a rate compound before it covers a factor of eleven.
+      Nothing is hidden in it.</p>
+      <p><strong>Quote the seven, not the thirteen.</strong> Forty per cent a year
+      is faster than stacked memory has sustained, and it is the assumption most
+      hostile to us. Leading with the least favourable number is what makes the
+      other two credible; leading with thirteen invites somebody to halve it in
+      their head and stop listening.</p>
+      <p><strong>The capacity sentence is the honest counterweight</strong> and
+      should not be dropped for time. Bandwidth parity arrives eventually and
+      capacity parity never does, because the comparator is ahead there now and
+      improving too. That is the permanent half of the trade.</p>
+      <p><strong>If asked what price does:</strong> we do not have it, and sheet
+      09 says so. Cost per token depends on a die price nobody here can quote —
+      no volume, no supplier, no year. Do not be drawn into inventing one.</p>
+    </div>
+  </section>
+
 
   <!-- 8 --------------------------------------------------------------- -->
   <section class="plate" data-sheet="8">
@@ -785,9 +981,15 @@ body.presenting .exitbar {
           tiers come off a wafer good. Making them smaller would save more than any
           assembly improvement, and nobody has asked whether a tier must be one
           piece.</li>
+          <li><strong>There is no software.</strong> A GPU arrives with fifteen
+          years of tooling. This assumes two pieces that do not exist: something
+          to pack a trained model into the core's format, and a reference
+          implementation to check the first token against. <em>This is the risk
+          that kills hardware companies</em>, and it is not an engineering
+          problem.</li>
           <li><strong>Two decisions remain open</strong> — water against a
           dielectric coolant, and whether the model it's sized around is the right
-          anchor. Sixteen further questions are carried in the open.</li>
+          anchor. Seventeen further questions are carried in the open.</li>
         </ul>
       </div>
       <div class="titleblock">
@@ -800,7 +1002,7 @@ body.presenting .exitbar {
     <div class="notes">
       <div class="label">Speaker notes</div>
       <p><strong>Do not soften any of this, and do not let it be dragged out of
-      you.</strong> Volunteering the weaknesses is what makes the 570 credible.
+      you.</strong> Volunteering the weaknesses is what makes the 573 credible.
       A room that has to extract the risks stops believing the strengths.</p>
       <p>On coolant: water cools about ten times better than anything
       non-conducting, and there are 166 joints between water and silicon at
@@ -813,6 +1015,12 @@ body.presenting .exitbar {
       <p>On yield: don't minimise it. It is the flank, and the design says so in
       its own bill of materials. The honest position is that the mitigation is
       known and untried.</p>
+      <p><strong>On software, expect the hardest question of the meeting</strong>
+      and have the honest answer ready: this is a machine that runs one shape of
+      workload, so it needs far less tooling than a general accelerator — but
+      "far less" is not "none", and nobody has written the two pieces it does
+      need. If the room's thesis is that ecosystems decide hardware outcomes,
+      this is where they will say no, and they may be right.</p>
     </div>
   </section>
 
@@ -824,11 +1032,11 @@ body.presenting .exitbar {
         <h2 class="big">An engineering review.<br>Not a fabrication run.</h2>
         <p class="lede">The most valuable next expenditure is somebody with process
         and packaging experience reading the fabrication and assembly sections and
-        saying <strong>which of the 570 requirements they don't believe.</strong></p>
+        saying <strong>which of the 573 requirements they don't believe.</strong></p>
         <p class="lede">That is a cheap conversation because <strong>this design is
         written in a notation a program reads.</strong> Every dimension is either a
         number a person chose — there are eleven — or an expression over numbers
-        that were. Each of the 570 requirements carries the author's own sentence
+        that were. Each of the 573 requirements carries the author's own sentence
         saying why it must hold, and all of them are evaluated in about a second.
         <em>Change an assumption and watch what breaks.</em></p>
       </div>
