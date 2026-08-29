@@ -469,5 +469,10 @@ end
 M.RANK_SPACING = RANK_SPACING
 M.FILE_SPACING = FILE_SPACING
 M.CONTACT_RANGE = CONTACT_RANGE
+-- Exported so that a test can derive a bound from them rather than carry a copy.
+-- A tolerance written as a number in a test is a tolerance that stops matching the
+-- thing it was chosen for the first time anybody touches these.
+M.SPEED_CEILING = SPEED_CEILING
+M.SPEED_FLOOR = SPEED_FLOOR
 
 return M

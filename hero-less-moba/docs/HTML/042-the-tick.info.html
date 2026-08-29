@@ -322,7 +322,7 @@ svg { max-width: 100%; }
 <tr><td>10</td><td>attack</td><td>Cooldowns down; anything ready writes into the buffer. Towers too.</td></tr>
 <tr><td>11</td><td>resolve</td><td>The buffer is applied; the dead are marked.</td></tr>
 <tr><td>12</td><td>reap</td><td>Deaths become consequences; slots are freed.</td></tr>
-<tr><td>13</td><td>measure</td><td>Push depth, recomputed from the living.</td></tr>
+<tr><td>13</td><td>measure</td><td>Push depth, recomputed from the living, counted in zones.</td></tr>
 <tr><td>14</td><td>phase</td><td>The match clock and the game-over condition.</td></tr>
 <tr><td>15</td><td>snapshot</td><td>The state is stamped for the viewer.</td></tr>
 <tr><td>16</td><td>log</td><td>Once a second, the accepted state becomes a replay keyframe.</td></tr>
@@ -348,6 +348,15 @@ svg { max-width: 100%; }
 <p>other machine will ever be in and therefore a state nothing can usefully be compared</p>
 <p>against.</p>
 <h2>Push depth</h2>
+<p><strong>Counted in zones</strong>, which are four times finer than the milestones the towers</p>
+<p>stand on — a number from 0 to 31 rather than 0 to 8. Nine values could not tell a</p>
+<p>lane that was badly lost from one that was merely losing. A body still records the</p>
+<p>deepest milestone it has passed as well, because that is what the marks along a lane</p>
+<p>are drawn from and what a body's own orbiting reads; only push depth moved.</p>
+<p>Measured from a body's distance along its lane rather than from its path index,</p>
+<p>because a zone is a range of distance and a path index is not. The two agree at every</p>
+<p>milestone — the map validator asserts it — but the nodes between milestones are not</p>
+<p>evenly spaced, so an index would round into the wrong zone.</p>
 <p><strong>Living</strong>, not a high-water mark, so it can go down. It creeps up as soldiers advance</p>
 <p>and collapses when they die. Recomputed in full every tick rather than maintained,</p>
 <p>because a maintained version that drifts would be a lie told in the one place a player</p>

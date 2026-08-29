@@ -304,6 +304,14 @@ svg { max-width: 100%; }
 <p>collapses when bodies die — and is ignored outright during a challenge, when every</p>
 <p>lane's production is in the middle and the number would read a team's own stone back</p>
 <p>at it.</p>
+<p><strong>Push depth is no longer counted in milestones.</strong> It counts <strong>zones</strong>, which are</p>
+<p>four times finer — each milestone interval divides into four, so a lane has</p>
+<p>thirty-two of them and every milestone still lands exactly on a boundary. Nine</p>
+<p>values could not tell a lane that was badly lost from one that was merely losing.</p>
+<p>Everything else in this issue is unchanged, including the collapse at each calm.</p>
+<p>A body still records the deepest milestone it has got past as well, because that is</p>
+<p>what the marks along a lane are drawn from. See</p>
+<p><a href='211a-the-lane-is-cut-into-zones.html'>211a</a>.</p>
 <h2>Intended behavior</h2>
 <p>Each lane carries an ordered list of <strong>nine milestones</strong>, indexed 0 through 8,</p>
 <p>running from team 1's library to team 2's library. Index 0 and 8 are the two</p>

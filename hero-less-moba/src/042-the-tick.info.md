@@ -37,7 +37,7 @@ is much easier to find when the order is a list you can read.
 | 10 | attack | Cooldowns down; anything ready writes into the buffer. Towers too. |
 | 11 | resolve | The buffer is applied; the dead are marked. |
 | 12 | reap | Deaths become consequences; slots are freed. |
-| 13 | measure | Push depth, recomputed from the living. |
+| 13 | measure | Push depth, recomputed from the living, counted in zones. |
 | 14 | phase | The match clock and the game-over condition. |
 | 15 | snapshot | The state is stamped for the viewer. |
 | 16 | log | Once a second, the accepted state becomes a replay keyframe. |
@@ -69,6 +69,17 @@ other machine will ever be in and therefore a state nothing can usefully be comp
 against.
 
 ## Push depth
+
+**Counted in zones**, which are four times finer than the milestones the towers
+stand on — a number from 0 to 31 rather than 0 to 8. Nine values could not tell a
+lane that was badly lost from one that was merely losing. A body still records the
+deepest milestone it has passed as well, because that is what the marks along a lane
+are drawn from and what a body's own orbiting reads; only push depth moved.
+
+Measured from a body's distance along its lane rather than from its path index,
+because a zone is a range of distance and a path index is not. The two agree at every
+milestone — the map validator asserts it — but the nodes between milestones are not
+evenly spaced, so an index would round into the wrong zone.
 
 **Living**, not a high-water mark, so it can go down. It creeps up as soldiers advance
 and collapses when they die. Recomputed in full every tick rather than maintained,

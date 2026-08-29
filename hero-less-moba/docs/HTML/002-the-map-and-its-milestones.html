@@ -437,11 +437,42 @@ svg { max-width: 100%; }
 <tr><td>7</td><td>Team 2's base guard tower for this lane</td></tr>
 <tr><td>8</td><td>Team 2's library</td></tr>
 </tbody></table>
-<p>A team's <strong>push depth</strong> in a lane is the highest milestone index reached by any of</p>
-<p>its <strong>living</strong> soldiers there, from that team's point of view. Team 1 pushing to</p>
-<p>index 6 and team 2 pushing to index 2 describe the same lane from opposite ends,</p>
-<p>and the code stores one number per team per lane rather than trying to keep a</p>
-<p>single signed value.</p>
+<h2>Zones: the same lane, measured four times more finely</h2>
+<p>Underneath the milestones, each lane is also cut into <strong>zones</strong>. Each milestone</p>
+<p>interval divides into four, so a lane with nine milestones has thirty-two zones and</p>
+<p><strong>every milestone lands exactly on a zone boundary</strong>. No tower moves. Nothing that</p>
+<p>says "milestone" changes meaning.</p>
+<p>A zone is a range of distance along a lane and nothing else. It is not a node, it</p>
+<p>has no neighbours, and nothing walks to one.</p>
+<p>The division is written in the shape parameters as *how many zones per milestone</p>
+<p>interval*, not as a total, so the milestones stay on boundaries by construction</p>
+<p>rather than by arithmetic somebody has to check. The map validator asserts it</p>
+<p>anyway.</p>
+<p>Two things read them, and each lane carries <strong>two identical arrays</strong> of them:</p>
+<table><thead>
+<tr><th>Array</th><th>Read by</th></tr>
+</thead><tbody>
+<tr><td>the distance zones</td><td>push depth</td></tr>
+<tr><td>the waypoint zones</td><td>where a wave's next waypoint sits — see <a href='211b-every-zone-holds-a-waypoint.html'>211b</a></td></tr>
+</tbody></table>
+<p>They hold the same numbers, built by one loop, and they are separate so that either</p>
+<p>can be moved without moving the other: the distances a wave routes through and the</p>
+<p>distances a push is measured in are the same question today and are not the same</p>
+<p><em>kind</em> of question. They sit side by side on the lane record so that somebody</p>
+<p>changing one can see the other.</p>
+<h2>Push depth</h2>
+<p>A team's <strong>push depth</strong> in a lane is the deepest <strong>zone</strong> reached by any of its</p>
+<p><strong>living</strong> soldiers there, from that team's point of view — a number from 0 to 31</p>
+<p>rather than 0 to 8. Team 1 pushing to zone 24 and team 2 pushing to zone 8 describe</p>
+<p>the same lane from opposite ends, and the code stores one number per team per lane</p>
+<p>rather than trying to keep a single signed value.</p>
+<p>It was counted in milestones, which meant a lane that was badly lost read the same</p>
+<p>as one that was merely losing. Four times the resolution is four times as often that</p>
+<p>the number changes, which is what a player watching a lane-pressure bar is actually</p>
+<p>reading.</p>
+<p>A body also still records the deepest <strong>milestone</strong> it has got past, because that is</p>
+<p>what the marks along a lane are drawn from and what a body's own orbiting reads.</p>
+<p>Both numbers are kept; only push depth moved.</p>
 <p><strong>Living</strong>, not a high-water mark — so push depth can go down. It creeps up as</p>
 <p>soldiers advance, and it collapses when they die. It collapses completely at each</p>
 <p><strong>calm</strong>, when every soldier on the field turns around and walks home. That is</p>
@@ -488,6 +519,9 @@ svg { max-width: 100%; }
 <tr><td><code>id</code></td><td>integer</td><td>1, 2, or 3.</td></tr>
 <tr><td><code>path</code></td><td>integer[]</td><td>Node ids in order from team 1's library to team 2's library.</td></tr>
 <tr><td><code>milestone_node</code></td><td>integer[9]</td><td>Node id for each milestone index 0–8.</td></tr>
+<tr><td><code>zone</code></td><td>double[33]</td><td>Distance along the lane at each zone boundary, 0 to <code>zone_count</code>. What push depth is measured in.</td></tr>
+<tr><td><code>waypoint_zone</code></td><td>double[33]</td><td>The same numbers, separately. What a waypoint sits inside.</td></tr>
+<tr><td><code>zone_count</code></td><td>integer</td><td>How many zones — thirty-two, being eight milestone intervals of four.</td></tr>
 <tr><td><code>junction</code></td><td>integer[]</td><td>Node ids on this lane that carry a sign-post. Exactly one per lane, the centre included.</td></tr>
 <tr><td><code>length</code></td><td>double</td><td>Total path length in paces. Cached because the renderer wants it constantly.</td></tr>
 <tr><td><code>width</code></td><td>double</td><td>How many paces across. The center lane's is greater. Feeds the frontline queue and the renderer, nothing else.</td></tr>

@@ -270,6 +270,87 @@ local function check_site_count(map, parameters, problems)
 end
 -- }}}
 
+-- {{{ local function check_zones()
+-- The zones cover the lane, agree with each other, and every milestone lands on a
+-- boundary of both.
+--
+-- Three things a reader might think are obviously true and one of which was not.
+--
+-- **Every milestone is on a zone boundary** is the whole reason zones were built as
+-- divisions of a milestone interval rather than as a count across the lane. If it
+-- ever stops being true, the towers and the push measure have quietly come apart and
+-- the symptom is a frontline reported as being somewhere it is not.
+--
+-- **The two arrays agree.** They hold the same numbers, built by one loop, and are
+-- separate so that either can be moved without moving the other. Which means the
+-- day somebody moves one, this check is what tells them they have -- rather than a
+-- wave walking to a place nothing measures.
+--
+-- **The zones cover the lane end to end, rising, with no gap and no overlap.** The
+-- one that catches an off-by-one in the loop that builds them.
+local function check_zones(map, parameters, problems)
+  local divisions = parameters.shape.zone_divisions
+  if divisions == nil or divisions < 1 then
+    complain(problems, "the shape does not say how many zones a milestone interval holds")
+    return
+  end
+
+  for _, lane in ipairs(map.lane) do
+    local want = (parameters.shape.milestone_count - 1) * divisions
+    if lane.zone_count ~= want then
+      complain(problems, "lane %d has %s zones and should have %d",
+               lane.id, tostring(lane.zone_count), want)
+    end
+
+    local previous = nil
+    for k = 0, want do
+      local at = lane.zone[k]
+      local also = lane.waypoint_zone[k]
+      if at == nil then
+        complain(problems, "lane %d has no zone boundary %d", lane.id, k)
+        break
+      end
+      if also == nil then
+        complain(problems, "lane %d has no waypoint boundary %d", lane.id, k)
+        break
+      end
+      if math.abs(at - also) > 0.0001 then
+        complain(problems,
+                 "lane %d disagrees with itself at boundary %d: %.3f against %.3f",
+                 lane.id, k, at, also)
+      end
+      if previous ~= nil and at <= previous then
+        complain(problems, "lane %d's zone %d does not come after zone %d",
+                 lane.id, k, k - 1)
+      end
+      previous = at
+    end
+
+    if lane.zone[0] ~= nil and math.abs(lane.zone[0]) > 0.0001 then
+      complain(problems, "lane %d's zones start at %.3f rather than at its beginning",
+               lane.id, lane.zone[0])
+    end
+    if lane.zone[want] ~= nil and math.abs(lane.zone[want] - lane.length) > 0.0001 then
+      complain(problems, "lane %d's zones end at %.3f and the lane ends at %.3f",
+               lane.id, lane.zone[want], lane.length)
+    end
+
+    for m = 0, parameters.shape.milestone_count - 1 do
+      local at = lane.cumulative[lane.milestone_index[m]]
+      local boundary = lane.zone[m * divisions]
+      if at == nil or boundary == nil then
+        complain(problems, "lane %d cannot compare milestone %d to a boundary",
+                 lane.id, m)
+      elseif math.abs(at - boundary) > 0.0001 then
+        complain(problems,
+                 "lane %d's milestone %d sits at %.3f and zone boundary %d at %.3f",
+                 lane.id, m, at, m * divisions, boundary)
+      end
+    end
+  end
+end
+-- }}}
+
 -- {{{ local function check_lane_widths()
 -- Every lane is wide enough for the formation it is supposed to carry, and the
 -- centre is wide enough for the three that stand abreast in it.
@@ -372,6 +453,7 @@ function M.check(map, parameters)
   -- pure arithmetic over a lane's width; nothing it is asked here touches a world.
   local formations = loadfile(parameters.root .. "/src/052-formations.lua")()
   check_lane_widths(map, parameters, formations, problems)
+  check_zones(map, parameters, problems)
   check_reachable(map, problems)
   return problems
 end

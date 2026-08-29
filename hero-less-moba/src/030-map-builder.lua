@@ -345,6 +345,48 @@ local function build_lane(map, shape, lane_id, width,
     lane.milestone_index[m] = lane.path_index[lane.milestone_node[m]]
   end
 
+  -- The zones: the same lane, measured four times more finely.
+  --
+  -- A zone is a range of distance along the lane and nothing else. It is not a node,
+  -- it has no neighbours, and nothing walks to one. What it is for is that push depth
+  -- counted in milestones is a number between 0 and 8, and a lane that is badly lost
+  -- reads the same as one that is merely losing.
+  --
+  -- **Each milestone interval divides into a fixed number of zones**, rather than the
+  -- lane being cut into a fixed number overall. That is what keeps every milestone
+  -- exactly on a zone boundary -- by construction, rather than by arithmetic somebody
+  -- has to go back and check -- so no tower moves and nothing that says "milestone"
+  -- changes meaning.
+  --
+  -- Built from `cumulative` rather than from the milestone fractions, because the
+  -- fractions describe the lane before the bend was smoothed and the smoothing moves
+  -- nodes. The distance a milestone actually sits at is the only honest source.
+  --
+  -- **Two arrays, identical, built by one loop.** One is what push is measured in;
+  -- the other is what a waypoint sits inside. They hold the same numbers today and
+  -- are separate so that either can be moved without moving the other -- the
+  -- distances a wave routes through and the distances a push is measured in are the
+  -- same question now and are not the same *kind* of question. They live side by side
+  -- on this record so that somebody changing one can see the other.
+  local divisions = shape.zone_divisions
+  lane.zone_count = (shape.milestone_count - 1) * divisions
+  lane.zone = {}
+  lane.waypoint_zone = {}
+  for m = 0, shape.milestone_count - 2 do
+    local from = lane.cumulative[lane.milestone_index[m]]
+    local to   = lane.cumulative[lane.milestone_index[m + 1]]
+    for d = 0, divisions - 1 do
+      local at = from + (to - from) * (d / divisions)
+      lane.zone[m * divisions + d] = at
+      lane.waypoint_zone[m * divisions + d] = at
+    end
+  end
+  -- The far end, written once rather than falling out of the loop, because the last
+  -- interval's last boundary **is** the lane's end and computing it as a fraction of
+  -- itself would leave it a rounding error short of the library.
+  lane.zone[lane.zone_count] = lane.length
+  lane.waypoint_zone[lane.zone_count] = lane.length
+
   -- The stone. Milestones 1, 2, 3 are team 1's base tower, inner tower and outer
   -- tower; 7, 6, 5 are team 2's, mirrored. The milestone recorded on the site is
   -- counted from the **owning** team's end, which is why team 2's outer tower at
@@ -579,6 +621,53 @@ function M.lane_from_polyline(points, width, spacing)
   end
 
   return map
+end
+-- }}}
+
+-- {{{ function M.zone_at()
+-- Which zone a distance along a lane falls in, from 0 to one less than the count.
+--
+-- Not a scan over thirty-three boundaries. Zones are evenly spaced **within** a
+-- milestone interval and the intervals are not evenly spaced with respect to each
+-- other, so the answer is: find the interval, then divide inside it. The interval
+-- search is the same nine comparisons the milestone version already did, and the
+-- rest is arithmetic -- so measuring four times more finely costs nothing per body.
+--
+-- A distance past the end answers with the last zone rather than one past it. A body
+-- standing at the enemy library is in the last zone of the lane, not in a
+-- thirty-third that does not exist.
+function M.zone_at(lane, distance, divisions)
+  if distance <= 0 then
+    return 0
+  end
+  if distance >= lane.length then
+    return lane.zone_count - 1
+  end
+
+  -- The interval, found by walking milestones rather than zones.
+  local interval = 0
+  for m = 1, #lane.milestone_index do
+    local at = lane.cumulative[lane.milestone_index[m]]
+    if at == nil or distance < at then
+      break
+    end
+    interval = m
+  end
+  if interval >= #lane.milestone_index then
+    interval = #lane.milestone_index - 1
+  end
+
+  local from = lane.cumulative[lane.milestone_index[interval]]
+  local to   = lane.cumulative[lane.milestone_index[interval + 1]]
+  local span = to - from
+  if span <= 0 then
+    return interval * divisions
+  end
+
+  local inside = math.floor(((distance - from) / span) * divisions)
+  if inside < 0 then inside = 0 end
+  if inside > divisions - 1 then inside = divisions - 1 end
+  return interval * divisions + inside
 end
 -- }}}
 

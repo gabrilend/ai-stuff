@@ -21,7 +21,7 @@ problem statement, rendered, and phase 4's demo is the answer to it.
 | 209 | The thread pool slices the tick | not started — H3 |
 | 210 | A death decays before it is final | built |
 | 211 | Waypoints, and the zones they sit in | in progress — the umbrella |
-| 211a | The lane is cut into zones | not started |
+| 211a | The lane is cut into zones | built |
 | 211b | Every zone holds a waypoint | not started |
 | 211c | A formation is a circle that faces where it is going | not started |
 | 211d | Marching speed is not running speed | not started |

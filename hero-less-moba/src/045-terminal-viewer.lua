@@ -142,15 +142,24 @@ function M.draw_lanes(world, frame)
     local mine   = frame.team_view[1].push_depth[lane]
     local theirs = frame.team_view[2].push_depth[lane]
 
-    -- One character per milestone, 0 through 8, read from team 1's end. Team 1's
-    -- reach is drawn from the left, team 2's from the right, and the gap in the
-    -- middle is the ground neither of them holds.
+    -- One character per **zone**, read from team 1's end. Team 1's reach is drawn
+    -- from the left, team 2's from the right, and the gap in the middle is the
+    -- ground neither of them holds.
+    --
+    -- This was nine characters, one per milestone, and push depth is measured in
+    -- zones now — four times finer. The text viewer takes all of them rather than
+    -- scaling back the way the panel does: it is the viewer somebody opens when they
+    -- want to see exactly what happened, and it has the width to spare.
     local track = {}
-    for m = 0, 8 do
+    local cells = frame.zone_count
+    for m = 0, cells - 1 do
       local held = " "
       if m <= mine then held = "=" end
-      if (8 - m) <= theirs then held = "#" end
-      if m <= mine and (8 - m) <= theirs then held = "*" end
+      if (cells - 1 - m) <= theirs then held = "#" end
+      -- Ground both of them claim to have reached. It happens: push depth is the
+      -- deepest a team has got, not a line, so two teams can each have a body past
+      -- the other's deepest.
+      if m <= mine and (cells - 1 - m) <= theirs then held = "*" end
       track[#track + 1] = held
     end
 

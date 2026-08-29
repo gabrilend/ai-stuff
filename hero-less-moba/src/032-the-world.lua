@@ -130,6 +130,10 @@ local function make_soldier_arrays(capacity, kind_count)
   soldier.y         = zeroed(capacity)
   soldier.facing    = zeroed(capacity)
   soldier.milestone = zeroed(capacity)
+  -- The zone this body has reached, counted from its own team's end: 0 at its own
+  -- library and one less than the zone count at the enemy's. Four times finer than
+  -- the milestone above, and it is what push depth is taken from.
+  soldier.zone      = zeroed(capacity)
 
   -- Body
   soldier.health        = zeroed(capacity)
@@ -447,6 +451,7 @@ function M.release(world, id)
   soldier.y[id] = 0
   soldier.facing[id] = 0
   soldier.milestone[id] = 0
+  soldier.zone[id] = 0
   soldier.health[id] = 0
   soldier.health_max[id] = 0
   soldier.damage[id] = 0
