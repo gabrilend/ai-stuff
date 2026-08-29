@@ -170,6 +170,7 @@ svg { max-width: 100%; }
 <a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='211-waypoints-and-the-zones-they-sit-in.html'><span class='index'>211</span>Waypoints, and the Zones They Sit In</a>
 <a href='212-a-beaten-body-gets-one-roll.html'><span class='index'>212</span>A Beaten Body Gets One Roll</a>
+<a href='213-what-the-lane-can-afford.html'><span class='index'>213</span>What the Lane Can Afford</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -4114,7 +4115,70 @@ svg { max-width: 100%; }
 <p>formation**: same archetypes, same lanes, same ranks and files. That is what a wave</p>
 <p>is built with, it cannot be changed by walking, and it is what a spawner getting it</p>
 <p>wrong would break. Alongside it, a separate count of how many bodies are standing,</p>
-<p>because two identical bodies in the same place look like one entry counted twice.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>because two identical bodies in the same place look like one entry counted twice.</p>
+<h2>H10. Is a lane's purse per lane, or per lane per team? — <strong>NEEDS A DECISION</strong></h2>
+<p>From <a href='213-what-the-lane-can-afford.html'>what the lane can afford</a>: "Each</p>
+<p>lane has a different resource table, and different meters for each unit type."</p>
+<p>Three lanes and two teams, so that is either three purses or six.</p>
+<p><strong>Six</strong> — one per lane per team — is the obvious reading. Each side's lanes develop</p>
+<p>their own character independently, and a lane where one team has been fielding heavy</p>
+<p>infantry says nothing about what the other team can raise there.</p>
+<p><strong>Three</strong> — one per lane, shared — would mean the <em>ground</em> has a character rather</p>
+<p>than the army: a lane that has seen heavy fighting is expensive for both sides, and</p>
+<p>the two teams are drawing against the same shifting table. Strange, and interesting</p>
+<p>for the same reasons the waypoints ended up belonging to the road rather than the</p>
+<p>wave, and then did not.</p>
+<p>Six is almost certainly meant. It is written down because three is a real design and</p>
+<p>the sentence does not rule it out.</p>
+<h2>H11. What fills the purse? — <strong>NEEDS A DECISION</strong></h2>
+<p>Nothing in the description of the draw says where a lane's resource comes from, only</p>
+<p>what it is spent on. Three candidates, in the order they look promising:</p>
+<ul>
+<li><strong>A fixed income per wave.</strong> The purse is a smoothing device and nothing else: it</li>
+</ul>
+<p>   decides <em>what</em> a lane fields rather than <em>how much</em>, and a lane that spent heavily</p>
+<p>   last wave fields light this wave. Simplest, and it keeps the mechanism entirely</p>
+<p>   about variety.</p>
+<ul>
+<li><strong>Income that scales with how far the lane has been pushed.</strong> A lane that is</li>
+</ul>
+<p>   winning raises more, which is a snowball, and a lane that is losing raises more,</p>
+<p>   which is a comeback. Either is a design; they are opposite designs.</p>
+<ul>
+<li><strong>Income from kills in that lane.</strong> The one with teeth, because it couples the</li>
+</ul>
+<p>   purse to what actually happened rather than to a clock — and the one that</p>
+<p>   snowballs hardest, since a lane that is winning is also the lane doing the killing.</p>
+<p>This interacts with the whole second economy: the personal wallets already pay every</p>
+<p>player on the killing team for every death. A lane purse fed the same way would be a</p>
+<p>second, invisible copy of that, moving in the same direction at the same time.</p>
+<h2>H12. What does the scarcity thumb do at the extremes? — <strong>NEEDS A DECISION</strong></h2>
+<p>The draw gives "units that cost more when we have fewer resources more tickets in the</p>
+<p>draw" — being poor makes the expensive thing <em>more</em> likely, which is deliberate and</p>
+<p>is what stops a lane going quiet.</p>
+<p>Taken literally it has an edge nobody wants: a lane with almost nothing has an</p>
+<p>enormous ticket count for the one unit it cannot possibly afford, so it draws that</p>
+<p>unit constantly and can never pay for it.</p>
+<p>Three ways out:</p>
+<ul>
+<li><strong>Draw only over what is affordable</strong>, and let the thumb reorder within that. The</li>
+</ul>
+<p>   scarcity effect then means "the most expensive thing you <em>can</em> afford becomes more</p>
+<p>   likely as you get poorer", which is a real and much gentler version of the same</p>
+<p>   idea.</p>
+<ul>
+<li><strong>Cap the ticket count</strong>, so the thumb has a ceiling and cheap units keep enough</li>
+</ul>
+<p>   tickets to win sometimes.</p>
+<ul>
+<li><strong>Draw over everything and check affordability afterwards</strong>, spawning nothing if</li>
+</ul>
+<p>   the draw came up unaffordable. Honest to the description, and it means a poor lane</p>
+<p>   sends fewer bodies as well as different ones — which might be exactly right, or</p>
+<p>   might be a death spiral.</p>
+<p>The third is the most faithful reading and the most dangerous. The first is what the</p>
+<p>doubling-up rule seems to assume, since a meter that fills toward "twice the maximum</p>
+<p>tickets" implies tickets are bounded.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.
