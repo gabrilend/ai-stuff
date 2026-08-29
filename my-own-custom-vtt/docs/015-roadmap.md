@@ -1,6 +1,6 @@
 # The roadmap
 
-Eleven phases. They are not a schedule and they are not progress tracking. Each one
+Thirteen phases. They are not a schedule and they are not progress tracking. Each one
 is a cluster of functionality that hangs together, and they are ordered so that
 every phase can be built on top of things that already work.
 
@@ -12,6 +12,12 @@ project root with `./run-phase-demo`. The demos are not development scrap. They
 are part of what this project delivers, they are kept working, and each one
 recombines the tools of earlier phases into something none of them could do
 alone.
+
+**One demo per phase, and it highlights the behaviour that phase learned.** Not
+the code it added -- the behaviour. A demo that lists what was built is a
+changelog with a compiler; a demo that shows the thing the phase found out is the
+only part worth keeping when the phases are eventually regrouped, because the
+finding survives the reorganisation and the file list does not.
 
 ---
 
@@ -278,6 +284,62 @@ closes a turn's window, the answer was another question — *what do you mean by
 window?* Nothing had ever waited, the noun had been lying for eleven phases, and
 renaming it dissolved two open questions and three plausible answers to a
 non-existent problem.
+
+## Phase 13 — The world becomes solid
+
+*Designed, not built. Nine issues, none started.*
+
+A conversation about how coarse the fog grid should be turned into a redesign of
+the visual engine, and every step of it made the program smaller.
+
+**The world is three-dimensional, and it is an edge graph.** A vertex holds
+coordinates and, for each thing it connects to, that vertex's index and one
+material. Faces are not stored; a face is an edge loop. The two things a DM does
+to live geometry — drag a vertex, bisect an edge — become local constant-time
+edits instead of global rebuilds, which is the whole reason for the format,
+because the world has to be editable while people are looking at it.
+
+**Visibility is authored, and it is one equation.** Not cast, not swept, not
+sampled. The DM organises their structures and flips a switch; a reveal level per
+structure per viewer is compared against a threshold per class of object, so one
+dial turned once moves every goblin in a room out of the dark without the DM
+touching a creature. The gradient — walking up to a corner and seeing a little
+more with each step — is a cached distance field flooded through open space,
+which goes *around* corners where a ray stops at them.
+
+**The picture is never a hole.** Beyond what somebody may see, the boundary plane
+is filled with a surface composed from that boundary's own edge materials, so an
+unrevealed doorway is drawn as *a stone doorway shrouded in shadow*. It reads
+nothing from the far side, which is why it leaks nothing, and it does not pretend
+to be masonry, which is why nobody walks into it four times.
+
+**The passes become a sequence rather than an alternation.** Intent and motion
+run in an order read off the beat index, and the order written down in the
+conversation that opened this phase turned out to be the Thue–Morse sequence
+exactly, to eight terms — the provably fairest way to take turns, and cube-free,
+against a pair of passes whose whole purpose is that outcomes resolve fairly.
+
+**A third view, in LuaJIT**, because deleting the visibility problem is what made
+a hand-written 3D renderer a reasonable amount of work. It joins the browser and
+the terminal rather than replacing them, on the same wire, with no server change
+— phase 11's claim spent a second time.
+
+**And a window a player opens with a key**, whose contents go to the DM first,
+who answers it or hands it to an AI holding exactly the DM's own verbs and no
+others. The AI is ignorant by arithmetic rather than by policy: it learns a
+drawer is locked the way the player does, by evaluating the same expression and
+finding a zero.
+
+**Ends with:** a demo in which a DM edits geometry while somebody stands in the
+room, a body walks toward a corner with tiles fading in rather than a wedge
+appearing, a doorway is a surface rather than a hole, one dial raises and the
+goblins appear, a locked drawer returns the same zero to a player and to an AI,
+and all three views watch one session.
+
+**Proves:** that a world can be built while it is being played in, and that
+choosing to compute nothing is a design rather than a shortcut.
+
+*What it turned out to teach:* [phase 13 progress](../issues/phase-13-progress.md)
 
 ---
 
