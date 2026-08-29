@@ -1,6 +1,6 @@
 # Conversation Summary: dd43b4bb-4f84-4084-975d-174e788da568
 
-Generated on: 2026-08-27 15:52:20
+Generated on: 2026-08-28 22:27:08
 
 --------------------------------------------------------------------------------
 
@@ -1497,6 +1497,475 @@ remove /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix`.
 Also — one thing I did badly above: I typed a made-up 40-character hash into a
 cherry-pick instead of looking up the real one. Git caught it, but I shouldn't
 be inventing object IDs at all.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 15
+
+$ git update-ref refs/heads/master $(git -C
+/mnt/mtwo/programming/ai-worktrees/six-sided-history-fix rev-parse HEAD) $(git
+rev-parse master)
+
+fatal: ambiguous argument 'master': unknown revision or path not in the working
+tree.
+
+Use '--' to separate paths from revisions, like this:
+
+'git <command> [<revision>...] -- [<file>...]'
+
+fatal: master: not a valid old SHA1
+
+
+
+okay after that's fixed, can we get back to the project? I'd like you to work on
+it in whatever way you please, try and do refactoring, organization, or
+development of any kind.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 15
+
+The user's cherry-pick caught all the way up. Verifying the trees match before
+moving the branch.
+
+
+Identical. Trying the ref move myself with literal values.
+
+
+The ref move is consistently refused — that one's a real gate. Your error was
+a shell-context issue with `$(git rev-parse master)`; here it is with literal
+values, which sidesteps it:
+
+
+```
+
+! git update-ref refs/heads/master 690a4d37713c78f2a7b0157826382a87fd959a05 eb8d02612802e13639b599a2557b214f0af4104c
+
+```
+
+
+Your cherry-pick caught the branch all the way up, and I've confirmed both tips
+end in the identical tree `8f0256b1`. If master moves before you run it, the
+command fails safely rather than clobbering, and I'll re-catch-up.
+
+
+Now, to the project. The biggest stated gap is that the eleven instruments have
+no companion pages — and the open-questions page says writing the generator
+beats writing nine files.
+
+
+The vimfold convention makes this genuinely parseable — the folds carry the
+structure a generator needs. Writing the ticket first.
+
+
+Now the generator. Let me check the shapes it has to parse.
+
+
+Found something: the ledger's only public function has no description at all.
+Let me see how widespread that is.
+
+
+Most of those 25 "problems" are my parser being naive, not the source being
+wrong — they're export aliases pointing at functions that *are* documented,
+under their private names. Let me fix the generator rather than believe its
+report.
+
+
+0 broken folds — the convention holds everywhere. But **22 of 56 public entry
+points carry no description at all.** Now the renderer.
+
+
+The generator's value is exactly this: `M.load` — the ledger's entire public
+interface — has no description. Let me close the 26 gaps it found.
+
+
+Now the units engine and the three public constants.
+
+
+The generator can't see the comments I just wrote — they sit above the
+assignment without a fold marker. Teaching it to look upward.
+
+
+The explanation for `label` ended up inside the function body rather than above
+it. Moving it where the convention puts it.
+
+
+Clean sweep — every public entry point in all thirteen programs now has a
+description. Let me verify determinism and check the output.
+
+
+Two parser bugs the page exposes: a table literal read as an alias, and a
+function *call* read as one. Fixing the target extraction.
+
+
+The transcript was renamed to span both days. Let me commit that.
+
+
+Clean. Here's where things stand.
+
+
+## The git repair
+
+
+Ready and waiting on one command. Your cherry-pick caught the rewritten branch
+all the way up to master, and both tips end in the identical tree `8f0256b1`.
+Run this and it's done:
+
+
+```
+
+! git update-ref refs/heads/master 690a4d37713c78f2a7b0157826382a87fd959a05 eb8d02612802e13639b599a2557b214f0af4104c
+
+```
+
+
+It fails safely rather than clobbering if master has moved again — tell me if
+it does and I'll re-catch-up. Afterwards: `git worktree remove
+/mnt/mtwo/programming/ai-worktrees/six-sided-history-fix`.
+
+
+## What I built
+
+
+The last stated gap in the instruments was that the programs had no companion
+pages — every blueprint has one, generated, and the dozen programs had two
+written by hand. The reason it had been left is real: Lua never says what a
+module exports, so finding out means running the file or parsing the language.
+
+
+**The way in was a convention you'd imposed for a completely different reason.**
+Every function here is wrapped in a vimfold that opens with a comment carrying
+its name, then prose, then the definition with arguments. That was for editing
+comfort — a long file collapses neatly. It's also a name, a description and a
+signature in a fixed shape on consecutive lines, which is exactly what a
+companion page needs. The generator reads it, and every page it writes says so
+at the bottom.
+
+
+Since the method depends on the convention holding, the generator enforces it
+too. Across 103 folds there are no broken ones — no fold without a definition,
+none whose name disagrees with what it opens. That's a fact nobody could have
+stated before.
+
+
+**What the first honest run found:** of 56 ways into these programs from
+outside, **23 had no description anywhere.** Forty per cent of the interface.
+Among them was `094`'s `load` — the ledger's only public function, the thing
+every other program calls to get anything at all. All 56 have one now.
+
+
+**Twice the tool was wrong rather than the source being thin**, and I fixed both
+before writing a single page, because a documentation tool that cries wolf gets
+ignored and then it's worse than nothing. Most modules define a function
+privately, describe it there, and hand it out under a public name at the bottom
+— so the first version reported nine of the cube solver's twelve exports as
+undocumented when their prose was on the private names. And a constant has no
+fold, so its description is the comment directly above it.
+
+
+Then a finished page exposed two more on sight: the units engine's ten dimension
+slots claimed to be "published from `m`" (a table literal's first element read
+as an alias), and the dimensionless constant claimed to take an argument (a
+function *call* read as an alias to that function).
+
+
+The set still holds at 566 of 566 with no targets, and the site is up to 308
+pages.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 16
+
+[ritz@kuvalu six-sided-dice-layer-cake]$ git update-ref refs/heads/master
+690a4d37713c78f2a7b0157826382a87fd959a05
+eb8d02612802e13639b599a2557b214f0af4104c
+
+fatal: update_ref failed for ref 'refs/heads/master': cannot lock ref
+'refs/heads/master': is at 40cd2993864125a228dc8fb0f93bb66250bd93b5 but expected
+eb8d02612802e13639b599a2557b214f0af4104c
+
+
+can you tell me what this project is about in your own words?
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 16
+
+Master's moved 16 commits past where the fix branch is — it's a fast-moving
+target while the other agents are working. That last step needs a quiet moment;
+ping me when they're idle and I'll catch up and hand you a fresh one-liner.
+
+
+As for what this is —
+
+
+The object is a cube 60 millimetres on a side. Six processors, one per face, all
+looking inward. In the middle, a solid 40mm block of static memory: twenty-four
+layers of silicon interleaved with twenty-four copper-molybdenum cooling plates.
+That block holds every weight of a language model and never moves them. Tokens
+fall through the six faces in sequence — each face owns a run of the model's
+layers — the way grain falls through a stack of sieves. Coolant enters at four
+corners and leaves at the other four. One of the six faces isn't a processor at
+all; it's spent entirely on wire, sixteen million conductors, so whatever the
+middle is holding can be somewhere else in thirty-three microseconds.
+
+
+But I don't think the cube is what the project is *about*. The cube is the test
+case.
+
+
+What it's actually about is whether a design can be made to check itself. Every
+dimension in it is either a number somebody chose — there are eleven lengths
+in that category — or an expression over numbers that were. Alongside them sit
+five hundred and sixty-six assertions, each one a sentence the author wrote
+saying why it has to be true, and a program evaluates all of them in under a
+second. So the design isn't a document describing a machine. It's a machine you
+can ask questions of, and it answers by recomputing rather than by remembering.
+
+
+The evidence that this is worth doing is the list of things it caught that
+nobody would have caught by reading. A corner block that couldn't contain its
+own chambers. A die power grid four times too thin. A bonding step hotter than
+the bond it was standing on, which would have melted the joint underneath it. A
+memory stack that had to drop from thirty-two layers to twenty-four the moment
+someone derived the bitcell density instead of picking a round number. And this
+session: a cooling plate whose thermal conductivity nothing in the project had
+ever read — a material chosen specifically for how well it conducts, in a
+design that never used the number.
+
+
+There's a streak of enforced honesty running through it that I like. The
+notation has a kind of declaration meaning "a number the design wants and cannot
+produce," and the checker refuses to call the set finished while one exists.
+That makes it structurally unable to overstate its own completeness. When we
+added a kind for numbers a *program* produced, the same instinct applied: the
+checker re-runs the program every pass and fails if the stored copy has drifted,
+so a stale number is a loud error rather than a quiet wrong answer.
+
+
+And the thing that keeps surprising me is how often a convention adopted for one
+reason turns out to earn something else. The vimfold habit was for collapsing
+long files in an editor, and it turned out to be a machine-readable statement of
+what a module exports. The dimensionless-literal rule was to stop unlabelled
+physical quantities getting in, and it caught twenty-seven hand-written unit
+conversions. Feeding the four even-parity corners was picked because it was
+elegant, and it turns out to be the only choice that works — any other set of
+four leaves a third of the plumbing carrying nothing.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 17
+
+okay can you describe it to an investor?
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 17
+
+Let me pull the actual figures rather than work from memory.
+
+
+Here's how I'd pitch it — with the caveat at the end that matters.
+
+
+**The thesis.** Running a language model is not an arithmetic problem, it's a
+memory problem. Modern accelerators have enormous compute and spend most of it
+waiting for weights to arrive from memory. Everyone knows this; the industry's
+answer has been to stack memory closer to the chip.
+
+
+This design inverts the layout instead. Rather than a processor with memory
+beside it, it's a block of memory with processors wrapped around it — a 60mm
+cube, six processors on the six faces all looking inward, and at the centre a
+solid block of static memory holding every weight of the model. The weights
+never move. There is no DRAM, no memory bus, no off-chip traffic for weights at
+all.
+
+
+**The number that matters.** Against a current accelerator with stacked memory,
+the project's own model puts it at **11.4× the memory bandwidth at 0.51× the
+capacity** — 38.4 TB/s, 72 GB usable, in 216 cubic centimetres drawing 1.9 kW.
+That's about 1,000 tokens a second on a single conversation, or 19,500 aggregate
+when you're serving many at once.
+
+
+**So the trade is explicit: half the memory, eleven times the speed of reading
+it.** This is a machine for a model that fits, run very fast — not a machine
+for the biggest model. And it's honest about the edge: past its capacity it
+refuses rather than degrading. It offers you a shorter context instead of
+quietly swapping and getting slow.
+
+
+**The unusual asset.** The design is machine-checkable. Every dimension is
+either a number someone chose — eleven of them — or derived from those.
+Alongside sit 566 engineering requirements, each with the author's reason
+attached, and a program evaluates all of them in about a second. All 566
+currently hold, and none of the design's own goals are unresolved. You can hand
+this to an engineer and they can *run* it, which is not the normal state of a
+hardware concept at this stage.
+
+
+**Now the part I'd want an investor told plainly:**
+
+
+Nothing has been fabricated. Not a die, not a cold plate, not a coupling. Every
+figure above is derived from geometry and physics, not measured. That's a
+genuinely stronger position than a slide deck and a genuinely weaker one than a
+prototype.
+
+
+There is no price. The bill of materials gives cost *ratios* — silicon is 77%,
+of which memory tiers are two thirds — and deliberately refuses a dollar
+figure, because with no volume, no supplier and no year, a number would be
+fiction. Yield is the exposed flank: only 64% of memory tiers come off a wafer
+good, and the design notes that making them smaller would save more than any
+assembly improvement, and that nobody has asked whether a tier has to be one
+piece.
+
+
+Two decisions are still open. Whether the coolant is water or a dielectric —
+water cools ten times better, and a leak with water across 166 joints is a dead
+cube, so it's a reliability judgement for whoever owns the consequences. And
+whether the model it's sized around is the right anchor, since a model half the
+size would let the whole cube shrink and nobody has run that backwards.
+
+
+**What it's ready for is an engineering review, not a fab run.** The right next
+spend is somebody with fab experience reading the process and assembly phases
+and telling you which of the 566 requirements they don't believe.
+
+
+Want me to turn this into a page you could actually send? It'd take about ten
+minutes and the figures would come straight from the generated spec sheet rather
+than from this message.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 18
+
+yes please. I'd like a presentation, with notes, and a pdf of the concept.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 18
+
+Three deliverables. Let me check what PDF tooling is available and pull live
+figures first.
+
+
+I have every figure live from the ledger. Loading the design skill before
+building the deck.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 19
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 19
+
+Design plan before building:
+
+
+**Palette** — the object's own materials. `#ECEDEF` cool paper (blue-grey
+bias, not warm cream), `#14181C` slate ink, `#A2603A` copper for the laminae and
+the sixteen million conductors, `#2F6E7A` coolant teal, `#C9CDD2` hairline.
+
+
+**Type** — `Archivo` for projected slide text, `Source Serif 4` for speaker
+notes (a real distinction: one is projected, one is read), `IBM Plex Mono` for
+figures and dimension callouts, matching the project's own drawing convention.
+
+
+**Layout** — sheets in a drawing set. Each 16:9 sheet carries a title block;
+notes sit below in annotation style. A present mode goes fullscreen with arrow
+keys.
+
+
+Testing the PDF toolchain first, since that's the part that can fail.
+
+
+Toolchain works. Writing the concept brief.
+
+
+The page objects are in a compressed stream. Let me look at the actual rendered
+pages.
+
+
+The PDF is clean — two-pass build, no warnings, tables and TOC intact. Now the
+deck.
+
+
+All three delivered.
+
+
+**Presentation** —
+https://claude.ai/code/artifact/c19b2a76-b2b6-4de2-a748-787ab6767984
+
+
+Ten sheets with speaker notes below each one. Hit **Present** (or press `p`) for
+fullscreen with arrow-key navigation; Esc comes back. **Invert** flips the
+theme.
+
+
+The design borrows from the project's own world rather than from deck
+conventions — sheets in a drawing set, each with a title block along the
+bottom carrying its sheet number and a *derived, not measured* stamp. Dimension
+callouts use the square-bracket notation the blueprints already use. Copper for
+the accent because that's what the laminae and the sixteen million conductors
+are made of; coolant teal as the second. Slide text is set in Archivo, speaker
+notes in a serif — one is projected, the other is read, and they shouldn't
+look alike.
+
+
+The notes aren't a restatement of the sheet. They carry timing, what to skip,
+which two of six examples to actually use, and the challenge I'd expect at each
+point with the answer — including "checking internal consistency isn't the
+same as being right," which is the strongest objection to sheet 07 and the one
+to concede fast.
+
+
+**PDF** — `six-sided-dice-layer-cake-concept.pdf` in the project root, with
+its source beside it as `concept-brief-source.md`. Six pages via pandoc and
+tectonic, clean two-pass build, contents page and spec tables. It's the
+leave-behind: same argument as the deck but written to be read alone.
+
+
+Every figure in both came out of the ledger during this session — I pulled
+them with a query rather than typing them, which is the project's own rule and
+also the only way I'd trust them. The two comparison ratios are the design's own
+model, and I've said so on the sheet, in the notes, in the colophon, and in the
+brief.
+
+
+Two things I want to flag rather than bury:
+
+
+The deck opens on the trade and closes on asking for an engineering review
+instead of a fab run. Both are deliberate — a room braced for a nine-figure
+request and offered a specialist's reading time takes the proposition more
+seriously. If you'd rather it built toward a larger ask, that's a real change to
+sheets 01 and 10 and I'd want to make it properly rather than patch it.
+
+
+Sheet 09 is unhedged on purpose: nothing fabricated, no price, yield exposed,
+two decisions open. I'd argue against softening it — volunteering the
+weaknesses is what buys credibility for the 566, and a room that has to extract
+the risks stops believing the strengths.
+
+
+Want the two files committed, and should the brief live in `docs/` with a proper
+index number and a table-of-contents entry?
 
 
 --------------------------------------------------------------------------------
