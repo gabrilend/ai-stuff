@@ -1,6 +1,6 @@
 # Conversation Summary: 5b030864-1533-4a31-8439-f04e237f1316
 
-Generated on: 2026-08-28 21:45:35
+Generated on: 2026-08-28 23:07:51
 
 --------------------------------------------------------------------------------
 
@@ -2702,6 +2702,381 @@ I can't move it up without:
 ! touch /tmp/claude-allow-cwd-change
 
 ```
+
+
+--------------------------------------------------------------------------------
+
+### User Request 6
+
+  Not a tree with a root. A flat list of quadrants: four for the ordinary city,
+  plus four for each megastructure, plus land beyond the wall that has no
+  quadrant at all. If those five
+
+  structures hold, that's four plus twenty — around twenty-four quadrants,
+  none of them nested inside anything.
+
+
+well, each one would be nested within it's own group, of course.
+
+
+  And the token, still outstanding — the working directory is in docs/ and I
+  can't move it up without:
+
+
+  ! touch /tmp/claude-allow-cwd-change
+
+
+
+token is there. Because of your indiscretion, be sure to update the
+llm-transcripts and actually go into the claude-code transcript and point it at
+the right location by renaming and correcting. Make sure we test to ensure that
+it stays. Not sure how, I guess we'll get to a breaking point (since you messed
+it up so badly) and then restart when we can guarantee that it's right?
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 6
+
+Token received — moving the directory back first, before anything else touches
+the filesystem.
+
+
+Directory restored and the token was consumed. But note it resolved as
+`/home/ritz/...`, not `/mnt/mtwo/...` — let me check whether that's a symlink,
+because transcript directories are keyed by path string.
+
+
+Good — `/home/ritz` is a symlink to `/mnt/mtwo`, so there's only one
+transcript store, not two. Now finding what my directory changes scattered.
+
+
+Only one enheim-tome transcript directory, and no stray `-docs` or repo-root one
+— Claude Code keyed the transcript to the session's project, not the wandering
+shell. Let me confirm my session is in it.
+
+
+My session file is in the right place and still being written to — the Claude
+Code transcript was never displaced. Now checking whether the backup script
+scattered anything.
+
+
+No stray directories, and `docs/` is clean. Let me read the backup script to
+confirm it's cwd-independent rather than just lucky.
+
+
+Found the mechanism — the script defaults `DIR` to `$(pwd)`, and it runs
+`mkdir -p` on the transcript directory *before* checking the project exists. So
+a wrong working directory would have created `docs/llm-transcripts/`. Let me see
+what actually happened.
+
+
+The log settles it: the hook ran with `DIR` at the **project root**, not
+`docs/`. My shell's wandering directory never reached it — hooks run from
+Claude Code's own working directory, not the Bash tool's. Nothing was scattered.
+
+
+But the exporter has been renaming files underneath the commit I made. Let me
+look.
+
+
+`assets/vision-map.png` shows as deleted, and there's an `inspiration-pictures/`
+directory I didn't create. Checking before I touch anything.
+
+
+The `assets/` directory didn't vanish — **you renamed it to
+`inspiration-pictures/`** at 18:23 and added a second image. Let me look at that
+before I touch any references.
+
+
+That's not another copy of the painting — it's a **different kind of map
+entirely**, and it changes a lot. I'll come to it. First, the things you asked
+me to check.
+
+
+## The transcript investigation — no damage, and here's why
+
+
+I expected to find scattered files and didn't. The backup script does default
+its target to the current directory, and it runs `mkdir -p` *before* checking
+the project exists, so a wrong directory genuinely would have created
+`docs/llm-transcripts/`. It didn't, and the log says why:
+
+
+```
+
+Extracting transcripts from /home/ritz/.claude/projects/-mnt-mtwo-...-games-enheim-tome
+
+                        to /mnt/mtwo/programming/ai-stuff/games/enheim-tome/llm-transcripts
+
+```
+
+
+The project root, every time. **Hooks run from Claude Code's own working
+directory, not from the Bash tool's shell.** My `cd` moved the shell I type
+into; it never reached the process that runs the Stop hook. There is exactly one
+enheim-tome project directory, no `-docs` variant, no repo-root variant, and
+your session file is sitting in the right one still being written to.
+
+
+So the harm was real but narrower than you'd expect: your status line said
+`docs` instead of `enheim-tome`. Nothing was misfiled. I'd rather tell you that
+than invent a repair.
+
+
+**What does need correcting** is a rename the exporter did on its own. It
+re-derives every filename each run and enforces the result — that's its stated
+naming-authority rule — and since this session now spans two days it renamed
+`aug-28-26.md` to `aug-28-26-through-aug-29-26.md`. Git still has the old name,
+so it shows as a deletion plus an untracked file. There's also a second
+session's `aug-29-26.md` that has never been committed.
+
+
+## Your changes, which I won't touch without asking
+
+
+You renamed `assets/` to `inspiration-pictures/` and put a second image in it.
+Git currently reads that as the painting having been deleted, and every document
+I wrote points at `assets/vision-map.png` — so both the rename and the
+references need settling together, not separately.
+
+
+## The second map is orthographic, and that undoes a lot of my analysis
+
+
+The painting is an oblique aerial view with a horizon, which is why the
+documents say the game can never claim a distance, why fences carry the
+perspective for free, and why the cage fades on each block's own on-screen size.
+
+
+`vision-map-2` is **top-down**. Same city — river confluence, ring wall, three
+great masses — drawn flat, at 2518×2400. Which means:
+
+
+- **scale is uniform**, so distances and areas become honest and the no-radius
+  rule stops being necessary
+
+- **streets are cleanly delineated**, so tracing gets dramatically easier
+
+- **districts are already named and bounded** — Northside, Duskside,
+  Crosswater, Fineisle, Old City, Sunshore, Old Harbour, War Port, Mudside,
+  Newtown, Ritterside, Blackbarrow — with named gates between them
+
+- it **already has text on it**, which is the one thing the map was forbidden
+
+
+It also fits your quadrant description better: I can see the raised rocky
+enclaves and circular complexes as distinct masses, which is what
+megastructures-as-their-own-groups would mean.
+
+
+And you're right about the nesting — each quadrant sits in its own group, the
+four city quadrants under the city and each megastructure's four under that
+structure. What has no parent is the *groups*, not the quadrants. A forest of
+groups, not a forest of quadrants.
+
+
+**[Asked the user]**
+
+
+*Q1 — The board:* Which image is the actual game board? This decides whether
+about half of what I wrote this morning survives.
+
+- The flat labelled map is the board — The painting becomes reference for
+  atmosphere; the game is played over the top-down map. Distances become honest,
+  tracing gets far easier, and districts arrive pre-named. Cost: the documents
+  on perspective, pixel-only coordinates, and no-radius influence are all
+  rewritten, and the map already carries text — so either the no-text rule
+  goes, or the labels get covered.
+
+- The painting is still the board — The flat map is a reference for street
+  layout and names, and the game is still played over the perspective painting.
+  Everything written this morning stands. Cost: you keep the hard version —
+  non-uniform scale, no distances, and tracing streets out of a picture where
+  the far side of the city is smaller than the near side.
+
+- Both are reference; the real board comes later — Which is what renaming
+  assets to inspiration-pictures suggests — nothing in there is a shipping
+  asset. The board is drawn or commissioned once the design settles. Cost:
+  nothing can be traced yet, so the tracing tool has no subject and phase 2
+  onward is blocked on artwork.
+
+→ **Answered:** we want to do both eventually but let's focus on the painting
+for now. The flat board should map to the painting exactly.
+
+
+*Q2 — Directories:* Should the project keep an assets directory at all,
+separate from the reference pictures?
+
+- Both — inspiration is not ours, assets are — inspiration-pictures/ holds
+  reference that the program never reads and that probably isn't ours to ship,
+  with a notice saying so; assets/ holds what the game actually loads. This is
+  exactly how hero-less-moba splits it. Cost: nothing is in assets yet, so it
+  sits empty for a while.
+
+- Just inspiration-pictures, for now — One directory until there's something
+  to ship. I update every document to point there and drop the assets
+  references. Cost: the moment a real asset exists, the split has to happen
+  anyway and the documents change again.
+
+- Rename it back to assets — The pictures are what the game loads, so they are
+  assets, and inspiration-pictures was a slip. Cost: loses the distinction
+  between reference you don't own and material you do, which matters if any of
+  this is ever published.
+
+→ **Answered:** these aren't our assets, they're just inspiration. I'd love to
+be able to use them, but we'll see. Can't steal artists work.". Read the answers
+carefully — they may request clarification, changes, or that you not proceed
+— and follow what they actually say.
+
+
+Both eventually, painting first, and the flat one must register with it exactly.
+And these aren't yours to ship — that's an important constraint I'll record
+rather than let drift. Let me look at how you handled the same problem in
+hero-less-moba.
+
+
+Now the test you asked for — something that verifies transcripts land where
+they belong, so a wandering directory can't quietly misfile one again.
+
+
+56 findings is almost certainly the validator being wrong, not your archive. Let
+me check before I report it as a result.
+
+
+No `-home-ritz` keys, so that's not it — those projects genuinely have no
+session records left. Their raw conversations were cleaned up long ago; the
+exported transcripts outliving them is the *point* of exporting, not a fault. My
+check was wrong. Rewriting it to test the thing that actually matters.
+
+
+"0 checked against a live record" is wrong — this very session has one. A bug
+in how I build the index; the `sed` is eating the separator.
+
+
+Confirmed — `s|\.jsonl ||` swallows the space, gluing the id to the path so
+every lookup misses.
+
+
+Now it works — and it found exactly one real misfiling, from July, unrelated
+to today. Let me confirm this session passes as a positive control.
+
+
+Positive control passes — this session's transcript is correctly filed. Now
+let me find what the rename broke before committing it.
+
+
+Nine references to fix. Since you said these aren't your assets — implying
+your own material would be — I'll keep `assets/` for the project's own files
+and point the painting at the reference directory as a documented stand-in.
+
+
+`assets/fences` and the sun-path table are correct as-is — those are the
+project's own material. Just the table of contents tree left.
+
+
+The gate caught me — that's the habit, exactly as advertised. Same check
+without moving:
+
+
+All links resolve. Now committing — the tooling and the project separately,
+since they're different concerns.
+
+
+Everything's committed and the tree is clean. Here's what actually happened
+versus what you expected.
+
+
+## The transcripts were never misfiled
+
+
+I went looking for damage and didn't find any. The backup script *does* default
+its target to the current directory, and it runs `mkdir -p` before checking
+anything, so a wrong directory genuinely would have created
+`docs/llm-transcripts/`. The log shows it ran against the project root every
+single time.
+
+
+The reason: **hooks run from Claude Code's own working directory, not the Bash
+tool's shell.** My `cd` moved the shell I type into; it never reached the
+process running the Stop hook. One enheim-tome sessions directory exists, no
+`-docs` variant, and your session file is in it still being written. The whole
+harm was your status line reading `docs`.
+
+
+What *did* need correcting was a rename the exporter made on its own — this
+conversation crossed midnight, so `aug-28-26.md` became
+`aug-28-26-through-aug-29-26.md` and git still had the old name. Both names are
+in history now, along with a second session's transcript that had never been
+committed.
+
+
+## The test, and the fact that it was wrong first
+
+
+`scripts/check-transcripts-are-filed-right` walks every project and checks each
+exported conversation against where its raw record actually lives.
+
+
+Its first version reported **56 problems, all of them false**. It treated "the
+raw record no longer exists" as misfiling — when outliving the raw record is
+the entire reason exports exist. A check that cries wolf 56 times gets ignored,
+and then the one real finding goes with it. Corrected, it now reports:
+
+
+```
+
+31 projects, 49 transcripts checked against a live record,
+
+212 older than any surviving record (kept, and the reason exporting exists).
+
+1 transcript(s) filed under the wrong project.
+
+```
+
+
+That one is real and predates today: `jul-15-26.md` in **filesystem-tapestry**,
+whose conversation is recorded under `-mnt-cmdo-ritz-my-recorded-videos`. I've
+left it alone — the exporter is the sole naming authority by its own stated
+rule, and moving it by hand would just get overruled next run. Your call what to
+do with it.
+
+
+This session passes as a positive control: its transcript names `5b030864…`
+and that record is in the enheim-tome directory.
+
+
+## Your directory rename, followed through
+
+
+`assets/` → `inspiration-pictures/` is recorded as a rename, so both versions
+are in history. I wrote a `NOTICE.md` beside the images modelled on the one in
+hero-less-moba, and restored an empty `assets/` for material that genuinely is
+yours — the fence network, the catalogue tables, eventually a map nobody has
+to apologise for. Nine stale path references across the documents now point
+correctly.
+
+
+The notice states the consequence plainly rather than leaving it to be found
+later: **the board is a stand-in and cannot ship.** That costs less than it
+sounds, because nothing in the design depends on *this* painting — only on
+there being one, in perspective, of a city with streets. What would be lost is
+the tracing, and only the tracing. Which is an argument for finishing the
+tracing tool before starting the long campaign, and that's already the order in
+the roadmap.
+
+
+## Two things outstanding
+
+
+**The gate works** — it caught me mid-cleanup when I reflexively typed `cd
+.../docs && grep`. Exactly the habit it exists for.
+
+
+**The documents still need their rewrite.** Now sixteen things: everything from
+before, plus quadrants nesting in their groups rather than being a flat list —
+you were right, what has no parent is the groups, not the quadrants. Say when
+and I'll do it properly rather than patching.
 
 
 --------------------------------------------------------------------------------
