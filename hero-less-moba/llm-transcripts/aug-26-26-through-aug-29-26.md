@@ -1,6 +1,6 @@
 # Conversation Summary: b3c0db53-4db1-4ae3-8200-fb023520ebb8
 
-Generated on: 2026-08-28 17:34:22
+Generated on: 2026-08-28 21:09:51
 
 --------------------------------------------------------------------------------
 
@@ -2730,6 +2730,266 @@ follows the same line — the road has a character. The alternative is
 re-rolling per wave, so each wave takes its own line and the ground has none.
 Yours is the deciding vote; I built the first because "zones that the waypoints
 rest within" reads that way and it's what keeps the opening a mirror.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 11
+
+  There is none. No search, ever. The ground is a graph; a road is an ordered
+  list of node ids; a body's real position is two numbers — how far along the
+  road and how far across it — and its x/y are recomputed from those every
+  move pass. That's why the replay correction did nothing
+
+  when it wrote x/y: they're scratch.
+
+
+I see~! so we check units within range (personal space bubble + activity
+distance - compaction_percentage) and if they're too close, we update our
+intended vector to away from the pressure? Tell me about how the archers
+orbiting works - searching for a flank, stopping when they have LoS, resuming
+when they don't, on any nearby target, which they only check if their original
+target goes out of view or they have a special "hawkeye" trait or perk that lets
+them target more than 1 target at a time, alternating between them
+
+
+can you describe the formation code to me?
+
+
+let's say the waypoint zones are split into three, and when marching down a lane
+(until an enemy is in sight) we pick one of the three columns and stick to that.
+So if we start on the left side, we tend to stay there. But we select a
+destination randomly from within there. The size of the zone should be
+dynamically calculated for each unit that is moving into it, with it's edges
+farther from the edge of the battlefield by a number of metres equal to the
+radius of the formation. Some formations are wider than others, for example if
+they have more troops - this is why it's imperative that the formation circle be
+resizable.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 11
+
+Let me read the actual code before describing any of it.
+
+
+Now I have the full picture. Let me answer your three questions from the code,
+then build the new design.
+
+
+## 1. Pressure and personal space — no, there's no repulsion vector
+
+
+There is no steering-away. It's a **hard stop**, not a push.
+
+
+`blocked()` asks one question: is there a **friendly** body, in my lane, within
+one personal space, that is *ahead of me along the road* **and** within one
+personal space *sideways*? If yes, the body doesn't move at all this tick. It
+doesn't slow, doesn't sidestep, doesn't get displaced.
+
+
+Three details that matter:
+
+
+- **Only friends block.** An enemy in the way isn't an obstacle, it's a target
+  — targeting already had its say before this is asked.
+
+- **"Ahead" means ahead *in my file*.** A body one rank forward and two files
+  over is *beside* me, not in front. Without that clause a rank could never form
+  at all — everyone would block everyone.
+
+- **Ranged bodies keep a bubble 0.6× the size.** They're not queueing for a
+  place at the front, just not standing inside a friend.
+
+
+And the part that surprised me when I re-read it: **marching bodies don't
+queue.** A body walking in formation goes through `step_in_formation`, which
+never asks `blocked`. The queue is a *charging* phenomenon — it only appears
+once bodies break formation to close on something, plus guards, who walk the
+graph directly. There's no compaction percentage and no activity distance
+anywhere.
+
+
+## 2. Archer orbiting — mostly not what you described
+
+
+**There is no line of sight in this game.** Nothing occludes anything, anywhere.
+So the stop-when-you-have-LoS / resume-when-you-don't loop doesn't exist and
+would be a new system.
+
+
+What orbiting actually is:
+
+
+- **Gated on the wave being engaged**, not on the archer having nothing to
+  shoot. An archer three hundred paces down an empty road just marches. Without
+  that gate every archer orbits from the moment it leaves the library — which
+  isn't keeping station, it's refusing to march, and it pulls the formation
+  apart before it meets anyone.
+
+- **The side is picked once and committed.** Whichever side of the road's centre
+  it's already on; dead centre goes left, arbitrarily but deterministically so
+  two mirrored bodies don't drift into each other. It holds that until its
+  *milestone* changes. That's a commitment, not a search for a flank.
+
+- **It anchors on the friendly line, not the enemy.** It walks out to the road's
+  shoulder. When the line moves, the orbit moves with it — no separate retreat
+  rule.
+
+
+Targeting has four rules and none involve visibility: whoever is already hitting
+me → the lowest-health enemy in acquisition range → a structure already
+inside weapon range → nothing. A body **keeps its target until that target
+dies** (generation-checked); it never re-evaluates for a better one. No hawkeye,
+no multi-target, no alternating.
+
+
+Your description is a design, and a good one — but it needs a visibility
+system underneath it, which is the expensive part.
+
+
+## 3. The formation code
+
+
+Now the implementation — the three columns, and a radius that belongs to the
+formation rather than the road.
+
+
+Now the live radius, computed from the bodies actually present rather than from
+the road.
+
+
+My splice cut the exports at the bottom along with the waypoint functions.
+
+
+Three failures, and two of them point at the same real problem: a shared stream
+means a wave's wander depends on which *other* wave crossed a boundary first.
+
+
+Now the two tests that measure absolute position where they mean formation
+shape.
+
+
+The remaining mismatch is in the *along* direction — wandering costs forward
+progress, so two waves that picked different columns are at different distances
+after 40 ticks of walking. That's the test measuring simulation, not setup.
+
+
+The sandbox builds its world by hand and doesn't hang the streams module on it.
+
+
+All green. Let me look at what the columns actually do.
+
+
+Waves take different columns and hold them. Now let me assert that in the
+sandbox, plus the dynamic radius.
+
+
+The outer file has bodies on both sides and in several ranks — removing one
+leaves the rest. Stripping the whole file is the honest test.
+
+
+Now the documents, and H9 gets its answer.
+
+
+Now the description you asked for.
+
+
+## The formation code, 620 lines
+
+
+**Two numbers per body, fixed at birth.** `slot_along` — negative, how many
+ranks behind the front — and `slot_across` — which file. Neither ever
+changes. `assign_wave_slots` computes them once: melee get `rank = index /
+files`, `file = index % files`; ranged start behind all the melee ranks *plus a
+gap*, so they shoot over the line rather than standing in the back of it.
+
+
+**`file_offset` has a trick in it.** Positions are laid out evenly and centred
+on the road, but *handed out from the middle outward*. So the captain — always
+given the first place — stands in the centre, and a rank that isn't full is
+short **at its edges** rather than in its middle. A thinning line looks like a
+thinning line.
+
+
+**Where a body's place currently is** is `target_of`: `anchor + slot_along ×
+facing` along, and `slot_across + across_offset + wander` across. Three things
+add sideways — its place in the rank, the shift that stands it abreast of two
+other formations during a challenge, and the wander. They add rather than
+override: a wave funnelled into the middle still wanders, and a wandering wave
+still keeps its place in the three.
+
+
+**Once a tick, `plan` runs before the brain** and does two things per wave.
+
+
+`advance_anchor` asks whether anything hostile is within contact range of the
+**front** — deliberately the front, because a wave that stopped when its
+middle reached the enemy would have walked half of itself through them. If so it
+stops. Otherwise the anchor moves forward by the wave's pace, and the
+zone/column/wander update.
+
+
+`share_out_speed` is the conserved cohesion budget, and it's the cleverest thing
+in the file. For each *marching* body, lag = how far behind its place it is.
+Bodies more than three ranks off are dropped from the budget entirely —
+they're **rejoining**, not out of position, and averaging them in would tell
+every body standing correctly that it was badly out of place. Then the wave's
+**mean** lag is subtracted, and each body's multiplier comes from its
+**deviation** from that mean.
+
+
+Because deviations sum to zero by construction, the speed handed out equals the
+speed given up — **exactly, without anybody counting**. Conservation is
+structural rather than arithmetic somebody has to remember to balance. The
+clamps at either end are allowed to break it and are supposed to;
+`speed_balance` records by how much, so a *systematic* drift would show.
+
+
+The mean matters as much as the deviation: a wave whose every member is behind
+isn't out of formation, it's a wave whose anchor got ahead of it, and speeding
+all of them up would be a wave that accelerates for no reason.
+
+
+## Your design, built
+
+
+- **Three columns per road.** A wave picks one on its way out and holds it.
+  Measured: waves take 11 left / 7 centre / 6 right across a match, and the
+  sandbox now asserts a wave never leaves the column it chose.
+
+- **Destination drawn randomly inside the column**, fresh each stretch. The
+  column is the decision; the draw inside it is the imprecision.
+
+- **The circle is resizable.** Room is half the road less **that wave's own**
+  radius, recomputed every tick from the bodies present — measured from their
+  *places*, not positions, since a body knocked out of file by a corner isn't
+  evidence the formation grew. Stripping a wave's outer file makes its circle
+  smaller, and there's a test for it.
+
+
+Two things I had to change that you should know about:
+
+
+**Each wave now draws from its own stream**, not a shared one. A shared stream
+is advanced by whichever wave hits a boundary first, so a wave's route depended
+on how many *other* waves were walking. That turns the wander into an amplifier
+for any difference between two machines — it showed up as the replay's
+corrections making a drifted world *worse*.
+
+
+**The opening-is-a-mirror check was wrong**, twice. It compared where bodies had
+*got to* 40 ticks in. Waves pick different columns, and wandering costs forward
+progress, so mirrored waves legitimately end up at different places. It now
+compares what a wave was *built* with — same types, roads, ranks and files —
+which can't be changed by walking.
+
+
+**Not yet built:** 211c (the formation as an oriented disc facing the enemy's
+frontline), 211d (marching vs running speed), 212 (the will save). Tests: 82
+invariants, 16 sandbox, 0 documentation problems.
 
 
 --------------------------------------------------------------------------------

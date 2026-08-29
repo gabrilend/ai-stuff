@@ -73,10 +73,65 @@ local FILE_SPACING = 22
 
 -- How much of the lane's width the marching formation uses. Less than all of it,
 
--- How hard a body out of place corrects, and the span over which the correction
--- reaches full strength. Gain is unitless; scale is in paces.
-local COHESION_GAIN = 0.9
-local COHESION_SCALE = 34
+-- **The three speeds, as multiples of a body's own pace.**
+--
+-- A body is in a gear rather than on a dial. The version this replaces scaled a
+-- body's speed smoothly with how far behind its place it stood, and a formation of
+-- those never settles -- everybody always slightly correcting, each at a slightly
+-- different rate, so the line breathes instead of marching. It is also unmeasurable:
+-- "how fast is that soldier going" has a different answer for every soldier and every
+-- tick, so nothing about it can be compared to anything.
+--
+--   walking   giving way, for a body that has got ahead of its place
+--   marching  the pace, and the catching-up pace -- both, deliberately, because a
+--             body that is where it should be and a body hurrying to get there are
+--             doing the same thing at the same speed. What differs is who is
+--             *slowing*, and that is what shares the budget out.
+--   running   leaving, and nothing else. Not built here: it belongs to a body that
+--             has been beaten and is getting out, which is issue 212.
+--
+-- The increments are proportional to a body's own speed rather than absolute, so a
+-- slow body's gears are close together and a fast one's are far apart -- a gear is a
+-- fraction of what that body can do, not a number of paces somebody chose.
+local WALKING = 0.70
+local MARCHING = 1.00
+
+-- How far out of place a body has to be before it changes gear, in paces.
+--
+-- A dead band, and it is the whole of what keeps this from feeling hesitant. Without
+-- it a body a hair ahead of its place drops into walking, arrives a hair behind, goes
+-- back to marching, and does that every tick forever.
+-- Measured rather than chosen. The two things it trades off pull opposite ways, and
+-- the sandbox prints both every run so the equilibrium can be found rather than
+-- guessed at:
+--
+--   band   line bends   gear changes per hundred body-ticks
+--   0.5      4.8          17.3      -- about once every six ticks. Chatter.
+--   1.0     11.8           9.4
+--   2.0     13.7           5.4      -- about one and a half times a second
+--   3.0     20.7           3.7
+--   5.0     24.8           0.9      -- steady, and the line is nearly a rank out
+--
+-- Two is the knee. Below it the line is barely tidier and bodies start switching
+-- several times a second, which is the hesitancy this is here to prevent; above it
+-- the shape goes and the gears stop doing anything at all on a bend.
+local GEAR_CHANGE = 2
+
+-- How far the formation may fall behind its own front before the front stops and
+-- waits for it, in paces.
+--
+-- **This is what replaces hurrying.** With a dial, a body behind its place was given
+-- extra speed out of a budget taken from the bodies ahead of it. With gears, nothing
+-- exceeds marching pace -- so a body on the outside of a bend, which has further to
+-- walk than a body on the inside, simply cannot keep up, and the line would stretch
+-- for as long as the turn lasted.
+--
+-- So the front waits. Which is what a real body of troops does going round a corner:
+-- it does not ask the outside rank to run, it slows the whole march until the line is
+-- dressed again. Half a rank of stretch is the tolerance, which is loose enough that
+-- an ordinary march never touches it and tight enough that a turn cannot pull the
+-- formation into a column.
+local ANCHOR_PATIENCE = RANK_SPACING * 0.5
 
 -- How far behind its place a body can be and still be **in** the formation.
 --
@@ -92,9 +147,10 @@ local COHESION_SCALE = 34
 -- not silently redefine what counts as having fallen out of it.
 local REJOIN_DISTANCE = RANK_SPACING * 3
 
--- The most and least a body's speed may be scaled to. A straggler that could
--- sprint would catch up in a way that reads as teleporting; a leader that could
--- stop dead would be overtaken by its own second rank.
+-- What the gears used to be clamped between, when a body's speed was a dial. Nothing
+-- reads them for movement now -- there are two gears and neither can leave its own
+-- range -- and they are kept because the tests measure the budget's imbalance against
+-- what one body's worth of clamping can produce, and that is still the question.
 local SPEED_CEILING = 1.55
 local SPEED_FLOOR = 0.55
 
@@ -268,34 +324,114 @@ end
 function M.assign_wave_slots(world, id, lane, role_index, role, melee_total)
   local soldier = world.soldier
   local files = M.files_for(lane)
+  local half_width = (files - 1) * 0.5 * FILE_SPACING
 
-  local rank, file
+  local forward, sideways
   if role == "front" then
-    rank = math.floor(role_index / files)
-    file = role_index % files
+    -- The line. Ranks across the face, filled from the middle of the arc outward,
+    -- so a rank that is not full is short **at its ends** rather than in its middle.
+    -- That is what a thinning line looks like, and it also keeps the captain -- which
+    -- is always given the first place -- on the bearing straight ahead, where it is
+    -- both most useful and most visible.
+    local rank = math.floor(role_index / files)
+    local file = role_index % files
+    forward = -rank * RANK_SPACING
+    sideways = M.file_offset(files, file)
   else
-    -- Ranged start behind however many ranks the melee will occupy, plus a gap so
-    -- they are shooting over the line rather than standing in the back of it.
-    local melee_ranks = math.ceil(melee_total / files)
-    rank = melee_ranks + 1 + math.floor(role_index / files)
-    file = role_index % files
+    -- **The shoulders, not the back.**
+    --
+    -- These stood directly behind the line, in the same files, one gap further back,
+    -- on the reasoning that they were shooting over it. They cannot shoot over it.
+    -- Only artillery does that -- a longbow lofting across a glen -- and a body with
+    -- a javelin or a sling is shooting **around**, which means it needs a bearing to
+    -- its target that does not pass through a friend.
+    --
+    -- So they stand at the **shoulders**: behind the last rank of the line and out at
+    -- its ends, on a bearing of about five-eighths of a turn from dead ahead. From
+    -- there the line is diagonally in front of them rather than squarely so, and
+    -- anything they want to shoot that is not directly up the middle has a clear
+    -- bearing past it. Alternating sides, so a wave with two has one on each shoulder
+    -- rather than both on the left.
+    --
+    -- **This is a placement, not a guarantee.** There is no line-of-fire check in this
+    -- game -- nothing occludes anything, and a shot is a distance and a cooldown. So
+    -- standing them where their line is clearest is the whole of the mechanism, and
+    -- it is worth knowing that it is a shape rather than a rule.
+    --
+    -- The formation gets no wider for it. They occupy the outermost file rather than
+    -- a new one, which matters because a road's width is derived from how wide the
+    -- formation walking it is -- widening the shape here would widen every road in
+    -- the game.
+    local side = (role_index % 2 == 0) and 1 or -1
+    local depth_index = math.floor(role_index / 2)
+    -- Behind the last rank of the line, at its **ends**. Not in the line: the outer
+    -- file of every rank is already occupied by somebody holding it, and a place is
+    -- not a place if somebody is standing in it.
+    local line_ranks = math.ceil(melee_total / files)
+    forward = -(line_ranks + depth_index) * RANK_SPACING
+    sideways = side * half_width
   end
 
-  soldier.slot_along[id] = -rank * RANK_SPACING
-  soldier.slot_across[id] = M.file_offset(files, file)
+  -- The offsets from the front of the formation, which is what the movement works
+  -- in. The bearing and distance from its **centre** -- the description everything
+  -- angular is asked of -- are written by `settle_the_disc` once the whole wave has
+  -- been placed, because where the centre is depends on how deep the formation
+  -- turned out to be, and that is not known until the last body has a place.
+  soldier.slot_along[id] = forward
+  soldier.slot_across[id] = sideways
 
   -- How deep the formation reaches behind its anchor, kept as bodies are given
   -- places rather than measured afterwards. The anchor is the **front** of a wave,
   -- and the question "which zone is this formation in" is about its middle, which is
   -- half of this behind the front.
   --
-  -- Accumulated rather than computed from the member count, because the rear rank is
-  -- the ranged one and how far back that sits depends on how many melee there were.
+  -- Accumulated rather than computed from the member count, because the bodies on the
+  -- shoulders sit further back than the line does and how far depends on how many
+  -- there are.
   local wave = world.wave[soldier.wave[id]]
   if wave ~= nil then
-    local reach = rank * RANK_SPACING
+    local reach = -forward
     if wave.depth == nil or reach > wave.depth then
       wave.depth = reach
+    end
+  end
+end
+-- }}}
+
+-- {{{ function M.settle_the_disc()
+-- Writes every body's **bearing and distance from the formation's centre**, once the
+-- whole formation has been placed.
+--
+-- Polar because the questions asked about a place are angular ones. Can this body
+-- shoot past that one. Is it on the flank or in the middle where the heavy troops
+-- belong. Which way should it face. Every one of those is a bearing with a distance
+-- attached, and none of them is a row and a column.
+--
+-- **After the wave is built, not during.** A circle has a centre and does not have a
+-- front, so a bearing has to be measured from the middle -- and where the middle is
+-- depends on how deep the formation turned out to be, which is not known until the
+-- last body has been given somewhere to stand. Computed body by body as they were
+-- born, every bearing came out measured from a centre that was still moving, and the
+-- front rank came out at a quarter turn from dead ahead, which is where the flanks
+-- are.
+--
+-- Bearings run from 0 dead ahead, through a quarter turn at the flanks, to half a
+-- turn at the rear. The sign is which side.
+function M.settle_the_disc(world, wave_id)
+  local soldier = world.soldier
+  local wave = world.wave[wave_id]
+  if wave == nil then
+    return
+  end
+  -- The centre sits half the formation's depth behind its front.
+  local middle = -(wave.depth or 0) * 0.5
+
+  for id = 1, world.high_water do
+    if soldier.wave[id] == wave_id then
+      local forward = soldier.slot_along[id] - middle
+      local sideways = soldier.slot_across[id]
+      soldier.slot_bearing[id] = math.atan2(sideways, forward)
+      soldier.slot_distance[id] = math.sqrt(forward * forward + sideways * sideways)
     end
   end
 end
@@ -462,6 +598,17 @@ local function advance_anchor(world, wave)
   -- wave moves at a captain's speed whether or not its captain is still alive --
   -- a wave that sped up when its captain died would be a wave rewarded for losing
   -- the most valuable thing in it.
+  --
+  -- **And it waits when the formation is stretched.** Nothing goes faster than
+  -- marching pace, so a body on the outside of a bend cannot make up the extra ground
+  -- by hurrying -- the front has to stop asking for it. Read from last tick's
+  -- measurement, which is a tick of latency and invisible at a tenth of a pace.
+  if (wave.mean_lag or 0) > ANCHOR_PATIENCE then
+    wave.waiting = 1
+    return
+  end
+  wave.waiting = 0
+
   wave.anchor = wave.anchor + wave.pace * facing
   if wave.anchor < 0 then wave.anchor = 0 end
   if wave.anchor > lane.length then wave.anchor = lane.length end
@@ -532,14 +679,37 @@ local function share_out_speed(world, wave, members, count)
 
   members, count = marching, marching_count
   local mean = sum / count
+  -- Published so the anchor can read it next tick and wait if the formation has been
+  -- pulled out of shape. Positive means the wave as a whole is behind its own front.
+  wave.mean_lag = mean
 
   local handed_out = 0
   for index = 1, count do
     local id = members[index]
     local deviation = wave.lag_of[id] - mean
-    local scale = 1 + COHESION_GAIN * (deviation / COHESION_SCALE)
-    if scale > SPEED_CEILING then scale = SPEED_CEILING end
-    if scale < SPEED_FLOOR then scale = SPEED_FLOOR end
+
+    -- **A body is in a gear, not on a dial.**
+    --
+    -- This was a continuous multiplier -- a body's speed scaled smoothly with how far
+    -- behind its place it was -- and a formation of them never settles: everybody is
+    -- always slightly correcting, at a slightly different rate, and the line breathes
+    -- rather than marches. It also cannot be measured, because "how fast is that
+    -- soldier going" has a different answer for every soldier and every tick.
+    --
+    -- So there are three speeds and a body is in one of them:
+    --
+    --   walking   giving way. A body ahead of its place, letting the line catch up.
+    --   marching  the pace, and the catching-up pace: what a body does when it is
+    --             where it should be, and what it does to get back there.
+    --   running   leaving. Nothing running is in a formation any more -- see 212.
+    --
+    -- Which one is a question about the deviation, asked with a dead band around
+    -- zero so that a body standing very nearly right does not switch gear every tick
+    -- over a fraction of a pace. The band is the hesitancy this replaces.
+    local scale = MARCHING
+    if deviation < -GEAR_CHANGE then
+      scale = WALKING
+    end
     soldier.speed_scale[id] = scale
     handed_out = handed_out + scale
   end
@@ -617,6 +787,8 @@ end
 M.RANK_SPACING = RANK_SPACING
 M.FILE_SPACING = FILE_SPACING
 M.CONTACT_RANGE = CONTACT_RANGE
+M.WALKING = WALKING
+M.MARCHING = MARCHING
 M.SPEED_CEILING = SPEED_CEILING
 M.SPEED_FLOOR = SPEED_FLOOR
 
