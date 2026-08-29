@@ -23,6 +23,10 @@ which is a stream rather than a wave and has no formation at all.
 | `files_for(lane)` | | How many bodies stand abreast marching down this lane. |
 | `file_offset(files, file)` | | Where the nth body in a rank stands across the lane. |
 | `side_of_line(world, id)` | | −1, 0 or +1 — which side of the lane a body is on. |
+| `radius_of(lane)` | | Half the width of a rank walking it. |
+| `abreast_offset(map, from_lane, centre_lane)` | | Where a wave raised for one lane stands, across the lane it is walking. |
+| `lay_out_the_waypoints(world)` | | — One offset per zone per lane, drawn once at assembly. |
+| `waypoint_across(world, lane_id, zone)` | | How far off the centre line that zone's waypoint sits. |
 
 ## Held in lane coordinates, which is why a rank survives a corner
 
@@ -90,12 +94,17 @@ is what a thinning line should look like.
 
 `files_for` reads it, and it is the only thing that does.
 
-**Which means the width and the file spacing are one number wearing two hats.**
-Spread the ranks out without widening the road and a lane silently carries one body
-fewer in every rank — every wave in it a third thinner, and nothing anywhere saying
-so. The shape parameters therefore write down how many bodies each lane is *meant*
-to carry, and [the map validator](031-map-validator.info.md) refuses a map whose
-widths no longer deliver it.
+**Which it no longer does.** How many walk abreast is now **declared** in the shape
+parameters and read straight off the lane, and the width is the arithmetic that gives
+them room. Dividing the count out of the width was fine while a width was a number
+somebody chose, and became circular the moment a road was defined as three times the
+formation walking it: the road would decide the formation and the formation would
+decide the road. [The map validator](031-map-validator.info.md) checks the
+arithmetic in both directions.
+
+What the width decides now is **room**: a road is three formation widths across and
+the centre is nine, so a wave has a formation's width of shoulder either side to
+wander through.
 
 It does **not** decide how many bodies may fight at once — nothing does; the world
 is flat and a lane is a suggestion. It decides how wide a formation *travels*,
@@ -105,6 +114,41 @@ can walk down it side by side without leaving it.
 The consequence is the one the wide centre lane always wanted. A wave marching up
 the middle arrives with more of itself abreast, so more of it is in contact the
 moment contact happens, and a numerical advantage tells sooner.
+
+## The wander
+
+Every zone of a lane holds a **waypoint** — one offset across the road — and a wave
+heads for the waypoint of the zone **ahead** of the one its centre is in. Not the one
+it is standing in: that is a place it has already arrived at, and the aim has to be
+forward.
+
+It drifts toward it at a tenth of its marching pace, so it usually reaches one about
+as it is given the next, and the line it walks is a long shallow curve rather than a
+sequence of sidesteps. A wave generally marches straight on a straight road; the
+wander is a variation in where it sits and what angle it arrives at.
+
+**One line per road, not one per team.** A waypoint belongs to the ground rather than
+to whoever is walking over it, so both armies follow the same wandering line — two
+columns of people wear the same path. And **the line is a palindrome**, drawn for the
+first half of the road and reflected onto the second, because the map is a mirror of
+itself and this is part of the ground now. Two halves drawn independently would send
+one team out into a leftward drift and the other into a rightward one, from the first
+wave onward, and nothing else in the project would ever say so.
+
+Drawn once at assembly, from a named seeded stream, never per tick.
+
+Three things decide how far across the road a body's place is, and they **add**: its
+place in its own rank, the shift that puts its whole formation abreast of the other
+two during a challenge, and the wander. A wave funnelled into the middle still
+wanders, and a wandering wave still keeps its place in the three.
+
+## Where a wave is, and where its middle is
+
+The anchor is the formation's **front**. Which zone a wave has reached — and
+therefore when it takes the next waypoint — is a question about its **middle**, which
+is half the formation's depth behind the front. The depth is accumulated as bodies
+are given their places rather than computed from the member count, because the rear
+rank is the ranged one and how far back it sits depends on how many melee there were.
 
 ## When the wave stops
 

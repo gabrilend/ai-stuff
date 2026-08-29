@@ -72,8 +72,6 @@ local RANK_SPACING = 30
 local FILE_SPACING = 22
 
 -- How much of the lane's width the marching formation uses. Less than all of it,
--- so a wave looks like it is walking down a road rather than scraping both verges.
-local WIDTH_USE = 0.78
 
 -- How hard a body out of place corrects, and the span over which the correction
 -- reaches full strength. Gain is unitless; scale is in paces.
@@ -105,22 +103,31 @@ local SPEED_FLOOR = 0.55
 -- has been bent by a turn visibly takes a moment to straighten.
 local LATERAL_RATE = 0.55
 
+-- How fast a formation slides toward its waypoint, as a fraction of its marching
+-- pace. Slow: a wave crossing a zone boundary should drift, not step sideways.
+--
+-- Low enough that a wave usually reaches one waypoint about as it is given the next,
+-- which is what makes the path a long shallow curve rather than a sequence of
+-- corrections. **They generally march straight on a straight road.**
+local WANDER_RATE = 0.10
+
 -- How much clear ground between two formations standing abreast. Small: enough that
 -- they read as two lines rather than one wide one, and no more.
 local ABREAST_GAP = 6
 
--- The most bodies that ever stand abreast, however wide the road is.
+-- How much of the lane's width a marching formation is allowed to occupy, back when
+-- the file count was divided out of the width. **Nothing reads it now** -- the count
+-- is declared and the width is derived from it -- and it is left here as the record
+-- of a circularity that used to be real:
 --
--- Without a cap this is circular in a way that cannot be solved by widening
--- anything: the centre lane is wide so that three formations fit abreast during a
--- challenge, but a wider lane makes the centre's own formation wider, which pushes
--- the other two further out, which needs a wider lane. Every attempt to make the
--- corridor contain them made them bigger.
+-- the centre lane is wide so that three formations fit abreast during a challenge,
+-- but a wider lane made the centre's own formation wider, which pushed the other two
+-- further out, which needed a wider lane. Every attempt to make the corridor contain
+-- them made them bigger. It was capped rather than solved.
 --
--- So a rank stops growing at some point and a lane wider than that is simply
--- **room**. Which is the right relationship anyway: a road twice as wide does not
--- make an army twice as broad, it makes it comfortable.
-local MAX_FILES = 5
+-- Declaring the count dissolves it: a road twice as wide does not make an army twice
+-- as broad, it makes it comfortable, and that is now true by construction instead of
+-- by a ceiling.
 
 -- How near an enemy has to be to the front of a wave before the wave stops
 -- advancing and lets its bodies fight.
@@ -139,9 +146,18 @@ local CONTACT_RANGE = 62
 -- up the middle arrives with more of itself abreast, so more of it is in contact
 -- the moment contact happens, and a numerical advantage tells sooner.
 function M.files_for(lane)
-  local files = math.floor((lane.width * WIDTH_USE) / FILE_SPACING)
-  if files < 2 then files = 2 end
-  if files > MAX_FILES then files = MAX_FILES end
+  -- **Declared, not derived.** This used to divide the lane's width by the file
+  -- spacing, which was fine while a width was a number somebody chose and became
+  -- circular the moment a width became *three times the formation walking it*: the
+  -- road's width would then decide the formation's width, which decides the road's.
+  --
+  -- So the count is a design decision written down in the shape parameters, and the
+  -- width is the arithmetic that gives that many bodies room to walk and room to
+  -- wander. The validator checks the arithmetic; this reads the decision.
+  local files = lane.files
+  if files == nil or files < 2 then
+    error("lane " .. tostring(lane.id) .. " does not say how many walk it abreast")
+  end
   return files
 end
 -- }}}
@@ -267,6 +283,21 @@ function M.assign_wave_slots(world, id, lane, role_index, role, melee_total)
 
   soldier.slot_along[id] = -rank * RANK_SPACING
   soldier.slot_across[id] = M.file_offset(files, file)
+
+  -- How deep the formation reaches behind its anchor, kept as bodies are given
+  -- places rather than measured afterwards. The anchor is the **front** of a wave,
+  -- and the question "which zone is this formation in" is about its middle, which is
+  -- half of this behind the front.
+  --
+  -- Accumulated rather than computed from the member count, because the rear rank is
+  -- the ranged one and how far back that sits depends on how many melee there were.
+  local wave = world.wave[soldier.wave[id]]
+  if wave ~= nil then
+    local reach = rank * RANK_SPACING
+    if wave.depth == nil or reach > wave.depth then
+      wave.depth = reach
+    end
+  end
 end
 -- }}}
 
@@ -282,8 +313,13 @@ function M.target_of(world, id)
   if wave == nil then
     return soldier.lane_along[id], soldier.lane_across[id]
   end
+  -- Three things decide how far across the lane a body's place is: where it stands
+  -- in its own rank, where its whole formation has been shifted to stand abreast of
+  -- the others during a challenge, and where the formation is currently wandering.
+  -- They add rather than override -- a wave funnelled into the middle still wanders,
+  -- and a wandering wave still keeps its place in the three.
   return wave.anchor + soldier.slot_along[id] * soldier.facing[id],
-         soldier.slot_across[id] + (wave.across_offset or 0)
+         soldier.slot_across[id] + (wave.across_offset or 0) + (wave.wander or 0)
 end
 -- }}}
 
@@ -312,6 +348,42 @@ local function advance_anchor(world, wave)
   if blocked then
     return
   end
+
+  -- Where the **middle** of the formation is. The anchor is its front, deliberately
+  -- -- a wave stops when something is near the front of it, not when something is
+  -- near the middle -- but which zone a wave has reached is a question about the
+  -- body of it.
+  local centre = front - (wave.depth or 0) * 0.5 * facing
+  local zone = world.map_builder.zone_at(lane, centre,
+                                         world.parameters.shape.zone_divisions)
+
+  -- **The next zone's waypoint, not this one's.** A wave aims at where it is going,
+  -- and the waypoint of the zone it is standing in is a place it has already
+  -- arrived at. Taking the next one is what makes the aim always forward.
+  if zone ~= wave.zone then
+    wave.zone = zone
+    local ahead = zone + ((facing > 0) and 1 or -1)
+    if ahead < 0 then ahead = 0 end
+    if ahead > lane.zone_count - 1 then ahead = lane.zone_count - 1 end
+    wave.wander_to = world.formations.waypoint_across(world, lane.id, ahead)
+  end
+
+  -- Eased rather than snapped, and slowly. A formation that jumped sideways the
+  -- instant it crossed a boundary would read as the whole line stepping left; what
+  -- it should read as is a body of people drifting toward a place none of them could
+  -- name. **They generally march straight on a straight road** -- the wander is a
+  -- variation in where a wave sits and what angle it arrives at, not a weave.
+  local wander = wave.wander or 0
+  local want = wave.wander_to or 0
+  local step = wave.pace * WANDER_RATE
+  if want - wander > step then
+    wander = wander + step
+  elseif wander - want > step then
+    wander = wander - step
+  else
+    wander = want
+  end
+  wave.wander = wander
 
   -- A wave advances at its slowest member's pace, so it does not walk away from
   -- its own rear rank. The captain is the slowest body in a wave, which is why a
@@ -463,6 +535,76 @@ end
 -- {{{ function M.begin()
 function M.begin(world)
   world.formation_scratch = {}
+  M.lay_out_the_waypoints(world)
+end
+-- }}}
+
+-- {{{ function M.lay_out_the_waypoints()
+-- One point inside each waypoint zone of each lane, for each team, drawn once.
+--
+-- **Once, at assembly, not per wave.** A zone's waypoint is a property of the
+-- ground rather than of whoever is walking over it: two waves down the same road
+-- should follow the same wandering line, the way two columns of people follow the
+-- same worn path. Drawing it fresh per wave would make it a shuffle instead of a
+-- feature of the map, and would put a random draw inside the busiest loop there is.
+--
+-- **One line per road, not one per team.** A waypoint belongs to the ground rather
+-- than to whoever is walking over it, so both armies follow the same wandering line
+-- down a road. That is the more natural thing anyway -- two columns of people wear
+-- the same path -- and it is what keeps the opening a mirror: two first waves that
+-- wandered differently would be asymmetric before either had taken a step.
+--
+-- The offset is across the lane only. How far *along* a zone the point sits would
+-- decide nothing: a wave takes the next zone's waypoint when its centre crosses in,
+-- so the along-position is only ever "somewhere ahead", and a wave already knows how
+-- to walk forward.
+function M.lay_out_the_waypoints(world)
+  world.waypoint = {}
+  for _, lane in ipairs(world.map.lane) do
+    local here = {}
+    world.waypoint[lane.id] = here
+    -- How far off the centre line a waypoint may sit: half the road, less the
+    -- formation's own radius, so a wave aiming at one still has all of itself on the
+    -- road. A waypoint at the verge would put half a rank in the ditch.
+    local room = lane.width * 0.5 - M.radius_of(lane)
+    if room < 0 then room = 0 end
+    -- **The line down a road is a palindrome**, drawn for the first half and
+    -- reflected onto the second.
+    --
+    -- Because the map is a mirror of itself and this is part of the ground now. Two
+    -- teams walk the same road from opposite ends, so a body a hundred paces from its
+    -- own library meets whatever the road does a hundred paces in -- and if the two
+    -- halves were drawn independently, that would be a different thing for each team.
+    -- One side would walk out into a leftward drift and the other into a rightward
+    -- one, from the first wave, forever. An asymmetric road hands one team a
+    -- different game and nothing else in the project would ever say so.
+    --
+    -- Each value is also symmetric about the centre **line**: a draw that only ever
+    -- wandered one way would give the road a permanent lean, and every fight in it
+    -- would happen off to one side.
+    local stream = world.stream.waypoint
+    local last = lane.zone_count - 1
+    for zone = 0, math.floor(last / 2) do
+      local offset = (stream:next_float() * 2 - 1) * room
+      here[zone] = offset
+      here[last - zone] = offset
+    end
+  end
+end
+-- }}}
+
+-- {{{ function M.waypoint_across()
+-- How far off the centre of its lane a wave's current waypoint sits.
+--
+-- Zero for anything that has no waypoint to read -- a body with no wave, a lane that
+-- was never laid out. Zero is the centre line, which is exactly where something with
+-- no opinion about where to walk should be walking.
+function M.waypoint_across(world, lane_id, zone)
+  local lane = world.waypoint[lane_id]
+  if lane == nil then
+    return 0
+  end
+  return lane[zone] or 0
 end
 -- }}}
 

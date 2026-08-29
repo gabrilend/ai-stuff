@@ -6,13 +6,34 @@
 | Blocked by | 211a |
 | Blocks | 211c |
 | Reads | [the map and its milestones](../docs/002-the-map-and-its-milestones.md), [waves and when one is finished](../docs/005-waves-and-when-one-is-finished.md) |
-| Open questions | none |
+| Open questions | H9 |
 
 ## Current behavior
 
-A wave advances a single number — its anchor — by its pace, every tick, forever. It
-walks the exact centre of the road at the exact same distances as every wave before
-it.
+Every zone of every lane holds a waypoint: one offset across the road, drawn once at
+assembly from a named seeded stream. A wave heading down a lane takes the waypoint of
+the zone **ahead** of the one its centre is in, and drifts toward it — slowly, at a
+tenth of its marching pace, so it usually reaches one about as it is given the next
+and the line it walks is a long shallow curve rather than a sequence of corrections.
+
+**One line per road, not one per team.** A waypoint belongs to the ground rather than
+to whoever walks over it, so both armies follow the same wandering line — the way two
+columns of people wear the same path. And **the line is a palindrome**, drawn for the
+first half of the road and reflected onto the second, because the map is a mirror of
+itself and this is part of the ground now. Two halves drawn independently would send
+one team out into a leftward drift and the other into a rightward one, from the first
+wave, forever.
+
+The offset is bounded by the road's half-width less the formation's radius, so a wave
+aiming at one still has all of itself on the road.
+
+The roads are three formation widths across, and the centre nine. The file count each
+carries is now **declared** rather than divided out of the width — that became
+circular the moment a width was a multiple of the formation walking it — and the
+validator checks the arithmetic both ways.
+
+Measured in the sandbox on a road with no curve in it, which is the only ground where
+a formation moving sideways is distinguishable from a formation following the road.
 
 ## Intended behavior
 
@@ -80,3 +101,11 @@ It shows most where the road bends and where two waves are closing.
 - [211a](211a-the-lane-is-cut-into-zones.md), which cuts the zones this fills
 - [211c](211c-a-formation-is-a-circle-that-faces.md), which is what does the aiming
 - The named random streams, and the reason there are several of them
+
+## Still open
+
+**Whether every wave should follow the same line.** A waypoint belongs to a zone, so
+every wave a team sends down a road follows the same wander — the road has a
+character and both armies walk it. The alternative is re-rolling a zone's waypoint
+each time a wave takes it, which would give each wave its own line at the cost of the
+ground having none. Written up as H9.

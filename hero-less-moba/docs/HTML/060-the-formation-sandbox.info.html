@@ -307,21 +307,45 @@ svg { max-width: 100%; }
 <p>The lane comes from <code>lane_from_polyline</code>, which was added for this: a test that wants</p>
 <p>a sine wave should be able to ask for a sine wave.</p>
 <h2>What it measures</h2>
+<p>Every run writes the numbers into a log. They are <strong>not quoted here</strong> — they were,</p>
+<p>and then the bodies were spread further apart and the paragraph went on describing a</p>
+<p>formation the game had stopped building. Run it.</p>
 <p><strong>The formation's circle.</strong> Every body stands inside the circle whose edges touch the</p>
 <p>left and right of the line as it walks, and on a straight every body is exactly in</p>
 <p>its file with no lag.</p>
+<p>Measured <strong>from the formation's own centre, not the road's.</strong> A wave sits off the</p>
+<p>centre line of its road for two reasons — it has been shifted to stand abreast of two</p>
+<p>others during a challenge, and it is wandering toward a waypoint — and neither of</p>
+<p>those is the line coming apart. Against the road, a wave that has drifted six paces</p>
+<p>looks exactly like a wave whose flank has been pushed six paces out of the rank, and</p>
+<p>those are opposite events.</p>
 <p><strong>A left turn.</strong> The claim under test is that the outer end of the line has more</p>
 <p>ground to cover and must hurry, while the inner end must give way — out of one</p>
-<p>budget, so the line stays a line. Measured over the 291 ticks inside the bend: the</p>
-<p>outer body covers <strong>321 paces to the inner's 290</strong>, is hurried to a multiplier of</p>
-<p><strong>1.0043</strong> while the inner gives way to <strong>0.9972</strong>, and the worst any body falls</p>
-<p>behind its place through the whole turn is <strong>1.7 paces.</strong></p>
+<p>budget, so the line stays a line.</p>
 <p><strong>A sine wave.</strong> The same, along a lane that turns one way and then the other with no</p>
-<p>straight to recover in, so a rule that only worked in one direction would show. Worst</p>
-<p>lag stays under 6 paces, nobody leaves their file at all, and the budget still</p>
-<p>balances while the curvature keeps changing sign.</p>
+<p>straight to recover in, so a rule that only worked in one direction would show.</p>
+<p><strong>The wander.</strong> A wave on a <strong>straight</strong> road must not walk a straight line. This is</p>
+<p>the one property that can only be measured on ground with no curve in it: on a bend,</p>
+<p>a formation moving sideways is indistinguishable from a formation following the road.</p>
+<p>Two opposite failures are watched for. No wander at all means the waypoints are not</p>
+<p>being read and the feature is decoration. Wander past the shoulder means the clamp is</p>
+<p>wrong and part of a rank is in the ditch — which is why the offset is bounded by the</p>
+<p>road's half-width <strong>less the formation's radius</strong> rather than by the half-width.</p>
 <p><strong>Two formations meeting.</strong> They walk at each other, meet front to front in the</p>
 <p>middle, and one of them is left standing.</p>
+<h2>Where a test wave gets put down</h2>
+<p>Further along the road than the formation is deep, and the sandbox **refuses out</p>
+<p>loud** if it is not.</p>
+<p>A body's place sits a fixed distance behind its wave's front, so a wave set down near</p>
+<p>the start of a road has its rear ranks wanting to stand behind the beginning of it —</p>
+<p>where there is no ground. They are clamped to the start and read as hopelessly out of</p>
+<p>position while standing as far back as the world allows. Correct, harmless, and over</p>
+<p>within a hundred paces.</p>
+<p>It is also invisible, and it was quietly inside two measurements of how well a</p>
+<p>formation turns, with the tolerances sitting just above it until the ranks were</p>
+<p>spread out. The number that decides how deep a formation is lives in the formation</p>
+<p>module and can be changed there by somebody who has never opened this file, so the</p>
+<p>refusal is loud rather than a nudge.</p>
 <h2>The bug it was written for</h2>
 <p>Holding a formation in lane coordinates makes a turn <em>free</em>: every body in a rank</p>
 <p>shares one distance-along, so going round a bend costs each of them the same number</p>

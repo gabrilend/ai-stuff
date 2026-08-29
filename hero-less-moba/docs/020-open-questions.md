@@ -4610,3 +4610,37 @@ other way.
 
 **Built:** issue 212.
 
+
+## H9. Does the road wander, or does each wave? — **NEEDS A DECISION**
+
+Built one way and worth asking about, because both readings fit what was described
+and they feel different.
+
+A waypoint currently belongs to a **zone**: drawn once at assembly, one line per
+road, walked by every wave either team sends down it. The road has a character. Two
+armies wear the same path, and a player who watches a lane for five minutes learns
+where the fighting tends to happen in it.
+
+The alternative is that a waypoint belongs to a **wave**: re-rolled each time a wave
+crosses into a new zone, so every wave takes its own line and no two arrive at quite
+the same angle. More variation, and the ground stops having a shape of its own.
+
+Three things pull toward the road:
+
+- It is what "zones that the waypoints rest within" says. A thing that rests in a
+  zone is a property of the zone.
+- It costs nothing: the draws happen once, at assembly, rather than in the busiest
+  loop in the simulation.
+- **It keeps the opening a mirror.** Two first waves that wandered differently would
+  be asymmetric before either had taken a step, and the opening being symmetric is
+  settled — see G2. A per-wave wander would need the first wave of each team
+  specially exempted, which is the shape of a rule nobody remembers.
+
+And one pulls toward the wave: the stated purpose was "a bit of variation in approach
+angle", and a fixed line gives variation between roads and between matches but not
+between one wave and the next down the same road.
+
+A middle option exists and has not been costed: the road keeps its line, and each
+wave is given a small additional offset of its own on top of it. The road still has a
+shape; waves still differ. It would need its own draw per wave, and the opening would
+stay a mirror as long as the two first waves drew the same one.

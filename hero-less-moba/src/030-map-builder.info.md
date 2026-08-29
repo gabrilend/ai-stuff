@@ -65,6 +65,7 @@ tick.
 | `junction` | integer[] | Exactly one: the milestone-4 node. |
 | `length` | double | Total path length. |
 | `width` | double | Paces across. |
+| `files` | integer | How many bodies walk it abreast. Declared in the shape parameters, carried here because a formation asks the lane. |
 
 ### site
 
@@ -94,6 +95,12 @@ up at is the only honest source.
 **Two arrays, identical, from one loop.** They are separate so that either can be
 moved without moving the other, and side by side on the same record so that somebody
 changing one can see the other. The validator asserts they still agree.
+
+`lane_from_polyline` — the one the formation sandbox builds its test lanes with —
+takes a file count and a zone division too, and builds its zones the same way. A test
+lane without them is a lane no wave can find a waypoint on, so a test of how a
+formation walks would be measuring a formation that never wanders, which is not the
+thing the game does.
 
 `zone_at` is not a scan over thirty-three boundaries. Zones are evenly spaced *within*
 a milestone interval and the intervals are not evenly spaced against each other, so

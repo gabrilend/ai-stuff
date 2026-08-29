@@ -34,24 +34,56 @@ a sine wave should be able to ask for a sine wave.
 
 ## What it measures
 
+Every run writes the numbers into a log. They are **not quoted here** — they were,
+and then the bodies were spread further apart and the paragraph went on describing a
+formation the game had stopped building. Run it.
+
 **The formation's circle.** Every body stands inside the circle whose edges touch the
 left and right of the line as it walks, and on a straight every body is exactly in
 its file with no lag.
 
+Measured **from the formation's own centre, not the road's.** A wave sits off the
+centre line of its road for two reasons — it has been shifted to stand abreast of two
+others during a challenge, and it is wandering toward a waypoint — and neither of
+those is the line coming apart. Against the road, a wave that has drifted six paces
+looks exactly like a wave whose flank has been pushed six paces out of the rank, and
+those are opposite events.
+
 **A left turn.** The claim under test is that the outer end of the line has more
 ground to cover and must hurry, while the inner end must give way — out of one
-budget, so the line stays a line. Measured over the 291 ticks inside the bend: the
-outer body covers **321 paces to the inner's 290**, is hurried to a multiplier of
-**1.0043** while the inner gives way to **0.9972**, and the worst any body falls
-behind its place through the whole turn is **1.7 paces.**
+budget, so the line stays a line.
 
 **A sine wave.** The same, along a lane that turns one way and then the other with no
-straight to recover in, so a rule that only worked in one direction would show. Worst
-lag stays under 6 paces, nobody leaves their file at all, and the budget still
-balances while the curvature keeps changing sign.
+straight to recover in, so a rule that only worked in one direction would show.
+
+**The wander.** A wave on a **straight** road must not walk a straight line. This is
+the one property that can only be measured on ground with no curve in it: on a bend,
+a formation moving sideways is indistinguishable from a formation following the road.
+
+Two opposite failures are watched for. No wander at all means the waypoints are not
+being read and the feature is decoration. Wander past the shoulder means the clamp is
+wrong and part of a rank is in the ditch — which is why the offset is bounded by the
+road's half-width **less the formation's radius** rather than by the half-width.
 
 **Two formations meeting.** They walk at each other, meet front to front in the
 middle, and one of them is left standing.
+
+## Where a test wave gets put down
+
+Further along the road than the formation is deep, and the sandbox **refuses out
+loud** if it is not.
+
+A body's place sits a fixed distance behind its wave's front, so a wave set down near
+the start of a road has its rear ranks wanting to stand behind the beginning of it —
+where there is no ground. They are clamped to the start and read as hopelessly out of
+position while standing as far back as the world allows. Correct, harmless, and over
+within a hundred paces.
+
+It is also invisible, and it was quietly inside two measurements of how well a
+formation turns, with the tolerances sitting just above it until the ranks were
+spread out. The number that decides how deep a formation is lives in the formation
+module and can be changed there by somebody who has never opened this file, so the
+refusal is loud rather than a nudge.
 
 ## The bug it was written for
 

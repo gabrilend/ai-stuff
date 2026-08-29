@@ -289,3 +289,36 @@ number. The tolerances happened to sit just above it until the ranks were spread
 Both now measure what they claim to, the sandbox refuses loudly if a wave is put down
 closer to the start than it is deep, and the compression itself is asserted on its own:
 a wave leaving its base is compressed, by no more than its own depth, and only there.
+
+## 2026-08-28 — the roads widened again, for room to wander in
+
+The waypoint work needed somewhere to wander, and the answer given was that a road
+should be about three times the width of the formation walking it, with the centre
+lane nine.
+
+| Number | Was | Now |
+| --- | --- | --- |
+| side lane width | 86 | 132 |
+| centre lane width | 190 | 396 |
+
+Both are now **derived and asserted**. The shape file declares how many bodies walk
+each lane abreast and how many formation-widths of road it should have, and the map
+validator does the multiplication. A standard formation is a side lane's — three
+abreast, forty-four paces — and every multiple is counted in that one, so "how much
+room is there" has a single yardstick rather than one per lane.
+
+**How many walk abreast stopped being divided out of the width.** That was fine while
+a width was a number somebody chose, and became circular the moment a width was a
+multiple of the formation walking it: the road would decide the formation and the
+formation would decide the road. It is a declared design fact now, and the width is
+the arithmetic that gives it room. The cap on how many bodies ever stand abreast,
+which existed only to break that circle, is gone with it.
+
+A side lane therefore has forty-four paces of shoulder either side of a marching
+wave, and the centre has a hundred and fifty-four.
+
+**The wander rate is a tenth of marching pace.** Slow enough that a wave usually
+reaches one waypoint about as it is given the next, so what it walks is a long
+shallow curve rather than a sequence of sidesteps. Measured on a straight road, a
+wave drifts across about thirty paces of the eighty-eight available — a variation in
+where it sits and what angle it arrives at, not a weave.
