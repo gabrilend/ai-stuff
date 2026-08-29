@@ -40,7 +40,8 @@ the cause.
 | Every structure site stands on the right kind of node | A tower placed on plain ground. |
 | Every node reachable from team 1's library | A connector built between the wrong pair of junctions. |
 | The right number of towers, on both sides, matching each other | An absence — the site emission was once deleted by accident and every existing check passed, because they were all about sites that were there. |
-| **Each lane is wide enough for the formation it carries** | Spreading the ranks out without widening the roads. A lane then quietly carries one body fewer in every rank, every wave in it is a third thinner, and nothing else in the project notices. |
+| **Each lane carries the number of bodies abreast it says it does, and is the number of formation-widths across it says it is** | The two halves of a derivation drifting apart. How many walk abreast is declared and the width is the arithmetic that gives them room; either can be edited without the other, and the only symptom is that the game plays differently. |
+| The formation walking a lane fits inside it | A multiple that was right for a side lane's formation and wrong for the centre's, which is wider. |
 | The centre lane holds three formations abreast | The thing the centre lane is *for*. During a challenge all three lanes' waves fight in the middle standing side by side; a centre that cannot hold them has stopped being for anything. |
 | **Every milestone lands on a zone boundary** | The reason zones were built as divisions of a milestone interval rather than as a count across the lane. If it stops being true, the towers and the push measure have quietly come apart, and the symptom is a frontline reported somewhere it is not. |
 | The lane's two zone arrays agree | They hold the same numbers and are kept separate so either can be moved. This is what tells somebody who moved one that they did. |

@@ -93,50 +93,53 @@ M.parameters = {
   -- and somebody would eventually write a number that is not.
   zone_divisions = 4,
 
-  -- How many paces across each lane is. This feeds exactly two things: how many
-  -- bodies stand abreast in a wave walking it, and how wide the renderer draws the
-  -- lane. It is not a movement constraint -- a body may stand anywhere.
+  -- How many bodies stand abreast in a wave walking each lane.
   --
-  -- The centre is wider, permanently, as topography. That is the only difference
-  -- between the three lanes and it is this one number: stacking a side lane is a
-  -- bet on quality, because only so many of your bodies will ever be in contact;
-  -- stacking the centre is a bet on quantity.
+  -- **The decision, and it is read directly.** It used to be divided out of the
+  -- width below, which was fine while a width was a number somebody chose and became
+  -- circular the moment a width became a multiple of the formation walking it: the
+  -- road would decide the formation and the formation would decide the road.
   --
-  -- **Both are derived, and the validator checks the derivation.** A width
-  -- is not a number somebody likes the look of: it is how much road the formations
-  -- that walk it need, and the formation module owns the spacing those formations
-  -- are built from. Change the spacing and these have to move with it, or a lane
-  -- silently drops a body from every rank.
-  --
-  -- That is a real failure mode rather than a hypothetical -- it is what happened
-  -- the first time the bodies were spread out and the widths were left alone, and
-  -- nothing said so except three abreast quietly becoming two.
-  lane_width = {
-    -- A side lane carries three abreast: two gaps of the formation's file spacing,
-    -- divided by the fraction of a road a formation is allowed to occupy.
-    [1] = 86,     -- top
-    -- The centre. Three formations stand abreast here during a challenge -- a side
-    -- lane's, the centre's, and the other side lane's -- and this is how much road
-    -- that takes: the centre's own radius, plus a side lane's on either side of it,
-    -- plus the gaps.
-    --
-    -- **That is what the centre lane is wide for**, and it is the reason the
-    -- document gave for widening it before anybody had arithmetic to put behind it.
-    [2] = 190,    -- centre -- the wide one
-    [3] = 86,     -- bottom
-  },
-
-  -- How many bodies stand abreast in a wave walking each lane. **The intent**, which
-  -- the widths above are sized to deliver and the validator asserts they still do.
-  --
-  -- Written down separately from the widths because the two are different kinds of
-  -- fact: this one is a design decision about how a lane plays, and the width is the
-  -- arithmetic that makes it true. Keeping the decision in the file lets the
-  -- arithmetic be checked instead of trusted.
+  -- So this is the design fact -- a side lane carries three, the centre carries five
+  -- -- and the width is the arithmetic that gives them room.
   lane_files = {
     [1] = 3,
     [2] = 5,
     [3] = 3,
+  },
+
+  -- How many **standard formation widths** of road each lane is.
+  --
+  -- A standard formation is a side lane's: three abreast. The centre's own formation
+  -- is wider than that, and this is still counted in side-lane widths, because the
+  -- question the number answers is "how much room is there" and the answer wants one
+  -- yardstick rather than one per lane.
+  --
+  -- A road is three of them: one formation, with a formation's width of clear ground
+  -- either side to wander through. The centre is nine, which is also what lets three
+  -- formations stand abreast there during a challenge with room to spare rather than
+  -- exactly fitting.
+  lane_wander_multiple = {
+    [1] = 3,
+    [2] = 9,
+    [3] = 3,
+  },
+
+  -- How many paces across each lane is, and it is **derived from the two tables
+  -- above**: the width of a standard formation, times the multiple.
+  --
+  -- Written out rather than computed here because the spacing a formation is built
+  -- from lives in the formation module and this file holds no logic. The map
+  -- validator does the multiplication and refuses a map where these have drifted
+  -- from it -- which is not hypothetical, it is what a lane silently carrying one
+  -- body fewer in every rank looks like from the outside.
+  --
+  -- It is not a movement constraint. A body may stand anywhere; this is how much
+  -- road there is.
+  lane_width = {
+    [1] = 132,    -- top
+    [2] = 396,    -- centre -- the wide one
+    [3] = 132,    -- bottom
   },
 
   -- How the junction's corner is rounded.

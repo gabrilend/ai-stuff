@@ -117,7 +117,9 @@ local function sandbox(polyline, width)
   -- that the map is unusual.
   parameters = setmetatable({lane_count = 1}, {__index = parameters})
 
-  local map = map_builder.lane_from_polyline(polyline, width, 20)
+  local map = map_builder.lane_from_polyline(polyline, width, 20,
+                                             parameters.shape.lane_files[1],
+                                             parameters.shape.zone_divisions)
   local world = world_module.create(parameters, map, random_streams.make_set(1))
 
   world.walking = walking
@@ -271,7 +273,20 @@ local function measure_formation(world, wave_id)
     if soldier.alive[id] == 1 and soldier.wave[id] == wave_id then
       local target_along, target_across = formations.target_of(world, id)
       local lag = (target_along - soldier.lane_along[id]) * soldier.facing[id]
-      local across = soldier.lane_across[id]
+      -- **Measured from the formation's own centre, not the lane's.**
+      --
+      -- The circle a formation makes is a circle about the formation. A wave sits
+      -- off the centre line of its road for two reasons -- it has been shifted to
+      -- stand abreast of two others during a challenge, and it is wandering toward a
+      -- waypoint -- and neither of those is the line coming apart. Measured against
+      -- the road, a wave that has drifted six paces looks like a wave whose flank has
+      -- been pushed six paces out of the rank, and those are opposite events.
+      local middle = (wave.across_offset or 0) + (wave.wander or 0)
+      local across = soldier.lane_across[id] - middle
+      -- Both sides of the comparison move to the formation's frame, or the departure
+      -- from file below would be measuring the distance between two different
+      -- origins rather than between a body and its place.
+      target_across = target_across - middle
 
       out.count = out.count + 1
       out.scale_sum = out.scale_sum + soldier.speed_scale[id]
@@ -485,6 +500,73 @@ local function test_a_sine_wave()
 end
 -- }}}
 
+-- {{{ local function test_the_wander()
+-- A wave on a **straight** road does not walk a straight line.
+--
+-- This is the whole of what waypoints are for, and it is the one property that can
+-- only be measured on ground with no curve in it: on a bend, a formation moving
+-- sideways is indistinguishable from a formation following the road.
+--
+-- Two failures are being watched for and they are opposite. A wander of nothing
+-- means the waypoints are not being read at all, and the feature is decoration. A
+-- wander past the shoulder means the clamp is wrong and part of a rank is in the
+-- ditch -- which is the reason the offset is bounded by the road's half-width less
+-- the formation's radius rather than by the road's half-width.
+local function test_the_wander()
+  note("")
+  note("== the wander ==")
+  local world, parameters, map = sandbox({0, 0, 4000, 0}, A_SIDE_LANE)
+  local lane = map.lane[1]
+  local wave_id = put_a_wave_down(world, parameters, 1, CLEAR_OF_THE_WALL, 1, 5, 2)
+
+  local radius = formations.radius_of(lane)
+  local shoulder = lane.width * 0.5 - radius
+
+  local low, high, worst_body = math.huge, -math.huge, 0
+  local zones_visited = {}
+  for tick = 1, 2600 do
+    step(world, false)
+    local wave = world.wave[wave_id]
+    local wander = wave.wander or 0
+    if wander < low then low = wander end
+    if wander > high then high = wander end
+    if wave.zone ~= nil then zones_visited[wave.zone] = true end
+
+    -- The edge of the formation, which is what must stay on the road.
+    for _, member in ipairs(measure_formation(world, wave_id).members) do
+      local edge = math.abs(member.across + wander)
+      if edge > worst_body then worst_body = edge end
+    end
+
+    if tick % 400 == 0 then
+      note(string.format("  t%4d  anchor %7.1f  zone %2s  wandering %+6.2f toward %+6.2f",
+        tick, wave.anchor, tostring(wave.zone), wander, wave.wander_to or 0))
+    end
+  end
+
+  local how_many_zones = 0
+  for _ in pairs(zones_visited) do how_many_zones = how_many_zones + 1 end
+
+  note(string.format("  road is %.0f across, formation %.0f, so %.0f paces of shoulder",
+    lane.width, radius * 2, shoulder))
+  note(string.format("  wandered %+.2f to %+.2f over %d zones; furthest any body got from the middle was %.2f",
+    low, high, how_many_zones, worst_body))
+
+  check("a wave walking a straight road does not walk a straight line",
+        (high - low) > radius * 0.5,
+        string.format("wandered across %.1f paces, which is less than half a formation",
+                      high - low))
+
+  check("and it takes its aim from more than one waypoint on the way",
+        how_many_zones > 4, how_many_zones .. " zones crossed")
+
+  check("and no part of it leaves the road",
+        worst_body <= lane.width * 0.5 + 0.001,
+        string.format("a body reached %.2f paces out and the road's half-width is %.2f",
+                      worst_body, lane.width * 0.5))
+end
+-- }}}
+
 -- {{{ local function test_two_formations_meet()
 -- The whole point of walking anywhere. Two lines, facing each other, and they have
 -- to meet and stop rather than pass through.
@@ -551,6 +633,7 @@ note("")
 test_the_circle()
 test_a_turn()
 test_a_sine_wave()
+test_the_wander()
 test_two_formations_meet()
 
 note("")

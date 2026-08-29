@@ -372,29 +372,58 @@ end
 local function check_lane_widths(map, parameters, formations, problems)
   local shape = parameters.shape
 
+  -- The yardstick: a **standard** formation, meaning a side lane's. The centre's own
+  -- is wider than that, and every multiple is still counted in this one, because the
+  -- question a multiple answers is "how much room is there" and that wants one
+  -- yardstick rather than a different one per lane.
+  local standard = map.lane[1]
+  if standard == nil then
+    complain(problems, "there is no lane 1 to measure the others against")
+    return
+  end
+  local standard_width = formations.radius_of(standard) * 2
+
   for id, lane in ipairs(map.lane) do
     local wanted = shape.lane_files[id]
     if wanted == nil then
       complain(problems, "lane %d has a width but nobody said how many walk it", id)
+    elseif lane.files ~= wanted then
+      complain(problems, "lane %d carries %s abreast and should carry %d",
+               id, tostring(lane.files), wanted)
+    end
+
+    local multiple = shape.lane_wander_multiple[id]
+    if multiple == nil then
+      complain(problems, "lane %d does not say how much room it should have", id)
     else
-      local carries = formations.files_for(lane)
-      if carries ~= wanted then
+      local should_be = standard_width * multiple
+      if math.abs(lane.width - should_be) > 1 then
         complain(problems,
-                 "lane %d is %d paces across, which carries %d abreast, not %d",
-                 id, lane.width, carries, wanted)
+                 "lane %d is %d paces across and %d formation widths is %d",
+                 id, lane.width, multiple, math.floor(should_be + 0.5))
       end
+    end
+
+    -- And whatever the multiple says, the formation that actually walks this lane
+    -- has to fit inside it. The multiple is measured against a side lane's
+    -- formation; the centre's is wider, and a multiple that was right for one could
+    -- be wrong for the other.
+    local needs = formations.radius_of(lane) * 2
+    if lane.width < needs then
+      complain(problems,
+               "lane %d is %d paces across and the formation walking it is %d",
+               id, lane.width, math.floor(needs + 0.5))
     end
   end
 
-  -- And the centre, which has one more job than the others. During a challenge all
-  -- three lanes' waves fight in the middle, standing abreast: a side lane's, the
-  -- centre's, and the other side lane's. **That is what the centre is wide for**, so
-  -- a centre that cannot hold them is a centre that has stopped being for anything.
+  -- The centre has one more job than the others. During a challenge all three lanes'
+  -- waves fight in the middle, standing abreast: a side lane's, the centre's, and the
+  -- other side lane's. **That is what the centre is wide for**, so a centre that
+  -- cannot hold them is a centre that has stopped being for anything.
   local centre = map.lane[2]
-  local side = map.lane[1]
-  if centre ~= nil and side ~= nil then
+  if centre ~= nil then
     local step = formations.abreast_offset(map, 1, 2)
-    local span = 2 * (math.abs(step) + formations.radius_of(side))
+    local span = 2 * (math.abs(step) + formations.radius_of(standard))
     if span > centre.width then
       complain(problems,
                "three formations abreast span %d paces and the centre lane is %d",

@@ -171,6 +171,21 @@ function M.make_set(seed)
     boon    = M.new(seed, "boon"),
     -- The deal order when the chest is dealt across a surge spawn.
     surge   = { M.new(seed, "surge-1"), M.new(seed, "surge-2") },
+    -- Where each zone's waypoint sits inside it, so a road has a line through it
+    -- rather than a centre a wave walks down exactly.
+    --
+    -- **One, not one per team**, which is the exception to the rule the tie and draw
+    -- streams follow. Those are per team because they are drawn *during* a match and
+    -- a shared stream would make one side's luck depend on how often the other side
+    -- happened to ask. These are all drawn once, at assembly, in a fixed order, so
+    -- there is nothing to couple.
+    --
+    -- And a waypoint belongs to the ground rather than to whoever is walking over
+    -- it. Both armies follow the same line down a road, the way two columns of people
+    -- follow the same worn path -- which also keeps the opening a mirror, because two
+    -- first waves that wandered differently would be asymmetric before either had
+    -- taken a step.
+    waypoint = M.new(seed, "waypoint"),
   }
 end
 -- }}}
