@@ -1,0 +1,31 @@
+The last thing either program does is write here.
+
+Nothing has run yet -- phase 1 has not been built -- so no program has said
+goodbye. This file is the shape of the one that will.
+
+--
+
+What a goodbye should carry, when there is a program to write one:
+
+  how long it ran
+  where the view was left, so it can be resumed there
+  which block was selected
+  which filters were active, with their angles and modes
+  the hour
+  what was written, and to where
+  what was refused, and why
+
+The last line is the important one. A program that ends without saying what it
+would not do leaves you to discover it later, in the wrong place, as a mystery.
+
+Refusals belong here in the same voice as everything else: not an error dump, but
+a sentence. "Would not save the network: two blocks name the same edge three
+times." "Would not place a vertex: too far out to be precise about it."
+
+--
+
+The tracing tool's goodbye matters more than the game's, because the tracing tool
+is where hours of irreplaceable hand-work live. Its goodbye should say plainly
+how many blocks exist, how many are named, how much of the painting is fenced,
+and where the network was written. Somebody should be able to read that one file
+in the morning and know exactly where they left off.
