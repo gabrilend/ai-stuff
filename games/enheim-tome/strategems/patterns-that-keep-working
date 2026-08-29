@@ -1,0 +1,72 @@
+Data-flow patterns that turned out to be right in more than one place. Proven
+useful, therefore worth reaching for first the next time something looks similar.
+
+--
+
+## Choose the structure so the invariant cannot be broken.
+
+Blocks could have been polygons. They are faces of a network instead, and the
+reason is that adjacency then costs nothing and cannot silently rot: two blocks
+are neighbours because they literally name the same edge record, not because
+somebody measured that they were close.
+
+The polygon version has a failure mode where dragging a shared corner tears the
+fence, the two blocks stop being adjacent, and everything still looks correct on
+screen. The network version cannot express that state at all.
+
+**When a property matters, look for the representation in which violating it is
+unrepresentable** — rather than the one where you check for violations afterward.
+The check you write is a check you can forget to run.
+
+## Absence is a value, and usually the most informative one.
+
+A filter answers each block with a number, or with nothing. Nothing is not zero.
+Zero means the fire risk here is low; nothing means you have no idea.
+
+That one allowance deleted a whole subsystem. There is no fog of war to build, no
+confidence channel, no greyed-out unknown state — ignorance draws as bare
+painting, which is both correct and beautiful. **Before adding a channel to say
+"we don't know," check whether the existing channel can simply decline to
+answer.**
+
+## Refusing a channel dissolves a class of problems.
+
+The map carries no text. That was chosen because the painting is too visually
+dense for a typeface to sit on — and it also meant label collision, a genuinely
+hard problem that produces flickering mediocre results, never has to be solved.
+
+The same shape appeared three more times: no distances means no perspective
+correction; one texture means no tile pyramid; time is only ever now means no
+"this isn't real" indicator. **A capability you decline is a category of bug you
+will never fix.** Count the problems a restriction deletes before deciding it is
+a sacrifice.
+
+## Weave, do not stack.
+
+Two hatchings drawn on top of each other bury one of them. Two hatchings whose
+crossings alternate — decided by the parity of the line indices, the way real
+basket weave works — leave both readable, and the trick keeps working at three
+and four sets where stacking has long since gone to mud.
+
+**Where several things must occupy one space, look for the rule that shares the
+overlaps evenly instead of the rule that orders them.** Ordering scales to about
+two.
+
+## A value that two unrelated systems read belongs to neither.
+
+The hour started as a parameter of the shade filter. Then it turned out that
+where every person is, is also a function of the hour. Two independent readers
+means it is not the filter's — it is global, and sits above all of them.
+
+The tell is worth memorising: **the moment a second, unrelated consumer appears
+for a value, its home is wrong.** It was not wrong when it was written; it became
+wrong.
+
+## Generate, then view. Never both at once.
+
+The tracing tool writes the fence network; the game only reads it. A filter's
+reading is computed separately from the hatching that draws it, and should be
+checkable with nothing on screen.
+
+Every time this split exists, a bug has a side and the search space halves. Every
+time it does not, a wrong pixel and a wrong rule look identical.
