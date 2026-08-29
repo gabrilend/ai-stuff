@@ -309,7 +309,25 @@ svg { max-width: 100%; }
 <tr><td><code>target_is_alive(world, id)</code></td><td></td><td>Whether the stored target is still the body it thought it was.</td></tr>
 <tr><td><code>sweep_attackers(world)</code></td><td></td><td>— Rebuilds "who is swinging at me" and <code>incoming_dps</code>.</td></tr>
 <tr><td><code>hostile(a, b)</code></td><td>two team numbers</td><td>Whether they are enemies.</td></tr>
+<tr><td><code>can_see(world, id, target)</code></td><td></td><td>Whether there is a clear line, with <strong>allies</strong> as the only blockers.</td></tr>
 </tbody></table>
+<h2>Line of sight, and what it is not</h2>
+<p><code>can_see</code> answers one question: would a straight thing thrown from here arrive. It is</p>
+<p><strong>not</strong> fog of war and not general visibility — nothing in this game is hidden, and</p>
+<p>nothing occludes anything for the purposes of seeing it.</p>
+<p><strong>Allies are the only blockers.</strong> An enemy in the way is not an obstacle, it is a</p>
+<p>nearer target, and the ranking above has already had that thought. A body blocks a</p>
+<p>line if it sits within a fraction of its own personal space of it — less than the</p>
+<p>whole of it, because personal space is how much room a body <em>wants</em>, and a spike</p>
+<p>passing between two soldiers standing comfortably apart should get through.</p>
+<p><strong>One thing in the game uses it</strong>, and that is the point of it: the druid's moon</p>
+<p>spike, thrown flat from the palm, which cannot pass through a rank the way an arrow's</p>
+<p>arc can. So a druid standing behind a solid line cannot cast at all, and a druid that</p>
+<p>is casting is standing somewhere with a hole in front of it. **The frontline becomes a</p>
+<p>targeting constraint**, and a player can read it off the field.</p>
+<p>One grid query about the midpoint of the line, with a radius covering the whole</p>
+<p>segment, then a perpendicular distance per candidate — two multiplies. Exact rather</p>
+<p>than sampled, and cheaper than walking the line in steps.</p>
 <h2>Lowest health, not nearest</h2>
 <p>The most consequential line in the file. A rank that spreads its damage across</p>
 <p>everything in front of it kills nothing and dies anyway; a rank that concentrates</p>

@@ -159,6 +159,16 @@ local SPEED_FLOOR = 0.55
 -- has been bent by a turn visibly takes a moment to straighten.
 local LATERAL_RATE = 0.55
 
+-- How far ahead a formation aims when it works out which way it is pointing, in
+-- paces. Fixed rather than the distance to the waypoint, because a point that keeps
+-- receding as you walk toward it gives a heading that never settles.
+local HEADING_REACH = 120
+
+-- How quickly the heading swings onto a new direction, as a fraction per tick. Low,
+-- so a formation given a new waypoint turns onto it over about a second rather than
+-- pivoting on the spot.
+local HEADING_EASE = 0.04
+
 -- How fast a formation slides toward its waypoint, as a fraction of its marching
 -- pace. Slow: a wave crossing a zone boundary should drift, not step sideways.
 --
@@ -326,50 +336,91 @@ function M.assign_wave_slots(world, id, lane, role_index, role, melee_total)
   local files = M.files_for(lane)
   local half_width = (files - 1) * 0.5 * FILE_SPACING
 
+  local wave = world.wave[soldier.wave[id]]
+
+  -- {{{ local function skipping_the_captain()
+  -- A slot number that steps over the place the captain is standing in.
+  --
+  -- The captain takes the middle of its own rank and does **not** consume a place in
+  -- anybody's numbering, so without this the first body of that rank is handed the
+  -- same spot. Shifting every slot at or after the captain's by one is the whole of
+  -- it: two bodies never land on the same place, and the arrangement either side of
+  -- the captain stays the shape it would have been.
+  local function skipping_the_captain(index, first_rank)
+    local at = wave and wave.captain_rank or -1
+    if at >= first_rank then
+      local captain_slot = (at - first_rank) * files
+      if index >= captain_slot then
+        index = index + 1
+      end
+    end
+    return first_rank + math.floor(index / files), index % files
+  end
+  -- }}}
+
   local forward, sideways
-  if role == "front" then
+  if role == "captain" then
+    -- **A captain stands in the middle of its own rank**, and which rank that is is a
+    -- property of the captain rather than of where it happens to be spawned.
+    --
+    -- The middle, always: it is the most useful place to be and the most visible, and
+    -- a player who cannot find the captain cannot read what a lane is worth. Which
+    -- rank varies because the captains do -- one carrying a shield belongs in the
+    -- front of the line, and one carrying a bow belongs back with the others, and
+    -- giving the second the front rank puts a bow in front of the people whose job is
+    -- to be in front of it.
+    local row = world.parameters.unit.archetype[soldier.archetype[id]]
+    local rank = (row ~= nil and row.captain_rank) or 0
+
+    -- **A captain with a reach never stands inside the line**, whatever its row says.
+    -- How many ranks the line occupies depends on how many bodies are in it and how
+    -- wide the road is, so a rank that was behind the line in one lane is inside it in
+    -- another. Clamped rather than trusted, because the failure is a captain with a
+    -- bow standing in front of the shields and nothing anywhere saying so.
+    if row ~= nil and row.reach == 2 then
+      local behind_the_line = math.ceil(melee_total / files) + 1
+      if rank < behind_the_line then
+        rank = behind_the_line
+      end
+    end
+
+    if wave ~= nil then
+      wave.captain_rank = rank
+    end
+    forward = -rank * RANK_SPACING
+    sideways = 0
+  elseif role == "front" then
     -- The line. Ranks across the face, filled from the middle of the arc outward,
     -- so a rank that is not full is short **at its ends** rather than in its middle.
     -- That is what a thinning line looks like, and it also keeps the captain -- which
     -- is always given the first place -- on the bearing straight ahead, where it is
     -- both most useful and most visible.
-    local rank = math.floor(role_index / files)
-    local file = role_index % files
+    local rank, file = skipping_the_captain(role_index, 0)
     forward = -rank * RANK_SPACING
     sideways = M.file_offset(files, file)
   else
-    -- **The shoulders, not the back.**
+    -- **Behind the line, in its own ranks.**
     --
-    -- These stood directly behind the line, in the same files, one gap further back,
-    -- on the reasoning that they were shooting over it. They cannot shoot over it.
-    -- Only artillery does that -- a longbow lofting across a glen -- and a body with
-    -- a javelin or a sling is shooting **around**, which means it needs a bearing to
-    -- its target that does not pass through a friend.
+    -- This spent a while at the shoulders, on the reasoning that a body with a
+    -- javelin cannot shoot through its own rank and needs a clear bearing round the
+    -- end of it. Both halves of that are true and the conclusion was still wrong.
     --
-    -- So they stand at the **shoulders**: behind the last rank of the line and out at
-    -- its ends, on a bearing of about five-eighths of a turn from dead ahead. From
-    -- there the line is diagonally in front of them rather than squarely so, and
-    -- anything they want to shoot that is not directly up the middle has a clear
-    -- bearing past it. Alternating sides, so a wave with two has one on each shoulder
-    -- rather than both on the left.
+    -- An arrow arcs. A bow standing behind its own line is doing the thing bows are
+    -- for, and the only weapon here that genuinely cannot pass over a rank is the
+    -- druid's moon spike, which is flat -- and that one is meant to be blocked, which
+    -- is what makes the frontline a targeting constraint and gives a player something
+    -- to read.
     --
-    -- **This is a placement, not a guarantee.** There is no line-of-fire check in this
-    -- game -- nothing occludes anything, and a shot is a distance and a cooldown. So
-    -- standing them where their line is clearest is the whole of the mechanism, and
-    -- it is worth knowing that it is a shape rather than a rule.
+    -- **And the shoulders belong to cavalry.** There is no cavalry yet and there will
+    -- be, and putting the archers where the horses go means moving them again later
+    -- and rebuilding whatever came to depend on it.
     --
-    -- The formation gets no wider for it. They occupy the outermost file rather than
-    -- a new one, which matters because a road's width is derived from how wide the
-    -- formation walking it is -- widening the shape here would widen every road in
-    -- the game.
-    local side = (role_index % 2 == 0) and 1 or -1
-    local depth_index = math.floor(role_index / 2)
-    -- Behind the last rank of the line, at its **ends**. Not in the line: the outer
-    -- file of every rank is already occupied by somebody holding it, and a place is
-    -- not a place if somebody is standing in it.
+    -- A gap between them and the last rank of the line, so they read as a second body
+    -- of troops rather than as the back of the first.
     local line_ranks = math.ceil(melee_total / files)
-    forward = -(line_ranks + depth_index) * RANK_SPACING
-    sideways = side * half_width
+    local rank, file = skipping_the_captain(role_index, line_ranks + 1)
+    forward = -rank * RANK_SPACING
+    sideways = M.file_offset(files, file)
   end
 
   -- The offsets from the front of the formation, which is what the movement works
@@ -388,7 +439,6 @@ function M.assign_wave_slots(world, id, lane, role_index, role, melee_total)
   -- Accumulated rather than computed from the member count, because the bodies on the
   -- shoulders sit further back than the line does and how far depends on how many
   -- there are.
-  local wave = world.wave[soldier.wave[id]]
   if wave ~= nil then
     local reach = -forward
     if wave.depth == nil or reach > wave.depth then
@@ -399,24 +449,28 @@ end
 -- }}}
 
 -- {{{ function M.settle_the_disc()
--- Writes every body's **bearing and distance from the formation's centre**, once the
--- whole formation has been placed.
+-- Writes every body's **bearing and distance from the formation's centre**, and the
+-- formation's own **heading**, once the whole wave has been placed.
 --
 -- Polar because the questions asked about a place are angular ones. Can this body
 -- shoot past that one. Is it on the flank or in the middle where the heavy troops
 -- belong. Which way should it face. Every one of those is a bearing with a distance
 -- attached, and none of them is a row and a column.
 --
--- **After the wave is built, not during.** A circle has a centre and does not have a
--- front, so a bearing has to be measured from the middle -- and where the middle is
--- depends on how deep the formation turned out to be, which is not known until the
--- last body has been given somewhere to stand. Computed body by body as they were
--- born, every bearing came out measured from a centre that was still moving, and the
--- front rank came out at a quarter turn from dead ahead, which is where the flanks
--- are.
+-- ## The heading is a direction, not a point
 --
--- Bearings run from 0 dead ahead, through a quarter turn at the flanks, to half a
--- turn at the rear. The sign is which side.
+-- A formation does not need to know where its centre is in order to know which way it
+-- is going. It needs a **vector**: draw a line from the first body placed to what the
+-- formation is walking toward, and that is the heading. Kept as a direction, updated
+-- as the formation forms and as it moves.
+--
+-- Which dissolves a problem that looked structural. Bearings are measured from a
+-- centre, and where the centre is depends on how deep the formation turned out to be,
+-- which is not known until the last body has somewhere to stand -- so it looked as
+-- though nothing angular could be settled until the wave was finished being built.
+-- It cannot be, but only for the *bearings*. The heading was available from the first
+-- body onward, and a direction is what everything downstream actually wants: which way
+-- to turn, which way to face, which side of the line a thing is on.
 function M.settle_the_disc(world, wave_id)
   local soldier = world.soldier
   local wave = world.wave[wave_id]
@@ -434,6 +488,64 @@ function M.settle_the_disc(world, wave_id)
       soldier.slot_distance[id] = math.sqrt(forward * forward + sideways * sideways)
     end
   end
+
+  M.take_a_heading(world, wave)
+end
+-- }}}
+
+-- {{{ function M.take_a_heading()
+-- The direction a formation is walking, as a unit vector in lane coordinates.
+--
+-- **Down the road, plus whatever the wave is currently drifting toward.** A formation
+-- walking a straight road with a waypoint half a road-width off to one side is not
+-- pointing straight ahead; it is pointing at the waypoint, and the angle between
+-- those two is the whole of what makes an approach look like an approach.
+--
+-- Held as a direction rather than as a target, which is the thing that makes it
+-- cheap to keep: a point has to be re-derived every time the formation moves and a
+-- direction does not. Eased rather than snapped, so a formation given a new waypoint
+-- swings onto it over a second or so instead of pivoting on the spot.
+--
+-- Lane coordinates, so "forward" is along the road and "sideways" is across it, and
+-- the road's own curve carries the whole thing round a corner without any of this
+-- having to know a corner is happening.
+function M.take_a_heading(world, wave)
+  -- **What it points at depends on whether anything is in front of it.**
+  --
+  -- Fighting: the middle of what it has run into, so the line is square to the thing
+  -- it is hitting and as much of it as possible is in contact. Marching: the waypoint,
+  -- so the approach comes in at an angle rather than straight down the middle.
+  --
+  -- Aiming at the waypoint while fighting was the first version and it is worse than
+  -- not turning at all -- a line held at an angle to its enemy has fewer bodies
+  -- touching, which is the entire thing a line is for.
+  local want_sideways
+  if wave.facing_across ~= nil then
+    want_sideways = wave.facing_across - (wave.wander or 0)
+  else
+    want_sideways = (wave.wander_to or 0) - (wave.wander or 0)
+  end
+  -- How far ahead the formation is aiming. A fixed distance rather than the distance
+  -- to the waypoint: aiming at a point that keeps moving further away as you walk
+  -- toward it would give a heading that never settles.
+  local length = math.sqrt(HEADING_REACH * HEADING_REACH
+                           + want_sideways * want_sideways)
+  local forward = HEADING_REACH / length
+  local sideways = want_sideways / length
+
+  local was_forward = wave.heading_forward or 1
+  local was_sideways = wave.heading_sideways or 0
+  wave.heading_forward = was_forward + (forward - was_forward) * HEADING_EASE
+  wave.heading_sideways = was_sideways + (sideways - was_sideways) * HEADING_EASE
+
+  -- Renormalised, because easing two components separately does not preserve length
+  -- and a heading that is not a unit vector is a heading with a speed hidden in it.
+  local size = math.sqrt(wave.heading_forward * wave.heading_forward
+                         + wave.heading_sideways * wave.heading_sideways)
+  if size > 0.0001 then
+    wave.heading_forward = wave.heading_forward / size
+    wave.heading_sideways = wave.heading_sideways / size
+  end
 end
 -- }}}
 
@@ -449,11 +561,22 @@ function M.target_of(world, id)
   if wave == nil then
     return soldier.lane_along[id], soldier.lane_across[id]
   end
-  -- Three things decide how far across the lane a body's place is: where it stands
-  -- in its own rank, where its whole formation has been shifted to stand abreast of
-  -- the others during a challenge, and where the formation is currently wandering.
-  -- They add rather than override -- a wave funnelled into the middle still wanders,
-  -- and a wandering wave still keeps its place in the three.
+  -- **The heading is maintained and places are not yet turned by it.**
+  --
+  -- Rotating every place by the formation's heading was built and then taken out,
+  -- because it needs something that does not exist. When a formation turns, a body on
+  -- the outside of the turn has its place swing away from it and has to **hurry** to
+  -- catch it -- and the speed model says nothing hurries. Bodies are in gears now:
+  -- walking or marching, with marching the fastest thing there is, so a place that
+  -- moves away faster than a march simply is not caught.
+  --
+  -- What that produced was a line permanently held at an angle to its own travel,
+  -- with fewer bodies in contact than a square one. Measured over five matches: about
+  -- one challenge monster in six walked through a line that used to stop it, and
+  -- matches ran a seventh shorter.
+  --
+  -- The two decisions are in tension and the tension is the finding, not a bug in
+  -- either of them. See [open questions](../docs/020-open-questions.md), H13.
   return wave.anchor + soldier.slot_along[id] * soldier.facing[id],
          soldier.slot_across[id] + (wave.across_offset or 0) + (wave.wander or 0)
 end
@@ -506,17 +629,32 @@ local function advance_anchor(world, wave)
   local front = wave.anchor
   local x, y = world.map_builder.point_at(world.map, lane, front, wave.hint)
 
-  local blocked = false
+  -- Whether anything hostile is near the front, and **where across the road it is**.
+  --
+  -- The second part is what the formation turns to face. A wave that kept aiming at
+  -- its waypoint while fighting presents its line at an angle to whatever it is
+  -- fighting, so fewer of its bodies are in contact -- which is correct physics and
+  -- exactly wrong behaviour. Measured: it lets about one challenge monster in six
+  -- walk through a line that used to stop it.
+  local blocked, sum, seen = false, 0, 0
   world.targeting.for_each_near(world, x, y, CONTACT_RANGE, function(id)
-    if not blocked and world.targeting.hostile(wave.team, world.soldier.team[id]) then
+    if world.targeting.hostile(wave.team, world.soldier.team[id]) then
       blocked = true
+      sum = sum + world.soldier.lane_across[id]
+      seen = seen + 1
     end
   end)
 
   wave.engaged = blocked and 1 or 0
   if blocked then
+    -- The middle of what it has run into, which is what it now points at. Their
+    -- frontline rather than their formation: the middle of a block is behind the
+    -- people who are actually going to be hit.
+    wave.facing_across = sum / seen
+    M.take_a_heading(world, wave)
     return
   end
+  wave.facing_across = nil
 
   -- Where the **middle** of the formation is. The anchor is its front, deliberately
   -- -- a wave stops when something is near the front of it, not when something is
@@ -592,6 +730,11 @@ local function advance_anchor(world, wave)
     wander = want
   end
   wave.wander = wander
+
+  -- And which way that leaves it pointing. Updated every tick as the formation moves,
+  -- which is what "as it moves and adjusts" means -- a heading taken once at spawn
+  -- would be a formation facing wherever it happened to start.
+  M.take_a_heading(world, wave)
 
   -- A wave advances at its slowest member's pace, so it does not walk away from
   -- its own rear rank. The captain is the slowest body in a wave, which is why a

@@ -81,6 +81,34 @@ here reaches for the ally closest to dying; the moon reaches for the enemy
 furthest from it. A druid mends what is nearly gone and attacks what is barely
 touched — which is a coherent temperament rather than two unrelated buttons.
 
+## What is built
+
+**Line of sight is built**, with allies as the only blockers, and the moon spike is in
+the ability table using it: the highest-health enemy the druid has a clear line to.
+One grid query about the midpoint of the line, then a perpendicular distance per
+candidate — exact rather than sampled, and cheaper than walking the line in steps.
+
+A body blocks a line if it sits within a fraction of its own personal space of it.
+Less than the whole of it, because personal space is how much room a body *wants* and
+a spike passing between two soldiers standing comfortably apart should get through.
+
+**Orbiting is rebuilt and it is not what step 6 asked for.** It now has two
+behaviours: a rank with nothing hostile nearby **fans out** across the road, and a
+rank with something close **concentrates** toward it. The direction comes from the
+mean position of the enemy across the road rather than from which half of the road
+the body already stood on, and it is held for as long as the body stays in the same
+milestone.
+
+Both are gated on being near a fight — the body's own wave in contact, or something
+hostile within its own reach. Without that gate every archer in the game spreads to
+the verge the moment it leaves the library, which is not keeping station: it is
+refusing to march, and it pulls the formation apart before it meets anybody. Measured:
+the line bends by two and a half ranks and the sandbox stops recognising it as a
+formation at all.
+
+**Not built:** the pending-heal buffer, the claim rule, the positional rule, and the
+test that a druid behind an unbroken rank cannot cast.
+
 ## Suggested implementation steps
 
 1. Add a **pending-heal buffer** alongside `pending_damage`, cleared every tick

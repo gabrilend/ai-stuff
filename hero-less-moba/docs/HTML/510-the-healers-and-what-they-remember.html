@@ -360,6 +360,28 @@ svg { max-width: 100%; }
 <p>here reaches for the ally closest to dying; the moon reaches for the enemy</p>
 <p>furthest from it. A druid mends what is nearly gone and attacks what is barely</p>
 <p>touched — which is a coherent temperament rather than two unrelated buttons.</p>
+<h2>What is built</h2>
+<p><strong>Line of sight is built</strong>, with allies as the only blockers, and the moon spike is in</p>
+<p>the ability table using it: the highest-health enemy the druid has a clear line to.</p>
+<p>One grid query about the midpoint of the line, then a perpendicular distance per</p>
+<p>candidate — exact rather than sampled, and cheaper than walking the line in steps.</p>
+<p>A body blocks a line if it sits within a fraction of its own personal space of it.</p>
+<p>Less than the whole of it, because personal space is how much room a body <em>wants</em> and</p>
+<p>a spike passing between two soldiers standing comfortably apart should get through.</p>
+<p><strong>Orbiting is rebuilt and it is not what step 6 asked for.</strong> It now has two</p>
+<p>behaviours: a rank with nothing hostile nearby <strong>fans out</strong> across the road, and a</p>
+<p>rank with something close <strong>concentrates</strong> toward it. The direction comes from the</p>
+<p>mean position of the enemy across the road rather than from which half of the road</p>
+<p>the body already stood on, and it is held for as long as the body stays in the same</p>
+<p>milestone.</p>
+<p>Both are gated on being near a fight — the body's own wave in contact, or something</p>
+<p>hostile within its own reach. Without that gate every archer in the game spreads to</p>
+<p>the verge the moment it leaves the library, which is not keeping station: it is</p>
+<p>refusing to march, and it pulls the formation apart before it meets anybody. Measured:</p>
+<p>the line bends by two and a half ranks and the sandbox stops recognising it as a</p>
+<p>formation at all.</p>
+<p><strong>Not built:</strong> the pending-heal buffer, the claim rule, the positional rule, and the</p>
+<p>test that a druid behind an unbroken rank cannot cast.</p>
 <h2>Suggested implementation steps</h2>
 <ul>
 <li>Add a <strong>pending-heal buffer</strong> alongside <code>pending_damage</code>, cleared every tick</li>

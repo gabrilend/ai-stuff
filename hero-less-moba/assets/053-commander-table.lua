@@ -156,6 +156,16 @@ M.ability = {
   sunlight       = {condition = "allies_hurt_nearby",  effect = "shield",     cooldown = 150, power = 55,  radius = 118},
   affliction     = {condition = "curse_target",        effect = "curse",      cooldown = 140, power = 8,   radius = 150, duration = 420},
   chain_tide     = {condition = "shaman_target",       effect = "chain",      cooldown = 160, power = 60,  radius = 140, bounces = 4},
+
+  -- The druid's one offensive spell, and the only thing in the game with a **line of
+  -- sight** condition on it. A spike of moonlight thrown flat from the palm, so its
+  -- own side's rank is in the way of it in a manner an arrow's arc is not.
+  --
+  -- It aims **opposite to everything else the healers do**: every mending rule here
+  -- reaches for the ally closest to dying, and this reaches for the enemy furthest
+  -- from it. A druid mends what is nearly gone and attacks what is barely touched,
+  -- which is a temperament rather than two unrelated buttons.
+  moon_spike     = {condition = "moon_target",         effect = "wither",     cooldown = 130, power = 7,   radius = 150, duration = 360},
 }
 -- }}}
 

@@ -271,7 +271,16 @@ local function queue_wave(world, team, lane, turn)
   local body_count = settings.melee_count + settings.ranged_count
   local melee_count = math.floor(body_count * commander.melee_share + 0.5)
   local ranged_count = body_count - melee_count
-  local melee_total = settings.captain_count + melee_count
+  -- How many bodies the **line** holds, which is what decides how many ranks it
+  -- occupies and therefore where the ranks behind it start.
+  --
+  -- The captain counts only if it stands in the line. One with a bow stands behind
+  -- it, so counting it would push the archers a rank further back than they need to
+  -- be and leave a hole where the captain was assumed to be.
+  local captain_row = world.parameters.unit.archetype[commander.captain]
+  local captain_in_the_line = (captain_row ~= nil and (captain_row.captain_rank or 0) == 0
+                               and captain_row.reach ~= 2)
+  local melee_total = melee_count + (captain_in_the_line and settings.captain_count or 0)
 
   local bounty_index = 0
   local function born(archetype, role, role_index)
@@ -283,36 +292,26 @@ local function queue_wave(world, team, lane, turn)
 
   lane = walks
   local front_index = 0
-  local shoulder_index = 0
+  local behind_index = 0
 
-  -- **A captain stands where its reach says, not where its rank says.**
+  -- A captain is given its own role. Which rank it stands in is written on its
+  -- archetype row -- the front of the line for one carrying a shield, back with the
+  -- archers for one carrying a bow -- and it stands in the middle of that rank.
   --
-  -- A melee captain takes the first place in the line, which is the middle of the
-  -- front rank -- most useful and most visible. A *ranged* captain given that place
-  -- stands in the front rank with a bow, in front of the people whose job is to be in
-  -- front of it, which is the one arrangement that gets it killed first.
-  --
-  -- So it takes the first shoulder instead. It is still given the first place of
-  -- whichever group it belongs to, so it is still the centre-most of them.
-  local captain_row = world.parameters.unit.archetype[commander.captain]
-  local captain_shoots = (captain_row ~= nil and captain_row.reach == 2)
-
+  -- It does not consume a place in the line or in the ranks behind it. A captain in
+  -- the middle of the front rank is *the* middle of that rank, and the melee lay out
+  -- around it; a captain behind is a body standing in a gap of its own.
   for _ = 1, settings.captain_count do
-    if captain_shoots then
-      born(commander.captain, "back", shoulder_index)
-      shoulder_index = shoulder_index + 1
-    else
-      born(commander.captain, "front", front_index)
-      front_index = front_index + 1
-    end
+    born(commander.captain, "captain", 0)
   end
+
   for _ = 1, melee_count do
     born(MELEE, "front", front_index)
     front_index = front_index + 1
   end
   for _ = 1, ranged_count do
-    born(RANGED, "back", shoulder_index)
-    shoulder_index = shoulder_index + 1
+    born(RANGED, "back", behind_index)
+    behind_index = behind_index + 1
   end
 
   -- Now that every body has a place, the formation knows how deep it is, and every

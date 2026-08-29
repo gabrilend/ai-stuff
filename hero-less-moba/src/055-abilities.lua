@@ -75,6 +75,41 @@ M.condition = {
   end,
   -- }}}
 
+  -- {{{ moon_target
+  -- The **highest-health enemy this body has a clear line to**, with its own allies
+  -- as the blockers.
+  --
+  -- Two rules, and each is the opposite of a rule somewhere else.
+  --
+  -- Highest health, where every mending chooser in the game reaches for the ally
+  -- closest to dying. The druid mends what is nearly gone and attacks what is barely
+  -- touched.
+  --
+  -- And blocked by friends, where nothing else in the game is blocked by anything. A
+  -- spike of moonlight thrown flat from the palm cannot go through the rank in front
+  -- of it, the way an arrow's arc can. **So the frontline becomes a targeting
+  -- constraint**: a druid standing behind a solid line cannot cast this at all, and a
+  -- druid that is casting it is standing somewhere with a hole in front of it. That is
+  -- a thing a player can read off the field.
+  --
+  -- Returning 0 is not a dead end. It is the condition that sends the body looking
+  -- for an angle -- see the orbiting rule.
+  moon_target = function(world, id, ability)
+    local soldier = world.soldier
+    local best, most_health = 0, -1
+    world.targeting.for_each_near(world, soldier.x[id], soldier.y[id], ability.radius,
+      function(other)
+        if soldier.alive[other] == 1
+           and world.targeting.hostile(soldier.team[id], soldier.team[other])
+           and soldier.health[other] > most_health
+           and world.targeting.can_see(world, id, other) then
+          best, most_health = other, soldier.health[other]
+        end
+      end)
+    return best
+  end,
+  -- }}}
+
   -- {{{ structure_in_reach
   -- An enemy structure inside weapon range. A hero that only fires at stone is a
   -- hero a player buys for a specific job on a specific turn.

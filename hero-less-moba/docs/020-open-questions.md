@@ -4699,7 +4699,7 @@ is built with, it cannot be changed by walking, and it is what a spawner getting
 wrong would break. Alongside it, a separate count of how many bodies are standing,
 because two identical bodies in the same place look like one entry counted twice.
 
-## H10. Is a lane's purse per lane, or per lane per team? — **NEEDS A DECISION**
+## H10. Is a lane's purse per lane, or per lane per team? — **ANSWERED**
 
 From [what the lane can afford](../issues/213-what-the-lane-can-afford.md): "Each
 lane has a different resource table, and different meters for each unit type."
@@ -4719,7 +4719,11 @@ wave, and then did not.
 Six is almost certainly meant. It is written down because three is a real design and
 the sentence does not rule it out.
 
-## H11. What fills the purse? — **NEEDS A DECISION**
+**Answer: one per lane per team.** Six on the map as it stands, and the number is
+lanes times two rather than players times two — the lane count is a parameter and a
+larger map with more lanes than players is a thing that might happen.
+
+## H11. What fills the purse? — **ANSWERED**
 
 Nothing in the description of the draw says where a lane's resource comes from, only
 what it is spent on. Three candidates, in the order they look promising:
@@ -4739,7 +4743,32 @@ This interacts with the whole second economy: the personal wallets already pay e
 player on the killing team for every death. A lane purse fed the same way would be a
 second, invisible copy of that, moving in the same direction at the same time.
 
-## H12. What does the scarcity thumb do at the extremes? — **NEEDS A DECISION**
+**Answer: the upgrades fill it, and that is the point.** None of the three above.
+
+An upgrade slotted into a lane does some mixture of:
+
+- **`+1 ticket per wave` for a specific unit entry.** The commonest and the simplest:
+  that unit turns up more often in that lane.
+- **`+1 resource per wave`.** More resource means more tickets in the pool overall,
+  which means more troops or heavier ones — because the draw distributes by *least
+  recently seen*, more is always straightforwardly good.
+- **Unlocking a new entry, usually at the cost of an old one** — and usually the one
+  it is taking the equipment from.
+
+The third is the interesting one, and the example given is worth keeping whole. A
+swordsman with a shield and an iron cap finds a magic blade. If the swordsman entry
+costs 3, then **3 tickets leave the swordsman entry and 3 arrive at the magic
+swordsman entry**, and N resources are added, where N is the cost of the sword in
+particular — perhaps one resource point per, for three in total.
+
+So an upgrade is not a stat bonus applied to a lane. It is a change to what that lane
+*raises*, and where the new thing came from is visible in what stopped turning up.
+**Which is how a player customises what a lane fields**: distribute the upgrades
+differently and different troops walk out.
+
+**Built:** issue 213.
+
+## H12. How is the draw actually made? — **ANSWERED**
 
 The draw gives "units that cost more when we have fewer resources more tickets in the
 draw" — being poor makes the expensive thing *more* likely, which is deliberate and
@@ -4765,3 +4794,84 @@ Three ways out:
 The third is the most faithful reading and the most dangerous. The first is what the
 doubling-up rule seems to assume, since a meter that fills toward "twice the maximum
 tickets" implies tickets are bounded.
+
+**Answer: it is a deck, not a weighted roll, and the cost is paid in discards.**
+
+The whole mechanism, and it dissolves the question rather than answering it:
+
+- **The more resources, the more tickets go into the pool.**
+- The tickets are shuffled into a **deck**. Drawing is taking the top card.
+- Whatever unit that card is, **N further tickets are drawn and discarded**, where N
+  is that unit's resource cost. Expensive units eat the deck.
+- When the deck runs out, it is reshuffled.
+- After each wave, the discards are reshuffled and placed **below** the tickets that
+  have not been drawn yet.
+
+So cost is not a price checked against a balance. It is **how much of the deck a
+choice consumes**, which makes the scarcity question disappear: an expensive unit
+does not need to be affordable, it needs the deck to have enough left in it, and
+having drawn one you have less of everything for a while.
+
+### The shuffle, which was specified exactly and is not a shuffle
+
+Not a random permutation. A **pile shuffle**, done in a fixed sequence:
+
+> deal into 3 piles, concatenate; into 4, concatenate; into 5, concatenate; into 4,
+> concatenate; into 7, concatenate.
+
+The odd counts may be reordered between shuffles — 5, 7, 3 next time — but **every
+other pass must be a pile of four.** It is not perfectly uniform and it is very close,
+and it is deterministic given the pile counts, which is worth a great deal in a
+project whose first invariant is that the same seed plays the same match.
+
+The alternative that was considered and rejected: inserting the discards back into
+the waiting deck at random positions one by one. It was rejected for a specific
+reason — it *guarantees* the first cards are evenly distributed, which is a worse kind
+of non-uniformity than the pile shuffle's, because it is a guarantee rather than a
+tendency.
+
+**Built:** issue 213.
+
+## H13. Gears say nothing hurries; a turning formation needs somebody to — **NEEDS A DECISION**
+
+Two decisions that were made a few hours apart and are in direct tension. Neither is
+wrong on its own and they cannot both stand.
+
+**A body is in a gear.** Walking at seven tenths of its pace, or marching at its
+pace, and marching is the fastest thing there is. A formation dresses itself by the
+inside of a turn slowing rather than the outside sprinting, which is what a body of
+troops actually does — asking the outer rank to run is how a line becomes a crowd.
+
+**A formation turns to face where it is going.** Its places are laid out on a disc
+with a heading, so when it swings onto a new bearing, a body on the outside of that
+swing has its place move away from it. To keep its place it has to **hurry**. There
+is no hurrying.
+
+What that produces is not a formation that turns slowly. It is a formation
+permanently held at an angle to its own travel, with its line no longer square to
+whatever it is walking into — and a line that is not square has fewer bodies in
+contact, which is the entire thing a line is for. Measured over five unattended
+matches: about one challenge monster in six walked through a line that used to stop
+it, and matches ran a seventh shorter.
+
+Facing the enemy rather than the waypoint while engaged was tried first and did not
+recover it, which is the useful part of the measurement: **the cost is in the
+marching, not in the fighting.** A formation that spends its speed budget turning is
+a formation that arrives later, and arriving later is what lets a monster past.
+
+So the heading is maintained and nothing is turned by it yet. Three ways out:
+
+1. **Let the outside of a turn hurry, and only there.** A third gear between marching
+   and running, reachable only by a body whose place is swinging away from it. Keeps
+   the rule that nothing sprints at an enemy while admitting that turning is work.
+2. **Turn the formation only when it is not walking.** A wave halted at contact can
+   afford to pivot because it is not spending its speed going forward. A marching
+   wave stays square to its road. Cheap, and it means the approach angle the
+   waypoints exist for never actually shows.
+3. **Turn the shape rather than the bodies.** The places rotate about the formation's
+   centre so that the *front* stays square to the road while the rank behind steps
+   across — an oblique order rather than a rotated block. More faithful to what a real
+   formation does when it comes in at an angle, and considerably more arithmetic.
+
+The first is the smallest change and directly contradicts the sentence "nobody runs
+when chasing a kill" — though not really, since this is not chasing anything.

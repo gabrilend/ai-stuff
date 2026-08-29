@@ -16,7 +16,7 @@ no second system to distract from a bad one.
 | --- | --- | --- |
 | `begin(world)` / `begin_tick(world)` | | — Allocates and clears the healing claims. |
 | `stand_off(world, id)` | | `true` if a ranged body gave ground. |
-| `orbit(world, id)` | | `true` if it kept station off the shoulder. |
+| `orbit(world, id)` | | `true` if it fanned out or closed up. |
 | `should_fall_back(world, id)` | | Whether to leave the line. |
 | `should_return(world, id)` | | Whether to go back in. |
 | `recover(world, id)` | | — Withdraws and mends. |
@@ -38,27 +38,44 @@ And it is **contestable** — another ranged body can push into that space and t
 a distance neither is comfortable at, which is the whole reason this is a movement
 rule rather than a fixed spacing.
 
-## Orbiting, and the fight at the shoulders
+## Fanning out and concentrating
 
-A ranged body with nothing to shoot does not stand still and does not walk into the
-line. It keeps station off the shoulder of the fight, at its own reach.
+A body with a reach has two postures and which one it takes is a question about
+**threat**, not about distance.
 
-**Which way is not random.** A body already on one side goes further that way and
-**commits for as long as it stays in the same milestone**, so it reads as a decision
-rather than as dithering. And then:
+| | When | What it does |
+| --- | --- | --- |
+| **fan out** | nothing hostile within its own reach | spreads across the road, out toward the shoulder |
+| **concentrate** | something is there | closes toward the middle of it, and closer still if something is right on top of it |
 
-> Both sides' ranged bodies do this, so they drift toward the same flanks and end up
-> facing each other.
+Fanning is why a rank covers ground: a block of archers standing on top of each other
+is a block of archers most of whom cannot see anything. Concentrating is what "just
+enough firepower to disable whatever comes near" means when it is a group doing it
+rather than one body.
+
+**Which way is not random.** The direction comes from the **mean position of the
+enemy across the road**, and is held for as long as the body stays in the same
+milestone, so it reads as a decision rather than as dithering. And then:
+
+> Both sides' bodies with a reach do this, so they end up facing each other.
 
 Nothing anywhere says *ranged units should fight ranged units*. It falls out of two
-formations each sending their long-reach bodies wide, and it produces the thing every
-lane battle should have — a fight at the shoulders as well as one in the middle, with
-the flanks resolving on their own timetable while the melee grinds.
+formations each arranging their long-reach bodies against the same enemy mass, and it
+produces the thing every lane battle should have — a fight at the shoulders as well as
+one in the middle, resolving on its own timetable while the melee grinds.
 
-**Only around a fight.** "Nothing to shoot" means standing at a battle it cannot reach
-into, not three hundred paces down an empty lane. Without that gate every archer
-orbits from the moment it leaves the library, which is not keeping station — it is
-refusing to march, and it pulls the formation apart before it meets anybody.
+**Only near a fight**, and this gate is the load-bearing one. Near means the body's own
+wave is in contact, or something hostile is inside its own reach. Without it every
+archer in the game spreads to the verge the moment it leaves the library, which is not
+keeping station — it is refusing to march, and it pulls the formation apart before it
+meets anybody. Measured when the gate was briefly removed: the line bent by two and a
+half ranks and the formation sandbox stopped recognising it as a formation at all.
+
+An earlier version chose the side from **which half of the road the body already stood
+on**, and was gated on the wave being engaged and nothing else. Both were wrong. The
+first meant the direction had nothing to do with where the enemy was; the second meant
+a body only ever moved once its own front rank was already in contact, which is
+exactly too late for a rank whose job is to make contact expensive.
 
 ## Falling back, and coming back
 

@@ -402,3 +402,30 @@ goes and the gears stop engaging on a bend at all.
 
 Both numbers are printed by the formation sandbox every run, so the equilibrium is
 something to look at rather than something to remember.
+
+## 2026-08-29 — turning a formation costs more than it gives, for now
+
+The formation keeps a **heading** — a unit vector, eased, pointing at the middle of
+whatever it has run into if it has run into something, and at its next waypoint
+otherwise. Rotating every body's place by that heading was built, measured, and taken
+back out.
+
+| | Challenges reached | Monsters slain | Mean match |
+| --- | --- | --- | --- |
+| not turning | 15 over five matches | 20 | 24,486 ticks |
+| turning, easing 0.01 | 15 | 20 | 24,574 ticks |
+| turning, easing 0.04 | 13 | 17 | 21,367 ticks |
+
+About one challenge monster in six walked through a line that used to stop it, and
+matches ran a seventh shorter.
+
+The reason is not subtle once measured: a turning formation is held at an angle to its
+own travel, and a line that is not square to what it is walking into has fewer bodies
+in contact — which is the entire thing a line is for. Facing the enemy rather than the
+waypoint while engaged was tried and recovered none of it, which locates the cost
+precisely: **it is in the marching, not in the fighting.**
+
+Underneath is a genuine conflict between two decisions made hours apart. A body is in
+a gear and marching is the fastest thing there is; a turning formation moves a body's
+place away from it and needs that body to hurry. There is no hurrying. Written up as
+H13 rather than resolved by tuning.

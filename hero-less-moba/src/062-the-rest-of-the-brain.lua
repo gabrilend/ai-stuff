@@ -62,6 +62,16 @@
 
 local M = {}
 
+-- How much of a road's half-width a fanned-out rank spreads across. Not all of it:
+-- the very edge is where a flanking body arrives, and a rank pressed against the
+-- verge has nowhere to go when one does.
+local FANNED_OUT = 0.8
+
+-- How much closer than the enemy's own middle a body pulls when something is close
+-- enough to be harassing it, in paces. Small -- this is a rank tightening, not a
+-- charge.
+local CLOSING_UP = 12
+
 -- Ranged bodies and healers give ground at half speed while engaged. Melee closes at
 -- full. That single asymmetry produces most of what a frontline looks like: **a melee
 -- body that commits will reach a ranged one** -- eventually, having been shot the
@@ -110,41 +120,34 @@ end
 -- }}}
 
 -- {{{ function M.orbit()
--- A ranged body with nothing to shoot, keeping station off the shoulder of the
--- fight.
+-- A body with a reach, spreading out or closing up depending on what is in front of
+-- it.
 --
--- **The anchor is the friendly line, not the enemy.** A body orbits at its own weapon
--- range from the fighting, which keeps it close enough to be useful and far enough to
--- be safe -- and when the line moves, the orbit moves with it, with no separate rule
--- for retreating.
+-- **Two behaviours, and which one is a question about threat rather than about
+-- distance.**
 --
--- Which way it goes is decided once and held. A body already on one side of the lane
--- goes further that way and **commits for as long as it stays in the same
--- milestone**, so the behaviour reads as a decision rather than as dithering.
+--   fan out     nothing hostile nearby. The rank behind spreads across the road, so
+--               it covers more ground and more of it has an angle on whatever
+--               arrives. A block of archers standing on top of each other is a block
+--               of archers most of whom cannot see anything.
+--   concentrate something is harassing the edges. They close up toward whichever
+--               side the threat is on and put their fire in one place, which is what
+--               "just enough to disable whatever comes near" means when it is a
+--               group doing it rather than one body.
+--
+-- What this replaces was gated on the *wave* being engaged and picked its side from
+-- which half of the road the body already stood on. Both were wrong. The first meant
+-- a body only ever moved once its own front rank was in contact, which is exactly too
+-- late for a rank whose job is to make contact expensive; the second meant the
+-- direction had nothing to do with where the enemy was.
+--
+-- The direction now comes from **which side of the enemy's mass the body stands on**,
+-- and is held for as long as the body stays in the same milestone, so it reads as a
+-- decision rather than as dithering.
 function M.orbit(world, id)
   local soldier = world.soldier
   if soldier.reach[id] ~= 2 then
     return false
-  end
-
-  -- **Only around a fight.** "A ranged body with nothing to shoot" means one standing
-  -- at a battle it cannot reach into, not one three hundred paces down an empty lane.
-  -- Without this gate every archer in the game orbits from the moment it leaves the
-  -- library, which is not keeping station -- it is refusing to march, and it pulls
-  -- the whole formation apart before it ever meets anybody.
-  local wave = world.wave[soldier.wave[id]]
-  if wave == nil or wave.engaged ~= 1 then
-    return false
-  end
-
-  local side = soldier.orbit_side[id]
-  if side == 0 or soldier.orbit_milestone[id] ~= soldier.milestone[id] then
-    -- Pick, from the side it is already on. Dead centre goes left, arbitrarily and
-    -- deterministically -- what matters is that both sides break the tie the same
-    -- way, so that two mirrored bodies do not both drift into each other.
-    side = (soldier.lane_across[id] >= 0) and 1 or -1
-    soldier.orbit_side[id] = side
-    soldier.orbit_milestone[id] = soldier.milestone[id]
   end
 
   local lane = world.map.lane[soldier.lane[id]]
@@ -152,10 +155,80 @@ function M.orbit(world, id)
     return false
   end
 
-  -- Out to the shoulder, and no further than the lane is wide -- a body that orbited
-  -- without limit would walk off the road and out of the fight it is supposed to be
-  -- shooting into.
-  local want = side * lane.width * 0.5
+  -- **Only near a fight.** Both behaviours below are about a rank arranging itself
+  -- against something; neither is about a rank three hundred paces down an empty
+  -- road. Without this gate every archer in the game spreads to the verge the moment
+  -- it leaves the library, which is not keeping station -- it is refusing to march,
+  -- and it pulls the whole formation apart before it ever meets anybody. Measured:
+  -- the line bends by two and a half ranks and the sandbox stops recognising it as a
+  -- formation at all.
+  --
+  -- "Near a fight" is either: this body's own wave has run into something, or there is
+  -- something hostile inside its own reach. The first covers the rank behind a line
+  -- that is already in contact, which is most of it; the second covers a body being
+  -- come at from the side, which is the case the whole concentrating behaviour exists
+  -- for and which the wave's own contact check cannot see.
+  local wave = world.wave[soldier.wave[id]]
+  local engaged = (wave ~= nil and wave.engaged == 1)
+
+  -- Where the enemy is, as one number: the mean position across the road of every
+  -- hostile body within this one's acquisition range, and how many there were.
+  local sum, seen, nearest = 0, 0, math.huge
+  world.targeting.for_each_near(world, soldier.x[id], soldier.y[id],
+                                soldier.acquire_range[id], function(other)
+    if soldier.alive[other] == 1
+       and world.targeting.hostile(soldier.team[id], soldier.team[other]) then
+      sum = sum + soldier.lane_across[other]
+      seen = seen + 1
+      local dx = soldier.x[other] - soldier.x[id]
+      local dy = soldier.y[other] - soldier.y[id]
+      local distance = math.sqrt(dx * dx + dy * dy)
+      if distance < nearest then nearest = distance end
+    end
+  end)
+
+  if seen == 0 and not engaged then
+    return false
+  end
+
+  local want
+  if seen == 0 then
+    -- **Fan out.** Nothing to shoot at, so spread: away from the middle of the road,
+    -- on whichever side this body already leans, out to the shoulder. Spreading is a
+    -- posture rather than a retreat -- it costs nothing while there is nobody about
+    -- and it means whatever does arrive is met by a rank that is already wide.
+    local side = soldier.orbit_side[id]
+    if side == 0 or soldier.orbit_milestone[id] ~= soldier.milestone[id] then
+      side = (soldier.lane_across[id] >= 0) and 1 or -1
+      soldier.orbit_side[id] = side
+      soldier.orbit_milestone[id] = soldier.milestone[id]
+    end
+    want = side * lane.width * 0.5 * FANNED_OUT
+  else
+    -- **Concentrate.** Something is there, so close toward it and put the fire in one
+    -- place. The side is the enemy's mean position across the road, held for as long
+    -- as this body stays in the same milestone so that a rank does not sway between
+    -- two groups.
+    local middle = sum / seen
+    local side = soldier.orbit_side[id]
+    if side == 0 or soldier.orbit_milestone[id] ~= soldier.milestone[id] then
+      side = (middle >= 0) and 1 or -1
+      soldier.orbit_side[id] = side
+      soldier.orbit_milestone[id] = soldier.milestone[id]
+    end
+    want = middle
+    -- Harassed at the edge rather than met head on: closer still, so the fire lands
+    -- on the thing that is actually reaching them.
+    if nearest < soldier.range[id] then
+      want = middle + side * CLOSING_UP
+    end
+  end
+
+  -- Never off the road. A body that spread without limit would walk out of the fight
+  -- it is supposed to be shooting into.
+  local edge = lane.width * 0.5
+  if want > edge then want = edge elseif want < -edge then want = -edge end
+
   local gap = want - soldier.lane_across[id]
   if math.abs(gap) < 1 then
     return false
