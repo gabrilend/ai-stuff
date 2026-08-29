@@ -77,6 +77,11 @@ f_overhead_tok | 1 | derived | (t_token_model - t_token) / t_token  | what the f
 n_model_term_d| 1 | given | 7                                       | terms in this model, which 049 must have a counter for each of
 tok_s_single  | 1/s | derived | 1 / t_token_model                    | tokens a second, one sequence
 tok_s_agg     | 1/s | derived | batch_design / t_step                | and aggregate at the design batch, where the weights are read once for everybody
+
+r_tok_per_W   | 1/(s*W)      | derived | tok_s_agg / P_heat  | tokens a second for every watt the machine burns. The figure somebody buying a room full of these optimises, as opposed to the two above, which are what somebody using one notices
+r_tok_per_L   | 1/(s*L)      | derived | tok_s_agg / V_cube  | and for every litre it occupies. A cube is 0.216 of a litre, so this is the number that says what the shape is worth
+r_tok_per_kg  | 1/(s*kg)     | derived | tok_s_agg / m_cube  | and for every kilogram of it
+f_batch_gain  | 1            | derived | tok_s_agg / tok_s_single | how much the machine gains by serving many sequences at once rather than one. It is the ratio that decides what this machine is for
 t_prefill_tok | s | derived | flop_token / ops_achieved             | one prompt token during prefill, which is compute-bound
 tok_s_prefill | 1/s | derived | 1 / t_prefill_tok                    | prompt tokens a second
 gain_prefill  | 1 | derived | tok_s_prefill / tok_s_single          | how much faster reading a prompt is than writing one
@@ -95,6 +100,8 @@ C-080-3 | f_t_weights > 0.5            | the weight term must be more than half 
 C-080-4 | gain_bw > 5                  | the machine must win on memory bandwidth by a wide margin, which is the only reason to build a core out of static memory
 C-080-5 | gain_cap < 1                 | and it must lose on capacity. Asserted in the failing direction deliberately: the honest comparison has both halves, and a specification sheet quoting only the first would be selling something the machine is not
 C-080-6 | gain_prefill > 10            | reading a prompt must be an order of magnitude faster than writing one, which is what makes the two cases worth separating
+C-080-7 | f_batch_gain > 10            | serving many sequences at once must be worth at least an order of magnitude over serving one, or this machine has no reason to exist in a rack rather than on a desk. It comes to nineteen, and that number is the whole statement of what the machine is for
+C-080-8 | f_batch_gain < batch_design  | the gain from batching cannot exceed the batch itself. Trivially true and worth asserting: it is the one place a performance model can flatter itself without anybody noticing, by counting a sequence twice
 ```
 
 ## What is still open

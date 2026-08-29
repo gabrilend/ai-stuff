@@ -40,22 +40,32 @@ the cube in the frame, looking down the diagonal from C111 toward C000 [not-dime
 Each face is named by the direction of its outward normal, and also carries a
 **sieve index** — its position in the pipeline a token falls through (`053`).
 
-| sieve index | face | opposite of |
-|---|---|---|
-| 0 | −Z | — |
-| 1 | +Z | stage 0 |
-| 2 | −X | stage 1 |
-| 3 | +X | stage 2 |
-| 4 | −Y | stage 3 |
-| 5 | +Y | stage 4 |
+| sieve index | face | the face opposite it | step to the next stage |
+|---|---|---|---|
+| 0 | −Z | +Z, stage 1 | antipodal |
+| 1 | +Z | −Z, stage 0 | adjacent |
+| 2 | −X | +X, stage 3 | antipodal |
+| 3 | +X | −X, stage 2 | adjacent |
+| 4 | −Y | +Y, stage 5 | antipodal |
+| 5 | +Y | −Y, stage 4 | — |
 
-**Consecutive stages sit on opposite faces, and that is a decision.** During
-single-stream generation exactly one face is doing arithmetic at a time and the
-other five are idle, so a hot region walks around the cube once per token. Were
-consecutive stages adjacent, that region would crawl around one equator and four
-faces would run consistently warmer than the other two. Antipodal ordering puts
-every consecutive pair as far apart as two points on this object can be, so heat
-lands alternately at opposite ends and the coolant sees a flatter load.
+**Three of the five steps are antipodal and that is the most a cube allows.**
+During single-stream generation exactly one face is doing arithmetic at a time
+and the other five are idle, so a hot region walks around the cube once per
+token. The intent was to keep every consecutive pair as far apart as two points
+on this object can be, so that heat lands alternately at opposite ends.
+
+It cannot be done for all five. A cube has three pairs of opposite faces and an
+ordering visits all six, so it must move between pairs twice, and a move between
+two different opposite-pairs is always to an adjacent face. Three antipodal steps
+out of five is the ceiling, and this ordering reaches it.
+
+**The table said something false until somebody drew it.** It claimed stage 2 was
+opposite stage 1 and stage 4 opposite stage 3, which would have made every step
+antipodal — but `−X` and `+Z` share an edge. The prose above it repeated the
+claim. Neither was caught by the checker, because a face ordering is a list and
+the notation holds numbers: this is the plainest example in the project of what
+`009`'s standing open question about lists actually costs.
 
 `026` is where that is paid off or shown not to matter. If the temperature swing
 turns out to be the same either way, this ordering is free to be used for
@@ -128,6 +138,9 @@ n_stage           | 1 | derived | n_face            | pipeline stages a token fa
 n_corner_in       | 1 | derived | n_corner / 2      | corners where coolant enters, the even-parity set
 n_corner_out      | 1 | derived | n_corner / 2      | corners where coolant leaves, the odd-parity set
 n_face_pair       | 1 | derived | n_face / 2        | pairs of opposite faces
+n_step_sieve      | 1 | derived | n_stage - 1       | steps a token takes through the sieve, one fewer than the stages it visits
+n_step_anti       | 1 | solved  | 3                 | of those steps, how many land on the face opposite the one just used -- from 102, which reads the ordering above rather than believing the sentence next to it
+n_step_anti_max   | 1 | solved  | 3                 | the most any ordering of six faces could manage, found by trying all seven hundred and twenty -- from 102
 ```
 
 ## Constraints
@@ -143,6 +156,8 @@ C-010-2 | n_edge_per_corner * n_corner == 2 * n_edge     | every edge has two en
 C-010-3 | n_corner_in + n_corner_out == n_corner         | every corner is a feed or a drain, and none is both
 C-010-4 | n_corner_in == n_corner_out                    | the parity sets are equal in size, which is what balances the manifold in 023
 C-010-5 | n_stage == n_face                              | one pipeline stage per face; the sieve has no stage that is not a face
+C-010-6 | n_step_anti == n_step_anti_max                  | the face ordering must be as good as a face ordering can be. This is the constraint that would have caught the error the table above carried: it claimed every step was antipodal, which is not a thing a cube permits, and no arithmetic here could tell, because an ordering is a list and this notation holds numbers
+C-010-7 | n_step_anti_max < n_step_sieve                  | and it must be impossible to do better than that ceiling. Asserted in the direction of alarm: two of the five steps have to cross between opposite-pairs and land on an adjacent face, so a run of all six cannot be wholly antipodal -- a search returning five would mean the search was wrong rather than the cube being surprising
 ```
 
 ## What is still open

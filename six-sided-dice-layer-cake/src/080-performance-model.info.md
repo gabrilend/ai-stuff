@@ -23,6 +23,10 @@ Described by `1106`.
 | `n_model_term_d` | 1 | given | 7 | terms in this model, which 049 must have a counter for each of |
 | `tok_s_single` | 1/s | derived | 1021.46 1/s | tokens a second, one sequence |
 | `tok_s_agg` | 1/s | derived | 19489.9 1/s | and aggregate at the design batch, where the weights are read once for everybody |
+| `r_tok_per_W` | 1/(s*W) | derived | 10.3069 1/(s*W) | tokens a second for every watt the machine burns. The figure somebody buying a room full of these optimises, as opposed to the two above, which are what somebody using one notices |
+| `r_tok_per_L` | 1/(s*L) | derived | 90231.2 1/(s*L) | and for every litre it occupies. A cube is 0.216 of a litre, so this is the number that says what the shape is worth |
+| `r_tok_per_kg` | 1/(s*kg) | derived | 17303.2 1/(s*kg) | and for every kilogram of it |
+| `f_batch_gain` | 1 | derived | 19.0805 | how much the machine gains by serving many sequences at once rather than one. It is the ratio that decides what this machine is for |
 | `t_prefill_tok` | s | derived | 3.90708e-05 s | one prompt token during prefill, which is compute-bound |
 | `tok_s_prefill` | 1/s | derived | 25594.5 1/s | prompt tokens a second |
 | `gain_prefill` | 1 | derived | 25.0568 | how much faster reading a prompt is than writing one |
@@ -40,10 +44,13 @@ Described by `1106`.
 | `C_core_usable` | `034` | 71.9454 GB | what a model may actually use |
 | `C_handoff` | `076` | 0.0764587 MB | one staging buffer's worth: a microbatch of activation vectors |
 | `C_weights` | `078` | 36.3764 GB | the weights, resident, at the format in 046 |
+| `P_heat` | `020` | 1890.96 W | total heat to remove. It is the input power, because everything drawn from a supply leaves as heat, and naming it separately is what lets the plumbing be checked against the electrics |
+| `V_cube` | `012` | 216000 mm^3 | volume of the whole object |
 | `batch_design` | `047` | 28 | the batch the machine is provisioned for; 079 derives the crossover independently and C-079-1 requires the two to agree |
 | `f_bubble_cost` | `053` | 0.00333333 | what letting an ended sequence's bubble propagate costs |
 | `f_fill_cost` | `053` | 0.00990099 | what filling and draining costs on a generation of typical length |
 | `flop_token` | `078` | 1.41096e+11 flop | operations to generate one token: two per weight |
+| `m_cube` | `013` | 1.12638 kg | the finished object, wet |
 | `n_counter` | `049` | 12 | performance counters per face |
 | `n_stage` | `010` | 6 | pipeline stages a token falls through, one per face |
 | `ops_achieved` | `079` | 3.6113e+15 flop/s | arithmetic the machine actually delivers rather than its peak |
@@ -70,7 +77,8 @@ Change one of these and the blueprints beside it are what break.
 | `f_overhead_tok` | `080` |
 | `n_model_term_d` | `080`, `085` |
 | `tok_s_single` | `080`, `089` |
-| `tok_s_agg` | `089` |
+| `tok_s_agg` | `080`, `089` |
+| `f_batch_gain` | `080` |
 | `t_prefill_tok` | `080` |
 | `tok_s_prefill` | `080` |
 | `gain_prefill` | `080` |
@@ -89,4 +97,6 @@ Change one of these and the blueprints beside it are what break.
 | `C-080-4` | `gain_bw > 5` | the machine must win on memory bandwidth by a wide margin, which is the only reason to build a core out of static memory |
 | `C-080-5` | `gain_cap < 1` | and it must lose on capacity. Asserted in the failing direction deliberately: the honest comparison has both halves, and a specification sheet quoting only the first would be selling something the machine is not |
 | `C-080-6` | `gain_prefill > 10` | reading a prompt must be an order of magnitude faster than writing one, which is what makes the two cases worth separating |
+| `C-080-7` | `f_batch_gain > 10` | serving many sequences at once must be worth at least an order of magnitude over serving one, or this machine has no reason to exist in a rack rather than on a desk. It comes to nineteen, and that number is the whole statement of what the machine is for |
+| `C-080-8` | `f_batch_gain < batch_design` | the gain from batching cannot exceed the batch itself. Trivially true and worth asserting: it is the one place a performance model can flatter itself without anybody noticing, by counting a sequence twice |
 

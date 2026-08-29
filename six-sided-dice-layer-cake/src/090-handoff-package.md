@@ -82,10 +82,10 @@ n_software    | 1 | given | 2        | pieces of software assumed and not specif
 n_worked_eg   | 1 | given | 1        | worked examples of using the package as a machine
 
 n_bp_pkg      | 1 | derived | n_bp                       | blueprints delivered
-n_sym_pkg     | 1 | solved | 1429                        | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked
+n_sym_pkg     | 1 | solved | 1436                        | symbols in the ledger -- from 103. This was a hand count of something the ledger knows exactly, and it was wrong by fourteen before anybody looked
 n_con_pkg     | 1 | derived | n_constraint               | constraints
 n_open_pkg    | 1 | solved | 0                           | symbols still carried as targets rather than derivations -- from 103. None: the last one was 019's service time, which became the sum of nine steps rather than one number nobody could take apart
-n_solved_pkg  | 1 | solved | 20                          | symbols a program produced because no expression in this notation could -- from 103
+n_solved_pkg  | 1 | solved | 22                          | symbols a program produced because no expression in this notation could -- from 103
 n_q_blocking  | 1 | given | 2                            | blocking open questions in 009
 n_q_open      | 1 | given | 18                           | open questions altogether: the two blocking ones and sixteen carried. A hand count of 009's headings, and the one figure in this package that a program still does not produce
 f_derived     | 1 | derived | (n_sym_pkg - n_given_pkg) / n_sym_pkg | share of the project's numbers that are worked out rather than chosen or measured
