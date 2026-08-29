@@ -1,6 +1,6 @@
 # Conversation Summary: dd43b4bb-4f84-4084-975d-174e788da568
 
-Generated on: 2026-08-28 22:27:08
+Generated on: 2026-08-28 23:17:19
 
 --------------------------------------------------------------------------------
 
@@ -1966,6 +1966,124 @@ the risks stops believing the strengths.
 
 Want the two files committed, and should the brief live in `docs/` with a proper
 index number and a table-of-contents entry?
+
+
+--------------------------------------------------------------------------------
+
+### User Request 20
+
+can you draw a diagram of a 6 sided die, and include it? Also slide 7 and 8 feel
+kinda weak, can we replace them? And yes please commit them
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 20
+
+Let me check a fact before I draw it — I want the die's geometry to say
+something true about the machine.
+
+
+Found a real bug while checking. The "opposite of" column in the face table is
+wrong — `−X` is listed as opposite `+Z`, but those are adjacent faces.
+
+
+Now let me make the checker able to catch that class of error — `102` already
+holds the faces as data.
+
+
+The exhaustive search confirms it: three of five is the ceiling, and the
+ordering reaches it. Declaring it in `010` so the checker holds it.
+
+
+Now the density figures the deck needs — declared in the design so they're
+regenerable rather than typed into a slide.
+
+
+`089` is a view that must not invent numbers. Let me check the capstone instead.
+
+
+`080` is the performance model — that's the right home.
+
+
+Design work done. Now the deck — the die diagram plus replacements for sheets
+7 and 8.
+
+
+Geometry checks out. Now rewriting the deck — the die on the title sheet, and
+new sheets 7 and 8.
+
+
+Now sheet 10 absorbs the checker argument, since that's what makes the ask
+cheap.
+
+
+Now the PDF gets the same two arguments, plus the corrected face-ordering fact.
+
+
+The bug is repeated in two other files. Let me fix those before committing.
+
+
+All three committed, tree clean. **Deck:**
+https://claude.ai/code/artifact/c19b2a76-b2b6-4de2-a748-787ab6767984
+
+
+**The die** is on the title sheet, which is where it belongs — it's the object
+and the name at once. Isometric, three faces visible, one of them copper because
+one of the six faces is spent entirely on wire rather than arithmetic. I
+computed where each face's plane actually falls and placed the pips into it,
+rather than nudging circles until they looked right.
+
+
+**Sheet 7 and 8 are replaced.** Your read was right and worth naming: both were
+inward-facing. "570 requirements hold" is a number that means nothing to someone
+outside the project, and a list of caught bugs reads as things that were *wrong*
+rather than things that were *caught*. They were about how the design was made,
+not what it does. They're now the two questions a room would actually have:
+
+
+- **7 — What it costs to run:** 10.3 tokens/second/watt, 90,231 per litre, and
+  the 19× batching gain that says this is a serving machine, not a workstation.
+
+- **8 — If the arrangement is better, why doesn't it exist?** The three real
+  barriers, and the honest note that difficulty is the only defensibility
+  identified and no patent position is claimed.
+
+
+The checking argument survives on sheet 10, where it earns its place as *the
+reason the ask is cheap* rather than standing alone.
+
+
+Two things came out of the work rather than into it:
+
+
+**The face-ordering table was wrong.** Drawing the die made me check it, and it
+claimed stage 2 was opposite stage 1 — but those faces share an edge. The
+prose repeated it. What's actually available is three antipodal steps out of
+five, and that's a ceiling, not a shortfall: a cube has three opposite-pairs, an
+ordering visits all six, so it crosses between pairs twice and a crossing always
+lands on a neighbour. The ordering already reached the ceiling, so nothing about
+the machine changed — only what the document was entitled to claim. `102` now
+counts it and searches all 720 orderings for a better one; two requirements
+assert there isn't one. It survived weeks because an ordering is a list and the
+notation holds numbers, which is exactly the standing open question.
+
+
+**The density figures are in the design now, not on a slide.** Tokens per watt,
+per litre, per kilogram, and the batch ratio are derived symbols in the
+performance model with two requirements holding them. The deck reads them rather
+than computing them, so they can't drift.
+
+
+570 of 570 hold. The PDF is six pages and picked up both new sections plus the
+corrected fact.
+
+
+One thing I'd flag: the deck now claims "570 requirements" in two places. That
+number moves whenever the design gains a constraint — it's already gone 566
+→ 570 today. If you present from this more than once, tell me and I'll have it
+read the count from the ledger at publish time rather than carrying a figure
+that ages.
 
 
 --------------------------------------------------------------------------------
