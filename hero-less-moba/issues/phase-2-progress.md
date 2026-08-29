@@ -26,6 +26,7 @@ problem statement, rendered, and phase 4's demo is the answer to it.
 | 211c | A formation is a circle that faces where it is going | places are bearings now; the facing is not |
 | 211d | Marching speed is not running speed | gears built; running not |
 | 212 | A beaten body gets one roll | not started |
+| 213 | What the lane can afford | not started — H10, H11, H12 |
 
 **Blocking:** nothing.
 

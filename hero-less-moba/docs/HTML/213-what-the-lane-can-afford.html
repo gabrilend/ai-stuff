@@ -1,4 +1,4 @@
-<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Phase 4 Progress — The Shared Chest -- hero-less-moba</title><style>:root {
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>213 — What the Lane Can Afford -- hero-less-moba</title><style>:root {
   --ground:   #0d0f13;
   --panel:    #14171d;
   --edge:     #232833;
@@ -170,7 +170,7 @@ svg { max-width: 100%; }
 <a href='210-a-death-decays-before-it-is-final.html'><span class='index'>210</span>A Death Decays Before It Is Final</a>
 <a href='211-waypoints-and-the-zones-they-sit-in.html'><span class='index'>211</span>Waypoints, and the Zones They Sit In</a>
 <a href='212-a-beaten-body-gets-one-roll.html'><span class='index'>212</span>A Beaten Body Gets One Roll</a>
-<a href='213-what-the-lane-can-afford.html'><span class='index'>213</span>What the Lane Can Afford</a>
+<a href='213-what-the-lane-can-afford.html' class='here'><span class='index'>213</span>What the Lane Can Afford</a>
 <a href='301-a-structure-is-a-record-with-health.html'><span class='index'>301</span>A Structure Is a Record With Health</a>
 <a href='302-a-tower-picks-a-target-and-keeps-it.html'><span class='index'>302</span>A Tower Picks a Target and Keeps It</a>
 <a href='303-towers-put-guards-on-the-ground.html'><span class='index'>303</span>Towers Put Guards on the Ground</a>
@@ -231,7 +231,7 @@ svg { max-width: 100%; }
 <a href='phase-1-progress.html'>Phase 1 Progress — The Ground and the Clock</a>
 <a href='phase-2-progress.html'>Phase 2 Progress — Things That Walk and Fight</a>
 <a href='phase-3-progress.html'>Phase 3 Progress — Things That Stand and Hold</a>
-<a href='phase-4-progress.html' class='here'>Phase 4 Progress — The Shared Chest</a>
+<a href='phase-4-progress.html'>Phase 4 Progress — The Shared Chest</a>
 <a href='phase-5-progress.html'>Phase 5 Progress — Commanders and Heroes</a>
 <a href='phase-6-progress.html'>Phase 6 Progress — The Surge and the Challenge</a>
 <a href='phase-7-progress.html'>Phase 7 Progress — Watching It Happen</a>
@@ -288,101 +288,124 @@ svg { max-width: 100%; }
 <a href='051-the-invariants.info.html'><span class='index'>051</span>the-invariants</a>
 <a href='060-the-formation-sandbox.info.html'><span class='index'>060</span>the-formation-sandbox</a>
 </section>
-</nav><main id='page'><h1>Phase 4 Progress — The Shared Chest</h1>
-<p><strong>The goal:</strong> the centre of the game. Upgrades, the deck they come from, the</p>
-<p>lanes and stone they go into, and the negotiation between three people sharing</p>
-<p>one chest. This is what replaced heroes, and it is the phase that has to justify</p>
-<p>the premise.</p>
-<p><strong>Ends with:</strong> the phase-2 stalemate broken. The same two waves, but one lane's</p>
-<p>soldiers carrying three upgrades, and the frontline moving.</p>
+</nav><main id='page'><h1>213 — What the Lane Can Afford</h1>
 <table><thead>
-<tr><th>Issue</th><th></th><th>Status</th></tr>
+<tr><th></th><th></th></tr>
 </thead><tbody>
-<tr><td>401</td><td>The upgrade catalogue</td><td>built</td></tr>
-<tr><td>402</td><td>An instance is a thing in a place</td><td>built</td></tr>
-<tr><td>403</td><td>Wiping a wave draws an upgrade</td><td>built</td></tr>
-<tr><td>404</td><td>Placing an upgrade into a lane</td><td>built</td></tr>
-<tr><td>405</td><td>A soldier is stamped at birth</td><td>built</td></tr>
-<tr><td>408</td><td>Slotting upgrades into stone</td><td>built</td></tr>
-<tr><td>409</td><td>The base inherits every lane</td><td>built</td></tr>
-<tr><td>410</td><td>The library slot is the last stand</td><td>built</td></tr>
-<tr><td>411</td><td>Rerolling the deck</td><td>built</td></tr>
-<tr><td>412</td><td>Contributing a stone</td><td>built, as contribute</td></tr>
-<tr><td>413</td><td>Staking a die to share</td><td>built, as offer</td></tr>
+<tr><td>Phase</td><td>2 — Things That Walk and Fight</td></tr>
+<tr><td>Blocked by</td><td>207, 211c</td></tr>
+<tr><td>Blocks</td><td>—</td></tr>
+<tr><td>Reads</td><td><a href='004-a-unit-and-what-it-carries.html'>a unit and what it carries</a>, <a href='005-waves-and-when-one-is-finished.html'>waves and when one is finished</a>, <a href='010-upgrades-slotted-into-stone.html'>upgrades slotted into stone</a></td></tr>
+<tr><td>Open questions</td><td>H10, H11, H12</td></tr>
 </tbody></table>
-<p><strong>Blocking:</strong> nothing.</p>
-<p><strong>Carry into the work — this phase changed the most after it was drafted:</strong></p>
+<h2>Current behavior</h2>
+<p>Every wave in every lane is the same wave: four melee, two ranged, one captain, from</p>
+<p>a table with three numbers in it. The only thing that differs between two lanes is</p>
+<p>what upgrades have been slotted into their stone, which changes how strong those</p>
+<p>seven bodies are and never changes <strong>which</strong> seven bodies they are.</p>
+<p>There is one melee body and one ranged body in the whole game. No equipment, no</p>
+<p>weight, no variety, and nothing anywhere that decides a wave's composition.</p>
+<h2>Intended behavior</h2>
+<p><strong>A wave is drawn, not specified.</strong> Each lane keeps a purse and a set of meters, and</p>
+<p>what walks out of the base is what the lane could afford and happened to draw.</p>
+<h3>The units</h3>
+<p>Five kinds, and the differences are equipment rather than statistics:</p>
+<table><thead>
+<tr><th></th><th>Carries</th><th>Stands</th></tr>
+</thead><tbody>
+<tr><td><strong>Heavy infantry</strong></td><td>the full weight of it</td><td>the middle of the line</td></tr>
+<tr><td><strong>Light infantry</strong></td><td>usually a spear and leather. Sometimes a shield, sometimes a sword, sometimes both. Sometimes a metal cap.</td><td>the sides of the line, where it can flank</td></tr>
+<tr><td><strong>Skirmishers</strong></td><td>short reach — enough firepower to disable whatever comes near, and no more</td><td>the shoulders, shooting <strong>around</strong> the line</td></tr>
+<tr><td><strong>Archers</strong></td><td>long reach, artillery. These are the ones that genuinely shoot <strong>over</strong> a line, across a glen.</td><td>behind</td></tr>
+<tr><td><strong>Cavalry</strong></td><td>—</td><td>not built. Later.</td></tr>
+</tbody></table>
+<p>Everybody wears gloves and boots.</p>
+<p>Heavy infantry are the extreme of the scale and should read that way: nearly</p>
+<p>invincible killing machines, expensive, and rare because of it.</p>
+<p><strong>Heavy toward the centre, light toward the sides.</strong> That is not decoration — light</p>
+<p>infantry are on the sides <em>so they can flank</em>, which is a thing they will do once a</p>
+<p>formation can turn. See <a href='211c-a-formation-is-a-circle-that-faces.html'>211c</a>.</p>
+<h3>Equipment is randomised, and the cost is what feeds back</h3>
+<p>A body's kit is drawn when it is born: which of the several things a light infantry</p>
+<p>might be carrying, whether it has a cap. **Heavier equipment costs more, lighter</p>
+<p>costs less**, and the cost is not spent by a player — it is spent by the lane,</p>
+<p>against a hidden purse that decides what the lane can raise next time.</p>
+<p>That is the whole loop. Nothing about it is visible as a number; what a player sees</p>
+<p>is that a lane which has been fielding heavy infantry starts fielding lighter ones,</p>
+<p>and a lane that has been cheap for a while can suddenly afford something.</p>
+<h3>The draw is a lottery with three thumbs on the scale</h3>
+<p>Each lane has <strong>its own resource table and its own meter per unit type</strong>. Each wave:</p>
+<p>work out how much there is to distribute, then draw.</p>
+<table><thead>
+<tr><th>Thumb</th><th>Effect</th></tr>
+</thead><tbody>
+<tr><td><strong>Recency</strong></td><td>a unit chosen more recently has <strong>fewer</strong> tickets, so a lane does not field the same thing eight waves running</td></tr>
+<tr><td><strong>Scarcity</strong></td><td>a unit that costs more, when there is less to spend, has <strong>more</strong> tickets</td></tr>
+<tr><td><strong>Arrangement</strong></td><td>what has been slotted into the lane's stone makes certain units more likely, with all the resource costs that implies</td></tr>
+</tbody></table>
+<p>The scarcity thumb is the surprising one and it is deliberate: being poor makes the</p>
+<p>expensive thing <em>more</em> likely, not less. What it produces is a lane that cannot go</p>
+<p>quiet — a run of cheap waves builds toward something.</p>
+<h3>Doubling up</h3>
+<p>**If a unit's meter ever reaches twice its maximum number of tickets, one of that</p>
+<p>unit spawns automatically**, without needing to win the draw. It can still win the</p>
+<p>draw as well, so a wave can contain two of a type — and never more than two.</p>
+<h2>Suggested implementation steps</h2>
 <ul>
-<li><strong>One deck, both teams, same order.</strong> There is no per-team draw randomness. A</li>
+<li>Add the unit types to the catalogue as archetypes, appended rather than</li>
 </ul>
-<p>  team killing more is <em>further along the same track</em>, which removes the last</p>
-<p>  source of asymmetry that is not a decision — and makes the enemy's chest</p>
-<p>  legible without an interface, because it is your own from two minutes ago.</p>
+<p>   renumbered, so nothing that already refers to an archetype by number moves.</p>
 <ul>
-<li><strong>Moving an upgrade takes one full wave</strong>, applying at its old slot meanwhile.</li>
+<li>Add an equipment table: what a body of each type might be carrying, and what each</li>
 </ul>
-<p>  That replaces the reassignment cooldown entirely; <strong>do not build one.</strong> A</p>
-<p>  transit is visible to teammates the whole time and can be cancelled freely</p>
-<p>  until it lands.</p>
+<p>   piece weighs. Cost follows weight.</p>
 <ul>
-<li><strong>Rerolling</strong> (issue <a class='issue-link' href='411-rerolling-the-deck.html'>411</a>) is the only exchange between the two economies. You</li>
+<li>Give each lane a purse and a meter per unit type, in the team record, and a</li>
 </ul>
-<p>  pay into the dark — the next card is not shown.</p>
+<p>   per-team named random stream for the draw. Everything random here has to come from</p>
+<p>   a named seeded stream or the replay breaks on its first tick.</p>
 <ul>
-<li><strong>Nothing may be placed during a surge</strong>, and every chest command is refused.</li>
-<li><strong>Locking is unlimited and free.</strong> No counter to enforce; the interface just</li>
+<li>Write the draw as a ticket count per unit, built by the three thumbs above, and</li>
 </ul>
-<p>  owes a player a visible count of what they hold locked.</p>
+<p>   pick from it. A dispatch table of thumbs rather than a chain of adjustments, so</p>
+<p>   adding a fourth is adding a row.</p>
 <ul>
-<li><strong>Upgrades never touch heroes.</strong> Enforce it in the catalogue's structure, not</li>
+<li>Spend the drawn units' equipment cost out of the lane's purse, and let the purse</li>
 </ul>
-<p>  by remembering.</p>
-<p><strong>Still open:</strong> A16c (a flat reroll price against a rising ceiling gets cheaper</p>
-<p>over a match — a curve nobody chose), A11b-iii and C3 (the hero economy's</p>
-<p>unbraked snowball), B3 and B7 (numbers).</p>
-<p><strong>Demo:</strong> not yet built. <strong>This one is the proof the design rests on.</strong></p>
-<h2>Where the prototype got to</h2>
-<p>The phase's ending is reproduced, and it is the most important measurement the</p>
-<p>project has taken so far.</p>
-<p><strong>The stalemate breaks.</strong> From one seed: an untouched match leaves both teams</p>
-<p>between milestones three and four in every lane, indefinitely. The same seed, with</p>
-<p>one team shovelling everything it draws into the centre lane, takes that lane to</p>
-<p>milestone <strong>8</strong> — the enemy library — while the enemy's depth in it collapses to</p>
-<p><strong>0</strong>, with the other two lanes unchanged as a control. Recorded against B11.</p>
-<p>The chest, the shared deck, the draws, the three kinds of slot, and the stamp a</p>
-<p>body takes at birth are all standing. So is the rule that makes the whole thing</p>
-<p>worth arguing about: <strong>a wave unit is stamped once and never corrected</strong>, so moving</p>
-<p>an upgrade out of a lane does not weaken the soldiers already walking in it, while a</p>
-<p>guard <em>is</em> re-stamped, because it stands under the thing it copied from for its</p>
-<p>whole life.</p>
-<p><strong>402 is built, and it changed the shape of the rest of the phase.</strong> An upgrade is</p>
-<p>an instance now — a specific thing, in a specific place, <strong>belonging to somebody</strong> —</p>
-<p>and everything that needs to point at one particular stone became possible at once.</p>
-<p><strong>A stone belongs to whoever drew it, and there is no lock</strong>, because there is</p>
-<p>nothing to lock it against. That is the design's second answer to the same problem</p>
-<p>and it is shaped by the first's failure: locks needed a timeout to tune, an interface</p>
-<p>that reminded you what you were holding hostage, and a mechanism whose whole purpose</p>
-<p>was doing something to somebody against their wishes.</p>
-<p><strong>Moving takes a wave</strong>, applying at the old slot the whole way, so a placement lands</p>
-<p>two waves after the command. That delay is the negotiation layer — without it a team</p>
-<p>would simply keep everything wherever the fighting is — and it is a message nobody</p>
-<p>opted into: you cannot move a stone quietly, and your teammates get a wave's notice.</p>
-<p>Cancelling is free until it lands.</p>
-<p><strong>Contribute, offer and dismiss are in</strong>, which is 412 and 413 arriving under</p>
-<p>different names than the roadmap gave them. The floor closes: when everybody has set</p>
-<p>the same communal stone aside it comes back to all of them, so a stone cannot fall</p>
-<p>through neglect. <strong>Request</strong> is in and is deliberately the weakest verb — it changes</p>
-<p>nothing, only one can stand at a time, and ignoring one is free and silent.</p>
-<p><strong>411 is built.</strong> A reroll trades a stone for the next card, priced in two colours,</p>
-<p>and it is the only thing personal resource can do to the chest.</p>
-<p><strong>Not built:</strong> chat, which is issue <a class='issue-link' href='806-three-people-can-finally-talk.html'>806</a> and belongs to phase 8; and the interface for</p>
-<p>offering to a <em>specific</em> teammate, which needs a way to name one and has no</p>
-<p>single-player meaning yet.</p>
-<p><strong>One deviation from the written design</strong>, raised as G6: the modifiers are folded</p>
-<p>into a body's fields at stamp time rather than walked on every swing. Identical</p>
-<p>numbers, one multiplication per body instead of one per blow. It is safe only</p>
-<p>because of a rule the design already committed to, and the documents and the code</p>
-<p>should be made to agree about which one they describe.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
+<p>   refill on whatever cadence the wave interval sets.</p>
+<ul>
+<li>Place the drawn units by <strong>bearing</strong>: heavy at small angles, light toward the</li>
+</ul>
+<p>   flanks, skirmishers on the shoulders, archers behind. The layout already works in</p>
+<p>   bearings, so this is a band per type rather than new geometry.</p>
+<ul>
+<li>Test the loop rather than the numbers: over a long match a lane should field a</li>
+</ul>
+<p>   mixture rather than one thing; a lane that has fielded heavy infantry should be</p>
+<p>   measurably poorer afterwards; and no wave should ever contain three of a type.</p>
+<h2>Related documents and tools</h2>
+<ul>
+<li><a href='004-a-unit-and-what-it-carries.html'>A unit and what it carries</a></li>
+<li><a href='005-waves-and-when-one-is-finished.html'>Waves and when one is finished</a></li>
+<li><a href='211c-a-formation-is-a-circle-that-faces.html'>211c</a>, whose bearings this places by</li>
+<li>The headless runner's census, which is where "what did this lane actually field"</li>
+</ul>
+<p>  gets measured</p>
+<h2>Still open</h2>
+<p>Three questions, all of which change what gets built.</p>
+<p><strong>H10 — is the purse per lane per team, or per lane?</strong> "Each lane has a different</p>
+<p>resource table" could be three purses or six. Six is the obvious reading and means</p>
+<p>each side's lanes evolve independently; three would mean the two teams draw against a</p>
+<p>shared lane character, which would be a strange and interesting thing.</p>
+<p><strong>H11 — what fills the purse?</strong> Nothing in the description says where the resource</p>
+<p>comes from. Candidates: a fixed income per wave; income that scales with how well the</p>
+<p>lane is doing; income from kills in that lane. The third is the one with teeth and</p>
+<p>also the one that snowballs.</p>
+<p><strong>H12 — what does "more tickets when we have fewer resources" do at the extremes?</strong></p>
+<p>Taken literally, a lane with almost nothing has an enormous ticket count for the most</p>
+<p>expensive unit it cannot possibly afford. Either the tickets are capped, or affording</p>
+<p>it is a separate check after the draw, or the draw is over what is affordable and the</p>
+<p>thumb only reorders within that.</p><footer>Generated from the Markdown by <code>064-the-documentation-becomes-html.lua</code>. The Markdown is the data; this is a view of it. Do not edit these pages -- edit the documents and run <code>./build-documentation</code>.</footer></main></div><script>
 // Filtering the contents. The only script on the page, and it exists because there
 // are more than eighty documents here and scrolling a list of eighty things to find
 // one is not navigation.

@@ -4698,3 +4698,70 @@ formation**: same archetypes, same lanes, same ranks and files. That is what a w
 is built with, it cannot be changed by walking, and it is what a spawner getting it
 wrong would break. Alongside it, a separate count of how many bodies are standing,
 because two identical bodies in the same place look like one entry counted twice.
+
+## H10. Is a lane's purse per lane, or per lane per team? — **NEEDS A DECISION**
+
+From [what the lane can afford](../issues/213-what-the-lane-can-afford.md): "Each
+lane has a different resource table, and different meters for each unit type."
+
+Three lanes and two teams, so that is either three purses or six.
+
+**Six** — one per lane per team — is the obvious reading. Each side's lanes develop
+their own character independently, and a lane where one team has been fielding heavy
+infantry says nothing about what the other team can raise there.
+
+**Three** — one per lane, shared — would mean the *ground* has a character rather
+than the army: a lane that has seen heavy fighting is expensive for both sides, and
+the two teams are drawing against the same shifting table. Strange, and interesting
+for the same reasons the waypoints ended up belonging to the road rather than the
+wave, and then did not.
+
+Six is almost certainly meant. It is written down because three is a real design and
+the sentence does not rule it out.
+
+## H11. What fills the purse? — **NEEDS A DECISION**
+
+Nothing in the description of the draw says where a lane's resource comes from, only
+what it is spent on. Three candidates, in the order they look promising:
+
+1. **A fixed income per wave.** The purse is a smoothing device and nothing else: it
+   decides *what* a lane fields rather than *how much*, and a lane that spent heavily
+   last wave fields light this wave. Simplest, and it keeps the mechanism entirely
+   about variety.
+2. **Income that scales with how far the lane has been pushed.** A lane that is
+   winning raises more, which is a snowball, and a lane that is losing raises more,
+   which is a comeback. Either is a design; they are opposite designs.
+3. **Income from kills in that lane.** The one with teeth, because it couples the
+   purse to what actually happened rather than to a clock — and the one that
+   snowballs hardest, since a lane that is winning is also the lane doing the killing.
+
+This interacts with the whole second economy: the personal wallets already pay every
+player on the killing team for every death. A lane purse fed the same way would be a
+second, invisible copy of that, moving in the same direction at the same time.
+
+## H12. What does the scarcity thumb do at the extremes? — **NEEDS A DECISION**
+
+The draw gives "units that cost more when we have fewer resources more tickets in the
+draw" — being poor makes the expensive thing *more* likely, which is deliberate and
+is what stops a lane going quiet.
+
+Taken literally it has an edge nobody wants: a lane with almost nothing has an
+enormous ticket count for the one unit it cannot possibly afford, so it draws that
+unit constantly and can never pay for it.
+
+Three ways out:
+
+1. **Draw only over what is affordable**, and let the thumb reorder within that. The
+   scarcity effect then means "the most expensive thing you *can* afford becomes more
+   likely as you get poorer", which is a real and much gentler version of the same
+   idea.
+2. **Cap the ticket count**, so the thumb has a ceiling and cheap units keep enough
+   tickets to win sometimes.
+3. **Draw over everything and check affordability afterwards**, spawning nothing if
+   the draw came up unaffordable. Honest to the description, and it means a poor lane
+   sends fewer bodies as well as different ones — which might be exactly right, or
+   might be a death spiral.
+
+The third is the most faithful reading and the most dangerous. The first is what the
+doubling-up rule seems to assume, since a meter that fills toward "twice the maximum
+tickets" implies tickets are bounded.
