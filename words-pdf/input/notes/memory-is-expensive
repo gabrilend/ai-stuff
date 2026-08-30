@@ -1,0 +1,36 @@
+computer memory is expensive right now. Not long-term memory, but the short term
+stuff.
+
+so, programmers should write programs that use misd more than simd.
+
+simd is graphics cards, it is many, it is small medium and large.
+
+misd is many smaller processors, it is one, it is atomic in scale.
+
+simd iterates over data.
+
+misd changes one frame at a time.
+
+simd applies routines to all of the data,
+
+like running functions in a loop,
+
+misd adjusts from all angles
+
+like cells in molecular goop.
+
+each angle, a processor, pointed at shared memory.
+
+or at least a thread or a core.
+
+each cell, a part of functionality.
+
+the molecular goop is the program's timeline.
+
+the program is abstractable-ing in usage.
+
+and by timeline, I mean like... "these functions are stored in this place in
+ram, these datas are stored at that place in ram, oh that function just ran so
+let's load it to this particular spot on disk, etc etc" etc etc
+
+
