@@ -37,7 +37,9 @@ every-software-image-able/
 │   ├── 042-whitepaper.md ............ seven ways of being wrong without being told
 │   ├── 102-adding-a-new-machine.md .. the procedure for a computer the seed does not yet run on
 │   ├── 146-a-walkthrough.md ......... the seven things a person can run, and what each does
-│   └── HTML/ ........................ all of this, cross-linked and clickable; built, never edited
+│   ├── HTML/ ........................ all of this, cross-linked and clickable; built, never edited
+│   └── Everything I own, owned - schlarp.com.html   somebody else's writing,
+│                                     kept whole. See below.
 │
 ├── strategems/
 │   └── 009-ask-do-not-schedule.md ... say what is wanted; leave the method alone
@@ -104,6 +106,31 @@ out and disks do not.
 canvas, the people, the game, the mail between machines, and the cheap backward
 reach through ring buffers are all parked rather than rejected, and the note says
 what would un-park each.
+
+---
+
+## Borrowed reading
+
+One file in `docs/` was not written here and is not ours.
+
+**Everything I own, owned** — by Chaz Schlarp, at
+`https://schlarp.com/posts/everything-i-own-owned/`, saved on 2026-08-23 as the
+page and its pictures. Five devices the author owns — a webcam, a monitor, a key
+light, a microphone and a capture card — taken apart at the firmware level: the
+update format, what the checksum actually protects, whether anything verifies a
+signature, and in the webcam's case a patched table that stops the recording lamp
+from lighting.
+
+It is kept because of where it touches this project. The webcam applies its
+update by writing a staged file onto an internal FAT filesystem and rebooting
+into it, which is the same route a seed takes onto a card, seen from the far end
+— and the account of firmware that checks a hash but never asks who wrote it is
+the outward-facing seam the whitepaper's ninth finding is about.
+
+**The words and the pictures in that file are the author's, under whatever terms
+they granted, and nothing here claims otherwise.** It is inspiration, cited, and
+kept in the open so a reader can see where an idea came in. Nothing in this
+project is derived from its text.
 
 ---
 
