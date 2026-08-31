@@ -66,17 +66,21 @@ if [ -z "${pending_command}" ]; then
     exit 0
 fi
 
-# Is this a git commit at all? The word `git` must sit where a command goes, and
-# `commit` must appear after it as its own word -- so `git -C somewhere commit`
-# is caught, while `echo "how to commit"` is not.
-git_in_command_position='(^|[;&|(){}])[[:space:]]*git[[:space:]]'
-commit_subcommand='[[:space:]]commit([[:space:]]|$)'
+# Is this a git commit at all?
+#
+# It must be ONE pattern rather than "contains git" and "contains commit"
+# separately. Two independent searches over a multi-line command will happily
+# pair the word `commit` inside an echo on one line with a `git show` on
+# another, and refuse a read-only command for saying the word. That was the
+# first version's behaviour and it was wrong immediately.
+#
+# So: `git` where a command goes, then any of git's own global options, then
+# `commit` as the subcommand. `git -C somewhere commit` is caught;
+# `echo "how to commit"` and `git -C somewhere show` are not.
+git_global_option='-C[[:space:]]+[^[:space:]]+|-c[[:space:]]+[^[:space:]]+|--[a-z-]+=[^[:space:]]*|--no-pager|--paginate|--bare'
+git_commit_invocation="(^|[;&|(){}])[[:space:]]*git([[:space:]]+(${git_global_option}))*[[:space:]]+commit([[:space:]]|$)"
 
-if ! printf '%s\n' "${pending_command}" | grep -qE "${git_in_command_position}"; then
-    exit 0
-fi
-
-if ! printf '%s\n' "${pending_command}" | grep -qE "${commit_subcommand}"; then
+if ! printf '%s\n' "${pending_command}" | grep -qE "${git_commit_invocation}"; then
     exit 0
 fi
 
@@ -85,7 +89,10 @@ fi
 # Staging everything modified is the sweep this gate exists to prevent, and it
 # is refused even when paths are also named, because the two cannot be combined
 # and the intent is unambiguous.
-stages_everything='[[:space:]](-a|--all)([[:space:]]|$)'
+# Anchored after the subcommand, and forbidding a separator in between, for the
+# same reason the pathspec check is: an unrelated `-a` elsewhere on the line --
+# `ls -a && git commit -- path` -- is not this commit staging everything.
+stages_everything='commit\b[^;&|]*[[:space:]](-a|--all)([[:space:]]|$)'
 if printf '%s\n' "${pending_command}" | grep -qE "${stages_everything}"; then
     reason="This commit stages every modified tracked file, across every project in this repository, before committing. Name the paths instead: git commit -- <path>. That commits those paths from the working tree and touches nothing else."
 else
