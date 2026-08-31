@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+#
+# test-refusal-gates
+#
+# Checks that the two gates in front of Claude Code's shell commands refuse what
+# they should and allow what they should, by feeding each a synthesised tool
+# call and looking at whether a refusal comes back.
+#
+# The cases live in this file rather than being typed at a prompt for a reason
+# that is itself a finding: a gate reading commands as text cannot tell a
+# command from a command quoted inside another command, so typing the bad forms
+# in order to test them gets them refused. Kept in a file, they are read rather
+# than run, and the gates never see them.
+#
+# Exit 0 when every case behaves, 1 otherwise, so this can sit in a test run.
+#
+# Usage: test-refusal-gates [script-directory]
+
+set -uo pipefail
+
+DIR="${1:-/home/ritz/programming/ai-stuff/scripts}"
+
+CWD_GATE="${DIR}/refuse-directory-change"
+COMMIT_GATE="${DIR}/refuse-unscoped-commit"
+
+# Throwaway token paths, so a real pending permission is never spent by a test.
+CWD_TOKEN="/tmp/claude-test-token-cwd-$$"
+COMMIT_TOKEN="/tmp/claude-test-token-commit-$$"
+trap 'rm -f "${CWD_TOKEN}" "${COMMIT_TOKEN}"' EXIT
+
+failures=0
+checked=0
+
+# {{{ ask()
+# Feeds one command to one gate and prints whether it was refused.
+ask() {
+    local gate="$1" token="$2" command="$3"
+    printf '{"tool_name":"Bash","tool_input":{"command":%s}}' \
+        "$(printf '%s' "${command}" | jq -Rs .)" | "${gate}" "${token}"
+}
+# }}}
+
+# {{{ expect()
+# Asserts that a gate does or does not refuse a command.
+expect() {
+    local gate="$1" token="$2" want="$3" command="$4"
+    local out verdict
+    out="$(ask "${gate}" "${token}" "${command}")"
+    checked=$((checked + 1))
+
+    if [ -n "${out}" ]; then verdict="refused"; else verdict="allowed"; fi
+
+    if [ "${verdict}" = "${want}" ]; then
+        printf '  ok       %-8s %s\n' "${verdict}" "${command}"
+    else
+        printf '  FAILED   wanted %s, got %s: %s\n' "${want}" "${verdict}" "${command}"
+        failures=$((failures + 1))
+    fi
+}
+# }}}
+
+printf '\nThe working-directory gate\n'
+rm -f "${CWD_TOKEN}"
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'cd /tmp'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'cd /mnt/mtwo && git commit -q -F -'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'ls; cd /tmp'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'mkdir -p a && cd a'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'pushd /tmp'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'popd'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused '$(cd /x && pwd)'
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'git -C /mnt/mtwo status'
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'make -C build all'
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'echo "cd is blocked"'
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'cdrecord --version'
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'rsync --cvs-exclude a b'
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'ls -la /tmp'
+
+printf '\nThe commit gate\n'
+rm -f "${COMMIT_TOKEN}"
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -m "a message"'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -a -m "sweep"'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git -C /repo commit -F -'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git --no-pager commit -m x'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit --amend'
+# The one that motivated the gate: an earlier staging command's pathspec must
+# not satisfy the check on behalf of the commit that follows it.
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git add -A -- x/ && git commit -F -'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit -- games/enheim-tome/'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git -C /repo commit -F - -- games/enheim-tome/'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit --amend --only -F -'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit --only --amend -q -F -'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git status'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git add -A -- games/enheim-tome/'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git log --oneline -3'
+# A read-only git command on one line and the word elsewhere on another must not
+# be paired into a false refusal. This failed on the first attempt.
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'echo "files in that commit"
+git -C /repo show --name-only HEAD'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'ls -a && git commit -- some/path'
+
+printf '\nThe tokens\n'
+rm -f "${COMMIT_TOKEN}"
+touch "${COMMIT_TOKEN}"
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit -m x'
+checked=$((checked + 1))
+if [ -e "${COMMIT_TOKEN}" ]; then
+    printf '  FAILED   the token was not consumed\n'
+    failures=$((failures + 1))
+else
+    printf '  ok       the token was consumed\n'
+fi
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -m x'
+
+printf '\n%s cases, %s failures\n' "${checked}" "${failures}"
+[ "${failures}" -eq 0 ] || exit 1
+exit 0
