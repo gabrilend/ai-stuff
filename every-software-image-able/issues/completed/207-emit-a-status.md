@@ -37,8 +37,11 @@ existed, what it cost, and that it should not be built.
 
 ## Current behavior
 
-**Done, and tested** — `src/079` emits, `src/080` checks it, 24 of 24 on
-2026-08-02.
+**Built, tested at 24 of 24 on 2026-08-02, and deleted on 2026-08-21.** Two
+programs, one that emitted and one that checked it; neither is in the project any
+more. What follows describes what they did, and is kept for the reason at the top:
+a reader recreating this project needs to know this step existed and that it should
+not be built again.
 
 Three numbers, shown as colour **and** shape, so the reading survives a
 failed lamp, a dim room, or a person who does not distinguish the colours.
@@ -102,5 +105,7 @@ The phase 2 demo.
 
 ## Related documents
 
-`docs/006-datapath-status-and-tolerance.md` — the three numbers, and why fifty is
-the middle.
+The document that specified the three numbers and why fifty was the middle was
+deleted with the rest of this. `docs/006` now holds what replaced it: programs that
+might not stop run on their own threads and are timed, rather than reporting how
+they are doing.

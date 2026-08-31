@@ -41,7 +41,7 @@ references and the same instructions run hosted — where a test takes a fractio
 of a second — and on bare metal, where it would take minutes.
 
 **The working memory question is answered too** — the part of this ticket that
-would have been `103c`. `src/045` itemises what a machine needs to think:
+would have been its own sub-issue. `src/045` itemises what a machine needs to think:
 weights at a chosen storage format, the cache that grows with the length of a
 thought, the vectors one step needs while it happens, and the engine. `src/046`
 prints that across several model shapes and board sizes and checks the
@@ -141,9 +141,9 @@ is the instruction set, the registers, and the memory found in `102`.
 
 ## Notes on effort
 
-This ticket is a candidate for sub-issues — `103a` for the plain version and the
-reference fixture, `103b` for the vectorised version, `103c` for the working
-memory layout — and should be split if it stops fitting in one head.
+This ticket was a candidate for splitting into three — the plain version with its
+reference fixture, the vectorised version, and the working memory layout — if it
+stopped fitting in one head. It never did, and it completed whole.
 
 ## Blocks
 
