@@ -5,9 +5,9 @@ payloads: a first-light stub that only says hello, and hazard probes that
 deliberately write where they must not, so the traps in 021 have something to
 catch.
 
-Was `019-build-first-light`. Generalised rather than copied when the trap work
-needed a second kind of payload — one builder that takes a description, not
-two builders that share a generator.
+This began as a builder for one payload and was generalised rather than copied when
+the trap work needed a second kind — one builder that takes a description, not two
+builders sharing a generator. The rename that came with it is in the commit history.
 
 ## Invocation
 

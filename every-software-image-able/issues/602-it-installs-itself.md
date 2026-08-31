@@ -98,34 +98,30 @@ file and gets tested against a disk with real files on it.
    A machine that decides to leave anyway is doing something the design permits and
    nobody asked for, and it would be worth knowing why it wanted to.
 
-## Judge it as a rate, not as an anecdote
+## Judged as an anecdote, on purpose
 
 **Not a feature of the system, decided 2026-08-21** — *if we want to test
 something like that, just have the engineers build 20 images themselves and
 deploy them to 20 machines.* The carried random number is already a parameter of
 the generator, so twenty images is running the generator twenty times, and
-nothing needs building for it. What follows is method for whoever is doing the
-measuring, not work.
+nothing needs building for it.
 
-One machine writing a working allocator proves less than it looks, and one
-machine failing proves less than it feels. The draw is deterministic per seed
-(`104`), and the seed is a build parameter (`502`) — **so build twenty images
-differing in nothing but their randomness, run them all, and count how many
-succeed.**
+**Pruned 2026-08-22.** What used to follow that decision was a method for whoever
+does the measuring: sample sizes, what a rate means, how few machines separate a
+bug from an unlucky draw. It is gone, because a method nobody is asked to follow
+reads, three documents later, like work somebody still owes. It came back as
+missing functionality the first time anybody summarised this project, which is
+evidence that writing it down was the mistake rather than the wording.
 
-During development the useful number is much smaller than twenty. **One sample
-cannot separate a bug from a bad draw**, and rewriting the instruction in response
-to one unlucky machine fits the text to noise. Three or five tells you whether it
-always fails or sometimes fails, which is the difference between changing the
-words and carrying on.
+So a single machine is the judgement, and it is read rather than counted. A
+failure points at a document — `003a`, `301` or `303` — and the document is what
+changes. Anybody who wants a rate can have one without asking here, because the
+random number is a build parameter and the front door takes it.
 
-That number is the actual judgement of phase 3. A single failure is a draw; a
-consistent failure is an instruction that does not convey what it needs to. And
-the ones that fail differently from each other say something the ones that fail
-identically do not.
-
-It also settles the argument about whether to nudge. There is no need: the next
-machine is a different image, not a corrected one.
+**Nobody nudges it, and the rate is not what stops them.** A helped machine
+proves nothing about an unhelped one, so the first attempt is allowed to fail
+uncorrected and the failure is fixed in the instruction rather than at the
+keyboard.
 
 ## Iterate where it is fast
 

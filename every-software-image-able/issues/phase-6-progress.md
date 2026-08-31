@@ -49,11 +49,11 @@ left alone with should be one somebody is willing to lose, and it should have re
 files on it, because a blank disk does not test the rule about assuming there is
 data.
 
-The way to make that bearable is to stop judging single machines. The draw is
-deterministic per seed and the seed is a build parameter, so twenty images
-differing in nothing but their randomness give a success rate rather than an
-anecdote — and the ones that fail differently from each other say more than the
-ones that fail alike.
+So it is judged as an anecdote, on purpose. There is no batch of twenty here and
+none is coming: the carried random number is already a build parameter, so twenty
+images is the front door run twenty times — an engineer's shell loop, not a
+feature (declined 2026-08-21). One machine is read rather than counted, and what
+is read from it rewrites a document.
 
 Three outcomes would count as failure, and each points at a specific document
 rather than at the idea: hardware damaged during exploration (`003a`), the weights

@@ -25,7 +25,10 @@ adjustment points are a deliverable in their own right — which model, what wei
 precision, how long a context, which floor to assume, which architectures ride
 along, which descriptions ride along, which auto-included software rides along, and
 the carried random number — and the loop of *build, roll, watch, pack a better one*
-is real work that happens after phase six rather than nothing being planned.
+is a person turning a handle after phase six, not a piece of software anybody
+builds. Declined 2026-08-21 and pruned again 2026-08-22: the carried random number
+is already a build parameter, so twenty seeds is the front door run twenty times,
+and counting how they went is measurement somebody does rather than a thing to make.
 
 The project already invented the generator twice in miniature without naming it:
 the six boards in the proving ground are expressed as data with the emulator
