@@ -6,7 +6,7 @@
 | Blocked by | 601 |
 | Blocks | 605 |
 | Reads | [the tome](../docs/007-the-tome.md) |
-| Open questions | **7** — whether the icons carry words, and where |
+| Open questions | — *(was question 7; answered by the two-hand scheme)* |
 
 ## Current behavior
 
@@ -39,15 +39,31 @@ a different sort of place from the reverse.
 Removing unavailable buttons would destroy that and would also break the fixed
 positions, since the remaining ones would close up.
 
-### A dimmed button must say why
+### A dimmed button must say why, and the hands provide the place
 
 Per the colour rule, dimming may not be the only carrier of the fact. A dimmed
-button must be dimmed **and** able to say why it is dimmed — "nobody here will
-speak to you", "you are not inside" — because a person facing a wall of grey icons
-with no explanation is being told nothing.
+button must be dimmed **and** able to say why — "nobody here will speak to you",
+"you are not inside" — because a person facing a wall of grey icons with no
+explanation is being told nothing.
 
-**Working ruling:** hovering a button puts its name and, if dimmed, its reason
-into the text pane below. See open question 7.
+The two-hand scheme from [104](104-pan-and-zoom-by-hand.md) answers it without
+needing a mechanism of its own:
+
+| | |
+| --- | --- |
+| **left click** on a button | tells you what it does, and if dimmed, why it cannot be used here |
+| **right click** on a button | presses it |
+
+**The enquiry hand works on controls the action hand refuses**, so a greyed
+button is never a dead end.
+
+From which follows a rule the whole pane is held to: **nothing may be pressable
+by the hand that asks about it.** Anything acting on left click has broken the
+scheme, and the scheme is what makes every dimmed thing legible.
+
+The explanation goes into the text pane below rather than into a floating
+tooltip, since the pane is where words live and a tooltip over the buttons would
+cover the neighbouring ones.
 
 ### What the buttons actually are is not decided
 

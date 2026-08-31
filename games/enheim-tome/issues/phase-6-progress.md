@@ -9,7 +9,7 @@ The written half. It holds every word in the game, because the map holds none.
 | [601 — three regions](601-three-regions.md) | not started |
 | [602 — the chip row](602-the-chip-row.md) | not started — open question 6 |
 | [603 — the focused filter's controls](603-the-focused-filters-controls.md) | not started |
-| [604 — the button pane](604-the-button-pane.md) | not started — open question 7 |
+| [604 — the button pane](604-the-button-pane.md) | not started — question 7 answered by the two-hand scheme |
 | [605 — the queue, among the buttons](605-the-queue-among-the-buttons.md) | not started — open question 4 |
 | [606 — the text pane](606-the-text-pane.md) | not started — open question 5 |
 | [607 — descending to a person](607-descending-to-a-person.md) | not started |

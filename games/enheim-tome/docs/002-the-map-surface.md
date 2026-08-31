@@ -74,15 +74,61 @@ With a 1600 by 900 window and a tome around 420 wide, the map pane is roughly
 | Zoom | What you see |
 | --- | --- |
 | 0.192 | The whole painting across the pane's width, letterboxed about 57 pixels top and bottom because the painting is proportionally wider than the pane. The floor — there is no reason to go below it. |
-| 1.0 | Native pixels. The ceiling for honest detail. |
+| 1.0 | Native pixels. Past this the painting is magnified rather than revealed, which is allowed and looks like blur. |
 
-**About a five-fold range**, which is small for a map application and is a gift.
-Past 1.0 the painting is being magnified, not revealed; if zooming further is
-allowed at all it should look like honest blur rather than pretending to more
-city.
+**About a five-fold range of honest detail**, which is small for a map
+application and is a gift — it is why the whole camera can be three numbers.
 
-Input bindings for panning and zooming are not decided. See
-[open questions](012-open-questions.md).
+### Past native is allowed, and looks like blur
+
+Zooming beyond 1.0 is permitted, in both the game and the tracing tool, and what
+you get is **honest blur** — a bigger, softer painting. No sharpening, no
+upscaling that invents detail the picture does not contain.
+
+That is a statement about what the board is: finite. A player who leans in far
+enough should meet the limit of the artwork rather than a convincing fiction, and
+the tracing tool gets the same magnification, which makes placing a vertex on an
+exact pixel a matter of aiming at something three pixels wide instead of one.
+
+## The hands
+
+**Two buttons, two meanings, and they are the opposite way round from what
+anybody expects.**
+
+| Input | What it does |
+| --- | --- |
+| **middle drag** | pans the map |
+| **wheel** | zooms, anchored on the pointer |
+| **left click** | **selects, and explains** — on a place it selects; on a control it tells you what that control does |
+| **right click** | **modifies** — on a control, it presses it |
+
+Looking and doing are separate hands. Left is enquiry; right is action.
+
+**The inversion is deliberate and it is not an accident of taste.** Pressing a
+button with the right hand and being told what it does with the left is contrary
+to every convention, and it is meant to be: the interface asks to be learned
+rather than guessed, and refuses the muscle memory a person arrives with. That is
+a stance about what kind of game this is, taken knowingly, and it should not be
+quietly softened later by somebody making it friendlier.
+
+What it costs, stated once: a middle-button drag is awkward on a trackpad, and
+panning is the thing you do most.
+
+What it buys, which was not the intention: **it answers how a dimmed control
+explains itself.** A button that cannot be used here is dimmed, and left-clicking
+it says why — the enquiry hand works on controls that the action hand cannot. The
+colour rule required that a dimmed button say more than "no", and the two-hand
+scheme provides the place for it to speak. See [the tome](007-the-tome.md).
+
+There is also an accidental safety in it. Because the world advances only on a
+move or on go — see [the day and the curve](008-the-day-and-the-curve.md) — a
+mis-aimed right click mostly *queues* something rather than doing it, and a queued
+thing can be taken back. The rudeness is survivable because of a decision made
+for entirely unrelated reasons.
+
+The anchoring on zoom matters as much as the button choice: **the painting pixel
+under the cursor stays under the cursor**. Anything else feels like the city
+sliding away from what you are looking at.
 
 ## The zoom also decides what a click selects
 

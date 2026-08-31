@@ -37,20 +37,33 @@ these two, so that a change to how the view works is a change in one file.
 | Zoom | What it is |
 | --- | --- |
 | about 0.192 | the whole painting across the pane's width. The **floor** — below it you are looking at letterbox. |
-| 1.0 | native pixels. The **ceiling** for honest detail. |
+| 1.0 | native pixels. The end of **honest detail**, but not a limit. |
 
-That is roughly a five-fold range, which is small for a map application and is a
-gift rather than a limitation. The floor is computed from the pane width divided
-by the painting width, never written down — the moment the window resizes or a
-different painting loads, a hard-coded 0.192 is wrong.
+That is roughly a five-fold range of real information, which is small for a map
+application and is a gift rather than a limitation — it is why the camera can be
+three numbers. The floor is computed from the pane width divided by the painting
+width, never written down: the moment the window resizes or a different painting
+loads, a hard-coded 0.192 is wrong.
 
 Since the painting is proportionally wider than the pane, fitting its width
 leaves a letterbox above and below of about 57 pixels at a 1600 by 900 window.
-That is expected, not a bug to eliminate.
+That is expected, not a bug to eliminate, and it is centred rather than pinned to
+the top so that fitting the whole city looks deliberate.
 
-Zooming past 1.0 magnifies rather than reveals. If it is permitted at all it
-should look like **honest blur** — no sharpening, no upscaling filter that
-invents detail the painting does not contain.
+### Past native is allowed, in both programs
+
+**There is no upper clamp.** Beyond 1.0 the painting is magnified rather than
+revealed, and what you get is **honest blur** — no sharpening, no upscaling
+filter that invents detail the picture does not contain.
+
+That is a statement about what the board is: finite. A player leaning in should
+meet the limit of the artwork rather than a convincing fiction. And the tracing
+tool gets the same magnification, which turns placing a vertex on an exact pixel
+into aiming at something several pixels wide.
+
+Some upper bound still exists to stop the arithmetic degenerating — a few times
+native is ample — but it is a guard rail rather than a ceiling, and it comes from
+`input/what-to-start-with`.
 
 ### Panning is clamped, not free
 
