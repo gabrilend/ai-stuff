@@ -88,8 +88,8 @@ every program the machine ever has are downstream of this one call.
 
 ## Notes on effort
 
-Step 4 is a ticket's worth of work by itself on some boards and should become
-`204a` if it grows.
+Step 4 is a ticket's worth of work by itself on some boards and was expected to need
+a sub-issue of its own. It did not grow that far, and this completed whole.
 
 ## Blocks
 

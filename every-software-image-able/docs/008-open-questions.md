@@ -820,7 +820,8 @@ the test suite counted down from five, so nothing caught it.
 Fixed the same day. The count is its own full-width cell, one per program, with a
 generous allowance, and nothing displays it; the lamps carry the status a program
 emits. A regression test runs a loop of thirty turns, which the old bound could
-never have permitted. `006`, `002`, `073`, `074`, `079`.
+never have permitted. `006`, `002`, `073`, `074`, and the emitter, which was
+deleted outright the next day along with the rest of the status system.
 
 **63 — Is anything allowed to be single-threaded?**
 Not if it does not have to be. Stated as a principle for the first time, and it had
@@ -839,10 +840,11 @@ real defect.
 
 Gone: the aspect shown as a colour and a shape, the per-program code, the magnitude
 with fifty as ordinary, tolerance, the dispatch table of meanings each machine built
-for itself, and the intercession triggered by a threshold. `docs/006` is a different
-document under the same number, `src/079` and `src/080` are deleted, and `207` is
-marked retired in the completed directory rather than removed, because tickets are
-never removed.
+for itself, and the intercession triggered by a threshold. The document describing it
+is gone and `docs/006` is a different document under the same number; the two
+programs that emitted a status and checked it are deleted; and `207` is marked
+retired in the completed directory rather than removed, because tickets are never
+removed. What any of it used to say is in the commit history.
 
 **What replaces it:**
 

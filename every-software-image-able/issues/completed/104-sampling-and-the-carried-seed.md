@@ -98,5 +98,8 @@ instruction, timing jitter, noise from a device it found — is its own business
 
 ## Related documents
 
-`docs/006-datapath-status-and-tolerance.md` — what a machine writes down, and
-what it can recompute instead.
+The document this once pointed at described what a machine writes down against what
+it can recompute instead, which is the principle behind carrying a seed rather than
+a stream of numbers. It was part of the status system and went when that did.
+
+`010a` — the loop the sampler is called from, and why nothing types at it.
