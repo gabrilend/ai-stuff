@@ -32,16 +32,23 @@ survived casual inspection: a test suite reporting a clean run while connected
 to nothing; a payload printing a single character because an address
 computation pointed into its own middle; a header reader announcing a
 vocabulary of 176 words and a total size of zero in the same aligned column as
-the correct values beside them. Four of the eight catalogued failures share a
+the correct values beside them. Four of the eleven catalogued failures share a
 single cause, and it is one that would not occur in a conventional build.
 
-An eighth arrived after this report was first drafted and is the only one
-caught before it cost anything, by inspection rather than by failure: our
-recorded fixture accumulated in double precision while any assembly
-implementation would accumulate in single, so the two could never have agreed
-exactly. We include it because its failure mode is instructive — an assembly
-implementation that was *correct* would have disagreed in the final bits and
-been "fixed" until it matched.
+**The most expensive one is not a coding error at all**, and it arrived late: for
+three phases this project built images that no firmware could have opened, while a
+check compared the builder against the engine and both were right. The component that
+has to find the first byte is the firmware, and it was never asked. We now think that
+is the most transferable finding here — a seam is only checked if somebody named both
+sides of it, and the side that goes unnamed is the one facing outward.
+
+One of them — the eighth, when the count still stood at eight — arrived after this
+report was first drafted and was the first caught before it cost anything, by
+inspection rather than by failure: our recorded fixture accumulated in double
+precision while any assembly implementation would accumulate in single, so the two
+could never have agreed exactly. We include it because its failure mode is
+instructive — an assembly implementation that was *correct* would have disagreed in
+the final bits and been "fixed" until it matched.
 
 We report these failures with their observed cost, the testing techniques that
 now catch them, and an argument that the correct response to this failure class
@@ -99,17 +106,17 @@ same component that emits the program.
 
 ### 1.3 What this report is actually about
 
-Section 4 is the contribution. It catalogues eight failures, each with what was
+Section 4 is the contribution. It catalogues eleven failures, each with what was
 observed, what was true, what it cost, and the structural change that now prevents
-it. Section 5 describes five testing techniques that emerged, of which two we believe
-are transferable beyond this project. Section 7 states the ways the enclosing project
-may fail.
+it. Section 5 describes six testing techniques that emerged, of which three we
+believe are transferable beyond this project. Section 7 states the ways the enclosing
+project may fail.
 
 **Appendix C lists what this report now says that the project no longer does.** The
 design moved under the paper several times and the honest response is a list rather
-than a silent revision — a ninth failure of the same family, since a paper that reads
-as current while describing a system that has changed is a plausible wrong answer
-that survives casual inspection.
+than a silent revision — a failure of the same family as the eleven below, since a
+paper that reads as current while describing a system that has changed is a
+plausible wrong answer that survives casual inspection.
 
 We are explicit throughout about the boundary between what we built and what we
 merely designed. The design is several times larger than the implementation and
@@ -160,10 +167,10 @@ from memory.*
 
 ## 3. What was built
 
-**Forty-two test programs, all passing, runnable in one command** — seven when this
-section was written, and the number is left visible rather than merely updated,
-because a "what was built" section that never gets recounted is the same failure the
-rest of this paper describes. The following exists and works:
+**Forty-four test programs, all passing, runnable in one command** — seven when this
+section was written, then forty-two, and the number is left visible rather than
+merely updated, because a "what was built" section that never gets recounted is the
+same failure the rest of this paper describes. The following exists and works:
 
 **A proving ground.** Six board descriptions — legacy-firmware and
 modern-firmware variants across three processor architectures — expressed as
@@ -239,10 +246,26 @@ architectures; the tool calls; the instruction text; and the driver that closes 
 of it into a loop, which runs on the metal on the first architecture and produces
 words.
 
+**A medium a firmware will open, and one command that makes one.** Added
+2026-08-22, and it closes what the paragraph below used to call the nearest
+blocking work. The laid-out regions are wrapped in a partition table and a FAT16
+filesystem with the boot file at the path each board description already names, and
+that is checked three ways: against this project's own arithmetic, against tools
+written by people with no stake in it being right, and against real firmware on all
+three architectures. Then a recipe, a board and a model became an image, a manifest
+and an identity in a single command — and a computer with nothing on it read that
+medium, found every one of its own weights, divided its memory, thought, and spoke.
+
+Two costs are worth recording because neither was chosen. The smallest image is
+megabytes rather than kilobytes, because a FAT16 filesystem is only FAT16 above
+about four thousand clusters, which is a floor the format imposes. And the third
+architecture's boot path is eleven characters, which does not fit the naming FAT has
+always had — so long names had to be written after a comment in this project had
+already said they would never be needed. That is §4.4's mistake, arriving in a
+filesystem: one instance looked at, and generalised from.
+
 **What does not exist:** recognising a request inside generated text, in assembly,
-which is the driver's last step. An image a firmware can open — a built image carries
-no partition table and no filesystem, so nothing can boot one, and that is the
-nearest blocking piece of work. Any machine that has installed itself. And any
+which is the driver's last step. Any machine that has installed itself. And any
 evidence whatsoever that a model can do so unaided, which is what the capstone now
 asks (Appendix C).
 
@@ -452,7 +475,84 @@ We report 26 of 26 kernel comparisons passing on raw bit patterns rather than
 numeric values, across nine matrix shapes, five vector lengths, and three edge
 cases.
 
-### 4.9 Summary
+### 4.9 The seam that goes unchecked is the one facing outward
+
+**Observed.** Three phases of image building, every check passing. The builder laid
+down five regions in the order the firmware meets them, each starting on a block
+boundary, and compared the offsets it wrote against the offsets the engine would look
+for, refusing to build on any disagreement. That check was correct and both sides of
+it were always right.
+
+**True.** The image carried no partition table, no filesystem and no file. Firmware
+does not open a medium; it opens *one file on a FAT filesystem*. So no image this
+project had ever produced could have been booted by anything.
+
+**Why it hid, and this is the part worth generalising.** The check that existed
+compared the builder against the **engine** — two components of ours, each correct
+about its own half. The component that actually has to find the first byte is the
+firmware, and nobody asked it. Compounding that, the emulated boards boot from a host
+directory the emulator synthesises into a filesystem, so the built image had never
+been the thing under test: the road that proved first light and the road a real card
+takes were never the same road.
+
+**Cost.** Three phases of images that nothing could boot, discovered only when the
+capstone was approached. Repaired in a day once named.
+
+**Structural change.** The suite now builds an image and requires a real firmware to
+open it, on all three architectures.
+
+**The general form is worth more than the fix.** A seam is only checked if somebody
+named both sides of it, and the side that goes unnamed is the one facing outward —
+toward the firmware, the medium, the machine somebody else built. Two components of
+ours agreeing is the easy half.
+
+### 4.10 A checksum written with addition
+
+**Observed.** A partition table generated by this project, carrying a checksum that
+looked like a checksum, for every input.
+
+**True.** The algorithm accumulates with exclusive-or and the first implementation
+used addition. It produced a plausible number for every input and the correct one for
+none.
+
+**Why it would have hidden.** A partition table whose self-check fails is not
+rejected loudly — it is **ignored in silence**. The firmware simply does not see a
+disk there, and the diagnostic available to whoever is watching is a machine that
+does not start, which is the same symptom as a dozen unrelated causes.
+
+**Cost.** None, and only because the value was checked against a published answer
+before anything was built on it. That check took one line.
+
+**Structural change, and it is cheap enough to be a rule.** When implementing an
+algorithm somebody else specified, verify it against a value that somebody else
+published before trusting anything above it. It converts a silent failure into an
+immediate one for almost no work.
+
+### 4.11 A placeholder drawn from the alphabet of the thing that would process it
+
+Recorded because it happened in the apparatus built to publish this report, which
+makes it the ninth instance of a family this paper claims is structural rather than
+attentional.
+
+**Observed.** The documentation site rendered every fenced block of code with its
+comments replaced by a small number.
+
+**True.** The syntax highlighter takes strings and comments out first, leaving
+numbered markers in their place, then colours what remains — and the pass that
+colours numbers found the markers and coloured those.
+
+**Why it hid.** The output was valid, consistently formatted, and looked deliberate.
+Only a reader who already knew what the source said would notice that the commentary
+was gone.
+
+**Cost.** Minutes, caught by a check written the same hour. The markers are now
+lettered rather than numbered.
+
+**General form.** A placeholder must not be drawn from the alphabet of the thing that
+will process it. This is §4.1 again in a different medium: a value that means
+"nothing is here yet" and is indistinguishable from a legitimate value.
+
+### 4.12 Summary
 
 | # | Finding | Class | Cost |
 |---|---|---|---|
@@ -464,9 +564,17 @@ cases.
 | 4.6 | Fatal writes cannot be reported by watchpoints | limit | 1 run |
 | 4.7 | Hand-counted offsets | duplication | 1 boot |
 | 4.8 | Fixture with unstated precision | specification | none — caught by inspection |
+| 4.9 | The checked seam faced inward; the unchecked one faced the firmware | seam | 3 phases of unbootable images |
+| 4.10 | A checksum accumulated with addition | specification | none — caught against a published answer |
+| 4.11 | A placeholder made of digits, coloured by the pass that colours digits | toolchain | minutes |
 
-Eight failures. Zero crashes. Zero diagnostics. Every one produced output that
+Eleven failures. Zero crashes. Zero diagnostics. Every one produced output that
 a reasonable person would accept at a glance.
+
+**The most expensive of them is the newest, and it is not a coding error.** §4.9 cost
+more than the other ten together, and no amount of care inside either component would
+have found it, because both components were correct. It was a question nobody asked:
+*which thing, outside this project, has to understand what we just produced?*
 
 Two further items are properties of the *development host* rather than of the
 target, and are recorded in the project's running list rather than here: a
@@ -535,27 +643,63 @@ can is required.
 
 ### 5.3 Keep one real hazard among the synthetic ones
 
-Stated in §4.6 and repeated here because we consider it the most transferable
-item in the report. A test population composed entirely of simulated dangers
+Stated in §4.6 and repeated here because we consider it among the most transferable
+items in the report. A test population composed entirely of simulated dangers
 validates only the simulation. One genuine instance among them cost a single run
 and revealed a limit of the entire technique.
 
-### 5.4 Judge as a rate, not as an anecdote
+### 5.4 Ask what outside the project has to understand the output
 
-Our capstone experiment leaves a machine alone to write its own allocator. A
-single machine succeeding proves little, and a single machine failing proves
-less, because the model's sampling is non-deterministic and each outcome is a
-draw.
+From §4.9, and it is the one we would most want another project to take from this. Our
+strongest check compared two of our own components and both were correct for three
+phases while the artefact they agreed on was unopenable by anything else.
 
-Sampling is deterministic given a seed, and the seed is a build-time parameter.
-The experiment is therefore twenty images differing in nothing but their carried
-randomness, and the result is a success rate.
+The question that would have caught it is mechanical enough to ask on any project:
+**what is the first thing outside this project that has to read what we just
+produced, and is it in the test suite?** For us that was firmware, and the fix was to
+put a real one in the loop. The general version is that a boundary with something you
+did not write is the only boundary where being wrong is expensive, and it is the one
+most likely to be simulated away — in our case by an emulator that synthesised a
+filesystem out of a host directory, so the artefact under test was never the artefact
+that ships.
 
-This also dissolves the strongest experimenter bias in the procedure — the urge
-to help a struggling machine. There is nothing to resist, because the next
-attempt is a different image rather than a corrected one.
+A related habit, cheap enough to be unconditional: when implementing an algorithm
+somebody else specified, check it against a value somebody else published before
+building anything on top of it (§4.10).
 
-### 5.5 Report zero as a result
+### 5.5 Derive the documentation, or it drifts
+
+Late, and included because the effect was larger than expected. This project requires
+a companion page beside every source file saying what it offers; most did not have
+one, and writing a hundred and thirty by hand would have produced a hundred and
+thirty pages that were accurate on the day they were written.
+
+They are instead **lifted from each file's own header comments** by a program — the
+summary, the plain-language paragraph, the headed sections, and every exported thing
+with what it takes and returns. Three consequences, and the second is the one we did
+not anticipate:
+
+1. A generated page cannot disagree with the file it describes, because it is not a
+   second copy of the same claims.
+2. **The way to improve a page becomes improving the source's comments**, which is
+   where somebody changing the code is already looking. The documentation stopped
+   being a separate artefact competing for attention.
+3. A thin page is a *signal about the source file*, not a defect in the page. Sorting
+   the generated pages by length produces a ranked list of the files that have least
+   to say about themselves.
+
+The pages written by hand are left alone and marked, because they carry what no
+signature contains — why a thing exists and what it deliberately refuses to know. The
+generator recognises its own output and will not touch anything else.
+
+**The cross-references then check themselves.** Assembling every document into one
+cross-linked whole means resolving every reference, which means a build reports two
+things nobody was tracking: every identifier that means two different things, and
+every reference in the project that reaches nothing at all. The first build found
+eight dangling references and eight ambiguous ones. Neither list existed before,
+because on disk a reference is just a number in a sentence.
+
+### 5.6 Report zero as a result
 
 From §4.5. A run that trips no traps must say so explicitly, because in a log
 that records only failures, "nothing was armed" and "nothing fired" are the same
@@ -650,14 +794,22 @@ that a machine writing assembly finishes within a useful span; and be capable
 enough to write correct assembly unaided, which is not a small model. If the
 machine wants its thinking accelerated it must write a driver for its own
 accelerator — among the hardest drivers there are — while thinking slowly,
-because thinking quickly is what that driver would buy. We have no measurements
-and this may be the whole answer.
+because thinking quickly is what that driver would buy.
+
+**The fitting half of that chain is now arithmetic rather than an argument**, and it
+is the memory budget in §3: for a machine of a given shape, what it costs and which
+term runs out first. **The speed half is still unmeasured on anything real.** We have
+a figure for multiply-additions per second and timings from power to a machine's own
+memory report, and both were taken under emulation, where §7's own paragraph on the
+subject says such numbers are meaningless rather than merely optimistic. So this
+remains the leading risk, and what has changed is only that one of its two halves can
+now be computed instead of feared.
 
 **The central claim is untested, and it is no longer this claim.** We do not know
 whether a model, left alone with an instruction and a set of tool calls, **installs
 itself onto the computer it woke up in** — finds a disk, avoids destroying what is on
 it, writes itself there in a form the firmware will start, and keeps running after
-somebody removes the card. The success rate might be zero. Everything in this report
+somebody removes the card. It may never happen. Everything in this report
 is apparatus for asking that question.
 
 It used to be *writes a working allocator*, and the seed now carries an allocator
@@ -686,12 +838,6 @@ initialisation delay that is too short passes here and fails on a board.
 Emulated inference speed is not slow-but-indicative; it is meaningless, and we
 keep those figures in a separate table for that reason.
 
-**Sample size for the rate methodology is unjustified.** We propose twenty images.
-We have no argument for twenty. During development the useful number is much smaller:
-one sample cannot separate a bug from an unlucky draw, and three or five distinguishes
-*always fails* from *sometimes fails*, which is the difference between changing the
-seed's text and carrying on.
-
 **Our failure catalogue is an availability sample.** These are the failures we
 happened to hit in one week of one project by one pair of hands. We make no
 claim that they are representative, exhaustive, or correctly weighted. The
@@ -704,9 +850,13 @@ occurred seven times out of seven.
 
 We state these so that the project can be wrong rather than merely unfinished.
 
-A machine that, given twenty seeds and a working engine, **installs itself** in
-**zero** of twenty attempts would falsify the central design claim as stated, though
-not the weaker claim that the floor is lower than a compiler.
+A machine that, given a working engine and the instruction it wakes up holding,
+**never installs itself** — never finds a disk, or never writes itself anywhere the
+firmware will start — would falsify the central design claim as stated, though not
+the weaker claim that the floor is lower than a compiler. **One machine cannot carry
+that weight and we do not pretend otherwise**: attempts differ only in the carried
+random number, so anybody wanting a rate can build more images, and what this report
+holds is what was read from the machines that were watched.
 
 A machine that installs itself and **destroys somebody's data doing it** would
 falsify something narrower and more urgent: that a rule written in plain language —
@@ -735,21 +885,29 @@ does not require the failure first.
 
 We set out to build a computer that constructs its own software from nothing,
 and we have not built it. What we have is the apparatus for attempting it, a
-reference implementation of the arithmetic against which three future assembly
-implementations can be judged, and seven documented ways of being wrong without
-being told.
+reference implementation of the arithmetic against which three assembly
+implementations are judged — all three now written and agreeing bit for bit — a
+seed that a real firmware will start, and eleven documented ways of being wrong
+without being told.
 
-The seven are the part we would defend. In conventional development, the
+The eleven are the part we would defend. In conventional development, the
 toolchain, the operating system, and the runtime collectively convert a large
 fraction of programmer error into diagnostics. Remove all three and that
 conversion stops. What remains is a machine that runs the wrong thing
 confidently and reports nothing, and a developer whose only recourse is to
 disassemble the output and read it.
 
-The techniques in §5 are our response, and the one we would most like others to
-adopt is the cheapest: **keep one real hazard among the synthetic ones.** It
-cost a single run and revealed that an entire category of failure lies outside
-what the technique can observe.
+The techniques in §5 are our response, and we would name two rather than one.
+
+The cheapest is to **keep one real hazard among the synthetic ones.** It cost a
+single run and revealed that an entire category of failure lies outside what the
+technique can observe.
+
+The most valuable arrived last and cost the most to learn: **ask what outside the
+project has to understand the output, and put that thing in the test suite.** Our
+checks compared our own components to each other, which they passed for three phases
+while producing images that nothing in the world could open. Two components you wrote
+agreeing with each other is the easy half, and it is the half that feels like rigour.
 
 ---
 
@@ -764,10 +922,29 @@ changed and why; the failures in §4 correspond to identifiable commits.
 ./run-tests --quick     host-side checks only
 ```
 
-Seven test programs at time of writing. Every source file is accompanied by an
-information file describing its interface and the constraints discovered while
-building it; those files are where the findings in §4 are recorded in the form
-a future implementer will meet them.
+Seven test programs at time of writing; forty-four now.
+
+```
+luajit src/145-make-an-image.lua --board qemu-uefi-x86-64
+```
+
+Makes a seed: an image, a manifest saying what went into it, and an identity anybody
+can arrive at again from the same inputs. It prints the command that boots what it
+just made.
+
+```
+luajit src/149-the-documentation-site.lua
+```
+
+Builds every document, ticket and companion page into one cross-linked site under
+`docs/HTML/`, and ends by naming every reference in the project that reaches nothing.
+
+Every source file is accompanied by an information file describing its interface and
+the constraints discovered while building it; those files are where the findings in
+§4 are recorded in the form a future implementer will meet them. **That sentence was
+aspirational until 2026-08-22** — well under half of them existed — and it is true
+now only because the missing ones are generated from each file's own comments rather
+than written (§5.5).
 
 ## Appendix B: Status of the enclosing project
 
@@ -790,11 +967,16 @@ recounts is the failure this report is about, arriving in the report itself.
 | **Every kernel in assembly, bit-exact against the reference** | **working, three architectures** |
 | **A whole thought end to end in assembly** | **working, three architectures, agreeing on all 192 scores bit for bit** |
 | **Four-bit weights** | **working, three architectures, agreeing bit for bit** |
-| **The driver on the metal** | **working on the first architecture** — a machine with no operating system reads what it was told, thinks, and says six words, the same six the readable loop says from the same text and the same carried randomness |
+| **The driver on the metal** | **working on the first architecture** — a machine with no operating system reads what it was told, thinks, and says six words, the same six the readable loop says from the same text and the same carried randomness. Since 2026-08-22 the code that assembles such a machine is a component rather than something living inside a test, so the machine that is tested and the machine that ships are the same machine |
 | **Tool calls** | **working**, as the specification the assembly will be held to; two of them are assembly |
 | **The instruction text** | **written**, and checked as part of the payload |
 | Recognising a request inside generated text, in assembly | not started — the last step of the driver |
-| Image builder and flasher | partly: the recipe, the board descriptions and the writing are done; **a built image carries no partition table and no filesystem, so no firmware can open one** |
+| **A medium a firmware will open** | **working, three architectures** — partition table, FAT16, boot file at the path the board names; checked against our own arithmetic, against outside tools, and against real firmware |
+| **Making a seed** | **working** — one command takes a recipe, a board and a model and produces an image, a manifest and an identity; the image boots and the machine inside it thinks |
+| **Reproducibility of a seed** | **working** — same recipe and same carried number gives the same machine exactly; the identity is recomputable from the inputs |
+| Documentation, cross-linked and derived | working — a companion page beside every source file, most lifted from the file's own comments, and the whole project as one linked site that reports its own dangling references |
+| The `input/` directory as the generator's front door | not started — a seed is one recipe file naming an instruction, patterns and device descriptions, not a place an engineer drops what they want carried |
+| A fault handler that prints | **not started**, and it is the highest-value thing not on the chip: about a hundred instructions per architecture that would turn this project's dominant failure mode from silence into a sentence |
 | Any machine that has installed itself | **not started**, and it is the capstone |
 
 **The distinction that table needs and did not have**, and it cost this project a
@@ -809,6 +991,36 @@ table was true. The summary was not.
 
 Listed rather than silently edited, because a paper that changes its claims without
 saying so is worse than one that is out of date.
+
+**The paper's largest claim of incompleteness was resolved on 2026-08-22, and
+resolving it produced the paper's most expensive finding.** §3 and Appendix B both
+said that a built image carried no partition table and no filesystem, so no firmware
+could open one, and called it the nearest blocking work. That is fixed: images are
+now media that real firmware opens on three architectures, and one command turns a
+recipe and a board into one. **The failure itself was promoted rather than deleted**
+— it is §4.9, the seam that goes unchecked because it faces outward — because how a
+project builds three phases of unbootable images while every check passes is worth
+more to a reader than the fact that it no longer does.
+
+Two testing techniques were added at the same time and one was removed, so §5 has six
+where it had five: §5.4, on asking what outside the project has to read the output,
+and §5.5, on deriving documentation from source rather than writing it. What went is
+described immediately below.
+
+**The rate methodology was removed on 2026-08-22.** §5 recommended judging the
+capstone as a success rate over twenty images differing in nothing but their
+carried random number, and §7 carried the unjustified sample size as a limitation.
+Neither is a thing this project does. The underlying decision was made on
+2026-08-21 — the carried random number is already a build parameter, so twenty
+images is the front door run twenty times and needs nothing built — but the
+recommendation stayed in three documents afterwards, where it read as work still
+owed, and was mistaken for missing functionality the first time somebody
+summarised the project.
+
+What replaces it is weaker, and is stated as weaker: a single machine, read rather
+than counted, with the failure pointing at a document that then changes. Anybody
+who wants a rate can build as many images as they like, because the number they
+would vary is an input to the generator rather than something to be added to it.
 
 **The central experiment changed on 2026-08-21.** §7 and §8 are written around
 whether a model, left alone with an instruction and a set of tool calls, writes a
