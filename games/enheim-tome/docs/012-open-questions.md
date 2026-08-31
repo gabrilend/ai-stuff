@@ -8,7 +8,7 @@ of the documentation are the vision speaking and which are a gap being filled.
 
 The questions are meant to be gone through one at a time.
 
-**Thirty answered. Seventeen open.** The design is therefore *in progress*, not
+**Thirty-four answered. Fifteen open.** The design is therefore *in progress*, not
 finished.
 
 ---
@@ -50,8 +50,12 @@ worth being able to find again.
 | A28 | How does text become a room? | **Parked.** A separate project consuming this one's output. | Procedural now; a model that generates geometry from text now. |
 | A29 | Which image is the board? | **The painting**, with a flat top-down view wanted eventually that must register with it exactly. | The flat map as the board; treating both as reference with the board drawn later. |
 | A30 | Are the pictures ours? | **No.** Reference only — see [the notice](../inspiration-pictures/NOTICE.md). The board is a stand-in and cannot ship. | Treating them as project assets. |
+| A31 | What are the pan and zoom bindings? | **Middle drag pans, wheel zooms.** Left click selects and explains; right click modifies. Deliberately inverted from convention. | Left-drag panning; a modifier held to pan; conventional left-to-press buttons. |
+| A32 | Do the icon buttons carry words, and where? | **Left-clicking one explains it**, including why a dimmed one cannot be used. Falls out of the two-hand scheme rather than needing its own mechanism. | Hover text; permanent labels beside icons. |
+| A33 | Does zoom stop at native pixels? | **No — past native is allowed in both programs and looks like honest blur.** | Stopping at native; stopping in the game but not the tool. |
+| A34 | What fills the tome pane before the tome exists? | **Nothing.** An empty panel until phase 6, so the proportions are real from the start. | Debug readouts; giving the map the whole window until phase 6. |
 
-Four of these carry consequences worth spelling out.
+Five of these carry consequences worth spelling out.
 
 **A2 and A3 together turn the city into a graph rather than a field.** Pixels-only
 would normally leave you unable to say two things are near each other; choosing
@@ -71,6 +75,13 @@ parameter on a function that already existed, because the map was always
 somebody's model rather than the city itself. The most valuable thing in the
 design cost a single argument.
 
+**A31 and A32 turned rudeness into an answer.** The two hands — left asks, right
+acts — were chosen as a deliberate refusal of the muscle memory a person arrives
+with. They then solved a problem the design already had and had not solved: the
+colour rule demands a dimmed control say more than "no", and an icon alone
+cannot. The enquiry hand works on controls the action hand refuses, so a greyed
+button explains itself. A stance taken for its own sake paid for something else.
+
 **A22 is the only version that ships.** Two thousand block events is a couple of
 months. Twenty to forty thousand house events is two to four years. Writing
 everything first would mean nobody plays for years, including the author.
@@ -79,16 +90,21 @@ everything first would mean nobody plays for years, including the author.
 
 # Group A — Hands on the map
 
-## 1. What are the pan and zoom bindings?
+## 1. What are the pan and zoom bindings? — **ANSWERED, see A31**
 
-**Working ruling:** drag to pan, wheel to zoom about the pointer, clamped between
-fitting the pane and native pixels.
+**Middle drag pans, wheel zooms about the pointer. Left click selects and
+explains; right click modifies.**
 
-**Why it matters:** space is taken by the search, and the tracing tool needs the
-same gestures for a different job — a drag there might mean moving a vertex. The
-two programs must not disagree about what a drag is.
+The two programs agree because a drag on empty ground is never editing in either
+— the editing gestures are the left and right buttons, which the map does not
+use for dragging at all. The conflict this question was raised about does not
+arise.
 
-**Changes:** [the map surface](002-the-map-surface.md), [the tracing tool](005-the-tracing-tool.md), phase 1.
+The inversion of left and right is deliberate rudeness, taken as a stance rather
+than arrived at: the interface asks to be learned rather than guessed. It also
+answered question 7 as a side effect.
+
+Zoom is clamped below at the pane fit and **not clamped above** — see A33.
 
 ## 2. What happens when you click undefined ground?
 
@@ -153,15 +169,19 @@ angle in its own colour, with the name beside it, truncated.
 
 **Changes:** [the tome](007-the-tome.md), [filters](006-filters-and-the-weave.md), phase 6.
 
-## 7. Do the icon buttons carry words, and where?
+## 7. Do the icon buttons carry words, and where? — **ANSWERED, see A32**
 
-**Working ruling:** icons only, with the name and effect appearing in the text
-pane on hover.
+**Left-clicking a button explains it**, including why a dimmed one cannot be used
+here.
 
-**Why it matters:** an icon nobody can read is as exclusionary as a colour nobody
-can distinguish, and a dimmed button must say *why*, which no icon does alone.
+This was not designed for; it fell out of the two-hand scheme in A31. The colour
+rule demands that a dimmed control say more than "no", and an icon alone cannot.
+Because the enquiry hand works on controls the action hand refuses, a greyed
+button is never a dead end.
 
-**Changes:** [the tome](007-the-tome.md), phase 6.
+It follows that **nothing may be pressable by the hand that asks about it.**
+Anything acting on left click has broken the scheme, and the scheme is what makes
+every dimmed thing legible.
 
 ## 8. How do you change a place's default filter?
 

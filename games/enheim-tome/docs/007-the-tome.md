@@ -72,6 +72,26 @@ removed, so the pattern of what is lit is itself information about the block —
 you can read what kind of place this is from the shape of the lit buttons before
 reading a word.
 
+### Left asks, right acts
+
+The two hands from [the map surface](002-the-map-surface.md) apply here and are
+the opposite way round from every convention:
+
+| | |
+| --- | --- |
+| **left click** on a button | tells you what it does, and — if it is dimmed — why it cannot be used here |
+| **right click** on a button | presses it |
+
+This is deliberate rudeness, and it happens to solve a problem the design already
+had. [The colour rule](001-what-this-game-is.md) demands that a dimmed control say
+more than "no", and an icon alone cannot. **The enquiry hand works on controls the
+action hand refuses**, so a greyed button is never a dead end — you left-click it
+and it explains itself.
+
+It follows that **no button may be pressable by the hand that asks about it.**
+Anything that acts on left click has broken the scheme, and the scheme is what
+makes every dimmed thing legible.
+
 Selecting a block does not produce something to *read*. It produces the set of
 things you can *do* here. What those things are is mechanics and is not decided.
 
