@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+#
+# refuse-unscoped-commit
+#
+# A gate that sits in front of every shell command Claude Code tries to run and
+# refuses any `git commit` that does not say which files it is committing.
+#
+# The reason it exists: this repository holds dozens of projects and several
+# assistants work in it at once. A bare `git commit` does not commit "my work" --
+# it commits whatever happens to be sitting in the index, and the index belongs
+# to the repository rather than to whoever is typing. Two sessions each
+# committing "the index" is a collision waiting to happen, and it has happened:
+# one session's commit message ended up attached to another session's files,
+# while the first session's own work stayed uncommitted and unnoticed.
+#
+# Staging carefully does not help. Scoping the `git add` and then running a bare
+# `git commit` leaves a window in which the correctly-staged files are sitting
+# there for anybody else's commit to carry away. The fix is to name the paths on
+# the commit itself, which commits them straight from the working tree and
+# ignores the index entirely -- nothing is ever left staged between commands, so
+# there is nothing to steal and nothing to steal from.
+#
+# WHAT COUNTS AS SCOPED
+#
+#   git commit -- some/path            named paths; ignores the index
+#   git -C repo commit -F - -- path/   the same, with the message on stdin
+#   git commit --amend --only          amends the message of what is already
+#                                      committed, touching no new files
+#
+# WHAT IS REFUSED
+#
+#   git commit                         commits the index, whoever filled it
+#   git commit -m "..."                the same
+#   git commit -a                      stages every modified tracked file first,
+#                                      across every project in the repository
+#
+# WHAT THIS IS NOT
+#
+# This is not a security boundary, and it reads the command as text rather than
+# understanding it. A `--` inside a commit message would satisfy it without
+# scoping anything, and the assistant it constrains could edit this file or
+# remove the hook that installs it. What it buys is that the careless form is
+# not available by habit, and that going around it is a visible, deliberate act
+# rather than a silent one. An honour system with a witness, not a lock.
+#
+# The refusal can be lifted one time by creating the permission token below.
+#
+# Reads the pending command as JSON on standard input. Says nothing at all when
+# the command is fine; prints a refusal when it is not.
+#
+# Usage: refuse-unscoped-commit [token-path]
+
+set -euo pipefail
+
+# Where a person leaves a one-time permission. Deliberately not the same token
+# as the working-directory gate: allowing one directory change should not also
+# allow one repository-wide commit.
+TOKEN="${1:-/tmp/claude-allow-unscoped-commit}"
+
+# The command Claude is about to run. Unreadable input is treated as "nothing to
+# object to" rather than as an error -- a gate that crashes would block every
+# command in the session, which is far worse than missing one.
+pending_command="$(jq -r '.tool_input.command // ""' 2>/dev/null || printf '')"
+
+if [ -z "${pending_command}" ]; then
+    exit 0
+fi
+
+# Is this a git commit at all? The word `git` must sit where a command goes, and
+# `commit` must appear after it as its own word -- so `git -C somewhere commit`
+# is caught, while `echo "how to commit"` is not.
+git_in_command_position='(^|[;&|(){}])[[:space:]]*git[[:space:]]'
+commit_subcommand='[[:space:]]commit([[:space:]]|$)'
+
+if ! printf '%s\n' "${pending_command}" | grep -qE "${git_in_command_position}"; then
+    exit 0
+fi
+
+if ! printf '%s\n' "${pending_command}" | grep -qE "${commit_subcommand}"; then
+    exit 0
+fi
+
+# From here it is a commit, and there are three endings.
+
+# Staging everything modified is the sweep this gate exists to prevent, and it
+# is refused even when paths are also named, because the two cannot be combined
+# and the intent is unambiguous.
+stages_everything='[[:space:]](-a|--all)([[:space:]]|$)'
+if printf '%s\n' "${pending_command}" | grep -qE "${stages_everything}"; then
+    reason="This commit stages every modified tracked file, across every project in this repository, before committing. Name the paths instead: git commit -- <path>. That commits those paths from the working tree and touches nothing else."
+else
+    # A standalone -- followed by something that is not a flag means paths were
+    # named. --only with --amend means the message is being corrected without
+    # taking on any new files. Either is scoped; anything else is not.
+    #
+    # Both patterns are anchored *after* the word `commit`, and forbid a command
+    # separator in between, because `git add -A -- x/ && git commit` must not be
+    # let through by the add's pathspec. That is not a hypothetical: it is the
+    # exact shape that caused the collision this gate was written for.
+    names_paths='commit\b[^;&|]*[[:space:]]--[[:space:]]+[^[:space:]-]'
+    amends_message_only='commit\b[^;&|]*--amend[^;&|]*--only|commit\b[^;&|]*--only[^;&|]*--amend'
+
+    if printf '%s\n' "${pending_command}" | grep -qE "${names_paths}"; then
+        exit 0
+    fi
+
+    if printf '%s\n' "${pending_command}" | grep -qE "${amends_message_only}"; then
+        exit 0
+    fi
+
+    reason="This commit does not say which files it is committing, so it will commit whatever is in the index -- and in this repository the index is shared with other sessions working on other projects. Name the paths: git commit -- <path>, or git -C <repo> commit -F - -- <path>. To correct a message without taking on new files, use git commit --amend --only."
+fi
+
+# The person left a token, so they asked for this specifically. Spend it and
+# stand aside. Deleting it first means a crash after this point still consumes
+# the grant, which is the safe direction to fail.
+if [ -e "${TOKEN}" ]; then
+    rm -f "${TOKEN}"
+    exit 0
+fi
+
+cat <<REFUSAL
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "${reason} If the user genuinely wants an unscoped commit this once, ask them to type: ! touch ${TOKEN}"
+  }
+}
+REFUSAL
+
+exit 0
