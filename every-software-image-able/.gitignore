@@ -9,3 +9,12 @@ tmp
 # there. The directory is kept; the messages are not.
 output/*
 !output/.gitkeep
+
+# docs/HTML/ is the documentation site, and it is built rather than written.
+# Two hundred files that rewrite wholesale whenever any document changes, all of
+# them derived from files already in this repository -- so tracking them would
+# put the same words in the record twice and make every documentation edit look
+# like two hundred. The tool is the artifact; run it and the site is there.
+#
+#   luajit src/149-the-documentation-site.lua
+docs/HTML/

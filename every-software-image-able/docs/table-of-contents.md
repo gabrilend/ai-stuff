@@ -35,7 +35,9 @@ every-software-image-able/
 │   ├── 012-datapath-the-proving-ground.md  testing it without a computer, and what that hides
 │   ├── 013-datapath-the-context.md .. atoms; what the machine is thinking with, and its choosing
 │   ├── 042-whitepaper.md ............ seven ways of being wrong without being told
-│   └── 102-adding-a-new-machine.md .. the procedure for a computer the seed does not yet run on
+│   ├── 102-adding-a-new-machine.md .. the procedure for a computer the seed does not yet run on
+│   ├── 146-a-walkthrough.md ......... the seven things a person can run, and what each does
+│   └── HTML/ ........................ all of this, cross-linked and clickable; built, never edited
 │
 ├── strategems/
 │   └── 009-ask-do-not-schedule.md ... say what is wanted; leave the method alone
@@ -58,6 +60,17 @@ every-software-image-able/
 ---
 
 ## Reading orders
+
+**To read all of this with links instead of numbers:** build the site into
+`docs/HTML/` and open its front page. Every reference becomes something you click,
+every page says what points at it, and the counts on the front page are taken
+while it is being built. `146` gives the command.
+
+**To run it rather than read about it:** `146`. Seven things can be started by a
+person — the checks, the demonstrations, the front door that makes a seed, the
+launcher, the one that lets you sit and watch a machine, and the two that rebuild
+this documentation — and it says what each asks, what comes back, and how long you
+will be waiting.
 
 **To understand the design:** `001`, then `005` for what the machine does with
 its life, then `003` and `003a` for how it gets far enough to do it. `002` is the
@@ -143,16 +156,30 @@ appeared. Corrected 2026-08-21.** There are now well over a hundred source files
 and the progress notes in `issues/` are the honest account of what runs; this page
 should not be read as a status.
 
-- **The seed generation system itself.** The deliverable is the thing that makes
-  seeds from an `input/` directory and a board description, and refuses to build
-  when the board cannot carry what the seed assumes. The pieces exist in miniature —
-  board descriptions as data, a payload generator that already declines to draw on
-  a board with nowhere to draw — and have never been joined up or named.
+- **The rest of the seed generation system.** The pieces were joined on 2026-08-22:
+  one command takes a recipe and a board and produces an image, a manifest and an
+  identity, and it refuses rather than guessing in about a dozen places. What the
+  deliverable still lacks is the `input/` directory as the roadmap describes it —
+  a place an engineer drops whatever they want the machine to have, rather than one
+  recipe file naming an instruction, some patterns and some device descriptions.
 - **A fault handler that prints.** Named on 2026-08-21 as the highest-value thing
   not on the chip: about a hundred instructions per architecture that turn this
   project's dominant failure mode from silence into a sentence.
-- **The demos**, and the runner in the project root that asks which phase to
-  show. Blocked on there being a completed phase.
-- **The HTML build** at `docs/HTML/`, cross-linked, with the four rungs as
-  something you can watch a request descend.
-- **`*.info.md` files**, one per source file, once source exists.
+- **The four rungs as something you can watch a request descend.** The HTML build
+  below exists now; this was the other half of that entry and it does not. It would
+  be the one page on the site that shows a mechanism rather than a document.
+
+Done since this list was written:
+
+- **The demos** and the runner in the project root that asks which phase to show —
+  one per completed phase, and it reads what each shows from the demo itself.
+- **The HTML build** at `docs/HTML/`, built on 2026-08-22 by a generator rather
+  than written. Every document, note, strategem, ticket and companion page,
+  cross-linked in both directions, with a filterable list of everything down the
+  left and a front page of counts taken during the build. Run it with the
+  documentation site builder; `146` says how.
+- **`*.info.md` files**, one per source file, including the one in `assets/`. Most
+  are lifted from each file's own comments and are rebuilt rather than edited; the
+  ones written by hand are left alone and say what no signature can. Which is
+  which, and which are thin, is on the site's coverage page rather than counted
+  here.
