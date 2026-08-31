@@ -47,6 +47,22 @@ A visible division, one or two pixels, so the two halves read as two surfaces
 rather than one surface with a busy right edge. Whether it can be dragged to
 re-proportion the split is not decided and is not needed for this phase.
 
+### The tome pane stays empty until phase 6
+
+Nothing is drawn in it — not readouts, not debug figures, not a placeholder. An
+empty panel, honestly empty, for five phases.
+
+The reason it exists this early rather than being introduced when it has content:
+**every visual judgement made before then is made at the real proportions.** How
+the cage reads, how hatching sits, whether the whole city is legible at the fit —
+all of those are judgements about a 1180-wide pane, and making them against a
+full-width window would mean re-making them later.
+
+The cost is that a quarter of the window does nothing for a long time, and that
+during the tracing campaign there is no readout of where the cursor is in
+painting coordinates. That is accepted: the tracing tool is a separate program
+with its own pane to fill, and it may put whatever it likes there.
+
 ### Resizing
 
 On resize, the tome keeps its width and the map pane absorbs the change. Since

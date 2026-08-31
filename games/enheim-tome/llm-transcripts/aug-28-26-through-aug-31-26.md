@@ -1,6 +1,6 @@
 # Conversation Summary: 5b030864-1533-4a31-8439-f04e237f1316
 
-Generated on: 2026-08-31 12:41:44
+Generated on: 2026-08-31 13:16:43
 
 --------------------------------------------------------------------------------
 
@@ -3477,6 +3477,233 @@ directory gate — refusing any `git commit` that has no `--` pathspec, so the
 bare form simply isn't available to me. Want that? It'd apply globally, so it
 would affect your other sessions' agents too, which is either the point or a
 reason not to.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 10
+
+actually yeah that'd be nice
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 10
+
+Testing both directions before installing it.
+
+
+One false allow, and it's exactly the pattern that bit me — the `--` from the
+*add* satisfying the check for the *commit*. The pathspec has to be found after
+`commit`, with no separator between.
+
+
+Both directions clean. Testing the token, then installing.
+
+
+Installed. Proving it fires live, with a commit that would actually be harmful:
+
+
+Gate works live. Committing it — using the scoped form, which also proves that
+still passes.
+
+
+False positive — and instructive. The words `git` and `commit` were on
+*different lines* (one in an `echo`), and I was matching them with two separate
+greps over the whole input. They have to be matched as one adjacent invocation.
+
+
+The gate refused my own test — the heredoc contained a literal offending
+command. Two fixes: anchor the `-a` check to the commit itself, and run test
+cases from a file rather than inline.
+
+
+All 32 pass, including both false positives I hit. Re-running the check that got
+blocked:
+
+
+The exporter renamed the transcript again — same naming-authority behaviour,
+session now spans to the 31st. Two commits, kept separate.
+
+
+Done. Both areas clean, and every commit from here names its files.
+
+
+## The validation you asked for
+
+
+The situation was worse than I'd described. `28b687a9` contained **exactly my 34
+files and zero of hero-less-moba's** — that session wrote their message and
+committed my tree, while their own 15 modified files were never committed at all
+and are still sitting there for them.
+
+
+Every one of my commits, audited: **eight commits, zero files outside their
+project.** The history was already clean. The single defect was that one
+message, now corrected in place with `--amend --only` on a verified-empty index.
+The commit is `79d3c1a2`, still 34 files, still all `games/enheim-tome/`.
+
+
+## Where I actually went wrong
+
+
+My `git add` was always scoped — `git add -A -- games/enheim-tome/`, every
+time. The hole was the next line: a bare `git commit`, which commits **whatever
+is in the index**. In a monorepo with concurrent agents the index isn't mine.
+Worse, I'd unstaged their files first, which left mine sitting alone for their
+bare commit to carry off.
+
+
+Scoping the staging doesn't help at all. Naming paths on the **commit** does,
+because those come straight from the working tree, the index is ignored, and
+nothing is ever left staged between commands.
+
+
+## The gate
+
+
+`scripts/refuse-unscoped-commit`, installed globally beside the directory gate.
+It refuses `git commit` with no `--` pathspec, refuses `-a`, and allows `--amend
+--only` for message fixes. One-time token to lift it, separate from the
+directory one.
+
+
+It also caught me twice while I was building it, and both were real bugs:
+
+
+**It refused a read-only query** because I searched for `git` and `commit`
+independently — the word "commit" inside an `echo` on one line paired with
+`git show` on another. Now one pattern requires the tool, its global options and
+the subcommand adjacent.
+
+
+**It refused its own test** because the heredoc contained a literal offending
+command. Which is the honest limitation: a gate reading text can't tell a
+command from a command quoted inside one. The test cases now live in a file, so
+they're read rather than run.
+
+
+`scripts/test-refusal-gates` covers both gates in both directions — **32
+cases, 0 failures**, including those two false refusals and the exact collision
+that started this: `git add -A -- x/ && git commit -F -`, where the add's
+pathspec used to satisfy the check on the commit's behalf.
+
+
+There's a `README-refusal-gates.md` beside them saying plainly what these are
+not: I can edit either script, remove the hook, or mint my own token. They're
+not locks. What they buy is that the careless form isn't there by habit, and
+going around it is something you'd see in the transcript.
+
+
+One thing outside my reach: hero-less-moba's 15 files are still uncommitted, and
+that session's message now exists only in the reflog. That's theirs to sort out
+— I've left it untouched.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 11
+
+what's a heredoc?
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 11
+
+A heredoc — "here document" — is shell syntax for feeding a block of text
+into a command's standard input, written inline instead of kept in a separate
+file. The document is *here*, in the command, rather than somewhere else.
+
+
+Let me show it rather than describe it:
+
+
+Both are shell and git plumbing I'd been using without ever saying what they
+were.
+
+
+## Heredoc
+
+
+Shell syntax for feeding a block of text into a command's **standard input**,
+written inline instead of kept in a separate file. The demonstration above is
+the whole idea: `cat <<'END'`, then lines, then `END` alone on a line. The shell
+reads everything up to that marker, writes it into a pipe, and connects the read
+end to the command's input — so `cat` receives those bytes exactly as if
+someone had typed them.
+
+
+The marker is any word you choose. `END`, `EOF`, `MSG` are conventions, nothing
+more. Quoting it matters:
+
+
+- `<<'END'` — the text goes through **literally**. A `$HOME` stays the four
+  characters `$HOME`.
+
+- `<<END` — the shell **substitutes** first, so `$HOME` becomes `/home/ritz`.
+
+
+I've used the quoted form throughout, because commit messages contain dollar
+signs and backticks that would otherwise be mangled into something else.
+
+
+**Why I kept reaching for it.** `git commit -F -` means *read the message from
+standard input* — the `-` is stdin. So the heredoc supplies a long
+multi-paragraph message with no quoting problems. The alternatives are worse:
+`-m "..."` breaks on apostrophes and newlines, and writing a temporary file
+means remembering to delete it.
+
+
+**And it's what tripped the gate.** My test script contained a heredoc holding
+example bad commands *as data to be read*. But the gate receives the entire
+command as one string, and at that level there is no difference between text
+being read and a command being run — it's all one string handed to bash. So it
+saw `git commit -a` and refused. That's why the test cases moved into a file.
+
+
+## Pathspec
+
+
+Git's word for **which files a command applies to**. The trailing arguments that
+narrow its scope, as the demonstration shows — the same `git log` command,
+once across the whole repository and once limited to one directory.
+
+
+The `--` is a separator, and it exists because git can't otherwise tell a branch
+from a file. If you have a branch called `master` and a file called `master`,
+then `git log master` is ambiguous. `--` resolves it: **everything after this is
+a path, nothing before it is.**
+
+
+**Why it fixed the collision.** Those two forms of `git commit` don't just
+differ in scope, they read from different places:
+
+
+| | Where the content comes from |
+
+| --- | --- |
+
+| `git commit` | **the index** — whatever anyone staged |
+
+| `git commit -- games/enheim-tome/` | **the working tree**, for those paths only |
+
+
+With a pathspec, git takes the last commit's tree, overlays the current on-disk
+state of the named paths, and commits that. It never consults the index for
+anything else. So another session's staged files aren't excluded by a rule —
+they're simply never looked at.
+
+
+That's also why it leaves nothing staged between commands, which was the other
+half of the problem: there's no window where my correctly-staged work sits
+waiting for someone else's bare commit to carry it away.
+
+
+The one wrinkle: a pathspec can only name files git already knows about. A
+brand-new file still needs `git add` first — which is why you'll see me do
+`git add -- <newfile>` and then `git commit -- <path>`. The add makes git aware
+of it; the pathspec on the commit is what keeps the commit honest.
 
 
 --------------------------------------------------------------------------------
