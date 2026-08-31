@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Everything I own, owned - schlarp.com</title><meta name="description" content="Turning Claude loose on the firmware of five USB and WiFi peripherals, and finding a command shell in a microphone, a defeatable webcam activity LED, and unauthenticated memory writes over the network."><meta name="author" content="Chaz Schlarp"><meta property="og:type" content="article"><meta property="og:site_name" content="schlarp.com"><meta property="og:title" content="Everything I own, owned"><meta property="og:description" content="Turning Claude loose on the firmware of five USB and WiFi peripherals, and finding a command shell in a microphone, a defeatable webcam activity LED, and unauthenticated memory writes over the network."><meta property="og:url" content="https://schlarp.com/posts/everything-i-own-owned/"><meta property="article:published_time" content="2026-08-23T00:00:00Z"><meta property="og:image" content="https://schlarp.com/posts/everything-i-own-owned/webcam.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Everything I own, owned"><meta name="twitter:card" content="summary_large_image"><link rel="canonical" href="https://schlarp.com/posts/everything-i-own-owned/"><link rel="stylesheet" href="Everything%20I%20own,%20owned%20-%20schlarp.com_files/style.css"><link rel="alternate" type="application/rss+xml" title="schlarp.com" href="https://schlarp.com/index.xml"><link rel="icon" href="https://schlarp.com/favicon.ico" sizes="32x32"><link rel="icon" type="image/svg+xml" href="https://schlarp.com/images/favicon.svg"><link rel="icon" type="image/png" sizes="32x32" href="https://schlarp.com/images/favicon-32x32.png"><link rel="icon" type="image/png" sizes="16x16" href="https://schlarp.com/images/favicon-16x16.png"><link rel="apple-touch-icon" href="https://schlarp.com/images/apple-touch-icon.png"></head><body><header><nav><a href="https://schlarp.com/" class="site-name"><svg fill="currentColor" aria-hidden="true" class="snowman" viewBox="0 0 2260 2260"><path d="M1390 88c-39 19-43 27-1e2 174-57 146-54 143-124 128-32-6-69-9-83-5-14 3-31 1-39-5-14-12-38-4-29 9 2 5-13 27-35 50-33 35-45 41-80 41-45 0-104 21-135 49-11 10-40 23-65 30-59 16-114 53-136 90-10 17-32 34-53 41-88 29-206 148-217 220-4 26-21 53-56 91q-115.5 124.5-87 261c7 29 11 76 10 105-3 77 14 125 64 181 33 37 45 58 45 81 0 49 26 89 79 121 41 25 49 36 55 68 3 21 2 52-3 68-18 63 27 137 106 175 23 11 45 25 49 30 8 14 52 11 61-4 4-7 28-24 53-38 45-25 46-25 75-7 16 9 37 33 47 53 27 53 88 88 159 93 83 6 141-17 207-85l53-54 31 23c23 16 50 23 98 26 36 2 70 9 77 14 24 20 145-54 130-80-8-12 16-78 28-77 17 0 17-51 1-64-14-12-13-17 9-45 14-18 25-38 25-44 0-7 17-23 38-36 41-26 102-90 102-108 0-6 22-35 49-63 35-37 51-63 56-91 4-22 20-67 37-102 31-62 31-63 24-177-5-95-4-115 8-115 8 0 35-19 61-43 79-71 80-160 3-243l-40-43 23-33c13-18 52-68 87-112 70-87 72-95 27-171-32-55-136-167-204-219-79-61-222-132-315-156-96-24-130-25-176-2m2e2 83c141 44 271 127 362 231 130 149 1e2 167-112 69-89-41-338-252-372-314-9-17-7-18 24-12 18 3 62 15 98 26m1e2 283c88 65 231 137 277 139 18 1 32 4 30 7-1 3-33 47-72 98-49 65-76 92-90 92-54 0-288-101-365-157-97-72-160-153-160-207 0-21 68-209 86-238 3-4 53 42 112 102s141 134 182 164m-507 11c10 5 13 18 9 54-6 64 19 111 110 206 110 116 221 184 356 220 115 29 144 20 212-66l39-49 30 36c38 47 45 76 27 119-23 54-77 75-199 75-127 0-217-24-354-96-209-108-377-286-399-422-9-59 17-82 95-82 33 0 66 2 74 5m228 205c84 64 231 139 322 166 37 10 67 22 67 25 0 13-27 29-51 31-34 2-158-38-215-69-142-78-274-215-274-284 0-18 7-13 40 28 23 27 72 74 111 103M928 559c7 4 26 36 43 71 124 262 513 510 8e2 510h66l7 61c10 102 7 123-24 185-16 32-32 78-36 102s-13 49-21 55c-48 37-83 77-83 94 0 20-30 53-66 72-17 8-25 7-34-4-16-19-34-19-50 0-9 11-8 20 6 44 20 34 12 51-35 74-17 8-25 19-23 32 16 102 15 113-11 139-30 30-85 42-146 30l-46-9 3-47c3-36-2-57-17-82-26-41-43-49-68-31-17 13-17 15 0 43 9 17 17 38 17 48 0 23-29 54-50 54-20 0-45 26-55 58-16 53-145 79-215 44-29-14-36-24-40-56-5-39-10-44-62-65-33-12-38-53-12-83 13-13 14-21 5-31-9-12 9-15 105-20 81-4 124-11 141-22 36-24 63-75 63-120 0-70-68-145-133-145-30 0-171 61-349 150-115 58-138 66-138 51 0-22-26-46-60-56-46-13-70-45-70-90 0-34-6-47-36-76-55-52-68-85-71-169-2-41-6-104-9-139-8-84 11-133 81-203 40-40 55-63 55-83 0-68 75-152 168-188 29-11 65-37 92-66 32-34 58-53 90-62 25-7 59-23 77-36 55-40 111-54 141-34m79 1099c16 22 16 72-1 95-11 15-38 18-197 23-122 4-181 3-174-3 10-11 226-110 295-136 23-9 62 2 77 21m-296 218c-12 15-21 37-21 50 0 60-108 96-180 59-37-19-50-73-26-110 16-24 20-25 132-25h115z"></path><path d="M610 1157c-68 13-132 102-132 182 0 102 70 171 174 171 65 0 107-23 145-81 35-53 38-136 8-187-37-62-122-99-195-85m584 41c-60 54-74 83-74 149 0 56 1 58 55 110 53 51 57 53 110 53 64 0 97-14 142-62 58-61 63-158 10-217-31-34-115-71-162-71-32 0-48 7-81 38M356 364c-20 18-36 41-36 50s-4 16-10 16c-5 0-10 12-10 27 0 55 112 140 135 103 3-6 14-10 24-10 9 0 31-15 49-33 26-26 32-41 32-75 0-23-4-42-10-42-5 0-10-6-10-14 0-16-76-56-107-56-12 0-38 15-57 34m94 83c0 36-40 58-63 36-22-23 0-63 36-63 23 0 27 4 27 27"></path></svg>
+<span>schlarpc</span></a></nav></header><main><article><h1>Everything I own, owned</h1><time datetime="2026-08-23">August 23, 2026</time><p>Over the past couple weeks I’ve been doing agent-driven reverse engineering of peripherals that happen to be
+within arm’s reach. From those devices, I’ve come away with a full plaintext command shell inside my microphone,
+a webcam whose activity LED I can switch off while it records, and a key light that hands out memory writes to
+anyone on the WiFi. Peripherals have proven to be an ideal target for agentic RE - they’re tiny computers
+attached to my computer, with a data connection to the host and usually a firmware update mechanism, so an
+agent has something to iterate against. The net outcome is better control and understanding of my machine.</p><p>My process was pretty much the same for each of these devices: grab a copy of the device’s firmware and
+associated update tool from the manufacturer, throw it into my
+<a href="https://github.com/schlarpc/re-shell/">reverse engineering environment</a>, tell Claude Opus 5 what my goals are,
+and let it churn. Depending on the device, the goals were somewhat different, but they usually looked something
+like:</p><pre tabindex="0"><code>In this directory is the firmware and update utility for ___. The device is also attached to this computer, and you may interact with it in non-mutating ways. Exhaustively document and cross-validate the entire firmware, including the following goals:
+
+* reverse engineer the firmware update format and update protocol
+* implement our own update utility
+* determine the security properties of the update protocol, including checksums, signature validation, secure boot
+* use static and dynamic analysis to determine all protocol surfaces and completely enumerate functionality
+* find any hidden or debug functionality in the product and how to access it
+</code></pre><p>Depending on the results, there were different directions of follow-up, but you should get the general idea.
+Let’s run through the list - each device links to a GitHub repo full of generated-slop docs and scripts, most
+of which have been validated live against real hardware. I’ve also included the effort each device took, pulled
+out of the Claude Code session transcripts. “Churn” is the time Claude was actually working, with the long idle
+gaps removed. “Prompts from me” is every message I typed, including the one-word ones telling it to keep going.
+All five devices together came out to about 13 hours of churn and 98 prompts, spread across two weeks of
+evenings.</p><h2 id="everything-i-own">Everything I own</h2><h3 id="insta360-link-webcam">Insta360 Link webcam</h3><p><a href="https://github.com/schlarpc/insta360-link-firmware-re">GitHub repo</a> - 3.7 hours of Claude churn, 33 prompts from me</p><p><img src="Everything%20I%20own,%20owned%20-%20schlarp.com_files/webcam.jpg" alt="Insta360 Link webcam, its green activity LED lit" width="1200" height="750" loading="lazy" decoding="async"></p><p>I use an Insta360 Link webcam, which is a nice gimbaled pan-tilt-zoom camera that does face
+tracking for automatically framing the shot. I wanted to know if it was possible to subvert the activity LED,
+like in the classic
+<a href="https://www.usenix.org/system/files/conference/usenixsecurity14/sec14-paper-brocker.pdf">iSeeYou</a> exploit.</p><p>Interestingly, it was immediately obvious that this camera has a lot going on inside it. It turns out that it
+runs a whole RTOS (ThreadX) sourced from the upstream SoC vendor, <a href="https://www.ambarella.com/">Ambarella</a>. The
+RTOS hosts several small vision models that provide things like the aforementioned face tracking, as well as
+gesture detection for controlling settings. Pretty amazing complexity inside a tiny webcam, but it also means
+there’s some exciting attack surface here.</p><p>Over the USB Video Class interface, there’s an XU (Extension Unit) command that kicks the device into “mass
+storage” mode. This then lets us transfer a staged firmware update to the device’s internal FAT filesystem,
+which the device then applies to itself on reboot. This route does require user intervention to reboot with a
+replug, but there’s actually another command channel that exposes
+<a href="https://github.com/schlarpc/insta360-link-firmware-re#52-write-any-file">arbitrary read/write of files</a> and a
+reboot command over the USB vendor class. With this, we can fully flash the device without any user interaction.
+Once the firmware is in the right place, there’s effectively no anti-tamper, just an appended MD5 hash to
+ensure integrity.</p><p>The indicator LED turns out to have a
+<a href="https://github.com/schlarpc/insta360-link-firmware-re#6-the-indicator-led">well-structured set of “patterns”</a>
+in the firmware that dictate color, blink pattern, etc. that are indexed into for various device states. I had
+Claude write a tool to patch out the table entry for camera activity, fix up the integrity hash, and flash it to
+the camera. A quick test showed that the green LED that normally illuminates while recording no longer turned
+on. Horrifying! On this device, the gimbal itself also deflects down when not recording, so it’s not
+completely stealth, but it still doesn’t feel great.</p><p><video src="Everything%20I%20own,%20owned%20-%20schlarp.com_files/led-before-after.mp4" poster="led-before-after.jpg" width="1200" height="726" autoplay="autoplay" loop="" muted="muted" playsinline="" preload="metadata"></video></p><p><em>The LED behavior before and after patching.</em></p><h3 id="asus-rog-swift-pg42uq-monitor">ASUS ROG Swift PG42UQ monitor</h3><p><a href="https://github.com/schlarpc/asus-pg42uq-firmware-re">GitHub repo</a> - 1.2 hours of Claude churn, 13 prompts from me</p><p><img src="Everything%20I%20own,%20owned%20-%20schlarp.com_files/monitor-cutout.webp" alt="ASUS ROG Swift PG42UQ monitor" width="1200" height="750" loading="lazy" decoding="async"></p><p>My ASUS ROG Swift PG42UQ monitor was actually where I started, because I got annoyed at the pop-up overlay
+that comes up every once in a while that tells me to run “pixel cleaning”. I have never intentionally run pixel
+cleaning on this monitor and I never will, I don’t care, and I would like for that overlay to go away forever.
+Maybe there’s a debug menu or something that can turn it off, or worst case we patch a branch in the firmware?</p><p>Claude found that the firmware has effectively no protection whatsoever - there’s a two-slot A/B scheme and a
+simple checksum, but ultimately we can write whatever we want to the thing. Firmware updates run over an I2C bus
+bridged over USB.</p><p>The pixel cleaning warning turns out to have no native way to disable it, and it’ll always show up after 8 hours
+of runtime. Oh well. Claude did find the
+<a href="https://github.com/schlarpc/asus-pg42uq-firmware-re/blob/main/pixel_cleaning.md#4-minimal-patch">appropriate area to patch</a>
+to kill the functionality though. I haven’t actually been brave enough to write a modified firmware to the thing
+yet - it’s a pretty expensive monitor - but I’ll get there at some point.</p><p>Another neat thing was exploring the DDC/CI interface. This is the control channel available over the display
+cable itself, allowing the host to change inputs and other settings. I believe ASUS offers this through their
+Windows utility, DisplayWidget, but that does little for me on Linux. So, now I have
+<a href="https://github.com/schlarpc/asus-pg42uq-firmware-re/blob/main/gameplus_poc.sh">a shell script</a> that can flip
+through some of the DDC/CI features like the hardware crosshair or zoom overlays, FPS counter, and countdown
+timer. I might set up some of these on hotkeys in the future for easy access.</p><h3 id="shure-mv7-microphone">Shure MV7 microphone</h3><p><a href="https://github.com/schlarpc/shure-mv7-firmware-re">GitHub repo</a> - 4.2 hours of Claude churn, 32 prompts from me</p><p><img src="Everything%20I%20own,%20owned%20-%20schlarp.com_files/microphone-cutout.webp" alt="Shure MV7 microphone" width="1200" height="750" loading="lazy" decoding="async"></p><p>At this point, there’s less actual incentive to keep popping these devices and more just morbid curiosity. My
+microphone, the Shure MV7, connects over USB and obviously has some amount of smarts to it, with on-device
+digital volume controls and such.</p><p>The firmware for this one turned out to be hidden inside the Windows software, MOTIV Mix, so Claude installed
+that in Wine, found the update server, and pulled it down. I wasn’t on the latest, so there was actually a
+reasonable incentive here to get this working just to update my microphone from Linux. The
+<a href="https://github.com/schlarpc/shure-mv7-firmware-re/blob/main/firmware.md">firmware turned out</a> to contain both
+DSP and MCU firmware, and was honestly pretty boring as you might expect. Again, no real security on the
+firmware flash itself.</p><p>However, the update protocol revealed that the entire thing actually runs over a USB HID vendor class protocol
+that implements a <em>full plaintext command shell</em>, with 48 different commands. Since it’s HID, we can actually
+hit this over WebHID from a webpage in Chrome, so I had Claude build a
+<a href="https://schlarpc.github.io/shure-mv7-firmware-re/">web interface</a> for using the shell. There’s all sorts of
+interesting settings in here including a dozen DSP knobs, arbitrary memory read/write, LED control, and a 4-tier
+user privilege system whose
+<a href="https://github.com/schlarpc/shure-mv7-firmware-re/blob/main/security.md#f1-the-su-command-gives-full-privilege-with-no-authentication">entire authentication</a>
+is a string comparison against the name of the tier you asked for. <code>su sup</code> just works, and the top tier can
+disable the touch panel so you can’t mute at the device, and drive the mute LED independently of whether the
+microphone is actually muted. It’s the webcam LED trick again, on a microphone. Obviously, be aware that you
+could probably break your device if you use that UI and do something stupid with it.</p><p><a href="https://schlarp.com/posts/everything-i-own-owned/shell-ui.png"><img src="Everything%20I%20own,%20owned%20-%20schlarp.com_files/shell-ui_hu_624a06cf56ce6409.png" alt="WebHID interface for the MV7’s command shell, showing DSP settings and a console" width="1200" height="548" loading="lazy" decoding="async"></a>
+<em>The WebHID shell interface. The DSP knobs on the left are the device’s own settings; the console
+on the right is the plaintext command shell talking over HID.</em></p><h3 id="elgato-cam-link-4k-video-capture">Elgato Cam Link 4K video capture</h3><p><a href="https://github.com/schlarpc/elgato-cam-link-4k-firmware-re">GitHub repo</a> - 1.5 hours of Claude churn, 10 prompts from me</p><p><a href="https://schlarp.com/posts/everything-i-own-owned/camlink.jpg"><img src="Everything%20I%20own,%20owned%20-%20schlarp.com_files/camlink_hu_6f9c1ae6ccd6b2a7.jpg" alt="Elgato Cam Link 4K video capture dongle" width="1200" height="750" loading="lazy" decoding="async"></a></p><p>The Elgato Cam Link 4K is just an HDMI video capture device, and honestly was just more of the same. The interesting
+thing for this one was that I let it go fully unattended - I literally kicked off the process before going to
+sleep and woke up to a teardown and functioning firmware updater. The firmware contains an MCU image and an FPGA
+bitstream for the actual HDMI handling, so you could potentially do something fun with the FPGA if you went deep
+enough into the reverse engineering there. There’s no protection on the
+<a href="https://github.com/schlarpc/elgato-cam-link-4k-firmware-re/blob/main/docs/06-firmware-update.md">firmware update path</a>.</p><p>I was able to pull out all the
+<a href="https://github.com/schlarpc/elgato-cam-link-4k-firmware-re/blob/main/docs/08-hdmi-and-edid.md">EDID information</a>
+used for negotiating video parameters, so we know exactly what resolutions, refresh rates, color spaces, and
+chroma subsampling options are offered to devices.</p><p>The vendor HID protocol does include tunneled access to the
+<a href="https://github.com/schlarpc/elgato-cam-link-4k-firmware-re/blob/main/docs/13-i2c-devices.md">internal I2C bus</a>,
+which is kinda neat as you can poke the internal HDMI receiver registers.</p><h3 id="elgato-key-light-mini">Elgato Key Light Mini</h3><p><a href="https://github.com/schlarpc/elgato-key-light-mini-firmware-re">GitHub repo</a> - 2.4 hours of Claude churn, 10 prompts from me</p><p><a href="https://schlarp.com/posts/everything-i-own-owned/keylight.jpg"><img src="Everything%20I%20own,%20owned%20-%20schlarp.com_files/keylight_hu_28b4466d9c1f32a7.jpg" alt="Elgato Key Light Mini" width="1200" height="750" loading="lazy" decoding="async"></a></p><p>Finally, I poked at something that wasn’t connected over USB but WiFi instead, the Elgato Key Light Mini. This
+one turned out to be <em>way</em> more interesting than I expected: it’s the only one with meaningful firmware
+integrity protection. Elgato
+<a href="https://github.com/schlarpc/elgato-key-light-mini-firmware-re/blob/main/docs/01-firmware-container.md#the-signature">signs the firmware updates</a>
+with Ed25519 over a SHA-512 hash of the firmware payload, and rejects firmware that doesn’t validate. This makes
+sense to do, as the device basically connects to a WiFi network and then provides unauthenticated access to
+anyone on the same network, so the threat model is inherently different.</p><p>Unfortunately, while that’s an improvement over all of the other devices we’ve looked at, it protects the
+firmware at exactly one point in time: when an update is happening. It’s not a boot time check enforced by the
+bootloader or any other kind of secure boot scheme, and the updater happens to be running while <em>everything
+else</em> in the device is still operating, meaning there’s huge attack surface to try to disable that signature
+validation. I asked Claude to look for an exploit that might enable this, and it found a doozy:
+<a href="https://github.com/schlarpc/elgato-key-light-mini-firmware-re/blob/main/docs/03-http-api.md#post-elgatouart">an HTTP POST request</a>
+that drops a payload straight into the internal UART, which includes a
+<a href="https://github.com/schlarpc/elgato-key-light-mini-firmware-re/blob/main/docs/04-security.md#5-memory-read-and-write-over-the-network">memory poke command</a>.
+This means that a single HTTP POST of <code>ATSE=0200ED94,0E001009</code> turns the signature check into a no-op, and we
+can freely update to a
+<a href="https://github.com/schlarpc/elgato-key-light-mini-firmware-re/blob/main/docs/07-unsigned-code.md#second-test-the-light-starts-the-unsigned-image">firmware image without a legitimate signature</a>.
+I successfully tested this with a simple patch that changed the name of the device, so uh, yeah, don’t put these
+on an untrusted network.</p><h2 id="-owned">…, owned</h2><p>I have a lot of feelings about this whole thing. As <a href="https://schlarp.com/posts/surface-hydra/#results">I wrote back in March</a>, this
+is <em>incredible</em> for interoperability and fixing things that don’t work how we want them to. Hardware is almost
+universally “open” for tinkering at this point with just a couple hours of mostly hands-off machine-driven labor
+each, and I look forward to a near future where I can add features to my webcam firmware as easily as I can to
+software that runs on my Linux machine itself.</p><p>On the other hand, as a security professional, this scares me for several reasons. I would work from the
+operating assumption that any device attached to a computer could have had a malicious firmware implant
+performed, where previously that required significant per-model investment and was stereotyped as a “state
+actor” kind of activity. Operating systems aren’t really equipped to work with the user to ensure that a
+microphone stays a microphone, and doesn’t spontaneously turn into a keyboard that hits Win+R and drops a
+payload to steal all your data when the room is quiet enough that it can assume you aren’t watching. And the
+existence of WebUSB, WebHID, and WebBluetooth mean that for some devices, depending on the specifics of which
+classes are used, a moment of user indiscretion in accepting a permissions prompt could permanently backdoor one
+of their attached devices.</p><p>Network-connected devices seem near universally fucked at this point? There are a few others I’ve poked
+at that I haven’t documented here, but I’ve gotten a root shell on a commercial Dell display, and RCE on an
+Eaton UPS. Obviously it was never best practice to let untrusted clients touch these things, but the
+speed and scale at which this can be executed makes the risk so much higher now.</p><p>Finally, I can’t help but think about what an AI-equipped automatically-reverse-engineering worm could do today.
+It’s only <em>a tiny leap</em> to imagine that someone could make a self-replicating piece of malware that probes its
+environment, relaying reconnaissance back to a smart command-and-control that actively works to push itself into
+accessories and IoT devices and industrial equipment found adjacent to an infected target. Two things have kept
+this from happening: every device model needs its own reverse engineering, and validating any of it needs the
+hardware in hand. The first is the labor I just handed to an agent. The second is free to malware already sitting
+on an infected host. Honestly, I wouldn’t be surprised if this already exists, and I think the next few years are
+going to be <em>extremely</em> interesting. 🫠</p></article></main><footer>© 2026 Chaz Schlarp ·
+<a href="https://schlarp.com/about/">About</a> ·
+<a href="https://github.com/schlarpc">GitHub</a> ·
+<a href="https://www.linkedin.com/in/schlarpc">LinkedIn</a> ·
+<a href="https://schlarp.com/index.xml" aria-label="RSS Feed"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:-2px"><circle cx="6.18" cy="17.82" r="2.18"></circle><path d="M4 4.44v2.83c7.03.0 12.73 5.7 12.73 12.73h2.83c0-8.59-6.97-15.56-15.56-15.56z"></path><path d="M4 10.1v2.83c3.9.0 7.07 3.17 7.07 7.07h2.83c0-5.47-4.43-9.9-9.9-9.9z"></path></svg></a></footer></body></html>
