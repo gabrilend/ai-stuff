@@ -1,6 +1,6 @@
 # Conversation Summary: b3c0db53-4db1-4ae3-8200-fb023520ebb8
 
-Generated on: 2026-08-28 21:47:01
+Generated on: 2026-08-28 23:51:07
 
 --------------------------------------------------------------------------------
 
@@ -3258,6 +3258,496 @@ automatically, and it can still win the draw, so two of a kind — never three.
 Tests: 82 invariants, 17 sandbox, 0 documentation problems. **Not built:** the
 formation actually *turning* to face an enemy frontline (211c's second half),
 running speed, and the will save.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 13
+
+  Ranged now shoot around, not over. They stood directly behind the line in the
+  same files — which is where you put someone lofting over the top. They're at
+  the shoulders now: behind the last rank, out at its ends, on a bearing of
+  about five-eighths of a turn. The line is diagonally
+
+  in front of them rather than squarely so.
+
+
+no no silly - we want them behind. What if there's cavalry? The cavalry haven't
+been made yet. But let's assume they have. Put them directly behind, and have
+them fan out if there's no foes, or concentrate firepower if threats appear and
+harass their edges.
+
+
+  Being honest about what that is: a placement, not a rule. Nothing occludes
+  anything in this game — a shot is a distance and a cooldown — so standing
+  them where their line is clearest is the whole mechanism. A true archer that
+  shoots over is a different unit and belongs in the
+
+  economy.
+
+
+WRONG we have many LoS calculations. Have you forgotten the druid with moonlit
+palms? If this is the case, sounds like you just built it wrong. Let's update
+the design correspondingly.
+
+
+  I also found a related bug: a ranged captain was being given the front rank's
+  centre. With a bow. In front of the people whose job is to be in front of it.
+  It takes the first shoulder now — still the middle of the group it belongs
+  to.
+
+
+each captain should have a rank that they spawn at, in the center position.
+
+
+  One subtlety: the bearings are written after the whole wave is built. A circle
+  has a centre and no front, so a bearing must be measured from the middle —
+  and the middle depends on how deep the formation turned out to be. Computed
+  body-by-body, every bearing came out measured from a
+
+  centre still moving, and the front rank landed at a quarter turn, which is
+  where the flanks are.
+
+
+not true, we can maintain a vector pointed not at a point, but in a direction.
+Pick the first unit that starts the formation, draw a line to the target. That's
+your destination vector, updated once the formation has formed and as it moves
+and adjusteds.
+
+
+  - H12 — the scarcity thumb at the bottom. Read literally, a lane with
+    nothing has a huge ticket pile for the one thing it can't buy, draws it
+    constantly, never pays. Drawing only over what's affordable turns it into
+    "the most expensive thing you can afford gets likelier as you get
+
+    poorer" — gentler, and what the doubling rule seems to assume.
+
+
+the more resources, the more tickets to put in the pool. After a unit is chosen
+randomly, the tickets are left behind, but N tickets are removed randomly, where
+N is the number of resource points the unit that was chosen costs. So basically,
+they're in a deck and the top one is drawn - whatever unit that it is, N more
+tickets are drawn and discarded. When the deck is empty, reshuffle it. After
+each wave, reshuffle the deck and put it below the tickets that still have yet
+to be drawn. Many "shuffled decks" can exist at once but they must all be
+shuffled once before we draw for the first time again so why bother? Well,
+because we can select random spots in the shuffled-but-waiting deck and insert
+the cards that were discarded one-by-one. This doesn't create perfect uniformity
+because it GUARANTEES that the first cards will be evenly distributed. Better I
+think to wait until we draw from an empty deck, then distribute into 3 piles,
+then concatenate those three piles. Then, split into four piles, then
+concatenate those piles. Then, split into 5 piles, then concatenate. Then, 4,
+then concatenate, then 7, then concatenate. You can randomize the odd piles (so
+next time do 5, 7, 3) but the piles of four should alternate - every other
+should be a pile of 4. This isn't perfectly random but it's pretty darn good.
+
+
+  - H11 — what fills the purse? Nothing said. Flat income makes it purely
+    about variety; kill-fed gives it teeth and is a second invisible copy of the
+    wallets, pulling the same way at the same moment.
+
+
+upgrades might give you +1 ticket per turn for a specific unit entry. They might
+also unlock new entries, but usually at a cost of some other - usually who
+they're taking equipment from, in addition to the powerful or magical elements
+they gained. So a swordsman with a shield and iron cap who finds a magic blade
+might cost 3 from the swordsman category (if the swordsman costs 3) which means
+3 tickets removed from swordsman but 3 added to magic swordsman, and N resources
+added where N is the cost of the sword in particular - maybe one resource point
+per, for a total of 3 resources... Also sometimes it's just like "+1 spearmen in
+heavy leather ticket per wave" or "+1 resource per turn" - remember resources
+are primarily distributed by "which was least recently seen" which means more is
+always good because it means more, or heavier, troops, and depending on how you
+distribute your upgrades, you can customize what kind of units tend to spawn in
+that lane.
+
+
+  - H10 — three purses or six? Six is surely meant; three would mean the
+    ground has a character rather than the army.
+
+
+not sure what this means, but 6 purses - one for each lane for each team.
+Assuming 3v3 of course - or rather, assuming 3 lanes. Who knows, maybe we'll
+make a larger map with more lanes than players.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 13
+
+Let me check the LoS claim before I say anything else — I may have missed
+something.
+
+
+You're right and I was wrong. Line of sight is specified — I checked the code
+and forgot to check the design.
+
+
+Confirmed — the design specifies it and I built the wrong thing. Let me look
+at how abilities work before adding it.
+
+
+Good — a condition/effect dispatch table. Adding line of sight, then the moon
+spike as a condition that needs it.
+
+
+Now the moon spike itself, and the druid actually carrying it.
+
+
+Now the ranged go back behind the line where they belong, with the fan-out and
+concentrate behaviour.
+
+
+Now the captain's rank, as a property rather than a role.
+
+
+The captain no longer consumes a line place, so it would collide with the first
+melee body. Let me handle that properly.
+
+
+Now the fan-out and concentrate behaviour, replacing the orbit that was gated on
+the wrong thing.
+
+
+I removed a gate that existed for a reason — the fan-out fires while marching
+and tears the formation apart before it meets anyone. Restoring it, but on the
+right condition.
+
+
+All green. Now the heading vector — you were right that a direction doesn't
+need a centre.
+
+
+Nothing reads the heading yet, which is the "runs and does nothing" pattern I've
+been catching. Let me wire the rotation in.
+
+
+The match now ends much earlier. Let me check whether that's a genuine asymmetry
+or just this seed.
+
+
+Matches end sooner now. That's not a new bug — the balance ledger already
+recorded that a match ends at about 1.7 challenges and the Golem rarely arrives;
+the test was passing on one seed's luck.
+
+
+An unattended match now ends after one challenge — a monster is getting
+through that used to be stopped. Let me measure that directly rather than guess.
+
+
+The rotation is real physics working against us: a formation leaning at its
+waypoint presents its line at an angle to whatever it's fighting. The design
+says face the *enemy's frontline* when there is one — that half is missing.
+
+
+Facing the enemy didn't recover it, so the cost is in the marching rather than
+the fighting. Let me see exactly what the suite says now.
+
+
+The rotation depends on bodies being able to hurry to catch a swinging place —
+and I just built a speed model where nothing hurries. Those two are in direct
+tension, and the measurement says so.
+
+
+Everything green again. Let me record the finding and the answers you gave.
+
+
+Let me add tests for the two things I built that nothing yet asserts.
+
+
+You were right on the LoS and I was wrong — I checked the code and forgot to
+check the design. Issue 510 has specified it since the healers were designed:
+*"Allies block line of sight for this spell"*, with a note that it's what makes
+the frontline a targeting constraint. Nobody had built it.
+
+
+**Built now.** One grid query about the line's midpoint, then a perpendicular
+distance per candidate — exact rather than sampled. Only friends block; an
+enemy in the way is a nearer target, and the aiming rules already had that
+thought. The moon spike is in the ability table using it, aimed at the
+highest-health enemy the druid can see — opposite to every healing rule, which
+reaches for whoever is closest to dying.
+
+
+**Archers went back behind the line.** You're right that an arrow arcs, and
+right that the shoulders belong to cavalry — putting them there means moving
+them again later.
+
+
+**Captains** now stand in the middle of a rank their own record names, and
+consume nobody's place: every slot at or after theirs shifts by one.
+
+
+**The rank behind fans and concentrates.** Direction from where the enemy
+actually is, not which half of the road the body was on. I briefly removed the
+near-a-fight gate and the measurement was emphatic — every archer spread to
+the verge the moment it left home, the line bent two and a half ranks, and the
+bench stopped recognising it as a formation. Gate restored, with the number
+written beside it.
+
+
+**The heading is a direction now**, as you said — you don't need a centre to
+know which way you're pointing.
+
+
+## The thing I have to flag
+
+
+I built the rotation, measured it, and took it back out.
+
+
+| | Challenges | Monsters slain | Mean match |
+
+|---|---|---|---|
+
+| not turning | 15 / 5 matches | 20 | 24,486 ticks |
+
+| turning | 13 | 17 | 21,367 ticks |
+
+
+One challenge monster in six walked through a line that used to stop it.
+Pointing at the enemy rather than the waypoint while fighting recovered **none**
+of it — which locates the cost precisely: it's in the marching, not the
+fighting.
+
+
+The reason is a genuine conflict between two things you asked for hours apart.
+**A body is in a gear and marching is the fastest thing there is. A turning
+formation moves a body's place out from under it and needs that body to hurry.**
+There is no hurrying. So the formation ends up permanently angled to its own
+travel, and a line that isn't square has fewer bodies touching.
+
+
+That's H13, and it's yours. Three ways out: a fourth gear reachable only by the
+outside of a turn; turn only when halted (cheap, but the approach angle never
+shows); or rotate the *shape* into an oblique order so the front stays square
+while the rank behind steps across.
+
+
+## Recorded
+
+
+**H10** six purses, lanes×2 not players×2. **H11** the upgrades fill it — +1
+ticket, +1 resource, or unlock-at-the-cost-of-another, with your magic-blade
+example kept whole. **H12** the deck: draw the top, discard N more where N is
+the cost, reshuffle below the undrawn. And the pile shuffle — 3, 4, 5, 4, 7,
+odds reorderable, every other pass a four — with your reason for rejecting
+random reinsertion, that it *guarantees* even distribution, which is a worse
+non-uniformity than a tendency.
+
+
+213 is fully specified and not started. Tests: 90 invariants, 17 sandbox.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 14
+
+  Archers went back behind the line. You're right that an arrow arcs, and right
+  that the shoulders belong to cavalry — putting them there means moving them
+  again later.
+
+
+okay but only longbows and certain kinds of magic arc OVER troops. The regular
+arrows require LoS, they're just long-range - at least 100+ feet!
+
+
+--------------------------------------------------------------------------------
+
+### User Request 15
+
+Archers went back behind the line. You're right that an arrow arcs, and right
+that the shoulders belong to cavalry — putting them there means moving them
+again later.
+
+
+okay but only longbows and certain kinds of magic arc OVER troops. The regular
+arrows require LoS, they're just long-range - at least 100+ feet!
+
+
+  The reason is a genuine conflict between two things you asked for hours apart.
+  A body is in a gear and marching is the fastest thing there is. A turning
+  formation moves a body's place out from under it and needs that body to hurry.
+  There is no hurrying. So the formation ends up
+
+  permanently angled to its own travel, and a line that isn't square has fewer
+  bodies touching.
+
+
+a unit who is behind, because the formation turned, moves at marching speed,
+while those who are ahead of their position will walk, to adjust the central
+average location until everyone's in line.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 15
+
+Two real corrections. Let me start with the arrows, since that changes what the
+rank behind is *for*.
+
+
+The LoS check per candidate is far too expensive — a grid query inside a grid
+query. Let me see how bad.
+
+
+A grid query per candidate is the wrong shape. Let me make the common case
+cheap: scan freely, then check only the winner.
+
+
+Five minutes for one match, up from twenty-eight seconds. An archer behind a
+line is blocked almost always, so the fallback scan runs every tick — and the
+design says a blocked shot should make the body *move*, not search harder.
+
+
+Better, but still 40% slower. A blocked archer re-checks every tick, and its
+blocked-ness doesn't change that fast.
+
+
+No change, so I'm optimising the wrong thing. Let me actually find the cost.
+
+
+The grid's cells are sized to the *largest* query, so every small query scans
+nine enormous buckets. That's a pessimisation for everything, not just line of
+sight.
+
+
+Finer cells are worse — the grid is rebuilt every tick, so more buckets means
+more clearing. Good that I measured rather than shipped my reasoning. Line of
+sight costs about 45% and that's what it costs.
+
+
+Now your answer on the gears, which resolves H13.
+
+
+Turning that hard swings the rear ranks further than a file. A rank has a
+maximum obliquity beyond which it isn't a rank — let me bound it and measure.
+
+
+Both sandbox failures are the same frame error — I un-turned one side of a
+comparison and not the other. Let me make the whole measurement work in the
+formation's frame.
+
+
+Sandbox clean. Now the invariants, where the remaining failures are about match
+outcomes rather than formations.
+
+
+Combat has largely stopped — 879 bodies alive and almost no waves lost. Let me
+isolate which change did it.
+
+
+Line of sight is the cause, not the turning — and it's the fan-out that's
+failing: every body fans to the *same* shoulder, so they stay behind each other.
+Fanning should spread.
+
+
+The fan/concentrate decision is on *proximity*, but what matters is whether the
+body has a shot. A blocked archer with enemies nearby currently concentrates —
+straight back behind its own line.
+
+
+Still no ranged damage at all. Let me measure directly rather than keep
+guessing.
+
+
+Kills drop 35% and bodies pile up — a feedback loop: fewer kills, denser
+crowd, more blocking. Let me check the one parameter I assumed rather than
+measured — how wide a body is as an obstacle.
+
+
+Narrowing the blocker barely helps — 835 kills against a 1160 baseline. So
+this isn't a tuning problem. Let me settle it honestly.
+
+
+All green. Let me record the finding and the answered question, then commit.
+
+
+Both corrections taken. One landed clean; the other found a real problem.
+
+
+## The gears — you were right, and I measured it wrong
+
+
+Your rule already handles it: behind → marching, ahead → walking, and the
+formation's average settles back until everyone's in line. I'd assumed a body
+had to *chase* a place that ran off. It doesn't — **the place comes back.**
+
+
+The measurement that made it look like a conflict was my error. I'd changed two
+things and varied one. Run as a proper two-by-two:
+
+
+| | Match ended | Monsters slain |
+
+|---|---|---|
+
+| no turning, no LoS | 24,438 | 4 |
+
+| **turning**, no LoS | 24,873 | 4 |
+
+| no turning, **LoS** | 10,129 | 0 |
+
+| turning, LoS | 9,542 | 0 |
+
+
+Turning costs nothing. Every bit of it belonged to the other change.
+**Formations turn now.** I added one thing your answer implies without stating
+— a maximum lean of about ten degrees, because depth multiplies lean and past
+that the rear rank is more than a file out of place.
+
+
+## Flat arrows — built, tested, and switched off
+
+
+Not because I disagree. Because it stops the game working, and how it stops is
+the interesting part.
+
+
+| Flat arrows need a line | Killed in 9,000 ticks | Left standing |
+
+|---|---|---|
+
+| no | 1,160 | 112 |
+
+| yes | 835 | 430 |
+
+
+**The mechanism isn't failing.** 93% of long-reach bodies in an engaged wave
+spread wider than the file they march in, and they find a shot about two ticks
+in five. It's the other three ticks — a third of all the damage in the game.
+Once that leaves, bodies stop dying, the field fills, lines thicken, and *more*
+shots are blocked. It feeds itself. A challenge monster ends up taking no arrows
+at all and cannot be killed by anyone.
+
+
+It isn't a knob. Halving how wide a body counts as an obstacle buys back a tenth
+of the damage and leaves the pile-up where it was.
+
+
+What it says is that **the wave composition is wrong for the rule, not the rule
+wrong for the game.** Bows behind an unbroken rank need gaps to shoot through,
+or longbows instead of bows, or somewhere else to stand — and the shoulders
+are spoken for by horses that don't exist yet. That's H14, and it's yours.
+Turning it on is one line in the catalogue.
+
+
+The sight rule itself is live for what it was specified for since the healers
+were designed: the moon spike.
+
+
+## One more bug this found
+
+
+Fan-versus-concentrate was deciding on *proximity*. A blocked archer with
+enemies fifty paces off would pull **toward** the middle of the thing it
+couldn't see past — so it never found an angle. It's the missing shot that
+should move a body, which is what 510 said all along.
+
+
+Tests: 90 invariants, 17 sandbox. Line of sight costs about 45% of simulation
+speed; I tried making the spatial grid finer to pay for it and it was measurably
+worse — the grid is rebuilt every tick, so more buckets means more clearing.
 
 
 --------------------------------------------------------------------------------

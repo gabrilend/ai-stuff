@@ -274,22 +274,31 @@ local function measure_formation(world, wave_id)
 
   for id = 1, world.high_water do
     if soldier.alive[id] == 1 and soldier.wave[id] == wave_id then
-      local target_along, target_across = formations.target_of(world, id)
-      local lag = (target_along - soldier.lane_along[id]) * soldier.facing[id]
-      -- **Measured from the formation's own centre, not the lane's.**
+      -- **Measured in the formation's own frame**, which is the only frame the
+      -- claims are about. A wave sits off the centre of its road because it has been
+      -- shifted to stand abreast of two others during a challenge, and because it is
+      -- wandering toward a waypoint, and it is *turned* off the road's direction
+      -- because it is leaning into its approach. None of those three is the line
+      -- coming apart, and against the road all three look exactly like it.
       --
-      -- The circle a formation makes is a circle about the formation. A wave sits
-      -- off the centre line of its road for two reasons -- it has been shifted to
-      -- stand abreast of two others during a challenge, and it is wandering toward a
-      -- waypoint -- and neither of those is the line coming apart. Measured against
-      -- the road, a wave that has drifted six paces looks like a wave whose flank has
-      -- been pushed six paces out of the rank, and those are opposite events.
+      -- So the body's position is un-shifted and then un-turned -- the inverse of what
+      -- `target_of` does going the other way -- and compared against the place it was
+      -- given at birth, which is written in the formation's frame and never moves.
+      local forward = wave.heading_forward or 1
+      local sideways = wave.heading_sideways or 0
       local middle = (wave.across_offset or 0) + (wave.wander or 0)
-      local across = soldier.lane_across[id] - middle
-      -- Both sides of the comparison move to the formation's frame, or the departure
-      -- from file below would be measuring the distance between two different
-      -- origins rather than between a body and its place.
-      target_across = target_across - middle
+
+      local along_from_front = (soldier.lane_along[id] - wave.anchor) * soldier.facing[id]
+      local across_from_middle = soldier.lane_across[id] - middle
+
+      local mine_along = along_from_front * forward + across_from_middle * sideways
+      local mine_across = -along_from_front * sideways + across_from_middle * forward
+
+      -- Positive means behind, matching the convention the cohesion budget uses:
+      -- how far short of its place the body is, along the formation's own forward.
+      local lag = soldier.slot_along[id] - mine_along
+      local across = mine_across
+      local target_across = soldier.slot_across[id]
 
       out.count = out.count + 1
       out.scale_sum = out.scale_sum + soldier.speed_scale[id]
