@@ -101,8 +101,38 @@ function M.new_world(root, params, scene, population)
   local p = Params.check(params)
   local streams = Streams.make_set(p.seed)
 
-  local store, report = Carve.generate(root, p, streams)
-  Validator.validate(root, store, p, report)
+  -- Two ways a world comes into being, and they share nothing but their result.
+  --
+  -- The generator makes a maze out of rooms, walls and a room lattice. A map is
+  -- a file somebody typed, made of flat plates and the stairs between them, and
+  -- it has no walls in it at all -- so the maze validator, whose every check is
+  -- about generator invariants, has nothing to say about one. It would in fact
+  -- refuse every map outright: it insists the rim of the world is wall, and in a
+  -- map every surface is walkable because every surface is the top of something.
+  local store, report
+  if p.map ~= "" then
+    local Map = require_local(root, "069-the-map")
+    local field = Map.load(dofile(root .. "/assets/" .. p.map .. ".lua"))
+    store = Map.to_store(Stone, field, p.layers)
+    store.field = field
+    -- The counts a map can honestly answer. Every cell of a map is a surface
+    -- and every surface is walkable, so floor and cells are the same number --
+    -- which is the whole difference between this world and a carved one, stated
+    -- as an equality rather than as a paragraph.
+    local stone_layers = 0
+    for i = 0, store.cells - 1 do stone_layers = stone_layers + field.height[i] + 1 end
+    report = {
+      seed = p.seed, width = store.width, depth = store.depth,
+      layers = store.layers, map = field.name,
+      floor_cells = store.cells, surfaces = store.cells,
+      lowest = field.lowest, highest = field.highest,
+      plates = #field.plates, staircases = #field.stairs,
+      fill_fraction = stone_layers / (store.cells * store.layers),
+    }
+  else
+    store, report = Carve.generate(root, p, streams)
+    Validator.validate(root, store, p, report)
+  end
 
   -- Where a body may be put down. Collected once: the spawn pass draws from this
   -- rather than picking random cells and rejecting the ones that are wall, which

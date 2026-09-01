@@ -133,6 +133,31 @@ golems smash automatons and walk through walls — and the party has no goal, wh
 is the half that rests on [open question 3](026-open-questions.md). See
 [the phase 7 progress](../issues/phase-7-progress.md).
 
+## Phase 8 — The Mountain
+
+The world stops being generated. The reference picture turns out to contain no
+walls at all, only flat plates at many elevations and the staircases between
+them, laid over the face of a mountain that falls toward the viewer — and a
+surface that never rises toward the camera is visible everywhere without any pass
+to make it so.
+
+| Issue | |
+| --- | --- |
+| [801](../issues/completed/801-a-map-is-plates-and-stairs.md) | a map is plates and stairs |
+| [802](../issues/completed/802-the-mountainside-is-hard-coded.md) | the mountainside is hard-coded |
+| [803](../issues/completed/803-the-height-field-becomes-a-model.md) | the height field becomes a model |
+| [804](../issues/804-a-ball-is-a-sphere-against-faces.md) | **not started** — a ball is a sphere against faces |
+| [805](../issues/805-a-ball-is-a-sprite-in-a-solid-world.md) | **not started** — a ball is a sprite in a solid world |
+
+Done when balls dropped at the summit find their own way to the bottom, bouncing
+down real staircases against real faces. See
+[the phase 8 progress](../issues/phase-8-progress.md).
+
+The generator of phases 1 and 2 still runs and still passes its tests. It is not
+deleted and it is not defended; whether a generator is written again, and whether
+it produces mountainsides rather than pyramids, is a question for after the
+hand-authored map has proved what a map should look like.
+
 ## What is not in any phase
 
 **The jungle, and this is settled rather than pending.** The volcanoes, the sky,
