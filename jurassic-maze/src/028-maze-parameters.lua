@@ -103,6 +103,12 @@ function M.defaults()
     -- two layers, so eight steps is a sixteen-layer climb -- half the world.
     stair_steps    = 8,
 
+    -- How many bodies the store is allocated for. Fixed at world creation and
+    -- never grown: a store that quietly reallocates is a store that quietly
+    -- stops fitting in cache, and the frame rate falls off a cliff for reasons
+    -- that look like nothing. Running out is an error with a message.
+    capacity = 2000,
+
     seed = 1,
   }
 end

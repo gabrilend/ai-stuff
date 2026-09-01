@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+#
+# phase-3-the-rolling -- the vision's first sentence, working.
+#
+#   "the simulation is first balls rolling down a stage"
+#
+# A ball is never on a cell. It has a real position, a velocity that
+# accumulates, and a floor obtained by interpolating the four cells around it --
+# which turns every flight of one-layer steps in the maze into a ramp it can
+# accelerate down.
+
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+if [ -d "$1" ]; then DIR="$1"; shift; fi
+
+SHOTS="/dev/shm/jurassic-maze/demo"
+mkdir -p "${SHOTS}"
+
+echo "=============================================================="
+echo " PHASE 3 -- THE ROLLING"
+echo "=============================================================="
+echo ""
+echo "--- how far a ball gets, and how far down ------------------------"
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params = dofile(root .. '/src/028-maze-parameters.lua')
+local Tick   = dofile(root .. '/src/039-the-tick.lua')
+
+local world = Tick.new_world(root, Params.with{seed = 7}, 'balls')
+local b = world.bodies
+local start, deepest = {}, {}
+for id = 1, b.capacity do
+  if b.alive[id] == 1 then start[id] = b.layer[id]; deepest[id] = b.layer[id] end
+end
+
+local t0 = os.clock()
+for _ = 1, 3600 do
+  Tick.tick(world)
+  for id = 1, b.capacity do
+    if b.alive[id] == 1 and start[id] and b.layer[id] < deepest[id] then
+      deepest[id] = b.layer[id]
+    end
+  end
+end
+
+local buckets, n, sum, best = {}, 0, 0, 0
+for id = 1, b.capacity do
+  if b.alive[id] == 1 and start[id] then
+    local d = start[id] - deepest[id]
+    n = n + 1; sum = sum + d
+    if d > best then best = d end
+    local key = math.floor(d / 4) * 4
+    buckets[key] = (buckets[key] or 0) + 1
+  end
+end
+
+print(string.format('  sixty seconds of simulated time in %.1f s of real time', os.clock() - t0))
+print('')
+local most = 0
+for _, v in pairs(buckets) do if v > most then most = v end end
+for k = 0, 32, 4 do
+  local v = buckets[k] or 0
+  if v > 0 then
+    print(string.format('  descended %2d-%2d layers  %3d  %s', k, k + 3, v,
+          string.rep('o', math.floor(40 * v / most))))
+  end
+end
+print('')
+print(string.format('  mean descent %.1f layers, deepest %d, of %d balls still in play',
+      sum / n, best, n))
+print('')
+print('  A ball drops at the summit and works its way down. It has no idea')
+print('  the staircases are there -- gravity acts along the slope of an')
+print('  interpolated floor, and a flight of one-layer steps is a ramp.')
+"
+echo ""
+
+echo "--- what the friction and the bounce actually decide --------------"
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params = dofile(root .. '/src/028-maze-parameters.lua')
+local Tick   = dofile(root .. '/src/039-the-tick.lua')
+
+print('  restitution is 0.85, which is far bouncier than stone. In a maze')
+print('  made entirely of walls, a realistic ball loses its energy on the')
+print('  first one it meets, a cell or two after being dropped:')
+print('')
+print(string.format('  %-12s %-12s %10s %10s', 'friction', 'restitution', 'distance', 'motionless'))
+for _, setting in ipairs({ {1.10, 0.32}, {0.50, 0.60}, {0.10, 0.85} }) do
+  local world = Tick.new_world(root, Params.with{seed = 7}, 'balls')
+  local ball = world.creatures.KINDS[1]
+  ball.roll_friction, ball.restitution = setting[1], setting[2]
+  for _ = 1, 900 do Tick.tick(world) end
+  local b = world.bodies
+  local dist, n, still = 0, 0, 0
+  for id = 1, b.capacity do
+    if b.alive[id] == 1 then
+      n = n + 1; dist = dist + b.distance[id]
+      if b.distance[id] < 0.5 then still = still + 1 end
+    end
+  end
+  print(string.format('  %-12.2f %-12.2f %10.2f %10d', setting[1], setting[2],
+        dist / n, still))
+end
+print('')
+print('  Not realism. The whole aquarium is the difference.')
+"
+echo ""
+
+echo "--- and nothing is ever inside a wall ----------------------------"
+echo ""
+"${DIR}/run-tests" bodies 2>&1 | sed 's/^/  /'
+echo ""
+echo "  That is the test worth more than the collision code being"
+echo "  carefully written -- careful code can be defeated by a number"
+echo "  somebody changed, and this cannot."
+echo ""
+
+echo "--- and what it looks like ---------------------------------------"
+echo ""
+echo "  Each shot opens a window, lets it settle, saves a frame and leaves."
+echo "  Guarded by a timeout: a window that loses focus can be throttled by"
+echo "  the compositor to the point where it never reaches the frame it was"
+echo "  told to capture, and a demo that hangs is a demo nobody runs twice."
+echo ""
+echo "  writing ${SHOTS}/phase-3-balls.png"
+timeout 45 love "${DIR}" --seed 7 --scene balls --after 4 --zoom 1.0 --at 64 64 \
+     --screenshot "${SHOTS}/phase-3-balls.png" >/dev/null 2>&1
+echo "  writing ${SHOTS}/phase-3-both.png"
+timeout 45 love "${DIR}" --seed 7 --scene both --after 4 --zoom 1.4 --at 64 64 \
+     --screenshot "${SHOTS}/phase-3-both.png" >/dev/null 2>&1
+echo ""
+echo "  Run it live with:  ./run-maze --scene both"
+echo "  Keys 1, 2 and 3 switch between balls, little guys, and both."
+echo ""

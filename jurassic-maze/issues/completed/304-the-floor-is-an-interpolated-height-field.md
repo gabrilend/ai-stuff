@@ -10,7 +10,21 @@
 
 ## Current behavior
 
-The locomotion table has a `rolling` row and it does nothing.
+Bilinear over cell centres, with the one-layer clamp in both directions: a cell
+higher than that is a wall and contributes the ball's own height, a cell lower is
+a cliff and does the same.
+
+The slope is **differentiated analytically**, not sampled either side of the
+point — which is the opposite of what this issue originally said to do. Four
+corner heights make the patch exactly bilinear, so the derivative is one
+subtraction per axis and is exact; sampling costs four more interpolations and is
+wrong wherever the two sample points straddle a patch boundary and average across
+a seam that is genuinely a discontinuity. This was five interpolations per ball
+per tick and is now one.
+
+That change, together with replacing the layer-by-layer surface lookups with
+five-branch bit searches, took the move pass from fourteen microseconds a body to
+under two.
 
 ## Intended behavior
 

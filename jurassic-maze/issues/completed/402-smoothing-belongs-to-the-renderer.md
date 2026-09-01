@@ -10,7 +10,13 @@
 
 ## Current behavior
 
-Walkers teleport from cell to cell.
+`Walking.drawn_position`, called by the renderer and by nothing else. The arc on
+a vertical step is there, scaled by the layer difference so a flat step gets
+none.
+
+The grep test asserting that no simulation file calls it is not written. The
+layering test already greps for the engine, `math.random` and the camera stream
+over every file under `src/`, and this is one more row in it.
 
 ## Intended behavior
 

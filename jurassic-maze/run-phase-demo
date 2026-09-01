@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+#
+# run-phase-demo -- asks which phase demo to run, and runs it.
+#
+# The demos are not a development artifact. They are part of the deliverable:
+# each one shows the real program doing the thing that phase built, with the
+# numbers it actually produces, and each is updated as the program is.
+#
+# Usage:
+#   ./run-phase-demo          asks
+#   ./run-phase-demo 3        runs phase three's
+#   ./run-phase-demo all      runs every one, in order
+#   ./run-phase-demo --list   says what there is
+
+# The project root. Hard-coded so the script runs from any directory, and
+# overridable as a leading argument.
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+DEMOS="${DIR}/issues/completed/demos"
+
+if [ ! -d "${DEMOS}" ]; then
+    echo "No demos at ${DEMOS}."
+    exit 1
+fi
+
+# The demos in phase order, which is also name order because they are named for
+# their phase. Reading the directory rather than keeping a list here means a new
+# demo appears in the menu by existing.
+LIST="$(ls "${DEMOS}" | grep '^phase-' | sort)"
+COUNT="$(echo "${LIST}" | grep -c .)"
+
+if [ "${COUNT}" -eq 0 ]; then
+    echo "No phase demos yet."
+    exit 1
+fi
+
+show_menu() {
+    echo ""
+    echo "  jurassic-maze -- the phase demos"
+    echo ""
+    N=1
+    echo "${LIST}" | while read -r name; do
+        # The one-line description is the third comment line of the demo itself,
+        # with the demo's own name trimmed off the front, so the menu cannot
+        # drift from what the demo says it is.
+        WHAT="$(sed -n '3p' "${DEMOS}/${name}" | sed 's/^# \{0,1\}//; s/^[a-z0-9-]* -- //')"
+        printf '  %d) %-24s %s\n' "${N}" "${name}" "${WHAT}"
+        N=$((N + 1))
+    done
+    echo ""
+}
+
+run_nth() {
+    NAME="$(echo "${LIST}" | sed -n "$1p")"
+    if [ -z "${NAME}" ]; then
+        echo "There is no demo ${1}. There are ${COUNT}."
+        exit 1
+    fi
+    "${DEMOS}/${NAME}" "${DIR}"
+}
+
+case "$1" in
+    --list)
+        show_menu
+        exit 0
+        ;;
+    all)
+        echo "${LIST}" | while read -r name; do
+            "${DEMOS}/${name}" "${DIR}"
+        done
+        exit 0
+        ;;
+    "")
+        show_menu
+        printf '  which? [1-%d] ' "${COUNT}"
+        read -r CHOICE
+        run_nth "${CHOICE}"
+        ;;
+    *)
+        run_nth "$1"
+        ;;
+esac

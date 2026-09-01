@@ -10,7 +10,18 @@
 
 ## Current behavior
 
-Everything that is known about a run is known by somebody watching it.
+`047-the-headless-runner.lua` runs the whole thing under bare luajit and
+`048-the-report.lua` gathers the numbers. `./run-maze --headless` is the front
+door and `./run-many-mazes` is the sweep, one worker per core less two, with rows
+written to the RAM tier as they finish so a sweep that is killed half way through
+still leaves what it had done.
+
+Distance is reported **per locomotion kind**, which is the measurement that
+matters: a total that looks healthy can hide a whole locomotion row that stopped
+moving anything.
+
+The grep test in `tests/052-layering.lua` covers the engine, `math.random`, and
+the camera stream, over every file under `src/`.
 
 ## Intended behavior
 

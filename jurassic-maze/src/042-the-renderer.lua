@@ -32,8 +32,13 @@ M.FACE_TOP   = 1
 M.FACE_LEFT  = 2
 M.FACE_RIGHT = 3
 
+-- Which of a face's four sides needs a line drawn along it. Reused across every
+-- emit rather than made fresh, because the sweep touches every column in the
+-- maze and a table per face is a hundred thousand tables per build.
+M.EDGE_SCRATCH = { false, false, false, false }
+
 -- {{{ function M.sweep(Stone, store, minx, miny, maxx, maxy, emit)
--- Walks the columns and hands every visible face to `emit`.
+-- Every visible face in a rectangle of columns, back to front.
 --
 -- Back to front is `for y ascending, for x ascending`, and the column index is
 -- x + y * width, so this sweep is a linear walk of the array from its first
@@ -41,121 +46,152 @@ M.FACE_RIGHT = 3
 -- not a coincidence noticed afterwards and enjoyed -- it is why the index is
 -- that way round rather than the other. See docs/006-the-isometric-projection.md.
 --
--- emit(face, cell, x, y, low, high, edges) is called with heights in layers,
--- where a block occupying layer L spans heights L to L+1, and `edges` is a
--- four-entry table saying which of the face's sides is a real edge of the
--- geometry rather than a seam against an identical neighbour. See the note over
--- M.build for why that distinction is the difference between a maze and a field
--- of loose cubes.
---
 -- Pure. It knows nothing about the engine, which is what lets a mesh builder, an
--- immediate-mode drawer, and a face counter all be the same sweep.
+-- immediate-mode drawer and a face counter all be the same sweep.
 function M.sweep(Stone, store, minx, miny, maxx, maxy, emit)
+  for y = miny, maxy do
+    for x = minx, maxx do
+      M.sweep_cell(Stone, store, x, y, x + y, emit)
+    end
+  end
+end
+-- }}}
+
+-- {{{ function M.sweep_cell(Stone, store, x, y, band, emit)
+-- Every visible face of one column. Both sweep orders call this, so there is one
+-- place that decides what a column contributes and two that decide when.
+function M.sweep_cell(Stone, store, x, y, band, emit)
   local bit = require("bit")
   local column, surfaces = store.column, store.surfaces
   local width, depth, layers = store.width, store.depth, store.layers
-  local edges = { false, false, false, false }
+  local edges = M.EDGE_SCRATCH
 
-  -- {{{ local function column_at(x, y)
-  local function column_at(x, y)
-    if x < 0 or y < 0 or x >= width or y >= depth then return 0 end
-    return column[x + y * width]
+  local i = x + y * width
+  local col = column[i]
+  if col == 0 then return end
+
+  -- {{{ local function column_at(cx, cy)
+  local function column_at(cx, cy)
+    if cx < 0 or cy < 0 or cx >= width or cy >= depth then return 0 end
+    return column[cx + cy * width]
   end
   -- }}}
 
-  -- {{{ local function surfaces_at(x, y)
-  local function surfaces_at(x, y)
-    if x < 0 or y < 0 or x >= width or y >= depth then return 0 end
-    return surfaces[x + y * width]
+  -- {{{ local function surfaces_at(cx, cy)
+  local function surfaces_at(cx, cy)
+    if cx < 0 or cy < 0 or cx >= width or cy >= depth then return 0 end
+    return surfaces[cx + cy * width]
   end
   -- }}}
 
-  for y = miny, maxy do
-    local row = y * width
-    for x = minx, maxx do
-      local i = row + x
-      local col = column[i]
+  -- The neighbour toward +x is drawn down and to the right on screen; the
+  -- neighbour toward +y is drawn down and to the left. Those are the two faces
+  -- the viewer can see. Off the edge of the array counts as air, so the outside
+  -- of the maze gets its faces drawn.
+  local right_col = column_at(x + 1, y)
+  local left_col  = column_at(x,     y + 1)
 
-      if col ~= 0 then
-        -- The neighbour toward +x is drawn down and to the right on screen; the
-        -- neighbour toward +y is drawn down and to the left. Those are the two
-        -- faces the viewer can see. Off the edge of the array counts as air, so
-        -- the outside of the maze gets its faces drawn.
-        local right_col = column_at(x + 1, y)
-        local left_col  = column_at(x,     y + 1)
+  -- The exposed part of a side is the run this column has that its neighbour
+  -- does not. Two identical columns side by side give zero here and draw nothing
+  -- at all, which is why a large solid terrace costs its outline rather than its
+  -- area.
+  local exposed_right = bit.band(col, bit.bnot(right_col))
+  local exposed_left  = bit.band(col, bit.bnot(left_col))
 
-        -- The exposed part of a side is the run this column has that its
-        -- neighbour does not. Two identical columns side by side give zero here
-        -- and draw nothing at all, which is why a large solid terrace costs its
-        -- outline rather than its area.
-        local exposed_right = bit.band(col, bit.bnot(right_col))
-        local exposed_left  = bit.band(col, bit.bnot(left_col))
-
-        if exposed_right ~= 0 then
-          -- The two neighbours whose right faces sit in this same plane. Where
-          -- their exposure matches ours over a run, the wall is continuous
-          -- through it and there is no edge to draw.
-          local near = bit.band(column_at(x, y - 1), bit.bnot(column_at(x + 1, y - 1)))
-          local far  = bit.band(column_at(x, y + 1), bit.bnot(column_at(x + 1, y + 1)))
-          local l = 0
-          while l < layers do
-            if bit.band(exposed_right, bit.lshift(1, l)) ~= 0 then
-              local bottom = l
-              while l < layers and bit.band(exposed_right, bit.lshift(1, l)) ~= 0 do
-                l = l + 1
-              end
-              local mask = bit.lshift(1, l) - bit.lshift(1, bottom)
-              edges[1] = true                              -- the top of the wall
-              edges[2] = bit.band(far,  mask) ~= mask      -- toward y+1
-              edges[3] = true                              -- where it meets ground
-              edges[4] = bit.band(near, mask) ~= mask      -- toward y-1
-              emit(M.FACE_RIGHT, i, x, y, bottom, l, edges)
-            else
-              l = l + 1
-            end
-          end
+  if exposed_right ~= 0 then
+    -- The two neighbours whose right faces sit in this same plane. Where their
+    -- exposure matches ours over a run, the wall is continuous through it and
+    -- there is no edge to draw.
+    local near = bit.band(column_at(x, y - 1), bit.bnot(column_at(x + 1, y - 1)))
+    local far  = bit.band(column_at(x, y + 1), bit.bnot(column_at(x + 1, y + 1)))
+    local l = 0
+    while l < layers do
+      if bit.band(exposed_right, bit.lshift(1, l)) ~= 0 then
+        local bottom = l
+        while l < layers and bit.band(exposed_right, bit.lshift(1, l)) ~= 0 do
+          l = l + 1
         end
-
-        if exposed_left ~= 0 then
-          local near = bit.band(column_at(x - 1, y), bit.bnot(column_at(x - 1, y + 1)))
-          local far  = bit.band(column_at(x + 1, y), bit.bnot(column_at(x + 1, y + 1)))
-          local l = 0
-          while l < layers do
-            if bit.band(exposed_left, bit.lshift(1, l)) ~= 0 then
-              local bottom = l
-              while l < layers and bit.band(exposed_left, bit.lshift(1, l)) ~= 0 do
-                l = l + 1
-              end
-              local mask = bit.lshift(1, l) - bit.lshift(1, bottom)
-              edges[1] = true
-              edges[2] = bit.band(far,  mask) ~= mask      -- toward x+1
-              edges[3] = true
-              edges[4] = bit.band(near, mask) ~= mask      -- toward x-1
-              emit(M.FACE_LEFT, i, x, y, bottom, l, edges)
-            else
-              l = l + 1
-            end
-          end
-        end
-
-        local s = surfaces[i]
-        if s ~= 0 then
-          for l = 0, layers - 1 do
-            local b = bit.lshift(1, l)
-            if bit.band(s, b) ~= 0 then
-              -- A top face's four sides border the four cells around it. Where a
-              -- neighbour's floor is at exactly this layer the two tops are one
-              -- continuous surface and drawing a line between them is what turns
-              -- a long wall into a row of separate cubes.
-              edges[1] = bit.band(surfaces_at(x,     y - 1), b) == 0
-              edges[2] = bit.band(surfaces_at(x + 1, y    ), b) == 0
-              edges[3] = bit.band(surfaces_at(x,     y + 1), b) == 0
-              edges[4] = bit.band(surfaces_at(x - 1, y    ), b) == 0
-              emit(M.FACE_TOP, i, x, y, l + 1, l + 1, edges)
-            end
-          end
-        end
+        local mask = bit.lshift(1, l) - bit.lshift(1, bottom)
+        edges[1] = true                            -- the top of the wall
+        edges[2] = bit.band(far,  mask) ~= mask    -- toward y+1
+        edges[3] = true                            -- where it meets ground
+        edges[4] = bit.band(near, mask) ~= mask    -- toward y-1
+        emit(M.FACE_RIGHT, i, x, y, bottom, l, edges, band)
+      else
+        l = l + 1
       end
+    end
+  end
+
+  if exposed_left ~= 0 then
+    local near = bit.band(column_at(x - 1, y), bit.bnot(column_at(x - 1, y + 1)))
+    local far  = bit.band(column_at(x + 1, y), bit.bnot(column_at(x + 1, y + 1)))
+    local l = 0
+    while l < layers do
+      if bit.band(exposed_left, bit.lshift(1, l)) ~= 0 then
+        local bottom = l
+        while l < layers and bit.band(exposed_left, bit.lshift(1, l)) ~= 0 do
+          l = l + 1
+        end
+        local mask = bit.lshift(1, l) - bit.lshift(1, bottom)
+        edges[1] = true
+        edges[2] = bit.band(far,  mask) ~= mask    -- toward x+1
+        edges[3] = true
+        edges[4] = bit.band(near, mask) ~= mask    -- toward x-1
+        emit(M.FACE_LEFT, i, x, y, bottom, l, edges, band)
+      else
+        l = l + 1
+      end
+    end
+  end
+
+  local s = surfaces[i]
+  if s ~= 0 then
+    for l = 0, layers - 1 do
+      local b = bit.lshift(1, l)
+      if bit.band(s, b) ~= 0 then
+        -- A top face's four sides border the four cells around it. Where a
+        -- neighbour's floor is at exactly this layer the two tops are one
+        -- continuous surface, and drawing a line between them is what turns a
+        -- long wall into a row of separate cubes.
+        edges[1] = bit.band(surfaces_at(x,     y - 1), b) == 0
+        edges[2] = bit.band(surfaces_at(x + 1, y    ), b) == 0
+        edges[3] = bit.band(surfaces_at(x,     y + 1), b) == 0
+        edges[4] = bit.band(surfaces_at(x - 1, y    ), b) == 0
+        emit(M.FACE_TOP, i, x, y, l + 1, l + 1, edges, band)
+      end
+    end
+  end
+end
+-- }}}
+
+-- {{{ function M.sweep_by_diagonal(Stone, store, emit)
+-- The same faces as M.sweep, grouped into the bands the painter's algorithm
+-- actually cares about.
+--
+-- Everything nearer the viewer has a larger `x + y`, so cells sharing a value of
+-- `x + y` lie on one band across the screen and none of them can occlude any
+-- other -- their diamonds sit side by side and exactly touch. Two orders are
+-- therefore both correct: row by row, which is the array's own memory order, and
+-- band by band, which is this.
+--
+-- Memory order is used by the pure sweep. This one exists because **bodies have
+-- to be drawn between the bands**. The stone is one static mesh, and a mesh drawn
+-- in one call is drawn all at once -- so a ball would sit on top of every wall in
+-- the maze, including the ones in front of it. Grouping the faces by band lets
+-- the mesh be drawn a band at a time with the bodies of that band in between.
+--
+-- `emit` is called as for M.sweep, plus the band index, and bands arrive in
+-- ascending order.
+function M.sweep_by_diagonal(Stone, store, emit)
+  local width, depth = store.width, store.depth
+  for band = 0, width + depth - 2 do
+    local x0 = band - (depth - 1)
+    if x0 < 0 then x0 = 0 end
+    local x1 = band
+    if x1 > width - 1 then x1 = width - 1 end
+    for x = x0, x1 do
+      M.sweep_cell(Stone, store, x, band - x, band, emit)
     end
   end
 end
@@ -310,7 +346,24 @@ function M.build(Stone, Projection, Palette, store, love_graphics)
     faces = faces + 1
   end
 
-  M.sweep(Stone, store, 0, 0, store.width - 1, store.depth - 1, emit)
+  -- Built band by band, and the index range of each band recorded, so the mesh
+  -- can be drawn a band at a time with bodies in between. A mesh drawn in one
+  -- call is drawn all at once, and a ball drawn after it would sit on top of
+  -- every wall in the maze including the ones in front of it.
+  local bands = {}
+  local last_band = -1
+  M.sweep_by_diagonal(Stone, store, function(face, cell, x, y, low, high, edges, band)
+    if band ~= last_band then
+      -- Bands with no faces at all are simply absent, and the draw loop skips
+      -- them. A band is empty only outside the maze's footprint, but that is two
+      -- hundred and fifty-eight of them on a square maze seen corner-on.
+      bands[band] = { first = #fill_i + 1, count = 0 }
+      last_band = band
+    end
+    local before = #fill_i
+    emit(face, cell, x, y, low, high, edges)
+    bands[band].count = bands[band].count + (#fill_i - before)
+  end)
 
   local outline_mesh = love_graphics.newMesh(outline_v, "triangles", "static")
   outline_mesh:setVertexMap(outline_i)
@@ -318,12 +371,94 @@ function M.build(Stone, Projection, Palette, store, love_graphics)
   fill_mesh:setVertexMap(fill_i)
 
   return {
-    outline = outline_mesh,
-    fill    = fill_mesh,
-    faces   = faces,
+    outline  = outline_mesh,
+    fill     = fill_mesh,
+    bands    = bands,
+    max_band = store.width + store.depth - 2,
+    faces    = faces,
     vertices = nverts,
-    version = store.version,
+    version  = store.version,
   }
+end
+-- }}}
+
+-- {{{ function M.bucket_bodies(store, bodies, into)
+-- Groups the live bodies by which band they will be drawn in.
+--
+-- Reuses the arrays it is given rather than making new ones, because this runs
+-- every frame and a renderer that allocates per frame stutters every time the
+-- collector notices, correlated with nothing anybody can see.
+function M.bucket_bodies(store, bodies, into)
+  for band = 0, into.max_band do
+    local list = into[band]
+    if list then list.n = 0 end
+  end
+
+  for id = 1, bodies.capacity do
+    if bodies.alive[id] == 1 then
+      local cell = bodies.cell[id]
+      local x = cell % store.width
+      local y = (cell - x) / store.width
+      local band = x + y
+      local list = into[band]
+      if not list then list = { n = 0 }; into[band] = list end
+      list.n = list.n + 1
+      list[list.n] = id
+    end
+  end
+end
+-- }}}
+
+-- {{{ function M.draw_body(Projection, Palette, flat, store, bodies, creatures, id, walking, love_graphics)
+-- One body, at scale one and no pan, so the camera transform already applied to
+-- the stone covers it too.
+--
+-- A shadow first, on the floor beneath. Without one a ball reads as floating at
+-- an indeterminate height -- there is no perspective in an isometric projection
+-- to say how far away the ground is, so the only cue that a thing is *on* a
+-- surface is a mark on that surface.
+function M.draw_body(Projection, Palette, flat, store, bodies, creatures, id,
+                     walking, love_graphics)
+  local kind = creatures.KINDS[bodies.kind[id]]
+  local r = bodies.radius[id]
+
+  local x, y, z
+  if kind.locomotion == creatures.WALKING then
+    x, y, z = walking.drawn_position(nil, store, bodies, id)
+  else
+    x, y, z = bodies.x[id], bodies.y[id], bodies.z[id]
+  end
+
+  local hw = Projection.HALF_WIDTH
+  local hh = Projection.HALF_HEIGHT
+
+  -- The shadow sits on the stone the body's stance says it is on, not at the
+  -- body's own height -- which is the difference between a falling ball trailing
+  -- its shadow downward and one whose shadow waits on the floor for it.
+  local floor_z = bodies.layer[id] + 1
+  local sx, sy = Projection.to_screen(flat, x, y, floor_z)
+  love_graphics.setColor(0, 0, 0, 0.28)
+  love_graphics.ellipse("fill", sx, sy, r * hw * 1.05, r * hh * 1.05)
+
+  local bx, by = Projection.to_screen(flat, x, y, z + r)
+  local cr, cg, cb = Palette.creature(kind.name, bodies.team[id])
+  love_graphics.setColor(cr, cg, cb, 1)
+
+  if kind.locomotion == creatures.WALKING then
+    -- A little guy: a short standing body rather than a disc, so the two kinds
+    -- are told apart at a glance from two hundred cells away.
+    local h = kind.body_height * Projection.LAYER_PIXELS * 1.15
+    love_graphics.ellipse("fill", bx, by - h * 0.5, r * hw * 0.85, h * 0.5)
+    love_graphics.setColor(cr * 0.55, cg * 0.55, cb * 0.55, 1)
+    love_graphics.ellipse("line", bx, by - h * 0.5, r * hw * 0.85, h * 0.5)
+  else
+    love_graphics.circle("fill", bx, by, r * hw)
+    -- A highlight where the light comes from, upper left, same as the stone.
+    love_graphics.setColor(1, 1, 1, 0.30)
+    love_graphics.circle("fill", bx - r * hw * 0.3, by - r * hw * 0.35, r * hw * 0.34)
+    love_graphics.setColor(cr * 0.45, cg * 0.45, cb * 0.45, 1)
+    love_graphics.circle("line", bx, by, r * hw)
+  end
 end
 -- }}}
 

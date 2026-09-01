@@ -10,7 +10,17 @@
 
 ## Current behavior
 
-The locomotion table has a `walking` row that does nothing.
+`038-walking.lua`. `from_cell`, `from_layer` and `progress` on the body; the step
+completes when progress reaches one and the stance becomes the destination.
+
+Wandering is weighted against reversing, drawn from the `wander_guy` stream.
+Measured over a long headless run, walkers travel about ninety cells apiece where
+balls travel eighteen — they do not oscillate.
+
+The intent table has two rows so far, `wander` and `idle`, rather than the six
+this issue describes. `errand`, `approach`, `flee` and `engage` arrive with the
+issues that need them; a body with nowhere at all to go idles rather than
+erroring, which the validator counts as a dead-end surface and reports as zero.
 
 ## Intended behavior
 

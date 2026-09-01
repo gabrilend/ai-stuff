@@ -10,8 +10,20 @@
 
 ## Current behavior
 
-Faces are drawn and they are all the same colour, so the maze reads as a flat
-noisy texture rather than as geometry.
+Three tones, a per-cell hash for the mottle, and a paler tint with height, in
+`041-the-palette.lua` — the only file in the project that names a colour.
+
+The outlining scheme changed during the work and the change is the whole issue.
+Insetting all four sides of every face draws a line between every pair of
+neighbouring cells, **including two cells of one long wall whose tops are the
+same continuous slab of stone**. With those lines in, the maze reads as a field
+of separate cubes rather than as corridors between walls. It was the largest
+visual error in the first working renderer and it was invisible in every number
+the validator produced.
+
+A side is now inset only where it is a real edge of the geometry: a top face's
+side only where the neighbour's floor is not at exactly this layer, a wall face's
+vertical side only where the neighbour's exposed run does not match.
 
 ## Intended behavior
 

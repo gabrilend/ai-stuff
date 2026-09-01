@@ -40,8 +40,16 @@ the first element to the last, in the direction the prefetcher is already going.
 
 This is not a coincidence that was noticed afterwards and enjoyed. It is why the
 index is `x + y * width` and not `y + x * depth`. Reversing the index would have
-made the draw pass walk memory in strides, on the hottest loop in the program,
-in exchange for nothing.
+made the draw pass walk memory in strides, in exchange for nothing.
+
+There is a **second** correct order, and the renderer uses it. Cells sharing one
+value of `x + y` lie on a band across the screen and none of them can occlude any
+other — their diamonds sit side by side and exactly touch — so band by band is
+equally valid. That order matters because **bodies have to be drawn between the
+bands**: the stone is baked into one static mesh, a mesh drawn in one call is
+drawn all at once, and a ball drawn after it would sit on top of every wall in
+the maze including the ones in front of it. See
+[drawing a pile of stones](007-drawing-a-pile-of-stones.md).
 
 ## The second property: it inverts
 

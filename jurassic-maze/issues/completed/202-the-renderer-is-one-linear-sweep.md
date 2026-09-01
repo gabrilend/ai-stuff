@@ -10,7 +10,22 @@
 
 ## Current behavior
 
-The projection can say where a cell lands and nothing draws anything.
+Two static meshes, built once at load, drawn with the camera as a transform.
+Rebuilding per frame would be a hundred thousand polygons of work to produce a
+picture identical to the last one.
+
+There are now **two** sweep orders and both are correct. Row by row is the array's
+own memory order and is what the pure sweep and the face count use. Band by band
+groups cells sharing one value of `x + y`, and the mesh is built in that order
+with each band's index range recorded — because **bodies have to be drawn between
+the bands**. A mesh drawn in one call is drawn all at once, and a ball drawn
+afterwards sits on top of every wall in the maze including the ones in front of
+it. That was not foreseen when this issue was written; the interleaving is what
+made it necessary.
+
+Face counts: about 26,000 faces for 209,000 blocks of stone, which is twelve
+percent. Two thirds of every block faces away from a fixed camera and the rest is
+mostly buried.
 
 ## Intended behavior
 
