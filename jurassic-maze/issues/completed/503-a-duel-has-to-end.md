@@ -5,13 +5,23 @@
 | Phase | 5 — The Fencing |
 | Blocked by | 501, 502 |
 | Blocks | 504 |
-| Reads | [fencing](../docs/017-fencing.md) |
+| Reads | [fencing](../../docs/017-fencing.md) |
 | Open questions | 1 (camera or fencer) |
 
 ## Current behavior
 
-Duels start and run until somebody dies, which two well-matched fencers may never
-do.
+Four endings, each counted by name in the report. The stalemate clock and the
+generation check both fire in tests rather than in ordinary play — a stalemate
+essentially never happens at the tuned numbers, which is why the test forces one.
+
+`disengage_seconds` is a knob and not a constant, so **zero turns a series of
+duels into a melee** — the other reading of open question 1. There is a test for
+both readings, and neither needs a line of code changed.
+
+`world.duel_ended` is a field the director polls rather than an event delivered
+to it. A queue of messages arriving at an unspecified time would make the order
+of effects depend on the order of subscription, which is what the whole tick
+design avoids.
 
 ## Intended behavior
 
@@ -33,7 +43,7 @@ never fires. A rule about fighting, added for a reason about watching.
 `disengage_seconds` is written as a knob and not a constant **on purpose**.
 Setting it to zero makes a released fencer immediately find another opponent,
 which is the other reading of
-[open question 1](../docs/026-open-questions.md) — a melee rather than a series
+[open question 1](../../docs/026-open-questions.md) — a melee rather than a series
 of duels. Both readings are one number apart.
 
 ## Suggested implementation steps
@@ -44,7 +54,7 @@ of duels. Both readings are one number apart.
    set the flee intent and its timer.
 3. Emit a duel-ended signal the director reads. A signal here means a field the
    director polls, not an event bus — see
-   [the shape of the code](../docs/024-the-shape-of-the-code.md).
+   [the shape of the code](../../docs/024-the-shape-of-the-code.md).
 4. Count duels started, ended by each of the four endings, and mean duration,
    into the report. A stalemate rate that climbs means `parry` is too high.
 5. Test: two immortal fencers stalemate at exactly `stalemate_seconds` and
@@ -53,5 +63,5 @@ of duels. Both readings are one number apart.
 
 ## Related documents and tools
 
-- [Fencing](../docs/017-fencing.md)
-- [Open questions](../docs/026-open-questions.md) — question 1
+- [Fencing](../../docs/017-fencing.md)
+- [Open questions](../../docs/026-open-questions.md) — question 1

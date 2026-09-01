@@ -98,7 +98,19 @@ function M.verdict(world, director)
   local bodies = world.bodies
   local id = director.subject
 
-  -- Phase five will add "its duel ended" here, above the rest.
+  -- A duel ending is the strongest signal there is that a thing has finished,
+  -- so it sits above everything except the subject being gone.
+  if world.duel_ended and world.duel_ended[id]
+     and world.duel_ended[id] > director.verdict_at then
+    return "its duel ended"
+  end
+
+  if bodies.duel[id] ~= 0 then
+    -- In a duel and it has not ended: nothing else is more interesting than
+    -- this, so none of the boredom rules below apply. A fencer standing still
+    -- with a sword out is not an idle body.
+    return nil
+  end
 
   if world.arrived[id] and world.arrived[id] > director.verdict_at then
     return "arrived"
@@ -151,6 +163,7 @@ function M.pick(world, director)
         if bodies.intent[id] == Walking.INTENT_ERRAND then weight = 6 end
         if bodies.partner[id] ~= 0 then weight = 9 end
         if bodies.vz[id] ~= 0 then weight = 7 end          -- falling
+        if bodies.duel[id] ~= 0 then weight = 20 end       -- a fight beats all of it
 
         -- Reservoir sampling: one pass, no list built, and the probability of
         -- each body ending up chosen is its weight over the total. A candidate
@@ -199,8 +212,32 @@ function M.update(world, director, camera, Projection, Camera, Walking, dt,
   director.verdict = M.verdict(world, director)
 
   if director.verdict and director.settings.auto_swap then
-    M.pick(world, director)
-    if director.subject == 0 then M.free(director); return end
+    -- "Stay with the loser": after a duel that both of them walked away from,
+    -- keep watching whichever came off worse rather than moving on. Following
+    -- the winner is the obvious choice and is usually the wrong one -- the
+    -- winner walks off, and the loser is the one something just happened to.
+    --
+    -- When the loser died there is nobody to stay with, and the camera moves
+    -- whatever the setting says. That is not a compromise; it is what the words
+    -- mean once one of the two is not there.
+    local stayed = false
+    if director.verdict == "its duel ended"
+       and director.settings.stay_with_the_loser then
+      local loser_at = world.duel_loser and world.duel_loser[director.subject]
+      if loser_at and loser_at > director.verdict_at then
+        director.verdict_at = world.tick_count
+        director.verdict = nil
+        director.dwell = 0
+        stayed = true
+        world.counters.stayed_with_the_loser =
+          (world.counters.stayed_with_the_loser or 0) + 1
+      end
+    end
+
+    if not stayed then
+      M.pick(world, director)
+      if director.subject == 0 then M.free(director); return end
+    end
   end
 
   -- A stakeout goes to where the subject is and then *stops*, holding that spot
@@ -280,13 +317,16 @@ function M.describe(world, director)
   local Walking = world.modules.Walking
 
   local doing = "standing about"
-  if bodies.intent[id] == Walking.INTENT_ERRAND then doing = "going somewhere"
+  if bodies.duel[id] ~= 0 then doing = "in a duel"
+  elseif bodies.intent[id] == Walking.INTENT_ERRAND then doing = "going somewhere"
   elseif bodies.partner[id] ~= 0 then doing = "in company"
   elseif bodies.vz[id] ~= 0 then doing = "falling"
   elseif bodies.intent[id] == Walking.INTENT_WANDER then doing = "wandering" end
 
-  lines[#lines + 1] = string.format("  body %d, a %s, on layer %d -- %s",
-                                    id, kind.name, bodies.layer[id], doing)
+  local side = (bodies.team[id] ~= 0)
+               and string.format(", side %d", bodies.team[id]) or ""
+  lines[#lines + 1] = string.format("  body %d, a %s%s, on layer %d -- %s",
+                                    id, kind.name, side, bodies.layer[id], doing)
   lines[#lines + 1] = string.format("  %s",
     director.verdict and ("done: " .. director.verdict ..
       (director.settings.auto_swap and "" or "   (press tab)"))

@@ -25,7 +25,7 @@ adjacent columns, so it climbs the wall a walker routes around.
 
 **It entangles.** A body it reaches is held: its locomotion is suspended and it
 does not move until the hold breaks. The same mechanism as
-[a duel](501-a-duel-is-a-record-not-two-flags.md) — a record referencing two
+[a duel](completed/501-a-duel-is-a-record-not-two-flags.md) — a record referencing two
 bodies with generations — because being held and being in a fight are the same
 shape of thing, and building the third instance of that shape is when it is
 finally worth generalising rather than the first.

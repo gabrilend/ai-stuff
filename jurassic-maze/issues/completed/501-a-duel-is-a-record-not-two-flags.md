@@ -5,12 +5,22 @@
 | Phase | 5 — The Fencing |
 | Blocked by | 301, 405 |
 | Blocks | 502, 503, 504 |
-| Reads | [fencing](../docs/017-fencing.md) |
+| Reads | [fencing](../../docs/017-fencing.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Fencers meet and walk past each other.
+`060-duels.lua`. A second flat-array store with a free list, exactly like the
+body store, so the generation trick works here without being invented twice.
+
+Both bodies carry a `duel` index and the walking row leaves them alone while it
+is set — "both fencers stand still and face each other", written down as code
+rather than as a sentence.
+
+The `fencer` kind is separate from the `guy` rather than the guy with a field
+set, which is [open question 11](../../docs/026-open-questions.md) answered in the
+cheap direction: a kind is a row, and turning them back into one is deleting a
+row.
 
 ## Intended behavior
 
@@ -30,7 +40,7 @@ fencing from an isometric camera two hundred cells away. Real footwork, lunges
 and retreats would be a great deal of machinery for detail a handful of pixels
 tall.
 
-The duel is the same shape as [a game](../docs/020-games-that-creatures-play.md)
+The duel is the same shape as [a game](../../docs/020-games-that-creatures-play.md)
 and as the vine's entangle — a record referencing participants by id and
 generation, holding a clock and a state. Building it that way now means the game
 table in phase six is a generalisation rather than a rewrite.
@@ -49,5 +59,5 @@ table in phase six is a generalisation rather than a rewrite.
 
 ## Related documents and tools
 
-- [Fencing](../docs/017-fencing.md)
-- [Two bodies meeting](../docs/016-two-bodies-meeting.md)
+- [Fencing](../../docs/017-fencing.md)
+- [Two bodies meeting](../../docs/016-two-bodies-meeting.md)

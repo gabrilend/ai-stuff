@@ -18,15 +18,19 @@ of step with itself.
 
 ## The exchange
 
-The duel holds a clock. Every `exchange_seconds`, one blow is thrown, and the
-throwing is:
+The duel holds a clock. Every `exchange_seconds`, **both fencers strike**, and
+each strike is:
 
 1. The attacker draws from the `duel` stream against its own `skill` and the
    defender's `parry`.
 2. A hit **buffers** damage. It does not apply it. See
    [the tick](010-the-tick.md) — buffering is what makes a mutual kill possible
    instead of making it a function of array order.
-3. Turn passes to the other body.
+
+Taking turns was written first, and it makes the buffering decorative: if only
+one blow is thrown at a time, two fencers can never kill each other in one tick,
+and the case the whole arrangement exists for cannot arise. It also reads worse —
+a clash is two people swinging, not two people politely alternating.
 
 Both fencers stand still while the duel runs, facing each other. Their
 locomotion does not advance; the duel owns them. This is the simplest thing that

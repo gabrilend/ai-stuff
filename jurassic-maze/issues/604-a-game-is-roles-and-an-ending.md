@@ -19,7 +19,7 @@ It is not intelligence and it is not planning — the fact that it reads as play
 a property of the watcher.
 
 One record per game, participants by id and generation, exactly like
-[a duel](501-a-duel-is-a-record-not-two-flags.md), which is itself a game under
+[a duel](completed/501-a-duel-is-a-record-not-two-flags.md), which is itself a game under
 this description with two roles and a violent ending. The decide pass asks a
 body's game what it wants and the game answers with an intent, so a body in a
 game is steered by the game and released back to itself when it ends.
