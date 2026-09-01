@@ -6,7 +6,7 @@
 | Blocked by | 701, 702, 215 |
 | Blocks | — |
 | Reads | [the viewing layer](../docs/017-the-viewing-layer.md) |
-| Open questions | R1, R2, R3, R4 |
+| Open questions | R2, R3, R4 |
 
 ## Current behavior
 
@@ -27,18 +27,30 @@ an architecture change; the first two are visible immediately without it.
 
 When the place a body is being sent to falls within **`self.radius + other.radius`** of
 another body, the target does not stay there. It **snaps to the point on that circle
-that is most "up"** — the highest point on the circumference of the ring of ground the
-other body is holding.
+that is most "up"** — see below for what up means here.
 
 This is [215](215-a-body-has-a-size.md)'s two-body spacing question asked at the moment
 a destination is chosen rather than at the moment a step is taken, and the two want to
 agree: a target that lands somewhere the queue would refuse is a body ordered to stand
 where it cannot stand.
 
-"Most up" wants defining — see R1. There is no third axis in this game, and "up" is
-being asked for anyway, which usually means the thing wanted is a **consistent** choice
-rather than a spatial one: pick the same side every time and a crowd resolves the same
-way twice, which is what makes it read as a rule rather than as jitter.
+**"Up" means back the way it came.** Not a third axis and not a screen direction — the
+circle's highest point in the sense that matters to a body walking somewhere, which is
+the point nearest to where it has just been.
+
+That is a good deal better than any of the spatial readings, and for a reason worth
+writing down: **a body displaced backwards along its own path is a body that has been
+slowed, not deflected.** It keeps its file, keeps its heading, keeps its place in the
+line, and simply arrives later. Push it sideways and you have moved it out of its
+formation to solve a problem that was about timing; push it forward and you have moved
+it past the thing it was supposed to be behind.
+
+It also makes the queue and the target agree. Stopping short — the one answer the
+frontline rule has ever had — *is* being pushed back along your own path, in the
+smallest possible amount. Snapping the target to the near point of the circle is that
+same rule, applied once at the moment a destination is chosen rather than every tick as
+a body walks into one, and it gives a body a place it can actually stand instead of an
+order it will spend the rest of the match failing to carry out.
 
 ### The drawn body travels toward the simulated one, with inertia
 
@@ -72,23 +84,21 @@ resolve that tension.
 
 ## Suggested implementation steps
 
-1. Answer R1. Nothing can be written until "most up" means something.
-2. Put the snap into wherever a movement target is chosen, and watch it in
+1. Put the snap into wherever a movement target is chosen, and watch it in
    [the proving ground](111-the-proving-ground.md) — a scene of bodies being sent onto
    ground somebody is already standing on is a picture that either looks right or does
    not.
-3. Give the renderer a per-body drawn position with a velocity, chasing the simulated
+2. Give the renderer a per-body drawn position with a velocity, chasing the simulated
    one. Keep the existing straight interpolation behind a switch, because the two want
    comparing and the honest one is the one to fall back to.
-4. Leave the shared-memory question alone until the first two are settled and liked.
+3. Leave the shared-memory question alone until the first two are settled and liked.
 
 ## Open questions
 
-**R1. What is "up"?** There is no third axis. Candidates: the same world direction
-always, which makes a crowd resolve consistently; away from the lane's centre line,
-which pushes bodies to the verges; perpendicular to the direction of travel, which is a
-sidestep and matches [214](214-going-round-what-is-in-the-way.md). The last is the only
-one that means something in a game with no up.
+*R1 is answered and folded into the body above: "up" is back the way the body came —
+the point on the circle nearest to where it has just been. A body pushed backwards along
+its own path has been slowed rather than deflected, which keeps its file and its place
+in the line intact.*
 
 **R2. What are the numbers on the inertia?** How much momentum a drawn body carries and
 how fast the oscillation decays, together, decide whether this reads as weight or as
