@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+#
+# fill-source-file -- replaces the body of an already-stamped source file,
+# leaving its licence notice exactly where new-source-file put it.
+#
+# The companion to new-source-file. That script creates a file and stamps the
+# AGPL notice on it; this one lets the body underneath be rewritten as many times
+# as the work needs, without anybody ever retyping the notice, copying it from a
+# neighbour, or accidentally truncating it. The two together are the whole reason
+# no person in this project ever handles a licence header: one tool puts it
+# there, the other refuses to disturb it.
+#
+# It works by finding the SPDX line -- the last line of the notice, and the only
+# line in it that is unambiguous -- keeping everything up to and including it,
+# and appending whatever arrives on standard input.
+#
+# Usage:
+#   ./fill-source-file src/026-stone.lua < body.lua
+#   ./fill-source-file src/026-stone.lua <<'LUA'
+#   ... the file's body ...
+#   LUA
+#
+#   ./fill-source-file /path/to/checkout src/026-stone.lua < body.lua
+
+# The project root. Hard-coded so the script runs from any directory, and
+# overridable as a leading argument.
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+TARGET="$1"
+if [ -z "${TARGET}" ]; then
+    echo "fill-source-file: no target given."
+    echo "Usage: ./fill-source-file <path-under-project-root> < body"
+    exit 1
+fi
+
+# Accept either a path relative to the project root or an absolute one, so this
+# reads naturally from a script and from a shell sitting anywhere.
+case "${TARGET}" in
+    /*) FULL="${TARGET}" ;;
+    *)  FULL="${DIR}/${TARGET}" ;;
+esac
+
+if [ ! -f "${FULL}" ]; then
+    echo "No file at ${FULL}."
+    echo "Create it with ./new-source-file so that it is indexed and stamped."
+    exit 1
+fi
+
+# The SPDX line is the notice's last line. Refusing when it is absent is the
+# point of the whole script: a file without it was not created by the tooling,
+# and quietly writing a body into it would produce an unlicensed source file.
+SPDX_LINE="$(grep -n 'SPDX-License-Identifier' "${FULL}" | head -1 | cut -d: -f1)"
+
+if [ -z "${SPDX_LINE}" ]; then
+    echo "No SPDX line in ${FULL} -- refusing to write a body into an unstamped file."
+    exit 1
+fi
+
+SCRATCH="${DIR}/tmp/shared-memory"
+mkdir -p "${SCRATCH}"
+STAGING="${SCRATCH}/fill-source-file.$$"
+
+head -n "${SPDX_LINE}" "${FULL}" > "${STAGING}"
+cat >> "${STAGING}"
+
+mv "${STAGING}" "${FULL}"
+
+LINES="$(wc -l < "${FULL}")"
+echo "${FULL} -- ${LINES} lines, notice intact through line ${SPDX_LINE}"
