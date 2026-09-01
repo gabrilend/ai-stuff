@@ -69,4 +69,4 @@ silently win.
 ## Related documents and tools
 
 - [The places of the city](../docs/003-the-places-of-the-city.md)
-- [The tracing tool](../docs/005-the-tracing-tool.md)
+- [The tracing mode](../docs/005-the-tracing-mode.md)

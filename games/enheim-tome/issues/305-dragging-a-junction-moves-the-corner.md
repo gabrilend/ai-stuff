@@ -31,7 +31,7 @@ middle of a lane and you nudge the lane.
 entry in the vertex table. Every edge that names that vertex is drawn from the
 table, so they all follow because they were never holding their own copy.
 
-This is the entire payoff of [201](201-vertices-edges-and-loops.md) choosing a
+This is the entire payoff of [201](201-vertices-edges-and-places.md) choosing a
 network over per-block point lists. Had blocks owned their own points, this
 operation would be a search for coincident points, a decision about tolerance,
 and a correctness problem forever. Instead it is an assignment.

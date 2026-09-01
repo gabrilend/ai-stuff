@@ -60,16 +60,17 @@ enheim-tome/
 │   │                                           why everything above the block is
 │   │                                           free, and the stone that roots
 │   │                                           people.
-│   ├── 004-the-fence-network ................. Blocks are faces of a network, not
-│   │                                           polygons. Vertices, edges, loops,
-│   │                                           junctions against shape points,
-│   │                                           intersections as content, and
-│   │                                           adjacency as a shared edge.
-│   ├── 005-the-tracing-tool .................. The second program. The click that
-│   │                                           does three different things, why
-│   │                                           adopting a whole edge is what makes
-│   │                                           hand-tracing survivable, and the
-│   │                                           four other things it authors.
+│   ├── 004-the-fence-network ................. The city is subdivided, never
+│   │                                           assembled, so coverage is always
+│   │                                           complete. Places are faces of a
+│   │                                           planar graph, derived rather than
+│   │                                           stored, with names anchored by a
+│   │                                           seed point inside each region.
+│   ├── 005-the-tracing-mode .................. A mode inside the game, so a map is
+│   │                                           a thing players can make. Cutting
+│   │                                           and severing as exact inverses,
+│   │                                           what the mode must refuse, and why
+│   │                                           a map is one bundle.
 │   ├── 006-filters-and-the-weave ............. Ways of looking. Why the reading
 │   │                                           takes a *person*, why a reading of
 │   │                                           *nothing* is the most important
@@ -102,18 +103,18 @@ enheim-tome/
 │   │                                           under them, the writing campaign
 │   │                                           that is not a phase, and what is
 │   │                                           deliberately absent.
-│   ├── 012-open-questions .................... Thirty-seven answered with their
-│   │                                           rejected alternatives, fourteen still open,
+│   ├── 012-open-questions .................... Forty-three answered with their
+│   │                                           rejected alternatives, eleven still open,
 │   │                                           and six problems this design does
 │   │                                           not have.
 │   │
 │   └── table-of-contents ..................... This page.
 │
-├── issues/ ................................... Sixty-seven phase-numbered issue
+├── issues/ ................................... Sixty-nine phase-numbered issue
 │   │                                           files: blueprints for building the
 │   │                                           software, not work logs. Numbered
 │   │                                           by phase, so 3xx is the tracing
-│   │                                           tool. None completed yet.
+│   │                                           mode. None completed yet.
 │   ├── phase-N-progress ...................... One per phase. What that phase is
 │   │                                           for, what it settled before
 │   │                                           anything was written, and what it
@@ -145,8 +146,8 @@ more foundational, not earlier in time.**
 | Phase | Name | What it clusters |
 | --- | --- | --- |
 | 1 | The Canvas | One painting on screen, pannable and zoomable. No game in it at all, and runnable as a pure viewer forever after. |
-| 2 | The Cage | The fence network as a structure and an appearance. Adjacency, the identity buffer, and the line that fades on each place's own size. |
-| 3 | The Tracing Tool | The second program. The instrument for defining a city by hand, and the only thing that ever writes a network. |
+| 2 | The Cage | The fence network as a structure and an appearance. Places as faces of a planar graph, adjacency true by construction, and one level of cage at a time. |
+| 3 | The Tracing Mode | A mode inside the game so that maps are mods. The city starts whole and gets cut up; cutting and severing are exact inverses. |
 | 4 | The Places | Everything above and below the block — groups, quadrants, districts, buildings, houses. Mostly bookkeeping; almost no geometry. |
 | 5 | Filters and the Weave | Ways of looking, drawn over the city. Readings first, checkable with nothing on screen; hatching after. |
 | 6 | The Tome | The written half. Three regions, the chips, the buttons, the text, the search, and descending to a person. |

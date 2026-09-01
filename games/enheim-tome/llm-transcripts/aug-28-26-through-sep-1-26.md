@@ -1,6 +1,6 @@
 # Conversation Summary: 5b030864-1533-4a31-8439-f04e237f1316
 
-Generated on: 2026-08-31 13:44:08
+Generated on: 2026-08-31 17:13:04
 
 --------------------------------------------------------------------------------
 
@@ -3961,6 +3961,533 @@ awkward on a trackpad, and panning is the thing you do most.
 Ready for **Phase 2 — The Cage** whenever you are. Its open question is what a
 click on undefined ground does, and there are a couple of things I noticed while
 writing it that I'd want to put to you.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 13
+
+ready
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 13
+
+# Phase 2 — The Cage
+
+
+The fence network as a structure and as an appearance. Eight issues, and it
+comes **before** anything can be traced — because it decides whether two
+thousand hand-drawn loops will be worth having.
+
+
+## The structure, and the failure it is built against
+
+
+**201 — vertices, edges and loops.** Three flat tables. Vertices are positions
+in painting pixels. An edge is an ordered list of vertex indices — a
+*polyline*, because streets curve. A block is a loop of edges, each with a
+direction flag.
+
+
+The obvious alternative — each block holding its own closed list of points —
+fails in a way worth being precise about, because it's invisible:
+
+
+> Drag a corner shared by two blocks. One moves, the other stays. You get a
+> hairline gap, which you'd notice. You *also* get two blocks that are no longer
+> recorded as touching, which you would not notice, and nothing propagates
+> between them ever again.
+
+
+So blocks own no points at all. They name edges, and edges name vertices.
+
+
+The **direction flag** isn't decoration. Two blocks share an edge and walk it in
+opposite directions. Without the flag, a loop that happens to name its edges in
+mixed directions produces a self-crossing tangle that fills wrongly, hit-tests
+wrongly, and is very hard to see the cause of.
+
+
+**202 — junctions and shape points are derived.** A vertex at the *end* of any
+edge is a junction; a vertex only in the *middle* of exactly one edge is a shape
+point. Not a stored flag — a flag can disagree with the structure and drift
+silently over a long session. Derived means the question *is this a corner?* is
+answered by looking, and the answer can't be stale.
+
+
+Which gives the dragging behaviour for free: grab a corner and the neighbourhood
+re-corners with it, because every fence into that corner names that same vertex.
+Grab mid-lane and you bend one lane.
+
+
+**203 — adjacency is a shared edge.** The only nearness this game has. Two
+blocks are neighbours when their loops name the same edge — exact, structural,
+and immune to the painting's threefold scale swing. Influence walks the graph,
+so a rampart stops it **without any special case for walls**: they work by not
+being streets.
+
+
+## The drawing, and the thing that makes it usable
+
+
+**204 — the identity buffer.** One offscreen image the size of the pane, each
+pixel holding the integer identity of the finest place covering it. Everything
+coarser resolves by walking the containment chain upward, so **one buffer
+answers at every level** — no district buffer, no quadrant buffer, nothing to
+keep in step.
+
+
+**205 — hit-testing is one pixel.** A read, then a walk. Costs the same
+whether the city has four blocks or four thousand, and it must run *every frame*
+rather than only on click, because the fence under the pointer draws at full
+strength regardless of size.
+
+
+**206 — the fence is one pixel, in screen space.** Drawn *outside* the zoom
+transform. Inside it, a one-painting-pixel line is a fifth of a screen pixel at
+the city view and a fat worm at native. Outside it, exactly one pixel everywhere
+— which is what makes it read as a cage *laid over* the painting rather than
+paint *on* it.
+
+
+Note the consequence: **the drawing walks edges, not blocks**, so a shared
+street is stroked once rather than twice. Block loops matter for filling and
+hit-testing; edges matter for stroking.
+
+
+**207 — each boundary fades on its own size.** Under ~24 screen pixels across,
+not drawn. Ramping to solid by ~64. Because at native zoom a harbour block is
+300 pixels across and a northern one is 40, and no single global threshold is
+right for both. With one override: **whatever is under the pointer, and whatever
+is selected, always draws at full strength** — otherwise the smallest blocks
+would be permanently invisible and therefore unaimable.
+
+
+**208 — the network validator.** Reads and reports; never repairs. The
+important entry in its table isn't the structural ones — those would
+eventually announce themselves. It's **two vertices closer than the snap
+radius**, because a near-miss snap produces a network that looks completely
+correct on screen while the blocks either side aren't neighbours and never will
+be.
+
+
+## What's open
+
+
+One recorded question, and two conflicts I found while writing these out:
+
+
+**[Asked the user]**
+
+
+*Q1 — Bare ground:* Open question 2 — most of the painting is unfenced for a
+long time, and some forever: the mountains, the fields, the sea, the foreground
+ridge. What happens when you click there?
+
+- Deselects — clicking away puts the tome down — A click on undefined ground
+  clears the selection and the tome empties. Familiar, and it gives you a
+  deliberate way to stop looking at something. Cost: an inaccurate click near a
+  block's edge loses what you were reading.
+
+- Does nothing — the selection survives — Bare ground is inert. What you had
+  selected stays selected, so a fumbled click costs nothing and you keep
+  reading. Cost: no way to deselect except by selecting something else, so the
+  tome always has something in it.
+
+- Selects the countryside as a thing — Undefined ground is not nothing — it
+  is the land outside the city, and clicking it selects that. The tome could say
+  what little is known of it. Cost: it makes the untraced parts of the CITY read
+  as countryside too, since the program cannot tell not-yet-traced from
+  never-will-be.
+
+→ **Answered:** the entire map will be defined as a location eventually. Don't
+worry about clicking "unselectable ground" - however, stuff that is not ground,
+like outside of the canvas but within the viewport, and .... well other examples
+too I'm sure. For that sort of thing just leave the selection as-is and ignore
+the input - it is unable to affect the selection of the items in the map because
+the selection described is not in the map.
+
+
+*Q2 — The fence line:* Two blocks facing each other across a street share one
+edge — so the fence is a single line. But a street has width. Where does that
+line actually run?
+
+- Down the middle of the street; each block owns its half — The traced line
+  follows the street's centre, so the cage reads like a road centreline over the
+  painting. Every scrap of ground belongs to some block, and the street is
+  simply where two blocks meet. Cost: there is no 'street' object — a lane is
+  a boundary rather than a place, so nothing can be said about it and nobody can
+  be standing in one.
+
+- Down the middle, but streets are places too — The line still runs down the
+  centre, but a named edge IS a street — a place in its own right, selectable,
+  able to hold events and people. The city gains a whole class of public space
+  between its blocks. Cost: a new kind of place in the hierarchy that is a line
+  rather than an area, which the identity buffer cannot hold since it stores
+  areas.
+
+- Along one kerb; the street belongs to the block behind it — The line follows
+  a building line rather than the road's centre, so a block includes the
+  pavement in front of it. Cost: the two sides of a street would want different
+  lines, which breaks the shared-edge structure everything depends on.
+
+→ **Selected:** Down the middle of the street; each block owns its half
+
+
+*Q3 — Shared edge:* An edge is stroked once, but it borders two places — and
+each fades on its own on-screen size. A big harbour block against a small alley:
+whose opacity wins?
+
+- The larger of the two — brightest wins — An edge is as visible as the most
+  visible place it bounds. A big block stays fully outlined even where it meets
+  something tiny, so no place is ever partly drawn. Cost: a small block gets a
+  bright edge on one side and a faint one on the other, so its outline is
+  uneven.
+
+- The smaller — faintest wins — An edge is only as visible as the least
+  visible place it bounds. Small places fade out cleanly and completely. Cost: a
+  large block's outline develops faint patches wherever it touches something
+  small, which reads as the drawing failing.
+
+- The place being looked at decides — Ordinarily the larger wins, but the
+  hovered or selected place strokes its whole boundary at full strength
+  regardless of what is on the other side. Cost: an edge's brightness now
+  depends on state as well as geometry, so it changes as the pointer moves.
+
+→ **Answered:** can you describe this problem in more detail? I'm missing
+something...". Read the answers carefully — they may request clarification,
+changes, or that you not proceed — and follow what they actually say.
+
+
+Let me record the first two, then take the third properly — you're not missing
+something, I explained it badly.
+
+
+**Bare ground:** the whole map becomes a defined location eventually, so
+untraced is a temporary state rather than a permanent category. And input that
+isn't *on the map* can't touch map selection — the concrete case being the
+**letterbox**, those ~57 pixels above and below the painting at the fit zoom.
+Click there and the selection simply stays. Same for untraced ground until it's
+traced.
+
+
+**The fence line:** down the street's centre, each block owning its half. Which
+means **there is no "street" object** — a lane is where two blocks meet, not a
+place. Nobody ever stands *in* a street; they stand in a block whose half-street
+they're on. Public space is therefore the open buildings and the squares, and a
+square is a block.
+
+
+---
+
+
+## The shared-edge problem, properly
+
+
+Two rules I wrote separately, which collide:
+
+
+**From 206:** the cage is drawn by walking **edges**, stroking each exactly once
+— so a shared street isn't drawn twice.
+
+
+**From 207:** each **place** fades on its own on-screen size. Under ~24 pixels
+across, invisible. Over ~64, solid. Between, a ramp.
+
+
+Now put a big block next to a small one:
+
+
+```
+
+        the harbour block                    an alley
+
+        300 px across                        28 px across
+
+        its fade rule says: opacity 1.0      says: opacity 0.1
+
+
+   ┌───────────────────────────────┬────────┐
+
+   │                               │        │
+
+   │                               │        │
+
+   │                               ├────────┤
+
+   │                               │        │
+
+   └───────────────────────────────┴────────┘
+
+                                   ▲
+
+                          one edge. one stroke.
+
+                          two places want two different
+
+                          numbers for it. Which?
+
+```
+
+
+And because you just chose the centre-line, **every interior street in the city
+is shared by exactly two blocks.** Only the city's outer boundary has edges
+belonging to one place. So this isn't a corner case — it's nearly every line
+on the map.
+
+
+The three answers I offered each break something:
+
+
+- **larger wins** — the alley gets one bright edge and three faint ones, so a
+  tiny block has a lopsided partial outline
+
+- **smaller wins** — the harbour block develops a faint patch in an otherwise
+  solid outline, which reads as the drawing failing
+
+- **hover decides** — brightness now depends on where the mouse is, so lines
+  change as you move
+
+
+Drawing it twice instead doesn't escape either: two strokes at 0.5 composite to
+0.75, so shared edges come out brighter than a block's own unshared ones — a
+different inconsistency, quieter and harder to name.
+
+
+**But writing that out, I think I had the wrong quantity.** There's a fourth
+option I didn't offer:
+
+
+**[Asked the user]**
+
+
+*Q1 — Edge opacity:* Given nearly every line is shared by two places of
+possibly very different sizes — what decides how brightly an edge is drawn?
+
+- The edge's own on-screen length (Recommended) — Stop asking the places
+  entirely. An edge fades on how long IT is on screen — short lines vanish at
+  the city view, long ones survive. No arbitration, because an edge has one
+  length and one opacity. And it may be the truer quantity: what you want hidden
+  when zoomed out is fine detail, and a short line IS fine detail whatever it
+  happens to bound.
+
+- The larger place wins — An edge is as visible as the most visible place it
+  bounds. Big blocks keep complete outlines everywhere. Cost: small blocks get
+  lopsided outlines — bright where they touch something big, faint elsewhere
+  — so they half-appear rather than fading cleanly.
+
+- The smaller place wins — An edge is only as visible as the least visible
+  place it bounds, so small places fade out completely and cleanly. Cost: large
+  blocks develop faint patches wherever they touch something small, which looks
+  like a rendering fault rather than a rule.
+
+- Length, but the pointed-at place overrides — Edges fade on their own length
+  ordinarily; whatever is hovered or selected strokes its whole boundary solid
+  regardless. Keeps the aiming guarantee — you can always see the outline of
+  what you are about to click — at the cost of brightness depending on where
+  the mouse is.
+
+→ *(no answer recorded)*
+
+
+That collapses three problems at once, and I want to make sure I follow it
+correctly — because it invalidates more than the question I asked.
+
+
+If every line is one pixel and one colour, then:
+
+
+- **there is no opacity ramp**, so the fade rule in 207 has nothing to vary
+
+- **there is no arbitration**, because there's no number for two places to
+  disagree about
+
+- **there are no four line weights** for the hierarchy in 409 — a single pixel
+  can't carry a weight
+
+
+Which leaves exactly one question where there used to be three: **is this edge
+drawn, or not?**
+
+
+And that has an answer already sitting in the design. Issue 408 says the zoom
+picks which level a click selects. So:
+
+
+> **Draw the boundaries of the level you can currently select. Only those.**
+
+
+At the city view you're selecting quadrants, so you see the two dozen quadrant
+lines over an otherwise clean painting. Descend and the cage swaps to districts.
+Descend again and it's blocks. Closer still, buildings.
+
+
+That makes the promise in 408 **exactly** true rather than approximately: *what
+you can select is precisely what you can see outlined.* One rule, no thresholds,
+no per-place size arithmetic in the drawing at all.
+
+
+It also bounds the density on its own. Blocks only become the selectable level
+when they're roughly 24–64 pixels across, which at a 1180-wide pane means
+around 250 of them on screen — dense, but 250 hairlines rather than two
+thousand. You never see the whole city's blocks at once because by the time
+blocks are the level, you aren't looking at the whole city.
+
+
+And the hover override I wrote into 207 — *whatever is under the pointer
+always draws solid* — becomes unnecessary. It existed to rescue places too
+small to draw. With uniform drawing at the selectable level, nothing at that
+level is ever too small.
+
+
+**[Asked the user]**
+
+
+*Q1 — Which edges:* Following from one pixel, one colour: which edges get
+drawn at all?
+
+- Only the level you can currently select (Recommended) — The cage shows
+  exactly one level at a time, and which one follows the zoom — quadrants far
+  out, then districts, then blocks, then buildings. Deletes the fade rule, the
+  four weights, the arbitration and the hover override all at once, and makes
+  'what you can select is what you can see outlined' exactly true.
+
+- That level, and every coarser one too — Block boundaries plus the district
+  and quadrant lines containing them, all in the same colour. You always see how
+  the place you are in sits inside larger things. Cost: with one colour a
+  district boundary is indistinguishable from a block boundary, so the extra
+  lines add density without adding information.
+
+- Every edge, always — The cage is a permanent complete property of the view
+  at every zoom. Nothing decides anything. Cost: at the whole-city view that is
+  two thousand hairlines over the painting — a wireframe drawing rather than a
+  picture, which is what the fade rule existed to prevent.
+
+→ **Answered:** Only the level you can currently select (Recommended)"
+selected preview:
+
+far out          mid              close
+
+┌────────┐ ┌────────┐
+┌────────┐
+
+│   │    │      │ │ │  │ │      │┬┬│┬│┬┬││
+
+│───┼────│ │─┼─┼──┼─│
+│┼┼┼┼┼┼┼┼│
+
+│   │    │      │ │ │  │ │      ││┬│┬┬│┬││
+
+│ │ │ │─┼─┴──┼─│ │┼┼┼┼┼┼┼┼│
+
+└────────┘ └────────┘
+└────────┘
+
+ quadrants       districts        blocks
+
+
+ one level at a time. the cage swaps
+
+ as you descend, it does not thicken.. You can now continue with these answers
+ in mind.
+
+
+Recorded. That deletes three mechanisms at once — let me follow it through the
+documents rather than patch around it.
+
+
+Now the references, and the two issues whose text assumed a fade.
+
+
+Several places still describe the fade. Fixing them all.
+
+
+Now the two remaining phase-2 decisions — off-map input, and the centre-line.
+
+
+The other session has 160 files staged again — this time deletions of their
+generated HTML. **The pathspec makes that irrelevant**: it commits my paths from
+the working tree and never looks at the index. Committing without disturbing
+their staging.
+
+
+**Phase 2 is settled and committed** — 19 files, zero outside the project. And
+the gate proved itself: the other session had 160 files staged when I committed,
+and the pathspec ignored every one. Their staging survived intact; mine cleared.
+That's the collision fixed for good.
+
+
+## What phase 2 decided
+
+
+**"One pixel, one colour" turned out to delete three mechanisms.** That
+observation is about the medium rather than the design — a line one pixel wide
+simply cannot carry a gradient or a weight — but it landed on a fault I'd only
+just found while writing the phase out.
+
+
+Because you put the fence down the **middle** of the street, nearly every line
+in the city is shared by exactly two blocks. Only the outer boundary is
+single-sided. So a harbour block 300 pixels across and an alley 28 across want
+different brightnesses for **one line stroked once**, and every way of
+arbitrating produces a visible artefact: favour the larger and small places get
+lopsided part-drawn outlines; favour the smaller and large ones get faint
+patches that read as a rendering fault; stroke it twice and shared edges come
+out brighter than unshared ones.
+
+
+One colour removes the number they were disagreeing about entirely.
+
+
+**What's left is a much better rule.** The question stops being *how brightly*
+and becomes *whether* — and the answer was already in the design: draw the
+boundaries of the level you can currently select, and only those. The cage
+**swaps** as you descend rather than thickening.
+
+
+That makes issue 408's promise exact instead of approximate: **what you can
+select is precisely what you can see outlined**. And it bounds its own density
+with no cap, because a level only becomes selectable once its places are a
+workable size — around 250 blocks on screen when blocks are the level, never
+two thousand.
+
+
+Deleted along the way: two fade thresholds, the four line weights that were to
+carry the hierarchy, and the hover override that drew whatever was under the
+pointer at full strength. That last one existed to rescue places too small to
+see, and at the selectable level nothing is ever too small.
+
+
+**Two issues were renamed** because their subject changed — *each boundary
+fades on its own size* became **the cage shows one level**, and *the cage at
+four weights* became **the cage swaps between levels**, which now covers the one
+thing left: the transition, cross-faded with hysteresis so nudging the zoom on a
+threshold can't strobe. Both renames are tracked, and all seven files
+referencing them were repointed.
+
+
+**The centre-line has a consequence worth knowing:** there is no street object.
+A lane is where two blocks meet, not a place. Nobody ever stands *in* a street
+— they stand in a block, on its half of the road. Public space is therefore
+the open buildings and the squares, and a square is a block.
+
+
+**And the off-map rule generalised well.** Your sentence — input not on the
+map can't affect selection in the map — covers both the letterbox and untraced
+ground under one principle, and it makes untraced a temporary state of the
+campaign rather than a category of the world. One consequence: there's no way to
+deselect by clicking away, so the tome always has something in it.
+
+
+Open questions went **fifteen → fourteen**. Three more answers recorded with
+their rejected alternatives.
+
+
+Ready for **Phase 3 — The Tracing Tool** when you are. It's the biggest phase
+at eleven issues, it gates the two-thousand-loop campaign, and it has three open
+questions of its own.
 
 
 --------------------------------------------------------------------------------

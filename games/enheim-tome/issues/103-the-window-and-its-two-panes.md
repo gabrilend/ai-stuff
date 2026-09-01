@@ -60,8 +60,8 @@ full-width window would mean re-making them later.
 
 The cost is that a quarter of the window does nothing for a long time, and that
 during the tracing campaign there is no readout of where the cursor is in
-painting coordinates. That is accepted: the tracing tool is a separate program
-with its own pane to fill, and it may put whatever it likes there.
+painting coordinates. That is accepted: the tracing mode is a different state of
+the same window and may fill the pane with whatever it likes.
 
 ### Resizing
 

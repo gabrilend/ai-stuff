@@ -76,4 +76,4 @@ schedule.
 ## Related documents and tools
 
 - [Events and what people know](../docs/009-events-and-what-people-know.md)
-- [The tracing tool](../docs/005-the-tracing-tool.md)
+- [The tracing mode](../docs/005-the-tracing-mode.md)

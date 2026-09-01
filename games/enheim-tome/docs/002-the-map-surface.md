@@ -81,13 +81,13 @@ application and is a gift — it is why the whole camera can be three numbers.
 
 ### Past native is allowed, and looks like blur
 
-Zooming beyond 1.0 is permitted, in both the game and the tracing tool, and what
+Zooming beyond 1.0 is permitted, in play and in the tracing mode alike, and what
 you get is **honest blur** — a bigger, softer painting. No sharpening, no
 upscaling that invents detail the picture does not contain.
 
 That is a statement about what the board is: finite. A player who leans in far
 enough should meet the limit of the artwork rather than a convincing fiction, and
-the tracing tool gets the same magnification, which makes placing a vertex on an
+the tracing mode gets the same magnification, which makes placing a node on an
 exact pixel a matter of aiming at something three pixels wide instead of one.
 
 ## The hands

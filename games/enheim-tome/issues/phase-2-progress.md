@@ -2,11 +2,12 @@
 
 The fence network as a structure and as an appearance.
 
-**Eight issues. None complete. Nothing has been built.**
+**Nine issues. None complete. Nothing has been built.**
 
 | Issue | State |
 | --- | --- |
-| [201 — vertices, edges and loops](201-vertices-edges-and-loops.md) | not started |
+| [201 — vertices, edges and places](201-vertices-edges-and-places.md) | not started |
+| [209 — blocks are faces of the graph](209-blocks-are-faces-of-the-graph.md) | not started — as foundational as 201 |
 | [202 — junctions and shape points are derived](202-junctions-and-shape-points-are-derived.md) | not started |
 | [203 — adjacency is a shared edge](203-adjacency-is-a-shared-edge.md) | not started |
 | [204 — the identity buffer](204-the-identity-buffer.md) | not started |
@@ -17,17 +18,27 @@ The fence network as a structure and as an appearance.
 
 ## Why this comes before anything can be traced
 
-It decides whether the hand-tracing in phase 3 is worth doing. Two thousand
-loops drawn against the wrong structure is two thousand loops drawn twice, so the
-structure is settled first and proven on a four-block fixture before a real city
+It decides whether the partitioning in phase 3 is worth doing. Two thousand cuts
+made against the wrong structure is two thousand cuts made twice, so the
+structure is settled first and proven on a four-region fixture before a real city
 is committed to it.
 
 ## What was settled before any of it was written
 
-**Blocks are faces of a shared network, not outlines of their own.** The failure
-that forces this is invisible: with per-block point lists, dragging a shared
-corner leaves a hairline gap *and* silently stops the two blocks being neighbours,
-while looking perfectly correct on screen.
+**Places are faces of a planar graph, derived rather than stored.** The city is
+subdivided rather than assembled, so coverage is always complete and a whole
+class of fault became unrepresentable rather than merely checked for: loops that
+do not close, edges belonging to nothing, edges shared by three places, places
+that look adjacent without being so.
+
+In exchange it gained one hard requirement. **Planarity** — no two edges crossing
+except at a shared vertex — is what the face walk rests on, and violating it
+fails silently and remotely, producing plausible regions that are wrong.
+
+A name cannot live on a derived face, since faces are renumbered on every edit.
+It lives on a **place** anchored by a seed point inside the region, which degrades
+correctly: cut a region and the named half keeps its name; sever a link and two
+names must be resolved, which the person is asked about rather than guessed at.
 
 **Adjacency is a shared edge, and it is the only nearness the game has.** No
 distances, ever, because the painting's scale swings three or fourfold across the
