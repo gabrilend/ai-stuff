@@ -199,6 +199,29 @@ function M.new_table(creatures)
     end
   end
 
+
+  -- The delve. Every pairing among its creatures goes through one function,
+  -- because what any two of them do to each other is a lookup in the solution
+  -- table rather than a rule per pair -- and a rule per pair is nine rules that
+  -- have to agree with a table of three.
+  --
+  -- **Written first, so that the specific pairs below overwrite it.** Written
+  -- last it silently replaced them -- including dinosaur meets dinosaur, which
+  -- is where the games start, so games simply stopped happening with no error
+  -- and nothing in any counter.
+  local delvers = { creatures.by_name("human"), creatures.by_name("golem"),
+                    creatures.by_name("vine"), creatures.by_name("automaton"),
+                    dino }
+  local function delve_rule(world, bodies, x, y)
+    return world.modules.Delve.meets(world, bodies, x, y)
+  end
+  for _, a in ipairs(delvers) do
+    for _, b in ipairs(delvers) do
+      meet[a] = meet[a] or {}
+      meet[a][b] = { what = "the delve's rules", fn = delve_rule }
+    end
+  end
+
   pair(guy, guy, "stand about together", share_an_idle)
   pair(ball, ball, "nothing", nil)
   pair(ball, guy, "nothing", nil)

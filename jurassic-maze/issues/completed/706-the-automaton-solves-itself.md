@@ -5,12 +5,21 @@
 | Phase | 7 — The Delve |
 | Blocked by | 701, 703 |
 | Blocks | 707 |
-| Reads | [the monsters of the delve](../docs/023-the-monsters-of-the-delve.md) |
+| Reads | [the monsters of the delve](../../docs/023-the-monsters-of-the-delve.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Nothing sets anything alight.
+The creature row: wooden, flammable, walking, with an `ignite` action on a
+cooldown that sets alight anything of another side near it.
+
+**No code was written for the self-immolation case**, and there is a test
+asserting it happens: an automaton adjacent to vines it has ignited catches fire
+within a bounded number of ticks. It falls out of fire spreading to flammable
+neighbours and the automaton being one of them.
+
+That test is the one that says the fire model was built at the right level. If it
+had needed a code path, it would have said the opposite.
 
 ## Intended behavior
 
@@ -45,5 +54,5 @@ mode about routing rather than about fighting.
 
 ## Related documents and tools
 
-- [The monsters of the delve](../docs/023-the-monsters-of-the-delve.md)
+- [The monsters of the delve](../../docs/023-the-monsters-of-the-delve.md)
 - [Fire is a state that spreads](703-fire-is-a-state-that-spreads.md)

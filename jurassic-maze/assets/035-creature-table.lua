@@ -217,6 +217,166 @@ M.KINDS = {
                                 -- which is the other reading of open question 1.
   },
   -- }}}
+  -- {{{ human
+  --
+  -- One cell wide, goes anywhere, weak. Half of the delve's geometry: the
+  -- corridors a human can use alone are the ones a dinosaur cannot follow it
+  -- down.
+  {
+    name        = "human",
+    locomotion  = M.WALKING,
+    radius      = 0.28,
+    body_height = 1,
+    drop_limit  = 1,
+    health      = 12,
+    team        = 1,
+
+    step_seconds   = 0.36,
+    reverse_weight = 0.15,
+    crowd_weight   = 0.06,
+    idle_chance    = 0.04,
+    errand_chance  = 0.06,
+    notice_seconds = 1.5,
+    search_budget  = 2500,
+    sight_range    = 22,
+    sight_interval = 0.5,
+
+    flammable      = 0.15,    -- carries things that burn
+    fuel           = 3.0,
+    mounts         = true,    -- will climb a willing dinosaur
+  },
+  -- }}}
+
+  -- {{{ stone golem
+  --
+  -- Made of the maze. Not standing in the corridor -- it *is* corridor, walking.
+  -- The only thing in the project that changes the stone after generation, which
+  -- is why the surface array is recomputed rather than assumed constant and why
+  -- nothing anywhere caches the graph.
+  {
+    name        = "golem",
+    locomotion  = M.LUMBERING,
+    radius      = 1.0,
+    body_height = 2,
+    drop_limit  = 3,
+    health      = 400,        -- nothing a party carries hurts stone
+    team        = 2,
+
+    step_seconds   = 1.05,
+    reverse_weight = 0.3,
+    crowd_weight   = 0.5,     -- it does not much mind what is in the way
+    idle_chance    = 0.05,
+    errand_chance  = 0.10,
+    notice_seconds = 3.0,
+    search_budget  = 1200,
+    sight_range    = 20,
+    sight_interval = 0.7,
+
+    flammable      = 0,       -- stone does not burn
+    breaks_stone   = true,
+    break_seconds  = 1.4,     -- how long one block takes
+    damage         = 9,
+    reach          = 1,
+  },
+  -- }}}
+
+  -- {{{ vine monster
+  --
+  -- Grows along walls rather than walking on floors, and holds what it reaches.
+  -- The most flammable thing in the maze, and the only monster whose answer is
+  -- not another monster's body.
+  {
+    name        = "vine",
+    locomotion  = M.CREEPING,
+    radius      = 0.34,
+    body_height = 1,
+    drop_limit  = 99,         -- a vine falls down a cliff face and keeps growing
+    health      = 40,
+    team        = 2,
+
+    step_seconds   = 0.62,
+    reverse_weight = 0.2,
+    crowd_weight   = 0.3,
+    idle_chance    = 0.02,
+    errand_chance  = 0.04,
+    notice_seconds = 2.0,
+    search_budget  = 1800,
+    sight_range    = 14,
+    sight_interval = 0.6,
+
+    flammable      = 1.0,     -- the most of anything here
+    fuel           = 7.0,
+    entangles      = true,
+    hold_seconds   = 6.0,
+    damage         = 1.0,
+    reach          = 1,
+  },
+  -- }}}
+
+  -- {{{ wooden machine automaton
+  --
+  -- Not steam powered. A machine made of wood whose power is to set things
+  -- alight -- and which is therefore, being wood, the thing most likely to be
+  -- set alight by what it did. Nothing in the code arranges that.
+  {
+    name        = "automaton",
+    locomotion  = M.WALKING,
+    radius      = 0.40,
+    body_height = 1,
+    drop_limit  = 1,
+    health      = 26,
+    team        = 2,
+
+    step_seconds   = 0.50,
+    reverse_weight = 0.2,
+    crowd_weight   = 0.1,
+    idle_chance    = 0.03,
+    errand_chance  = 0.08,
+    notice_seconds = 2.0,
+    search_budget  = 2000,
+    sight_range    = 18,
+    sight_interval = 0.4,
+
+    flammable      = 0.85,    -- it is made of wood
+    fuel           = 9.0,
+    ignites        = true,
+    ignite_seconds = 2.2,     -- between one ignition and the next
+    ignite_range   = 5,       -- it is not a projectile; this is reach, not flight
+    damage         = 2.0,
+    reach          = 1,
+  },
+  -- }}}
+}
+-- }}}
+
+-- {{{ M.BURNS
+-- Fire, as numbers.
+--
+-- Ignite is a **state**, not an event. A fireball happens at a place and is over;
+-- a thing that is ignited stays ignited, loses fuel, and sets fire to what is
+-- beside it. That distinction was made explicitly when the mode was asked for,
+-- and it is the whole reason fire is a tick pass rather than a function call.
+M.BURNS = {
+  damage_per_second = 3.2,
+  spread_chance     = 0.24,   -- per second, per flammable neighbour
+  spread_range      = 1,      -- cells. Fire does not jump gaps.
+}
+-- }}}
+
+-- {{{ M.SOLUTIONS
+-- What undoes what.
+--
+-- Three monsters, three answers, and the answers are each other. A party
+-- carrying none of them does not lose the fight -- it has no fight to have, and
+-- must go around, or go and find one.
+--
+-- Whether "solve" was meant this literally is open question 3, and it decides
+-- the whole mode. This is the literal reading, built out of what was said rather
+-- than invented on top of it.
+M.SOLUTIONS = {
+  golem     = "held still",     -- by vines. Nothing a party carries hurts stone.
+  vine      = "set alight",     -- by an automaton. The only fire in the maze.
+  automaton = "smashed",        -- by a golem. Wood against a stone fist.
 }
 -- }}}
 
@@ -254,7 +414,11 @@ M.IDLES = {
 --
 -- A nervous little guy scratches and looks around. A sunning dinosaur sits.
 M.IDLE_WEIGHTS = {
-  guy    = { 5, 4, 1, 2, 3, 1 },
+  guy       = { 5, 4, 1, 2, 3, 1 },
+  human     = { 4, 6, 2, 1, 3, 0 },
+  golem     = { 8, 2, 0, 0, 0, 0 },   -- stone breathes, slowly, and little else
+  vine      = { 9, 1, 0, 0, 0, 0 },
+  automaton = { 3, 7, 0, 0, 2, 0 },   -- it looks around a great deal
   fencer = { 4, 6, 2, 1, 2, 0 },   -- looks around more, never sits
   dino   = { 6, 3, 1, 0, 0, 5 },   -- breathes and suns itself
 }
@@ -310,6 +474,11 @@ M.POPULATIONS = {
   fencers  = { fencer = 600 },
   habitat  = { dino = 90 },
   jungle   = { dino = 70, guy = 300 },
+
+  -- The delve. Humans and dinosaurs against three monsters that undo each other.
+  delve    = { human = 120, dino = 40, golem = 10, vine = 40, automaton = 25 },
+  golems   = { human = 60, golem = 20 },
+  burning  = { human = 40, vine = 80, automaton = 30 },
   war      = { fencer = 900, guy = 200 },
   empty    = {},
 }

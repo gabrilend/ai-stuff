@@ -63,11 +63,20 @@ function M.new_table(Rolling, Walking)
     { name = "striding", advance = Walking.advance, parallel = true,
       needs = { "cell", "layer", "from_cell", "from_layer", "progress" } },
 
-    { name = "lumbering", advance = M.unbuilt("lumbering, which breaks walls " ..
-        "rather than routing around them -- phase 7"), parallel = true, needs = {} },
+    -- Lumbering and creeping are both the walking step with a different opinion
+    -- about what counts as a legal move -- the golem's is that a wall is
+    -- something to go through, the vine's is that a drop is not a problem. Both
+    -- are the same function, and the difference lives in the creature's row:
+    -- `breaks_stone` and a `drop_limit` of ninety-nine.
+    --
+    -- That is the dispatch table doing its job. A new way of moving turned out
+    -- to be a new row of numbers rather than a new function, which is the best
+    -- outcome available and was not guaranteed.
+    { name = "lumbering", advance = Walking.advance, parallel = true,
+      needs = { "cell", "layer", "progress" } },
 
-    { name = "creeping", advance = M.unbuilt("creeping along wall faces -- " ..
-        "phase 7"), parallel = true, needs = {} },
+    { name = "creeping", advance = Walking.advance, parallel = true,
+      needs = { "cell", "layer", "progress" } },
 
     -- Riding. This row does nothing, which is the correct amount of work for a
     -- body that is not moving under its own power -- and being a row rather than

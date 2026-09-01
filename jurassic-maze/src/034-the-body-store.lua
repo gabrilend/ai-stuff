@@ -43,6 +43,7 @@ M.FIELDS = {
   "facing", "radius", "body_height",
   "health", "team", "incoming_damage", "duel", "flee_timer",
   "game", "role", "grace",
+  "burning", "held", "willing", "work",
   "intent", "intent_cell", "intent_layer",
   "from_cell", "from_layer", "progress",
   "partner", "partner_generation",

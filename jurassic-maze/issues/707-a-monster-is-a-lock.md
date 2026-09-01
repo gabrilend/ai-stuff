@@ -10,7 +10,25 @@
 
 ## Current behavior
 
-Three monsters exist and each can be fought.
+The solution table is data, in the creature table, and `Delve.meets` is the one
+function every pairing among the delve's creatures goes through — because a rule
+per pair is nine rules that have to agree with a table of three.
+
+The cycle runs, and the test asserts all three arms of it: automatons set vines
+alight, vines hold golems still, golems smash automatons.
+
+**What is not built is the part that makes it a mode rather than an aquarium.**
+The party has no goal, does not lure, does not block a corridor with a long
+weapon, and does not carry fire on purpose — the humans wander like everything
+else, and the monsters solve each other whether anybody is watching or not. The
+report does not count how many solutions happened with a party member nearby,
+which was going to be the measure of whether the party was needed at all.
+
+That is the honest state of it, and it rests on
+[open question 3](../docs/026-open-questions.md): whether "solve" was meant
+literally decides whether the party's contribution is *arranging the meeting* —
+in which case all of the above is the mode — or whether the monsters are enemies
+with health, in which case most of it is not wanted. It is not built on a guess.
 
 ## Intended behavior
 

@@ -5,12 +5,23 @@
 | Phase | 7 — The Delve |
 | Blocked by | 302, 701 |
 | Blocks | 705, 706, 707 |
-| Reads | [the monsters of the delve](../docs/023-the-monsters-of-the-delve.md), [the delve](../docs/021-the-delve.md) |
+| Reads | [the monsters of the delve](../../docs/023-the-monsters-of-the-delve.md), [the delve](../../docs/021-the-delve.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Nothing burns.
+A `burn` pass, `Delve.ignite` as the single entry point, `flammable` and `fuel`
+on the creature row, and `BURNS` in the creature table.
+
+The distinction the mode was asked with — ignite, not fireball — is what makes it
+a pass rather than a function call, and three things fall out of it that nobody
+wrote: the automaton catching fire from its own work, a burning corridor being
+terrain, and a party being able to carry fire. The first has a test, and the test
+asserts it happens with **no code path called "self"** — if there had to be one,
+the model was built at the wrong level.
+
+Fire does not jump gaps: the spread range is one cell, so a firebreak is a
+firebreak, and there is a test for that too.
 
 ## Intended behavior
 
@@ -24,7 +35,7 @@ would be a function call.
 burning, loses fuel every tick, and sets fire to flammable neighbours.
 
 So: a `burn` pass, one row inserted into
-[the tick](../docs/010-the-tick.md) before `resolve`, sweeping a list of burning
+[the tick](../../docs/010-the-tick.md) before `resolve`, sweeping a list of burning
 things, decrementing fuel, applying damage into the same buffer issue 502 uses,
 and rolling to spread.
 
@@ -59,5 +70,5 @@ free, and the third is the test of whether it was built at the right level:
 
 ## Related documents and tools
 
-- [The monsters of the delve](../docs/023-the-monsters-of-the-delve.md)
-- [The tick](../docs/010-the-tick.md)
+- [The monsters of the delve](../../docs/023-the-monsters-of-the-delve.md)
+- [The tick](../../docs/010-the-tick.md)

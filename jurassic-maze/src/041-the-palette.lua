@@ -108,10 +108,17 @@ M.CREATURE = {
   -- that is nearly white shows it as the colour it is.
   fencer = { 0.90, 0.88, 0.84 },
   dino   = { 0.42, 0.52, 0.28 },
-  human  = { 0.80, 0.66, 0.50 },
-  golem  = { 0.55, 0.55, 0.58 },
-  vine   = { 0.30, 0.60, 0.28 },
-  automaton = { 0.68, 0.48, 0.25 },
+  human  = { 0.86, 0.70, 0.52 },
+  golem  = { 0.52, 0.52, 0.56 },
+  vine   = { 0.24, 0.62, 0.26 },
+  automaton = { 0.70, 0.46, 0.22 },
+}
+
+-- A body that is alight. Drawn over its own colour rather than instead of it, so
+-- that what is burning is still recognisable as what it was.
+M.FIRE = { 1.00, 0.62, 0.18 }
+
+local UNUSED = {
 }
 
 M.TEAM = {

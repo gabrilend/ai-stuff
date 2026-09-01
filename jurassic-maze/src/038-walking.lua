@@ -414,6 +414,12 @@ function M.advance(world, bodies, roster, first, last, dt)
       -- written down as code rather than as a sentence.
       if bodies.duel[id] ~= 0 then goto continue end
 
+      -- Held by a vine. Its locomotion is suspended until the hold breaks, which
+      -- is the same arrangement as a duel owning a fencer -- and being a check
+      -- here rather than a locomotion row means it works for anything that can
+      -- be held rather than only for the kinds somebody remembered.
+      if bodies.held[id] > 0 then goto continue end
+
       -- Falling first, and it is the shared fall, not one of this row's own. A
       -- walker that has walked off a ledge and a ball that has rolled off one
       -- are doing the same thing, and writing it twice is how they start

@@ -5,12 +5,24 @@
 | Phase | 7 — The Delve |
 | Blocked by | 303, 701, 703 |
 | Blocks | 707 |
-| Reads | [the monsters of the delve](../docs/023-the-monsters-of-the-delve.md) |
+| Reads | [the monsters of the delve](../../docs/023-the-monsters-of-the-delve.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Everything that moves does so on floors.
+The `creeping` row is `Walking.advance` with a drop limit of ninety-nine, and
+that is the whole of it. A vine falls down a cliff face and keeps growing because
+its creature row says a drop is not a problem.
+
+The face-neighbour enumeration this issue describes — moving along vertical faces
+rather than along surfaces — is **not** built. What is built reads as a creature
+that goes wherever it likes downhill, which is most of the visible difference; a
+vine climbing a wall it could not otherwise reach is not.
+
+Entangling is built, and it is the same shape as a duel and a shared idle: a hold
+with a clock. The walking row skips any body with `held` above zero, which is a
+check on the body rather than a locomotion row — so it works for anything that
+can be held rather than only for the kinds somebody remembered.
 
 ## Intended behavior
 
@@ -25,7 +37,7 @@ adjacent columns, so it climbs the wall a walker routes around.
 
 **It entangles.** A body it reaches is held: its locomotion is suspended and it
 does not move until the hold breaks. The same mechanism as
-[a duel](completed/501-a-duel-is-a-record-not-two-flags.md) — a record referencing two
+[a duel](501-a-duel-is-a-record-not-two-flags.md) — a record referencing two
 bodies with generations — because being held and being in a fight are the same
 shape of thing, and building the third instance of that shape is when it is
 finally worth generalising rather than the first.
@@ -48,5 +60,5 @@ monster whose solution is not another monster's body.
 
 ## Related documents and tools
 
-- [The monsters of the delve](../docs/023-the-monsters-of-the-delve.md)
+- [The monsters of the delve](../../docs/023-the-monsters-of-the-delve.md)
 - [Fire is a state that spreads](703-fire-is-a-state-that-spreads.md)

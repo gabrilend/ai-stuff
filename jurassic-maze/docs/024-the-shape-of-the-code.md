@@ -45,6 +45,12 @@ it. See [seeing it without a window](009-seeing-it-without-a-window.md) for why.
 | `055-the-documentation-builder` | Markdown to a cross-linked site, with three pages you can move things on | |
 | `056-the-document-validator` | every link, every companion page, every issue the roadmap promises | |
 | `057-the-relinker` | repairs the links an issue's move just broke | |
+| `058-meeting` | the one pass where two bodies affect each other | [meeting](016-two-bodies-meeting.md) |
+| `059`–`066` | more tests, in `tests/` | |
+| `060-duels` | a duel is a record with two bodies in it | [fencing](017-fencing.md) |
+| `062-sight` | marching a line through stone, and finding cover | [sight](018-line-of-sight-through-stone.md) |
+| `063-games` | roles, a swap rule, and an ending | [games](020-games-that-creatures-play.md) |
+| `065-the-delve` | fire, riding, and three monsters | [the delve](021-the-delve.md) |
 
 `main.lua` and `conf.lua` sit at the root and carry no index, because the engine
 insists on those exact names in that exact place. `main.lua` is a doorway and not

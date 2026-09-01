@@ -166,7 +166,9 @@ jurassic-maze/
 ├── src/ ...................................... The simulation and the viewer.
 │                                               Numbered 028 upward. Not listed here —
 │                                               each file is found through its
-│                                               companion .info.md page.
+│                                               companion .info.md page, and the map
+│                                               of which is which is in
+│                                               024-the-shape-of-the-code.md.
 ├── assets/ ................................... The catalogue tables. Every balance
 │                                               number in the project is in one of
 │                                               these and in no document.
@@ -175,10 +177,13 @@ jurassic-maze/
 │                                               scenario that reproduces a bug is a
 │                                               bug report anybody can run.
 ├── issues/ ................................... Blueprints, one per piece of the
-│                                               machine. Found through the roadmap.
+│   │                                           machine. Found through the roadmap.
+│   ├── phase-N-progress.md ................... What each phase built, what went
+│   │                                           wrong on the way, and what the
+│   │                                           going wrong taught. Seven of them.
 │   └── completed/demos/ ...................... The phase demos. Part of the
 │                                               deliverable, not a development
-│                                               artifact.
+│                                               artifact. `./run-phase-demo`.
 │
 ├── input/ .................................... What goes into the box.
 ├── output/ ................................... What comes back out. The last thing a

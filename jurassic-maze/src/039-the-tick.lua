@@ -95,6 +95,7 @@ function M.new_world(root, params, scene, population)
   local Duels      = require_local(root, "060-duels")
   local Sight      = require_local(root, "062-sight")
   local Games      = require_local(root, "063-games")
+  local Delve      = require_local(root, "065-the-delve")
   local Creatures  = dofile(root .. "/assets/035-creature-table.lua")
 
   local p = Params.check(params)
@@ -248,6 +249,7 @@ function M.new_world(root, params, scene, population)
   Duels.link(BodyStore, Walking, Creatures)
   Sight.link(Stone, Moving, Creatures)
   Games.link(Stone, Moving, Sight, Walking, BodyStore, Creatures)
+  Delve.link(Stone, Moving, Walking, BodyStore, Locomotion, Creatures, Sight)
 
   local bodies = BodyStore.new(p.capacity, store.cells, widest)
   bodies.CARRIED_ROW = Creatures.CARRIED
@@ -319,7 +321,7 @@ function M.new_world(root, params, scene, population)
       Stone = Stone, Moving = Moving, BodyStore = BodyStore,
       Locomotion = Locomotion, Rolling = Rolling, Walking = Walking,
       Validator = Validator, Meeting = Meeting, Duels = Duels,
-      Sight = Sight, Games = Games,
+      Sight = Sight, Games = Games, Delve = Delve,
     },
 
     -- Counters the headless report reads. Accumulated by the passes themselves,
@@ -426,6 +428,7 @@ function M.spawn_one(world, kind_index)
   bodies.health[id]      = kind.health
   bodies.team[id]        = kind.team
   bodies.facing[id]      = rng:next_below(4)
+  bodies.willing[id]     = 1
 
   -- A side, for the kinds that have one. Drawn rather than alternated, so that a
   -- run does not depend on the order the aquarium happened to top itself up.
@@ -590,6 +593,29 @@ M.PASSES = {
   -- parallel-safe for the same reason the meet pass is not: one game touches
   -- several bodies.
   { name = "games",   fn = function(world, dt) world.modules.Games.pass(world, dt) end,
+    parallel = false },
+  -- The delve's three: fire that spreads, riding, and what the monsters do.
+  --
+  -- They run **always**, and each early-outs per body on a field that is zero
+  -- for anything they do not concern.
+  --
+  -- They were gated on a flag derived from the scene's population, which is the
+  -- obvious reading of "a mode is which tables are loaded" and is wrong in a way
+  -- that is entirely silent: a body placed by any route other than the scene's
+  -- population -- a test, a scenario, anything later -- gets a world where fire
+  -- does not burn and riders do not ride, with no error and no clue. Four
+  -- assertions failed on it and every one of them looked like a bug in the thing
+  -- being asserted.
+  --
+  -- The gate was also not worth having. Three sweeps of a body store at the
+  -- default capacity is a few tens of microseconds a tick, which is a tenth of a
+  -- percent of a frame. The mode is still which creature kinds spawn and which
+  -- meet-table entries exist; it is not which passes run.
+  { name = "burn",    fn = function(world, dt) world.modules.Delve.burn(world, dt) end,
+    parallel = false },
+  { name = "riding",  fn = function(world, dt) world.modules.Delve.pass_riding(world, dt) end,
+    parallel = false },
+  { name = "monsters", fn = function(world, dt) world.modules.Delve.pass_monsters(world, dt) end,
     parallel = false },
   { name = "spawn", fn = pass_spawn, parallel = false },
   { name = "index", fn = pass_index, parallel = false },
