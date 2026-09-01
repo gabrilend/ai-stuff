@@ -36,6 +36,36 @@ local M = {}
 -- every table is a whole number of these.
 M.ticks_per_second = 30
 
+-- **Whether an ordinary arrow needs a clear line to what it is shooting at.**
+--
+-- It should. An arrow is long-ranged and flat -- a hundred feet and more of it -- and
+-- only a longbow, and certain magic, throws high enough to clear the rank in front.
+-- Anything with `arcs` on its row already ignores the question; this decides it for
+-- everything else with a reach.
+--
+-- **It is off, and the reason is a measurement rather than a preference.** Turned on,
+-- with the wave composition as it currently stands, the game gridlocks:
+--
+--   flat arrows need a line   killed in 9000 ticks   left standing
+--   no                          1160                  112
+--   yes                          835                  430
+--
+-- The mechanism is not failing. Archers do fan out when they cannot see, and they do
+-- find a shot about two ticks in five. It is that a third of the damage in the game
+-- leaves with them, so bodies stop dying, so the field fills up, so the lines get
+-- denser, so **more** shots are blocked -- and a challenge monster takes no ranged
+-- damage at all and cannot be killed by anybody.
+--
+-- That is a feedback loop rather than a number that wants nudging, and what it says
+-- is that the wave composition is wrong for the rule rather than the rule wrong for
+-- the game. Archers standing directly behind a solid rank of their own need one of:
+-- gaps in the line to shoot through, longbows instead of bows, or somewhere else to
+-- stand -- and the shoulders are spoken for by cavalry that does not exist yet.
+--
+-- Turning it on is this one line. See [open questions](../docs/020-open-questions.md),
+-- H14.
+M.flat_arrows_need_a_line = false
+
 -- How long a fallen body decays before its death is final: it leaves the field at
 -- once and holds its slot, and every one of its numbers, for this long afterward.
 --
@@ -237,6 +267,11 @@ M.archetype = {
   -- 10 -- reaches past the line.
   {
     name         = "longbow ranger",
+    -- **It shoots over people.** A longbow throws high enough to clear the rank in
+    -- front of it, which every ordinary arrow in the game does not -- and that is the
+    -- whole of what distinguishes artillery from a body with a bow. Anything with
+    -- this flag ignores line of sight.
+    arcs         = true,
     flavour      = 2,
     reach        = 2,
     health       = 190,
@@ -312,6 +347,9 @@ M.archetype = {
   -- 15 -- a chain, resolved one bounce at a time.
   {
     name         = "rain shaman",
+    -- Magic that comes down rather than across. Arcs, for the same reason a longbow
+    -- does and by a different mechanism.
+    arcs         = true,
     flavour      = 2,
     reach        = 2,
     health       = 205, damage = 13, armour = 3,

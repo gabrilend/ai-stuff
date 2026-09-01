@@ -152,7 +152,26 @@ function M.attack_pass(world)
         if target ~= 0 and soldier.alive[target] == 1 then
           local dx = soldier.x[target] - soldier.x[id]
           local dy = soldier.y[target] - soldier.y[id]
-          if dx * dx + dy * dy <= soldier.range[id] ^ 2 then
+          -- **A shot needs a line unless it arcs.** An ordinary arrow is long-ranged
+          -- and flat: a hundred feet and more of it, and its own side's rank is in
+          -- the way of it. Only a longbow, and certain magic, throws high enough to
+          -- clear the people in front.
+          --
+          -- Melee never asks, because a body it can reach is a body nothing is
+          -- standing between it and. So this costs one query per shot fired by a
+          -- long-reach body that does not arc, and nothing at all for everything
+          -- else.
+          --
+          -- **Failing the check is not a wasted swing.** The cooldown is untouched,
+          -- so a blocked body is ready the instant a gap opens -- and the blocked
+          -- shot is what sends it looking for one.
+          local clear = true
+          if world.parameters.unit.flat_arrows_need_a_line
+             and soldier.reach[id] == 2 and not (row ~= nil and row.arcs) then
+            clear = world.targeting.can_see(world, id, target)
+          end
+
+          if clear and dx * dx + dy * dy <= soldier.range[id] ^ 2 then
             -- A frightened body hits softer. Fear is not damage and never was --
             -- it is what the enemy actually does to you, and it is inflicted on
             -- purpose by something that meant to.

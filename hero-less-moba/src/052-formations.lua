@@ -159,6 +159,15 @@ local SPEED_FLOOR = 0.55
 -- has been bent by a turn visibly takes a moment to straighten.
 local LATERAL_RATE = 0.55
 
+-- The most a formation may lean off its direction of travel, as the sine of the
+-- angle. About a tenth of a turn's worth of a quarter -- roughly ten degrees.
+--
+-- Chosen so that the deepest body in a formation is swung less than one file sideways
+-- when the whole thing turns: at three ranks deep that is ninety paces times this,
+-- which is under the twenty-two paces between two files. A body swung further than
+-- that is no longer in the file it was given.
+local MAX_LEAN = 0.17
+
 -- How far ahead a formation aims when it works out which way it is pointing, in
 -- paces. Fixed rather than the distance to the waypoint, because a point that keeps
 -- receding as you walk toward it gives a heading that never settles.
@@ -533,6 +542,22 @@ function M.take_a_heading(world, wave)
   local forward = HEADING_REACH / length
   local sideways = want_sideways / length
 
+  -- **A rank has a limit to how oblique it can be.** Past it, it is not a rank held at
+  -- an angle, it is a diagonal queue.
+  --
+  -- The limit is set by the formation's own depth. When the whole thing turns, a body
+  -- in the rear rank is swung sideways by its distance behind the front times the sine
+  -- of the angle -- so a deep formation leaning the same amount displaces its back
+  -- rank much further than a shallow one. Beyond about a file's worth of swing the
+  -- bodies at the back are no longer in the files they were given, and a formation
+  -- whose files have stopped meaning anything has stopped being a formation.
+  if sideways > MAX_LEAN then
+    sideways = MAX_LEAN
+  elseif sideways < -MAX_LEAN then
+    sideways = -MAX_LEAN
+  end
+  forward = math.sqrt(1 - sideways * sideways)
+
   local was_forward = wave.heading_forward or 1
   local was_sideways = wave.heading_sideways or 0
   wave.heading_forward = was_forward + (forward - was_forward) * HEADING_EASE
@@ -561,24 +586,30 @@ function M.target_of(world, id)
   if wave == nil then
     return soldier.lane_along[id], soldier.lane_across[id]
   end
-  -- **The heading is maintained and places are not yet turned by it.**
+  -- **The formation is turned to face where it is going**, and every place turns with
+  -- it. A wave walking a road with its waypoint off to one side is not square to the
+  -- road; it is square to its own heading, and the angle between those two is what
+  -- makes an approach look like an approach.
   --
-  -- Rotating every place by the formation's heading was built and then taken out,
-  -- because it needs something that does not exist. When a formation turns, a body on
-  -- the outside of the turn has its place swing away from it and has to **hurry** to
-  -- catch it -- and the speed model says nothing hurries. Bodies are in gears now:
-  -- walking or marching, with marching the fastest thing there is, so a place that
-  -- moves away faster than a march simply is not caught.
+  -- What happens to a body whose place swings away from it is the question this
+  -- looked stuck on, and the answer is that nothing special happens. A body behind
+  -- its place marches, which is the fastest thing there is; a body ahead of its place
+  -- walks. Between them the formation's own average position settles back until
+  -- everybody is in line again. **Nothing has to hurry** -- the line does not catch
+  -- the front, the front comes back to the line.
   --
-  -- What that produced was a line permanently held at an angle to its own travel,
-  -- with fewer bodies in contact than a square one. Measured over five matches: about
-  -- one challenge monster in six walked through a line that used to stop it, and
-  -- matches ran a seventh shorter.
-  --
-  -- The two decisions are in tension and the tension is the finding, not a bug in
-  -- either of them. See [open questions](../docs/020-open-questions.md), H13.
-  return wave.anchor + soldier.slot_along[id] * soldier.facing[id],
-         soldier.slot_across[id] + (wave.across_offset or 0) + (wave.wander or 0)
+  -- Which is the same mechanism as the anchor waiting when the formation is stretched,
+  -- seen from the other end, and it means turning costs the formation ground rather
+  -- than costing it its shape.
+  local forward = wave.heading_forward or 1
+  local sideways = wave.heading_sideways or 0
+  local mine_along = soldier.slot_along[id]
+  local mine_across = soldier.slot_across[id]
+  local turned_along = mine_along * forward - mine_across * sideways
+  local turned_across = mine_along * sideways + mine_across * forward
+
+  return wave.anchor + turned_along * soldier.facing[id],
+         turned_across + (wave.across_offset or 0) + (wave.wander or 0)
 end
 -- }}}
 

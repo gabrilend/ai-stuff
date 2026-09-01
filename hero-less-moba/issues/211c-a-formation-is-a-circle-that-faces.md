@@ -6,29 +6,31 @@
 | Blocked by | 211b |
 | Blocks | 211d |
 | Reads | [waves and when one is finished](../docs/005-waves-and-when-one-is-finished.md), [the frontline is a queue](206-the-frontline-is-a-queue.md) |
-| Open questions | H13 |
+| Open questions | none |
 
 ## Current behavior
 
-**Half built.** A place is written down as a **bearing and a distance from the
-formation's centre** — nought dead ahead, a quarter turn at the flank, half a turn at
-the rear — because every question asked about a place is angular. And a wave keeps a
-**heading**: a unit vector, eased, pointing at the middle of whatever it has run into
-if it has run into something, and at its next waypoint otherwise.
+**Built.** A place is written down as a bearing and a distance from the formation's
+centre — nought dead ahead, a quarter turn at the flank, half a turn at the rear — and
+a wave keeps a **heading**: a unit vector, eased, pointing at the middle of whatever it
+has run into if it has run into something, and at its next waypoint otherwise. Every
+place is turned by it.
 
-**Nothing is turned by the heading yet, and there is a reason.** Rotating every place
-by it was built and taken out. When a formation swings, a body on the outside has its
-place move away from it and must **hurry** to catch it — and the speed model has no
-hurrying in it: bodies are in gears, and marching is the fastest thing there is.
+What happens to a body whose place swings away from it turned out to be nothing
+special. A body behind its place marches, a body ahead of it walks, and between them
+the formation's own average settles back until the line is dressed. **Nothing hurries
+and nothing needs to** — the line does not catch the front, the front comes back to
+the line. Turning costs a formation ground rather than costing it its shape.
 
-What that produced was not a formation that turned slowly. It was a line permanently
-held at an angle to its own travel, with fewer bodies in contact than a square one.
-Measured over five unattended matches: about one challenge monster in six walked
-through a line that used to stop it, and matches ran a seventh shorter. Facing the
-enemy rather than the waypoint while engaged was tried and did not recover it, which
-locates the cost: **it is in the marching, not in the fighting.**
+One thing was added that the answer implies rather than states: **a maximum lean**, of
+about ten degrees. A formation's depth multiplies its lean — a body three ranks back is
+swung sideways by its distance behind the front times the sine of the angle — so past
+that the rear rank is more than a file out of place, and a formation whose files have
+stopped meaning anything has stopped being a formation.
 
-The two decisions are in tension and the tension is the finding. See H13.
+What it faces when engaged is the **middle of what it has run into**, taken from the
+same query that decides whether it has run into anything. Not the middle of the enemy
+block: that is behind the people who will actually be hit.
 
 ## Intended behavior
 

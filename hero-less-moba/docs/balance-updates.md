@@ -403,29 +403,62 @@ goes and the gears stop engaging on a bend at all.
 Both numbers are printed by the formation sandbox every run, so the equilibrium is
 something to look at rather than something to remember.
 
-## 2026-08-29 — turning a formation costs more than it gives, for now
+## 2026-08-29 — turning a formation costs nothing, and I measured it wrong the first time
 
-The formation keeps a **heading** — a unit vector, eased, pointing at the middle of
+A formation keeps a **heading** — a unit vector, eased, pointing at the middle of
 whatever it has run into if it has run into something, and at its next waypoint
-otherwise. Rotating every body's place by that heading was built, measured, and taken
-back out.
+otherwise — and every place is turned by it.
 
-| | Challenges reached | Monsters slain | Mean match |
-| --- | --- | --- | --- |
-| not turning | 15 over five matches | 20 | 24,486 ticks |
-| turning, easing 0.01 | 15 | 20 | 24,574 ticks |
-| turning, easing 0.04 | 13 | 17 | 21,367 ticks |
+The first measurement said turning cost about one challenge monster in six and a
+seventh of the match length. That was wrong, and the way it was wrong is the useful
+part: **two changes were made and only one was varied.** Re-run properly as a two by
+two:
 
-About one challenge monster in six walked through a line that used to stop it, and
-matches ran a seventh shorter.
+| | Match ended at | Monsters slain |
+| --- | --- | --- |
+| no turning, no line of sight | 24,438 | 4 |
+| **turning**, no line of sight | 24,873 | 4 |
+| no turning, line of sight | 10,129 | 0 |
+| turning, line of sight | 9,542 | 0 |
 
-The reason is not subtle once measured: a turning formation is held at an angle to its
-own travel, and a line that is not square to what it is walking into has fewer bodies
-in contact — which is the entire thing a line is for. Facing the enemy rather than the
-waypoint while engaged was tried and recovered none of it, which locates the cost
-precisely: **it is in the marching, not in the fighting.**
+Turning costs nothing. All of it was the other change.
 
-Underneath is a genuine conflict between two decisions made hours apart. A body is in
-a gear and marching is the fastest thing there is; a turning formation moves a body's
-place away from it and needs that body to hurry. There is no hurrying. Written up as
-H13 rather than resolved by tuning.
+One number was added: a **maximum lean** of about ten degrees. A formation's depth
+multiplies its lean, so a body three ranks back is swung sideways by its distance
+behind the front times the sine of the angle. Past ten degrees the rear rank is more
+than a file out of place, and a formation whose files have stopped meaning anything
+has stopped being a formation.
+
+## 2026-08-29 — flat arrows need a line, and the wave cannot pay for it yet
+
+An ordinary arrow is flat and long-ranged; only a longbow and certain magic throw high
+enough to clear the rank in front. So an ordinary arrow needs a clear line — and the
+archers stand behind the line.
+
+| Flat arrows need a line | Killed in 9,000 ticks | Left standing |
+| --- | --- | --- |
+| no | 1,160 | 112 |
+| yes | 835 | 430 |
+
+The mechanism works. 93% of long-reach bodies in an engaged wave are spread wider
+than the file they march in, and they have a shot about two ticks in five. The other
+three ticks are a third of the damage in the game, and what follows is a loop: bodies
+stop dying, the field fills, the lines thicken, more shots are blocked. A challenge
+monster ends up unkillable.
+
+Not a knob. Halving how wide a body counts as an obstacle recovers a tenth of the
+damage and leaves the pile-up where it was:
+
+| Blocker width | Killed | Left standing |
+| --- | --- | --- |
+| 8.1 paces | 759 | 506 |
+| 5.4 | 696 | 476 |
+| 3.6 | 827 | 433 |
+| 2.2 | 835 | 430 |
+
+Settled at 3.6 paces — a body's own drawn size rather than the whole of the room it
+keeps around itself, which is a better-founded number regardless.
+
+**Built, tested, and switched off** behind one line in the unit catalogue. The line of
+sight itself is live for the thing it was written for: the druid's moon spike. See
+H14 in the open questions.

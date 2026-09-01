@@ -65,12 +65,25 @@ local M = {}
 -- How much of a road's half-width a fanned-out rank spreads across. Not all of it:
 -- the very edge is where a flanking body arrives, and a rank pressed against the
 -- verge has nowhere to go when one does.
-local FANNED_OUT = 0.8
+-- How much wider a rank stands when it fans out, as a multiple of the gaps it marches
+-- at. Enough that a body on the outside of it has a line past its own front rank
+-- rather than through it, which is the entire purpose.
+local FAN_SPREAD = 2.6
+
+-- How far off the centre line a body that was standing **on** it moves when the rank
+-- fans, in paces. A body with nothing to scale outward -- the captain, dead centre by
+-- design -- would otherwise be the one that never finds an angle.
+local FAN_MINIMUM = 26
 
 -- How much closer than the enemy's own middle a body pulls when something is close
 -- enough to be harassing it, in paces. Small -- this is a rank tightening, not a
 -- charge.
 local CLOSING_UP = 12
+
+-- How much of the road a fanned rank may use. Not the very edge: that is where a
+-- flanking body arrives, and a rank pressed against the verge has nowhere to go when
+-- one does.
+local FANNED_TO = 0.9
 
 -- Ranged bodies and healers give ground at half speed while engaged. Melee closes at
 -- full. That single asymmetry produces most of what a frontline looks like: **a melee
@@ -191,19 +204,53 @@ function M.orbit(world, id)
     return false
   end
 
+  -- **Which posture is a question about whether it has a shot, not about whether
+  -- anything is near.**
+  --
+  -- A body with a target can hit something and should close up around it. A body with
+  -- **no** target has either nothing to shoot or nothing it can see -- and since an
+  -- ordinary arrow needs a line, the second is most of the time: it is standing behind
+  -- its own rank with the enemy right there and no way through. That body must spread,
+  -- looking for an angle.
+  --
+  -- Deciding this by proximity instead was the version that broke the game. A blocked
+  -- archer with enemies fifty paces away concentrated -- pulling in **toward** the
+  -- middle of the thing it could not see past -- so it never found a line, never fired,
+  -- and monsters took no ranged damage at all for a whole match.
+  --
+  -- The blocked shot is not a dead end. It is the condition that makes the body move.
   local want
-  if seen == 0 then
-    -- **Fan out.** Nothing to shoot at, so spread: away from the middle of the road,
-    -- on whichever side this body already leans, out to the shoulder. Spreading is a
-    -- posture rather than a retreat -- it costs nothing while there is nobody about
-    -- and it means whatever does arrive is met by a rank that is already wide.
+  if soldier.target[id] == 0 then
+    -- **Fan out.** Nothing it can shoot, so **spread** -- and spreading means every
+    -- body going somewhere different, not every body going to the same shoulder.
+    --
+    -- That was the first version and it does not fan anything: a rank that all walks
+    -- to the same verge is the same rank standing in the same order, moved sideways,
+    -- and every body in it is still behind the one in front. Which matters enormously
+    -- now that an ordinary arrow needs a line -- measured, a rank that cannot spread
+    -- properly stops shooting almost entirely, monsters take no ranged damage at all,
+    -- and the field fills up with bodies nobody can kill.
+    --
+    -- So each body scales its **own** place in the rank outward. The order is kept,
+    -- the gaps between them widen, and the ones on the outside end up far enough off
+    -- the centre that their line to anything ahead passes outside their own front
+    -- rank rather than through it.
+    --
+    -- A body standing on the centre line has nothing to scale, so it is pushed off it
+    -- toward whichever side it committed to. Otherwise the captain -- which stands
+    -- dead centre by design -- would be the one body that never finds an angle.
     local side = soldier.orbit_side[id]
     if side == 0 or soldier.orbit_milestone[id] ~= soldier.milestone[id] then
       side = (soldier.lane_across[id] >= 0) and 1 or -1
       soldier.orbit_side[id] = side
       soldier.orbit_milestone[id] = soldier.milestone[id]
     end
-    want = side * lane.width * 0.5 * FANNED_OUT
+    local mine = soldier.slot_across[id]
+    if mine > -1 and mine < 1 then
+      want = side * FAN_MINIMUM
+    else
+      want = mine * FAN_SPREAD
+    end
   else
     -- **Concentrate.** Something is there, so close toward it and put the fire in one
     -- place. The side is the enemy's mean position across the road, held for as long
@@ -226,7 +273,7 @@ function M.orbit(world, id)
 
   -- Never off the road. A body that spread without limit would walk out of the fight
   -- it is supposed to be shooting into.
-  local edge = lane.width * 0.5
+  local edge = lane.width * 0.5 * FANNED_TO
   if want > edge then want = edge elseif want < -edge then want = -edge end
 
   local gap = want - soldier.lane_across[id]
