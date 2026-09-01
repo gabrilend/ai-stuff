@@ -161,6 +161,37 @@ deleted and it is not defended; whether a generator is written again, and whethe
 it produces mountainsides rather than pyramids, is a question for after the
 hand-authored map has proved what a map should look like.
 
+## Phase 9 — The Client
+
+A world becomes two files: a picture of it with nothing alive in it, and a
+datafile saying what shape it is and where that shape lands in the picture. The
+thing that draws it needs nothing else, and draws no stone at all.
+
+| Issue | |
+| --- | --- |
+| [901](../issues/completed/901-a-scene-is-a-picture-and-a-datafile.md) | a scene is a picture and a datafile |
+| [902](../issues/completed/902-the-exporter-draws-the-world-once.md) | the exporter draws the world once |
+| [903](../issues/completed/903-the-client-draws-only-what-moves.md) | the client draws only what moves |
+
+Done when `./export-scene` writes a scene and `./run-client` plays it. See
+[the phase 9 progress](../issues/phase-9-progress.md).
+
+## Phase 10 — The Tracing Table
+
+The picture need not be one this project drew. A world that already exists as a
+painting is traced onto rather than typed out, and the tool for that shows the
+picture, a lattice over it, and nothing else but the vertices and the lines
+between them.
+
+| Issue | |
+| --- | --- |
+| [1001](../issues/completed/1001-a-plan-is-polygons-at-elevations.md) | a plan is polygons at elevations |
+| [1002](../issues/1002-the-lattice-is-the-measurement.md) | **in progress** — the lattice is the measurement |
+| [1003](../issues/1003-tracing-is-clicking-corners.md) | **in progress** — tracing is clicking corners |
+
+Done when the reference painting has been traced and balls roll down it. See
+[the phase 10 progress](../issues/phase-10-progress.md).
+
 ## What is not in any phase
 
 **The jungle, and this is settled rather than pending.** The volcanoes, the sky,

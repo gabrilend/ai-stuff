@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+#
+# run-client -- the thin door. Opens a picture and rolls balls down it.
+#
+# The client is the whole of the prototype's front end and it knows three things:
+# a picture of a world with nothing alive in it, a datafile saying what shape that
+# world is and where it sits in the picture, and how a sphere behaves. It draws no
+# stone at all -- not one polygon -- because the stone was drawn once already and
+# has not moved since.
+#
+# Which means the picture is interchangeable. The one ./export-scene writes is a
+# picture of the mountain this project builds; a painting somebody made by hand
+# would do exactly as well, and the work of using one is measuring five numbers
+# off it into the datafile. See issue 901.
+#
+# Usage:
+#   ./run-client                                  the mountainside, three hundred balls
+#   ./run-client --play scenes/other.scene        some other scene
+#   ./run-client --population 900                 a crowd
+#   ./run-client --zoom 0.5                       further away to begin with
+#
+#   ./run-client /path/to/checkout --play ...     against a checkout elsewhere
+#
+# Make a scene first with ./export-scene, or point --play at one somebody else
+# wrote.
+
+# The project root. Hard-coded so the script runs correctly from any directory,
+# and overridable as a leading argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+for arg in "$@"; do
+    case "$arg" in
+        --help)
+            sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+    esac
+done
+
+# The default scene, so that the common case is no arguments at all. Naming it
+# here rather than inside the client keeps the client's rule simple: it is asked
+# for a scene by name, always, and never guesses one.
+NAMED="no"
+for arg in "$@"; do
+    if [ "$arg" = "--play" ]; then NAMED="yes"; fi
+done
+
+if [ "${NAMED}" = "yes" ]; then
+    love "${DIR}" "$@"
+else
+    love "${DIR}" --play "${DIR}/scenes/the-mountainside.scene" "$@"
+fi

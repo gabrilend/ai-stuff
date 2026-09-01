@@ -47,6 +47,7 @@ local panel_hot  = nil       -- the slider being dragged, if any
 local dragging   = false
 local show_help  = true
 local paused     = false
+local export_into, export_name = nil, nil
 local screenshot_after = nil
 local screenshot_delay = 0.6
 local start_zoom = nil
@@ -84,6 +85,7 @@ local function parse_arguments(argv)
     elseif a == "--layers"   then overrides.layers = tonumber(argv[i+1]); i = i + 2
     elseif a == "--terraces" then overrides.terrace_count = tonumber(argv[i+1]); i = i + 2
     elseif a == "--map"      then overrides.map = argv[i+1]; i = i + 2
+    elseif a == "--export"   then export_into = argv[i+1]; export_name = argv[i+2]; i = i + 3
     elseif a == "--scene"    then scene = argv[i+1]; i = i + 2
     elseif a == "--zoom"     then start_zoom = tonumber(argv[i+1]); i = i + 2
     elseif a == "--at"       then start_at = { tonumber(argv[i+1]), tonumber(argv[i+2]) }; i = i + 3
@@ -114,6 +116,29 @@ local function build(seed)
   -- 075-the-sprite-baker.info.md for why this project has no art in it and does
   -- not need any.
   sprites = Renderer.bake_sprites(Baker, love.image, love.graphics)
+
+  -- An export run draws the world once at its own size, writes the picture and
+  -- the datafile beside each other, and leaves. It opens a window because the
+  -- engine will not give a canvas without one, and that is the only reason.
+  if export_into then
+    local Exporter   = dofile(root .. "/src/078-the-exporter.lua")
+    local SceneFile  = dofile(root .. "/src/077-the-scene-file.lua")
+    local Sightlines = dofile(root .. "/src/067-sightlines.lua")
+    local made = Exporter.export(
+      { Stone = Stone, Projection = Projection, Palette = Palette,
+        Renderer = Renderer, SceneFile = SceneFile, Sightlines = Sightlines },
+      world, export_into, export_name, love.graphics)
+    print(string.format("wrote %s  (%d by %d pixels, %d faces)",
+                        made.image, made.width, made.height, made.faces))
+    print(string.format("wrote %s", made.scene))
+    print(string.format("  the camera can see %.1f%% of the surface", 100 * made.visible))
+    if made.visible < 0.999 then
+      print("  a client cannot draw a body behind stone, only decline to draw it,")
+      print("  so that fraction of the bodies will be hidden at any moment")
+    end
+    love.event.quit()
+    return
+  end
   body_bands = { max_band = baked.max_band }
 
   if director then Director.free(director) end
@@ -181,6 +206,29 @@ function M.update(dt)
   -- 075-the-sprite-baker.info.md for why this project has no art in it and does
   -- not need any.
   sprites = Renderer.bake_sprites(Baker, love.image, love.graphics)
+
+  -- An export run draws the world once at its own size, writes the picture and
+  -- the datafile beside each other, and leaves. It opens a window because the
+  -- engine will not give a canvas without one, and that is the only reason.
+  if export_into then
+    local Exporter   = dofile(root .. "/src/078-the-exporter.lua")
+    local SceneFile  = dofile(root .. "/src/077-the-scene-file.lua")
+    local Sightlines = dofile(root .. "/src/067-sightlines.lua")
+    local made = Exporter.export(
+      { Stone = Stone, Projection = Projection, Palette = Palette,
+        Renderer = Renderer, SceneFile = SceneFile, Sightlines = Sightlines },
+      world, export_into, export_name, love.graphics)
+    print(string.format("wrote %s  (%d by %d pixels, %d faces)",
+                        made.image, made.width, made.height, made.faces))
+    print(string.format("wrote %s", made.scene))
+    print(string.format("  the camera can see %.1f%% of the surface", 100 * made.visible))
+    if made.visible < 0.999 then
+      print("  a client cannot draw a body behind stone, only decline to draw it,")
+      print("  so that fraction of the bodies will be hidden at any moment")
+    end
+    love.event.quit()
+    return
+  end
     baked.version = world.store.version
   end
 
