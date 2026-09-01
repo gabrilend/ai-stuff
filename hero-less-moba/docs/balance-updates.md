@@ -462,3 +462,48 @@ keeps around itself, which is a better-founded number regardless.
 **Built, tested, and switched off** behind one line in the unit catalogue. The line of
 sight itself is live for the thing it was written for: the druid's moon spike. See
 H14 in the open questions.
+
+## 2026-08-31 — the fanning rank comes off the road, and the flat-arrow numbers do not hold up
+
+Two levers and a retraction.
+
+**A fanning rank is no longer clamped to the road.** It used to be held inside nine
+tenths of the half-width, on the reasoning that the verge is where a flanking body
+arrives and a rank pressed against it has nowhere left to go. The shape parameters have
+always said the opposite in the same breath as the number — a body may stand anywhere,
+the width is how much room there is — and this was the only code in the game reading it
+as a fence. Lanes sit far enough apart that a battle line may spread past its verge.
+
+It was very nearly dead code. With flat arrows needing a line, **1.4%** of readings ever
+sat at the bound, and removing it changed a nine-thousand-tick match not at all: same
+deaths, same bodies left standing, identical to the digit.
+
+**And widening the thing that does bind changes nothing either.** What bounds a fanning
+body is the spread multiple against its own place in the rank:
+
+| How far a blocked rank fans | Killed | Left standing |
+| --- | --- | --- |
+| 2.6× its marching gaps | 368 | 763 |
+| 4× | 422 | 867 |
+| 6× | 268 | 342 |
+| 9× | 318 | 533 |
+| 14× | 339 | 930 |
+
+At fourteen the archers stand three hundred paces off the centre of a hundred-and-
+thirty-pace road and kill fewer than at two point six. Left at **2.6**.
+
+**The retraction.** The table two entries above — 1,160 killed against 835, read as the
+game gridlocking — was comparing a match that finished against one that had not. Re-run
+on the same seed, the sight-on match is **won** by team two at 6,859 ticks while the
+sight-off match is still going when the count stops at 9,000, and 789 of the sight-off
+deaths land in its last thousand ticks as a base goes. Counting kills at a fixed tick
+measures which side of that cascade the clock stopped on.
+
+The archers are also not blind by geometry. They can see somebody **88.5%** of the time
+when the lines first meet and **30.1%** by the end — and with the rule switched off the
+same decay happens anyway, 98% to 24.9%, with bodies on the field going from 87 to 947.
+The field filling up is not caused by the sight rule.
+
+**The flag stays off.** Not because the gridlock reading stands — it does not — but
+because all of the above is one seed, and one seed is exactly what produced the wrong
+answer the first time. See H14.
