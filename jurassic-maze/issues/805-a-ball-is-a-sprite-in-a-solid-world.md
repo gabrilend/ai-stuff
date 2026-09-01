@@ -8,6 +8,18 @@
 | Reads | [drawing a pile of stones](../docs/007-drawing-a-pile-of-stones.md), `src/071-the-model.info.md` |
 | Open questions | two, at the bottom |
 
+## Split into two
+
+This turned out to be two jobs that share nothing but a draw call, so it is the
+umbrella and the work is in the halves:
+
+- [805a](805a-the-world-is-drawn-from-the-model.md) — the world is drawn from the
+  model. **In progress**: the check that the model and the sweep agree is built,
+  the second renderer is not, and its open question is whether there should be
+  one.
+- [805b](completed/805b-a-ball-is-a-baked-sprite.md) — a ball is a baked sprite.
+  **Done.**
+
 ## Current behavior
 
 A ball is drawn as a filled circle with a shadow under it, at the screen position

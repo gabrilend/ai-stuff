@@ -382,6 +382,37 @@ function M.build(Stone, Projection, Palette, store, love_graphics)
 end
 -- }}}
 
+-- {{{ function M.bake_sprites(Baker, love_image, love_graphics)
+-- Turns the baker's bytes into textures, once.
+--
+-- The whole of the drawing lives here and the whole of the *deciding* lives in
+-- 075-the-sprite-baker.lua, which has never heard of a texture. That split is why
+-- there is a test for what a ball looks like: the shape and the shading are a
+-- string of bytes a headless run can produce and a test can read, and this
+-- function is the four lines that hand them to the engine.
+--
+-- Nearest-neighbour is deliberately not used. The sprite is baked large and drawn
+-- small, so the filtering is doing real work -- a ball is six pixels across at
+-- scale one, and a forty-eight pixel sprite reduced to six by point sampling
+-- throws away fifteen of every sixteen pixels of the antialiased edge that was
+-- the reason for baking it.
+function M.bake_sprites(Baker, love_image, love_graphics)
+  local r = Baker.BAKE_RADIUS
+
+  local function make(w, h, bytes)
+    local data = love_image.newImageData(w, h, "rgba8", bytes)
+    local image = love_graphics.newImage(data)
+    image:setFilter("linear", "linear")
+    return image
+  end
+
+  local bw, bh, bball = Baker.ball(r)
+  local sw, sh, bshadow = Baker.shadow(r)
+
+  return { ball = make(bw, bh, bball), shadow = make(sw, sh, bshadow), radius = r }
+end
+-- }}}
+
 -- {{{ function M.bucket_bodies(store, bodies, into)
 -- Groups the live bodies by which band they will be drawn in.
 --
@@ -418,7 +449,7 @@ end
 -- to say how far away the ground is, so the only cue that a thing is *on* a
 -- surface is a mark on that surface.
 function M.draw_body(Projection, Palette, flat, store, bodies, creatures, id,
-                     walking, love_graphics, rider_position)
+                     walking, love_graphics, rider_position, sprites)
   local kind = creatures.KINDS[bodies.kind[id]]
   local r = bodies.radius[id]
 
@@ -447,7 +478,16 @@ function M.draw_body(Projection, Palette, flat, store, bodies, creatures, id,
   local floor_z = bodies.layer[id] + 1
   local sx, sy = Projection.to_screen(flat, x, y, floor_z)
   love_graphics.setColor(0, 0, 0, 0.28)
-  love_graphics.ellipse("fill", sx, sy, r * hw * 1.05, r * hh * 1.05)
+  if sprites then
+    -- Squashed to the projection's own ratio here rather than in the baker. The
+    -- two-to-one is a property of how the world is drawn, and a shadow sprite
+    -- baked oval would have to be rebaked the day that changes.
+    local k = sprites.radius
+    love_graphics.draw(sprites.shadow, sx, sy, 0,
+                       r * hw * 1.05 / k, r * hh * 1.05 / k, k, k)
+  else
+    love_graphics.ellipse("fill", sx, sy, r * hw * 1.05, r * hh * 1.05)
+  end
 
   local bx, by = Projection.to_screen(flat, x, y, z + r)
   local cr, cg, cb = Palette.creature(kind.name, bodies.team[id])
@@ -477,6 +517,14 @@ function M.draw_body(Projection, Palette, flat, store, bodies, creatures, id,
     love_graphics.ellipse("fill", bx, by - h * 0.5, r * hw * 0.85, h * 0.5)
     love_graphics.setColor(cr * 0.55, cg * 0.55, cb * 0.55, 1)
     love_graphics.ellipse("line", bx, by - h * 0.5, r * hw * 0.85, h * 0.5)
+  elseif sprites then
+    -- The sprite carries brightness in all three channels and coverage in alpha,
+    -- so setting the colour and drawing it is the whole of the tint. One sprite
+    -- serves every kind and every team, and a team colour changing is a number
+    -- rather than a sheet to rebake.
+    local k = sprites.radius
+    local scale = r * hw / k
+    love_graphics.draw(sprites.ball, bx, by, 0, scale, scale, k, k)
   else
     love_graphics.circle("fill", bx, by, r * hw)
     -- A highlight where the light comes from, upper left, same as the stone.

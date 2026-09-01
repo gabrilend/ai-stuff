@@ -102,6 +102,11 @@ end
 -- colour rather than a sprite.
 M.CREATURE = {
   ball   = { 0.86, 0.35, 0.24 },
+  -- The sphere. A little cooler and lighter than the ball beside it, because the
+  -- two are meant to be told apart when both are on the mountain at once, and
+  -- because a baked sprite carries its own shading -- a colour that is already
+  -- dark leaves the shading nowhere to go.
+  bouncer = { 0.80, 0.62, 0.38 },
   guy    = { 0.92, 0.86, 0.72 },
   -- Pale, so that the team tint below is what you actually see. A fencer whose
   -- own colour is strong shows its side as a shift you have to look for; one

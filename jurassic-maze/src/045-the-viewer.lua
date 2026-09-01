@@ -28,10 +28,15 @@ local M = {}
 
 local root
 local Stone, Projection, Palette, Renderer, Camera, Params, Tick, Validator,
-      Walking, Director, Delve
+      Walking, Director, Delve, Baker
 
 local world      -- the maze, the streams, the bodies, the report
 local baked      -- the two static meshes and their band ranges
+local sprites    -- the baked ball and shadow textures
+-- Drawn as sprites or as vector circles. A flag rather than a deletion while the
+-- two are being compared at the same zoom, which is the only way to tell whether
+-- the new one is actually better than the thing it replaces.
+local use_sprites = true
 local camera
 local screen_w, screen_h
 local body_bands
@@ -60,6 +65,7 @@ local function load_modules(r)
   Projection = dofile(r .. "/src/040-the-projection.lua")
   Palette    = dofile(r .. "/src/041-the-palette.lua")
   Renderer   = dofile(r .. "/src/042-the-renderer.lua")
+  Baker      = dofile(r .. "/src/075-the-sprite-baker.lua")
   Camera     = dofile(r .. "/src/043-the-camera.lua")
   Director   = dofile(r .. "/src/044-the-director.lua")
 end
@@ -104,6 +110,10 @@ local function build(seed)
   Walking = world.modules.Walking
   Delve   = world.modules.Delve
   baked = Renderer.build(Stone, Projection, Palette, world.store, love.graphics)
+  -- Baked once, from arithmetic, and never loaded from a file. See
+  -- 075-the-sprite-baker.info.md for why this project has no art in it and does
+  -- not need any.
+  sprites = Renderer.bake_sprites(Baker, love.image, love.graphics)
   body_bands = { max_band = baked.max_band }
 
   if director then Director.free(director) end
@@ -167,6 +177,10 @@ function M.update(dt)
   -- that changed is the obvious improvement and is not done.
   if world.store.version ~= baked.version then
     baked = Renderer.build(Stone, Projection, Palette, world.store, love.graphics)
+  -- Baked once, from arithmetic, and never loaded from a file. See
+  -- 075-the-sprite-baker.info.md for why this project has no art in it and does
+  -- not need any.
+  sprites = Renderer.bake_sprites(Baker, love.image, love.graphics)
     baked.version = world.store.version
   end
 
@@ -229,7 +243,7 @@ function M.draw()
         end
         Renderer.draw_body(Projection, Palette, flat, world.store, world.bodies,
                            world.creatures, here[k], Walking, love.graphics,
-                           rider_at)
+                           rider_at, use_sprites and sprites or nil)
       end
     end
   end

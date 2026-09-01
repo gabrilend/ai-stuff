@@ -207,6 +207,88 @@ function M.run(root, t)
   t.truthy(built.count > 100, "the mountainside is more than a handful of faces")
   t.truthy(built.count < field.width * field.depth,
            "the merge leaves fewer faces than there are cells")
+
+  -- The model and the renderer describe the same world.
+  --
+  -- This is the check that has not existed and needed to. The physics collides
+  -- with the model; the picture is drawn by a sweep over columns; the two are
+  -- built by completely different reasoning from the same stone, and until now
+  -- nothing compared them. A disagreement between them is a ball bouncing off
+  -- something that is not where it is drawn, which is the hardest kind of bug
+  -- there is to see, because both halves look right on their own.
+  do
+    local Stone    = dofile(root .. "/src/030-the-stone.lua")
+    local Renderer = dofile(root .. "/src/042-the-renderer.lua")
+    local store = Map.to_store(Stone, field, 32)
+    local m = Model.build(field, 0)
+
+    -- What the renderer thinks each cell's surfaces are. The sweep reports
+    -- heights in layers, where a block occupying layer L spans L to L + 1 -- so
+    -- its `high` is a plane, and planes are what the model speaks.
+    local drawn_top, drawn_x, drawn_y = {}, {}, {}
+    Renderer.sweep(Stone, store, 0, 0, store.width - 1, store.depth - 1,
+      function(face, cell, x, y, low, high)
+        if face == Renderer.FACE_TOP then
+          drawn_top[cell] = high
+        elseif face == Renderer.FACE_RIGHT then
+          -- Toward +x, drawn down and to the right. Runs are emitted piecewise,
+          -- so the face's extent is the lowest bottom and the highest top of
+          -- them all.
+          local e = drawn_x[cell]
+          if not e then drawn_x[cell] = { low, high }
+          else
+            if low < e[1] then e[1] = low end
+            if high > e[2] then e[2] = high end
+          end
+        else
+          local e = drawn_y[cell]
+          if not e then drawn_y[cell] = { low, high }
+          else
+            if low < e[1] then e[1] = low end
+            if high > e[2] then e[2] = high end
+          end
+        end
+      end)
+
+    -- What the model thinks, gathered the same way.
+    local solid_top, solid_x, solid_y = {}, {}, {}
+    for f = 0, m.count - 1 do
+      if m.kind[f] == Model.TOP then
+        for y = m.y0[f], m.y1[f] - 1 do
+          for x = m.x0[f], m.x1[f] - 1 do solid_top[x + y * store.width] = m.z0[f] end
+        end
+      elseif m.nx[f] > 0 then
+        -- A riser looking toward +x stands on the far side of the cell behind it.
+        local x = m.x0[f] - 1
+        for y = m.y0[f], m.y1[f] - 1 do
+          solid_x[x + y * store.width] = { m.z0[f], m.z1[f] }
+        end
+      elseif m.ny[f] > 0 then
+        local y = m.y0[f] - 1
+        for x = m.x0[f], m.x1[f] - 1 do
+          solid_y[x + y * store.width] = { m.z0[f], m.z1[f] }
+        end
+      end
+    end
+
+    local tops_differ, sides_differ = 0, 0
+    for c = 0, store.cells - 1 do
+      if drawn_top[c] ~= solid_top[c] then tops_differ = tops_differ + 1 end
+      for _, pair in ipairs({ { drawn_x[c], solid_x[c] }, { drawn_y[c], solid_y[c] } }) do
+        local d, s = pair[1], pair[2]
+        if (d == nil) ~= (s == nil) then
+          sides_differ = sides_differ + 1
+        elseif d and (d[1] ~= s[1] or d[2] ~= s[2]) then
+          sides_differ = sides_differ + 1
+        end
+      end
+    end
+
+    t.equal(tops_differ, 0,
+            "the model and the renderer agree about the top of every column")
+    t.equal(sides_differ, 0,
+            "and about every face between two columns")
+  end
 end
 -- }}}
 
