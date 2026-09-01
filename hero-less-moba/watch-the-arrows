@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+#
+# watch-the-arrows -- open the window on a staged fight with the flat-arrow rule
+# forced on or off, and put it back afterwards.
+#
+# The question this exists for cannot be read off a number. Whether an ordinary arrow
+# needs a clear line to what it is shooting at is one line in the unit catalogue, and
+# the difference it makes is a difference in how a rank of archers *behaves* -- they
+# spread out looking for an angle instead of standing in their files -- which is
+# something to look at rather than something to total up.
+#
+# So: this flips that one line, opens the scenario in the window held at the gate, and
+# restores the catalogue when the window closes, whatever closed it. The repository is
+# the same before and after; nothing is committed and nothing is left flipped.
+#
+# Usage:
+#   ./watch-the-arrows              -- arrows need a clear line. The blocked case.
+#   ./watch-the-arrows blocked      -- the same, said out loud
+#   ./watch-the-arrows arcing       -- they do not. The shipped rule, for comparison
+#   ./watch-the-arrows blocked the-dragon-at-the-midpoint   -- a different scenario
+#   ./watch-the-arrows /path/to/prj blocked                 -- a checkout elsewhere
+#
+# Watch the rank behind the line. Under "blocked" they walk outward looking for an
+# angle past their own front rank; under "arcing" they stay in their files and shoot
+# straight over the top. Same bodies, same map, one line of difference.
+
+DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
+
+if [ -d "$1/issues" ] && [ -d "$1/src" ]; then
+    DIR="$1"
+    shift
+fi
+
+MODE="${1:-blocked}"
+SCENARIO="${2:-the-archers-cannot-see}"
+
+case "${MODE}" in
+    blocked) WANT="true"  ;;
+    arcing)  WANT="false" ;;
+    *)
+        echo "watch-the-arrows: no mode called '${MODE}'."
+        echo "  blocked -- an ordinary arrow needs a clear line"
+        echo "  arcing  -- it does not, which is what ships today"
+        exit 1
+        ;;
+esac
+
+if [ ! -f "${DIR}/scenarios/${SCENARIO}" ]; then
+    echo "No scenario at ${DIR}/scenarios/${SCENARIO}"
+    echo
+    echo "Available:"
+    ls -1 "${DIR}/scenarios" | sed 's/^/    /'
+    exit 1
+fi
+
+if ! command -v love > /dev/null; then
+    echo "LOVE is not installed, and the window needs it."
+    echo "Without a window, the same fight runs in the terminal:"
+    echo "    ${DIR}/run-scenario ${SCENARIO} go 900"
+    exit 1
+fi
+
+CATALOGUE="${DIR}/assets/025-unit-table.lua"
+
+# The RAM tiers, recreated rather than assumed -- /tmp and /dev/shm do not survive a
+# reboot and the symlinks in the repository would otherwise dangle.
+mkdir -p "/tmp/hero-less-moba/tmp"
+mkdir -p "/dev/shm/hero-less-moba"
+if [ ! -e "/tmp/hero-less-moba/shared-memory" ]; then
+    ln -sfn "/dev/shm/hero-less-moba" "/tmp/hero-less-moba/shared-memory"
+fi
+
+# The original is kept outside the repository, and restored on the way out however the
+# script leaves -- closing the window, an interrupt, or an error. A run that died
+# halfway and left the catalogue holding a forced value would be a rule silently
+# switched on in every later run and every later measurement, which is the worst
+# possible thing for this particular line to do.
+KEEP="/dev/shm/hero-less-moba/unit-table-original.lua"
+cp "${CATALOGUE}" "${KEEP}"
+trap 'cp "${KEEP}" "${CATALOGUE}"; echo; echo "catalogue restored -- flat arrows need a line: $(grep -oP "(?<=^M.flat_arrows_need_a_line = ).*" "${CATALOGUE}")"' EXIT
+
+sed -i "s/^M\.flat_arrows_need_a_line = .*/M.flat_arrows_need_a_line = ${WANT}/" "${CATALOGUE}"
+
+echo "Opening ${SCENARIO}, held at the gate."
+echo "  flat arrows need a clear line: ${WANT}"
+echo
+echo "  P              start it, and pause it again"
+echo "  1 / 2 / 3      speed"
+echo "  wheel          zoom, anchored under the cursor"
+echo "  right-drag     pan"
+echo "  HOME or SPACE  frame the whole map again"
+echo
+echo "  It opens with the field empty except for the tower guards. The first waves"
+echo "  are due about twenty seconds of match time in -- a few seconds at speed 3 --"
+echo "  and the lanes are properly in contact a minute or so after that."
+echo
+echo "  Watch the wedges. Melee are discs; anything with a reach is a triangle."
+echo
+
+HLM_START="scenario:${SCENARIO}" HLM_PAUSED=1 love "${DIR}"

@@ -1,0 +1,28 @@
+# The top lane at three minutes twenty, with the ordinary waves in it.
+#
+# Staged for one question: when an ordinary arrow needs a clear line, what do the
+# bodies with a reach actually do about it? The clock starts far enough in that all
+# three lanes have waves walking and meeting, and early enough that no tower has
+# fallen and the shape of a line is still a line.
+#
+# Run it with:   ./watch-the-arrows blocked     -- arrows need a clear line
+#                ./watch-the-arrows arcing      -- they do not, which is the shipped rule
+#
+# or without the window:   ./run-scenario the-archers-cannot-see go 900
+#
+# **This file wanted to put two waves nose to nose in the top lane and cannot.** The
+# `wave` verb does not work in any scenario that also sets a clock: the `tick` verb
+# pushes the wave timer forward to stop the spawner dumping every wave it thinks it
+# owes, and the `wave` verb asks that same spawner for a wave -- which is now never
+# due. It places nothing, and says nothing about having placed nothing. The lines that
+# tried are left here as a comment rather than deleted, because a scenario that
+# quietly does half of what it says is worse than one that does not try.
+#
+#   wave 1 1 4
+#   wave 2 1 4
+#
+# Until that is fixed, this file is a clock and the lanes fill themselves. Everything
+# it is for is still visible -- it just arrives on the game's own schedule rather than
+# being posed.
+
+tick 6000
