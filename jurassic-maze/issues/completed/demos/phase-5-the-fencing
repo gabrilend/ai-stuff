@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+#
+# phase-5-the-fencing -- the vision's third sentence, working.
+#
+#   "next it is little guys with swords doing fencing on each other"
+#
+# A duel is one record with two bodies in it. Both of them strike each exchange,
+# both blows are buffered, and everything is applied at once -- so two fencers
+# can kill each other, which is the case the buffering exists for and which
+# taking turns quietly made impossible.
+
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+if [ -d "$1" ]; then DIR="$1"; shift; fi
+
+SHOTS="/dev/shm/jurassic-maze/demo"
+mkdir -p "${SHOTS}"
+
+echo "=============================================================="
+echo " PHASE 5 -- THE FENCING"
+echo "=============================================================="
+echo ""
+echo "--- a minute of war ----------------------------------------------"
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params = dofile(root .. '/src/028-maze-parameters.lua')
+local Tick   = dofile(root .. '/src/039-the-tick.lua')
+
+local world = Tick.new_world(root, Params.with{seed = 7}, 'war')
+local t0 = os.clock()
+for _ = 1, 3600 do Tick.tick(world) end
+local c = world.counters
+
+print(string.format('  %d bodies, sixty seconds of simulated time in %.1f s real',
+      world.bodies.live, os.clock() - t0))
+print('')
+print(string.format('  %-34s %6d', 'duels begun', c.duels or 0))
+print(string.format('  %-34s %6d', 'blows landed', c.blows_landed or 0))
+print(string.format('  %-34s %6d', 'blows parried', c.blows_parried or 0))
+print('')
+print('  and how they ended:')
+for _, pair in ipairs({
+    {'duels_one_of_them_fell',              'one of them fell'},
+    {'duels_both_of_them_fell',             'both of them fell'},
+    {'duels_neither_could_land_a_blow',     'neither could land a blow'},
+    {'duels_one_of_them_is_no_longer_there','one was no longer there'}}) do
+  print(string.format('    %-32s %6d', pair[2], c[pair[1]] or 0))
+end
+print('')
+print('  Both of them fall about one duel in eight. That number is zero if the')
+print('  exchange takes turns -- only one blow exists per tick, so the case the')
+print('  buffering exists for cannot arise, and the safeguard is a comment.')
+"
+echo ""
+
+echo "--- the mutual kill, forced, in both array orders ------------------"
+echo ""
+echo "  If damage applied as it was dealt, whichever body the resolve pass"
+echo "  reached first would kill the other and survive -- so the outcome of"
+echo "  every duel would be decided by an array index, which changes whenever"
+echo "  any unrelated body dies and its slot is recycled."
+echo ""
+"${DIR}/run-tests" duels 2>&1 | sed 's/^/  /'
+echo ""
+
+echo "--- what happens if the disengage interval is zero -----------------"
+echo ""
+echo "  Open question 1 asked whether the fencers should swap to a new"
+echo "  opponent when a duel ends, or whether the camera should. Both are"
+echo "  built, and the difference between them is one number."
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params = dofile(root .. '/src/028-maze-parameters.lua')
+local Tick   = dofile(root .. '/src/039-the-tick.lua')
+
+print(string.format('  %-22s %10s %10s', 'disengage seconds', 'duels', 'deaths'))
+for _, seconds in ipairs({0, 1, 4, 12}) do
+  local world = Tick.new_world(root, Params.with{seed = 7}, 'fencers')
+  world.creatures.KINDS[world.creatures.by_name('fencer')].disengage_seconds = seconds
+  for _ = 1, 1800 do Tick.tick(world) end
+  print(string.format('  %-22.1f %10d %10d', seconds,
+        world.counters.duels or 0, world.counters.deaths or 0))
+end
+print('')
+print('  At zero it is a melee and the camera never has to move. Above it,')
+print('  a series of duels and the camera goes looking. Neither needs a line')
+print('  of code changed, and which one is the default is still open.')
+"
+echo ""
+
+echo "--- and what it looks like ---------------------------------------"
+echo ""
+echo "  Each shot opens a window, lets it settle, saves a frame and leaves."
+echo "  Guarded by a timeout: a window that loses focus can be throttled by"
+echo "  the compositor to the point where it never reaches the frame it was"
+echo "  told to capture, and a demo that hangs is a demo nobody runs twice."
+echo ""
+echo "  writing ${SHOTS}/phase-5-war.png"
+timeout 45 love "${DIR}" --seed 7 --scene war --after 6 --zoom 1.7 --at 64 64 \
+     --screenshot "${SHOTS}/phase-5-war.png" >/dev/null 2>&1
+echo ""
+echo "  Red and blue. Two of them standing face to face is a duel."
+echo "  Run it live with:  ./run-maze --scene war"
+echo ""

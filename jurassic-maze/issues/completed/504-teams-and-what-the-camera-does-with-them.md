@@ -5,12 +5,33 @@
 | Phase | 5 — The Fencing |
 | Blocked by | 407, 503 |
 | Blocks | nothing |
-| Reads | [fencing](../docs/017-fencing.md), [the camera](../docs/008-the-camera-and-what-it-watches.md) |
+| Reads | [fencing](../../docs/017-fencing.md), [the camera](../../docs/008-the-camera-and-what-it-watches.md) |
 | Open questions | 1 (camera or fencer), 11 (do the little guys have teams) |
 
 ## Current behavior
 
-`team` is a field nothing reads.
+`team` is drawn at spawn from the kind's `team_count`, rather than alternated, so
+a run does not depend on the order the aquarium happened to top itself up.
+
+The director weights a body in a duel far above everything else when choosing
+what to watch, and "its duel ended" sits at the top of its verdict list beneath
+only the subject being gone. A fencer standing still with a sword out is
+explicitly *not* an idle body, so the boredom rules do not apply to it.
+
+**"Stay with the loser" needed its meaning pinned down.** Damage taken is
+accumulated on the duel rather than derived from health afterwards, because after
+a stalemate both walk away and the record of who lost is gone with it. When the
+loser *died* there is nobody to stay with and the camera moves whatever the
+setting says — which is not a compromise, it is what the words mean once one of
+the two is not there.
+
+A side is drawn as a tint on the body rather than as a separate sprite, so a
+third side is a colour. The fencer's own colour is nearly white so that the tint
+is what you see rather than a shift you have to look for.
+
+The palette's rule that an unnamed creature comes out **magenta** is what caught
+the fencer having been added to the creature table and not to the palette. A
+colour nobody chose is the fastest way to see that.
 
 ## Intended behavior
 
@@ -46,8 +67,8 @@ so adding a third team is a colour.
 
 ## Related documents and tools
 
-- [Fencing](../docs/017-fencing.md)
-- [The camera and what it watches](../docs/008-the-camera-and-what-it-watches.md)
+- [Fencing](../../docs/017-fencing.md)
+- [The camera and what it watches](../../docs/008-the-camera-and-what-it-watches.md)
 
 ## Still open
 

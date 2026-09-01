@@ -64,6 +64,7 @@ function M.new_world(root, params, scene, population)
   local Rolling    = require_local(root, "037-rolling")
   local Walking    = require_local(root, "038-walking")
   local Meeting    = require_local(root, "058-meeting")
+  local Duels      = require_local(root, "060-duels")
   local Creatures  = dofile(root .. "/assets/035-creature-table.lua")
 
   local p = Params.check(params)
@@ -116,6 +117,7 @@ function M.new_world(root, params, scene, population)
   Rolling.link(Stone, Locomotion, Moving, Creatures)
   Walking.link(Stone, Locomotion, Moving, Creatures)
   Meeting.link(Stone, BodyStore, Walking, Creatures)
+  Duels.link(BodyStore, Walking, Creatures)
 
   local bodies = BodyStore.new(p.capacity, store.cells)
   bodies.CARRIED_ROW = Creatures.CARRIED
@@ -148,7 +150,15 @@ function M.new_world(root, params, scene, population)
     blocks_x    = blocks_x,
     blocks_y    = blocks_y,
 
-    meet = Meeting.new_table(Creatures),
+    meet  = Meeting.new_table(Creatures),
+    duels = Duels.new_store(math.max(64, math.floor(p.capacity / 2))),
+
+    -- Polled by the director rather than delivered to it. A queue of messages
+    -- arriving at an unspecified time would make the order of effects depend on
+    -- the order of subscription, which is what the whole tick design avoids.
+    duel_ended    = {},
+    duel_survivor = {},
+    duel_loser    = {},
 
     -- One stored path per body, plus where along it the body is and when it last
     -- arrived. Kept beside the store rather than in it because a path is a list
@@ -171,7 +181,7 @@ function M.new_world(root, params, scene, population)
     modules = {
       Stone = Stone, Moving = Moving, BodyStore = BodyStore,
       Locomotion = Locomotion, Rolling = Rolling, Walking = Walking,
-      Validator = Validator, Meeting = Meeting,
+      Validator = Validator, Meeting = Meeting, Duels = Duels,
     },
 
     -- Counters the headless report reads. Accumulated by the passes themselves,
@@ -253,6 +263,12 @@ function M.spawn_one(world, kind_index)
   bodies.health[id]      = kind.health
   bodies.team[id]        = kind.team
   bodies.facing[id]      = rng:next_below(4)
+
+  -- A side, for the kinds that have one. Drawn rather than alternated, so that a
+  -- run does not depend on the order the aquarium happened to top itself up.
+  if kind.team_count and kind.team_count > 1 then
+    bodies.team[id] = rng:next_below(kind.team_count)
+  end
 
   -- A ball starts with a nudge, drawn from the spawn stream. Dropping it exactly
   -- still means it sits in the middle of a flat corridor doing nothing until the
@@ -370,6 +386,13 @@ M.PASSES = {
   -- rather than by luck: a pass that has to touch shared state was kept small
   -- precisely so that it could be the one that does not scale.
   { name = "meet",  fn = function(world, dt) world.modules.Meeting.pass(world, dt) end,
+    parallel = false },
+  -- Duels exchange blows and buffer the damage; nothing is applied until
+  -- `resolve`, which is what lets two fencers kill each other in the same tick
+  -- instead of the outcome being decided by an array index.
+  { name = "duel",    fn = function(world, dt) world.modules.Duels.pass(world, dt) end,
+    parallel = false },
+  { name = "resolve", fn = function(world, dt) world.modules.Duels.resolve(world, dt) end,
     parallel = false },
   { name = "spawn", fn = pass_spawn, parallel = false },
   { name = "index", fn = pass_index, parallel = false },

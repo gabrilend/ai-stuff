@@ -132,6 +132,48 @@ M.KINDS = {
                              -- silent.
   },
   -- }}}
+  -- {{{ fencer
+  --
+  -- A little guy with a sword and a side. Walks the same graph, idles the same
+  -- way, and stops doing both when a duel takes hold of it.
+  --
+  -- A separate kind rather than the little guy with a field set, which is open
+  -- question 11 answered for now in the cheap direction: a kind is a row, and
+  -- rows are cheap. Turning them back into one is deleting a row.
+  {
+    name        = "fencer",
+    locomotion  = M.WALKING,
+    radius      = 0.30,
+    body_height = 1,
+    drop_limit  = 1,
+    health      = 14,
+    team        = 0,          -- assigned at spawn from team_count
+    team_count  = 2,
+
+    step_seconds   = 0.38,
+    reverse_weight = 0.15,
+    crowd_weight   = 0.06,
+    idle_chance    = 0.05,
+    errand_chance  = 0.05,    -- fencers go looking. A crowd that only wanders
+                              -- meets by accident; one on errands meets on
+                              -- purpose, and a duel needs two of them to meet.
+    notice_seconds = 1.5,
+    search_budget  = 2500,
+
+    -- The exchange.
+    exchange_seconds  = 0.55,   -- one blow thrown, by one of them, this often
+    skill             = 0.50,   -- the attacker's base
+    parry             = 0.42,   -- the defender's. Below skill, or nothing lands.
+    swing             = 0.55,   -- how much of each is luck
+    damage            = 3.0,
+    stalemate_seconds = 26,     -- two well-matched fencers will otherwise stand
+                                -- there until the machine is turned off, and the
+                                -- camera watching them has nothing to swap to
+    disengage_seconds = 4.0,    -- how long a released fencer keeps away.
+                                -- **Zero turns a series of duels into a melee**,
+                                -- which is the other reading of open question 1.
+  },
+  -- }}}
 }
 -- }}}
 
@@ -169,7 +211,8 @@ M.IDLES = {
 --
 -- A nervous little guy scratches and looks around. A sunning dinosaur sits.
 M.IDLE_WEIGHTS = {
-  guy = { 5, 4, 1, 2, 3, 1 },
+  guy    = { 5, 4, 1, 2, 3, 1 },
+  fencer = { 4, 6, 2, 1, 2, 0 },   -- looks around more, never sits
 }
 -- }}}
 
@@ -220,6 +263,8 @@ M.POPULATIONS = {
   guys     = { guy = 700 },
   both     = { ball = 260, guy = 480 },
   crowd    = { guy = 1400 },     -- shoulder to shoulder, for watching the meeting
+  fencers  = { fencer = 600 },
+  war      = { fencer = 900, guy = 200 },
   empty    = {},
 }
 -- }}}

@@ -152,8 +152,9 @@ end
 -- fastest way to notice that nobody wrote down what happens when a golem meets a
 -- ball.
 function M.new_table(creatures)
-  local guy = creatures.by_name("guy")
-  local ball = creatures.by_name("ball")
+  local guy    = creatures.by_name("guy")
+  local ball   = creatures.by_name("ball")
+  local fencer = creatures.by_name("fencer")
 
   local meet = {}
   local function pair(a, b, what, fn)
@@ -172,6 +173,11 @@ function M.new_table(creatures)
   pair(guy, guy, "stand about together", share_an_idle)
   pair(ball, ball, "nothing", nil)
   pair(ball, guy, "nothing", nil)
+  pair(ball, fencer, "nothing", nil)
+  pair(guy, fencer, "they pass", nil)
+  pair(fencer, fencer, "a duel, if their sides differ", function(world, bodies, a, b)
+    return world.modules.Duels.meets(world, bodies, a, b)
+  end)
 
   return meet
 end

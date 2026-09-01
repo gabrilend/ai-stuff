@@ -81,20 +81,23 @@ Done when a crowd of little guys wanders, sets itself errands and finishes them,
 stands about, notices each other, and the camera can be told to go and find
 somebody more interesting. `./run-maze --scene crowd` runs it.
 
-**Phases 1 to 4 are complete.** What is below has documents and issues and no
-code: reading an issue in phase 5, 6 or 7 is reading a blueprint, not a
-description of something that exists.
-
 ## Phase 5 — The Fencing
 
 The vision's third sentence.
 
 | Issue | |
 | --- | --- |
-| [501](../issues/501-a-duel-is-a-record-not-two-flags.md) | a duel is a record, not two flags |
-| [502](../issues/502-damage-is-buffered-then-applied.md) | damage is buffered, then applied |
-| [503](../issues/503-a-duel-has-to-end.md) | a duel has to end |
-| [504](../issues/504-teams-and-what-the-camera-does-with-them.md) | teams, and what the camera does with them |
+| [501](../issues/completed/501-a-duel-is-a-record-not-two-flags.md) | a duel is a record, not two flags |
+| [502](../issues/completed/502-damage-is-buffered-then-applied.md) | damage is buffered, then applied |
+| [503](../issues/completed/503-a-duel-has-to-end.md) | a duel has to end |
+| [504](../issues/completed/504-teams-and-what-the-camera-does-with-them.md) | teams, and what the camera does with them |
+
+Done when two sides meet in the corridors, fight, and the fights end four
+different ways. `./run-maze --scene war` runs it.
+
+**Phases 1 to 5 are complete.** What is below has documents and issues and no
+code: reading an issue in phase 6 or 7 is reading a blueprint, not a description
+of something that exists.
 
 ## Phase 6 — The Habitat
 
