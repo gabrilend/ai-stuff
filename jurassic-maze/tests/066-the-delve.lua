@@ -112,12 +112,16 @@ function M.run(root, t)
   end
   -- }}}
 
-  -- {{{ the automaton solves itself
+  -- {{{ the automaton sets fire to itself
   --
   -- Nothing in the code arranges this. It falls out of fire spreading to
   -- flammable neighbours and the automaton being one of them -- and if this test
   -- needed a code path called "self", the fire model was built at the wrong
   -- level.
+  --
+  -- It survived the mode being rewritten from a puzzle to a fight, which is
+  -- most of the argument for having built fire as a state rather than as an
+  -- attack: none of it was about who was fighting whom.
   do
     local world = delve_world(root, Params, Tick, {})
     local Delve = world.modules.Delve
@@ -193,23 +197,74 @@ function M.run(root, t)
   end
   -- }}}
 
-  -- {{{ the cycle: each of the three undoes one of the others
+  -- {{{ the damage-type chart
+  --
+  -- "Solve" was meant loosely, so the monsters are enemies with health and the
+  -- cycle between them is a table of multipliers rather than a set of rules.
+  -- What has to hold is that the table is *used* -- that a torch really does
+  -- more to a vine than to a wall of stone.
+  do
+    local world = delve_world(root, Params, Tick, {})
+    local C = world.creatures
+
+    local golem     = C.KINDS[C.by_name("golem")]
+    local vine      = C.KINDS[C.by_name("vine")]
+    local automaton = C.KINDS[C.by_name("automaton")]
+    local human     = C.KINDS[C.by_name("human")]
+    local dino      = C.KINDS[C.by_name("dino")]
+
+    t.equal(golem.resist.fire, 0.0, "fire does nothing at all to stone")
+    t.truthy(vine.resist.fire > 2, "and it ruins a plant")
+    t.truthy(automaton.resist.blunt > 1, "a stone fist ends a wooden machine")
+    t.truthy(golem.resist.blunt > golem.resist.blade,
+             "and weight tells against stone where a blade does not")
+
+    -- The party's two weapons between them cover the three monsters, and
+    -- neither covers all of them alone -- which is what makes a party a party.
+    t.equal(human.weapon, "fire", "a human carries fire")
+    t.equal(dino.weapon,  "blunt", "a dinosaur carries weight")
+    t.truthy(golem.resist[human.weapon] < 0.5,
+             "a human alone is no answer to a golem")
+    t.truthy(vine.resist[dino.weapon] < 0.5,
+             "and a dinosaur alone is no answer to a thicket")
+
+    -- Long reach is the field that changes behaviour rather than numbers: it
+    -- lets a dinosaur fight down a corridor it cannot itself enter.
+    t.truthy(dino.reach > human.reach,
+             "a dinosaur strikes further than a human, which is its answer to " ..
+             "the narrow places it cannot go")
+  end
+  -- }}}
+
+  -- {{{ the chart is applied, not merely present
   do
     local world = delve_world(root, Params, Tick,
-                             { golem = 12, vine = 60, automaton = 40, human = 60 })
+                             { human = 60, vine = 60, golem = 8, automaton = 30 })
     for _ = 1, 3600 do Tick.tick(world) end
     local c = world.counters
 
-    t.truthy((c.vines_lit or 0) > 0,
-             "automatons set vines alight -- " .. (c.vines_lit or 0))
-    t.truthy((c.golems_held or 0) > 0,
-             "vines hold golems still -- " .. (c.golems_held or 0))
-    t.truthy((c.smashed or 0) > 0,
-             "golems smash automatons -- " .. (c.smashed or 0))
+    t.truthy((c.duels or 0) > 10,
+             "the party and the monsters actually fight -- " .. (c.duels or 0) ..
+             " fights. The duel machinery is the same one the fencers use; " ..
+             "generalising it beyond fencers is what turned this from a puzzle " ..
+             "into a mode.")
+    t.truthy((c.deaths or 0) > 0, "and things die of it")
+    t.truthy((c.entangled or 0) > 0, "vines hold delvers still")
     t.truthy((c.stone_broken or 0) > 0,
              "and a golem walks through walls -- " .. (c.stone_broken or 0) ..
              " blocks. It is the only thing in the project that changes the " ..
              "stone after generation.")
+
+    -- Nobody is left holding a fight that is over.
+    local dangling = 0
+    for id = 1, world.bodies.capacity do
+      if world.bodies.alive[id] == 1 and world.bodies.duel[id] ~= 0 then
+        if world.duels.alive[world.bodies.duel[id]] == 0 then
+          dangling = dangling + 1
+        end
+      end
+    end
+    t.equal(dangling, 0, "no body is in a fight that has ended")
   end
   -- }}}
 

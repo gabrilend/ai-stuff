@@ -126,7 +126,7 @@ The mode that was added after the vision was written.
 | [704](../issues/completed/704-a-golem-changes-the-stone.md) | a golem changes the stone |
 | [705](../issues/completed/705-vines-creep-along-walls.md) | vines creep along walls |
 | [706](../issues/completed/706-the-automaton-solves-itself.md) | the automaton solves itself |
-| [707](../issues/707-a-monster-is-a-lock.md) | **in progress** — a monster is a lock |
+| [707](../issues/completed/707-a-monster-is-a-lock.md) | **in progress** — a monster is a lock |
 
 Six of seven done. The cycle runs — automatons burn vines, vines hold golems,
 golems smash automatons and walk through walls — and the party has no goal, which
@@ -135,13 +135,21 @@ is the half that rests on [open question 3](026-open-questions.md). See
 
 ## What is not in any phase
 
-The jungle, the volcanoes, the sky, and the dinosaurs standing outside the maze
-in the reference picture. All scenery, no simulation behind any of it, and it
-would be the largest art commitment in a project with no art at all. It is in
-[open questions](026-open-questions.md), not scheduled.
+**The jungle, and this is settled rather than pending.** The volcanoes, the sky,
+the foliage and the dinosaurs standing outside the maze in the reference picture
+are never going to be here. All scenery, no simulation behind any of it, and it
+would be the largest art commitment in a project with no art at all. Was open
+question 6.
 
 Sound. Networking. Anything a person can control other than the camera. None of
 these have been asked for and none are assumed.
+
+**The thread pool.** The passes declare whether they are safe to split and
+nothing reads it. Fourteen hundred bodies cost about three and a half
+milliseconds a tick, which is a fifth of a frame — and the largest speed-up in
+the project by far was not parallelism but raising LuaJIT's trace cache limits,
+which was worth eleven times. The flags being *stated* is what makes adding a
+pool later a change to the tick rather than an audit of every pass.
 
 ## Related documents and tools
 

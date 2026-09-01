@@ -103,23 +103,16 @@ before the body and after the column, so it sits on the stone rather than
 floating. Without a marker, a camera locked to one of forty identical little guys
 looks exactly like a camera that is not locked to anything.
 
-## An open question that is not settled
+## The question that was underneath this, and its answer
 
-The vision's phrasing was that the fencers *"should be able to swap to a
-different target ... to continue the watching experience"*, and that sentence
-reads two ways.
+The phrasing was that the fencers *"should be able to swap to a different target
+... to continue the watching experience"*, and it read two ways — the camera
+swapping to a different fencer, or the fencer swapping to a different opponent.
 
-It could mean the **camera** swaps to a different fencer when this duel finishes —
-which is what this page has described.
-
-It could equally mean the **fencer** swaps to a different opponent when this
-duel finishes, so that the fight continues and the camera never has to move at
-all. That is a rule about combat, not about cameras, and it would live in
-[fencing](017-fencing.md) instead.
-
-They are not mutually exclusive and both are cheap. Which one was meant — or
-whether both were — is written down in
-[open questions](026-open-questions.md) and is not settled here.
+**It was the fencer.** A released fencer re-engages immediately and the fight
+rolls on, so the camera does not have to move to keep watching one. The camera's
+verdict list still has "its duel ended" at the top of it, because a duel that
+ends with somebody dead still ends.
 
 ## Related documents and tools
 

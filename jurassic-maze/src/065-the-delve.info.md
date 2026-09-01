@@ -20,6 +20,31 @@ Read this page rather than the source, and read [the delve](../docs/021-the-delv
 | `break_a_wall(world, bodies, id, kind)` | | a golem goes through |
 | `meets(world, bodies, a, b)` | | the delve's whole meet rule |
 
+## The damage is not in this file
+
+Two bodies of opposing sides that can hurt each other start a **duel**, and
+`060-duels.lua` does the exchanging. What is left here is the three things that
+are *not* an exchange of blows: climbing onto a dinosaur, being held by a vine,
+and being set alight.
+
+That split is what the loose reading of "solve" turned out to mean. The monsters
+are enemies with health, the cycle between them is a table of multipliers in the
+creature table, and what would have been nine pairings of rules is three
+abilities.
+
+## The automaton does not check whose side you are on
+
+It is a machine; it sets alight whatever flammable thing is beside it, on its own
+cooldown.
+
+Restricting it to the other side was the tidy thing to write, and it silently
+deleted the best behaviour in the mode — the automatons and the vines are both
+monsters, so nothing ever lit a vine, and a wooden machine standing in a thicket
+it had ignited stopped being possible. The counter read zero and nothing raised.
+
+Not itself, though. It catches from the fire it started rather than from its own
+hand, which is both funnier and what actually happens.
+
 ## Ignite is a state, not an event
 
 The distinction was made explicitly when this mode was asked for — *"fire powers

@@ -6,8 +6,10 @@
 #    stone golems, vine monsters, and wooden machine automatons (not steam
 #    powered, but with fire powers like 'ignite' and not like 'fireball')"
 #
-# Three monsters, three answers, and the answers are each other. This demo shows
-# the cycle running, and is honest about the half of the mode that is not built.
+# "Solve" was meant loosely: the monsters are enemies with health and the party
+# fights them. What is left of the cycle is a table of nine numbers -- fire ruins
+# a plant and does nothing to stone -- and a party of two kinds, neither of which
+# is an answer to all three.
 
 DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
 if [ -d "$1" ]; then DIR="$1"; shift; fi
@@ -19,14 +21,36 @@ echo "=============================================================="
 echo " PHASE 7 -- THE DELVE"
 echo "=============================================================="
 echo ""
-echo "--- the cycle ----------------------------------------------------"
+echo "--- what hurts what -----------------------------------------------"
 echo ""
-echo "    golem      smashes    automaton"
-echo "    automaton  burns      vines"
-echo "    vines      hold       golem"
+luajit -e "
+local root = '${DIR}'
+local C = dofile(root .. '/assets/035-creature-table.lua')
+
+print(string.format('  %-12s %8s %8s %8s   %s', '', 'blade', 'fire', 'blunt', ''))
+for _, name in ipairs({'golem', 'vine', 'automaton'}) do
+  local _, kind = C.by_name(name)
+  local made_of = ({golem = 'stone', vine = 'a plant', automaton = 'wood'})[name]
+  print(string.format('  %-12s %8.2f %8.2f %8.2f   %s', name,
+        kind.resist.blade, kind.resist.fire, kind.resist.blunt, made_of))
+end
+print('')
+print(string.format('  %-12s %-10s', 'and carried:', ''))
+for _, name in ipairs({'human', 'dino'}) do
+  local _, kind = C.by_name(name)
+  print(string.format('  %-12s %-10s reach %d, %.1f damage', name, kind.weapon,
+        kind.reach, kind.damage))
+end
+print('')
+print('  Fire ruins a plant and does nothing at all to stone. Weight ends a')
+print('  wooden machine and is the only thing that tells against a golem.')
+print('  A human carries fire and a dinosaur carries weight, and neither one')
+print('  alone is an answer to all three -- which is what makes a party a party,')
+print('  written as a table rather than as a rule.')
+"
 echo ""
-echo "  Three monsters, three answers, no fourth thing. A party carrying no"
-echo "  answer to a golem does not lose the fight -- it has no fight to have."
+
+echo "--- a minute in the dungeon --------------------------------------"
 echo ""
 luajit -e "
 local root = '${DIR}'
@@ -51,16 +75,18 @@ end
 print(string.format('  %d bodies, sixty seconds in %.1f s real', world.bodies.live, os.clock() - t0))
 print('')
 for _, pair in ipairs({
-    {'vines_lit',    'vines set alight by an automaton'},
-    {'ignitions',    'ignitions in all'},
+    {'duels',        'fights'},
+    {'blows_landed', 'blows landed'},
+    {'blows_parried','blows turned aside'},
+    {'deaths',       'deaths'},
+    {'entangled',    'delvers held by vines'},
+    {'ignitions',    'things set alight'},
     {'ignited_spreading', '  of which caught from something else'},
+    {'vines_lit',    '  of which were vines'},
     {'burnt_out',    'fires that ran out of fuel'},
-    {'golems_held',  'golems held still by vines'},
-    {'smashed',      'automatons smashed by a golem'},
-    {'entangled',    'delvers entangled'},
     {'mounted',      'humans that climbed a dinosaur'},
     {'stone_broken', 'blocks of wall a golem walked through'}}) do
-  print(string.format('  %-38s %6d', pair[2], c[pair[1]] or 0))
+  print(string.format('  %-40s %6d', pair[2], c[pair[1]] or 0))
 end
 print('')
 print(string.format('  the maze opened up: %d floor cells became %d', before, after))
@@ -78,20 +104,18 @@ echo ""
 "${DIR}/run-tests" 066 2>&1 | sed 's/^/  /'
 echo ""
 
-echo "--- what is not built --------------------------------------------"
+echo "--- what the fighting actually is --------------------------------"
 echo ""
-echo "  The party has no goal. The humans wander like everything else."
-echo "  They do not lure, do not block a corridor with a long weapon, and"
-echo "  do not carry fire on purpose -- so the monsters solve each other"
-echo "  whether or not anybody is watching."
+echo "  The same duel machinery two fencers use, generalised beyond fencers."
+echo "  The same record with two bodies in it, the same buffered damage, the"
+echo "  same four endings, the same verdict the camera reads. That is why"
+echo "  this mode took an afternoon rather than a phase."
 echo ""
-echo "  That is the half of the mode that rests on open question 3:"
-echo "  whether \"solve\" was meant literally. If it was, the party's whole"
-echo "  contribution is arranging the meeting, and that is what is missing."
-echo "  If it was not, the monsters are enemies with health and most of"
-echo "  what is above is not wanted. It is not built on a guess."
-echo ""
-echo "  See docs/026-open-questions.md and issues/707-a-monster-is-a-lock.md"
+echo "  The one thing that had to change: each side uses its own numbers."
+echo "  A duel between two fencers is symmetric and it did not matter. A"
+echo "  human with a torch against a stone golem is not, and reading both"
+echo "  sides' stats off whichever body happened to be stored first would"
+echo "  decide the fight by array order."
 echo ""
 
 echo "--- and what it looks like ---------------------------------------"
@@ -105,5 +129,6 @@ echo "  writing ${SHOTS}/phase-7-delve.png"
 timeout 45 love "${DIR}" --seed 12 --scene delve --after 8 --zoom 1.3 --at 64 64 \
      --screenshot "${SHOTS}/phase-7-delve.png" >/dev/null 2>&1
 echo ""
-echo "  Orange is something on fire. Run it live with:  ./run-maze --scene delve"
+echo "  Orange is something on fire -- quite possibly the machine that"
+echo "  started it. Run it live with:  ./run-maze --scene delve"
 echo ""

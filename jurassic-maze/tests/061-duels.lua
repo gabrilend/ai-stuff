@@ -135,6 +135,11 @@ function M.run(root, t)
     local kind = world.creatures.KINDS[world.bodies.kind[a]]
     kind.skill, kind.parry, kind.swing = 0, 10, 0     -- nothing ever lands
     kind.stalemate_seconds = 3
+    -- Set explicitly, because the default is now zero: a released fencer
+    -- re-engages immediately, so a stalemate is followed instantly by the same
+    -- two of them starting again. That is the wanted default and it makes this
+    -- particular assertion untestable without saying otherwise.
+    kind.disengage_seconds = 5
 
     for _ = 1, 400 do Tick.tick(world) end
     t.equal(world.counters.duels_neither_could_land_a_blow or 0, 1,
@@ -146,19 +151,24 @@ function M.run(root, t)
              "and told to keep away for a moment, so they do not re-engage instantly")
   end
 
-  -- **The other reading of open question 1.** Setting the disengage interval to
-  -- zero turns a series of duels into a melee, and it is one number.
+  -- **The default, which is the answer to open question 1.** A released fencer
+  -- re-engages immediately and the fight rolls on: a melee rather than a series
+  -- of duels, and the camera never has to move to keep watching one.
   do
     local world, a, b = two_fencers(root, Params, Tick)
     local kind = world.creatures.KINDS[world.bodies.kind[a]]
     kind.skill, kind.parry, kind.swing = 0, 10, 0
     kind.stalemate_seconds = 1
-    kind.disengage_seconds = 0
+
+    t.equal(kind.disengage_seconds, 0,
+            "a fencer's disengage interval is zero by default -- the sentence " ..
+            "was about the fencers swapping opponents, not about the camera")
 
     for _ = 1, 400 do Tick.tick(world) end
     t.truthy((world.counters.duels or 0) > 3,
-             "with no disengage interval, released fencers re-engage -- " ..
-             (world.counters.duels or 0) .. " duels rather than one")
+             "so released fencers re-engage -- " .. (world.counters.duels or 0) ..
+             " fights rather than one")
+    t.equal(world.bodies.flee_timer[a], 0, "and nobody is keeping away")
   end
 
   -- A participant killed from outside dissolves the duel, and the generation is

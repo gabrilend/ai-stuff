@@ -298,12 +298,26 @@ function M.pass_monsters(world, dt)
         bodies.grace[id] = bodies.grace[id] + dt
         if bodies.grace[id] > kind.ignite_seconds then
           bodies.grace[id] = 0
+          -- **Anything flammable near it, whatever side it is on.**
+          --
+          -- It is a machine. It does not check. Restricting it to the other side
+          -- was the tidy thing to write and it quietly deleted the best
+          -- behaviour in the mode: the automatons and the vines are both
+          -- monsters, so nothing ever set a vine alight, and a wooden machine
+          -- standing in a thicket it had ignited was no longer possible.
+          --
+          -- Not itself, though -- only what is beside it. It catches from the
+          -- fire it started rather than from its own hand, which is both funnier
+          -- and what actually happens.
           local x = bodies.cell[id] % width
           local y = math.floor(bodies.cell[id] / width)
           BodyStore.for_each_near(bodies, width, x, y, function(other)
-            if other ~= id and bodies.alive[other] == 1
-               and bodies.team[other] ~= bodies.team[id] then
-              M.ignite(world, other, "an_automaton")
+            if other ~= id and bodies.alive[other] == 1 then
+              if M.ignite(world, other, "an_automaton") then
+                if Creatures.KINDS[bodies.kind[other]].name == "vine" then
+                  world.counters.vines_lit = (world.counters.vines_lit or 0) + 1
+                end
+              end
             end
           end)
         end
@@ -394,61 +408,58 @@ end
 -- }}}
 
 -- {{{ function M.meets(world, bodies, a, b)
--- What happens when a delver meets a monster, or a monster meets a monster.
+-- What happens when two of the delve's creatures meet.
 --
--- The solution table is data. A party's contribution is not damage -- it is
--- **arranging the meeting**, and this is the function that notices one has been
--- arranged.
+-- **The damage is not here.** Two bodies of opposing sides that can hurt each
+-- other start a duel, and the duel machinery -- which already existed, already
+-- buffers, and already ends four ways -- does the exchanging. This function is
+-- for the things that are *not* an exchange of blows: climbing onto a dinosaur,
+-- being held by a vine, and being set alight.
+--
+-- That split is what the loose reading of "solve" turned out to mean. The
+-- monsters are enemies with health, the cycle between them is a damage-type
+-- chart in the creature table rather than a set of rules here, and what is left
+-- in this function is three abilities rather than nine pairings.
 function M.meets(world, bodies, a, b)
   local ka = Creatures.KINDS[bodies.kind[a]]
   local kb = Creatures.KINDS[bodies.kind[b]]
 
-  -- {{{ the cycle: golem smashes automaton, automaton burns vine, vine holds golem
-  local function solve(solver, victim, solver_kind, victim_kind)
-    if victim_kind.name == "automaton" and solver_kind.breaks_stone then
-      bodies.incoming_damage[victim] =
-        bodies.incoming_damage[victim] + solver_kind.damage
-      world.counters.smashed = (world.counters.smashed or 0) + 1
-      return true
-    end
-    if victim_kind.name == "vine" and solver_kind.ignites then
-      if M.ignite(world, victim, "an_automaton") then
-        world.counters.vines_lit = (world.counters.vines_lit or 0) + 1
-      end
-      return true
-    end
-    if victim_kind.breaks_stone and solver_kind.entangles then
-      if bodies.held[victim] == 0 then
-        world.counters.golems_held = (world.counters.golems_held or 0) + 1
-      end
-      bodies.held[victim] = solver_kind.hold_seconds
-      return true
-    end
-    return false
+  -- A human and a willing dinosaur, before anything else -- a party that is
+  -- busy fighting is a party that never gets mounted.
+  if ka.mounts and kb.name == "dino" then
+    if M.mount(world, bodies, a, b) then return true end
+  elseif kb.mounts and ka.name == "dino" then
+    if M.mount(world, bodies, b, a) then return true end
   end
-  -- }}}
 
-  if solve(a, b, ka, kb) then return true end
-  if solve(b, a, kb, ka) then return true end
+  local opposed = ka.team ~= kb.team and ka.team ~= 0 and kb.team ~= 0
 
-  -- A monster and a delver. The monster does what it does; the delver is not
-  -- equipped to answer it, which is the entire mode.
-  if ka.team ~= kb.team and ka.team ~= 0 and kb.team ~= 0 then
-    local monster, delver, mk = a, b, ka
-    if ka.team == 1 then monster, delver, mk = b, a, kb end
-    if mk.damage and bodies.held[monster] == 0 then
-      bodies.incoming_damage[delver] = bodies.incoming_damage[delver] + mk.damage * 0.1
-      if mk.entangles and bodies.held[delver] == 0 then
-        bodies.held[delver] = mk.hold_seconds
+  if opposed then
+    -- {{{ the abilities
+    -- A vine holds what it reaches. Being held is the one thing that stops a
+    -- fight rather than deciding it: a held body cannot swing, so a golem in the
+    -- vines is a golem anybody can hit.
+    local function hold(grabber, victim, gk)
+      if gk.entangles and bodies.held[victim] == 0 then
+        bodies.held[victim] = gk.hold_seconds
         world.counters.entangled = (world.counters.entangled or 0) + 1
+        if Creatures.KINDS[bodies.kind[victim]].breaks_stone then
+          world.counters.golems_held = (world.counters.golems_held or 0) + 1
+        end
       end
     end
-    return true
-  end
+    hold(a, b, ka)
+    hold(b, a, kb)
 
-  -- A human and a willing dinosaur.
-  if (ka.mounts and kb.name == "dino") then return M.mount(world, bodies, a, b) end
-  if (kb.mounts and ka.name == "dino") then return M.mount(world, bodies, b, a) end
+    -- Igniting is not here. An automaton sets alight whatever flammable thing
+    -- is beside it, on any side, on its own cooldown -- see the monsters' pass.
+    -- Putting it here as well would make it fire twice as often against the
+    -- party and never at all against the vines, which are on its own side.
+    -- }}}
+
+    -- And then the fight, which is the ordinary duel.
+    return world.modules.Duels.meets(world, bodies, a, b)
+  end
 
   return false
 end

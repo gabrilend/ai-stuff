@@ -12,29 +12,17 @@ work could continue. An assumption is not an answer.
 
 ## Blocking — these change what gets built
 
-### 1. "Swap to a different target" — the camera, or the fencer?
+### ~~1. "Swap to a different target" — the camera, or the fencer?~~ — answered
 
-The sentence was: *"for the fencing guys, they should be able to swap to a
-different target (same team or no? toggle checkmark) to continue the watching
-experience. That same toggle should apply when they 'solve' the maze."*
+**The fencer.** A released fencer re-engages immediately and the fight rolls on;
+a corridor becomes a running brawl and the camera never has to move to keep
+watching one.
 
-It reads two ways. **The camera** swaps to a different fencer when this duel
-ends, or **the fencer** swaps to a different opponent so the fight continues and
-the camera does not have to move.
-
-Both are cheap and they are not mutually exclusive. Which was meant?
-
-*Assumed for now:* the camera, described in
-[the camera](008-the-camera-and-what-it-watches.md).
-
-*Now blocks nothing.* **Both readings are built** and the difference between them
-is one number. `disengage_seconds` above zero is a series of duels and the camera
-goes looking; at zero, a released fencer re-engages immediately, the fight rolls
-on, and the camera never has to move. `tests/061-duels.lua` asserts both.
-
-Which one is *the default* is still worth deciding, because it is a decision
-about what the thing is — and that is not a decision to make by leaving a number
-where it happens to be.
+`disengage_seconds` is zero by default. Above zero it is the other behaviour — a
+series of separate duels with the camera going looking between them — and both
+have tests, so the knob stays. See
+[fencing](017-fencing.md) and
+[issue 503](../issues/completed/503-a-duel-has-to-end.md).
 
 ### 2. "But only when they're navigating the dungeon" — what does the "only" attach to?
 
@@ -52,32 +40,20 @@ words.
 *Blocks:* nothing structural. Weapons are not built at all yet, so the second
 reading would be a change to a row rather than to a design.
 
-### 3. Does "solve" mean solve?
+### ~~3. Does "solve" mean solve?~~ — answered
 
-The phrase was *"trying to solve Dungeons and Dragons monsters"* — not fight, not
-kill. Taken literally it makes each monster a lock with a key, and the keys turn
-out to be each other, which is the design in
-[the monsters](023-the-monsters-of-the-delve.md).
+**Loosely.** The monsters are enemies with health, and a party fights them
+directly. The cycle between the three of them becomes a **damage-type chart**
+rather than the point of the mode: fire ruins a vine and does nothing to stone, a
+stone fist ruins a wooden machine, and being held still is a thing that happens
+to a golem rather than the only thing that can.
 
-Taken loosely it just means "deal with", and the monsters are enemies with
-health.
+The creatures stay exactly as they are. What changes is that the party is
+equipped — humans carry weapons, and dinosaurs carry them too while navigating
+the dungeon — and the "arranging the meeting" machinery is not wanted.
 
-The literal reading is a much more interesting mode and it is built out of what
-was said rather than invented on top of it. But it is an interpretation of one
-word, and it decides the whole phase.
-
-*Assumed for now:* literal, and six of phase 7's seven issues are built on it —
-the cycle runs, and each monster really is undone by another.
-
-*Still blocks:* [issue 707](../issues/707-a-monster-is-a-lock.md), which is the
-half that makes it a mode rather than an aquarium. The party has no goal: the
-humans wander, do not lure, do not block a corridor, and do not carry fire on
-purpose, so the monsters solve each other whether anybody is watching or not.
-
-If "solve" was meant literally, the party's whole contribution is **arranging the
-meeting**, and that is exactly what is missing. If it was meant loosely, the
-monsters are enemies with health and most of what is built is not wanted. It is
-the one thing in the project deliberately left unbuilt rather than guessed at.
+See [the delve](021-the-delve.md) and
+[the monsters](023-the-monsters-of-the-delve.md), both rewritten to this reading.
 
 ### 4. How big is a maze, and how many things are in it?
 
@@ -109,14 +85,15 @@ the run. It costs nothing to allow and it is the more interesting default.
 
 ## Not blocking, but wanted
 
-### 6. Is the jungle ever in scope?
+### ~~6. Is the jungle ever in scope?~~ — answered
 
-The reference picture is more than half foliage: ferns, palms, volcanoes, a sky,
-and dinosaurs standing outside the maze looking in. None of it is in the plan and
-none of it has a simulation behind it. It would be the single largest art
-commitment in a project that currently has no art at all.
+**No. The stone is the whole picture.** Nothing outside the maze: no foliage, no
+volcanoes, no sky beyond a flat colour, and no creatures standing outside looking
+in. It would be the largest art commitment in a project that has no art at all,
+and none of it has a simulation behind it.
 
-Worth it, someday? Or is the stone the whole picture?
+Recorded in [drawing a pile of stones](007-drawing-a-pile-of-stones.md), which
+previously listed it as undecided.
 
 ### 6b. Should there be more plazas, or fewer?
 
@@ -159,11 +136,15 @@ The delve's golem is the only thing that changes the stone. Over a long run the
 maze slowly becomes a field. Does it heal? Should there be a limit? Does a
 broken maze that the validator would now reject matter?
 
-### 10. What colour is it?
+### ~~10. What colour is it?~~ — answered
 
-The reference is grey and tan limestone with green moss in the cracks and pale
-sandstone on some faces. That is the assumed palette. It is also the only
-aesthetic decision in the project that has not been made deliberately.
+**Keep the limestone.** Grey-tan stone with green moss in the walked places, as
+the reference picture has it. The three-tone shading and the per-cell mottle do
+the work of making the geometry legible; the hue is close to incidental, and it
+reads well at every zoom.
+
+Every colour in the project is in `041-the-palette.lua` and nothing else names
+one, so re-lighting the whole thing is still one file if that changes.
 
 ### 11. Do the little guys have teams?
 
