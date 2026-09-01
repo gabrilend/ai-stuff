@@ -167,6 +167,10 @@ hero-less-moba/
 │   │                                           Shapes the game could settle into
 │   │                                           that nobody wants, each with what
 │   │                                           resists it and what would show it.
+│   ├── 025-the-development-replayed .......... Where the boundaries between commits
+│   │                                           were drawn, and why, when several
+│   │                                           sessions of work were turned back
+│   │                                           into ordered history.
 │   ├── 024-the-proving-ground ................ How a question about one rule gets
 │   │                                           asked: a short straight road, a few
 │   │                                           bodies, and only the machinery the
