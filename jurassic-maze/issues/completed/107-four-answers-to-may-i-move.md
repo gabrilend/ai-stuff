@@ -5,7 +5,7 @@
 | Phase | 1 — The Stone |
 | Blocked by | 101, 102 |
 | Blocks | 108, 303, 306, 401, 403, 601, 702 |
-| Reads | [standing somewhere and going elsewhere](../docs/004-standing-somewhere-and-going-elsewhere.md) |
+| Reads | [standing somewhere and going elsewhere](../../docs/004-standing-somewhere-and-going-elsewhere.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -45,7 +45,7 @@ is not climbing: a body may go down further than it can come up, which is what
 lets a maze have pits that collect bodies.
 
 The **headroom** check is part of the answer even though nothing today has a
-ceiling over it. It will always pass until [the delve](../docs/021-the-delve.md),
+ceiling over it. It will always pass until [the delve](../../docs/021-the-delve.md),
 and it is written now because a check that was never written is far harder to add
 than one that was written and passed.
 
@@ -78,5 +78,5 @@ to invalidate every time a golem changes it.
 
 ## Related documents and tools
 
-- [Standing somewhere and going elsewhere](../docs/004-standing-somewhere-and-going-elsewhere.md)
-- [Locomotion is a dispatch table](../docs/012-locomotion-is-a-dispatch-table.md) — who calls this and who does not
+- [Standing somewhere and going elsewhere](../../docs/004-standing-somewhere-and-going-elsewhere.md)
+- [Locomotion is a dispatch table](../../docs/012-locomotion-is-a-dispatch-table.md) — who calls this and who does not

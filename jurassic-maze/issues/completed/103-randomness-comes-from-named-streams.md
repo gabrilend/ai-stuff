@@ -5,7 +5,7 @@
 | Phase | 1 — The Stone |
 | Blocked by | nothing |
 | Blocks | 104, 105, 106, 307, 404, 407, 604 |
-| Reads | [randomness comes from named streams](../docs/005-randomness-comes-from-named-streams.md) |
+| Reads | [randomness comes from named streams](../../docs/005-randomness-comes-from-named-streams.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -41,7 +41,7 @@ zeros forever — reachable only if a seed equals a stream name's hash, rare and
 utterly baffling to debug, so it is redirected rather than left as a trap.
 
 The streams are listed in
-[the document](../docs/005-randomness-comes-from-named-streams.md). The one rule
+[the document](../../docs/005-randomness-comes-from-named-streams.md). The one rule
 that is easy to get wrong: **the `camera` stream exists and the simulation never
 reads it.** A viewer drawing from a simulation stream makes the simulation depend
 on whether anybody is watching.
@@ -67,5 +67,5 @@ on whether anybody is watching.
 
 ## Related documents and tools
 
-- [Randomness comes from named streams](../docs/005-randomness-comes-from-named-streams.md)
-- [Ways this could go wrong](../docs/027-ways-this-could-go-wrong.md) — determinism rots quietly
+- [Randomness comes from named streams](../../docs/005-randomness-comes-from-named-streams.md)
+- [Ways this could go wrong](../../docs/027-ways-this-could-go-wrong.md) — determinism rots quietly

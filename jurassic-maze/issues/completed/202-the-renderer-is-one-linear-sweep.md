@@ -5,7 +5,7 @@
 | Phase | 2 — The Eye |
 | Blocked by | 101, 102, 201 |
 | Blocks | 203, 204, 308 |
-| Reads | [drawing a pile of stones](../docs/007-drawing-a-pile-of-stones.md) |
+| Reads | [drawing a pile of stones](../../docs/007-drawing-a-pile-of-stones.md) |
 | Open questions | 6 (is the jungle ever in scope) — does not block |
 
 ## Current behavior
@@ -76,5 +76,5 @@ collector notices, correlated with nothing.
 
 ## Related documents and tools
 
-- [Drawing a pile of stones](../docs/007-drawing-a-pile-of-stones.md)
-- [The isometric projection](../docs/006-the-isometric-projection.md)
+- [Drawing a pile of stones](../../docs/007-drawing-a-pile-of-stones.md)
+- [The isometric projection](../../docs/006-the-isometric-projection.md)

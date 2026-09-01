@@ -5,7 +5,7 @@
 | Phase | 3 — The Rolling |
 | Blocked by | 101 |
 | Blocks | 302, 303, 307, 308, 401, 405, 501, 601, 702 |
-| Reads | [a body and what it carries](../docs/011-a-body-and-what-it-carries.md) |
+| Reads | [a body and what it carries](../../docs/011-a-body-and-what-it-carries.md) |
 | Open questions | 4 (how many bodies) |
 
 ## Current behavior
@@ -23,7 +23,7 @@ generation.
 **One table of flat arrays**, not an array of tables. Every body's x lives in one
 contiguous array of doubles; every body's locomotion in one contiguous array of
 small integers. Body twelve is the twelfth entry of each. The full field list is
-in [the document](../docs/011-a-body-and-what-it-carries.md).
+in [the document](../../docs/011-a-body-and-what-it-carries.md).
 
 Two reasons, and the second decides it:
 
@@ -57,7 +57,7 @@ at load time rather than in the inner loop.
 3. Write `is_valid(store, id, generation)`, the only sanctioned way to
    dereference a stored id.
 4. Write the roster machinery for
-   [the locomotion table](../docs/012-locomotion-is-a-dispatch-table.md): one
+   [the locomotion table](../../docs/012-locomotion-is-a-dispatch-table.md): one
    contiguous array of ids per locomotion row, with swap-remove and append, both
    constant time.
 5. Test: spawn to capacity, kill half at random from a seeded stream, respawn,
@@ -66,8 +66,8 @@ at load time rather than in the inner loop.
 
 ## Related documents and tools
 
-- [A body and what it carries](../docs/011-a-body-and-what-it-carries.md)
-- [Locomotion is a dispatch table](../docs/012-locomotion-is-a-dispatch-table.md)
+- [A body and what it carries](../../docs/011-a-body-and-what-it-carries.md)
+- [Locomotion is a dispatch table](../../docs/012-locomotion-is-a-dispatch-table.md)
 
 ## Still open
 

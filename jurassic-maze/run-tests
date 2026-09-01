@@ -40,5 +40,23 @@ fi
 
 LOG="/tmp/jurassic-maze/shared-memory/test-run.log"
 
-luajit "${DIR}/tests/run-all.lua" "${DIR}" "$@" 2>&1 | tee "${LOG}"
+# Both halves. The invariants check that the program does what it says; the
+# document validator checks that what it says is still there to be read. A
+# project can fail either one while passing the other, and the one that fails
+# quietly for months is the second.
+{
+    luajit "${DIR}/tests/run-all.lua" "${DIR}" "$@"
+    CODE=$?
+
+    if [ -z "$1" ]; then
+        echo ""
+        echo "--- the written half ---"
+        echo ""
+        luajit "${DIR}/src/056-the-document-validator.lua" "${DIR}"
+        DOCS=$?
+        if [ "${DOCS}" -ne 0 ]; then CODE="${DOCS}"; fi
+    fi
+
+    exit "${CODE}"
+} 2>&1 | tee "${LOG}"
 exit "${PIPESTATUS[0]}"

@@ -5,7 +5,7 @@
 | Phase | 4 — The Wandering |
 | Blocked by | 102, 107, 301, 303, 306 |
 | Blocks | 402, 403, 404, 601 |
-| Reads | [walking the surface graph](../docs/014-walking-the-surface-graph.md) |
+| Reads | [walking the surface graph](../../docs/014-walking-the-surface-graph.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -63,5 +63,5 @@ but never impossible — a body in a dead end must be able to.
 
 ## Related documents and tools
 
-- [Walking the surface graph](../docs/014-walking-the-surface-graph.md)
-- [Standing somewhere and going elsewhere](../docs/004-standing-somewhere-and-going-elsewhere.md)
+- [Walking the surface graph](../../docs/014-walking-the-surface-graph.md)
+- [Standing somewhere and going elsewhere](../../docs/004-standing-somewhere-and-going-elsewhere.md)

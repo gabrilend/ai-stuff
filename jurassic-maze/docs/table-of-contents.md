@@ -30,10 +30,17 @@ jurassic-maze/
 ├── run-phase-demo ............................ Asks which phase demo to run, and
 │                                               runs it.
 ├── build-documentation ....................... Turns all of this into browsable,
-│                                               cross-linked HTML in docs/HTML/.
-├── validate-documentation .................... Checks the documents and issues
-│                                               against each other, and against
-│                                               what is actually on disk.
+│                                               cross-linked HTML in docs/HTML/,
+│                                               with three pages you can move
+│                                               things on.
+├── validate-documentation .................... A compiler for the written half.
+│                                               Every link, every companion page,
+│                                               every issue the roadmap promises.
+├── complete-issue ............................ Moves a finished issue into
+│                                               completed/ and repairs the links
+│                                               that move just broke. Moving one
+│                                               by hand breaks a hundred of them
+│                                               in silence.
 ├── new-source-file ........................... The only sanctioned way to bring a
 │                                               source file in. Claims the next
 │                                               index, stamps the licence, writes
@@ -51,6 +58,9 @@ jurassic-maze/
 │
 ├── docs/
 │   ├── 001-what-this-is.md ................... The project in a page. Read first.
+│   │                                           Its HTML page carries the numbers
+│   │                                           a real maze came out as, measured
+│   │                                           when the site was built.
 │   │
 │   │                                           ── the stone, and the maze cut
 │   │                                              into it ──

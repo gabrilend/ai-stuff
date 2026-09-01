@@ -5,7 +5,7 @@
 | Phase | 3 — The Rolling |
 | Blocked by | 103, 301, 302, 206 |
 | Blocks | nothing |
-| Reads | [what this is](../docs/001-what-this-is.md) |
+| Reads | [what this is](../../docs/001-what-this-is.md) |
 | Open questions | 5 (do the phases share one aquarium) |
 
 ## Current behavior
@@ -66,7 +66,7 @@ than a property of the phase. Balls and little guys can share one maze.
 
 ## Related documents and tools
 
-- [What this is](../docs/001-what-this-is.md) — why there is no end
+- [What this is](../../docs/001-what-this-is.md) — why there is no end
 - [Headless and the report](206-headless-and-the-report.md)
 
 ## Still open

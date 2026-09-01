@@ -16,14 +16,14 @@ window.
 
 | Issue | |
 | --- | --- |
-| [101](../issues/101-a-column-is-one-integer.md) | a column is one integer |
-| [102](../issues/102-surfaces-are-a-bit-trick.md) | surfaces are a bit trick |
-| [103](../issues/103-randomness-comes-from-named-streams.md) | randomness comes from named streams |
-| [104](../issues/104-the-terraces-are-piled-rectangles.md) | the terraces are piled rectangles |
-| [105](../issues/105-the-maze-is-a-spanning-tree-over-rooms.md) | the maze is a spanning tree over rooms |
-| [106](../issues/106-staircases-are-cut-not-built.md) | staircases are cut, not built |
-| [107](../issues/107-four-answers-to-may-i-move.md) | four answers to "may I move" |
-| [108](../issues/108-the-validator-refuses-a-broken-maze.md) | the validator refuses a broken maze |
+| [101](../issues/completed/101-a-column-is-one-integer.md) | a column is one integer |
+| [102](../issues/completed/102-surfaces-are-a-bit-trick.md) | surfaces are a bit trick |
+| [103](../issues/completed/103-randomness-comes-from-named-streams.md) | randomness comes from named streams |
+| [104](../issues/completed/104-the-terraces-are-piled-rectangles.md) | the terraces are piled rectangles |
+| [105](../issues/completed/105-the-maze-is-a-spanning-tree-over-rooms.md) | the maze is a spanning tree over rooms |
+| [106](../issues/completed/106-staircases-are-cut-not-built.md) | staircases are cut, not built |
+| [107](../issues/completed/107-four-answers-to-may-i-move.md) | four answers to "may I move" |
+| [108](../issues/completed/108-the-validator-refuses-a-broken-maze.md) | the validator refuses a broken maze |
 
 Done when a seed produces a maze, the validator says it is one connected piece,
 and the same seed produces the same maze twice.
@@ -34,12 +34,12 @@ The maze becomes visible, three different ways.
 
 | Issue | |
 | --- | --- |
-| [201](../issues/201-world-to-screen-and-back.md) | world to screen, and back |
-| [202](../issues/202-the-renderer-is-one-linear-sweep.md) | the renderer is one linear sweep |
-| [203](../issues/203-three-tones-and-a-mottle.md) | three tones and a mottle |
-| [204](../issues/204-pan-zoom-and-the-pointer.md) | pan, zoom, and the pointer |
-| [205](../issues/205-a-terminal-viewer-so-we-are-not-blind.md) | a terminal viewer so we are not blind |
-| [206](../issues/206-headless-and-the-report.md) | headless, and the report |
+| [201](../issues/completed/201-world-to-screen-and-back.md) | world to screen, and back |
+| [202](../issues/completed/202-the-renderer-is-one-linear-sweep.md) | the renderer is one linear sweep |
+| [203](../issues/completed/203-three-tones-and-a-mottle.md) | three tones and a mottle |
+| [204](../issues/completed/204-pan-zoom-and-the-pointer.md) | pan, zoom, and the pointer |
+| [205](../issues/completed/205-a-terminal-viewer-so-we-are-not-blind.md) | a terminal viewer so we are not blind |
+| [206](../issues/completed/206-headless-and-the-report.md) | headless, and the report |
 
 Done when the same maze can be looked at in a window, read in a terminal, and
 measured with no window at all.
@@ -50,14 +50,14 @@ The first thing that moves. This is the vision's first sentence.
 
 | Issue | |
 | --- | --- |
-| [301](../issues/301-a-body-is-an-index-into-flat-arrays.md) | a body is an index into flat arrays |
-| [302](../issues/302-the-tick-is-a-table-of-passes.md) | the tick is a table of passes |
-| [303](../issues/303-locomotion-is-a-dispatch-table.md) | locomotion is a dispatch table |
-| [304](../issues/304-the-floor-is-an-interpolated-height-field.md) | the floor is an interpolated height field |
-| [305](../issues/305-a-ball-collides-with-faces-and-corners.md) | a ball collides with faces and corners |
-| [306](../issues/306-falling-is-shared-by-everybody.md) | falling is shared by everybody |
-| [307](../issues/307-the-aquarium-tops-itself-up.md) | the aquarium tops itself up |
-| [308](../issues/308-bodies-are-bucketed-by-cell.md) | bodies are bucketed by cell |
+| [301](../issues/completed/301-a-body-is-an-index-into-flat-arrays.md) | a body is an index into flat arrays |
+| [302](../issues/completed/302-the-tick-is-a-table-of-passes.md) | the tick is a table of passes |
+| [303](../issues/completed/303-locomotion-is-a-dispatch-table.md) | locomotion is a dispatch table |
+| [304](../issues/completed/304-the-floor-is-an-interpolated-height-field.md) | the floor is an interpolated height field |
+| [305](../issues/completed/305-a-ball-collides-with-faces-and-corners.md) | a ball collides with faces and corners |
+| [306](../issues/completed/306-falling-is-shared-by-everybody.md) | falling is shared by everybody |
+| [307](../issues/completed/307-the-aquarium-tops-itself-up.md) | the aquarium tops itself up |
+| [308](../issues/completed/308-bodies-are-bucketed-by-cell.md) | bodies are bucketed by cell |
 
 Done when balls roll down the maze, none of them get inside a wall, and the
 headless report can prove both.
@@ -68,8 +68,8 @@ The vision's second sentence: little guys with idle animations and interactions.
 
 | Issue | |
 | --- | --- |
-| [401](../issues/401-a-step-from-surface-to-surface.md) | a step from surface to surface |
-| [402](../issues/402-smoothing-belongs-to-the-renderer.md) | smoothing belongs to the renderer |
+| [401](../issues/completed/401-a-step-from-surface-to-surface.md) | a step from surface to surface |
+| [402](../issues/completed/402-smoothing-belongs-to-the-renderer.md) | smoothing belongs to the renderer |
 | [403](../issues/403-a-path-is-found-once-and-kept.md) | a path is found once and kept |
 | [404](../issues/404-an-idle-is-a-row-with-a-clock.md) | an idle is a row with a clock |
 | [405](../issues/405-the-meet-pass-pairs-bodies.md) | the meet pass pairs bodies |

@@ -5,7 +5,7 @@
 | Phase | 2 — The Eye |
 | Blocked by | 101, 102 |
 | Blocks | nothing |
-| Reads | [seeing it without a window](../docs/009-seeing-it-without-a-window.md) |
+| Reads | [seeing it without a window](../../docs/009-seeing-it-without-a-window.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -59,4 +59,4 @@ window is worse at this, because in the window you have to find the thing first.
 
 ## Related documents and tools
 
-- [Seeing it without a window](../docs/009-seeing-it-without-a-window.md)
+- [Seeing it without a window](../../docs/009-seeing-it-without-a-window.md)

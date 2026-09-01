@@ -5,7 +5,7 @@
 | Phase | 3 — The Rolling |
 | Blocked by | 102, 303 |
 | Blocks | 305, 306 |
-| Reads | [rolling with momentum](../docs/013-rolling-with-momentum.md) |
+| Reads | [rolling with momentum](../../docs/013-rolling-with-momentum.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -78,4 +78,4 @@ the bottom of dips forever.
 
 ## Related documents and tools
 
-- [Rolling with momentum](../docs/013-rolling-with-momentum.md)
+- [Rolling with momentum](../../docs/013-rolling-with-momentum.md)

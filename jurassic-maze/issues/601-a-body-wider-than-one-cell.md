@@ -55,4 +55,4 @@ deference and costs nothing.
 ## Related documents and tools
 
 - [Dinosaurs in a habitat](../docs/019-dinosaurs-in-a-habitat.md)
-- [Bodies are bucketed by cell](308-bodies-are-bucketed-by-cell.md)
+- [Bodies are bucketed by cell](completed/308-bodies-are-bucketed-by-cell.md)

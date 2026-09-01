@@ -5,7 +5,7 @@
 | Phase | 2 — The Eye |
 | Blocked by | 201, 202 |
 | Blocks | 407 |
-| Reads | [the camera and what it watches](../docs/008-the-camera-and-what-it-watches.md) |
+| Reads | [the camera and what it watches](../../docs/008-the-camera-and-what-it-watches.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -54,5 +54,5 @@ has no cue about which way to come back.
 
 ## Related documents and tools
 
-- [The camera and what it watches](../docs/008-the-camera-and-what-it-watches.md)
-- [The isometric projection](../docs/006-the-isometric-projection.md)
+- [The camera and what it watches](../../docs/008-the-camera-and-what-it-watches.md)
+- [The isometric projection](../../docs/006-the-isometric-projection.md)

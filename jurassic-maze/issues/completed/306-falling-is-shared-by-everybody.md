@@ -5,7 +5,7 @@
 | Phase | 3 — The Rolling |
 | Blocked by | 102, 107, 303 |
 | Blocks | 401, 702 |
-| Reads | [rolling with momentum](../docs/013-rolling-with-momentum.md), [locomotion is a dispatch table](../docs/012-locomotion-is-a-dispatch-table.md) |
+| Reads | [rolling with momentum](../../docs/013-rolling-with-momentum.md), [locomotion is a dispatch table](../../docs/012-locomotion-is-a-dispatch-table.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -60,5 +60,5 @@ that let the body get there.
 
 ## Related documents and tools
 
-- [Locomotion is a dispatch table](../docs/012-locomotion-is-a-dispatch-table.md)
-- [Rolling with momentum](../docs/013-rolling-with-momentum.md)
+- [Locomotion is a dispatch table](../../docs/012-locomotion-is-a-dispatch-table.md)
+- [Rolling with momentum](../../docs/013-rolling-with-momentum.md)

@@ -5,7 +5,7 @@
 | Phase | 3 — The Rolling |
 | Blocked by | 304 |
 | Blocks | nothing |
-| Reads | [rolling with momentum](../docs/013-rolling-with-momentum.md), [ways this could go wrong](../docs/027-ways-this-could-go-wrong.md) |
+| Reads | [rolling with momentum](../../docs/013-rolling-with-momentum.md), [ways this could go wrong](../../docs/027-ways-this-could-go-wrong.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -49,7 +49,7 @@ face — it is the corner post — and the ball must be pushed away from a *poin
 Handling only the faces lets a ball squeeze diagonally through the join between
 two blocks, which looks exactly like passing through solid stone, happens rarely
 enough to be dismissed as a glitch, and is named in
-[the risks](../docs/027-ways-this-could-go-wrong.md) as the most likely bug in
+[the risks](../../docs/027-ways-this-could-go-wrong.md) as the most likely bug in
 this file.
 
 **While airborne, the ball is checked against the stone at its current height,
@@ -78,5 +78,5 @@ so it stands on nothing, so it falls forever.
 
 ## Related documents and tools
 
-- [Rolling with momentum](../docs/013-rolling-with-momentum.md)
-- [Ways this could go wrong](../docs/027-ways-this-could-go-wrong.md)
+- [Rolling with momentum](../../docs/013-rolling-with-momentum.md)
+- [Ways this could go wrong](../../docs/027-ways-this-could-go-wrong.md)
