@@ -418,15 +418,24 @@ end
 -- to say how far away the ground is, so the only cue that a thing is *on* a
 -- surface is a mark on that surface.
 function M.draw_body(Projection, Palette, flat, store, bodies, creatures, id,
-                     walking, love_graphics)
+                     walking, love_graphics, rider_position)
   local kind = creatures.KINDS[bodies.kind[id]]
   local r = bodies.radius[id]
 
   local x, y, z
-  if kind.locomotion == creatures.WALKING then
+  if kind.locomotion == creatures.WALKING
+     or kind.locomotion == creatures.STRIDING
+     or kind.locomotion == creatures.LUMBERING
+     or kind.locomotion == creatures.CREEPING then
     x, y, z = walking.drawn_position(store, bodies, id)
   else
     x, y, z = bodies.x[id], bodies.y[id], bodies.z[id]
+  end
+
+  -- A carried body's position is its mount's, derived. Nothing is stored for it,
+  -- which is what stops the two drifting apart.
+  if bodies.locomotion[id] == creatures.CARRIED and rider_position then
+    x, y, z = rider_position(id)
   end
 
   local hw = Projection.HALF_WIDTH
@@ -442,11 +451,28 @@ function M.draw_body(Projection, Palette, flat, store, bodies, creatures, id,
 
   local bx, by = Projection.to_screen(flat, x, y, z + r)
   local cr, cg, cb = Palette.creature(kind.name, bodies.team[id])
+
+  -- Alight. Drawn over its own colour rather than instead of it, so that what is
+  -- burning is still recognisable as what it was -- which matters when the thing
+  -- most likely to be on fire is the machine that started the fire.
+  if bodies.burning[id] and bodies.burning[id] > 0 then
+    local flicker = 0.55 + 0.30 * math.sin(bodies.burning[id] * 21)
+    cr = cr + (Palette.FIRE[1] - cr) * flicker
+    cg = cg + (Palette.FIRE[2] - cg) * flicker
+    cb = cb + (Palette.FIRE[3] - cb) * flicker
+  end
+
+  -- Held still by something. Drawn dimmer, because a body that is not moving and
+  -- has not chosen not to move looks broken otherwise.
+  if bodies.held[id] and bodies.held[id] > 0 then
+    cr, cg, cb = cr * 0.55, cg * 0.55, cb * 0.62
+  end
+
   love_graphics.setColor(cr, cg, cb, 1)
 
-  if kind.locomotion == creatures.WALKING then
-    -- A little guy: a short standing body rather than a disc, so the two kinds
-    -- are told apart at a glance from two hundred cells away.
+  if kind.locomotion ~= creatures.ROLLING then
+    -- A standing body rather than a disc, so the kinds are told apart at a
+    -- glance from two hundred cells away.
     local h = kind.body_height * Projection.LAYER_PIXELS * 1.15
     love_graphics.ellipse("fill", bx, by - h * 0.5, r * hw * 0.85, h * 0.5)
     love_graphics.setColor(cr * 0.55, cg * 0.55, cb * 0.55, 1)

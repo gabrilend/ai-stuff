@@ -208,3 +208,66 @@ a layer on a slow cycle reads as alive without anybody noticing why.
 `dwell_seconds` 8, adjustable 1 to 60 — the slider was asked for by name.
 `boredom_seconds` 12. `ease` 0.10, adjustable 0.02 to 0.5: snapping a camera to a
 body stepping between cells makes the whole maze jitter by a cell every step.
+
+---
+
+## Phases five, six and seven
+
+### The fencer's exchange
+
+Both fencers strike each exchange rather than taking turns. `exchange_seconds`
+0.55, `skill` 0.50 against `parry` 0.42 with `swing` 0.55 of luck on each,
+`damage` 3.0 against `health` 14 — about eight exchanges to a decision, and about
+one duel in eight ending with both of them falling.
+
+`stalemate_seconds` 26 and `disengage_seconds` 4.0. The second of those is the
+one that matters: **zero turns a series of duels into a melee**, which is the
+other reading of open question 1, and it is the only number in the project whose
+value is a decision about what the thing is rather than about how it feels.
+
+### Plazas, new — and why the generator grew them
+
+`plaza_count` 26 attempts, `plaza_min` 5, `plaza_max` 13, which comes out at
+about a dozen clearings on a default maze.
+
+They were added because **a body wider than one cell had nowhere to stand**. Nine
+contiguous cells at one height do not occur in a maze of one-cell corridors:
+ninety dinosaurs were spawned and fifty-seven never moved.
+
+The first version flattened any cell within a wall's height of the clearing's
+level, which quietly *moves floor* and severed a hundred and sixty-five cells on
+some seeds. It now includes a cell only when it is already floor at exactly that
+level, or when it is wall — so nothing that was floor ever changes height.
+
+### The dinosaur
+
+`radius` 1.0, which is a three-by-three footprint and is what makes all of the
+above necessary. `step_seconds` 0.72 — half again slower than a little guy.
+`sight_range` 26 cells and `sight_interval` 0.5 seconds, checked with a per-body
+phase offset so the population does not all look at once.
+
+`game_chance` 0.35 of a meeting becoming a game, `grace_seconds` 2.5 after a tag
+so the roles do not swap back on the next tick, `give_up_distance` 34.
+
+### Fire
+
+`damage_per_second` 3.2, `spread_chance` 0.24 a second per flammable neighbour,
+`spread_range` 1 cell — so a firebreak is a firebreak.
+
+Flammability is per creature: a vine is 1.0 with 7 seconds of fuel, an automaton
+0.85 with 9, a human 0.15 with 3, and stone is 0. The automaton being flammable
+is the whole of what makes it solve itself, and it is a number rather than a rule.
+
+### LuaJIT's trace cache — not a balance number, and the largest one
+
+`maxtrace` 4000 and `maxmcode` 4096, raised from the defaults of 1000 and 512 at
+world creation.
+
+With the defaults, a run with two locomotion rows live overflows the cache and
+flushes it forty-five times in three hundred ticks. Balls alone cost 1.8 seconds
+a minute, walkers alone 1.0, and the two together **12.4** — each four times
+slower purely for the other existing. Raising the limits took that scene to 1.3
+and the test suite from thirty seconds to eleven.
+
+It is recorded here because it is a number that was turned and it changed the
+program's behaviour more than any other in the project.

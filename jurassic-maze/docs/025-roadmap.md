@@ -112,10 +112,7 @@ Done when dinosaurs move through the maze, cannot go everywhere the little guys
 can, hide from each other, and play games that end. `./run-maze --scene jungle`
 runs it.
 
-**Phases 1 to 6 are complete — the whole of the original vision.** What is below
-is the mode that was added afterwards. It has documents and issues and no code:
-reading an issue in phase 7 is reading a blueprint, not a description of
-something that exists.
+**Phases 1 to 6 are complete — the whole of the original vision.**
 
 ## Phase 7 — The Delve
 
@@ -123,13 +120,18 @@ The mode that was added after the vision was written.
 
 | Issue | |
 | --- | --- |
-| [701](../issues/701-a-mode-is-which-tables-are-loaded.md) | a mode is which tables are loaded |
-| [702](../issues/702-riding-is-a-derived-position.md) | riding is a derived position |
-| [703](../issues/703-fire-is-a-state-that-spreads.md) | fire is a state that spreads |
-| [704](../issues/704-a-golem-changes-the-stone.md) | a golem changes the stone |
-| [705](../issues/705-vines-creep-along-walls.md) | vines creep along walls |
-| [706](../issues/706-the-automaton-solves-itself.md) | the automaton solves itself |
-| [707](../issues/707-a-monster-is-a-lock.md) | a monster is a lock |
+| [701](../issues/completed/701-a-mode-is-which-tables-are-loaded.md) | a mode is which tables are loaded |
+| [702](../issues/completed/702-riding-is-a-derived-position.md) | riding is a derived position |
+| [703](../issues/completed/703-fire-is-a-state-that-spreads.md) | fire is a state that spreads |
+| [704](../issues/completed/704-a-golem-changes-the-stone.md) | a golem changes the stone |
+| [705](../issues/completed/705-vines-creep-along-walls.md) | vines creep along walls |
+| [706](../issues/completed/706-the-automaton-solves-itself.md) | the automaton solves itself |
+| [707](../issues/707-a-monster-is-a-lock.md) | **in progress** — a monster is a lock |
+
+Six of seven done. The cycle runs — automatons burn vines, vines hold golems,
+golems smash automatons and walk through walls — and the party has no goal, which
+is the half that rests on [open question 3](026-open-questions.md). See
+[the phase 7 progress](../issues/phase-7-progress.md).
 
 ## What is not in any phase
 
