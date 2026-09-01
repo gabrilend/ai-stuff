@@ -103,8 +103,11 @@ block.
 
 ## Building — the stone that roots people
 
-One freestanding structure. Mostly **open**: it is rare for a building to be
-closed to people, and the largest are entirely free to enter.
+One freestanding structure. Mostly **unrestricted**: it is rare for a building to
+be barred to people, and the largest are entirely free to enter. That is about
+who may walk in, which is a different property from whether the building is
+**open** in the sense the scaffold means — open to being changed. A building can
+admit anyone and take on nothing. Most are closed all the time.
 
 > The building is stone, and can't adjust easily, meaning it's what roots people.
 
@@ -114,10 +117,19 @@ the vision's own line — *walls are heavy, and hard to move when the city expan
 — so the same physical truth governs how the city grows and why a person's life
 does not.
 
+And it is now literal rather than figurative. Stone is **closed**, so it gives and
+never receives. A person is **open** when at rest, and a person rests at home. So
+the only hours in the day when anybody can be changed at all are the hours spent
+inside a building that is broadcasting at them and cannot be broadcast back at.
+You become the architecture during the only hours you are able to become
+anything. That is the rigidity, and no rule was written to produce it — it is two
+rules from [the scaffold](009-the-scaffold.md) touching.
+
 Buildings carry their own facts: who owns the roof, what the ground floor trades
-in, whether the stair is shared. Those are written **over years**, the same as
-house events — a building with nothing recorded is a building nobody has looked
-into yet, not an error.
+in, whether the stair is shared. Those are not written by hand into a pile. A
+building accumulates them by being stood in — see [the scaffold](009-the-scaffold.md)
+— and a building with nothing recorded is one where nothing has yet happened often
+enough to name, not an error.
 
 For the mouse to reach one, a building gets a **rough hand-placed zone** — a
 crude shape over the roof, not a traced outline. There are only a handful per
@@ -175,5 +187,5 @@ trusted.
 
 - [The map surface](002-the-map-surface.md) — how the zoom picks a level
 - [The fence network](004-the-fence-network.md) — how blocks are actually stored
-- [Events and what people know](009-events-and-what-people-know.md) — what is hidden in all of this
-- [Open questions](012-open-questions.md)
+- [the scaffold](009-the-scaffold.md) — what happens inside all of this
+- [Open questions](013-open-questions.md)

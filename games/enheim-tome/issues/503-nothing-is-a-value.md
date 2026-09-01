@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 5 — Filters and the Weave |
 | Blocked by | 501, 502 |
-| Blocks | 505, 804 |
+| Blocks | 505 |
 | Reads | [filters and the weave](../docs/006-filters-and-the-weave.md) |
 | Open questions | — |
 
@@ -37,15 +37,15 @@ This is worth recording as a pattern rather than a detail: before adding a chann
 to say *we don't know*, check whether the existing channel can simply decline to
 answer.
 
-### For knowledge filters it is not even a special case
+### For a minted axis it is not even a special case
 
-A person's knowledge **is** the set of events they hold — see
-[803](803-knowledge-is-held-events.md). So a filter asking "what do you know of
-hidden things here" returns nothing for a place where they hold none, without any
-code deciding to.
+Axes are minted on demand as a place develops a nature — see
+[the scaffold](../docs/009-the-scaffold.md). So a place that has not grown an axis
+has no reading on it, and the filter returns nothing without any code deciding to.
 
-The two systems are one system. Nothing bridges them because there is nothing to
-bridge.
+Bare painting under a filter is therefore not missing data. It is **a way of
+looking that does not yet apply here**, which is a fact about the city rather than
+a hole in the records.
 
 ### The discipline
 
@@ -70,4 +70,4 @@ plausible.
 ## Related documents and tools
 
 - [Filters and the weave](../docs/006-filters-and-the-weave.md)
-- [Events and what people know](../docs/009-events-and-what-people-know.md)
+- [the scaffold](../docs/009-the-scaffold.md)

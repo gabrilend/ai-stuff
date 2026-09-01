@@ -39,7 +39,7 @@ Which quietly resurrects the ground plane this project decided it did not need.
 It was declined for distance-honesty, and it comes back for registration. Nothing
 about the pixel-only rule changes today — the fences stay in painting pixels — but
 the flat view cannot exist without a ground plane, and that is now a known cost
-rather than a surprise. See [open questions](012-open-questions.md).
+rather than a surprise. See [open questions](013-open-questions.md).
 
 ### It fits in one texture, and does not need tiling
 
@@ -56,7 +56,7 @@ simplification available to the project and it is available only because the
 board is one fixed image.
 
 If a second painting ever joins it — see the seasons entry in
-[open questions](012-open-questions.md) — holding several raw would not fit, and
+[open questions](013-open-questions.md) — holding several raw would not fit, and
 they would need converting ahead of time into a compressed texture format the
 card reads natively, dropping each to roughly 24 MiB. That conversion also
 matters for a reason unrelated to memory: decoding a 25-megapixel PNG takes on
@@ -239,7 +239,7 @@ the selected block is the only one fully on screen, marking it is pointless — 
 is obviously the one — so the glow flips to following the pointer instead, as an
 aiming aid. The threshold that triggers this is a tunable, not a constant, and
 the player can switch the behaviour off. The exact tunable is undecided; see
-[open questions](012-open-questions.md).
+[open questions](013-open-questions.md).
 
 ## Datapath summary
 
@@ -279,4 +279,4 @@ building zones  ────┤          │
 - [What this game is](001-what-this-game-is.md) — why the map carries no text
 - [The fence network](004-the-fence-network.md) — where blocks come from
 - [Filters and the weave](006-filters-and-the-weave.md) — what shades them
-- [Open questions](012-open-questions.md)
+- [Open questions](013-open-questions.md)

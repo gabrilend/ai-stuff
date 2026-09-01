@@ -66,4 +66,4 @@ open question 3.
 ## Related documents and tools
 
 - [The map surface](../docs/002-the-map-surface.md)
-- [Open questions](../docs/012-open-questions.md) — question 3
+- [Open questions](../docs/013-open-questions.md) — question 3

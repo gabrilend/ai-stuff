@@ -122,4 +122,4 @@ acquaintances.
 - [What this game is](001-what-this-game-is.md) — the model-not-camera idea
 - [The tome](007-the-tome.md) — where the hour and the curves live
 - [The map surface](002-the-map-surface.md) — the glow the curve borrows
-- [Open questions](012-open-questions.md)
+- [Open questions](013-open-questions.md)

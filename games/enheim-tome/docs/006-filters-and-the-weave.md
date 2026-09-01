@@ -40,6 +40,15 @@ dense where they actually go, blank across the divide nobody crosses — which
 draws the city's social horizon on the map without anything being built to draw
 it. See [the places of the city](003-the-places-of-the-city.md).
 
+**This is unchanged by [the scaffold](009-the-scaffold.md).** An axis belongs to
+the place, and everything carries axes — people, places, all of it — so the reading
+still takes a person, and still means what it meant. What the person half selects
+is **the place's public axes, plus its private ones that person knows.**
+
+That is the same rule that governs what the narrator may say in
+[the scene](010-the-scene.md), which is deliberate: the map and the tome cannot
+disagree about what you are allowed to know, because one rule gates both.
+
 ## Nothing is the most important value
 
 A filter is allowed to answer *nothing at all*, and that is different from
@@ -51,10 +60,12 @@ system, no greyed-out unknown state. Look at the city under the guilds filter an
 the hatched parts are their knowledge, the bare parts their blindness, and the
 picture is beautiful exactly where they are ignorant.
 
-For filters about hidden things, "nothing" is not even a special case: a person's
-knowledge **is** the set of events they hold, so a blank block is simply a block
-where they hold none. See
-[events and what people know](009-events-and-what-people-know.md).
+And under [the scaffold](009-the-scaffold.md) *nothing* stops being a special case
+and becomes structural. Axes are minted on demand as a place develops a nature, so
+a blank block is a place that has **not grown that axis at all** — not missing
+data, but a way of looking that does not yet apply here. An axis and a filter are
+the same record, which means the filter list is not authored either: it grows as
+the city grows axes.
 
 ## The three modes
 
@@ -122,7 +133,7 @@ and sweeping the city with it; the city hands you a lens per place, and
 overruling it is itself a small act of insight.
 
 How you change it from the interface is undecided. See
-[open questions](012-open-questions.md).
+[open questions](013-open-questions.md).
 
 ## The render order
 
@@ -155,4 +166,4 @@ somebody cannot use.
 - [What this game is](001-what-this-game-is.md) — the model-not-camera idea, the colour rule
 - [The map surface](002-the-map-surface.md) — the identity buffer these read
 - [The tome](007-the-tome.md) — where filters are controlled
-- [Open questions](012-open-questions.md)
+- [Open questions](013-open-questions.md)

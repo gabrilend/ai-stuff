@@ -1,4 +1,4 @@
-# 010 — The Shape of the Code
+# 011 — The Shape of the Code
 
 House style. What every source file in this project looks like, and the handful of
 rules that are not negotiable.
@@ -144,4 +144,4 @@ window: no edge named by three blocks, every loop closed, every block named. See
 ## Related documents
 
 - [The tracing mode](005-the-tracing-mode.md) — the other state of the one program
-- [Roadmap](011-roadmap.md)
+- [Roadmap](012-roadmap.md)

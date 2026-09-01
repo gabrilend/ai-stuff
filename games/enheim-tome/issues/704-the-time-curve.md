@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 7 — The Day |
 | Blocked by | 606, 703 |
-| Blocks | 705, 707, 708 |
+| Blocks | 705, 707, 708, 810 |
 | Reads | [the day and the curve](../docs/008-the-day-and-the-curve.md) |
 | Open questions | — |
 

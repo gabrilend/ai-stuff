@@ -200,4 +200,4 @@ its places are a workable size on screen.
 - [The places of the city](003-the-places-of-the-city.md) — what these regions mean
 - [The map surface](002-the-map-surface.md) — the identity buffer and the levels
 - [The tracing mode](005-the-tracing-mode.md) — how the cutting is done
-- [Open questions](012-open-questions.md)
+- [Open questions](013-open-questions.md)

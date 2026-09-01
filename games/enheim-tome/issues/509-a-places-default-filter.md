@@ -74,4 +74,4 @@ district's lens, which may be a wider question than any of its blocks would ask.
 ## Related documents and tools
 
 - [Filters and the weave](../docs/006-filters-and-the-weave.md)
-- [Open questions](../docs/012-open-questions.md) — question 8
+- [Open questions](../docs/013-open-questions.md) — question 8
