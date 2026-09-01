@@ -117,12 +117,82 @@ M.KINDS = {
     reverse_weight = 0.15,   -- an unweighted random walk goes back and forth
                              -- across two cells and looks broken. Never zero: a
                              -- body in a dead end must be able to turn around.
+    crowd_weight   = 0.06,   -- how much less likely a step into an occupied cell
+                             -- is. Never zero, for the same reason: in a corridor
+                             -- with somebody coming the other way, refusing
+                             -- outright means both of them stand there forever.
     idle_chance    = 0.09,   -- per arrival
+    errand_chance  = 0.02,   -- per arrival, a decision to go somewhere in
+                             -- particular rather than nowhere. A wandering body
+                             -- never arrives, so nothing it does ever finishes,
+                             -- and the camera has no moment to notice.
     notice_seconds = 1.5,
-    search_budget  = 4000,
+    search_budget  = 2500,   -- surfaces examined before a search gives up and
+                             -- the body falls back to wandering. Counted, never
+                             -- silent.
   },
   -- }}}
 }
+-- }}}
+
+-- {{{ M.IDLES
+-- An idle is a row with a clock. There is no animation system here and there is
+-- not going to be one.
+--
+-- The simulation's whole involvement is which row and how much of its clock is
+-- left. Everything visible about it is arithmetic in the renderer driven by the
+-- fraction elapsed, so an idling body costs one timer decrement per tick -- which
+-- is what lets there be a great many of them.
+--
+--   low, high   how long it runs, in seconds
+--   bob         how far the drawn height oscillates, in layers
+--   rate        oscillations per second
+--   turn        whether facing rotates a quarter turn at a time while it runs
+--   squat       a constant offset to the drawn height, in layers
+M.IDLES = {
+  -- The default, and the one that matters. A genuinely motionless body reads as
+  -- a bug -- the eye assumes something crashed. A body whose drawn height moves
+  -- by a twentieth of a layer on a slow cycle reads as alive, and nobody
+  -- notices why.
+  { name = "breathe",     low = 2.0, high = 6.0, bob = 0.05, rate = 0.55 },
+  { name = "look_around", low = 1.6, high = 4.0, bob = 0.02, rate = 0.4, turn = true },
+  { name = "stretch",     low = 0.8, high = 1.6, bob = 0.22, rate = 1.1 },
+  { name = "crouch",      low = 0.7, high = 1.8, bob = 0.04, rate = 0.6, squat = -0.28 },
+  { name = "scratch",     low = 0.5, high = 1.2, bob = 0.10, rate = 3.4 },
+  { name = "sit",         low = 4.0, high = 11.0, bob = 0.02, rate = 0.3, squat = -0.42 },
+}
+-- }}}
+
+-- {{{ M.IDLE_WEIGHTS
+-- Which idles a kind chooses, and how often. Weights per creature name, in the
+-- order M.IDLES lists them.
+--
+-- A nervous little guy scratches and looks around. A sunning dinosaur sits.
+M.IDLE_WEIGHTS = {
+  guy = { 5, 4, 1, 2, 3, 1 },
+}
+-- }}}
+
+-- {{{ function M.pick_idle(rng, kind_name)
+-- One idle row, and how long it runs. Drawn from the `idle` stream, weighted.
+function M.pick_idle(rng, kind_name)
+  local weights = M.IDLE_WEIGHTS[kind_name]
+  if not weights then return 1, M.IDLES[1].low end
+
+  local total = 0
+  for _, w in ipairs(weights) do total = total + w end
+
+  local roll = rng:next_float() * total
+  local running = 0
+  for index, w in ipairs(weights) do
+    running = running + w
+    if roll <= running then
+      local row = M.IDLES[index]
+      return index, row.low + rng:next_float() * (row.high - row.low)
+    end
+  end
+  return 1, M.IDLES[1].low
+end
 -- }}}
 
 -- {{{ function M.by_name(name)
@@ -140,10 +210,16 @@ end
 -- A scene is a list, not a phase. Which kinds are present is a parameter of the
 -- run rather than a property of what has been built -- balls and little guys can
 -- share one maze, and the locomotion table is what makes that cost nothing.
+-- The numbers are a density, not a count, and the density is what decides
+-- whether anything happens between two bodies at all. Two hundred walkers in
+-- nine thousand floor cells is two percent occupancy, and two of them are
+-- adjacent about six times a minute -- so the shared idle, which is most of what
+-- phase four built, essentially never fires.
 M.POPULATIONS = {
-  balls    = { ball = 260 },
-  guys     = { guy = 200 },
-  both     = { ball = 180, guy = 140 },
+  balls    = { ball = 300 },
+  guys     = { guy = 700 },
+  both     = { ball = 260, guy = 480 },
+  crowd    = { guy = 1400 },     -- shoulder to shoulder, for watching the meeting
   empty    = {},
 }
 -- }}}

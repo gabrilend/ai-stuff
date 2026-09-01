@@ -5,12 +5,30 @@
 | Phase | 4 — The Wandering |
 | Blocked by | 103, 204, 301 |
 | Blocks | 408, 504 |
-| Reads | [the camera and what it watches](../docs/008-the-camera-and-what-it-watches.md) |
+| Reads | [the camera and what it watches](../../docs/008-the-camera-and-what-it-watches.md) |
 | Open questions | 1 (camera or fencer) |
 
 ## Current behavior
 
-The camera goes where it is pushed and nowhere else.
+`044-the-director.lua`. Free, follow, or stakeout; a verdict that is an ordered
+list of named predicates so the panel can say *which* one fired; and a subject
+held with its generation.
+
+The next subject is chosen by **reservoir sampling in one pass**, weighted toward
+bodies doing something — on an errand, in company, falling. No candidate list is
+built, so a swap costs one pass and no allocation rather than a few hundred
+entries for a result that is one integer.
+
+`tests/059-the-camera-cannot-move-the-world.lua` is the proof the whole
+arrangement rests on: fifteen hundred ticks with the swap key pressed five
+hundred times, every control driven through its range, and the camera panned and
+zoomed throughout, produce a simulation checksum identical to a run where nobody
+looked. It also asserts the quiet run never touched the camera stream at all —
+because if it had, the simulation is reading it, which is the thing the
+arrangement exists to prevent.
+
+The duel verdict is not written. It arrives with fencing in phase five, above the
+rest of the list.
 
 ## Intended behavior
 
@@ -62,8 +80,8 @@ somebody is mashing the swap key.
 
 ## Related documents and tools
 
-- [The camera and what it watches](../docs/008-the-camera-and-what-it-watches.md)
-- [Open questions](../docs/026-open-questions.md) — question 1
+- [The camera and what it watches](../../docs/008-the-camera-and-what-it-watches.md)
+- [Open questions](../../docs/026-open-questions.md) — question 1
 
 ## Still open
 

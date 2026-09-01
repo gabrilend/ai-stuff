@@ -5,19 +5,29 @@
 | Phase | 4 — The Wandering |
 | Blocked by | 103, 401 |
 | Blocks | 406 |
-| Reads | [idling and being idle together](../docs/015-idling-and-being-idle-together.md) |
+| Reads | [idling and being idle together](../../docs/015-idling-and-being-idle-together.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Bodies that have nothing to do stand perfectly still, which reads as a crash.
+Six rows in the creature table — breathe, look around, stretch, crouch, scratch,
+sit — each with a duration range, a bob, a rate, and optionally a squat or a
+turn. Weights per creature kind.
+
+The simulation's whole involvement is which row and how much of its clock is
+left. `Walking.idle_offset` turns that into a drawn height offset: a sine for the
+bob, a constant for the squat, eased in and out over the idle so a squat does not
+snap on and off. Two numbers and a sine, in the renderer, read from a table.
+
+`breathe` is the default and is the one that matters. A genuinely motionless body
+reads as a bug — the eye assumes something crashed.
 
 ## Intended behavior
 
 There is no animation system and there is not going to be one. An idle is a row
 in a table: a name, a duration range, and a small amount of motion the renderer
 applies. The rows are listed in
-[the document](../docs/015-idling-and-being-idle-together.md).
+[the document](../../docs/015-idling-and-being-idle-together.md).
 
 The simulation's whole involvement is **which row, and how much of its clock is
 left**. Everything visible is arithmetic in the renderer driven by the fraction
@@ -47,4 +57,4 @@ guy scratches and a sunning dinosaur sits.
 
 ## Related documents and tools
 
-- [Idling and being idle together](../docs/015-idling-and-being-idle-together.md)
+- [Idling and being idle together](../../docs/015-idling-and-being-idle-together.md)

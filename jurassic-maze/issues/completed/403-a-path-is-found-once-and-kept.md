@@ -5,12 +5,32 @@
 | Phase | 4 — The Wandering |
 | Blocked by | 107, 401 |
 | Blocks | 603, 604, 707 |
-| Reads | [walking the surface graph](../docs/014-walking-the-surface-graph.md) |
+| Reads | [walking the surface graph](../../docs/014-walking-the-surface-graph.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Bodies wander and cannot go anywhere in particular.
+`Moving.find_path` — A-star over the surface graph, with a binary heap over flat
+arrays rather than a sorted table, and stances packed into single integers so the
+came-from map is a flat array too. Checked against breadth-first on a maze-wide
+path: both say 324 steps.
+
+The component label is consulted first, so an unreachable destination costs one
+comparison rather than the whole budget. The budget is 2500 surfaces, and a
+search that gives up is **counted** — never silent.
+
+An errand is deliberately **local**: a destination a block or two away rather
+than anywhere in the maze. A cell drawn from the whole maze is a three-hundred
+step journey costing five milliseconds to plan, and at seven hundred bodies that
+was most of the tick. It is also the wrong journey — a two-minute trek is not
+something anybody watches, and the camera's whole interest is in a thing that
+starts and finishes. Floor cells are bucketed into sixteen-cell blocks at world
+creation so "somewhere near here" is a draw rather than a search.
+
+A path knocked out from under a body — by a fall, or by being pushed aside — is
+**replanned once** from where the body actually is toward where it was actually
+going. Abandoning outright throws the errand away for a displacement of one cell,
+and the errand is the only thing in a walker's life that ever finishes.
 
 ## Intended behavior
 
@@ -52,5 +72,5 @@ announced, and it is counted.
 
 ## Related documents and tools
 
-- [Walking the surface graph](../docs/014-walking-the-surface-graph.md)
-- [Standing somewhere and going elsewhere](../docs/004-standing-somewhere-and-going-elsewhere.md)
+- [Walking the surface graph](../../docs/014-walking-the-surface-graph.md)
+- [Standing somewhere and going elsewhere](../../docs/004-standing-somewhere-and-going-elsewhere.md)

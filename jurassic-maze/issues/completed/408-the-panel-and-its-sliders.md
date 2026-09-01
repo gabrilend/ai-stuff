@@ -5,13 +5,26 @@
 | Phase | 4 — The Wandering |
 | Blocked by | 407 |
 | Blocks | nothing |
-| Reads | [the camera and what it watches](../docs/008-the-camera-and-what-it-watches.md) |
+| Reads | [the camera and what it watches](../../docs/008-the-camera-and-what-it-watches.md) |
 | Open questions | 1 (camera or fencer) |
 
 ## Current behavior
 
-The director's settings are constants in a file and changing one means editing
-and restarting.
+Bound to `p`. Four toggles and three sliders, drawn from `Director.CONTROLS` and
+hit-tested from the same list, so a control cannot be drawn in one place and
+clicked in another.
+
+A toggle is one line and a slider is its label and then its track, so the layout
+walks the list accumulating heights rather than using one row height for both —
+which put every slider's label on top of the control above it.
+
+The read-only region names the subject, what it is doing, and which verdict
+predicate is currently true. That last part is what makes running with "swap on
+its own" turned off usable rather than blind.
+
+Not built: persisting the settings to `input/` so a session starts the way the
+last one ended. The controls table makes that a loop over the same list, and it
+is the natural next thing.
 
 ## Intended behavior
 
@@ -57,5 +70,5 @@ zooming the maze does not zoom the controls.
 
 ## Related documents and tools
 
-- [The camera and what it watches](../docs/008-the-camera-and-what-it-watches.md)
+- [The camera and what it watches](../../docs/008-the-camera-and-what-it-watches.md)
 - [The director decides what is worth watching](407-the-director-decides-what-is-worth-watching.md)
