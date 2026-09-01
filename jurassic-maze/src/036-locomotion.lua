@@ -43,10 +43,16 @@ end
 -- {{{ function M.new_table()
 -- The rows, in the order the creature table names them.
 --
--- Five of the seven are unimplemented and raise by name if reached. That is
--- deliberate: a row that errors saying "lumbering is not built yet" is a far
--- better failure than a nil index three calls away, and it means the shape of
--- the design is visible in the code rather than only in the documents.
+-- All seven rows are built. Five of them spent time as stubs that raised by
+-- name -- "lumbering is not built yet, phase 7" -- which is a far better failure
+-- than a nil index three calls away, and which meant the shape of the design was
+-- visible in the code and not only in the documents.
+--
+-- The helper that made those stubs is gone with them. Three of the five turned
+-- out to be `Walking.advance` with different numbers in the creature's row, and
+-- `carried` turned out to be a function that does nothing: a new way of moving
+-- was a new row rather than a new function, four times out of five, which is
+-- what the table was for and was not guaranteed.
 function M.new_table(Rolling, Walking)
   return {
     { name = "rolling",  advance = Rolling.advance,  parallel = true,
@@ -85,14 +91,6 @@ function M.new_table(Rolling, Walking)
 
     { name = "still",    advance = function() end, parallel = true, needs = {} },
   }
-end
--- }}}
-
--- {{{ function M.unbuilt(what)
-function M.unbuilt(what)
-  return function()
-    error("locomotion row not built yet: " .. what)
-  end
 end
 -- }}}
 
