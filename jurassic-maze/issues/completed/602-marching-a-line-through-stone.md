@@ -5,12 +5,29 @@
 | Phase | 6 — The Habitat |
 | Blocked by | 101 |
 | Blocks | 603, 604, 707 |
-| Reads | [line of sight through stone](../docs/018-line-of-sight-through-stone.md) |
+| Reads | [line of sight through stone](../../docs/018-line-of-sight-through-stone.md) |
 | Open questions | 8 (does a creature remember) |
 
 ## Current behavior
 
-Every creature knows where every other creature is, always.
+`062-sight.lua`. A fixed-step march, one array read and one bit test per step,
+with the range checked before any marching at all.
+
+The eye height is measured from a creature's **feet**, not from the layer it
+stands on. Measured from the layer, every line begins inside the block the
+creature is standing on: one pair in four hundred and forty-one could see each
+other, and that pair was adjacent. From the feet: forty-two percent within four
+cells, twenty within ten, five within twenty-six — which is the shape a maze
+should have, and the test asserts all three.
+
+Sight is asked on a cadence with a **per-body phase offset**, so the population
+does not all check on the same tick. Cover is asked on the same cadence, and that
+was not optional: without it a body in the open asks again every tick, at three
+hundred surfaces and a sight march apiece — seventy thousand failed searches a
+minute, with the move pass costing nine tenths of the whole simulation.
+
+No cone of vision, no light, no memory. The last of those is
+[open question 8](../../docs/026-open-questions.md) and is one field.
 
 ## Intended behavior
 
@@ -21,7 +38,7 @@ step. Reach B, there is sight; hit stone, there is not.
 The march visits cells, in steps of at most half a cell so none is skipped, and
 each step is **one array read and one bit test**. That cheapness is what makes
 asking it often affordable, and it is a direct consequence of
-[the column being one integer](completed/101-a-column-is-one-integer.md).
+[the column being one integer](101-a-column-is-one-integer.md).
 
 The height along the line is interpolated between the two surfaces, both raised
 by an **eye height** of one layer. Without the offset the line runs exactly along
@@ -55,7 +72,7 @@ no memory.
 
 ## Related documents and tools
 
-- [Line of sight through stone](../docs/018-line-of-sight-through-stone.md)
+- [Line of sight through stone](../../docs/018-line-of-sight-through-stone.md)
 
 ## Still open
 

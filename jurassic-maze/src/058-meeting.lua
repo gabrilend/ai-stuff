@@ -105,6 +105,21 @@ local function separate(world, bodies, a, b)
   if bodies.cell[a] ~= bodies.cell[b] then return end
   if bodies.layer[a] ~= bodies.layer[b] then return end
 
+  -- A rolling body is never pushed. It has a continuous position and its own
+  -- collision, and this rule moves a body by *setting its cell* -- which for a
+  -- ball is a teleport, in the middle of an arc, followed by the rolling code
+  -- picking up the pieces.
+  --
+  -- Leaving it in made a scene with balls and walkers together four times slower
+  -- than the sum of the two apart, which is the sort of number that looks like a
+  -- scaling problem and is a rule firing where it should not.
+  local rolling = world.creatures.ROLLING
+  local a_rolls = Creatures.KINDS[bodies.kind[a]].locomotion == rolling
+  local b_rolls = Creatures.KINDS[bodies.kind[b]].locomotion == rolling
+  if a_rolls and b_rolls then return end
+  if a_rolls then a, b = b, a end
+  if Creatures.KINDS[bodies.kind[b]].locomotion == rolling then return end
+
   -- Move whichever of the two is *not* on its way somewhere.
   --
   -- Always displacing the higher id is simpler and quietly destroys errands: a
@@ -125,7 +140,15 @@ local function separate(world, bodies, a, b)
     local answer, nc, nl = Moving.step(Stone, world.store, bodies.cell[b],
                                        bodies.layer[b], di,
                                        kind.drop_limit, kind.body_height)
-    if answer ~= Moving.BLOCKED then
+    -- The footprint check, which the step rule does not make.
+    --
+    -- Without it this is the one place in the project that can put a body
+    -- somewhere it does not fit: a dinosaur shoved sideways ends up straddling a
+    -- wall, off the wide floor entirely, and every rule that assumes a body
+    -- stands where a body can stand is then quietly wrong about it. Eighteen of
+    -- sixty, over forty seconds.
+    if answer ~= Moving.BLOCKED
+       and Walking.footprint_fits(world, bodies, b, kind, nc, nl) then
       bodies.cell[b]  = nc
       bodies.layer[b] = nl
       local x, y = Stone.coords(world.store, nc)
@@ -155,6 +178,7 @@ function M.new_table(creatures)
   local guy    = creatures.by_name("guy")
   local ball   = creatures.by_name("ball")
   local fencer = creatures.by_name("fencer")
+  local dino   = creatures.by_name("dino")
 
   local meet = {}
   local function pair(a, b, what, fn)
@@ -164,9 +188,14 @@ function M.new_table(creatures)
       meet[b] = meet[b] or {}
       -- The mirror shares the function and swaps the arguments, so a rule is
       -- written once and cannot be written twice differently.
-      meet[b][a] = { what = what, fn = function(world, bodies, x, y)
+      --
+      -- A pairing with **no** function gets no wrapper. Wrapping a nil produces
+      -- an entry that looks callable and is not, and the pass calls it -- which
+      -- only happens for the pairings where nothing was supposed to happen, so
+      -- it waits until a scene containing both kinds is first run.
+      meet[b][a] = { what = what, fn = fn and function(world, bodies, x, y)
         return fn(world, bodies, y, x)
-      end }
+      end or nil }
     end
   end
 
@@ -178,6 +207,12 @@ function M.new_table(creatures)
   pair(fencer, fencer, "a duel, if their sides differ", function(world, bodies, a, b)
     return world.modules.Duels.meets(world, bodies, a, b)
   end)
+  pair(dino, dino, "sometimes a game", function(world, bodies, a, b)
+    return world.modules.Games.maybe_start(world, bodies, a, b)
+  end)
+  pair(dino, guy, "the guy gets out of the way", nil)
+  pair(dino, ball, "nothing", nil)
+  pair(dino, fencer, "nothing", nil)
 
   return meet
 end

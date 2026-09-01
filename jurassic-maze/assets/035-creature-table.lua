@@ -132,6 +132,49 @@ M.KINDS = {
                              -- silent.
   },
   -- }}}
+  -- {{{ dinosaur
+  --
+  -- A body wider than one cell, and that is the whole of what is different about
+  -- it. The same graph, the same step, the same timing -- with the enterability
+  -- check applied to every cell of its footprint instead of one.
+  --
+  -- The consequence is the most interesting thing about them sharing a maze: a
+  -- one-cell corridor does not admit a three-cell animal, so the little guys
+  -- have a whole network of boltholes and nobody added it. It was in the maze all
+  -- along.
+  {
+    name        = "dino",
+    locomotion  = M.STRIDING,
+    radius      = 1.0,        -- a three-by-three footprint
+    body_height = 2,
+    drop_limit  = 1,
+    health      = 60,
+    team        = 0,
+
+    step_seconds   = 0.72,    -- heavy. Slower than a little guy by half again.
+    reverse_weight = 0.25,    -- a big animal turns around more readily than a
+                              -- small one, having fewer places to go
+    crowd_weight   = 0.04,
+    idle_chance    = 0.14,
+    errand_chance  = 0.03,
+    notice_seconds = 2.0,
+    search_budget  = 2500,
+
+    sight_range    = 26,      -- in cells
+    sight_interval = 0.5,     -- seconds between sight checks
+
+    -- Games. Nothing here knows it is playing: these are the numbers of a state
+    -- machine that two or more bodies share.
+    game_chance      = 0.35,  -- of a meeting between two of them becoming one
+    game_seconds     = 40,    -- the clock every game ends on
+    grace_seconds    = 2.5,   -- after a tag, before the roles may swap back --
+                              -- without it they swap every tick while the two of
+                              -- them are standing next to each other
+    give_up_distance = 34,    -- a chase across half the maze is not a chase
+    count_seconds    = 6,     -- how long the seeker counts, facing a wall
+  },
+  -- }}}
+
   -- {{{ fencer
   --
   -- A little guy with a sword and a side. Walks the same graph, idles the same
@@ -213,6 +256,7 @@ M.IDLES = {
 M.IDLE_WEIGHTS = {
   guy    = { 5, 4, 1, 2, 3, 1 },
   fencer = { 4, 6, 2, 1, 2, 0 },   -- looks around more, never sits
+  dino   = { 6, 3, 1, 0, 0, 5 },   -- breathes and suns itself
 }
 -- }}}
 
@@ -264,6 +308,8 @@ M.POPULATIONS = {
   both     = { ball = 260, guy = 480 },
   crowd    = { guy = 1400 },     -- shoulder to shoulder, for watching the meeting
   fencers  = { fencer = 600 },
+  habitat  = { dino = 90 },
+  jungle   = { dino = 70, guy = 300 },
   war      = { fencer = 900, guy = 200 },
   empty    = {},
 }

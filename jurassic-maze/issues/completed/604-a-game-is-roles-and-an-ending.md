@@ -5,12 +5,32 @@
 | Phase | 6 — The Habitat |
 | Blocked by | 103, 403, 601, 602, 603 |
 | Blocks | 707 |
-| Reads | [games that creatures play](../docs/020-games-that-creatures-play.md) |
+| Reads | [games that creatures play](../../docs/020-games-that-creatures-play.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Creatures wander and hide and nothing happens between more than two of them.
+`063-games.lua`. Chase, hide and seek, and follow the leader, in a third
+flat-array store with a free list.
+
+Generalising that store with the duel store was considered and **not** done: a
+duel is always two bodies and has an outcome, a game is up to six and has roles
+that swap, and merging them makes a store whose entries are two different things
+with a discriminator — the shape that gets one of the two wrong later. Three
+instances is enough to see the pattern and not enough to be sure where the seam
+is. That is a decision rather than an omission.
+
+The `grace` interval after a tag is what stops the roles swapping back on the
+next tick while the two of them are still standing next to each other.
+
+Follow the leader takes its destinations from a small ring of the leader's recent
+stances rather than pathfinding to the leader. Pathfinding to a moving target
+means recomputing every time it moves, which is every step.
+
+Braided loops are what make a chase a chase, and the `braid` knob has existed
+since phase one for this. It has not been tested at zero against a chase, which
+would be the clearest single demonstration in the project that a generator knob
+decides a behaviour — that is written in the issue's steps and is not done.
 
 ## Intended behavior
 
@@ -19,13 +39,13 @@ It is not intelligence and it is not planning — the fact that it reads as play
 a property of the watcher.
 
 One record per game, participants by id and generation, exactly like
-[a duel](completed/501-a-duel-is-a-record-not-two-flags.md), which is itself a game under
+[a duel](501-a-duel-is-a-record-not-two-flags.md), which is itself a game under
 this description with two roles and a violent ending. The decide pass asks a
 body's game what it wants and the game answers with an intent, so a body in a
 game is steered by the game and released back to itself when it ends.
 
 Three games, detailed in
-[the document](../docs/020-games-that-creatures-play.md):
+[the document](../../docs/020-games-that-creatures-play.md):
 
 - **Chase** — one is it, roles swap on contact, with a `grace` interval so the
   swap does not immediately swap back. **Requires the braided loops** from issue
@@ -59,5 +79,5 @@ removing its row and nothing else mentions it.
 
 ## Related documents and tools
 
-- [Games that creatures play](../docs/020-games-that-creatures-play.md)
-- [The maze is a spanning tree over rooms](completed/105-the-maze-is-a-spanning-tree-over-rooms.md)
+- [Games that creatures play](../../docs/020-games-that-creatures-play.md)
+- [The maze is a spanning tree over rooms](105-the-maze-is-a-spanning-tree-over-rooms.md)
