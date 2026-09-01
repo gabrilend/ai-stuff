@@ -62,9 +62,6 @@
 
 local M = {}
 
--- How much of a road's half-width a fanned-out rank spreads across. Not all of it:
--- the very edge is where a flanking body arrives, and a rank pressed against the
--- verge has nowhere to go when one does.
 -- How much wider a rank stands when it fans out, as a multiple of the gaps it marches
 -- at. Enough that a body on the outside of it has a line past its own front rank
 -- rather than through it, which is the entire purpose.
@@ -79,11 +76,6 @@ local FAN_MINIMUM = 26
 -- enough to be harassing it, in paces. Small -- this is a rank tightening, not a
 -- charge.
 local CLOSING_UP = 12
-
--- How much of the road a fanned rank may use. Not the very edge: that is where a
--- flanking body arrives, and a rank pressed against the verge has nowhere to go when
--- one does.
-local FANNED_TO = 0.9
 
 -- Ranged bodies and healers give ground at half speed while engaged. Melee closes at
 -- full. That single asymmetry produces most of what a frontline looks like: **a melee
@@ -163,8 +155,11 @@ function M.orbit(world, id)
     return false
   end
 
-  local lane = world.map.lane[soldier.lane[id]]
-  if lane == nil then
+  -- A guard has no lane to arrange itself across, and would not if it had one: it is
+  -- leashed to a tower and its position is that tower's business. Asked as a question
+  -- about the body rather than about whether the map has a record for lane zero,
+  -- because that is the condition that is actually true.
+  if soldier.lane[id] == 0 then
     return false
   end
 
@@ -271,10 +266,24 @@ function M.orbit(world, id)
     end
   end
 
-  -- Never off the road. A body that spread without limit would walk out of the fight
-  -- it is supposed to be shooting into.
-  local edge = lane.width * 0.5 * FANNED_TO
-  if want > edge then want = edge elseif want < -edge then want = -edge end
+  -- **A fanning rank is not held to the road, and never should have been.**
+  --
+  -- The road's width is how much room there is, not a wall -- which is what the shape
+  -- parameters have said about it all along, in the same breath as the number: a body
+  -- may stand anywhere. This was the one place in the game that read it as a fence,
+  -- and it was reading it against the very behaviour a wide road exists to allow.
+  --
+  -- Archers going wide is not a rank losing its discipline. It is the shape a line
+  -- takes when the people with a reach cannot shoot over the people with a shield:
+  -- they go to the ends, where the shot runs down the outside of both ranks instead
+  -- of through their own. A flank that stops at the verge is not a flank, it is a
+  -- wider rank -- and the enemy's own line is very often wider than the road it is
+  -- walking down, because it has fanned too.
+  --
+  -- Nothing here is unbounded. A fanning body wants its own place in the rank scaled
+  -- outward, so the widest it ever asks for is the formation's own radius times the
+  -- spread; a concentrating one wants the enemy's mean position, which is wherever
+  -- the enemy actually is. Neither can run away.
 
   local gap = want - soldier.lane_across[id]
   if math.abs(gap) < 1 then

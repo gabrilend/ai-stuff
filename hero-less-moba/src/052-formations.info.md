@@ -125,9 +125,25 @@ thrown flat, and that one is **meant** to be blocked — which is what makes the
 frontline a targeting constraint and gives a player something to read. See
 [line of sight](035-targeting.info.md).
 
-**And the shoulders belong to cavalry**, which does not exist yet and will. Putting
-the archers where the horses go means moving them again later and rebuilding whatever
-came to depend on it.
+The shoulders were then held empty for **cavalry**, which does not exist yet and will,
+on the reasoning that putting the archers where the horses go means moving them again
+later and rebuilding whatever came to depend on it.
+
+**That reservation is lifted: with only infantry and archers in the game, the archers
+own the flanks.** There is nobody to keep the ground clear for, and holding it empty
+for a body of troops that has not been designed is holding it empty against the one
+arrangement the archers actually want — going round the ends, where a shot runs down
+the outside of both ranks instead of through their own.
+
+Note what this does *not* yet change: a body with a reach still **marches** behind the
+line, and goes wide only once its own wave is in contact, through
+[the orbit](062-the-rest-of-the-brain.info.md). Whether the marching place should move
+to the shoulders as well is open — see H14 in
+[open questions](../docs/020-open-questions.md). The paragraph above it is also only
+half true now: *"an arrow arcs, so a bow behind its own line is doing the thing bows
+are for"* is the reasoning that moved them back here, and it holds only while an
+ordinary arrow is exempt from needing a clear line, which is a switch in the unit
+catalogue rather than a fact.
 
 A **captain stands in the middle of its own rank**, and which rank is written on its
 archetype row — the front of the line for one carrying a shield, back with the archers
