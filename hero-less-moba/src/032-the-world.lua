@@ -198,6 +198,35 @@ local function make_soldier_arrays(capacity, kind_count)
   -- of pause is imperceptible and is most of the cost of having line of sight at all.
   soldier.search_pause      = zeroed(capacity)
 
+  -- **Whether this body has been hit by somebody it had not been hit by before**, and
+  -- therefore owes the world one fresh look at what it should be attacking.
+  --
+  -- Raised during the attacker sweep and cleared by the choosing. It exists because a
+  -- body with a living target is never asked to choose at all, so "somebody is already
+  -- swinging at me" -- the first and cheapest rule in the ranking -- only ever decided
+  -- anything in the single tick after a target died. A body could be worked over from
+  -- behind for a whole fight and never look round.
+  soldier.look_up           = zeroed(capacity)
+
+  -- The last few enemies to have struck this body, most recent first, as **generation-
+  -- stamped keys** rather than bare ids: `generation * capacity + id`. One number per
+  -- remembered attacker instead of two arrays per slot, and it is a key rather than an
+  -- id because slots are recycled -- without the stamp a body would remember "id 57"
+  -- and then quietly ignore an entirely different soldier born into slot 57 later,
+  -- which is the same bug the target's generation check exists to prevent, one step
+  -- removed.
+  --
+  -- **Small and forgetful on purpose.** Remembering everybody that ever hit it would
+  -- make a body that has been through two fights permanently incurious, which is the
+  -- worse failure of the two because nothing on the screen shows it. Forgetting also
+  -- says something true: an enemy that hit you, left, and came back is worth another
+  -- look. Four is enough to sit still in an ordinary scrum and short enough that a
+  -- fifth assailant from a new direction still counts as news.
+  soldier.struck_by_1       = zeroed(capacity)
+  soldier.struck_by_2       = zeroed(capacity)
+  soldier.struck_by_3       = zeroed(capacity)
+  soldier.struck_by_4       = zeroed(capacity)
+
   soldier.slot_bearing      = zeroed(capacity)
   soldier.slot_distance     = zeroed(capacity)
 
@@ -495,6 +524,14 @@ function M.release(world, id)
   soldier.lane_along[id] = 0
   soldier.lane_across[id] = 0
   soldier.search_pause[id] = 0
+  -- The grudge does not outlive the body holding it. A slot that kept its memory of
+  -- who had been hitting it would hand that memory to whoever moved in next, and that
+  -- body would sit calmly through the first blows of a fight it had never been in.
+  soldier.look_up[id] = 0
+  soldier.struck_by_1[id] = 0
+  soldier.struck_by_2[id] = 0
+  soldier.struck_by_3[id] = 0
+  soldier.struck_by_4[id] = 0
   soldier.slot_bearing[id] = 0
   soldier.slot_distance[id] = 0
   soldier.slot_along[id] = 0

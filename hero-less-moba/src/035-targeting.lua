@@ -340,10 +340,20 @@ end
 function M.choose(world, id)
   local soldier = world.soldier
 
+  -- **Being hit by somebody new spends the look.** Cleared here whether or not the
+  -- ranking below finds anything, because the thing it records is that the body owes
+  -- the world one look, and it has now had it.
+  local struck_by_somebody_new = soldier.look_up[id] == 1
+  soldier.look_up[id] = 0
+
   -- A body whose last look was blocked by its own rank waits a moment before looking
   -- again. The line in front of it is still there; asking every tick is asking the
   -- same question of the same people, and the asking is a grid query.
-  if soldier.search_pause[id] > 0 then
+  --
+  -- **A new assailant overrides the wait**, because being hit is exactly the event
+  -- that makes it wrong. The wait is founded on nothing having changed since the last
+  -- look, and somebody arriving who was not there before is the change.
+  if soldier.search_pause[id] > 0 and not struck_by_somebody_new then
     soldier.search_pause[id] = soldier.search_pause[id] - 1
     return
   end
@@ -429,6 +439,30 @@ function M.target_is_alive(world, id)
 end
 -- }}}
 
+-- {{{ local function remember_the_striker()
+-- Writes an attacker into its victim's short memory, and says whether it was new.
+--
+-- Most recent first, oldest pushed off the end. Four comparisons and, on the rare
+-- occasion something is actually new, three shifts -- which is cheaper than keeping a
+-- cursor per body would be, and means the slots are in recency order for free.
+--
+-- The key carries the attacker's **generation** as well as its id, because slots are
+-- recycled: remembering a bare id would have a body sit calmly through the first blows
+-- of an entirely different soldier that happened to be born into the same slot.
+local function remember_the_striker(soldier, capacity, victim, striker)
+  local key = soldier.generation[striker] * capacity + striker
+  if soldier.struck_by_1[victim] == key or soldier.struck_by_2[victim] == key
+     or soldier.struck_by_3[victim] == key or soldier.struck_by_4[victim] == key then
+    return false
+  end
+  soldier.struck_by_4[victim] = soldier.struck_by_3[victim]
+  soldier.struck_by_3[victim] = soldier.struck_by_2[victim]
+  soldier.struck_by_2[victim] = soldier.struck_by_1[victim]
+  soldier.struck_by_1[victim] = key
+  return true
+end
+-- }}}
+
 -- {{{ function M.sweep_attackers()
 -- Rebuilds "who is swinging at me" and the incoming-damage-per-second figure,
 -- once per tick, from everybody's chosen target.
@@ -437,10 +471,17 @@ end
 -- that changes target has to *decrement* the old one's figure, and a decrement
 -- that gets missed leaves a body permanently believing it is under fire. A full
 -- rebuild cannot drift.
+--
+-- **And this is where a body notices it is being hit by somebody new.** Every
+-- attacker-and-victim pair in the game is already visited here, so the noticing costs
+-- a walk of four numbers rather than a second pass over the world. What it raises is
+-- read by the next tick's retargeting, which is the same one-tick lag the "somebody is
+-- already swinging at me" rule has always run on.
 function M.sweep_attackers(world)
   local soldier = world.soldier
   local attacker_of = world.attacker_of
   local ticks_per_second = world.parameters.unit.ticks_per_second
+  local capacity = world.capacity
 
   for id = 1, world.high_water do
     attacker_of[id] = 0
@@ -451,12 +492,25 @@ function M.sweep_attackers(world)
     if soldier.alive[id] == 1 then
       local target = soldier.target[id]
       if target ~= 0 and soldier.alive[target] == 1 then
+        -- Last writer wins, and that is fine: this answers "somebody is hitting me"
+        -- rather than "everybody who is hitting me". What follows is the part that
+        -- cares about all of them.
         attacker_of[target] = id
         local per_swing = soldier.damage[id] - soldier.armour[target]
         if per_swing < 1 then per_swing = 1 end
         local swings_per_second = ticks_per_second / soldier.cooldown_max[id]
         soldier.incoming_dps[target] =
           soldier.incoming_dps[target] + per_swing * swings_per_second
+
+        -- A body already in the memory passes without comment -- which is the half of
+        -- this that keeps a frontline from re-deciding every tick. A body in a scrum
+        -- is struck constantly by the same few enemies and should settle down and
+        -- keep swinging; it is the *fourth* enemy, arriving from a direction nobody
+        -- was covering, that is worth turning round for.
+        if M.hostile(soldier.team[id], soldier.team[target])
+           and remember_the_striker(soldier, capacity, target, id) then
+          soldier.look_up[target] = 1
+        end
       end
     end
   end

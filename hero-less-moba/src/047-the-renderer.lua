@@ -161,6 +161,64 @@ local function make_disc(diameter)
 end
 -- }}}
 
+-- {{{ local function make_wedge()
+-- A soft white triangle, generated once, tinted per draw. What a body with a reach
+-- is drawn as.
+--
+-- One shape too few was the problem: everything was a disc, and the melee and the
+-- archers differ by six tenths of a pace of radius, so the single most-watched thing
+-- on the field -- whether the archers are in their files or fanned out to the ends
+-- hunting for an angle past their own rank -- was invisible. A player was being asked
+-- to read the most legible consequence of any rule in the game off two sizes of dot.
+--
+-- Built the same way as the disc and for the same reason: it is a few lines of
+-- arithmetic, and a file on disk would be an asset to keep in step with the code that
+-- assumes its size.
+--
+-- The test is three half-planes, one per edge, and the alpha is the distance to the
+-- nearest of them -- so the edges soften exactly like the disc's rim does, and the
+-- three corners come out slightly rounded, which is what keeps a triangle four paces
+-- across from reading as three loose pixels.
+local function make_wedge(size)
+  local data = love.image.newImageData(size, size)
+  -- Corners of an upward-pointing triangle inset from the edge, so the soft rim has
+  -- room to fall off inside the image rather than being clipped by it.
+  local inset = size * 0.08
+  local top_x, top_y = size * 0.5, inset
+  local left_x, left_y = inset, size - inset
+  local right_x, right_y = size - inset, size - inset
+
+  -- Signed distance from a point to the line through two corners, **positive inside**.
+  --
+  -- The corners above run top, right, left -- which is clockwise, because the image's
+  -- y grows downward -- so the cross product of the edge with the point comes out
+  -- negative on the inside and the whole thing is negated to put it back. Getting
+  -- this backwards does not draw a wrong triangle, it draws nothing at all: every
+  -- pixel fails at least one edge, every alpha clamps to zero, and the archers simply
+  -- vanish from the field. Which is how it was found.
+  local function inside_of(px, py, ax, ay, bx, by)
+    local ex, ey = bx - ax, by - ay
+    local length = math.sqrt(ex * ex + ey * ey)
+    return ((py - ay) * ex - (px - ax) * ey) / length
+  end
+
+  local softness = size * 0.06
+  data:mapPixel(function(x, y)
+    local a = inside_of(x, y, top_x, top_y, right_x, right_y)
+    local b = inside_of(x, y, right_x, right_y, left_x, left_y)
+    local c = inside_of(x, y, left_x, left_y, top_x, top_y)
+    local nearest = a
+    if b < nearest then nearest = b end
+    if c < nearest then nearest = c end
+    local alpha = nearest / softness
+    if alpha < 0 then alpha = 0 end
+    if alpha > 1 then alpha = 1 end
+    return 1, 1, 1, alpha
+  end)
+  return love.graphics.newImage(data)
+end
+-- }}}
+
 -- {{{ function M.load()
 -- Builds everything the renderer owns. Called once, from the viewer's load.
 --
@@ -193,6 +251,18 @@ function M.load(world, camera_module)
   -- a thousand characters -- and the shadow is what stops that reading from
   -- flattening into a diagram.
   M.shadow_batch = love.graphics.newSpriteBatch(M.disc, 4096, "stream")
+
+  -- And the same two again for the bodies with a reach, which are wedges. A batch
+  -- can only draw one texture, so a second shape is a second batch -- not a second
+  -- loop, and not a draw call per archer. Three more batches against three fewer
+  -- hundred draw calls a frame.
+  M.wedge = make_wedge(64)
+  M.wedge:setFilter("linear", "linear")
+  M.wedge_batch = {}
+  for team = 1, 3 do
+    M.wedge_batch[team] = love.graphics.newSpriteBatch(M.wedge, 4096, "stream")
+  end
+  M.wedge_shadow_batch = love.graphics.newSpriteBatch(M.wedge, 4096, "stream")
 
   M.hero_list, M.hero_x, M.hero_y = {}, {}, {}
   M.font_small = love.graphics.newFont(11)
@@ -447,10 +517,13 @@ end
 local function draw_bodies(world, camera, previous, newest, blend, detail)
   for team = 1, 3 do
     M.batch[team]:clear()
+    M.wedge_batch[team]:clear()
   end
   M.shadow_batch:clear()
+  M.wedge_shadow_batch:clear()
 
   local disc_size = M.disc:getWidth()
+  local wedge_size = M.wedge:getWidth()
   local left, top, right, bottom = M.camera_module.visible_rectangle(camera)
   -- Heroes are collected as they are batched and ringed afterwards. A hero is a
   -- purchase somebody made and has to be findable on a crowded field at any zoom --
@@ -468,24 +541,47 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
     -- everything, which is exactly when the frame has the least room to spare.
     if x >= left and x <= right and y >= top and y <= bottom then
       local radius = BODY_RADIUS[newest.archetype[id]] or 5
-      local scale = (radius * 2) / disc_size
       if newest.flavour[id] == 2 then
         hero_count = hero_count + 1
         hero_list[hero_count] = id
         hero_x[hero_count] = x
         hero_y[hero_count] = y
       end
-      M.batch[newest.team[id]]:add(x - radius, y - radius, 0, scale, scale)
-      -- Offset down and to the right, and flattened, so the light is consistently
-      -- from the upper left across the whole field. One light source, never
-      -- stated anywhere else, because nothing else in the game casts anything.
-      M.shadow_batch:add(x - radius + SHADOW_OFFSET, y - radius + SHADOW_OFFSET,
-                         0, scale, scale * 0.62)
+
+      -- **A body with a reach is a wedge; everything else is a disc.**
+      --
+      -- Asked of the body rather than of a table of archetypes. The snapshot already
+      -- carries reach, because the simulation already needed it -- so a new archetype
+      -- with a bow draws correctly the day it is added, where a parallel table in the
+      -- viewer would silently draw it as a dot and nobody would know for months.
+      --
+      -- Drawn a little larger than the disc it replaces. A triangle of a given radius
+      -- covers about half the ink of a circle of the same one, so matching the radius
+      -- would make the archers quieter than the melee, which is the opposite of the
+      -- point of doing this at all.
+      if newest.reach[id] == 2 then
+        local size = radius * 2.4
+        local scale = size / wedge_size
+        M.wedge_batch[newest.team[id]]:add(x - size * 0.5, y - size * 0.5, 0,
+                                           scale, scale)
+        M.wedge_shadow_batch:add(x - size * 0.5 + SHADOW_OFFSET,
+                                 y - size * 0.5 + SHADOW_OFFSET,
+                                 0, scale, scale * 0.62)
+      else
+        local scale = (radius * 2) / disc_size
+        M.batch[newest.team[id]]:add(x - radius, y - radius, 0, scale, scale)
+        -- Offset down and to the right, and flattened, so the light is consistently
+        -- from the upper left across the whole field. One light source, never
+        -- stated anywhere else, because nothing else in the game casts anything.
+        M.shadow_batch:add(x - radius + SHADOW_OFFSET, y - radius + SHADOW_OFFSET,
+                           0, scale, scale * 0.62)
+      end
     end
   end
 
   love.graphics.setColor(0, 0, 0, 0.42)
   love.graphics.draw(M.shadow_batch)
+  love.graphics.draw(M.wedge_shadow_batch)
 
   -- The fallen, **under** the living, so a corpse never obscures a body somebody
   -- has to make a decision about.
@@ -517,6 +613,7 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
   for team = 1, 3 do
     set_colour(COLOUR.team[team])
     love.graphics.draw(M.batch[team])
+    love.graphics.draw(M.wedge_batch[team])
   end
 
   for index = 1, hero_count do

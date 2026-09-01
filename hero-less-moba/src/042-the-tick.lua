@@ -113,11 +113,20 @@ end
 -- }}}
 
 -- {{{ local function retarget()
--- Every soldier without a living target looks for one.
+-- Every soldier without a living target looks for one -- and every soldier that has
+-- just been hit by somebody it had not been hit by before.
 --
--- A body that already has a living target is left alone, which is what makes a
--- fight a fight rather than a crowd of bodies re-deciding every tick. Only the
--- ones with nothing to hit pay for a search.
+-- A body that already has a living target is otherwise left alone, which is what
+-- makes a fight a fight rather than a crowd of bodies re-deciding every tick. Only
+-- the ones with nothing to hit pay for a search.
+--
+-- **The second condition is what gives the ranking's first rule anything to do.**
+-- "Somebody is already swinging at me" outranks everything below it, and used to be
+-- consulted only in the one tick after a target died, because a body with a living
+-- target was never asked. So a body could be worked over from behind for an entire
+-- fight and never look round. It is gated on the striker being *new* rather than on
+-- being struck at all, so a body in a scrum settles down instead of spinning: see the
+-- short memory each body keeps of who has recently hit it.
 local function retarget(world)
   local soldier = world.soldier
   local targeting = world.targeting
@@ -128,8 +137,59 @@ local function retarget(world)
       if not has_target and soldier.target_structure[id] ~= 0 then
         has_target = world.structure[soldier.target_structure[id]].alive == 1
       end
+      -- **A body already swinging at something it can reach does not turn round.**
+      --
+      -- Being hit by somebody new is a reason to look up; it is not a reason to walk
+      -- away from a fight you are winning. Concentration is the single most valuable
+      -- thing this brain does -- a rank that spreads its damage kills nothing and
+      -- dies anyway -- and honouring every tap on the shoulder spends it: measured,
+      -- the share of bodies standing next to a challenge monster that were actually
+      -- aiming at it fell from 65% to 53%, and that was the whole difference between
+      -- the monster dying and the monster being unkillable.
+      --
+      -- So the look-up is spent only by a body whose target is **out of its reach** --
+      -- one that is walking toward something rather than hitting it. That body has
+      -- nothing to lose by turning, and it is the case the request was really about:
+      -- somebody has come at it from a side nobody was covering while it was busy
+      -- crossing the ground to somebody else.
+      local reachable = false
+      if has_target and soldier.target[id] ~= 0 then
+        local target = soldier.target[id]
+        local dx = soldier.x[target] - soldier.x[id]
+        local dy = soldier.y[target] - soldier.y[id]
+        reachable = (dx * dx + dy * dy) <= soldier.range[id] * soldier.range[id]
+      end
+
       if not has_target then
         targeting.choose(world, id)
+      elseif soldier.look_up[id] == 1 and reachable then
+        -- Busy, and hitting something. The news is **spent rather than banked**: a tap
+        -- on the shoulder is about right now, and a body that acted on it four seconds
+        -- later, the moment its current fight happened to move out of reach, would be
+        -- turning round in answer to something that had long since stopped happening.
+        soldier.look_up[id] = 0
+      elseif soldier.look_up[id] == 1 then
+        -- **Looking up may change its mind, but may never empty its hands.**
+        --
+        -- The ranking's last rule is "nothing -- keep walking", and it is reached
+        -- whenever the first three find nobody within acquisition range. That is the
+        -- right answer for a body that has just lost its target and the wrong one for
+        -- a body that still has a living one and merely turned its head: a body
+        -- pursuing something that has stepped outside its acquisition range would
+        -- drop it and walk away mid-fight, purely because somebody tapped it on the
+        -- shoulder.
+        --
+        -- So the old choice is held and put back if the ranking came up empty. A
+        -- reconsideration that finds nothing better is a body carrying on.
+        local was_target = soldier.target[id]
+        local was_generation = soldier.target_generation[id]
+        local was_structure = soldier.target_structure[id]
+        targeting.choose(world, id)
+        if soldier.target[id] == 0 and soldier.target_structure[id] == 0 then
+          soldier.target[id] = was_target
+          soldier.target_generation[id] = was_generation
+          soldier.target_structure[id] = was_structure
+        end
       end
     end
   end
