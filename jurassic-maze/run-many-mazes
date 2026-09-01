@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+#
+# run-many-mazes -- plays it a great many times with nobody watching, one worker
+# per core, and prints the table you read in the morning.
+#
+# The point of the headless runner is that a property of a run becomes a number.
+# The point of this is that a number becomes a distribution: a maze that fails
+# one time in forty is invisible to anybody running one maze, and every failure
+# this generator has had so far has been one of those.
+#
+# Rows go to the RAM tier as they finish and are collated at the end, so a sweep
+# that is killed half way through still leaves everything it had done.
+#
+# Usage:
+#   ./run-many-mazes                     100 seeds, the default scene
+#   ./run-many-mazes 500                 500 seeds
+#   ./run-many-mazes 500 guys            500 seeds of little guys
+#   ./run-many-mazes 500 both 6000       ... run for 6000 ticks each
+#   ./run-many-mazes /path/to/checkout 100
+
+# The project root. Hard-coded so the script runs from any directory, and
+# overridable as a leading argument.
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+SEEDS="${1:-100}"
+SCENE="${2:-balls}"
+TICKS="${3:-1800}"
+
+mkdir -p /tmp/jurassic-maze
+mkdir -p /dev/shm/jurassic-maze
+if [ ! -e /tmp/jurassic-maze/shared-memory ]; then
+    ln -sfn /dev/shm/jurassic-maze /tmp/jurassic-maze/shared-memory
+fi
+
+OUT="/tmp/jurassic-maze/shared-memory/sweep"
+rm -rf "${OUT}"
+mkdir -p "${OUT}"
+
+# One worker per core, less two, so the machine stays usable while it runs. A
+# sweep that makes the desktop unresponsive is a sweep nobody runs twice.
+CORES="$(nproc)"
+WORKERS="$((CORES - 2))"
+if [ "${WORKERS}" -lt 1 ]; then WORKERS=1; fi
+
+echo "sweeping ${SEEDS} seeds of '${SCENE}' for ${TICKS} ticks on ${WORKERS} workers"
+
+seq 1 "${SEEDS}" | xargs -P "${WORKERS}" -I {} \
+    sh -c "luajit '${DIR}/src/047-the-headless-runner.lua' '${DIR}' \
+           --seed {} --scene '${SCENE}' --ticks '${TICKS}' --row \
+           > '${OUT}/{}.row' 2> '${OUT}/{}.err'"
+
+HEADER="$(luajit -e "
+    local Report = dofile('${DIR}/src/048-the-report.lua')
+    print(Report.table_header())
+")"
+
+echo ""
+echo "${HEADER}"
+cat "${OUT}"/*.row 2>/dev/null | sort -n
+
+FAILED="$(grep -l . "${OUT}"/*.err 2>/dev/null | wc -l)"
+echo ""
+if [ "${FAILED}" -gt 0 ]; then
+    echo "${FAILED} seeds failed. The first:"
+    grep -l . "${OUT}"/*.err | head -1 | xargs cat
+    exit 1
+fi
+echo "all ${SEEDS} seeds completed"

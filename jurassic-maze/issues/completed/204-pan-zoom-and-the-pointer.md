@@ -10,7 +10,12 @@
 
 ## Current behavior
 
-The maze is drawn from a fixed viewpoint and cannot be moved.
+Pan by drag and by arrow keys, zoom anchored at the pointer, a clamp in world
+coordinates, and `fit`. In `043-the-camera.lua`, which imports nothing and is
+pure arithmetic.
+
+`subject` and `subject_generation` are on the camera and unused until the
+director lands in phase four.
 
 ## Intended behavior
 

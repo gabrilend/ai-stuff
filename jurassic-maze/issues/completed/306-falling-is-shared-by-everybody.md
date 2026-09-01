@@ -10,7 +10,12 @@
 
 ## Current behavior
 
-A ball that leaves a ledge keeps rolling on air.
+`Locomotion.apply_falling`, called by both built rows. A walker that walks off a
+ledge abandons its step rather than resuming it, because the surface it was
+heading for is no longer adjacent to where it landed.
+
+`check_in_world` raises and names the row that let the body get there, which is
+the one piece of information the stack trace will not have.
 
 ## Intended behavior
 

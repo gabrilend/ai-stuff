@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+#
+# phase-1-the-stone -- what phase one built, shown rather than described.
+#
+# One integer per cell holds a vertical stack of stone. Everything about the
+# maze -- where you can stand, what is a wall, whether it is one connected place
+# -- comes out of bit arithmetic on that array. This demo makes mazes, proves
+# they are mazes, and shows how little it costs.
+
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+if [ -d "$1" ]; then DIR="$1"; shift; fi
+
+SHOTS="/dev/shm/jurassic-maze/demo"
+mkdir -p "${SHOTS}"
+
+echo "=============================================================="
+echo " PHASE 1 -- THE STONE"
+echo "=============================================================="
+echo ""
+echo "A column is one 32-bit integer, one bit per layer. A block is a set"
+echo "bit. A face is a disagreement between two neighbouring bits. Neither"
+echo "is ever allocated, and nothing buried inside a stack is represented"
+echo "at all."
+echo ""
+echo "--- one maze, and what the validator makes of it ---------------"
+echo ""
+"${DIR}/run-maze" --describe --seed 7
+echo ""
+
+echo "--- the same seed, twice, must agree -----------------------------"
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params  = dofile(root .. '/src/028-maze-parameters.lua')
+local Streams = dofile(root .. '/src/029-random-streams.lua')
+local Carve   = dofile(root .. '/src/031-carving.lua')
+local bit     = require('bit')
+
+local function checksum(store)
+  local h = 5381
+  for i = 0, store.cells - 1 do
+    h = bit.band(h * 33 + store.column[i] + i, 0x7FFFFFFF)
+  end
+  return h
+end
+
+for _, seed in ipairs({7, 7, 8}) do
+  local t0 = os.clock()
+  local store = Carve.generate(root, Params.check(Params.with{seed = seed}),
+                               Streams.make_set(seed))
+  print(string.format('  seed %d  checksum %10d  built in %.0f ms',
+        seed, checksum(store), (os.clock() - t0) * 1000))
+end
+print('')
+print('  The first two are the same maze. The third is not.')
+"
+echo ""
+
+echo "--- the shape of the pile ----------------------------------------"
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params  = dofile(root .. '/src/028-maze-parameters.lua')
+local Streams = dofile(root .. '/src/029-random-streams.lua')
+local Carve   = dofile(root .. '/src/031-carving.lua')
+local p = Params.check(Params.with{seed = 7})
+local store, report = Carve.generate(root, p, Streams.make_set(7))
+
+local most = 0
+for l = 0, p.layers - 1 do
+  local n = report.height_histogram[l] or 0
+  if n > most then most = n end
+end
+print('  how many cells stand at each height, bottom to top:')
+print('')
+for l = 0, p.layers - 1 do
+  local n = report.height_histogram[l] or 0
+  if n > 0 then
+    print(string.format('  layer %2d  %5d  %s', l, n,
+          string.rep('#', math.floor(52 * n / most))))
+  end
+end
+print('')
+print('  The terraces are the spikes. The gaps between them are the')
+print('  layers that only staircases and wall tops occupy.')
+"
+echo ""
+
+echo "--- sixty seeds, all of which must be one connected place --------"
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params    = dofile(root .. '/src/028-maze-parameters.lua')
+local Streams   = dofile(root .. '/src/029-random-streams.lua')
+local Carve     = dofile(root .. '/src/031-carving.lua')
+local Validator = dofile(root .. '/src/032-the-validator.lua')
+
+local t0 = os.clock()
+local failed, stairs, orphans, diameter = 0, 0, 0, 0
+for seed = 1, 60 do
+  local p = Params.check(Params.with{seed = seed})
+  local ok, store, report = pcall(Carve.generate, root, p, Streams.make_set(seed))
+  if ok then
+    Validator.validate(root, store, p, report)
+    stairs   = stairs + (report.staircases_cut or 0) + (report.extra_staircases or 0)
+    orphans  = orphans + (report.orphans_filled or 0)
+    diameter = diameter + report.diameter
+  else
+    failed = failed + 1
+    print('  FAILED seed ' .. seed .. ': ' .. tostring(store))
+  end
+end
+print(string.format('  60 mazes in %.1f s  --  %d failed', os.clock() - t0, failed))
+print(string.format('  mean %d staircases, %d orphan cells filled, diameter %d steps',
+      stairs / 60, orphans / 60, diameter / 60))
+"
+echo ""
+
+echo "--- and what it looks like ---------------------------------------"
+echo ""
+echo "  Each shot opens a window, lets it settle, saves a frame and leaves."
+echo "  Guarded by a timeout: a window that loses focus can be throttled by"
+echo "  the compositor to the point where it never reaches the frame it was"
+echo "  told to capture, and a demo that hangs is a demo nobody runs twice."
+echo ""
+echo "  writing ${SHOTS}/phase-1-whole.png"
+timeout 45 love "${DIR}" --seed 7 --scene empty --screenshot "${SHOTS}/phase-1-whole.png" >/dev/null 2>&1
+echo "  writing ${SHOTS}/phase-1-detail.png"
+timeout 45 love "${DIR}" --seed 7 --scene empty --zoom 1.2 --at 64 64 \
+     --screenshot "${SHOTS}/phase-1-detail.png" >/dev/null 2>&1
+echo ""
+echo "  Open them beside inspiration/inspiration-maze.png, which is what"
+echo "  they are trying to be."
+echo ""

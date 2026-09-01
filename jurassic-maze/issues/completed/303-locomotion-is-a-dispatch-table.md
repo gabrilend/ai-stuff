@@ -10,7 +10,15 @@
 
 ## Current behavior
 
-The tick has a move pass with nothing in it.
+Seven rows, two built. The five unbuilt ones raise by name — "lumbering, which
+breaks walls rather than routing around them — phase 7" — rather than being
+absent, so the shape of the design is visible in the code and a mistake gets a
+message instead of a nil index three calls away.
+
+`check_needs` runs once at startup against the arrays the store actually has.
+
+The shared machinery is `surface_top`, `settle_stance`, `floor_under`,
+`apply_falling` and `check_in_world` — called by the rows, not inherited.
 
 ## Intended behavior
 

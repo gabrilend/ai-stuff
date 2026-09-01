@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+#
+# run-maze -- the front door. Opens a window, a terminal, a screenshot, or no
+# window at all.
+#
+# One maze, four ways of looking at it. The choice of viewer decides whether the
+# game engine is started at all: --headless and --terminal run under a bare
+# luajit, which is half of what they are for -- a simulation that can only be
+# observed by a person watching it has no tests.
+#
+# Usage:
+#   ./run-maze                              a window
+#   ./run-maze --seed 42 --scene guys       a window, that seed, little guys
+#   ./run-maze --describe                   the maze's numbers, no simulation
+#   ./run-maze --headless --ticks 20000     no window; prints the report
+#   ./run-maze --terminal                   one layer as characters, held at a gate
+#   ./run-maze --screenshot out.png         a window, one frame, then leave
+#
+# Scenes are named in assets/035-creature-table.lua: balls, guys, both, empty.
+#
+# Options passed through to both viewers:
+#   --seed N --width N --depth N --layers N --terraces N --capacity N
+#   --scene NAME --ticks N
+#
+# Windowed only:
+#   --zoom N --at X Y --after SECONDS --screenshot PATH
+
+# The project root. Hard-coded so the script runs from any directory, and
+# overridable as a leading argument.
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+# The RAM tiers, made if absent -- a fresh checkout has neither, and a run should
+# not be the thing that fails because of it.
+mkdir -p /tmp/jurassic-maze
+mkdir -p /dev/shm/jurassic-maze
+if [ ! -e /tmp/jurassic-maze/shared-memory ]; then
+    ln -sfn /dev/shm/jurassic-maze /tmp/jurassic-maze/shared-memory
+fi
+
+WINDOWLESS="no"
+for arg in "$@"; do
+    case "$arg" in
+        --headless|--terminal|--describe) WINDOWLESS="yes" ;;
+        --help)
+            sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+    esac
+done
+
+if [ "${WINDOWLESS}" = "yes" ]; then
+    TERMINAL="no"
+    for arg in "$@"; do
+        if [ "$arg" = "--terminal" ]; then TERMINAL="yes"; fi
+    done
+
+    if [ "${TERMINAL}" = "yes" ]; then
+        luajit "${DIR}/src/046-the-terminal-viewer.lua" "${DIR}" "$@"
+    else
+        luajit "${DIR}/src/047-the-headless-runner.lua" "${DIR}" "$@"
+    fi
+else
+    love "${DIR}" "$@"
+fi

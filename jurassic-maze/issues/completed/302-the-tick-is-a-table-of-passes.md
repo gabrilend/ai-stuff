@@ -10,7 +10,24 @@
 
 ## Current behavior
 
-Bodies exist and nothing advances them.
+Three passes so far — `move`, `spawn`, `index` — as an array of rows walked in
+order, with optional per-pass timing. `meet` and `resolve` are simply absent
+rather than present and skipped, which is the whole argument for the table.
+
+`new_world` also lives here: the maze, the streams, the bodies, the rows and the
+report assembled in one place, so the window, the terminal and the headless
+runner all get the same thing.
+
+Each world loads its **own copy** of every module, including the creature table.
+That is worth knowing before writing anything that tunes a number: mutating the
+table an outer script loaded changes nothing, because the world is reading a
+different one. A parameter sweep that reported identical results for twelve
+different settings is how this was found.
+
+The thread pool is not wired up. The passes declare `parallel` and nothing reads
+it yet. At a few hundred bodies the move pass costs half a millisecond a tick, so
+there is nothing to gain until the population is an order of magnitude larger --
+and the flag being stated now is what makes it safe to add later.
 
 ## Intended behavior
 

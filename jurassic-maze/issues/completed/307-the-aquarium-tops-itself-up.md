@@ -10,7 +10,21 @@
 
 ## Current behavior
 
-Bodies can be spawned by hand and there is no reason for there to be any.
+`spawn_one` and the `spawn` pass. Balls are drawn toward the top of the maze,
+because a ball that begins at the bottom has nowhere to roll; walkers are drawn
+from anywhere.
+
+Where a body may be put down is collected **once**, at world creation, into a
+list of floor cells and a bucket per height. Picking random cells and rejecting
+the wall ones means rejecting most of them, on a maze that is sixty percent
+stone.
+
+Top-ups are capped at six per tick, so a mass removal does not produce a mass
+arrival in the same frame — which looks like the maze blinking.
+
+Scenes are `balls`, `guys`, `both` and `empty`, chosen per run. Balls and little
+guys do share one maze, which is open question 5 answered in the affirmative for
+now because it costs nothing to allow.
 
 ## Intended behavior
 

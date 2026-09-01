@@ -10,7 +10,17 @@
 
 ## Current behavior
 
-Asking which bodies are near a body means walking every body.
+A counting sort into preallocated count, offset and id arrays. Nothing allocated
+per tick. `largest_bucket` goes into the report.
+
+The footprint hook and the carried-body skip are both written and neither has
+anything to exercise it yet — nothing is wider than a cell until phase six and
+nothing is carried until phase seven. They are here because writing the
+placement to take a footprint costs nothing now and is a rewrite later.
+
+The renderer reads these same buckets to group bodies into draw bands, which is
+the second reason they are rebuilt every tick rather than maintained
+incrementally.
 
 ## Intended behavior
 

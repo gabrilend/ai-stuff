@@ -10,7 +10,23 @@
 
 ## Current behavior
 
-Balls roll and pass through walls.
+Faces then corners, with the corner push only where both orthogonal neighbours
+are open — pushing off a corner whose neighbour is also wall would shove the ball
+back through the face it was just pushed out of.
+
+While airborne the ball is resolved against the stone at its **current** height
+rather than the surface below it.
+
+`tests/053-bodies-stay-outside-stone.lua` runs three scenes over two seeds for
+eighteen hundred ticks each and finds nothing buried, nothing outside the world,
+nothing below it and nothing hanging in the air.
+
+That test does **not** assert zero. A ball rolling on an interpolated floor is
+strictly inside the step it is crossing — the blend is between the two cells'
+heights while the ball is still over one of them — and that is the lie the
+interpolation exists to tell. The clamp bounds the dip at one layer, and the
+bound is what is asserted. A ball that has tunnelled into a wall is several
+layers under. Working that out took a failing test and a while.
 
 ## Intended behavior
 
