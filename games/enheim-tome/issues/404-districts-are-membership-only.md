@@ -73,4 +73,4 @@ something a person is supposed to think of as one place.
 ## Related documents and tools
 
 - [The places of the city](../docs/003-the-places-of-the-city.md)
-- [Open questions](../docs/012-open-questions.md) — question 12
+- [Open questions](../docs/013-open-questions.md) — question 12

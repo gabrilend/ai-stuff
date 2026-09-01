@@ -1,11 +1,18 @@
 # 804 — A Knowledge Filter
 
+> **Superseded.** Kept for the record rather than deleted &mdash; see
+> [phase 8 progress](../phase-8-progress.md) for what replaced it and why, and
+> [the scaffold](../../docs/009-the-scaffold.md) for the design that stands now.
+>
+> An axis and a filter are the same record, so there is no separate knowledge
+> filter to build. Every minted axis already is one.
+
 | | |
 | --- | --- |
 | Phase | 8 — Events, and What Is Known |
 | Blocked by | 502, 503, 803 |
 | Blocks | — |
-| Reads | [events and what people know](../docs/009-events-and-what-people-know.md) |
+| Reads | [the scaffold](../../docs/009-the-scaffold.md) |
 | Open questions | — |
 
 ## Current behavior
@@ -18,7 +25,7 @@ A filter whose reading is **a count of the events this person holds at this
 place**, and **nothing where they hold none**.
 
 That is the entire implementation. It is a few lines, because
-[502](502-a-reading-takes-a-person.md) and [503](503-nothing-is-a-value.md)
+[502](../502-a-reading-takes-a-person.md) and [503](../503-nothing-is-a-value.md)
 already did the work — the reading already takes a person, and absence is already
 a value that draws as bare painting.
 
@@ -35,7 +42,7 @@ like a city, not like a grid of grey unknowns.
 
 Because knowledge accumulates where a person actually goes, and because a quadrant
 is the scale at which two people never meet —
-[403](403-quadrants-four-to-a-group.md) — a citizen's holdings come out **shaped
+[403](../403-quadrants-four-to-a-group.md) — a citizen's holdings come out **shaped
 like their quadrant**: dense inside it, thinning at the edges, blank across the
 divide.
 
@@ -80,5 +87,5 @@ built from one function.
 
 ## Related documents and tools
 
-- [Events and what people know](../docs/009-events-and-what-people-know.md)
-- [Filters and the weave](../docs/006-filters-and-the-weave.md)
+- [the scaffold](../../docs/009-the-scaffold.md)
+- [Filters and the weave](../../docs/006-filters-and-the-weave.md)

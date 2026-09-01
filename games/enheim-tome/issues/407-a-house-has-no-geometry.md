@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 4 — The Places |
 | Blocked by | 406 |
-| Blocks | 607, 802 |
+| Blocks | 607 |
 | Reads | [the places of the city](../docs/003-the-places-of-the-city.md) |
 | Open questions | — |
 
@@ -80,4 +80,4 @@ the whole point in a city whose problem is that it tells you which to choose.
 ## Related documents and tools
 
 - [The places of the city](../docs/003-the-places-of-the-city.md)
-- [Open questions](../docs/012-open-questions.md) — question 13
+- [Open questions](../docs/013-open-questions.md) — question 13

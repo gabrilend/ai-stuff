@@ -31,7 +31,7 @@ makes one installable.
 | the hierarchy | districts, quadrants, groups, and membership |
 | buildings and houses | zones, names, purposes |
 | filters | the readings this map declares, and their invented facts — a sun's path, a tree's height |
-| events | the hidden things, if any have been written |
+| natural character | what each place is before anybody visits it — on the water, in shadow, backed onto the wall |
 | a notice | who made the picture, and under what terms |
 
 That last row is not optional. The board this project develops against is

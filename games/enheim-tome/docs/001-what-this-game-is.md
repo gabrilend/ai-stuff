@@ -80,7 +80,7 @@ uses one of them, it means this and not a synonym.
 | **quadrant** | A quarter of a group. Also the scale at which two people simply never meet. |
 | **district** | A set of blocks. Its outline is derived, never traced. |
 | **block** | Five to seven buildings around an intersection, and the community they make. Bounded by street runs. |
-| **building** | One freestanding stone structure. Mostly open to anyone. What roots people. |
+| **building** | One freestanding stone structure. Unrestricted to anyone. What roots people. |
 | **house** | An apartment inside a building, three to five rooms, one family or one person. Almost always restricted. Has no geometry at all. |
 | **intersection** | A corner where street runs meet. Named, and listed with everything it connects to. |
 | **the cage** | All the fences drawn together — the one-pixel lines that show where places divide. See [the fence network](004-the-fence-network.md). |
@@ -89,7 +89,19 @@ uses one of them, it means this and not a synonym.
 | **shape point** | A vertex in the middle of an edge that makes a curved street curve. Private to its edge. |
 | **adjacency** | Two blocks are neighbours when they share an edge. The only notion of nearness the game has. |
 | **filter** | A way of looking. Reads a block, for a person, as a number or as nothing. Draws as hatching. See [filters and the weave](006-filters-and-the-weave.md). |
-| **event** | One hidden, ordinary, local fact, held by people rather than by places. See [events](009-events-and-what-people-know.md). |
+| **event** | An occurrence, not a possession. People in a place at an hour. Computed, never stored. See [the scaffold](009-the-scaffold.md). |
+| **actor** | A person or a place. Anything that has a character and a status. |
+| **open** | Open to being **changed**. Receives. Drawn as a circle. |
+| **closed** | Not open to being changed. **Gives** — the closed is the source, not the withholder. Drawn as a vertical line. |
+| **axis** | One named dimension of character, minted when it is needed rather than declared. Also a filter; they are the same record. |
+| **arc** | What two closed actors make when they are intent on each other. Where it lands is context. |
+| **gathering** | The actors in one place at one hour, the place counted as one of them. Each is one share of N+1. |
+| **interaction** | One axis, across everyone in a gathering. Shared, strained, offered, withheld, or asserted. See [the scene](010-the-scene.md). |
+| **scene** | The record of a gathering where something changed: who, where, when, which axes, and what moved. Data, not prose. |
+| **narration** | Words rendered from a scene. Decides nothing; the city runs without it. |
+| **history** | An actor's append-only record — axis changes, narrations, and mintings. Never edited. |
+| **public** | A fact anyone may read. |
+| **private** | A fact only somebody who knows it may read. Included in the thinking phase always, in a narration only when the reader knows it. |
 | **the glow** | Warm breathing light on a place, meaning *this one*. |
 | **time-curve** | A person's day plotted as activity. Sweepable. See [the day and the curve](008-the-day-and-the-curve.md). |
 | **the hour** | The global time axis that filters and people both read. Not owned by any filter. |
@@ -132,14 +144,20 @@ and it is paid deliberately, for the people who would otherwise be locked out.
 
 ## What is deliberately absent
 
-**The mechanics.** This document set describes an interface and a world, worked
-out before the systems that will move them. What a move is, what unites a
-neighbourhood, what holding an event lets you do, what any button in the tome
-actually does — none of that is decided, and the documents do not pretend
-otherwise. Where a mechanic would be needed to finish a thought, the thought is
-parked in [open questions](012-open-questions.md) instead of guessed at.
+**Some of the mechanics — no longer all of them.** This document set was written
+interface-first, on the argument that a map which cannot carry text and cannot
+express a radius constrains the mechanics usefully. That held until the mechanics
+arrived, and [the scaffold](009-the-scaffold.md) is now the part that moves: what
+an event is, how character travels between people and places, and where a new way
+of looking comes from.
 
-This ordering is intentional. The interface's shape is knowable from the painting
-and the vision alone, and knowing it constrains the mechanics usefully — a game
-whose map cannot carry text and cannot express a radius is a different game from
-one that can.
+What is still undecided is what a **move** is and what any particular button in
+the tome does. Where a mechanic is needed to finish a thought, the thought is
+parked in [open questions](013-open-questions.md) rather than guessed at.
+
+That ordering was intentional and it paid. The interface's shape was knowable from
+the painting and the vision alone, and knowing it constrained the mechanics
+usefully — a game whose map cannot carry text and cannot express a radius is a
+different game from one that can. When the mechanics did arrive, "nearby" could
+only mean adjacency, because there are no distances, and that constraint came from
+the interface rather than being imposed on it.

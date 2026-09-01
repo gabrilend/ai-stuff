@@ -1,11 +1,18 @@
 # 806 — Houses Fill In Forever
 
+> **Superseded.** Kept for the record rather than deleted &mdash; see
+> [phase 8 progress](../phase-8-progress.md) for what replaced it and why, and
+> [the scaffold](../../docs/009-the-scaffold.md) for the design that stands now.
+>
+> The writing campaign this plans does not exist. Twenty to forty thousand house
+> facts were priced at two to four years, and none of them are needed.
+
 | | |
 | --- | --- |
 | Phase | 8 — Events, and What Is Known |
 | Blocked by | 805 |
 | Blocks | — |
-| Reads | [events and what people know](../docs/009-events-and-what-people-know.md) |
+| Reads | [the scaffold](../../docs/009-the-scaffold.md) |
 | Open questions | — |
 
 ## Current behavior
@@ -56,7 +63,7 @@ and with it goes the reporting that made the campaign legible.
 ### The same shape appears elsewhere
 
 Buildings' own facts fill in on identical terms — see
-[406](406-a-building-and-its-facts.md). So does naming intersections.
+[406](../406-a-building-and-its-facts.md). So does naming intersections.
 
 That is worth naming as the project's general posture on hand-authored content:
 **a place with nothing recorded is a place nobody has looked into yet.** The city
@@ -67,7 +74,7 @@ permanently rather than treating it as a state to be escaped.
 
 1. Confirm every query tolerates a house, building or block with no events, and
    returns absence rather than an empty structure that reads as zero — see
-   [503](503-nothing-is-a-value.md).
+   [503](../503-nothing-is-a-value.md).
 2. Extend the worklist from [805](805-one-event-per-block.md) to houses, ordered
    to cluster within a building and then within a block.
 3. Report house coverage as remaining work with a projected rate, never as a
@@ -78,5 +85,5 @@ permanently rather than treating it as a state to be escaped.
 
 ## Related documents and tools
 
-- [Events and what people know](../docs/009-events-and-what-people-know.md)
-- [The places of the city](../docs/003-the-places-of-the-city.md)
+- [the scaffold](../../docs/009-the-scaffold.md)
+- [The places of the city](../../docs/003-the-places-of-the-city.md)

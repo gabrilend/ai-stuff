@@ -33,8 +33,7 @@ much the painting actually tells us.
 ### It is a separate act from tracing
 
 Blocks are traced first; zones are placed on a return visit, possibly years
-later. The tool must not require a block to be fully populated before you move on
-— see [the fill-in-forever plan](../docs/009-events-and-what-people-know.md).
+later. The tool must not require a block to be fully populated before you move on.
 
 A block with no building zones is a block whose buildings nobody has placed yet.
 It still works: hit-testing falls through to the block, because the identity

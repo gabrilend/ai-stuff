@@ -76,4 +76,4 @@ button pane is where the editing actions live.
 ## Related documents and tools
 
 - [The tracing mode](../docs/005-the-tracing-mode.md)
-- [The shape of the code](../docs/010-the-shape-of-the-code.md)
+- [The shape of the code](../docs/011-the-shape-of-the-code.md)

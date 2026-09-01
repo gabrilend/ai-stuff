@@ -38,7 +38,7 @@ named**, which is a different question and the one that actually matters.
 | houses listed | |
 | intersections named | out of junctions that exist |
 | membership | places with no district; districts with no quadrant |
-| events written | per place, and per house |
+| natural character stated | per place, and how many still have none |
 | **what remains** | all of the above as work left rather than work done |
 
 That last line is the point. "1,840 places named" is a number; "roughly 160 left,

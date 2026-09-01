@@ -111,4 +111,4 @@ map arriving without its picture.
 
 - [The fence network](004-the-fence-network.md) — the structure this writes
 - [The map surface](002-the-map-surface.md) — the canvas it shares with play
-- [Open questions](012-open-questions.md)
+- [Open questions](013-open-questions.md)
