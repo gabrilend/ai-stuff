@@ -1,6 +1,6 @@
 # Phase 8 — The Mountain
 
-**Five of six.** The world is no longer generated. It is a file somebody typed, it
+**Six of eight.** The world is no longer generated. It is a file somebody typed, it
 is a mountainside rather than a pyramid, it has no walls in it, every shelf is
 visible from summit to base, and nine hundred spheres roll down it bouncing off
 real geometry and off each other.
@@ -11,7 +11,9 @@ real geometry and off each other.
 | [802](completed/802-the-mountainside-is-hard-coded.md) | the mountainside is hard-coded |
 | [803](completed/803-the-height-field-becomes-a-model.md) | the height field becomes a model |
 | [804](completed/804-a-ball-is-a-sphere-against-faces.md) | a ball is a sphere against faces |
-| [805](805-a-ball-is-a-sprite-in-a-solid-world.md) | **not started** — a ball is a sprite in a solid world |
+| [805](805-a-ball-is-a-sprite-in-a-solid-world.md) | **in progress** — a ball is a sprite in a solid world |
+| [805a](805a-the-world-is-drawn-from-the-model.md) | **in progress** — the world is drawn from the model |
+| [805b](completed/805b-a-ball-is-a-baked-sprite.md) | a ball is a baked sprite |
 | [806](completed/806-balls-collide-with-each-other.md) | balls collide with each other |
 
 `./run-maze --map 070-the-mountainside` shows it.
@@ -152,12 +154,62 @@ and a fifth found on the way — the spawn retry drawing from the general floor
 rather than from the wide floor — has been putting dinosaurs where dinosaurs do
 not fit since phase six. A crowd is a test.
 
+### A picture is the one output nobody tests, and that is why the sprite is a function
+
+There is no art in this project and there is not going to be any, so the sprite is
+generated: a sphere lit from a fixed direction is a closed-form calculation, since
+for every pixel inside the disc the surface normal follows from the offset alone.
+That makes it a number somebody can change rather than a file somebody has to
+maintain.
+
+The part worth carrying forward is where the seam was put. The generation produces
+**bytes** — width, height, red-green-blue-alpha — and has never heard of a
+texture; the viewer's four lines hand those bytes to the engine. So a headless run
+can produce a sprite and a test can read one, and there are now assertions about
+what a ball looks like: round, empty in the corners, a soft edge rather than a
+stepped one, brighter on the side the light is on, and symmetric about the light's
+own axis.
+
+Two things came out of that test that looking would not have found. The symmetry
+check first reported an asymmetry of eighteen levels on a sprite that is perfectly
+symmetric — the mirror of a pixel centre almost never lands on another pixel
+centre, so rounding to the nearest compared a pixel with its neighbour, and across
+a specular highlight two neighbours differ a great deal. The test's own sampling
+error, reported as a fault in the thing under test, which is the most expensive
+kind of false alarm there is. And the shadow was written to fade from the centre
+outward, which is nearly invisible: almost all of a disc's area is in its outer
+half, so it was faint everywhere and the balls went back to looking as though they
+hovered.
+
+The sprite also found a missing palette entry the moment it was drawn — the
+bouncer had none, and the palette's deliberate magenta for an unnamed kind did
+exactly what it was put there to do.
+
+### The renderer and the physics now describe the same world, and it is checked
+
+The world is still drawn by the column sweep and collided with as the model: two
+descriptions of the same stone, built by completely different reasoning, and until
+now nothing compared them. A disagreement would be a ball bouncing off something
+that is not where it is drawn — the hardest kind of bug there is, because both
+halves look right on their own.
+
+They are compared now. The test sweeps the renderer over the whole mountainside,
+gathers what it says about every column top and every face between two columns,
+and checks it against what the model says about the same edges. They agree
+everywhere.
+
+**What it taught:** that check was the risk, and the second renderer that
+[805a](805a-the-world-is-drawn-from-the-model.md) proposes was only ever the way
+of finding it. Having found it another way, the second renderer is a choice rather
+than a necessity — and it is the choice its open question asks about.
+
 ## What is deferred, and what it is waiting on
 
-**Drawing it properly.** [805](805-a-ball-is-a-sprite-in-a-solid-world.md) is
-written and not started. The world is still drawn by the column sweep rather than
-from the model, so the renderer and the physics read two different descriptions of
-the same mountain, and a ball is still a drawn circle rather than a sprite.
+**Drawing the world from the model.**
+[805a](805a-the-world-is-drawn-from-the-model.md) is in progress: the comparison
+is built and the second renderer is not. Its open question is whether to have one
+at all, since two renderers is two things to keep in step and the sweep is fast,
+correct and already tuned.
 
 **What the pass costs.** Nine hundred spheres cost 3.6 milliseconds a tick, about
 four microseconds each, against 0.8 for the old roller — a fifth of a frame. The
