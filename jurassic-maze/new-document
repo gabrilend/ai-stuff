@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+#
+# new-document -- brings a prose document into the project and gives it an index
+# from the same counter the source files draw from.
+#
+# Documents and source files share one numbering sequence. That is the point of
+# the sequence: reading the project from 001 upward reads the documents that
+# explain the machine, and then the machine, in an order somebody chose. Two
+# separate counters would let a document and a source file both be "007" and the
+# reading order would stop meaning anything.
+#
+# This script is the documents' half of that arrangement. It claims the next
+# index, writes a page with its title already set, and bumps the counter. It
+# does not write a companion -- a prose document is its own description.
+#
+# It also refuses to write a document that is not registered anywhere. Every new
+# page must be added to docs/table-of-contents.md, and the script prints the line
+# to paste there rather than trusting anybody to remember.
+#
+# Usage:
+#   ./new-document "The Stone And What Is Inferred"
+#       -> docs/NNN-the-stone-and-what-is-inferred.md
+#
+#   ./new-document --into notes "Where The Dinosaurs Came From"
+#       -> notes/NNN-where-the-dinosaurs-came-from.md
+#
+#   ./new-document --peek
+#       -> print the index that would be claimed next, and claim nothing
+
+# The project root. Hard-coded so the script runs correctly from any directory,
+# and overridable as a leading argument.
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+COUNTER="${DIR}/.file-index-counter"
+
+INTO="docs"
+PEEK="no"
+TITLE=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --into) INTO="$2"; shift 2 ;;
+        --peek) PEEK="yes"; shift ;;
+        --help)
+            sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        -*)
+            echo "new-document: unknown option '$1'"
+            echo "Options are --into <dir>, --peek."
+            exit 1
+            ;;
+        *)      TITLE="$1"; shift ;;
+    esac
+done
+
+if [ ! -f "${COUNTER}" ]; then
+    echo "No index counter at ${COUNTER}."
+    exit 1
+fi
+
+CURRENT="$(cat "${COUNTER}")"
+NEXT="$((10#${CURRENT} + 1))"
+INDEX="$(printf '%03d' "${NEXT}")"
+
+if [ "${PEEK}" = "yes" ]; then
+    echo "${INDEX}"
+    exit 0
+fi
+
+if [ -z "${TITLE}" ]; then
+    echo "new-document: no title given."
+    echo 'Usage: ./new-document [--into <dir>] "The Title In Words"'
+    exit 1
+fi
+
+# The filename is the title, lowercased, with everything that is not a letter or
+# a digit collapsed into a single dash. Done here rather than asked of the author
+# so that the file name and the heading can never disagree about what the page is.
+SLUG="$(echo "${TITLE}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\+/-/g; s/^-//; s/-$//')"
+
+TARGET_DIR="${DIR}/${INTO}"
+if [ ! -d "${TARGET_DIR}" ]; then
+    echo "No directory at ${TARGET_DIR} -- refusing to invent one."
+    exit 1
+fi
+
+PATH_OUT="${TARGET_DIR}/${INDEX}-${SLUG}.md"
+
+if [ -e "${PATH_OUT}" ]; then
+    echo "Refusing to overwrite ${PATH_OUT}."
+    echo "The counter says ${INDEX} is free and the disk disagrees. Fix the counter."
+    exit 1
+fi
+
+cat > "${PATH_OUT}" <<MD
+# ${TITLE}
+
+TODO
+MD
+
+echo "${INDEX}" > "${COUNTER}"
+
+echo "${PATH_OUT}"
+echo ""
+echo "Paste into docs/table-of-contents.md:"
+echo "│   ├── ${INDEX}-${SLUG}.md ... ${TITLE}"

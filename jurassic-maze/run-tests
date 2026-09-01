@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#
+# run-tests -- runs every invariant in tests/ under a bare luajit, with no window
+# and no engine anywhere near it.
+#
+# The tests are deliberately not run under the game engine. Half of what they are
+# checking is that the simulation still works without it, and a test suite that
+# needs the engine to start cannot check that. So this is plain luajit, and if a
+# simulation file has quietly grown a dependency on the window, the suite fails
+# to load rather than passing while being wrong.
+#
+# Usage:
+#   ./run-tests                  every test
+#   ./run-tests stone maze       only the tests whose names contain these
+#   ./run-tests --list           what there is
+#   ./run-tests /path/to/checkout  ... against a checkout somewhere else
+
+# The project root. Hard-coded so the script runs from any directory, and
+# overridable as a leading argument.
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+if [ "$1" = "--list" ]; then
+    ls "${DIR}/tests" | grep '\.lua$'
+    exit 0
+fi
+
+# Logs go to the RAM tier. The symlink is made if it is missing, because a fresh
+# checkout has no /tmp/jurassic-maze yet and a test run should not be the thing
+# that fails because of it.
+mkdir -p /tmp/jurassic-maze
+mkdir -p /dev/shm/jurassic-maze
+if [ ! -e /tmp/jurassic-maze/shared-memory ]; then
+    ln -sfn /dev/shm/jurassic-maze /tmp/jurassic-maze/shared-memory
+fi
+
+LOG="/tmp/jurassic-maze/shared-memory/test-run.log"
+
+luajit "${DIR}/tests/run-all.lua" "${DIR}" "$@" 2>&1 | tee "${LOG}"
+exit "${PIPESTATUS[0]}"

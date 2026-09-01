@@ -1,0 +1,22 @@
+# The RAM tiers are symlinks out of the repository. Nothing in them is ever
+# committed; they hold logs, screenshots, recorded runs, and scratch that is
+# regenerated on demand.
+tmp
+
+# Deprecated temporary scripts are kept for exactly one commit and then removed,
+# so they are never ignored -- they are supposed to show up in the record once.
+
+# Editor and OS litter.
+*.swp
+*.swo
+.DS_Store
+
+# The browsable documentation is a **view**, not a source. Every page under
+# docs/HTML is written by ./build-documentation from the Markdown that sits
+# beside it. Committing generated pages means every prose edit arrives as a diff
+# of itself plus a hundred files of machine output, and it means two people who
+# both ran the build have a conflict in something neither of them wrote.
+#
+# Run ./build-documentation to get them back. Nothing is lost by their absence.
+docs/HTML/*
+!docs/HTML/.gitkeep
