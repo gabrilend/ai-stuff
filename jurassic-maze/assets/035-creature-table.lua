@@ -165,6 +165,24 @@ M.KINDS = {
 
     -- Games. Nothing here knows it is playing: these are the numbers of a state
     -- machine that two or more bodies share.
+    -- A dinosaur carries a weapon, and **only while navigating the dungeon** --
+    -- which is the reading taken of that half of the sentence. Outside the
+    -- delve these numbers are still here and nothing opposes it, so nothing
+    -- happens; a dinosaur in the habitat has nobody to swing at.
+    --
+    -- Long reach is the field that changes behaviour rather than numbers: it
+    -- lets a dinosaur fight down a corridor it cannot itself enter, which is a
+    -- mounted party's answer to the narrow places it cannot go.
+    weapon            = "blunt",
+    exchange_seconds  = 0.85,
+    skill             = 0.60,
+    parry             = 0.46,
+    swing             = 0.55,
+    damage            = 7.0,
+    reach             = 2,
+    stalemate_seconds = 30,
+    disengage_seconds = 0,
+
     game_chance      = 0.35,  -- of a meeting between two of them becoming one
     game_seconds     = 40,    -- the clock every game ends on
     grace_seconds    = 2.5,   -- after a tag, before the roles may swap back --
@@ -212,9 +230,16 @@ M.KINDS = {
     stalemate_seconds = 26,     -- two well-matched fencers will otherwise stand
                                 -- there until the machine is turned off, and the
                                 -- camera watching them has nothing to swap to
-    disengage_seconds = 4.0,    -- how long a released fencer keeps away.
-                                -- **Zero turns a series of duels into a melee**,
-                                -- which is the other reading of open question 1.
+    -- Zero: a released fencer re-engages immediately and the fight rolls on.
+    --
+    -- This was open question 1, and it is answered: *the fencers* swap to a new
+    -- opponent, not the camera. A corridor becomes a running brawl and the camera
+    -- never has to move to keep watching one.
+    --
+    -- The number is still a knob, and above zero it is a series of separate
+    -- duels with the camera going looking between them. Both behaviours have
+    -- tests. This is the default because it is what was meant.
+    disengage_seconds = 0,
   },
   -- }}}
   -- {{{ human
@@ -244,6 +269,18 @@ M.KINDS = {
     flammable      = 0.15,    -- carries things that burn
     fuel           = 3.0,
     mounts         = true,    -- will climb a willing dinosaur
+
+    -- Armed. A human alone is not much, and against a golem it is nothing at
+    -- all -- which is the point of there being dinosaurs.
+    weapon            = "fire",   -- a torch. The party's only answer to a vine.
+    exchange_seconds  = 0.60,
+    skill             = 0.52,
+    parry             = 0.40,
+    swing             = 0.50,
+    damage            = 2.6,
+    reach             = 1,
+    stalemate_seconds = 30,
+    disengage_seconds = 0,
   },
   -- }}}
 
@@ -275,8 +312,21 @@ M.KINDS = {
     flammable      = 0,       -- stone does not burn
     breaks_stone   = true,
     break_seconds  = 1.4,     -- how long one block takes
-    damage         = 9,
-    reach          = 1,
+
+    weapon            = "blunt",
+    exchange_seconds  = 1.10,
+    skill             = 0.66,
+    parry             = 0.30,   -- it does not dodge; it does not need to
+    swing             = 0.50,
+    damage            = 9.0,
+    reach             = 1,
+    stalemate_seconds = 40,
+    disengage_seconds = 0,
+
+    -- Stone. A blade chips it, fire does nothing at all, and a heavy blow is
+    -- the only thing that really tells -- which is why a party without a
+    -- dinosaur is not going to win this one.
+    resist = { blade = 0.20, fire = 0.0, blunt = 1.0 },
   },
   -- }}}
 
@@ -308,8 +358,19 @@ M.KINDS = {
     fuel           = 7.0,
     entangles      = true,
     hold_seconds   = 6.0,
-    damage         = 1.0,
-    reach          = 1,
+
+    weapon            = "blade",   -- thorns
+    exchange_seconds  = 0.75,
+    skill             = 0.50,
+    parry             = 0.52,      -- there is a great deal of it to cut through
+    swing             = 0.55,
+    damage            = 1.6,
+    reach             = 1,
+    stalemate_seconds = 30,
+    disengage_seconds = 0,
+
+    -- Growing plant. Fire is devastating and a hammer mostly pushes it about.
+    resist = { blade = 1.0, fire = 3.2, blunt = 0.35 },
   },
   -- }}}
 
@@ -342,8 +403,19 @@ M.KINDS = {
     ignites        = true,
     ignite_seconds = 2.2,     -- between one ignition and the next
     ignite_range   = 5,       -- it is not a projectile; this is reach, not flight
-    damage         = 2.0,
-    reach          = 1,
+
+    weapon            = "blunt",
+    exchange_seconds  = 0.65,
+    skill             = 0.58,
+    parry             = 0.44,
+    swing             = 0.50,
+    damage            = 3.4,
+    reach             = 1,
+    stalemate_seconds = 30,
+    disengage_seconds = 0,
+
+    -- Wood. It splits under a blade, it burns, and a stone fist ends it.
+    resist = { blade = 1.4, fire = 2.6, blunt = 1.8 },
   },
   -- }}}
 }
@@ -363,21 +435,26 @@ M.BURNS = {
 }
 -- }}}
 
--- {{{ M.SOLUTIONS
--- What undoes what.
+-- {{{ M.CHART
+-- What hurts what, as a multiplier on damage.
 --
--- Three monsters, three answers, and the answers are each other. A party
--- carrying none of them does not lose the fight -- it has no fight to have, and
--- must go around, or go and find one.
+-- The chart lives in each monster's `resist` field; this is the same thing
+-- gathered in one place so that a person can read it, and so that
+-- `./run-maze --describe` can print it.
 --
--- Whether "solve" was meant this literally is open question 3, and it decides
--- the whole mode. This is the literal reading, built out of what was said rather
--- than invented on top of it.
-M.SOLUTIONS = {
-  golem     = "held still",     -- by vines. Nothing a party carries hurts stone.
-  vine      = "set alight",     -- by an automaton. The only fire in the maze.
-  automaton = "smashed",        -- by a golem. Wood against a stone fist.
-}
+-- "Solve" was meant loosely: the monsters are enemies with health rather than
+-- locks with keys, and the cycle between the three of them is this table rather
+-- than the point of the mode. It is still a cycle, and it still means a party
+-- without a dinosaur is not going to win against stone.
+--
+--                blade    fire    blunt
+--   golem         0.20    0.00     1.00     stone. only weight tells.
+--   vine          1.00    3.20     0.35     a plant. fire ruins it.
+--   automaton     1.40    2.60     1.80     wood. everything works.
+--
+-- And what the party brings: a human carries fire, a dinosaur carries weight.
+-- Neither alone is an answer to all three.
+M.CHART = { "blade", "fire", "blunt" }
 -- }}}
 
 -- {{{ M.IDLES

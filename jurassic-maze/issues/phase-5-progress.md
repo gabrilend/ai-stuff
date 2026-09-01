@@ -56,9 +56,10 @@ added in one place and not the other.
 **What it taught:** the loud default cost one line to write in phase two and
 found its first bug in phase five, from across the room, in under a second.
 
-## Open question 1, which this phase was supposed to settle
+## Open question 1, which this phase was supposed to settle — and did, later
 
-It is not settled, and it no longer blocks anything. The sentence was:
+**Answered: the fencers.** A released fencer re-engages immediately and the fight
+rolls on; `disengage_seconds` is zero. The sentence was:
 
 > *"for the fencing guys, they should be able to swap to a different target (same
 > team or no? toggle checkmark) to continue the watching experience"*
@@ -71,9 +72,13 @@ Both readings are built and both are one number:
 - **`disengage_seconds` at zero** — a released fencer re-engages immediately and
   the fight rolls on. A melee, and the camera never has to move.
 
-`tests/061-duels.lua` asserts both behaviours. The question is still worth asking,
-because which one is *the default* is a decision about what the thing is, and
-that is not a decision to make by leaving a number where it happens to be.
+`tests/061-duels.lua` asserts both behaviours, and the default is the first.
+
+The phase was finished with the question open and the number left at four
+seconds, on the grounds that which one is the default is a decision about what
+the thing *is* and not one to make by leaving a number where it happened to land.
+It was asked and it went the other way, and changing it was one line and one
+test.
 
 ## What is worth carrying into phase 6
 

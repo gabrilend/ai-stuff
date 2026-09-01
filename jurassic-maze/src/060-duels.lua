@@ -137,9 +137,12 @@ function M.finish(world, d, ending)
   local duels = world.duels
   if duels.alive[d] == 0 then return end
 
-  local kind = Creatures.KINDS[world.bodies.kind[duels.a[d]] ~= 0
-                               and world.bodies.kind[duels.a[d]] or 1]
-  local flee = kind and kind.disengage_seconds or 0
+  -- Each side keeps away for its own interval, which is zero for a fencer --
+  -- they re-engage immediately and the fight rolls on.
+  local function interval(id)
+    if id == 0 or world.bodies.kind[id] == 0 then return 0 end
+    return Creatures.KINDS[world.bodies.kind[id]].disengage_seconds or 0
+  end
 
   duels.ending[d] = ending
 
@@ -149,8 +152,8 @@ function M.finish(world, d, ending)
   local worse = (duels.hurt_a[d] > duels.hurt_b[d]) and duels.a[d] or duels.b[d]
   world.duel_loser[worse] = world.tick_count
 
-  release(world, d, duels.a[d], flee)
-  release(world, d, duels.b[d], flee)
+  release(world, d, duels.a[d], interval(duels.a[d]))
+  release(world, d, duels.b[d], interval(duels.b[d]))
 
   duels.alive[d] = 0
   duels.live = duels.live - 1
@@ -191,9 +194,21 @@ function M.pass(world, dt)
         duels.clock[d]    = duels.clock[d] + dt
         duels.exchange[d] = duels.exchange[d] + dt
 
-        local kind = Creatures.KINDS[bodies.kind[a]]
+        -- Each side's **own** numbers, not the first one's.
+        --
+        -- A duel between two fencers is symmetric and it did not matter; a duel
+        -- between a human with a torch and a stone golem is not, and reading
+        -- both sides' stats off whichever body happened to be stored first would
+        -- give the golem a human's skill or the human a golem's damage,
+        -- depending only on array order.
+        local ka = Creatures.KINDS[bodies.kind[a]]
+        local kb = Creatures.KINDS[bodies.kind[b]]
 
-        if duels.exchange[d] >= kind.exchange_seconds then
+        -- The faster of the two sets the pace. A quick opponent does not get to
+        -- be slowed down by a slow one.
+        local pace = math.min(ka.exchange_seconds or 1, kb.exchange_seconds or 1)
+
+        if duels.exchange[d] >= pace then
           duels.exchange[d] = 0
           duels.turn[d] = 3 - duels.turn[d]
 
@@ -204,27 +219,39 @@ function M.pass(world, dt)
           -- never kill each other in one tick, and the case the whole
           -- arrangement exists for cannot arise. It also reads worse -- a clash
           -- is two people swinging, not two people politely alternating.
-          for _, side in ipairs({ { a, b }, { b, a } }) do
+          for _, side in ipairs({ { a, b, ka, kb }, { b, a, kb, ka } }) do
             local attacker, defender = side[1], side[2]
-            local attack = kind.skill + rng:next_float() * kind.swing
-            local guard  = kind.parry + rng:next_float() * kind.swing
-            if attack > guard then
-              -- **Buffered, not applied.** Two fencers who strike each other
-              -- fatally in the same tick must both die. Applying immediately
-              -- means whichever body was stored first kills the other and
-              -- survives, and the outcome of every duel is decided by an array
-              -- index -- which changes whenever any unrelated body dies and its
-              -- slot is recycled.
-              bodies.incoming_damage[defender] =
-                bodies.incoming_damage[defender] + kind.damage
-              -- Who came off worse, kept on the duel rather than derived from
-              -- health afterwards -- because after a stalemate both walk away
-              -- and heal, and the record of who lost is gone with it.
-              if defender == a then duels.hurt_a[d] = duels.hurt_a[d] + kind.damage
-              else duels.hurt_b[d] = duels.hurt_b[d] + kind.damage end
-              world.counters.blows_landed = (world.counters.blows_landed or 0) + 1
-            else
-              world.counters.blows_parried = (world.counters.blows_parried or 0) + 1
+            local ak, dk = side[3], side[4]
+
+            -- A held body cannot swing. Being entangled is the one thing that
+            -- stops a fight rather than deciding it.
+            if bodies.held[attacker] == 0 and (ak.damage or 0) > 0 then
+              local attack = (ak.skill or 0.5) + rng:next_float() * (ak.swing or 0.5)
+              local guard  = (dk.parry or 0.4) + rng:next_float() * (dk.swing or 0.5)
+              if attack > guard then
+                -- The damage-type chart. Fire ruins a vine and does nothing at
+                -- all to stone; a stone fist ruins a wooden machine. A monster's
+                -- row says what it shrugs off, and the numbers are all in one
+                -- table rather than distributed through nine rules that have to
+                -- agree with each other.
+                local how_much = ak.damage or 0
+                local kills = dk.resist and dk.resist[ak.weapon or "blade"]
+                if kills then how_much = how_much * kills end
+
+                -- **Buffered, not applied.** Two fighters who strike each other
+                -- fatally in the same tick must both die. Applying immediately
+                -- means whichever body was stored first kills the other and
+                -- survives, and the outcome is decided by an array index --
+                -- which changes whenever any unrelated body dies and its slot is
+                -- recycled.
+                bodies.incoming_damage[defender] =
+                  bodies.incoming_damage[defender] + how_much
+                if defender == a then duels.hurt_a[d] = duels.hurt_a[d] + how_much
+                else duels.hurt_b[d] = duels.hurt_b[d] + how_much end
+                world.counters.blows_landed = (world.counters.blows_landed or 0) + 1
+              else
+                world.counters.blows_parried = (world.counters.blows_parried or 0) + 1
+              end
             end
           end
         end
@@ -234,7 +261,8 @@ function M.pass(world, dt)
         -- camera watching them under "swap on its own" has nothing to swap to,
         -- because the duel never ends and the verdict never fires. A rule about
         -- combat, added for a reason about watching.
-        if duels.clock[d] > kind.stalemate_seconds then
+        if duels.clock[d] > math.max(ka.stalemate_seconds or 20,
+                                     kb.stalemate_seconds or 20) then
           M.finish(world, d, M.STALEMATE)
         end
       end
@@ -293,11 +321,25 @@ end
 -- }}}
 
 -- {{{ function M.meets(world, bodies, a, b)
--- Two fencers. A duel if their sides differ and neither is already in one.
+-- **Any two bodies of opposing sides that can hurt each other.**
+--
+-- It was two fencers. Generalising it is what turned the delve from a puzzle
+-- into a fight: a human with a torch against a vine, a dinosaur with a hammer
+-- against a wooden machine, and a golem against anything -- all of them are two
+-- bodies exchanging blows and buffering the damage, which is a thing that
+-- already existed and worked.
+--
+-- The only requirement is that at least one of them can do damage. A body that
+-- cannot is not in a fight, it is being attacked, and that is the monsters'
+-- pass rather than this one.
 function M.meets(world, bodies, a, b)
   if bodies.duel[a] ~= 0 or bodies.duel[b] ~= 0 then return false end
   if bodies.team[a] == 0 or bodies.team[b] == 0 then return false end
   if bodies.team[a] == bodies.team[b] then return false end
+
+  local ka = Creatures.KINDS[bodies.kind[a]]
+  local kb = Creatures.KINDS[bodies.kind[b]]
+  if (ka.damage or 0) <= 0 and (kb.damage or 0) <= 0 then return false end
 
   -- Just released from a duel, and told to keep away for a moment.
   --

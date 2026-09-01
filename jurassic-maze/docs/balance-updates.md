@@ -271,3 +271,58 @@ and the test suite from thirty seconds to eleven.
 
 It is recorded here because it is a number that was turned and it changed the
 program's behaviour more than any other in the project.
+
+---
+
+## Four questions answered, and what the answers were worth
+
+### `disengage_seconds` 4.0 → 0, for the fencer
+
+**A released fencer re-engages immediately.** Open question 1 asked whether "swap
+to a different target" was about the fencers or about the camera, and it was
+about the fencers: a corridor becomes a running brawl and the camera never has to
+move to keep watching one.
+
+Measured over forty seconds of the `war` scene: 1421 duels at four seconds became
+1813 at zero, with proportionally more deaths.
+
+The number remains a knob and above zero it is the other behaviour, which still
+has a test. It is the only number in the project whose value is a decision about
+what the thing *is* rather than about how it feels.
+
+### The delve's weapons and resistances, new
+
+"Solve" was meant loosely, so the monsters are enemies with health and the cycle
+between them became a table of nine multipliers.
+
+| | blade | fire | blunt |
+| --- | --- | --- | --- |
+| golem | 0.20 | 0.00 | 1.00 |
+| vine | 1.00 | 3.20 | 0.35 |
+| automaton | 1.40 | 2.60 | 1.80 |
+
+And the party: a **human** carries `fire` at 2.6 damage and reach 1; a
+**dinosaur** carries `blunt` at 7.0 and **reach 2**. The reach is the field that
+changes behaviour rather than numbers — it lets a dinosaur fight down a corridor
+it cannot itself enter.
+
+The multipliers were chosen so that neither party member alone answers all three
+monsters: fire against a golem is exactly zero, and a hammer against a thicket is
+0.35. A party of one kind is not a party.
+
+Every monster's exchange numbers were set so that a fight lasts a few seconds
+rather than a moment: a golem swings slowly (1.10s) and hard (9.0), a vine
+quickly (0.75s) and feebly (1.6) but parries well (0.52) because there is a great
+deal of it to cut through.
+
+### `plaza_count` and the jungle
+
+Open question 6 is answered: **there is no jungle.** Nothing outside the maze
+ever. That does not change a number, and it is recorded here because it removes
+a whole category of them from ever being needed.
+
+### The palette
+
+Open question 10 is answered: **keep the limestone.** No numbers changed. Every
+colour in the project is still in one file and nothing else names one, so this
+stays a one-file decision if it is ever revisited.

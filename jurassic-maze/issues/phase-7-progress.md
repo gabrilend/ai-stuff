@@ -1,7 +1,7 @@
 # Phase 7 — The Delve
 
 **Six of seven issues complete.**
-[707 — a monster is a lock](707-a-monster-is-a-lock.md) is **in progress** and is
+[707 — a monster is a lock](completed/707-a-monster-is-a-lock.md) is **in progress** and is
 the capstone: the machinery it needs is all built and working, and the part that
 makes this a mode rather than an aquarium is not.
 
@@ -13,31 +13,55 @@ makes this a mode rather than an aquarium is not.
 | [704](completed/704-a-golem-changes-the-stone.md) | a golem changes the stone |
 | [705](completed/705-vines-creep-along-walls.md) | vines creep along walls |
 | [706](completed/706-the-automaton-solves-itself.md) | the automaton solves itself |
-| [707](707-a-monster-is-a-lock.md) | **in progress** — a monster is a lock |
+| [707](completed/707-a-monster-is-a-lock.md) | **in progress** — a monster is a lock |
 
 `./run-maze --scene delve` runs what exists.
 
+## The question that decided the phase, and its answer
+
+Open question 3 — *does "solve" mean solve?* — was asked with six of seven issues
+built and the seventh deliberately left alone, because it was the one the answer
+decided.
+
+**It was meant loosely.** The monsters are enemies with health, the party fights
+them, and the cycle between the three of them is a damage-type chart rather than
+the point of the mode.
+
+What is striking is how little had to change. The three monsters, their
+locomotion, the fire model, the entangling, the wall-breaking and the automaton
+catching fire from its own work were all built for the *other* reading, and every
+one of them stayed — because none of them was ever about who was fighting whom.
+What was thrown away was a set of rules saying which monster undoes which, and it
+was replaced by a table of nine numbers.
+
+The fighting is [the fencing](../docs/017-fencing.md), generalised beyond
+fencers. That took an afternoon rather than a phase because the duel machinery
+already existed, already buffered its damage, already ended four ways and already
+had tests.
+
 ## What works
 
-The cycle runs. Automatons set vines alight, vines hold golems still, golems
-smash automatons, and golems walk through walls — forty blocks a minute, with the
-maze opening up behind them. Humans mount willing dinosaurs and are put down when
-the dinosaur dies. Fire spreads to flammable neighbours, stops when the fuel runs
-out, and does not jump gaps.
-
-## What does not
-
-**The party has no goal.** The humans wander like everything else. They do not
-lure, do not block a corridor with a long weapon, and do not carry fire on
-purpose — and the monsters solve each other whether or not anybody is watching.
-The report does not count how many solutions happened with a party member nearby,
-which was going to be the measure of whether the party is needed at all.
-
-That is not an oversight. It is the part that rests on
-[open question 3](../docs/026-open-questions.md), and building it on a guess
-would be building the wrong mode.
+The party fights and dies. Humans carry fire, dinosaurs carry weight and strike
+two cells away, and neither alone is an answer to all three monsters. Vines hold
+delvers still; golems walk through walls at about forty blocks a minute with the
+maze opening up behind them; automatons set alight whatever flammable thing is
+beside them, on any side, including the vines they are standing in.
 
 ## The journey, and what it taught
+
+### The automaton that stopped setting fire to things
+
+Rewriting the mode as a fight put all three monsters on one side, and the
+automaton's ignition was written to fire only at the *other* side. So nothing
+ever lit a vine again, and a wooden machine standing in a thicket it had ignited
+stopped being possible — the best behaviour in the mode, deleted by a tidy
+condition that read correctly.
+
+It does not check now. It is a machine.
+
+**What it taught:** a rule about who is on whose side, added while thinking about
+combat, quietly reached into something that had nothing to do with combat. The
+counter said zero and the demo said nothing.
 
 ### Two silent overrides, one afternoon
 
