@@ -5,12 +5,30 @@
 | Phase | 7 — The Delve |
 | Blocked by | 107, 301, 303, 306, 405, 601, 701 |
 | Blocks | nothing |
-| Reads | [riding and being ridden](../docs/022-riding-and-being-ridden.md) |
+| Reads | [riding and being ridden](../../docs/022-riding-and-being-ridden.md) |
 | Open questions | 2 |
 
 ## Current behavior
 
-Humans and dinosaurs walk past each other.
+`Delve.mount`, `dismount` and `rider_position`. The rider's locomotion becomes
+`carried`, which does nothing at all; its position is derived from the mount's
+every time it is asked for, so the two cannot drift.
+
+Four ways down, and the test covers the one that matters most: a mount that dies
+puts its rider down rather than leaving it riding a corpse, and the **generation**
+is what tells "the mount died" apart from "the mount is fine" once the slot has
+been recycled.
+
+Willingness is a field, and a dinosaur that has just taken damage is not a mount.
+Without it, a party spends its time mounting and dismounting whenever two of them
+brush past each other.
+
+The headroom and footprint consequences described in this issue — that a ridden
+dinosaur does not fit where a dinosaur does — are **not built**. Nothing in the
+maze has a ceiling, so the headroom half cannot be demonstrated at all, and the
+footprint half would need the pair to carry the mount's radius rather than the
+rider's. The headroom check written in phase one is still waiting for its first
+real use.
 
 ## Intended behavior
 
@@ -35,7 +53,7 @@ Four ways to dismount, and the last two are why this is worth building:
 2. The mount dies — the rider is dropped and falls if there is nothing under it.
 3. **The ceiling is too low.** The pair's height is the mount's plus one, so
    there are places a dinosaur fits and a ridden one does not.
-   [The headroom check](completed/107-four-answers-to-may-i-move.md) refuses the move.
+   [The headroom check](107-four-answers-to-may-i-move.md) refuses the move.
 4. **The corridor is too narrow.** The pair's footprint is the mount's.
 
 Points three and four are the mode's geometry. Mounted, a party is fast and
@@ -64,5 +82,5 @@ and this is where it stops being pointless.
 
 ## Related documents and tools
 
-- [Riding and being ridden](../docs/022-riding-and-being-ridden.md)
-- [Standing somewhere and going elsewhere](../docs/004-standing-somewhere-and-going-elsewhere.md)
+- [Riding and being ridden](../../docs/022-riding-and-being-ridden.md)
+- [Standing somewhere and going elsewhere](../../docs/004-standing-somewhere-and-going-elsewhere.md)

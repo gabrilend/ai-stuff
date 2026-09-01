@@ -5,13 +5,31 @@
 | Phase | 7 — The Delve |
 | Blocked by | 101, 303, 701 |
 | Blocks | 707 |
-| Reads | [the monsters of the delve](../docs/023-the-monsters-of-the-delve.md) |
+| Reads | [the monsters of the delve](../../docs/023-the-monsters-of-the-delve.md) |
 | Open questions | 9 (does broken stone stay broken) |
 
 ## Current behavior
 
-The stone is generated and never changes. Everything downstream has been written
-not to assume that, and this issue is where that pays off.
+`Delve.break_a_wall`. One layer off the top of the wall it is facing, its own
+column and its four neighbours' surfaces recomputed, and `store.version` bumped.
+
+**The version counter has existed since phase one and nothing bumped it until
+now.** That was the point: the renderer's baked mesh is the first thing in the
+project to cache anything derived from the stone, and this is the first thing to
+change it. The viewer compares the counter and rebuilds.
+
+Two things took finding. The golem counted its work on the shared `timer`, which
+is also the idle clock — the idle reset it before it ever reached the threshold,
+so no golem ever broke a wall, with nothing raised and nothing in any counter.
+And a three-by-three golem can never be *adjacent* to a wall, because its own
+footprint keeps it a cell away; it reaches one cell past itself, which is also
+what lets it make its own space.
+
+Lazy relabelling of the component labels is **not** built. The labels go stale
+the moment a golem breaks through, and nothing reads them afterwards except the
+pathfinder's early-out — which becomes conservative rather than wrong, refusing a
+route that has just opened. Open question 9 is still open and this is the issue
+it blocks.
 
 ## Intended behavior
 
@@ -61,8 +79,8 @@ not before, which is occasionally exactly where a party wanted one.
 
 ## Related documents and tools
 
-- [The monsters of the delve](../docs/023-the-monsters-of-the-delve.md)
-- [A column is one integer](completed/101-a-column-is-one-integer.md)
+- [The monsters of the delve](../../docs/023-the-monsters-of-the-delve.md)
+- [A column is one integer](101-a-column-is-one-integer.md)
 
 ## Still open
 

@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+#
+# phase-7-the-delve -- the mode that was added after the vision was written.
+#
+#   "humans and dinosaurs trying to solve Dungeons and Dragons monsters ...
+#    stone golems, vine monsters, and wooden machine automatons (not steam
+#    powered, but with fire powers like 'ignite' and not like 'fireball')"
+#
+# Three monsters, three answers, and the answers are each other. This demo shows
+# the cycle running, and is honest about the half of the mode that is not built.
+
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+if [ -d "$1" ]; then DIR="$1"; shift; fi
+
+SHOTS="/dev/shm/jurassic-maze/demo"
+mkdir -p "${SHOTS}"
+
+echo "=============================================================="
+echo " PHASE 7 -- THE DELVE"
+echo "=============================================================="
+echo ""
+echo "--- the cycle ----------------------------------------------------"
+echo ""
+echo "    golem      smashes    automaton"
+echo "    automaton  burns      vines"
+echo "    vines      hold       golem"
+echo ""
+echo "  Three monsters, three answers, no fourth thing. A party carrying no"
+echo "  answer to a golem does not lose the fight -- it has no fight to have."
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params = dofile(root .. '/src/028-maze-parameters.lua')
+local Tick   = dofile(root .. '/src/039-the-tick.lua')
+
+local world = Tick.new_world(root, Params.with{seed = 12}, 'delve')
+local before = 0
+for i = 0, world.store.cells - 1 do
+  if world.store.walkable[i] then before = before + 1 end
+end
+
+local t0 = os.clock()
+for _ = 1, 3600 do Tick.tick(world) end
+local c = world.counters
+
+local after = 0
+for i = 0, world.store.cells - 1 do
+  if world.store.walkable[i] then after = after + 1 end
+end
+
+print(string.format('  %d bodies, sixty seconds in %.1f s real', world.bodies.live, os.clock() - t0))
+print('')
+for _, pair in ipairs({
+    {'vines_lit',    'vines set alight by an automaton'},
+    {'ignitions',    'ignitions in all'},
+    {'ignited_spreading', '  of which caught from something else'},
+    {'burnt_out',    'fires that ran out of fuel'},
+    {'golems_held',  'golems held still by vines'},
+    {'smashed',      'automatons smashed by a golem'},
+    {'entangled',    'delvers entangled'},
+    {'mounted',      'humans that climbed a dinosaur'},
+    {'stone_broken', 'blocks of wall a golem walked through'}}) do
+  print(string.format('  %-38s %6d', pair[2], c[pair[1]] or 0))
+end
+print('')
+print(string.format('  the maze opened up: %d floor cells became %d', before, after))
+print(string.format('  and the stone version counter, written in phase one and'))
+print(string.format('  never bumped by anything until now, reads %d.', world.store.version))
+"
+echo ""
+
+echo "--- the automaton solves itself ----------------------------------"
+echo ""
+echo "  Nothing in the code arranges this. It falls out of fire spreading"
+echo "  to flammable neighbours and a wooden machine being one of them."
+echo "  The test asserts it happens and there is no code path called self."
+echo ""
+"${DIR}/run-tests" 066 2>&1 | sed 's/^/  /'
+echo ""
+
+echo "--- what is not built --------------------------------------------"
+echo ""
+echo "  The party has no goal. The humans wander like everything else."
+echo "  They do not lure, do not block a corridor with a long weapon, and"
+echo "  do not carry fire on purpose -- so the monsters solve each other"
+echo "  whether or not anybody is watching."
+echo ""
+echo "  That is the half of the mode that rests on open question 3:"
+echo "  whether \"solve\" was meant literally. If it was, the party's whole"
+echo "  contribution is arranging the meeting, and that is what is missing."
+echo "  If it was not, the monsters are enemies with health and most of"
+echo "  what is above is not wanted. It is not built on a guess."
+echo ""
+echo "  See docs/026-open-questions.md and issues/707-a-monster-is-a-lock.md"
+echo ""
+
+echo "--- and what it looks like ---------------------------------------"
+echo ""
+echo "  Each shot opens a window, lets it settle, saves a frame and leaves."
+echo "  Guarded by a timeout: a window that loses focus can be throttled by"
+echo "  the compositor to the point where it never reaches the frame it was"
+echo "  told to capture, and a demo that hangs is a demo nobody runs twice."
+echo ""
+echo "  writing ${SHOTS}/phase-7-delve.png"
+timeout 45 love "${DIR}" --seed 12 --scene delve --after 8 --zoom 1.3 --at 64 64 \
+     --screenshot "${SHOTS}/phase-7-delve.png" >/dev/null 2>&1
+echo ""
+echo "  Orange is something on fire. Run it live with:  ./run-maze --scene delve"
+echo ""

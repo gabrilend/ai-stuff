@@ -28,7 +28,7 @@ local M = {}
 
 local root
 local Stone, Projection, Palette, Renderer, Camera, Params, Tick, Validator,
-      Walking, Director
+      Walking, Director, Delve
 
 local world      -- the maze, the streams, the bodies, the report
 local baked      -- the two static meshes and their band ranges
@@ -101,6 +101,7 @@ local function build(seed)
   -- a different table with none of that done to it -- which shows up much later
   -- as a nil index inside a module that was working a moment ago.
   Walking = world.modules.Walking
+  Delve   = world.modules.Delve
   baked = Renderer.build(Stone, Projection, Palette, world.store, love.graphics)
   body_bands = { max_band = baked.max_band }
 
@@ -155,6 +156,19 @@ function M.update(dt)
     Tick.advance(world, dt, pass_time)
   end
 
+  -- A golem has taken a wall down. The stone's version counter has existed since
+  -- phase one and was never bumped by anything until now, which is exactly what
+  -- it was for: the baked mesh is the first thing that caches something derived
+  -- from the stone, and this is the first thing that changes it.
+  --
+  -- The rebuild is a visible hitch of a few tens of milliseconds, and it happens
+  -- when a wall comes down, which is a visible event. Rebuilding only the bands
+  -- that changed is the obvious improvement and is not done.
+  if world.store.version ~= baked.version then
+    baked = Renderer.build(Stone, Projection, Palette, world.store, love.graphics)
+    baked.version = world.store.version
+  end
+
   -- The director runs whether or not the simulation does, so a paused world can
   -- still be looked around.
   Director.update(world, director, camera, Projection, Camera, Walking, dt,
@@ -190,6 +204,8 @@ function M.draw()
   love.graphics.scale(camera.scale, camera.scale)
 
   local flat = { pan_x = 0, pan_y = 0, scale = 1 }
+  local bodies = world.bodies
+  local function rider_at(id) return Delve.rider_position(world, bodies, id) end
   local outline, fill = baked.outline, baked.fill
   local bands = baked.bands
 
@@ -211,7 +227,8 @@ function M.draw()
                                Walking, love.graphics)
         end
         Renderer.draw_body(Projection, Palette, flat, world.store, world.bodies,
-                           world.creatures, here[k], Walking, love.graphics)
+                           world.creatures, here[k], Walking, love.graphics,
+                           rider_at)
       end
     end
   end
@@ -251,7 +268,8 @@ function M.draw_overlay()
     lines[#lines + 1] = "space            hold the simulation still"
     lines[#lines + 1] = "."                .. "                one tick, while held still"
     lines[#lines + 1] = "n                a new maze, next seed"
-    lines[#lines + 1] = "1 2 3 4          balls / guys / both / a crowd"
+    lines[#lines + 1] = "1..7             balls, guys, both, crowd,"
+    lines[#lines + 1] = "                 war, jungle, the delve"
     lines[#lines + 1] = "tab              watch somebody else"
     lines[#lines + 1] = "c                let go of the camera"
     lines[#lines + 1] = "p                the camera's settings"
@@ -406,6 +424,9 @@ KEYS["1"] = function() scene = "balls"; build(world.params.seed) end
 KEYS["2"] = function() scene = "guys";  build(world.params.seed) end
 KEYS["3"] = function() scene = "both";  build(world.params.seed) end
 KEYS["4"] = function() scene = "crowd"; build(world.params.seed) end
+KEYS["5"] = function() scene = "war";     build(world.params.seed) end
+KEYS["6"] = function() scene = "jungle";  build(world.params.seed) end
+KEYS["7"] = function() scene = "delve";   build(world.params.seed) end
 KEYS["tab"] = function() Director.pick(world, director) end
 KEYS["c"]   = function() Director.free(director) end
 KEYS["p"]   = function() show_panel = not show_panel end
