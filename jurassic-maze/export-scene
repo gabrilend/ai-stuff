@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# export-scene -- draws a world once, at its own size, and writes the two files a
+# client needs.
+#
+# A scene is a picture of a world with nothing alive in it, and a datafile saying
+# what shape that world is and where it sits in the picture. Both come out of one
+# run, from the same numbers, so they cannot disagree about where the world is --
+# an exporter that wrote the picture and left somebody to work out the origin
+# afterwards would produce scenes that are wrong in a way nothing catches until a
+# ball is seen floating above the ground.
+#
+# It opens a window, because the engine will not hand out a canvas without one,
+# and closes it again immediately.
+#
+# Usage:
+#   ./export-scene                                  the mountainside, into scenes/
+#   ./export-scene --map 070-the-mountainside       the same, said out loud
+#   ./export-scene --into /tmp --name draft         somewhere else, under a name
+#
+#   ./export-scene /path/to/checkout                against a checkout elsewhere
+#
+# Then look at it with ./run-client.
+
+# The project root. Hard-coded so the script runs correctly from any directory,
+# and overridable as a leading argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+MAP="070-the-mountainside"
+INTO="${DIR}/scenes"
+NAME="the-mountainside"
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --map)  MAP="$2";  shift 2 ;;
+        --into) INTO="$2"; shift 2 ;;
+        --name) NAME="$2"; shift 2 ;;
+        --help)
+            sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        *)
+            echo "export-scene: unknown option '$1'"
+            echo "Options are --map <asset>, --into <dir>, --name <name>."
+            exit 1
+            ;;
+    esac
+done
+
+mkdir -p "${INTO}"
+
+# The empty population, because a scene is a world with nothing alive in it. A
+# body baked into the background would be a body that never moves and can never
+# be removed.
+love "${DIR}" --map "${MAP}" --scene empty --export "${INTO}" "${NAME}"

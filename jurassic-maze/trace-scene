@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+#
+# trace-scene -- the tracing table. Shows a picture and lets you draw the world
+# onto it.
+#
+# A scene needs two things: a picture of a world, and a datafile saying what shape
+# that world is and where it sits in the picture. The picture can come from
+# anywhere -- this project's own exporter, or a painting somebody made by hand.
+# What has to be produced either way is the geometry, and this is the tool for
+# producing it by tracing rather than by typing.
+#
+# Nothing is on the screen but the picture, the lattice over it, the vertices and
+# the lines between them. Every action is a click, a drag, a wheel or a key.
+#
+# Usage:
+#   ./trace-scene                              the reference painting
+#   ./trace-scene --trace some/picture.png     some other picture
+#   ./trace-scene --plan notes/draft.plan      reopen work already begun
+#   ./trace-scene --size 120 120               a world that many cells across
+#
+#   ./trace-scene /path/to/checkout ...        against a checkout elsewhere
+#
+# It saves two files beside the plan: the plan itself, which keeps the shapes and
+# can be reopened, and a .scene, which is the rasterised height field the client
+# plays. Press s.
+#
+# On the reference painting: inspiration/NOTICE.md says nothing in the program
+# reads that directory, and that a build step needing a file from it is the moment
+# to stop and work out whether it is allowed to. This is that moment, and the
+# answer taken is that a prototype which is neither sold nor redistributed and
+# which cites the picture is fine. The picture is read from where it lies rather
+# than copied, so there is one of it and it stays next to the notice.
+
+# The project root. Hard-coded so the script runs correctly from any directory,
+# and overridable as a leading argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+for arg in "$@"; do
+    case "$arg" in
+        --help)
+            sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+    esac
+done
+
+NAMED="no"
+for arg in "$@"; do
+    case "$arg" in
+        --trace|--plan) NAMED="yes" ;;
+    esac
+done
+
+mkdir -p "${DIR}/notes/plans"
+
+if [ "${NAMED}" = "yes" ]; then
+    love "${DIR}" "$@"
+else
+    love "${DIR}" \
+        --trace "${DIR}/inspiration/inspiration-maze.png" \
+        --plan  "${DIR}/notes/plans/inspiration-maze.plan" \
+        --name  "the reference painting" \
+        "$@"
+fi

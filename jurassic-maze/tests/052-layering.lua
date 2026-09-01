@@ -40,6 +40,15 @@ local VIEWER_FILES = {
   ["044-the-director.lua"]        = true,
   ["045-the-viewer.lua"]          = true,
   ["046-the-terminal-viewer.lua"] = true,
+  -- The three front ends added in phases nine and ten. Each is a thing a person
+  -- looks at, and each is on this list by a deliberate edit rather than by
+  -- sitting in a directory -- which is the whole reason the list is a list.
+  ["079-the-client.lua"]          = true,
+  ["080-the-front-desk.lua"]      = true,
+  ["082-the-tracing-table.lua"]   = true,
+  -- The exporter draws a canvas, which is the one thing it does that a headless
+  -- run cannot, and it is the reason a scene has to be made with a window open.
+  ["078-the-exporter.lua"]        = true,
 }
 
 -- {{{ local function read_file(path)
