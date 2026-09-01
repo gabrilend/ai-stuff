@@ -56,8 +56,14 @@ local MELEE   = 1
 local RANGED  = 2
 local CAPTAIN = 3
 
--- {{{ local function new_wave()
-local function new_wave(world, team, lane, member_count)
+-- {{{ function M.new_wave()
+-- A wave record with nobody in it yet: the books a group of bodies is kept in.
+--
+-- Exported rather than private so that the arena can raise a formation without also
+-- raising a commander, a bounty and a share of the chest. A test fixture that built
+-- its own wave table would be a second definition of what a wave *is*, and the first
+-- field somebody added to the real one would quietly not exist in tests.
+function M.new_wave(world, team, lane, member_count)
   local id = #world.wave + 1
   local kind_count = #world.parameters.upgrade.kind
 
@@ -100,6 +106,20 @@ local function new_wave(world, team, lane, member_count)
     killed_any   = 0,
     settled      = 0,
     upgrade_count = carried,
+
+    -- Which lane's shape it forms in, which lane paid for it, and how far across the
+    -- road it stands. All three differ from `lane` only during a challenge, when the
+    -- three lanes' waves are funnelled into the middle and stand abreast there --
+    -- so the honest default is "the lane it belongs to, down the middle of it", and
+    -- the challenge overwrites them when it applies.
+    --
+    -- **Written here rather than only at the call site**, so that a wave record is
+    -- complete the moment it exists. They were set by the ordinary spawner alone, and
+    -- anything else that raised a wave got a record with three holes in it that only
+    -- showed up two calls later as a nil lane.
+    shape_lane    = lane,
+    upgrade_lane  = lane,
+    across_offset = 0,
 
     anchor       = anchor,
     pace         = pace,
@@ -221,7 +241,7 @@ local function queue_wave(world, team, lane, turn)
   -- Where it walks, which during a challenge is the middle whatever lane it was
   -- raised for.
   local walks = world.phases.spawn_lane_for(world, lane)
-  local wave_id = new_wave(world, team, walks, total)
+  local wave_id = M.new_wave(world, team, walks, total)
   world.wave[wave_id].upgrade_lane = lane
   -- Where this wave stands across the lane it walks. Zero in ordinary play; during
   -- a challenge the three funnelled waves stand abreast rather than through one

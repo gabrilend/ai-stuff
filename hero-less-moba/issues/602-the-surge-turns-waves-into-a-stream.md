@@ -29,6 +29,90 @@ The spawner reads row 2 of the phase table. Same function, different interval an
 count — if a branch is needed, the phase table is the wrong shape and should be
 fixed rather than worked around.
 
+### Everyone the surge sends out has exactly one hit point
+
+**The bodies the surge emits**, not every body standing on the field. A hero somebody
+bought three minutes ago is unchanged; the stream is made of paper.
+
+Not a reduction and not a multiplier — the number is one. Anything that lands is enough.
+
+And they are not being thrown away. **They are testing arrangements of technology**, and
+a body comes home the moment it has been subjected to a hit, having found out what it
+went to find out. Whether the arrangement worked is not a question the body has to
+answer, because it would not be coming back if it had not.
+
+It is what gives the stream its shape. A trickle of bodies that each need six blows to
+put down is a queue; a trickle of bodies that leave the moment anything touches them is
+a front that moves. **A surge should look like weather, not like a siege.**
+
+It also sits exactly beside what the surge already does to stone. Towers cannot be lost,
+cannot be reinforced, and carry nothing for the duration, so a team's investment is
+inert — and now the bodies it is pouring out are worth nothing either. What is left is
+the **arrangement**: where the bodies are and which way they are pointing, which
+[the open questions](../docs/020-open-questions.md) already identify as the only thing a
+surge actually takes from a team. Everything a player *bought* is untouched and idle at
+the same time.
+
+### Terror, and the number that sends a body home
+
+A body carries **terror** as well as health. Certain attacks — *fear*, *despair*,
+*ruin* — deal terror where an ordinary blow deals damage. It is spent in the same
+currency and it goes in a different column.
+
+> **A body retreats when terror plus health falls below zero.**
+
+Plus, and below zero, and both words are load-bearing.
+
+**Terror is measured against what a body has left, not against what it started with.**
+Nothing is compared to a maximum and there is no second threshold to tune. The same
+mouthful of despair that a fresh body shrugs off will break one that has been fought
+down, because the sum is smaller — and a body that has just been healed is braver than
+it was a second ago, without a healer having to be given a morale ability. The two
+columns are one pool with two ways of being emptied.
+
+**And terror never kills.** Health at zero is a body that has been destroyed; terror
+past the same line is a body that has left. Which of the two happens is decided by
+which column did the emptying, and both are read off one comparison.
+
+That is also why a surge body with one hit point and no terror is not merely fragile in
+a new way. It is at one, so the first blow takes it below zero — and *below zero is what
+retreating means*. **The stream is not being killed. It is being sent home**, one body
+at a time, by anything that touches it.
+
+### And then they run home, and home is a real place
+
+A body past that line **runs — at running speed**, which nothing else in this game ever
+uses, and **avoiding allies and foes alike** on the way. Not falling back to its own
+line and not rejoining a formation: leaving, across whatever ground is between it and
+where it is going, going round everything.
+
+Where it is going depends on what it is:
+
+| | Runs to |
+| --- | --- |
+| a guard | its own **guardhouse** |
+| a wave body | a **guardhouse in a neighbouring lane** |
+| a hero | the **home library** |
+
+**Guardhouses do not exist yet.** They are named here for the first time and nothing in
+the project has one, so they are a prerequisite for this rather than a detail of it.
+
+The middle row is the interesting one. A wave body does not run back the way it came —
+it runs *sideways*, to somebody else's lane, which means a broken push in one lane
+arrives as reinforcement in the next. A surge does not simply consume what both sides
+send into it; it stirs their armies between lanes.
+
+This is the same gear [212](212-a-beaten-body-gets-one-roll.md) reserved and has
+never had an occasion to use, and it is the same avoidance
+[214](214-going-round-what-is-in-the-way.md) is being built for — pointed at every
+body rather than at friendly ones only, because a body running for home has no
+interest in fighting anything it passes.
+
+What that produces is a surge with a **return current**. Bodies pour out of both
+bases, meet, mostly die, and the survivors stream back the way they came through the
+ones still coming out. A lane during a surge is two opposed flows and a scatter of
+individuals crossing them, which is a thing to look at rather than a thing to count.
+
 ### Guards join the stream
 
 While a surge runs, **towers spawn no guards.** That production is redirected to
@@ -89,6 +173,17 @@ wipe detector stays ignorant of phases entirely.
    of single-body wave records that all "complete."
 6. Watch one in the terminal viewer. The stream should look visibly different
    from waves at a glance; if it does not, the rate is wrong.
+7. Set every living body's health to one when the surge begins, and decide what
+   happens to the number when it ends — see S1 below, which has to be answered
+   before this can be written at all.
+8. Give a surviving body somewhere to go: home, at running speed, avoiding every
+   body rather than only friendly ones. This wants
+   [214](214-going-round-what-is-in-the-way.md) built first, since it is that
+   avoidance with the friend-or-foe test removed.
+9. Watch it in [the proving ground](111-the-proving-ground.md) before watching it
+   in a match: two files of bodies walking into each other on a short straight
+   lane, everybody dying to one blow, and the survivors turning round. The return
+   current either reads or it does not, and it is a picture rather than a number.
 
 ## Related documents and tools
 
@@ -102,3 +197,36 @@ wave rate?** Awaiting evidence rather than undecided: it is found by watching on
 run, not by argument. Together those two decide the peak body count, which is the
 number the soldier store's fixed capacity is sized against (E3), and which
 decides whether the thread pool is worth having at all.
+
+**S1 — what does terror do to *dying*? — NEEDS A DECISION, and it blocks the rest.**
+
+A body dies at zero health today. Under the new rule a body **retreats** when health
+plus terror is below zero — and an ordinary blow taking a body from three health to
+minus four has put it below zero without a grain of terror involved. So as written,
+ordinary damage sends bodies home and nothing ever dies.
+
+Three ways out, and the third reads best:
+
+1. Ordinary damage cannot push health below zero; only terror can make the sum
+   negative. Clean, and it makes terror the *only* route to a retreat.
+2. Retreating and dying are separate tests: dead at zero health, retreating at a
+   negative sum. Then a body carrying terror never gets to use it, because it dies
+   first.
+3. **Below zero means *beaten*, and [212](212-a-beaten-body-gets-one-roll.md) already
+   owns what beaten means.** That issue says a beaten body rolls once: fail and it runs
+   and lives, pass and it stays, lands one single blow, and dies. What has never been
+   defined there is what *being beaten* is — and "terror plus health below zero" is
+   exactly that definition. They are two halves of one rule, written months apart, and
+   neither half has ever had the other.
+
+If it is the third, a surge body does not roll. It is already going home, which is what
+being made of paper is for.
+
+*Answered, and folded into the body of this issue: "everyone has one hit point" means
+everyone the surge **sends out**, not everyone standing on the field. And the trigger
+for running home is the sum above, not surviving a blow — with one hit point there is
+no surviving a blow, which is what made the old wording impossible.*
+**S3 — does a running body still count?** A body streaming home is on the field,
+taking up room, blocking lines of sight, and being counted in push depth. Whether it
+should be is a real question: a surge whose lanes fill with bodies going the wrong
+way may read as a mess rather than as a current.

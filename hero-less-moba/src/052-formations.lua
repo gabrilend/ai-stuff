@@ -654,7 +654,13 @@ end
 -- than letting the ranks behind push the front through the enemy.
 local function advance_anchor(world, wave)
   local lane = world.map.lane[wave.lane]
-  local facing = (wave.team == 1) and 1 or -1
+  -- **Read off the wave rather than re-derived from its team.** The record has carried
+  -- which way it is walking since it was created, and this worked it out again from
+  -- the team -- the same answer for every wave the game raises, and the wrong one the
+  -- moment anything raises a wave that walks the other way. Two formations of one side
+  -- walking into each other is a picture worth being able to make, and with the team
+  -- deciding, the second of them simply stood still while its books said otherwise.
+  local facing = wave.facing
 
   -- Where the front of the formation is standing.
   local front = wave.anchor
