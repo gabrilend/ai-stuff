@@ -190,6 +190,14 @@ local function make_soldier_arrays(capacity, kind_count)
   -- can this body shoot past that one, which of these is on the flank, which is in
   -- the middle where the heavy troops belong -- and every one of them is a bearing
   -- with a distance attached rather than a row and a column.
+  -- Ticks before this body bothers looking for a target again.
+  --
+  -- Only ever set by a body whose shot was blocked by its own rank. Blocked-ness does
+  -- not change from one tick to the next -- the line in front of you is still there --
+  -- so asking every tick is asking the same question of the same people. A few ticks
+  -- of pause is imperceptible and is most of the cost of having line of sight at all.
+  soldier.search_pause      = zeroed(capacity)
+
   soldier.slot_bearing      = zeroed(capacity)
   soldier.slot_distance     = zeroed(capacity)
 
@@ -486,6 +494,7 @@ function M.release(world, id)
   soldier.guard_of[id] = 0
   soldier.lane_along[id] = 0
   soldier.lane_across[id] = 0
+  soldier.search_pause[id] = 0
   soldier.slot_bearing[id] = 0
   soldier.slot_distance[id] = 0
   soldier.slot_along[id] = 0

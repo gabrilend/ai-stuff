@@ -23,7 +23,7 @@ problem statement, rendered, and phase 4's demo is the answer to it.
 | 211 | Waypoints, and the zones they sit in | in progress — the umbrella |
 | 211a | The lane is cut into zones | built |
 | 211b | Every zone holds a waypoint | built — H9 |
-| 211c | A formation is a circle that faces where it is going | bearings and a heading; nothing turns by it — H13 |
+| 211c | A formation is a circle that faces where it is going | built |
 | 211d | Marching speed is not running speed | gears built; running not |
 | 212 | A beaten body gets one roll | not started |
 | 213 | What the lane can afford | not started — fully specified |

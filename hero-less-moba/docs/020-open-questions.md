@@ -4832,7 +4832,7 @@ tendency.
 
 **Built:** issue 213.
 
-## H13. Gears say nothing hurries; a turning formation needs somebody to — **NEEDS A DECISION**
+## H13. Gears say nothing hurries; a turning formation needs somebody to — **ANSWERED**
 
 Two decisions that were made a few hours apart and are in direct tension. Neither is
 wrong on its own and they cannot both stand.
@@ -4875,3 +4875,77 @@ So the heading is maintained and nothing is turned by it yet. Three ways out:
 
 The first is the smallest change and directly contradicts the sentence "nobody runs
 when chasing a kill" — though not really, since this is not chasing anything.
+
+**Answer: none of them. Nothing hurries, and nothing needs to.**
+
+> a unit who is behind, because the formation turned, moves at marching speed, while
+> those who are ahead of their position will walk, to adjust the central average
+> location until everyone's in line.
+
+Which is the rule that already existed, read the right way round. The question
+assumed a body had to catch a place that had run off. It does not: **the place comes
+back.** A body behind marches, a body ahead walks, and between them the formation's
+own average settles back until the line is dressed. Turning costs a formation ground
+rather than costing it its shape.
+
+The measurement that suggested a conflict was misattributed. Re-run as a proper
+two-by-two — turning on and off against line of sight on and off — the turning costs
+nothing at all:
+
+| | Match ended at | Monsters slain |
+| --- | --- | --- |
+| no turning, no line of sight | 24,438 | 4 |
+| **turning**, no line of sight | 24,873 | 4 |
+| no turning, line of sight | 10,129 | 0 |
+| turning, line of sight | 9,542 | 0 |
+
+Every bit of the damage was the other change. Worth keeping as a reminder to vary one
+thing at a time.
+
+**Built:** the turning is on. One thing was added that the answer implies rather than
+states — **a maximum lean.** A formation's depth multiplies its lean: a body three
+ranks back is swung sideways by its distance behind the front times the sine of the
+angle, so past about ten degrees the rear rank is more than a file out of place, and a
+formation whose files have stopped meaning anything has stopped being a formation.
+
+## H14. Flat arrows need a line, and the wave composition cannot pay for it — **NEEDS A DECISION**
+
+An ordinary arrow is long-ranged and flat — a hundred feet and more of it — and only a
+longbow, and certain magic, throws high enough to clear the rank in front. So an
+ordinary arrow needs a clear line, and the archers stand behind the line.
+
+Both halves are right and together they gridlock the game.
+
+| Flat arrows need a line | Killed in 9,000 ticks | Left standing |
+| --- | --- | --- |
+| no | 1,160 | 112 |
+| yes | 835 | 430 |
+
+**The mechanism is not failing.** Archers do fan out when they cannot see — measured,
+93% of them are spread wider than the file they march in — and they do find a shot
+about two ticks in five. The problem is that the other three ticks are a third of all
+the damage in the game, and what happens next is a loop: bodies stop dying, so the
+field fills up, so the lines get denser, so **more** shots are blocked. A challenge
+monster ends up taking no ranged damage at all and cannot be killed by anybody.
+
+It is not a number that wants nudging. Halving how wide a body counts as an obstacle
+recovers a tenth of the damage and leaves the pile-up exactly where it was.
+
+What it says is that **the wave composition is wrong for the rule**, rather than the
+rule being wrong for the game. Four ways out, and they are not exclusive:
+
+1. **Gaps in the line.** A rank with intervals in it, which is a real arrangement and
+   is what the frontline queue would have to learn. The archers shoot through the
+   holes and the holes are where the enemy gets in, which is a genuine trade a player
+   could see.
+2. **Fewer bows, more longbows.** If most of what stands behind a line arcs, the rule
+   applies to the minority it was written for. This is what the lane's purse is for —
+   the longbow becomes something a lane unlocks rather than something it starts with.
+3. **Somewhere else to stand.** The shoulders work and are spoken for by cavalry that
+   does not exist yet. Once it does, this may resolve itself.
+4. **Accept a slower, denser game**, and rebalance around it. Cheapest to do and the
+   hardest to undo.
+
+Built and tested and **switched off**, behind one line in the unit catalogue. The line
+of sight itself is built and is live for the thing it was specified for: the druid's
+moon spike, which is the flat thing thrown from the palm that this was always about.

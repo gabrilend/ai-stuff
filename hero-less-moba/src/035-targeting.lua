@@ -55,10 +55,30 @@ local M = {}
 -- How wide a body stands as an obstacle to a straight shot, as a fraction of the room
 -- it keeps around itself.
 --
--- Less than the whole of it: a body's personal space is how much room it wants, not
--- how much of it there is, and a spike passing through the gap between two soldiers
--- standing a comfortable distance apart should get through.
-local BLOCKS_THE_VIEW = 0.45
+-- About a body's own drawn size rather than the whole of its personal space: that
+-- space is how much room a soldier *wants*, not how much of one there is, and a shot
+-- passing between two of them standing comfortably apart should get through.
+--
+-- Measured over nine thousand ticks, with flat arrows needing a line:
+--
+--   width   kills   left standing
+--   8.1       759     506
+--   5.4       696     476
+--   3.6       827     433
+--   2.2       835     430
+--
+-- Which is the useful shape of the answer: **the width is not the lever.** Halving it
+-- recovers a tenth of the damage and the pile-up stays. See the note in the unit
+-- catalogue about what actually decides this.
+local BLOCKS_THE_VIEW = 0.20
+
+-- How many ticks a body whose shot was blocked waits before looking again.
+--
+-- Small enough to be imperceptible -- an eighth of a second -- and it is most of the
+-- cost of having line of sight at all. A body standing behind an unbroken rank is
+-- blocked on every tick of its life, so without this it pays for a grid query on
+-- every one of them, and one match went from twenty-eight seconds to five minutes.
+local BLOCKED_PATIENCE = 4
 
 -- {{{ local function cell_index()
 -- The cell a position falls in, as a single integer, so the grid is one flat
@@ -262,14 +282,15 @@ end
 -- equally-good candidate replaces the incumbent with probability 1/n. That gives
 -- a uniform choice among the tied while advancing the stream a fixed number of
 -- times, which keeps a replay reproducible.
-local function lowest_health_enemy(world, id)
+local function lowest_health_enemy(world, id, must_see)
   local soldier = world.soldier
   local team = soldier.team[id]
   local best, best_health, ties = 0, math.huge, 0
 
   M.for_each_near(world, soldier.x[id], soldier.y[id], soldier.acquire_range[id],
     function(other)
-      if M.hostile(team, soldier.team[other]) then
+      if M.hostile(team, soldier.team[other])
+         and (not must_see or M.can_see(world, id, other)) then
         local health = soldier.health[other]
         if health < best_health then
           best, best_health, ties = other, health, 1
@@ -319,6 +340,14 @@ end
 function M.choose(world, id)
   local soldier = world.soldier
 
+  -- A body whose last look was blocked by its own rank waits a moment before looking
+  -- again. The line in front of it is still there; asking every tick is asking the
+  -- same question of the same people, and the asking is a grid query.
+  if soldier.search_pause[id] > 0 then
+    soldier.search_pause[id] = soldier.search_pause[id] - 1
+    return
+  end
+
   -- Rule 1 -- somebody is already swinging at me. Cheapest of all, because it is
   -- a single array read: the previous tick's sweep left the answer here.
   --
@@ -336,7 +365,29 @@ function M.choose(world, id)
   end
 
   -- Rule 2 -- the weakest enemy within acquisition range.
-  local weakest = lowest_health_enemy(world, id)
+  --
+  -- **And one it has a line to, if it needs one.** An ordinary arrow is long-ranged
+  -- and flat, so its own side's rank is in the way of it; only a longbow and certain
+  -- magic throw high enough to clear the people in front.
+  --
+  -- One line check, on the winner, and no second search if it fails. A body behind an
+  -- unbroken rank simply takes no target this tick -- **which is the point**, because
+  -- having no shot is the condition that makes it fan out looking for an angle. The
+  -- blocked shot is not a dead end; it is what moves the body.
+  --
+  -- Rescanning for a target it *could* see was the first version and it cost ten times
+  -- the whole simulation. An archer stands behind a line, so it is blocked nearly
+  -- always, so the fallback ran nearly every tick for nearly every archer -- a grid
+  -- query per candidate inside a grid query over candidates. One match went from
+  -- twenty-eight seconds to five minutes.
+  local weakest = lowest_health_enemy(world, id, false)
+  local row = world.parameters.unit.archetype[soldier.archetype[id]]
+  if world.parameters.unit.flat_arrows_need_a_line
+     and weakest ~= 0 and soldier.reach[id] == 2 and not (row ~= nil and row.arcs)
+     and not M.can_see(world, id, weakest) then
+    weakest = 0
+    soldier.search_pause[id] = BLOCKED_PATIENCE
+  end
   if weakest ~= 0 then
     soldier.target[id] = weakest
     soldier.target_generation[id] = soldier.generation[weakest]
