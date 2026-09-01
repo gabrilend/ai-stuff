@@ -42,6 +42,7 @@ M.FIELDS = {
   "cell", "layer",                     -- the stance: which stone it is on
   "facing", "radius", "body_height",
   "health", "team", "incoming_damage", "duel", "flee_timer",
+  "game", "role", "grace",
   "intent", "intent_cell", "intent_layer",
   "from_cell", "from_layer", "progress",
   "partner", "partner_generation",
@@ -50,13 +51,16 @@ M.FIELDS = {
   "roster_slot",                       -- where it sits in its locomotion's roster
 }
 
--- {{{ function M.new(capacity, cells)
+-- {{{ function M.new(capacity, cells, widest)
 -- The store, allocated once and never grown.
 --
 -- Running out is an error with a message. A store that quietly reallocates is a
 -- store that quietly stops fitting in cache, and the frame rate falls off a
 -- cliff for reasons that look like nothing.
-function M.new(capacity, cells)
+-- The id array has to hold one entry per *bucket placement*, not one per body: a
+-- three-by-three dinosaur occupies nine of them. Sized for the worst case, which
+-- is every body being the widest kind there is.
+function M.new(capacity, cells, widest)
   local store = {
     capacity = capacity,
     cells    = cells,
@@ -89,7 +93,9 @@ function M.new(capacity, cells)
     store.bucket_count[i]  = 0
     store.bucket_offset[i] = 0
   end
-  for i = 1, capacity do store.bucket_ids[i] = 0 end
+  local placements = capacity * ((widest or 1) * (widest or 1))
+  for i = 1, placements do store.bucket_ids[i] = 0 end
+  store.placements = placements
   store.largest_bucket = 0
 
   return store
@@ -227,9 +233,8 @@ function M.reindex(store, footprint_of)
   for id = 1, capacity do
     if alive[id] == 1 and store.locomotion[id] ~= carried then
       if footprint_of then
-        for _, c in ipairs(footprint_of(store, id)) do
-          count[c] = count[c] + 1
-        end
+        local fp = footprint_of(store, id)
+        for k = 1, fp.n do count[fp[k]] = count[fp[k]] + 1 end
       else
         count[cell[id]] = count[cell[id]] + 1
       end
@@ -252,9 +257,10 @@ function M.reindex(store, footprint_of)
   for id = 1, capacity do
     if alive[id] == 1 and store.locomotion[id] ~= carried then
       if footprint_of then
-        for _, c in ipairs(footprint_of(store, id)) do
-          offset[c] = offset[c] + 1
-          ids[offset[c]] = id
+        local fp = footprint_of(store, id)
+        for k = 1, fp.n do
+          offset[fp[k]] = offset[fp[k]] + 1
+          ids[offset[fp[k]]] = id
         end
       else
         local c = cell[id]

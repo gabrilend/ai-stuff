@@ -95,9 +95,7 @@ The vision's third sentence.
 Done when two sides meet in the corridors, fight, and the fights end four
 different ways. `./run-maze --scene war` runs it.
 
-**Phases 1 to 5 are complete.** What is below has documents and issues and no
-code: reading an issue in phase 6 or 7 is reading a blueprint, not a description
-of something that exists.
+
 
 ## Phase 6 — The Habitat
 
@@ -105,10 +103,19 @@ The vision's fourth sentence.
 
 | Issue | |
 | --- | --- |
-| [601](../issues/601-a-body-wider-than-one-cell.md) | a body wider than one cell |
-| [602](../issues/602-marching-a-line-through-stone.md) | marching a line through stone |
-| [603](../issues/603-hiding-is-stopping-somewhere-unseen.md) | hiding is stopping somewhere unseen |
-| [604](../issues/604-a-game-is-roles-and-an-ending.md) | a game is roles and an ending |
+| [601](../issues/completed/601-a-body-wider-than-one-cell.md) | a body wider than one cell |
+| [602](../issues/completed/602-marching-a-line-through-stone.md) | marching a line through stone |
+| [603](../issues/completed/603-hiding-is-stopping-somewhere-unseen.md) | hiding is stopping somewhere unseen |
+| [604](../issues/completed/604-a-game-is-roles-and-an-ending.md) | a game is roles and an ending |
+
+Done when dinosaurs move through the maze, cannot go everywhere the little guys
+can, hide from each other, and play games that end. `./run-maze --scene jungle`
+runs it.
+
+**Phases 1 to 6 are complete — the whole of the original vision.** What is below
+is the mode that was added afterwards. It has documents and issues and no code:
+reading an issue in phase 7 is reading a blueprint, not a description of
+something that exists.
 
 ## Phase 7 — The Delve
 

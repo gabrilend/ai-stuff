@@ -5,12 +5,36 @@
 | Phase | 6 — The Habitat |
 | Blocked by | 107, 301, 308, 401 |
 | Blocks | 603, 604, 702 |
-| Reads | [dinosaurs in a habitat](../docs/019-dinosaurs-in-a-habitat.md) |
+| Reads | [dinosaurs in a habitat](../../docs/019-dinosaurs-in-a-habitat.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Every body occupies exactly one cell.
+`Walking.footprint` and `footprint_fits`, and the `striding` row which is
+`Walking.advance` itself — the same function, not a copy. Two copies of a step is
+two places for a walker and a dinosaur to start disagreeing about what the maze
+is.
+
+The footprint check had to be added in **four** places, and each of the three
+that were missed was a real leak: the step chooser (the obvious one), the
+pathfinder (a dinosaur handed a route through a corridor it cannot enter walks it
+as far as the first narrow cell and stops), the errand's adjacency check, and the
+meet pass's separation rule — which is the one place in the project that can put
+a body somewhere it does not fit, and it put eighteen dinosaurs of sixty
+straddling walls in forty seconds.
+
+The maze needed **plazas** before any of this could work. A three-by-three body
+needs nine contiguous cells at one height, and a maze of one-cell corridors has
+essentially none: ninety dinosaurs were spawned and fifty-seven never moved. The
+generator now clears a dozen or so courts among the corridors, which the
+reference picture has anyway and which are most of what stops it reading as
+uniform hatching.
+
+And the consequence nobody designed: **the plazas are mostly not connected to
+each other**, because the corridors between them are one cell wide. A maze
+therefore has some number of separate enclosures — eight or fourteen, depending
+on the seed — and a dinosaur lives in one of them for the whole run. That is
+reported, and it is the most interesting number in the habitat.
 
 ## Intended behavior
 
@@ -54,5 +78,5 @@ deference and costs nothing.
 
 ## Related documents and tools
 
-- [Dinosaurs in a habitat](../docs/019-dinosaurs-in-a-habitat.md)
-- [Bodies are bucketed by cell](completed/308-bodies-are-bucketed-by-cell.md)
+- [Dinosaurs in a habitat](../../docs/019-dinosaurs-in-a-habitat.md)
+- [Bodies are bucketed by cell](308-bodies-are-bucketed-by-cell.md)
