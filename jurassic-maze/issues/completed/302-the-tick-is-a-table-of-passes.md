@@ -5,7 +5,7 @@
 | Phase | 3 — The Rolling |
 | Blocked by | 301 |
 | Blocks | 303, 307, 308, 405, 502, 703 |
-| Reads | [the tick](../docs/010-the-tick.md) |
+| Reads | [the tick](../../docs/010-the-tick.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -43,7 +43,7 @@ different on every machine.
 
 The tick is **an array of `{name, function, parallel}` rows walked in order**,
 not a function with seven calls in it. The passes and their order are in
-[the document](../docs/010-the-tick.md). Two things about that order are
+[the document](../../docs/010-the-tick.md). Two things about that order are
 load-bearing:
 
 - **Deciding is separated from moving**, so no body's decision can see another
@@ -76,5 +76,5 @@ and nobody knows when it went.
 
 ## Related documents and tools
 
-- [The tick](../docs/010-the-tick.md)
-- [A body and what it carries](../docs/011-a-body-and-what-it-carries.md)
+- [The tick](../../docs/010-the-tick.md)
+- [A body and what it carries](../../docs/011-a-body-and-what-it-carries.md)

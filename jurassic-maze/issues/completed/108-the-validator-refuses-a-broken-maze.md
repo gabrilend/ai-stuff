@@ -5,7 +5,7 @@
 | Phase | 1 — The Stone |
 | Blocked by | 102, 104, 105, 106, 107 |
 | Blocks | 206, and every phase after |
-| Reads | [carving the maze](../docs/003-carving-the-maze.md), [ways this could go wrong](../docs/027-ways-this-could-go-wrong.md) |
+| Reads | [carving the maze](../../docs/003-carving-the-maze.md), [ways this could go wrong](../../docs/027-ways-this-could-go-wrong.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -80,6 +80,6 @@ time and becomes invisible the second.
 
 ## Related documents and tools
 
-- [Carving the maze](../docs/003-carving-the-maze.md)
-- [Ways this could go wrong](../docs/027-ways-this-could-go-wrong.md)
+- [Carving the maze](../../docs/003-carving-the-maze.md)
+- [Ways this could go wrong](../../docs/027-ways-this-could-go-wrong.md)
 - `./run-maze --describe`

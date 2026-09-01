@@ -5,7 +5,7 @@
 | Phase | 1 — The Stone |
 | Blocked by | 104, 105 |
 | Blocks | 108 |
-| Reads | [carving the maze](../docs/003-carving-the-maze.md) |
+| Reads | [carving the maze](../../docs/003-carving-the-maze.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -79,5 +79,5 @@ parameters stay wrong forever. Warnings are errors here.
 
 ## Related documents and tools
 
-- [Carving the maze](../docs/003-carving-the-maze.md)
+- [Carving the maze](../../docs/003-carving-the-maze.md)
 - [The validator refuses a broken maze](108-the-validator-refuses-a-broken-maze.md)

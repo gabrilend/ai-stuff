@@ -5,7 +5,7 @@
 | Phase | 3 — The Rolling |
 | Blocked by | 107, 301, 302 |
 | Blocks | 304, 305, 306, 401, 601, 702, 704, 705 |
-| Reads | [locomotion is a dispatch table](../docs/012-locomotion-is-a-dispatch-table.md) |
+| Reads | [locomotion is a dispatch table](../../docs/012-locomotion-is-a-dispatch-table.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -28,7 +28,7 @@ accommodate multiple. So there is no "how bodies move" in this project. There is
 a table, and each row is one way of moving.
 
 Row fields: `name`, `advance`, `parallel`, `drop_limit`, `needs`. The full list
-of rows is in [the document](../docs/012-locomotion-is-a-dispatch-table.md).
+of rows is in [the document](../../docs/012-locomotion-is-a-dispatch-table.md).
 
 **`advance` takes a range of bodies, not one body.** A per-body function forces
 an indirect call once per body per tick; a range is what a thread pool takes.
@@ -63,5 +63,5 @@ agreement with the position, falling, and the leaving-the-world check.
 
 ## Related documents and tools
 
-- [Locomotion is a dispatch table](../docs/012-locomotion-is-a-dispatch-table.md)
-- [Ways this could go wrong](../docs/027-ways-this-could-go-wrong.md) — somebody unifies rolling and walking
+- [Locomotion is a dispatch table](../../docs/012-locomotion-is-a-dispatch-table.md)
+- [Ways this could go wrong](../../docs/027-ways-this-could-go-wrong.md) — somebody unifies rolling and walking

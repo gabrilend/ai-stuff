@@ -60,4 +60,4 @@ removing its row and nothing else mentions it.
 ## Related documents and tools
 
 - [Games that creatures play](../docs/020-games-that-creatures-play.md)
-- [The maze is a spanning tree over rooms](105-the-maze-is-a-spanning-tree-over-rooms.md)
+- [The maze is a spanning tree over rooms](completed/105-the-maze-is-a-spanning-tree-over-rooms.md)
