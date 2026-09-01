@@ -125,6 +125,94 @@ end
 
 -- {{{ function M.load()
 -- Reads every input file and every catalogue it names, and returns the one
+-- {{{ function M.decide_the_seed()
+-- Which match this is going to be, and where that decision gets written down.
+--
+-- Three sources, in order, and the order is what makes the whole thing usable:
+--
+--   1. **`HLM_SEED` in the environment.** A seed named on the command line. Nothing
+--      overrides it and nothing is logged, because a seed somebody typed is a seed
+--      they already have.
+--   2. **`input/seed` holding the word `random`.** Draw one, and **write it down.**
+--   3. **`input/seed` holding a number.** Use it. This is what the file has always
+--      meant and it still means it.
+--
+-- **Why drawing one had to become possible.** Every match, every scene and every
+-- screenshot came out of the same seed, so everything anybody looked at was the same
+-- match. That is exactly right when comparing two versions of a rule and exactly wrong
+-- the rest of the time: a bug that only happens in one arrangement of bodies is
+-- invisible if there is only ever one arrangement, and worse, a rule that is broken in
+-- general looks fine because the one match everybody watched happened not to hit it.
+--
+-- **Why a drawn seed is written down.** A seed nobody recorded is a match nobody can
+-- get back, and the interesting ones are exactly the ones you did not expect and
+-- therefore were not recording. The log is append-only and lives in the RAM tier with
+-- the other ephemera -- it is a notebook, not an archive. When something worth keeping
+-- happens, the seed is in there and it goes into `input/seed` by hand.
+function M.decide_the_seed()
+  local given = os.getenv("HLM_SEED")
+  if given ~= nil and given ~= "" then
+    local number = tonumber(given)
+    if number == nil then
+      error("HLM_SEED was set to '" .. given .. "', which is not a number")
+    end
+    return math.floor(number)
+  end
+
+  local written = read_input_file("seed")
+  local number = tonumber(written)
+  if number ~= nil then
+    return math.floor(number)
+  end
+
+  -- Anything other than a number and the word `random` is a typo rather than an
+  -- instruction, and a typo that silently played a random match would be the worst of
+  -- both: a match nobody chose, from a file that looks like it chose one.
+  if written:match("^%s*random%s*$") == nil then
+    error("input/seed says '" .. written ..
+          "', which is neither a number nor the word 'random'")
+  end
+
+  -- The clock and the process together. The clock alone gives two matches started in
+  -- the same second the same seed, which is precisely what happens when a script runs
+  -- several at once -- and "several at once, all identical" is the failure this is
+  -- being built to end rather than a new way to have it.
+  math.randomseed(os.time() + (tonumber(tostring({}):match("0x(%x+)"), 16) or 0))
+  math.random()
+  local drawn = math.random(1, 2147483647)
+  M.write_down_the_seed(drawn)
+  return drawn
+end
+-- }}}
+
+-- {{{ function M.write_down_the_seed()
+-- Appends a drawn seed to the notebook, and never rewrites a line of it.
+--
+-- Append-only on purpose: the value of the file is that a seed cannot be lost by
+-- something later overwriting it, and a log that is rewritten is a log that can lose
+-- the one line somebody needed.
+--
+-- Failure to write is **reported and not fatal.** The seed is already decided and the
+-- match is already going to be played; refusing to play it because a notebook could
+-- not be opened would be the tail wagging the dog. But it says so, loudly, because a
+-- silent failure here is a match you will want back and cannot have.
+function M.write_down_the_seed(seed)
+  local directory = "/dev/shm/hero-less-moba"
+  os.execute("mkdir -p " .. directory)
+  local handle = io.open(directory .. "/seeds.log", "a")
+  if handle == nil then
+    io.stderr:write("could not write the seed notebook at " .. directory ..
+                    "/seeds.log -- this match's seed is " .. seed ..
+                    " and nothing else is going to remember it\n")
+    return
+  end
+  handle:write(string.format("%s  seed %d\n", os.date("%Y-%m-%d %H:%M:%S"), seed))
+  handle:close()
+  io.stderr:write("seed " .. seed .. " (drawn; noted in " ..
+                  directory .. "/seeds.log)\n")
+end
+-- }}}
+
 -- parameter record the rest of the program is built from.
 --
 -- Returns a table with:
@@ -138,10 +226,7 @@ end
 --   upgrade      table    from assets/027-upgrade-table.lua
 --   commander    table    from assets/053-commander-table.lua
 function M.load()
-  local seed = tonumber(read_input_file("seed"))
-  if seed == nil then
-    error("input/seed is not a number")
-  end
+  local seed = M.decide_the_seed()
 
   local team_size = tonumber(read_input_file("team-size"))
   if team_size == nil then

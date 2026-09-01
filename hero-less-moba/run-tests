@@ -24,6 +24,23 @@
 
 DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
 
+# **The tests pin their own seed, and do not read the one in input/.**
+#
+# That file may say `random`, which is what it should say for anybody looking at the
+# game: every match, scene and screenshot coming out of one seed means everybody has
+# only ever watched one match, and a rule that is broken in general looks fine because
+# the one arrangement everybody saw happened not to hit it.
+#
+# A test suite wants the opposite. Half of what is asserted here is *that the same
+# inputs produce the same match* -- the rules stamp, the replay keyframes, the
+# divergence bound -- and a suite whose seed moved under it would fail those for the
+# one reason that is not a bug. So the seed is named here, out loud, and overriding it
+# is how you ask "does this hold for a different match" rather than something that
+# happens by accident.
+#
+#   HLM_SEED=99 ./run-tests    -- the same suite, a different match
+export HLM_SEED="${HLM_SEED:-20260826}"
+
 # A leading argument is taken as a project root only when it actually looks like
 # one. Testing for "is a directory" alone is not enough: this script's own modes
 # are words like "docs" and "code", and a directory of that name in the working

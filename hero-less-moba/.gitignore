@@ -9,3 +9,16 @@ tmp
 *.swp
 *.swo
 .DS_Store
+
+# The browsable documentation is a **view**, not a source. Every page under docs/HTML
+# is written by ./build-documentation from the Markdown that sits beside it -- checked,
+# not assumed: a build touches all 165 of them and leaves nothing behind but the
+# placeholder that keeps the directory in the repository at all.
+#
+# Committing generated pages means every prose edit arrives as a diff of itself plus a
+# hundred and sixty files of machine output, and it means two people who both ran the
+# build have a conflict in something neither of them wrote.
+#
+# Run ./build-documentation to get them back. Nothing is lost by their absence.
+docs/HTML/*
+!docs/HTML/.gitkeep

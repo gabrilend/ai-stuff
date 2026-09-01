@@ -1,6 +1,11 @@
-# The match seed. One integer. Everything random in the match descends from it
-# through the named streams in src/029-random-streams.lua, so the same seed and
-# the same commands produce the same match, tick for tick, on this machine.
+# The match seed. One integer, or the word `random`.
 #
-# Change it to play a different match on the same map.
-20260826
+# Everything random in the match descends from it through the named streams in
+# src/029-random-streams.lua, so the same seed and the same commands produce the same
+# match, tick for tick, on this machine.
+#
+# `random` draws a fresh one each run and writes it to the append-only notebook at
+# tmp/shared-memory/seeds.log, so a match worth keeping can be got back afterwards by
+# copying its seed in here. A seed named on the command line -- HLM_SEED -- beats both
+# and is not logged, because a seed you typed is one you already have.
+random
