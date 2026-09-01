@@ -496,10 +496,22 @@ function M.build(root, modules)
   os.execute("mkdir -p '" .. out_dir .. "'")
 
   -- What there is to write, and where each thing came from.
+  -- **The issue pattern allows a letter after the number**, because a large issue is
+  -- broken into sub-issues named 211a, 211b and so on -- a convention this project has
+  -- used for a while and which this page silently did not know about, so every
+  -- sub-issue ever written was unreachable from the documentation it belongs to.
+  --
+  -- And the two un-numbered documents are named outright. The queue and the balance log
+  -- are the two most-read files in the project and neither matches a numbered pattern,
+  -- because neither is a numbered document -- they are ledgers, and a ledger does not
+  -- have a place in a reading order. That is not a reason for them to be missing from
+  -- the only browsable copy of everything.
   local sections = {
     {title = "start here", dir = "notes", pattern = "^[a-z].*$", plain = true},
+    {title = "the queue", dir = "issues", pattern = "^work%-queue%.md$"},
     {title = "the design", dir = "docs", pattern = "^%d%d%d%-.*%.md$"},
-    {title = "issues", dir = "issues", pattern = "^%d%d%d%-.*%.md$"},
+    {title = "the ledger", dir = "docs", pattern = "^balance%-updates%.md$"},
+    {title = "issues", dir = "issues", pattern = "^%d%d%d%a?%-.*%.md$"},
     {title = "progress", dir = "issues", pattern = "^phase%-%d%-progress%.md$"},
     {title = "the simulation", dir = "src", pattern = "^%d%d%d%-.*%.info%.md$"},
     {title = "the catalogues", dir = "assets", pattern = "^%d%d%d%-.*%.info%.md$"},
@@ -508,8 +520,17 @@ function M.build(root, modules)
 
   -- Every issue number, so a mention of one anywhere becomes a link.
   local links = {}
-  for _, name in ipairs(list_files(root .. "/issues", "^%d%d%d%-.*%.md$")) do
-    links[name:sub(1, 3)] = name:gsub("%.md$", "")
+  for _, name in ipairs(list_files(root .. "/issues", "^%d%d%d%a?%-.*%.md$")) do
+    -- Keyed by the number **and** by the number plus its letter, so that both "211" and
+    -- "211c" in a sentence become links to the right pages. The bare number wins for
+    -- itself because a parent issue is what "211" means; a sub-issue is only ever
+    -- referred to with its letter attached.
+    local lettered = name:match("^(%d%d%d%a)%-")
+    if lettered ~= nil then
+      links[lettered] = name:gsub("%.md$", "")
+    else
+      links[name:sub(1, 3)] = name:gsub("%.md$", "")
+    end
   end
 
   local pages = {}
