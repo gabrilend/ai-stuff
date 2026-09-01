@@ -39,6 +39,17 @@ function M.defaults()
     depth  = 129,
     layers = 32,        -- at most 32; a column is a 32-bit integer
 
+    -- The name of a hand-authored map in assets/, or empty for the generator.
+    --
+    -- Empty rather than nil because Params.with refuses a field that does not
+    -- exist, which is the whole reason it exists -- and a nil default would make
+    -- this the one knob a typo could not be caught on.
+    --
+    -- When it is set, every parameter below it is ignored. A hand-authored map
+    -- has no terraces to count and no braid to tune; it has whatever its author
+    -- typed. See issue 801.
+    map = "",
+
     -- Pass one: the terraces. Slabs piled nested, each smaller than the last
     -- and roughly on top of it, which is a stepped mound. Scattered rectangles
     -- were tried first and make noise rather than terraces -- see the note over

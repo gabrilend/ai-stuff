@@ -84,8 +84,10 @@ end
 -- The whole check. Raises on anything that makes the maze not a maze; fills the
 -- report with everything else.
 function M.validate(root, store, p, report)
-  local Stone  = require_local(root, "030-the-stone")
-  local Moving = require_local(root, "033-moving")
+  local Stone      = require_local(root, "030-the-stone")
+  local Moving     = require_local(root, "033-moving")
+  local Iso        = require_local(root, "040-the-projection")
+  local Sightlines = require_local(root, "067-sightlines")
 
   report = report or {}
   local bit = require("bit")
@@ -203,6 +205,23 @@ function M.validate(root, store, p, report)
   end
   report.fill_fraction = stone_layers / (store.cells * store.layers)
 
+  -- How much of the maze the camera can actually see.
+  --
+  -- Counted rather than fatal, and it is the one count here that is about the
+  -- projection rather than about the stone -- a maze can be perfectly connected,
+  -- perfectly carved, and completely invisible, and every other number on this
+  -- report will say it is fine. It is here because the alternative was judging it
+  -- from screenshots, and a maze that is three quarters wall tops looks like a
+  -- maze in a screenshot.
+  local climb = Sightlines.climb(Iso)
+  local seen = Sightlines.survey(store, climb)
+  report.sight_climb        = climb
+  report.wall_fits          = Sightlines.wall_fits_behind_a_step(Iso, p.wall_rise)
+  report.floor_seen_centre  = seen.floor_centre / math.max(1, seen.floor_cells)
+  report.floor_seen_any     = seen.floor_any    / math.max(1, seen.floor_cells)
+  report.tops_seen_centre   = seen.top_centre   / math.max(1, seen.column_tops)
+  report.hidden_by          = seen.hidden_by
+
   return report
 end
 -- }}}
@@ -217,12 +236,23 @@ function M.describe(report)
 
   add("seed %d, %d by %d cells, %d layers",
       report.seed, report.width, report.depth, report.layers)
-  add("  rooms reached      %d of %d", report.rooms_reached, report.rooms)
-  add("  staircases cut     %d  (%d for connectivity, %d extra of %d possible sites)",
-      (report.staircases_cut or 0) + (report.extra_staircases or 0),
-      report.staircases_cut or 0, report.extra_staircases or 0,
-      report.staircase_sites or 0)
-  add("  orphan cells filled %d", report.orphans_filled or 0)
+
+  -- The generator's own bookkeeping, and only it has any. A world built from a
+  -- hand-authored map has no rooms to reach and no orphans to fill, and printing
+  -- a zero for each would be a report about a maze that was never made. The test
+  -- is on rooms rather than on a flag because the absence of the number is the
+  -- fact being reported.
+  if report.map then
+    add("  from the map       '%s'", report.map)
+  end
+  if report.rooms then
+    add("  rooms reached      %d of %d", report.rooms_reached, report.rooms)
+    add("  staircases cut     %d  (%d for connectivity, %d extra of %d possible sites)",
+        (report.staircases_cut or 0) + (report.extra_staircases or 0),
+        report.staircases_cut or 0, report.extra_staircases or 0,
+        report.staircase_sites or 0)
+    add("  orphan cells filled %d", report.orphans_filled or 0)
+  end
   add("  floor cells        %d", report.floor_cells or 0)
   add("  surfaces           %d", report.surfaces or 0)
   add("  wall-top pieces    %d   (a wall you can climb onto is not a wall)",
@@ -232,6 +262,18 @@ function M.describe(report)
       report.ledges or 0)
   add("  diameter           %d steps", report.diameter or 0)
   add("  fill fraction      %.3f", report.fill_fraction or 0)
+
+  -- The sightline block. Printed last because it is the newest question asked of
+  -- a maze and the only one whose answer is currently bad.
+  if report.floor_seen_any then
+    add("  floor in view      %.1f%% any of it, %.1f%% at the centre",
+        100 * report.floor_seen_any, 100 * report.floor_seen_centre)
+    add("  column tops in view %.1f%%   (sight climbs %.2f layers per diagonal cell)",
+        100 * report.tops_seen_centre, report.sight_climb or 0)
+    if not report.wall_fits then
+      add("  a wall is taller than one step of sight, so it hides the floor behind it")
+    end
+  end
 
   return table.concat(lines, "\n")
 end

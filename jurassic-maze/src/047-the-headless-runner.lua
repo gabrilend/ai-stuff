@@ -54,6 +54,8 @@ function M.parse(argv)
       if field == "seed" then opts.seed = value end
       opts.overrides[field] = value
       i = i + 2
+    elseif a == "--map" then
+      opts.overrides.map = argv[i + 1]; i = i + 2
     elseif a == "--scene" then
       opts.scene = argv[i + 1]; i = i + 2
     elseif a == "--ticks" then
