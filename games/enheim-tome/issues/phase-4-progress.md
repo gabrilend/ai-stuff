@@ -15,7 +15,7 @@ geometry.
 | [406 — a building, and its facts](406-a-building-and-its-facts.md) | not started |
 | [407 — a house has no geometry](407-a-house-has-no-geometry.md) | not started |
 | [408 — the zoom picks the level](408-the-zoom-picks-the-level.md) | not started |
-| [409 — the cage at four weights](409-the-cage-at-four-weights.md) | not started |
+| [409 — the cage swaps between levels](409-the-cage-swaps-between-levels.md) | not started |
 
 ## The finding that shaped this phase
 

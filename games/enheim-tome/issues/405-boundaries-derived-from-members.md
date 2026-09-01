@@ -62,8 +62,9 @@ recomputed; only the drawing changes.
    two blocks straddle its boundary.
 2. Use it for districts, quadrants and groups without specialising.
 3. Cache per place, invalidated on membership or network change.
-4. Pass the sets to the cage drawing in [409](409-the-cage-at-four-weights.md),
-   which strokes them at the weight of their level.
+4. Pass the sets to the cage drawing in [207](207-the-cage-shows-one-level.md),
+   which strokes whichever level is currently selectable — one pixel, one colour,
+   no weights.
 5. Test on a fixture where two blocks of four belong to one district: the derived
    boundary is the four outer edges and excludes the shared inner one.
 6. Test the two-piece case explicitly, since it is the one a naive implementation

@@ -1,6 +1,6 @@
 # Conversation Summary: 5b030864-1533-4a31-8439-f04e237f1316
 
-Generated on: 2026-08-31 13:16:43
+Generated on: 2026-08-31 13:44:08
 
 --------------------------------------------------------------------------------
 
@@ -3704,6 +3704,263 @@ The one wrinkle: a pathspec can only name files git already knows about. A
 brand-new file still needs `git add` first — which is why you'll see me do
 `git add -- <newfile>` and then `git commit -- <path>`. The add makes git aware
 of it; the pathspec on the commit is what keeps the commit honest.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 12
+
+okay so can you describe each phase to me in detail? Let's do them one-at-a-time
+and address any open questions and update the design as we go.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 12
+
+# Phase 1 — The Canvas
+
+
+One painting on screen, pannable and zoomable, and **nothing else**. No game in
+it at all. Five issues.
+
+
+The reason it stays a separate thing forever, rather than becoming the first
+layer of the game: a viewer with no logic in it is what you reach for when you
+cannot tell whether a fault is in the drawing or in the thinking. If the cage
+looks wrong, you open the pure viewer — if it looks wrong there too, the fault
+is in the drawing.
+
+
+## What each piece does
+
+
+**101 — the painting is one texture.** The whole board is one image, uploaded
+to the graphics card once, drawn in one call. The arithmetic that permits this
+is the phase's most consequential fact:
+
+
+| | |
+
+| --- | --- |
+
+| the painting | 6148 × 4092 = **25,157,616 pixels** |
+
+| held raw | ×4 bytes = **96 MiB** |
+
+| with mipmaps | +⅓ = **128 MiB resident** |
+
+| largest dimension | 6148, against a hardware maximum of 8192 or 16384 |
+
+
+So it fits, comfortably, on any desktop card. **No tile pyramid, no streaming,
+no level-of-detail system** — three subsystems this project simply doesn't
+have, and only because the board is one fixed image rather than a world.
+
+
+Mipmaps are the successively halved copies the card samples from when the image
+is shrunk. Without them, at the whole-city view you're sampling one pixel out of
+every five and the roofs shimmer and crawl as you move — which looks like a
+bug in the drawing and is a missing texture setting.
+
+
+**102 — the view is an offset and a scale.** The entire camera is three
+numbers: where in the painting the top-left of the map pane sits, and how many
+screen pixels one painting pixel occupies. No matrix stack, no scene graph. Two
+conversions, inverses of each other, and *every* part of the program that draws
+a fence or asks what's under the pointer goes through them.
+
+
+The useful range:
+
+
+| Zoom | What you see |
+
+| --- | --- |
+
+| **0.192** | the whole painting across the pane's width — the floor |
+
+| **1.0** | native pixels — the ceiling for honest detail |
+
+
+About **five-fold**, which is tiny for a map application and is a gift: it's why
+the camera can be three numbers. The floor is computed from pane width ÷
+painting width, never written down, so a window resize recomputes it.
+
+
+**103 — the window and its two panes.** Permanently split. The tome takes a
+fixed ~420 pixels; the map gets the rest. Fixed rather than a percentage because
+text wants a readable width — a wider display should give you more city, not
+wider paragraphs. At 1600×900 that leaves the map pane 1180×900, and since the
+painting is proportionally wider than the pane, fitting it leaves about **57
+pixels of letterbox** above and below.
+
+
+**104 — pan and zoom by hand.** The one thing worth insisting on: the painting
+pixel under the cursor **stays under the cursor** as you zoom. Anything else
+feels like the city sliding away from what you're looking at. And zoom steps
+multiply rather than add, so a notch feels the same at either end.
+
+
+**105 — a texture converted ahead of time.** Decoding a 25-megapixel PNG takes
+on the order of **a second**. Today that's a slow start. It becomes a real fault
+the moment anything swaps boards while running — which the seasons idea would
+— freezing the game at exactly the moment the season turns. Converting once,
+ahead of time, into a format the card reads natively also drops the resident
+cost to roughly 24 MiB.
+
+
+## What's open
+
+
+One recorded question, and two more I noticed while writing the description out:
+
+
+**[Asked the user]**
+
+
+*Q1 — Bindings:* Open question 1 — what are the pan and zoom bindings? The
+catch is that the tracing tool shares this code, and there a drag might mean
+moving a vertex rather than moving the map.
+
+- Drag pans, wheel zooms; the tool takes over a drag only when it starts on
+  something — Drag on empty ground pans in both programs. In the tracing tool,
+  a drag that begins on a vertex moves that vertex instead. The pointer already
+  shows which is about to happen before you press, so the distinction is
+  visible. One habit that works in both places.
+
+- Different buttons for panning and editing — Left drag always edits, middle
+  or right drag always pans. Never ambiguous, and you can start a pan from
+  anywhere including on top of a vertex. Cost: a middle-button drag is awkward
+  on a trackpad, and panning is the thing you do most.
+
+- Space or a modifier held to pan — Drag edits; holding a key turns drag into
+  panning. Common in drawing tools, so the habit may already exist. Cost: space
+  is taken by the search, so it would have to be a modifier, and you are holding
+  it constantly during hours of tracing.
+
+→ **Answered:** middle mouse-click to pan, wheel zooms. left click selects,
+right click modifies. This means we need to click buttons with the right
+mouse-button to push them, while left click opens a tooltip. This is
+intentionally anti-user design because we want to be rude to them, to force them
+to learn new things because we are unkind like that.
+
+
+*Q2 — Zoom ceiling:* Should zoom stop at native pixels, or go past them? Past
+1.0 the painting is being magnified rather than revealed — but the tracing
+tool might want it anyway.
+
+- Stop at native in the game, go past it in the tool — The game never shows a
+  magnified painting, so it never pretends to detail it does not have. The
+  tracing tool allows perhaps 3× beyond, because placing a vertex on an exact
+  pixel is easier when that pixel is three pixels wide. Cost: the two programs
+  differ, so the shared view code needs the ceiling as a parameter rather than a
+  constant.
+
+- Stop at native in both — One rule, no divergence. At 1.0 one painting pixel
+  is one screen pixel, so exact placement is already possible — just fiddly.
+  Cost: hours of vertex placement done at the fiddly limit.
+
+- Go past native in both, showing honest blur — No sharpening, no invented
+  detail — just a bigger, softer painting. Simplest possible rule and it lets
+  a player lean in too. Cost: a player leaning in sees mush and may read it as
+  the game being low quality rather than the painting being finite.
+
+→ **Selected:** Go past native in both, showing honest blur
+
+
+*Q3 — Early tome:* The tome pane exists from phase 1, but the tome itself is
+phase 6. What sits in that quarter of the window for the five phases in between?
+
+- Readouts you would want anyway (Recommended) — Zoom, pan, the cursor's
+  position in painting pixels, what is under it, frame timing. Genuinely useful
+  for every phase through the tracing campaign — knowing the painting
+  coordinate under your cursor is exactly what you need while debugging fences.
+  Likely earns a permanent home as a corner you can toggle.
+
+- Empty, and honest about it — A blank panel until phase 6 fills it. Nothing
+  to build, nothing to throw away, and the split is visible from the start so
+  the proportions are real. Cost: a quarter of the window does nothing for a
+  long time, and you debug fences without knowing where the cursor is.
+
+- Narrow the window until the tome exists — Give the map the whole window for
+  now and introduce the split at phase 6. Maximum city while there is nothing
+  else to show. Cost: every visual judgement made before phase 6 — how the
+  cage reads, how the hatching sits — is made at the wrong proportions and has
+  to be re-judged.
+
+→ **Answered:** Empty, and honest about it". Read the answers carefully —
+they may request clarification, changes, or that you not proceed — and follow
+what they actually say.
+
+
+That answer settles more than it looks — the button inversion resolves a
+documented open question. Let me record it all.
+
+
+Now the tome, where the button inversion actually lands.
+
+
+Now retiring those two from the open list while keeping the numbering stable, so
+the cross-references in sixty-seven issue files don't all break.
+
+
+Now the four issue files that phase 1 changes touch.
+
+
+**Phase 1 is settled and committed.** Three things landed, and one of them
+reached further than expected.
+
+
+**The hands turned out to be a stance with a payoff.** Middle drag pans, wheel
+zooms, and then left asks while right acts — the inversion you described as
+deliberate rudeness. I've recorded it as a decision rather than a preference,
+with a note that anyone later making it "friendlier" is undoing something rather
+than fixing it.
+
+
+It dissolved the thing phase 1 was actually blocked on. Open question 1 existed
+because the tracing tool needs the same gestures for a different job — a drag
+there might mean moving a vertex — and the two programs mustn't disagree about
+what a drag means. **They can't, now**, because panning is the middle button and
+editing is left and right. A drag on empty ground is never editing in either
+program. The conflict doesn't arise.
+
+
+And it paid for something it wasn't aimed at. The colour rule demands that a
+dimmed button say more than "no" — an icon alone can't explain itself, and a
+wall of grey icons tells a person nothing. **The enquiry hand works on controls
+the action hand refuses**, so left-clicking a greyed button makes it explain
+why. That was open question 7, in phase 6, answered as a side effect. I've
+written the consequence in as a rule the button pane is held to: *nothing may be
+pressable by the hand that asks about it.*
+
+
+**Past-native zoom is allowed in both programs**, showing honest blur — no
+sharpening, no invented detail. The board is finite and a person leaning in
+should meet the limit of the artwork rather than a fiction. The tracing tool
+gets the same, which turns placing a vertex on an exact pixel into aiming at
+something several pixels wide instead of one.
+
+
+**The tome pane stays honestly empty until phase 6** — no readouts, no
+placeholder. It exists from phase 1 so every visual judgement before then is
+made at the real proportions.
+
+
+Updated: the map surface document gained a section on the hands, the tome gained
+the left-asks-right-acts rule, four issue files were rewritten, and the open
+questions went from **seventeen to fifteen** — questions 1 and 7 retired in
+place so the cross-references in sixty-seven issue files didn't all break.
+
+
+One honest note I recorded rather than smoothed over: a middle-button drag is
+awkward on a trackpad, and panning is the thing you do most.
+
+
+Ready for **Phase 2 — The Cage** whenever you are. Its open question is what a
+click on undefined ground does, and there are a couple of things I noticed while
+writing it that I'd want to put to you.
 
 
 --------------------------------------------------------------------------------

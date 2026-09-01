@@ -57,6 +57,26 @@ Without it, a block whose loop happens to name edges in mixed directions produce
 a self-crossing tangle that fills wrongly and hit-tests wrongly, and the cause is
 extremely hard to see.
 
+### The line runs down the middle of the street
+
+A street has width, but two blocks facing each other across one **share a single
+edge** — so the traced line follows the street's **centre**, and each block owns
+its half of the road.
+
+Two consequences worth being explicit about.
+
+**The cage reads like a road centreline** over the painting, which is a natural
+thing for a hairline to be doing on a map of a city.
+
+**There is no street object.** A lane is where two blocks meet, not a place. You
+cannot select one, nothing can be said about one, and nobody is ever standing
+*in* a street — they are in a block, on its half of the road. Public space is
+therefore the open buildings and the squares, and a square is a block.
+
+The alternative — running the line along a building line so a block includes the
+pavement in front of it — would need a different line for each side of the
+street, which breaks the shared edge that everything else depends on.
+
 ### On disk
 
 A plain text format, readable and diffable, because this file is the single most

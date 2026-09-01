@@ -105,31 +105,36 @@ at native pixels. Outside it, the cage stays exactly one pixel at every zoom,
 which is what makes it read as a cage laid over the painting rather than as paint
 on it.
 
-Line **weight** varies by level — quadrant heaviest down to building finest — but
-the width of any single line does not vary with zoom. See
+**One pixel means one colour.** A single pixel carries no gradient and no weight,
+so every line in the cage is drawn identically — there is no opacity to vary and
+no thickness by which to tell a quadrant boundary from an alley's.
+
+### One level at a time
+
+Which leaves only *whether* an edge is drawn, and the rule is:
+
+> **Draw the boundaries of the level you can currently select. Only those.**
+
+Quadrants at the city view, then districts, then blocks, then buildings — the
+cage **swaps** as you descend rather than accumulating. See
 [the map surface](002-the-map-surface.md).
 
-### Each boundary fades on its own size
+This makes an existing promise exact: the cage *is* the set of things you can
+click. And it needs no cap on density, because a level only becomes selectable
+when its places are a workable size on screen.
 
-A single global zoom threshold cannot work, because at native zoom a harbour
-block is around 300 screen pixels across while a block up by the north wall is
-around 40. So each boundary gets its opacity from its own on-screen width:
+### Why not a fade
 
-| On-screen width | Fence |
-| --- | --- |
-| under about 24 pixels | not drawn at all — too small to aim at anyway |
-| about 24 to 64 | opacity ramps from nothing to solid |
-| over about 64 | a solid line at its level's weight |
+An earlier design faded each boundary in on its own on-screen width. Since the
+fence runs down the middle of a street, **nearly every edge is shared by exactly
+two blocks** — only the city's outer boundary is single-sided — and each block
+would have wanted its own opacity for one line stroked once.
 
-with one override: **whatever is under the pointer, and whatever is selected,
-always draw at full strength**, whatever their size. So the painting is clean at
-the city view, the cage thickens and deepens as you descend into it, and whatever
-you are actually pointing at is always outlined.
-
-The thresholds are tunables, not constants. Whether "width" means the bounding
-box or the square root of the on-screen area is unsettled; the bounding box is the
-working ruling, being cheaper, and the difference only shows on very elongated
-places.
+A harbour block 300 screen pixels across beside an alley of 28: taking the larger
+left small places with lopsided part-drawn outlines; taking the smaller put faint
+patches into large ones that read as the drawing failing; stroking twice made
+shared edges brighter than unshared ones. One colour removes the number they were
+disagreeing about.
 
 ## Undefined ground
 
