@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+#
+# run-arena -- open one rule on a small square of ground, and watch it.
+#
+# The other two ways of looking at this game show you a match: the window plays one at
+# full size, and the headless runner plays a thousand and prints totals. Both are the
+# right instrument for a question about the game and the wrong one for a question about
+# a rule, because in both of them everything is moving at once -- waves spawning,
+# phases turning over, bots placing upgrades, three lanes' worth of fights -- and the
+# thing you came to look at is somewhere in the middle of it, three minutes in, in
+# whichever lane the game happened to choose.
+#
+# A scene is the opposite bargain. It names the handful of mechanics it needs, gets a
+# world with exactly those hung on it and nothing else, puts a few bodies on a short
+# straight road, and holds. Anything that moves is something the scene asked for.
+#
+# Usage:
+#   ./run-arena                          -- list the scenes
+#   ./run-arena a-formation-meets-a-stray  -- open it in the window, held
+#   ./run-arena <scene> headless 900     -- run it with no window and print the numbers
+#   ./run-arena /path/to/prj <scene>     -- against a checkout somewhere else
+
+DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
+
+if [ -d "$1/issues" ] && [ -d "$1/src" ]; then
+    DIR="$1"
+    shift
+fi
+
+SCENE="$1"
+MODE="${2:-window}"
+TICKS="${3:-900}"
+
+if [ -z "${SCENE}" ]; then
+    echo "run-arena: no scene named."
+    echo
+    echo "Scenes:"
+    ls -1 "${DIR}/scenes" | sed 's/\.lua$//' | sed 's/^/    /'
+    exit 1
+fi
+
+if [ ! -f "${DIR}/scenes/${SCENE}.lua" ]; then
+    echo "No scene at ${DIR}/scenes/${SCENE}.lua"
+    echo
+    echo "Scenes:"
+    ls -1 "${DIR}/scenes" | sed 's/\.lua$//' | sed 's/^/    /'
+    exit 1
+fi
+
+# The RAM tiers, recreated rather than assumed -- /tmp and /dev/shm do not survive a
+# reboot and the symlinks in the repository would otherwise dangle.
+mkdir -p "/tmp/hero-less-moba/tmp"
+mkdir -p "/dev/shm/hero-less-moba"
+if [ ! -e "/tmp/hero-less-moba/shared-memory" ]; then
+    ln -sfn "/dev/shm/hero-less-moba" "/tmp/hero-less-moba/shared-memory"
+fi
+
+if [ "${MODE}" = "headless" ]; then
+    # The same scene, the same mechanics, no window. What this prints is what the
+    # readout under the picture prints, so a number seen here and a number seen there
+    # are the same number rather than two measurements that ought to agree.
+    luajit -e "
+    local root = '${DIR}'
+    local tick_module = loadfile(root .. '/src/042-the-tick.lua')()
+    local modules = tick_module.load_cast(root)
+    local arena = loadfile(root .. '/src/068-the-arena.lua')()
+    local scene = loadfile(root .. '/scenes/${SCENE}.lua')()
+    local world = arena.assemble(modules, modules.match_parameters.load(),
+                                 scene.want, scene.arena)
+    scene.setup(world, arena)
+    print('')
+    print(scene.name)
+    print('  mechanics: ' .. table.concat(scene.want, ', '))
+    print('')
+    local function report()
+      local s = world.soldier
+      local front, back, blocked, total = -math.huge, math.huge, 0, 0
+      for id = 1, world.high_water do
+        if s.alive[id] == 1 and s.wave[id] ~= 0 then
+          total = total + 1
+          if s.lane_along[id] > front then front = s.lane_along[id] end
+          if s.lane_along[id] < back then back = s.lane_along[id] end
+          if world.frontline.blocked(world, id) then blocked = blocked + 1 end
+        end
+      end
+      print(string.format('  tick %4d   front %3.0f   back %3.0f   depth %3.0f   blocked %d of %d',
+                          world.tick, front, back, front - back, blocked, total))
+    end
+    report()
+    local step = math.floor(${TICKS} / 10)
+    if step < 1 then step = 1 end
+    for _ = 1, 10 do
+      for _ = 1, step do arena.march_tick(world) end
+      report()
+    end
+    print('')
+    "
+    exit 0
+fi
+
+if ! command -v love > /dev/null; then
+    echo "LOVE is not installed, and the window needs it."
+    echo "The same scene runs with no window at all:"
+    echo "    ${DIR}/run-arena ${SCENE} headless"
+    exit 1
+fi
+
+echo "Opening ${SCENE}, held."
+echo
+echo "  P              start it, and hold it again"
+echo "  1 / 2 / 3      speed"
+echo "  R              back to the beginning"
+echo "  ESC            close"
+echo
+echo "  Bodies ringed in red are ones the queue is stopping this tick."
+echo "  The yellow body is a stray, drawn with the room it keeps around itself."
+echo
+
+HLM_START="arena:${SCENE}" love "${DIR}"

@@ -28,6 +28,18 @@ on an enemy has left the formation's business.
 
 A wave stops advancing when an enemy comes near its front, and its bodies fight.
 
+**And the queue has exactly one answer, which is to stop.** A body that would end its
+step inside a friendly body ahead of it in roughly its own file halts, and there is no
+other option in the rule — no step to the side, no going round. That is right for the
+thing it was written for, a rank forming up behind a rank that is fighting, and it is
+wrong everywhere else. During a siege-surge, where a stream of bodies is walking down
+a lane with nothing to queue *for*, they concertina into a stationary column behind
+whichever one stopped first. A single stationary body anywhere becomes a plug that
+everything behind it waits on for ever.
+
+That is [214](214-going-round-what-is-in-the-way.md), which replaces the one answer
+with three and is where the design for it lives.
+
 Movement is capped by the distance a body actually covers in the world, so the outside
 of a bend genuinely falls behind and the budget has something to correct. Measured on
 a bare field: through a left turn the outer body covers 321 paces to the inner's 290,

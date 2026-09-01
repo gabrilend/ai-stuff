@@ -37,6 +37,19 @@ function love.load()
   -- sandbox, so that the very same files run under a bare luajit with no window
   -- -- which is how ten thousand matches get played overnight.
   local root = love.filesystem.getSource()
+
+  -- **Which room this doorway opens onto.** There are two windows in this project and
+  -- they are not two versions of one thing: one draws a match, and one draws a single
+  -- rule on a small square of ground with nothing else running. Choosing between them
+  -- is the last decision that belongs in a doorway, and it is made by reading one
+  -- variable rather than by either viewer knowing the other exists.
+  local scene = (os.getenv("HLM_START") or ""):match("^arena:(.+)$")
+  if scene ~= nil then
+    viewer = loadfile(root .. "/src/069-the-proving-ground.lua")()
+    viewer.load(root, scene)
+    return
+  end
+
   viewer = loadfile(root .. "/src/050-the-viewer.lua")()
   viewer.load(root)
 end

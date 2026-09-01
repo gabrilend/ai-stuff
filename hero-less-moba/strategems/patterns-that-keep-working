@@ -96,3 +96,60 @@ what was missing and where, and never substitutes a default.
 The map is generated, never hand-edited. The documentation's HTML is generated.
 The demos are regenerated. Anything hand-tweaked is a thing nobody dares change
 afterwards.
+
+## Absent, not idle.
+
+To find out what one rule does, build a world with only that rule in it. Not a
+smaller version of the whole thing -- a world where the parts you did not name
+are genuinely not there, so that reaching for one is an error and not a
+background influence.
+
+The temptation is always to assemble everything and simply not look at most of
+it. That does not work, and the reason it does not work is not obvious: a system
+you are not looking at is still running, still moving bodies, still spending the
+clock, and when the measurement comes out strange it is a candidate you did not
+know you had. Twice in one week a number from a whole match was attributed to the
+wrong cause, and both times the real cause was something else that had also been
+switched on.
+
+The test says what it needs. What it did not ask for is missing. Anything that
+moves is something it asked for.
+
+## Vary one thing, and vary it as a grid.
+
+Two changes made together and one of them varied will attribute the whole effect
+to the wrong one. This has happened here more than once and it has never once
+looked like a mistake at the time -- it looks like a clean before-and-after.
+
+Run it as a two-by-two. It costs one extra run and it is the difference between a
+result and a story.
+
+## A picture settles what an assertion cannot.
+
+An assertion is written by somebody who already knows the right answer. Most
+interesting questions are not like that: the behaviour is wrong, and what the
+right behaviour *is* has not been decided yet. Those want a small scene somebody
+watches, with a caption saying what should happen -- and the assertion afterwards,
+once looking has settled it.
+
+The scene stays after the assertion is written. It is the picture of why.
+
+## Show which machinery made the picture.
+
+If a test runs a chosen subset, the subset goes on the screen. And if something is
+present for a reason other than the obvious one -- a module named for what it
+usually does, holding a helper that this test happens to need -- the picture says
+so in words. A reader who sees "targeting" and concludes there is combat has been
+misled by a true statement, and true statements that mislead are the expensive
+kind.
+
+## A field on the record beats the same answer re-derived.
+
+Something that was written down when a thing was created should be read, not
+worked out again from the thing's other properties. It is always the same answer
+until it is not, and the day it is not, the two disagree silently.
+
+A wave carries which way it is walking. The code that moved it re-derived that
+from which team raised it -- identical for every wave the game makes, and wrong
+for the first wave anything else made, which simply stood still while its own
+books said it was marching.
