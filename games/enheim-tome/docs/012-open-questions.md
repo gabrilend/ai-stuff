@@ -8,7 +8,7 @@ of the documentation are the vision speaking and which are a gap being filled.
 
 The questions are meant to be gone through one at a time.
 
-**Thirty-four answered. Fifteen open.** The design is therefore *in progress*, not
+**Thirty-seven answered. Fourteen open.** The design is therefore *in progress*, not
 finished.
 
 ---
@@ -54,6 +54,9 @@ worth being able to find again.
 | A32 | Do the icon buttons carry words, and where? | **Left-clicking one explains it**, including why a dimmed one cannot be used. Falls out of the two-hand scheme rather than needing its own mechanism. | Hover text; permanent labels beside icons. |
 | A33 | Does zoom stop at native pixels? | **No — past native is allowed in both programs and looks like honest blur.** | Stopping at native; stopping in the game but not the tool. |
 | A34 | What fills the tome pane before the tome exists? | **Nothing.** An empty panel until phase 6, so the proportions are real from the start. | Debug readouts; giving the map the whole window until phase 6. |
+| A35 | What happens on ground with no identity? | **The click is ignored and the selection stays.** Input not on the map cannot affect the selection of things in the map. | Deselecting; selecting the countryside as a thing. |
+| A36 | Where does the fence line run across a street? | **Down the centre**, each block owning its half. So there is **no street object** — a lane is where two blocks meet. | Along a kerb, which breaks the shared edge; making streets places of their own. |
+| A37 | How brightly is a shared edge drawn? | **One pixel means one colour for all lines.** Nothing varies, so nothing arbitrates. Only *which* level is drawn varies. | Larger place wins; smaller wins; fade on the edge's own length; stroking twice. |
 
 Five of these carry consequences worth spelling out.
 
@@ -106,18 +109,21 @@ answered question 7 as a side effect.
 
 Zoom is clamped below at the pane fit and **not clamped above** — see A33.
 
-## 2. What happens when you click undefined ground?
+## 2. What happens when you click undefined ground? — **ANSWERED, see A35**
 
-Most of the painting is unfenced for a long time and some forever — mountains,
-fields, sea, the foreground ridge. It reads as zero in the identity buffer.
+**The click is ignored and the selection stays as it was.**
 
-**Working ruling:** the click deselects, and nothing glows.
+The question assumed untraced ground was a permanent category. It is not — the
+whole map becomes a defined place eventually, so having no identity is a state of
+the campaign rather than of the world.
 
-**Why it matters:** the alternative — bare ground doing nothing, so the current
-selection survives — feels different in the hand, and decides whether the far
-countryside is *outside the game* or merely *not yet traced*.
+What is permanent is pixels that are **not the map at all**: the letterbox above
+and below the painting at the fit zoom. Those get the same treatment, under one
+sentence — *input that is not on the map cannot affect the selection of things in
+the map.*
 
-**Changes:** [the fence network](004-the-fence-network.md), phase 2.
+A consequence: there is no way to deselect by clicking away. Selecting something
+else is how you stop looking at a thing, and the tome always has something in it.
 
 ## 3. What tunable flips the glow from selection to aiming?
 

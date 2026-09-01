@@ -6,7 +6,7 @@
 | Blocked by | 204 |
 | Blocks | 207, 408, 507 |
 | Reads | [the map surface](../docs/002-the-map-surface.md) |
-| Open questions | **2** — what a click on undefined ground does |
+| Open questions | — *(was question 2; answered)* |
 
 ## Current behavior
 
@@ -40,10 +40,14 @@ buildings.
 
 ### It must answer every frame, not only on click
 
-Hover feedback depends on it — the fence under the pointer draws at full strength
-regardless of size, per [207](207-each-boundary-fades-on-its-own-size.md), and the
-glow may follow the pointer at high zoom. So this runs continuously, which is
-another reason it must be a read rather than a search.
+The glow may follow the pointer at high zoom — see
+[508](508-the-glow-flips-to-aiming.md) — and the tome shows what is under it. So
+this runs continuously, which is another reason it must be a read rather than a
+search.
+
+It is no longer needed for the cage. An earlier design drew whatever was under
+the pointer at full strength to rescue places too small to see; with the cage
+showing one level uniformly, nothing at that level is ever too small.
 
 ### The pointer outside the map
 
@@ -52,17 +56,27 @@ in [103](103-the-window-and-its-two-panes.md) makes that structural; this must
 respect it and report nothing rather than clamping to the map's edge, which would
 make the outermost blocks selectable by pointing at the tome.
 
-### Undefined ground
+### Ground with no identity, and pixels that are not ground
 
-Identity zero means nobody has defined this ground — mountains, fields, sea, the
-foreground ridge, and everything not yet traced.
+Identity zero has two quite different causes, and they get the same treatment:
 
-**Working ruling, not a decision:** a click there deselects, and nothing glows.
+- **not yet traced.** The whole map becomes a defined place eventually — the
+  mountains, the fields, the sea. Untraced is a temporary state of the campaign,
+  not a category of the world.
+- **not the map at all.** The letterbox above and below the painting at the fit
+  zoom, which is about 57 pixels at a 1600 by 900 window.
 
-The alternative — bare ground doing nothing, so the current selection survives —
-feels quite different in the hand and also says something about whether the far
-countryside is *outside the game* or merely *not yet traced*. See
-[open questions](../docs/012-open-questions.md), question 2.
+In both cases the click is **ignored and the selection stays as it was.**
+
+The governing sentence: *input that is not on the map cannot affect the selection
+of things in the map.* A click on the letterbox is not a click on the city at
+all, and a click on ground nobody has traced is a click on something the program
+has nothing to say about yet. Neither is a reason to put down what you were
+reading.
+
+This also means there is no way to deselect by clicking away. Selecting something
+else is how you stop looking at a thing, and the tome always has something in
+it.
 
 ## Suggested implementation steps
 

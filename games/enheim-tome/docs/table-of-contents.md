@@ -102,8 +102,8 @@ enheim-tome/
 │   │                                           under them, the writing campaign
 │   │                                           that is not a phase, and what is
 │   │                                           deliberately absent.
-│   ├── 012-open-questions .................... Thirty-four answered with their
-│   │                                           rejected alternatives, fifteen still open,
+│   ├── 012-open-questions .................... Thirty-seven answered with their
+│   │                                           rejected alternatives, fourteen still open,
 │   │                                           and six problems this design does
 │   │                                           not have.
 │   │
