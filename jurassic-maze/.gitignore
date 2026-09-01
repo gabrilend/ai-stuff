@@ -20,3 +20,14 @@ tmp
 # Run ./build-documentation to get them back. Nothing is lost by their absence.
 docs/HTML/*
 !docs/HTML/.gitkeep
+
+# An exported scene is a **view** of a world, not a source of one. The picture and
+# the datafile in scenes/ are both written by ./export-scene out of a map that is
+# committed, so committing them means a binary that changes whenever the palette
+# does and a diff nobody can read.
+#
+# A scene traced onto somebody else's picture is different, and lives in
+# notes/plans/ where the plan -- which is the source, and is text -- sits beside
+# it. See issue 1001.
+scenes/*
+!scenes/.gitkeep
