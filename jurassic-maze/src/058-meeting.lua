@@ -212,6 +212,9 @@ function M.new_table(creatures)
   local delvers = { creatures.by_name("human"), creatures.by_name("golem"),
                     creatures.by_name("vine"), creatures.by_name("automaton"),
                     dino }
+  -- One function for every pairing among them. It handles the abilities --
+  -- mounting, entangling, igniting -- and hands the exchanging of blows to the
+  -- duel machinery, which already existed and already worked.
   local function delve_rule(world, bodies, x, y)
     return world.modules.Delve.meets(world, bodies, x, y)
   end
@@ -227,7 +230,7 @@ function M.new_table(creatures)
   pair(ball, guy, "nothing", nil)
   pair(ball, fencer, "nothing", nil)
   pair(guy, fencer, "they pass", nil)
-  pair(fencer, fencer, "a duel, if their sides differ", function(world, bodies, a, b)
+  pair(fencer, fencer, "a fight, if their sides differ", function(world, bodies, a, b)
     return world.modules.Duels.meets(world, bodies, a, b)
   end)
   pair(dino, dino, "sometimes a game", function(world, bodies, a, b)

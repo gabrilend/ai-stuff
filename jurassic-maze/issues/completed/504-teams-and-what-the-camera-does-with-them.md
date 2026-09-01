@@ -6,7 +6,7 @@
 | Blocked by | 407, 503 |
 | Blocks | nothing |
 | Reads | [fencing](../../docs/017-fencing.md), [the camera](../../docs/008-the-camera-and-what-it-watches.md) |
-| Open questions | 1 (camera or fencer), 11 (do the little guys have teams) |
+| Open questions | 11 (do the little guys have teams). Question 1 is answered: the fencers swap, not the camera. |
 
 ## Current behavior
 

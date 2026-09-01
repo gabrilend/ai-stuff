@@ -1,101 +1,100 @@
 # The Monsters Of The Delve
 
-Three of them. Each is a lock, and the key to each is one of the others.
+Three of them. Each is made of something different, and what each is made of is
+what decides how to kill it.
 
 ## The stone golem
 
 Made of the maze. It is not standing in the corridor, it *is* corridor, walking.
 
-**Locomotion: `lumbering`.** The row that raises the climb limit and lets a body
-break a wall rather than route around it. A golem that meets stone it cannot
-climb clears the bits and walks through, and the surfaces for those columns are
-recomputed on the spot. It is the only thing in the project that changes the
-stone after generation, which is why
-[the surface array](002-the-stone-and-what-is-inferred.md) is recomputed rather
-than assumed constant, and why nothing anywhere caches the graph.
+**Locomotion: `lumbering`** — which turned out to be the ordinary walking step
+with `breaks_stone` set and a larger drop limit in its creature row. A new way of
+moving was a new row of numbers rather than a new function, which is what
+[the locomotion table](012-locomotion-is-a-dispatch-table.md) was for and was not
+guaranteed.
 
-**Its solution is to be held still.** Nothing a party carries hurts stone. A
-golem that is entangled stops, and a stopped golem is a wall — one that is
-standing somewhere it was not before, which is occasionally exactly where a party
-wanted a wall.
+**It walks through walls.** A golem that meets stone it cannot climb takes one
+layer off the top of it, and its column and the four around it have their
+surfaces recomputed on the spot. It is the only thing in the project that changes
+the stone after generation, and it is the reason for two decisions made in phase
+one that cost nothing at the time: the surface array is *recomputed* rather than
+assumed constant, and nothing anywhere caches the surface graph. A cached graph
+would be a second copy of the maze to invalidate right here.
 
-**What it is for.** A golem walks through walls. A party that arranges to be
-behind one when it does gets a route that the generator never carved. It is the
-mode's only way of changing the maze, and it is a monster rather than a tool
-because it does not care what the party wanted.
+It takes the top layer off rather than boring through, so the columns stay
+height-shaped and the validator's check for that still passes. A golem that bored
+a tunnel through the middle of a wall would be the first thing in the project to
+make a column with a hole in it — and that check has been waiting since phase
+one for exactly that day.
+
+**Fire does nothing to it. A blade chips it. Weight tells.** A party without a
+dinosaur is not going to win this one.
+
+Two things about it took finding, and both are recorded where they happened. It
+counted its work on the shared `timer` field, which is also the idle clock — the
+idle reset it before it ever reached the threshold, so no golem ever broke a
+wall, with nothing raised and nothing in any counter. And a three-by-three golem
+can never be *adjacent* to a wall, because its own footprint keeps it a cell
+away; it reaches one cell past itself, which is also what lets it make its own
+space.
 
 ## The vine monster
 
-**Locomotion: `creeping`.** It moves along walls rather than along floors,
-ignoring the drop limit entirely — a vine falls down a cliff face and keeps
-growing. Its stance is a surface like anything else's; what differs is which
-neighbours it considers, and it considers vertical faces.
+**Locomotion: `creeping`** — the walking step with a drop limit of ninety-nine. A
+vine falls down a cliff face and keeps growing, because a drop is not a problem
+for it.
 
-**It entangles.** A body it reaches is held: its locomotion is suspended and it
-does not move until the hold is broken. That is the same mechanism as
-[a duel](017-fencing.md) — a record referencing two bodies with generations —
-because being held and being in a fight are the same shape of thing.
+**It entangles.** A body it reaches is held: it cannot move and it cannot swing,
+which is the one thing in the mode that stops a fight rather than deciding it. A
+held body is a body anybody can hit.
 
-**Its solution is fire.** It is the most flammable thing in the maze and it is
-the only monster with a solution that is not another monster's body.
+The hold is a clock on the body rather than a row in the locomotion table, so it
+works for anything that can be held rather than only for the kinds somebody
+remembered. It is the same shape as a duel and a shared idle — the third instance
+of a record with a clock and participants held by generation.
 
-**What it is for.** Holding the golem.
+**Fire ruins it.** Three and a bit times over. It is the most flammable thing in
+the maze, and the party's torches are what it is for.
 
 ## The wooden machine automaton
 
-Not steam powered. It is a machine made of wood, and its power is **ignite**.
+Not steam powered. A machine made of wood, and its power is **ignite**.
 
-**Ignite is a state.** It sets a body or a cell burning, and burning persists,
-consumes fuel, and spreads to flammable neighbours. It is not a projectile, it
-has no travel time, and there is no explosion. See
-[the delve](021-the-delve.md) for the `burn` pass this needs.
+**Ignite is a state, not a projectile.** It sets a body burning, and burning
+persists, consumes fuel and spreads. There is no travel time and there is no
+explosion.
 
-**It is made of wood.** So it burns. So an automaton standing in the vines it
-just set alight is an automaton that has solved itself, and nothing in the code
-arranges that — it falls out of fire spreading to flammable neighbours and the
-automaton being one of them.
+**It does not check whose side you are on.** It is a machine; it sets alight
+whatever flammable thing is beside it. That is both what it should do and what
+makes the best thing in the mode possible — because it is *made of wood*, and a
+machine standing in a thicket it has just ignited catches fire from its own work.
 
-**Its solution is to be smashed.** Wood against a stone fist.
+Nothing in the code arranges that. It falls out of fire spreading to flammable
+neighbours and the automaton being one of them, and
+`tests/066-the-delve.lua` asserts it happens with **no code path called "self"**.
+If there had to be one, the fire model was built at the wrong level.
 
-**What it is for.** It is the only fire in the maze. A party with a vine problem
-and no automaton has no answer, and has to go and find one — which is what makes
-this a mode about routing rather than about fighting.
+**Everything works on it**, and fire works well. Wood splits under a blade, burns
+readily, and ends under a stone fist.
 
-## The cycle, stated once
+## The chart, stated once
 
-| This | Undoes this |
-| --- | --- |
-| golem | automaton |
-| automaton | vines |
-| vines | golem |
+| | blade | fire | blunt |
+| --- | --- | --- | --- |
+| golem | 0.20 | 0.00 | 1.00 |
+| vine | 1.00 | 3.20 | 0.35 |
+| automaton | 1.40 | 2.60 | 1.80 |
 
-Three monsters, three solutions, no fourth thing needed. A party's contribution
-is not damage. It is **arranging the meeting** — getting two monsters into one
-place, which means knowing where they are, knowing the maze, and being able to
-survive the trip. Which is what
-[riding](022-riding-and-being-ridden.md) and
-[the party's two body sizes](021-the-delve.md) are for.
+A human carries fire; a dinosaur carries weight. Neither is an answer to all
+three, which is what makes a party a party.
 
-## What the party can actually do
-
-Not nothing, but not much directly:
-
-- **Move.** Being somewhere is most of it.
-- **Lure.** A monster that can see a body follows it. Line of sight is
-  [already built](018-line-of-sight-through-stone.md), and luring is walking
-  where you can be seen.
-- **Block.** A dinosaur with a long weapon holds a corridor, which decides which
-  way a monster goes.
-- **Carry fire.** Once something is burning, something flammable carried past it
-  catches, and can be carried elsewhere. The `burn` pass does not care what is
-  holding the burning thing.
-
-That last one is the whole spread mechanic reused as a party ability without
-being written as one, which is the test of whether the fire model was built at
-the right level.
+The numbers live in each monster's `resist` field in the creature table and
+nowhere else. This table is the same thing gathered up so a person can read it,
+and it will go stale the moment somebody tunes one — so the creature table is
+what to trust.
 
 ## Related documents and tools
 
 - [The delve](021-the-delve.md)
 - [Riding and being ridden](022-riding-and-being-ridden.md)
-- [Locomotion is a dispatch table](012-locomotion-is-a-dispatch-table.md) — `lumbering` and `creeping`
+- [Fencing](017-fencing.md) — the duel machinery all of this fights with

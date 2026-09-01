@@ -14,9 +14,14 @@ Four endings, each counted by name in the report. The stalemate clock and the
 generation check both fire in tests rather than in ordinary play — a stalemate
 essentially never happens at the tuned numbers, which is why the test forces one.
 
-`disengage_seconds` is a knob and not a constant, so **zero turns a series of
-duels into a melee** — the other reading of open question 1. There is a test for
-both readings, and neither needs a line of code changed.
+`disengage_seconds` is **zero**, which makes it a melee: a released fencer
+re-engages immediately and the fight rolls on. Open question 1 is answered and
+the sentence was about the fencers, not about the camera.
+
+It is still a knob and above zero it is a series of separate duels with the
+camera going looking between them. Both readings have tests. Each side also keeps
+away for its *own* interval, so a mode where one kind re-engages and another does
+not is a table edit.
 
 `world.duel_ended` is a field the director polls rather than an event delivered
 to it. A queue of messages arriving at an unspecified time would make the order

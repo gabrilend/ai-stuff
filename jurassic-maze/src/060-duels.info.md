@@ -1,6 +1,7 @@
 # 060-duels
 
-A duel is a record with two bodies in it, and it ends.
+A duel is a record with two bodies in it, and it ends. **Any** two bodies of
+opposing sides that can hurt each other — not only fencers.
 
 Read this page rather than the source, and read
 [fencing](../docs/017-fencing.md) before either.
@@ -29,6 +30,29 @@ twice.
 | `resolve(world, dt)` | | applies it, all at once, and carries out the deaths |
 | `finish(world, d, ending)` | | one action |
 | `KILLED`, `MUTUAL`, `STALEMATE`, `DISSOLVED` | | the endings, by name |
+
+## It is not only for fencers
+
+It was, and generalising it is what turned the delve from a design into a running
+mode in an afternoon. A human with a torch against a vine, a dinosaur with a
+hammer against a wooden machine, a golem against anything: all of them are two
+bodies exchanging blows and buffering the damage, which already existed, already
+worked and already had tests.
+
+Two things had to change for that.
+
+**Each side uses its own numbers.** A duel between two fencers is symmetric and
+it did not matter; a duel between a human and a stone golem is not, and reading
+both sides' stats off whichever body happened to be stored first would give the
+golem a human's skill depending only on array order. The faster of the two sets
+the pace, so a quick opponent is not slowed down by a heavy one.
+
+**Damage is multiplied by the defender's `resist` for the attacker's weapon.**
+Fire does nothing at all to stone and ruins a plant. The multipliers live in the
+creature table; this file only looks them up.
+
+A held body cannot swing. Being entangled is the one thing in the delve that
+stops a fight rather than deciding it.
 
 ## Both of them strike
 
@@ -67,10 +91,16 @@ misses until the machine is turned off — and a camera watching them under "swa
 on its own" has nothing to swap to, because the duel never ends and the verdict
 never fires.
 
-`disengage_seconds` is a knob and not a constant on purpose. **Zero turns a
-series of duels into a melee**, which is the other reading of
-[open question 1](../docs/026-open-questions.md), and it is one number either
-way. There is a test for both.
+`disengage_seconds` is **zero** for a fencer, which makes a series of duels into
+a melee: a released fighter re-engages immediately and the fight rolls on. That
+was open question 1 and it is answered — the sentence was about the fencers, not
+about the camera.
+
+It is still a knob, and above zero it is the other behaviour with the camera
+going looking between fights. Both have tests, which is why it stays a knob.
+
+Each side keeps away for **its own** interval, so a mode where one kind
+re-engages and another does not is a table edit.
 
 ## Who came off worse
 

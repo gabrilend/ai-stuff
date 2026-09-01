@@ -120,12 +120,12 @@ linework everywhere and none of it is the line between two cells of one wall.
   says so.
 - **Anything outside the window.** See the culling note in
   [the projection](006-the-isometric-projection.md).
-- **The jungle.** The reference picture surrounds the maze with ferns, palms,
-  volcanoes and a sky. None of that is in the program and none of it is planned
-  for the early phases. It is scenery, it has no simulation behind it, and it
-  would be the single largest source of art assets in a project that currently
-  has none. It is recorded in [open questions](026-open-questions.md) rather
-  than quietly dropped.
+- **The jungle, and this is settled rather than pending.** The reference picture
+  surrounds the maze with ferns, palms, volcanoes and a sky, and **none of it is
+  ever going to be here.** It is scenery, nothing in it has a simulation behind
+  it, and it would be the single largest source of art assets in a project that
+  has none at all. The stone is the whole picture. Was
+  [open question 6](026-open-questions.md).
 
 ## Related documents and tools
 
