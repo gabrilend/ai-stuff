@@ -19,6 +19,22 @@ The Golem cannot be hurt at all, acquires nothing, and walks.
 
 ## Intended behavior
 
+### They stand apart across the road
+
+The two are placed **equidistantly across the width of the centre lane** rather than
+both at its middle. The centre lane is nine standard formation widths across — the
+widest ground in the game and the only place three formations stand abreast — and two
+monsters spawned on the same centre line are two monsters standing inside one another
+on the one road with room for them not to.
+
+Across, not along: they are both at the midpoint of the lane's length, because that is
+what makes them equally far from both bases and is the whole reason the midpoint was
+chosen. What is being spread is the other axis.
+
+The spacing is even over the full width rather than a fixed gap, so that it stays right
+if the centre lane is ever widened — the number that decides it is the lane's own width,
+asked at spawn, the way every other placement in the game asks it.
+
 On the tick a surge ends, **two monsters appear at the center lane's midpoint**,
 one per team, each walking toward that team's base. They never meet and never
 fight each other.

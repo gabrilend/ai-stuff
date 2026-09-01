@@ -167,6 +167,11 @@ hero-less-moba/
 │   │                                           Shapes the game could settle into
 │   │                                           that nobody wants, each with what
 │   │                                           resists it and what would show it.
+│   ├── 024-the-proving-ground ................ How a question about one rule gets
+│   │                                           asked: a short straight road, a few
+│   │                                           bodies, and only the machinery the
+│   │                                           scene named. What it did not ask for
+│   │                                           is absent rather than idle.
 │   │
 │   ├── table-of-contents ..................... This page.
 │   ├── balance-updates ....................... Append-only ledger of knobs turned
