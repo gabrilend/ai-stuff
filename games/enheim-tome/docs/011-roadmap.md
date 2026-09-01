@@ -20,7 +20,7 @@ Intended issues:
 
 - the painting is one texture, mipmapped, not tiled
 - the view is an offset and a scale, with a floor and a ceiling
-- pan and zoom bindings *(blocked — open question 1, and the tracing tool must agree)*
+- pan and zoom bindings *(settled — the tracing mode uses the same panning)*
 - a converted-texture step, so nothing decodes a 25-megapixel image at a bad moment
 - the window, the two panes, and the seam between them
 
@@ -29,45 +29,43 @@ Reads: [the map surface](002-the-map-surface.md).
 ## Phase 2 — The Cage
 
 The fence network as a structure and as an appearance. This decides whether the
-hand-tracing in phase 3 is worth doing, so it comes first even though nothing can
-be traced yet.
+partitioning in phase 3 is worth doing, so it comes first even though nothing can
+be cut yet.
 
 Intended issues:
 
-- vertices, edges and blocks as tables; loops that close
+- vertices, edges and places as tables; **faces derived, never stored**
+- blocks are faces of a planar graph, found by the angular walk
 - junctions and shape points, derived rather than stored
-- adjacency is a shared edge, and the walk over it
+- adjacency is a shared edge, **true by construction**
 - the identity buffer, and hit-testing as one pixel read
 - the fence drawn one pixel wide in screen space
 - the cage shows one level at a time, and swaps as you descend
-- the network validator, and what it refuses
+- the validator, reduced to what the structure cannot guarantee
 
 Reads: [the fence network](004-the-fence-network.md).
 
-## Phase 3 — The Tracing Tool
+## Phase 3 — The Tracing Mode
 
-The second program, and the only thing that ever writes a fence network. The
-instrument for defining a city by hand.
-
-**This phase gates the largest cost in the project**, so it is finished properly
-before the tracing campaign begins rather than alongside it — doubly so given the
-board is currently a stand-in and every traced hour is provisional. See
-[the notice](../inspiration-pictures/NOTICE.md).
+**A mode inside the game**, so that a map is a thing players can make. The city
+starts whole and gets cut up.
 
 Intended issues:
 
-- a separate executable sharing the canvas code
-- the click dispatch: new vertex, adopt vertex, adopt edge
-- the pointer shows which of the three is about to happen
+- the tracing mode, and the discipline replacing the two-program guarantee
+- cutting and severing, which are exact inverses
+- the pointer shows what is about to happen
 - snapping measured in screen pixels, and refusing imprecise work
 - dragging a junction moves every fence into that corner
-- naming a block, naming an intersection
+- naming a place, naming an intersection
 - placing a building's rough zone
 - assigning district and quadrant membership
-- a coverage report
-- undo *(blocked — open question 10, how deep undo goes)*
+- the coverage report, which measures fineness rather than coverage
+- undo built from inverses, with a round-trip test per action
+- autosave to the RAM tier
+- a map is a bundle: picture, partition, names, and a notice
 
-Reads: [the tracing tool](005-the-tracing-tool.md).
+Reads: [the tracing mode](005-the-tracing-mode.md).
 
 ## Phase 4 — The Places
 

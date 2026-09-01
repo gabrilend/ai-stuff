@@ -5,7 +5,7 @@
 | Phase | 3 — The Tracing Tool |
 | Blocked by | 301 |
 | Blocks | 302, 305 |
-| Reads | [the tracing tool](../docs/005-the-tracing-tool.md) |
+| Reads | [the tracing mode](../docs/005-the-tracing-mode.md) |
 | Open questions | — |
 
 ## Current behavior
@@ -60,5 +60,5 @@ what was meant.
 
 ## Related documents and tools
 
-- [The tracing tool](../docs/005-the-tracing-tool.md)
+- [The tracing mode](../docs/005-the-tracing-mode.md)
 - [208 — the network validator](208-the-network-validator.md) — which catches near-duplicate vertices when this fails

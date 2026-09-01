@@ -5,7 +5,7 @@
 | Phase | 3 — The Tracing Tool |
 | Blocked by | 301 |
 | Blocks | — |
-| Reads | [the tracing tool](../docs/005-the-tracing-tool.md) |
+| Reads | [the tracing mode](../docs/005-the-tracing-mode.md) |
 | Open questions | — |
 
 ## Current behavior
@@ -66,5 +66,5 @@ file without ever knowing a newer one existed.
 
 ## Related documents and tools
 
-- [The tracing tool](../docs/005-the-tracing-tool.md)
+- [The tracing mode](../docs/005-the-tracing-mode.md)
 - [The shape of the code](../docs/010-the-shape-of-the-code.md) — the RAM tiers, and announcing fallbacks

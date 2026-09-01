@@ -39,18 +39,24 @@ Walking the graph gives distance a felt shape rather than a numeric one. One hop
 is your daily life. Several hops is an errand you would remember taking. Anything
 that wants a range expresses it in hops.
 
-### Building it
+### It is now true by construction
 
-An index from edge to the blocks that name it. Every edge should name **exactly
-two** blocks, except along the city's outer boundary where it names one.
+Nothing has to be checked or maintained. The face walk in
+[209](209-blocks-are-faces-of-the-graph.md) traverses **every edge exactly twice,
+once from each side**, so the two places an edge separates fall out of the walk
+itself. There is no index to keep in step and no way for it to be wrong.
 
-That index gives neighbours in constant time and is also what
-[208](208-the-network-validator.md) checks for impossibilities — an edge named by
-three blocks cannot exist in a plane.
+That is a change from an earlier design where blocks held hand-assembled loops
+and adjacency was a property you could fail to achieve. It is now a property you
+cannot avoid.
+
+The one edge case is the outer boundary, whose far side is the unbounded outer
+face. Those edges have one real neighbour, and the outer face is not a place.
 
 ## Suggested implementation steps
 
-1. On load, walk every block's loop and record, per edge, which blocks named it.
+1. Take the two faces either side of each edge directly from the face walk in
+   [209](209-blocks-are-faces-of-the-graph.md). Build no separate index.
 2. Neighbours of a block: for each edge in its loop, the other block naming that
    edge, if any.
 3. A breadth-first walk from a block, yielding blocks in order of hops, with a

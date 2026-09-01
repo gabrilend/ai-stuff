@@ -60,7 +60,8 @@ known about a place rather than with the actions available there.
 
 ## Suggested implementation steps
 
-1. From the selected block's loop, collect the junctions at its edges' endpoints.
+1. From the selected place's derived boundary, collect the junctions at its
+   edges' endpoints.
 2. For each, find the edges naming that vertex and, for each edge, the other block
    naming it.
 3. Render name — or a description built from what it joins — plus the destinations.

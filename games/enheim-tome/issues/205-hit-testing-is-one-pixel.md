@@ -56,23 +56,20 @@ in [103](103-the-window-and-its-two-panes.md) makes that structural; this must
 respect it and report nothing rather than clamping to the map's edge, which would
 make the outermost blocks selectable by pointing at the tome.
 
-### Ground with no identity, and pixels that are not ground
+### Every pixel of the painting is somewhere
 
-Identity zero has two quite different causes, and they get the same treatment:
+**There is no undefined ground.** The city is subdivided rather than filled in,
+so coverage is always complete — see
+[the fence network](../docs/004-the-fence-network.md). A click anywhere on the
+painting lands on some place, however coarsely divided that part of the city
+still is.
 
-- **not yet traced.** The whole map becomes a defined place eventually — the
-  mountains, the fields, the sea. Untraced is a temporary state of the campaign,
-  not a category of the world.
-- **not the map at all.** The letterbox above and below the painting at the fit
-  zoom, which is about 57 pixels at a 1600 by 900 window.
+What remains off-map is genuinely off-map: **the letterbox** above and below the
+painting at the fit zoom, about 57 pixels at a 1600 by 900 window.
 
-In both cases the click is **ignored and the selection stays as it was.**
-
-The governing sentence: *input that is not on the map cannot affect the selection
-of things in the map.* A click on the letterbox is not a click on the city at
-all, and a click on ground nobody has traced is a click on something the program
-has nothing to say about yet. Neither is a reason to put down what you were
-reading.
+There, the click is **ignored and the selection stays as it was**, under one
+sentence: *input that is not on the map cannot affect the selection of things in
+the map.*
 
 This also means there is no way to deselect by clicking away. Selecting something
 else is how you stop looking at a thing, and the tome always has something in

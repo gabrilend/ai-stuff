@@ -33,7 +33,7 @@ Deriving makes disagreement **unrepresentable**. A block is in a district becaus
 it says so, and the outline follows.
 
 This is the same reasoning that made blocks faces of a network rather than
-independent polygons — see [201](201-vertices-edges-and-loops.md) — applied a
+independent polygons — see [201](201-vertices-edges-and-places.md) — applied a
 level up. Where a property matters, pick the representation in which breaking it
 cannot be expressed.
 

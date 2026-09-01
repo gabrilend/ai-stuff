@@ -59,7 +59,7 @@ trip at the largest identity**, not the smallest.
    wide enough for the largest identity with room to grow.
 2. Clear to zero — undefined ground.
 3. Fill every visible block's polygon with its identity, using the boundary walk
-   from [201](201-vertices-edges-and-loops.md).
+   from [201](201-vertices-edges-and-places.md).
 4. Fill every visible building zone over the top, so buildings win where they
    exist.
 5. Rebuild on any view change; skip the rebuild when nothing moved.

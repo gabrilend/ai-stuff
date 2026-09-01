@@ -63,4 +63,4 @@ once and ruinous during a drag.
 ## Related documents and tools
 
 - [The fence network](../docs/004-the-fence-network.md)
-- [201 — vertices, edges and loops](201-vertices-edges-and-loops.md)
+- [201 — vertices, edges and places](201-vertices-edges-and-places.md)

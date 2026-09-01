@@ -5,7 +5,7 @@
 | Phase | 3 — The Tracing Tool |
 | Blocked by | 302 |
 | Blocks | — |
-| Reads | [the tracing tool](../docs/005-the-tracing-tool.md) |
+| Reads | [the tracing mode](../docs/005-the-tracing-mode.md) |
 | Open questions | — |
 
 ## Current behavior
@@ -23,7 +23,7 @@ Before any click commits, the map says which of the three is about to happen:
 
 ### Why this is not polish
 
-Silent mis-snapping is the failure mode that costs a day of retracing to find,
+Silent mis-clicking is the failure mode that costs a day of work to find,
 **because it produces a network that looks completely correct on screen**. Two
 hairlines a pixel apart down one lane look like one hairline. The blocks either
 side are not neighbours, nothing propagates between them, and there is no visible
@@ -62,5 +62,5 @@ glow in the game. See [507](507-the-glow.md).
 
 ## Related documents and tools
 
-- [The tracing tool](../docs/005-the-tracing-tool.md)
-- [302 — the click does three things](302-the-click-does-three-things.md)
+- [The tracing mode](../docs/005-the-tracing-mode.md)
+- [302 — cutting and severing](302-cutting-and-severing.md)
