@@ -1,11 +1,18 @@
 # 801 — An Event Is a Hook
 
+> **Superseded.** Kept for the record rather than deleted &mdash; see
+> [phase 8 progress](../phase-8-progress.md) for what replaced it and why, and
+> [the scaffold](../../docs/009-the-scaffold.md) for the design that stands now.
+>
+> An event is an occurrence, not an object. Nothing is hidden anywhere to be
+> found; a crossing is computed from two whereabouts equations at one hour.
+
 | | |
 | --- | --- |
 | Phase | 8 — Events, and What Is Known |
 | Blocked by | 407 |
 | Blocks | 802, 803, 805 |
-| Reads | [events and what people know](../docs/009-events-and-what-people-know.md) |
+| Reads | [the scaffold](../../docs/009-the-scaffold.md) |
 | Open questions | **16** — what holding one lets you do |
 
 ## Current behavior
@@ -72,11 +79,11 @@ the writing pipeline, not the consequences.
    person will write in an editor, not through an interface.
 3. Validate that addresses resolve, and that a narrower one is inside its broader
    one.
-4. Provide a count per place for [309](309-the-coverage-report.md).
+4. Provide a count per place for [309](../309-the-coverage-report.md).
 5. Test that an event addressed to a house is found when asking about its
    building, and about its block.
 
 ## Related documents and tools
 
-- [Events and what people know](../docs/009-events-and-what-people-know.md)
-- [Open questions](../docs/012-open-questions.md) — question 16
+- [the scaffold](../../docs/009-the-scaffold.md)
+- [Open questions](../../docs/013-open-questions.md) — question 16

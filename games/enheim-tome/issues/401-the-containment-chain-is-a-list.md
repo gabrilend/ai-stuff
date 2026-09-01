@@ -38,7 +38,7 @@ for nothing-there, and those tests spread — into the tome, the selection logic
 the filters, the coverage report.
 
 That is testing for absence instead of understanding it, which
-[the shape of the code](../docs/010-the-shape-of-the-code.md) forbids for good
+[the shape of the code](../docs/011-the-shape-of-the-code.md) forbids for good
 reason: **the absence has a cause**, and modelling the cause removes every check.
 
 A list has no holes. Walking it from the outside in visits what is there. Nothing
@@ -75,4 +75,4 @@ one place each fact lives and no chain to keep in step when membership changes.
 ## Related documents and tools
 
 - [The places of the city](../docs/003-the-places-of-the-city.md)
-- [The shape of the code](../docs/010-the-shape-of-the-code.md)
+- [The shape of the code](../docs/011-the-shape-of-the-code.md)

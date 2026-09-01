@@ -69,4 +69,4 @@ finished from unstarted.
 ## Related documents and tools
 
 - [The places of the city](../docs/003-the-places-of-the-city.md)
-- [Open questions](../docs/012-open-questions.md) — questions 11 and 12
+- [Open questions](../docs/013-open-questions.md) — questions 11 and 12

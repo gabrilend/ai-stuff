@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 5 — Filters and the Weave |
 | Blocked by | 204 |
-| Blocks | 502, 503, 504, 506, 509, 602 |
+| Blocks | 502, 503, 504, 506, 509, 602, 816 |
 | Reads | [filters and the weave](../docs/006-filters-and-the-weave.md) |
 | Open questions | — |
 
@@ -68,4 +68,4 @@ meaning is only findable by recognising a colour is a filter somebody cannot use
 ## Related documents and tools
 
 - [Filters and the weave](../docs/006-filters-and-the-weave.md)
-- [The shape of the code](../docs/010-the-shape-of-the-code.md)
+- [The shape of the code](../docs/011-the-shape-of-the-code.md)

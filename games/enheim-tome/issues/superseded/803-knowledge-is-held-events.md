@@ -1,11 +1,19 @@
 # 803 — Knowledge Is Held Events
 
+> **Superseded.** Kept for the record rather than deleted &mdash; see
+> [phase 8 progress](../phase-8-progress.md) for what replaced it and why, and
+> [the scaffold](../../docs/009-the-scaffold.md) for the design that stands now.
+>
+> Nothing is held. Exchange is unconditional and always happening; the closed
+> give and the open receive, and there is no relation between a person and an
+> event left to store.
+
 | | |
 | --- | --- |
 | Phase | 8 — Events, and What Is Known |
 | Blocked by | 502, 801 |
 | Blocks | 804 |
-| Reads | [events and what people know](../docs/009-events-and-what-people-know.md) |
+| Reads | [the scaffold](../../docs/009-the-scaffold.md) |
 | Open questions | **17** — how an event passes from one person to another |
 
 ## Current behavior
@@ -23,7 +31,7 @@ No discovery flags. No fog to lift. No second system.
 This is the point worth being explicit about, because it looks like two systems
 and is one.
 
-A filter reads a place **for a person** — [502](502-a-reading-takes-a-person.md).
+A filter reads a place **for a person** — [502](../502-a-reading-takes-a-person.md).
 A filter asking *what do you know of hidden things here* is a count of the events
 this person holds at this address. A filter answering *nothing* for a place is
 this person holding none there.
@@ -72,5 +80,5 @@ This issue builds **the holding**, not the spreading.
 
 ## Related documents and tools
 
-- [Events and what people know](../docs/009-events-and-what-people-know.md)
-- [Open questions](../docs/012-open-questions.md) — question 17
+- [the scaffold](../../docs/009-the-scaffold.md)
+- [Open questions](../../docs/013-open-questions.md) — question 17

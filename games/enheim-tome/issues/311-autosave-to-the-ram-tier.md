@@ -47,7 +47,7 @@ On startup, if autosaves exist that are newer than the network on disk, **say so
 loudly and name them**. An autosave nobody knows about is the same as no autosave.
 
 This is the fallback-announcement rule from
-[the shape of the code](../docs/010-the-shape-of-the-code.md): recovering from an
+[the shape of the code](../docs/011-the-shape-of-the-code.md): recovering from an
 autosave is a fallback, and a silent one would let somebody carry on from a stale
 file without ever knowing a newer one existed.
 
@@ -67,4 +67,4 @@ file without ever knowing a newer one existed.
 ## Related documents and tools
 
 - [The tracing mode](../docs/005-the-tracing-mode.md)
-- [The shape of the code](../docs/010-the-shape-of-the-code.md) — the RAM tiers, and announcing fallbacks
+- [The shape of the code](../docs/011-the-shape-of-the-code.md) — the RAM tiers, and announcing fallbacks

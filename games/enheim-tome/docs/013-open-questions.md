@@ -1,4 +1,4 @@
-# 012 — Open Questions
+# 013 — Open Questions
 
 Every unresolved decision found while turning [the vision](../notes/vision) into
 documents. This is not a closing section and it is not decoration. **A phase whose
@@ -8,7 +8,7 @@ of the documentation are the vision speaking and which are a gap being filled.
 
 The questions are meant to be gone through one at a time.
 
-**Forty-three answered. Eleven open.** The design is therefore *in progress*, not
+**Fifty-two answered. Fourteen open.** The design is therefore *in progress*, not
 finished.
 
 ---
@@ -41,10 +41,10 @@ worth being able to find again.
 | A19 | How do you reach a house? | Block on the map, then building, house and person as lists in the tome. | Traced building footprints; reachable only by search. |
 | A20 | What decides which level a click selects? | **The zoom**, reusing the same on-screen-size rule that fades the cage. | A level control in the tome; one level per successive click. |
 | A21 | What is above a quadrant? | **A group** — the city, or one megastructure — and groups have no parent. Four quadrants to a group; none at all beyond the wall. | A single root containing everything; a flat list of quadrants with nothing above them. |
-| A22 | What must be written before the game is played? | **Every block's event.** Houses fill in forever. | Every house first, at two to four years; seeding houses from written patterns. |
+| A22 | What must be written before the game is played? | **Superseded by A44.** Nothing is written; character is computed from where people are. | The original answer, one written fact per block and houses filling in forever &mdash; priced in its own document at two to four years. |
 | A23 | What is the third address level? | A **house** — an apartment inside a shared building, three to five rooms. | A room inside a house; only two indexed levels with the rest as prose. |
-| A24 | What governs going in? | Buildings are **rarely closed**; houses **almost always restricted**. Someone lives there. | A rule per building; size deciding it; a rule per block that buildings inherit. |
-| A25 | How do a building's own facts get written? | **Fill in forever**, like house events. | A few short fields for every building up front; only where an event points. |
+| A24 | What governs going in? | Buildings are **rarely barred**; houses **almost always restricted**. Someone lives there. This is physical access, not the open/closed of A47. | A rule per building; size deciding it; a rule per block that buildings inherit. |
+| A25 | How do a building's own facts get written? | **Superseded by A44.** A building accumulates them by being stood in. | The original answer, filling in forever by hand. |
 | A26 | What extent does a building get? | A **rough hand-placed zone** over each roof. | A point each with nearest-wins; real traced footprints. |
 | A27 | Where does an interior appear? | **All three placements valid**, with the tome's scrolling pane preferred. | Picking only one. |
 | A28 | How does text become a room? | **Parked.** A separate project consuming this one's output. | Procedural now; a model that generates geometry from text now. |
@@ -63,6 +63,15 @@ worth being able to find again.
 | A41 | How is undo built? | **From inverses**, with a mandatory round-trip test per action so a wrong inverse fails the build rather than somebody's work. | Keeping copies of what changed; no undo at all. |
 | A42 | Does the game show how much of the city is defined? | **No — the tracing mode only.** Coverage is always complete, so any figure would be an artefact of authoring rather than a fact about the world. | Showing it in the game as something the character could know. |
 | A43 | What is a map, as a distributable thing? | **A bundle** — picture, partition, names and a notice, together. | A partition referencing a picture it does not carry; deciding later. |
+| A44 | What is an event? | **An occurrence, not a possession.** People in a place at an hour, computed from two whereabouts equations rather than stored. | Hidden facts authored one per block and one per house; knowledge as a set of carried objects. |
+| A45 | Where does a place's character come from? | **The people who visit it, plus its own natural character as one share.** Five people in a room makes the room one sixth. | A hand-authored character per place; a fixed weight tuned by hand. |
+| A46 | How many axes of character are there? | **Arbitrarily many, minted on demand** as a place develops a nature. An axis and a filter are the same record. | A fixed vector of four lives; a fixed set of rigidity dimensions; no axes at all. |
+| A47 | What are open and closed? | **Open is open to being changed, and receives. Closed gives.** Exchange is unconditional; the statuses only set its direction. | Open as participating in exchange, with closed as withholding &mdash; the intuitive reading, and backwards. |
+| A48 | What sets a person's status through the day? | **A line across the activity curve.** Busy is closed, rest is open. Nothing new is drawn. | A second curve of its own; the place you stand in; the doing you are inside of. |
+| A49 | Where does a genuinely new axis come from? | **Two closed actors intent on each other**, and from forcing a closed thing open. Sparks, not transfer. | Open exchange creating things; an authored seed vocabulary; asymmetric pairs. |
+| A50 | Are the life paths chosen once, or moved between? | **Neither &mdash; a life is not chosen. It accumulates** from where you have been, and the city keeps it fixed by filling your day so you are never open. | Picked once at the start; freely switchable; unlocked by achievement. |
+| A51 | What does the person half of a filter mean now? | **The same as it always did.** Everything carries axes; the reading selects the place's **public** axes plus its **private** ones that person knows. | Dropping the parameter; restricting to axes the reader personally carries; restricting to places the reader has visited. |
+| A52 | Does the narrator see everybody's history? | **Yes — in a thinking phase.** Then a **narration phase** emits only public facts and private ones the reader knows. | One filtered pass, which writes ignorant prose; one unfiltered pass, which leaks. |
 
 Five of these carry consequences worth spelling out.
 
@@ -91,9 +100,12 @@ colour rule demands a dimmed control say more than "no", and an icon alone
 cannot. The enquiry hand works on controls the action hand refuses, so a greyed
 button explains itself. A stance taken for its own sake paid for something else.
 
-**A22 is the only version that ships.** Two thousand block events is a couple of
-months. Twenty to forty thousand house events is two to four years. Writing
-everything first would mean nobody plays for years, including the author.
+**A22 was refuted by its own arithmetic, and A44 replaced it.** The old plan
+priced two thousand block facts at a couple of months and twenty to forty thousand
+house facts at two to four years, then called that the only version that ships. A
+design whose own text states a four-year authoring cost before the game works has
+already failed. Nothing is authored now; character is computed from where people
+are, and axes are minted at the moment of mixing.
 
 ---
 
@@ -268,14 +280,25 @@ there are and which blocks go in which.
 
 **Changes:** [the places of the city](003-the-places-of-the-city.md), phase 4.
 
-## 13. Are the life paths chosen once, or moved between?
+## 13. Are the life paths chosen once, or moved between? — **ANSWERED, see A50**
 
-Family, trades, martial, learned — as many lives as there are districts.
+**Neither. A life is not chosen at all — it accumulates.**
 
-**Why it matters:** in a game whose subject is a city that tells you which life to
-choose, whether you may change your mind is close to the whole point.
+Family, trades, martial, learned were being treated as a menu. Under
+[the scaffold](009-the-scaffold.md) they are a residue: your character is the
+blend of every gathering you have stood in, weighted one share each, and you adopt
+it only during the hours you are open.
 
-**Changes:** [the places of the city](003-the-places-of-the-city.md), mechanics.
+Which makes the answer to the original question bleaker and more exact than either
+alternative. You may change, and changing is not an act of will — it is a
+consequence of where you spend your hours. And **the city keeps you fixed by
+filling your day**, so that you are never open anywhere except at home, where the
+stone is closed and gives you itself.
+
+That is what "you must work a job" means, mechanically.
+
+**Changes:** [the places of the city](003-the-places-of-the-city.md),
+[the scaffold](009-the-scaffold.md).
 
 ---
 
@@ -314,23 +337,176 @@ nobody could name.
 
 # Group F — Mechanics, deliberately not guessed
 
-## 16. What does holding an event let you do?
+## 16. What does holding an event let you do? — **DISSOLVED, see A44**
 
-Knowledge is the set of events a person holds. What holding one *affords* — acting
-on it, using it, trading it — is undecided.
+The question had a false premise. An event is not held. "Holding an event doesn't
+make sense unless you mean holding a party, or throwing a party, or playing catch,
+or tossing grenades" — an event is an **occurrence**, and the noun and the verb in
+the old design disagreed with each other.
 
-**Changes:** [events](009-events-and-what-people-know.md), a later phase.
+What replaced it is [the scaffold](009-the-scaffold.md). Nothing is held; a
+crossing is computed from where two people are at an hour, and what it does
+depends on which of them is open and which is closed.
 
-## 17. How does an event pass from one person to another?
+## 17. How does an event pass from one person to another? — **ANSWERED, see A47**
 
-The vision says people who know a fact "keep track of it and incorporate it going
-forward". Whether telling somebody costs anything, whether it can be wrong, and
-whether it can be lost, are all open.
+**Exchange is unconditional and never has to be triggered.** It is always
+happening, everywhere, between everything present. The only question was ever the
+direction, and the answer is that **the closed gives and the open receives**.
 
-**Why it matters:** it is the mechanism by which a city gets united, which is the
-premise. Everything else in the design is the instrument that would show it.
+So telling somebody costs nothing, because nobody tells anybody anything. People
+stand near each other and are changed by it, or are not, according to whether
+they are open at that hour. The mechanism by which the city gets united turned
+out not to be an act at all.
 
-**Changes:** [events](009-events-and-what-people-know.md), a later phase.
+
+## 18. What does the person parameter mean on a filter now? — **ANSWERED, see A51**
+
+**The same as it always did.** The question assumed that an axis belonging to the
+place had emptied the person half, and it had not.
+
+> basically it shows the axes, right? People carry those, places carry those, all
+> things carry them
+
+Everything carries axes. What the person half selects is **the place's public axes,
+plus its private ones that person knows** — the same rule that decides what a
+narrator may say, arriving here from question 22.
+
+So one rule gates the map and the tome together, and they cannot come to disagree
+about what you are allowed to know. Nothing in the signature changes and nothing
+new is built.
+
+Three alternatives were rejected and one of them was mine: restricting a reading to
+axes the reader personally carries. It would have made ignorance mean *not being
+the kind of person who would notice*, which is a good sentence and not what this
+design says.
+
+---
+
+# Group G — The narrative half
+
+Raised by [the scene](010-the-scene.md), which settled that axis interactions form
+a scene record and that a language model renders it into words which decide
+nothing. These are what that left behind.
+
+## 19. What is a "thing"?
+
+The phrasing was *the character of a person, place, thing, etc*. This project has
+people and places and **deliberately no objects** — the old key-in-a-box went out
+with the event system, and [the places of the city](003-the-places-of-the-city.md)
+stops at the house.
+
+**Working ruling:** none. If a thing is a third kind of actor it is a new level in
+the containment chain, and the chain is the one structure this project has been
+most careful about.
+
+**Why it matters:** an actor is anything with a character and a status. Nothing in
+[the scaffold](009-the-scaffold.md) actually requires an actor to be a person or a
+place — so objects would cost almost nothing structurally, which is exactly why
+the decision should be made deliberately rather than by drift.
+
+**Changes:** [the places of the city](003-the-places-of-the-city.md),
+[the scene](010-the-scene.md), phase 9.
+
+## 20. When does the narrator run?
+
+The game is Lua and LÖVE. A language model is not in the process, so narrating
+during a turn means a network call in the middle of play, and narrating ahead of
+time means scenes are generated in batches and stored.
+
+**Working ruling:** none. The two have very different shapes — one needs latency
+hiding and a key at play time, the other needs a batch pipeline and storage for
+every narration ever produced.
+
+**Why it matters:** it is the only place this design reaches outside the machine.
+Whichever way it goes, the fallback rule from
+[the shape of the code](011-the-shape-of-the-code.md) applies: a missing narrator
+**says so loudly and shows the scene record**, and never invents text quietly.
+
+**Changes:** [the scene](010-the-scene.md), [the tome](007-the-tome.md), phase 9.
+
+## 21. How long is a narration?
+
+The text pane is roughly 420 pixels wide and scrolls.
+
+**Working ruling:** none. A sentence, a paragraph and a page are three different
+games — the first is a log, the last is a novel nobody asked for.
+
+**Changes:** [the tome](007-the-tome.md), [the scene](010-the-scene.md), phase 9.
+
+## 22. Does the narrator see everybody's history? — **ANSWERED, see A52**
+
+**Yes — everything, in a thinking phase. Then a narration phase says far less.**
+
+> the narrator sees everyone's history but facts about a person can be sorted into
+> "public" and "private" and knowing a private thing about a person lets that be
+> included in the output. There should be a "thinking" phase and then a
+> "narration" phase - the thinking should include all the facts, while narration
+> should only include public and known facts.
+
+The question assumed a choice between an ignorant narrator and a leaky one. Two
+phases refuse the choice and give the thing people actually do: **you know
+something, you do not say it, and knowing it changes how you say everything else.**
+That is discretion, and no single filtered pass can produce it.
+
+It also answered [question 18](#18-what-does-the-person-parameter-mean-on-a-filter-now--answered-see-a51)
+on the way past, because *public plus known* is exactly what a filter's person half
+selects. One rule, gating the map and the tome together.
+
+**What it leaves behind, filed as 23 and 24:** what puts a fact on one side of the
+public/private line, how somebody comes to know a private one, and how the boundary
+is enforced rather than merely requested.
+
+**Changes:** [the scene](010-the-scene.md),
+[filters and the weave](006-filters-and-the-weave.md), phase 9.
+
+## 23. What makes a fact public or private, and how is a private one learned?
+
+Answer A52 settled that the distinction gates both a narration and a filter's
+reading. It did not settle what puts a fact on one side of it.
+
+**Where the marking lives** is the first half. It could belong to the **axis** —
+*ashen* on a burned grove is visible to anyone, and some kinds of fact are simply
+never hidden. It could belong to the **actor** — this person's axes are private,
+that square's are not. Or it could belong to the **moment it was minted**, so the
+same axis is public where it happened in the open and private where it did not.
+
+**How a private fact is learned** is the second. Having been present when it
+happened is the obvious candidate, and it would make knowledge follow presence,
+which is what [filters and the weave](006-filters-and-the-weave.md) already assumes
+when it says a person's knowledge comes out shaped like their quadrant. Being told
+is the other, and this design currently has no mechanism for telling — see A47,
+where the answer to *how does something pass between people* turned out to be that
+nobody tells anybody anything.
+
+**Working ruling:** none.
+
+**Why it matters:** it is what stands between the public/private rule and being
+implementable. Everything above it is decided.
+
+**Changes:** [the scene](010-the-scene.md),
+[filters and the weave](006-filters-and-the-weave.md), phase 9.
+
+## 24. How is the discretion boundary enforced rather than requested?
+
+If the thinking phase and the narration phase share one context, the private facts
+are still in front of the model while it writes, and *narration should only include
+public and known facts* has become a **request**.
+
+This project's rule is that a fallback is a warning and a warning is an error — see
+[the shape of the code](011-the-shape-of-the-code.md). A boundary enforced by asking
+nicely is exactly that kind of quiet failure: it holds most of the time, and nobody
+notices the times it does not.
+
+**Working ruling:** the narration phase runs against a context that never held the
+private facts — only the thinking phase's conclusions, themselves passed through the
+same filter. What cannot be seen cannot be leaked.
+
+**Why it matters:** it is the difference between a guarantee and a habit, and it is
+the only place in this design where correctness depends on something outside the
+program behaving itself.
+
+**Changes:** [the scene](010-the-scene.md), phase 9.
 
 ---
 
@@ -338,9 +514,8 @@ premise. Everything else in the design is the instrument that would show it.
 
 Worth recording so nobody solves them by accident:
 
-- **Label collision.** There is no text on the map.
-- **Fog of war.** Ignorance is a filter answering *nothing*, which is a person
-  holding no events there. Nothing to build.
+- **Fog of war.** Ignorance is a filter answering *nothing*, which is a way of
+  looking that does not apply here. Nothing to build.
 - **A tile pyramid.** The board is one texture.
 - **Now versus then.** The time is only ever now.
 - **Perspective correction.** Hand-traced fences carry the foreshortening for

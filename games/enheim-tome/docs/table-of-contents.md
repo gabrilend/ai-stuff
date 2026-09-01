@@ -2,7 +2,7 @@
 
 Everything in `docs/` and `notes/`, in reading order. Source files and issue files
 are not listed here; source files are found through their companion `.info.md`
-pages, and issues are found through [the roadmap](011-roadmap.md).
+pages, and issues are found through [the roadmap](012-roadmap.md).
 
 File indices count up across the whole project from a single counter at
 `.file-index-counter`, so the numbers below are a **reading order**, not the order
@@ -13,11 +13,16 @@ already happened once.
 enheim-tome/
 │
 ├── notes/
-│   └── vision ................................ Where all of this came from, in the
-│                                               author's own words. A city that is
-│                                               not at war and not in peril, only
-│                                               rigid, and the wish to loosen it.
-│                                               Read first.
+│   ├── vision ................................ Where all of this came from, in the
+│   │                                           author's own words. A city that is
+│   │                                           not at war and not in peril, only
+│   │                                           rigid, and the wish to loosen it.
+│   │                                           Read first.
+│   └── the-open-and-the-closed ............... The conversation that replaced the
+│                                               event system, in the author's own
+│                                               words and in the order the pieces
+│                                               arrived. Promoted into 009; kept
+│                                               for the wording.
 │
 ├── inspiration-pictures/ ..................... **Not ours.** Reference artwork,
 │   ├── NOTICE.md ............................. gathered because it shows the city
@@ -88,29 +93,34 @@ enheim-tome/
 │   │                                           reason the time is only ever now,
 │   │                                           and a person's day as a sweepable
 │   │                                           shape 225 pixels wide.
-│   ├── 009-events-and-what-people-know ....... One hidden ordinary fact per block,
-│   │                                           and eventually per house. Why
-│   │                                           knowledge and the filters are one
-│   │                                           system, and the rule against it
-│   │                                           becoming a story.
+│   ├── 009-the-scaffold ...................... What happens when people are in a
+│   │                                           place at an hour. Open and closed,
+│   │                                           the share of one over N+1, sparks,
+│   │                                           and the axes minted at the moment
+│   │                                           of mixing.
+│   ├── 010-the-scene ......................... The narrative half. Axis
+│   │                                           interactions become a scene record;
+│   │                                           an LLM renders it into words that
+│   │                                           decide nothing. History is
+│   │                                           append-only.
 │   │
 │   ├── ── Building it ──
-│   ├── 010-the-shape-of-the-code ............. House style. Two programs, folds,
+│   ├── 011-the-shape-of-the-code ............. House style. Two programs, folds,
 │   │                                           companions, dispatch tables, the
 │   │                                           rule against fallbacks, and where
 │   │                                           files live in RAM.
-│   ├── 011-roadmap ........................... Eight phases, the issues intended
+│   ├── 012-roadmap ........................... Nine phases, the issues intended
 │   │                                           under them, the writing campaign
-│   │                                           that is not a phase, and what is
+│   │                                           that no longer exists, and what is
 │   │                                           deliberately absent.
-│   ├── 012-open-questions .................... Forty-three answered with their
-│   │                                           rejected alternatives, eleven still open,
+│   ├── 013-open-questions .................... Fifty-two answered with their
+│   │                                           rejected alternatives, fourteen still open,
 │   │                                           and six problems this design does
 │   │                                           not have.
 │   │
 │   └── table-of-contents ..................... This page.
 │
-├── issues/ ................................... Sixty-nine phase-numbered issue
+├── issues/ ................................... Seventy-three phase-numbered issue
 │   │                                           files: blueprints for building the
 │   │                                           software, not work logs. Numbered
 │   │                                           by phase, so 3xx is the tracing
@@ -119,6 +129,10 @@ enheim-tome/
 │   │                                           for, what it settled before
 │   │                                           anything was written, and what it
 │   │                                           is blocked on.
+│   ├── superseded/ ........................... Six tickets whose design was
+│   │                                           replaced before they were built.
+│   │                                           Never deleted; each says what
+│   │                                           replaced it.
 │   └── completed/                              Where an issue moves when it is
 │       └── demos/                              done. Each phase's demo lives here.
 │
@@ -139,7 +153,7 @@ enheim-tome/
 
 ## The phases
 
-Defined here as well as in [the roadmap](011-roadmap.md), because they are how the
+Defined here as well as in [the roadmap](012-roadmap.md), because they are how the
 functionality is grouped and not only how the work is ordered. **Lower numbers are
 more foundational, not earlier in time.**
 
@@ -152,10 +166,16 @@ more foundational, not earlier in time.**
 | 5 | Filters and the Weave | Ways of looking, drawn over the city. Readings first, checkable with nothing on screen; hatching after. |
 | 6 | The Tome | The written half. Three regions, the chips, the buttons, the text, the search, and descending to a person. |
 | 7 | The Day | The hour as a global axis, and the small horizontal object that lets you sweep through somebody's day. |
-| 8 | Events, and What Is Known | The hidden layer, and the long writing campaign that fills it. |
+| 8 | The Scaffold | What happens when people are in a place at an hour. Open and closed, the share of one over N+1, sparks, and the axes minted at the moment of mixing. |
+| 9 | The Scene | The narrative half. Axis interactions become a scene record; something renders it into words that decide nothing, and history is append-only. |
 
-**The mechanics are deliberately absent** and will form later phases once they
-exist. Everything above is interface and world, worked out ahead of the systems
-that will move them — which constrains those systems usefully, since a game whose
-map cannot carry text and cannot express a radius is a different game from one
-that can.
+**Some of the mechanics are still absent** and will form later phases once they
+exist — what a **move** is, and what any particular button in the tome does. Phase
+8 is no longer among them: what an event is and how character travels between
+people and places are settled, in [the scaffold](009-the-scaffold.md).
+
+The rest was worked out interface-first, ahead of the systems that would move it,
+which constrained those systems usefully. A game whose map cannot carry text and
+cannot express a radius is a different game from one that can — and when the
+mechanics did arrive, "nearby" could only mean adjacency, because there are no
+distances to measure with.

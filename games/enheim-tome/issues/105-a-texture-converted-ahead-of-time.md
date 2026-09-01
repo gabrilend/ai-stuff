@@ -63,4 +63,4 @@ start nobody diagnoses for a month. Print what happened, why, and what to run.
 ## Related documents and tools
 
 - [The map surface](../docs/002-the-map-surface.md)
-- [The shape of the code](../docs/010-the-shape-of-the-code.md) — the RAM tiers, and the rule about announcing fallbacks
+- [The shape of the code](../docs/011-the-shape-of-the-code.md) — the RAM tiers, and the rule about announcing fallbacks

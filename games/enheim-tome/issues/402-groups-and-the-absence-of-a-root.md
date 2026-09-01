@@ -68,4 +68,4 @@ rather than assumed from a list.
 ## Related documents and tools
 
 - [The places of the city](../docs/003-the-places-of-the-city.md)
-- [Open questions](../docs/012-open-questions.md) — question 11
+- [Open questions](../docs/013-open-questions.md) — question 11

@@ -1,0 +1,201 @@
+The Open and the Closed
+=======================
+
+A working note. Its content has since been promoted into docs/009-the-scaffold.md,
+which is the document to read. This file is kept for the author's words in their
+original form, and for the order in which the pieces actually arrived.
+
+
+THE AUTHOR'S WORDS, KEPT WHOLE
+------------------------------
+
+    depends on which actor is "open" and which is "closed" - they can both be
+    closed, which usually means conflict, which can sometimes be productive, like
+    two closed hands grasped around one another, lifting to see the view atop the
+    roof. Open and closed are statuses that affect people at different parts of
+    the day - someone is always open or closed. The people who are more "open"
+    than "closed" tend to share more with the people around them because they
+    drift toward other things - however, the ratio between the total time in the
+    day and the "open" times determines how impactful each specific situation is.
+    Most buildings are closed, all the time - if someone walks into a sacred grove
+    and burns it down, then it forces the grove to enter the "open" state, and it
+    applies an axis to is that might be "ashen" or "consumed" - both of those
+    reflect a different spirit, and the spirit is generated on-the-fly because we
+    never know how something will be until we mix it up and see. So, just have the
+    "open" symbol be a circle, and the "closed" symbol a vertical line. To change
+    something, put a dot in the center of the circle and line.
+
+    -- and, earlier, on where a place's character comes from:
+
+    make sure that a place's character is derived from the character of the people
+    who visit it, plus a little bit of it's own natural character.
+
+    -- and, on the axes themselves:
+
+    we will generate an arbitrary amount of axes for places that have character.
+    They will be created on-demand for the developing nature of the place.
+
+    -- and the objection that started all of it:
+
+    "holding an event" doesn't make sense unless you mean "holding a party" or
+    "throwing a party" or "playing catch" or "tossing grenades".
+
+
+THE NOTATION
+------------
+
+Four glyphs. Two statuses, and a dot meaning change is happening.
+
+    O       open
+    |       closed
+    (.)     open, and changing
+    |.|     closed, and changing      (a vertical line with a dot at its middle)
+
+The dot in the centre is the mark of alteration. It is drawn on whichever status
+the actor is in, so the glyph says both what a thing is and whether it is moving.
+
+
+WHAT REPLACED THE EVENT SYSTEM
+------------------------------
+
+The old design: ~2,000 hand-written block facts, plus 20,000-40,000 house facts
+priced in its own document at two to four years of typing. A design that states
+that number about itself has been refuted by its own estimate.
+
+What is there instead:
+
+  An event is an occurrence, not a possession. It is a crossing -- two actors in
+  one place at one hour. Nothing is stored; it is computed by evaluating two
+  whereabouts equations at the same hour.
+
+  Character is a sparse map from axis-name to a value. Arbitrarily many axes, and
+  they are minted on demand as a place develops a nature. Most places carry few.
+
+  A place's character is the characters of the people who visit it, plus a little
+  of its own natural character. Natural character is physical and does not move:
+  on the water, in the willow's shadow, backed onto the wall, steep, stone.
+
+  An axis and a filter are the same object. Doc 006 defines a filter as name,
+  colour, angle, mode, and a reading of (person, place) -> a number or nothing.
+  An axis minted on demand is exactly that record. So the filter list is not
+  authored; it grows as the city grows axes.
+
+  "Nothing" stops being a special case and becomes structural. Bare painting is
+  a place that has not grown that axis at all -- not missing data.
+
+
+THE CROSSING TABLE
+------------------
+
+The outcome of a crossing is dispatched on the two actors' statuses. Four cells,
+which is a dispatch table rather than a staircase of branches.
+
+    a         b         what happens
+    -------   -------   -----------------------------------------------
+    open      open      both receive, neither gives -- see below
+    open      closed    the closed gives, the open receives. clean transfer.
+    closed    open      the same, mirrored.
+    closed    closed    conflict -- and conflict can be productive.
+                        "two closed hands grasped around one another,
+                        lifting to see the view atop the roof."
+
+CORRECTED BY THE AUTHOR: open does not mean participating in exchange. It means
+OPEN TO BEING CHANGED. Things are always exchanging. The closed gives, the open
+receives. Exchange is unconditional; the statuses decide only which way it runs.
+
+
+THE IMPACT RATIO
+----------------
+
+    the ratio between the total time in the day and the "open" times determines
+    how impactful each specific situation is
+
+Impact is inverse to how much of the day an actor spends open. Someone open for
+two hours out of twenty-four has each of those two hours land hard. Someone open
+most of the day is changed by nothing in particular.
+
+The humane reading, and the one that fits the vision's complaint about rigid
+lives: the labourer whose day is pinned to work has almost no open hours, and so
+the few they have matter enormously.
+
+
+FORCING -- THE SECOND WAY AN AXIS IS MINTED
+-------------------------------------------
+
+The first way is an unlike meeting: two actors who differ enough cross, and the
+difference gets named.
+
+The second is force. A closed thing can be made open by an act done to it, and
+the forcing itself mints an axis. The author's example is a sacred grove burned
+down -- the grove is closed, the burning forces it open, and it comes out of that
+carrying an axis it did not have.
+
+The name of that axis is generated on the fly, and which word is chosen matters:
+
+    it applies an axis to it that might be "ashen" or "consumed" - both of those
+    reflect a different spirit, and the spirit is generated on-the-fly because we
+    never know how something will be until we mix it up and see.
+
+So the word is not a label on a number. The word is the thing. Two names for the
+same burning are two different spirits, and which one arrives is not knowable in
+advance -- it comes out of the mixing.
+
+
+A VOCABULARY COLLISION TO RESOLVE
+---------------------------------
+
+Doc 001 says every word in this project means exactly one thing. "Open" now has
+two candidate meanings and they disagree in the documents:
+
+  Doc 003, on physical access:  "Mostly open: it is rare for a building to be
+                                 closed to people, and the largest are entirely
+                                 free to enter."
+  This note, on receptivity:     "Most buildings are closed, all the time."
+
+The reconciliation that seems right: these are different properties wearing one
+word. A building can be free to walk into and utterly closed to change. The
+colonnade admits anyone and takes on nothing. Physical access is not receptivity.
+
+If that is right, one of the two needs a different word.
+
+
+STILL OPEN
+----------
+
+  * The three cells are settled: the closed give, the open adopt the blend, and
+    two closed with intent make an arc. What an arc IS remains context.
+  * Whether an arc that lands nowhere is different from one that never formed.
+  * How a generated axis gets its colour and its hatch angle, since doc 006
+    requires all three and only the name is being generated so far.
+  * How the numbers become words in the tome -- the narrative half, which the
+    author asked for first and which none of this has reached yet.
+
+
+WHERE THE STATUS COMES FROM -- SETTLED
+--------------------------------------
+
+A line drawn across the activity curve that doc 008 already defines. Above the
+line the actor is closed; below it, open. Busy is closed. Rest is open.
+
+Nothing new is authored and nothing new is drawn. The 225 by 30 widget already in
+the tome becomes the instrument that shows a rigid life at a glance, and the
+impact ratio is readable straight off the shape -- a curve with two narrow troughs
+is a person whose two open hours land with enormous force.
+
+    hours   0  3  6  9 12 15 18 21
+    curve   _  .  #  #  #  -  .  _
+            ------------------------  the line
+    status  O  O  |  |  |  O  O  O
+
+    and the life the city insists on:
+
+    curve   #  #  #  #  #  #  #  #
+    status  |  |  |  |  |  |  |  |
+            never open. nothing reaches her.
+
+This retroactively explains a sentence doc 008 wrote without knowing what it
+meant: "a curve pinned high all day is telling you something about that person."
+It is telling you they are never open.
+
+And it gives "you must work a job" a mechanism instead of a mood. The rigid life
+is a curve shape, and the city enforces it by filling the day.

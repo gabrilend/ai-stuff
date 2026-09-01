@@ -1,11 +1,18 @@
 # 802 — An Event Crosses an Address
 
+> **Superseded.** Kept for the record rather than deleted &mdash; see
+> [phase 8 progress](../phase-8-progress.md) for what replaced it and why, and
+> [the scaffold](../../docs/009-the-scaffold.md) for the design that stands now.
+>
+> The crossing that matters is between people in a place at an hour, not between
+> two addresses. It joins nothing, because it is not stored.
+
 | | |
 | --- | --- |
 | Phase | 8 — Events, and What Is Known |
 | Blocked by | 203, 801 |
 | Blocks | — |
-| Reads | [events and what people know](../docs/009-events-and-what-people-know.md) |
+| Reads | [the scaffold](../../docs/009-the-scaffold.md) |
 | Open questions | — |
 
 ## Current behavior
@@ -26,7 +33,7 @@ somewhere else is a reason to go there.
 A second graph over the first.
 
 The street network gives you adjacency: what is physically next to what — see
-[203](203-adjacency-is-a-shared-edge.md). The events give you a different set of
+[203](../203-adjacency-is-a-shared-edge.md). The events give you a different set of
 connections entirely: what is *tied* to what, regardless of whether you can walk
 between them easily.
 
@@ -69,5 +76,5 @@ nobody sustains that for years.
 
 ## Related documents and tools
 
-- [Events and what people know](../docs/009-events-and-what-people-know.md)
-- [The fence network](../docs/004-the-fence-network.md)
+- [the scaffold](../../docs/009-the-scaffold.md)
+- [The fence network](../../docs/004-the-fence-network.md)

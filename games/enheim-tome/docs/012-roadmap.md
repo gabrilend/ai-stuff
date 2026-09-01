@@ -1,13 +1,13 @@
-# 011 — Roadmap
+# 012 — Roadmap
 
-Eight phases. They group functionality, not time — **lower numbers are more
+Nine phases. They group functionality, not time — **lower numbers are more
 foundational, not earlier**. It would be entirely normal for the last thing
 finished in this project to belong to phase 1.
 
-Everything below is interface and world. **The mechanics are deliberately
-absent** and will form later phases once they exist; see
-[what this game is](001-what-this-game-is.md) on why the interface is being
-worked out first.
+Phases 1 to 7 are interface and world. Phases 8 and 9 are the mechanics that move
+them, worked out after the interface rather than before it; see
+[what this game is](001-what-this-game-is.md) on why that order was chosen and
+what it paid for.
 
 ## Phase 1 — The Canvas
 
@@ -141,36 +141,75 @@ Intended issues:
 
 Reads: [the day and the curve](008-the-day-and-the-curve.md).
 
-## Phase 8 — Events, and What Is Known
+## Phase 8 — The Scaffold
 
-The hidden layer, and the long writing campaign that fills it.
+The layer that makes the city move: gatherings, the two statuses, and the axes
+minted when things are mixed.
+
+Issues, written and numbered from 807 because 801 to 806 describe a replaced
+design and are kept under their own names &mdash; see
+[phase 8 progress](../issues/phase-8-progress.md):
+
+- **807** an actor is a person or a place, carrying a character and a status
+- **808** character is a sparse map of named axes, minted rather than declared
+- **809** a place holds a natural character it never loses
+- **810** open and closed, read off a line across the activity curve
+- **811** the gathering: every actor present at one share of N+1, the room included
+- **812** the closed give, the open adopt the blend
+- **813** two closed actors with intent make an arc, and the arc lands somewhere
+- **814** an arc carries a valence, and a valence changes who nearby is open
+- **815** forcing a closed thing open, and the axis that comes out of it
+- **816** an axis is a filter, so a minted axis needs a colour and an angle
+
+Reads: [the scaffold](009-the-scaffold.md).
+
+## Phase 9 — The Scene
+
+The narrative half. Axis interactions become a scene record, and the record is
+rendered into words by something that decides nothing.
 
 Intended issues:
 
-- an event is a hook: local, ordinary, addressed by block, building, house
-- an event reaches across an address boundary
-- knowledge is the set of events a person holds
-- a knowledge filter is a count of held events, and answers nothing where there are none
-- one event per block, written before play
-- houses fill in forever
+- an interaction is one axis across the actors present, typed five ways
+- a scene record: hour, place, actors, interactions, spark, and what changed
+- what changed is computed before the narrator is asked
+- history is append-only: axis changes, narrations, mintings
+- a scene exists only where something changed
+- the narrator is a viewer, and the city runs headless without it
+- naming a minted axis is the one place words touch the world
+- a fact is public or private, and the marking gates both a narration and a filter
+- the narrator thinks with everything and narrates with public plus known
+- the narration phase runs against a context that never held the private facts
+- a narration lands in the tome's text pane and nowhere else
+- a missing narrator fails loudly and shows the record
 
-Reads: [events and what people know](009-events-and-what-people-know.md).
+Reads: [the scene](010-the-scene.md).
 
-## The writing campaign, and why it is not a phase
+## The writing campaign that no longer exists
 
-Two thousand block events is one to two months at thirty a day. Twenty to forty
-thousand house events is **two to four years** at the same rate. So it is not
-scheduled work; it is a thing that runs alongside everything else forever.
+Kept as a heading because deleting it silently would hide the largest single
+change this project has made to itself.
 
-The game is playable once the block events exist. A house with no event has
-nothing hidden in it, which looks exactly like a city you have not finished
-learning.
+The previous plan required two thousand written block facts — one to two months at
+thirty a day — followed by twenty to forty thousand house facts, priced in its own
+document at **two to four years** at the same rate. It called that the only
+version that ever ships.
+
+**None of it is needed.** Nothing is authored. Character is computed from where
+people are and what they are like, and the axes that describe a place are minted
+at the moment of mixing rather than written in advance. What was a four-year
+authoring schedule is now a function.
+
+What remains authored is the tracing, which was always separate: the fence
+network, the building zones, and the names. See
+[the tracing mode](005-the-tracing-mode.md).
 
 ## Deliberately absent
 
-**The mechanics.** What a move is, what unites a neighbourhood, what holding an
-event lets you do, what any button does. Not guessed at. See
-[open questions](012-open-questions.md).
+**Some of the mechanics.** What a **move** is, and what any particular button in
+the tome does. What an event is and how character travels are no longer absent —
+see [the scaffold](009-the-scaffold.md). See also
+[open questions](013-open-questions.md).
 
 **A board that can ship.** The painting is somebody else's and cannot be
 published. Almost nothing depends on *this* picture — only on there being one, in
@@ -202,5 +241,5 @@ texture.
 ## Related documents
 
 - [Table of contents](table-of-contents.md)
-- [Open questions](012-open-questions.md)
-- [The shape of the code](010-the-shape-of-the-code.md)
+- [Open questions](013-open-questions.md)
+- [The shape of the code](011-the-shape-of-the-code.md)

@@ -70,4 +70,4 @@ nothing.
 ## Related documents and tools
 
 - [The tome](../docs/007-the-tome.md)
-- [Open questions](../docs/012-open-questions.md) — question 4
+- [Open questions](../docs/013-open-questions.md) — question 4

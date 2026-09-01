@@ -1,11 +1,18 @@
 # 805 — One Event Per Block
 
+> **Superseded.** Kept for the record rather than deleted &mdash; see
+> [phase 8 progress](../phase-8-progress.md) for what replaced it and why, and
+> [the scaffold](../../docs/009-the-scaffold.md) for the design that stands now.
+>
+> Nothing is written per block. A block's character is computed from who stands
+> in it.
+
 | | |
 | --- | --- |
 | Phase | 8 — Events, and What Is Known |
 | Blocked by | 309, 801 |
 | Blocks | 806 |
-| Reads | [events and what people know](../docs/009-events-and-what-people-know.md) |
+| Reads | [the scaffold](../../docs/009-the-scaffold.md) |
 | Open questions | — |
 
 ## Current behavior
@@ -55,7 +62,7 @@ What it needs:
   neighbours — because a fact should fit its surroundings
 - **plain text in**, with no interface between the thought and the page
 - a **count and a rate**, so progress is visible — see
-  [309](309-the-coverage-report.md)
+  [309](../309-the-coverage-report.md)
 
 The rate matters more than it sounds. A two-thousand-item backlog with no measure
 is a wall; the same backlog with "about eleven weeks at your current pace" is a
@@ -75,5 +82,5 @@ schedule.
 
 ## Related documents and tools
 
-- [Events and what people know](../docs/009-events-and-what-people-know.md)
-- [The tracing mode](../docs/005-the-tracing-mode.md)
+- [the scaffold](../../docs/009-the-scaffold.md)
+- [The tracing mode](../../docs/005-the-tracing-mode.md)
