@@ -45,7 +45,7 @@ M.FIELDS = {
   "intent", "intent_cell", "intent_layer",
   "from_cell", "from_layer", "progress",
   "partner", "partner_generation",
-  "timer", "idle_row",
+  "timer", "idle_row", "idle_total",
   "rest_timer", "distance",
   "roster_slot",                       -- where it sits in its locomotion's roster
 }

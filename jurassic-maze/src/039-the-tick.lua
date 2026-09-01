@@ -50,9 +50,9 @@ local function require_local(root, name)
 end
 -- }}}
 
--- {{{ function M.new_world(root, params, scene)
+-- {{{ function M.new_world(root, params, scene, population)
 -- The maze, the streams, the bodies, and the passes, assembled once.
-function M.new_world(root, params, scene)
+function M.new_world(root, params, scene, population)
   local Params     = require_local(root, "028-maze-parameters")
   local Streams    = require_local(root, "029-random-streams")
   local Stone      = require_local(root, "030-the-stone")
@@ -63,6 +63,7 @@ function M.new_world(root, params, scene)
   local Locomotion = require_local(root, "036-locomotion")
   local Rolling    = require_local(root, "037-rolling")
   local Walking    = require_local(root, "038-walking")
+  local Meeting    = require_local(root, "058-meeting")
   local Creatures  = dofile(root .. "/assets/035-creature-table.lua")
 
   local p = Params.check(params)
@@ -89,8 +90,32 @@ function M.new_world(root, params, scene)
   local highest = 0
   for h in pairs(by_height) do if h > highest then highest = h end end
 
+  -- Floor cells bucketed into coarse blocks, so that "somewhere near here" is a
+  -- draw rather than a search.
+  --
+  -- An errand to a cell drawn from the whole maze is a three-hundred-step
+  -- journey costing five milliseconds to plan, and at any real population that
+  -- is most of the tick. It is also the wrong journey: a two-minute trek across
+  -- the maze is not something anybody watches, and the camera's whole interest
+  -- is in a thing that starts and finishes.
+  local BLOCK = 16
+  local blocks_x = math.ceil(store.width / BLOCK)
+  local blocks_y = math.ceil(store.depth / BLOCK)
+  local blocks = {}
+  for i = 0, store.cells - 1 do
+    if store.walkable[i] then
+      local x = i % store.width
+      local y = (i - x) / store.width
+      local b = math.floor(x / BLOCK) + math.floor(y / BLOCK) * blocks_x
+      blocks[b] = blocks[b] or {}
+      local list = blocks[b]
+      list[#list + 1] = i
+    end
+  end
+
   Rolling.link(Stone, Locomotion, Moving, Creatures)
   Walking.link(Stone, Locomotion, Moving, Creatures)
+  Meeting.link(Stone, BodyStore, Walking, Creatures)
 
   local bodies = BodyStore.new(p.capacity, store.cells)
   bodies.CARRIED_ROW = Creatures.CARRIED
@@ -107,16 +132,46 @@ function M.new_world(root, params, scene)
     bodies    = bodies,
     rows      = rows,
     creatures = Creatures,
-    scene     = scene or "balls",
+    scene      = scene or "balls",
+    -- An override for how many of each kind to keep alive, by creature name.
+    --
+    -- The tests use it. Shrinking the *maze* instead was tried and made them
+    -- slower rather than faster: the same population in a quarter of the floor
+    -- is four times the density, and density is what the meet pass costs.
+    population = population,
     tick_count = 0,
-    floor     = floor,
-    by_height = by_height,
-    highest   = highest,
+    floor       = floor,
+    by_height   = by_height,
+    highest     = highest,
+    floor_blocks = blocks,
+    block_size  = BLOCK,
+    blocks_x    = blocks_x,
+    blocks_y    = blocks_y,
+
+    meet = Meeting.new_table(Creatures),
+
+    -- One stored path per body, plus where along it the body is and when it last
+    -- arrived. Kept beside the store rather than in it because a path is a list
+    -- and the store is flat arrays -- and a list per body is the one thing the
+    -- store's whole shape is arranged to avoid.
+    paths        = {},
+    path_length  = {},
+    path_at      = {},
+    arrived      = {},
+    errand_cell  = {},
+    errand_layer = {},
+    replanned    = {},
+    -- Which cells are claimed, and until when. Stamped with an expiry tick rather
+    -- than cleared: clearing sixteen thousand entries every tick to record a few
+    -- dozen claims is most of the cost of having them, and a stale stamp simply
+    -- reads as expired.
+    taken        = {},
+    claim_ticks  = 30,
 
     modules = {
       Stone = Stone, Moving = Moving, BodyStore = BodyStore,
       Locomotion = Locomotion, Rolling = Rolling, Walking = Walking,
-      Validator = Validator,
+      Validator = Validator, Meeting = Meeting,
     },
 
     -- Counters the headless report reads. Accumulated by the passes themselves,
@@ -216,7 +271,7 @@ end
 -- {{{ function M.populate(world)
 -- Brings the aquarium up to its target population.
 function M.populate(world)
-  local wanted = world.creatures.POPULATIONS[world.scene]
+  local wanted = world.population or world.creatures.POPULATIONS[world.scene]
   if not wanted then
     error("no scene called '" .. tostring(world.scene) .. "' in the creature table")
   end
@@ -310,6 +365,12 @@ end
 -- {{{ M.PASSES
 M.PASSES = {
   { name = "move",  fn = pass_move,  parallel = true  },
+  -- The one pass that is not independent per body, and therefore the one that
+  -- does not get split. It is also one of the cheapest, which is by design
+  -- rather than by luck: a pass that has to touch shared state was kept small
+  -- precisely so that it could be the one that does not scale.
+  { name = "meet",  fn = function(world, dt) world.modules.Meeting.pass(world, dt) end,
+    parallel = false },
   { name = "spawn", fn = pass_spawn, parallel = false },
   { name = "index", fn = pass_index, parallel = false },
 }

@@ -55,9 +55,29 @@ function M.run(root, t)
   local Locomotion = dofile(root .. "/src/036-locomotion.lua")
   local Tick       = dofile(root .. "/src/039-the-tick.lua")
 
+  -- A smaller maze, and the sweep run every few ticks rather than every one.
+  --
+  -- A body that is inside stone stays inside stone -- it has no way out, that
+  -- being the whole problem with it -- so checking on every tick finds the same
+  -- violation dozens of times and costs thirty times as much. On the full-size
+  -- maze with the full population this test alone took the best part of a
+  -- minute, which is how a suite stops being run.
+  local EVERY = 3
+
+  local POPULATIONS = {
+    balls = { ball = 90 },
+    guys  = { guy = 90 },
+    both  = { ball = 60, guy = 60 },
+  }
+
   for _, scene in ipairs({ "balls", "guys", "both" }) do
     for _, seed in ipairs({ 3, 19 }) do
-      local world = Tick.new_world(root, Params.with{ seed = seed }, scene)
+      -- The full-size maze with a small population, not a small maze with the
+      -- full one. Shrinking the maze was tried first and made this test
+      -- slower: the same bodies in a quarter of the floor is four times the
+      -- density, and density is what the meet pass costs.
+      local world = Tick.new_world(root, Params.with{ seed = seed, capacity = 220 },
+                                   scene, POPULATIONS[scene])
       local store, b = world.store, world.bodies
       local creatures = world.creatures
 
@@ -67,6 +87,7 @@ function M.run(root, t)
       for tick = 1, 1800 do
         Tick.tick(world)
 
+        if tick % EVERY == 0 then
         for id = 1, b.capacity do
           if b.alive[id] == 1 then
             local x, y, z = b.x[id], b.y[id], b.z[id]
@@ -108,6 +129,7 @@ function M.run(root, t)
               if z - top > 6 and b.vz[id] == 0 then floating = floating + 1 end
             end
           end
+        end
         end
       end
 

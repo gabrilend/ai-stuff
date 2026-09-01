@@ -107,7 +107,7 @@ function M.defaults()
     -- never grown: a store that quietly reallocates is a store that quietly
     -- stops fitting in cache, and the frame rate falls off a cliff for reasons
     -- that look like nothing. Running out is an error with a message.
-    capacity = 2000,
+    capacity = 3000,
 
     seed = 1,
   }

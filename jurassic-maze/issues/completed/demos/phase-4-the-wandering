@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+#
+# phase-4-the-wandering -- the vision's second sentence, working.
+#
+#   "next it is little guys wandering about with idle animations and
+#    interactions"
+#
+# Nothing here plans, remembers, or has a relationship with anything. A crowd
+# that reads as alive is a graph walk weighted against turning around, a timer
+# with a sine on it, and two of those timers occasionally set to the same value.
+
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+if [ -d "$1" ]; then DIR="$1"; shift; fi
+
+SHOTS="/dev/shm/jurassic-maze/demo"
+mkdir -p "${SHOTS}"
+
+echo "=============================================================="
+echo " PHASE 4 -- THE WANDERING"
+echo "=============================================================="
+echo ""
+echo "--- what a crowd actually does in a minute ------------------------"
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params = dofile(root .. '/src/028-maze-parameters.lua')
+local Tick   = dofile(root .. '/src/039-the-tick.lua')
+
+local world = Tick.new_world(root, Params.with{seed = 7}, 'guys')
+local t0 = os.clock()
+for _ = 1, 3600 do Tick.tick(world) end
+local c = world.counters
+
+print(string.format('  %d walkers, sixty seconds of simulated time in %.1f s real',
+      world.bodies.live, os.clock() - t0))
+print('')
+print(string.format('  %-28s %6d', 'errands set out on', c.errands or 0))
+print(string.format('  %-28s %6d', 'errands finished', c.arrivals or 0))
+print(string.format('  %-28s %6d', 'paths replanned mid-journey', c.errands_replanned or 0))
+print(string.format('  %-28s %6d', 'searches that gave up', c.searches_abandoned or 0))
+print(string.format('  %-28s %6d', 'times two stood together', c.shared_idles or 0))
+print(string.format('  %-28s %6d', 'bodies pushed apart', c.overlaps_resolved or 0))
+print(string.format('  %-28s %6d', 'overlaps that stuck', c.overlaps_stuck or 0))
+print('')
+print('  Nobody in there is having a conversation. A shared idle is two')
+print('  timers set to the same value and two facings pointed at each other.')
+"
+echo ""
+
+echo "--- density is what decides whether anything happens --------------"
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params = dofile(root .. '/src/028-maze-parameters.lua')
+local Tick   = dofile(root .. '/src/039-the-tick.lua')
+
+print(string.format('  %-10s %-12s %14s %14s', 'walkers', 'occupancy', 'stood together', 'ms per tick'))
+for _, n in ipairs({100, 300, 700, 1400}) do
+  local world = Tick.new_world(root, Params.with{seed = 7, capacity = 2000},
+                               'guys', { guy = n })
+  local t0 = os.clock()
+  for _ = 1, 1800 do Tick.tick(world) end
+  local ms = (os.clock() - t0) * 1000 / 1800
+  print(string.format('  %-10d %-12s %14d %14.2f', n,
+        string.format('%.1f%%', 100 * n / world.report.floor_cells),
+        world.counters.shared_idles or 0, ms))
+end
+print('')
+print('  The number in the creature table was a count. What it needed to be')
+print('  was a density: at two percent occupancy two bodies are adjacent')
+print('  almost never, and the feature that this whole phase is pointed at')
+print('  fires six times a minute and looks broken.')
+"
+echo ""
+
+echo "--- and watching cannot move the world ---------------------------"
+echo ""
+"${DIR}/run-tests" camera 2>&1 | sed 's/^/  /'
+echo ""
+echo "  Fifteen hundred ticks, the swap key pressed five hundred times,"
+echo "  every panel control driven through its range, the camera panned and"
+echo "  zoomed throughout -- and a simulation identical to one where nobody"
+echo "  looked. The camera has its own random stream and the simulation"
+echo "  never reads it."
+echo ""
+
+echo "--- and what it looks like ---------------------------------------"
+echo ""
+echo "  Each shot opens a window, lets it settle, saves a frame and leaves."
+echo "  Guarded by a timeout: a window that loses focus can be throttled by"
+echo "  the compositor to the point where it never reaches the frame it was"
+echo "  told to capture, and a demo that hangs is a demo nobody runs twice."
+echo ""
+echo "  writing ${SHOTS}/phase-4-crowd.png"
+timeout 45 love "${DIR}" --seed 7 --scene crowd --after 5 --zoom 1.6 --at 64 64 \
+     --screenshot "${SHOTS}/phase-4-crowd.png" >/dev/null 2>&1
+echo "  writing ${SHOTS}/phase-4-panel.png"
+timeout 45 love "${DIR}" --seed 7 --scene both --panel --follow --after 5 --zoom 1.5 \
+     --screenshot "${SHOTS}/phase-4-panel.png" >/dev/null 2>&1
+echo ""
+echo "  Run it live with:  ./run-maze --scene crowd"
+echo "  p opens the camera's settings, tab swaps subject, c gives it back."
+echo ""

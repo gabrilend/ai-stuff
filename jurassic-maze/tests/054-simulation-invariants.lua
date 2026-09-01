@@ -54,24 +54,30 @@ function M.run(root, t)
   local Store  = dofile(root .. "/src/034-the-body-store.lua")
 
   -- The same seed, twice, for a good long while.
+  -- A small population on the full-size maze. Determinism does not care how
+  -- many bodies there are, and shrinking the maze instead raises the density,
+  -- which is the thing that actually costs.
+  local FEW = { ball = 90, guy = 90 }
+  local function small(seed) return Params.with{ seed = seed, capacity = 220 } end
+
   for _, scene in ipairs({ "balls", "guys" }) do
-    local a = Tick.new_world(root, Params.with{ seed = 11 }, scene)
+    local a = Tick.new_world(root, small(11), scene, FEW)
     for _ = 1, 1200 do Tick.tick(a) end
-    local b = Tick.new_world(root, Params.with{ seed = 11 }, scene)
+    local b = Tick.new_world(root, small(11), scene, FEW)
     for _ = 1, 1200 do Tick.tick(b) end
     t.equal(checksum(a), checksum(b), scene .. ": one seed runs the same twice")
   end
 
   -- Different seeds must not agree, or the check above is vacuous.
-  local one = Tick.new_world(root, Params.with{ seed = 11 }, "balls")
-  local two = Tick.new_world(root, Params.with{ seed = 12 }, "balls")
+  local one = Tick.new_world(root, small(11), "balls", FEW)
+  local two = Tick.new_world(root, small(12), "balls", FEW)
   for _ = 1, 400 do Tick.tick(one); Tick.tick(two) end
   t.truthy(checksum(one) ~= checksum(two), "two seeds run differently")
 
   -- The aquarium holds its level. There is no run that finishes: a resting ball
   -- is taken away and a new one dropped in at the top, so the population is a
   -- number that is maintained rather than an event that happened at the start.
-  local world = Tick.new_world(root, Params.with{ seed = 5 }, "balls")
+  local world = Tick.new_world(root, small(5), "balls", FEW)
   local target = 0
   for _, n in pairs(world.targets) do target = target + n end
 

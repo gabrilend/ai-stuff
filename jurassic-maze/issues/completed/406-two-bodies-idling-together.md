@@ -5,12 +5,21 @@
 | Phase | 4 — The Wandering |
 | Blocked by | 404, 405 |
 | Blocks | nothing |
-| Reads | [idling and being idle together](../docs/015-idling-and-being-idle-together.md) |
+| Reads | [idling and being idle together](../../docs/015-idling-and-being-idle-together.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Bodies idle alone, near each other, unaware.
+Through the meet pass. Both idle, both past `notice_seconds`, neither
+partnered: the same idle row, the same clock, each facing the other.
+
+Cancelling releases both, and the generation check is what catches the case where
+one has been recycled — a partner id on its own would still name a live body,
+whichever one moved into the slot.
+
+At two hundred walkers in nine thousand floor cells this fired about six times a
+minute, which is to say never. The populations were raised: density, not count,
+is what decides whether anything happens between two bodies at all.
 
 ## Intended behavior
 
@@ -50,4 +59,4 @@ ends the same tick.
 
 ## Related documents and tools
 
-- [Idling and being idle together](../docs/015-idling-and-being-idle-together.md)
+- [Idling and being idle together](../../docs/015-idling-and-being-idle-together.md)

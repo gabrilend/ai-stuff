@@ -31,7 +31,7 @@ Two preallocated arrays — a count and an offset — and one array of ids. No l
 no tables, nothing allocated per tick. A counting sort, which is what this is,
 costs two linear passes and gives constant-time lookup of a cell's occupants.
 
-This is what keeps [the meet pass](../405-the-meet-pass-pairs-bodies.md)
+This is what keeps [the meet pass](405-the-meet-pass-pairs-bodies.md)
 proportional to the number of bodies instead of to its square. That property
 depends on bodies being **spread out**: a hundred bodies in one cell puts them
 all in one bucket and the pass is quadratic again, on the tick where things are

@@ -13,8 +13,16 @@ either.
 | `link(Stone, Locomotion, Moving, Creatures)` | | hands in the modules at world creation |
 | `advance(world, bodies, roster, first, last, dt)` | | moves a slice of the walking roster |
 | `begin_step(world, bodies, id, kind)` | | sets up one journey; false if there is nowhere to go |
-| `drawn_position(Stone, store, bodies, id)` | | where the renderer puts it |
-| `INTENT_WANDER`, `INTENT_IDLE` | | |
+| `drawn_position(store, bodies, id)` | | where the renderer puts it |
+| `idle_offset(Creatures, bodies, id)` | | what the current idle does to the drawn height |
+| `release_partner(world, bodies, id)` | | ends a shared idle, for both |
+| `INTENT_WANDER`, `INTENT_IDLE`, `INTENT_ERRAND` | | |
+
+`drawn_position` takes **no** `Stone` argument. It used to, and the parameter
+shadowed the module's own — so every caller passing nil for it got a nil index,
+in the draw path, only for walking bodies. It did not show up until the first
+screenshot of a scene that had any, and that screenshot was written off at the
+time as the window manager throttling a background window.
 
 ## How a walker moves
 
@@ -49,6 +57,34 @@ somebody tidying up will delete it. Interpolating a one-layer climb in a straigh
 line makes the body slide up a diagonal, which reads as ascending an invisible
 ramp rather than as climbing. A flat step gets no arc, because the difference is
 zero.
+
+## Errands, and why they exist
+
+A wandering body never arrives, so nothing it does ever finishes — which is fine
+for the body and useless for the camera, whose whole job is to notice when the
+thing it is watching is over. An errand gives a body a destination and therefore
+an ending.
+
+The destination is deliberately **near**: a block or two away, drawn from the
+floor cells bucketed by block at world creation. A cell drawn from the whole maze
+is a three-hundred-step journey costing five milliseconds to plan, and it is also
+the wrong journey — nobody watches a two-minute trek.
+
+The path is computed once and kept. A body knocked off it — by a fall, or by
+being pushed aside in a crowd — **replans once** from where it actually is toward
+where it was actually going. Abandoning outright throws the errand away for a
+displacement of one cell, and at any real density that happened nineteen times in
+twenty.
+
+## Idling
+
+An idle is a row in the creature table with a clock. The simulation's whole
+involvement is which row and how much of that clock is left; `idle_offset` turns
+it into a drawn height — a sine for the bob, a constant for the squat, both eased
+in and out over the whole idle so a squat does not snap on and off.
+
+`breathe` is the default and the one that matters. A genuinely motionless body
+reads as a bug: the eye assumes something crashed.
 
 ## Falling is the shared one
 
