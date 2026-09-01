@@ -55,8 +55,13 @@ function M.new_table(Rolling, Walking)
     { name = "walking",  advance = Walking.advance,  parallel = true,
       needs = { "cell", "layer", "from_cell", "from_layer", "progress" } },
 
-    { name = "striding", advance = M.unbuilt("striding, for bodies wider than " ..
-        "one cell -- phase 6"), parallel = true, needs = {} },
+    -- Striding is walking with the enterability check widened to every cell of
+    -- the body's footprint. It is the same function, not a copy of it: a row
+    -- shares the step machinery by calling it, not by being it, and two copies
+    -- of a step is two places for a walker and a dinosaur to start disagreeing
+    -- about what the maze is.
+    { name = "striding", advance = Walking.advance, parallel = true,
+      needs = { "cell", "layer", "from_cell", "from_layer", "progress" } },
 
     { name = "lumbering", advance = M.unbuilt("lumbering, which breaks walls " ..
         "rather than routing around them -- phase 7"), parallel = true, needs = {} },

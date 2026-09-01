@@ -229,7 +229,7 @@ function M.count_ledges(Stone, store, label, main, drop_limit)
 end
 -- }}}
 
--- {{{ function M.find_path(Stone, store, from_cell, from_layer, to_cell, to_layer, drop_limit, body_height, budget, into)
+-- {{{ function M.find_path(Stone, store, from_cell, from_layer, to_cell, to_layer, drop_limit, body_height, budget, into, fits)
 -- A-star over the surface graph. Returns the number of steps, or nil.
 --
 -- The path is written into `into` as packed stances, nearest first, so a caller
@@ -244,17 +244,24 @@ end
 -- layers**, which never overestimates -- every step moves one cell and at most
 -- one layer -- so the first route found is the shortest.
 --
+-- `fits` is an optional test the destination of every step must pass. A body
+-- wider than one cell needs it: without it a dinosaur is handed a route through
+-- a corridor it cannot enter, walks it as far as the first narrow cell, and
+-- stops -- and what shows up is a search that succeeded and a body that did not
+-- move, which looks like a broken locomotion row and is nothing of the kind.
+--
 -- **It gives up.** After `budget` surfaces examined it stops and returns nil,
 -- and the caller counts that. A search that quietly failed leaves a body
 -- standing still looking stuck for no reason anybody can name, and the count is
 -- how it is ever noticed at all. This is the project's one sanctioned fallback,
 -- and the rule about fallbacks is that they are announced and counted.
 function M.find_path(Stone, store, from_cell, from_layer, to_cell, to_layer,
-                     drop_limit, body_height, budget, into)
+                     drop_limit, body_height, budget, into, fits)
   if from_cell == to_cell and from_layer == to_layer then
     into[1] = nil
     return 0
   end
+  if fits and not fits(to_cell, to_layer) then return nil end
 
   if store.label then
     local a = store.label[M.pack(store, from_cell, from_layer)]
@@ -352,7 +359,7 @@ function M.find_path(Stone, store, from_cell, from_layer, to_cell, to_layer,
 
     for di = 1, 4 do
       local answer, nc, nl = M.step(Stone, store, hc, hl, di, drop_limit, body_height)
-      if answer ~= M.BLOCKED then
+      if answer ~= M.BLOCKED and (not fits or fits(nc, nl)) then
         local nkey = M.pack(store, nc, nl)
         local next_cost = here_cost + 1
         if cost[nkey] == nil or next_cost < cost[nkey] then

@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+#
+# phase-6-the-habitat -- the vision's fourth sentence, working.
+#
+#   "next it is dinosaurs rumbling through a habitat hiding and playing games"
+#
+# A dinosaur is a body wider than one cell, and that is the whole of what is
+# different about it. Everything interesting here is a consequence of that one
+# fact meeting a maze that was generated before there were any bodies.
+
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+if [ -d "$1" ]; then DIR="$1"; shift; fi
+
+SHOTS="/dev/shm/jurassic-maze/demo"
+mkdir -p "${SHOTS}"
+
+echo "=============================================================="
+echo " PHASE 6 -- THE HABITAT"
+echo "=============================================================="
+echo ""
+echo "--- the enclosures nobody drew -----------------------------------"
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params = dofile(root .. '/src/028-maze-parameters.lua')
+local Tick   = dofile(root .. '/src/039-the-tick.lua')
+
+print(string.format('  %-6s %8s %8s %10s %12s', 'seed', 'floor', 'plazas', 'wide floor', 'enclosures'))
+for seed = 1, 6 do
+  local world = Tick.new_world(root, Params.with{seed = seed, capacity = 200},
+                               'habitat', {})
+  local r = world.report
+  print(string.format('  %-6d %8d %8d %10d %12d', seed, r.floor_cells, r.plazas,
+        r.wide_floor_cells, r.wide_floor_pieces))
+end
+print('')
+print('  A three-by-three animal fits in the plazas and essentially nowhere')
+print('  else, and the corridors between the plazas are one cell wide -- so')
+print('  a maze has some number of separate enclosures, and a dinosaur lives')
+print('  in one of them for its whole life.')
+print('')
+print('  Nobody drew those. They are what happens when a body wider than a')
+print('  corridor meets a maze that was generated before there were bodies.')
+"
+echo ""
+
+echo "--- what sight is like in a maze ---------------------------------"
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params = dofile(root .. '/src/028-maze-parameters.lua')
+local Tick   = dofile(root .. '/src/039-the-tick.lua')
+
+local world = Tick.new_world(root, Params.with{seed = 7, capacity = 200}, 'habitat', {})
+local Sight = world.modules.Sight
+local store = world.store
+local rng = world.streams.spawn
+
+print(string.format('  %-14s %10s %10s', 'apart', 'pairs', 'in sight'))
+for _, range in ipairs({2, 4, 8, 16, 26}) do
+  local seen, tried = 0, 0
+  for _ = 1, 30000 do
+    local a = world.floor[rng:next_below(#world.floor)]
+    local b = world.floor[rng:next_below(#world.floor)]
+    local ok, dist = Sight.can_see(store, a, store.height[a], b, store.height[b], range)
+    if dist <= range then tried = tried + 1; if ok then seen = seen + 1 end end
+  end
+  print(string.format('  within %2d cells %10d %9.0f%%', range, tried,
+        100 * seen / math.max(1, tried)))
+end
+print('')
+print('  Measured before the eye height was fixed: one pair in four hundred')
+print('  and forty-one, and that pair adjacent. The line was starting inside')
+print('  the block the creature was standing on, and nothing could see')
+print('  anything at all.')
+"
+echo ""
+
+echo "--- a minute in the habitat --------------------------------------"
+echo ""
+luajit -e "
+local root = '${DIR}'
+local Params = dofile(root .. '/src/028-maze-parameters.lua')
+local Tick   = dofile(root .. '/src/039-the-tick.lua')
+
+local world = Tick.new_world(root, Params.with{seed = 7}, 'habitat')
+local t0 = os.clock()
+for _ = 1, 3600 do Tick.tick(world) end
+local c = world.counters
+print(string.format('  %d dinosaurs, sixty seconds in %.1f s real',
+      world.bodies.live, os.clock() - t0))
+print('')
+for _, pair in ipairs({
+    {'games_chase',             'chases begun'},
+    {'games_hide_and_seek',     'games of hide and seek'},
+    {'games_follow_the_leader', 'lines formed behind a leader'},
+    {'tags',                    'times somebody was tagged'},
+    {'found',                   'hiders found'},
+    {'fled',                    'times there was nowhere to hide'},
+    {'games_ended',             'games finished'}}) do
+  print(string.format('  %-32s %6d', pair[2], c[pair[1]] or 0))
+end
+print('')
+print('  Nothing in there knows it is playing. A chase is two roles and a')
+print('  rule for swapping them; hiding is a breadth-first walk that stops at')
+print('  the first place a sight line does not reach.')
+"
+echo ""
+
+echo "--- and the invariants -------------------------------------------"
+echo ""
+"${DIR}/run-tests" habitat 2>&1 | sed 's/^/  /'
+echo ""
+
+echo "--- and what it looks like ---------------------------------------"
+echo ""
+echo "  Each shot opens a window, lets it settle, saves a frame and leaves."
+echo "  Guarded by a timeout: a window that loses focus can be throttled by"
+echo "  the compositor to the point where it never reaches the frame it was"
+echo "  told to capture, and a demo that hangs is a demo nobody runs twice."
+echo ""
+echo "  writing ${SHOTS}/phase-6-habitat.png"
+timeout 45 love "${DIR}" --seed 7 --scene jungle --after 5 --zoom 1.1 --at 64 64 \
+     --screenshot "${SHOTS}/phase-6-habitat.png" >/dev/null 2>&1
+echo ""
+echo "  The green open courts are the plazas. The dinosaurs are in them,"
+echo "  because there is nowhere else they fit."
+echo "  Run it live with:  ./run-maze --scene jungle"
+echo ""

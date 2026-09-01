@@ -50,9 +50,37 @@ local function require_local(root, name)
 end
 -- }}}
 
+-- {{{ local function widen_the_jit()
+-- Raises LuaJIT's trace and machine-code limits.
+--
+-- This is not a micro-optimisation and it is not tuning. With the defaults --
+-- a thousand traces and half a megabyte of machine code -- a run with **two**
+-- locomotion rows live fills the trace cache and flushes it, over and over:
+-- forty-five flushes in three hundred ticks, twenty-two thousand traces
+-- compiled, and every flush throws away everything that had been compiled so
+-- far.
+--
+-- What that looks like from outside is bizarre. Balls alone cost 1.8 seconds a
+-- minute and walkers alone cost 1.0, and the two of them together cost 12.4 --
+-- each row four times slower purely for the other one existing. It reads as a
+-- scaling problem in the simulation, and there is nothing in the simulation to
+-- find.
+--
+-- Done once, at world creation, because that is the single path every runner
+-- goes through -- the window, the terminal, the headless sweep and the tests.
+local function widen_the_jit()
+  if not jit then return end
+  pcall(function()
+    jit.opt.start("maxtrace=4000", "maxmcode=4096", "maxsnap=1000")
+  end)
+end
+-- }}}
+
 -- {{{ function M.new_world(root, params, scene, population)
 -- The maze, the streams, the bodies, and the passes, assembled once.
 function M.new_world(root, params, scene, population)
+  widen_the_jit()
+
   local Params     = require_local(root, "028-maze-parameters")
   local Streams    = require_local(root, "029-random-streams")
   local Stone      = require_local(root, "030-the-stone")
@@ -65,6 +93,8 @@ function M.new_world(root, params, scene, population)
   local Walking    = require_local(root, "038-walking")
   local Meeting    = require_local(root, "058-meeting")
   local Duels      = require_local(root, "060-duels")
+  local Sight      = require_local(root, "062-sight")
+  local Games      = require_local(root, "063-games")
   local Creatures  = dofile(root .. "/assets/035-creature-table.lua")
 
   local p = Params.check(params)
@@ -114,12 +144,112 @@ function M.new_world(root, params, scene, population)
     end
   end
 
+  -- How wide the widest creature is, in cells. Decides how many bucket
+  -- placements the index has to hold, and whether the footprint path is used at
+  -- all -- a run with nothing wide in it should not pay for the machinery.
+  local widest = 1
+  for _, kind in ipairs(Creatures.KINDS) do
+    local cells_across = math.floor(kind.radius) * 2 + 1
+    if cells_across > widest then widest = cells_across end
+  end
+
+  -- Where a body wider than one cell can stand at all.
+  --
+  -- A three-by-three animal fits in the plazas and essentially nowhere else, so
+  -- drawing its destinations from the floor at large means most of them are
+  -- unreachable -- and a search that fails leaves the body with nothing decided,
+  -- so it asks again next tick, and again. Ninety dinosaurs produced ninety-seven
+  -- thousand failed searches a minute doing exactly that.
+  --
+  -- Computed once, here, from the same footprint rule the movement uses.
+  local wide_floor, wide_blocks = {}, {}
+  if widest > 1 then
+    local reach = math.floor(widest / 2)
+    for i = 0, store.cells - 1 do
+      if store.walkable[i] then
+        local x = i % store.width
+        local y = (i - x) / store.width
+        local level = store.height[i]
+        local fits = true
+        for dy = -reach, reach do
+          for dx = -reach, reach do
+            local nx, ny = x + dx, y + dy
+            if nx < 0 or ny < 0 or nx >= store.width or ny >= store.depth
+               or store.height[nx + ny * store.width] ~= level then
+              fits = false
+            end
+          end
+        end
+        if fits then
+          wide_floor[#wide_floor + 1] = i
+          local b = math.floor(x / BLOCK) + math.floor(y / BLOCK) * blocks_x
+          wide_blocks[b] = wide_blocks[b] or {}
+          local list = wide_blocks[b]
+          list[#list + 1] = i
+        end
+      end
+    end
+  end
+
+  -- And which of those places are reachable from which.
+  --
+  -- The plazas a three-by-three body can stand in are mostly **not connected to
+  -- each other** -- the corridors between them are one cell wide. That is the
+  -- right answer, and it is the most interesting thing about a wide body sharing
+  -- a maze with a narrow one, but it means a destination drawn from the wide
+  -- floor at large is usually in a plaza this animal can never reach. Fifty-eight
+  -- thousand failed searches a minute were exactly that.
+  --
+  -- So the wide floor is labelled into pieces, and a wide body draws only from
+  -- its own. The count of pieces is a real statistic about a habitat: it is how
+  -- many separate enclosures the maze has, without anybody having drawn one.
+  local wide_label, wide_pieces = {}, {}
+  if #wide_floor > 0 then
+    local in_wide = {}
+    for _, cell in ipairs(wide_floor) do in_wide[cell] = true end
+
+    local next_label = 0
+    for _, seed_cell in ipairs(wide_floor) do
+      if not wide_label[seed_cell] then
+        next_label = next_label + 1
+        local piece = {}
+        wide_pieces[next_label] = piece
+        wide_label[seed_cell] = next_label
+
+        local stack, top = { seed_cell }, 1
+        while top > 0 do
+          local cell = stack[top]
+          top = top - 1
+          piece[#piece + 1] = cell
+
+          local x = cell % store.width
+          local y = (cell - x) / store.width
+          for di = 1, 4 do
+            local d = Moving.DIRECTIONS[di]
+            local nx, ny = x + d[1], y + d[2]
+            if nx >= 0 and ny >= 0 and nx < store.width and ny < store.depth then
+              local n = nx + ny * store.width
+              if in_wide[n] and not wide_label[n]
+                 and math.abs(store.height[n] - store.height[cell]) <= Moving.CLIMB_LIMIT then
+                wide_label[n] = next_label
+                top = top + 1
+                stack[top] = n
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
   Rolling.link(Stone, Locomotion, Moving, Creatures)
   Walking.link(Stone, Locomotion, Moving, Creatures)
   Meeting.link(Stone, BodyStore, Walking, Creatures)
   Duels.link(BodyStore, Walking, Creatures)
+  Sight.link(Stone, Moving, Creatures)
+  Games.link(Stone, Moving, Sight, Walking, BodyStore, Creatures)
 
-  local bodies = BodyStore.new(p.capacity, store.cells)
+  local bodies = BodyStore.new(p.capacity, store.cells, widest)
   bodies.CARRIED_ROW = Creatures.CARRIED
 
   local rows = Locomotion.new_table(Rolling, Walking)
@@ -135,6 +265,7 @@ function M.new_world(root, params, scene, population)
     rows      = rows,
     creatures = Creatures,
     scene      = scene or "balls",
+    widest     = widest,
     -- An override for how many of each kind to keep alive, by creature name.
     --
     -- The tests use it. Shrinking the *maze* instead was tried and made them
@@ -146,12 +277,18 @@ function M.new_world(root, params, scene, population)
     by_height   = by_height,
     highest     = highest,
     floor_blocks = blocks,
+    wide_floor   = wide_floor,
+    wide_blocks  = wide_blocks,
+    wide_label   = wide_label,
+    wide_pieces  = wide_pieces,
     block_size  = BLOCK,
     blocks_x    = blocks_x,
     blocks_y    = blocks_y,
 
     meet  = Meeting.new_table(Creatures),
     duels = Duels.new_store(math.max(64, math.floor(p.capacity / 2))),
+    games = Games.new_store(math.max(32, math.floor(p.capacity / 4))),
+    trail = {},
 
     -- Polled by the director rather than delivered to it. A queue of messages
     -- arriving at an unspecified time would make the order of effects depend on
@@ -182,6 +319,7 @@ function M.new_world(root, params, scene, population)
       Stone = Stone, Moving = Moving, BodyStore = BodyStore,
       Locomotion = Locomotion, Rolling = Rolling, Walking = Walking,
       Validator = Validator, Meeting = Meeting, Duels = Duels,
+      Sight = Sight, Games = Games,
     },
 
     -- Counters the headless report reads. Accumulated by the passes themselves,
@@ -193,6 +331,19 @@ function M.new_world(root, params, scene, population)
   }
 
   M.populate(world)
+
+  -- Is anything in this run actually wider than a cell? If not, the index takes
+  -- the plain path and never calls the footprint function at all.
+  world.has_wide = false
+  for index in pairs(world.targets) do
+    if Creatures.KINDS[index].radius >= 1 then world.has_wide = true end
+  end
+
+  local pieces = 0
+  for _ in pairs(wide_pieces) do pieces = pieces + 1 end
+  report.wide_floor_cells  = #wide_floor
+  report.wide_floor_pieces = pieces
+
   return world
 end
 -- }}}
@@ -229,6 +380,18 @@ function M.spawn_one(world, kind_index)
   end
   if not cell then
     cell = world.floor[rng:next_below(#world.floor)]
+  end
+
+  -- A body wider than one cell must be put down somewhere its whole footprint
+  -- fits. Without the check, most of a herd of dinosaurs spawns into a corridor
+  -- and never moves again -- which looks exactly like a broken locomotion row
+  -- and is nothing of the kind.
+  if kind.radius >= 1 then
+    if #world.wide_floor == 0 then
+      error("nothing wider than one cell can stand anywhere in this maze -- " ..
+            "raise plaza_count, or the creature is too big for the corridors")
+    end
+    cell = world.wide_floor[rng:next_below(#world.wide_floor)]
   end
 
   -- A spawn must not land on top of somebody. A cell that already holds a body
@@ -312,12 +475,22 @@ end
 -- affect another. That is the whole benefit of the table: a new creature that
 -- moves in a new way is a new row and a new function, and there is nowhere to
 -- put a change that would alter how anything else moves.
-local function pass_move(world, dt)
+local function pass_move(world, dt, measure)
   local bodies = world.bodies
   for index, row in ipairs(world.rows) do
     local roster = bodies.rosters[index]
     if roster and roster.n > 0 then
-      row.advance(world, bodies, roster, 1, roster.n, dt)
+      if measure then
+        -- Per row, not just per pass. A move pass that costs five times the sum
+        -- of its rows measured separately is a row being made expensive by the
+        -- presence of another, and a single total cannot say which.
+        local t0 = os.clock()
+        row.advance(world, bodies, roster, 1, roster.n, dt)
+        local key = "move:" .. row.name
+        measure[key] = (measure[key] or 0) + (os.clock() - t0)
+      else
+        row.advance(world, bodies, roster, 1, roster.n, dt)
+      end
     end
   end
 end
@@ -357,8 +530,27 @@ end
 -- }}}
 
 -- {{{ local function pass_index(world, dt)
+local FOOTPRINT = {}
 local function pass_index(world, dt)
-  world.modules.BodyStore.reindex(world.bodies)
+  -- A body wider than one cell goes in every bucket its footprint covers. A
+  -- three-cell animal in one bucket is invisible to anything standing beside its
+  -- tail, and the meet pass's greater-id rule already handles the duplicate
+  -- pairs that follow.
+  --
+  -- The scratch array is shared and reused: this runs once per body per tick and
+  -- a fresh table each time is an allocation for a list of nine integers.
+  local Walking = world.modules.Walking
+  local store   = world.store
+  local bodies  = world.bodies
+
+  world.modules.BodyStore.reindex(world.bodies, world.has_wide and function(_, id)
+    if bodies.radius[id] < 1 then
+      FOOTPRINT[1] = bodies.cell[id]
+      FOOTPRINT.n = 1
+      return FOOTPRINT
+    end
+    return Walking.footprint(store, bodies, id, FOOTPRINT)
+  end or nil)
   if world.bodies.largest_bucket > world.counters.largest_bucket then
     world.counters.largest_bucket = world.bodies.largest_bucket
   end
@@ -380,7 +572,7 @@ end
 -- deterministic and nobody knows when it started.
 -- {{{ M.PASSES
 M.PASSES = {
-  { name = "move",  fn = pass_move,  parallel = true  },
+  { name = "move",  fn = pass_move,  parallel = true, measures = true },
   -- The one pass that is not independent per body, and therefore the one that
   -- does not get split. It is also one of the cheapest, which is by design
   -- rather than by luck: a pass that has to touch shared state was kept small
@@ -394,6 +586,11 @@ M.PASSES = {
     parallel = false },
   { name = "resolve", fn = function(world, dt) world.modules.Duels.resolve(world, dt) end,
     parallel = false },
+  -- Games hold their participants' clocks and swap their roles. Not
+  -- parallel-safe for the same reason the meet pass is not: one game touches
+  -- several bodies.
+  { name = "games",   fn = function(world, dt) world.modules.Games.pass(world, dt) end,
+    parallel = false },
   { name = "spawn", fn = pass_spawn, parallel = false },
   { name = "index", fn = pass_index, parallel = false },
 }
@@ -405,7 +602,7 @@ function M.tick(world, measure)
   for _, pass in ipairs(M.PASSES) do
     if measure then
       local t0 = os.clock()
-      pass.fn(world, M.TICK)
+      pass.fn(world, M.TICK, pass.measures and measure or nil)
       measure[pass.name] = (measure[pass.name] or 0) + (os.clock() - t0)
     else
       pass.fn(world, M.TICK)

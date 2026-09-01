@@ -5,12 +5,22 @@
 | Phase | 6 — The Habitat |
 | Blocked by | 403, 601, 602 |
 | Blocks | 604 |
-| Reads | [dinosaurs in a habitat](../docs/019-dinosaurs-in-a-habitat.md) |
+| Reads | [dinosaurs in a habitat](../../docs/019-dinosaurs-in-a-habitat.md) |
 | Open questions | none |
 
 ## Current behavior
 
-A creature avoiding another runs directly away from it, which looks like panic.
+`Sight.find_cover`, breadth-first over surfaces the body could stand on, so the
+first hidden place found is the nearest one and there is nothing better further
+out.
+
+**The thing that makes it read as hiding is that a successful hider stops.**
+Fleeing looks like panic; stopping behind a wall looks like intent, and it is one
+line — the arrival sets idle rather than choosing somewhere else.
+
+Failure falls back to fleeing, and both the failure and the flight are counted. A
+maze where hiding always fails is a maze with no cover, which is a fact about the
+generator's parameters rather than about the creature.
 
 ## Intended behavior
 
@@ -45,5 +55,5 @@ arrive as a number.
 
 ## Related documents and tools
 
-- [Dinosaurs in a habitat](../docs/019-dinosaurs-in-a-habitat.md)
-- [Line of sight through stone](../docs/018-line-of-sight-through-stone.md)
+- [Dinosaurs in a habitat](../../docs/019-dinosaurs-in-a-habitat.md)
+- [Line of sight through stone](../../docs/018-line-of-sight-through-stone.md)

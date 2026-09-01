@@ -56,6 +56,14 @@ function M.defaults()
                              -- its own size. Zero is a wedding cake.
     outcrops       = 14,     -- small bumps and hollows on top, for irregularity
 
+    -- Clearings among the corridors. The reference picture has them, and a body
+    -- wider than one cell has nowhere at all to stand without them -- nine
+    -- contiguous cells at one height do not occur in a maze of one-cell
+    -- corridors.
+    plaza_count    = 26,
+    plaza_min      = 5,
+    plaza_max      = 13,
+
     -- Pass two and four. climb_limit is not a knob: wall_rise was chosen
     -- against it, so raising it does not make bodies more agile, it deletes
     -- every wall in the maze at once.

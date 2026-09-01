@@ -1106,6 +1106,107 @@ local function pass_d_staircases(p, streams, height, walkable, width, depth,
 end
 -- }}}
 
+-- {{{ local function pass_c2_plazas(p, streams, height, walkable, width, depth, report)
+-- Clearings. A few rectangles on the terraces with their walls taken out.
+--
+-- The reference picture has them -- open courts among the corridors, which is
+-- most of what stops it reading as uniform hatching. They earn their place for a
+-- second reason as well, and it is the one that made them necessary rather than
+-- decorative: **a body wider than one cell cannot stand anywhere in a maze of
+-- one-cell corridors.** A three-by-three dinosaur needs nine contiguous cells at
+-- one height, and the carver produces essentially none. Ninety dinosaurs were
+-- spawned into a maze and fifty-seven of them never moved, because there was
+-- nowhere for them to go.
+--
+-- A plaza only ever removes walls, so it can only help connectivity -- which is
+-- why this can run before the repair pass without the repair having to know
+-- about it.
+local function pass_c2_plazas(p, streams, height, walkable, width, depth, report)
+  local rng = streams.terrace
+  local opened = 0
+
+  -- Grown from a seed rather than placed blind.
+  --
+  -- Placing a rectangle at random and rejecting it if it straddles terraces
+  -- rejects most of them -- six clearings out of twenty-six attempts -- because
+  -- a terrace is not very large and a rectangle dropped anywhere is likely to
+  -- cross an edge. Starting from a cell and growing while the ground stays level
+  -- puts the clearing *on* a terrace by construction.
+  for _ = 1, p.plaza_count do
+    local sx = rng:next_between(3, width - 4)
+    local sy = rng:next_between(3, depth - 4)
+    local level = height[sx + sy * width]
+
+    -- {{{ local function level_here(x0, y0, x1, y1)
+    -- Whether a rectangle may be cleared.
+    --
+    -- A cell may be included when it is **already floor at exactly this level**,
+    -- or when it is **wall** -- walls are what the clearing removes. Floor at a
+    -- different level may not: lowering it detaches it from whatever it was
+    -- connected to outside the rectangle, and a clearing that severs a terrace is
+    -- not a courtyard.
+    --
+    -- The first version allowed anything within a wall's height of the level,
+    -- which reads as generous and quietly moves floor. On some seeds it left a
+    -- hundred and sixty-five cells stranded, and the maze validator -- correctly
+    -- -- refused to hand the maze over.
+    local function level_here(x0, y0, x1, y1)
+      if x0 < 2 or y0 < 2 or x1 > width - 3 or y1 > depth - 3 then return false end
+      for y = y0, y1 do
+        for x = x0, x1 do
+          local i = x + y * width
+          if walkable[i] and height[i] ~= level then return false end
+          -- A wall that would have to fall more than its own height to join the
+          -- clearing is a different terrace's wall, not this one's.
+          if not walkable[i] and math.abs(height[i] - level) > p.wall_rise + 1 then
+            return false
+          end
+        end
+      end
+      return true
+    end
+    -- }}}
+
+    local x0, y0, x1, y1 = sx, sy, sx, sy
+    if level_here(x0, y0, x1, y1) then
+      -- Grow one side at a time, in a shuffled order, so the clearings are not
+      -- all squares with the same aspect.
+      local sides = { 1, 2, 3, 4 }
+      rng:shuffle(sides)
+      local grew = true
+      while grew do
+        grew = false
+        for _, side in ipairs(sides) do
+          local nx0, ny0, nx1, ny1 = x0, y0, x1, y1
+          if     side == 1 then nx0 = x0 - 1
+          elseif side == 2 then nx1 = x1 + 1
+          elseif side == 3 then ny0 = y0 - 1
+          else                  ny1 = y1 + 1 end
+          if (nx1 - nx0 + 1) <= p.plaza_max and (ny1 - ny0 + 1) <= p.plaza_max
+             and level_here(nx0, ny0, nx1, ny1) then
+            x0, y0, x1, y1 = nx0, ny0, nx1, ny1
+            grew = true
+          end
+        end
+      end
+
+      if (x1 - x0 + 1) >= p.plaza_min and (y1 - y0 + 1) >= p.plaza_min then
+        for y = y0, y1 do
+          for x = x0, x1 do
+            local i = x + y * width
+            height[i]   = level
+            walkable[i] = true
+          end
+        end
+        opened = opened + 1
+      end
+    end
+  end
+
+  report.plazas = opened
+end
+-- }}}
+
 -- {{{ local function pass_f_restore_walls(p, height, walkable, width, depth, report)
 -- Puts the walls back to being walls after the staircases have been cut.
 --
@@ -1188,6 +1289,7 @@ function M.generate(root, p, streams)
 
   pass_c_realise_heights(p, height, walkable, room_height, rooms_x, rooms_y,
                          opened, width, depth)
+  pass_c2_plazas(p, streams, height, walkable, width, depth, report)
   -- The flights are already in the maze, so this is a check that finds nothing
   -- to do rather than the pass that does the work. It stays because "nothing to
   -- do" is a claim worth testing on every maze: if it ever starts cutting, the

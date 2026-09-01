@@ -47,6 +47,69 @@ local function opposite(direction)
 end
 -- }}}
 
+-- {{{ function M.footprint(store, bodies, id, into)
+-- The cells a body covers, given its radius.
+--
+-- A radius under half a cell covers one; anything larger covers a square. The
+-- square is centred on the stance, so a body of radius one covers three cells by
+-- three -- which is what "a dinosaur cannot go everywhere a little guy can"
+-- means once it is arithmetic.
+function M.footprint(store, bodies, id, into)
+  local r = bodies.radius[id]
+  local reach = math.floor(r)
+  local n = 0
+  local cx = bodies.cell[id] % store.width
+  local cy = (bodies.cell[id] - cx) / store.width
+
+  for dy = -reach, reach do
+    for dx = -reach, reach do
+      local x, y = cx + dx, cy + dy
+      if x >= 0 and y >= 0 and x < store.width and y < store.depth then
+        n = n + 1
+        into[n] = x + y * store.width
+      end
+    end
+  end
+  into.n = n
+  return into
+end
+-- }}}
+
+-- {{{ local function footprint_fits(world, bodies, id, kind, cell, layer)
+-- Whether every cell of a body's footprint could stand at that place.
+--
+-- The same enterability question the ordinary step asks, asked once per cell of
+-- the square rather than once. That is the whole of `striding`: the same graph,
+-- the same step, the same timing, with the check widened.
+local function footprint_fits(world, bodies, id, kind, cell, layer)
+  local store = world.store
+  local Stone = world.modules.Stone
+  local reach = math.floor(kind.radius)
+  if reach == 0 then return true end
+
+  local cx = cell % store.width
+  local cy = (cell - cx) / store.width
+
+  for dy = -reach, reach do
+    for dx = -reach, reach do
+      local x, y = cx + dx, cy + dy
+      if x < 0 or y < 0 or x >= store.width or y >= store.depth then
+        return false
+      end
+      local c = x + y * store.width
+      -- Every cell of the footprint must be floor at the same layer. A body that
+      -- straddles a step is a body half inside a wall, and no rule anywhere else
+      -- expects one.
+      if store.height[c] ~= layer then return false end
+      if Stone.headroom(store, c, layer) < kind.body_height then return false end
+    end
+  end
+  return true
+end
+-- }}}
+
+M.footprint_fits = footprint_fits
+
 -- {{{ local function choose_step(world, bodies, id, kind)
 -- Which adjacent surface to walk to next.
 --
@@ -90,7 +153,8 @@ local function choose_step(world, bodies, id, kind)
   for di = 1, 4 do
     local answer, ncell, nlayer =
       Moving.step(Stone, store, cell, layer, di, kind.drop_limit, kind.body_height)
-    if answer ~= Moving.BLOCKED then
+    if answer ~= Moving.BLOCKED
+       and footprint_fits(world, bodies, id, kind, ncell, nlayer) then
       local w = (di == came_from) and kind.reverse_weight or 1.0
       if (occupied[ncell] or 0) > 0 then w = w * kind.crowd_weight end
       if (taken[ncell] or 0) > now then w = w * kind.crowd_weight end
@@ -110,20 +174,77 @@ local function choose_step(world, bodies, id, kind)
 end
 -- }}}
 
+-- {{{ function M.send_to(world, bodies, id, kind, cell, layer, reason)
+-- Sends a body to a particular surface, by planning a path and putting it on an
+-- errand.
+--
+-- Everything that wants a body to go somewhere goes through here: its own idle
+-- decision to wander off, a game telling it to chase, a creature heading for
+-- cover. One route to "go there" means one place the pathfinding budget is
+-- spent, one place a failed search is counted, and one definition of what
+-- arriving means.
+function M.send_to(world, bodies, id, kind, cell, layer, reason)
+  local Moving = world.modules.Moving
+  local path = world.paths[id]
+  if not path then path = {}; world.paths[id] = path end
+
+  -- A body wider than one cell is routed only through places its whole footprint
+  -- fits. The predicate is built once per search rather than per step.
+  local fits = nil
+  if kind.radius >= 1 then
+    fits = function(c, l) return footprint_fits(world, bodies, id, kind, c, l) end
+  end
+
+  local steps = Moving.find_path(Stone, world.store,
+                                 bodies.cell[id], bodies.layer[id],
+                                 cell, layer,
+                                 kind.drop_limit, kind.body_height,
+                                 kind.search_budget, path, fits)
+
+  if steps == 0 then
+    -- Already there. Not a failure, and counting it as one made a follower
+    -- standing on the very cell it was sent to look like forty-six thousand
+    -- failed searches a minute -- which is a number that sends you looking at
+    -- the pathfinder rather than at the caller.
+    bodies.intent[id]   = 0
+    world.arrived[id]   = world.tick_count
+    return true
+  end
+
+  if not steps then
+    -- Announced and counted, **and counted per caller**. A search that quietly
+    -- failed leaves a body standing still looking stuck for no reason anybody
+    -- can name; a total with no breakdown says fifty thousand searches failed
+    -- and gives no way at all to find out which of the five places that ask for
+    -- one is doing it.
+    world.counters.searches_abandoned = (world.counters.searches_abandoned or 0) + 1
+    local key = "searches_abandoned_" .. (reason or "unsaid")
+    world.counters[key] = (world.counters[key] or 0) + 1
+    return false
+  end
+
+  world.errand_cell[id]  = cell
+  world.errand_layer[id] = layer
+  world.path_length[id]  = steps
+  world.path_at[id]      = 1
+  world.replanned[id]    = false
+  bodies.intent[id]      = M.INTENT_ERRAND
+  bodies.progress[id]    = 0
+  world.counters.errands = (world.counters.errands or 0) + 1
+  return true
+end
+-- }}}
+
 -- {{{ local function begin_errand(world, bodies, id, kind)
--- Sends a body somewhere in particular.
+-- Sends a body somewhere in particular, of its own accord.
 --
 -- A wandering body never arrives, so there is no moment at which anything it was
 -- doing finished -- which is fine for the body and useless for the camera, whose
 -- whole job is to notice when a thing it is watching is over. An errand gives it
 -- a destination and therefore an ending.
---
--- The path is computed **once** and kept. A body that pathfinds every tick costs
--- a hundred times what it should to do the same thing.
 local function begin_errand(world, bodies, id, kind)
-  local store  = world.store
-  local Moving = world.modules.Moving
-  local rng    = world.streams.wander_guy
+  local store = world.store
+  local rng   = world.streams.wander_guy
 
   -- Somewhere near here, not somewhere in the maze. A block or two away is a
   -- walk of twenty or thirty steps: long enough to be a journey, short enough to
@@ -135,36 +256,24 @@ local function begin_errand(world, bodies, id, kind)
   if bx < 0 then bx = 0 elseif bx >= world.blocks_x then bx = world.blocks_x - 1 end
   if by < 0 then by = 0 elseif by >= world.blocks_y then by = world.blocks_y - 1 end
 
+  -- A wide body draws from **its own piece** of the wide floor.
+  --
+  -- The plazas a three-by-three animal can stand in are mostly not connected to
+  -- each other, so a destination drawn from the wide floor at large is usually
+  -- somewhere this one can never reach -- and the search that fails leaves it
+  -- with nothing decided, so it asks again next tick, forever.
+  if kind.radius >= 1 then
+    local piece = world.wide_pieces[world.wide_label[bodies.cell[id]] or 0]
+    if not piece or #piece < 2 then return false end
+    local target = piece[rng:next_below(#piece)]
+    return M.send_to(world, bodies, id, kind, target, store.height[target], "errand")
+  end
+
   local block = world.floor_blocks[bx + by * world.blocks_x]
   if not block or #block == 0 then return false end
 
   local target = block[rng:next_below(#block)]
-  local target_layer = store.height[target]
-  world.errand_cell[id]  = target
-  world.errand_layer[id] = target_layer
-
-  local path = world.paths[id]
-  if not path then path = {}; world.paths[id] = path end
-
-  local steps = Moving.find_path(Stone, store, bodies.cell[id], bodies.layer[id],
-                                 target, target_layer,
-                                 kind.drop_limit, kind.body_height,
-                                 kind.search_budget, path)
-
-  if not steps or steps == 0 then
-    -- Announced and counted, which is the whole rule about fallbacks here. A
-    -- search that quietly failed leaves a body standing still looking stuck for
-    -- no reason anybody can name.
-    world.counters.searches_abandoned = (world.counters.searches_abandoned or 0) + 1
-    return false
-  end
-
-  world.path_length[id] = steps
-  world.path_at[id]     = 1
-  world.replanned[id]   = false
-  bodies.intent[id]     = M.INTENT_ERRAND
-  world.counters.errands = (world.counters.errands or 0) + 1
-  return true
+  return M.send_to(world, bodies, id, kind, target, store.height[target], "errand")
 end
 -- }}}
 
@@ -206,7 +315,8 @@ local function advance_errand(world, bodies, id, kind, dt)
     local answer, nc, nl = Moving.step(Stone, world.store, bodies.cell[id],
                                        bodies.layer[id], di,
                                        kind.drop_limit, kind.body_height)
-    if answer ~= Moving.BLOCKED and nc == next_cell and nl == next_layer then
+    if answer ~= Moving.BLOCKED and nc == next_cell and nl == next_layer
+       and footprint_fits(world, bodies, id, kind, nc, nl) then
       bodies.facing[id] = di
       ok = true
       break
@@ -226,11 +336,15 @@ local function advance_errand(world, bodies, id, kind, dt)
     end
     world.replanned[id] = true
 
+    local fits = nil
+    if kind.radius >= 1 then
+      fits = function(c, l) return footprint_fits(world, bodies, id, kind, c, l) end
+    end
     local steps = Moving.find_path(Stone, world.store,
                                    bodies.cell[id], bodies.layer[id],
                                    world.errand_cell[id], world.errand_layer[id],
                                    kind.drop_limit, kind.body_height,
-                                   kind.search_budget, path)
+                                   kind.search_budget, path, fits)
     world.counters.errands_replanned = (world.counters.errands_replanned or 0) + 1
     if not steps or steps == 0 then
       world.path_length[id] = 0
@@ -362,7 +476,12 @@ function M.advance(world, bodies, roster, first, last, dt)
         -- Nothing decided. Idle sometimes, walk otherwise -- standing still for
         -- a moment is most of what makes a crowd read as alive rather than as a
         -- flock of things all going somewhere.
-        if kind.errand_chance and world.streams.wander_guy:chance(kind.errand_chance)
+        if bodies.game[id] ~= 0 then
+          -- Steered by a game. It decides where this body goes, and releases it
+          -- back to itself when the game ends.
+          world.modules.Games.decide(world, bodies, id, kind)
+        elseif kind.errand_chance
+           and world.streams.wander_guy:chance(kind.errand_chance)
            and begin_errand(world, bodies, id, kind) then
           -- off it goes
         elseif world.streams.idle:chance(kind.idle_chance) then
