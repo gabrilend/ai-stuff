@@ -33,6 +33,7 @@ What has to be distinguishable at a glance:
 | --- | --- |
 | Team, at any zoom | The whole read is "where does mine stop and theirs start." |
 | Wave unit vs hero vs guard vs monster | Four things with four very different meanings. |
+| **Melee vs a body with a reach** | The whole of how a line is arranged, and invisible while both are dots. |
 | A tower's health | Falling stone is the second-biggest event in a lane. |
 | A tower's upgrades | Otherwise issue 408's whole trade is invisible. |
 | A soldier's spawning lane during a challenge | Issue 607's ruling is unexplainable without it. |
@@ -43,6 +44,83 @@ be hundreds to thousands of them and they are all the same handful of shapes;
 this is the one place in the viewer where the drawing has to be fast, and it is
 fast for the same reason the simulation is — flat arrays of numbers, processed
 all at once rather than one at a time.
+
+### A shot in flight is a tiny dart
+
+Ranged attacks currently happen with nothing between the shooter and the target: damage
+lands, health drops, and the arrow does not exist. So the second battle at the shoulders
+that the whole orbiting design produces is invisible unless you are watching health bars.
+
+A shot draws a **tiny dart** travelling from shooter to target, and the colour is the
+rule worth stating carefully:
+
+| Team shot at | Dart |
+| --- | --- |
+| the blue team | **red** |
+| the orange team | **green** |
+
+**The dart is coloured by who it is flying at, not by who threw it** — which is the
+opposite of every other colour on the screen, where a thing is its owner's colour. That
+inversion is the point. A cloud of red darts means *blue is being shot at*, read off the
+colour alone without tracing any of them back to a shooter, so a player sees who is
+taking fire rather than who is giving it. Which side is winning an exchange is the
+question, and the answer is the colour of the air.
+
+### Healing has to be visible
+
+**Green, rising, and additive: little `+` marks drifting off a body that is being
+healed.** Healing is the one thing in this game that happens to a body without anything
+visibly touching it — no swing, no arrow, no contact — so it is currently the only
+event on the field with no picture at all. Five healer archetypes were designed to
+differ in *shape* rather than in strength, each answering who-heals-whom a different
+way, and a player cannot tell any of them apart because none of them shows anything.
+
+Drawn from the healing that actually happened this tick rather than from a healer's
+state, so what is on the screen is the effect and not the intent: a healer whose heal
+was wasted on somebody already full should show nothing, because nothing happened.
+
+The marks drift up and fade, which is the only motion in the game that is not a body
+walking, and that is what makes them read as an effect rather than as a thing standing
+on the ground.
+
+### A body with a reach is a wedge
+
+Everything is a disc, and that is one shape too few. **The single most-watched thing
+on this field is where the archers are standing** — whether they are in their files
+behind the line or fanned out to the ends looking for an angle past their own rank
+— and while they are dots differing from the melee by six tenths of a pace of radius,
+they cannot be picked out at all. A player watching a rank fan out is watching the
+most legible consequence of any rule in the game and cannot see it happen.
+
+So: **anything with a reach is drawn as a wedge.** The archers become findable at any
+zoom, which is the whole request, and a fanning rank becomes something to watch
+rather than something to take a measurement of.
+
+**The wedge does not point, and that is a decision rather than an omission.** Pointing
+it wants a world-space angle, and nothing the viewer holds can produce one. The
+body's `facing` is a sign along its own lane, not a bearing — and the field is a
+square with the two bases on opposite corners, so a lane runs diagonally and bends;
+there is no fixed angle that a sign can be turned into. The other candidate is the
+direction the body moved between the two snapshots, which is a real bearing while a
+body is marching and is **nothing at all** while it is standing still fighting, which
+is precisely when a player is looking hardest. A wedge that spins to a default every
+time its body stops is worse than a wedge that never turns.
+
+Pointing them properly wants the lane's tangent at the body's position, which means
+the snapshot carrying either a bearing or enough lane coordinate to derive one. That
+is a change to what crosses the line between the simulation and the viewer, and it
+should be made on purpose rather than as a side effect of wanting a nicer triangle.
+
+It stays one batch per shape per team rather than becoming a draw call per body —
+the shape is the only thing that changed, and a second batch is a second texture,
+not a second loop. The wedge is generated the same way the disc is, in a few lines
+of arithmetic with the same soft edge, rather than becoming a file on disk that has
+to be kept in step with the code that assumes its size.
+
+The archetype-to-size table stays out of this. Whether a body has a reach is a fact
+the **snapshot already carries**, per body, because the simulation already needed it
+— so the shape is chosen from what the body is rather than from a parallel table in
+the viewer that goes stale the moment somebody adds an archetype.
 
 Milestones should be visible as marks along each lane, because they are the
 game's unit of progress and a player who can see them can read a lane the way the
