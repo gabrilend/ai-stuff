@@ -1,16 +1,18 @@
 # Phase 8 — The Mountain
 
-**Three of five.** The world is no longer generated. It is a file somebody typed,
-it is a mountainside rather than a pyramid, it has no walls in it, and it renders
-with every shelf visible from summit to base.
+**Five of six.** The world is no longer generated. It is a file somebody typed, it
+is a mountainside rather than a pyramid, it has no walls in it, every shelf is
+visible from summit to base, and nine hundred spheres roll down it bouncing off
+real geometry and off each other.
 
 | Issue | |
 | --- | --- |
 | [801](completed/801-a-map-is-plates-and-stairs.md) | a map is plates and stairs |
 | [802](completed/802-the-mountainside-is-hard-coded.md) | the mountainside is hard-coded |
 | [803](completed/803-the-height-field-becomes-a-model.md) | the height field becomes a model |
-| [804](804-a-ball-is-a-sphere-against-faces.md) | **not started** — a ball is a sphere against faces |
+| [804](completed/804-a-ball-is-a-sphere-against-faces.md) | a ball is a sphere against faces |
 | [805](805-a-ball-is-a-sprite-in-a-solid-world.md) | **not started** — a ball is a sprite in a solid world |
+| [806](completed/806-balls-collide-with-each-other.md) | balls collide with each other |
 
 `./run-maze --map 070-the-mountainside` shows it.
 
@@ -86,13 +88,81 @@ radius.
 **What it taught:** it is written down in one place, in `069-the-map.info.md`, at
 the function where the conversion happens.
 
+### A sphere on level ground never moves, and it rewrote the map
+
+The mountain's first shape was eight broad flat shelves with a kerb along each
+downhill edge. Under a real physics it did nothing at all: three hundred spheres
+sat exactly where they were dropped and stayed there for a minute. Every surface
+in a height field is level or vertical, gravity points straight down, and a sphere
+on a level plate has no sideways force on it whatsoever.
+
+The old roller hides that completely. It accelerates a ball along the
+*interpolated* slope of the height field, which is nonzero near every edge — so
+its balls move because of the smoothing rather than because of the ground, and
+nobody could have known that from watching them.
+
+The mountain now descends a layer every two cells all the way from the summit to
+the rim, so no ball is ever on a plain, and a ball is dropped with a nudge because
+that is the only thing that ever starts one. Once started it keeps going, and the
+mechanism is worth knowing: rolling off the edge of a step, the nearest stone is
+the *edge* rather than either face, so the push is diagonal and turns part of each
+fall into forward motion. That is why a sphere accelerates down a staircase, and
+it is why the resolver pushes along the direction to the closest point rather than
+along the face's normal.
+
+**What it taught:** the physics was not tested against the map, it *changed* the
+map. Two documents had described broad flat shelves, and both were describing a
+world that could not work.
+
+### Four bugs that only a crowd produces
+
+Every one was invisible with three hundred balls and unmissable with nine hundred,
+and every one is now an assertion.
+
+**A pair was taken by the lower id.** Either rule visits each pair exactly once
+and only one is correct: resolving a pair moves both spheres, and the partner
+needs its settle against the stone afterwards. The roster is maintained by
+swap-remove, so it is in no order at all, and the higher id is very often the body
+processed twenty slots ago. The rule is now the roster slot.
+
+**Two spawns in one tick claimed one cell.** The spawner asks the buckets whether
+a cell is occupied and the buckets are rebuilt once a tick, so the second spawn of
+a tick saw a count that knew nothing about the first and dropped a ball exactly
+inside another — two spheres at one point, with no line of centres to separate
+along.
+
+**The index pass ran after the spawn pass**, so the occupancy check read positions
+from before that tick's move. It runs before now, and the cost is that a body is
+invisible for the single frame in which it appears.
+
+**A sphere that got under a floor was gone forever.** The one-sided face test —
+which is what makes a rectangle behave as the surface of a solid, and which is
+right for every riser — refuses to look at a face from behind. A ball shoved down
+through a floor by a neighbour kept falling, past every other floor, for the same
+reason. Still simulated, still drawn, at minus a hundred and twenty-five layers,
+with the rim check reporting it was inside the map because the rim check only ever
+looked at x and y.
+
+A top face is now the lid of a solid rather than a one-sided plane: a sphere under
+one and horizontally inside it is lifted, whichever side it came from. There is no
+such thing as behind the top of a height field.
+
+**What it taught:** three of the four were latent long before this row existed,
+and a fifth found on the way — the spawn retry drawing from the general floor
+rather than from the wide floor — has been putting dinosaurs where dinosaurs do
+not fit since phase six. A crowd is a test.
+
 ## What is deferred, and what it is waiting on
 
-**The whole ball simulation.** [804](804-a-ball-is-a-sphere-against-faces.md) and
-[805](805-a-ball-is-a-sprite-in-a-solid-world.md) are written and not started. What
-runs on the mountainside today is the *old* roller — the interpolated height field
-from phase 3 — which smooths staircases into ramps on purpose. It works, and it is
-the wrong physics for a mountain whose only way down is stairs.
+**Drawing it properly.** [805](805-a-ball-is-a-sprite-in-a-solid-world.md) is
+written and not started. The world is still drawn by the column sweep rather than
+from the model, so the renderer and the physics read two different descriptions of
+the same mountain, and a ball is still a drawn circle rather than a sprite.
+
+**What the pass costs.** Nine hundred spheres cost 3.6 milliseconds a tick, about
+four microseconds each, against 0.8 for the old roller — a fifth of a frame. The
+row also declares itself **not parallel**, honestly: it writes to two bodies at a
+time and the second is not in the range a thread pool would hand it.
 
 **The thirty-two layer ceiling.** The map wants four-layer shelves and comes to
 thirty-four layers; a column is a 32-bit integer. The map was re-spaced to three
