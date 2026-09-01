@@ -62,7 +62,7 @@ not before, which is occasionally exactly where a party wanted one.
 ## Related documents and tools
 
 - [The monsters of the delve](../docs/023-the-monsters-of-the-delve.md)
-- [A column is one integer](101-a-column-is-one-integer.md)
+- [A column is one integer](completed/101-a-column-is-one-integer.md)
 
 ## Still open
 

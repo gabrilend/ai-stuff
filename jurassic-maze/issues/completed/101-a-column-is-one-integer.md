@@ -5,7 +5,7 @@
 | Phase | 1 — The Stone |
 | Blocked by | nothing. This is the foundation. |
 | Blocks | 102, 104, 105, 106, 107, 108, 201, 202, 304, 305, 602, 704 |
-| Reads | [the stone and what is inferred](../docs/002-the-stone-and-what-is-inferred.md) |
+| Reads | [the stone and what is inferred](../../docs/002-the-stone-and-what-is-inferred.md) |
 | Open questions | 4 (how big is a maze) — does not block, it is a knob |
 
 ## Current behavior
@@ -36,7 +36,7 @@ column is stone, clear when it is air.
 The index is `x + y * width` and not `y + x * depth`. That is not arbitrary —
 it makes the array's memory order identical to the renderer's correct
 back-to-front draw order, so the hottest loop in the program walks memory
-forwards. See [the projection](../docs/006-the-isometric-projection.md).
+forwards. See [the projection](../../docs/006-the-isometric-projection.md).
 
 A bitmask rather than a height per cell. A height cannot describe a hole, and
 the moment anything wants a tunnel, a bridge, or a ceiling, every piece of code
@@ -71,7 +71,7 @@ exists. It is storage and bit arithmetic.
 
 ## Related documents and tools
 
-- [The stone and what is inferred](../docs/002-the-stone-and-what-is-inferred.md)
+- [The stone and what is inferred](../../docs/002-the-stone-and-what-is-inferred.md)
 - `./run-tests`
 
 ## Still open

@@ -5,7 +5,7 @@
 | Phase | 1 — The Stone |
 | Blocked by | 101, 103 |
 | Blocks | 105, 106, 108 |
-| Reads | [carving the maze](../docs/003-carving-the-maze.md) |
+| Reads | [carving the maze](../../docs/003-carving-the-maze.md) |
 | Open questions | 7 (should the upper terraces be inset) |
 
 ## Current behavior
@@ -68,7 +68,7 @@ edges.
 
 ## Related documents and tools
 
-- [Carving the maze](../docs/003-carving-the-maze.md)
+- [Carving the maze](../../docs/003-carving-the-maze.md)
 - `docs/balance-updates.md` — the first values and why they were guessed
 
 ## Still open

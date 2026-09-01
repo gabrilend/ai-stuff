@@ -41,6 +41,10 @@ it. See [seeing it without a window](009-seeing-it-without-a-window.md) for why.
 | `046-the-terminal-viewer` | one layer, as characters | [without a window](009-seeing-it-without-a-window.md) |
 | `047-the-headless-runner` | no window at all | [without a window](009-seeing-it-without-a-window.md) |
 | `048-the-report` | the numbers a run produces | [without a window](009-seeing-it-without-a-window.md) |
+| `049`–`054` | the tests, in `tests/`. Run by `./run-tests`. | |
+| `055-the-documentation-builder` | Markdown to a cross-linked site, with three pages you can move things on | |
+| `056-the-document-validator` | every link, every companion page, every issue the roadmap promises | |
+| `057-the-relinker` | repairs the links an issue's move just broke | |
 
 `main.lua` and `conf.lua` sit at the root and carry no index, because the engine
 insists on those exact names in that exact place. `main.lua` is a doorway and not
@@ -54,9 +58,11 @@ sitting outside the reading order.
 | --- | --- |
 | `./run-maze` | the window, the terminal, headless, or a screenshot |
 | `./run-many-mazes` | the overnight sweep, one worker per core |
-| `./run-tests` | the invariants and the document validator |
+| `./run-tests` | both halves: the invariants and the document validator |
 | `./run-phase-demo` | asks which phase, runs its demo |
 | `./build-documentation` | turns all of this into cross-linked HTML |
+| `./validate-documentation` | a compiler for the written half |
+| `./complete-issue` | moves a finished issue and repairs the links |
 | `./new-source-file` | the only sanctioned way to add a source file |
 | `./new-document` | the same, for prose |
 | `./fill-source-file` | rewrites a body, never the licence |
@@ -85,8 +91,27 @@ whole tick design is arranged to avoid.
 | how anything is drawn | `041-the-palette` or `042-the-renderer`, and never the simulation |
 | what happens between two creatures | the meet table |
 
+| an issue's state | `./complete-issue`, never `mv` |
+| a document | anything, then `./validate-documentation` |
+
 If a change does not fit any of those rows, that is worth stopping over. Either
 the table is out of date, or the change is bigger than it looks.
+
+## Three pieces of bookkeeping that nobody does by hand
+
+Each of these is the sort of thing that rots the moment a person is asked to
+remember it, so a tool does it instead.
+
+- **The licence notice and the file index.** `new-source-file` claims the next
+  number, stamps the notice, and writes the companion stub; `fill-source-file`
+  replaces a body and refuses outright to write into an unstamped file.
+- **The links an issue's move breaks.** Moving a file into `issues/completed/`
+  silently invalidates every relative link inside it and every link to it — a
+  hundred and nine of them, the first time it was checked. `./complete-issue`
+  moves it and repairs them; the repair is idempotent and can be run alone.
+- **Whether the written half still holds together.** `./validate-documentation`
+  checks every link, every companion page, every issue the roadmap promises, and
+  the index counter against what is on disk. It runs as part of `./run-tests`.
 
 ## Related documents and tools
 

@@ -5,7 +5,7 @@
 | Phase | 2 — The Eye |
 | Blocked by | 108 |
 | Blocks | 307, and every test after |
-| Reads | [seeing it without a window](../docs/009-seeing-it-without-a-window.md) |
+| Reads | [seeing it without a window](../../docs/009-seeing-it-without-a-window.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -66,5 +66,5 @@ and prints the table you read in the morning.
 
 ## Related documents and tools
 
-- [Seeing it without a window](../docs/009-seeing-it-without-a-window.md)
-- [Ways this could go wrong](../docs/027-ways-this-could-go-wrong.md)
+- [Seeing it without a window](../../docs/009-seeing-it-without-a-window.md)
+- [Ways this could go wrong](../../docs/027-ways-this-could-go-wrong.md)

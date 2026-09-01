@@ -5,7 +5,7 @@
 | Phase | 1 — The Stone |
 | Blocked by | 103, 104 |
 | Blocks | 106, 108 |
-| Reads | [carving the maze](../docs/003-carving-the-maze.md) |
+| Reads | [carving the maze](../../docs/003-carving-the-maze.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -47,7 +47,7 @@ them.
 Then **braiding**: a `braid` fraction of the still-closed links are reopened at
 random. A perfect maze has no loops, and on a maze with no loops there is one
 route between any two rooms, so a chase has a known ending and a body fleeing is
-always cornered. [The games](../docs/020-games-that-creatures-play.md) need loops
+always cornered. [The games](../../docs/020-games-that-creatures-play.md) need loops
 to exist at all.
 
 The walk is iterative with an explicit stack. A recursive one blows the Lua
@@ -74,5 +74,5 @@ it does it as a crash that looks unrelated to the maze.
 
 ## Related documents and tools
 
-- [Carving the maze](../docs/003-carving-the-maze.md)
+- [Carving the maze](../../docs/003-carving-the-maze.md)
 - [Staircases are cut, not built](106-staircases-are-cut-not-built.md)

@@ -35,7 +35,7 @@ Four ways to dismount, and the last two are why this is worth building:
 2. The mount dies — the rider is dropped and falls if there is nothing under it.
 3. **The ceiling is too low.** The pair's height is the mount's plus one, so
    there are places a dinosaur fits and a ridden one does not.
-   [The headroom check](107-four-answers-to-may-i-move.md) refuses the move.
+   [The headroom check](completed/107-four-answers-to-may-i-move.md) refuses the move.
 4. **The corridor is too narrow.** The pair's footprint is the mount's.
 
 Points three and four are the mode's geometry. Mounted, a party is fast and

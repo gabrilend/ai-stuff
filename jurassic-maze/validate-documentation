@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#
+# validate-documentation -- checks the documents and issues against each other,
+# and against what is actually on disk.
+#
+# A compiler for the written half. It cannot check prose, and prose is where
+# documentation actually rots -- but it can check every claim that has a
+# referent, and each of those is a small thing nobody notices for months and
+# which makes a reader distrust the whole set when they finally do.
+#
+# Usage:
+#   ./validate-documentation
+#   ./validate-documentation /path/to/checkout
+
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+luajit "${DIR}/src/056-the-document-validator.lua" "${DIR}"

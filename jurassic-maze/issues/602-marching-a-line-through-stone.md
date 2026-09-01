@@ -21,7 +21,7 @@ step. Reach B, there is sight; hit stone, there is not.
 The march visits cells, in steps of at most half a cell so none is skipped, and
 each step is **one array read and one bit test**. That cheapness is what makes
 asking it often affordable, and it is a direct consequence of
-[the column being one integer](101-a-column-is-one-integer.md).
+[the column being one integer](completed/101-a-column-is-one-integer.md).
 
 The height along the line is interpolated between the two surfaces, both raised
 by an **eye height** of one layer. Without the offset the line runs exactly along

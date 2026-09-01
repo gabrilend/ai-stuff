@@ -5,7 +5,7 @@
 | Phase | 2 — The Eye |
 | Blocked by | 101 |
 | Blocks | 202, 204 |
-| Reads | [the isometric projection](../docs/006-the-isometric-projection.md) |
+| Reads | [the isometric projection](../../docs/006-the-isometric-projection.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -33,7 +33,7 @@ height in layers — and a point on the screen:
 
 **Two-to-one**, so `half_width` is twice `half_height`. Measured off the
 reference picture and recorded in
-[the inspiration notice](../inspiration/NOTICE.md) beside the other
+[the inspiration notice](../../inspiration/NOTICE.md) beside the other
 measurements. Two-to-one rather than a true thirty-degree isometric because at
 two-to-one every diamond edge advances exactly two pixels across for one down, so
 diagonals land on whole pixels and the stone reads as stone.
@@ -68,4 +68,4 @@ window.
 
 ## Related documents and tools
 
-- [The isometric projection](../docs/006-the-isometric-projection.md)
+- [The isometric projection](../../docs/006-the-isometric-projection.md)

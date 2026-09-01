@@ -5,7 +5,7 @@
 | Phase | 4 — The Wandering |
 | Blocked by | 202, 401 |
 | Blocks | nothing |
-| Reads | [walking the surface graph](../docs/014-walking-the-surface-graph.md) |
+| Reads | [walking the surface graph](../../docs/014-walking-the-surface-graph.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -52,5 +52,5 @@ nobody can say what changed.
 
 ## Related documents and tools
 
-- [Walking the surface graph](../docs/014-walking-the-surface-graph.md)
-- [Drawing a pile of stones](../docs/007-drawing-a-pile-of-stones.md)
+- [Walking the surface graph](../../docs/014-walking-the-surface-graph.md)
+- [Drawing a pile of stones](../../docs/007-drawing-a-pile-of-stones.md)

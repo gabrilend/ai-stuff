@@ -5,7 +5,7 @@
 | Phase | 2 — The Eye |
 | Blocked by | 202 |
 | Blocks | nothing |
-| Reads | [drawing a pile of stones](../docs/007-drawing-a-pile-of-stones.md) |
+| Reads | [drawing a pile of stones](../../docs/007-drawing-a-pile-of-stones.md) |
 | Open questions | 10 (what colour is it) |
 
 ## Current behavior
@@ -58,8 +58,8 @@ reads as the upper terraces being more weathered.
 
 ## Related documents and tools
 
-- [Drawing a pile of stones](../docs/007-drawing-a-pile-of-stones.md)
-- [Open questions](../docs/026-open-questions.md) — question 10
+- [Drawing a pile of stones](../../docs/007-drawing-a-pile-of-stones.md)
+- [Open questions](../../docs/026-open-questions.md) — question 10
 
 ## Still open
 

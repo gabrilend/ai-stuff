@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+#
+# complete-issue -- moves a finished issue into issues/completed/ and repairs
+# every link that move just broke.
+#
+# Moving a file down a directory silently invalidates every relative link inside
+# it and every relative link to it. An issue that said `../docs/002-the-stone.md`
+# now means `issues/docs/002-the-stone.md`, which is nowhere; the roadmap that
+# said `../issues/101-a-column.md` now points at a gap. Nothing warns. The links
+# simply stop working, and stay broken until somebody clicks one.
+#
+# So the move is a tool rather than a `mv`, and the tool does the repair.
+#
+# Usage:
+#   ./complete-issue 101-a-column-is-one-integer
+#   ./complete-issue 101                          (the prefix is enough)
+#   ./complete-issue --relink                     repair every link, move nothing
+#   ./complete-issue /path/to/checkout 101
+
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+if [ -z "$1" ]; then
+    echo "complete-issue: which issue?"
+    echo "Usage: ./complete-issue <issue-name-or-number>"
+    echo "       ./complete-issue --relink"
+    exit 1
+fi
+
+if [ "$1" != "--relink" ]; then
+    # Find it by prefix, so a number is enough and nobody has to type the whole
+    # dashed name.
+    NAME="$(ls "${DIR}/issues" | grep "^$1" | head -1)"
+    if [ -z "${NAME}" ]; then
+        echo "No open issue starting with '$1'."
+        echo "Open issues:"
+        ls "${DIR}/issues" | grep '^[0-9]' | sed 's/^/  /'
+        exit 1
+    fi
+    mv "${DIR}/issues/${NAME}" "${DIR}/issues/completed/${NAME}"
+    echo "moved ${NAME} to issues/completed/"
+fi
+
+luajit "${DIR}/src/057-the-relinker.lua" "${DIR}"

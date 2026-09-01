@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+#
+# build-documentation -- turns all of this into browsable, cross-linked HTML in
+# docs/HTML/.
+#
+# Every document, every issue, every companion page and every source file, with a
+# contents column that reaches all of them from any of them, and three pages that
+# have something you can move on them: the column whose surfaces you can watch
+# being computed, the projection with its three constants on sliders, and the
+# numbers a real maze produced at the moment the site was built.
+#
+# The pages are a **view**. They are generated, they are gitignored, and nothing
+# is lost by their absence -- committing them means every prose edit arrives as a
+# diff of itself plus a hundred files of machine output, and it means two people
+# who both ran the build have a conflict in something neither of them wrote.
+#
+# Usage:
+#   ./build-documentation                  build, and say where
+#   ./build-documentation --open           build, then open it
+#   ./build-documentation /path/to/checkout
+
+# The project root. Hard-coded so the script runs from any directory, and
+# overridable as a leading argument.
+DIR="/mnt/mtwo/programming/ai-stuff/jurassic-maze"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+OUT="${DIR}/docs/HTML"
+
+# Everything under docs/HTML is rewritten from current state, so what was there
+# before goes -- otherwise a document that was renamed leaves its old page
+# behind, still linked from nowhere, still findable, and still wrong.
+find "${OUT}" -name '*.html' -delete 2>/dev/null
+mkdir -p "${OUT}"
+touch "${OUT}/.gitkeep"
+
+COUNT="$(luajit -e "
+    local builder = dofile('${DIR}/src/055-the-documentation-builder.lua')
+    print(builder.build('${DIR}'))
+")"
+
+echo "${COUNT} pages in ${OUT}"
+echo "open ${OUT}/index.html"
+
+if [ "$1" = "--open" ]; then
+    xdg-open "${OUT}/index.html" >/dev/null 2>&1 &
+fi

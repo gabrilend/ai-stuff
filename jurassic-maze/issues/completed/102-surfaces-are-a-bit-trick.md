@@ -5,7 +5,7 @@
 | Phase | 1 — The Stone |
 | Blocked by | 101 |
 | Blocks | 107, 108, 202, 304, 306, 401 |
-| Reads | [the stone and what is inferred](../docs/002-the-stone-and-what-is-inferred.md) |
+| Reads | [the stone and what is inferred](../../docs/002-the-stone-and-what-is-inferred.md) |
 | Open questions | none |
 
 ## Current behavior
@@ -79,5 +79,5 @@ and it changes whenever the stone does.
 
 ## Related documents and tools
 
-- [The stone and what is inferred](../docs/002-the-stone-and-what-is-inferred.md)
-- [Standing somewhere and going elsewhere](../docs/004-standing-somewhere-and-going-elsewhere.md)
+- [The stone and what is inferred](../../docs/002-the-stone-and-what-is-inferred.md)
+- [Standing somewhere and going elsewhere](../../docs/004-standing-somewhere-and-going-elsewhere.md)
