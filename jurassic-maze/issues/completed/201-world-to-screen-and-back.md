@@ -10,7 +10,18 @@
 
 ## Current behavior
 
-A maze exists as integers and cannot be looked at.
+Two-to-one isometric, in `040-the-projection.lua`. Pure arithmetic that does not
+import the engine, so the headless runner loads it.
+
+`visible_range` extends the swept range by the tallest a column can reach,
+converted from pixels into cells, in the direction of increasing `x + y`.
+`pick` marches down through the layers rather than using the cheap inversion,
+because a click landing on a wall's top otherwise reports the cell behind the one
+being looked at.
+
+`LAYER_PIXELS` was raised from 7 to 10 after the first screenshots. At 7 the whole
+pile of terraces rose less than a tenth of the footprint's projected height and
+the mound read as flat.
 
 ## Intended behavior
 

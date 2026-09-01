@@ -10,7 +10,13 @@
 
 ## Current behavior
 
-There is a maze and nothing in it.
+One table of flat arrays, thirty of them, built from a single field list so that
+adding a field is adding a row and no constructor can forget to zero one. A free
+list, generation counters, and per-locomotion rosters maintained by swap-remove.
+
+Capacity is 2000 and running out raises. The test spawns a store to capacity,
+kills half, respawns, and asserts no recycled id validates against an old
+generation.
 
 ## Intended behavior
 

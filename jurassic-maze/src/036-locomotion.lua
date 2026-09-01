@@ -19,7 +19,185 @@
 -- 036-locomotion.lua
 --
 -- The dispatch table of ways to move, and the machinery its rows share.
+--
+-- Two kinds of motion were asked for by name -- continuous with momentum for the
+-- balls, a smoothed graph walk for the little guys -- with the instruction to
+-- accommodate multiple. So there is no "how bodies move" in this project. There
+-- is a table, and each row is one way of moving.
 
 local M = {}
+
+-- A body's z is the height of its feet, in layer units. A body standing on the
+-- surface at layer L has z = L + 1, because the block occupying layer L spans
+-- heights L to L+1 and its top is the thing being stood on.
+--
+-- Getting this off by one buries every body half a layer inside the stone it is
+-- standing on, which looks like nothing at all, because the block it is inside
+-- is exactly the same colour as the one it should be on top of.
+-- {{{ function M.surface_top(layer)
+function M.surface_top(layer)
+  return layer + 1
+end
+-- }}}
+
+-- {{{ function M.new_table()
+-- The rows, in the order the creature table names them.
+--
+-- Five of the seven are unimplemented and raise by name if reached. That is
+-- deliberate: a row that errors saying "lumbering is not built yet" is a far
+-- better failure than a nil index three calls away, and it means the shape of
+-- the design is visible in the code rather than only in the documents.
+function M.new_table(Rolling, Walking)
+  return {
+    { name = "rolling",  advance = Rolling.advance,  parallel = true,
+      needs = { "x", "y", "z", "vx", "vy", "vz" } },
+
+    { name = "walking",  advance = Walking.advance,  parallel = true,
+      needs = { "cell", "layer", "from_cell", "from_layer", "progress" } },
+
+    { name = "striding", advance = M.unbuilt("striding, for bodies wider than " ..
+        "one cell -- phase 6"), parallel = true, needs = {} },
+
+    { name = "lumbering", advance = M.unbuilt("lumbering, which breaks walls " ..
+        "rather than routing around them -- phase 7"), parallel = true, needs = {} },
+
+    { name = "creeping", advance = M.unbuilt("creeping along wall faces -- " ..
+        "phase 7"), parallel = true, needs = {} },
+
+    -- Riding. This row does nothing, which is the correct amount of work for a
+    -- body that is not moving under its own power -- and being a row rather than
+    -- a flag means the move pass never learns that riding exists.
+    { name = "carried",  advance = function() end, parallel = true, needs = {} },
+
+    { name = "still",    advance = function() end, parallel = true, needs = {} },
+  }
+end
+-- }}}
+
+-- {{{ function M.unbuilt(what)
+function M.unbuilt(what)
+  return function()
+    error("locomotion row not built yet: " .. what)
+  end
+end
+-- }}}
+
+-- {{{ function M.check_needs(rows, bodies)
+-- Every field a row claims to touch must exist, checked once at startup.
+--
+-- A row naming a field that is not there is a typo, and a typo caught at load is
+-- a message; the same typo caught in the inner loop is a nil arithmetic error
+-- forty thousand ticks into a headless run.
+function M.check_needs(rows, bodies)
+  for index, row in ipairs(rows) do
+    for _, field in ipairs(row.needs) do
+      if bodies[field] == nil then
+        error(string.format(
+          "locomotion row %d (%s) needs a body field called '%s' and there is none",
+          index, row.name, field))
+      end
+    end
+  end
+end
+-- }}}
+
+-- The three things every row shares. Shared as functions the rows call, not as
+-- behaviour in a base class -- a row that wants a different fall writes one.
+
+-- {{{ function M.settle_stance(Stone, store, bodies, id)
+-- Brings `cell` and `layer` back into agreement with where the body actually is.
+--
+-- Everything else in the program reads the stance and not the position: the
+-- spatial buckets, the renderer's draw order, the meet pass. A body whose stance
+-- has drifted from its position is a body that is drawn in one place, collides
+-- in another, and is found by neither.
+function M.settle_stance(Stone, store, bodies, id)
+  local x = math.floor(bodies.x[id])
+  local y = math.floor(bodies.y[id])
+  if not Stone.in_bounds(store, x, y) then return false end
+
+  local cell = Stone.index(store, x, y)
+  bodies.cell[id] = cell
+
+  -- The surface it is standing on is the highest one at or below its feet.
+  local layer = Stone.highest_surface_at_or_below(store, cell,
+                                                  math.floor(bodies.z[id]))
+  if layer >= 0 then
+    bodies.layer[id] = layer
+  end
+  return true
+end
+-- }}}
+
+-- {{{ function M.floor_under(Stone, store, bodies, id)
+-- The height of the stone directly beneath a body's feet, or -1 over the void.
+function M.floor_under(Stone, store, bodies, id)
+  local x = math.floor(bodies.x[id])
+  local y = math.floor(bodies.y[id])
+  if not Stone.in_bounds(store, x, y) then return -1 end
+  local cell = Stone.index(store, x, y)
+  local layer = Stone.highest_surface_at_or_below(store, cell,
+                                                  math.floor(bodies.z[id] + 0.001))
+  if layer < 0 then return -1 end
+  return M.surface_top(layer)
+end
+-- }}}
+
+-- {{{ function M.apply_falling(Stone, store, bodies, id, kind, dt)
+-- One piece of machinery, called by every row.
+--
+-- Identical for a ball that went over a cliff, a little guy that walked off a
+-- terrace, a rider dropped when its mount died, and a vine that let go. Writing
+-- it once is what keeps them agreeing about what a fall is.
+--
+-- Returns true while the body is in the air.
+function M.apply_falling(Stone, store, bodies, id, kind, dt)
+  local floor = M.floor_under(Stone, store, bodies, id)
+
+  -- Over the void. The rim makes this impossible; it is checked anyway, and the
+  -- caller is the one that shouts, because it knows which row let the body get
+  -- there.
+  if floor < 0 then return false end
+
+  if bodies.z[id] <= floor + 1e-6 and bodies.vz[id] <= 0 then
+    bodies.z[id]  = floor
+    bodies.vz[id] = 0
+    return false
+  end
+
+  bodies.vz[id] = bodies.vz[id] - kind.gravity * dt
+  bodies.z[id]  = bodies.z[id] + bodies.vz[id] * dt
+
+  if bodies.z[id] <= floor then
+    bodies.z[id] = floor
+    local bounce = -bodies.vz[id] * (kind.restitution or 0)
+    -- Below the floor a bounce is set to zero rather than allowed to shrink
+    -- forever. Without this the velocity approaches zero without reaching it and
+    -- the body spends the rest of the run performing several hundred
+    -- infinitesimal bounces a second -- each one a landing event, none of them
+    -- visible, all of them costing.
+    if bounce < (kind.bounce_floor or 0) then bounce = 0 end
+    bodies.vz[id] = bounce
+    return bounce > 0
+  end
+
+  return true
+end
+-- }}}
+
+-- {{{ function M.check_in_world(Stone, store, bodies, id, row_name)
+-- The rim makes leaving the world impossible, and this runs anyway, and it is
+-- loud -- and it names the row that let the body get there, because that is the
+-- one piece of information the stack trace will not have.
+function M.check_in_world(Stone, store, bodies, id, row_name)
+  local x, y = bodies.x[id], bodies.y[id]
+  if x < 0 or y < 0 or x >= store.width or y >= store.depth then
+    error(string.format(
+      "body %d left the world at (%.2f, %.2f) while moving as '%s' -- " ..
+      "the rim is supposed to make that impossible",
+      id, x, y, row_name))
+  end
+end
+-- }}}
 
 return M

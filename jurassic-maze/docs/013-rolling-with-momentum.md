@@ -14,13 +14,26 @@ That interpolation is the whole trick, and it has one rule attached that keeps i
 honest:
 
 > **Only cells within one layer of the ball's own surface contribute their real
-> height.** A cell whose surface is higher than that is a wall, and it
-> contributes the ball's own height instead.
+> height.** A cell higher than that is a wall and contributes the ball's own
+> height instead; a cell lower than that is a cliff and does the same.
 
-Without that rule, interpolating between a corridor at layer 4 and a wall at
-layer 6 produces a gentle ramp into the wall, and the ball rolls up it. With it,
-the interpolated floor is flat right up to the wall, and the wall is dealt with
-by collision rather than by slope — which is what a wall is.
+Without the wall half of the rule, interpolating between a corridor at layer 4
+and a wall at layer 6 produces a gentle ramp into the wall, and the ball rolls up
+it. With it, the floor is flat right up to the wall, and the wall is dealt with by
+collision — which is what a wall is.
+
+The cliff half is easier to forget and matters as much: without it the floor
+slopes away over the edge and the ball is dragged down the cliff face rather than
+leaving the ledge and falling.
+
+One consequence of interpolating at all, which surprised the test that was
+written to catch balls tunnelling into walls: **halfway across a step, a ball is
+strictly inside the stone.** The blended floor is between the two cells' heights
+while the ball is still over one of them. That is the lie, working as intended.
+The clamp bounds it — a cell more than one layer away never contributes, so the
+dip can never exceed one layer — and the invariant the test actually checks is
+that bound, not zero. A ball that has tunnelled into a wall is several layers
+under.
 
 A staircase is where the rule pays off. Each step is one layer, so every step is
 within the limit, so the interpolation turns the flight of stairs into a
@@ -39,12 +52,21 @@ Per tick, in this order:
 | **rolling resistance** | velocity times `roll_friction`, opposing the motion, so a ball on flat ground eventually stops |
 | **integration** | position moves by velocity times the timestep |
 
-The gradient comes from the same interpolated field: the difference between the
-floor height a small distance ahead and a small distance behind, in each axis.
-Sampling the field rather than reasoning about which cell is which means the
-gradient is automatically zero on flat ground, automatically points downhill on a
-staircase, and automatically goes to zero at a wall, because that is what the
-field does there.
+The gradient comes from the same interpolated field, and it comes out of it for
+free. Four corner heights make the patch *exactly* bilinear, so the slope is one
+subtraction per axis rather than four more interpolations — which is what
+sampling the field either side of the point costs, and that version is also wrong
+wherever the two sample points straddle a patch boundary and average across a
+seam that is genuinely a discontinuity.
+
+Taking the slope from the field rather than reasoning about which cell is which
+means it is automatically zero on flat ground, automatically downhill on a
+staircase, and automatically zero at a wall, because that is what the field does
+there.
+
+This was five interpolations per ball per tick before it was one, and it is most
+of the difference between a move pass costing fourteen microseconds a body and
+one costing two.
 
 `roll_friction` exists so that the aquarium does not slowly fill with balls
 oscillating in the bottom of every dip forever. A ball at rest for

@@ -10,8 +10,21 @@
 
 ## Current behavior
 
-The maze can be seen in a window or measured as numbers, and there is nothing in
-between.
+One layer as characters, held at a gate, in `046-the-terminal-viewer.lua`.
+
+`slice` is a function from a store and a layer to an array of strings with no
+terminal anywhere in it, so it is testable against a picture written out by hand.
+`overlay_bodies` is a second pass over those strings, which is what keeps the
+slice pure.
+
+Commands are a table printed from itself, so the help cannot drift from what the
+keys do. `b` jumps to the lowest body, which is the one command that gets used
+constantly — a body that has gone somewhere strange has usually gone *down*.
+
+The file is also a program, invoked directly as a script. There is no spelling of
+`luajit -e` that survives a command line containing `--seed`: without `--`, luajit
+reads it as an option meant for itself; with `--`, it treats the next argument as
+a script to open.
 
 ## Intended behavior
 

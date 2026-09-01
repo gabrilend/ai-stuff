@@ -53,37 +53,65 @@ across frames, and it costs no memory and no draws from the
 rather than a stream precisely because the renderer must not be able to move the
 simulation.
 
-## The order things are drawn in
+## The stone is baked once
 
-Back to front, one linear sweep of the column array, as
-[the projection](006-the-isometric-projection.md) explains. Within one column,
-runs are drawn bottom-up, and within one run the two side faces are drawn before
-the top face.
+The stone does not change, so the faces are turned into geometry **once**, at
+load, and the camera is applied as a transform afterwards. Panning and zooming a
+hundred thousand polygons then costs two numbers.
 
-Bodies are the awkward case. A body standing on a surface must be drawn after
-everything behind it and before everything in front, and "everything" includes
-the column it is standing on. So bodies are **bucketed by cell** before the
-sweep starts — one pass over the body store, each body dropped into the bucket
-for its cell — and the sweep draws a column's faces and then whatever bodies are
-in that column's bucket.
+Rebuilding the geometry per frame would be a hundred thousand polygons of work to
+produce a picture identical to the last one, and — worse — it would allocate,
+and a renderer that allocates per frame stutters every time the collector
+notices, correlated with nothing anybody can see.
 
-That bucketing pass is the only place in the renderer that touches the body
-store, and it is a scatter into a preallocated array of counts and offsets
-rather than a table of lists, so it allocates nothing per frame. A renderer that
-allocates per frame is a renderer that stutters every time the garbage collector
-notices.
+When a golem starts breaking walls in phase seven, the rebuild happens on the
+stone's version counter rather than every frame. The counter exists now, and is
+never bumped, precisely so that the first thing to change the stone cannot forget
+it.
 
-## What the outline is for
+## The order things are drawn in, and where bodies go
 
-Every face gets a thin darker edge along its boundary. Without it a wall two
-layers tall next to a wall three layers tall is two shades of the same grey with
-an invisible seam, and the maze reads as a flat noisy texture rather than as
-geometry. The reference picture solves this with drawn linework, and the outline
-is the cheapest thing that does the same job.
+Back to front, which is band by band: cells sharing one value of `x + y` lie
+across the screen and none can occlude any other.
 
-The outline is drawn as part of the face, not as a second pass, because a second
-pass over the same faces doubles the sweep and the whole point of the linear
-sweep is that it happens once.
+Bodies are the awkward case, and they are why the band order exists at all. A
+body must be drawn after everything behind it and before everything in front, and
+"everything" includes the wall in front of the corridor it is standing in. A
+single mesh is drawn all at once, so a body drawn afterwards sits on top of the
+entire maze.
+
+So the mesh records, for each band, the range of its geometry, and the frame
+draws: band's stone, band's bodies, next band. Two draw calls per band and no
+geometry rebuilt.
+
+The bodies are grouped into bands by a sweep over the body store into reused
+arrays — nothing allocated per frame — and that sweep is the only place in the
+renderer that touches the body store at all.
+
+## What the outline is for, and which edges get one
+
+Without linework a wall two layers tall next to a wall three layers tall is two
+shades of one grey with an invisible seam, and the maze reads as a noisy texture
+rather than as geometry. The reference picture is drawn linework over flat
+colour and reads as stone because of it.
+
+The scheme is two meshes and no line drawing at all. The faces tile without gaps,
+so a mesh of full-size faces in the outline colour is completely hidden by a mesh
+of **inset** faces drawn on top — except along whichever sides were pulled in,
+where the gap exposes a line of it. Two draw calls for the whole maze's linework.
+
+**Which sides get pulled in is the part that matters.** Insetting all four is
+what a naive reading of "outline every face" gives, and it draws a line between
+every pair of neighbouring cells — including two cells of one long wall whose
+tops are the same continuous slab of stone. With those lines in, the maze stops
+reading as corridors between walls and starts reading as a field of separate
+cubes; it was the single largest visual error in the first working renderer, and
+nothing about it showed up in any number.
+
+So a side is inset only when it is a real edge: a top face's side, only where the
+neighbour's floor is not at exactly this layer; a wall face's vertical side, only
+where the neighbour's exposed run does not match. The reference picture has
+linework everywhere and none of it is the line between two cells of one wall.
 
 ## What is not drawn
 
