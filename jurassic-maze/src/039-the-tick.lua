@@ -91,6 +91,8 @@ function M.new_world(root, params, scene, population)
   local Locomotion = require_local(root, "036-locomotion")
   local Rolling    = require_local(root, "037-rolling")
   local Walking    = require_local(root, "038-walking")
+  local Bouncing   = require_local(root, "073-bouncing")
+  local Model      = require_local(root, "071-the-model")
   local Meeting    = require_local(root, "058-meeting")
   local Duels      = require_local(root, "060-duels")
   local Sight      = require_local(root, "062-sight")
@@ -275,6 +277,8 @@ function M.new_world(root, params, scene, population)
 
   Rolling.link(Stone, Locomotion, Moving, Creatures)
   Walking.link(Stone, Locomotion, Moving, Creatures)
+  Bouncing.link({ Locomotion = Locomotion, Creatures = Creatures, Model = Model,
+                  BodyStore = BodyStore, Stone = Stone })
   Meeting.link(Stone, BodyStore, Walking, Creatures)
   Duels.link(BodyStore, Walking, Creatures)
   Sight.link(Stone, Moving, Creatures)
@@ -284,14 +288,33 @@ function M.new_world(root, params, scene, population)
   local bodies = BodyStore.new(p.capacity, store.cells, widest)
   bodies.CARRIED_ROW = Creatures.CARRIED
 
-  local rows = Locomotion.new_table(Rolling, Walking)
+  local rows = Locomotion.new_table(Rolling, Walking, Bouncing)
   Locomotion.check_needs(rows, bodies)
+
+  -- The world as geometry, built once and never rebuilt.
+  --
+  -- The store keeps a height as the index of the topmost solid layer and a layer
+  -- L occupies L to L + 1, so the plane a body stands on is one higher than the
+  -- stored number. The model works in planes throughout, because a sphere resting
+  -- on a shelf has its centre at the shelf plus its radius, and mixing the two
+  -- conventions would put every ball half a layer inside the stone it is standing
+  -- on -- which looks like nothing at all, the block it is inside being the same
+  -- colour as the one it should be on top of.
+  local planes = {}
+  for i = 0, store.cells - 1 do planes[i] = store.height[i] + 1 end
+  --
+  -- The rim is a wall as tall as the world plus a margin. A body cannot get over
+  -- it by climbing, and the margin is what stops one getting over it by being
+  -- launched off a staircase into the corner of the map.
+  local model = Model.build({ width = store.width, depth = store.depth,
+                              height = planes }, 0, store.layers + 4)
 
   local world = {
     root      = root,
     params    = p,
     streams   = streams,
     store     = store,
+    model     = model,
     report    = report,
     bodies    = bodies,
     rows      = rows,
@@ -305,6 +328,8 @@ function M.new_world(root, params, scene, population)
     -- is four times the density, and density is what the meet pass costs.
     population = population,
     tick_count = 0,
+    -- Cells a spawn has claimed this tick. See pass_spawn.
+    spawned_here = {},
     floor       = floor,
     by_height   = by_height,
     highest     = highest,
@@ -431,17 +456,35 @@ function M.spawn_one(world, kind_index)
   -- tick and counts it, because the population recovers next tick and a maze
   -- whose spawn points are all blocked should show up as a number rather than as
   -- an aquarium that slowly empties.
-  if bodies.bucket_count[cell] and bodies.bucket_count[cell] > 0 then
+  --
+  -- The buckets alone are not enough, because they are rebuilt once a tick and
+  -- the aquarium puts down several bodies within one. The second and third
+  -- spawns of a tick would each see a bucket count that knows nothing about the
+  -- first, and drop a ball straight into it -- two spheres at the same point, a
+  -- case with no line of centres to separate along.
+  local taken = world.spawned_here
+  local function occupied(c)
+    return taken[c] or (bodies.bucket_count[c] and bodies.bucket_count[c] > 0)
+  end
+
+  -- The retry draws from the same pool the creature was allowed to stand on in
+  -- the first place. Drawing from the general floor instead puts a dinosaur down
+  -- somewhere its footprint does not fit, which the habitat test catches and
+  -- which reads as a broken locomotion row rather than as a bad spawn.
+  local pool = (kind.radius >= 1) and world.wide_floor or world.floor
+
+  if occupied(cell) then
     local retry = 0
     repeat
-      cell = world.floor[rng:next_below(#world.floor)]
+      cell = pool[rng:next_below(#pool)]
       retry = retry + 1
-    until bodies.bucket_count[cell] == 0 or retry > 8
-    if bodies.bucket_count[cell] > 0 then
+    until not occupied(cell) or retry > 8
+    if occupied(cell) then
       world.counters.spawn_skipped = world.counters.spawn_skipped + 1
       return nil
     end
   end
+  taken[cell] = true
 
   local id = BodyStore.spawn(bodies)
   local x, y = Stone.coords(store, cell)
@@ -466,12 +509,25 @@ function M.spawn_one(world, kind_index)
     bodies.team[id] = rng:next_below(kind.team_count)
   end
 
-  -- A ball starts with a nudge, drawn from the spawn stream. Dropping it exactly
-  -- still means it sits in the middle of a flat corridor doing nothing until the
-  -- rest timer takes it away, which is a very dull aquarium.
-  if kind.locomotion == world.creatures.ROLLING then
-    bodies.vx[id] = (rng:next_float() - 0.5) * 2.0
-    bodies.vy[id] = (rng:next_float() - 0.5) * 2.0
+  -- A ball starts with a nudge, drawn from the spawn stream.
+  --
+  -- For the old roller this was a matter of taste: dropped exactly still, a ball
+  -- sits in the middle of a flat corridor until the rest timer takes it away,
+  -- which is a very dull aquarium.
+  --
+  -- For the sphere it is structural. Every surface in this world is either level
+  -- or vertical, so a sphere at rest on one has **no** sideways force on it at
+  -- all -- gravity points straight down and the floor pushes straight up, and it
+  -- stays exactly where it was put forever. The old roller hides this by
+  -- accelerating along the *interpolated* slope of the height field, which is
+  -- nonzero near every edge, so its balls move because of the smoothing rather
+  -- than because of the ground. A sphere has to be started, and once started it
+  -- keeps going: rolling off the edge of a step, the nearest stone is the edge
+  -- itself rather than either face, so the push is diagonal and turns part of the
+  -- fall into forward motion.
+  if kind.spawn_nudge then
+    bodies.vx[id] = (rng:next_float() - 0.5) * kind.spawn_nudge
+    bodies.vy[id] = (rng:next_float() - 0.5) * kind.spawn_nudge
   end
 
   BodyStore.set_locomotion(bodies, id, kind.locomotion)
@@ -532,6 +588,11 @@ end
 -- {{{ local function pass_spawn(world, dt)
 -- The aquarium tops itself up. There is no run that finishes.
 local function pass_spawn(world, dt)
+  -- Cells claimed by a spawn already made this tick. Cleared here rather than
+  -- accumulated, so it says "this tick" and not "since the run began".
+  local taken = world.spawned_here
+  for c in pairs(taken) do taken[c] = nil end
+
   local bodies = world.bodies
   local kinds  = world.creatures.KINDS
   local live_by_kind = {}
@@ -647,8 +708,22 @@ M.PASSES = {
     parallel = false },
   { name = "monsters", fn = function(world, dt) world.modules.Delve.pass_monsters(world, dt) end,
     parallel = false },
-  { name = "spawn", fn = pass_spawn, parallel = false },
+  -- The index before the spawn, and the order is load-bearing.
+  --
+  -- The spawner refuses to put a body down on a cell that already holds one, and
+  -- it asks the buckets. With the spawn running first, the buckets it asks are
+  -- from *before* this tick's move pass, so a body that has just rolled into a
+  -- cell is still recorded in the one it left -- and the aquarium drops a new ball
+  -- straight through it. Two spheres in one sphere's space, separated on the next
+  -- tick by a shove that comes out of nowhere.
+  --
+  -- The cost of this order is that a body spawned this tick is not in the buckets
+  -- until the next one, so it is not drawn for a single frame and the meet pass
+  -- does not see it for a single tick. A sixtieth of a second of invisibility at
+  -- the moment a body appears, against an index that is a whole pass out of date
+  -- at the moment it is questioned.
   { name = "index", fn = pass_index, parallel = false },
+  { name = "spawn", fn = pass_spawn, parallel = false },
 }
 -- }}}
 

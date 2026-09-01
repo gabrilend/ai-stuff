@@ -326,3 +326,26 @@ a whole category of them from ever being needed.
 Open question 10 is answered: **keep the limestone.** No numbers changed. Every
 colour in the project is still in one file and nothing else names one, so this
 stays a one-file decision if it is ever revisited.
+
+## The bouncer
+
+A second ball, moving as a sphere against real geometry rather than as a point on
+an interpolated height field. Same size as the ball; the numbers differ because
+what they mean changed underneath them.
+
+| Number | Value | Why |
+| --- | --- | --- |
+| `gravity` | 45 cells per second squared | The same as the ball's, and now the only force applied by hand. The ball also gets a separate acceleration along the sampled slope of the floor; this one gets nothing of the sort and runs downhill because the faces push it sideways. There is no `slope_gain` to multiply it by. |
+| `roll_friction` | 0.55 per second | Applied only while something is pushing up on it, which is what makes it rolling resistance rather than air. The ball's is applied whenever it is "not airborne", and that is a height comparison rather than a contact. |
+| `restitution` | 0.45 | The ball's 0.85 was chosen for a maze made entirely of walls, where a ball meets one within a cell or two of being dropped and needs to keep nearly all its energy to get anywhere. A mountainside is mostly open shelf; at 0.85 a sphere never settles. |
+| `bounce_floor` | 0.6 cells per second | Below this a bounce is set to zero. Without it a settling sphere performs several hundred invisible bounces a second, each one a contact. |
+| `max_speed` | 7.0 cells per second | One tick moves 0.117 cells, under a third of the radius. Load-bearing: a body that travels further than its own width between ticks can pass a face without ever being within a radius of it. |
+| `rest_speed` | 0.30 cells per second | Horizontal speed below which it counts as stopped. Measured on the horizontal only, because a sphere settling on a tread still has a vertical component for a few ticks and counting it would keep resetting the timer of a ball that has plainly stopped. |
+| `rest_seconds` | 3.5 | As the ball's. |
+| `spawn_nudge` | 5.0 | The width of the random push it is dropped with, and the only thing that ever starts one. A sphere at rest on a level plate under straight-down gravity has nothing acting on it sideways at all; the first mountain, of broad flat shelves, held three hundred of them motionless for a minute. The ball's nudge of 2.0 is decoration on top of an interpolated slope that would have moved it anyway. |
+
+Measured on the mountainside, nine hundred of them over thirty seconds: a mean
+journey of 49 cells, 1674 reaching rest and being dropped in again at the top, and
+the deepest descending twenty-one layers from summit to base. Run
+`./run-maze --headless --map 070-the-mountainside --scene heap` for today's
+numbers rather than trusting these.

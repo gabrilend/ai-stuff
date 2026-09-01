@@ -60,7 +60,7 @@ are in front of it.
 
 ## Related documents and tools
 
-- [804](804-a-ball-is-a-sphere-against-faces.md) — where the position comes from
+- [804](completed/804-a-ball-is-a-sphere-against-faces.md) — where the position comes from
 - `src/042-the-renderer.info.md` — the sweep this would replace, and its banding
 
 ## Open questions

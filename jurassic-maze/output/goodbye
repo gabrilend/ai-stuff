@@ -1,22 +1,22 @@
 goodbye
 
-seed 1   48 x 48 x 32   scene 'balls'   60 ticks (1.0 s)
+seed 1   48 x 48 x 32   scene 'heap'   1800 ticks (30.0 s)
 
   the maze
-    floor cells          0
+    floor cells          2304
     staircases           0  (0 for connectivity, 0 beyond it)
     orphan cells filled  0
     diameter             0 steps
-    fill fraction        0.000
+    fill fraction        0.378
 
   the bodies
-    live                 300 of 3000 capacity
-    spawned              300
-    retired at rest      0
+    live                 900 of 3000 capacity
+    spawned              2574
+    retired at rest      1674
     spawns skipped       0   (a maze whose spawn points are all blocked)
-    never moved          39   (one is stuck; forty is a broken rule)
-    layers visited       10 to 24
-    largest bucket       24   (climbing means the meet pass is going quadratic)
+    never moved          23   (one is stuck; forty is a broken rule)
+    layers visited       2 to 23
+    largest bucket       9   (climbing means the meet pass is going quadratic)
 
   by kind
-    ball     live  300   mean distance    2.32 cells   still  39   layers 10 to 24
+    bouncer  live  900   mean distance   49.28 cells   still  23   layers  2 to 23

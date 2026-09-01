@@ -40,6 +40,7 @@ M.LUMBERING = 4
 M.CREEPING  = 5
 M.CARRIED   = 6
 M.STILL     = 7
+M.BOUNCING  = 8
 
 -- {{{ M.KINDS
 -- One row per creature. `name` is what the palette and the report call it.
@@ -91,6 +92,58 @@ M.KINDS = {
     rest_seconds   = 3.5,    -- how long it sits still before the aquarium takes
                              -- it away and drops a new one in at the top
     slope_gain     = 1.0,
+    spawn_nudge    = 2.0,    -- the width of the random push it is dropped with
+  },
+  -- }}}
+
+  -- {{{ bouncer
+  --
+  -- A ball that is a sphere against real geometry rather than a point on an
+  -- interpolated height field. Same shape and same size as the ball above it; the
+  -- differences are all in what the numbers mean, because the physics underneath
+  -- them changed.
+  {
+    name        = "bouncer",
+    locomotion  = M.BOUNCING,
+    radius      = 0.40,
+    body_height = 1,
+    drop_limit  = 1e9,
+    health      = 1,
+    team        = 0,
+
+    -- Gravity is now the only force applied by hand. The ball above it gets a
+    -- separate acceleration along the sampled slope of the floor; this one gets
+    -- nothing of the sort, and runs downhill because the faces push it sideways.
+    -- So the number means what it says, and there is no slope_gain to multiply
+    -- it by.
+    gravity        = 45,
+
+    -- Applied only while something is pushing up on it, which is what makes it
+    -- rolling resistance rather than air. The old row applies it whenever the
+    -- ball is not airborne, and "not airborne" there is a height comparison
+    -- rather than a contact.
+    roll_friction  = 0.55,
+
+    -- Lower than the ball's 0.85, and it is the geometry that changed rather
+    -- than the taste. That number was chosen for a maze made entirely of walls,
+    -- where a ball meets one within a cell or two of being dropped and needs to
+    -- keep nearly all of its energy to get anywhere. A mountainside is mostly
+    -- open shelf, and a ball that keeps 85% of its speed off every kerb never
+    -- settles anywhere.
+    restitution    = 0.45,
+
+    bounce_floor   = 0.6,
+    max_speed      = 7.0,    -- one tick at this moves 0.117 cells, under a third
+                             -- of the radius, so nothing passes through a face
+    rest_speed     = 0.30,   -- horizontal speed below which it counts as stopped
+    rest_seconds   = 3.5,
+
+    -- Larger than the ball's, and it is doing a different job. The ball's nudge
+    -- is decoration on top of an interpolated slope that would move it anyway;
+    -- this one is the only thing that ever starts a sphere, because a sphere at
+    -- rest on a level plate under straight-down gravity has nothing acting on it
+    -- sideways. Once started it sustains itself on the step edges.
+    spawn_nudge    = 5.0,
   },
   -- }}}
 
@@ -545,6 +598,10 @@ end
 -- phase four built, essentially never fires.
 M.POPULATIONS = {
   balls    = { ball = 300 },
+  bounce   = { bouncer = 300 },
+  -- Enough of them in one place that they are touching rather than merely
+  -- sharing a mountain. The point of the scene is the pile.
+  heap     = { bouncer = 900 },
   guys     = { guy = 700 },
   both     = { ball = 260, guy = 480 },
   crowd    = { guy = 1400 },     -- shoulder to shoulder, for watching the meeting

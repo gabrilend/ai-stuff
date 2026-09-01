@@ -66,7 +66,7 @@ rather than the world.
 ## Related documents and tools
 
 - [801](801-a-map-is-plates-and-stairs.md) — where the height field comes from
-- [804](../804-a-ball-is-a-sphere-against-faces.md) — the thing that collides with this
+- [804](804-a-ball-is-a-sphere-against-faces.md) — the thing that collides with this
 
 ## Open questions
 
