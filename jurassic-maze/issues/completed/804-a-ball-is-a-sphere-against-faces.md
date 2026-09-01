@@ -5,7 +5,7 @@
 | Phase | 8 — The Mountain |
 | Blocked by | 801, 802, 803 |
 | Blocks | 805 |
-| Reads | [rolling with momentum](../docs/013-rolling-with-momentum.md), `src/071-the-model.info.md` |
+| Reads | [rolling with momentum](../../docs/013-rolling-with-momentum.md), `src/071-the-model.info.md` |
 | Open questions | three, at the bottom |
 
 ## Current behavior
@@ -31,7 +31,7 @@ wrong for a mountainside:
 ## Intended behavior
 
 A ball is a sphere with a position, a velocity and a radius. The world is the
-model from [803](completed/803-the-height-field-becomes-a-model.md): axis-aligned
+model from [803](803-the-height-field-becomes-a-model.md): axis-aligned
 rectangles with normals. Every tick, for each ball:
 
 1. **Gravity** adds to the velocity. Straight down, no slope term — a ball on a
@@ -79,8 +79,8 @@ special-cased and neither was possible before.
 
 ## Related documents and tools
 
-- [803](completed/803-the-height-field-becomes-a-model.md) — the faces this collides against
-- [805](805-a-ball-is-a-sprite-in-a-solid-world.md) — drawing the result
+- [803](803-the-height-field-becomes-a-model.md) — the faces this collides against
+- [805](../805-a-ball-is-a-sprite-in-a-solid-world.md) — drawing the result
 - `docs/013-rolling-with-momentum.md` — what the old roller does, and why
 
 ## Open questions

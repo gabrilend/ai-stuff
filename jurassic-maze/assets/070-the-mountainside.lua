@@ -36,151 +36,151 @@
 --     Elevation falls from the far corner toward the near one, which is the
 --     entire reason the picture can be read: the ground tilts toward the viewer,
 --     so nothing stands in front of anything.
---   * The shelves are flat and several cells deep, and they run across the slope.
---   * Staircases are the only way down that is not a fall, and there are a great
---     many of them.
+--   * The shelves are flat, and there are a great many of them at slightly
+--     different heights rather than a few large ones.
+--   * The steps between them are the stairs, and stairs are everywhere.
 --
 -- The coordinate system, because it decides what "high corner" means: the
 -- projection draws small x and y at the top of the screen, so (0, 0) is the far
 -- corner and (47, 47) is the near one. Elevation therefore has to *fall* as x and
 -- y rise, and every plate below obeys that.
 --
--- Elevations here are spaced three layers apart rather than four, and that is a
--- concession rather than a design choice: the old world stores a column as a
--- 32-bit integer with one bit per layer, and a mountain with four-layer shelves
--- comes to thirty-four. The map format has no such ceiling. See open question two
--- of issue 801.
+-- **Why the shelves are two cells deep and not six.** The first version of this
+-- map had eight shelves six cells wide with a kerb along each downhill edge, and
+-- under a real physics it did nothing at all: a sphere resting on a level plate,
+-- with gravity pointing straight down, has no reason to move, and three hundred
+-- of them sat exactly where they were dropped. The old roller hid that by pushing
+-- balls along the *interpolated* slope of the height field, which is nonzero near
+-- every edge -- so the balls moved because of the smoothing rather than because
+-- of the ground.
+--
+-- A mountain that a ball rolls down has to descend everywhere. So it does: one
+-- layer for every two cells, all the way from the summit to the rim, which makes
+-- every band a flat shelf two cells deep and every boundary between two bands a
+-- single step. That is a staircase forty-two cells long, and it is what the
+-- reference picture is covered in.
 
 return {
   name  = "the mountainside",
   width = 48,
   depth = 48,
 
-  -- What a cell sits at if no plate ever reaches it. Nothing here relies on it,
-  -- since the bottom shelf covers the whole footprint, but a map that leaves a
-  -- gap should leave it at the ground rather than in the air.
+  -- What a cell sits at if no plate ever reaches it. Nothing relies on it, the
+  -- outermost band covering the whole footprint, but a gap should be left at the
+  -- ground rather than in the air.
   base = 0,
 
   plates = {
-    -- The shelves.
+    -- The mountain.
     --
-    -- Eight nested squares anchored at the far corner, each one lower and larger
-    -- than the last, which makes each shelf an L-shaped band six cells wide
-    -- wrapping the corner. This is what a stepped mountain face is when it is
-    -- built out of axis-aligned rectangles, and the nesting is why they can be
-    -- written as eight lines rather than as twenty-four L-shaped pieces: the
-    -- higher plate wins wherever two overlap, so the small high squares simply
-    -- sit on top of the large low ones.
+    -- Twenty-two nested squares anchored at the far corner, each two cells larger
+    -- and one layer lower than the last. Nesting is why this is twenty-two lines
+    -- rather than twenty-two L-shaped pieces: the higher plate wins wherever two
+    -- overlap, so the small high squares simply sit on the large low ones and
+    -- what shows of each is the two-cell band around the one before it.
     --
-    -- Three layers between shelves. Deep enough that the drop is a real barrier
-    -- a ball cannot climb back up, which is what makes finding the staircase
-    -- mean something.
-    { x = 0, y = 0, w = 48, d = 48, z =  1 },
-    { x = 0, y = 0, w = 42, d = 42, z =  4 },
-    { x = 0, y = 0, w = 36, d = 36, z =  7 },
-    { x = 0, y = 0, w = 30, d = 30, z = 10 },
-    { x = 0, y = 0, w = 24, d = 24, z = 13 },
-    { x = 0, y = 0, w = 18, d = 18, z = 16 },
-    { x = 0, y = 0, w = 12, d = 12, z = 19 },
-    { x = 0, y = 0, w =  6, d =  6, z = 22 },
+    -- Twenty-one layers of descent over forty-two cells. Shallower than the line
+    -- of sight climbs, so every one of these bands is visible from the camera,
+    -- and steep enough that a ball on one is always on a step rather than on a
+    -- plain.
+    { x = 0, y = 0, w =  6, d =  6, z = 24 },
+    { x = 0, y = 0, w =  8, d =  8, z = 23 },
+    { x = 0, y = 0, w = 10, d = 10, z = 22 },
+    { x = 0, y = 0, w = 12, d = 12, z = 21 },
+    { x = 0, y = 0, w = 14, d = 14, z = 20 },
+    { x = 0, y = 0, w = 16, d = 16, z = 19 },
+    { x = 0, y = 0, w = 18, d = 18, z = 18 },
+    { x = 0, y = 0, w = 20, d = 20, z = 17 },
+    { x = 0, y = 0, w = 22, d = 22, z = 16 },
+    { x = 0, y = 0, w = 24, d = 24, z = 15 },
+    { x = 0, y = 0, w = 26, d = 26, z = 14 },
+    { x = 0, y = 0, w = 28, d = 28, z = 13 },
+    { x = 0, y = 0, w = 30, d = 30, z = 12 },
+    { x = 0, y = 0, w = 32, d = 32, z = 11 },
+    { x = 0, y = 0, w = 34, d = 34, z = 10 },
+    { x = 0, y = 0, w = 36, d = 36, z =  9 },
+    { x = 0, y = 0, w = 38, d = 38, z =  8 },
+    { x = 0, y = 0, w = 40, d = 40, z =  7 },
+    { x = 0, y = 0, w = 42, d = 42, z =  6 },
+    { x = 0, y = 0, w = 44, d = 44, z =  5 },
+    { x = 0, y = 0, w = 46, d = 46, z =  4 },
+    { x = 0, y = 0, w = 48, d = 48, z =  3 },
 
-    -- The rims.
-    --
-    -- One cell wide along each shelf's downhill edge, standing two layers above
-    -- its own floor. This is the closest thing in the map to a wall, and it is
-    -- deliberately not one: it is a lip on the edge of a plate, and its top is a
-    -- surface like any other.
-    --
-    -- Two layers rather than one because a rolling ball has to be turned by it
-    -- rather than hopped over, and rather than four because a rim is meant to
-    -- read as a kerb on the edge of a terrace and not as a fence around it.
-    --
-    -- They are also the only thing in this map that hides anything. A rim stands
-    -- two layers above the shelf behind it and the line of sight only gains 1.6
-    -- layers per diagonal cell, so each one takes the single cell immediately
-    -- uphill of it. Three hundred and fifty-one cells, and every one of them a
-    -- deliberate feature rather than an accident of the geometry.
-    { x =  5, y =  0, w =  1, d =  6, z = 24 },
-    { x =  0, y =  5, w =  6, d =  1, z = 24 },
-    { x = 11, y =  0, w =  1, d = 12, z = 21 },
-    { x =  0, y = 11, w = 12, d =  1, z = 21 },
-    { x = 17, y =  0, w =  1, d = 18, z = 18 },
-    { x =  0, y = 17, w = 18, d =  1, z = 18 },
-    { x = 23, y =  0, w =  1, d = 24, z = 15 },
-    { x =  0, y = 23, w = 24, d =  1, z = 15 },
-    { x = 29, y =  0, w =  1, d = 30, z = 12 },
-    { x =  0, y = 29, w = 30, d =  1, z = 12 },
-    { x = 35, y =  0, w =  1, d = 36, z =  9 },
-    { x =  0, y = 35, w = 36, d =  1, z =  9 },
-    { x = 41, y =  0, w =  1, d = 42, z =  6 },
-    { x =  0, y = 41, w = 42, d =  1, z =  6 },
-
-    -- The lip around the bottom shelf, so that a ball which has come all the way
-    -- down stays on the mountain instead of rolling off the near corner and out
-    -- of the world. The far edges need no lip: nothing ever travels uphill.
-    { x = 47, y =  0, w =  1, d = 48, z =  3 },
-    { x =  0, y = 47, w = 48, d =  1, z =  3 },
+    -- The lip around the near two edges, so a ball that has come the whole way
+    -- down stays on the mountain instead of leaving the world. The far edges need
+    -- none: nothing ever travels uphill.
+    { x = 47, y =  0, w =  1, d = 48, z =  6 },
+    { x =  0, y = 47, w = 48, d =  1, z =  6 },
 
     -- The dividers.
     --
-    -- Short blocks standing on the shelves, three layers up, reaching partway
-    -- across a band. They are what turns a shelf from a corridor into a choice:
-    -- a ball arriving on one has to go round, and which side it goes round
-    -- decides which staircase it reaches.
+    -- Blocks standing three layers above the band they sit on, reaching partway
+    -- across it. They are what makes the descent a route rather than a fall: a
+    -- ball meeting one has to go round, and which way it goes round decides where
+    -- on the mountain it comes out.
     --
-    -- Partway across, never all the way. A divider that spans a whole band is a
-    -- wall, and a wall would trap balls on the uphill side of it forever, since
-    -- nothing in this world can climb.
-    { x =  7, y =  2, w =  4, d =  1, z = 22 },
-    { x =  2, y =  8, w =  1, d =  3, z = 22 },
-    { x = 13, y =  4, w =  4, d =  1, z = 19 },
-    { x =  4, y = 13, w =  1, d =  4, z = 19 },
-    { x = 14, y =  9, w =  3, d =  1, z = 19 },
-    { x = 19, y =  6, w =  4, d =  1, z = 16 },
-    { x =  6, y = 19, w =  1, d =  4, z = 16 },
-    { x = 20, y = 15, w =  3, d =  1, z = 16 },
-    { x = 25, y =  8, w =  4, d =  1, z = 13 },
-    { x =  8, y = 25, w =  1, d =  4, z = 13 },
-    { x = 26, y = 18, w =  3, d =  1, z = 13 },
-    { x = 31, y = 10, w =  4, d =  1, z = 10 },
-    { x = 10, y = 31, w =  1, d =  4, z = 10 },
-    { x = 32, y = 24, w =  3, d =  1, z = 10 },
-    { x = 37, y = 14, w =  4, d =  1, z =  7 },
-    { x = 14, y = 37, w =  1, d =  4, z =  7 },
-    { x = 38, y = 28, w =  3, d =  1, z =  7 },
-    { x = 43, y = 18, w =  4, d =  1, z =  4 },
-    { x = 18, y = 43, w =  1, d =  4, z =  4 },
+    -- Each sits along a single contour -- one value of x, or one of y, with the
+    -- other running across the slope -- so that the block is level rather than
+    -- perched on a step. A divider that straddled a band boundary would be a
+    -- block with one corner in the air.
+    --
+    -- Partway across, never all the way. A divider that spanned its band would be
+    -- a wall, and a wall traps balls above it forever, since nothing here climbs.
+    { x =  9, y =  0, w =  1, d =  6, z = 25 },
+    { x =  0, y =  9, w =  6, d =  1, z = 25 },
+    { x = 13, y =  4, w =  1, d =  7, z = 23 },
+    { x =  4, y = 13, w =  7, d =  1, z = 23 },
+    { x = 17, y =  0, w =  1, d =  9, z = 21 },
+    { x =  0, y = 17, w =  9, d =  1, z = 21 },
+    { x = 17, y = 12, w =  1, d =  5, z = 21 },
+    { x = 12, y = 17, w =  5, d =  1, z = 21 },
+    { x = 21, y =  5, w =  1, d = 10, z = 19 },
+    { x =  5, y = 21, w = 10, d =  1, z = 19 },
+    { x = 25, y =  0, w =  1, d = 11, z = 17 },
+    { x =  0, y = 25, w = 11, d =  1, z = 17 },
+    { x = 25, y = 16, w =  1, d =  8, z = 17 },
+    { x = 16, y = 25, w =  8, d =  1, z = 17 },
+    { x = 29, y =  6, w =  1, d = 14, z = 15 },
+    { x =  6, y = 29, w = 14, d =  1, z = 15 },
+    { x = 33, y =  0, w =  1, d = 12, z = 13 },
+    { x =  0, y = 33, w = 12, d =  1, z = 13 },
+    { x = 33, y = 18, w =  1, d = 12, z = 13 },
+    { x = 18, y = 33, w = 12, d =  1, z = 13 },
+    { x = 37, y =  8, w =  1, d = 16, z = 11 },
+    { x =  8, y = 37, w = 16, d =  1, z = 11 },
+    { x = 41, y =  0, w =  1, d = 14, z =  9 },
+    { x =  0, y = 41, w = 14, d =  1, z =  9 },
+    { x = 41, y = 22, w =  1, d = 14, z =  9 },
+    { x = 22, y = 41, w = 14, d =  1, z =  9 },
+    { x = 45, y = 10, w =  1, d = 20, z =  7 },
+    { x = 10, y = 45, w = 20, d =  1, z =  7 },
   },
 
   -- The staircases.
   --
-  -- One tread per layer, so a flight is a ramp a ball accelerates down rather
-  -- than a set of ledges it stalls on. Each cuts through the rim of the shelf it
-  -- leaves, which is why the treads overwrite whatever was there rather than
-  -- taking the higher of the two -- a rim is by definition taller than the flight
-  -- passing through it, and "higher wins" would fill the cut back in.
+  -- The mountain already descends a layer every two cells, so these are not the
+  -- way down -- they are the *fast* way down. A flight drops a layer per cell,
+  -- twice as steep as the ground around it, and it cuts a channel through the
+  -- bands rather than following them.
   --
-  -- Placed alternately on the x edge and the y edge of successive shelves, so
-  -- that the way down the mountain is a switchback. A ball leaving one flight has
-  -- to cross its new shelf to reach the next, which is the whole journey.
+  -- Treads overwrite whatever they land on rather than taking the higher of the
+  -- two. That is what lets a flight cut through a divider standing in its way: a
+  -- divider is by definition taller than the ground it sits on, and "higher wins"
+  -- would fill the channel back in and leave a staircase drawn on a hillside that
+  -- goes nowhere.
   stairs = {
-    { x =  5, y =  2, dir = "+x", w = 2, from = 22, to = 19 },
-    { x =  3, y = 11, dir = "+y", w = 2, from = 19, to = 16 },
-    { x = 17, y = 13, dir = "+x", w = 2, from = 16, to = 13 },
-    { x =  5, y = 23, dir = "+y", w = 2, from = 13, to = 10 },
-    { x = 29, y = 20, dir = "+x", w = 2, from = 10, to =  7 },
-    { x =  8, y = 35, dir = "+y", w = 2, from =  7, to =  4 },
-    { x = 41, y = 30, dir = "+x", w = 2, from =  4, to =  1 },
-
-    -- Second ways down, so that some shelves offer a choice rather than a single
-    -- destination. A maze with one route through it is a corridor.
-    { x = 12, y = 17, dir = "+y", w = 2, from = 16, to = 13 },
-    { x = 23, y =  9, dir = "+x", w = 2, from = 13, to = 10 },
-    { x = 20, y = 29, dir = "+y", w = 2, from = 10, to =  7 },
-    { x = 35, y = 26, dir = "+x", w = 2, from =  7, to =  4 },
-    { x = 20, y = 41, dir = "+y", w = 2, from =  4, to =  1 },
+    { x =  9, y =  2, dir = "+x", w = 2, from = 25, to = 18 },
+    { x =  2, y =  9, dir = "+y", w = 2, from = 25, to = 18 },
+    { x = 21, y =  8, dir = "+x", w = 2, from = 19, to = 12 },
+    { x =  8, y = 21, dir = "+y", w = 2, from = 19, to = 12 },
+    { x = 33, y =  3, dir = "+x", w = 2, from = 13, to =  7 },
+    { x =  3, y = 33, dir = "+y", w = 2, from = 13, to =  7 },
+    { x = 33, y = 24, dir = "+x", w = 2, from = 13, to =  7 },
+    { x = 24, y = 33, dir = "+y", w = 2, from = 13, to =  7 },
+    { x = 41, y = 14, dir = "+x", w = 2, from =  9, to =  5 },
+    { x = 14, y = 41, dir = "+y", w = 2, from =  9, to =  5 },
   },
 
-  -- Where a ball enters the world. The summit shelf, above everything.
-  spawn = { x = 2, y = 2, z = 22 },
+  -- Where a ball enters the world. The summit, above everything.
+  spawn = { x = 2, y = 2, z = 24 },
 }

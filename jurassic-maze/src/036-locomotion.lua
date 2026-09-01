@@ -53,7 +53,7 @@ end
 -- `carried` turned out to be a function that does nothing: a new way of moving
 -- was a new row rather than a new function, four times out of five, which is
 -- what the table was for and was not guaranteed.
-function M.new_table(Rolling, Walking)
+function M.new_table(Rolling, Walking, Bouncing)
   return {
     { name = "rolling",  advance = Rolling.advance,  parallel = true,
       needs = { "x", "y", "z", "vx", "vy", "vz" } },
@@ -90,6 +90,19 @@ function M.new_table(Rolling, Walking)
     { name = "carried",  advance = function() end, parallel = true, needs = {} },
 
     { name = "still",    advance = function() end, parallel = true, needs = {} },
+
+    -- Bouncing: a sphere against the model's rectangles, and against other
+    -- spheres.
+    --
+    -- **`parallel` is false, and that is the point of the flag.** Every other row
+    -- touches one body per iteration, so a thread pool can hand each core a range
+    -- of the roster and no two cores ever write the same body. This one resolves
+    -- pairs, and the second body of a pair is not in the range the core was
+    -- given. Nothing splits anything yet, so the claim costs nothing today -- and
+    -- it is the difference between adding a pool later as a change to the tick
+    -- and adding it as an audit of every row.
+    { name = "bouncing", advance = Bouncing.advance, parallel = false,
+      needs = { "x", "y", "z", "vx", "vy", "vz", "rest_timer", "distance" } },
   }
 end
 -- }}}

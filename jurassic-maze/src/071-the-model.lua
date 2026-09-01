@@ -43,6 +43,11 @@ local M = {}
 -- on them without hashing, and so a face array stays all numbers.
 M.TOP   = 0
 M.RISER = 1
+-- The wall around the edge of the world. A kind of its own rather than a riser,
+-- because it is the one face in the model that does not correspond to any stone
+-- and the one that must push a body it finds on the wrong side of it. Every other
+-- face is one-sided on purpose; see 073-bouncing.info.md.
+M.RIM   = 2
 
 -- The four horizontal neighbours, and the normal a riser facing that way carries.
 -- A table rather than four branches: the merge loop below runs once per
@@ -223,18 +228,65 @@ local function build_risers(m, height, width, depth, floor_z)
 end
 -- }}}
 
--- {{{ function M.build(field, floor_z)
+-- {{{ local function build_rim(m, height, width, depth, rim_z)
+-- A wall around the edge of the world, facing inward.
+--
+-- The skirt built by the risers closes the model *downward* -- it is what a body
+-- falls off rather than through. It does not close it sideways, and the
+-- difference is not academic: a map's outermost plate is a kerb, a kerb's top is
+-- a surface like any other, and a ball that gets onto one rolls along it and then
+-- off the far side into an array index that does not exist.
+--
+-- So the rim is a wall rather than a ledge, and it is the only face in the model
+-- that does not correspond to any stone. It is the thing standing between a body
+-- that has gone wrong and a crash, which is exactly what the maze validator
+-- always said the rim was for.
+local function build_rim(m, height, width, depth, rim_z, floor_z)
+  -- From the bottom of the world to well above the top of it, rather than from
+  -- the ground at each boundary cell upward.
+  --
+  -- Starting at the local ground is the obvious thing and it leaves a hole. The
+  -- outermost plate of a map is usually a raised lip, so the wall would begin at
+  -- the top of that lip and there would be nothing at all between the bottom of
+  -- the world and there -- through which a body squeezed by a crowd departs. The
+  -- rim is not stone and has no ground to follow; it is the edge of the world and
+  -- it goes all the way down.
+  for y = 0, depth - 1 do
+    local id = add(m, M.RIM, 0, y, floor_z, 0, y + 1, rim_z, 1, 0, 0)
+    index_face(m, id, 0, y, 0, y)
+    id = add(m, M.RIM, width, y, floor_z, width, y + 1, rim_z, -1, 0, 0)
+    index_face(m, id, width - 1, y, width - 1, y)
+  end
+  for x = 0, width - 1 do
+    local id = add(m, M.RIM, x, 0, floor_z, x + 1, 0, rim_z, 0, 1, 0)
+    index_face(m, id, x, 0, x, 0)
+    id = add(m, M.RIM, x, depth, floor_z, x + 1, depth, rim_z, 0, -1, 0)
+    index_face(m, id, x, depth - 1, x, depth - 1)
+  end
+end
+-- }}}
+
+-- {{{ function M.build(field, floor_z, rim_z)
 -- A height field in, a model out.
 --
 -- `field` is anything with `width`, `depth` and a zero-based `height` array in
 -- **planes** -- a cell of height 22 is ground you stand on at 22. That is the
 -- map's convention rather than the stone store's, and the two differ by one; see
 -- the note in 069-the-map.lua.
-function M.build(field, floor_z)
+function M.build(field, floor_z, rim_z)
   floor_z = floor_z or 0
   local m = new_model(field.width, field.depth)
   build_tops(m, field.height, field.width, field.depth)
   build_risers(m, field.height, field.width, field.depth, floor_z)
+
+  -- Only when asked. A model built to be looked at wants the stone and nothing
+  -- else; a model built to be collided with wants the wall as well, and a test
+  -- checking the model against its height field would count the rim as faces the
+  -- field never asked for.
+  if rim_z then
+    build_rim(m, field.height, field.width, field.depth, rim_z, floor_z)
+  end
+
   return m
 end
 -- }}}
