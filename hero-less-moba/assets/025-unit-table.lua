@@ -43,27 +43,23 @@ M.ticks_per_second = 30
 -- Anything with `arcs` on its row already ignores the question; this decides it for
 -- everything else with a reach.
 --
--- **It is off, and the reason is a measurement rather than a preference.** Turned on,
--- with the wave composition as it currently stands, the game gridlocks:
+-- **It is off, and it is off because nobody has measured it properly yet.**
 --
---   flat arrows need a line   killed in 9000 ticks   left standing
---   no                          1160                  112
---   yes                          835                  430
+-- It was switched off on a measurement that has since failed to survive re-running.
+-- That measurement counted kills at a fixed tick and read the result as gridlock; what
+-- it was actually comparing was a match that had **finished** against one that had not,
+-- and most of the unfinished one's deaths arrive in a single cascade at the end when a
+-- base goes. Run again, the side of that cliff the clock stops on decides the number.
 --
--- The mechanism is not failing. Archers do fan out when they cannot see, and they do
--- find a shot about two ticks in five. It is that a third of the damage in the game
--- leaves with them, so bodies stop dying, so the field fills up, so the lines get
--- denser, so **more** shots are blocked -- and a challenge monster takes no ranged
--- damage at all and cannot be killed by anybody.
+-- The mechanism itself works and the geometry is not the problem: archers can see
+-- somebody nearly nine times in ten when the lines first meet, and fall to three in ten
+-- only as the field fills with bodies -- **which it does with this switched off too.**
 --
--- That is a feedback loop rather than a number that wants nudging, and what it says
--- is that the wave composition is wrong for the rule rather than the rule wrong for
--- the game. Archers standing directly behind a solid rank of their own need one of:
--- gaps in the line to shoot through, longbows instead of bows, or somewhere else to
--- stand -- and the shoulders are spoken for by cavalry that does not exist yet.
+-- What is genuinely unknown is whether the reversal holds across seeds. One seed is
+-- what produced the wrong answer the first time. Do not turn this on from a single run.
 --
--- Turning it on is this one line. See [open questions](../docs/020-open-questions.md),
--- H14.
+-- No figures are repeated here on purpose. See [open questions](../docs/020-open-
+-- questions.md), H14, which carries the tables and the sweep that still wants running.
 M.flat_arrows_need_a_line = false
 
 -- How long a fallen body decays before its death is final: it leaves the field at

@@ -4949,3 +4949,93 @@ rule being wrong for the game. Four ways out, and they are not exclusive:
 Built and tested and **switched off**, behind one line in the unit catalogue. The line
 of sight itself is built and is live for the thing it was specified for: the druid's
 moon spike, which is the flat thing thrown from the palm that this was always about.
+
+### Two decisions taken, and a fifth way out
+
+Where the real thing puts its archers is **uphill**, and that is the whole answer: on a
+hill you shoot over your own men because the ground gives you the arc the bow will not.
+Melee at the foot of it — spears toward the open ground where horses come, swords
+toward the broken ground where they cannot — and the bows on top.
+
+**There is no hill.** A body's position in this game is two numbers, how far along the
+lane and how far across it, resolved against the lane's curve into a world x and y.
+There is no third axis anywhere in the project, and it is not a thing not yet built —
+it is not a concept. So the historical answer is unavailable by construction, and every
+remaining way out has to be lateral. Which is what the four above already are.
+
+The fifth, and the one that matches how it actually went: **archers stood much closer
+to the front than they are usually drawn, and they went round the ends.** Shooting
+through the gaps in one's own line — option 1 — and flanking wide to shoot around the
+side of a shield, which is a different thing from standing further back. Past a certain
+size that flank is dangerous and wants spears or horses of its own guarding it, which
+is the trade that makes it a decision rather than free ground.
+
+**Decision: a fanning rank is no longer held to the road.** It was clamped to nine
+tenths of the half-width; the clamp is gone. The shape parameters always said the width
+is how much room there is rather than a wall, and this was the only code reading it as
+a fence. Lanes sit far enough apart that a battle line may spread past its verge.
+
+**Decision: the archers own the shoulders** until there is cavalry to want them. The
+formation had moved them off it and behind the line to keep the ground clear for horses
+that do not exist; with only infantry and archers in the game there is nobody to keep
+it clear for.
+
+### And the measurement that closed this question does not survive re-running
+
+Taking the clamp out changed a nine-thousand-tick match **not at all** — same deaths,
+same bodies standing, identical to the digit. It was very nearly dead code: 1.4% of
+readings ever sat at it. What binds a fanning body is the spread multiple against its
+own place in the rank, and widening *that* does not help either:
+
+| How far a blocked rank fans | Killed | Left standing |
+| --- | --- | --- |
+| 2.6× its marching gaps | 368 | 763 |
+| 4× | 422 | 867 |
+| 6× | 268 | 342 |
+| 9× | 318 | 533 |
+| 14× | 339 | 930 |
+
+At fourteen the archers stand three hundred paces off the centre of a hundred-and-
+thirty-pace road — a flank by any definition — and kill fewer than at two point six.
+**So going wide is not the answer, and neither is aiming differently:** of the archers
+that had enemies in reach and took no shot, only 14% had *anybody* they could see. They
+are not misaiming at the weakest body in the middle while a clear shot stands at the
+end of the line. They genuinely cannot see anyone.
+
+Which sounded like the geometry being hopeless, until it was cut into buckets:
+
+| Ticks | Archers with enemies near | Could see somebody | Bodies standing |
+| --- | --- | --- | --- |
+| 0–1,000 | 52 | **88.5%** | 87 |
+| 2,000–3,000 | 599 | 73.3% | 169 |
+| 4,000–5,000 | 1,051 | 58.8% | 241 |
+| 6,000–7,000 | 1,144 | **30.1%** | 631 |
+
+They start able to shoot and go blind as the field fills. That is the loop, seen as a
+curve rather than as an endpoint — **and the same run with the rule switched off fills
+up too**, 98% down to 24.9% and 87 bodies on the field becoming 947. The pile-up is
+not caused by the sight rule.
+
+**The original table was comparing a match that finished against one that had not.**
+Re-run: with flat arrows needing a line, team two **wins** at 6,859 ticks; without, the
+match is still going when the count stops at 9,000. And the losing side's kill total is
+dominated by one terminal cascade — 789 of its deaths land in the last thousand ticks,
+when a base goes. Counting kills at a fixed tick across a decided match and an
+undecided one measures which side of that cliff the clock happened to stop on.
+
+**This is one seed, which is exactly the error that produced the wrong answer the first
+time.** The two-by-two that fixed H13 fixed it by varying one thing at a time across a
+proper grid; this has varied one thing across a single run. It wants the same treatment
+before anything is switched on.
+
+**Still open, and the questions to put to it:**
+
+- **Does the reversal hold across seeds?** Many seeds, both settings, reporting whether
+  anybody won, how long it took, and what was left standing — not kills at a fixed
+  tick, which is the statistic that misled. A sweep for this was written and is too
+  slow to run at forty-eight full matches; it wants a shorter tick limit or fewer.
+- **If a decided match is what the rule produces, was "gridlock" ever the right word?**
+  A denser, slower, decisive game is option 4, and it may already be what is on offer
+  rather than what would have to be built.
+- **Does the field filling up want fixing on its own?** It happens either way, and
+  nothing in the design says it should. It may be the more interesting bug.

@@ -41,21 +41,33 @@ rule rather than a fixed spacing.
 ## Fanning out and concentrating
 
 A body with a reach has two postures and which one it takes is a question about
-**threat**, not about distance.
+**whether it has a shot**, not about whether anything is near.
 
 | | When | What it does |
 | --- | --- | --- |
-| **fan out** | nothing hostile within its own reach | spreads across the road, out toward the shoulder |
-| **concentrate** | something is there | closes toward the middle of it, and closer still if something is right on top of it |
+| **fan out** | it has taken no target | scales its own place in the rank outward, looking for an angle |
+| **concentrate** | it has a target | closes toward the middle of the enemy, and closer still if something is right on top of it |
 
 Fanning is why a rank covers ground: a block of archers standing on top of each other
 is a block of archers most of whom cannot see anything. Concentrating is what "just
 enough firepower to disable whatever comes near" means when it is a group doing it
 rather than one body.
 
-**Which way is not random.** The direction comes from the **mean position of the
-enemy across the road**, and is held for as long as the body stays in the same
-milestone, so it reads as a decision rather than as dithering. And then:
+Deciding it by **proximity** instead is the version that broke the game. A blocked
+archer with enemies fifty paces off would concentrate — pulling *toward* the middle of
+the very thing it could not see past — so it never found a line, never fired, and
+challenge monsters took no ranged damage for a whole match. **The blocked shot is not
+a dead end; it is the condition that makes the body move.**
+
+**Which way is not random**, and the two postures answer it differently. A body that
+is fanning scales its **own** place in the rank outward, so a rank keeps its order and
+widens its gaps rather than every body walking to the same verge — which is the same
+rank in the same order, moved sideways, with every body still behind the one in front.
+A body standing on the centre line has nothing to scale, so it is pushed off toward
+whichever side it committed to; otherwise the captain, dead centre by design, would be
+the one body that never finds an angle. A body that is concentrating takes the **mean
+position of the enemy across the road**. Either way the side is held for as long as
+the body stays in the same milestone, so it reads as a decision rather than dithering.
 
 > Both sides' bodies with a reach do this, so they end up facing each other.
 
@@ -71,11 +83,32 @@ keeping station — it is refusing to march, and it pulls the formation apart be
 meets anybody. Measured when the gate was briefly removed: the line bent by two and a
 half ranks and the formation sandbox stopped recognising it as a formation at all.
 
-An earlier version chose the side from **which half of the road the body already stood
-on**, and was gated on the wave being engaged and nothing else. Both were wrong. The
-first meant the direction had nothing to do with where the enemy was; the second meant
-a body only ever moved once its own front rank was already in contact, which is
-exactly too late for a rank whose job is to make contact expensive.
+An earlier version was gated on the wave being engaged and nothing else, which meant a
+body only ever moved once its own front rank was already in contact — exactly too late
+for a rank whose job is to make contact expensive. Hence the second half of the gate:
+something hostile inside its own reach, which is a body being come at from the side,
+and which its wave's contact flag cannot see.
+
+## A fanning rank is not held to the road
+
+It was, once, at nine tenths of the half-width, on the reasoning that the very verge is
+where a flanking body arrives and a rank pressed against it has nowhere left to go.
+
+That was the one place in the game reading a road's width as a fence, and the shape
+parameters say the opposite in the same breath as the number: **a body may stand
+anywhere; the width is how much room there is.** It was also aimed at the wrong
+behaviour — going wide is not a rank losing its discipline, it is the shape a line
+takes when the people with a reach cannot shoot over the people with a shield. They go
+to the ends, where the shot runs down the outside of both ranks rather than through
+their own. A flank that stops at the verge is a wider rank, not a flank.
+
+Measured before it was taken out, the bound was very nearly dead code: with an
+ordinary arrow needing a clear line, **1.4% of readings** sat at the edge, and removing
+it changed a nine-thousand-tick match not at all — same deaths, same bodies standing,
+identical to the digit. What actually bounds a fanning body is the spread multiple
+against its own place in the rank, and nothing here can run away: the widest a body
+ever asks for is its formation's radius times that multiple, and a concentrating body
+asks for wherever the enemy actually is.
 
 ## Falling back, and coming back
 
