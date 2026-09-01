@@ -41,7 +41,7 @@ M.FIELDS = {
   "vx", "vy", "vz",                    -- velocity, in cells per second
   "cell", "layer",                     -- the stance: which stone it is on
   "facing", "radius", "body_height",
-  "health", "team",
+  "health", "team", "incoming_damage", "duel", "flee_timer",
   "intent", "intent_cell", "intent_layer",
   "from_cell", "from_layer", "progress",
   "partner", "partner_generation",

@@ -103,6 +103,10 @@ end
 M.CREATURE = {
   ball   = { 0.86, 0.35, 0.24 },
   guy    = { 0.92, 0.86, 0.72 },
+  -- Pale, so that the team tint below is what you actually see. A fencer whose
+  -- own colour is strong shows its side as a shift you have to look for; one
+  -- that is nearly white shows it as the colour it is.
+  fencer = { 0.90, 0.88, 0.84 },
   dino   = { 0.45, 0.55, 0.32 },
   human  = { 0.80, 0.66, 0.50 },
   golem  = { 0.55, 0.55, 0.58 },
@@ -112,8 +116,8 @@ M.CREATURE = {
 
 M.TEAM = {
   [0] = { 1.00, 1.00, 1.00 },
-  [1] = { 1.00, 0.55, 0.45 },
-  [2] = { 0.50, 0.68, 1.00 },
+  [1] = { 1.00, 0.42, 0.34 },
+  [2] = { 0.42, 0.62, 1.00 },
   [3] = { 0.95, 0.85, 0.40 },
 }
 

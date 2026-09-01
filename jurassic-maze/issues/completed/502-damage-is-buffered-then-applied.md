@@ -5,12 +5,24 @@
 | Phase | 5 — The Fencing |
 | Blocked by | 302, 501 |
 | Blocks | 503 |
-| Reads | [the tick](../docs/010-the-tick.md), [fencing](../docs/017-fencing.md) |
+| Reads | [the tick](../../docs/010-the-tick.md), [fencing](../../docs/017-fencing.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Duels exist and nobody is hurt by them.
+`incoming_damage` on the body, added to by the duel pass and consumed by the
+resolve pass, which applies all of it and then carries out every death before
+anything reads the bodies again.
+
+**Both fencers strike each exchange**, which this issue did not say and which the
+buffering needs. Taking turns makes the buffering decorative: if only one blow is
+thrown at a time, two fencers can never kill each other in one tick and the case
+the whole arrangement exists for cannot arise. With both striking, about one duel
+in eight ends with both of them falling.
+
+`tests/061-duels.lua` runs the same forced mutual kill with the ids in both
+orders and requires the same answer, which is the only test that can catch the
+array-order failure this issue is about.
 
 ## Intended behavior
 
@@ -46,5 +58,5 @@ test worth having.
 
 ## Related documents and tools
 
-- [The tick](../docs/010-the-tick.md)
-- [Fencing](../docs/017-fencing.md)
+- [The tick](../../docs/010-the-tick.md)
+- [Fencing](../../docs/017-fencing.md)

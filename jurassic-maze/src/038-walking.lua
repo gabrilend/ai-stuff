@@ -295,6 +295,11 @@ function M.advance(world, bodies, roster, first, last, dt)
     if bodies.alive[id] == 1 then
       local kind = kinds[bodies.kind[id]]
 
+      -- A body in a duel is owned by the duel. Its locomotion does not advance,
+      -- which is what "both fencers stand still and face each other" means when
+      -- written down as code rather than as a sentence.
+      if bodies.duel[id] ~= 0 then goto continue end
+
       -- Falling first, and it is the shared fall, not one of this row's own. A
       -- walker that has walked off a ledge and a ball that has rolled off one
       -- are doing the same thing, and writing it twice is how they start
@@ -372,6 +377,7 @@ function M.advance(world, bodies, roster, first, last, dt)
       end
 
       Locomotion.check_in_world(Stone, store, bodies, id, "walking")
+      ::continue::
     end
   end
 end
