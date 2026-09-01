@@ -70,15 +70,20 @@ The vision's second sentence: little guys with idle animations and interactions.
 | --- | --- |
 | [401](../issues/completed/401-a-step-from-surface-to-surface.md) | a step from surface to surface |
 | [402](../issues/completed/402-smoothing-belongs-to-the-renderer.md) | smoothing belongs to the renderer |
-| [403](../issues/403-a-path-is-found-once-and-kept.md) | a path is found once and kept |
-| [404](../issues/404-an-idle-is-a-row-with-a-clock.md) | an idle is a row with a clock |
-| [405](../issues/405-the-meet-pass-pairs-bodies.md) | the meet pass pairs bodies |
-| [406](../issues/406-two-bodies-idling-together.md) | two bodies idling together |
-| [407](../issues/407-the-director-decides-what-is-worth-watching.md) | the director decides what is worth watching |
-| [408](../issues/408-the-panel-and-its-sliders.md) | the panel and its sliders |
+| [403](../issues/completed/403-a-path-is-found-once-and-kept.md) | a path is found once and kept |
+| [404](../issues/completed/404-an-idle-is-a-row-with-a-clock.md) | an idle is a row with a clock |
+| [405](../issues/completed/405-the-meet-pass-pairs-bodies.md) | the meet pass pairs bodies |
+| [406](../issues/completed/406-two-bodies-idling-together.md) | two bodies idling together |
+| [407](../issues/completed/407-the-director-decides-what-is-worth-watching.md) | the director decides what is worth watching |
+| [408](../issues/completed/408-the-panel-and-its-sliders.md) | the panel and its sliders |
 
-Done when a crowd of little guys wanders, stands about, notices each other, and
-the camera can be told to go and find somebody more interesting.
+Done when a crowd of little guys wanders, sets itself errands and finishes them,
+stands about, notices each other, and the camera can be told to go and find
+somebody more interesting. `./run-maze --scene crowd` runs it.
+
+**Phases 1 to 4 are complete.** What is below has documents and issues and no
+code: reading an issue in phase 5, 6 or 7 is reading a blueprint, not a
+description of something that exists.
 
 ## Phase 5 — The Fencing
 

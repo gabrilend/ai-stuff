@@ -27,7 +27,8 @@
 local M = {}
 
 local root
-local Stone, Projection, Palette, Renderer, Camera, Params, Tick, Validator, Walking
+local Stone, Projection, Palette, Renderer, Camera, Params, Tick, Validator,
+      Walking, Director
 
 local world      -- the maze, the streams, the bodies, the report
 local baked      -- the two static meshes and their band ranges
@@ -35,6 +36,9 @@ local camera
 local screen_w, screen_h
 local body_bands
 
+local director
+local show_panel = false
+local panel_hot  = nil       -- the slider being dragged, if any
 local dragging   = false
 local show_help  = true
 local paused     = false
@@ -42,6 +46,7 @@ local screenshot_after = nil
 local screenshot_delay = 0.6
 local start_zoom = nil
 local start_at   = nil
+local start_follow = false
 local scene      = "balls"
 local overrides  = {}
 local pass_time  = {}
@@ -51,12 +56,12 @@ local function load_modules(r)
   Params     = dofile(r .. "/src/028-maze-parameters.lua")
   Stone      = dofile(r .. "/src/030-the-stone.lua")
   Validator  = dofile(r .. "/src/032-the-validator.lua")
-  Walking    = dofile(r .. "/src/038-walking.lua")
   Tick       = dofile(r .. "/src/039-the-tick.lua")
   Projection = dofile(r .. "/src/040-the-projection.lua")
   Palette    = dofile(r .. "/src/041-the-palette.lua")
   Renderer   = dofile(r .. "/src/042-the-renderer.lua")
   Camera     = dofile(r .. "/src/043-the-camera.lua")
+  Director   = dofile(r .. "/src/044-the-director.lua")
 end
 -- }}}
 
@@ -77,6 +82,8 @@ local function parse_arguments(argv)
     elseif a == "--at"       then start_at = { tonumber(argv[i+1]), tonumber(argv[i+2]) }; i = i + 3
     elseif a == "--screenshot" then screenshot_after = argv[i+1]; i = i + 2
     elseif a == "--after"    then screenshot_delay = tonumber(argv[i+1]); i = i + 2
+    elseif a == "--panel"    then show_panel = true; i = i + 1
+    elseif a == "--follow"   then start_follow = true; i = i + 1
     else i = i + 1 end
   end
 end
@@ -89,8 +96,15 @@ local function build(seed)
   if seed then o.seed = seed end
 
   world = Tick.new_world(root, Params.with(o), scene)
+  -- Taken from the world rather than loaded here. Every world loads its own copy
+  -- of every module and links them to each other, so a copy loaded separately is
+  -- a different table with none of that done to it -- which shows up much later
+  -- as a nil index inside a module that was working a moment ago.
+  Walking = world.modules.Walking
   baked = Renderer.build(Stone, Projection, Palette, world.store, love.graphics)
   body_bands = { max_band = baked.max_band }
+
+  if director then Director.free(director) end
 
   print(Validator.describe(world.report))
   print(string.format("  faces              %d", baked.faces))
@@ -106,6 +120,7 @@ function M.load(r, argv)
 
   screen_w, screen_h = love.graphics.getDimensions()
   camera = Camera.new()
+  director = Director.new()
   build(nil)
   Camera.fit(Projection, camera, world.store, screen_w, screen_h)
 
@@ -117,6 +132,8 @@ function M.load(r, argv)
     local h = world.store.height[Stone.index(world.store, start_at[1], start_at[2])] or 0
     Projection.centre_on(camera, start_at[1], start_at[2], h, screen_w, screen_h)
   end
+
+  if start_follow then Director.pick(world, director) end
 
   love.graphics.setBackgroundColor(Palette.SKY)
 end
@@ -137,6 +154,11 @@ function M.update(dt)
   if not paused then
     Tick.advance(world, dt, pass_time)
   end
+
+  -- The director runs whether or not the simulation does, so a paused world can
+  -- still be looked around.
+  Director.update(world, director, camera, Projection, Camera, Walking, dt,
+                  screen_w, screen_h)
 
   -- A screenshot run opens the window, lets the simulation settle for a moment,
   -- saves a frame and leaves. Used by the phase demos and when a rendering
@@ -184,6 +206,10 @@ function M.draw()
     local here = body_bands[band]
     if here and here.n > 0 then
       for k = 1, here.n do
+        if here[k] == director.subject then
+          Director.draw_marker(Projection, Palette, flat, world, director,
+                               Walking, love.graphics)
+        end
         Renderer.draw_body(Projection, Palette, flat, world.store, world.bodies,
                            world.creatures, here[k], Walking, love.graphics)
       end
@@ -192,6 +218,7 @@ function M.draw()
 
   love.graphics.pop()
   M.draw_overlay()
+  M.draw_panel()
 end
 -- }}}
 
@@ -201,7 +228,7 @@ end
 function M.draw_overlay()
   local r = world.report
   love.graphics.setColor(0, 0, 0, 0.55)
-  love.graphics.rectangle("fill", 0, 0, 350, show_help and 216 or 90)
+  love.graphics.rectangle("fill", 0, 0, 350, show_help and 280 or 90)
   love.graphics.setColor(1, 1, 1, 1)
 
   local lines = {
@@ -224,7 +251,10 @@ function M.draw_overlay()
     lines[#lines + 1] = "space            hold the simulation still"
     lines[#lines + 1] = "."                .. "                one tick, while held still"
     lines[#lines + 1] = "n                a new maze, next seed"
-    lines[#lines + 1] = "1 2 3            balls / little guys / both"
+    lines[#lines + 1] = "1 2 3 4          balls / guys / both / a crowd"
+    lines[#lines + 1] = "tab              watch somebody else"
+    lines[#lines + 1] = "c                let go of the camera"
+    lines[#lines + 1] = "p                the camera's settings"
     lines[#lines + 1] = "h                hide this"
     lines[#lines + 1] = "escape           leave"
   end
@@ -232,6 +262,116 @@ function M.draw_overlay()
   for i, line in ipairs(lines) do
     love.graphics.print(line, 10, 6 + (i - 1) * 16)
   end
+end
+-- }}}
+
+-- {{{ local function panel_layout()
+-- Where each control sits. Computed rather than stored, because it depends on
+-- the window and the window can be resized between one frame and the next.
+--
+-- One list, walked by the drawing and by the hit testing, so a control cannot be
+-- drawn in one place and clicked in another.
+-- A toggle is one line; a slider is its label and then its track, so it needs
+-- two. Laying every row out at one height puts a slider's label on top of the
+-- control above it.
+local PANEL_W = 320
+local TOGGLE_H, SLIDER_H = 24, 36
+local function panel_layout()
+  local x = screen_w - PANEL_W - 16
+  local y = 16
+  local rows = {}
+  local at = y + 46
+  for index, control in ipairs(Director.CONTROLS) do
+    local h = (control.kind == "slider") and SLIDER_H or TOGGLE_H
+    rows[index] = { x = x + 14, y = at, w = PANEL_W - 28, h = h - 6,
+                    control = control }
+    at = at + h
+  end
+  return x, y, rows, at
+end
+-- }}}
+
+-- {{{ function M.draw_panel()
+-- Every setting the director has, as something you can move.
+--
+-- Asked for by name: a toggle for whether a new target is followed or staked
+-- out, and the dwell as a slider. The rest are the same shape, so they are rows
+-- in the same table.
+--
+-- **Nothing here touches the simulation.** The panel writes to the director and
+-- to the camera and to nothing else, which is what makes a session with somebody
+-- fiddling identical to one without.
+function M.draw_panel()
+  if not show_panel then return end
+  local x, y, rows, bottom = panel_layout()
+  local height = bottom - y + 70
+
+  love.graphics.setColor(0, 0, 0, 0.72)
+  love.graphics.rectangle("fill", x, y, PANEL_W, height, 4)
+  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.print("the camera", x + 14, y + 12)
+  love.graphics.setColor(0.75, 0.75, 0.70, 1)
+  love.graphics.print("tab swaps   c goes free   p hides this", x + 14, y + 28)
+
+  for _, row in ipairs(rows) do
+    local control = row.control
+    local value = director.settings[control.key]
+
+    if control.kind == "toggle" then
+      love.graphics.setColor(0.8, 0.8, 0.75, 1)
+      love.graphics.rectangle("line", row.x, row.y, 13, 13, 2)
+      if value then
+        love.graphics.setColor(0.95, 0.85, 0.35, 1)
+        love.graphics.rectangle("fill", row.x + 3, row.y + 3, 7, 7)
+      end
+      love.graphics.setColor(1, 1, 1, 1)
+      love.graphics.print(control.label, row.x + 22, row.y - 2)
+    else
+      local t = (value - control.low) / (control.high - control.low)
+      love.graphics.setColor(0.35, 0.35, 0.32, 1)
+      love.graphics.rectangle("fill", row.x, row.y + 19, row.w, 4, 2)
+      love.graphics.setColor(0.95, 0.85, 0.35, 1)
+      love.graphics.rectangle("fill", row.x, row.y + 19, row.w * t, 4, 2)
+      love.graphics.circle("fill", row.x + row.w * t, row.y + 21, 5)
+      love.graphics.setColor(1, 1, 1, 1)
+      love.graphics.print(string.format("%s  %.2f", control.label, value),
+                          row.x, row.y - 3)
+    end
+  end
+
+  local ly = bottom + 8
+  love.graphics.setColor(0.75, 0.78, 0.70, 1)
+  for _, line in ipairs(Director.describe(world, director)) do
+    love.graphics.print(line, x + 14, ly)
+    ly = ly + 15
+  end
+  love.graphics.setColor(1, 1, 1, 1)
+end
+-- }}}
+
+-- {{{ local function panel_click(mx, my, held)
+-- Returns true if the panel took the click, so the world does not also get it.
+local function panel_click(mx, my, held)
+  if not show_panel then return false end
+  local x, y, rows, bottom = panel_layout()
+  local height = bottom - y + 70
+  if mx < x or my < y or mx > x + PANEL_W or my > y + height then return false end
+
+  for index, row in ipairs(rows) do
+    local control = row.control
+    if my >= row.y - 4 and my <= row.y + row.h then
+      if control.kind == "toggle" and not held then
+        director.settings[control.key] = not director.settings[control.key]
+      elseif control.kind == "slider" then
+        panel_hot = index
+        local t = math.min(1, math.max(0, (mx - row.x) / row.w))
+        director.settings[control.key] =
+          control.low + t * (control.high - control.low)
+      end
+      return true
+    end
+  end
+  return true
 end
 -- }}}
 
@@ -265,6 +405,10 @@ end
 KEYS["1"] = function() scene = "balls"; build(world.params.seed) end
 KEYS["2"] = function() scene = "guys";  build(world.params.seed) end
 KEYS["3"] = function() scene = "both";  build(world.params.seed) end
+KEYS["4"] = function() scene = "crowd"; build(world.params.seed) end
+KEYS["tab"] = function() Director.pick(world, director) end
+KEYS["c"]   = function() Director.free(director) end
+KEYS["p"]   = function() show_panel = not show_panel end
 
 -- {{{ function M.wheelmoved(dx, dy)
 function M.wheelmoved(dx, dy)
@@ -277,6 +421,7 @@ end
 -- {{{ function M.mousepressed(x, y, button)
 function M.mousepressed(x, y, button)
   if button == 1 then
+    if panel_click(x, y, false) then return end
     dragging = true
   elseif button == 2 then
     -- Pointing at the maze and being told what is there. Goes through the ray
@@ -295,13 +440,19 @@ end
 
 -- {{{ function M.mousereleased(x, y, button)
 function M.mousereleased(x, y, button)
-  if button == 1 then dragging = false end
+  if button == 1 then dragging = false; panel_hot = nil end
 end
 -- }}}
 
 -- {{{ function M.mousemoved(x, y, dx, dy)
 function M.mousemoved(x, y, dx, dy)
-  if dragging then Camera.pan_by(camera, dx, dy) end
+  if panel_hot then
+    panel_click(x, y, true)
+  elseif dragging then
+    -- Dragging the world means the person has taken the camera back.
+    Camera.pan_by(camera, dx, dy)
+    Director.free(director)
+  end
 end
 -- }}}
 

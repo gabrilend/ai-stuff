@@ -133,3 +133,78 @@ that does the work, since the flights are laid before the maze is carved. On a
 healthy maze it cuts nothing and none of these numbers matter. They are kept at
 values that were enough when it *was* doing the work, so that the day it has to
 again, it can.
+
+---
+
+## Phase four: turning a crowd into a crowd
+
+### Populations: a count that needed to be a density
+
+| Scene | Was | Now |
+| --- | --- | --- |
+| `balls` | 260 | 300 |
+| `guys` | 200 | 700 |
+| `both` | 180 + 140 | 260 + 480 |
+| `crowd` | — | 1400, new |
+
+The shared idle — two bodies standing about together, which is most of what phase
+four is pointed at — fired **six times a minute** at two hundred walkers. Nothing
+was broken. Two hundred bodies in eight thousand eight hundred floor cells is two
+percent occupancy, and two of them are adjacent almost never.
+
+Measured over thirty seconds on one maze:
+
+| Walkers | Occupancy | Stood together |
+| --- | --- | --- |
+| 100 | 1.1% | 1 |
+| 300 | 3.4% | 6 |
+| 700 | 7.9% | 34 |
+| 1400 | 15.8% | 119 |
+
+`capacity` went from 2000 to 3000 to hold the largest of these.
+
+### `crowd_weight` = 0.06, new
+
+How much less likely a step into an occupied cell is. Never zero, and that is the
+whole design of it: in a one-wide corridor with somebody coming the other way,
+refusing outright means both of them stand there for the rest of the run.
+
+At seven hundred walkers this took separations from twenty-two thousand a minute
+to fifteen thousand. The remainder is genuine corridor traffic — two bodies in a
+passage one cell wide, one of which has to give — and it resolves every time:
+across every measured run, the count of overlaps that could *not* be resolved is
+zero.
+
+The claim that goes with it lasts the **journey**, not the tick. A step takes
+twenty-five ticks at the walker's speed, so a one-tick claim leaves twenty-four
+during which anybody may take the destination, which was where most of the rest
+of the shoving came from.
+
+### `errand_chance` = 0.02, new
+
+Per arrival, a decision to go somewhere in particular rather than nowhere. A
+wandering body never arrives, so nothing it does ever finishes and the camera has
+no moment to notice.
+
+The destination is a block or two away, not anywhere in the maze. A cell drawn
+from the whole maze is a three-hundred-step journey costing five milliseconds to
+plan — at seven hundred bodies that was most of the tick — and it is the wrong
+journey anyway, because nobody watches a two-minute trek.
+
+### `search_budget` 4000 → 2500
+
+Local errands do not need it. A search that gives up is counted in the report and
+across every measured run the count is zero.
+
+### The idle rows, new
+
+Six of them, with weights per creature kind. `breathe` is the default and is
+weighted highest: a genuinely motionless body reads as a bug, because the eye
+assumes something crashed, and a body whose drawn height moves by a twentieth of
+a layer on a slow cycle reads as alive without anybody noticing why.
+
+### The director's settings, new
+
+`dwell_seconds` 8, adjustable 1 to 60 — the slider was asked for by name.
+`boredom_seconds` 12. `ease` 0.10, adjustable 0.02 to 0.5: snapping a camera to a
+body stepping between cells makes the whole maze jitter by a cell every step.

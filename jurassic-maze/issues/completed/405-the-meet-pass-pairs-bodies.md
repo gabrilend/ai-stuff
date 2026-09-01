@@ -5,12 +5,24 @@
 | Phase | 4 — The Wandering |
 | Blocked by | 301, 302, 308 |
 | Blocks | 406, 501, 702, 707 |
-| Reads | [two bodies meeting](../docs/016-two-bodies-meeting.md) |
+| Reads | [two bodies meeting](../../docs/016-two-bodies-meeting.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Bodies pass through each other without noticing.
+`058-meeting.lua`, and it is a pass in the tick's table with `parallel` set to
+false — the only one of the four that is.
+
+The meet table is two-dimensional and indexed by creature kind, with mirrored
+entries sharing one function so a rule cannot be written twice differently.
+`describe` prints the whole thing, which is read by nothing and exists so a
+person can see that nobody has written down what happens when a golem meets a
+ball.
+
+The bucket ranges are walked directly rather than through a callback. The
+callback allocated a closure per body per tick, which at seven hundred bodies is
+a quarter of a million a minute for a loop of four lines; removing it made the
+pass four and a half times faster and it is no longer the most expensive one.
 
 ## Intended behavior
 
@@ -20,7 +32,7 @@ other pass reads one body's state and changes another's.
 Pairing is the only thing in the simulation that is not independent per body.
 Confining it here is what lets every other pass be split across cores without
 anybody thinking about it — and this pass is small precisely because it is the
-one that cannot be. See [the tick](../docs/010-the-tick.md).
+one that cannot be. See [the tick](../../docs/010-the-tick.md).
 
 For each body, look at its own bucket and the eight around it, and consider each
 body found whose **id is greater than its own**. That one comparison is what
@@ -54,5 +66,5 @@ the only way to tell them apart.
 
 ## Related documents and tools
 
-- [Two bodies meeting](../docs/016-two-bodies-meeting.md)
-- [The tick](../docs/010-the-tick.md)
+- [Two bodies meeting](../../docs/016-two-bodies-meeting.md)
+- [The tick](../../docs/010-the-tick.md)

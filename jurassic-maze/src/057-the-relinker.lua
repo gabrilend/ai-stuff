@@ -95,42 +95,63 @@ function M.relink(root)
   end
   -- }}}
 
+  -- {{{ local function normalise(text, prefix_for)
+  -- Rewrites every issue reference to the prefix it *should* have, whatever it
+  -- has now.
+  --
+  -- The first version adjusted links instead of deriving them -- an open sibling
+  -- gained a `../`, a completed one gained a `completed/` -- and that is only
+  -- correct for a file that moves once. A link written while its target was open,
+  -- rewritten when the target completed, and rewritten again when the *source*
+  -- completed, ends up as `completed/completed/`. Deriving the whole prefix from
+  -- where both files are now is idempotent by construction, and idempotent is
+  -- the property that makes this safe to run from every completion and by hand
+  -- whenever something looks wrong.
+  local function normalise(text, prefix_for)
+    local n = 0
+    text = text:gsub("%]%(([%.%w/]-)(%d%d%d[%w%-]*%.md)%)", function(had, base)
+      -- Only touch things that are plainly issue references. A path reaching out
+      -- of the issues tree -- ../docs/003-carving-the-maze.md -- is not one.
+      if had:find("docs/") or had:find("src/") or had:find("assets/")
+         or had:find("notes/") or had:find("tests/") then
+        return "](" .. had .. base .. ")"
+      end
+      local want = prefix_for(base)
+      if want == nil then return "](" .. had .. base .. ")" end
+      if want ~= had then n = n + 1 end
+      return "](" .. want .. base .. ")"
+    end)
+    return text, n
+  end
+  -- }}}
+
   -- Inside a completed issue: it sits one directory deeper than it used to, so
-  -- every escape out of issues/ needs one more step.
+  -- every escape out of issues/ needs one more step. `../../` already starts
+  -- with `../.`, so this cannot apply twice.
   for _, name in ipairs(list_dir(root .. "/issues/completed", "%.md$")) do
     fix(root .. "/issues/completed/" .. name, function(text)
       local n = 0
       text = text:gsub("%]%(%.%./([%w])", function(first)
-        -- ../docs, ../inspiration, ../notes and so on -- but not ../../ which is
-        -- already correct, and not ../completed which never existed.
         n = n + 1
         return "](../../" .. first
       end)
-      -- A sibling issue that is still open is now one level up.
-      text = text:gsub("%]%((%d%d%d[%w%-]*%.md)%)", function(target)
-        if where[target] == "open" then
-          n = n + 1
-          return "](../" .. target .. ")"
-        end
-        return "](" .. target .. ")"
+      local fixed, m = normalise(text, function(base)
+        if where[base] == "open" then return "../" end
+        if where[base] == "done" then return "" end
+        return nil
       end)
-      return text, n
+      return fixed, n + m
     end)
   end
 
-  -- Inside an open issue: a sibling that has been completed is now one level
-  -- down.
+  -- Inside an open issue.
   for _, name in ipairs(list_dir(root .. "/issues", "%.md$")) do
     fix(root .. "/issues/" .. name, function(text)
-      local n = 0
-      text = text:gsub("%]%((%d%d%d[%w%-]*%.md)%)", function(target)
-        if where[target] == "done" then
-          n = n + 1
-          return "](completed/" .. target .. ")"
-        end
-        return "](" .. target .. ")"
+      return normalise(text, function(base)
+        if where[base] == "open" then return "" end
+        if where[base] == "done" then return "completed/" end
+        return nil
       end)
-      return text, n
     end)
   end
 

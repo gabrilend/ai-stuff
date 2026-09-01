@@ -229,6 +229,145 @@ function M.count_ledges(Stone, store, label, main, drop_limit)
 end
 -- }}}
 
+-- {{{ function M.find_path(Stone, store, from_cell, from_layer, to_cell, to_layer, drop_limit, body_height, budget, into)
+-- A-star over the surface graph. Returns the number of steps, or nil.
+--
+-- The path is written into `into` as packed stances, nearest first, so a caller
+-- that keeps one array per body allocates nothing per search.
+--
+-- Three things bound the cost, and all three matter:
+--
+-- **The component labels are checked first.** If the destination is in a
+-- different piece there is no path, and one comparison saves the entire search.
+--
+-- **The estimate is the straight-line distance in cells plus the difference in
+-- layers**, which never overestimates -- every step moves one cell and at most
+-- one layer -- so the first route found is the shortest.
+--
+-- **It gives up.** After `budget` surfaces examined it stops and returns nil,
+-- and the caller counts that. A search that quietly failed leaves a body
+-- standing still looking stuck for no reason anybody can name, and the count is
+-- how it is ever noticed at all. This is the project's one sanctioned fallback,
+-- and the rule about fallbacks is that they are announced and counted.
+function M.find_path(Stone, store, from_cell, from_layer, to_cell, to_layer,
+                     drop_limit, body_height, budget, into)
+  if from_cell == to_cell and from_layer == to_layer then
+    into[1] = nil
+    return 0
+  end
+
+  if store.label then
+    local a = store.label[M.pack(store, from_cell, from_layer)]
+    local b = store.label[M.pack(store, to_cell, to_layer)]
+    if a and b and a ~= b then return nil end
+  end
+
+  local tx, ty = Stone.coords(store, to_cell)
+
+  -- {{{ local function estimate(cell, layer)
+  local function estimate(cell, layer)
+    local x, y = Stone.coords(store, cell)
+    local dx = (x > tx) and (x - tx) or (tx - x)
+    local dy = (y > ty) and (y - ty) or (ty - y)
+    local dl = (layer > to_layer) and (layer - to_layer) or (to_layer - layer)
+    return dx + dy + dl
+  end
+  -- }}}
+
+  -- A binary heap over a flat array of {priority, key} pairs, rebuilt per search
+  -- rather than allocated. A sorted table would be simpler and would make every
+  -- insertion cost the length of the frontier.
+  local heap_key, heap_pri, heap_n = {}, {}, 0
+
+  -- {{{ local function push(key, pri)
+  local function push(key, pri)
+    heap_n = heap_n + 1
+    heap_key[heap_n], heap_pri[heap_n] = key, pri
+    local i = heap_n
+    while i > 1 do
+      local parent = math.floor(i / 2)
+      if heap_pri[parent] <= heap_pri[i] then break end
+      heap_key[i], heap_key[parent] = heap_key[parent], heap_key[i]
+      heap_pri[i], heap_pri[parent] = heap_pri[parent], heap_pri[i]
+      i = parent
+    end
+  end
+  -- }}}
+
+  -- {{{ local function pop()
+  local function pop()
+    if heap_n == 0 then return nil end
+    local top = heap_key[1]
+    heap_key[1], heap_pri[1] = heap_key[heap_n], heap_pri[heap_n]
+    heap_n = heap_n - 1
+    local i = 1
+    while true do
+      local l, r = i * 2, i * 2 + 1
+      local best = i
+      if l <= heap_n and heap_pri[l] < heap_pri[best] then best = l end
+      if r <= heap_n and heap_pri[r] < heap_pri[best] then best = r end
+      if best == i then break end
+      heap_key[i], heap_key[best] = heap_key[best], heap_key[i]
+      heap_pri[i], heap_pri[best] = heap_pri[best], heap_pri[i]
+      i = best
+    end
+    return top
+  end
+  -- }}}
+
+  local start  = M.pack(store, from_cell, from_layer)
+  local goal   = M.pack(store, to_cell, to_layer)
+  local came   = {}
+  local cost   = { [start] = 0 }
+  local seen   = 0
+
+  push(start, estimate(from_cell, from_layer))
+
+  while heap_n > 0 do
+    local here = pop()
+    if here == goal then
+      -- Unwind, nearest first.
+      local n = 0
+      local node = goal
+      while node ~= start do
+        n = n + 1
+        node = came[node]
+      end
+      local k = n
+      node = goal
+      while node ~= start do
+        into[k] = node
+        k = k - 1
+        node = came[node]
+      end
+      into[n + 1] = nil
+      return n
+    end
+
+    seen = seen + 1
+    if seen > budget then return nil end
+
+    local hc, hl = M.unpack(store, here)
+    local here_cost = cost[here]
+
+    for di = 1, 4 do
+      local answer, nc, nl = M.step(Stone, store, hc, hl, di, drop_limit, body_height)
+      if answer ~= M.BLOCKED then
+        local nkey = M.pack(store, nc, nl)
+        local next_cost = here_cost + 1
+        if cost[nkey] == nil or next_cost < cost[nkey] then
+          cost[nkey] = next_cost
+          came[nkey] = here
+          push(nkey, next_cost + estimate(nc, nl))
+        end
+      end
+    end
+  end
+
+  return nil
+end
+-- }}}
+
 -- {{{ function M.is_pit(Stone, store, cell, layer, drop_limit)
 -- Whether a body standing here could leave.
 --

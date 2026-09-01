@@ -2,10 +2,20 @@
 
 Decides what is worth watching and when it stops being.
 
-**Not built yet.** The file exists and is empty, holding its index in the reading
-order so that the numbering does not have to shift when it is filled in.
+## Exports
 
-## What it will be
+| Function | Arguments | Returns |
+| --- | --- | --- |
+| `new()` | | the director, with every setting the panel can move |
+| `update(world, director, camera, Projection, Camera, Walking, dt, w, h)` | | one frame of directing. Moves the camera; touches nothing in the world. |
+| `verdict(world, director)` | | which predicate fired, by name, or nil |
+| `pick(world, director)` | | a new subject, from the camera stream |
+| `free(director)` | | give the camera back |
+| `draw_marker(...)` | | a thin ring on the stone beneath the subject |
+| `describe(world, director)` | | what the panel says, as lines |
+| `CONTROLS` | | the settings, as rows, so the panel is a loop |
+
+## What it is
 
 Separate from the camera, because "where is the camera" and "who is interesting"
 are two questions that change at completely different rates. It holds a subject
@@ -20,8 +30,8 @@ going past, and a camera parked at a junction shows the maze working.
 The full design is in
 [the camera and what it watches](../docs/008-the-camera-and-what-it-watches.md),
 and the work is
-[issue 407](../issues/407-the-director-decides-what-is-worth-watching.md) and
-[issue 408](../issues/408-the-panel-and-its-sliders.md).
+[issue 407](../issues/completed/407-the-director-decides-what-is-worth-watching.md) and
+[issue 408](../issues/completed/408-the-panel-and-its-sliders.md).
 
 ## The one rule it must not break
 
@@ -30,10 +40,15 @@ stream is never read by the simulation, and the simulation is never read for
 randomness by the director.
 
 This is what keeps a session reproducible while somebody is mashing the swap key:
-the maze does not care that you are watching. `tests/052-layering.lua` already
-greps for the violation, and the test that will prove it is a run with the key
-pressed a thousand times at random producing the same simulation checksum as a
-run where it was never pressed.
+the maze does not care that you are watching.
+
+`tests/059-the-camera-cannot-move-the-world.lua` proves it. Fifteen hundred
+ticks, the swap key pressed five hundred times, every panel control driven
+through its whole range, the camera panned and zoomed throughout — and a
+simulation checksum identical to a run where nobody looked. It also asserts the
+quiet run never touched the camera stream **at all**, because if it had, the
+simulation is reading it, and that second assertion is what keeps the first from
+being vacuous.
 
 ## An open question it is waiting on
 

@@ -424,7 +424,7 @@ function M.draw_body(Projection, Palette, flat, store, bodies, creatures, id,
 
   local x, y, z
   if kind.locomotion == creatures.WALKING then
-    x, y, z = walking.drawn_position(nil, store, bodies, id)
+    x, y, z = walking.drawn_position(store, bodies, id)
   else
     x, y, z = bodies.x[id], bodies.y[id], bodies.z[id]
   end
