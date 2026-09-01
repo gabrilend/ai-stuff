@@ -1,26 +1,22 @@
 goodbye
 
-seed 39   129 x 129 x 32   scene 'delve'   600 ticks (10.0 s)
+seed 1   48 x 48 x 32   scene 'balls'   60 ticks (1.0 s)
 
   the maze
-    floor cells          9342
-    staircases           223  (39 for connectivity, 184 beyond it)
+    floor cells          0
+    staircases           0  (0 for connectivity, 0 beyond it)
     orphan cells filled  0
-    diameter             296 steps
-    fill fraction        0.383
+    diameter             0 steps
+    fill fraction        0.000
 
   the bodies
-    live                 235 of 3000 capacity
-    spawned              263
+    live                 300 of 3000 capacity
+    spawned              300
     retired at rest      0
     spawns skipped       0   (a maze whose spawn points are all blocked)
-    never moved          7   (one is stuck; forty is a broken rule)
-    layers visited       0 to 28
-    largest bucket       11   (climbing means the meet pass is going quadratic)
+    never moved          39   (one is stuck; forty is a broken rule)
+    layers visited       10 to 24
+    largest bucket       24   (climbing means the meet pass is going quadratic)
 
   by kind
-    automaton live   25   mean distance   16.12 cells   still   0   layers  0 to 24
-    dino     live   40   mean distance    6.90 cells   still   4   layers  0 to 20
-    golem    live   10   mean distance    7.80 cells   still   0   layers  0 to 20
-    human    live  120   mean distance   18.80 cells   still   3   layers  0 to 28
-    vine     live   40   mean distance   13.22 cells   still   0   layers  0 to 28
+    ball     live  300   mean distance    2.32 cells   still  39   layers 10 to 24

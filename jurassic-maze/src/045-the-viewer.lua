@@ -77,6 +77,7 @@ local function parse_arguments(argv)
     elseif a == "--depth"    then overrides.depth  = tonumber(argv[i+1]); i = i + 2
     elseif a == "--layers"   then overrides.layers = tonumber(argv[i+1]); i = i + 2
     elseif a == "--terraces" then overrides.terrace_count = tonumber(argv[i+1]); i = i + 2
+    elseif a == "--map"      then overrides.map = argv[i+1]; i = i + 2
     elseif a == "--scene"    then scene = argv[i+1]; i = i + 2
     elseif a == "--zoom"     then start_zoom = tonumber(argv[i+1]); i = i + 2
     elseif a == "--at"       then start_at = { tonumber(argv[i+1]), tonumber(argv[i+2]) }; i = i + 3
@@ -251,9 +252,16 @@ function M.draw_overlay()
   local lines = {
     string.format("seed %d   %d x %d x %d   scene '%s'",
                   r.seed, r.width, r.depth, r.layers, scene),
-    string.format("%d floor cells   %d staircases   diameter %d",
-                  r.floor_cells, (r.staircases_cut or 0) + (r.extra_staircases or 0),
-                  r.diameter),
+    -- A carved maze and a hand-authored map answer different questions, so the
+    -- line says whichever of the two it actually knows. A diameter of zero
+    -- printed for a map would be a measurement nobody took.
+    r.map
+      and string.format("%d plates   %d staircases   elevation %d to %d",
+                        r.plates or 0, r.staircases or 0, r.lowest or 0, r.highest or 0)
+      or  string.format("%d floor cells   %d staircases   diameter %d",
+                        r.floor_cells or 0,
+                        (r.staircases_cut or 0) + (r.extra_staircases or 0),
+                        r.diameter or 0),
     string.format("%d faces   %.0f fps   zoom %.2f", baked.faces,
                   love.timer.getFPS(), camera.scale),
     string.format("tick %d   %d bodies   %d spawned   %d retired%s",
