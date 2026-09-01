@@ -1,180 +1,203 @@
 # 004 — The Fence Network
 
-The datapath of the cage: what a place actually is on disk, why a block is not a
-polygon, and how the one thing the game means by *nearness* falls out of it.
+The datapath of the cage: what a place actually is on disk, and how a complete
+partition of the city is guaranteed rather than achieved.
 
-This is the structure the whole heroic effort of hand-tracing writes into. Get it
-wrong and the tracing has to be done twice. For what the places *mean*, see
+For what the places *mean*, see
 [the places of the city](003-the-places-of-the-city.md); this page is only their
 geometry.
 
-## Why a block is not a list of points
+## The city is subdivided, never assembled
 
-The obvious structure — each block holding its own closed list of points — fails
-the moment you drag anything. A vertex on the fence between two blocks belongs to
-both. Move it in one and the other stays where it was, and you get a hairline
-gap where two blocks used to meet.
+**The map starts whole and gets cut up.** It does not start empty and get filled
+in.
 
-The gap is the visible half of the failure. The invisible half is worse: the two
-blocks are no longer recorded as touching, so nothing propagates between them,
-and the city quietly stops being connected in a way that looks fine on screen.
+```
+   start            one cut           two cuts
+   ┌────────┐      ┌────────┐      ┌────────┐
+   │        │      │   │    │      │   │    │
+   │  one   │  ─▶  │ A │  B │  ─▶  │ A │ B  │
+   │        │      │   │    │      │───┼────│
+   │        │      │   │    │      │ C │ D  │
+   └────────┘      └────────┘      └────────┘
+```
 
-So the cage is a **network**, and blocks are faces of it.
+**Coverage is always one hundred percent.** There is no untraced ground, no
+undefined territory, no identity zero anywhere inside the painting. The work is
+not *how much of the city exists yet* but *how finely it is divided and how well
+it is named*.
 
-## The tables
+That single change makes several faults unrepresentable rather than merely
+checked for:
 
-| Table | Field | Type | Meaning |
-| --- | --- | --- | --- |
-| **vertices** | `x`, `y` | numbers | position in painting pixels |
-| **edges** | `path` | ordered list of integers | vertex indices, walked from one end to the other. One run of street. |
-| **intersections** | `vertex` | integer | which vertex this corner is at |
-| | `name` | string | what the corner is called |
-| **blocks** | `name` | string | what the place is called |
-| | `loop` | ordered list of pairs | an edge index and a direction flag each, walked in order to close the fence |
-| | `district` | integer | which district it belongs to — the only thing districts and quadrants need |
-| | `default_filter` | string, or nothing | the filter that switches on when this block is selected |
-| **buildings** | `name` | string | what it is called |
-| | `block` | integer | which block it stands in |
-| | `zone` | a few points | a rough shape over the roof, enough to click. **Not a traced footprint.** |
-| | `access` | one of a few values | almost always open; see [the places of the city](003-the-places-of-the-city.md) |
+| Fault the old design could have | Why it cannot happen now |
+| --- | --- |
+| a loop that does not close | faces are closed by construction; there are no loops to draw |
+| an edge belonging to no place | every edge separates exactly two faces |
+| an edge named by three places | a planar edge has two sides |
+| two blocks that look adjacent but are not | adjacency *is* sharing an edge, and edges are shared by construction |
+| ground nobody has defined | the partition is always complete |
 
-Houses live inside buildings and have **no geometry whatsoever** — no footprint,
-no zone, no point. They are a list, reached through the tome. What they are is
-described in [the places of the city](003-the-places-of-the-city.md).
+This is the same move as choosing a shared network over per-block outlines, taken
+one step further: **pick the representation in which the invariant cannot be
+violated**, rather than the one you check afterwards.
 
-Districts and quadrants have no geometry either. Their outlines are the outer
-edges of their members, computed on demand. **Everything above the block is
-free.**
+## What is stored, and what is derived
+
+| | | |
+| --- | --- | --- |
+| **vertices** | `x`, `y` | position in painting pixels |
+| **edges** | `path` | ordered vertex indices — one run of street |
+| **places** | `seed`, `name`, `district`, `default_filter` | see below |
+| **faces** | — | **derived**, never stored |
+
+The graph of vertices and edges is the truth. The **faces** — the regions the
+graph cuts the painting into — are computed from it.
+
+### How faces are found
+
+The standard walk over a planar graph. At each vertex, sort its incident edges by
+angle. To trace a face, follow an edge, and at the far end take the next edge
+clockwise from the one you arrived on, reversed. Repeat until you return to where
+you began. Every such walk closes, and together the walks cover every edge twice
+— once from each side, which is exactly the two faces that edge separates.
+
+It requires the graph to be **planar**: no two edges may cross except at a shared
+vertex. That is a real constraint on the editor rather than a detail — a crossing
+must either be refused or split into a vertex at the intersection. See
+[the tracing mode](005-the-tracing-mode.md).
+
+### How a name stays attached to a derived face
+
+Faces are recomputed whenever the graph changes, so their numbering is not
+stable, and a name cannot live on a face.
+
+It lives on a **place**, which holds a **seed** — a point inside the region it
+names. After any recomputation, each face adopts the place whose seed falls
+inside it.
+
+That degrades exactly as it should:
+
+- **Cut a region in two.** The seed lands in one half, which keeps the name. The
+  other half is a new, unnamed place. Cutting Tanner's Row in two leaves one half
+  still Tanner's Row and one half waiting to be named — which is right.
+- **Sever a link.** Two faces merge and two seeds are now inside one face. One
+  name has to win, and the person is asked rather than guessed at, because losing
+  a hand-written name silently would be unforgivable.
+
+A seed for a new face must be **a point guaranteed to be inside it**. A centroid
+is not — a concave face's average position can easily fall outside it, which
+would attach a name to the wrong region in a way nobody would notice.
 
 ## Two kinds of vertex, and the difference is derived
 
-The distinction that makes dragging behave correctly is not recorded anywhere:
+- A **junction** is a vertex where edges end — several meet there. Drag it and
+  every fence into that corner follows, because they all name this same vertex.
+- A **shape point** is a vertex only in the interior of exactly one edge. It is
+  what makes a curved street curve. Drag it and one stretch bends.
 
-- A **junction** is a vertex appearing at the start or end of any edge. Several
-  edges meet there. Drag it and every fence running into that corner follows, so
-  a corner stays a corner.
-- A **shape point** is a vertex appearing only in the interior of exactly one
-  edge. It is what makes a curved street curve. Drag it and you bend that one
-  stretch of fence and nothing else.
-
-Grab the corner of a block and the neighbourhood re-corners with it. Grab the
-middle of a lane and you nudge the lane. That is what a person expects from the
-tool, and it costs no extra field — it is a consequence of the same vertex
-appearing in more than one edge's path.
+Not stored as a flag. A flag can disagree with the structure and drift silently;
+derived, the question *is this a corner?* is answered by looking.
 
 ## Intersections are content, not geometry
 
 A junction is where edges happen to meet. An **intersection** is a junction
 somebody has named, and it is a thing the game talks about: the tome lists a
-block's intersections and everything each one connects to. See
-[the tome](007-the-tome.md).
+block's intersections and everything each one connects to.
 
-This matters because of what the author said nearness is:
+Which matters because of what nearness is:
 
 > The connections are what's nearby.
 
-Not distance, not radius — which street runs lead where, and what they reach.
-A corner is therefore a place you can say something about, and a block's borders
-are a list of named corners rather than an anonymous outline.
+Not distance — which street runs lead where, and what they reach. A corner is
+therefore a place you can say something about, and a block's borders are a list
+of named corners rather than an anonymous outline.
 
-## Adjacency is the whole point
+## Adjacency is a shared edge
 
-**Two blocks are neighbours when their loops name the same edge.**
+**Two places are neighbours when a single edge separates them.** The only notion
+of nearness the game has, and now true by construction rather than by careful
+tracing.
 
-That is the only notion of nearness the game has, and it is exact. No distances
-are computed, no radii drawn, nothing depends on the painting's wildly
-non-uniform scale. Influence travels one block at a time along the streets, and a
-city wall stops it outright because the blocks on either side of a rampart do not
-share an edge.
+No distances are computed, no radii drawn, nothing depends on the painting's
+threefold scale swing. Influence travels one place at a time along the streets,
+and a city wall stops it outright because the places either side of a rampart are
+not separated by a street — they are separated by a wall, which is not an edge in
+this graph.
 
-Because adjacency is structural rather than measured, it is also **checkable**: a
-tool can walk the network and report edges named by three blocks (impossible), by
-one block (the city's outer boundary, or a mistake), or by none (stranded). That
-check belongs beside the tracing tool and should run on every save.
+Walking the graph gives distance a felt shape rather than a numeric one. One hop
+is your daily life; several is an errand you would remember taking.
 
-Walking the graph also gives distance a felt shape rather than a numeric one. One
-hop is your daily life. Several hops is an errand you would remember taking.
+## The line runs down the middle of the street
+
+A street has width, but the two places facing each other across one share a
+**single** edge — so the line follows the road's centre and each place owns its
+half.
+
+The precision needed is low. The rule is *somewhere in the road*, not *exactly
+the centre*: what matters is that every building sits clearly on one side. And
+the cage is only ever looked at when places are 24 to 64 screen pixels across,
+where a street is a few pixels wide and a wobble of two is invisible.
+
+Two consequences:
+
+**The cage reads like a road centreline**, which is a natural thing for a hairline
+to be doing on a map of a city.
+
+**There is no street object.** A lane is where two places meet, not a place.
+Nobody stands *in* a street; they stand in a place, on its half of the road.
+Public space is the open buildings and the squares, and a square is a place.
 
 ## Drawing the cage
 
-**One pixel wide, in screen space.** The fence is not drawn inside the map's zoom
-transform. Each vertex is converted from painting pixels to screen pixels by
-hand, and the line is stroked at a literal width of one. Inside the transform the
-line would scale with the zoom — invisible at the whole-city view and a fat worm
-at native pixels. Outside it, the cage stays exactly one pixel at every zoom,
-which is what makes it read as a cage laid over the painting rather than as paint
-on it.
+**One pixel wide, in screen space** — converted by hand rather than drawn inside
+the zoom transform, so the line is exactly one pixel at every zoom. That is what
+makes it read as a cage *laid over* the painting rather than paint *on* it.
 
 **One pixel means one colour.** A single pixel carries no gradient and no weight,
-so every line in the cage is drawn identically — there is no opacity to vary and
-no thickness by which to tell a quadrant boundary from an alley's.
-
-### One level at a time
-
-Which leaves only *whether* an edge is drawn, and the rule is:
+so every line is drawn identically. Which leaves only *whether* an edge is drawn:
 
 > **Draw the boundaries of the level you can currently select. Only those.**
 
-Quadrants at the city view, then districts, then blocks, then buildings — the
-cage **swaps** as you descend rather than accumulating. See
+Quadrants at the city view, then districts, then blocks, then buildings. The cage
+**swaps** as you descend rather than accumulating. See
 [the map surface](002-the-map-surface.md).
 
-This makes an existing promise exact: the cage *is* the set of things you can
-click. And it needs no cap on density, because a level only becomes selectable
-when its places are a workable size on screen.
-
-### Why not a fade
-
-An earlier design faded each boundary in on its own on-screen width. Since the
-fence runs down the middle of a street, **nearly every edge is shared by exactly
-two blocks** — only the city's outer boundary is single-sided — and each block
-would have wanted its own opacity for one line stroked once.
-
-A harbour block 300 screen pixels across beside an alley of 28: taking the larger
-left small places with lopsided part-drawn outlines; taking the smaller put faint
-patches into large ones that read as the drawing failing; stroking twice made
-shared edges brighter than unshared ones. One colour removes the number they were
-disagreeing about.
-
-## Undefined ground
-
-Most of the painting will be untraced for a long time, and some of it forever —
-the mountains, the fields, the sea, the foreground ridge. In the identity buffer
-it reads as zero.
-
-What happens when you click there is undecided. See
-[open questions](012-open-questions.md).
-
-A tool should report **coverage** — how much of the painting is fenced, how many
-blocks and buildings exist, how many are still unnamed — because the tracing is
-the largest single piece of hand-work in the project and its progress needs a
-number nobody has to count by hand.
+This makes an existing promise exact — the cage *is* the set of things you can
+click — and needs no cap on density, since a level only becomes selectable when
+its places are a workable size on screen.
 
 ## Datapath summary
 
 ```
-   the tracing tool                        the game
+   the tracing mode                        the game
         │                                      │
-        │ writes                               │ reads
+        │ cuts and severs                      │ reads
         ▼                                      ▼
    ┌────────────────────────────────────────────────────┐
-   │  vertices ──▶ edges ──▶ blocks ──▶ buildings       │
-   │      │          │          │                       │
-   │      └──▶ intersections    └──▶ district ──▶ quadrant
-   │           (named corners)       (membership only)  │
+   │  vertices ──▶ edges                                │
+   │       │          │                                 │
+   │       │          ▼                                 │
+   │       │      faces (DERIVED — planar face walk)    │
+   │       │          │                                 │
+   │       │          │ each adopts the place whose      │
+   │       │          ▼ seed falls inside it             │
+   │       │      places ──▶ district ──▶ quadrant      │
+   │       │      (name, seed,  (membership only)        │
+   │       │       buildings)                            │
+   │       └──▶ intersections (named corners)            │
    └────────────────────────────────────────────────────┘
         │                  │                    │
-        │ filled by id     │ same edge =        │ stroked, by level,
-        ▼                  ▼ adjacency          ▼ faded on own size
-   identity buffer    the neighbour          the cage
-        │                graph
+        ▼ filled by id     ▼ shared edge =      ▼ stroked at the
+   identity buffer     adjacency, by         selectable level
+        │               construction
         ├──▶ pointer → place, then up the chain
         └──▶ filter shading
 ```
 
 ## Related documents
 
-- [The places of the city](003-the-places-of-the-city.md) — what these shapes mean
+- [The places of the city](003-the-places-of-the-city.md) — what these regions mean
 - [The map surface](002-the-map-surface.md) — the identity buffer and the levels
-- [The tracing tool](005-the-tracing-tool.md) — the program that writes all of this
+- [The tracing mode](005-the-tracing-mode.md) — how the cutting is done
 - [Open questions](012-open-questions.md)

@@ -5,8 +5,8 @@
 | Phase | 3 — The Tracing Tool |
 | Blocked by | 302, 305 |
 | Blocks | — |
-| Reads | [the tracing tool](../docs/005-the-tracing-tool.md) |
-| Open questions | **10** — whether it is needed, and how deep |
+| Reads | [the tracing mode](../docs/005-the-tracing-mode.md) |
+| Open questions | — *(was question 10; answered)* |
 
 ## Current behavior
 
@@ -15,61 +15,64 @@ retracing.
 
 ## Intended behavior
 
-**Working ruling:** unlimited undo within a session. The alternative, during hours
-of tracing, is retracing — and the cost of that is what makes the whole campaign
-feel like a wall.
+**Unlimited undo within a session, built from inverses** — each action records
+how to reverse itself rather than a copy of what it changed.
 
-### Why this is harder than it looks
+### Two of the four hard cases stopped existing
 
-Undo over a shared-vertex network is **not a stack of independent edits**.
+Undo over a shared-vertex network was going to be awkward because several actions
+changed structure in ways no rule could reconstruct.
 
-Dragging one junction touched every edge running into that corner. Undoing it must
-restore all of them — and it does, for free, because they never held their own
-copies; restoring the vertex restores them all. That case is easy for exactly the
-reason [305](305-dragging-a-junction-moves-the-corner.md) was easy.
+Cutting and severing are now **exact inverses of each other** — see
+[302](302-cutting-and-severing.md) — so the two commonest actions come with their
+reversals already written, as gestures a person already has. Undoing a cut is a
+sever; undoing a sever is a cut.
 
-The hard cases are the ones that change **structure** rather than position:
+Dragging a vertex was always easy: it moves one entry, and every fence into that
+corner follows because none of them held a copy.
 
-| Action | What undoing it must restore |
-| --- | --- |
-| adopting an edge | the block's loop, and the fact that the two blocks were not adjacent before |
-| merging two vertices | both vertices, and every edge's path that was rewritten to point at the survivor |
-| closing a loop | the block record, and any edges created during the trace |
-| deleting a block | the block, and any edges that became stranded and were cleaned up with it |
+### The one that is still hard
 
-A merge is the dangerous one: it rewrites paths across an unknown number of edges,
-so undoing it needs those paths back rather than a rule for reconstructing them.
+**Merging two vertices.** It rewrites an unknown number of edge paths to point at
+the survivor, and no rule reconstructs which paths were rewritten or what they
+said. Its inverse has to record the affected paths explicitly rather than derive
+them.
 
-### What that decides about memory
+The same applies to the name resolution that a sever forces: undoing must restore
+**both** names and the fact that the question was asked, not just the geometry.
 
-Two shapes are possible and they differ in more than performance:
+### The discipline that makes inverses safe
 
-- **record the inverse of each action** — small, fast, and every new action needs
-  its inverse written and kept correct forever. A missing inverse is a corruption
-  that appears only after an undo.
-- **snapshot the affected tables** before each action — larger, dull, and cannot
-  be wrong. The network is flat arrays of numbers and a city's worth is a few
-  megabytes, so a snapshot per action is affordable for a session.
+Recording inverses is smaller and faster than keeping copies, and it has one
+failure mode that keeping copies does not: **a missing or wrong inverse is a
+corruption that appears only after somebody presses undo**, which is the worst
+possible moment to discover one.
 
-**Working ruling: snapshot.** This is hand-authoring of irreplaceable work, and
-correctness beats economy. If memory ever becomes a real constraint, snapshot only
-the tables an action touches rather than switching to inverses.
+So the rule this issue exists to enforce:
+
+> **Every action has a test that performs it, undoes it, and asserts the network
+> is byte-identical to before** — using the round-trip writer from
+> [201](201-vertices-edges-and-places.md).
+
+That turns *hope every inverse is right* into *the build fails if one is not*. An
+action added without such a test is an action that will corrupt somebody's work,
+and the test is three lines.
 
 ## Suggested implementation steps
 
 1. Define one funnel through which every mutating action passes — nothing edits
    the tables directly.
-2. Before each action, copy the tables it will touch onto an undo stack, with the
-   name of the action for display.
-3. Undo restores; redo re-applies by keeping the popped states.
-4. Clear the stack on load, not on save — saving does not make earlier states
+2. Each action returns its inverse alongside its effect; the funnel pushes that
+   onto the undo stack with a name for display.
+3. Undo applies the inverse and pushes the action onto a redo stack.
+4. For merge, capture the rewritten paths explicitly. For sever, capture both
+   names and the resolution.
+5. Clear the stack on load, not on save — saving does not make earlier states
    uninteresting.
-5. Show the name of what would be undone, so it is never a guess.
-6. Test each structural case in the table above: adopt, merge, close, delete —
-   undo each and assert the network is byte-identical to before, using the
-   round-trip writer from [201](201-vertices-edges-and-loops.md).
+6. Show the name of what would be undone, so it is never a guess.
+7. **Write the round-trip test for every action, without exception.**
 
 ## Related documents and tools
 
-- [The tracing tool](../docs/005-the-tracing-tool.md)
-- [Open questions](../docs/012-open-questions.md) — question 10
+- [The tracing mode](../docs/005-the-tracing-mode.md)
+- [302 — cutting and severing](302-cutting-and-severing.md)

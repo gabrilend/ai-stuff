@@ -158,7 +158,7 @@ whole problem is that it tells you which to choose.
 ## The scale of it
 
 Rough estimates from sample crops, not counts. **The coverage tool in
-[the tracing tool](005-the-tracing-tool.md) should report the real numbers** once
+[the tracing mode](005-the-tracing-mode.md) should report the real numbers** once
 blocks exist; these are here to make the size of the work visible, not to be
 trusted.
 

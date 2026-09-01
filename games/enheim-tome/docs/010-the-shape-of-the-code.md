@@ -3,21 +3,28 @@
 House style. What every source file in this project looks like, and the handful of
 rules that are not negotiable.
 
-## Two programs, one canvas
+## One program, two states, and a discipline holding them apart
 
-The project builds **two executables** that share the code for drawing the
-painting and nothing else:
+The project builds **one executable** with a play state and a
+[tracing mode](005-the-tracing-mode.md). The editor lives in the game so that
+**a map is a thing players can make** — a mod rather than a developer artefact.
 
-| | |
-| --- | --- |
-| **the game** | reads the fence network. Never writes it. |
-| **the tracing tool** | writes the fence network. See [the tracing tool](005-the-tracing-tool.md). |
+That reverses an earlier arrangement of two executables, and it costs a real
+guarantee: the game can no longer be *physically incapable* of corrupting a
+network, because it now contains code that writes one.
 
-This is the project's instance of the general rule that **data generation and
-data viewing stay separate**. Defining what the city is, is generation. Playing
-it, is viewing. Keeping them apart means the tracing tool can be as dense and
-keyboard-driven as it likes, and means the game physically cannot corrupt the
-network because it contains no code that writes one.
+What replaces it is a rule about the source. It is weaker, and must therefore be
+kept deliberately:
+
+> **The editing code lives in its own files, and nothing that draws the world may
+> touch them. The shared canvas code must never ask which mode is running it.**
+
+The moment a drawing file wants to know *am I editing?*, generating and viewing
+have begun to bleed and the split is gone.
+
+This is still the project's instance of the general rule that **data generation
+and data viewing stay separate**. Defining what the city is, is generation.
+Playing it, is viewing.
 
 Within the game the same split repeats: a filter's **reading** — the number it
 gives each block — is generated separately from the **hatching** that draws it.
@@ -68,7 +75,7 @@ thing being tested. Referring to a function or a value by index is cheaper than
 walking a chain of comparisons, and it is easier to read a table of cases than a
 staircase of branches.
 
-The tracing tool's click handling is the clearest example: what a click does
+The tracing mode's gesture handling is the clearest example: what a click does
 depends on whether empty painting, a vertex, or an edge is under the cursor, and
 that is three table entries rather than three branches.
 
@@ -136,5 +143,5 @@ window: no edge named by three blocks, every loop closed, every block named. See
 
 ## Related documents
 
-- [The tracing tool](005-the-tracing-tool.md) — the second program
+- [The tracing mode](005-the-tracing-mode.md) — the other state of the one program
 - [Roadmap](011-roadmap.md)

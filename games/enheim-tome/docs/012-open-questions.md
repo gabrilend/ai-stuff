@@ -8,7 +8,7 @@ of the documentation are the vision speaking and which are a gap being filled.
 
 The questions are meant to be gone through one at a time.
 
-**Thirty-seven answered. Fourteen open.** The design is therefore *in progress*, not
+**Forty-three answered. Eleven open.** The design is therefore *in progress*, not
 finished.
 
 ---
@@ -23,10 +23,10 @@ worth being able to find again.
 | A1 | Where does the map live, and everything else? | A permanent split — map one side, tome the other, neither ever covering the other. | Fullscreen map with floating slabs; a tome that opens over the map. |
 | A2 | Painting pixels, or a reconstructed flat ground? | **Pixels only, and the game never claims a distance.** | Fitting a ground plane for honest distances; a per-district eyeballed scale. |
 | A3 | What is the smallest clickable thing? | The **block** — later joined by the building below it. | Every building traced; a mix by district. |
-| A4 | How is a block traced? | One loop at a time, with vertex and **whole-edge adoption**. | Tracing the street web and deriving faces; doing both. |
+| A4 | How is a block traced? | **Superseded by A38.** It is not traced — the city is subdivided and blocks are faces of the street graph. | The original answer, one loop at a time with whole-edge adoption. |
 | A5 | When is the cage drawn? | Faded per place on its own on-screen width, hover and selection always solid. | Always on; only near the pointer; held on a key. |
 | A6 | How does the tome hold its sections? | A welded top, a welded button pane, a scrolling text pane. | A fixed stack; an accordion. |
-| A7 | Does the tracing tool share a window with the game? | **Separate program, shared canvas code.** | One program with a mode; separate plus in-game flagging. |
+| A7 | Does the editor share a window with the game? | **Reversed by A39.** It is a mode inside the game, so that maps are mods players can make. | The original answer, a separate program. |
 | A8 | How do filters carry a value? | Hatching, woven. The painting is never dimmed or tinted. | Dimming the painting so data glows; the cage thickening to carry it. |
 | A9 | How many filters at once? | **Any number**, each with a colour, a turnable angle, and one of three modes. | One at a time; a fixed two. |
 | A10 | What does the glow mean? | *This one* — selected, or named by a swept curve. Flips to aiming at high zoom. | Hover only; selection only with no aiming feedback. |
@@ -57,6 +57,12 @@ worth being able to find again.
 | A35 | What happens on ground with no identity? | **The click is ignored and the selection stays.** Input not on the map cannot affect the selection of things in the map. | Deselecting; selecting the countryside as a thing. |
 | A36 | Where does the fence line run across a street? | **Down the centre**, each block owning its half. So there is **no street object** — a lane is where two blocks meet. | Along a kerb, which breaks the shared edge; making streets places of their own. |
 | A37 | How brightly is a shared edge drawn? | **One pixel means one colour for all lines.** Nothing varies, so nothing arbitrates. Only *which* level is drawn varies. | Larger place wins; smaller wins; fade on the edge's own length; stroking twice. |
+| A38 | How is the city defined? | **By subdivision.** It starts whole and gets cut up; coverage is always complete and blocks are faces of the graph. | Tracing each block's closed loop; a mix of both. |
+| A39 | Where does the editor live? | **A mode inside the game**, deliberately entered — so a map is a mod players can make. | A separate developer program (the previous answer). |
+| A40 | How precisely must the fence follow a street's centre? | **Anywhere in the road.** What matters is that buildings sit clearly on one side, and at the zooms where the cage is looked at a wobble is invisible. | A two-click midpoint helper; straight runs between corners. |
+| A41 | How is undo built? | **From inverses**, with a mandatory round-trip test per action so a wrong inverse fails the build rather than somebody's work. | Keeping copies of what changed; no undo at all. |
+| A42 | Does the game show how much of the city is defined? | **No — the tracing mode only.** Coverage is always complete, so any figure would be an artefact of authoring rather than a fact about the world. | Showing it in the game as something the character could know. |
+| A43 | What is a map, as a distributable thing? | **A bundle** — picture, partition, names and a notice, together. | A partition referencing a picture it does not carry; deciding later. |
 
 Five of these carry consequences worth spelling out.
 
@@ -98,10 +104,9 @@ everything first would mean nobody plays for years, including the author.
 **Middle drag pans, wheel zooms about the pointer. Left click selects and
 explains; right click modifies.**
 
-The two programs agree because a drag on empty ground is never editing in either
-— the editing gestures are the left and right buttons, which the map does not
-use for dragging at all. The conflict this question was raised about does not
-arise.
+Play and the tracing mode agree because panning is the middle button in both —
+the editing gestures are the left and right buttons with modifiers. The conflict
+this question was raised about does not arise.
 
 The inversion of left and right is deliberate rudeness, taken as a stance rather
 than arrived at: the interface asks to be learned rather than guessed. It also
@@ -109,21 +114,23 @@ answered question 7 as a side effect.
 
 Zoom is clamped below at the pane fit and **not clamped above** — see A33.
 
-## 2. What happens when you click undefined ground? — **ANSWERED, see A35**
+## 2. What happens when you click undefined ground? — **ANSWERED, see A35 and A38**
 
-**The click is ignored and the selection stays as it was.**
+**There is no undefined ground.** The city is subdivided rather than filled in, so
+coverage is always complete and every pixel of the painting belongs to some
+place, however coarsely that part is still divided.
 
-The question assumed untraced ground was a permanent category. It is not — the
-whole map becomes a defined place eventually, so having no identity is a state of
-the campaign rather than of the world.
+The question was asked of a design that has since been replaced, and the
+replacement removed its subject rather than answering it.
 
-What is permanent is pixels that are **not the map at all**: the letterbox above
-and below the painting at the fit zoom. Those get the same treatment, under one
-sentence — *input that is not on the map cannot affect the selection of things in
-the map.*
+What survives is the case of pixels that are genuinely **not the map**: the
+letterbox above and below the painting at the fit zoom. There, the click is
+ignored and the selection stays, under one sentence — *input that is not on the
+map cannot affect the selection of things in the map.*
 
-A consequence: there is no way to deselect by clicking away. Selecting something
-else is how you stop looking at a thing, and the tome always has something in it.
+A consequence either way: there is no deselecting by clicking away. Selecting
+something else is how you stop looking at a thing, and the tome always has
+something in it.
 
 ## 3. What tunable flips the glow from selection to aiming?
 
@@ -202,26 +209,39 @@ arguably worth the game noticing. Whether it does is design, not plumbing.
 
 # Group C — The tracing effort
 
-## 9. Where does the coverage readout live?
+## 9. Where does the coverage readout live? — **ANSWERED, see A42**
 
-**Working ruling:** the tracing tool only.
+**The tracing mode only.**
 
-**Why it matters:** if the game shows it, *how much of the city has been defined*
-becomes something the player sees — which for a game about coming to know a city
-might be a feature.
+The question was reframed by a larger answer: **coverage is always one hundred
+percent.** The city is subdivided rather than filled in, so there is no such thing
+as undefined ground and nothing for a player to be told about how complete the
+map is.
 
-**Changes:** [the tracing tool](005-the-tracing-tool.md), phase 3.
+What the report measures instead is how *finely* the city is divided and how well
+it is named — facts about the authoring rather than about the world, and
+therefore not the player's business.
 
-## 10. Does the tracing tool need undo, and how deep?
+## 10. Does the editor need undo, and how deep? — **ANSWERED, see A41**
 
-**Working ruling:** yes, unlimited within a session; the alternative during hours
-of tracing is retracing.
+**Yes, unlimited within a session, built from inverses.**
 
-**Why it matters:** undo over a shared-vertex network is not a stack of
-independent edits — dragging one junction touched every edge into that corner, and
-undoing must restore all of them. That decides how the network is held in memory.
+Two of the four hard cases stopped existing when the model became subdivision:
+**cutting and severing are exact inverses of each other**, so the two commonest
+actions come with their reversals already written. Dragging a vertex was always
+easy.
 
-**Changes:** [the tracing tool](005-the-tracing-tool.md), [the fence network](004-the-fence-network.md), phase 3.
+What is still hard is merging two vertices, which rewrites an unknown number of
+edge paths and whose inverse must record them explicitly rather than derive them.
+
+Inverses are smaller and faster than keeping copies, and carry one failure mode
+copies do not: a wrong inverse only shows up **after** somebody presses undo. So
+the answer comes with a condition rather than alone:
+
+> **Every action has a test that performs it, undoes it, and asserts the network
+> is byte-identical to before.**
+
+That turns *hope every inverse is right* into *the build fails if one is not*.
 
 ---
 

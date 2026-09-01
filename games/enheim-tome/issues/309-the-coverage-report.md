@@ -5,8 +5,8 @@
 | Phase | 3 — The Tracing Tool |
 | Blocked by | 208, 301 |
 | Blocks | — |
-| Reads | [the tracing tool](../docs/005-the-tracing-tool.md) |
-| Open questions | **9** — whether the game ever shows this too |
+| Reads | [the tracing mode](../docs/005-the-tracing-mode.md) |
+| Open questions | — *(was question 9; answered)* |
 
 ## Current behavior
 
@@ -18,21 +18,35 @@ A report of how far the campaign has got. **It is the only honest measure**, and
 every figure in the documents about scale is an estimate from three sample crops
 waiting to be replaced by it.
 
+### It does not measure coverage
+
+Coverage is **always one hundred percent**. The city is subdivided rather than
+filled in, so there is never any undefined ground — see
+[the fence network](../docs/004-the-fence-network.md).
+
+What it measures instead is **how finely the city is divided and how well it is
+named**, which is a different question and the one that actually matters.
+
 ### What it reports
 
 | | |
 | --- | --- |
-| blocks traced | and how many are unnamed |
-| buildings placed | and how many blocks have none yet |
+| places | how many regions the graph cuts the painting into |
+| named | and how many of those have a name |
+| the coarsest places remaining | the largest regions still undivided — where the work obviously is |
+| buildings placed | and how many places have none yet |
 | houses listed | |
 | intersections named | out of junctions that exist |
-| membership | blocks with no district; districts with no quadrant |
-| events written | per block, and per house — see [805](805-one-event-per-block.md) |
-| fraction of the painting fenced | area inside any block, over the whole image |
-| **what remains** | the above, expressed as work left rather than work done |
+| membership | places with no district; districts with no quadrant |
+| events written | per place, and per house |
+| **what remains** | all of the above as work left rather than work done |
 
-That last line is the point. "1,840 blocks traced" is a number; "roughly 160
-blocks left, about a week at the current rate" is a reason to sit down.
+That last line is the point. "1,840 places named" is a number; "roughly 160 left,
+about a week at this rate" is a reason to sit down.
+
+**The coarsest-remaining list replaces what used to be a map of untraced ground.**
+Since everything is always covered, the way to see where the work is is to ask
+which regions are still enormous.
 
 ### Rates, not just totals
 
@@ -45,30 +59,31 @@ between continuing and stopping.
 
 The scale table in
 [the places of the city](../docs/003-the-places-of-the-city.md) is explicitly
-marked as estimates to be replaced by this tool's output. **Documents should
-reference this rather than restating numbers**, so that a page cannot go stale
-while looking authoritative.
+marked as estimates to be replaced by this tool's output. **Documents reference
+this rather than restating numbers**, so a page cannot go stale while looking
+authoritative.
 
 ### Where it lives
 
-**Working ruling:** the tracing tool only.
+**The tracing mode only.**
 
-If the game showed it, *how much of the city has been defined* would become
-something the player sees — which for a game about coming to know a city might be
-a feature rather than a leak. Undecided; see open question 9.
+How finely the city has been divided is a fact about the project, not about the
+world. A player should meet a city, not a completion figure — and since coverage
+is always complete, there is nothing a player could even be told that would not
+be an artefact of the authoring.
 
 ## Suggested implementation steps
 
 1. Walk the network and count everything in the table above.
-2. Compute fenced area from the block polygons, against the painting's total.
+2. Sort places by area to produce the coarsest-remaining list.
 3. Print as text, and exit non-zero if asked to enforce a threshold, so it can sit
    in a test run.
 4. Record a dated line per run into `tmp/shared-memory/`, so rate can be computed
    from history without adding timestamps to the network itself.
-5. Have it runnable standalone from a script as well as from inside the tool —
-   checking progress should not require opening the editor.
+5. Have it runnable standalone from a script as well as from inside the mode —
+   checking progress should not require entering the editor.
 
 ## Related documents and tools
 
-- [The tracing tool](../docs/005-the-tracing-tool.md)
-- [Open questions](../docs/012-open-questions.md) — question 9
+- [The tracing mode](../docs/005-the-tracing-mode.md)
+- [The places of the city](../docs/003-the-places-of-the-city.md)

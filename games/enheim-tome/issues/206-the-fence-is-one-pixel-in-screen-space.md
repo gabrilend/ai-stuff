@@ -32,7 +32,7 @@ painting keeps its own detail; the cage is clearly a separate, thinner thing.
 ### What gets stroked
 
 A block's boundary as yielded by the walk in
-[201](201-vertices-edges-and-loops.md), converted point by point. Shared edges are
+[201](201-vertices-edges-and-places.md), converted point by point. Shared edges are
 stroked **once**, not once per adjoining block — drawing them twice doubles the
 work and produces subtly heavier lines wherever two blocks meet, which reads as an
 inconsistency nobody can name.

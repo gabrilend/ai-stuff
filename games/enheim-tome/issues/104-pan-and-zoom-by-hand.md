@@ -42,13 +42,13 @@ panning is the thing you do most.
 
 ### It dissolved the conflict this issue was raised about
 
-The worry was that the tracing tool needs the same gestures for a different job —
-a drag there might mean moving a vertex, and the two programs must not disagree
-about what a drag means.
+The worry was that editing needs the same gestures for a different job — a drag
+there might mean moving a vertex — and that play and the tracing mode would
+disagree about what a drag means.
 
 They do not, because **panning is the middle button and editing is the left and
-right buttons**. A drag on empty ground is never editing in either program. The
-overlap that made this a question does not exist.
+right buttons with modifiers**. A middle drag pans in both states. The overlap
+that made this a question does not exist.
 
 ### Zoom is anchored to the pointer
 
