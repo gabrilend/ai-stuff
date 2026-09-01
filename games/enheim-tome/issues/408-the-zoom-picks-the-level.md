@@ -39,9 +39,12 @@ itself — the visible cage *is* the explanation.
 ### How it resolves
 
 Hit-testing gives the finest place. Walking its chain outward gives its ancestors.
-The level chosen is **the finest one whose boundary is currently drawn at full or
-partial strength** — that is, whose on-screen width is above the lower fade
-threshold from [207](207-each-boundary-fades-on-its-own-size.md).
+The level chosen is **the finest one whose places are a workable size on screen**
+— roughly 24 pixels across or more.
+
+That computation lives here rather than in the drawing. [207](207-the-cage-shows-one-level.md)
+does not decide anything; it draws whatever this chose. The dependency runs one
+way, and it used to run both.
 
 Because the ragged chain means some places have no quadrant, this is a walk over
 a list rather than an index into fixed levels. See
@@ -70,4 +73,4 @@ naming a place reaches it regardless of zoom. See [609](609-space-to-search.md).
 ## Related documents and tools
 
 - [The map surface](../docs/002-the-map-surface.md)
-- [207 — each boundary fades on its own size](207-each-boundary-fades-on-its-own-size.md)
+- [207 — the cage shows one level](207-the-cage-shows-one-level.md)

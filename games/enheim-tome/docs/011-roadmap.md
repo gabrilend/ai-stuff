@@ -39,7 +39,7 @@ Intended issues:
 - adjacency is a shared edge, and the walk over it
 - the identity buffer, and hit-testing as one pixel read
 - the fence drawn one pixel wide in screen space
-- each boundary fades on its own on-screen width
+- the cage shows one level at a time, and swaps as you descend
 - the network validator, and what it refuses
 
 Reads: [the fence network](004-the-fence-network.md).
@@ -83,7 +83,7 @@ Intended issues:
 - buildings: rough zones, own facts, mostly open
 - houses: no geometry, almost always restricted, listed inside a building
 - the zoom picks which level a click selects
-- the cage drawn at four weights
+- the cage cross-fades between levels, with hysteresis so it cannot strobe
 
 Reads: [the places of the city](003-the-places-of-the-city.md).
 

@@ -145,16 +145,40 @@ outlined**. The two behaviours are one rule wearing two hats.
 The price is that selecting a whole district means zooming out first, even when
 you already know which one you want.
 
-## The cage is hierarchical
+## The cage shows one level, and swaps
 
-Four nested boundaries want four line weights — quadrant heaviest, then district,
-then block, with buildings finest of all.
+**The fence is one pixel, so it is one colour for all lines.** A single pixel
+carries neither a gradient nor a weight, so there is no opacity to vary and no
+thickness to distinguish levels by.
 
-The existing rule does the rest unmodified. Because each boundary fades on its own
-on-screen width, the whole hierarchy sorts itself out: at the city view only
-quadrants are large enough to draw, so the map shows the great divisions;
-descend and districts appear, then blocks, then buildings. **The cage thickens
-and deepens together as you go in.** Nothing new to invent.
+Which leaves one question — *is this edge drawn?* — and the answer is already
+above: **draw the boundaries of the level you can currently select, and only
+those.** At the city view that is the two dozen quadrant lines over an otherwise
+clean painting. Descend and the cage **swaps** to districts, then blocks, then
+buildings. It does not thicken; it changes.
+
+That makes the promise exact rather than approximate: **the cage is the set of
+things you can click.** The interface never has to explain itself, because the
+visible lines are the explanation.
+
+It also bounds its own density with no cap needed. Blocks become the selectable
+level only when they are roughly 24 to 64 screen pixels across — around 250 of
+them on a 1180-wide pane. You never see the whole city's blocks at once, because
+by the time blocks are the level you are not looking at the whole city.
+
+### What this deleted
+
+An earlier design had every boundary fading in on its own on-screen width. It
+carried a problem that one colour dissolves entirely: since the fence runs down
+the middle of a street, **nearly every edge is shared by two blocks**, and each
+would have wanted its own opacity for a line that is stroked once. A harbour
+block 300 pixels across against an alley of 28 — one stroke, two answers, and
+every way of arbitrating produced a visible artefact.
+
+With one colour there is nothing to arbitrate. Gone with it: the two fade
+thresholds, the four line weights, and the override that drew whatever was under
+the pointer at full strength — which existed to rescue places too small to draw,
+and at the selectable level nothing is ever too small.
 
 ## What the map is allowed to draw
 

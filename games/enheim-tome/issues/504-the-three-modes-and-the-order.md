@@ -32,7 +32,7 @@ simply painted. **Only the interwoven set weaves, and it weaves as a whole** —
 2. **behind-always** filters, painted flat in order
 3. **the interwoven set**, resolved together in one pass
 4. **top-always** filters, painted flat in order
-5. the cage — [409](409-the-cage-at-four-weights.md)
+5. the cage — [207](207-the-cage-shows-one-level.md)
 6. the glow — [507](507-the-glow.md)
 
 The painting is never dimmed and never tinted. Hatching leaves gaps and the

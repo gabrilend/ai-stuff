@@ -94,6 +94,13 @@ Structurally it is a loop of street runs meeting at corners — see
 [the fence network](004-the-fence-network.md). The social reading and the drawn
 reading are the same object seen two ways, and neither needs the other changed.
 
+**A block owns half of every street around it.** The traced line runs down the
+road's centre, because two blocks facing each other share one edge. So **there is
+no street object** — a lane is where two blocks meet rather than a place in its
+own right. Nobody stands *in* a street; they stand in a block, on its half of the
+road. Public space is the open buildings and the squares, and a square is a
+block.
+
 ## Building — the stone that roots people
 
 One freestanding structure. Mostly **open**: it is rare for a building to be

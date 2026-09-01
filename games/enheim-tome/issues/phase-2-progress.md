@@ -10,9 +10,9 @@ The fence network as a structure and as an appearance.
 | [202 — junctions and shape points are derived](202-junctions-and-shape-points-are-derived.md) | not started |
 | [203 — adjacency is a shared edge](203-adjacency-is-a-shared-edge.md) | not started |
 | [204 — the identity buffer](204-the-identity-buffer.md) | not started |
-| [205 — hit-testing is one pixel](205-hit-testing-is-one-pixel.md) | not started — clicks on undefined ground blocked on open question 2 |
+| [205 — hit-testing is one pixel](205-hit-testing-is-one-pixel.md) | not started |
 | [206 — the fence is one pixel, in screen space](206-the-fence-is-one-pixel-in-screen-space.md) | not started |
-| [207 — each boundary fades on its own size](207-each-boundary-fades-on-its-own-size.md) | not started |
+| [207 — the cage shows one level](207-the-cage-shows-one-level.md) | not started |
 | [208 — the network validator](208-the-network-validator.md) | not started |
 
 ## Why this comes before anything can be traced
@@ -39,10 +39,29 @@ covering it; everything coarser resolves by walking the containment chain. That
 makes hit-testing a single pixel read and makes the filter pass in phase 5
 possible at all.
 
-**Each boundary fades on its own on-screen width, not on the global zoom.** A
-harbour block is 300 screen pixels across at native zoom while a northern one is
-40; no single threshold is right for both. Fading per place handles the
-perspective without anyone correcting for it.
+**The fence is one pixel, so it is one colour for all lines — and that deleted
+three mechanisms.**
+
+The design had every boundary fading in on its own on-screen width. But since the
+fence runs down the middle of a street, **nearly every edge in the city is shared
+by exactly two blocks**, and each would have wanted a different opacity for one
+line stroked once. A harbour block 300 pixels across beside an alley of 28: take
+the larger and small places get lopsided part-drawn outlines; take the smaller
+and large ones get faint patches that read as a fault; stroke it twice and shared
+edges come out brighter than unshared ones.
+
+One colour removes the number they were disagreeing about. The question stops
+being *how brightly* and becomes *whether* — and the answer already existed:
+**draw the boundaries of the level you can currently select, and only those.**
+The cage swaps as you descend rather than thickening.
+
+Gone with it: the two fade thresholds, the four line weights that were to have
+carried the hierarchy, and the override that drew whatever was under the pointer
+at full strength. That last one existed to rescue places too small to see, and at
+the selectable level nothing is ever too small.
+
+It also made an existing promise exact rather than approximate. **The cage is the
+set of things you can click**, so the interface never has to explain itself.
 
 ## The failure this phase exists to prevent
 

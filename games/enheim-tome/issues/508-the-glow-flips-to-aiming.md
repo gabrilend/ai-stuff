@@ -40,8 +40,9 @@ changes on a single pixel of pan, so at the boundary the glow can switch back an
 forth while you nudge the view, which is worse than either behaviour alone.
 
 A zoom threshold would be smoother and less correct, since the right zoom differs
-between a harbour block and a northern one, which is the same perspective problem
-that made [207](207-each-boundary-fades-on-its-own-size.md) per-place.
+between a harbour block and a northern one — the same perspective problem that
+makes [408](408-the-zoom-picks-the-level.md) measure places rather than trust the
+zoom directly.
 
 A third option is hysteresis: flip at one, flip back at three, so the boundary is
 not a single line to sit on.
