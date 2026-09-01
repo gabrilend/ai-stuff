@@ -147,7 +147,9 @@ to make it so.
 | [802](../issues/completed/802-the-mountainside-is-hard-coded.md) | the mountainside is hard-coded |
 | [803](../issues/completed/803-the-height-field-becomes-a-model.md) | the height field becomes a model |
 | [804](../issues/completed/804-a-ball-is-a-sphere-against-faces.md) | a ball is a sphere against faces |
-| [805](../issues/805-a-ball-is-a-sprite-in-a-solid-world.md) | **not started** — a ball is a sprite in a solid world |
+| [805](../issues/805-a-ball-is-a-sprite-in-a-solid-world.md) | **in progress** — a ball is a sprite in a solid world |
+| [805a](../issues/805a-the-world-is-drawn-from-the-model.md) | **in progress** — the world is drawn from the model |
+| [805b](../issues/completed/805b-a-ball-is-a-baked-sprite.md) | a ball is a baked sprite |
 | [806](../issues/completed/806-balls-collide-with-each-other.md) | balls collide with each other |
 
 Done when balls dropped at the summit find their own way to the bottom, bouncing

@@ -18,6 +18,7 @@ either.
 | `bucket_bodies(store, bodies, into)` | | groups live bodies by the band they draw in |
 | `draw_body(...)` | | one body, with its shadow |
 | `count_faces(Stone, store)` | | how many faces the maze has, without building anything |
+| `bake_sprites(Baker, love_image, love_graphics)` | | the ball and shadow textures, once |
 | `FACE_TOP`, `FACE_LEFT`, `FACE_RIGHT` | | |
 
 `emit(face, cell, x, y, low, high, edges)` gets heights in layers, where a block
@@ -45,6 +46,26 @@ one static mesh, a mesh drawn in one call is drawn all at once, and a ball drawn
 afterwards would sit on top of every wall in the maze including the ones in front
 of it. `build` records each band's index range so the frame can draw stone, then
 bodies, then the next band.
+
+## A body is a baked sprite, and the deciding happens elsewhere
+
+`draw_body` takes an optional `sprites` table. With it, a ball is one textured
+quad and its shadow is another; without it, the vector circles it used to be. The
+flag is there so the two can be compared at the same zoom rather than from memory.
+
+The whole of the *drawing* is here and the whole of the *deciding* is in
+[075-the-sprite-baker](075-the-sprite-baker.info.md), which has never heard of a
+texture. That is what lets a headless run produce a sprite and a test read one.
+
+The sprite carries brightness in all three channels and coverage in alpha, so
+setting the colour and drawing it is the whole of the tint — one sprite for every
+kind and every team. The shadow is squashed to the two-to-one ratio *here* rather
+than in the baker, because the ratio belongs to the projection.
+
+Filtering is linear rather than nearest. The sprite is baked large and drawn
+small — a ball is six pixels across at scale one against a forty-eight pixel bake
+— so point sampling would throw away fifteen of every sixteen pixels of the
+antialiased edge that was the reason for baking it.
 
 ## The outline is two meshes and no lines
 
