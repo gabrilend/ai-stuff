@@ -1,6 +1,6 @@
 # Conversation Summary: 5b030864-1533-4a31-8439-f04e237f1316
 
-Generated on: 2026-08-31 17:13:04
+Generated on: 2026-09-01 02:26:10
 
 --------------------------------------------------------------------------------
 
@@ -4488,6 +4488,465 @@ their rejected alternatives.
 Ready for **Phase 3 — The Tracing Tool** when you are. It's the biggest phase
 at eleven issues, it gates the two-thousand-loop campaign, and it has three open
 questions of its own.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 14
+
+ok
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 14
+
+# Phase 3 — The Tracing Tool
+
+
+Eleven issues, the largest phase, and the one that gates the largest cost in the
+project. It is **finished properly before the campaign begins** rather than
+alongside it — doubly so now, since the board is a stand-in and every traced
+hour is provisional.
+
+
+## Two programs, and why that isn't fussiness
+
+
+**301.** The tool writes the fence network; the game only reads it. They share
+the canvas code — texture, view, conversions — and nothing else.
+
+
+That buys two things. The tool can have whatever **dense, ugly, keyboard-heavy**
+interface makes it fastest, because no player ever sees it: it's an instrument,
+not a product. And **the game physically cannot corrupt a network**, because it
+contains no code that writes one. Not "does not" — cannot.
+
+
+The shared code must never ask which program is running it. The moment a shared
+file wants to know *am I the editor?*, the split has been lost.
+
+
+## The three-outcome click, which is the whole design
+
+
+**302.** What a click does depends entirely on what's under it:
+
+
+| Under the cursor | What happens |
+
+| --- | --- |
+
+| empty painting | a new vertex |
+
+| an existing vertex | adopt it, becoming a shared junction |
+
+| an existing edge | **adopt the entire run**, reversed |
+
+
+That third row is why per-block tracing works at all. You trace block A, then
+come round to trace B on the far side of a curving lane. Even with perfect
+corner snapping, the stretch between is a fresh set of clicks — A traced that
+curve with five shape points, you trace it with four, in slightly different
+places. Two hairlines down one lane with slivers between them, and **silently,
+the two blocks don't share an edge**, so they are not neighbours and never will
+be.
+
+
+Adopting the whole run is one click instead of five, and the blocks become
+adjacent because they're naming the same record. Identical by definition rather
+than by luck.
+
+
+**303** exists for the same failure seen from the other side: the mis-snap
+leaves **no visible mark**. So before any click commits, the vertex about to be
+adopted lights up, an edge lights along its whole length so you see exactly how
+much you're taking, and empty ground shows a ghost where the vertex would land.
+
+
+## Snapping, and a refusal
+
+
+**304.** The grab radius is fixed in **screen** pixels — around eight — so
+it covers a wide swathe of painting when zoomed out and a hair when zoomed in.
+That's correct rather than a compromise: it matches how precisely a hand can
+point at that moment.
+
+
+Which forces a refusal. At the whole-city view eight screen pixels is forty
+painting pixels, so the tool **refuses to place or drag below some zoom** —
+not a warning, a refusal, naming the zoom you need. The alternative is imprecise
+work that looks fine until somebody zooms in a week later.
+
+
+**305** is nearly free. Dragging a junction moves one entry in the vertex table;
+every fence into that corner follows because none of them held a copy. If the
+implementation ever finds itself hunting for coincident points to move in
+sympathy, the structure has been misunderstood.
+
+
+## The four other authoring jobs
+
+
+Tracing loops is the loudest part, not the whole. **306** names blocks and
+corners. **307** places rough building zones — five to seven per block,
+seconds each, not traced footprints. **308** assigns membership, which buys
+three whole levels of hierarchy for about two thousand small decisions.
+
+
+All of it can happen long after a block is traced, and most of it will.
+
+
+## The three that guard the campaign
+
+
+**208's validator** runs on every save. **309** reports coverage — the only
+honest measure of how far the work has got. **311** autosaves to the RAM tier,
+because **losing an hour of tracing is the single most likely thing to end this
+project**.
+
+
+---
+
+
+Four things to settle, and the first one is new — it arrived with the
+centre-line decision:
+
+
+**[Asked the user]**
+
+
+*Q1 — Aiming:* The fence runs down the middle of the street — but a street's
+centre is not a visible feature. You'd be eyeballing halfway between two rows of
+roofs, two thousand blocks' worth. How precise does that need to be?
+
+- Anywhere in the street; wobble is invisible anyway — The rule is 'somewhere
+  in the road', not 'exactly the centre'. What actually matters is that every
+  building sits clearly on one side. And the cage is only ever LOOKED at when
+  blocks are 24 to 64 pixels across, where a street is perhaps 5 to 10 pixels
+  wide — a two-pixel wobble is a fifth of that and invisible. Cost: zoomed
+  right in while tracing, the line will visibly wander, and it will look sloppy
+  to the person drawing it even though nobody else will ever see it.
+
+- The tool finds the centre for you — Click one kerb, then the other, and it
+  places the vertex midway. The line is genuinely centred everywhere and looks
+  deliberate at any zoom. Cost: two clicks per vertex instead of one, across two
+  thousand blocks — roughly doubling the most repetitive part of the whole
+  campaign.
+
+- Snap to a straight run between corners — Place the corners carefully; the
+  tool draws straight between them unless you add shape points on purpose. Most
+  city streets are straight, so most edges become two clicks total and are
+  perfectly regular. Cost: curved streets — and this city has many — need
+  their shape points placed by hand anyway.
+
+→ **Selected:** Anywhere in the street; wobble is invisible anyway
+
+
+*Q2 — Undo:* Open question 10 — does the tracing tool need undo, and how is
+it built? The structure that makes dragging a corner trivial makes reversing a
+merge hard.
+
+- Keep copies of what changed (Recommended) — Before each action, copy the
+  tables it will touch. Dull, cannot be wrong, and a whole city's network is a
+  few megabytes of flat numbers so a copy per action is affordable for a
+  session. This is irreplaceable hand-work; correctness beats economy.
+
+- Record the inverse of each action — Small and fast — store how to undo
+  rather than what was there. Cost: every new action needs its inverse written
+  and kept correct forever, and a missing or wrong inverse is a corruption that
+  only appears after somebody presses undo, which is the worst possible moment
+  to discover it.
+
+- No undo; rely on autosave — Simplest. A mistake means reloading the last
+  autosave and redoing a few minutes. Cost: during hours of tracing, a mis-click
+  every few minutes means constantly losing small amounts of work, which is
+  exactly the friction that makes a long campaign get abandoned.
+
+→ **Selected:** Record the inverse of each action
+
+
+*Q3 — The campaign:* Two thousand blocks have to be traced at high zoom, where
+only a handful fit on screen. How do you get around the city without missing
+anything?
+
+- A worklist that walks the neighbour graph — The tool takes you to untraced
+  ground next to what you just did, so a session covers a neighbourhood rather
+  than jumping about. Coverage grows as a spreading stain, and you always know
+  where the frontier is. Cost: it decides your route, and you may want to trace
+  the interesting quarter first.
+
+- Free roam, with the untraced parts marked — You go where you like; somewhere
+  shows which parts are still bare so nothing is forgotten. Total freedom over
+  what to work on. Cost: with the cage showing only one level, seeing what is
+  untraced from far out needs its own display — and it is easy to leave a
+  scatter of awkward gaps for last.
+
+- Both — roam freely, with a next-nearest suggestion — Go anywhere, but a
+  key takes you to the nearest untraced block when you have no preference. Cost:
+  two behaviours to build, though the second is just the first one's ordering
+  applied on demand.
+
+→ **Answered:** I don't understand the question - the tracing should be able
+to be done in the main program, so additional map files can be supplied as mods
+if users build them. I have a few in mind. So, scrolling and panning and zooming
+and such should be handled already, and we can right click to place a node
+(right click to modify) and left click to select. Left click with shift held is
+drag, left click with ctrl severs the nearest link (closest nearby line from the
+selected node) and right-click on an existing node or the tab button open a menu
+by the mouse to modify the selected thing. Right clicking on an object opens the
+menu for the thing being clicked on, actually, without changing the selection.
+
+
+*Q4 — Coverage:* Open question 9 — the coverage report says how much of the
+city is defined. Does the game ever show that, or only the tool?
+
+- The tool only — How much of the city has been defined is a fact about the
+  project, not about the world. A player should meet a city, not a completion
+  percentage. Cost: none really, except that the honest state of the corpus is
+  invisible to anyone playing.
+
+- The game too, as something in the world — For a game about coming to know a
+  city, how much of it is charted might be a feature rather than a leak —
+  though it would have to be dressed as something the character could plausibly
+  know, not as a progress bar. Cost: it makes an artefact of the authoring
+  process into part of the fiction, which is hard to undo later.
+
+→ **Answered:** there is always 100% coverage. We are just determining how to
+partition it.". Read the answers carefully — they may request clarification,
+changes, or that you not proceed — and follow what they actually say.
+
+
+Three of those land cleanly. The third reverses a decision and I want to make
+sure I've understood how far it goes before I rewrite eleven issues.
+
+
+**Aiming:** anywhere in the street. Recorded — and the reasoning holds, since
+the cage is only *looked at* when blocks are 24–64 pixels across, where a
+street is a few pixels wide and a wobble is invisible.
+
+
+**Undo by inverses.** That's the option I argued against, so let me say once
+what the risk is and then make it safe rather than relitigate it: a missing or
+wrong inverse is a corruption that only shows up *after* somebody presses undo,
+which is the worst moment to find one. The discipline that neutralises it is a
+test per action — do it, undo it, assert the network is byte-identical using
+the round-trip writer. That turns "hope every inverse is right" into "the build
+fails if one isn't." I'll write that into 310.
+
+
+**Coverage is always 100%.** That's not a small correction. It means there is no
+undefined ground *ever* — you're not filling in blank map, you're
+**subdividing**. Which retires the notion of untraced territory entirely,
+changes what the identity buffer can contain, and makes the coverage report a
+measure of how finely partitioned and how well named the city is rather than how
+much of it exists.
+
+
+**And the editor moves into the game.** So players can supply their own maps as
+mods — which is a good enough reason that I'd not argue, but it does cost the
+guarantee I'd written down: the game could no longer *physically* be unable to
+corrupt a network, since it now contains code that writes one. The separation of
+generating from viewing has to survive as a discipline inside one program rather
+than as a fact about two.
+
+
+What I'm not sure of is how much of the tracing model changed with it. Your
+gestures describe placing nodes, severing the nearest link, and menus — which
+reads like editing a **graph** rather than tracing closed loops one at a time:
+
+
+**[Asked the user]**
+
+
+*Q1 — Editing model:* Given "always 100% coverage, we are just determining how
+to partition it" — and gestures for placing a node and severing a link — has
+the editing model changed from tracing loops to cutting up a whole?
+
+- Subdivision — the map starts whole and you cut it — The city begins as one
+  region covering everything. Placing nodes and linking them CUTS a region into
+  two; severing a link merges them back. Blocks are the faces of the street
+  graph, derived rather than drawn, so a complete partition is guaranteed at
+  every moment and adjacency cannot be got wrong. Sever is the exact inverse of
+  cut, which also makes undo natural.
+
+- Still loops, and 100% just means finish the job — You still trace each
+  block's closed loop one at a time, and "always 100% coverage" is a statement
+  about the finished map rather than about every intermediate state. Everything
+  already written for phase 2 and 3 stands. Cost: the sever gesture has no
+  natural meaning, since there is nothing to merge back into.
+
+- Both — cut coarsely, then trace where it matters — Subdivide to get
+  quarters and districts fast, then hand-trace individual blocks where the
+  streets are irregular. Cost: two editing models in one tool, and rules for
+  what happens when a hand-traced loop meets a cut region.
+
+→ **Answered:** Subdivision — the map starts whole and you cut it" selected
+preview:
+
+start            one cut           two cuts
+
+┌────────┐ ┌────────┐
+┌────────┐
+
+│        │      │   │    │      │   │    │
+
+│  one   │  ─▶  │ A │  B │  ─▶  │ A │ B  │
+
+│        │      │   │    │      │───┼────│
+
+│        │      │   │    │      │ C │ D  │
+
+└────────┘ └────────┘
+└────────┘
+
+
+ always a complete partition.
+
+ never any undefined ground., "The editor now lives in the game so players can
+ build maps. When is it reachable?"="A mode you deliberately enter", "If maps
+ are mods, what actually is one? The painting and the partition are separate
+ things right now."="A picture plus its partition, together
+
+
+*Q2 — Editor access:* The editor now lives in the game so players can build
+maps. When is it reachable?
+
+- A mode you deliberately enter — Playing and editing are separate states, and
+  you switch between them on purpose. The right mouse button means 'act on the
+  world' in one and 'place a node' in the other, so keeping them apart is what
+  stops a mis-click reshaping the city. Cost: a mode, and modes are a thing you
+  can be in without noticing.
+
+- Always available, alongside playing — No mode at all — the editing
+  gestures are simply more gestures, live at any time. Fewest states, and
+  building a map is not a separate activity from being in one. Cost: the same
+  button that acts on the world also cuts it up, so the two must be
+  distinguished by something else entirely.
+
+- Available only when a map declares itself editable — A shipped map is
+  sealed; a map you are authoring is open. Players editing their own mods have
+  the tool; nobody accidentally reshapes the campaign city. Cost: a flag on a
+  map file that somebody will want to flip, and it protects nothing except from
+  accidents.
+
+→ **Selected:** A mode you deliberately enter
+
+
+*Q3 — What a map is:* If maps are mods, what actually is one? The painting and
+the partition are separate things right now.
+
+- A picture plus its partition, together — One bundle: the image, the network
+  cut over it, and the names. Self-contained, so installing a mod is one thing
+  and it cannot half-exist. Cost: every mod ships its own image, which for a
+  25-megapixel painting is a large download.
+
+- A partition that names which picture it needs — The network is the mod; the
+  image is referenced. Somebody can publish a differently partitioned reading of
+  the same city — a version with finer quarters, or different district borders
+  — without shipping the artwork again. Cost: a mod can be missing its
+  picture, which is a failure state that has to be handled.
+
+- Not decided yet — leave it until there is something to load — Record that
+  maps are meant to be mods and settle the packaging when the loading exists.
+  Cost: the file format gets designed without knowing it will be distributed,
+  which is usually when that goes wrong.
+
+→ **Selected:** A picture plus its partition, together
+
+
+Confirmed, and that's a structural change rather than an interface one — it
+makes several things unrepresentable that the validator was checking for. Let me
+rewrite from the structure outward.
+
+
+Now the phase 2 issues, where the structure actually changed.
+
+
+Now the phase 3 issues that changed most — the editor becoming a mode, and the
+gestures.
+
+
+Now the roadmap, the open questions, and the two progress files.
+
+
+**Phase 3 turned into a redesign of phase 2 as well.** Committed, zero files
+outside the project.
+
+
+## What your three answers did
+
+
+**The editor moved into the game**, so a map is a mod players can make. That
+reverses A7 and costs a guarantee I'd written down as a real one: the game could
+previously not *possibly* corrupt a network, having no code that writes one.
+That's gone. What replaces it is weaker and therefore has to be kept
+deliberately — the editing code in its own files, and the shared canvas code
+never asking which mode it's running in. I've written it as a rule rather than
+an intention.
+
+
+**"Always 100% coverage" was the bigger one.** The city is now *subdivided*
+rather than filled in — it starts whole and gets cut up. That retired the
+load-bearing feature of everything I'd written for phase 3.
+
+
+Adopting a whole edge existed because per-block tracing approaches every street
+twice, and without it you get two near-identical hairlines down one lane and two
+places that silently aren't neighbours. **That failure mode no longer exists**,
+because there's only ever one line down a street and adjacency is what the
+structure *is* rather than something careful tracing achieves.
+
+
+Most of the validator went with it. Loops that don't close, edges belonging to
+nothing, an edge shared by three places, places that look adjacent without being
+so — **none can be stated any more**. That's the second time in this project
+that changing the representation deleted a whole class of check.
+
+
+## What it gained instead
+
+
+**One hard requirement in place of many soft ones: planarity.** No two edges may
+cross except at a shared vertex. The face walk still terminates on a graph that
+breaks this, and still produces closed rings — *wrong* ones, quietly, with the
+damage appearing weeks later as two places behaving as neighbours when they
+aren't. So it's refused where edges are made and asserted anyway by the
+validator, since the refusal is one code path and the file can be hand-edited.
+
+
+**And a problem I hadn't anticipated:** a name can't live on a face that's
+recomputed after every edit. It lives on a *place* anchored by a **seed point**
+inside the region, which degrades exactly right — cut a region and the named
+half keeps its name while the other waits; sever a link and two names must be
+resolved, which asks the person rather than guessing. One detail worth the trap
+it avoids: a seed must be *guaranteed* inside its face, and a centroid isn't —
+a concave region's average position readily falls outside, attaching a name to
+the wrong place in a way nobody would notice.
+
+
+**Undo got easier from a direction I didn't expect.** You chose inverses over
+copies, and I said once why that worried me. Then subdivision made **cutting and
+severing exact inverses of each other**, so the two commonest actions arrive
+with their reversals already written. Only vertex-merging is still hard. I've
+written in the discipline that makes the rest safe: every action gets a test
+that does it, undoes it, and asserts byte-identical — so a wrong inverse fails
+the build rather than somebody's evening.
+
+
+## Bookkeeping
+
+
+Two new issues — **209, blocks are faces of the graph**, and **312, a map is a
+bundle**. Four renamed with references repointed. Sixty-nine issues now. Open
+questions **fourteen → eleven**, with A4 and A7 marked superseded rather than
+deleted, so the road not taken stays findable.
+
+
+**Phase 4 — The Places** next. Its two open questions are which structures
+count as megastructures and how many districts there are — and I suspect
+subdivision changes how membership gets assigned, since cutting at a coarse
+level might just *be* how districts come to exist.
 
 
 --------------------------------------------------------------------------------
