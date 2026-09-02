@@ -120,7 +120,7 @@ enheim-tome/
 │   │
 │   └── table-of-contents ..................... This page.
 │
-├── issues/ ................................... Seventy-three phase-numbered issue
+├── issues/ ................................... Eighty-five phase-numbered issue
 │   │                                           files: blueprints for building the
 │   │                                           software, not work logs. Numbered
 │   │                                           by phase, so 3xx is the tracing
@@ -145,6 +145,10 @@ enheim-tome/
 ├── desire/ ................................... What we would like to be better.
 ├── faith/ .................................... Expectation of boons and blessings.
 ├── strategems/ ............................... Data-flow patterns that keep working.
+├── validate-issue-graph ...................... Walks the dependency graph in both
+│                                               directions and reports edges only
+│                                               one file asserts. --fix takes the
+│                                               union.
 ├── llm-transcripts/ .......................... The full development conversation.
 │
 └── tmp/ ...................................... → /tmp/enheim-tome (RAM, executable)

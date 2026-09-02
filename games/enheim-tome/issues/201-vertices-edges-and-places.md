@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 2 — The Cage |
 | Blocked by | — |
-| Blocks | 202, 203, 204, 208, 209, 301 |
+| Blocks | 202, 203, 204, 206, 208, 209, 301, 312, 401 |
 | Reads | [the fence network](../docs/004-the-fence-network.md) |
 | Open questions | — |
 

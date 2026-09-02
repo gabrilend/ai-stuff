@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 8 — The Scaffold |
 | Blocked by | 703, 807, 808, 809, 810 |
-| Blocks | 812, 813 |
+| Blocks | 812, 813, 901, 902 |
 | Reads | [the scaffold](../docs/009-the-scaffold.md) |
 | Open questions | — |
 

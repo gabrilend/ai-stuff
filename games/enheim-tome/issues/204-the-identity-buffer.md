@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Phase | 2 — The Cage |
-| Blocked by | 101, 102, 201 |
+| Blocked by | 101, 102, 201, 209, 307 |
 | Blocks | 205, 501, 505 |
 | Reads | [the map surface](../docs/002-the-map-surface.md) |
 | Open questions | — |

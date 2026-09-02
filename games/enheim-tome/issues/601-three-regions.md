@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 6 — The Tome |
 | Blocked by | 103 |
-| Blocks | 602, 604, 606 |
+| Blocks | 602, 604, 606, 609, 610 |
 | Reads | [the tome](../docs/007-the-tome.md) |
 | Open questions | — |
 

@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 6 — The Tome |
 | Blocked by | 601 |
-| Blocks | 607, 608 |
+| Blocks | 607, 608, 609, 704, 911 |
 | Reads | [the tome](../docs/007-the-tome.md) |
 | Open questions | **5** — what the colours signify |
 

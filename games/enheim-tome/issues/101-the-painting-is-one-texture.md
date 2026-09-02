@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 1 — The Canvas |
 | Blocked by | — |
-| Blocks | 102, 105, 204 |
+| Blocks | 102, 105, 204, 301 |
 | Reads | [the map surface](../docs/002-the-map-surface.md) |
 | Open questions | — |
 

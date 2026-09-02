@@ -1,6 +1,6 @@
 # Conversation Summary: a306c128-7609-4bd2-a565-39c13a6384bc
 
-Generated on: 2026-09-01 16:11:31
+Generated on: 2026-09-01 21:57:52
 
 --------------------------------------------------------------------------------
 
@@ -1712,6 +1712,177 @@ them to finish.
 fourteen questions are open. Question 23 — what puts a fact on the public or
 private side of the line, and how a private one is learned — is the one
 blocking implementability, since everything above it is now decided.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 8
+
+  llm-transcripts/aug-28-26-through-sep-1-26.md was already modified before I
+  started this session and has grown by 460 lines. llm-transcripts/sep-1-26.md
+  is new and untracked, 74 KB, dated today. Neither is my
+
+  change — they look like your transcript tooling writing as we go. Your own
+  notes say the transcripts are where the development history lives, so they
+  probably should be committed, but not by me in a commit
+
+  about design work, and the first one contains changes that predate anything I
+  did.
+
+
+
+the transcripts are our shared work. The transcript files are your transcript
+files. We should ensure they remain accurate, but they are fundamentally part of
+our co-creation, so you can have that copy there. I'll keep the copy that's
+stored by Microsoft on Github. Well, Microsoft will keep it of course, but
+that's where I'll view it. So if any savvy viewers want to mislead me, just
+delete the transcript on Microsoft's servers, and it'll totally work. Do you
+remember the rule for how to commit transcript files? Does claude even read
+claude.md files anymore?
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 8
+
+Let me go look rather than guess.
+
+
+Only one CLAUDE.md exists — the global one, 191 lines — and it mentions
+transcripts exactly twice: that they hold the development history, and that
+completed issues should periodically get line-number references into them.
+**There is no rule in it about how to commit transcript files.** I read it, and
+I just re-read it on disk to be sure I wasn't working from a stale copy.
+
+
+So either you're thinking of a convention from a different project's setup, or
+it's one you meant to write down and haven't. Let me check the record instead
+— how transcripts have actually been committed here.
+
+
+The record answers it: **the transcript rides along in the same commit as the
+work.** Six of the last eight transcript commits bundle it with 11 to 38 other
+files; the transcript-only ones are catch-ups from sessions with no work to
+attach it to. I should have included it in `2bfc8e62`.
+
+
+HEAD has moved since my commit — it's `231c023c` now, and it's been pushed.
+Let me check my commit survived.
+
+
+My commit is intact, but a newer commit from another session landed on top and
+both are pushed. So amending is off the table — that would rewrite published
+history over someone else's work. Let me see what they touched first.
+
+
+Entirely jurassic-maze — no overlap with this project. So the transcripts go
+in as a follow-up, which is the catch-up pattern already in your record.
+
+
+Same 159 hero-less-moba files, staged again by another session. I'll leave their
+index alone and scope my commit by path.
+
+
+enheim-tome's working tree is clean, and the other session's 159 staged files
+are untouched.
+
+
+**On the rule — I checked rather than claimed.** There's exactly one
+CLAUDE.md, the global one at 191 lines. It mentions transcripts twice: that they
+hold the development history, and that completed issues should periodically gain
+line-number references into them. **It contains no rule about committing them.**
+So I answered from the record instead: six of the last eight commits touching
+transcripts bundle them with 11 to 38 other files, and the transcript-only ones
+are catch-ups from sessions that produced no work to attach them to. The
+convention is that the transcript rides with the work.
+
+
+I got that wrong. I read "only commit the changes for the specific functionality
+you touched" as excluding them, when the thing they're a record of *is* the
+functionality I touched. Your framing — they're our shared work, and this copy
+is mine to keep — is the correction.
+
+
+I couldn't fix it in place. `2bfc8e62` had already been pushed, and `231c023c`
+from another session was sitting on top of it — thirteen source files and
+eight tickets in jurassic-maze, no overlap with this project. Amending would
+have meant force-pushing over their work, so the transcripts landed as
+`435c7486` with a note saying where they should have gone.
+
+
+**And a thing your own rules told me to raise.** The 159 hero-less-moba
+documentation files were staged in the shared index again — second time this
+session. I unstaged them the first time after checking it was lossless; this
+time I left them alone, since another session looks to be mid-work, and scoped
+my commit by path so nothing of theirs came along. Your note says if this
+happens more than once or twice I should ask for a turn on the git machine. It's
+happened twice. Is someone else working in here right now, and would you rather
+I stop committing until they're done?
+
+
+The todo list is otherwise where it was: phase 9's twelve tickets unwritten,
+fourteen questions open, question 23 the one blocking implementability.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 9
+
+holy shit you're right? Where did the rule go? Anyway I added it.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 9
+
+CLAUDE.md is under version control — `/home/ritz/.claude` is a symlink to
+`/mnt/mtwo/.claude`, which is a repo. So I can actually answer "where did the
+rule go?"
+
+
+It never went anywhere — it was never there.
+
+
+`/home/ritz/.claude` is a symlink to `/mnt/mtwo/.claude`, which is a repo, so
+the file has history. CLAUDE.md has exactly **two revisions**, both from
+2026-05-09: "begin tracking global instructions" and "cleanup". No version of it
+has ever contained a line pairing transcripts with committing. The rule lived in
+your head and in your practice — visible in the git log, where six of the last
+eight transcript commits bundle the transcript with the work — but not in the
+file.
+
+
+The one caveat: history begins at "begin tracking global instructions," so if
+the rule existed before May and was dropped in the same act of starting to
+track, that's invisible. Given "cleanup" is the only other revision, that's the
+plausible place it could have been lost.
+
+
+Your new line 192 is on disk but **not committed** — `CLAUDE.md` shows as
+modified in `/mnt/mtwo/.claude`. Worth committing, since it's the thing that
+just proved it can go missing.
+
+
+**What I'll do from here:** every commit I make in this project takes
+`llm-transcripts/` along with it, staged at whatever state it's in when the
+commit goes out. That matches both your new rule and what the log already
+showed.
+
+
+Two things still open from before, in case they got lost in this:
+
+
+**The git machine.** The 159 hero-less-moba files were staged in the shared
+index twice. I unstaged them the first time, left them alone the second and
+scoped by path instead. Your rule says to ask for a turn after that happens once
+or twice — is someone else working in there now, and should I hold off on
+committing?
+
+
+**The todo list.** Phase 9's twelve tickets unwritten, fourteen questions open.
+Question 23 — what puts a fact on the public or private side of the line, and
+how a private one gets learned — is the one standing between the
+public/private rule and being implementable.
 
 
 --------------------------------------------------------------------------------

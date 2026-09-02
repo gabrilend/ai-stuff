@@ -3,10 +3,24 @@
 The narrative half. Axis interactions become a record; the record becomes words
 that decide nothing back.
 
-**Twelve issues intended. None written yet. Nothing has been built.**
+**Twelve issues written, none complete. Nothing has been built.**
 
-The intended list is in [the roadmap](../docs/012-roadmap.md); the design is
-[the scene](../docs/010-the-scene.md).
+| Issue | State |
+| --- | --- |
+| [901 — an interaction is one axis across the actors](901-an-interaction-is-one-axis-across-the-actors.md) | not started |
+| [902 — a scene record](902-a-scene-record.md) | not started |
+| [903 — what changed is computed first](903-what-changed-is-computed-first.md) | not started |
+| [904 — a scene exists only where something changed](904-a-scene-exists-only-where-something-changed.md) | not started |
+| [905 — history is append-only](905-history-is-append-only.md) | not started |
+| [906 — a fact is public or private](906-a-fact-is-public-or-private.md) | **blocked** — open question 23 |
+| [907 — the narrator is a viewer](907-the-narrator-is-a-viewer.md) | not started — open question 20 |
+| [908 — the narrator thinks, then narrates](908-the-narrator-thinks-then-narrates.md) | not started |
+| [909 — the narration phase cannot see the private facts](909-the-narration-phase-cannot-see-the-private-facts.md) | not started — open question 24 |
+| [910 — naming is the one place words touch the world](910-naming-is-the-one-place-words-touch-the-world.md) | not started |
+| [911 — a narration lands in the text pane](911-a-narration-lands-in-the-text-pane.md) | not started — open question 21 |
+| [912 — a missing narrator fails loudly](912-a-missing-narrator-fails-loudly.md) | not started — open question 20 |
+
+The design is [the scene](../docs/010-the-scene.md).
 
 ## What this phase is for
 
