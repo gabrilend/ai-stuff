@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 8 — The Scaffold |
 | Blocked by | 501, 808 |
-| Blocks | — |
+| Blocks | 910 |
 | Reads | [filters and the weave](../docs/006-filters-and-the-weave.md), [the scaffold](../docs/009-the-scaffold.md) |
 | Open questions | — |
 

@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Phase | 4 — The Places |
-| Blocked by | 203, 404 |
+| Blocked by | 203, 308, 404 |
 | Blocks | 409 |
 | Reads | [the places of the city](../docs/003-the-places-of-the-city.md) |
 | Open questions | — |

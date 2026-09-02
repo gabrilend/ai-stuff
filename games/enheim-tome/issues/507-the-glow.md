@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 5 — Filters and the Weave |
 | Blocked by | 205, 504 |
-| Blocks | 508, 705 |
+| Blocks | 508, 703, 705 |
 | Reads | [the map surface](../docs/002-the-map-surface.md) |
 | Open questions | — |
 

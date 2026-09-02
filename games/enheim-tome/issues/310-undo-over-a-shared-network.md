@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Phase | 3 — The Tracing Tool |
-| Blocked by | 302, 305 |
+| Blocked by | 208, 302, 305 |
 | Blocks | — |
 | Reads | [the tracing mode](../docs/005-the-tracing-mode.md) |
 | Open questions | — *(was question 10; answered)* |

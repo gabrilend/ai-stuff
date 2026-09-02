@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 3 — The Tracing Mode |
 | Blocked by | 101, 102, 201 |
-| Blocks | 302, 306, 307, 308, 309, 311, 312 |
+| Blocks | 302, 304, 306, 307, 308, 309, 311, 312 |
 | Reads | [the tracing mode](../docs/005-the-tracing-mode.md) |
 | Open questions | — |
 

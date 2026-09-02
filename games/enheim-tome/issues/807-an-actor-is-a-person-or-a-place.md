@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 8 — The Scaffold |
 | Blocked by | — |
-| Blocks | 808, 810, 811 |
+| Blocks | 808, 809, 810, 811, 905 |
 | Reads | [the scaffold](../docs/009-the-scaffold.md) |
 | Open questions | **19** — whether a *thing* is a third kind |
 

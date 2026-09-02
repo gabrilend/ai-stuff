@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 3 — The Tracing Tool |
 | Blocked by | 301, 302 |
-| Blocks | 406, 204 |
+| Blocks | 204, 406 |
 | Reads | [the places of the city](../docs/003-the-places-of-the-city.md) |
 | Open questions | — |
 

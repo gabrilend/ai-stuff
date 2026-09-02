@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Phase | 4 — The Places |
-| Blocked by | 207, 405, 408 |
+| Blocked by | 206, 207, 405, 408 |
 | Blocks | — |
 | Reads | [the map surface](../docs/002-the-map-surface.md) |
 | Open questions | — |

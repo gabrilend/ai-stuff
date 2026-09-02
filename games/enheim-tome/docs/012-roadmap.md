@@ -168,20 +168,20 @@ Reads: [the scaffold](009-the-scaffold.md).
 The narrative half. Axis interactions become a scene record, and the record is
 rendered into words by something that decides nothing.
 
-Intended issues:
+Issues:
 
-- an interaction is one axis across the actors present, typed five ways
-- a scene record: hour, place, actors, interactions, spark, and what changed
-- what changed is computed before the narrator is asked
-- history is append-only: axis changes, narrations, mintings
-- a scene exists only where something changed
-- the narrator is a viewer, and the city runs headless without it
-- naming a minted axis is the one place words touch the world
-- a fact is public or private, and the marking gates both a narration and a filter
-- the narrator thinks with everything and narrates with public plus known
-- the narration phase runs against a context that never held the private facts
-- a narration lands in the tome's text pane and nowhere else
-- a missing narrator fails loudly and shows the record
+- **901** an interaction is one axis across the actors present, typed five ways
+- **902** a scene record: hour, place, actors, interactions, spark, and what changed
+- **903** what changed is computed before the narrator is asked
+- **904** a scene exists only where something changed
+- **905** history is append-only: axis changes, narrations, mintings
+- **906** a fact is public or private, and the marking gates both a narration and a filter
+- **907** the narrator is a viewer, and the city runs headless without it
+- **908** the narrator thinks with everything and narrates with public plus known
+- **909** the narration phase runs against a context that never held the private facts
+- **910** naming a minted axis is the one place words touch the world
+- **911** a narration lands in the tome's text pane and nowhere else
+- **912** a missing narrator fails loudly and shows the record
 
 Reads: [the scene](010-the-scene.md).
 
