@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Phase | 6 — The Tome |
-| Blocked by | 601 |
+| Blocked by | 104, 601 |
 | Blocks | 605 |
 | Reads | [the tome](../docs/007-the-tome.md) |
 | Open questions | — *(was question 7; answered by the two-hand scheme)* |

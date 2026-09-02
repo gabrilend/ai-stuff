@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+#
+# validate-issue-graph -- checks that the issue files agree with each other about
+# what depends on what.
+#
+# Every issue file carries two fields naming its neighbours in the dependency
+# graph: "Blocked by", listing what must exist first, and "Blocks", listing what
+# waits on it. That is the same fact written down twice, in two files, facing
+# opposite directions -- and nothing has ever checked that the two halves agree.
+#
+# When they disagree, the graph silently has two different shapes depending on
+# which direction you walk it. Somebody planning what to build next reads one
+# half; somebody checking whether a ticket is ready reads the other; and they get
+# different answers without either of them being obviously wrong.
+#
+# This script walks every edge in both directions and reports the ones that only
+# exist on one side.
+#
+#   ./validate-issue-graph              report disagreements
+#   ./validate-issue-graph --fix        rewrite both fields to their union
+#   ./validate-issue-graph /some/path   run against a different project root
+#
+# --fix takes the union rather than picking a winner, on the reasoning that
+# nobody writes down a dependency that is not there. An edge asserted on either
+# side is evidence; silence on the other side is not evidence against it.
+
+set -u
+
+DIR="/mnt/mtwo/programming/ai-stuff/games/enheim-tome"
+FIX=0
+for ARG in "$@"; do
+    case "$ARG" in
+        --fix) FIX=1 ;;
+        *)     DIR="$ARG" ;;
+    esac
+done
+
+ISSUES="$DIR/issues"
+if [ ! -d "$ISSUES" ]; then
+    echo "no issues directory at $ISSUES" >&2
+    exit 1
+fi
+
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+
+# {{{ read_field()
+# Pulls the comma-separated issue numbers out of one row of an issue's header
+# table. Returns nothing when the row holds an em dash, which is how these files
+# spell "none".
+read_field() {
+    local FILE="$1" FIELD="$2"
+    grep -m1 "^| $FIELD |" "$FILE" \
+        | sed "s/.*| $FIELD | *//; s/ *|\$//" \
+        | grep -oE "[0-9]{3}"
+}
+# }}}
+
+# Collect every edge either side asserts, as "blocker blocked" pairs.
+: > "$WORK/edges"
+for FILE in "$ISSUES"/*.md; do
+    case "$FILE" in *progress*) continue ;; esac
+    N=$(basename "$FILE" | cut -c1-3)
+    for B in $(read_field "$FILE" "Blocks");     do echo "$N $B" >> "$WORK/edges"; done
+    for B in $(read_field "$FILE" "Blocked by"); do echo "$B $N" >> "$WORK/edges"; done
+done
+sort -u "$WORK/edges" -o "$WORK/edges"
+
+# Report edges that exist in the union but are missing from one file's own row.
+DISAGREEMENTS=0
+MISSING=0
+while read -r FROM TO; do
+    FF=$(ls "$ISSUES/$FROM"-*.md 2>/dev/null | head -1)
+    TF=$(ls "$ISSUES/$TO"-*.md 2>/dev/null | head -1)
+    if [ -z "$FF" ]; then echo "  $TO is blocked by $FROM, which has no file"; MISSING=$((MISSING+1)); continue; fi
+    if [ -z "$TF" ]; then echo "  $FROM blocks $TO, which has no file";        MISSING=$((MISSING+1)); continue; fi
+    read_field "$FF" "Blocks"     | grep -qx "$TO"   || { echo "  $FROM blocks $TO, but only $TO says so"; DISAGREEMENTS=$((DISAGREEMENTS+1)); }
+    read_field "$TF" "Blocked by" | grep -qx "$FROM" || { echo "  $TO is blocked by $FROM, but only $FROM says so"; DISAGREEMENTS=$((DISAGREEMENTS+1)); }
+done < "$WORK/edges"
+
+if [ "$FIX" = "1" ]; then
+    for FILE in "$ISSUES"/*.md; do
+        case "$FILE" in *progress*) continue ;; esac
+        N=$(basename "$FILE" | cut -c1-3)
+        BLOCKS=$(awk -v n="$N" '$1 == n { print $2 }' "$WORK/edges" | sort -u | paste -sd, - | sed 's/,/, /g')
+        BY=$(awk -v n="$N"     '$2 == n { print $1 }' "$WORK/edges" | sort -u | paste -sd, - | sed 's/,/, /g')
+        [ -z "$BLOCKS" ] && BLOCKS="—"
+        [ -z "$BY" ]     && BY="—"
+        sed -i "s/^| Blocked by |.*|\$/| Blocked by | $BY |/" "$FILE"
+        sed -i "s/^| Blocks |.*|\$/| Blocks | $BLOCKS |/"     "$FILE"
+    done
+    echo "rewrote both fields on every issue to the union of asserted edges"
+fi
+
+echo
+echo "edges asserted: $(wc -l < "$WORK/edges")"
+echo "one-sided:      $DISAGREEMENTS"
+echo "dangling:       $MISSING"
+[ "$DISAGREEMENTS" = "0" ] && [ "$MISSING" = "0" ]

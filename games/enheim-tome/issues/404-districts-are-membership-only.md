@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Phase | 4 — The Places |
-| Blocked by | 401, 403, 308 |
+| Blocked by | 308, 401, 403 |
 | Blocks | 405 |
 | Reads | [the places of the city](../docs/003-the-places-of-the-city.md) |
 | Open questions | **12** — how many districts, and which blocks go in which |

@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 5 — Filters and the Weave |
 | Blocked by | 501 |
-| Blocks | 505 |
+| Blocks | 505, 507 |
 | Reads | [filters and the weave](../docs/006-filters-and-the-weave.md) |
 | Open questions | — |
 

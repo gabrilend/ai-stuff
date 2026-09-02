@@ -4,7 +4,7 @@
 | --- | --- |
 | Phase | 4 — The Places |
 | Blocked by | 201 |
-| Blocks | 402, 403, 404, 408 |
+| Blocks | 402, 403, 404, 406, 408 |
 | Reads | [the places of the city](../docs/003-the-places-of-the-city.md) |
 | Open questions | — |
 
