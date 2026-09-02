@@ -1,0 +1,91 @@
+# Vision
+
+A factory that takes in ordinary industrial feedstock and puts out sheets of
+graphene, cut to whatever size is asked for. Not a product. A design: the
+machines, what each one must do, and the list of things that must become true
+before the material is allowed to move to the next machine.
+
+This is a paper facility. There is no simulation. Every machine is described
+by four things and only four things:
+
+  - what enters it
+  - what leaves it
+  - what must be true for it to work at all
+  - how much floor it stands on
+
+## The route
+
+Chemical vapour deposition on copper.
+
+Methane and hydrogen are flowed over copper held near 1000 C. Copper barely
+dissolves carbon at all, so the methane cracks on the copper's surface and the
+loose carbon atoms have nowhere to go but sideways. They stitch themselves into
+a single sheet. When the sheet has covered the copper there is no bare copper
+left to crack methane on, so growth stops on its own. That is why the product
+is one atom thick without anybody timing it. The self-limiting behaviour is a
+gift from the phase diagram, not a control system.
+
+This route was chosen over the three alternatives because it is the only one
+that yields a continuous sheet rather than a powder, a wafer-bound film, or a
+holed and half-healed one.
+
+## The problem this factory exists to attack
+
+The standard way to get the graphene off the copper is to destroy the copper.
+Acid dissolves the foil out from under the sheet and the copper leaves as ions
+in solution, never to be a foil again. The foil is about 25 micrometres thick.
+The graphene is 0.335 nanometres thick. Roughly seventy-five thousand atomic
+layers of copper are consumed to harvest one atomic layer of carbon.
+
+That ratio is the whole design problem. A factory that does this is not a
+graphene factory, it is a copper-destroying factory that produces graphene as a
+by-product.
+
+## The idea the factory is built around
+
+From the user, verbatim:
+
+  "what if the acid pulled away the copper at a certain temperature, and
+  re-applied it at another? We might be able to remove the copper from the face
+  of a large block, one face at a time, extract the graphene, then re-apply the
+  copper to the structure, improving the efficiency of the production process."
+
+So: the copper is not stock. The copper is apparatus. A block of it sits in the
+machine and stays there. Graphene is grown on a face, that face's outermost
+copper is taken away just far enough to let the sheet go, the sheet is
+harvested, and the copper is put back where it came from. The block ends each
+cycle the same mass and the same shape it started.
+
+The copper is skimmed, not spent.
+
+## What is still open
+
+Written down here as they surface. Each one gets asked and settled before the
+design can be called finished.
+
+  - Whether the reversal is driven by temperature, by electric current, or by a
+    gas that carries copper between a hot end and a cold end.
+  - What holds the sheet up during the moment its copper is gone. A sheet one
+    atom thick with nothing underneath it is a membrane in free space.
+  - Whether re-deposited copper comes back as the crystal face that grows good
+    graphene, or as a randomly oriented crust that grows bad graphene. If the
+    second, the block degrades every cycle and the factory has a shelf life.
+  - How many faces of the block are in production at once, and what the other
+    faces are doing while one is being harvested.
+  - Where the carbon comes from, and whether the hydrogen leaving the cracking
+    reaction is captured or vented.
+
+## The decision on how many designs to build
+
+From the user:
+
+  "we should build designs for all the available systems and then try and
+  figure out how to connect them and draw lessons or improvements from each
+  other."
+
+So the factory is not one line with a chosen mechanism. It is one line with a
+**slot**, and three machines designed to occupy it. Everything upstream of the
+slot and everything downstream of it is shared, which is what makes the three
+comparable rather than merely three separate factories.
+
+The comparison is the deliverable, not a tiebreaker before the deliverable.
