@@ -1,0 +1,4 @@
+# The RAM tiers.  tmp/ is a symlink to /tmp/<project>, and inside it
+# shared-memory/ points at /dev/shm/<project>.  Both are recreated by the
+# run scripts; neither belongs in the record.
+tmp
