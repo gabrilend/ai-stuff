@@ -1,4 +1,4 @@
--- 007-test-the-draw.lua
+-- 011-test-the-draw.lua
 --
 -- Proves the draw hands out what it should and refuses what it should
 -- not.  The tests that matter most are the ones about the corpus
@@ -8,12 +8,12 @@
 -- that two viewers may be handed the same file, and that a corpus which
 -- runs out says so rather than starting over.
 --
--- LuaJIT (5.1) syntax.  Run via 008-run-tests.sh.
+-- LuaJIT (5.1) syntax.  Run via 012-run-tests.sh.
 
 local DIR = "/home/ritz/programming/ai-stuff/ssh-view-only-viewer-script"
 if arg and arg[1] then DIR = arg[1] end
 
-local draw = dofile(DIR .. "/src/006-the-draw.lua")
+local draw = dofile(DIR .. "/src/008-the-draw.lua")
 
 local SANDBOX = DIR .. "/tmp/shared-memory/test-corpus"
 

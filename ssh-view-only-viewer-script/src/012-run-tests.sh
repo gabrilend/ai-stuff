@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# 008-run-tests.sh
+# 012-run-tests.sh
 #
 # Runs every test this project has and reports whether the whole set
 # passed.  Meant to be run before anything is trusted -- by a person
@@ -36,10 +36,16 @@ else
     exit 1
 fi
 
-echo "running the draw's tests with $LUA"
+echo "running every test with $LUA"
 
-"$LUA" "$DIR/src/007-test-the-draw.lua" "$DIR"
-RESULT=$?
+# Each suite is run on its own and its result folded in, so one failing
+# suite never hides another that would also have failed.  The phases run
+# in dependency order, which is also the order the source reads in.
+RESULT=0
+
+"$LUA" "$DIR/src/009-test-the-arrangement.lua" "$DIR" || RESULT=1
+"$LUA" "$DIR/src/010-test-the-grant.lua"       "$DIR" || RESULT=1
+"$LUA" "$DIR/src/011-test-the-draw.lua"        "$DIR" || RESULT=1
 
 if [ $RESULT -eq 0 ]; then
     echo "all tests passed"

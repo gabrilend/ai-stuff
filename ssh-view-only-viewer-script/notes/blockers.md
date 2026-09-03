@@ -3,45 +3,43 @@
 Things outside this project that would stop it, recorded so they are not
 rediscovered.
 
-## r-mail: installing several mailboxes on one machine collides
+## r-mail: the installer cannot name a second service
 
-**Status: not blocking the chosen design. Blocking a variant we rejected.**
+**Status: not blocking. Relevant only to the example implementation, and
+only at install time.**
 
-r-mail's installer gives every mailbox the same service name, the same
-service file path, and the same log file. Installing a second mailbox on
-one machine does not add a second service — it silently replaces the
-first, and the first mailbox stops being served with no error at install
-time or run time. On systemd the replacement happens during the install
-while a success message prints; on runit and OpenRC the running daemon
-survives until its next restart, which can be weeks later.
+Running several r-mail daemons on one machine is **designed behaviour**,
+not a workaround. `docs/service.md` sets it out directly: one mailbox per
+daemon, several daemons per machine — a personal mailbox, one for
+automated notifications, one for syncing between devices — each pointed
+at its own config, its own port, its own mail directory. This project
+should assume that arrangement is available and wanted.
 
-Verified against the current source, not just the issue file. Every
-service path and the log path are still literal in all five init-system
-branches; there is no service-name variable. The mailbox-path slug that
-would fix it already exists and is used for the config filename only.
+What does not work is the **installer**, and only the installer. Every
+install generates a service named `rmail`, writes it to a fixed path, and
+logs to a fixed file, so installing a second mailbox replaces the first
+one's service rather than adding to it. Verified against the current
+source: all five init-system branches still carry the literal name, there
+is no service-name variable, and the mailbox-path slug that would supply
+one already exists and is used for the config filename only.
 
-There is a second, sharper edge: two mailboxes on one machine sharing an
-identity name causes mail addressed between them to be **delivered into
-the sender's own inbox**. The daemon compares each `to:` line against its
-own identity before any contacts lookup, so a name collision self-delivers
-silently — no error, no retry, and the tracking state marks the recipient
-satisfied. For a project whose entire purpose is machine-to-machine
-delivery, that failure would look like the network being broken.
+Consequence for us: the second and third mailboxes must have their
+service files written by hand, or by something of ours, rather than by
+running the installer again. The daemons themselves are entirely happy
+with the arrangement — it is the generated startup files that collide.
 
-**Why it does not block us.** The chosen topology puts one mailbox on each
-viewer machine and one on the server — one per machine, never several.
-Nothing collides.
+**Identity names must differ between mailboxes on one machine.** The
+daemon compares each `to:` line against its own configured identity
+before consulting contacts, so a recipient name matching your own is
+delivered into your own inbox. That is the loopback path working as
+designed, and it is what makes a mailbox able to address itself. It only
+bites if two mailboxes are accidentally given the *same* name, at which
+point mail meant for the sibling lands at home instead. The documented
+example already avoids this by naming its mailboxes distinctly
+(`alice-notifications` and so on). We do the same, and it is a naming
+rule rather than a defect to route around.
 
-**When it would come back.** If the design ever moves to hosting the
-viewers' mailboxes on the server (the jails-on-one-server topology), it
-needs three mailboxes on one machine and this becomes a hard blocker.
-
-**What we are doing about it: nothing.** r-mail development belongs to its
-own team. This is recorded here so that if the topology changes, the cost
-is known in advance rather than discovered by a mailbox quietly going
-dark.
-
-Tracked upstream as r-mail issue #377, status Open, written 2026-08-25 and
-not implemented. Its blueprint is sound — service name and log path from
-the existing slug, a scan before writing, port and identity checked
-against sibling configs.
+**What we are doing about it: nothing.** r-mail development belongs to
+its own team. Tracked upstream as issue #377, status Open — its blueprint
+is sound: service name and log path derived from the existing slug, a
+scan before writing, port and identity checked against sibling configs.
