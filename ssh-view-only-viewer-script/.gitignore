@@ -2,3 +2,9 @@
 # shared-memory/ points at /dev/shm/<project>.  Both are recreated by the
 # run scripts; neither belongs in the record.
 tmp
+
+# The shared secret.  Never in the record.
+input/secret
+
+# Where the program says goodbye.  A run artifact, not source.
+output/goodbye

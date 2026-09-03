@@ -1,73 +1,70 @@
 # What this project is
 
-Two machines' worth of idea, kept in one repository because they share a
-single moving part.
+A script that lets someone send a packet to a machine and be given
+view-only SSH credentials on it. Once they have them, they browse the
+filesystem as they please.
 
-Someone wants to look at files on a computer that is not theirs. They are
-not given a list, not given a search box, and not given a way to ask for
-anything in particular. They are given **one file at a time, chosen at
-random**, and exactly one gesture to make: delete it. Deleting is how they
-say *I read this, next one please*. A new file, also random, takes its
-place.
-
-There is no other verb. There is no browsing. The interface is an empty
-hand that refills when you empty it.
-
-## The two visions
-
-They are separate, and the project keeps them separate on purpose.
-
-**The tooling** — a sandbox someone can reach over SSH, landing in a
-directory tree they cannot leave, holding files they did not choose.
-This is [the jail](003-the-sandbox-jail.md). It knows nothing about mail.
-It would work if the files were placed there by hand.
-
-**The implementation** — the same idea carried by
-[r-mail](../../../programs/r-mail/README.md), the file-based messaging
-daemon. The server writes a message; the viewer's own machine receives
-it; the viewer deletes it; the deletion travels backwards and the server
-notices. This is [the refill loop](004-the-refill-loop.md). It needs no
-SSH at all.
-
-Nothing in r-mail changes to support this. The project is an
-*implementation of* r-mail, not an integration *into* it. Every mechanism
-it leans on — backward deletion propagation, the delete hook, per-recipient
-attachments — already exists and is already documented.
-
-## What they share
-
-Both visions consume the same thing: a supplier that answers the question
-*"give me a file, at random, that I am allowed to lend."*
-
-That supplier is [the draw](002-the-random-draw.md), and it is the only
-component both halves depend on. It is written first, and it is written
-alone — the generating side knows nothing about who is going to look, and
-the viewing sides know nothing about how a file got chosen.
+That is the whole goal. Everything else in this repository is either a
+part of that, or an example of something to do with it.
 
 ```
-                    the corpus
-                        |
-                   [ the draw ]          <- one generator
-                    /        \
-                   /          \
-          [ the jail ]    [ the refill ]  <- two viewers
-             (ssh)           (r-mail)
+   somebody, somewhere
+          |
+          |  a packet with a small arrangement in it
+          v
+   the listening machine
+          |
+          +-- reads the arrangement, decides it is genuine
+          +-- creates a username and a password, briefly
+          |
+          v
+   they ssh in, and look around
 ```
 
-If the draw is wrong, both visions are wrong in the same way, which is
-the argument for it being one component rather than two.
+The credentials are **made on receipt** and did not exist before the
+packet arrived. They are view-only: the session can read and traverse,
+and cannot write, delete, rename, or execute. They expire.
 
-## Where the risk actually sits
+## The three parts
 
-Not in the password. The credential guards a room whose contents you
-already chose to lend, so getting past it buys a stranger one random file
-they were going to be shown anyway.
+**[The arrangement](001-the-arrangement.md)** — what a valid packet looks
+like, and how the listening machine decides a packet is genuine rather
+than noise or a replay. Pure reasoning about bytes; needs no privileges
+and can be tested on its own.
 
-The exposure is **rate**. Deletion is the request, so anyone inside can
-delete repeatedly and be fed repeatedly. A random draw, run enough times,
-converges on a complete copy of whatever it draws from. The boundary of
-the corpus — and whether the draw is allowed to repeat itself — is
-therefore the security mechanism. Authentication only bounds how many
-draws a stranger gets.
+**[The grant](002-the-grant.md)** — bringing a credential into existence
+and taking it away again. This is the part that needs root, and the part
+that must never leave an account behind.
 
-This is why the draw is phase one and the credential is not.
+**[The room](003-the-room.md)** — what "view-only" is actually made of,
+and which part of the filesystem the visitor traverses. Enforced by sshd
+and the kernel rather than by anything written here.
+
+## And then, an example of what to do with it
+
+Once someone can be given a temporary look at a filesystem, the question
+becomes what to show them. [The refill loop](004-the-refill-loop.md) is
+one answer, built on [r-mail](../../../programs/r-mail/README.md): a
+viewer is handed one file at a time, chosen at random, and deleting it is
+how they ask for the next. [The draw](008-the-draw.md) is the piece that
+chooses.
+
+This is an **example implementation**, not the goal. It is worked on
+after the script above works, and nothing in the three parts is allowed
+to depend on it.
+
+## Where the risk sits
+
+The visitor can traverse. That is the point, and it means the boundary of
+what they can reach is doing all of the work — not the password, which
+only decides how many visitors there are.
+
+Two mechanisms carry it, and both are the operating system's rather than
+ours: a chroot the session cannot climb out of, and sshd's own read-only
+mode, which refuses every filesystem-changing operation inside the
+protocol rather than relying on file permissions to say no.
+
+A credential that outlives its visit is the other exposure. An account
+left behind after the packet's window has closed is a door with no one
+watching it, which is why removal is part of the grant rather than a
+tidying step afterwards.

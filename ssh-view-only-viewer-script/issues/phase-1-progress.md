@@ -1,59 +1,56 @@
-# Phase 1 — The draw
+# Phase 1 — The arrangement
 
-The shared spine: a supplier that answers *give me a file, at random,
-that I am allowed to lend*, knowing nothing about who asked. Both visions
-consume it, so it is built first and alone.
+What a valid packet looks like, and how the listening machine tells a
+genuine one from noise, a guess, or a copy.
 
 ## Where the phase stands
 
-One issue open, substantially built.
-
 | issue | what it is | status |
 |---|---|---|
-| 100 | the random draw | in progress — core done, config and ledger persistence remain |
+| 100 | the arrangement | in progress — built and tested; four open questions |
 
-## What exists
+Forty-nine tests pass. A packet built by one process is accepted by
+another over UDP, and every way of presenting a packet that is not
+genuine is refused with its own reason.
 
-The draw resolves paths, walks a corpus, filters, and picks. Twenty-two
-tests pass. The module never reads the contents of a file it names, and
-never returns a path from outside the folder it was pointed at.
+## What the phase has taught
 
-## What the phase has taught so far
+**A separator has to be a character the fields cannot contain.** Joining
+the name and the window with a pipe is only unambiguous because a
+permissible name may not contain a pipe. Without that, the name `ab` with
+window `1` and the name `a` with window `b1` join to the same string and
+produce the same digest — two different requests a receiver could not
+tell apart. The check that forbids the pipe and the joining that relies
+on it are one decision in two places, and a test asserts they agree.
 
-**The boundary is not a string comparison.** Deciding whether one path is
-inside another looks like a prefix test and is not. A sibling directory
-named `lend-secrets` passes a naive prefix test against `lend`; a symlink
-passes every string test there is. The check has to go through the
-filesystem, and the test suite has to contain each way out as its own
-case, because they fail independently.
+**Deriving the password removed a whole component.** The first sketch had
+the machine invent a password and send it back, which needed a reply
+path, which needed the reply to be protected, which needed the visitor to
+be reachable. Computing the password from the same secret and window on
+both sides deleted all of that. The machine now never replies at all —
+which also means a wrong packet produces silence, so from outside a
+listening machine and a silent one are indistinguishable.
 
-**A path resolver that tolerates missing files is not safe here.** The
-first implementation resolved with a flag that succeeds when only the
-last component is absent — so a filename the corpus never contained came
-back resolved and tested as lendable. Nothing in review caught it; a test
-asserting that a never-written name is outside caught it immediately.
-The lesson generalises: for a boundary function, the test that a
-*non-existent* thing is refused is as load-bearing as the tests about
-real ones.
+**The label in the password derivation is load-bearing.** Folding the
+literal word into the hash is what stops the password equalling the knock
+digest for the same name and window. Without it, the digest a stranger
+watched cross the wire *would be* the password. It is one string in one
+line, and leaving it out would have been invisible in review — which is
+why there is a test asserting the two values differ.
 
-**Rate is the exposure, not secrecy.** The project's threat is not that a
-stranger reads one file — the corpus is chosen for lending. It is that
-deletion is the request, so a stranger inside can ask repeatedly and a
-random draw run enough times becomes a complete copy. That is why the
-per-file ceiling lives in phase one, ahead of any credential work. The
-credential only bounds how many draws someone gets; the ceiling bounds
-what the draws can add up to.
-
-**Running dry is an outcome, not a failure.** The draw returns nothing
-plus a reason when a viewer has seen everything. Making that distinct
-from an error means callers can say so to the viewer instead of retrying
-into a wall.
+**Refusing the future costs nothing and closes a hole.** Honouring only
+the current and previous windows means a sender with a fast clock cannot
+mint a packet that outlives a window. Accepting the next window would
+have looked generous and been a way to double a packet's life.
 
 ## Open questions carried by this phase
 
-- Does the roll rebuild while running, or is a restart required to see
-  new files?
-- What is the repeat ceiling's default — one per file per viewer, or
-  unlimited?
-- Should the ledger survive a restart? It does not today, so a restart
-  lets every viewer see everything again.
+- How long should a window be? Thirty seconds is the current replay
+  exposure, untested against machines that actually drift.
+- One secret, or one per visitor? One secret means the name is a label
+  rather than an identity — anyone holding it can claim any name.
+- Should honoured digests be remembered, making replay impossible rather
+  than merely brief?
+- What carries the packet? UDP is built. The vision says "a certain kind
+  of ping", meaning ICMP, which needs a raw socket LuaSocket does not
+  offer — so it would need a small C helper or a privileged capability.

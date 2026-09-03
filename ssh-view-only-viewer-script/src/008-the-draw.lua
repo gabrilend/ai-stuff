@@ -1,4 +1,4 @@
--- 006-the-draw.lua
+-- 008-the-draw.lua
 --
 -- Hands out one file at a time, chosen at random, from a directory a
 -- person has decided to lend.  It is asked "give me something for this

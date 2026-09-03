@@ -1,4 +1,4 @@
-# 006-the-draw.lua
+# 008-the-draw.lua
 
 Hands out one file at a time, at random, from a folder someone decided to
 lend. Knows nothing about who is asking or what happens to the answer.
@@ -87,4 +87,4 @@ again and be handed the same file.
 - No fallbacks. Missing entropy, an unrunnable command, or an absent
   corpus root each raise an error rather than degrading.
 - Never reads the contents of a file it names. A draw is a name.
-- Tests live in `007-test-the-draw.lua`, run by `008-run-tests.sh`.
+- Tests live in `011-test-the-draw.lua`, run by `012-run-tests.sh`.

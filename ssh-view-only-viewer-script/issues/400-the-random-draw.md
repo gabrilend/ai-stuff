@@ -96,7 +96,7 @@ reading*.
 
 ## Related
 
-- [The draw](../docs/002-the-random-draw.md) — datapath
+- [The draw](../docs/008-the-draw.md) — datapath
 - [What this project is](../docs/000-what-this-project-is.md) — why this
   is phase one and the credential is not
 
