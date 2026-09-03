@@ -1,6 +1,6 @@
 # Conversation Summary: 66b27888-4f43-4a8f-af72-9b58f8ef77e6
 
-Generated on: 2026-09-02 02:45:50
+Generated on: 2026-09-02 17:13:20
 
 --------------------------------------------------------------------------------
 
@@ -410,6 +410,335 @@ burns CPU for nothing and you'd want to skip it.
 - **Is `/tmp` a tmpfs on the soras?** If it is, in-flight chunks are already RAM
   and the peak-memory math above applies as written. If it isn't, chunks hit
   disk and the "8gb into ram" premise is only half true.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 4
+
+we should make it so that if a file is deleted from the viewer's end then a new
+one is randomly supplied. I think we can do this by making a deletion hook
+script which will notice when something is deleted from the outbox on the server
+computer. We're going to need a new mailbox for this, so make sure that the
+recent efforts (review the llm-transcripts) toward making the install script
+idempotent are working - then we just need to create a new mailbox, and make a
+system that, upon delete, syncs a new random file into the mailbox. We should
+have three mailboxes, one for each system that we're SSH'ing into to view
+randomly. Also this script doesn't have anything to do with sora we're working
+on the vision-2 document right now - we should build the actual script which
+handles the user-name / password exchange, then see how we can implement it by
+integrating it with rmail - not integrating on rmail's side, but an
+implementation of rmail with the ssh-view-only-viewer-script applied. So we'd
+sync a random file to the rmail inbox, then when a viewer deletes it (they have
+only access to that directory tree, which is auto-populated) a new one is copied
+into the outbox of the server, delivered to the inbox of the viewer system, and
+then we wait for more deletions. Essentially it's someone saying "I read this,
+next one please?" and it gives them one completely randomly. But the viewer
+script doesn't need rmail at all, so we have two separate visions here - one for
+the tooling, and one for the implementation. Let's make sure they're considered
+separate, but related enough to be part of the same project.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 4
+
+Starting with the gate you named — the install script's idempotency. Let me
+review the transcripts and the script itself.
+
+
+Gate check first: **the idempotency work is not implemented.** It exists only as
+a blueprint. Let me confirm the details before I report.
+
+
+Confirmed the gate fails. Now let me preserve the current state before
+restructuring, so both versions are in the record.
+
+
+Baseline is in the record. Now the structure and the vision split.
+
+
+Let me verify the one mechanism the whole refill loop depends on — that a
+recipient's deletion fires a hook back on the server.
+
+
+Loop verified end to end. Let me record the new vision material, then put the
+blocking questions to you.
+
+
+Verification done. Three things block the build, and they're all yours to
+decide.
+
+
+**[Asked the user]**
+
+
+*Q1 — Topology:* Where do the three mailboxes live, and who SSHes into whom?
+
+- Three jails on one server — The server runs three r-mail mailboxes and three
+  chrooted SSH accounts, one per viewer. Viewers SSH in and land in a tree they
+  cannot leave. This matches "they have only access to that directory tree" —
+  but it puts three mailboxes on one machine, which is exactly the collision
+  bug.
+
+- A daemon on each viewer machine — Each of the three viewer machines runs its
+  own r-mail daemon with its own inbox. The server runs one mailbox with three
+  contacts. No mailbox collision at all — but then delivery is r-mail over the
+  network and SSH isn't carrying files, so the two visions barely touch.
+
+- Server jails, viewers also run daemons — Both. The server hosts the jails
+  for people who want to SSH in and look, and the viewer machines that can run a
+  daemon get delivery directly. Two front doors onto the same corpus.
+
+→ **Answered:** A daemon on each viewer machine" selected preview:
+
+SERVER                    VIEWER MACHINES
+
+  one mailbox      --->     A: own daemon, own inbox
+
+  three contacts   --->     B: own daemon, own inbox
+
+                   --->     C: own daemon, own inbox
+
+
+needs: nothing from #377
+
+delivery: r-mail over LAN
+
+ssh: not used for files at all, "The password is "the other person's name" —
+which other person?"=(no option selected) notes: as long as it's viewing only,
+and we promise not to keep any logs or anything... then authentication doesn't
+really matter, right? we're creating a sandbox so that people can view the files
+on my computer (albiet a random selection) while also testing the sora-fg
+system, and rmail., "Installing three mailboxes collides today — issue #377 is
+written but unimplemented. How do you want to get past it?"=(no option selected)
+notes: add it as a blocker in our notes, don't implement it yet, leave rmail
+development to their team. Read the answers carefully — they may request
+clarification, changes, or that you not proceed — and follow what they
+actually say.
+
+
+*Q2 — Pairing:* The password is "the other person's name" — which other
+person?
+
+- Another viewer who is currently in — Viewer A's password is the name of
+  whoever else holds a live session right now. You cannot get in alone —
+  someone else has to already be looking. The credential is a function of who is
+  present, which is what makes it genuinely temporary rather than just timed
+  out.
+
+- The server's own name — Every viewer logs in as themselves with the server's
+  identity name as the password. Simple, always works, one shared secret. The
+  "temporarily" part then has to come from an expiry timer rather than from the
+  pairing.
+
+- Carried in the knock itself — The packet that triggers the door contains the
+  pairing. The arrangement in the packet IS the identity, and the
+  username/password is just a human-readable form of what the packet already
+  proved. No roster on the server at all.
+
+→ *(no answer recorded)*
+
+
+*Q3 — Install fix:* Installing three mailboxes collides today — issue #377
+is written but unimplemented. How do you want to get past it?
+
+- Implement #377 in r-mail first — Do the blueprint: derive service name and
+  log path from the mailbox slug, stop repointing the root config symlink, add
+  the existing-install scan, check ports and identity names against sibling
+  configs. Cross-project work in the r-mail repo, but it unblocks every future
+  mailbox, not just these three.
+
+- Hand-write the three configs here — Skip install.sh entirely. This project
+  writes the three config files and three service files itself, with names
+  derived from each mailbox path. #377 stays open in r-mail; we just don't use
+  the broken path.
+
+- Only fix what three mailboxes need — A narrow slice of #377: service name,
+  log path, and the identity-name uniqueness check — the three things that
+  actually bite here. Leave the scan, the port check and the doc fixes for
+  later.
+
+→ *(no answer recorded)*
+
+
+Answers recorded. Let me address your question directly, because it changes what
+the script should actually protect.
+
+
+**You're mostly right, and for the reason you gave** — the sandbox is the
+guarantee, not the credential. If the jail holds, a stranger who gets in reads a
+file you already decided to lend. The chroot is doing nearly all the work, and
+the password is doing very little.
+
+
+But one thing does change with weak auth, and it's specific to this design:
+**deletion is the only verb, and deletion means "give me another."** So a
+stranger doesn't read one random file — they sit there deleting, and the
+refill loop feeds them as fast as they can ask. Random draw, repeated enough
+times, is a full copy. What authentication buys here isn't confidentiality per
+file; it's a bound on *rate and totality*.
+
+
+Which moves the real decision off the credential entirely: the thing protecting
+you is **the corpus boundary and whether the draw repeats**. If the corpus is a
+directory you curated for lending, auth genuinely doesn't matter and you should
+spend nothing on it. If the draw reaches into your real files, no password saves
+you — the selection function does.
+
+
+So I'm treating the random draw as the load-bearing component, shared by both
+visions. Writing that up now.
+
+
+Now the phase 1 issue file, before any code.
+
+
+Issue filed. Now the implementation.
+
+
+Now the tests — issue 100 step 6.
+
+
+The test caught a real bug: `readlink -f` succeeds on a path whose final
+component doesn't exist, so a missing file read as *inside* the corpus. `-e`
+requires every component to exist.
+
+
+Committed. Here's where things stand.
+
+
+## The gate you named: it fails
+
+
+The idempotency work was never implemented. Issue #377 in r-mail is a blueprint,
+status Open, written Aug 25 — and I verified against the source rather than
+trusting the file. All five init-system branches still write a service literally
+named `rmail` to a fixed path, all five log to `/tmp/rmail.log`, there's no
+service-name variable anywhere, and line 742 still repoints the project-root
+config symlink on every run. The mailbox-path slug that would fix it exists and
+is used for the config filename only.
+
+
+Recorded in `notes/blockers.md`. I did not touch r-mail.
+
+
+**It doesn't block you anyway** — your topology choice put one mailbox on each
+machine, never several on one. The collision needs two mailboxes sharing a host.
+The note says when it would come back (if you ever move the viewers' mailboxes
+onto the server) so the cost is known in advance rather than discovered by a
+mailbox going quietly dark.
+
+
+The sharper half of that bug is worth knowing regardless: two mailboxes on one
+machine sharing an identity name causes mail between them to be delivered into
+the *sender's own inbox*, silently, because the daemon checks each `to:` line
+against its own identity before any contacts lookup. For a project that is
+entirely machine-to-machine delivery, that would have looked like the network
+being broken.
+
+
+## The refill loop is mechanically sound
+
+
+I traced it rather than assuming. Three things in r-mail carry it, all existing,
+none modified:
+
+
+- When a recipient deletes, `remove_recipient_from_file` strips their `to:`
+  line, and when the count hits zero it calls `os.remove` on the outbox file.
+  One recipient per file means a viewer's deletion cleans the server's outbox
+  completely.
+
+- The branch commented *"recipient telling us they deleted something we sent"*
+  fires `on_delete` with the recipient's name. That single argument is thin —
+  no subject, no filename — but for a loop whose only question is *which
+  viewer said next*, it is exactly enough.
+
+- `attach:` binds to the `to:` above it, so one file goes to one viewer.
+
+
+The friction is consent: r-mail asks before every transfer, which is a second
+verb on top of deletion and breaks "delete is the only gesture." The viewer-side
+`on_receive` hook can auto-accept, but that's software on their machine, which
+was the thing the tooling vision was attractive for avoiding. Written up as an
+open question, not decided.
+
+
+## What I built
+
+
+The draw — `src/006-the-draw.lua`, the one component both visions consume. It
+answers *give me a file, at random, that I am allowed to lend* and knows nothing
+about who asked. 22 tests pass.
+
+
+Deciding whether one path is inside another turned out not to be the string
+comparison it looks like. `lend-secrets` passes a naive prefix test against
+`lend`. A symlink passes every string test there is. Each way out is a separate
+test case because they fail independently.
+
+
+**One test caught a real bug.** I resolved paths with `readlink -f`, which
+succeeds when only the *final* component is missing — so a filename the corpus
+never contained resolved cleanly and tested as lendable. `-e` requires every
+component to exist. Reading didn't catch it; the assertion that a never-written
+name is refused caught it immediately.
+
+
+## What I did not build
+
+
+**The username/password script you asked for first.** Your answer redirected it
+— you said auth doesn't much matter here, and I argued the draw is the
+load-bearing thing, so I built that instead. The credential is phase 2 and the
+pairing rule is still undecided. If you want that script next, say so and I'll
+build it; I didn't want to pick a pairing rule on your behalf when you'd
+declined to.
+
+
+**Steps 1 and 5 of issue 100.** No configuration reader — corpus root, ceiling
+and ledger path are passed by the caller rather than read from anywhere. And the
+ledger exists only as an in-memory map a caller keeps; nothing writes it to the
+RAM tier, so nothing survives between processes.
+
+
+## Open questions, unanswered
+
+
+The task is in progress, not delivered, because these are outstanding:
+
+
+- Does the roll rebuild while running, or does a restart go on being required to
+  see new files?
+
+- What's the repeat ceiling's default — one draw per file per viewer, or
+  unlimited? That number is the difference between a sampler and a slow complete
+  copy.
+
+- Should the ledger survive a restart? It doesn't, so a restart lets every
+  viewer see everything again — and if it should, it moves to disk and the
+  no-logs promise needs re-reading.
+
+- Does the viewer auto-accept r-mail's consent request, or accept by hand each
+  time?
+
+- Deleting a message doesn't delete its attachment — r-mail decided that
+  deliberately. So the viewer's attachments directory accumulates everything
+  ever drawn, and "one file at a time" is only true of the inbox, not the disk.
+  Who cleans that up?
+
+- What does the server send when the draw runs dry? Sending nothing leaves an
+  unexplained empty inbox; sending a message saying so means deleting *that*
+  asks for another.
+
+- The project promises no logs, but sshd writes auth records through the system
+  logger regardless. As written, the promise isn't true.
+
+
+One housekeeping note: the repo has uncommitted work from other projects
+(hero-less-moba, gif-generator, enheim-tome). I staged only this project's paths
+and left the rest alone.
 
 
 --------------------------------------------------------------------------------
