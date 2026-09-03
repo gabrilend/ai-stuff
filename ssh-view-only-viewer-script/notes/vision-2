@@ -1,0 +1,35 @@
+sora-1 sora-2 and other few - here, take 8gb of my memory into
+ram. then, share it with whoever wants to see you too. They could share and examine each other and it'd be interesting and charmed.
+sora 1-3 are mini-computers I have on an SSH connected network
+it's got it's own router that covers my computer too. So they'd be able to talk to each other without opening any ports to the internet, since my outer-router never has to know that they're talking.
+so anyway every 30 minutes or so they'd switch
+
+or like, every 3 minutes they'd change N% of the files to new ones
+
+sometimes all of them
+
+---
+
+(the above is the first sitting, kept as written)
+
+---
+
+the sora machines were the example, not the subject. what this is really
+about: three systems, and a directory tree each that fills itself.
+
+someone gets a file. they read it. they delete it. that deletion is them
+saying "I read this, next one please?" and the answer is a new file,
+chosen completely at random, arriving in the same place the old one was.
+
+they never ask for anything. they never type a command. the only verb
+they have is delete, and delete means more.
+
+the deletion travels backwards. it leaves the viewer's inbox, crosses to
+the server's outbox, and takes the message with it. a hook notices the
+absence and fills it.
+
+three mailboxes, one per system.
+
+the viewer script doesn't need rmail at all. that's the other vision.
+this one is rmail with the viewer script applied to it — an
+implementation, not an integration. nothing changes on rmail's side.
