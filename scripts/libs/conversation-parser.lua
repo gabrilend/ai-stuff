@@ -23,6 +23,37 @@ local function load_dkjson()
 end
 -- }}}
 
+-- {{{ split_lines
+-- Split on newlines exactly, keeping empty lines, so that concatenating the
+-- result back with newlines reproduces the input byte for byte.
+--
+-- The obvious Lua spelling of this, gmatch("[^\n]*"), is a trap: the pattern
+-- can match the empty string at the position just after a match, so it yields
+-- a phantom empty line after every real one. The wrapper below used that
+-- spelling and therefore emitted a blank line after every source line for as
+-- long as it has existed, which is why a single blank between two paragraphs
+-- arrived in the finished transcript as two. Counted before the fix: 67,540
+-- such lines across 1046 exported transcripts, about 5% of the corpus.
+--
+-- It matters beyond tidiness. A blank line between two quoted lines ends a
+-- markdown blockquote, so a pasted-back passage spanning several terminal
+-- rows was being broken into one quote block per row.
+local function split_lines(text)
+    local lines = {}
+    local pos = 1
+    while true do
+        local newline = text:find("\n", pos, true)
+        if not newline then
+            lines[#lines + 1] = text:sub(pos)
+            break
+        end
+        lines[#lines + 1] = text:sub(pos, newline - 1)
+        pos = newline + 1
+    end
+    return lines
+end
+-- }}}
+
 -- {{{ wrap_text
 -- Wrap prose to the target width while leaving structure alone.
 --
@@ -34,7 +65,10 @@ end
 -- What passes through untouched, because wrapping corrupts its meaning:
 -- headers (a split header stops being a header), everything between ```
 -- fences (the old code had no fence state and word-wrapped code), table
--- rows, and tab/4-space indented code. A single token longer than the
+-- rows, tab/4-space indented code, and that same indented code sitting
+-- inside a blockquote - which is how a pasted-back diagram arrives, and
+-- word-wrapping one destroys the alignment that was its whole content.
+-- A single token longer than the
 -- width - a URL, a path - also stays long: there is no honest place to
 -- break it.
 local function wrap_text(text, width)
@@ -61,7 +95,7 @@ local function wrap_text(text, width)
     end
     -- }}}
 
-    for line in text:gmatch("[^\n]*") do
+    for _, line in ipairs(split_lines(text)) do
         if line:match("^%s*```") then
             -- Fence line: emit as-is and flip code state.
             table.insert(lines, line)
@@ -76,7 +110,8 @@ local function wrap_text(text, width)
             -- 80-dash separators the exporter itself writes).
             table.insert(lines, line)
         elseif line:match("^#") or line:match("^%s*|")
-            or line:match("^    ") or line:match("^\t") then
+            or line:match("^    ") or line:match("^\t")
+            or line:match("^>%s%s%s%s%s") then
             -- Unwrappable structure: headers, table rows, indented code.
             table.insert(lines, line)
         else
@@ -101,6 +136,179 @@ local function wrap_text(text, width)
                     indent = line:match("^(%s*)")
                     wrap_with_prefix(indent, indent, line:sub(#indent + 1))
                 end
+            end
+        end
+    end
+
+    return table.concat(lines, "\n")
+end
+-- }}}
+
+-- How confident a match has to be before a line is called a quote, and how
+-- weak a neighbour's match may be once a confident one sits beside it.
+-- Derived from the corpus, not chosen: bucketing every match by length shows
+-- that under about thirty characters the hits are coincidence ("sure",
+-- "file.", "before touching it.") and over about forty they are real. A
+-- single threshold cannot serve, because a real paste ENDS in a short
+-- fragment - the tail of a wrapped paragraph is a line like "the years in
+-- between.", which is a quote only because of what sits above it.
+local QUOTE_SEED_LENGTH = 40
+local QUOTE_EXTEND_LENGTH = 12
+
+-- {{{ spoken_form
+-- Reduce text to what a reader actually SAW, so a paste can meet its source.
+--
+-- The user works by selecting a line of the assistant's answer in the
+-- terminal and pasting it back to reply to that line specifically. What the
+-- clipboard receives is what Claude Code drew, not what the model typed, and
+-- the two differ in ways that defeat a literal comparison:
+--
+--   - emphasis is gone. The model wrote "**Notes poems still don't appear**
+--     on the 2,500 word pages"; the paste carries no asterisks. Measured over
+--     every session log on disk, comparing raw text finds 1588 pasted lines
+--     and comparing this reduced form finds 3028 - the markers alone hide
+--     nearly half of them.
+--   - the pane's line-wrapping is baked in. One sentence of the model's prose
+--     comes back as four rows broken at whatever width the terminal was, so
+--     collapsing every whitespace run to a single space is what lets a row
+--     be found inside the paragraph it came from.
+--
+-- Both sides of every comparison pass through here.
+local function spoken_form(text)
+    text = text:gsub("%*%*", "")   -- bold
+    text = text:gsub("__", "")     -- bold, underscore spelling
+    text = text:gsub("`", "")      -- inline code, and fence lines with it
+    text = text:gsub("%*", "")     -- italics, and the bullet star
+    text = text:gsub("%s+", " ")   -- the terminal's wrap, and the left margin
+    text = text:gsub("^ ", "")
+    text = text:gsub(" $", "")
+    return text
+end
+-- }}}
+
+
+-- {{{ mark_quoted_lines
+-- Turn the lines the user pasted back from the model into blockquotes, and
+-- leave the user's own words alone.
+--
+-- prior_speech is every assistant text block seen SO FAR in this conversation,
+-- already reduced by spoken_form. It has to be "so far" rather than "all of
+-- it": the model routinely echoes the user's phrasing back, so searching text
+-- the model had not yet written would mark the user's own words as a quote of
+-- a reply that did not exist yet.
+--
+-- The rule is seed-and-extend rather than one threshold. A line long enough
+-- that coincidence is implausible seeds a quote; the run then walks outward
+-- taking neighbours on a much weaker test and stops at the first line that
+-- matches nothing. That keeps the short tail of a wrapped paragraph and
+-- rejects an isolated "sure" that happens to appear in a long earlier answer.
+--
+-- What is deliberately NOT done: the row breaks are left exactly as they
+-- arrived. Re-joining them would read better as prose, but a pasted ASCII
+-- diagram comes back through this same path and its line breaks are its
+-- entire content.
+local function mark_quoted_lines(text, prior_speech)
+    if not prior_speech or #prior_speech == 0 then
+        return text
+    end
+
+    local lines = split_lines(text)
+
+    -- How much of each line can be found somewhere the model already spoke.
+    -- Substring, not equality: the pasted row is a fragment of a paragraph.
+    local found = {}
+    for index, line in ipairs(lines) do
+        local spoken = spoken_form(line)
+        if #spoken >= QUOTE_EXTEND_LENGTH then
+            for _, said in ipairs(prior_speech) do
+                if said:find(spoken, 1, true) then
+                    found[index] = #spoken
+                    break
+                end
+            end
+        end
+    end
+
+    -- Seed. Nothing confident means nothing was pasted; leave the message be
+    -- rather than pay for the rest of the passes.
+    local quoted = {}
+    local seeded = false
+    for index = 1, #lines do
+        if (found[index] or 0) >= QUOTE_SEED_LENGTH then
+            quoted[index] = true
+            seeded = true
+        end
+    end
+    if not seeded then
+        return text
+    end
+
+    -- {{{ extend_run
+    -- Walk away from a seed in one direction, stopping at the first line that
+    -- is not clearly part of the same paste.
+    --
+    -- A blank line stops the walk. A paste arrives as adjacent rows - the
+    -- terminal's own row breaks, nothing between them - so a blank is where
+    -- the paste ended and the user's own words began. Letting the walk cross
+    -- one lets a quote swallow the reply written underneath it, and a short
+    -- phrase in that reply echoing the answer it responds to is exactly the
+    -- accidental match the length thresholds exist to reject.
+    --
+    -- Pasting two whole paragraphs is not lost to this: each is long enough to
+    -- seed on its own, and the blank between them is rejoined by the
+    -- interior-blank pass below. A blank line never reaches the threshold, so
+    -- it needs no case of its own here.
+    local function extend_run(from, step)
+        local index = from + step
+        while lines[index] do
+            if (found[index] or 0) < QUOTE_EXTEND_LENGTH then
+                break
+            end
+            quoted[index] = true
+            index = index + step
+        end
+    end
+    -- }}}
+
+    for index = 1, #lines do
+        if (found[index] or 0) >= QUOTE_SEED_LENGTH then
+            extend_run(index, 1)
+            extend_run(index, -1)
+        end
+    end
+
+    -- A blank row with quoted lines on both sides is interior to the run and
+    -- joins it; one hanging off either end does not. Interior blanks are
+    -- emitted as a bare marker so the run stays a single quote block instead
+    -- of breaking into one block per row.
+    for index = 1, #lines do
+        if not quoted[index] and lines[index]:match("^%s*$") then
+            local before, after = false, false
+            for back = index - 1, 1, -1 do
+                if quoted[back] then before = true break end
+                if not lines[back]:match("^%s*$") then break end
+            end
+            for forward = index + 1, #lines do
+                if quoted[forward] then after = true break end
+                if not lines[forward]:match("^%s*$") then break end
+            end
+            before = before and after
+            if before then quoted[index] = true end
+        end
+    end
+
+    -- The copied left margin is kept rather than stripped, and it carries
+    -- information: Claude Code indents prose by two spaces, so a quoted line
+    -- lands as "> " plus two - ordinary quoted prose. Anything the user had
+    -- indented further (a diagram, a code listing) lands as "> " plus four or
+    -- more, which markdown reads as a code block inside the quote, and its
+    -- alignment survives into HTML instead of collapsing.
+    for index = 1, #lines do
+        if quoted[index] then
+            if lines[index]:match("^%s*$") then
+                lines[index] = ">"
+            else
+                lines[index] = "> " .. lines[index]
             end
         end
     end
@@ -339,6 +547,12 @@ local function parse_conversation(jsonl_file, output_file)
     local user_count = 1
     local current_user_uuid = nil
     local assistant_responses = {}
+    -- Everything the model has said so far this conversation, reduced to
+    -- the form a reader saw, so a line the user pastes back can be found
+    -- in it. Unlike assistant_responses above, this is NEVER emptied at a
+    -- user turn: the user quotes answers from far earlier in the session,
+    -- not only the one they just read.
+    local prior_speech = {}
 
     -- Pre-pass: map every tool-result back to the tool call it answers, so the
     -- AskUserQuestion renderer can pair a question block with its answer. The
@@ -393,7 +607,8 @@ local function parse_conversation(jsonl_file, output_file)
                 out:write("### User Request " .. user_count .. "\n")
                 out:write("\n")
                 if type(content) == "string" then
-                    local formatted_request = format_content(content)
+                    local quoted = mark_quoted_lines(content, prior_speech)
+                    local formatted_request = format_content(quoted)
                     out:write(formatted_request .. "\n")
                 end
                 out:write("\n")
@@ -420,6 +635,8 @@ local function parse_conversation(jsonl_file, output_file)
                         local text = item.text or ""
                         if text ~= "" then
                             table.insert(assistant_responses, text)
+                            prior_speech[#prior_speech + 1] =
+                                spoken_form(text)
                         end
                     elseif type(item) == "table" and item.type == "tool_use"
                         and item.name == "AskUserQuestion" then
@@ -519,4 +736,6 @@ return {
     parse_timestamp = parse_timestamp,
     format_content = format_content,
     wrap_text = wrap_text,
+    spoken_form = spoken_form,
+    mark_quoted_lines = mark_quoted_lines,
 }

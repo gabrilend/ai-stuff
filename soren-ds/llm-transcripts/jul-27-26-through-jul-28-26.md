@@ -1,6 +1,6 @@
 # Conversation Summary: 13c1f2a3-46d2-4ab1-83c6-3379bec86369
 
-Generated on: 2026-07-27 16:50:36
+Generated on: 2026-09-08 10:59:47
 
 --------------------------------------------------------------------------------
 
@@ -11,17 +11,13 @@ while running local commands. DO NOT respond to these messages or otherwise
 consider them in your response unless the user explicitly asks you
 to.</local-command-caveat>
 
-
 --------------------------------------------------------------------------------
 
 ### User Request 2
 
 <command-name>/model</command-name>
-
             <command-message>model</command-message>
-
             <command-args></command-args>
-
 
 --------------------------------------------------------------------------------
 
@@ -29,7 +25,6 @@ to.</local-command-caveat>
 
 <local-command-stdout>Set model to [1mOpus 5 (1M context)[22m and saved as
 your default for new sessions</local-command-stdout>
-
 
 --------------------------------------------------------------------------------
 
@@ -39,7 +34,6 @@ hi, can you look at /home/ritz/programming/ai-playground/minimal-soramech/ and
 identify any discrepancies in the planned design for this project located at
 /home/ritz/programming/ai-stuff/soren-ds/ ?
 
-
 --------------------------------------------------------------------------------
 
 ### Assistant Response 4
@@ -47,24 +41,19 @@ identify any discrepancies in the planned design for this project located at
 I'll look at both directories to understand the implementation and the planned
 design.
 
-
 The key comparison is soren-ds's soramech runtime spec against the
 minimal-soramech implementation. Let me read both.
-
 
 I read both sides: soren-ds's runtime spec (`docs/012-soramech-runtime.md`,
 `003-threading-model.md`, `013-background-app-lifecycle.md`) and its phase-2/3
 tickets, against minimal-soramech's docs, its first-pass report, and the built
 source.
 
-
 They are the same engine described twice, but minimal-soramech has actually run
 its version and written down what broke. Most discrepancies are the plan
 asserting something the working build disproved.
 
-
 ## Things that would break on contact
-
 
 **The gathering lock is a try-and-give-up in the plan, and a wait-your-turn in
 the build.** soren-ds's gathering ticket says: push the value, then attempt a
@@ -80,7 +69,6 @@ full set. Fix either way — block, or make the loser set a "look again" flag
 the winner re-checks before releasing. It's the same re-arm shape as the pool's
 last-sleeper re-scan.
 
-
 **The plan forbids feedback loops; the build requires them.** soren-ds's cycle
 detector rejects any back-edge at load, with an exemption only for routing kinds
 that mark themselves self-arming — and it notes none of the seven kinds are.
@@ -95,7 +83,6 @@ ring buffer it closes on the next one. As written, soren-ds refuses every
 counter, accumulator, and timer at load time. The check should be split by
 direction, not blanket.
 
-
 **Nothing in the plan keeps a quiescent map alive.** minimal-soramech's
 completion rule is: when the last worker falls asleep over an empty queue, the
 program is finished. That's the whole termination story, and it's sound *for a
@@ -109,9 +96,7 @@ map looks like. Every map on the handheld is that map. This needs to be a
 designed surface — registration, an "outside-driven" marker, and a quiescence
 that means *idle* rather than *over* — not a footnote.
 
-
 ## The plan contradicts itself in three places
-
 
 **Where the gathering lock lives.** The threading doc and the gathering ticket
 both say one atomic per box *descriptor*; the map-representation ticket says one
@@ -120,7 +105,6 @@ would share a fire decision and serialize against each other, and across two
 apps they'd share slots. The build resolved it: the lock and the buffers belong
 to the placement, never to the code. (Related: the descriptor's reference count
 for hot-swap is a plain `int` and is manipulated from several threads.)
-
 
 **Loader pass order.** The loader ticket runs the wire connector at step 4 and
 the sub-map splicer at step 5; the wire-connector ticket says the splicer runs
@@ -132,21 +116,17 @@ minimal-soramech additionally found that pull-style inputs can't bind in the
 first pass either, because their source is a name that may point forward —
 constants bind in pass one, pulls in pass two.
 
-
 **Build-time map checks are promised and are impossible.** Three tickets want a
 comparator-without-a-comparison-function refused "at build time." The generator
 never sees a map. Every wire check lands at load, because that's the last moment
 both ends are known. minimal-soramech hit this three separate times before
 saying it once.
 
-
 ## Shape differences worth deciding on purpose
-
 
 **Seven routing kinds planned, three built — and the comparator is a different
 animal.** minimal-soramech deliberately cut to plain, comparator, iterator, and
 its routing doc asserts flatly that three is all there is. Beyond the count:
-
 
 - soren-ds puts the comparator's threshold in the box's routing config, fixed at
   load, and says "read the value as a numeric." minimal-soramech makes the
@@ -156,13 +136,11 @@ its routing doc asserts flatly that three is all there is. Beyond the count:
   return type doesn't have one. The reason is concrete: comparing raw bytes
   produces an answer and it is wrong. Two floats differing only in sign compare
   backwards, and "as a numeric" has no meaning at all for a struct return.
-
 - The load-balancing kind reads every downstream slot's fill to pick a branch.
   Nothing else in either design makes routing depend on consumer state, and
   neither has the reverse index it needs — minimal-soramech's whole-map
   validation already re-derives who-feeds-whom quadratically and its report
   flags that as the thing to build once.
-
 - The curve-shaping kind keeps a per-instance value ring with auto-calibrating
   min/max, updated on every fire. The plan says "the ring update is atomic"; a
   ring plus a min/max recalibration is not one atomic. minimal-soramech's only
@@ -170,7 +148,6 @@ its routing doc asserts flatly that three is all there is. Beyond the count:
   the *enqueuing* thread advances it inside the station's critical section and
   stamps the chosen port into the task — the box function never sees it. That
   trick doesn't transfer to a value ring the box's own math depends on.
-
 
 **Map format.** The plan adopts soramech proper's JSON directory nearly verbatim
 — a metadata file, one JSON file per box, and a JSON parser in the kernel.
@@ -183,7 +160,6 @@ it does, the file is always the one that's wrong. Also: the build found the
 format needed a comment syntax the moment a dump existed, and that a format and
 its round-trip should be designed together.
 
-
 **One wire per port, versus fan-in.** The plan's wire connector makes it a hard
 error for a port to have more than one incoming wire. minimal-soramech allows
 many producers into one slot — that's what a ring buffer is for. Attached to
@@ -194,7 +170,6 @@ growth means a *multi-input* station fed unevenly, while a slow consumer piles
 up in the task queue instead — two different problems the plan's text
 conflates. On fixed handheld RAM "grow forever" isn't available, so soren-ds
 needs a real answer: refuse, drop under a named policy, or bound and report.
-
 
 **Constants and pulled inputs don't exist in the plan.** minimal-soramech has
 three slot kinds — buffered, pulled-on-demand, constant. The pull path is what
@@ -210,7 +185,6 @@ gets refused by name. Counter-warning: the constants table is minimal-soramech's
 authoritative text or authoritative bytes, and that indecision cost it dump
 fidelity and runtime mutation. Decide that before copying it.
 
-
 **"No box may block" versus a kernel full of device waits.** minimal-soramech
 states it as a rule, and its pool declines to detect deadlock precisely
 *because* nothing can block. soren-ds's boxes read eMMC, poke the display
@@ -222,14 +196,12 @@ parked workers and sizing the pool for it — and the original vision text
 asking read boxes to "hang until a value is present" is the same question, which
 minimal-soramech answered with pulls and loud refusals instead.
 
-
 **The two projects give box authors opposite contracts.** soren-ds explicitly
 blesses shared mutable state guarded by atomics inside a box. minimal-soramech
 forbids a box from remembering anything at all, routes state around the wires,
 and treats its one back channel with the suspicion a global variable deserves.
 Same runtime, two different promises, and the load-time checks differ
 accordingly.
-
 
 **The reserved output cell.** The plan gives every task a unique reserved cell
 that downstream consumers read from, freed "after downstream consumes" — which
@@ -240,9 +212,7 @@ its own task with nobody to coordinate with. Same no-two-writers guarantee, far
 less bookkeeping, and it keeps the plan's own better instinct that values in
 flight are copies.
 
-
 ## Handheld-specific gaps the build can't warn you about
-
 
 **One live map per process is baked in, and soren-ds needs one per app.** This
 is minimal-soramech's largest cross-cutting lesson: a box receives values and
@@ -252,7 +222,6 @@ same one; both quietly forbid two live maps. The recommended repair is to carry
 the map on the task, which the task can already do since it carries the station
 index. soren-ds runs several apps' maps simultaneously by design, so this has to
 be in the plan before the threading core ships, not retrofitted after.
-
 
 **Per-app queues push map knowledge into the pool.** minimal-soramech's pool
 knows nothing about boxes, stations, or maps — it moves opaque work between
@@ -264,7 +233,6 @@ cheap. The plan's own better sentence is nearby: values arriving at a suppressed
 box "stay pending until the bit clears." Gate on the delivery side and the box
 simply never gets enqueued; the pool stays dumb and there's nothing to skip.
 
-
 **Diagnostics answer different questions.** The plan's event ring records
 submits, starts, ends, and pushes in soramech-proper's schema, for panic dumps
 and a live serial feed. minimal-soramech's phase 7 is standing counters instead
@@ -274,7 +242,6 @@ finding worth importing directly: a slow box is not a bottleneck, because
 per-station concurrency means hot boxes parallelize away across cores. What
 actually bottlenecks is contention and serial chains — so mutex wait is the
 number that locates one, and the plan currently measures nothing per box.
-
 
 **Two small ones.** The plan's test library includes a box that "emits nothing"
 to terminate chains, but its function signature returns a value and the
@@ -286,10 +253,29 @@ doesn't line up, which minimal-soramech found on x86 where it's harmless — on
 ARM it isn't. Its generator copies bytes instead of casting, and the plan's
 example code still shows the cast.
 
-
 If it's useful, I can write this up as a document in either project — most
 naturally as a design-review note in soren-ds's notes, or as tickets against the
 specific docs and phase-2/3 tickets it lands on.
 
+--------------------------------------------------------------------------------
+
+### User Request 5
+
+okay can you write a report that includes this entire conversation verbatim (you
+can copy the llm-transcript file to here, or symlink it is probably better. no
+reason to do both tho so. except, y'know, change detection. which could be
+useful.
+
+anyway can you write this information into a report, and include in that report
+an assessment of the feasibility of implementing soramech as a library into this
+project, and producing from the process a document explaining what we had to do
+to make it successful, that can then be used to better guide future development
+and other implementations?
 
 --------------------------------------------------------------------------------
+
+### User Request 6
+
+
+--------------------------------------------------------------------------------
+
