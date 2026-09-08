@@ -40,6 +40,7 @@ Useful for documenting how AI assistance was used during development.
 - **Prose Preservation**: Keeps every assistant text block between user turns, joined into one response section. Skips only tool_use blocks (and any internal thinking blocks).
 - **Markdown Formatting**: Outputs clean, readable markdown summaries
 - **Text Wrapping**: Wraps long lines at 80 characters while preserving markdown structure
+- **Quoted-line marking**: a line the user pasted back from an earlier answer is rendered as a blockquote, so the record shows which sentence a turn was aimed at (see *Quoted lines* below)
 - **Timestamp Preservation**: Sets file modification times to match the conversation's final timestamp. The log's UTC clock fields are read verbatim for both this and the filename's date, so the two always agree with each other — at the cost of sitting one UTC offset away from local wall time. That trade is recorded at `to_date_string()` in `libs/conversation-parser.lua`.
 - **Date-Range Naming**: Names each file by the span of dates the conversation covers (see *File Naming* below)
 - **Idempotent in name**: Re-running reuses each conversation's existing file (matched by its header id), renaming it only when the conversation continues into a new day
@@ -88,8 +89,43 @@ Two guards ride along with every export:
 Prose is wrapped at 80 columns — including paragraphs that open with
 `**bold**`, list items (whose continuations get a hanging indent), and
 blockquotes. Structure is never wrapped: headers, fenced code and everything
-inside it, table rows, and indented code pass through verbatim, and a single
-token longer than 80 (a URL, a path) stays long rather than being broken.
+inside it, table rows, indented code, and indented code inside a blockquote
+pass through verbatim, and a single token longer than 80 (a URL, a path) stays
+long rather than being broken. Blank lines are reproduced exactly as written —
+one stays one.
+
+### Quoted lines
+
+The user habitually replies to a single line of an answer by selecting it in
+the terminal, pasting it at the top of the next prompt, and writing underneath.
+Those pasted lines are rendered as blockquotes, so the record shows which
+sentence a turn was aimed at rather than crediting the whole block to the user.
+
+Recognising them takes more than a string comparison, because three things
+happen to a line on its way back:
+
+- **The terminal renders the markdown away.** The clipboard receives what was
+  drawn, not what was typed, so emphasis and backticks are gone. Comparison
+  therefore happens on a reduced form of both sides, with those markers
+  removed and every whitespace run collapsed. Across the whole corpus this
+  roughly doubles what is found.
+- **The pane's line-wrapping is baked in.** One sentence comes back as several
+  rows broken at whatever width the terminal was, so a row is searched for
+  *inside* the paragraph it came from rather than compared against it.
+- **A left margin is added.** It is kept rather than stripped: two spaces means
+  ordinary quoted prose, while anything indented further — a diagram, a code
+  listing — becomes a code block inside the quote and keeps its alignment.
+
+A line long enough that coincidence is implausible starts a quote; the run
+then extends to adjoining lines on a much weaker test, which keeps the short
+tail of a wrapped paragraph without marking an isolated "sure" that happens to
+appear in an earlier answer. A blank line ends the run, because that is where
+the paste stopped and the reply began. A paste of two paragraphs still reads as
+one quote: each paragraph starts a run of its own, and the blank between them
+is rejoined.
+
+Only the assistant's own earlier answers are searched, and only ones written
+before the message being marked.
 
 Each conversation is saved as a markdown file with:
 
