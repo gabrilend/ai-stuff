@@ -1,0 +1,482 @@
+<title>Two Indicator Lights</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Drafting blue, because in this repository an issue file is called a
+   blueprint and a report about them may as well be one. Every colour is
+   declared on bare :root first, so a browser with no theme preference stamped
+   on it still resolves a complete set. */
+:root {
+  --paper:#EBF0F4; --surface:#F9FBFC; --surface-2:#E2E9EE;
+  --ink:#12202B; --ink-2:#354A59; --muted:#64798A;
+  --rule:#C3D0DA; --rule-soft:#D6E0E7;
+  --accent:#0F4C8A; --accent-2:#2E7CC4; --accent-wash:#DCE8F3;
+  --built:#1B6B58; --open:#8C5F10; --blocked:#A03A2C;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#0B131A; --surface:#111C25; --surface-2:#17242F;
+    --ink:#D9E4EC; --ink-2:#AFC0CD; --muted:#7D91A0;
+    --rule:#223441; --rule-soft:#1B2A35;
+    --accent:#6FA6E4; --accent-2:#8FBEF0; --accent-wash:#152634;
+    --built:#4FB99A; --open:#D6A448; --blocked:#E27F72;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#0B131A; --surface:#111C25; --surface-2:#17242F;
+  --ink:#D9E4EC; --ink-2:#AFC0CD; --muted:#7D91A0;
+  --rule:#223441; --rule-soft:#1B2A35;
+  --accent:#6FA6E4; --accent-2:#8FBEF0; --accent-wash:#152634;
+  --built:#4FB99A; --open:#D6A448; --blocked:#E27F72;
+}
+* { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body {
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif;
+  font-size:18px; line-height:1.62; font-optical-sizing:auto;
+  -webkit-font-smoothing:antialiased;
+}
+img { max-width:100%; }
+.shell {
+  max-width:1240px; margin:0 auto; padding:0 28px 96px;
+  display:grid; grid-template-columns:232px minmax(0,1fr); gap:56px; align-items:start;
+}
+@media (max-width:1040px) {
+  .shell { grid-template-columns:minmax(0,1fr); gap:0; padding:0 20px 72px; }
+  .rail { position:static; margin:0 0 40px; }
+}
+.masthead { grid-column:1/-1; border-bottom:2px solid var(--ink); padding:56px 0 22px; margin-bottom:40px; }
+.eyebrow {
+  font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--accent);
+}
+h1 {
+  font-family:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  font-weight:700; font-size:clamp(38px,6vw,62px); line-height:1.02;
+  letter-spacing:-.022em; margin:14px 0 0; text-wrap:balance;
+}
+.dek { margin:16px 0 0; max-width:62ch; font-size:20px; color:var(--ink-2); }
+.masthead-meta {
+  display:flex; flex-wrap:wrap; gap:8px 26px; margin-top:26px;
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; color:var(--muted);
+}
+.masthead-meta b { color:var(--ink); font-weight:500; }
+.rail { position:sticky; top:24px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; }
+.rail h2 {
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+  font-weight:500; margin:0 0 14px; padding-bottom:8px; border-bottom:1px solid var(--rule);
+}
+.rail ol { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:3px; }
+.rail a {
+  display:grid; grid-template-columns:1fr auto; align-items:baseline; gap:8px;
+  padding:6px 8px 7px; border-radius:2px; text-decoration:none; color:var(--ink-2);
+  border-left:2px solid transparent;
+}
+.rail a:hover { background:var(--accent-wash); color:var(--ink); border-left-color:var(--accent); }
+.rail a:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.rail .n { color:var(--muted); font-variant-numeric:tabular-nums; }
+.rail .bar { grid-column:1/-1; height:3px; background:var(--rule-soft); margin-top:5px; position:relative; }
+.rail .bar i { position:absolute; inset:0 auto 0 0; background:var(--accent); display:block; }
+.rail .foot { margin-top:20px; padding-top:12px; border-top:1px solid var(--rule); color:var(--muted); line-height:1.55; }
+.rail .foot a { display:inline; padding:0; border:0; }
+main { min-width:0; }
+main > * { max-width:68ch; }
+main > .wide, main > figure, main > .scroll { max-width:none; }
+h2.section {
+  font-family:"Bricolage Grotesque",Arial,sans-serif; font-size:13px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent);
+  margin:72px 0 22px; padding-bottom:9px; border-bottom:1px solid var(--rule); max-width:none;
+}
+h2.section:first-child { margin-top:0; }
+p { margin:0 0 1.05em; }
+p.lead { font-size:20px; color:var(--ink-2); }
+strong { font-weight:600; color:var(--ink); }
+a { color:var(--accent); }
+code { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:.88em; background:var(--surface-2); padding:1px 4px; border-radius:2px; }
+.project { margin:0 0 8px; padding:40px 0 0; max-width:none; }
+.project + .project { border-top:1px solid var(--rule-soft); margin-top:44px; }
+.project-head { max-width:68ch; }
+.project h3 {
+  font-family:"Bricolage Grotesque",Arial,sans-serif; font-size:clamp(26px,3.4vw,34px);
+  font-weight:600; letter-spacing:-.018em; line-height:1.12; margin:0; text-wrap:balance;
+}
+.project h3 .slug {
+  display:block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px;
+  font-weight:400; letter-spacing:.04em; color:var(--muted); margin-bottom:8px;
+}
+.project .identity { margin:12px 0 0; color:var(--ink-2); max-width:66ch; }
+.project .body { max-width:68ch; margin-top:26px; }
+.project h4 {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; font-weight:500;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--muted); margin:30px 0 10px;
+}
+.stats { display:flex; flex-wrap:wrap; margin:22px 0 0; border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); }
+.stats div { flex:1 1 116px; padding:12px 16px 13px; border-right:1px solid var(--rule-soft); font-family:"JetBrains Mono",ui-monospace,monospace; }
+.stats div:last-child { border-right:0; }
+.stats .k { font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:4px; }
+.stats .v { font-size:19px; font-weight:500; font-variant-numeric:tabular-nums; color:var(--ink); }
+.stats .v small { font-size:11px; color:var(--muted); font-weight:400; letter-spacing:.02em; }
+.entry { margin:0 0 1.05em; padding-left:17px; border-left:2px solid var(--rule); }
+.entry .when {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--accent); display:block; margin-bottom:3px;
+}
+ul.findings { list-style:none; margin:0 0 1.2em; padding:0; display:flex; flex-direction:column; gap:15px; }
+ul.findings > li { padding-left:17px; border-left:2px solid var(--accent-2); }
+.pull {
+  font-family:"Bricolage Grotesque",Arial,sans-serif; font-size:21px; font-weight:500;
+  line-height:1.34; letter-spacing:-.012em; color:var(--ink); border-left:3px solid var(--accent);
+  padding:4px 0 4px 20px; margin:26px 0; text-wrap:pretty;
+}
+.transcripts {
+  margin:24px 0; padding:14px 18px 6px; border:1px solid var(--rule);
+  border-radius:2px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px;
+}
+.transcripts-tag {
+  font-size:10px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--muted); margin:0 0 8px;
+}
+.transcripts ol {
+  margin:0 0 10px; padding:0; list-style:none;
+  display:flex; flex-wrap:wrap; gap:4px 10px;
+}
+.transcripts li::after { content:"·"; color:var(--rule); margin-left:10px; }
+.transcripts li:last-child::after { content:""; }
+.transcripts a { color:var(--accent); text-decoration:none; border-bottom:1px solid var(--rule); }
+.transcripts a:hover { border-bottom-color:var(--accent); }
+.transcripts span { color:var(--muted); font-size:10px; }
+.transcripts em { color:var(--muted); font-style:normal; }
+.thread {
+  margin:26px 0; padding:16px 20px 4px; background:var(--accent-wash);
+  border-left:3px solid var(--accent-2); border-radius:2px;
+}
+.thread p { margin:0 0 1em; }
+.thread-tag {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10.5px; font-weight:500;
+  letter-spacing:.11em; text-transform:uppercase; color:var(--accent); margin:0 0 8px;
+}
+.thread-tag span { color:var(--muted); font-weight:400; letter-spacing:.06em; }
+.thread-tag a { color:var(--muted); }
+.scroll { overflow-x:auto; margin:0 0 1.4em; }
+table { border-collapse:collapse; width:100%; min-width:520px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:13px; }
+caption { caption-side:top; text-align:left; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding-bottom:9px; }
+th { text-align:left; font-weight:500; font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); padding:0 14px 7px 0; border-bottom:1px solid var(--rule); }
+td { padding:9px 14px 9px 0; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; padding-right:0; }
+tbody tr:hover td { background:var(--accent-wash); }
+table.prose { font-family:"Newsreader",Georgia,serif; font-size:16px; }
+table.prose td { line-height:1.5; }
+.chip {
+  display:inline-block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px;
+  font-weight:500; letter-spacing:.07em; text-transform:uppercase; padding:2px 7px 3px;
+  border:1px solid currentColor; border-radius:2px; white-space:nowrap;
+}
+.chip.built { color:var(--built); }
+.chip.open { color:var(--open); }
+.chip.blocked { color:var(--blocked); }
+.spans { margin:26px 0 34px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; }
+.span-axis, .span-row { display:flex; align-items:center; gap:12px; }
+.span-axis { color:var(--muted); font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding-bottom:6px; border-bottom:1px solid var(--rule); margin-bottom:6px; }
+.span-row { padding:3px 0; }
+.span-row:hover { background:var(--accent-wash); }
+.span-name { flex:0 0 220px; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.span-track { flex:1 1 auto; position:relative; height:14px; }
+.span-row .span-track::before { content:""; position:absolute; inset:6px 0 auto 0; height:1px; background:var(--rule-soft); }
+.span-track i { position:absolute; top:3px; height:8px; background:var(--accent); border-radius:1px; display:block; }
+.span-year { position:absolute; top:0; font-size:10px; color:var(--muted); border-left:1px solid var(--rule); padding-left:3px; }
+.span-count { flex:0 0 54px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; }
+@media (max-width:700px) { .span-name { flex-basis:130px; } }
+figure { margin:0 0 34px; }
+figure svg { display:block; width:100%; height:auto; }
+figcaption { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11.5px; color:var(--muted); line-height:1.55; margin-top:10px; max-width:72ch; }
+.tick { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--muted); }
+.tick-strong { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--ink); font-weight:500; }
+.gridline { stroke:var(--rule-soft); stroke-width:1; }
+.baseline { stroke:var(--rule); stroke-width:1; }
+.bar-fill { fill:var(--accent); }
+.bar-zero { fill:var(--rule); }
+.bar-label { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--ink); font-weight:500; }
+.partnav {
+  display:flex; gap:16px; align-items:stretch; margin-top:64px; padding-top:20px;
+  border-top:2px solid var(--ink); font-family:"JetBrains Mono",ui-monospace,monospace; font-size:13px;
+}
+.partnav a { text-decoration:none; color:var(--ink); padding:10px 14px; border:1px solid var(--rule); border-radius:2px; line-height:1.35; }
+.partnav a:hover { background:var(--accent-wash); border-color:var(--accent); }
+.partnav a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.partnav span { display:block; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+.nav-prev { flex:1 1 0; }
+.nav-next { flex:1 1 0; text-align:right; }
+.nav-up { flex:0 0 auto; align-self:center; color:var(--muted); }
+@media (max-width:600px) { .partnav { flex-direction:column; } .nav-next { text-align:left; } }
+.colophon {
+  margin-top:76px; padding-top:20px; border-top:2px solid var(--ink);
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; line-height:1.62;
+  color:var(--muted); max-width:74ch;
+}
+.colophon b { color:var(--ink-2); font-weight:500; }
+@media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+<div class="shell">
+
+  <header class="masthead">
+    <div class="eyebrow">Part 6 · 12 – 24 June 2026</div>
+    <h1>Two Indicator Lights</h1>
+    <p class="dek">A kernel is debugged on a handheld whose only output is two amber lights, and the fault turns out to be a hardware address copied from the wrong version of a chip manual into three files. Meanwhile a hundred and eighty working conversations are counted as permanently deleted.</p>
+    <div class="masthead-meta">
+      <span><b>188</b> issues written</span>
+      <span><b>36</b> completed</span>
+      <span><b>8</b> projects</span>    </div>
+  </header>
+
+  <nav class="rail" aria-label="Projects, ordered by commits in this window">
+    <h2>Projects · commits</h2>
+    <ol>
+      <li><a href="#soren"><span>soren-ds</span><span class="n">153</span><span class="bar"><i style="width:100%"></i></span></a></li>
+      <li><a href="#neocities"><span>neocities</span><span class="n">16</span><span class="bar"><i style="width:10%"></i></span></a></li>
+      <li><a href="#record"><span>the record</span><span class="n">0</span><span class="bar"><i style="width:0%"></i></span></a></li>
+    </ol>
+    <div class="foot">
+      <a href="#open">What is open</a><br>
+      <a href="#tree">Notes on the tree</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <h2 class="section">The window</h2>
+
+        <p class="lead">The window runs 12 to 24 June. Eighteen days of silence before it, two days after.</p>
+        <p>Two projects, in parallel. <strong>soren-ds</strong> goes from a directory of plans to a kernel that starts on the Anbernic RG DS and writes a log to its SD card. <strong>neocities-modernization</strong> moves its all-pairs poem comparison off CPU worker threads and onto the graphics card as Vulkan compute shaders, and swaps its vector backend from an external service to a llama.cpp server built from source inside the project.</p>
+        <p>A single commit on the 21st sits between them. It installs a hook that saves working conversations at the end of every session, and reports that a hundred and eighty earlier ones are already gone.</p>
+
+    <figure class="wide">
+      <svg viewBox="0 0 780 224" role="img" aria-label="Commits per day from 12 to 24 June 2026: 7, none, 20, 30, 26, none, 1, 8, none, 1, 16, 34 and 21.">
+    <line class="baseline" x1="40" y1="176.0" x2="770" y2="176.0"></line>
+    <text class="tick" x="34" y="179.0" text-anchor="end">0</text>
+    <line class="gridline" x1="40" y1="135.0" x2="770" y2="135.0"></line>
+    <text class="tick" x="34" y="138.0" text-anchor="end">10</text>
+    <line class="gridline" x1="40" y1="94.0" x2="770" y2="94.0"></line>
+    <text class="tick" x="34" y="97.0" text-anchor="end">20</text>
+    <line class="gridline" x1="40" y1="53.0" x2="770" y2="53.0"></line>
+    <text class="tick" x="34" y="56.0" text-anchor="end">30</text>
+    <line class="gridline" x1="40" y1="12.0" x2="770" y2="12.0"></line>
+    <text class="tick" x="34" y="15.0" text-anchor="end">40</text>
+    <rect class="bar-fill" x="51.1" y="147.3" width="34.0" height="28.7"></rect>
+    <text class="tick" x="68.1" y="192" text-anchor="middle">12</text>
+    <rect class="bar-zero" x="107.2" y="175.0" width="34.0" height="1"></rect>
+    <text class="tick" x="124.2" y="192" text-anchor="middle">13</text>
+    <rect class="bar-fill" x="163.4" y="94.0" width="34.0" height="82.0"></rect>
+    <text class="tick-strong" x="180.4" y="192" text-anchor="middle">14</text>
+    <rect class="bar-fill" x="219.5" y="53.0" width="34.0" height="123.0"></rect>
+    <text class="tick-strong" x="236.5" y="192" text-anchor="middle">15</text>
+    <rect class="bar-fill" x="275.7" y="69.4" width="34.0" height="106.6"></rect>
+    <text class="tick-strong" x="292.7" y="192" text-anchor="middle">16</text>
+    <rect class="bar-zero" x="331.8" y="175.0" width="34.0" height="1"></rect>
+    <text class="tick" x="348.8" y="192" text-anchor="middle">17</text>
+    <rect class="bar-fill" x="388.0" y="171.9" width="34.0" height="4.1"></rect>
+    <text class="tick" x="405.0" y="192" text-anchor="middle">18</text>
+    <rect class="bar-fill" x="444.2" y="143.2" width="34.0" height="32.8"></rect>
+    <text class="tick" x="461.2" y="192" text-anchor="middle">19</text>
+    <rect class="bar-zero" x="500.3" y="175.0" width="34.0" height="1"></rect>
+    <text class="tick" x="517.3" y="192" text-anchor="middle">20</text>
+    <rect class="bar-fill" x="556.5" y="171.9" width="34.0" height="4.1"></rect>
+    <text class="tick-strong" x="573.5" y="192" text-anchor="middle">21</text>
+    <rect class="bar-fill" x="612.6" y="110.4" width="34.0" height="65.6"></rect>
+    <text class="tick" x="629.6" y="192" text-anchor="middle">22</text>
+    <rect class="bar-fill" x="668.8" y="36.6" width="34.0" height="139.4"></rect>
+    <text class="bar-label" x="685.8" y="31.6" text-anchor="middle">34</text>
+    <text class="tick-strong" x="685.8" y="192" text-anchor="middle">23</text>
+    <rect class="bar-fill" x="724.9" y="89.9" width="34.0" height="86.1"></rect>
+    <text class="tick-strong" x="741.9" y="192" text-anchor="middle">24</text>
+        <text class="tick" x="40" y="212">June</text>
+        <text class="tick" x="770" y="212" text-anchor="end"></text>
+      </svg>
+      <figcaption>Commits per day. The handheld kernel is the 14th to the 16th; the poetry website is the 22nd to the 24th. The single commit on the 21st is the one about the deleted conversations.</figcaption>
+    </figure>
+
+    <div class="scroll wide">
+      <table>
+        <caption>Issue files, 12 – 24 June</caption>
+        <thead>
+          <tr><th>Project</th><th class="num">Commits</th><th class="num">Lines added</th><th class="num">Lines removed</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>soren-ds</td><td class="num">153</td><td class="num">25</td><td class="num">0</td></tr>
+          <tr><td>words-pdf</td><td class="num">16</td><td class="num">9</td><td class="num">0</td></tr>
+          <tr><td>neocities-modernization</td><td class="num">16</td><td class="num">2</td><td class="num">0</td></tr>
+          <tr><td>games/3d-rts</td><td class="num">3</td><td class="num">0</td><td class="num">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+        <p>Columns are issue files written and completed. The handheld's 153 are phase-2 through phase-10 tickets written on 12 June, before any of the hardware work began.</p>
+
+    <h2 class="section">What happened</h2>
+
+    <section class="project" id="soren">
+      <div class="project-head">
+        <h3><span class="slug">01 · 153 issues written, 25 completed</span>soren-ds</h3>
+        <p class="identity">The kernel goes from nothing to running on the device in four days, and then spends one day being debugged through the only output the hardware has.</p>
+      </div>
+        <div class="stats">
+          <div><span class="k">Nothing to booting</span><span class="v">4 <small>days</small></span></div>
+          <div><span class="k">Drivers written</span><span class="v">6</span></div>
+          <div><span class="k">Visible output</span><span class="v">2 <small>LEDs</small></span></div>
+          <div><span class="k">Wrong address in</span><span class="v">3 <small>files</small></span></div>
+          <div><span class="k">Log misplaced by</span><span class="v">30 <small>GB</small></span></div>
+        </div>
+      <div class="body">
+        <h4>12–15 June · from a cross-compiler to a log on the card</h4>
+        <p>In order: a cross-compiler built from source, a build system, the boot and reset vectors, the exception vector table, the physical memory map catalogued against the chip's address space, a page allocator, the USB controller brought up in device mode, USB descriptors and control transfers, a virtual serial port for debug output over that USB link, a driver for the internal eMMC flash, a driver for the removable microSD card, and a debug log written to the card.</p>
+        <p><strong>The development card is assembled from somebody else's boot chain.</strong> A script downloads a pinned nightly build of ROCKNIX into memory, checks its hash, and carves out the three pieces the chip's built-in ROM expects: the Rockchip initial loader that goes at sector 64, the u-boot image it loads from sector 16384, and the device tree. Those three plus our kernel are stitched into a partitioned image. The kernel on its own is not bootable, so the flashing script was narrowed to look only for the assembled image — otherwise the raw kernel gets written to a card and the device does nothing.</p>
+        <p>The lab machine is air-gapped, so two scripts bridge it. The first syncs the build onto a USB drive <strong>identified by its filesystem UUID rather than its device path</strong>, so a drive enumerating in a different order between sessions cannot cause a write to land on the wrong disk. The second, running on the lab side, watches for a new block device to appear, refuses to continue unless exactly one new removable device showed up, and requires a typed full word before it writes.</p>
+        <h4>16 June · debugging by eye</h4>
+        <p>The device came back in a reset loop. There is no console, no debugger, and the log does not work yet. The hardware has two amber indicator lights. The day is a sequence of experiments read off them.</p>
+        <ul class="findings">
+          <li><strong>Make the first sign of life unambiguous.</strong> The kernel's C entry now flashes all three LED pins together, holds, goes dark, holds, and only then sets its normal stage signal. That pattern appears nowhere else, so its absence means <em>the kernel never started</em> — rather than the earlier ambiguity, where a dark device could equally mean the bootloader never lit its own default.</li>
+          <li><strong>Find out what the lights physically are.</strong> The device tree claims three pins driving green, amber and red; the eye sees two ambers. Either multi-element lights behind diffusers are mixing to amber, or two amber LEDs share one pin and the other two pins drive hardware not populated on this board. A probe cycles each pin alone, then all three, then none, looping forever until the power is pulled.</li>
+          <li><strong>Make the last thing you see name the failing step.</strong> The USB bring-up has three sub-steps: ungate the clocks and release the resets, take the USB-2 PHY out of suspend, then reset and configure the controller. Two unused two-light combinations are painted before the first two and held for about half a second each. On a fault the lights freeze at whichever checkpoint was set just before the offending write, and the developer sees that pattern flash on every reset cycle.</li>
+        </ul>
+        <p class="pull">The USB controller was at 0xFEC0_0000 and belongs at 0xFCC0_0000. The project's hardware document carried a base address copied from an older version of the chip's support package, which used a different bus mapping, and the driver inherited the wrong number from the document. Writing to an address with no peripheral behind it stalls the chip's internal bus, and the stall raises the exception the bootloader was catching and resetting on.</p>
+        <p>Earlier research had flagged the ambiguity and nobody acted on it, because nothing had narrowed the fault to a specific sub-step. <strong>Fixing it once was not enough.</strong> The next round showed the kernel reaching the endpoint-zero configuration call and dying inside it, and a search found two more files — the enumeration logic and the serial layer — each carrying its own copy of the same wrong address. Phase 1 has a deliberate no-shared-headers rule, so every driver file defines its own constants; all three were written at once against the document that was wrong.</p>
+        <aside class="thread">
+          <p class="thread-tag">Thread · One owner for the shared thing <span><a href="part-4-one-hundred-and-sixty-seven.html">first seen in Part 4</a></span></p>
+          <p>A physical address used by three files is kept in step by hand. The no-shared-headers rule buys independence between drivers and charges for it here: <strong>correcting the document and one file left two latent copies</strong>, and only a checkpoint that named the exact call site found them.</p>
+        </aside>
+        <h4>The instruments had to be repaired before they could be used</h4>
+        <ul class="findings">
+          <li><strong>The debug log could switch itself off, and did.</strong> After one hardware run the log region read back as sixteen megabytes of untouched erased flash. The cause was the page allocator quietly failing inside the log's own setup — and the channel that would have said why was the log. The buffer moved to a statically reserved region that is always present, costing one page of memory whether the log is used or not.</li>
+          <li><strong>The log was being written 32 gigabytes into the card instead of 2.</strong> The constant had an extra zero and its own comment said the right figure. On a smaller card that address falls past the end and every write is silently rejected; on the developer's 256-gigabyte card it is in range and collides with the region reserved for copying the internal flash.</li>
+          <li><strong>A write test was run beneath both layers.</strong> A known marker string is written directly to two card addresses, bypassing the log and the backup. The three possible outcomes were written down first: both regions marked means the writer is fine and the layers above are at fault; one region marked means a region-specific failure and which one; neither means the writer itself. Three different next steps, chosen before the experiment rather than after it.</li>
+          <li><strong>During the multi-minute flash copy the amber light breathes</strong>, advancing one step of real brightness per megabyte, so a developer watching the device can tell progress from a hang.</li>
+        </ul>
+        <p><strong>The window ends with the root cause found and not fixed.</strong> Reading the upstream Linux drivers established that both storage controllers depend on several clocks and several resets that the bootloader on this boot path does not configure. The first access then either reads a meaningless value — a held reset gives zero, a gated clock gives all ones — or stalls the bus long enough to trigger the reset. The internal flash is intermittent because u-boot happens to use it and leaves some of them usable; the microSD fails every time because the boot ROM reads the boot chain by raw offset and never touches that controller at all. Both tickets were reopened carrying a register-by-register playbook rather than a description of the symptom.</p>
+        <div class="transcripts">
+          <p class="transcripts-tag">Working transcripts · soren-ds</p>
+          <ol>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/soren-ds/llm-transcripts/jun-12-26.md">12 Jun</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/soren-ds/llm-transcripts/jun-14-26-through-jun-16-26.md">14 Jun – 16 Jun</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/soren-ds/llm-transcripts/jun-16-26.md">16 Jun</a> <span>+1 agent</span></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/soren-ds/llm-transcripts/jun-16-26-through-jul-1-26.md">16 Jun – 1 Jul</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/soren-ds/llm-transcripts/jun-17-26.md">17 Jun</a></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="project" id="neocities">
+      <div class="project-head">
+        <h3><span class="slug">02 · 16 issues written, 2 completed</span>neocities-modernization</h3>
+        <p class="identity">The comparison arithmetic moves to the graphics card, and the build stops reporting success when it has failed.</p>
+      </div>
+        <div class="stats">
+          <div><span class="k">Compute</span><span class="v">CPU → GPU</span></div>
+          <div><span class="k">Backend</span><span class="v">external → local</span></div>
+          <div><span class="k">Cache tier</span><span class="v">disk → RAM</span></div>
+          <div><span class="k">Reverts</span><span class="v">1 <small>same day</small></span></div>
+        </div>
+      <div class="body">
+        <h4>18–22 June · onto the graphics card</h4>
+        <p>Comparing every poem against every other is the expensive part of the build. It moved from CPU worker threads to Vulkan compute shaders — the all-pairs similarity and the diversity-spreading inner loop both — running in batches rather than one pair at a time. The vector-producing backend was swapped at the same time, from an external Ollama service to a llama.cpp server built from source and run inside the project, which is what later makes it possible to hold several models at once and compare them.</p>
+        <p>The artwork changed too: every art generator's parameters were wired to the poem's own vector, so what a picture looks like tracks what the poem says rather than being chosen by hand. And reshared posts were turned off by default and made opt-in — a collection of somebody's writing should not quietly become a collection of what they forwarded.</p>
+        <h4>23 June · the caches move to memory, and come back</h4>
+        <p>The regenerable caches were pointed at memory-backed storage, which is where something that can always be rebuilt belongs. The full regeneration then failed, and the switch was turned off again the same day.</p>
+        <p class="pull">The readers had been moved and several writers had not, so the readers found nothing. One step crashed on a missing vectors file; another quietly skipped because its colour data was not there. Both files were on disk the whole time.</p>
+        <p>The audit that was supposed to catch this had searched for one spelling of the path and missed every writer that assembles the path from a variable. The switch went back off so everything agreed again, the writers still needing work were written down at the moment of the revert rather than rediscovered later, and the move was redone properly afterwards — every cache writer routed through one location switch, then the vector generator, then the last similarity writer.</p>
+        <aside class="thread">
+          <p class="thread-tag">Thread · One owner for the shared thing <span><a href="part-4-one-hundred-and-sixty-seven.html">first seen in Part 4</a></span></p>
+          <p>Two halves of the pipeline disagreed about where a file lives, and nothing owned the answer. The fix is the same one the pipeline reaches for again six days later: <strong>one switch that every reader and every writer consults</strong>, rather than a convention each of them implements.</p>
+        </aside>
+        <ul class="findings">
+          <li><strong>A missing prerequisite now stops the build.</strong> The page-building stage already checked for the similarity and diversity caches and returned a failure when they were absent — and the caller discarded that return value and exited cleanly. The run carried on, built a site whose navigation pages were never generated, and <strong>reported success while every link on it led nowhere.</strong> The failure is now fatal, the check runs before the long generation rather than after it, and the error prints the exact path it looked in.</li>
+          <li><strong>A step that silently skipped now refuses.</strong> The word-colour stage had been shipping colourless words when its data was missing, which hides an upstream problem behind an output that merely looks plain.</li>
+          <li><strong>Cache validators became aware of which tier is switched on</strong>, so they stopped reporting files as missing when they were somewhere else.</li>
+        </ul>
+        <aside class="thread">
+          <p class="thread-tag">Thread · Fallbacks hide bugs <span><a href="part-2-the-founding.html">first seen in Part 2</a></span></p>
+          <p>The rule is standing policy in the author's conventions. What this window records is what it caught: a build that had been reporting success for an unknown length of time while shipping a site with no working navigation, found only because the quiet path was made loud.</p>
+        </aside>
+        <h4>24 June · sizing the work to the machine</h4>
+        <p>A memory budgeter sizes the work to the memory actually available, in both main memory and graphics memory. The neighbour caches are capped to what the pages display, and the per-poem page ceiling is computed from the storage quota instead of being a number somebody picked. Every stage records its real wall-clock time in a small ring buffer, and the pre-flight list shows each stage's measured duration — so the list of what is about to run also says how long it took last time.</p>
+        <div class="transcripts">
+          <p class="transcripts-tag">Working transcripts · neocities-modernization</p>
+          <ol>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/neocities-modernization/llm-transcripts/jun-15-26.md">15 Jun</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/neocities-modernization/llm-transcripts/jun-15-26-through-jun-16-26.md">15 Jun – 16 Jun</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/neocities-modernization/llm-transcripts/jun-18-26-through-jun-19-26.md">18 Jun – 19 Jun</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/neocities-modernization/llm-transcripts/jun-19-26-through-jun-20-26.md">19 Jun – 20 Jun</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/neocities-modernization/llm-transcripts/jun-21-26-through-jun-22-26.md">21 Jun – 22 Jun</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/neocities-modernization/llm-transcripts/jun-22-26-through-jun-23-26.md">22 Jun – 23 Jun</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/neocities-modernization/llm-transcripts/jun-23-26-through-jun-24-26.md">23 Jun – 24 Jun</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/neocities-modernization/llm-transcripts/jun-24-26-through-jun-25-26.md">24 Jun – 25 Jun</a> <span>+1 agent</span></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="project" id="record">
+      <div class="project-head">
+        <h3><span class="slug">03 · one commit, 21 June</span>the transcript-rescue commit</h3>
+        <p class="identity">The patch is small. The count it reports is not.</p>
+      </div>
+        <div class="stats">
+          <div><span class="k">Sessions lost</span><span class="v">180</span></div>
+          <div><span class="k">Recoverable</span><span class="v">0</span></div>
+          <div><span class="k">Projects hit</span><span class="v">9 <small>at least</small></span></div>
+          <div><span class="k">Transcripts saved</span><span class="v">20</span></div>
+        </div>
+      <div class="body">
+        <p><strong>The patch.</strong> The program that exports a working conversation into a readable file now keeps every block of prose written between one user turn and the next, rather than only the last passage of the last message — which is all that a single early loop break and a single last-index lookup had been keeping. It also became directly runnable rather than only loadable, which silently fixed a batch driver that had been doing nothing for an unknown length of time. And a hook was installed that fires at the end of every session and writes the result into the right project's folder.</p>
+        <p class="pull">That only saves the conversations that have not already been taken. Going through the rest of the repository, one hundred and eighty sessions were found to be gone. Not paused, not archived, not awaiting a recovery procedure.</p>
+        <p>The count was taken project by project: fifty-three in the city-building modernisation, twenty-three in a realms project whose transcripts folder does not exist because no export was ever run there, seventeen in a physics simulator being worked on that week, seventeen in a chat-translation experiment, fifteen in the repository-management work, thirteen run from the repository root, and thirteen in a world-editing tool <strong>that holds three hundred preserved transcripts from earlier eras of its own development — an old archive sitting next to a fresh absence.</strong></p>
+        <p>The session pruner had cleaned them thoroughly. The raw files are in no backup, no snapshot, no subvolume, no archive repository, no trash, no git history and no telemetry export. The filesystem is a journalled one with no automatic snapshots and no incremental backup tool installed, and the blocks those files occupied were returned to the free list. What survives is the fact of each session, in a global command-history file recording which project it served, the identifier it was known by, and when it began.</p>
+        <aside class="thread">
+          <p class="thread-tag">Thread · The record is load-bearing <span><a href="part-3-turning-inward.html">first seen in Part 3</a></span></p>
+          <p>Everything the later parts do about transcripts follows from this count: the chronological shelf, the single naming authority, the rule that an exported file is not a copy of the log but the only surviving version, and the habit of committing a founding conversation for a project that already has code. <strong>The tooling deletes its own session logs on a schedule, so a conversation that was not exported is a conversation that stops existing.</strong></p>
+        </aside>
+      </div>
+    </section>
+
+
+    <h2 class="section" id="open">What is open</h2>
+
+    <div class="scroll wide">
+      <table class="prose">
+        <caption>Outstanding at the close of the window</caption>
+        <thead>
+          <tr><th style="width:22%">Project</th><th style="width:13%">State</th><th>Waiting on</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>soren-ds</td>
+            <td><span class="chip blocked">Root cause found</span></td>
+            <td>Both storage controllers need several clocks ungated and several resets released that the bootloader does not configure. The two tickets were reopened carrying the exact registers, the vendor-specific writes the first implementation missed, the stale-interrupt clear, and the no-op command the controller requires between every clock change. <strong>Written, not implemented.</strong></td>
+          </tr>
+          <tr>
+            <td>soren-ds</td>
+            <td><span class="chip open">Skipped</span></td>
+            <td>The USB controller's first endpoint command is never acknowledged, so that step is skipped to let the storage backup proceed. Left as a known gap, because storage was the path blocking progress.</td>
+          </tr>
+          <tr>
+            <td>neocities-modernization</td>
+            <td><span class="chip open">Half-done, recorded</span></td>
+            <td>The move of regenerable caches into memory was reverted mid-window and redone, with the list of writers still needing routing written down at the moment of the revert. Worth checking that list was exhausted.</td>
+          </tr>
+          <tr>
+            <td>the record</td>
+            <td><span class="chip blocked">Unrecoverable</span></td>
+            <td>One hundred and eighty working conversations across at least nine projects. The hook that prevents further loss is installed; nothing recovers what preceded it. What survives for the worst-hit projects is roughly three hundred and ninety summary files an earlier pass extracted while the originals still existed.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="section" id="tree">Notes on the tree</h2>
+
+        <p>From 21 June the repository keeps its own conversations on purpose. Before that they were exported by hand when somebody remembered; from that day a hook fires at the end of every session, writes into the project the session served, and logs its own activity to a memory-backed audit file without ever blocking the exit.</p>
+
+    <nav class="partnav"><a class="nav-prev" href="part-5-written-not-built.html"><span>Previous</span>Written, Not Built</a><a class="nav-up" href="index.html">Contents</a><a class="nav-next" href="part-7-the-metal-and-the-ember.html"><span>Next</span>The Metal and the Ember</a></nav>
+  </main>
+</div>

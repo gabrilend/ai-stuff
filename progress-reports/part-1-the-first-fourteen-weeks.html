@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The First Fourteen Weeks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Drafting blue, because in this repository an issue file is called a
+   blueprint and a report about them may as well be one. Every colour is
+   declared on bare :root first, so a browser with no theme preference stamped
+   on it still resolves a complete set. */
+:root {
+  --paper:#EBF0F4; --surface:#F9FBFC; --surface-2:#E2E9EE;
+  --ink:#12202B; --ink-2:#354A59; --muted:#64798A;
+  --rule:#C3D0DA; --rule-soft:#D6E0E7;
+  --accent:#0F4C8A; --accent-2:#2E7CC4; --accent-wash:#DCE8F3;
+  --built:#1B6B58; --open:#8C5F10; --blocked:#A03A2C;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#0B131A; --surface:#111C25; --surface-2:#17242F;
+    --ink:#D9E4EC; --ink-2:#AFC0CD; --muted:#7D91A0;
+    --rule:#223441; --rule-soft:#1B2A35;
+    --accent:#6FA6E4; --accent-2:#8FBEF0; --accent-wash:#152634;
+    --built:#4FB99A; --open:#D6A448; --blocked:#E27F72;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#0B131A; --surface:#111C25; --surface-2:#17242F;
+  --ink:#D9E4EC; --ink-2:#AFC0CD; --muted:#7D91A0;
+  --rule:#223441; --rule-soft:#1B2A35;
+  --accent:#6FA6E4; --accent-2:#8FBEF0; --accent-wash:#152634;
+  --built:#4FB99A; --open:#D6A448; --blocked:#E27F72;
+}
+* { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body {
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif;
+  font-size:18px; line-height:1.62; font-optical-sizing:auto;
+  -webkit-font-smoothing:antialiased;
+}
+img { max-width:100%; }
+.shell {
+  max-width:1240px; margin:0 auto; padding:0 28px 96px;
+  display:grid; grid-template-columns:232px minmax(0,1fr); gap:56px; align-items:start;
+}
+@media (max-width:1040px) {
+  .shell { grid-template-columns:minmax(0,1fr); gap:0; padding:0 20px 72px; }
+  .rail { position:static; margin:0 0 40px; }
+}
+.masthead { grid-column:1/-1; border-bottom:2px solid var(--ink); padding:56px 0 22px; margin-bottom:40px; }
+.eyebrow {
+  font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--accent);
+}
+h1 {
+  font-family:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  font-weight:700; font-size:clamp(38px,6vw,62px); line-height:1.02;
+  letter-spacing:-.022em; margin:14px 0 0; text-wrap:balance;
+}
+.dek { margin:16px 0 0; max-width:62ch; font-size:20px; color:var(--ink-2); }
+.masthead-meta {
+  display:flex; flex-wrap:wrap; gap:8px 26px; margin-top:26px;
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; color:var(--muted);
+}
+.masthead-meta b { color:var(--ink); font-weight:500; }
+.rail { position:sticky; top:24px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; }
+.rail h2 {
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+  font-weight:500; margin:0 0 14px; padding-bottom:8px; border-bottom:1px solid var(--rule);
+}
+.rail ol { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:3px; }
+.rail a {
+  display:grid; grid-template-columns:1fr auto; align-items:baseline; gap:8px;
+  padding:6px 8px 7px; border-radius:2px; text-decoration:none; color:var(--ink-2);
+  border-left:2px solid transparent;
+}
+.rail a:hover { background:var(--accent-wash); color:var(--ink); border-left-color:var(--accent); }
+.rail a:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.rail .n { color:var(--muted); font-variant-numeric:tabular-nums; }
+.rail .bar { grid-column:1/-1; height:3px; background:var(--rule-soft); margin-top:5px; position:relative; }
+.rail .bar i { position:absolute; inset:0 auto 0 0; background:var(--accent); display:block; }
+.rail .foot { margin-top:20px; padding-top:12px; border-top:1px solid var(--rule); color:var(--muted); line-height:1.55; }
+.rail .foot a { display:inline; padding:0; border:0; }
+main { min-width:0; }
+main > * { max-width:68ch; }
+main > .wide, main > figure, main > .scroll { max-width:none; }
+h2.section {
+  font-family:"Bricolage Grotesque",Arial,sans-serif; font-size:13px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent);
+  margin:72px 0 22px; padding-bottom:9px; border-bottom:1px solid var(--rule); max-width:none;
+}
+h2.section:first-child { margin-top:0; }
+p { margin:0 0 1.05em; }
+p.lead { font-size:20px; color:var(--ink-2); }
+strong { font-weight:600; color:var(--ink); }
+a { color:var(--accent); }
+code { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:.88em; background:var(--surface-2); padding:1px 4px; border-radius:2px; }
+.project { margin:0 0 8px; padding:40px 0 0; max-width:none; }
+.project + .project { border-top:1px solid var(--rule-soft); margin-top:44px; }
+.project-head { max-width:68ch; }
+.project h3 {
+  font-family:"Bricolage Grotesque",Arial,sans-serif; font-size:clamp(26px,3.4vw,34px);
+  font-weight:600; letter-spacing:-.018em; line-height:1.12; margin:0; text-wrap:balance;
+}
+.project h3 .slug {
+  display:block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px;
+  font-weight:400; letter-spacing:.04em; color:var(--muted); margin-bottom:8px;
+}
+.project .identity { margin:12px 0 0; color:var(--ink-2); max-width:66ch; }
+.project .body { max-width:68ch; margin-top:26px; }
+.project h4 {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; font-weight:500;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--muted); margin:30px 0 10px;
+}
+.stats { display:flex; flex-wrap:wrap; margin:22px 0 0; border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); }
+.stats div { flex:1 1 116px; padding:12px 16px 13px; border-right:1px solid var(--rule-soft); font-family:"JetBrains Mono",ui-monospace,monospace; }
+.stats div:last-child { border-right:0; }
+.stats .k { font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:4px; }
+.stats .v { font-size:19px; font-weight:500; font-variant-numeric:tabular-nums; color:var(--ink); }
+.stats .v small { font-size:11px; color:var(--muted); font-weight:400; letter-spacing:.02em; }
+.entry { margin:0 0 1.05em; padding-left:17px; border-left:2px solid var(--rule); }
+.entry .when {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--accent); display:block; margin-bottom:3px;
+}
+ul.findings { list-style:none; margin:0 0 1.2em; padding:0; display:flex; flex-direction:column; gap:15px; }
+ul.findings > li { padding-left:17px; border-left:2px solid var(--accent-2); }
+.pull {
+  font-family:"Bricolage Grotesque",Arial,sans-serif; font-size:21px; font-weight:500;
+  line-height:1.34; letter-spacing:-.012em; color:var(--ink); border-left:3px solid var(--accent);
+  padding:4px 0 4px 20px; margin:26px 0; text-wrap:pretty;
+}
+.transcripts {
+  margin:24px 0; padding:14px 18px 6px; border:1px solid var(--rule);
+  border-radius:2px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px;
+}
+.transcripts-tag {
+  font-size:10px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--muted); margin:0 0 8px;
+}
+.transcripts ol {
+  margin:0 0 10px; padding:0; list-style:none;
+  display:flex; flex-wrap:wrap; gap:4px 10px;
+}
+.transcripts li::after { content:"·"; color:var(--rule); margin-left:10px; }
+.transcripts li:last-child::after { content:""; }
+.transcripts a { color:var(--accent); text-decoration:none; border-bottom:1px solid var(--rule); }
+.transcripts a:hover { border-bottom-color:var(--accent); }
+.transcripts span { color:var(--muted); font-size:10px; }
+.transcripts em { color:var(--muted); font-style:normal; }
+.thread {
+  margin:26px 0; padding:16px 20px 4px; background:var(--accent-wash);
+  border-left:3px solid var(--accent-2); border-radius:2px;
+}
+.thread p { margin:0 0 1em; }
+.thread-tag {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10.5px; font-weight:500;
+  letter-spacing:.11em; text-transform:uppercase; color:var(--accent); margin:0 0 8px;
+}
+.thread-tag span { color:var(--muted); font-weight:400; letter-spacing:.06em; }
+.thread-tag a { color:var(--muted); }
+.scroll { overflow-x:auto; margin:0 0 1.4em; }
+table { border-collapse:collapse; width:100%; min-width:520px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:13px; }
+caption { caption-side:top; text-align:left; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding-bottom:9px; }
+th { text-align:left; font-weight:500; font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); padding:0 14px 7px 0; border-bottom:1px solid var(--rule); }
+td { padding:9px 14px 9px 0; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; padding-right:0; }
+tbody tr:hover td { background:var(--accent-wash); }
+table.prose { font-family:"Newsreader",Georgia,serif; font-size:16px; }
+table.prose td { line-height:1.5; }
+.chip {
+  display:inline-block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px;
+  font-weight:500; letter-spacing:.07em; text-transform:uppercase; padding:2px 7px 3px;
+  border:1px solid currentColor; border-radius:2px; white-space:nowrap;
+}
+.chip.built { color:var(--built); }
+.chip.open { color:var(--open); }
+.chip.blocked { color:var(--blocked); }
+.spans { margin:26px 0 34px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; }
+.span-axis, .span-row { display:flex; align-items:center; gap:12px; }
+.span-axis { color:var(--muted); font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding-bottom:6px; border-bottom:1px solid var(--rule); margin-bottom:6px; }
+.span-row { padding:3px 0; }
+.span-row:hover { background:var(--accent-wash); }
+.span-name { flex:0 0 220px; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.span-track { flex:1 1 auto; position:relative; height:14px; }
+.span-row .span-track::before { content:""; position:absolute; inset:6px 0 auto 0; height:1px; background:var(--rule-soft); }
+.span-track i { position:absolute; top:3px; height:8px; background:var(--accent); border-radius:1px; display:block; }
+.span-year { position:absolute; top:0; font-size:10px; color:var(--muted); border-left:1px solid var(--rule); padding-left:3px; }
+.span-count { flex:0 0 54px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; }
+@media (max-width:700px) { .span-name { flex-basis:130px; } }
+figure { margin:0 0 34px; }
+figure svg { display:block; width:100%; height:auto; }
+figcaption { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11.5px; color:var(--muted); line-height:1.55; margin-top:10px; max-width:72ch; }
+.tick { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--muted); }
+.tick-strong { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--ink); font-weight:500; }
+.gridline { stroke:var(--rule-soft); stroke-width:1; }
+.baseline { stroke:var(--rule); stroke-width:1; }
+.bar-fill { fill:var(--accent); }
+.bar-zero { fill:var(--rule); }
+.bar-label { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--ink); font-weight:500; }
+.partnav {
+  display:flex; gap:16px; align-items:stretch; margin-top:64px; padding-top:20px;
+  border-top:2px solid var(--ink); font-family:"JetBrains Mono",ui-monospace,monospace; font-size:13px;
+}
+.partnav a { text-decoration:none; color:var(--ink); padding:10px 14px; border:1px solid var(--rule); border-radius:2px; line-height:1.35; }
+.partnav a:hover { background:var(--accent-wash); border-color:var(--accent); }
+.partnav a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.partnav span { display:block; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+.nav-prev { flex:1 1 0; }
+.nav-next { flex:1 1 0; text-align:right; }
+.nav-up { flex:0 0 auto; align-self:center; color:var(--muted); }
+@media (max-width:600px) { .partnav { flex-direction:column; } .nav-next { text-align:left; } }
+.colophon {
+  margin-top:76px; padding-top:20px; border-top:2px solid var(--ink);
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; line-height:1.62;
+  color:var(--muted); max-width:74ch;
+}
+.colophon b { color:var(--ink-2); font-weight:500; }
+@media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="masthead">
+    <div class="eyebrow">Part 1 · 3 September – 14 December 2025 · from file timestamps</div>
+    <h1>The First Fourteen Weeks</h1>
+    <p class="dek">The project begins on a Wednesday afternoon with eight Lua files and a design document written after them. Fourteen weeks later it holds twenty-four projects and has outgrown being remembered, and everything goes into version control.</p>
+    <div class="masthead-meta">
+      <span><b>24</b> projects</span>
+      <span><b>1,023</b> files written</span>
+      <span><b>14</b> weeks</span>    </div>
+  </header>
+
+  <nav class="rail" aria-label="Projects, ordered by commits in this window">
+    <h2>Projects · commits</h2>
+    <ol>
+      <li><a href="#arc"><span>the arc</span><span class="n">24</span><span class="bar"><i style="width:100%"></i></span></a></li>
+      <li><a href="#limits"><span>the limits</span><span class="n">0</span><span class="bar"><i style="width:0%"></i></span></a></li>
+    </ol>
+    <div class="foot">
+      <a href="#open">What is open</a><br>
+      <a href="#tree">Notes on the tree</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <h2 class="section">The window</h2>
+
+        <p class="lead">The window runs 3 September to 14 December 2025. It is the only part with no commits behind it: everything here is measured from when files were last written, because version control arrives on the last day.</p>
+        <p><strong>Why the window starts on 3 September 2025.</strong> The founding commit imported files that already existed, and their timestamps reach much further back — to a notes folder from 2021 and, through vendored libraries, to a Lua distribution from 2001. <strong>None of that is this project.</strong> The earliest file belonging to the work these reports describe was written at 25 minutes past two on the afternoon of Wednesday 3 September 2025.</p>
+        <p><strong>Why it ends on 14 December.</strong> The next day, all of it goes into git in one commit of 29,157 files, and the record stops being inference. That commit and the four weeks after it are <em>29,157 Files</em>.</p>
+        <p><strong>How the 1,023 files were arrived at.</strong> Of the founding commit's 29,157 files, 28,905 are still on disk. Dropping vendored libraries, two large imported trees — a console toolchain and a game's source — and everything outside plausibly authored places leaves 2,081. Restricting those to the window leaves <strong>1,023 files across 24 projects</strong>, which is what the charts below describe.</p>
+
+    <figure class="wide">
+      <svg viewBox="0 0 780 224" role="img" aria-label="Authored files by the week they were last written, from the week of 1 September to the week of 8 December 2025. Peaks of 218 in the week of 22 September, 175 and 143 in the last two weeks of October, 106 in mid-November and 121 in the week before the founding commit. One silent week, 24 to 30 November.">
+    <line class="baseline" x1="40" y1="176.0" x2="770" y2="176.0"></line>
+    <text class="tick" x="34" y="179.0" text-anchor="end">0</text>
+    <line class="gridline" x1="40" y1="143.2" x2="770" y2="143.2"></line>
+    <text class="tick" x="34" y="146.2" text-anchor="end">50</text>
+    <line class="gridline" x1="40" y1="110.4" x2="770" y2="110.4"></line>
+    <text class="tick" x="34" y="113.4" text-anchor="end">100</text>
+    <line class="gridline" x1="40" y1="77.6" x2="770" y2="77.6"></line>
+    <text class="tick" x="34" y="80.6" text-anchor="end">150</text>
+    <line class="gridline" x1="40" y1="44.8" x2="770" y2="44.8"></line>
+    <text class="tick" x="34" y="47.8" text-anchor="end">200</text>
+    <line class="gridline" x1="40" y1="12.0" x2="770" y2="12.0"></line>
+    <text class="tick" x="34" y="15.0" text-anchor="end">250</text>
+    <rect class="bar-fill" x="49.2" y="166.2" width="30.2" height="9.8"></rect>
+    <text class="tick-strong" x="64.3" y="192" text-anchor="middle">Sep 1</text>
+    <rect class="bar-fill" x="97.9" y="152.4" width="30.2" height="23.6"></rect>
+    <text class="tick" x="113.0" y="192" text-anchor="middle">8</text>
+    <rect class="bar-fill" x="146.6" y="148.4" width="30.2" height="27.6"></rect>
+    <text class="tick" x="161.7" y="192" text-anchor="middle">15</text>
+    <rect class="bar-fill" x="195.2" y="33.0" width="30.2" height="143.0"></rect>
+    <text class="bar-label" x="210.3" y="28.0" text-anchor="middle">218</text>
+    <text class="tick-strong" x="210.3" y="192" text-anchor="middle">22</text>
+    <rect class="bar-fill" x="243.9" y="170.8" width="30.2" height="5.2"></rect>
+    <text class="tick" x="259.0" y="192" text-anchor="middle">29</text>
+    <rect class="bar-fill" x="292.6" y="174.0" width="30.2" height="2.0"></rect>
+    <text class="tick-strong" x="307.7" y="192" text-anchor="middle">Oct 6</text>
+    <rect class="bar-fill" x="341.2" y="172.7" width="30.2" height="3.3"></rect>
+    <text class="tick" x="356.3" y="192" text-anchor="middle">13</text>
+    <rect class="bar-fill" x="389.9" y="61.2" width="30.2" height="114.8"></rect>
+    <text class="tick-strong" x="405.0" y="192" text-anchor="middle">20</text>
+    <rect class="bar-fill" x="438.6" y="82.2" width="30.2" height="93.8"></rect>
+    <text class="tick-strong" x="453.7" y="192" text-anchor="middle">27</text>
+    <rect class="bar-fill" x="487.2" y="153.7" width="30.2" height="22.3"></rect>
+    <text class="tick-strong" x="502.3" y="192" text-anchor="middle">Nov 3</text>
+    <rect class="bar-fill" x="535.9" y="106.5" width="30.2" height="69.5"></rect>
+    <text class="tick" x="551.0" y="192" text-anchor="middle">10</text>
+    <rect class="bar-fill" x="584.6" y="151.1" width="30.2" height="24.9"></rect>
+    <text class="tick" x="599.7" y="192" text-anchor="middle">17</text>
+    <rect class="bar-zero" x="633.2" y="175.0" width="30.2" height="1"></rect>
+    <text class="tick" x="648.3" y="192" text-anchor="middle">24</text>
+    <rect class="bar-fill" x="681.9" y="124.2" width="30.2" height="51.8"></rect>
+    <text class="tick-strong" x="697.0" y="192" text-anchor="middle">Dec 1</text>
+    <rect class="bar-fill" x="730.6" y="96.6" width="30.2" height="79.4"></rect>
+    <text class="tick" x="745.7" y="192" text-anchor="middle">8</text>
+        <text class="tick" x="40" y="212">September</text>
+        <text class="tick" x="770" y="212" text-anchor="end">December</text>
+      </svg>
+      <figcaption>One column per week, labelled by the Monday it starts. The height is how many surviving authored files were <strong>last written</strong> that week. Four spikes and one silent week — 24 to 30 November, which produced nothing that survives.</figcaption>
+    </figure>
+
+    <div class="scroll wide">
+      <table>
+        <caption>What was being written, by where it sits</caption>
+        <thead>
+          <tr><th>Project</th><th class="num">Commits</th><th class="num">Lines added</th><th class="num">Lines removed</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>issue files (tickets and blueprints)</td><td class="num">0</td><td class="num">331</td><td class="num">0</td></tr>
+          <tr><td>source</td><td class="num">0</td><td class="num">218</td><td class="num">0</td></tr>
+          <tr><td>documents</td><td class="num">0</td><td class="num">120</td><td class="num">0</td></tr>
+          <tr><td>inputs (notes, images, archives)</td><td class="num">0</td><td class="num">59</td><td class="num">0</td></tr>
+          <tr><td>notes</td><td class="num">0</td><td class="num">48</td><td class="num">0</td></tr>
+          <tr><td>scripts</td><td class="num">0</td><td class="num">33</td><td class="num">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+        <p>The <em>added</em> column is a file count and the <em>commits</em> column is zero throughout, because there are no commits in this window — the shared table is being borrowed for a job it was not designed for, which is noted rather than disguised. The remainder of the 1,023 sit at a project's root rather than in any of these folders.</p>
+        <aside class="thread">
+          <p class="thread-tag">Thread · Blueprints outnumber code <span>starts here</span></p>
+          <p><strong>331 issue files against 218 source files</strong>, in the first fourteen weeks, before anybody wrote that rule down. The collection writes what it intends to build in more detail, and more often, than it builds it. Every later part shows the consequence — a project with 94 tickets and no code, a window writing 171 blueprints and finishing 12 — and it is already true here, before git.</p>
+        </aside>
+
+    <h2 class="section">What the timestamps show</h2>
+
+    <section class="project" id="arc">
+      <div class="project-head">
+        <h3><span class="slug">01 · 24 projects, 1,023 files</span>the fourteen weeks</h3>
+        <p class="identity">One afternoon in September to the night before version control, with each project drawn from the first day one of its files was written to the last.</p>
+      </div>
+        <div class="stats">
+          <div><span class="k">Days</span><span class="v">103</span></div>
+          <div><span class="k">Working weeks</span><span class="v">14 <small>of 15</small></span></div>
+          <div><span class="k">Projects</span><span class="v">24</span></div>
+          <div><span class="k">Files</span><span class="v">1,023</span></div>
+          <div><span class="k">Busiest week</span><span class="v">218 <small>22–28 Sep</small></span></div>
+        </div>
+      <div class="body">
+        <h4>Wednesday 3 September · the first afternoon</h4>
+        <p>The earliest surviving file is <code>combat.lua</code>, written at 14:25. Seven more follow it before the evening — a monster, an item, a main entry point, a maze, a hero, a unit — and at 16:32, between the maze and the unit, a plain-text game design document.</p>
+        <p class="pull">The design document is not the first file. It is the seventh, written two hours into the work, after most of the code it describes.</p>
+        <p>The project it belongs to is a contest entry, and it is eight files that were never touched again. Nothing in the collection predates that afternoon.</p>
+        <h4>Thursday 4 September · the method arrives</h4>
+        <p>At 08:50 the next morning, in a different project — the one that lays poetry out as a printable book — a file called <code>CLAUDE.md</code> is written. <strong>It is the earliest one anywhere in the collection.</strong> That is the file an assistant reads before doing anything: the conventions, the preferred language, how issues are to be written, what a fallback is and why there should not be one.</p>
+        <p><strong>So the working method is one day younger than the work.</strong> The day after the first code, somebody wrote down how the work was to be done. Two more copies of it appear the same afternoon, in nested backup folders, which is the shape of somebody keeping a spare before they trust the arrangement.</p>
+        <aside class="thread">
+          <p class="thread-tag">Thread · Fallbacks hide bugs <span><a href="part-2-the-founding.html">first seen in Part 2</a></span></p>
+          <p>The conventions file written on day two is where the rule lives: prefer an error to a fallback, and notify every time one is used. <strong>The method is one day younger than the work.</strong> Part 2 is where it first costs ninety-five deleted lines to apply, and four later parts record what applying it caught.</p>
+        </aside>
+        <p>The next day a notes file appears in two projects at the same second — the first trace of a shared notes vault being synced into more than one place. That vault is the thing whose files reach back to 2021, and it is the only part of the collection genuinely older than this window.</p>
+        <h4>The shape of fourteen weeks</h4>
+        <figure class="wide spans">
+          <div class="span-axis"><span class="span-name"></span><span class="span-track"></span><span class="span-count">files</span></div>
+          <div class="span-row">
+            <span class="span-name">cloudtop-contest</span>
+            <span class="span-track"><i style="left:0.00%;width:25.00%"></i></span>
+            <span class="span-count">8</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">words-pdf</span>
+            <span class="span-track"><i style="left:0.00%;width:100.00%"></i></span>
+            <span class="span-count">106</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">neocities-modernization</span>
+            <span class="span-track"><i style="left:0.00%;width:100.00%"></i></span>
+            <span class="span-count">158</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">magic-rumble</span>
+            <span class="span-track"><i style="left:0.00%;width:25.00%"></i></span>
+            <span class="span-count">21</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">factory-war</span>
+            <span class="span-track"><i style="left:0.00%;width:25.00%"></i></span>
+            <span class="span-count">1</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">adventure-hero-quest</span>
+            <span class="span-track"><i style="left:0.00%;width:25.00%"></i></span>
+            <span class="span-count">10</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">links-awakening</span>
+            <span class="span-track"><i style="left:0.00%;width:25.00%"></i></span>
+            <span class="span-count">2</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">console-demakes</span>
+            <span class="span-track"><i style="left:0.00%;width:25.00%"></i></span>
+            <span class="span-count">24</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">handheld-office</span>
+            <span class="span-track"><i style="left:0.00%;width:75.00%"></i></span>
+            <span class="span-count">179</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">games/galactic-battlegrounds</span>
+            <span class="span-track"><i style="left:0.00%;width:25.00%"></i></span>
+            <span class="span-count">1</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">scripts</span>
+            <span class="span-track"><i style="left:25.00%;width:75.00%"></i></span>
+            <span class="span-count">8</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">RPG-autobattler</span>
+            <span class="span-track"><i style="left:25.00%;width:25.00%"></i></span>
+            <span class="span-count">143</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">healer-td</span>
+            <span class="span-track"><i style="left:25.00%;width:25.00%"></i></span>
+            <span class="span-count">21</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">progress-ii</span>
+            <span class="span-track"><i style="left:25.00%;width:75.00%"></i></span>
+            <span class="span-count">101</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">continual-co-operation</span>
+            <span class="span-track"><i style="left:50.00%;width:25.00%"></i></span>
+            <span class="span-count">19</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">risc-v-university</span>
+            <span class="span-track"><i style="left:50.00%;width:25.00%"></i></span>
+            <span class="span-count">28</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">ai-playground</span>
+            <span class="span-track"><i style="left:50.00%;width:25.00%"></i></span>
+            <span class="span-count">42</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">resume-generation</span>
+            <span class="span-track"><i style="left:50.00%;width:25.00%"></i></span>
+            <span class="span-count">3</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">games/gameboy-color-rpg</span>
+            <span class="span-track"><i style="left:50.00%;width:25.00%"></i></span>
+            <span class="span-count">20</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">dark-volcano</span>
+            <span class="span-track"><i style="left:50.00%;width:50.00%"></i></span>
+            <span class="span-count">39</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">adroit</span>
+            <span class="span-track"><i style="left:75.00%;width:25.00%"></i></span>
+            <span class="span-count">50</span>
+          </div>
+          <div class="span-row">
+            <span class="span-name">delta-version</span>
+            <span class="span-track"><i style="left:75.00%;width:25.00%"></i></span>
+            <span class="span-count">37</span>
+          </div>
+          <figcaption>Each bar runs from the first day one of a project's files was written in this window to the last. Bars are placed by month, so a project confined to a few days shows as a single block. A bar is not a claim that work happened across all of it — only that something was written at each end.</figcaption>
+        </figure>
+        <ul class="findings">
+          <li><strong>Ten projects appear in September alone</strong>, most of them lasting days. A contest entry, a card game, a factory game, an adventure game, a Zelda project, a console-demake toolchain — several are a single file each. <strong>This is a month of starting things</strong>, and the ones that last are not obviously the ones that got the most attention that month.</li>
+          <li><strong>The largest single project in the window is a text editor for a handheld games console</strong> — a Game Boy Advance-styled editor with hierarchical input and networked assistance — at 179 files across September to November. It is not one of the projects the later reports follow, which is worth stating plainly: <strong>the biggest thing here went quiet.</strong></li>
+          <li><strong>Two projects run the whole window and keep running for another nine months</strong>: the poetry website at 158 files and the poetry book at 106. They are the two that read the shared notes vault, and they appear in every report in this series.</li>
+          <li><strong>October and November are bursts, not a stream.</strong> Three weeks in October produce eight, three and five files; the week of the 20th produces 175. An auto-battler contributes 143 of them in a single day, 22 October. A tower-defence game contributes 21 on the same day.</li>
+          <li><strong>One week produced nothing that survives</strong> — 24 to 30 November. It is the only silent week in the window, and it sits directly before the run that ends in version control.</li>
+        </ul>
+        <h4>7 December, 22:53 · the repository is decided on</h4>
+        <p>Eight ticket files are written in seven minutes on a Sunday night, in a project that did not exist that morning. Their names are the argument: comprehensive git repository setup, discover and analyse gitignore files, design a unification strategy, implement pattern processing, a project discovery system, a ticket distribution engine.</p>
+        <p class="pull">The tool for managing a collection of projects was specified eight days before the collection entered version control, in one sitting, late at night.</p>
+        <p>It is the clearest thing the timestamps say. <strong>Nothing forces a repository until the number of things exceeds what one person can hold</strong>, and this window puts that threshold in the first week of December 2025, after fourteen weeks and twenty-four projects.</p>
+        <h4>14 December, 23:20 · the last night</h4>
+        <p>The final two files written before the founding commit belong to the poetry website: a document weighing two ways of running work in parallel against each other, and a ticket to build graphics-card compute infrastructure. <strong>The last thing done before the record begins is a decision about how to make something faster</strong> — and the graphics-card path it proposes is not actually built until March, in <em>167 of 167</em>, three months and a whole repository later.</p>
+      </div>
+    </section>
+
+    <section class="project" id="limits">
+      <div class="project-head">
+        <h3><span class="slug">02 · four caveats</span>what this cannot tell you</h3>
+        <p class="identity">Everything above is inferred from when files were last written. Four things that does not record, each bending the picture in a known direction.</p>
+      </div>
+
+      <div class="body">
+        <p class="pull">A modification time is not a record of work. It is a record of the last time a file was written — and only for the files that still exist.</p>
+        <ul class="findings">
+          <li><strong>It only counts survivors.</strong> A file written in September and deleted in October leaves nothing at all. Every count here is a floor, and the earlier weeks are floored harder than the later ones.</li>
+          <li><strong>It records the last touch, not the first.</strong> A document started in September and revised in December appears only in December. So the early weeks are undercounted by exactly the amount of work that was later returned to — which is to say, by the work that mattered most.</li>
+          <li><strong>Any bulk operation overwrites it.</strong> A copy, a restore or a sync stamps its own moment onto everything it touches, which would turn one afternoon of copying into a fake week of work. The test for it is to count distinct timestamps against total files per month: a bulk copy gives thousands of files the same second, editing gives each its own. <strong>Inside this window the four months score 0.76, 0.83, 0.83 and 0.73</strong> — roughly three files in four written at their own moment. Two months elsewhere in the collection score 0.23 and 0.25 and are excluded, which is part of why this window starts where it does.</li>
+          <li><strong>It says nothing about what was done.</strong> This page can say that 143 files appeared in an auto-battler on 22 October. It cannot say what any of them contained, whether the day went well, or what was decided. Every other page in this directory can, because somebody wrote it down.</li>
+        </ul>
+        <p><strong>And unlike every other page here, this one cannot be regenerated.</strong> It is built from live filesystem state rather than history. A single checkout, restore or sync would rewrite the evidence and make this page wrong without changing one commit.</p>
+      </div>
+    </section>
+
+
+    <h2 class="section" id="open">What is open</h2>
+
+    <div class="scroll wide">
+      <table class="prose">
+        <caption>Outstanding at the close of the window</caption>
+        <thead>
+          <tr><th style="width:22%">Project</th><th style="width:13%">State</th><th>Waiting on</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>the fourteen weeks</td>
+            <td><span class="chip blocked">Unrecorded</span></td>
+            <td><strong>No conversations, commit messages or progress notes exist from this period.</strong> What any of these twenty-four projects was for, what was decided, what was abandoned and why — none of it is written anywhere the repository can reach. The files are the only witnesses and they say when rather than what.</td>
+          </tr>
+          <tr>
+            <td>handheld-office</td>
+            <td><span class="chip open">Went quiet</span></td>
+            <td>179 files across three months, the largest project in the window, and it does not appear in any later report. Whether it was finished, abandoned or merely paused is not answerable from here.</td>
+          </tr>
+          <tr>
+            <td>the notes vault</td>
+            <td><span class="chip open">Outside</span></td>
+            <td>The shared notes synced into several projects are older than this window and live outside the repository. Their real history is on another disk and would answer more than anything measurable here.</td>
+          </tr>
+          <tr>
+            <td>the silent week</td>
+            <td><span class="chip open">Ambiguous</span></td>
+            <td>24 to 30 November produced nothing that survives. Whether that was a week off or a week whose output was deleted <strong>cannot be settled by this method</strong>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="section" id="tree">Notes on the tree</h2>
+
+        <p>Everything on this page was measured by listing the founding commit's file tree, keeping the paths that still exist on disk, reading their modification times, and filtering as the introduction describes. It reads the working tree and the git index and changes neither.</p>
+        <p>The filtering is worth re-running rather than trusting, and so is the check that separates editing from copying: for each month, count distinct timestamps against total files. Inside this window every month passes. Two months elsewhere in the collection — October 2021 and May 2024 — fail it badly, which is part of why this window starts where it does.</p>
+
+    <nav class="partnav"><a class="nav-up" href="index.html">Contents</a><a class="nav-next" href="part-2-the-founding.html"><span>Next</span>29,157 Files</a></nav>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,538 @@
+<title>The Metal and the Ember</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Drafting blue, because in this repository an issue file is called a
+   blueprint and a report about them may as well be one. Every colour is
+   declared on bare :root first, so a browser with no theme preference stamped
+   on it still resolves a complete set. */
+:root {
+  --paper:#EBF0F4; --surface:#F9FBFC; --surface-2:#E2E9EE;
+  --ink:#12202B; --ink-2:#354A59; --muted:#64798A;
+  --rule:#C3D0DA; --rule-soft:#D6E0E7;
+  --accent:#0F4C8A; --accent-2:#2E7CC4; --accent-wash:#DCE8F3;
+  --built:#1B6B58; --open:#8C5F10; --blocked:#A03A2C;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#0B131A; --surface:#111C25; --surface-2:#17242F;
+    --ink:#D9E4EC; --ink-2:#AFC0CD; --muted:#7D91A0;
+    --rule:#223441; --rule-soft:#1B2A35;
+    --accent:#6FA6E4; --accent-2:#8FBEF0; --accent-wash:#152634;
+    --built:#4FB99A; --open:#D6A448; --blocked:#E27F72;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#0B131A; --surface:#111C25; --surface-2:#17242F;
+  --ink:#D9E4EC; --ink-2:#AFC0CD; --muted:#7D91A0;
+  --rule:#223441; --rule-soft:#1B2A35;
+  --accent:#6FA6E4; --accent-2:#8FBEF0; --accent-wash:#152634;
+  --built:#4FB99A; --open:#D6A448; --blocked:#E27F72;
+}
+* { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body {
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif;
+  font-size:18px; line-height:1.62; font-optical-sizing:auto;
+  -webkit-font-smoothing:antialiased;
+}
+img { max-width:100%; }
+.shell {
+  max-width:1240px; margin:0 auto; padding:0 28px 96px;
+  display:grid; grid-template-columns:232px minmax(0,1fr); gap:56px; align-items:start;
+}
+@media (max-width:1040px) {
+  .shell { grid-template-columns:minmax(0,1fr); gap:0; padding:0 20px 72px; }
+  .rail { position:static; margin:0 0 40px; }
+}
+.masthead { grid-column:1/-1; border-bottom:2px solid var(--ink); padding:56px 0 22px; margin-bottom:40px; }
+.eyebrow {
+  font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--accent);
+}
+h1 {
+  font-family:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  font-weight:700; font-size:clamp(38px,6vw,62px); line-height:1.02;
+  letter-spacing:-.022em; margin:14px 0 0; text-wrap:balance;
+}
+.dek { margin:16px 0 0; max-width:62ch; font-size:20px; color:var(--ink-2); }
+.masthead-meta {
+  display:flex; flex-wrap:wrap; gap:8px 26px; margin-top:26px;
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; color:var(--muted);
+}
+.masthead-meta b { color:var(--ink); font-weight:500; }
+.rail { position:sticky; top:24px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; }
+.rail h2 {
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+  font-weight:500; margin:0 0 14px; padding-bottom:8px; border-bottom:1px solid var(--rule);
+}
+.rail ol { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:3px; }
+.rail a {
+  display:grid; grid-template-columns:1fr auto; align-items:baseline; gap:8px;
+  padding:6px 8px 7px; border-radius:2px; text-decoration:none; color:var(--ink-2);
+  border-left:2px solid transparent;
+}
+.rail a:hover { background:var(--accent-wash); color:var(--ink); border-left-color:var(--accent); }
+.rail a:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.rail .n { color:var(--muted); font-variant-numeric:tabular-nums; }
+.rail .bar { grid-column:1/-1; height:3px; background:var(--rule-soft); margin-top:5px; position:relative; }
+.rail .bar i { position:absolute; inset:0 auto 0 0; background:var(--accent); display:block; }
+.rail .foot { margin-top:20px; padding-top:12px; border-top:1px solid var(--rule); color:var(--muted); line-height:1.55; }
+.rail .foot a { display:inline; padding:0; border:0; }
+main { min-width:0; }
+main > * { max-width:68ch; }
+main > .wide, main > figure, main > .scroll { max-width:none; }
+h2.section {
+  font-family:"Bricolage Grotesque",Arial,sans-serif; font-size:13px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent);
+  margin:72px 0 22px; padding-bottom:9px; border-bottom:1px solid var(--rule); max-width:none;
+}
+h2.section:first-child { margin-top:0; }
+p { margin:0 0 1.05em; }
+p.lead { font-size:20px; color:var(--ink-2); }
+strong { font-weight:600; color:var(--ink); }
+a { color:var(--accent); }
+code { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:.88em; background:var(--surface-2); padding:1px 4px; border-radius:2px; }
+.project { margin:0 0 8px; padding:40px 0 0; max-width:none; }
+.project + .project { border-top:1px solid var(--rule-soft); margin-top:44px; }
+.project-head { max-width:68ch; }
+.project h3 {
+  font-family:"Bricolage Grotesque",Arial,sans-serif; font-size:clamp(26px,3.4vw,34px);
+  font-weight:600; letter-spacing:-.018em; line-height:1.12; margin:0; text-wrap:balance;
+}
+.project h3 .slug {
+  display:block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px;
+  font-weight:400; letter-spacing:.04em; color:var(--muted); margin-bottom:8px;
+}
+.project .identity { margin:12px 0 0; color:var(--ink-2); max-width:66ch; }
+.project .body { max-width:68ch; margin-top:26px; }
+.project h4 {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; font-weight:500;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--muted); margin:30px 0 10px;
+}
+.stats { display:flex; flex-wrap:wrap; margin:22px 0 0; border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); }
+.stats div { flex:1 1 116px; padding:12px 16px 13px; border-right:1px solid var(--rule-soft); font-family:"JetBrains Mono",ui-monospace,monospace; }
+.stats div:last-child { border-right:0; }
+.stats .k { font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:4px; }
+.stats .v { font-size:19px; font-weight:500; font-variant-numeric:tabular-nums; color:var(--ink); }
+.stats .v small { font-size:11px; color:var(--muted); font-weight:400; letter-spacing:.02em; }
+.entry { margin:0 0 1.05em; padding-left:17px; border-left:2px solid var(--rule); }
+.entry .when {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--accent); display:block; margin-bottom:3px;
+}
+ul.findings { list-style:none; margin:0 0 1.2em; padding:0; display:flex; flex-direction:column; gap:15px; }
+ul.findings > li { padding-left:17px; border-left:2px solid var(--accent-2); }
+.pull {
+  font-family:"Bricolage Grotesque",Arial,sans-serif; font-size:21px; font-weight:500;
+  line-height:1.34; letter-spacing:-.012em; color:var(--ink); border-left:3px solid var(--accent);
+  padding:4px 0 4px 20px; margin:26px 0; text-wrap:pretty;
+}
+.transcripts {
+  margin:24px 0; padding:14px 18px 6px; border:1px solid var(--rule);
+  border-radius:2px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px;
+}
+.transcripts-tag {
+  font-size:10px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--muted); margin:0 0 8px;
+}
+.transcripts ol {
+  margin:0 0 10px; padding:0; list-style:none;
+  display:flex; flex-wrap:wrap; gap:4px 10px;
+}
+.transcripts li::after { content:"·"; color:var(--rule); margin-left:10px; }
+.transcripts li:last-child::after { content:""; }
+.transcripts a { color:var(--accent); text-decoration:none; border-bottom:1px solid var(--rule); }
+.transcripts a:hover { border-bottom-color:var(--accent); }
+.transcripts span { color:var(--muted); font-size:10px; }
+.transcripts em { color:var(--muted); font-style:normal; }
+.thread {
+  margin:26px 0; padding:16px 20px 4px; background:var(--accent-wash);
+  border-left:3px solid var(--accent-2); border-radius:2px;
+}
+.thread p { margin:0 0 1em; }
+.thread-tag {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10.5px; font-weight:500;
+  letter-spacing:.11em; text-transform:uppercase; color:var(--accent); margin:0 0 8px;
+}
+.thread-tag span { color:var(--muted); font-weight:400; letter-spacing:.06em; }
+.thread-tag a { color:var(--muted); }
+.scroll { overflow-x:auto; margin:0 0 1.4em; }
+table { border-collapse:collapse; width:100%; min-width:520px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:13px; }
+caption { caption-side:top; text-align:left; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding-bottom:9px; }
+th { text-align:left; font-weight:500; font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); padding:0 14px 7px 0; border-bottom:1px solid var(--rule); }
+td { padding:9px 14px 9px 0; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; padding-right:0; }
+tbody tr:hover td { background:var(--accent-wash); }
+table.prose { font-family:"Newsreader",Georgia,serif; font-size:16px; }
+table.prose td { line-height:1.5; }
+.chip {
+  display:inline-block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px;
+  font-weight:500; letter-spacing:.07em; text-transform:uppercase; padding:2px 7px 3px;
+  border:1px solid currentColor; border-radius:2px; white-space:nowrap;
+}
+.chip.built { color:var(--built); }
+.chip.open { color:var(--open); }
+.chip.blocked { color:var(--blocked); }
+.spans { margin:26px 0 34px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; }
+.span-axis, .span-row { display:flex; align-items:center; gap:12px; }
+.span-axis { color:var(--muted); font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding-bottom:6px; border-bottom:1px solid var(--rule); margin-bottom:6px; }
+.span-row { padding:3px 0; }
+.span-row:hover { background:var(--accent-wash); }
+.span-name { flex:0 0 220px; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.span-track { flex:1 1 auto; position:relative; height:14px; }
+.span-row .span-track::before { content:""; position:absolute; inset:6px 0 auto 0; height:1px; background:var(--rule-soft); }
+.span-track i { position:absolute; top:3px; height:8px; background:var(--accent); border-radius:1px; display:block; }
+.span-year { position:absolute; top:0; font-size:10px; color:var(--muted); border-left:1px solid var(--rule); padding-left:3px; }
+.span-count { flex:0 0 54px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; }
+@media (max-width:700px) { .span-name { flex-basis:130px; } }
+figure { margin:0 0 34px; }
+figure svg { display:block; width:100%; height:auto; }
+figcaption { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11.5px; color:var(--muted); line-height:1.55; margin-top:10px; max-width:72ch; }
+.tick { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--muted); }
+.tick-strong { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--ink); font-weight:500; }
+.gridline { stroke:var(--rule-soft); stroke-width:1; }
+.baseline { stroke:var(--rule); stroke-width:1; }
+.bar-fill { fill:var(--accent); }
+.bar-zero { fill:var(--rule); }
+.bar-label { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--ink); font-weight:500; }
+.partnav {
+  display:flex; gap:16px; align-items:stretch; margin-top:64px; padding-top:20px;
+  border-top:2px solid var(--ink); font-family:"JetBrains Mono",ui-monospace,monospace; font-size:13px;
+}
+.partnav a { text-decoration:none; color:var(--ink); padding:10px 14px; border:1px solid var(--rule); border-radius:2px; line-height:1.35; }
+.partnav a:hover { background:var(--accent-wash); border-color:var(--accent); }
+.partnav a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.partnav span { display:block; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+.nav-prev { flex:1 1 0; }
+.nav-next { flex:1 1 0; text-align:right; }
+.nav-up { flex:0 0 auto; align-self:center; color:var(--muted); }
+@media (max-width:600px) { .partnav { flex-direction:column; } .nav-next { text-align:left; } }
+.colophon {
+  margin-top:76px; padding-top:20px; border-top:2px solid var(--ink);
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; line-height:1.62;
+  color:var(--muted); max-width:74ch;
+}
+.colophon b { color:var(--ink-2); font-weight:500; }
+@media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+<div class="shell">
+
+  <header class="masthead">
+    <div class="eyebrow">Part 7 · 26 June – 25 July 2026</div>
+    <h1>The Metal and the Ember</h1>
+    <p class="dek">The handheld's storage controllers come up on real silicon and its flash reads ten times faster with the bytes proven identical. Three weeks later an animation studio is built from nothing in three days, and proves its own parallelism the same way.</p>
+    <div class="masthead-meta">
+      <span><b>198</b> issues written</span>
+      <span><b>41</b> completed</span>
+      <span><b>8</b> projects</span>    </div>
+  </header>
+
+  <nav class="rail" aria-label="Projects, ordered by commits in this window">
+    <h2>Projects · commits</h2>
+    <ol>
+      <li><a href="#soren"><span>soren-ds</span><span class="n">13</span><span class="bar"><i style="width:14%"></i></span></a></li>
+      <li><a href="#gif"><span>gif-generator</span><span class="n">33</span><span class="bar"><i style="width:35%"></i></span></a></li>
+      <li><a href="#spellcraft"><span>spellcraft</span><span class="n">94</span><span class="bar"><i style="width:100%"></i></span></a></li>
+      <li><a href="#record"><span>the record</span><span class="n">7</span><span class="bar"><i style="width:7%"></i></span></a></li>
+    </ol>
+    <div class="foot">
+      <a href="#open">What is open</a><br>
+      <a href="#tree">Notes on the tree</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <h2 class="section">The window</h2>
+
+        <p class="lead">The window runs 26 June to 25 July. The commit history would cut it in two — there are seventeen near-silent days in the middle — but one of the three commits in that gap starts a project the second half spends four days building, so the cut would separate a founding from its construction.</p>
+        <p><strong>26 June to 2 July</strong>: the poetry website's last big push ends with a deploy script, and soren-ds brings up storage, power and lighting on the Anbernic RG DS itself.</p>
+        <p><strong>7 to 15 July</strong>: two projects are seeded. A first-person game aimed with two mice, and a USB-C cable that moves data without the far end being able to execute it.</p>
+        <p><strong>21 to 25 July</strong>: the game engine's dataflow substrate is built, an animation studio goes from nothing to five of six phases in three days, and 823 files of working transcripts are filed under readable names.</p>
+
+    <figure class="wide">
+      <svg viewBox="0 0 780 224" role="img" aria-label="Commits per day from 26 June to 25 July 2026: a cluster of 15, 6, 3, 7 and 3 at the start, then seventeen near-silent days carrying one commit each on the 7th, 14th and 15th, then a rising run of 3, 5, 8, 7 and 17.">
+    <line class="baseline" x1="40" y1="176.0" x2="770" y2="176.0"></line>
+    <text class="tick" x="34" y="179.0" text-anchor="end">0</text>
+    <line class="gridline" x1="40" y1="135.0" x2="770" y2="135.0"></line>
+    <text class="tick" x="34" y="138.0" text-anchor="end">5</text>
+    <line class="gridline" x1="40" y1="94.0" x2="770" y2="94.0"></line>
+    <text class="tick" x="34" y="97.0" text-anchor="end">10</text>
+    <line class="gridline" x1="40" y1="53.0" x2="770" y2="53.0"></line>
+    <text class="tick" x="34" y="56.0" text-anchor="end">15</text>
+    <line class="gridline" x1="40" y1="12.0" x2="770" y2="12.0"></line>
+    <text class="tick" x="34" y="15.0" text-anchor="end">20</text>
+    <rect class="bar-fill" x="44.6" y="53.0" width="15.1" height="123.0"></rect>
+    <text class="tick-strong" x="52.2" y="192" text-anchor="middle">26</text>
+    <rect class="bar-zero" x="69.0" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="76.5" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="93.3" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="100.8" y="192" text-anchor="middle"></text>
+    <rect class="bar-fill" x="117.6" y="126.8" width="15.1" height="49.2"></rect>
+    <text class="tick" x="125.2" y="192" text-anchor="middle">29</text>
+    <rect class="bar-fill" x="142.0" y="151.4" width="15.1" height="24.6"></rect>
+    <text class="tick" x="149.5" y="192" text-anchor="middle">30</text>
+    <rect class="bar-fill" x="166.3" y="118.6" width="15.1" height="57.4"></rect>
+    <text class="tick" x="173.8" y="192" text-anchor="middle">01</text>
+    <rect class="bar-fill" x="190.6" y="151.4" width="15.1" height="24.6"></rect>
+    <text class="tick" x="198.2" y="192" text-anchor="middle">02</text>
+    <rect class="bar-zero" x="215.0" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="222.5" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="239.3" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="246.8" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="263.6" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="271.2" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="288.0" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="295.5" y="192" text-anchor="middle"></text>
+    <rect class="bar-fill" x="312.3" y="167.8" width="15.1" height="8.2"></rect>
+    <text class="tick" x="319.8" y="192" text-anchor="middle">07</text>
+    <rect class="bar-zero" x="336.6" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="344.2" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="361.0" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="368.5" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="385.3" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="392.8" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="409.6" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="417.2" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="434.0" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="441.5" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="458.3" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="465.8" y="192" text-anchor="middle"></text>
+    <rect class="bar-fill" x="482.6" y="167.8" width="15.1" height="8.2"></rect>
+    <text class="tick" x="490.2" y="192" text-anchor="middle">14</text>
+    <rect class="bar-fill" x="507.0" y="167.8" width="15.1" height="8.2"></rect>
+    <text class="tick" x="514.5" y="192" text-anchor="middle">15</text>
+    <rect class="bar-zero" x="531.3" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="538.8" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="555.6" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="563.2" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="580.0" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="587.5" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="604.3" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="611.8" y="192" text-anchor="middle"></text>
+    <rect class="bar-zero" x="628.6" y="175.0" width="15.1" height="1"></rect>
+    <text class="tick" x="636.2" y="192" text-anchor="middle"></text>
+    <rect class="bar-fill" x="653.0" y="151.4" width="15.1" height="24.6"></rect>
+    <text class="tick" x="660.5" y="192" text-anchor="middle">21</text>
+    <rect class="bar-fill" x="677.3" y="135.0" width="15.1" height="41.0"></rect>
+    <text class="tick" x="684.8" y="192" text-anchor="middle">22</text>
+    <rect class="bar-fill" x="701.6" y="110.4" width="15.1" height="65.6"></rect>
+    <text class="tick-strong" x="709.2" y="192" text-anchor="middle">23</text>
+    <rect class="bar-fill" x="726.0" y="118.6" width="15.1" height="57.4"></rect>
+    <text class="tick-strong" x="733.5" y="192" text-anchor="middle">24</text>
+    <rect class="bar-fill" x="750.3" y="36.6" width="15.1" height="139.4"></rect>
+    <text class="bar-label" x="757.8" y="31.6" text-anchor="middle">17</text>
+    <text class="tick-strong" x="757.8" y="192" text-anchor="middle">25</text>
+        <text class="tick" x="40" y="212">June</text>
+        <text class="tick" x="770" y="212" text-anchor="end">July</text>
+      </svg>
+      <figcaption>Commits per day. Two clusters with seventeen quiet days between them. Those quiet days carry three commits, and two of them start projects the second cluster builds.</figcaption>
+    </figure>
+
+    <div class="scroll wide">
+      <table>
+        <caption>Issue files, 26 June – 25 July</caption>
+        <thead>
+          <tr><th>Project</th><th class="num">Commits</th><th class="num">Lines added</th><th class="num">Lines removed</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>games/first-person-spellcraft</td><td class="num">94</td><td class="num">3</td><td class="num">0</td></tr>
+          <tr><td>gif-generator</td><td class="num">33</td><td class="num">23</td><td class="num">0</td></tr>
+          <tr><td>roms</td><td class="num">21</td><td class="num">0</td><td class="num">0</td></tr>
+          <tr><td>soren-ds</td><td class="num">13</td><td class="num">7</td><td class="num">0</td></tr>
+          <tr><td>usb-c-universal-encoder</td><td class="num">12</td><td class="num">2</td><td class="num">0</td></tr>
+          <tr><td>neocities-modernization</td><td class="num">9</td><td class="num">4</td><td class="num">0</td></tr>
+          <tr><td>delta-version</td><td class="num">4</td><td class="num">1</td><td class="num">0</td></tr>
+          <tr><td>scripts</td><td class="num">3</td><td class="num">1</td><td class="num">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+        <p>Columns are issue files written and completed. The first-person game writes 94 and completes 3: its substrate was built against two of them while the other ninety-one describe the game that substrate is for.</p>
+
+    <h2 class="section">What happened</h2>
+
+    <section class="project" id="soren">
+      <div class="project-head">
+        <h3><span class="slug">01 · 13 issues written, 7 completed</span>soren-ds</h3>
+        <p class="identity">Storage, power and light brought up on the device, and a discipline about leaving hardware as you found it.</p>
+      </div>
+        <div class="stats">
+          <div><span class="k">Flash read</span><span class="v">1 → 8 <small>bit</small></span></div>
+          <div><span class="k">Clock</span><span class="v">24 → 200 <small>MHz</small></span></div>
+          <div><span class="k">Power rails</span><span class="v">9 <small>addressable</small></span></div>
+          <div><span class="k">Bring-ups confirmed</span><span class="v">6</span></div>
+        </div>
+      <div class="body">
+        <p><strong>Bringing a block up</strong> means writing the registers that turn its clock on, release it from reset and configure it, then proving on the actual hardware that it does what the manual says. Every item here was confirmed on the device.</p>
+        <ul class="findings">
+          <li><strong>The internal flash climbed its whole speed ladder.</strong> It had been read one bit wide at 24 MHz; it now reads eight bits wide at 200 MHz, and then in a double-rate mode sampling on the strobe the card itself returns.</li>
+          <li><strong>The power chip can now be written to as well as read from</strong>, and its nine voltage rails set by millivolt. Proved without disturbing anything live: read a safe register, write a marker, read it back, restore it — and separately, program a rail to the voltage it is already at.</li>
+          <li><strong>A read-only look at the clock tree turned up that the cores already run near a gigahertz.</strong> The device's slowness is the caches being switched off, not the clock speed.</li>
+          <li><strong>The slow whole-disk safety copy came out of the boot path</strong>, where it had been grinding for minutes on every boot. It is now an off-by-default diagnostic copying just the bootloader region rather than a blind 200 megabytes.</li>
+        </ul>
+        <aside class="thread">
+          <p class="thread-tag">Thread · Proof by identity <span>starts here</span></p>
+          <p>The bytes were proven identical at every rung: <strong>a fingerprint of a known non-zero block, taken at all three speeds, matching every time</strong> — with the controller's error flag now actually inspected, so a corrupt fast read can no longer masquerade as a clean one. This is the first appearance of a technique four projects use within six weeks: prove a change correct by running both versions and comparing the output, rather than by measuring that the new one is faster.</p>
+        </aside>
+        <h4>1–2 July · putting things back as you found them</h4>
+        <p class="pull">A diagnostic that ungated a clock or released a reset used to leave it that way, so each probe inherited the previous one's leftovers and the kernel booted on through a hardware state nothing had asked for.</p>
+        <p>Every diagnostic now brackets its own writes: it snapshots each register before touching it and writes <strong>that exact value</strong> back on the way out — not a fixed reset value, the state it actually found. A diagnostic running after a legitimate bring-up hands the block back still running. All the restores funnel through one place, <strong>because the clock-tree registers need a write-enable mask set or the restore silently does nothing.</strong></p>
+        <ul class="findings">
+          <li><strong>The new arrival check immediately caught itself being wrong.</strong> The display probe declared the wrong power-on values for that block's clock-gate and reset registers — it assumed the block resets gated and held, while the manufacturer's own tables show both reset to all-zero. On a clean boot it reported <em>not at default</em> when the registers were exactly at default.</li>
+          <li><strong>A write aimed at the boot partition was aimed at the bootloader.</strong> The address was a placeholder from before the partition layout was known, and a probe reading the device's own partition table showed it pointed at the u-boot region — <strong>where a write drops the device into the hard-brick zone, reachable only through deep recovery.</strong> Repointed at the address the partition table names, so a bad write can only land somewhere restorable by booting from SD.</li>
+          <li><strong>A script that wrote to a carry-over drive never flushed it.</strong> It ejected only the SD card it had read from, so nothing guaranteed its writes had left the operating system's cache before the operator pulled the drive out. Its sibling got this for free from unmounting; this one did not.</li>
+        </ul>
+        <div class="transcripts">
+          <p class="transcripts-tag">Working transcripts · soren-ds</p>
+          <ol>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/soren-ds/llm-transcripts/jun-16-26-through-jul-1-26.md">16 Jun – 1 Jul</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/soren-ds/llm-transcripts/jun-29-26.md">29 Jun</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/soren-ds/llm-transcripts/jul-1-26.md">1 Jul</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/soren-ds/llm-transcripts/jul-1-26-through-jul-2-26.md">1 Jul – 2 Jul</a> <span>+2 agent</span></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/soren-ds/llm-transcripts/jul-2-26-through-jul-3-26.md">2 Jul – 3 Jul</a> <span>+1 agent</span></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/soren-ds/llm-transcripts/jul-11-26-through-jul-12-26.md">11 Jul – 12 Jul</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/soren-ds/llm-transcripts/jul-24-26-through-jul-25-26.md">24 Jul – 25 Jul</a></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="project" id="gif">
+      <div class="project-head">
+        <h3><span class="slug">02 · 33 issues written, 23 completed</span>gif-generator</h3>
+        <p class="identity">Nothing to five of six phases in three days, 23 to 25 July.</p>
+      </div>
+        <div class="stats">
+          <div><span class="k">Phases</span><span class="v">5 <small>of 6</small></span></div>
+          <div><span class="k">Colours</span><span class="v">256</span></div>
+          <div><span class="k">Speed-up</span><span class="v">3.08 <small>× on 4 threads</small></span></div>
+          <div><span class="k">Capstone</span><span class="v">333,536 <small>bytes, twice</small></span></div>
+        </div>
+      <div class="body">
+        <p>A <strong>score</strong> is a flat list of strokes, each one a declarative sentence — <em>at 0.0 seconds, lasting 2.0, an ember-coloured arc from twelve o'clock to seven, fading in, eased like a brush stroke</em>. It compiles into a timeline that can answer, for any moment, where every particle source is and how hard it is emitting. Particles drift, age and die; each stamps a small radial glow onto a floating-point light buffer; glows <strong>add</strong>, so where particles crowd, the light saturates toward white.</p>
+        <ul class="findings">
+          <li><strong>The 256 available colours are spent deliberately rather than sampled.</strong> Seven named hues, each with a ramp whose steps crowd the dark end where a fading tail would otherwise band. Black alone at seat zero, a grey ramp on top for white-hot cores. <strong>Finding a pixel's seat is arithmetic, never a search</strong>: saturation decides whether it is grey, the hue angle picks the ramp, a curve picks the step.</li>
+          <li><strong>The GIF89a encoder is written by hand, including its LZW compression</strong>, whose dictionary is kept flat so the hot loop never builds a string.</li>
+          <li><strong>The particle pool refuses to grow.</strong> Particles live in flat parallel arrays where the living ones form a solid run at the front; a death is a swap with the last living particle. When a stroke asks for more than its estimate the run stops with an error naming that stroke.</li>
+          <li><strong>Fade is computed when asked and never stored</strong>, with the reason written at the loop: stored derived state is state waiting to fall out of step with what it came from.</li>
+        </ul>
+        <aside class="thread">
+          <p class="thread-tag">Thread · Fallbacks hide bugs <span><a href="part-2-the-founding.html">first seen in Part 2</a></span></p>
+          <p>Silently dropping particles would silently change the picture, so the pool stops the run instead. A misspelled field in a particle-source recipe is refused with the list of legal ones rather than meaning a default. <strong>A picture that is quietly wrong is worse than a run that stops.</strong></p>
+        </aside>
+        <p class="pull">The encoder's round-trip test earned its keep on first contact. An independent decoder caught it growing its code width one emission early — a decoder runs one dictionary entry behind, so the bump belongs before the add. That is the kind of off-by-one that corrupts playback in every browser while looking fine from the inside.</p>
+        <h4>The language, and what it refuses</h4>
+        <p>Score files are read inside a sandbox offering exactly the stroke vocabulary and nothing else, so <strong>a score that tries to compute anything is refused</strong>. That keeps scores comparable line by line and writable by a small language model constrained to a grammar. The compiler refuses everything at once rather than one error per run, and teaches every misspelled word its nearest legal neighbour by edit distance — <em>ebmer</em> learns <em>ember</em>, <em>strok</em> learns <em>stroke</em>.</p>
+        <aside class="thread">
+          <p class="thread-tag">Thread · Proof by identity <span><a href="part-7-the-metal-and-the-ember.html">first seen in Part 7</a></span></p>
+          <p>Two capstones, both byte comparisons. The vision written as a score renders through the front door to <strong>the same 333,536 bytes</strong> as the version staged by hand in code. And workers roll no dice while addition commutes, so one worker, three workers and the sequential runner all emit byte-identical files — 4.8 seconds by one hand and 1.6 by four, <strong>with the proof of parallelism being an identity rather than a benchmark.</strong></p>
+        </aside>
+        <p>Two honest fixes made the first of those possible: two independent pieces of trigonometry differed in their last bits, and a frame count was being rounded down where floating-point had shaved 4.6 times 25 to 114.999.</p>
+        <div class="transcripts">
+          <p class="transcripts-tag">Working transcripts · gif-generator</p>
+          <ol>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/gif-generator/llm-transcripts/jul-24-26-through-jul-25-26.md">24 Jul – 25 Jul</a></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="project" id="spellcraft">
+      <div class="project-head">
+        <h3><span class="slug">03 · 94 issues written, 3 completed</span>games/first-person-spellcraft</h3>
+        <p class="identity">The dataflow substrate, built headless and proven before any window existed to draw into.</p>
+      </div>
+
+      <div class="body">
+        <p>Two mice are read as separate devices, each driving one animated hand on a wand, and <strong>the geometry between the two grips is the aim direction</strong>. That aim becomes a source-agnostic state the spell system, renderer and computer-controlled characters all read without knowing a mouse existed.</p>
+        <ul class="findings">
+          <li><strong>Three shapes of buffer carry values between units of work</strong>, each a thread-safe fixed-cell ring: one a reader drains completely, one where the latest value wins and the whole structure is copied under a lock so it can never be read half-written, and one handing out increasing index numbers atomically.</li>
+          <li><strong>A unit of work can put itself back on the queue</strong>, which is how the frame heartbeat and any looping work keep going without a scheduler that knows about either.</li>
+          <li><strong>The rule that turns the graph is made race-safe by two mechanisms</strong>: a gate allowing one attempt at a unit in flight at a time, and a clear-then-recheck closing the window where a wake-up could arrive between a unit deciding it has nothing to do and going to sleep.</li>
+        </ul>
+        <aside class="thread">
+          <p class="thread-tag">Thread · Proof by identity <span><a href="part-7-the-metal-and-the-ember.html">first seen in Part 7</a></span></p>
+          <p>Random position changes are pushed through the real pipeline, drained, and summed into a position — then compared against an authoritative total computed separately. <strong>The two can only agree if nothing was lost, duplicated or read half-written across any interleaving of the threads.</strong> It held 40 times out of 40 under repeated stress.</p>
+        </aside>
+        <p><strong>The one thread that is not a unit of work is the renderer</strong>, because a graphics context belongs to a single thread: a dedicated never-blocked drawer owns it, reads the latest thing to draw, and is content to lag the workers by a frame or two. One practical thing was learned and written down — the memory-backed scratch storage is mounted with execution forbidden, so the binary builds into the other temporary tier instead.</p>
+        <div class="transcripts">
+          <p class="transcripts-tag">Working transcripts · games/first-person-spellcraft</p>
+          <ol>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/games/first-person-spellcraft/llm-transcripts/jul-7-26.md">7 Jul</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/games/first-person-spellcraft/llm-transcripts/jul-21-26-through-jul-22-26.md">21 Jul – 22 Jul</a> <span>+1 agent</span></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="project" id="record">
+      <div class="project-head">
+        <h3><span class="slug">04 · 7 issues written, 2 completed</span>the transcript filing</h3>
+        <p class="identity">823 files filed under readable names, and the naming given one owner.</p>
+      </div>
+
+      <div class="body">
+        <p>Every project keeps its own folder of working transcripts, so reading the collection's history meant visiting a dozen folders and interleaving their dates in your head — and the files were named after opaque session identifiers. A script now rebuilds a shelf of symbolic links named with sortable date prefixes, so a plain directory listing reads as the storyline from beginning to end, with sessions from different projects interleaving on the days they overlapped. <strong>It only ever deletes its own symbolic links, and halts if it finds anything else in the directory.</strong></p>
+        <aside class="thread">
+          <p class="thread-tag">Thread · One owner for the shared thing <span><a href="part-4-one-hundred-and-sixty-seven.html">first seen in Part 4</a></span></p>
+          <p>File names were always a projection of the session log, re-derived after every reply — and a separate one-shot renaming tool had been sharing the job, <strong>so its renames were reverted on the next reply</strong>. The exporter became the single naming authority and the other tool was retired. The same trap was found waiting in a ticket that had not been built yet.</p>
+        </aside>
+        <ul class="findings">
+          <li><strong>A race guard, because the hook and the log are siblings rather than a sequence.</strong> The export runs after a reply and the log's final write happens independently, so the exporter could read a conversation before its last reply landed and produce a transcript ending on an unanswered question. The parser now recognises that shape, waits, and re-reads a few bounded times before surrendering loudly.</li>
+          <li><strong>The line-wrapping rule caught the wrong things and missed the fragile ones.</strong> It exempted any line starting with a dash or asterisk — a net cast for bullets that also caught every paragraph opening in bold — while code fences and table rows, the two shapes that genuinely break when wrapped, had no protection at all. Rewritten with the distinction stated: <strong>prose wraps, structure passes through.</strong></li>
+        </ul>
+        <div class="transcripts">
+          <p class="transcripts-tag">Working transcripts · delta-version</p>
+          <ol>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/delta-version/llm-transcripts/jul-24-26-through-jul-25-26.md">24 Jul – 25 Jul</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/delta-version/llm-transcripts/jul-25-26-through-jul-26-26.md">25 Jul – 26 Jul</a></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+
+    <h2 class="section" id="open">What is open</h2>
+
+    <div class="scroll wide">
+      <table class="prose">
+        <caption>Outstanding at the close of the window</caption>
+        <thead>
+          <tr><th style="width:22%">Project</th><th style="width:13%">State</th><th>Waiting on</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>gif-generator</td>
+            <td><span class="chip open">Waiting on hardware</span></td>
+            <td>The last phase turns spoken prose into scores using small models running locally, with a grammar generated from the same vocabulary tables the validator uses so <strong>misspelling is physically impossible</strong>. Everything provable without those machines is built. What remains is a network adapter for the day they exist.</td>
+          </tr>
+          <tr>
+            <td>games/first-person-spellcraft</td>
+            <td><span class="chip open">Debug view only</span></td>
+            <td>The world is drawn top-down as a debug view and a stand-in player wanders it bouncing off solid tiles. <strong>The first-person renderer the game is named for does not exist</strong>, and 91 of its 94 new issue files describe the game rather than the substrate.</td>
+          </tr>
+          <tr>
+            <td>soren-ds</td>
+            <td><span class="chip blocked">Guarded</span></td>
+            <td>The writer that puts a boot image onto internal flash now points at the right partition but <strong>stays dormant and uncalled</strong>: it needs an A/B slot scheme and a boot-success flag before it is safe to enable.</td>
+          </tr>
+          <tr>
+            <td>usb-c-universal-encoder</td>
+            <td><span class="chip open">Designed</span></td>
+            <td>Mounting a connected peer as a folder, and a cable-as-courier storage model that fills newest-first and evicts oldest when two slots overflow their union. Both written down, neither built.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="section" id="tree">Notes on the tree</h2>
+
+        <p>The transcript filing is one commit of 823 files whose message is written in the voice of somebody tidying a child's room. Nearly every changed file in it is a rename from an opaque identifier to a date.</p>
+
+    <nav class="partnav"><a class="nav-prev" href="part-6-two-indicator-lights.html"><span>Previous</span>Two Indicator Lights</a><a class="nav-up" href="index.html">Contents</a><a class="nav-next" href="part-8-first-light-three-times.html"><span>Next</span>First Light, Three Times</a></nav>
+  </main>
+</div>

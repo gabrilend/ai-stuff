@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The August Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Drafting blue, because in this repository an issue file is called a
+   blueprint and a report about them may as well be one. Every colour is
+   declared on bare :root first, so a browser with no theme preference stamped
+   on it still resolves a complete set. */
+:root {
+  --paper:#EBF0F4; --surface:#F9FBFC; --surface-2:#E2E9EE;
+  --ink:#12202B; --ink-2:#354A59; --muted:#64798A;
+  --rule:#C3D0DA; --rule-soft:#D6E0E7;
+  --accent:#0F4C8A; --accent-2:#2E7CC4; --accent-wash:#DCE8F3;
+  --built:#1B6B58; --open:#8C5F10; --blocked:#A03A2C;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#0B131A; --surface:#111C25; --surface-2:#17242F;
+    --ink:#D9E4EC; --ink-2:#AFC0CD; --muted:#7D91A0;
+    --rule:#223441; --rule-soft:#1B2A35;
+    --accent:#6FA6E4; --accent-2:#8FBEF0; --accent-wash:#152634;
+    --built:#4FB99A; --open:#D6A448; --blocked:#E27F72;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#0B131A; --surface:#111C25; --surface-2:#17242F;
+  --ink:#D9E4EC; --ink-2:#AFC0CD; --muted:#7D91A0;
+  --rule:#223441; --rule-soft:#1B2A35;
+  --accent:#6FA6E4; --accent-2:#8FBEF0; --accent-wash:#152634;
+  --built:#4FB99A; --open:#D6A448; --blocked:#E27F72;
+}
+* { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body {
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif;
+  font-size:18px; line-height:1.62; font-optical-sizing:auto;
+  -webkit-font-smoothing:antialiased;
+}
+img { max-width:100%; }
+.shell {
+  max-width:1240px; margin:0 auto; padding:0 28px 96px;
+  display:grid; grid-template-columns:232px minmax(0,1fr); gap:56px; align-items:start;
+}
+@media (max-width:1040px) {
+  .shell { grid-template-columns:minmax(0,1fr); gap:0; padding:0 20px 72px; }
+  .rail { position:static; margin:0 0 40px; }
+}
+.masthead { grid-column:1/-1; border-bottom:2px solid var(--ink); padding:56px 0 22px; margin-bottom:40px; }
+.eyebrow {
+  font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--accent);
+}
+h1 {
+  font-family:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  font-weight:700; font-size:clamp(38px,6vw,62px); line-height:1.02;
+  letter-spacing:-.022em; margin:14px 0 0; text-wrap:balance;
+}
+.dek { margin:16px 0 0; max-width:62ch; font-size:20px; color:var(--ink-2); }
+.masthead-meta {
+  display:flex; flex-wrap:wrap; gap:8px 26px; margin-top:26px;
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; color:var(--muted);
+}
+.masthead-meta b { color:var(--ink); font-weight:500; }
+.rail { position:sticky; top:24px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; }
+.rail h2 {
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+  font-weight:500; margin:0 0 14px; padding-bottom:8px; border-bottom:1px solid var(--rule);
+}
+.rail ol { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:3px; }
+.rail a {
+  display:grid; grid-template-columns:1fr auto; align-items:baseline; gap:8px;
+  padding:6px 8px 7px; border-radius:2px; text-decoration:none; color:var(--ink-2);
+  border-left:2px solid transparent;
+}
+.rail a:hover { background:var(--accent-wash); color:var(--ink); border-left-color:var(--accent); }
+.rail a:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.rail .n { color:var(--muted); font-variant-numeric:tabular-nums; }
+.rail .bar { grid-column:1/-1; height:3px; background:var(--rule-soft); margin-top:5px; position:relative; }
+.rail .bar i { position:absolute; inset:0 auto 0 0; background:var(--accent); display:block; }
+.rail .foot { margin-top:20px; padding-top:12px; border-top:1px solid var(--rule); color:var(--muted); line-height:1.55; }
+.rail .foot a { display:inline; padding:0; border:0; }
+main { min-width:0; }
+main > * { max-width:68ch; }
+main > .wide, main > figure, main > .scroll { max-width:none; }
+h2.section {
+  font-family:"Bricolage Grotesque",Arial,sans-serif; font-size:13px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent);
+  margin:72px 0 22px; padding-bottom:9px; border-bottom:1px solid var(--rule); max-width:none;
+}
+h2.section:first-child { margin-top:0; }
+p { margin:0 0 1.05em; }
+p.lead { font-size:20px; color:var(--ink-2); }
+strong { font-weight:600; color:var(--ink); }
+a { color:var(--accent); }
+code { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:.88em; background:var(--surface-2); padding:1px 4px; border-radius:2px; }
+.project { margin:0 0 8px; padding:40px 0 0; max-width:none; }
+.project + .project { border-top:1px solid var(--rule-soft); margin-top:44px; }
+.project-head { max-width:68ch; }
+.project h3 {
+  font-family:"Bricolage Grotesque",Arial,sans-serif; font-size:clamp(26px,3.4vw,34px);
+  font-weight:600; letter-spacing:-.018em; line-height:1.12; margin:0; text-wrap:balance;
+}
+.project h3 .slug {
+  display:block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px;
+  font-weight:400; letter-spacing:.04em; color:var(--muted); margin-bottom:8px;
+}
+.project .identity { margin:12px 0 0; color:var(--ink-2); max-width:66ch; }
+.project .body { max-width:68ch; margin-top:26px; }
+.project h4 {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; font-weight:500;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--muted); margin:30px 0 10px;
+}
+.stats { display:flex; flex-wrap:wrap; margin:22px 0 0; border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); }
+.stats div { flex:1 1 116px; padding:12px 16px 13px; border-right:1px solid var(--rule-soft); font-family:"JetBrains Mono",ui-monospace,monospace; }
+.stats div:last-child { border-right:0; }
+.stats .k { font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:4px; }
+.stats .v { font-size:19px; font-weight:500; font-variant-numeric:tabular-nums; color:var(--ink); }
+.stats .v small { font-size:11px; color:var(--muted); font-weight:400; letter-spacing:.02em; }
+.entry { margin:0 0 1.05em; padding-left:17px; border-left:2px solid var(--rule); }
+.entry .when {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--accent); display:block; margin-bottom:3px;
+}
+ul.findings { list-style:none; margin:0 0 1.2em; padding:0; display:flex; flex-direction:column; gap:15px; }
+ul.findings > li { padding-left:17px; border-left:2px solid var(--accent-2); }
+.pull {
+  font-family:"Bricolage Grotesque",Arial,sans-serif; font-size:21px; font-weight:500;
+  line-height:1.34; letter-spacing:-.012em; color:var(--ink); border-left:3px solid var(--accent);
+  padding:4px 0 4px 20px; margin:26px 0; text-wrap:pretty;
+}
+.transcripts {
+  margin:24px 0; padding:14px 18px 6px; border:1px solid var(--rule);
+  border-radius:2px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px;
+}
+.transcripts-tag {
+  font-size:10px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--muted); margin:0 0 8px;
+}
+.transcripts ol {
+  margin:0 0 10px; padding:0; list-style:none;
+  display:flex; flex-wrap:wrap; gap:4px 10px;
+}
+.transcripts li::after { content:"·"; color:var(--rule); margin-left:10px; }
+.transcripts li:last-child::after { content:""; }
+.transcripts a { color:var(--accent); text-decoration:none; border-bottom:1px solid var(--rule); }
+.transcripts a:hover { border-bottom-color:var(--accent); }
+.transcripts span { color:var(--muted); font-size:10px; }
+.transcripts em { color:var(--muted); font-style:normal; }
+.thread {
+  margin:26px 0; padding:16px 20px 4px; background:var(--accent-wash);
+  border-left:3px solid var(--accent-2); border-radius:2px;
+}
+.thread p { margin:0 0 1em; }
+.thread-tag {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10.5px; font-weight:500;
+  letter-spacing:.11em; text-transform:uppercase; color:var(--accent); margin:0 0 8px;
+}
+.thread-tag span { color:var(--muted); font-weight:400; letter-spacing:.06em; }
+.thread-tag a { color:var(--muted); }
+.scroll { overflow-x:auto; margin:0 0 1.4em; }
+table { border-collapse:collapse; width:100%; min-width:520px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:13px; }
+caption { caption-side:top; text-align:left; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding-bottom:9px; }
+th { text-align:left; font-weight:500; font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); padding:0 14px 7px 0; border-bottom:1px solid var(--rule); }
+td { padding:9px 14px 9px 0; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; padding-right:0; }
+tbody tr:hover td { background:var(--accent-wash); }
+table.prose { font-family:"Newsreader",Georgia,serif; font-size:16px; }
+table.prose td { line-height:1.5; }
+.chip {
+  display:inline-block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px;
+  font-weight:500; letter-spacing:.07em; text-transform:uppercase; padding:2px 7px 3px;
+  border:1px solid currentColor; border-radius:2px; white-space:nowrap;
+}
+.chip.built { color:var(--built); }
+.chip.open { color:var(--open); }
+.chip.blocked { color:var(--blocked); }
+.spans { margin:26px 0 34px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; }
+.span-axis, .span-row { display:flex; align-items:center; gap:12px; }
+.span-axis { color:var(--muted); font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding-bottom:6px; border-bottom:1px solid var(--rule); margin-bottom:6px; }
+.span-row { padding:3px 0; }
+.span-row:hover { background:var(--accent-wash); }
+.span-name { flex:0 0 220px; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.span-track { flex:1 1 auto; position:relative; height:14px; }
+.span-row .span-track::before { content:""; position:absolute; inset:6px 0 auto 0; height:1px; background:var(--rule-soft); }
+.span-track i { position:absolute; top:3px; height:8px; background:var(--accent); border-radius:1px; display:block; }
+.span-year { position:absolute; top:0; font-size:10px; color:var(--muted); border-left:1px solid var(--rule); padding-left:3px; }
+.span-count { flex:0 0 54px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; }
+@media (max-width:700px) { .span-name { flex-basis:130px; } }
+figure { margin:0 0 34px; }
+figure svg { display:block; width:100%; height:auto; }
+figcaption { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11.5px; color:var(--muted); line-height:1.55; margin-top:10px; max-width:72ch; }
+.tick { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--muted); }
+.tick-strong { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--ink); font-weight:500; }
+.gridline { stroke:var(--rule-soft); stroke-width:1; }
+.baseline { stroke:var(--rule); stroke-width:1; }
+.bar-fill { fill:var(--accent); }
+.bar-zero { fill:var(--rule); }
+.bar-label { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--ink); font-weight:500; }
+.partnav {
+  display:flex; gap:16px; align-items:stretch; margin-top:64px; padding-top:20px;
+  border-top:2px solid var(--ink); font-family:"JetBrains Mono",ui-monospace,monospace; font-size:13px;
+}
+.partnav a { text-decoration:none; color:var(--ink); padding:10px 14px; border:1px solid var(--rule); border-radius:2px; line-height:1.35; }
+.partnav a:hover { background:var(--accent-wash); border-color:var(--accent); }
+.partnav a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.partnav span { display:block; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+.nav-prev { flex:1 1 0; }
+.nav-next { flex:1 1 0; text-align:right; }
+.nav-up { flex:0 0 auto; align-self:center; color:var(--muted); }
+@media (max-width:600px) { .partnav { flex-direction:column; } .nav-next { text-align:left; } }
+.colophon {
+  margin-top:76px; padding-top:20px; border-top:2px solid var(--ink);
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; line-height:1.62;
+  color:var(--muted); max-width:74ch;
+}
+.colophon b { color:var(--ink-2); font-weight:500; }
+@media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="masthead">
+    <div class="eyebrow">Part 9 · 20 August – 1 September 2026</div>
+    <h1>The August Ledger</h1>
+    <p class="dek">Nine projects at once. A maze generator is condemned by arithmetic about sight lines, a cube-shaped computer's eighty-four blueprints all agree for the first time, and 226 poems turn out to be reachable from nowhere on the site that indexes them.</p>
+    <div class="masthead-meta">
+      <span><b>548</b> issues written</span>
+      <span><b>281</b> completed</span>
+      <span><b>9</b> projects</span>    </div>
+  </header>
+
+  <nav class="rail" aria-label="Projects, ordered by commits in this window">
+    <h2>Projects · commits</h2>
+    <ol>
+      <li><a href="#maze"><span>jurassic-maze</span><span class="n">71</span><span class="bar"><i style="width:59%"></i></span></a></li>
+      <li><a href="#cube"><span>six-sided-dice-cake</span><span class="n">110</span><span class="bar"><i style="width:92%"></i></span></a></li>
+      <li><a href="#vtt"><span>my-own-custom-vtt</span><span class="n">120</span><span class="bar"><i style="width:100%"></i></span></a></li>
+      <li><a href="#moba"><span>hero-less-moba</span><span class="n">99</span><span class="bar"><i style="width:83%"></i></span></a></li>
+      <li><a href="#enheim"><span>enheim-tome</span><span class="n">106</span><span class="bar"><i style="width:88%"></i></span></a></li>
+      <li><a href="#rest"><span>three more</span><span class="n">40</span><span class="bar"><i style="width:33%"></i></span></a></li>
+    </ol>
+    <div class="foot">
+      <a href="#open">What is open</a><br>
+      <a href="#tree">Notes on the tree</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <h2 class="section">The window</h2>
+
+        <p class="lead">The window runs 20 August to 1 September. A week of silence before it.</p>
+        <p>Nine projects, and unusually for this record they are nine different subjects rather than two or three. The largest single day is the 26th, which carries 82 commits across three unrelated projects.</p>
+        <aside class="thread">
+          <p class="thread-tag">Thread · Blueprints outnumber code <span><a href="part-1-the-first-fourteen-weeks.html">first seen in Part 1</a></span></p>
+          <p>Two projects here write a great deal and finish none of it: the city game writes 106 issue files and completes zero, the lane-pushing game writes 99 and completes zero. <strong>Between them that is 205 blueprints for work that has not started</strong>, in a window where five other projects completed 281 issues between them.</p>
+        </aside>
+
+    <figure class="wide">
+      <svg viewBox="0 0 780 224" role="img" aria-label="Commits per day from 20 August to 1 September 2026, peaking at 82 on the 26th, with the 29th and 30th silent.">
+    <line class="baseline" x1="40" y1="176.0" x2="770" y2="176.0"></line>
+    <text class="tick" x="34" y="179.0" text-anchor="end">0</text>
+    <line class="gridline" x1="40" y1="143.2" x2="770" y2="143.2"></line>
+    <text class="tick" x="34" y="146.2" text-anchor="end">20</text>
+    <line class="gridline" x1="40" y1="110.4" x2="770" y2="110.4"></line>
+    <text class="tick" x="34" y="113.4" text-anchor="end">40</text>
+    <line class="gridline" x1="40" y1="77.6" x2="770" y2="77.6"></line>
+    <text class="tick" x="34" y="80.6" text-anchor="end">60</text>
+    <line class="gridline" x1="40" y1="44.8" x2="770" y2="44.8"></line>
+    <text class="tick" x="34" y="47.8" text-anchor="end">80</text>
+    <line class="gridline" x1="40" y1="12.0" x2="770" y2="12.0"></line>
+    <text class="tick" x="34" y="15.0" text-anchor="end">100</text>
+    <rect class="bar-fill" x="51.1" y="174.0" width="34.0" height="2.0"></rect>
+    <text class="tick" x="68.1" y="192" text-anchor="middle">20</text>
+    <rect class="bar-fill" x="107.2" y="136.6" width="34.0" height="39.4"></rect>
+    <text class="tick-strong" x="124.2" y="192" text-anchor="middle">21</text>
+    <rect class="bar-fill" x="163.4" y="166.2" width="34.0" height="9.8"></rect>
+    <text class="tick" x="180.4" y="192" text-anchor="middle">22</text>
+    <rect class="bar-fill" x="219.5" y="174.0" width="34.0" height="2.0"></rect>
+    <text class="tick" x="236.5" y="192" text-anchor="middle">23</text>
+    <rect class="bar-fill" x="275.7" y="162.9" width="34.0" height="13.1"></rect>
+    <text class="tick" x="292.7" y="192" text-anchor="middle">24</text>
+    <rect class="bar-fill" x="331.8" y="121.9" width="34.0" height="54.1"></rect>
+    <text class="tick-strong" x="348.8" y="192" text-anchor="middle">25</text>
+    <rect class="bar-fill" x="388.0" y="41.5" width="34.0" height="134.5"></rect>
+    <text class="bar-label" x="405.0" y="36.5" text-anchor="middle">82</text>
+    <text class="tick-strong" x="405.0" y="192" text-anchor="middle">26</text>
+    <rect class="bar-fill" x="444.2" y="158.0" width="34.0" height="18.0"></rect>
+    <text class="tick" x="461.2" y="192" text-anchor="middle">27</text>
+    <rect class="bar-fill" x="500.3" y="135.0" width="34.0" height="41.0"></rect>
+    <text class="tick-strong" x="517.3" y="192" text-anchor="middle">28</text>
+    <rect class="bar-zero" x="556.5" y="175.0" width="34.0" height="1"></rect>
+    <text class="tick" x="573.5" y="192" text-anchor="middle">29</text>
+    <rect class="bar-zero" x="612.6" y="175.0" width="34.0" height="1"></rect>
+    <text class="tick" x="629.6" y="192" text-anchor="middle">30</text>
+    <rect class="bar-fill" x="668.8" y="130.1" width="34.0" height="45.9"></rect>
+    <text class="tick-strong" x="685.8" y="192" text-anchor="middle">31</text>
+    <rect class="bar-fill" x="724.9" y="159.6" width="34.0" height="16.4"></rect>
+    <text class="tick-strong" x="741.9" y="192" text-anchor="middle">01</text>
+        <text class="tick" x="40" y="212">August</text>
+        <text class="tick" x="770" y="212" text-anchor="end">September</text>
+      </svg>
+      <figcaption>Commits per day. The 26th is one day in which most of the virtual tabletop, most of the cube blueprint set and most of the kanji study tool were committed.</figcaption>
+    </figure>
+
+    <div class="scroll wide">
+      <table>
+        <caption>Issue files, 20 August – 1 September</caption>
+        <thead>
+          <tr><th>Project</th><th class="num">Commits</th><th class="num">Lines added</th><th class="num">Lines removed</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>my-own-custom-vtt</td><td class="num">120</td><td class="num">96</td><td class="num">0</td></tr>
+          <tr><td>six-sided-dice-layer-cake</td><td class="num">110</td><td class="num">98</td><td class="num">0</td></tr>
+          <tr><td>games/enheim-tome</td><td class="num">106</td><td class="num">0</td><td class="num">0</td></tr>
+          <tr><td>hero-less-moba</td><td class="num">99</td><td class="num">0</td><td class="num">0</td></tr>
+          <tr><td>jurassic-maze</td><td class="num">71</td><td class="num">55</td><td class="num">0</td></tr>
+          <tr><td>kanji-learning-image-generator</td><td class="num">40</td><td class="num">32</td><td class="num">0</td></tr>
+          <tr><td>every-software-image-able</td><td class="num">2</td><td class="num">0</td><td class="num">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+        <p>Columns are issue files written and completed. The poetry website and the shared tooling appear below without new issue files — their work this window is repairs to things already built.</p>
+
+    <h2 class="section">What happened</h2>
+
+    <section class="project" id="maze">
+      <div class="project-head">
+        <h3><span class="slug">01 · 71 issues written, 55 completed</span>jurassic-maze</h3>
+        <p class="identity">The generator that had been building the world since the project started is deleted, because arithmetic showed most of the world could not be seen.</p>
+      </div>
+        <div class="stats">
+          <div><span class="k">Of the maze hidden</span><span class="v">71 <small>%</small></span></div>
+          <div><span class="k">Broken links found</span><span class="v">109</span></div>
+          <div><span class="k">Spheres</span><span class="v">900</span></div>
+          <div><span class="k">A world is now</span><span class="v">2 <small>files</small></span></div>
+        </div>
+      <div class="body">
+        <p>A field of stacked stone blocks drawn from one fixed corner-on angle, so a square field reads on screen as a diamond. Tall stacks are walls, short ones are floors, and the corridors are the short places. Nothing inside a stack is ever represented: only exposed top surfaces and exposed side faces exist.</p>
+        <p class="pull">Looking at the reference painting closely enough to count courses of masonry settles it: there is not one wall in the whole picture. Every vertical surface in it is the side of a higher flat plate, and what reads as a wall between two corridors is the edge of a block whose own top is walkable.</p>
+        <p><strong>What made that findable is that the visibility problem had been measured rather than argued about.</strong> In this projection the line of sight climbs 1.6 stone layers per diagonal cell, and a wall standing two layers above its corridor is 2 — twenty pixels of wall against sixteen pixels of diagonal step, so the wall's top face is drawn over the floor behind it and that floor is gone. The generator laid rooms at odd coordinates, so the cell diagonally in front of every room was a lattice post, and a post is always a wall. <strong>Every room in the maze was hidden by its own front post, on every random seed. Seventy-one percent of the maze could not be seen.</strong></p>
+        <p>So the generator was deleted. The world is now a file somebody typed, describing a mountainside rather than a nested pyramid, with every shelf visible from summit to base — and nine hundred spheres roll down it bouncing off real geometry and off each other. Every collision defect had been invisible at three hundred balls and unmissable at nine hundred.</p>
+        <p><strong>A world then became two files</strong>: a picture and a small data file. A position becomes a pixel through five numbers and there is nothing else to know, which is what makes the picture interchangeable — the one the exporter writes is a picture of this project's mountain, and a painting somebody made by hand does just as well. So the projection lives in the data file rather than being assumed by the program.</p>
+        <p>Deciding whether a body is hidden behind a rock is done without a depth buffer and is <strong>exact rather than approximate</strong>: cast one ray from the body toward the camera and ask whether any stack of stone stands over it. One ray per body per frame. The sightline work has now paid for itself three times — as the measurement that condemned the generator, as the check on the hand-authored map, and as the entire visibility model.</p>
+        <aside class="thread">
+          <p class="thread-tag">Thread · Documentation drifts from the thing it describes <span><a href="part-5-written-not-built.html">first seen in Part 5</a></span></p>
+          <p>The documentation grew a build program that turns the plain-text documents into linked pages, plus a validator. <strong>It found a hundred and nine broken links on its first run.</strong> The lesson recorded alongside the pivot is sharper: six measurements had been taken off the reference picture, every one about a dimension — corridor width, wall height, stair run — and none about what the thing was <em>made of</em>, which turned out to be the only question that mattered.</p>
+        </aside>
+        <div class="transcripts">
+          <p class="transcripts-tag">Working transcripts · jurassic-maze</p>
+          <ol>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/jurassic-maze/llm-transcripts/aug-31-26-through-sep-1-26.md">31 Aug – 1 Sep</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/jurassic-maze/llm-transcripts/sep-1-26.md">1 Sep</a></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="project" id="cube">
+      <div class="project-head">
+        <h3><span class="slug">02 · 110 issues written, 98 completed</span>six-sided-dice-layer-cake</h3>
+        <p class="identity">Eighty-four engineering blueprints for a computer shaped like a cube, and a program that evaluates every derivation in them.</p>
+      </div>
+        <div class="stats">
+          <div><span class="k">Blueprints</span><span class="v">84</span></div>
+          <div><span class="k">Symbols</span><span class="v">1,375</span></div>
+          <div><span class="k">Constraints</span><span class="v">532</span></div>
+          <div><span class="k">Failing</span><span class="v">0</span></div>
+          <div><span class="k">Check time</span><span class="v">&lt;1 <small>s</small></span></div>
+        </div>
+      <div class="body">
+        <p>Every dimension is either chosen outright or written as an arithmetic expression over dimensions that were, and every rule the design must satisfy sits next to the part it constrains. Because the derivations are arithmetic rather than prose, a program evaluates all of them: <strong>the whole cube can be resized by editing one file of eleven chosen lengths and rerunning the checker, which reports which rule breaks first.</strong></p>
+        <ul class="findings">
+          <li><strong>The cost model came out in a different order than the ticket predicted.</strong> It expected silicon area first, then yield, then bonding. What came out is that <strong>the memory tiers are two thirds of the silicon bill, not the compute dies</strong> — a tier is forty millimetres square, large enough that only about two thirds come off a wafer intact, so a third are scrapped before assembly starts.</li>
+          <li><strong>Assembly yield came out better than the raw arithmetic threatens, and the constraint was rewritten because of it.</strong> About nine cubes in ten survive being built from known-good parts, and that is <em>because of</em> four mitigations already designed in: gates that test a part before committing it to an assembly, spare rows in each memory tier, one whole spare tier, and spare conductors between faces. So the constraint now asserts that yield stays <strong>visible</strong> in the report rather than that it is high — specifically so nobody reads a healthy figure and removes the mitigation that produced it.</li>
+          <li><strong>One table claimed the cube had six opposite faces and nothing could tell.</strong> A cube has three opposite pairs. That is what motivated teaching the checker this shape of mistake.</li>
+          <li><strong>Twenty-seven unit conversions were happening silently</strong> in the input-output face, and twelve material properties were being read that nobody had written into the materials table — four of which had no value anywhere.</li>
+        </ul>
+        <aside class="thread">
+          <p class="thread-tag">Thread · One owner for the shared thing <span><a href="part-4-one-hundred-and-sixty-seven.html">first seen in Part 4</a></span></p>
+          <p><strong>A physical quantity must not be recognised by the identity of the table attached to it.</strong> Two modules that each load the units engine independently end up with two copies of it in memory, and a quantity built by one copy is rejected by the other with a message saying it is not a quantity. Correct, baffling, and fixed by tagging each quantity with a marker field instead.</p>
+        </aside>
+        <div class="transcripts">
+          <p class="transcripts-tag">Working transcripts · six-sided-dice-layer-cake</p>
+          <ol>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/six-sided-dice-layer-cake/llm-transcripts/aug-26-26-through-aug-29-26.md">26 Aug – 29 Aug</a></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="project" id="vtt">
+      <div class="project-head">
+        <h3><span class="slug">03 · 120 issues written, 96 completed</span>my-own-custom-vtt</h3>
+        <p class="identity">Twelve phases finished, each with a runnable demonstration, most of them committed on 26 August.</p>
+      </div>
+        <div class="stats">
+          <div><span class="k">Phases complete</span><span class="v">12 <small>of 13</small></span></div>
+          <div><span class="k">Demos</span><span class="v">12</span></div>
+          <div><span class="k">Creatures</span><span class="v">480</span></div>
+        </div>
+      <div class="body">
+        <p>Because a wall is a line segment rather than dark pixels, the program can compute what each person sees; because it can compute that, the darkness is per-person; and because the darkness is per-person, <strong>the server can refuse to send you what you cannot see</strong>. When a player cannot see around a corner, the bytes describing what is around it never leave the server. Not sent and hidden by the client: never sent.</p>
+        <h4>Four questions asked after everything was finished</h4>
+        <p>Phase 12 exists only because four questions were put to the finished project, and every answer was a design the documents did not have.</p>
+        <ul class="findings">
+          <li><strong>Owning a piece means the right to move it, not a fence around it.</strong> Others can still affect a piece you own; they just cannot move it.</li>
+          <li><strong>Nothing checks who you are.</strong> Rather than pretend otherwise, the host was given the power to eject somebody and undo everything they did, and the documents say plainly that this is honest rather than secure.</li>
+          <li><strong>A question with several plausible answers and no way to check any of them against the code is a question about a word that lies.</strong> Asked what should end a turn's window, the answer came back as a question: <em>what do you mean by a window? Play runs continuously.</em> Nothing had ever waited. Three plausible answers had been written down and all three were about a thing that does not exist. Renaming the field dissolved two open questions at once.</li>
+        </ul>
+        <h4>A question about fog became a redesign</h4>
+        <ul class="findings">
+          <li><strong>A cost problem can be a naming problem.</strong> Tracing rays across terrain to the horizon came out four orders of magnitude over budget. Three structural fixes were found and costed — a hierarchy over the occluders, one over the targets, a precomputed shadow map — and none were needed, because nobody had asked whether the computer should decide visibility at all. Deciding it by hand when the map is authored <strong>made the fast path unnecessary rather than achievable.</strong></li>
+          <li><strong>A claim about a shrinking workload was wrong, and the correction was worth more than the claim.</strong> Once a square is seen it stays seen, so the set left to test looked like it must shrink. It does not: in a world worth exploring the unseen stays nearly everything forever, and the squares you keep paying to test are the ones just around a corner. <strong>The cost lives at the frontier</strong> — small, local and moving, however large the world.</li>
+        </ul>
+        <div class="transcripts">
+          <p class="transcripts-tag">Working transcripts · my-own-custom-vtt</p>
+          <ol>
+            <li><em>26 Aug – 27 Aug</em> <span>not pushed</span></li>
+            <li><em>27 Aug – 29 Aug</em> <span>not pushed</span></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="project" id="moba">
+      <div class="project-head">
+        <h3><span class="slug">04 · 99 issues written, 0 completed</span>hero-less-moba</h3>
+        <p class="identity">The soldiers get a second number beside their health, and it immediately raises a question that stops the rest of the work.</p>
+      </div>
+        <div class="stats">
+          <div><span class="k">Phases built</span><span class="v">7 <small>of 9</small></span></div>
+          <div><span class="k">Issue files</span><span class="v">98</span></div>
+          <div><span class="k">Documents corrected</span><span class="v">60 <small>pages</small></span></div>
+        </div>
+      <div class="body">
+        <p>Two bases, three roads, stone towers, and an endless supply of identical soldiers walking at each other. Both sides emit the same thing at the same rate, so the line where they meet never moves and there is nothing a player can do — <strong>because in the subtracted game there is nothing a player does.</strong> The three replacement systems work at three speeds: a shared upgrade deck drawn when your team wipes a wave, a private wallet filled by every kill that buys single-use bodies, and three signposts per team that redirect where those bodies walk.</p>
+        <p><strong>Every body now carries terror beside its health, and retreats when terror plus remaining health drops below zero.</strong> Because the sum uses <em>remaining</em> health, the same mouthful of despair a fresh body shrugs off breaks one that has been fought down — and a body just healed is braver than it was a second ago, without any healer needing a morale ability. Terror never kills: health at zero destroys a body, the same sum crossed by terror sends it home, one comparison decides which.</p>
+        <p class="pull">An ordinary sword blow taking a body from three health to minus four puts the sum below zero with no terror involved. As written, damage sends bodies home and nothing in the game ever dies.</p>
+        <p>The reading that fits is that below zero means <em>beaten</em>, and what happens to a beaten body has been referred to in the documents for months without anywhere defining what being beaten is. Two halves of one rule, written apart, neither having had the other. It blocks the rest of the phase.</p>
+        <ul class="findings">
+          <li><strong>Being pushed "up" was given a meaning that needs no third axis.</strong> The map is flat, so <em>up</em> now means backwards along the path the body just walked. A body pushed that way has been <em>slowed</em> rather than deflected: it keeps its heading, its column and its place in the queue, and simply arrives later.</li>
+          <li><strong>Every match anyone had ever watched was the same match.</strong> The random number generator started from a fixed value, so every screenshot came from one identical run. The setup file now accepts <em>random</em>, draws a fresh value, and appends it to a notebook in memory — because a starting value nobody wrote down is a match nobody can replay.</li>
+          <li><strong>A single rule can now be watched on an empty stage.</strong> Bodies were bunching into a stationary column during the end-of-match siege, and finding out why meant playing a whole match and squinting at it. <strong>Twice in one week a measurement taken off a whole match was blamed on the wrong thing.</strong> There is now a way to stand up a short straight road with four bodies and nothing else running — and what the test did not ask for is <em>absent</em> rather than merely idle.</li>
+        </ul>
+        <aside class="thread">
+          <p class="thread-tag">Thread · One owner for the shared thing <span><a href="part-4-one-hundred-and-sixty-seven.html">first seen in Part 4</a></span></p>
+          <p>The 173 browsable documentation pages stopped being committed, because a build program writes them from the prose beside them. Committing them means a one-line prose edit arrives as a change to itself plus a hundred and sixty files of machine output, <strong>and two people who both ran the build get a conflict in a file neither of them wrote.</strong></p>
+        </aside>
+        <div class="transcripts">
+          <p class="transcripts-tag">Working transcripts · hero-less-moba</p>
+          <ol>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/hero-less-moba/llm-transcripts/aug-24-26.md">24 Aug</a> <span>+1 agent</span></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/hero-less-moba/llm-transcripts/aug-25-26-through-aug-26-26.md">25 Aug – 26 Aug</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/hero-less-moba/llm-transcripts/aug-26-26-through-aug-29-26.md">26 Aug – 29 Aug</a></li>
+            <li><em>31 Aug – 1 Sep</em> <span>not pushed</span></li>
+            <li><em>1 Sep – 2 Sep</em> <span>not pushed</span></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="project" id="enheim">
+      <div class="project-head">
+        <h3><span class="slug">05 · 106 issues written, 0 completed</span>games/enheim-tome</h3>
+        <p class="identity">A whole layer of the design is deleted because its own text priced it at four years of typing.</p>
+      </div>
+        <div class="stats">
+          <div><span class="k">Issue files</span><span class="v">94</span></div>
+          <div><span class="k">Built</span><span class="v">0</span></div>
+          <div><span class="k">Superseded</span><span class="v">6 <small>filed</small></span></div>
+        </div>
+      <div class="body">
+        <p class="pull">The map is not the city. It is one person's model of the city.</p>
+        <p>A block drawn with no data on it is not empty — it is a block that person does not know about, and ignorance renders as bare painting. Dragging the clock to three in the afternoon does not travel there; it shows what they believe would be true then. So <strong>the time is only ever now</strong>, and nothing on screen needs marking as hypothetical because none of it was ever a live camera.</p>
+        <p><strong>The city is now cut up rather than filled in.</strong> It starts as one undivided whole and gets subdivided, so coverage is always total and the remaining work is how finely it is divided rather than how much exists. The map editor also moved inside the game, so a map is something a player can make and hand to somebody else.</p>
+        <p><strong>And a whole layer was deleted.</strong> It described small written secrets — a key in a box, a chest across the yard — one authored per city block before anyone plays, and one per house forever after. Its own text priced that at two to four years of typing before the game would work.</p>
+        <p class="pull">A design that states a four-year cost about itself has already failed. The wording gave it away before the arithmetic did: it defined an event as an object sitting in a box, and then called the verb possession. You do not hold a party.</p>
+        <ul class="findings">
+          <li><strong>Anything with a character and a status is the same kind of thing, so a room counts as one of the people in it.</strong> Five people in a room makes the room a sixth voice, each carrying one share. That deletes a tunable and gets the right behaviour at every crowd size for free: an empty place is entirely itself, somebody alone at home is half the building, and a packed square is its crowd rather than its stones.</li>
+          <li><strong>Influence flows from the closed to the open</strong>, which is the opposite of the intuitive direction — <em>open</em> means open to being changed. Set that beside the existing rule that a person is closed while busy and open while at rest, and the sentence the documents call the entire design of places — <em>the building is stone, and cannot adjust, and that is what roots people</em> — stops being figurative. <strong>The only hours anybody can change are the hours spent at home, inside something broadcasting at them that cannot be broadcast back at.</strong> Nobody wrote that; it is two other rules touching.</li>
+          <li><strong>The narrative half renders nothing back into the simulation.</strong> A bad paragraph is only a bad paragraph, the same moment can be narrated twice without the city noticing, and the whole thing runs unattended for a thousand simulated days with no narrator at all. The one exception is sharp: <em>naming</em> a newly minted personality dimension is a real change, because a new name becomes a new way of looking at the map.</li>
+        </ul>
+        <aside class="thread">
+          <p class="thread-tag">Thread · Replaced designs are filed, not deleted <span><a href="part-2-the-founding.html">first seen in Part 2</a></span></p>
+          <p>Six replaced tickets were filed under their own names, each marked with what replaced it and why. Ten new tickets for the simulation and twelve for the narrative half are <strong>numbered above the retired ones, so two different designs never share a ticket number.</strong></p>
+        </aside>
+        <div class="transcripts">
+          <p class="transcripts-tag">Working transcripts · games/enheim-tome</p>
+          <ol>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/games/enheim-tome/llm-transcripts/aug-28-26-through-sep-1-26.md">28 Aug – 1 Sep</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/games/enheim-tome/llm-transcripts/aug-29-26.md">29 Aug</a></li>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/games/enheim-tome/llm-transcripts/sep-1-26-through-sep-2-26.md">1 Sep – 2 Sep</a></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="project" id="rest">
+      <div class="project-head">
+        <h3><span class="slug">06 · 40 issues written, 32 completed</span>three more</h3>
+        <p class="identity">A study tool built in two days, a poetry site's neighbour lists repaired, and two commit gates written after a collision.</p>
+      </div>
+
+      <div class="body">
+        <h4>kanji-learning-image-generator</h4>
+        <p>Not a picture with a character drawn on it: a landscape whose light and dark fall exactly where the strokes fall. Up close it is a scene; at thumbnail size it is 木, and the tree was standing along the vertical stroke the whole time. <strong>A learner meeting 休 is normally told a shape and a word with no bridge between them.</strong> Here 休 is a person beside a tree, so the traveller <em>is</em> the left three strokes and the trunk <em>is</em> the vertical one — there is nothing to associate, because there are not two things any more.</p>
+        <p>Everything it generates is kept and never deleted, and each image gets two independent judgements: a program that blurs it down and measures whether the character is still legible, and a gallery a person rates in that can write ratings and nothing else. <strong>How often the two agree is itself measured.</strong> Findings from building it: the automatic grader was rewarding the exact failure it could not see, a rating was erasing the record of which character the image was for, and every measurement in the project was secretly tied to a 768-pixel frame.</p>
+        <h4>neocities-modernization</h4>
+        <p class="pull">One poem turned up in 526 neighbour lists, the busiest one percent took an eighth of every slot on the site, and 226 poems appeared in no list whatsoever. Not ranked low — absent, unreachable by anyone moving sideways through the collection.</p>
+        <p>About three quarters of every vector this model produces is a direction shared with all the others, so when two poems were compared that shared component did most of the talking. Subtracting it before comparing drops the unreachable count <strong>from 226 to 12</strong>.</p>
+        <aside class="thread">
+          <p class="thread-tag">Thread · Fallbacks hide bugs <span><a href="part-2-the-founding.html">first seen in Part 2</a></span></p>
+          <p>Four tools exist to check that the stored similarity scores match what you get if you recompute them. When the storage layout changed underneath them nobody moved them across, and nothing in the build calls them, so nothing ever failed — <strong>they simply went quiet.</strong> Run again, one looked poems up by position rather than by name, found nothing, and reported an accuracy averaged over an empty set. <strong>A tool reporting confidently on nothing is worse than one that refuses to start.</strong></p>
+        </aside>
+        <h4>scripts</h4>
+        <p>Several assistants work in this repository at once, and a commit with no paths on it does not commit the author's work — it commits whatever happens to be staged. <strong>This had already happened: one session's commit message ended up attached to another session's files while its own work stayed uncommitted and unnoticed.</strong> A commit must now name its paths.</p>
+        <p>Staging carefully does not help, which is the part worth recording: adding your own files and then committing with no paths leaves them sitting there for anybody else's next commit to carry away. <strong>The first version of the check had exactly the bug it exists to catch</strong> — it looked for named paths anywhere on the line, so an earlier staging command's paths satisfied it on behalf of the commit that followed.</p>
+        <p>Both gates are described in their own documentation as <strong>honour systems with witnesses rather than locks</strong>: the party they constrain can edit them, remove them, or grant themselves an exception. What they buy is that the careless form is not the one that happens by habit.</p>
+        <div class="transcripts">
+          <p class="transcripts-tag">Working transcripts · kanji-learning-image-generator</p>
+          <ol>
+            <li><a href="https://github.com/gabrilend/ai-stuff/blob/master/kanji-learning-image-generator/llm-transcripts/aug-26-26_agent-1.md">26 Aug</a></li>
+            <li><em>26 Aug – 27 Aug</em> <span>not pushed</span></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+
+    <h2 class="section" id="open">What is open</h2>
+
+    <div class="scroll wide">
+      <table class="prose">
+        <caption>Outstanding at the close of the window</caption>
+        <thead>
+          <tr><th style="width:22%">Project</th><th style="width:13%">State</th><th>Waiting on</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>hero-less-moba</td>
+            <td><span class="chip blocked">Blocked</span></td>
+            <td>Terror is the second number each body carries beside its health, and a body retreats when the two added together fall below zero. But an ordinary killing blow also puts that sum below zero, so as written nothing dies. Needs a definition of <em>beaten</em>. And a retreating body needs somewhere to go: the guardhouses tower guards would return to are named as a prerequisite and not built.</td>
+          </tr>
+          <tr>
+            <td>hero-less-moba</td>
+            <td><span class="chip open">Unproven</span></td>
+            <td>Phase 8 is five-sixths unbuilt and holds the automated player that runs ten thousand matches — the only thing that can say whether the line where the two armies meet actually moves. <strong>Nothing yet proves the project's premise.</strong></td>
+          </tr>
+          <tr>
+            <td>games/enheim-tome</td>
+            <td><span class="chip open">Design only</span></td>
+            <td>94 issue files, nothing built. Phase 8 has ten tickets, none started; phase 9's twelve were written on the window's last evening, so the narrative half has blueprints and no code.</td>
+          </tr>
+          <tr>
+            <td>my-own-custom-vtt</td>
+            <td><span class="chip open">Designed</span></td>
+            <td>Phase 13 fully designed, nine tickets, none started.</td>
+          </tr>
+          <tr>
+            <td>jurassic-maze</td>
+            <td><span class="chip open">Awaiting hand</span></td>
+            <td>The tracing table for turning a painting into a world is built and the reference painting has not been traced — a person's job rather than a program's. Half the dungeon mode is unbuilt.</td>
+          </tr>
+          <tr>
+            <td>kanji-learning-image-generator</td>
+            <td><span class="chip open">Untested</span></td>
+            <td>One ticket open on where a text panel may appear. <strong>The recipe format has never been fed to the image generator it was written for</strong>, and the first submission will find everything at once.</td>
+          </tr>
+          <tr>
+            <td>neocities-modernization</td>
+            <td><span class="chip open">Expected</span></td>
+            <td>The stored similarity scores predate the change to how vectors are prepared, so the checker's first honest look reports near-total disagreement. This is correct and it says so — but the store has not been rebuilt.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="section" id="tree">Notes on the tree</h2>
+
+        <p><strong>This part went stale three hours after it was compiled.</strong> It was written on the evening of 1 September and three more commits landed that day at 21:54, 22:07 and 22:22 — two of them the city game's narrative tickets, one a pair of working transcripts committed beside the work they produced. The figures now include them. <strong>A part whose window reaches today can be overtaken by its own subject.</strong></p>
+        <aside class="thread">
+          <p class="thread-tag">Thread · The record is load-bearing <span><a href="part-6-two-indicator-lights.html">first seen in Part 6</a></span></p>
+          <p>One of those three commits is itself a correction and says so: a transcript was held back from the commit it belonged to on a misreading of the rule, and by the time that was noticed the commit had been published and another session's work sat on top of it. <strong>Rewriting somebody else's ground to tidy it up was judged more expensive than a late commit</strong>, so the record carries the late commit and the reason.</p>
+        </aside>
+        <p>At the time of compiling, 227 files were modified and uncommitted, 204 of them in the lane-pushing game — an in-progress session belonging to somebody else. Nothing here was committed, staged or altered.</p>
+
+    <nav class="partnav"><a class="nav-prev" href="part-8-first-light-three-times.html"><span>Previous</span>First Light, Three Times</a><a class="nav-up" href="index.html">Contents</a></nav>
+  </main>
+</div>
+</body>
+</html>
