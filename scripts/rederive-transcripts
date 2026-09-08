@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+# rederive-transcripts - Rebuild already-written LLM transcripts from their
+# session logs, so that improvements to the exporter reach the archive and not
+# only the next conversation.
+#
+# In short: the exporter turns a Claude session log into a readable markdown
+# transcript, and every project keeps its transcripts in an llm-transcripts/
+# folder. When the exporter learns to do something better, the transcripts
+# already on disk keep whatever they were written with. This walks every
+# project that has such a folder, works out which ones still have their source
+# session log, and re-runs the exporter over those. A transcript whose log has
+# been deleted cannot be rebuilt by anything, and is reported as frozen rather
+# than touched.
+#
+# It reports and changes nothing unless asked to write, because the rebuild
+# overwrites the only copy of what it replaces. See
+# issues/024-backfill-existing-transcript-corpus.md.
+#
+# Usage:
+#   rederive-transcripts                 report what would change, write nothing
+#   rederive-transcripts --write         actually re-run the exporter
+#   rederive-transcripts --only <path>   restrict to projects under one path
+#   DIR=/some/where rederive-transcripts  override where the scripts live
+
+set -euo pipefail
+
+# -- {{{ Paths and settings
+# Hard-coded default root, overridable by environment, so the script runs from
+# any directory (house convention). Everything else is derived from it.
+DIR="${DIR:-/home/ritz/programming/ai-stuff/scripts}"
+EXPORTER="${DIR}/backup-conversations"
+CLAUDE_SESSIONS_ROOT="${CLAUDE_SESSIONS_ROOT:-$HOME/.claude/projects}"
+
+# Where projects live. A project is anything holding an llm-transcripts folder.
+SEARCH_ROOTS=(/mnt/mtwo /mnt/cmdo /mnt/kaun)
+SEARCH_DEPTH=6
+
+WRITE=false
+ONLY=""
+# }}}
+
+# -- {{{ parse_arguments()
+parse_arguments() {
+   while [ $# -gt 0 ]; do
+      case "$1" in
+         --write) WRITE=true ;;
+         --only)  shift ; ONLY="${1:-}" ;;
+         --help|-h)
+            sed -n '2,22p' "$0"
+            exit 0
+            ;;
+         *)
+            echo "unknown argument: $1" >&2
+            exit 1
+            ;;
+      esac
+      shift
+   done
+}
+# }}}
+
+# -- {{{ session_log_dir_for(project_path)
+# The exporter finds a project's session logs by flattening the project's
+# absolute path into a single directory name: leading slash dropped, every
+# remaining slash turned into a dash. This must match the exporter exactly; if
+# the two ever disagree, this script reports a project as frozen that the
+# exporter would happily rebuild.
+session_log_dir_for() {
+   local project="$1"
+   local flattened
+   flattened=$(echo "$project" | sed 's|^/||')
+   flattened=$(echo "$flattened" | tr '/' '-')
+   echo "${CLAUDE_SESSIONS_ROOT}/-${flattened}"
+}
+# }}}
+
+# -- {{{ find_projects()
+# Every directory that holds an llm-transcripts folder, de-duplicated. Searched
+# from the real mount points rather than through the home directory, because
+# the home directory reaches the same projects through symlinks and would list
+# each one twice.
+#
+# find reports failure if it could not read some subdirectory, which is normal
+# when sweeping whole mount points and must not abort the run, so its status is
+# discarded deliberately rather than by accident.
+find_projects() {
+   local root
+   for root in "${SEARCH_ROOTS[@]}"; do
+      [ -d "$root" ] || continue
+      find "$root" -maxdepth "$SEARCH_DEPTH" -type d -name llm-transcripts || true
+   done
+   return 0
+}
+# }}}
+
+# -- {{{ is_excluded(project_path)
+# Some directories holding transcripts are not places to write them.
+#
+#   - a git worktree is a second checkout of a repository that already appears
+#     elsewhere in this list, so rebuilding through one writes the same project
+#     twice and puts the result on whatever branch that worktree has out
+#   - a backup is a copy taken to preserve what a file used to be; rewriting it
+#     destroys the only thing it was for
+#
+# Both are recognised by a path segment rather than by inspecting the
+# directory, because the cost of a wrong guess is asymmetric: skipping a real
+# project loses nothing that a later run cannot do, and writing into a backup
+# cannot be undone.
+is_excluded() {
+   local project="$1"
+   case "$project" in
+      */ai-worktrees/*) return 0 ;;
+      */backups/*)      return 0 ;;
+      */.git/*)         return 0 ;;
+      *)                return 1 ;;
+   esac
+}
+# }}}
+
+# -- {{{ main()
+main() {
+   parse_arguments "$@"
+
+   if [ ! -x "$EXPORTER" ]; then
+      echo "Error: exporter not found or not executable: $EXPORTER" >&2
+      exit 1
+   fi
+
+   local found projects
+   found=$(find_projects)
+   projects=$(echo "$found" | sed 's|/llm-transcripts$||' | sort -u)
+
+   local reachable=() frozen=()
+   local reachable_files=0 frozen_files=0
+   local project log_dir count
+
+   while read -r project; do
+      [ -n "$project" ] || continue
+      is_excluded "$project" && continue
+      if [ -n "$ONLY" ]; then
+         case "$project" in
+            "$ONLY"|"$ONLY"/*) : ;;
+            *) continue ;;
+         esac
+      fi
+      count=$(find "$project/llm-transcripts" -maxdepth 1 -name '*.md' | wc -l)
+      log_dir=$(session_log_dir_for "$project")
+      if [ -d "$log_dir" ]; then
+         reachable+=("$project")
+         reachable_files=$((reachable_files + count))
+      else
+         frozen+=("$project")
+         frozen_files=$((frozen_files + count))
+      fi
+   done <<< "$projects"
+
+   echo "Projects with transcripts that still have their session logs: ${#reachable[@]} (${reachable_files} transcripts)"
+   echo "Projects whose session logs are gone, frozen permanently:     ${#frozen[@]} (${frozen_files} transcripts)"
+   echo ""
+
+   if [ "$WRITE" != "true" ]; then
+      echo "Rebuildable projects:"
+      for project in "${reachable[@]}"; do
+         echo "  $project"
+      done
+      echo ""
+      echo "Frozen projects (no session log; nothing can rebuild these):"
+      for project in "${frozen[@]}"; do
+         echo "  $project"
+      done
+      echo ""
+      echo "Nothing written. Re-run with --write to rebuild the reachable set."
+      return 0
+   fi
+
+   local rebuilt=0
+   for project in "${reachable[@]}"; do
+      echo "=== $project"
+      "$EXPORTER" "$project" || echo "  (exporter reported a problem; continuing)"
+      rebuilt=$((rebuilt + 1))
+   done
+
+   echo ""
+   echo "Rebuilt ${rebuilt} project(s). ${#frozen[@]} project(s) left untouched for want of a session log."
+}
+# }}}
+
+main "$@"
