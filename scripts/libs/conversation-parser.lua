@@ -32,8 +32,8 @@ end
 -- a phantom empty line after every real one. The wrapper below used that
 -- spelling and therefore emitted a blank line after every source line for as
 -- long as it has existed, which is why a single blank between two paragraphs
--- arrived in the finished transcript as two. Counted before the fix: 67,540
--- such lines across 1046 exported transcripts, about 5% of the corpus.
+-- arrived in the finished transcript as two. Measured on the tracked ai-stuff
+-- corpus immediately before the fix: 31,021 such lines across 503 transcripts.
 --
 -- It matters beyond tidiness. A blank line between two quoted lines ends a
 -- markdown blockquote, so a pasted-back passage spanning several terminal
