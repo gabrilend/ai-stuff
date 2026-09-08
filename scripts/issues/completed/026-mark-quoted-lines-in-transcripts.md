@@ -108,8 +108,14 @@ has emitted a blank line after every source line for as long as it has
 existed. A single blank between two paragraphs arrives in the finished
 transcript as two.
 
-Counted before the fix: 67,540 such lines across 1046 exported transcripts,
-about 5% of the corpus by line count.
+Measured on the tracked ai-stuff corpus immediately before the fix: 31,021
+such lines across 503 transcripts.
+
+An earlier draft of this issue claimed 67,540 lines across 1046 transcripts.
+That was the same corpus counted twice: the sweep searched both
+`/home/ritz/programming/ai-stuff` and `/mnt/mtwo/programming/ai-stuff`, which
+are one directory reached through a symlink. Any future count of this corpus
+should start from the real mount point, never from the home directory.
 
 It is not merely untidy here. A blank line between two quoted lines *ends* a
 markdown blockquote, so a pasted passage spanning several terminal rows would
