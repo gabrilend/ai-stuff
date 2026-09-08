@@ -35,6 +35,9 @@ CLAUDE_SESSIONS_ROOT="${CLAUDE_SESSIONS_ROOT:-$HOME/.claude/projects}"
 SEARCH_ROOTS=(/mnt/mtwo /mnt/cmdo /mnt/kaun)
 SEARCH_DEPTH=6
 
+# Conversation ids of every session log still on disk, filled once at start.
+declare -A SURVIVING_LOGS=()
+
 WRITE=false
 ONLY=""
 # }}}
@@ -109,11 +112,60 @@ find_projects() {
 is_excluded() {
    local project="$1"
    case "$project" in
-      */ai-worktrees/*) return 0 ;;
-      */backups/*)      return 0 ;;
-      */.git/*)         return 0 ;;
+      # Each name is matched both as an interior component and as the last one.
+      # The project path has had "/llm-transcripts" stripped off it, so a
+      # backup folder holding transcripts directly ends at "backups" and the
+      # interior form alone silently lets it through - which it did, until a
+      # count that disagreed with a second implementation exposed it.
+      */ai-worktrees/*|*/ai-worktrees) return 0 ;;
+      */backups/*|*/backups)           return 0 ;;
+      */.git/*|*/.git)                 return 0 ;;
       *)                return 1 ;;
    esac
+}
+# }}}
+
+# -- {{{ load_surviving_log_ids()
+# Every session log still on disk, keyed by its conversation id. Searched
+# recursively, because a subagent's log now sits a level down inside a folder
+# named after the session that spawned it rather than beside it.
+#
+# This is what makes an honest count possible. Asking only whether a project
+# has a log DIRECTORY answers a coarser question, and answers it wrong in both
+# directions: a project with a directory can still hold transcripts whose own
+# conversation log was deleted years ago, and a directory of derived outputs
+# can be counted as transcripts when none of it came from a session at all.
+load_surviving_log_ids() {
+   local path id
+   while read -r path; do
+      id="${path##*/}"
+      id="${id%.jsonl}"
+      [ -n "$id" ] && SURVIVING_LOGS["$id"]=1
+   done < <(find "$CLAUDE_SESSIONS_ROOT" -name '*.jsonl' -type f)
+}
+# }}}
+
+# -- {{{ classify_transcript(file)
+# What a transcript's first line says it came from decides its fate. The header
+# "# Conversation Summary: <id>" is the file's stable identity - the filename is
+# only a projection of the dates inside it - so the id is read from the header
+# and never from the name.
+#
+# Prints one of: repairable, frozen, headerless.
+classify_transcript() {
+   local file="$1"
+   local first id
+   first=$(head -1 "$file")
+   id=$(echo "$first" | sed -n 's/^# Conversation Summary:[[:space:]]*\([^[:space:]]*\).*/\1/p')
+   if [ -z "$id" ]; then
+      echo headerless                    # a derived output or a hand-written
+      return 0                           # note; outside this system entirely
+   fi
+   if [ -n "${SURVIVING_LOGS[$id]:-}" ]; then
+      echo repairable
+   else
+      echo frozen
+   fi
 }
 # }}}
 
@@ -126,13 +178,15 @@ main() {
       exit 1
    fi
 
+   load_surviving_log_ids
+
    local found projects
    found=$(find_projects)
    projects=$(echo "$found" | sed 's|/llm-transcripts$||' | sort -u)
 
-   local reachable=() frozen=()
-   local reachable_files=0 frozen_files=0
-   local project log_dir count
+   local runnable=() barren=()
+   local repairable=0 frozen=0 headerless=0
+   local project log_dir file verdict here_repairable
 
    while read -r project; do
       [ -n "$project" ] || continue
@@ -143,45 +197,67 @@ main() {
             *) continue ;;
          esac
       fi
-      count=$(find "$project/llm-transcripts" -maxdepth 1 -name '*.md' | wc -l)
+
+      here_repairable=0
+      while read -r file; do
+         [ -n "$file" ] || continue
+         verdict=$(classify_transcript "$file")
+         case "$verdict" in
+            repairable) repairable=$((repairable + 1))
+                        here_repairable=$((here_repairable + 1)) ;;
+            frozen)     frozen=$((frozen + 1)) ;;
+            headerless) headerless=$((headerless + 1)) ;;
+         esac
+      done < <(find "$project/llm-transcripts" -maxdepth 1 -name '*.md' -type f)
+
+      # Whether the exporter can do anything here is a separate question from
+      # how many of this project's transcripts are repairable: the exporter
+      # rebuilds from the logs it finds, so a project with logs is worth
+      # visiting even if some of its transcripts are past saving.
       log_dir=$(session_log_dir_for "$project")
       if [ -d "$log_dir" ]; then
-         reachable+=("$project")
-         reachable_files=$((reachable_files + count))
+         runnable+=("$project")
       else
-         frozen+=("$project")
-         frozen_files=$((frozen_files + count))
+         barren+=("$project")
       fi
    done <<< "$projects"
 
-   echo "Projects with transcripts that still have their session logs: ${#reachable[@]} (${reachable_files} transcripts)"
-   echo "Projects whose session logs are gone, frozen permanently:     ${#frozen[@]} (${frozen_files} transcripts)"
+   local total=$((repairable + frozen + headerless))
+   echo "Session logs on disk:                                  ${#SURVIVING_LOGS[@]}"
+   echo ""
+   echo "Transcripts whose conversation log survives:            ${repairable}"
+   echo "Transcripts whose conversation log is gone, frozen:     ${frozen}"
+   echo "Files with no conversation-id header (not transcripts): ${headerless}"
+   echo "Total markdown files in llm-transcripts folders:        ${total}"
+   echo ""
+   echo "Projects the exporter can be run on:                    ${#runnable[@]}"
+   echo "Projects with no session logs at all:                   ${#barren[@]}"
    echo ""
 
    if [ "$WRITE" != "true" ]; then
-      echo "Rebuildable projects:"
-      for project in "${reachable[@]}"; do
+      echo "Projects the exporter can be run on:"
+      for project in "${runnable[@]}"; do
          echo "  $project"
       done
       echo ""
-      echo "Frozen projects (no session log; nothing can rebuild these):"
-      for project in "${frozen[@]}"; do
+      echo "Projects with no session logs at all:"
+      for project in "${barren[@]}"; do
          echo "  $project"
       done
       echo ""
-      echo "Nothing written. Re-run with --write to rebuild the reachable set."
+      echo "Nothing written. Re-run with --write to rebuild what can be rebuilt."
       return 0
    fi
 
    local rebuilt=0
-   for project in "${reachable[@]}"; do
+   for project in "${runnable[@]}"; do
       echo "=== $project"
       "$EXPORTER" "$project" || echo "  (exporter reported a problem; continuing)"
       rebuilt=$((rebuilt + 1))
    done
 
    echo ""
-   echo "Rebuilt ${rebuilt} project(s). ${#frozen[@]} project(s) left untouched for want of a session log."
+   echo "Visited ${rebuilt} project(s). ${frozen} transcript(s) have no surviving log and were left alone."
 }
 # }}}
 

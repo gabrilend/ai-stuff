@@ -16,30 +16,51 @@ removed under the previous 30-day default.
 
 Every transcript this exporter writes carries its source conversation's id in
 its first line, so a transcript can be matched against the session logs still
-present under `~/.claude/projects/`. A project's logs are found by flattening
-its absolute path into a single directory name, so the question "can this be
-rebuilt?" is answered per project, then per conversation within it.
+present under `~/.claude/projects/`. The question "can this be rebuilt?" is
+therefore answered **per transcript, by its header** — never per project, and
+never by filename.
 
 Counted across every project on the machine that holds an `llm-transcripts/`
-folder, excluding git worktrees and backup mounts — re-derive these numbers
-with `rederive-transcripts`, which reports and writes nothing by default:
+folder, excluding git worktrees and backup directories — re-derive these
+numbers with `rederive-transcripts`, which reports and writes nothing unless
+told to:
 
 | measure | count |
 | --- | --- |
-| projects holding transcripts | 61 |
-| **projects whose session logs survive — repairable** | **40** (246 transcripts) |
-| **projects whose logs are gone — frozen permanently** | **21** (401 transcripts) |
-| transcripts actually rebuilt in the first pass | 124 |
+| session logs on disk | 230 |
+| **transcripts whose conversation log survives** | **128** |
+| **transcripts whose conversation log is gone — frozen** | **464** |
+| files with no conversation-id header — not transcripts at all | 54 |
+| total markdown files in `llm-transcripts` folders | 646 |
+| transcripts rebuilt in the first pass | 124 |
 
-The gap between 246 and 124 is conversations whose own log is gone inside a
-project that still has others.
+The four transcripts between 128 and 124 are conversations whose log survives
+but which the pass did not rewrite: a husk with nothing in it leaves no file,
+and an unchanged transcript is deliberately left alone.
+
+### Two ways this measurement was got wrong first
+
+Both errors are worth keeping, because both are easy to repeat.
+
+**Counting per project rather than per transcript.** The first version asked
+only whether a project had a session-log *directory*. That is a coarser
+question and it errs in both directions: a project whose directory exists can
+still hold transcripts whose own conversation log was deleted long ago, and a
+directory of derived outputs gets counted as transcripts when none of it came
+from a session. It reported 401 frozen; the true figure is 464, and 297 of
+those sit in a single project (`world-edit-to-execute`) that the coarse method
+had classified as reachable.
+
+**Counting the same corpus twice through a symlink.** A sweep that searched
+both `/home/ritz/programming/ai-stuff` and `/mnt/mtwo/programming/ai-stuff`
+counted every file twice, because the first is a symlink to the second. Any
+count of this corpus must start from the real mount point.
 
 These numbers are far better than when this issue was written, and the reason
 is worth recording: the retention window was raised from the 30-day default to
 20 years (`cleanupPeriodDays` in `~/.claude/settings.json`) on 2026-08-03.
 That change could not restore anything already deleted, but everything logged
 since has survived, so the repairable share grows on its own from here.
-
 Some transcripts carry no conversation-id header at all. They are derived
 outputs or hand-written notes, not products of this exporter, and the naming
 rulebook (`libs/transcript-discovery.sh`) already excludes them from anything
@@ -79,7 +100,7 @@ repairs:
 
 **Decided: repair the reachable, leave the rest alone.** Of the three positions
 below, the second was chosen. The first pass ran on 2026-09-08, rebuilding 124
-transcripts across 40 projects and touching none of the 401 frozen ones.
+transcripts across 40 projects and touching none of the 464 frozen ones.
 
 The decision was forced by issue #026 rather than taken in the abstract. That
 issue fixes a defect in the line-splitter which had put a phantom blank line
@@ -167,7 +188,7 @@ frozen, which is itself a rewrite of the historical record.
   existing program run over more files; the decision it enacts is irreversible
   outside git.
 - **Dependencies**: A change worth applying backwards. #026 was the first.
-- **Impact**: 124 transcripts rebuilt; 401 unreachable regardless. The
+- **Impact**: 124 transcripts rebuilt; 464 unreachable regardless. The
   repairable share grows on its own now that logs are kept for 20 years.
 
 ## Success Criteria
@@ -207,7 +228,7 @@ frozen, which is itself a rewrite of the historical record.
    done, for logs created from here on.* The retention window is 20 years
    rather than 30 days. It protects nothing that was already deleted, and holds
    only as long as that setting survives.
-8. **What reaches the 401 frozen transcripts?** *Nothing, as things stand, and
+8. **What reaches the 464 frozen transcripts?** *Nothing, as things stand, and
    this is the one question the decision leaves open.* Their session logs are
    gone, so the exporter cannot rebuild them. A rewriter working on the
    transcript files themselves could in principle apply the cosmetic parts of
