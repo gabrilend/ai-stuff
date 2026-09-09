@@ -37,7 +37,23 @@ Key requirements:
 2. **Interior whitespace preserved**: Multi-space runs within words stay intact
 3. **Paragraph breaks preserved**: Empty lines remain empty
 4. **Long words broken**: URLs or other strings exceeding line width get character-broken
-5. **Short lines unchanged**: Lines <= 80 chars pass through unmodified
+5. **Short lines unchanged**: Lines <= 80 **visible columns** pass through unmodified
+6. **Width means ink, not bytes**: a line arrives here already HTML-escaped and
+   markdown-formatted. `<em>` and `</em>` are nine bytes of nothing; `&amp;` is
+   five bytes showing one ampersand; an em dash is three bytes showing one dash.
+   Every measurement counts what the reader sees.
+
+### Why requirement 6 is here
+
+The wrapper first shipped counting bytes, and the note "too-harsh" showed what
+that costs. One line ran 78 visible columns and contained a single emphasized
+word; the emphasis tags took it to 87 bytes, so the wrapper spent nine columns of
+an 80-column budget on ink that does not exist and pushed the line's last two
+words onto a row of their own. Two lines below it, a line of 80 visible columns
+with no markup measured 80 bytes and stayed whole. Same page, same margin, two
+different answers -- which is the shape of a measurement bug rather than a
+layout one. The same arithmetic would have clipped any line carrying an escaped
+ampersand or a curly quote near the margin.
 
 ## Root Cause
 
@@ -50,90 +66,61 @@ The fix was too aggressive - we need wrapping that RESPECTS whitespace, not no w
 
 ### Step 1: Add `wrap_preserving_indent` to text-formatter.lua
 
-```lua
-function M.wrap_preserving_indent(line, max_width)
-    max_width = max_width or 80
+Split the line into leading whitespace and a remainder, then walk the remainder
+word by word with the pattern `(%S+)(%s*)`, which captures each word together
+with the spaces that follow it -- that pairing is what keeps multi-space runs
+alive, and it is the whole lesson of 8-056. Accumulate words onto a line until
+the next one would not fit; flush, and start again with the leading whitespace
+prepended so continuations sit under their parent.
 
-    if #line <= max_width then
-        return {line}  -- Short enough, no wrapping needed
-    end
+Every "would it fit" question is answered by `calculate_visible_width`, which
+already existed in this module for the golden-poem box padding. Ask it about the
+whole line before deciding whether to wrap at all, about each word-plus-spaces
+segment while accumulating, and about a word before deciding it is too long to
+ever fit. Never use `#` on a string here except to ask whether anything is
+buffered at all.
 
-    -- Capture leading whitespace separately
-    local leading, remainder = line:match("^(%s*)(.*)$")
-    local indent_width = #leading
-    local content_width = max_width - indent_width
+Measuring each word on its own is only safe because the tags markdown emits
+carry no spaces: emphasis spanning two words arrives as `<em>two` and
+`words</em>`, and each half strips its own tag cleanly. An `<a href="...">`
+anchor DOES carry a space and would be split down the middle -- which is why
+link text goes through `wrap_external_url` instead. State that contract in the
+comments; it is the kind of thing that gets broken by someone adding a feature
+two years later.
 
-    if content_width < 10 then
-        -- Edge case: huge indent, can't wrap meaningfully
-        return {line}
-    end
+### Step 2: Add `slice_by_visible_width` for the long-word path
 
-    -- Word-wrap the remainder, preserving multi-space runs
-    local result_lines = {}
-    local current = ""
+A word too long to ever fit a line (a URL) has to be cut mid-word, and the cut
+has to land between characters. Walk the string one display unit at a time: a
+complete `<...>` tag is swallowed whole for zero columns, an entity matching
+`&#?%w+;` whole for one, a UTF-8 sequence (identified from its lead byte) whole
+for one, anything else one byte for one column. Return the two pieces. Slicing
+at a byte offset instead is what would cut `<em>` into `<e` and `m>`.
 
-    -- Split on space boundaries while keeping the spaces
-    for segment in remainder:gmatch("(%S+%s*)") do
-        if #current + #segment <= content_width then
-            current = current .. segment
-        else
-            -- Flush current line
-            if #current > 0 then
-                table.insert(result_lines, leading .. current:gsub("%s+$", ""))
-            end
-            -- Start new line with this segment
-            current = segment
+### Step 3: Update `format_poem_content`
 
-            -- Handle very long segments (URLs) that exceed width
-            while #current > content_width do
-                local chunk = current:sub(1, content_width)
-                table.insert(result_lines, leading .. chunk)
-                current = current:sub(content_width + 1)
-            end
-        end
-    end
+Have it add its one-space left pad and then call `wrap_preserving_indent` per
+line, rather than inserting lines directly.
 
-    -- Flush final line
-    if #current > 0 then
-        table.insert(result_lines, leading .. current:gsub("%s+$", ""))
-    end
-
-    return result_lines
-end
-```
-
-### Step 2: Update `format_poem_content`
-
-Change from direct line insertion to using the wrapping function:
-
-```lua
-function M.format_poem_content(text)
-    local lines = M.format_poem_lines(text)
-    local padded_lines = {}
-
-    for _, line in ipairs(lines) do
-        -- Wrap long lines while preserving leading whitespace
-        local wrapped = M.wrap_preserving_indent(" " .. line, 80)
-        for _, wrapped_line in ipairs(wrapped) do
-            table.insert(padded_lines, wrapped_line)
-        end
-    end
-
-    return padded_lines
-end
-```
-
-### Step 3: Test with affected poems
+### Step 4: Test with affected poems
 
 1. Poems with long URLs (chronological pages)
 2. Poems with artistic indentation (notes category)
 3. Poems with paragraph breaks
 4. Golden poems (ensure border alignment still works)
+5. Poems with emphasis, escaped ampersands, or non-ASCII punctuation sitting
+   within a few columns of the margin -- the cases where bytes and columns
+   disagree, and the only ones that can tell the two measurements apart
 
 ## Related Documents
 
 - `issues/completed/8-056-preserve-whitespace-in-poem-rendering.md` - Previous fix
+- `issues/completed/4-003-fix-character-counting-methodology-for-fediverse-golden-poems.md`
+  - Where the emphasis tags that this wrapper has to see through come from
 - `libs/text-formatter.lua` - Shared formatting module
+- `libs/text-formatter.info.md` - Its public surface and the width rule
+- `libs/text-formatter-test.lua` - Guards the width rule, carrying the
+  "too-harsh" line as the regression case
 - `src/flat-html-generator.lua` - Main/worker thread formatting
 
 ## Metadata
@@ -185,3 +172,12 @@ The key insight from 8-056 was correct: `%S+` pattern destroys whitespace struct
 The solution is to split on word boundaries `(%S+)(%s*)` which captures both the word
 AND its trailing whitespace. By processing the remainder (after capturing leading
 whitespace), we preserve the original indentation on all wrapped lines.
+
+The second lesson arrived later, from a reader noticing two lines of one note
+disagree about where the margin is. A wrapper sits downstream of escaping and
+markdown, so the string it holds is not the text anyone will read -- it is that
+text wearing markup. `#string` answers a question about storage; the wrapper is
+asking a question about ink. The module already knew the difference (it had
+`calculate_visible_width` for box padding) and the wrapper simply never asked.
+Where a module holds two ways to measure the same thing, expect the newer code
+to reach for the wrong one.
