@@ -1753,7 +1753,10 @@ end
 -- {{{ function apply_markdown_formatting
 local function apply_markdown_formatting(text)
     -- Issue 4-003 (August 2026): emphasis renders styled AND keeps the typed
-    -- delimiters visible ("both", per user) -- *love* shows as italic *love*.
+    -- delimiters visible ("both", per user) -- *love* shows as *love* with only
+    -- the word slanted. The delimiters sit OUTSIDE the tag: the styling belongs
+    -- to what the author emphasized, not to the marks they used to say so, so a
+    -- slanted asterisk would be the tool leaking into the sentence.
     -- Delimiters already consumed into output are re-emitted as \1 sentinels
     -- so the narrower single-asterisk pass cannot re-match inside a bold span;
     -- escape_html strips control bytes beforehand, so \1 cannot collide with
@@ -1761,27 +1764,30 @@ local function apply_markdown_formatting(text)
 
     -- Handle *\*text*\* (legacy escaped-italics convention, kept first so the
     -- plain passes below never half-consume its backslash form)
-    text = text:gsub("%*\\%*([^%*]+)%*\\%*", "<em>\1%1\1</em>")
+    text = text:gsub("%*\\%*([^%*]+)%*\\%*", "\1<em>%1</em>\1")
 
     -- Handle **text** (bold) before *text* so the pair is not split in two
-    text = text:gsub("%*%*([^%*]+)%*%*", "<strong>\1\1%1\1\1</strong>")
+    text = text:gsub("%*%*([^%*]+)%*%*", "\1\1<strong>%1</strong>\1\1")
 
     -- Handle *text* (italics). The content must start and end on non-space
     -- and stay on one line: "2 * 3 * 4" and asterisk bullet lists are not
     -- emphasis. (Two passes because Lua patterns have no alternation: one
     -- for 2+ character spans, one for the single-character *x* case.)
-    text = text:gsub("%*([^%s%*][^%*\n]-[^%s%*])%*", "<em>\1%1\1</em>")
-    text = text:gsub("%*([^%s%*])%*", "<em>\1%1\1</em>")
+    text = text:gsub("%*([^%s%*][^%*\n]-[^%s%*])%*", "\1<em>%1</em>\1")
+    text = text:gsub("%*([^%s%*])%*", "\1<em>%1</em>\1")
 
-    -- Handle ~~text~~ (strikethrough) and `text` (inline code)
-    text = text:gsub("~~([^~]+)~~", "<del>~~%1~~</del>")
-    text = text:gsub("`([^`\n]+)`", "<code>`%1`</code>")
+    -- Handle ~~text~~ (strikethrough) and `text` (inline code). Same rule as
+    -- above: the tildes stay unstruck and the backticks stay out of the code
+    -- span, so each mark reads as punctuation rather than as part of the span.
+    text = text:gsub("~~([^~]+)~~", "~~<del>%1</del>~~")
+    text = text:gsub("`([^`\n]+)`", "`<code>%1</code>`")
 
     -- Sentinels back to the asterisks the author typed
     text = text:gsub("\1", "*")
 
     return text
 end
+M.apply_markdown_formatting = apply_markdown_formatting
 -- }}}
 
 -- {{{ function is_golden_poem
