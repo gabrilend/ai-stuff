@@ -1,0 +1,5 @@
+Your local IP address changed from 192.168.1.100 to 127.0.0.1.
+
+If you use manual port forwarding, your router is still forwarding port 8026
+to 192.168.1.100. Update your router's port forwarding rule to point to 127.0.0.1 instead,
+or set a DHCP reservation / static IP so this doesn't happen again.
