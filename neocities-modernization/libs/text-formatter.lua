@@ -128,22 +128,91 @@ function M.calculate_visible_width(content)
 end
 -- }}}
 
+-- {{{ function M.slice_by_visible_width
+-- Cuts `str` after `width` VISIBLE columns and returns the two pieces as
+-- (chunk, rest). Walks the string one display unit at a time so a cut can never
+-- land in the middle of something the reader sees as indivisible:
+--
+--   <em> ... >     an HTML tag -- swallowed whole, costs zero columns
+--   &amp; &#39;    an entity   -- swallowed whole, costs one column
+--   0xC0-0xF4 ...  a UTF-8 sequence -- swallowed whole, costs one column
+--   anything else  one byte, one column
+--
+-- Only the long-word path (URLs, mostly) needs this. Slicing at a byte offset
+-- instead is what would cut "<em>" into "<e" + "m>" and leak raw angle brackets
+-- onto the page the moment an emphasized word grew long enough to break.
+function M.slice_by_visible_width(str, width)
+    local byte_pos = 1
+    local columns = 0
+    local length = #str
+
+    while byte_pos <= length and columns < width do
+        local char = str:sub(byte_pos, byte_pos)
+
+        if char == "<" then
+            -- A complete tag costs nothing; a lone "<" that never closes is a
+            -- real character the author typed, so it costs a column.
+            local tag_end = str:find(">", byte_pos, true)
+            if tag_end then
+                byte_pos = tag_end + 1
+            else
+                byte_pos = byte_pos + 1
+                columns = columns + 1
+            end
+        elseif char == "&" then
+            -- "&amp;" is five bytes wearing the face of one ampersand. Anything
+            -- that does not look like an entity is just an ampersand.
+            local entity = str:match("^&#?%w+;", byte_pos)
+            if entity then
+                byte_pos = byte_pos + #entity
+            else
+                byte_pos = byte_pos + 1
+            end
+            columns = columns + 1
+        else
+            local byte = str:byte(byte_pos)
+            local sequence_length = 1
+            if byte >= 0xF0 then
+                sequence_length = 4
+            elseif byte >= 0xE0 then
+                sequence_length = 3
+            elseif byte >= 0xC0 then
+                sequence_length = 2
+            end
+            byte_pos = byte_pos + sequence_length
+            columns = columns + 1
+        end
+    end
+
+    return str:sub(1, byte_pos - 1), str:sub(byte_pos)
+end
+-- }}}
+
 -- {{{ function M.wrap_preserving_indent
 -- Issue 10-021: Wraps a single line to max_width while preserving leading whitespace.
 -- Continuation lines inherit the same indentation as the original line.
 --
 -- Key behaviors:
---   - Lines <= max_width: returned unchanged (single-element table)
+--   - Lines <= max_width of VISIBLE text: returned unchanged (single-element table)
 --   - Leading whitespace: captured and prepended to all wrapped lines
 --   - Long words (URLs): broken at character boundaries if they exceed available width
 --   - Multi-space runs: preserved within content (splits on space boundaries)
+--
+-- Every measurement here asks how WIDE a piece of text looks, never how many
+-- bytes it weighs. Poem lines arrive already HTML-escaped and markdown-formatted,
+-- so an emphasized word carries an <em></em> pair -- nine bytes that occupy no
+-- columns at all -- and an escaped ampersand carries "&amp;" for one column of
+-- "&". Measuring bytes made the budget shrink by however much invisible markup a
+-- line happened to contain, so emphasized lines wrapped early: a 78-column line
+-- holding one *word* measured 87 and shed its last two words for no visible
+-- reason, while the plain 79-column line below it stayed put.
 --
 -- Returns a table of wrapped lines.
 function M.wrap_preserving_indent(line, max_width)
     max_width = max_width or 80
 
     -- Short lines pass through unchanged
-    if #line <= max_width then
+    if M.calculate_visible_width(line) <= max_width then
         return {line}
     end
 
@@ -151,7 +220,7 @@ function M.wrap_preserving_indent(line, max_width)
     local leading, remainder = line:match("^(%s*)(.*)$")
     leading = leading or ""
     remainder = remainder or line
-    local indent_width = #leading
+    local indent_width = M.utf8_char_count(leading)
     local content_width = max_width - indent_width
 
     -- Edge case: if indent is so large we can't fit meaningful content
@@ -161,15 +230,25 @@ function M.wrap_preserving_indent(line, max_width)
 
     local result_lines = {}
     local current = ""
+    local current_width = 0
 
     -- Split remainder into words, preserving the spaces after each word
-    -- Pattern: capture non-spaces followed by any trailing spaces
+    -- Pattern: capture non-spaces followed by any trailing spaces.
+    --
+    -- Measuring each word on its own is safe because the tags markdown emits
+    -- never contain a space: emphasis spanning two words arrives as "<em>two"
+    -- and "words</em>", and each half strips its own tag cleanly. A tag that DID
+    -- carry a space -- an <a href="..."> anchor -- would be torn apart by this
+    -- split, which is why the callers route link text through wrap_external_url
+    -- instead of here.
     for word, trailing_space in remainder:gmatch("(%S+)(%s*)") do
         local segment = word .. trailing_space
+        local segment_width = M.calculate_visible_width(segment)
 
-        if #current + #segment <= content_width then
+        if current_width + segment_width <= content_width then
             -- Fits on current line
             current = current .. segment
+            current_width = current_width + segment_width
         else
             -- Doesn't fit - flush current line first
             if #current > 0 then
@@ -178,19 +257,24 @@ function M.wrap_preserving_indent(line, max_width)
             end
 
             -- Handle very long words (URLs) that exceed content_width
-            if #word > content_width then
+            local word_width = M.calculate_visible_width(word)
+            if word_width > content_width then
                 -- Break the long word at character boundaries
                 local remaining_word = word
-                while #remaining_word > content_width do
-                    local chunk = remaining_word:sub(1, content_width)
+                local remaining_width = word_width
+                while remaining_width > content_width do
+                    local chunk, rest = M.slice_by_visible_width(remaining_word, content_width)
                     table.insert(result_lines, leading .. chunk)
-                    remaining_word = remaining_word:sub(content_width + 1)
+                    remaining_word = rest
+                    remaining_width = M.calculate_visible_width(remaining_word)
                 end
                 -- Whatever is left becomes start of new current line
                 current = remaining_word .. trailing_space
+                current_width = remaining_width + M.calculate_visible_width(trailing_space)
             else
                 -- Normal word, just starts a new line
                 current = segment
+                current_width = segment_width
             end
         end
     end

@@ -141,6 +141,8 @@ of what the code does is only visible from outside it.
 - `/libs/utils.lua` - Common utility functions and file operations
 - `/libs/ollama-config.lua` - Ollama service configuration management
 - `/libs/text-formatter.lua` - Shared text formatting for whitespace preservation (Issue 8-056)
+  and line wrapping measured in visible columns rather than bytes (Issue 10-021)
+  - `/libs/text-formatter.info.md` - Its public surface, and why width means ink
 
 ### 🗂️ Assets and Data
 - `/assets/poems.json` - Complete poem dataset (6,860+ poems)

@@ -242,8 +242,10 @@ promote. Random near-misses could not produce that pattern.
   user's emphasis in *displayed* poems, not just in the count.
 
 **Confirmed with user (August 2026)**:
-- Display should show BOTH the typed asterisks and rendered italics:
-  `<em>*love*</em>`.
+- Display should show BOTH the typed asterisks and rendered italics, with the
+  delimiters OUTSIDE the tag: `*<em>love</em>*`. The styling belongs to the word
+  the author emphasized, not to the marks they used to point at it, so the
+  asterisks render upright beside a slanted word.
 - Counting should adopt the full compose-box model (characters not bytes,
   URLs = 23, delimiters restored). This promotes ~6 more poems and demotes
   ~3 current false-goldens.
@@ -260,7 +262,9 @@ promote. Random near-misses could not produce that pattern.
 2. `scripts/extract-fediverse.lua` uses the library for display content,
    golden content, and `golden_poem_character_count`.
 3. `src/flat-html-generator.lua` markdown formatting keeps delimiters visible
-   inside the emphasis tags and gains bold/strikethrough/code handling.
+   just outside the emphasis tags and gains bold/strikethrough/code handling.
+   The tags it emits travel with the line into the wrapper, so the wrapper must
+   measure visible columns rather than bytes (see 10-021).
 4. Re-extract, re-validate, confirm golden count rises from 431 to ~650 and
    the 1022/1020 spikes collapse into 1024.
 
@@ -284,9 +288,12 @@ pipeline and can re-verify any future counting change.
      the invisible variation selectors / zero-width joiners that emoji carry
      are zero. Byte counting had charged up to 4 for a single visible glyph.
 3. `apply_markdown_formatting` in the flat HTML generator now renders
-   emphasis styled AND keeps the typed delimiters visible (`<em>*love*</em>`),
-   adds bold/strikethrough/inline-code, and no longer false-matches spaced
-   asterisks ("2 * 3 * 4") or asterisk bullet lists.
+   emphasis styled AND keeps the typed delimiters visible and unstyled beside
+   it (`*<em>love</em>*`, and likewise `**<strong>x</strong>**`,
+   `~~<del>x</del>~~`, `` `<code>x</code>` ``), adds bold/strikethrough/
+   inline-code, and no longer false-matches spaced asterisks ("2 * 3 * 4") or
+   asterisk bullet lists. Placement is guarded by
+   `src/flat-html-generator.emphasis.test.lua`.
 
 **Verification**:
 - 26 unit tests pass, including five archive poems hand-verified during the
