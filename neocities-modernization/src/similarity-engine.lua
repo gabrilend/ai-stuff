@@ -380,6 +380,58 @@ function M.show_all_model_status(base_output_dir)
 end
 -- }}}
 
+-- {{{ function M.checkpoint_is_due
+-- Decide whether the embedding run should stop and rewrite its cache file.
+--
+-- A checkpoint rewrites the WHOLE cache -- every vector gathered so far becomes
+-- JSON text again and the entire file is written out. It is pure CPU in this one
+-- process, single-threaded, with the inference server idle throughout; and its
+-- price is not fixed but grows with how much has already been done, because
+-- "everything so far" is the thing being re-encoded. Measured on this corpus, a
+-- checkpoint at 7,300 poems costs about seven seconds and turns 5.6 million
+-- floating-point numbers into decimal digits.
+--
+-- Checkpointing every ~100 poems therefore levied a toll that climbed all run.
+-- On one measured 8,531-poem run the server sat idle 249 seconds out of 460 --
+-- more than half the run was the saving, not the work.
+--
+-- So the interval is measured in TIME rather than in poems, and it is set by the
+-- run itself: each checkpoint reports what it cost, and the next one is refused
+-- until `duty` times that long has passed. Overhead is then pinned near
+-- 1/(1+duty) of the run however large the corpus grows. Cheap early checkpoints
+-- stay frequent; expensive late ones space themselves out, which is the shape
+-- you want -- late in a run there is more work at risk, but proportionally less
+-- run remaining in which to lose it.
+--
+-- Arguments (all plain numbers except the last two flags):
+--   windows_since_save : integer, windows completed since the last checkpoint
+--   min_windows        : integer, floor so a corpus with instant saves does not
+--                        checkpoint after every single window
+--   now                : integer, wall-clock seconds (os.time)
+--   next_allowed_at    : integer, the wall-clock second the cooldown expires
+--   is_last_window     : boolean, the run is ending
+-- Returns true when a checkpoint should happen now.
+function M.checkpoint_is_due(windows_since_save, min_windows, now, next_allowed_at, is_last_window)
+    -- The final window is exempt from both gates: the run is over and the cache
+    -- on disk has to be the complete one, whatever it costs.
+    if is_last_window then
+        return true
+    end
+    local worked_enough = windows_since_save >= min_windows
+    local cooled_down = now >= next_allowed_at
+    return worked_enough and cooled_down
+end
+-- }}}
+
+-- {{{ function M.checkpoint_cooldown_until
+-- The wall-clock second at which the next checkpoint becomes allowed, given what
+-- the one just finished cost. A save too fast to measure earns no cooldown, and
+-- the window count alone paces the run.
+function M.checkpoint_cooldown_until(now, save_seconds, duty)
+    return now + (save_seconds * duty)
+end
+-- }}}
+
 -- {{{ function M.generate_all_embeddings
 function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, incremental, model_name)
     -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
@@ -715,11 +767,16 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     end
     -- }}}
 
-    -- Save the cache roughly every ~100 poems regardless of window size. The old
-    -- `i % 100 == 1` test assumed a step of 10; with a variable window we count
-    -- windows instead so the periodic checkpoint survives a crash mid-run.
+    -- How often the cache is checkpointed. The reasoning, and the measurements
+    -- behind the numbers, live on M.checkpoint_is_due above.
+    --
+    -- Timing is WALL clock (os.time), not CPU clock: this run spends most of its
+    -- life waiting on the inference server, and os.clock() cannot see waiting at
+    -- all. One-second granularity is ample against saves that take seconds.
+    local CHECKPOINT_DUTY = 9          -- work at least 9x as long as the last save
+    local MIN_WINDOWS_BETWEEN_SAVES = math.max(1, math.floor(100 / window))
     local windows_since_save = 0
-    local SAVE_EVERY_WINDOWS = math.max(1, math.floor(100 / window))
+    local next_save_allowed_at = 0     -- os.time() reading; 0 = no wait in force
 
     for i = 1, #poems_to_process, window do
         local batch_end = math.min(i + window - 1, #poems_to_process)
@@ -831,15 +888,35 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
         end
         write_progress()
 
-        -- Periodic cache checkpoint (crash safety on long runs).
+        -- Periodic cache checkpoint (crash safety on long runs). Two gates: we
+        -- must have done a minimum of work since the last one, AND the cooldown
+        -- earned by the last one's cost must have expired. The final window is
+        -- exempt from both -- the run is ending and the cache must be complete.
         windows_since_save = windows_since_save + 1
-        if windows_since_save >= SAVE_EVERY_WINDOWS or batch_end == #poems_to_process then
+        local is_last_window = (batch_end == #poems_to_process)
+
+        if M.checkpoint_is_due(windows_since_save, MIN_WINDOWS_BETWEEN_SAVES,
+                               os.time(), next_save_allowed_at, is_last_window) then
             windows_since_save = 0
             local safe_completed = math.min(skipped_count + newly_processed, total_poems)
             utils.log_info("Saving progress... (" .. newly_processed .. " new + " .. skipped_count .. " existing = " .. safe_completed .. " total)")
+
+            local save_started_at = os.time()
             if not utils.write_json_file(output_file, embeddings_data) then
                 utils.log_error("Failed to save embeddings to " .. output_file)
                 return false
+            end
+            local save_seconds = os.time() - save_started_at
+
+            -- Buy the next stretch of uninterrupted work with what this save
+            -- cost. A save that took 7 s earns 63 s of embedding before the next
+            -- one is allowed.
+            next_save_allowed_at = M.checkpoint_cooldown_until(
+                os.time(), save_seconds, CHECKPOINT_DUTY)
+            if save_seconds >= 2 then
+                utils.log_info(string.format(
+                    "  (checkpoint took %ds; next one no sooner than %ds from now)",
+                    save_seconds, save_seconds * CHECKPOINT_DUTY))
             end
         end
     end
