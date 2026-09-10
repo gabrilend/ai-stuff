@@ -379,6 +379,12 @@ cd "$DIR" || exit 1
 # since the progress file we share with similarity-engine.lua now lives there.
 "${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
 
+# How a child process ended, said in words. The status number is the whole
+# diagnosis -- "gave up", "interrupted", "out of memory" and "crashed" are four
+# different investigations wearing the one word FAILED.
+# shellcheck source=/dev/null
+source "${DIR}/scripts/exit-status.sh"
+
 # Build --dir argument for Lua scripts if assets dir was specified
 ASSETS_ARG=""
 if [ -n "$ASSETS_DIR" ]; then
@@ -398,10 +404,18 @@ NC='\033[0m' # No Color
 START_TIME=$(date +%s)
 POEMS_FILE="$DIR/assets/poems.json"
 EMBEDDINGS_FILE="$DIR/assets/embeddings.json"
-# run.sh's --debug exports NEOCITIES_LOG_DIR → durable disk (output/debug-logs)
-# so this log survives the reboot a hard GPU lock forces; the default is the
-# RAM-backed tmp/. The end-of-run cleanup below is skipped when this is set.
-EMBED_LOG_DIR="${NEOCITIES_LOG_DIR:-${DIR}/tmp}"
+# Where this run's log lives, and how long it lives.
+#
+# Default: tmp/shared-memory/, which is /dev/shm — guaranteed RAM, and the tier
+# CLAUDE.md reserves for things you WRITE rather than things you RUN. The log is
+# never deleted. A file in RAM already disappears at the next reboot, which is
+# all the tidying a log of a single run needs; deleting it at the end of the run
+# meant the failure report could name a file it had just removed, and the one
+# run whose log you actually wanted was the one that had none.
+#
+# --debug (run.sh exports NEOCITIES_LOG_DIR → output/debug-logs) moves the log to
+# durable disk instead, so it survives the power-cycle a hard GPU lock forces.
+EMBED_LOG_DIR="${NEOCITIES_LOG_DIR:-${DIR}/tmp/shared-memory}"
 mkdir -p "$EMBED_LOG_DIR"
 TEMP_LOG="${EMBED_LOG_DIR}/embedding_generation.log"
 
@@ -819,18 +833,30 @@ echo "Generating embeddings..." > "$TEMP_LOG"
 # rather than duplicating the whole snippet.
 INCREMENTAL_LUA=$([ "$INCREMENTAL" = true ] && echo true || echo false)
 
-# In debug mode (NEOCITIES_LOG_DIR set by run.sh --debug) make Lua's stdout and
-# stderr UNBUFFERED. Otherwise Lua holds log lines in a block buffer and a hard
-# lock loses everything not yet flushed — defeating the whole point of routing
-# the log through fsync-logger below. Empty string outside debug = default
-# (block) buffering, which is faster for normal runs.
-LUA_DEBUG_PROLOGUE=""
+# How much of the log survives a process that is killed rather than finished.
+#
+# Lua's default for a redirected stream is BLOCK buffering: output accumulates in
+# a 4 KB buffer and is handed to the kernel only when that fills. A process that
+# exits normally flushes on the way out; a process killed by a signal does not,
+# so the last few kilobytes are dropped by the C library — and those kilobytes
+# are exactly the ones that say what went wrong. That is how a run died at 85%
+# and left a log ending mid-sentence with no error in it.
+#
+# LINE buffering costs one write() per log line instead of one per 4 KB. Against
+# a log in RAM that write is a memcpy into a tmpfs page: no seek, no disk, no
+# wait. Roughly two thousand extra syscalls across a run that takes minutes,
+# which is why we can have the last words AND not pay for them.
+#
+# --debug goes further to NO buffering, because there the log is on real disk and
+# is fsync()'d per line: the target is a hard lock that stops the kernel too, so
+# every line must be committed the instant it exists, and the cost is accepted.
+LUA_BUFFERING_PROLOGUE="io.stdout:setvbuf('line'); io.stderr:setvbuf('line');"
 if [ -n "${NEOCITIES_LOG_DIR:-}" ]; then
-    LUA_DEBUG_PROLOGUE="io.stdout:setvbuf('no'); io.stderr:setvbuf('no');"
+    LUA_BUFFERING_PROLOGUE="io.stdout:setvbuf('no'); io.stderr:setvbuf('no');"
 fi
 
 LUA_EMBED_PROGRAM="
-    ${LUA_DEBUG_PROLOGUE}
+    ${LUA_BUFFERING_PROLOGUE}
     package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
     local sim = require('similarity-engine')
     local success = sim.generate_all_embeddings(
@@ -862,6 +888,7 @@ MONITOR_PID=$!
 # Wait for completion
 wait $EMBED_PID
 EMBED_RESULT=$?
+
 
 # Stop monitoring
 kill $MONITOR_PID 2>/dev/null
@@ -1001,16 +1028,21 @@ if [ $EMBED_RESULT -eq 0 ] && [ -f "$EMBEDDINGS_FILE" ]; then
 else
     echo -e "${RED}❌ GENERATION FAILED${NC}"
     echo ""
+    echo -e "${YELLOW}🔎 How it ended:${NC} $(describe_exit_status "$EMBED_RESULT")"
+    echo ""
     echo -e "${YELLOW}📋 Error Log (last 20 lines):${NC}"
     if [ -f "$TEMP_LOG" ]; then
         tail -20 "$TEMP_LOG" | sed 's/^/   /'
+    else
+        echo -e "   ${RED}(no log at $TEMP_LOG — it should have been written there)${NC}"
     fi
     echo ""
     echo -e "${YELLOW}💡 Troubleshooting:${NC}"
     echo -e "   1. Check inference server status"
-    echo -e "   2. Verify EmbeddingGemma model availability"  
+    echo -e "   2. Verify EmbeddingGemma model availability"
     echo -e "   3. Check network connectivity"
     echo -e "   4. Review full log: ${CYAN}$TEMP_LOG${NC}"
+    echo -e "      (kept — it lives in RAM and goes away on its own at reboot)"
 fi
 
 echo ""
@@ -1018,12 +1050,13 @@ echo -e "${CYAN}================================================================
 echo -e "${BLUE}Generation completed at:${NC} $(date)"
 echo -e "${CYAN}================================================================${NC}"
 
-# Cleanup. In debug mode (NEOCITIES_LOG_DIR exported by run.sh --debug) the
-# embedding log is preserved for post-crash review; otherwise it is removed as
-# before. The progress file is ephemeral inter-process state, always cleaned.
-if [ -z "${NEOCITIES_LOG_DIR:-}" ]; then
-    rm -f "$TEMP_LOG"
-fi
+# Cleanup. The log is NOT removed on any path any more: it sits in RAM (or, under
+# --debug, on disk where you asked for it to be kept), and a report that tells you
+# to read a file must leave the file there to be read. Each run overwrites it, so
+# it does not accumulate; a reboot clears the RAM copy for free.
+#
+# The progress file is different — it is live inter-process state, meaningful only
+# while the run is in flight, so it is still cleaned.
 rm -f "${DIR}/tmp/shared-memory/embedding_progress_${USER}.txt" 2>/dev/null
 
 # Propagate the embedding result as this script's exit code so run.sh's

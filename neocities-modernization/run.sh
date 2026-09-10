@@ -1016,7 +1016,9 @@ cd "$DIR" || {
 #   1. NEOCITIES_LOG_DIR is exported so the child scripts that own the
 #      inference logs — scripts/start-llamacpp-server.sh (llamacpp-server.log)
 #      and generate-embeddings.sh (embedding_generation.log) — write there
-#      and skip their usual end-of-run log deletion.
+#      instead of into the RAM tier, where a reboot would take them. The
+#      embedding log is kept either way now; --debug only changes WHERE it
+#      lives, and buys per-line fsync on top.
 #   2. This script's own console output is tee'd to run.log, so whatever stage
 #      was mid-flight at the instant of the freeze (including the GPU Vulkan
 #      similarity/diversity stages, which log only to stdout) leaves a trail.
