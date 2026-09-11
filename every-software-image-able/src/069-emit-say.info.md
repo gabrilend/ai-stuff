@@ -49,6 +49,27 @@ port reporting success. That is the same failure mode as the header offsets
 in `033`, and it was found the same way: by looking at what was drawn rather
 than at what was written.
 
+## And the numbers for reaching firmware live here
+
+`069` is where the offsets into the firmware's own structures are named, and
+since 2026-09-10 the assembled machine reads them from here rather than
+writing its own. Three things are kept: which entry of the boot services
+table each function is, where the display's geometry sits, and where the
+record firmware keeps about *the running program* says what it says.
+
+The boot services table is a header and then nothing but function pointers,
+so every entry is twenty-four plus eight times its place in the
+specification's list. That arithmetic cannot be checked against anything at
+run time — a wrong number calls a different function of firmware with this
+call's arguments — but it can be checked against itself: asking for the
+display has used 320 since the first drawing, and 320 is where the count puts
+the fortieth function. The two agreeing is the only corroboration available.
+
+The loaded-image record is reached with the handle the entry point was
+called with and the guid named here. It says which device this program was
+read from, where firmware placed it, and how many bytes of it there are —
+which is how a machine tells whether the handle it kept is its own.
+
 ## The speaking hands
 
 `064.offer_speaking` gives the model `say` (everywhere at once), `say_on`

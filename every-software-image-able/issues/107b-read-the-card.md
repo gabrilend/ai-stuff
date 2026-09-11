@@ -23,22 +23,49 @@ file into memory before the first instruction runs, so the data is simply
 *there*. No filesystem, no block numbers, no reading. That is the arrangement
 that said six words on 2026-08-07.
 
-**Two things are missing that have nothing to do with regions.**
+**The two small things are done on the first architecture, 2026-09-10. What
+remains here is the storage, and the deferred layout work.**
 
-**The image handle is discarded at the first instruction of every payload.** The
-entry point is called with the image handle in `%rcx` and the system table in
-`%rdx` — the Microsoft x64 convention, which UEFI uses on this architecture.
-`069`'s `_start` saves `%rdx` into `%r14` and never touches `%rcx`. Nothing needs
-it yet, which is exactly why it is worth keeping now: everything that will ever
-ask the firmware about *this program* starts from that handle, and a lookup
-handed whatever the firmware happened to leave in a register does not fail
-loudly. It looks up a handle that is not this program's.
+**The machine keeps the firmware's name for itself, and proves it is the right
+one.** The entry point is called with the image handle in `%rcx` and the system
+table in `%rdx` — the Microsoft x64 convention, which UEFI uses on this
+architecture. Both are now kept: the table in a register as before, the handle in
+a slot of the work area, stored before the first mark is said because saying
+anything is a call into firmware and the console's own first argument also
+travels in `%rcx`.
 
-**The firmware's watchdog is armed and nobody turns it off.** UEFI starts a
-five-minute timer before entering the program. A machine that thinks for longer
-resets — with no message, no pattern, and no relationship to what it was doing.
-Every run so far has been far shorter than five minutes, so it has never fired.
-A real model on a real board will.
+It is then spent immediately, on the only question about it that has a checkable
+answer — *firmware, where did you put me?* The loaded-image record it reaches
+says where this program was placed and how long it is; the machine knows where it
+is standing because it measured. Those two agreeing is the difference between a
+saved handle and the right saved handle, and a stale register fails it loudly
+rather than answering confidently about another program. The record's device
+field is said aloud in the same breath, which is the card, and the card is the
+one device a machine looking for somewhere to live must not move into.
+
+**The firmware's five-minute timer is turned off.** UEFI starts a watchdog before
+entering the program and resets the machine when it expires — with no message, no
+pattern, and no relationship to what was being thought about. It is now disarmed
+by one call with a nought timeout, immediately after first light is said, so that
+a firmware which faults on the call leaves a line behind saying how far it got.
+
+**Where it is done is not where this ticket said it would be.** The design below
+says the waking code, before the hand-over. The waking code is not on the boot
+path: firmware enters the assembled machine directly, and the processor-selection
+payload is a separate program that says what it found and halts. So the disarming
+lives at the entry point firmware actually calls. **When selection joins the boot
+path it becomes that entry point, and both of these move to it** — they belong to
+whatever runs first, not to any particular file.
+
+The two demonstration payloads — the one that says a line on screen and serial,
+and the one that names the processor — still discard the handle and still leave
+the timer armed. Both halt within milliseconds, so neither can reach five
+minutes, and giving them a handle neither will ever ask a question with would be
+two more places for the same instruction to be wrong.
+
+**The three architectures are not equal here.** This is the first one only. The
+handle arrives in a different register on each, and the three firmwares already
+hand over three different ways (`401`, and `notes/023`).
 
 ## What is built now
 
@@ -158,14 +185,29 @@ inside the file or sit in blocks beside it, so it is on the near path either way
 
 ## How it is proved
 
-**The handle**: assert it is non-zero where the driver receives it, and use it
-for one real lookup — the loaded-image protocol — requiring success and a device
-handle that is also non-zero. A saved register that is never used proves nothing
-about whether the right thing was saved.
+**The handle**: use it for one real lookup — the loaded-image protocol —
+requiring success, a device handle that is also non-zero, and the place the code
+is standing to fall inside the span firmware reports for this program. A saved
+register that is never used proves nothing about whether the right thing was
+saved. Checked in both directions: saving the wrong register instead makes the
+lookup refuse, the standing place fall outside the span, and the machine stop
+before it thinks, rather than thinking with a handle that names something else.
 
-**The watchdog**: let an emulated board sit for six minutes without resetting.
-Slow, run once, and worth it — after this the failure it prevents can never be
-diagnosed from its symptoms.
+There is a second, cheaper check beside it, on the emitted text rather than the
+running machine: the handle must be stored **before the first call into
+firmware**. A machine that stores it one instruction too late boots, speaks, and
+is wrong — it would keep a console pointer and call it the program's name.
+
+**The watchdog**: two claims, and they are different. That firmware accepted the
+disarming, which is the status it gives back. And that the machine is still there
+afterwards, which is an emulated board sitting for longer than the five minutes
+the timer would have run. An armed watchdog does not look like silence — the
+board resets, firmware starts over, and the payload runs a second time from the
+beginning — so the symptom is the machine saying *first light* twice, and
+counting how many times it said it is the whole test.
+
+The sit is behind a flag, because it costs its own duration and proves a thing
+that does not change once proved.
 
 ## Suggested implementation steps
 

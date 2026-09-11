@@ -33,9 +33,20 @@ was the word "complete" standing alone, when what is complete is the half
 that says what the hands *are*.
 
 Carrying them onto the chip is `107`'s ninth step, and it is the part of that
-ticket to budget for: recognising a request inside generated text is
-comparing byte strings, and doing it in assembly three times is the least
-pleasant work remaining in the project.
+ticket to budget for -- the hands are many, and each one is its own piece of
+assembly.
+
+**It stopped being the work nobody wanted, 2026-09-10.** It was described here
+and in `107` as comparing byte strings against a catalogue, three times over,
+which is what made it the least pleasant thing left. That description was wrong
+about what the machine has in its hands at the moment it must decide. A turn
+draws a token -- a number -- and only becomes bytes at the end, to be said aloud.
+So a catalogue holding each name as the token numbers that spell it is matched as
+the words are drawn: an index into a dispatch table, then a walk over a few
+integers. **Where a choice can be made on token numbers, it is made on token
+numbers.** The speed saved is marginal; what is saved is the byte comparison,
+which now does not have to be written at all. `107`, step nine, carries the three
+build-time refusals that make it safe.
 
 ## Issues
 
