@@ -11,7 +11,14 @@ matters. Issue `107a`, steps five through eight of `107`.
 ```
 luajit src/140-test-the-driver.lua              # both halves
 luajit src/140-test-the-driver.lua --quick      # without booting a board
+luajit src/140-test-the-driver.lua --slow       # and sit out the firmware's timer
+luajit src/140-test-the-driver.lua --slow --sit 340   # for a chosen number of seconds
 ```
+
+`--slow` adds one check that costs its own duration: the board is left running
+for longer than the five-minute watchdog firmware arms before entering the
+program, and is required to still be there at the end. It is off by default
+because it proves a thing that does not change once proved.
 
 ## What `139` exports
 

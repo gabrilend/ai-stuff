@@ -42,6 +42,19 @@ M.GRAPHICS_OUTPUT_GUID = {
 }
 -- }}}
 
+-- {{{ M.LOADED_IMAGE_GUID -- how firmware is asked about the running program
+--
+-- Handed the image handle the firmware passed to the entry point, this names
+-- the record firmware keeps about THIS program: where it was placed in
+-- memory, how much of it there is, and which device it was read from.
+--
+-- 5b1b31a1-9562-11d2-8e3f-00a0c969723b, in the same mixed-endian arrangement.
+M.LOADED_IMAGE_GUID = {
+  0xa1, 0x31, 0x1b, 0x5b, 0x62, 0x95, 0xd2, 0x11,
+  0x8e, 0x3f, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b,
+}
+-- }}}
+
 -- {{{ offsets into the firmware's structures
 --
 -- Fixed by the specification, and the only numbers here that cannot be
@@ -51,6 +64,15 @@ M.OFFSETS = {
   system_table_console  = 64,    -- the text console protocol
   system_table_boot     = 96,    -- the boot services table
   boot_locate_protocol  = 320,   -- LocateProtocol, 40th function of boot services
+  -- THE BOOT SERVICES TABLE IS A HEADER AND THEN NOTHING BUT POINTERS, so
+  -- every entry below is twenty-four plus eight times its place in the
+  -- specification's list. That is worth stating because the numbers cannot be
+  -- checked against anything at run time -- a wrong one calls a different
+  -- function of firmware with this call's arguments. LocateProtocol above is
+  -- the fortieth and lands on 320, which is the arithmetic agreeing with a
+  -- number that has been in use here since the display was first asked for.
+  boot_handle_protocol  = 152,   -- HandleProtocol, 17th
+  boot_set_watchdog     = 256,   -- SetWatchdogTimer, 30th
   graphics_mode         = 24,    -- the protocol's current mode structure
   mode_info             = 8,     -- that structure's description of the mode
   mode_framebuffer      = 24,    -- where the pixels are
@@ -65,6 +87,14 @@ M.OFFSETS = {
   --   0 version, 4 width, 8 height, 12 pixel format,
   --   16..31 the pixel bitmask, four words of it, 32 pixels per row
   info_pixels_per_row   = 32,
+  -- the record firmware keeps about the running program, reached with the
+  -- image handle and the guid above. Its first six fields are a revision, a
+  -- parent handle, the system table, the device it came from, the path it
+  -- came from and a reserved word, then the two load-option fields -- which
+  -- is 64 bytes before anything says where the program actually is.
+  loaded_image_device   = 24,    -- the device this program was read from
+  loaded_image_base     = 64,    -- where firmware placed this program
+  loaded_image_size     = 72,    -- how many bytes of it there are
 }
 -- }}}
 

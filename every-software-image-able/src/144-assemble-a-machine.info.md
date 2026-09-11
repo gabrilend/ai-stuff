@@ -48,6 +48,10 @@ It lived inside `140`, which is a test. So the only way to obtain a whole machin
 
 It does not assemble, wrap or write anything. It returns text and bytes. Turning text into instructions is clang's business, the executable envelope is `029`'s, the medium is `141`'s -- and keeping them apart is what lets a test read the assembly while a builder takes the image.
 
+## And it is where the firmware is met
+
+The name does not suggest it, but this emits the entry point firmware actually calls, so the two things that have to happen before anything else happen here: the firmware's name for this program is kept before the first call can destroy it, and the five-minute timer firmware arms before entering a program is turned off. Both would belong to the processor-selection payload if that were on the boot path. It is not, so they belong to whatever runs first, and this runs first.
+
 ## Worth knowing
 
 A test that builds its own version of the thing is testing its own version. `140` calls this and checks what comes back; the builder calls the same thing. One dataflow, and the machine on it is the machine that ships.

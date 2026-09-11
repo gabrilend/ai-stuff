@@ -104,10 +104,47 @@ there is no linker and a call by name is a note for one.
 
 **Step nine: noticing that what was said is a request, and carrying it out.**
 This is the hands, it is the part `107` predicted would want its own ticket
-once its shape was known, and it does -- recognising a request means comparing
-byte strings against a catalogue, which is a different kind of work from
-anything above it. The catalogue, the parser, the answering and every hand
-exist and are proved, all of them readable-only.
+once its shape was known, and it does. The catalogue, the parser, the answering
+and every hand exist and are proved, all of them readable-only.
+
+**And it is no longer a matter of comparing byte strings, decided 2026-09-10.**
+It was described that way here and everywhere else, and that description is what
+made it the step to budget for: matching a name against a catalogue means string
+comparison, and string comparison written three times in assembly is the least
+pleasant work anybody had found in this project.
+
+**The machine does not produce text. It produces numbers.** A turn draws a token
+-- a number -- and only turns numbers into bytes at the very end, to say them
+aloud. The model carries a list of every token it knows, and the tokenizer's
+prepared tables are already built from that list at startup. So a catalogue
+holding each tool's name as **the token numbers that spell it** is recognised as
+the words are drawn, one number at a time, with no string anywhere: the first
+token of a name indexes a dispatch table, and the rest is walking a short
+sequence of integers.
+
+**The general rule this is one case of:** where a choice can be made on token
+numbers, it is made on token numbers. Strings are what the machine says, not
+what it thinks with.
+
+The saving in speed is marginal and is not the point. The point is that the
+unpleasant work stops existing -- there is no byte comparison to write once, let
+alone three times.
+
+**Three things this requires, and all three are settled at build time**, which is
+where this project already puts refusals:
+
+1. **A name spells differently depending on what surrounds it.** A word with a
+   leading space is a different token from the same word without one, and what
+   follows can move where the split lands. So the request syntax is pinned -- a
+   fixed marker at the start of a line, a fixed delimiter at the end -- which
+   fixes the surrounding bytes and leaves each name exactly one spelling.
+2. **No two tools may spell the same, and no spelling may be a prefix of
+   another.** The build tokenizes every name in its pinned context and refuses
+   rather than resolving a collision quietly.
+3. **The catalogue belongs to the model.** Token numbers are meaningless outside
+   the vocabulary that produced them, so the catalogue is generated beside the
+   tokenizer's tables from the model being packed, never written by hand. A
+   hand-written one survives a model swap and points at the wrong words.
 
 **The forever-loop around a turn waits for it, and should.** A machine with no
 hands and no channel that has finished a thought has nothing to think about
@@ -251,14 +288,16 @@ stated. `docs/008` question 23.
 7. **Run the engine and draw a word.** The conducting, then the sampler, then
    the word joins the context.
 8. **Say it**, through the console.
-9. **Notice a request in what was said**, carry it out, and feed the answer
-   back in. This is the hands, and it is the part that is genuinely
-   unpleasant in assembly, because recognising a request is comparing byte
-   strings.
+9. **Notice a request in the numbers that were drawn**, carry it out, and feed
+   the answer back in. This is the hands. It is watched for as the words are
+   drawn rather than read back out of what was said, so it is a walk over a
+   short sequence of integers rather than a comparison of byte strings.
 10. **Go back to seven.**
 
 Steps 1 through 4 are setup and are fiddly rather than hard. Steps 7 and 8
-are small. Step 9 is the one to budget for.
+are small. Step 9 is still the one to budget for -- the hands themselves are
+the volume, and there are many of them -- but it stopped being the one nobody
+wanted to write.
 
 ## What it is not
 

@@ -1184,7 +1184,38 @@ deliberately left open.
 
 ## Open, and unanswered
 
-**None, as of 2026-08-21** — for the first time since this file was written.
+**Three, as of 2026-09-10**, all raised by turning off the firmware's timer and
+keeping the firmware's name for the running program — the two things `107b` had
+been carrying as known defects.
+
+**74 — When a machine finds it is holding the wrong name for itself, does it
+stop?**
+Today it stops. The machine asks firmware where it was placed, compares that span
+against the place it is actually standing, and refuses to think if the two
+disagree. The argument for stopping: the check exists precisely because a wrong
+handle answers confidently rather than failing, so a machine that carries on has
+carried on into every later question being wrong. The argument against: this is a
+self-check, and a self-check that is itself wrong turns a working board into a
+dead one — on quirky firmware, over a question the machine did not need answered
+to think. The same shape as question 39 on refusing to build, one layer lower
+down: a refusal at build time has a person standing there, and this one does not.
+
+**75 — Do the demonstration payloads get the same two instructions?**
+The machine that ships keeps the handle and disarms the timer. The payload that
+says a line and the payload that names the processor do neither, and both halt
+within milliseconds, so neither can reach five minutes or ask firmware anything.
+Adding it to them is two more places for one instruction to be wrong; leaving it
+out is a rule that holds until somebody makes one of them run longer. It resolves
+itself if processor selection joins the boot path, because then it is the entry
+point and inherits both.
+
+**76 — When does the timer get re-armed, and around what?**
+`003` and `010` both describe arming it for a few seconds immediately before a
+probe that might stall and disarming it immediately after, so that a hard stall
+resets the board rather than ending the machine. Nothing does that yet, because
+nothing probes yet. The first candidate is the storage work in `107b` — asking
+firmware for block devices and reading from them is the first place this project
+touches hardware that can fail to answer.
 
 That day: twenty-five questions answered, one withdrawn because its premise was
 wrong, one answered by correcting how it had been asked, four handed to the machine
