@@ -526,6 +526,40 @@ emulator's rule.
 
 ---
 
+### A machine that is reset leaves a log that looks like a machine that finished
+
+**Paid, 2026-09-10**, while proving the firmware's five-minute watchdog had
+really been turned off.
+
+**What emulation shows.** A serial log that runs from the firmware's own boot
+lines through first light, the setup numbers, the six words, and *finished* —
+and then stops, because a machine that has finished stops. Nothing anywhere in
+it is out of place.
+
+**What is actually happening.** The board was reset by the watchdog while
+sitting at its halt loop, and the road hands the emulator `-no-reboot`, so a
+guest asking to restart makes the emulator **exit** rather than boot again. The
+log is not truncated and carries no error; the process simply is not there any
+more.
+
+**What it hides.** The one symptom the failure has. On a real board a watchdog
+reset restarts the machine, firmware runs again, and the payload says first
+light a **second** time — which is visible, countable, and obviously wrong. Under
+this road the same event produces a log identical to a successful run.
+
+**What it cost.** Nothing, because the test was written before it was trusted:
+the first version counted how many times the machine said first light, which
+would have passed a board that was being killed every thirty seconds. Measured
+instead by how long the emulator lived against how long it was asked to sit, an
+armed timer shows up immediately — 33 seconds of a 120-second sit, with a log
+ending in *finished*.
+
+**The general shape, worth keeping.** When the emulator's death is the symptom,
+no amount of reading what the machine said will find it. The reading has to come
+from outside the machine, and the cheapest thing outside it is the clock.
+
+---
+
 ## Expected, unpaid
 
 Written down before being met, so that meeting them is cheaper. None of these

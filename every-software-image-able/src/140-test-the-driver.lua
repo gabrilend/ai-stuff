@@ -61,6 +61,10 @@ end
 
 -- {{{ main
 local seconds, quick = 120, false
+-- The sit is the watchdog's proof and it costs its own duration, so it is off
+-- unless asked for. Longer than the five minutes firmware arms, by enough that
+-- a board which was going to reset has had its chance.
+local sit, sit_seconds = false, 400
 local index = 1
 while index <= #arg do
   if arg[index] == "--dir" then
@@ -69,6 +73,10 @@ while index <= #arg do
     index = index + 1 ; seconds = tonumber(arg[index]) or 120
   elseif arg[index] == "--quick" then
     quick = true
+  elseif arg[index] == "--slow" then
+    sit = true
+  elseif arg[index] == "--sit" then
+    index = index + 1 ; sit_seconds = tonumber(arg[index]) or 400
   end
   index = index + 1
 end
@@ -511,6 +519,27 @@ if not quick then
         and made.sampler_needed == sampler_needed,
         made.engine_needed .. " against " .. engine_needed)
 
+  -- {{{ the firmware's name for this program, kept, and kept in time
+  --
+  -- The entry point is handed the system table in `%rdx` and the handle that
+  -- names this program in `%rcx`. Saying anything is a call into firmware
+  -- whose own first argument also goes in `%rcx`, so there is exactly one
+  -- window in which the handle can be saved: before the first call. This
+  -- reads the emitted text rather than the running machine, because a machine
+  -- that saves it one instruction too late boots, speaks, and is still wrong
+  -- -- it would save a console pointer and call it the program's name.
+  local kept_at = made.assembly:find("movq %%rcx, %d+%(%%rbp%)")
+  local entry_at = made.assembly:find("fl_start:", 1, true)
+  local first_call = entry_at
+                     and made.assembly:find("callq *%rax", entry_at, true)
+  check("the firmware's name for this program is kept",
+        kept_at ~= nil, "nothing stores %rcx into the work area")
+  check("and kept before the first call into firmware could destroy it",
+        kept_at ~= nil and first_call ~= nil and kept_at < first_call,
+        "stored at " .. tostring(kept_at) .. ", first call at "
+        .. tostring(first_call))
+  -- }}}
+
   local riding = made.riding
   local body = { made.assembly }
   -- }}}
@@ -587,6 +616,43 @@ if not quick then
       return tonumber(spoken_aloud:match(what .. "%s+(%x+)") or "", 16)
     end
 
+    -- The same stamps as they were actually said. A status from firmware has
+    -- its top bit set, which is larger than a number this language keeps
+    -- exactly -- so reporting a failure through `number_after` turns the one
+    -- number somebody needs to look up into something in scientific notation.
+    local function said_after(what)
+      return spoken_aloud:match(what .. "%s+(%x+)") or "not said at all"
+    end
+
+    -- {{{ the two things firmware does that nobody notices until they cost a day
+    --
+    -- The timer is checked by its answer rather than by waiting, because
+    -- waiting for it means booting a board for five minutes to watch nothing
+    -- happen, and the firmware says whether it accepted the disarming.
+    --
+    -- The handle is checked by spending it. Firmware is asked where it put
+    -- this program; the machine knows where it is standing, because it
+    -- measured. Those two agreeing is the difference between a saved handle
+    -- and the right saved handle -- a stale register would have failed the
+    -- lookup or answered about somebody else's program, and both land here as
+    -- a number that is not nought.
+    check("and turns off the five-minute timer firmware armed",
+          number_after("watchdog") == 0,
+          "the firmware answered " .. said_after("watchdog")
+          .. " rather than nought")
+    check("and can ask firmware about itself",
+          number_after("asked") == 0,
+          "the lookup answered " .. said_after("asked"))
+    check("and the program firmware describes is the one that is running",
+          number_after("mine") == 0,
+          "the code stands outside the span firmware reported, which was "
+          .. said_after("span") .. " bytes at " .. said_after("placed"))
+    check("and it knows which device it was read from",
+          (number_after("camefrom") or 0) ~= 0,
+          "firmware named no device; the handle reached a record with an "
+          .. "empty field, which is a record that was never filled in")
+    -- }}}
+
     check("and finds every one of its own weights",
           number_after("weights") == tensor_count,
           tostring(number_after("weights")) .. " of " .. tensor_count)
@@ -645,6 +711,57 @@ if not quick then
     check("and it says so and stops rather than falling off the end",
           spoken_aloud:find("finished", 1, true) ~= nil,
           "see " .. serial)
+    -- }}}
+
+    -- {{{ the timer that was turned off, proved by outliving it
+    --
+    -- The status firmware gave back says it accepted the disarming. This says
+    -- the machine is still there afterwards, which is a different claim and
+    -- the one that matters.
+    --
+    -- AN ARMED WATCHDOG DOES NOT LOOK LIKE SILENCE, and it does not look like
+    -- a crash either. The firmware resets the whole machine, which on this
+    -- board is fatal to the emulator rather than visible in what it said: the
+    -- road hands the emulator `-no-reboot`, so a guest that asks to restart
+    -- makes it exit. The log is then a perfectly ordinary log that happens to
+    -- stop, and counting what was said cannot tell that apart from a machine
+    -- that finished and sat quietly.
+    --
+    -- SO THE MEASUREMENT IS THE CLOCK. A board that was going to be reset at
+    -- five minutes leaves the emulator gone before the sitting time is up. One
+    -- that was not is still there when the sitting time ends it. The reading
+    -- that matters is how long the emulator lived, not what it said.
+    --
+    -- The count is kept beside it for the day the road stops saying
+    -- `-no-reboot`: then a reset does restart the board, the payload runs
+    -- again from the beginning, and the symptom becomes first light twice.
+    --
+    -- Behind a flag because it costs its own sitting time and proves a thing
+    -- that does not change once proved. `107b` asked for it to be run once.
+    if sit then
+      local image = DIR .. "/tmp/shared-memory/payloads/first-light-x86_64.img"
+      local sat = DIR .. "/tmp/shared-memory/logs/qemu-uefi-x86-64-sat.log"
+      say("  (--slow: sitting for " .. sit_seconds .. " seconds)")
+      run_one("rm -f " .. serial)
+      local began = os.time()
+      run_one("luajit " .. DIR .. "/src/018-launch-board.lua qemu-uefi-x86-64"
+        .. " --medium " .. image .. " --memory plenty --seconds " .. sit_seconds
+        .. " --dir " .. DIR .. " > /dev/null 2>&1")
+      local lived = os.difftime(os.time(), began)
+      run_one("cp " .. serial .. " " .. sat)
+      local long_sit = read_file(sat) or ""
+      local lights = 0
+      for _ in long_sit:gmatch("first light") do lights = lights + 1 end
+      -- the slack is for starting the emulator and tearing it down, and is far
+      -- smaller than the gap between sitting out the timer and being cut down
+      -- by it
+      local slack = 20
+      check("and is still there after longer than the timer it turned off",
+            lived >= sit_seconds - slack and lights == 1,
+            "the board lived " .. lived .. " of " .. sit_seconds
+            .. " seconds and said first light " .. lights .. " times; short "
+            .. "of the sitting time is the timer cutting it down. see " .. sat)
+    end
     -- }}}
   end
   -- }}}

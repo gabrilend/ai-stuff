@@ -40,6 +40,30 @@ Still open, and belonging to the tickets that own the hands that can hang:
 a call that never returns. Nothing here can hang; `205` is where that starts
 being possible and where giving up on one is designed.
 
+**What the assembly half will recognise, decided 2026-09-10.** Nothing here
+changes; this records what the chip-side twin of the recogniser is, because it
+was assumed to be a byte comparison and is not one.
+
+A turn draws a token -- a number -- and only becomes bytes at the very end, to be
+said aloud. So the catalogue's chip-side form holds each name as **the token
+numbers that spell it**, worked out at build time by the same tokenizer that
+prepares the machine's word tables, and the recogniser watches the numbers as
+they are drawn. The first token indexes a dispatch table; the rest is a walk over
+a few integers. Reserved tokens are still ruled out for the reason given in step
+one below -- nothing is invented, the names are spelled with tokens the model
+already has.
+
+**It makes the rule above stronger rather than weaker.** *A call in a request
+moves nothing; only the machine's own speech is scanned* was a discipline the
+scanner had to keep. Watching the drawn numbers is the machine's own speech by
+construction -- there is nothing else to watch, and text arriving from outside
+never becomes a candidate at all.
+
+**And it is per grammar as well as per model.** The recogniser was already
+swappable and already tested per model; the catalogue is now generated from both
+the grammar in force and the vocabulary being packed. `107`, step nine, holds the
+three things the build must refuse.
+
 ## Intended behavior
 
 The model can ask for an action and receive a result, through a form the engine

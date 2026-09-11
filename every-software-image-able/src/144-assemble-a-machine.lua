@@ -26,6 +26,14 @@
 -- clang's business, the executable envelope is `029`'s, the medium is `141`'s --
 -- and keeping them apart is what lets a test read the assembly while a builder
 -- takes the image.
+--
+-- AND IT IS WHERE THE FIRMWARE IS MET. The name does not suggest it, but this
+-- emits the entry point firmware actually calls, so the two things that have to
+-- happen before anything else happen here: the firmware's name for this program
+-- is kept before the first call can destroy it, and the five-minute timer
+-- firmware arms before entering a program is turned off. Both would belong to
+-- the processor-selection payload if that were on the boot path. It is not, so
+-- they belong to whatever runs first, and this runs first.
 
 local M = {}
 
@@ -65,6 +73,7 @@ function M.assemble(options)
   local float_bits = dofile(DIR .. "/src/107-float-bits.lua")
   local rides      = dofile(DIR .. "/src/143-what-rides-inside.lua")
   local envelope   = dofile(DIR .. "/src/029-wrap-uefi.lua")
+  local firmware   = dofile(DIR .. "/src/069-emit-say.lua")
   local emit       = dofile(DIR .. "/src/043-emit-kernels.lua")
   local finder     = dofile(DIR .. "/src/131-find-tensors.lua")
   local filler     = dofile(DIR .. "/src/135-fill-the-plan.lua")
@@ -197,6 +206,12 @@ reserve("scores", shape.vocabulary * 4)
 reserve("chance", 16)
 reserve("say_room", 256)
 reserve("detail", 16)
+-- The firmware's name for this program, and the record it keeps under that
+-- name. Both live in the work area rather than in a register, because a
+-- register is a thing that has to survive every routine written from here to
+-- the end of the project and a slot is a thing that does not.
+reserve("image_handle", 8)
+reserve("image_record", 8)
 reserve("engine_room", engine_needed)
 reserve("tokenizer_room", tokenizer_needed)
 reserve("sampler_room", sampler_needed)
@@ -350,9 +365,11 @@ line("  popq %rbx")
 line("  retq")
 -- }}}
 
+local uefi = firmware.OFFSETS
+
 line("fl_start:")
 line("  movq %rdx, %r14")                   -- the firmware's table
-line("  movq 64(%r14), %r15")               -- and its console
+line("  movq " .. uefi.system_table_console .. "(%r14), %r15")  -- and its console
 line("  leaq here(%rip), %r13")             -- where we are standing
 -- the work area, above where calls will push, and scratch below it for the
 -- thirty-two bytes every call into firmware is owed plus room to spell a
@@ -367,7 +384,114 @@ local function riding_at(name)
   return string.format("0x%x", geometry.blob_offset + APPEND[name]) .. "(%r13)"
 end
 
+-- {{{ the second thing the firmware handed over, which used to be dropped
+--
+-- THE ENTRY POINT IS CALLED WITH TWO ARGUMENTS AND BOTH MATTER. `%rdx` is the
+-- system table, kept above. `%rcx` is the image handle -- the firmware's name
+-- for this program -- and it was thrown away here until 2026-09-10, on the
+-- grounds that nothing had asked for it yet. That is exactly the wrong
+-- grounds: a lookup made later with whatever happens to be in `%rcx` by then
+-- does not fail. It succeeds, about somebody else's program.
+--
+-- IT IS STORED BEFORE ANYTHING IS SAID, and that ordering carries weight:
+-- saying something is a call into firmware, the console's own first argument
+-- goes in `%rcx`, and the handle is gone from the first mark onwards.
+line("  movq %rcx, " .. work("image_handle"))
+-- }}}
+
 mark("\r\nfirst light\r\n")
+
+-- {{{ the firmware's five-minute timer, turned off
+--
+-- UEFI arms a watchdog before calling the entry point and resets the machine
+-- when it expires. A program whose whole purpose is to think for a long time
+-- is the one program that reliably outlives it, and the reset carries no
+-- message, no pattern, and no relationship to whatever was being thought
+-- about -- so it would have read as a hardware fault for as long as anybody
+-- cared to look. `docs/003` and `docs/010` have both described this disarming
+-- as part of waking since before there was a machine to disarm it in. This is
+-- that sentence becoming an instruction.
+--
+-- Timeout, code, data size and data are all nought. A nought timeout is the
+-- specification's way of saying off.
+--
+-- It is done AFTER first light is said rather than before, so that a firmware
+-- that faults on the call leaves one line behind saying how far it got.
+line("  xorl %ecx, %ecx")
+line("  xorl %edx, %edx")
+line("  xorl %r8d, %r8d")
+line("  xorl %r9d, %r9d")
+line("  movq " .. uefi.system_table_boot .. "(%r14), %rax")
+line("  movq " .. uefi.boot_set_watchdog .. "(%rax), %rax")
+line("  callq *%rax")
+line("  movq %rax, %rbx")
+stamp("  watchdog ", "%rbx")
+-- }}}
+
+-- {{{ and the handle spent at once, on proving it is the right handle
+--
+-- Keeping the handle is worth nothing if it is the wrong one, and "it is
+-- whatever the firmware left in a register" is not a check. So it is spent
+-- immediately on the one question this program can mark its own answer to:
+-- firmware, where did you put me?
+--
+-- The record that comes back says where this program was placed and how many
+-- bytes of it there are. `%r13` is where the code is actually standing,
+-- measured by the processor rather than reported by anybody. If the standing
+-- place is inside the reported span, the handle names this program. If it is
+-- not, the handle names something else, and every later question asked with
+-- it would have been answered confidently about the wrong program.
+line("  jmp fl_guid_done")
+line("fl_image_guid:")
+for _, byte in ipairs(firmware.LOADED_IMAGE_GUID) do
+  line("  .byte " .. byte)
+end
+line("fl_guid_done:")
+line("  movq " .. work("image_handle") .. ", %rcx")
+line("  leaq fl_image_guid(%rip), %rdx")
+line("  leaq " .. work("image_record") .. ", %r8")
+line("  movq " .. uefi.system_table_boot .. "(%r14), %rax")
+line("  movq " .. uefi.boot_handle_protocol .. "(%rax), %rax")
+line("  callq *%rax")
+line("  movq %rax, %rbx")
+stamp("  asked    ", "%rbx")
+line("  testq %rbx, %rbx")
+line("  jnz fl_not_mine")
+-- both values are taken out of the record before either is said, because
+-- saying something is a call and a call keeps none of the scratch registers
+line("  movq " .. work("image_record") .. ", %r10")
+line("  movq " .. uefi.loaded_image_base .. "(%r10), %rbx")
+line("  movq " .. uefi.loaded_image_size .. "(%r10), %r12")
+stamp("  placed   ", "%rbx")
+stamp("  span     ", "%r12")
+-- The device this program was read from, said now because it is free now and
+-- because everything that ever asks a board what storage it has will want to
+-- tell this one apart from the rest -- it is the card, and the card is the
+-- one device a machine looking for somewhere to live must not move into.
+line("  movq " .. work("image_record") .. ", %r10")
+line("  movq " .. uefi.loaded_image_device .. "(%r10), %r12")
+stamp("  camefrom ", "%r12")
+line("  movq " .. work("image_record") .. ", %r10")
+line("  movq " .. uefi.loaded_image_size .. "(%r10), %r12")
+-- Unsigned on purpose. A standing place BELOW the reported one subtracts to
+-- an enormous number and fails the same comparison, so one test covers both
+-- ends of the span instead of two.
+line("  movq %r13, %rax")
+line("  subq %rbx, %rax")
+line("  cmpq %r12, %rax")
+line("  jae fl_not_mine")
+line("  xorl %ebx, %ebx")
+line("  jmp fl_handle_said")
+line("fl_not_mine:")
+line("  movq $1, %rbx")
+line("fl_handle_said:")
+stamp("  mine     ", "%rbx")
+line("  testq %rbx, %rbx")
+line("  jz fl_image_ok")
+mark("  the firmware's name for this program is not this program\r\n")
+line("  jmp fl_halt")
+line("fl_image_ok:")
+-- }}}
 
 -- {{{ the setup, narrated a step at a time
 --
