@@ -125,12 +125,59 @@ by any delivery, and the wire that will reach it is drawn after the
 station exists. The single ordering rule is: build the station
 completely, then publish the count that reveals it.
 
-**Removing a station is not possible, and that is deliberate.** An
-index is a position; reclaiming one means either leaving a hole every
-walk must learn to skip, or renumbering, which invalidates every wire
-at once. A station that should stop running has its inputs unwired
-instead — see 213 and 214, where this turns out to be the mechanism for
-both parking a program and removing a broken box.
+**A station can be removed and its place reused, and the order of
+operations is what makes it cheap.** An index is a position, so
+reclaiming one looks like it must mean either a hole every walk learns to
+skip or a renumbering that invalidates every wire at once. Neither is
+needed, because of where a wire actually lives: **a wire exists only as a
+destination record on some station's output port.** So:
+
+1. Take the rewiring lock and mark the station so nothing new starts from
+   it.
+2. Walk every station's every output port, cutting every wire that names
+   it. One walk finds all of them, because there is nowhere else for one
+   to be.
+3. Hand its parts to the scrapyard.
+4. The sweep frees them once no core can still be inside a task built
+   from it — the same per-core odd/even sweep that already reclaims an old
+   destination array after rewiring.
+
+**Cutting the wires first is what makes a generation tag unnecessary**,
+and that is the whole of the argument. With no wire left naming the
+station, nothing stale survives to be followed, so the place is safe to
+hand to the next station that asks for one. A generation counter would
+have cost four bytes on every wire and a comparison on **every single
+delivery**, forever, to guard against a situation this order of
+operations makes impossible.
+
+**A removed place is not immediately a free place.** A task is built from
+a station's slot count, return size and call site *after* the readiness
+check has released the mutex, so clearing those the instant a station is
+removed leaves a worker assembling a task out of a station emptied
+underneath it. The record therefore stays intact with only a flag saying
+not to start anything new from it; the fields go when the sweep says
+nobody can be inside a task that needs them, and clearing the call site is
+what finally frees the place. Placing into a removed-but-unreclaimed place
+is refused loudly rather than quietly corrupting the station that took it.
+
+**A value already in flight toward a removed station is discarded.** A
+worker reads a port's destination list once and then visits the entries,
+so a removal can land between the read and the visit. Discarding is what
+this engine already does with a value that has nowhere to go — a port
+wired nowhere discards, an unwired comparator branch discards — and
+stopping the program instead would make every removal a race against the
+values already moving.
+
+**An empty place is a free place, and a walk already skips one**, because
+a station with no call site is not a station. The hole the old reasoning
+feared costs one test that every walk needed anyway for a place that has
+been added but not yet filled.
+
+Unwiring a station's inputs is still the mechanism for a station that
+should stop running *without* going away — see 213 and 214, where it is
+how a program parks and how a broken box takes itself out of service.
+Those two and removal are now three different needs with two mechanisms
+rather than one overloaded one.
 
 ## Suggested implementation steps
 
@@ -143,10 +190,21 @@ both parking a program and removing a broken box.
 3. Publishing the count as a number that only increases, with the
    build-then-publish rule written as a comment at the store.
 4. Exits and destination arrays, with rewiring as build-new-and-swap.
-5. A test that floods one station's input through several growths and
+5. **Removal**, which is step 4's scrapyard used a second way: the
+   not-starting flag, the walk that cuts every wire naming the station,
+   the parts filed with a counter snapshot, and the place freed by
+   clearing the call site when the sweep passes. Nothing new is needed —
+   the sweep below is the whole of the hard part and rewiring already
+   wants it.
+6. A test that floods one station's input through several growths and
    confirms every station's address is unchanged.
-6. A test that several cores adding stations at once all succeed, no
+7. A test that several cores adding stations at once all succeed, no
    two sharing an index.
+8. A test that a removed place is handed to the next station that asks,
+   and that placing into one the sweep has not yet reclaimed is refused
+   rather than granted.
+9. A test that removes a station while values are in flight toward it and
+   confirms the program continues, having discarded them.
 
 ### Old arrays go to a scrapyard, not a bin
 

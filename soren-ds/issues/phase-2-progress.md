@@ -32,6 +32,44 @@ there for what changed and why.
 | release/acquire tagged across the whole core | one rule: build a thing completely, then publish it |
 | the program ends when work runs out | programs end because they were **asked** to |
 
+## And then a station became removable
+
+These issues were written with one restriction stated in five places
+across this project: **a station cannot be removed.** The reasoning was
+that an index is a position, so reclaiming one means either a hole every
+walk learns to skip or a renumbering that invalidates every wire at once.
+
+The parent project overturned it, into something stronger rather than
+weaker, and the whole argument is one observation: **a wire exists only as
+a destination record on some station's output port.** So cutting every wire
+that names a station is a single walk of the table, and once none is left
+nothing stale survives to be followed. No wire needs a generation tag, and
+delivery pays nothing — the alternative was four bytes on every wire and a
+comparison on every single delivery, forever, to guard against a situation
+this order of operations makes impossible.
+
+Two things surfaced in building it that the reasoning had not seen. **A
+removed place is not immediately a free place**: a task is assembled from a
+station's slot count, return size and call site *after* the readiness check
+releases the mutex, so the record has to stay intact behind a
+not-starting flag until the sweep says nobody can be inside a task that
+needs it. And **a value already in flight toward a removed station is
+discarded**, because a worker reads a port's destination list once and then
+visits the entries.
+
+This device needs no new machinery for it. 207 already files old
+destination arrays in a scrapyard and already has the per-core odd/even
+counter sweep that decides when nobody can be inside one; removal is that
+same scrapyard used a second way.
+
+Where it lands: **411** replaces a box by removing the old station instead
+of leaving it unwired forever, **909** gets an app's stations' places back
+at close instead of accumulating one dead station per station per app over
+a day, and **410** reaches a third kind of reclaimable code — a box whose
+every station has gone. The *no source* state still exists and is still
+what **213** parks with and what **214** uses when a box takes itself out
+of service; those want a station that stops running and stays.
+
 ## The story of the phase
 
 Read them in order for a walkthrough of how the engine comes together.
@@ -45,7 +83,7 @@ Read them in order for a walkthrough of how the engine comes together.
 | 204 | the task ring | the one channel between finding work and doing it |
 | 205 | workers and the run loop | take, run, deliver, free, repeat |
 | 206 | sleeping and waking | park the silicon; wake on an event or a deadline, with no handler |
-| 207 | the station table | shelves, indices, immutable destination arrays |
+| 207 | the station table | shelves, indices, immutable destination arrays, and a station that can be removed with its place reused |
 | 208 | what an input port is | three tags, per-cell states, growth by adding a page |
 | 209 | the readiness check and the claim | the engine's one rule, taking no lock |
 | 210 | the task | one allocation sized for its box, from per-core block lists |

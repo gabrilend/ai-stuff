@@ -42,9 +42,19 @@ The app's `links.json` declares the two exits. The `entries.json`
 declares one entry: `from-editor` accepts a text-typed value
 representing edited source for a named box, compiles it through 409,
 places a station on the result and moves the arrows to it via 411,
-and returns confirmation naming both the new station and the old one
-it left unwired — because the old one is still there, and putting the
-arrows back is how a person undoes this.
+and returns confirmation naming both the new station and the old one.
+
+**The old station is kept here, and the editor is the reason.** 411's
+sequence ends by removing it (207), which is right for an edit somebody is
+done with and wrong for one they are still looking at: putting the arrows
+back is how a person undoes a save, and there is nothing to put them back
+to once the station is gone. So this path stops at step 3 of 411 and holds
+the old station until the person has decided — at which point saving again,
+closing the map, or an explicit "keep this" removes it.
+
+That is a choice this app makes, not a change to 411. Removal being a step
+a caller performs rather than something that happens to them is what lets
+one caller defer it.
 
 ## Suggested implementation steps
 
