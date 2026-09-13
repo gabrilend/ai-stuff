@@ -43,7 +43,10 @@ tour; jump in by topic if you already know where you're going.
 - `012-soramech-runtime.md` — which pieces of soramech proper
   the launch system keeps, which it cuts, and how boxes get
   statically linked into the kernel image instead of dynamically
-  loaded from disk.
+  loaded from disk. Also how a program is written down, how it is
+  written back out as something that can be built again, and the
+  one place the two projects still disagree without having
+  decided: whether this device keeps a box catalogue.
 - `013-background-app-lifecycle.md` — the foreground, background,
   and asleep states, the per-app work queue, and the
   always-on-input-box suppression mechanism that makes

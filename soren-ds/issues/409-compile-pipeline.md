@@ -6,10 +6,10 @@
 
 The generator reads whatever sits in the box source directory, emits a
 call site and a catalogue row for each, and all of it is compiled into
-the image. So placing a station by the text `"add"` reaches a compiled C
-function — which is the whole trick that lets a text file describe a
-program — and the set of names that trick works for is frozen at build
-time.
+the image. So placing a station by the text `boxes/text.c:add` reaches a
+compiled C function — which is the whole trick that lets a text file
+describe a program — and the set of addresses that trick works for is
+frozen at build time.
 
 Phase 3 made that limit visible rather than creating it. A program can
 grow stations, ports and arrows while it runs; every one of those
@@ -57,8 +57,24 @@ error** — two same-width structs with different layouts already wire at
 build time (303), and a box compiled later makes that likelier without
 making it different.
 
-**The catalogue becomes a growable table.** It is looked up by name when
-a station is placed and by row afterwards, so it takes the same paging
+**Its address is the file its source was saved to**, and that is why this
+step matters beyond itself. A station line names a file and a function
+(305), so a box compiled here needs a file it can honestly claim — and it
+has one, because the source arrived by being written somewhere: the card
+through the read path (406), or the editor's save (phase 6). Nothing has to
+be invented, and nothing has to be special-cased.
+
+What that buys is the thing on-device authoring is for: **a program written
+at the touchscreen can be written back out and built again.** A box whose
+address named a scratch location belonging to the running system would be a
+box nothing could record, so a program containing one could be described
+but never rebuilt — it would be a description plus the running system that
+already held the code. The parent project spent three attempts on that
+problem from the other end before changing what saving a program means; see
+`docs/012-soramech-runtime.md`, *How a program gets written back out*.
+
+**The catalogue becomes a growable table.** It is looked up by address
+when a station is placed and by row afterwards, so it takes the same paging
 shape as everything else here that grows: add a block, never move what
 is already there, and a reader resolving a row is never disturbed. That
 is the fourth use of this pattern in the system — after the station

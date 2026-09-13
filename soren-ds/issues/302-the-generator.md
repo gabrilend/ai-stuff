@@ -97,11 +97,15 @@ print what it saw rather than by staring at what it emitted.
    target.
 3. The call-site writer, one per box, each carrying a comment naming
    the declaration and line it came from.
-4. The catalogue writer, with lookup by name, every size a `sizeof`
-   expression, and every type carried as text beside its size.
+4. The catalogue writer, with every size a `sizeof` expression and every
+   type carried as text beside its size. **Lookup is by the address a map
+   file writes** — a path and a function name, `boxes/text.c:add` — rather
+   than by a bare function name, because two box sources may each define
+   an `add` and a description that says only `add` says nothing about
+   which it meant (305).
 5. Replace phase 2's hand-supplied shapes with catalogue lookups —
-   this is the moment placing a station by the name "add" becomes
-   correct by construction.
+   this is the moment placing a station by the address
+   `boxes/text.c:add` becomes correct by construction.
 6. Tests: several declarations in one file, a struct returned by value,
    a function returning nothing, a declaration spanning several lines,
    a brace inside a string, and a call site proven to produce the same

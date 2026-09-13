@@ -21,74 +21,140 @@ Three things follow, and the third is the expensive one:
 
 ## Intended behavior
 
-**A program's doors are ordinary stations, designated.**
-
-Not a new kind of thing, not a splice, not a flattening pass. Same
-shape as any station — input ports, one output port, and a box that may
-or may not be there. What makes one a door is the designation.
+**A door is a port, not a station.** A mark on an input port says the
+outside delivers argument *N* here; a mark on an output port says result
+*N* leaves here. No station is special, and no station has to exist for
+an argument to.
 
 ```
-   ┌─ the program ────────────────────────────────────┐
-   │                                                  │
-  ─┼─→ [ way in ] ──→ ... ──→ ... ──→ [ way out ] ────┼─→
-   │   designated                     designated      │
-   └──────────────────────────────────────────────────┘
+   ┌─ the program ──────────────────────────────────────┐
+   │                                                    │
+  ─┼─→ 0$ [ some station ] ──→ ... ──→ [ another ] 0$ ──┼─→
+   │      a marked input port          a marked output  │
+   └────────────────────────────────────────────────────┘
 
-   a parent wires to those two exactly as it would wire
-   to any station, and cannot tell what is between them.
+   a parent wires to those ports exactly as it would wire
+   to any port, and cannot tell what is between them.
 ```
 
-| the door in | the door out |
-|---|---|
-| its **input ports** are the program's input ports | its **output port** is the program's output port |
-| says which ports the outside is allowed to deliver to | says where results come from |
-| a box here may check or reshape arguments on the way in | a box here may shape results into whatever a caller wants |
-| with no box: one input, one output, the value crosses unchanged | with no box: the same |
+In a map file the mark is a `$` on the port's own line, the `in` or `out`
+keyword carrying the direction (305):
 
-**The one rule a designation actually adds** is at the door out: when
-nobody is wired beyond it, the values are **held** rather than
+```
+   station check (boxes/arg.c:in_range)
+     in 0 - 0$            argument 0 arrives here
+     out 0 - work.0
+
+   station finish (boxes/shape.c:as_bytes)
+     in 0 - work.0
+     out 0 - 0$           result 0 leaves here
+```
+
+### An argument stops costing a station
+
+This is the change, and on this device it is not a tidiness argument.
+
+A designated *station* means every argument pays for a station running
+the identity function: a station record, a mutex, a ring buffer, and then
+**per value** a task allocated, a dispatch through the pool, a call that
+returns its own argument, a readiness check, and a second delivery. All
+of it to move a value one hop for no reason.
+
+A designated *port* pays none of that. The value the outside delivers
+lands directly in the port of the station that wanted it. Four cores and
+3 GB is exactly the machine where a per-argument station is worth
+removing, and a box that genuinely wants to check or reshape an argument
+is still free to be the first station — it is now a choice rather than
+the mechanism.
+
+### Which argument a port is, is stated rather than positional
+
+**The mark carries a number, and that number is the argument's
+identity** — chosen by whoever wrote the line, not derived from where the
+line sits. Reordering every line in the file changes nothing.
+
+A gap or a repeat in the numbering is **refused when the program is
+brought up**, on the argument side and the result side both. A scheme
+that took the order from wherever the stations happened to land in the
+table cannot even detect that: moving two lines in a sub-program would
+silently swap two of the parent's arguments.
+
+### Being an argument is derived, not stored
+
+**A port is an argument slot when it is marked and nothing feeds it.** A
+port that is both marked and wired is fed both ways and simply is not
+one.
+
+That replaces the idea of closing a door when an enclosing program wires
+in. There is nothing stored, so nothing can go stale, and no bookkeeping
+happens at the moment of wiring. It also makes the numbering checks safe
+under composition, where one description placed twice puts two ports in
+the table both marked argument zero — and fan-in from outside and inside
+at once stays legal, which it would not if a door were a thing that
+closed.
+
+**The unfed-port report is unaffected.** Bring-up reports a station with
+queued inputs that no arrow feeds, and a marked port is exempt. It is the
+explicit mark that buys the exemption, never the mere absence of a wire,
+so a genuinely forgotten wire stays distinguishable from a deliberate
+door.
+
+**A station may hold ports of both kinds.** A station with an argument
+port and a result port is an ordinary station. The refusal that would
+have made it a mistake only made sense while the mark was on the station,
+because a station is one thing and a port is a smaller one.
+
+**The one rule a mark actually adds** is at the result end: when nobody
+is wired beyond a marked output port, the values are **held** rather than
 discarded. Everywhere else in the engine an exit wired to nothing
 discards, which is right for an unwired comparator branch. Discarding a
 program's results would mean the program did nothing.
 
-**The readiness check applies to a door exactly as it applies
-anywhere.** Nothing crosses to the output port until every input port
-holds a value, and then one is taken from each. So a program's results
-cannot come out of step: three values waiting on one input and one on
-another means one complete set moves and two stay behind. That falls
-out of the ordinary rule rather than being arranged for.
+**The readiness check applies to a marked port exactly as it applies
+anywhere.** A station holding a marked input port does not run until
+every one of its input ports holds a value, and then one is taken from
+each. So a program's results cannot come out of step: three values
+waiting on one input and one on another means one complete set moves and
+two stay behind. That falls out of the ordinary rule rather than being
+arranged for.
 
-**One output port, so one door per argument group.** A box returns one
-value, so a station has one output port, so a program taking several
-unrelated arguments has several doors in rather than one door with
-several outputs. The alternative needs a C function returning several
-values, which does not exist — and faking it with a struct that
-something downstream takes apart means writing a function to satisfy
-the engine, which is the thing nobody adopting this should ever have to
-do.
+**Several arguments are several marked ports, and they need not be on one
+station.** With the mark on the port, "one door per argument group" stops
+being a constraint at the entrance — `0$` and `1$` may sit on two ports of
+one station, or on ports of two stations that never meet. What is still
+true is at the *exit*: a box returns one value, so a station has one
+output port, so several results are several marked output ports. Faking
+several returns with a struct that something downstream takes apart means
+writing a function to satisfy the engine, which is the thing nobody
+adopting this should ever have to do.
 
-Fan-out is not the same thing and is already free: one door's single
-output port may feed as many interior stations as you wire it to.
+Fan-out is not the same thing and is already free: one marked port's
+value may feed as many interior stations as you wire it to.
 
 ### Composition needs no mechanism at all
 
 **A map is a box.** Once a program says where its arguments arrive and
 where its results come from, placing one inside another is wiring to
-those two stations. There is no encapsulation pass, no prefix-renaming
-of a sub-map's stations into a parent's namespace, no rewriting of
-boundary wires, and no "finished" to detect.
+those marked ports, addressed by their numbers. There is no encapsulation
+pass, no prefix-renaming of a sub-map's stations into a parent's
+namespace, no rewriting of boundary wires, and no "finished" to detect.
 
 The old design had all of that because it had two kinds of thing to
 reconcile — a map object and a parent map object. There is one station
 table and a program is only whichever stations are wired together, so
 there is nothing to fold into anything.
 
+**Placing a program hands back the same thing placing a box does.** A
+caller gets one receipt either way and asks it for door *N*, so nothing
+above has to know which kind it placed — which is what makes "a map is a
+box" a fact rather than an aspiration.
+
 | the old splicer did | what replaces it |
 |---|---|
 | recursively load the sub-map as its own object | load its stations into the one table, like any load |
 | prefix-rename every id | give the stations names; two copies need two sets of names |
-| find external read boxes, delete them, rewrite every wire that targeted them | wire to the door in |
-| find external write boxes, add their outputs to the parent's list | wire from the door out |
+| find external read boxes, delete them, rewrite every wire that targeted them | wire to the marked input port, by its number |
+| find external write boxes, add their outputs to the parent's list | wire from the marked output port, by its number |
 | iterate until no sub-maps remain, with a cap against pathological nesting | a program that places itself never terminates, so the cap stays |
 
 ### The trap the doors open onto
@@ -113,21 +179,33 @@ colour become one value, indivisible by anything the scheduler does.
 
 ## Suggested implementation steps
 
-1. The two designations, as lines in a map file and as arguments to the
-   operations a person calls.
-2. The hold-rather-than-discard rule at the door out, which is the only
-   behaviour either designation adds.
-3. Placing a program inside another: load it, wire to its doors.
-4. The naming question below, settled before two copies of one
+1. **The mark on the port record**, as a number: not-a-door, or door *N*.
+   One field on the input port and one on the output port.
+2. The `$` spelling on `in` and `out` lines (305), and the port-level
+   call a person makes by hand.
+3. **The numbering check at bring-up** — a gap or a repeat refused, on
+   the argument side and the result side both.
+4. **Being an argument slot derived rather than stored**: marked and
+   unfed. Outside delivery accepts a station-and-port whose port carries
+   a mark; the walk that fills arguments from outside takes marked ports
+   in number order and skips one a wire also feeds.
+5. The hold-rather-than-discard rule at a marked output port, which is
+   the only behaviour a mark adds.
+6. Placing a program inside another: load it, wire to its marked ports by
+   number, and hand the caller the same receipt placing a box hands back.
+7. The naming question below, settled before two copies of one
    sub-program exist in the same table.
-5. A test that a program placed twice produces two independent copies
-   that do not interfere.
-6. A test that a door with two ports, fed by two callers, pairs
-   arbitrarily — written deliberately, because it is the trap, and a
-   test that pins it is how somebody later finds a decision rather than
-   a bug.
-7. A test that writing the running program back out and reading it in
-   gives the same program.
+8. A test that a program placed twice produces two independent copies
+   that do not interfere, both of whose port marks say zero.
+9. A test that two marked ports on one station, fed by two callers, pair
+   arbitrarily — written deliberately, because it is the trap, and a test
+   that pins it is how somebody later finds a decision rather than a bug.
+10. A test that a marked port with a wire into it is not an argument
+    slot.
+11. A test that arguments renumber by editing marks rather than by moving
+    lines.
+12. A test that writing the running program back out and reading it in
+    gives the same program.
 
 ## Open questions
 
@@ -142,10 +220,14 @@ colour become one value, indivisible by anything the scheduler does.
   to grab. Parking a program (213) and scoping names in the loader
   (306) both wanted the same answer, which is now three places asking
   for one mechanism.
-- *Can a program have more than one door out?* Several doors out
-  offering the same results in different shapes is genuinely useful —
-  choosing between them would be rewiring — and it costs nothing except
-  deciding what "the program's output" means when there are two.
+- *Answered by moving the mark onto the port: can a program have more
+  than one door out?* Yes, and it needed no deciding. Several marked
+  output ports offering the same results in different shapes are just
+  several numbered results; what "the program's output" means when there
+  are two is *result 0 and result 1*, and a caller asks for the one it
+  wants by number. The question only looked hard while a door was a
+  station, because then two doors out meant two stations each claiming to
+  be the end.
 
 ## Blocked by
 

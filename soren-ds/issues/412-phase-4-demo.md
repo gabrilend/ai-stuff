@@ -31,11 +31,20 @@ running and saying that constant once a second.
 |---|---|
 | writes new source to the card, returning a different constant | — |
 | runs the generator and the compiler over it | a catalogue row appears for the new box |
-| places a station on it, moves the arrows, unwires the old | the said number changes at the first run afterwards, and never mid-value |
-| writes the running program back out | the file shows the new station wired and the old one with no source |
+| places a station on it, moves the arrows as one batch, removes the old station | the said number changes at the first run afterwards, and never mid-value |
+| writes the running program back out | the file shows the new station wired, and no trace of the old one — the table is the size it started at |
+| and writes it back out as a **program** | a map file, plus a directory beside it holding the C of every box the program places, including the one written on the device a minute ago |
+| builds that directory back into a running program | the same constant comes out, from a program nothing in the image knew about |
 
 This proves the generator on the device, the compiler, the growable
-catalogue, and the four construction operations working as one system.
+catalogue, station removal, and the four construction operations working as
+one system.
+
+**The last two rows are the ones worth watching**, because they are the
+difference between a device that can be edited and a device whose edits
+survive it. What comes off the card is the program: a description, and the
+source of every box it places, written out identically whether that box
+came from the kernel image or from somebody's fingers ten seconds ago.
 
 ### 3. Old code goes away, and only when it can
 

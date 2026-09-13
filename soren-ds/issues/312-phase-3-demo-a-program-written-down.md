@@ -16,25 +16,34 @@ file, running on the device.**
 ```
    # greeting.map
 
-   greeting   constant      plain
-   shout      to-upper      plain
-   speak      say           plain
+   boxes = boxes/
 
-   in greeting.0 = "world"
+   station greeting (boxes/text.c:constant)
+     in 0 = "world"
+     out 0 - shout.0
 
-   out greeting.0 -> shout.0
-   out shout.0    -> speak.0
+   station shout (boxes/text.c:to_upper)
+     in 0 - greeting.0
+     out 0 - speak.0
+
+   station speak (boxes/text.c:say)
+     in 0 - shout.0
 ```
 
 The device reads that, and `WORLD` comes out the serial line onto the
 laptop. Nothing in the kernel knows what a greeting is.
 
+**`speak` marks no result**, because what it produces is a side effect on
+the serial line rather than a value anybody collects. A map that wants its
+answer handed back writes `out 0 - 0$` instead, and the demo shows both.
+
 ### What each scene proves
 
 | scene | shows |
 |---|---|
-| **the round trip** | the file above loads, runs, and writes itself back out as a file that reads into the same program |
-| **the catalogue is the joint** | the same map with `to-uppr` misspelled refuses, naming the name and where box sources live |
+| **the round trip** | the file above loads, runs, and writes itself back out as a file that reads into the same program — and writing it out a second time produces the same text again, which is what catches a writer that has drifted from the reader |
+| **the catalogue is the joint** | the same map with `to_uppr` misspelled refuses, naming the function, the file the address said to look in, and the line that asked |
+| **both ends of a wire** | a map where `shout` claims to be fed by `greeting` and `greeting` points at nobody is refused, naming the line to add. Four kinds of disagreement are told apart and all are reported in one run |
 | **the wire check** | the same map with `speak` taking a number refuses, naming both stations, the port, and both type names |
 | **all of them at once** | a map with one of every mistake reports the whole list in one run |
 | **the loop is the counter** | a map counting to ten through an arrow that points backwards, which the old design would have refused |
