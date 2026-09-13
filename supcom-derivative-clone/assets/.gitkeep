@@ -1,0 +1,3 @@
+The catalogue tables: every cost, every hit count, every timer interval in the game
+lives in a numbered Lua table here and in no document. There are none yet. The
+generated dune tileset, when it exists, lands here too, made by a tool.

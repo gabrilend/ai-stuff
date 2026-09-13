@@ -1,0 +1,60 @@
+# What this project needs beyond a text editor, and where each thing comes from.
+#
+# This is the manifest that ./dependencies-version-updater reads. It is the only
+# place a dependency is named. Each stanza is one dependency; a blank line ends it.
+#
+#   name:          what the tools call it
+#   kind:          system-tool        -- a program on the PATH; checked, never installed
+#                  system-lua-module  -- a module LuaJIT can require; checked, never installed
+#                  sibling-tool       -- a program built by another project in this
+#                                        monorepo, used in place
+#                  sibling-project    -- files copied out of another project's git
+#                                        history at a pinned commit, into libs/
+#   needed-for:    which part of this project wants it, so a missing thing can say
+#                  whether it matters yet
+#   version:       the version last seen; `update-dependencies` rewrites this line
+#   pin:           a git commit in the source repository; `update-dependencies`
+#                  rewrites this to the source's current head
+#   file:          one `from -> to` per line for sibling-project copies; `to` is
+#                  relative to this project root and numbered into the 900 band
+#
+# Nothing here installs a system package. If a system tool is missing the updater
+# says so and stops, because doing it silently with elevated rights is exactly the
+# kind of fallback this project refuses.
+
+name: luajit
+kind: system-tool
+command: luajit
+version-flag: -v
+version: LuaJIT 2.1.1748459687
+needed-for: everything -- the simulation, the tests, the tools
+
+name: love
+kind: system-tool
+command: love
+version-flag: --version
+version: LOVE 11.5 (Mysterious Mysteries)
+needed-for: the window on a computer (phase 6); nothing headless needs it
+
+name: luasocket
+kind: system-lua-module
+module: socket
+version-field: _VERSION
+version: LuaSocket 3.0.0
+needed-for: reaching other players from a computer (phase 7)
+
+name: ceramic-core-engine
+kind: sibling-project
+source: /home/ritz/programming/ai-playground/minimal-soramech
+pin: 059487d938fe39ef13b043e9ba40facfd3cb58c0
+file: src/cera.c -> libs/900-cera.c
+file: src/cera.h -> libs/901-cera.h
+file: src/cera.info.md -> libs/900-cera.info.md
+needed-for: the handheld build (phase 8), where the simulation runs as a map of boxes
+
+name: aarch64-cross-toolchain
+kind: sibling-tool
+command: /mnt/mtwo/programming/ai-stuff/soren-ds/libs/cross/bin/aarch64-elf-gcc
+version-flag: --version
+version: aarch64-elf-gcc (GCC) 16.1.0
+needed-for: the handheld build (phase 8); built by soren-ds's scripts/build-deps

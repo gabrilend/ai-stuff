@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+#
+# compile -- turns the project's source into something that runs, and refuses
+# loudly when it cannot.
+#
+# For a general: this is the one command that answers "is the code in a state
+# that could be handed to somebody." It reads every Lua file the project owns
+# and has the LuaJIT compiler parse it, so a typo is found here rather than
+# twenty minutes into a match. Then it packages the computer build -- a single
+# .love archive that the LOVE engine opens like a program -- into the RAM-backed
+# build directory. The handheld build is a separate target that this script
+# knows the shape of and will refuse until the pieces it needs exist.
+#
+# The script existed before any source did, on purpose. A compile step that is
+# written after the code has to be fitted around whatever the code became; one
+# written first is a statement about what the code is going to be.
+#
+# Usage:
+#   ./compile                      -- check every file, package the computer build
+#   ./compile --target computer    -- the same
+#   ./compile --target handheld    -- the soren-ds build (refuses until phase 8)
+#   ./compile --check-only         -- parse everything, package nothing
+#   ./compile /path/to/project     -- against a checkout elsewhere
+#
+# Exits non-zero if any file fails to parse or if the requested target cannot be
+# produced. Nothing is ever partially written: the archive is built under a
+# scratch name and moved into place only when it is whole.
+
+DIR="/mnt/mtwo/programming/ai-stuff/supcom-derivative-clone"
+
+if [ -d "$1" ] && [ -f "$1/.file-index-counter" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT="$(basename "${DIR}")"
+TARGET="computer"
+CHECK_ONLY="no"
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --target)     TARGET="$2"   ; shift 2 ;;
+        --check-only) CHECK_ONLY="yes" ; shift ;;
+        *)
+            echo "compile: unknown option '$1'"
+            echo "Options are --target computer|handheld, --check-only."
+            exit 1
+            ;;
+    esac
+done
+
+# {{{ ensure_ram_tiers
+# The two RAM tiers, recreated rather than assumed -- /tmp and /dev/shm do not
+# survive a reboot and the symlinks in the repository would otherwise dangle.
+ensure_ram_tiers() {
+    mkdir -p "/tmp/${PROJECT}"
+    mkdir -p "/dev/shm/${PROJECT}"
+    if [ ! -e "/tmp/${PROJECT}/shared-memory" ]; then
+        ln -sfn "/dev/shm/${PROJECT}" "/tmp/${PROJECT}/shared-memory"
+    fi
+    mkdir -p "/dev/shm/${PROJECT}/build"
+}
+# }}}
+
+LOG="/dev/shm/${PROJECT}/compile.log"
+
+# {{{ say
+say() {
+    printf '%s\n' "$1"
+    printf '%s %s\n' "$(date -Iseconds)" "$1" >> "${LOG}"
+}
+# }}}
+
+# {{{ parse_every_lua_file
+# Every Lua file the project owns, handed to the compiler one at a time. The
+# compiler is the only authority on whether a file is Lua; this does not guess.
+# Files under libs/ are third-party and are parsed too, because a broken copy is
+# a broken build regardless of who wrote it.
+parse_every_lua_file() {
+    local failed=0
+    local counted=0
+    local file
+    local report
+
+    for file in "${DIR}"/main.lua "${DIR}"/conf.lua \
+                "${DIR}"/src/[0-9]*.lua "${DIR}"/tests/[0-9]*.lua \
+                "${DIR}"/scripts/[0-9]*.lua "${DIR}"/assets/[0-9]*.lua \
+                "${DIR}"/libs/[0-9]*.lua; do
+        if [ ! -f "${file}" ]; then
+            continue
+        fi
+        counted=$((counted + 1))
+        report="$(luajit -e "local chunk, err = loadfile('${file}'); if chunk == nil then io.write(err, '\n'); os.exit(1) end" 2>&1)"
+        if [ "$?" -ne 0 ]; then
+            failed=$((failed + 1))
+            say "  does not parse: ${file#${DIR}/}"
+            say "      ${report}"
+        fi
+    done
+
+    say "parsed ${counted} Lua files, ${failed} of them broken"
+    return "${failed}"
+}
+# }}}
+
+# {{{ package_computer_build
+# A .love archive is a zip of the game directory with main.lua at its root. LOVE
+# opens it directly, and so does `love <directory>`, so the archive is the thing
+# handed to other people rather than the thing developers run. The archiver is
+# run *in* the project directory through env, so that the paths it stores are
+# relative to the root without this script ever changing its own directory.
+package_computer_build() {
+    local archive="/dev/shm/${PROJECT}/build/${PROJECT}.love"
+    local scratch="${archive}.building"
+
+    if [ ! -f "${DIR}/main.lua" ]; then
+        say "no main.lua at the project root, so there is no computer build to package."
+        say "    the doorway file is built by the phase 6 issue that opens the window;"
+        say "    until then the simulation runs headless through ./run-tests."
+        return 1
+    fi
+
+    rm -f "${scratch}"
+    if ! env --chdir="${DIR}" zip -q -r "${scratch}" main.lua conf.lua src assets libs input \
+            -x 'src/.gitkeep' -x 'assets/.gitkeep' -x 'libs/.gitkeep' -x '*.info.md'; then
+        say "zip failed; no archive written."
+        rm -f "${scratch}"
+        return 1
+    fi
+    mv "${scratch}" "${archive}"
+    say "computer build: ${archive}"
+    say "    run it with: love ${archive}"
+    return 0
+}
+# }}}
+
+# {{{ package_handheld_build
+# The handheld build is a soramech map plus C boxes compiled with the aarch64
+# cross-toolchain that the soren-ds project builds. The shape is designed in
+# docs/012-the-handheld.md and built by the phase 8 issues; this function knows
+# what it will need and refuses, by name, while any of it is absent.
+package_handheld_build() {
+    local missing=0
+    local engine="${DIR}/libs/900-cera.c"
+    local toolchain="/mnt/mtwo/programming/ai-stuff/soren-ds/libs/cross/bin/aarch64-elf-gcc"
+
+    if [ ! -f "${engine}" ]; then
+        say "the ceramic core engine is not in libs/ -- run ./install-dependencies"
+        missing=$((missing + 1))
+    fi
+    if [ ! -x "${toolchain}" ]; then
+        say "the aarch64 cross-toolchain is not built -- see soren-ds/scripts/build-deps"
+        missing=$((missing + 1))
+    fi
+    if [ ! -d "${DIR}/maps" ]; then
+        say "there is no maps/ directory: the simulation has not yet been written as boxes."
+        say "    that is phase 8 (docs/012-the-handheld.md); nothing can be built for the"
+        say "    handheld before it."
+        missing=$((missing + 1))
+    fi
+    if [ "${missing}" -gt 0 ]; then
+        return 1
+    fi
+
+    say "the handheld build has everything it needs and nothing that knows how to use it."
+    say "    the build steps are the phase 8 issues; this is where they will be called."
+    return 1
+}
+# }}}
+
+# {{{ write_goodbye
+# The last thing a program in this project does is write to output/. Specifically,
+# it writes goodbye.
+write_goodbye() {
+    local outcome="$1"
+    mkdir -p "${DIR}/output"
+    printf 'compile: %s\n%s\ngoodbye\n' "${outcome}" "$(date -Iseconds)" > "${DIR}/output/goodbye"
+}
+# }}}
+
+ensure_ram_tiers
+say "compiling ${PROJECT} for the ${TARGET}"
+
+if ! command -v luajit > /dev/null; then
+    say "luajit is not on the PATH, and it is the only compiler this project has."
+    write_goodbye "no luajit"
+    exit 1
+fi
+
+if ! parse_every_lua_file; then
+    write_goodbye "a file does not parse"
+    exit 1
+fi
+
+if [ "${CHECK_ONLY}" = "yes" ]; then
+    write_goodbye "every file parses; nothing packaged"
+    exit 0
+fi
+
+# Which build to make. A dispatch table rather than a chain of tests, so that a
+# third target is a row and not a branch.
+declare -A PACKAGE=(
+    [computer]=package_computer_build
+    [handheld]=package_handheld_build
+)
+
+if [ -z "${PACKAGE[${TARGET}]}" ]; then
+    say "no such target '${TARGET}'. Targets: ${!PACKAGE[*]}"
+    write_goodbye "unknown target"
+    exit 1
+fi
+
+if "${PACKAGE[${TARGET}]}"; then
+    write_goodbye "${TARGET} build packaged"
+    exit 0
+fi
+
+write_goodbye "${TARGET} build not produced"
+exit 1

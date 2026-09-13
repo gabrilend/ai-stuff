@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+#
+# new-document -- brings a numbered document into docs/.
+#
+# Documents share the same index counter as source files, so that the whole
+# project reads in one order: the design first, then the tools that build the
+# design's pages, then the tests that specify the source, then the source. A
+# document claiming its number by hand is how two files end up with one number,
+# so this claims it from the counter the same way new-source-file does.
+#
+# It writes the heading in the form the validator and the HTML builder both
+# expect -- "# NNN — Title", with an em-dash -- and then reminds the author of
+# the one thing it cannot do: add the document to the table of contents, which
+# is a hand-drawn tree. The validator refuses a document that is not in it.
+#
+# Usage:
+#   ./new-document the-dunes-and-the-sightlines --title "The Dunes and the Sightlines"
+#       -> docs/NNN-the-dunes-and-the-sightlines.md
+#
+#   ./new-document --from-list docs.list
+#       -> one document per line of the list, each line "dashed-name | Title",
+#          claiming consecutive indices in one motion. This is how a whole
+#          design is brought in at once without sixteen separate claims racing
+#          for the counter.
+#
+#   ./new-document /path/to/project the-dunes --title "The Dunes"
+#   ./new-document --peek
+
+DIR="/mnt/mtwo/programming/ai-stuff/supcom-derivative-clone"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+COUNTER="${DIR}/.file-index-counter"
+TITLE=""
+PEEK="no"
+NAME=""
+LIST=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --title)     TITLE="$2" ; shift 2 ;;
+        --from-list) LIST="$2"  ; shift 2 ;;
+        --peek)      PEEK="yes" ; shift ;;
+        -*)
+            echo "new-document: unknown option '$1'"
+            echo "Options are --title <text>, --from-list <file>, --peek."
+            exit 1
+            ;;
+        *)
+            NAME="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ ! -f "${COUNTER}" ]; then
+    echo "No index counter at ${COUNTER}."
+    echo "Either the project root is wrong, or the project has not been initialised."
+    exit 1
+fi
+
+# {{{ next_index
+# The index the next document takes: one past the counter, three digits.
+next_index() {
+    local current
+    current="$(cat "${COUNTER}")"
+    printf '%03d' "$((10#${current} + 1))"
+}
+# }}}
+
+# {{{ claim_one
+# Writes one document stub at the next index and bumps the counter. Refuses
+# rather than overwrites: a collision means the counter disagrees with the disk,
+# which is a real problem a silent overwrite would bury.
+claim_one() {
+    local name="$1"
+    local title="$2"
+    local index
+    local target
+
+    index="$(next_index)"
+    target="${DIR}/docs/${index}-${name}.md"
+
+    if [ -e "${target}" ]; then
+        echo "Refusing to overwrite ${target}."
+        echo "The counter says ${index} is free and the disk disagrees. Fix the counter."
+        return 1
+    fi
+
+    cat > "${target}" <<MD
+# ${index} — ${title}
+
+TODO
+MD
+
+    echo "${index}" > "${COUNTER}"
+    echo "${target}"
+}
+# }}}
+
+if [ "${PEEK}" = "yes" ]; then
+    next_index
+    echo
+    exit 0
+fi
+
+if [ -n "${LIST}" ]; then
+    if [ ! -f "${LIST}" ]; then
+        echo "No list at ${LIST}."
+        exit 1
+    fi
+    while IFS= read -r line; do
+        case "${line}" in
+            ''|'#'*) continue ;;
+        esac
+        NAME="$(printf '%s' "${line%%|*}" | sed -e 's/^ *//' -e 's/ *$//')"
+        TITLE="$(printf '%s' "${line#*|}" | sed -e 's/^ *//' -e 's/ *$//')"
+        if [ -z "${NAME}" ] || [ -z "${TITLE}" ] || [ "${NAME}" = "${line}" ]; then
+            echo "new-document: cannot read '${line}' as 'name | Title'; stopping here."
+            exit 1
+        fi
+        claim_one "${NAME}" "${TITLE}" || exit 1
+    done < "${LIST}"
+    echo "Add each to ${DIR}/docs/table-of-contents.md -- the validator will insist."
+    exit 0
+fi
+
+if [ -z "${NAME}" ]; then
+    echo "new-document: no name given."
+    echo "Usage: ./new-document [--title <text>] <dashed-name>   or   --from-list <file>"
+    exit 1
+fi
+
+if [ -z "${TITLE}" ]; then
+    echo "new-document: no --title given, and a document's first line is its title."
+    exit 1
+fi
+
+claim_one "${NAME}" "${TITLE}" || exit 1
+echo "Add it to ${DIR}/docs/table-of-contents.md -- the validator will insist."

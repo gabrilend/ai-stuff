@@ -1,0 +1,106 @@
+# 010 — The Views
+
+The second program: what may look at the simulation, and what it may never do.
+
+## Generate, then view
+
+The simulation produces a **snapshot** at the end of every tick — a whole copy of
+the world, or the parts of it a viewer needs — and every viewer reads snapshots
+and nothing else. A viewer never holds a reference into the live world, never
+calls a simulation function, and never writes anything the simulation reads
+except through the [command door](006-factories-and-patterns-in-the-sand.md).
+
+This is the separation the whole project is built on, and it is what makes the
+same match run in a terminal with no window, in a window on a computer, on two
+screens of a handheld, and in ten thousand overnight runs with no viewer at
+all. When a pixel is wrong the bug is in a viewer; when a rule is wrong the bug
+is in the simulation; and the two are never the same file.
+
+## A view is a lens
+
+There is not one view of the field. There are as many as the player arranges,
+and the vision's phrase for the handheld — "multiple adjustable views" — is the
+rule everywhere. A **lens** is a small record: which layer it shows, where it is
+anchored on the field, how far it is zoomed, and where on the screen it sits.
+The viewer holds a list of lenses and draws each one from the same snapshot.
+
+The lens's zoom is a **push into the field**: a zoom keeps the point under the
+cursor fixed and scales around it, so that looking closer at a dune does not
+slide the dune away. That property has a test, because every later camera
+feature is a chance to break it silently.
+
+The layers a lens can show:
+
+| Layer | Draws |
+| --- | --- |
+| the dunes | the heightfield, shaded by height and slope, with the water line |
+| territory | each cell's owner as a tint over the dunes |
+| units | every live unit as a mark in its team's colour, with a facing |
+| patterns | the routes of every friendly factory, as lines in the sand |
+| sightlines | from a chosen unit, the ground it can see, lit |
+| the cloud | the swarm, as a small window: crowded or thin, one colour or two |
+
+The cloud lens is the vision's television-inside-the-television, and it is just
+a lens with the cloud layer, small, in a corner — or, on the handheld, on the
+other screen.
+
+## The always-open menu
+
+The [energy menu](005-territory-mass-and-energy.md) is four buttons and it is
+always on screen. It is not a lens; it is the one piece of the viewer that is
+also an input, and pressing a button issues a command. Nothing else lives in it.
+
+Beside it, the **roster**: builders and engineers as two numbers with health
+bars, and the team's territory as a percentage. Those three numbers are the
+economy, and they are always visible because the economy is the game.
+
+## Drawing in the sand
+
+Placing a factory is the largest input the player makes: a cell, a domain, a
+line, and a **pattern drawn by hand** — a sequence of points on the field. The
+viewer collects the points as the player draws, shows the drawing as a line in
+the sand, and issues one command when the drawing is done. If the simulation
+refuses the command — a point in the water, a first point off the factory — the
+refusal is shown on the drawing, at the point that failed, and the drawing
+stays on screen to be redrawn. **Refusals are loud.** A command that quietly did
+nothing is the worst thing a viewer can do to a player.
+
+The compass wheel for the truck's plane is the same shape smaller: a ring around
+the truck, a direction chosen on it, one command.
+
+## The terminal viewer
+
+Before any window exists there is a viewer that draws the field as text — a grid
+of characters graded by height, tinted by owner, with units as letters — so that
+from the first tick nobody works blind. It stays useful after the window
+exists, because it runs where a window cannot: over a wire, in a log, in a test's
+failure message.
+
+## The window on a computer
+
+One window, drawn with the LOVE engine, holding the lens list and the menu. The
+mouse draws patterns and pushes lenses; the keyboard picks levels and launches
+planes. The window is a doorway file at the project root that loads the viewer
+and forwards the engine's callbacks, and nothing more; the viewer itself is a
+numbered source file like everything else.
+
+## The two screens of the handheld
+
+The handheld has two screens and a stylus, and the vision names it as a target.
+The working ruling: the top screen holds a wide lens on the field or the cloud
+window, the bottom screen holds a close lens and is where patterns are drawn
+with the stylus and the menu is pressed. Which is which is a
+[question for the handheld](012-the-handheld.md), because the device's own
+conventions — drawers, chords, the four centre buttons — decide it.
+
+## The generated tileset
+
+The dunes are drawn, on a computer, from the heightfield directly: shading by
+height and slope, which is enough to read the ground. The vision wants more — a
+tileset generated by an image model, so that random dunes look like a place —
+and that is a viewing concern with its [own issue](015-roadmap.md). The pipeline
+produces images from height profiles; the viewer only ever loads them. Nothing
+in the simulation knows the images exist.
+
+Related: [the tick](003-the-tick-and-the-timers.md) · [the cloud](007-the-cloud.md) ·
+[the handheld](012-the-handheld.md)
