@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+#
+# complete-issue -- moves a finished issue into issues/completed/ and keeps
+# everything that points at it, or that it points at, true.
+#
+# An issue that is done moves one directory deeper. Three things break when a
+# person does that by hand: every relative link in the file is now one level
+# short, the phase tracker still says the work is not started, and the move
+# happens before the commit that should carry it. So a tool does the move, fixes
+# the links, marks the tracker, and says what to commit.
+#
+# It does not decide that the issue is finished. That is a person's judgement:
+# the current-behavior section reads true, the tests that name it hold, and
+# there is no deferred work in it. This script asks for the number and trusts
+# the asker.
+#
+# Usage:
+#   ./complete-issue 102                 -- move it, mark it "built"
+#   ./complete-issue 102 --status "built, with a gate"
+#   ./complete-issue /path/to/project 102
+
+DIR="/mnt/mtwo/programming/ai-stuff/supcom-derivative-clone"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+NUMBER="$1"
+shift
+STATUS="built"
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --status) STATUS="$2" ; shift 2 ;;
+        *)
+            echo "complete-issue: unknown option '$1'. The only option is --status <text>."
+            exit 1
+            ;;
+    esac
+done
+
+case "${NUMBER}" in
+    [0-9][0-9][0-9]|[0-9][0-9][0-9][a-z]) ;;
+    *)
+        echo "complete-issue: '${NUMBER}' is not an issue number. Three digits, optionally a letter."
+        exit 1
+        ;;
+esac
+
+SOURCE="$(ls -1 "${DIR}/issues/${NUMBER}-"*.md 2>/dev/null | head -1)"
+if [ -z "${SOURCE}" ]; then
+    ALREADY="$(ls -1 "${DIR}/issues/completed/${NUMBER}-"*.md 2>/dev/null | head -1)"
+    if [ -n "${ALREADY}" ]; then
+        echo "Issue ${NUMBER} is already completed: ${ALREADY}"
+    else
+        echo "No open issue numbered ${NUMBER} under ${DIR}/issues/."
+    fi
+    exit 1
+fi
+
+NAME="$(basename "${SOURCE}")"
+TARGET="${DIR}/issues/completed/${NAME}"
+PHASE="${NUMBER:0:1}"
+PROGRESS="${DIR}/issues/phase-${PHASE}-progress.md"
+
+if [ ! -f "${PROGRESS}" ]; then
+    echo "No progress file at ${PROGRESS}; refusing to move an issue its tracker cannot record."
+    exit 1
+fi
+
+if ! grep -q "^| ${NUMBER} | " "${PROGRESS}"; then
+    echo "Issue ${NUMBER} has no row in ${PROGRESS}; refusing to move it until it does."
+    exit 1
+fi
+
+# The move, and the links. A link written as ../docs/... from issues/ must read
+# ../../docs/... from issues/completed/. Only links that climb exactly one level
+# are rewritten; anything else in the file is left as it was.
+mkdir -p "${DIR}/issues/completed"
+sed -e 's|](\.\./|](../../|g' "${SOURCE}" > "${TARGET}"
+rm "${SOURCE}"
+
+# The tracker row: the status column is the last cell, whatever it said before.
+sed -i "s/^\(| ${NUMBER} | [^|]* | \)[^|]*|$/\1${STATUS} |/" "${PROGRESS}"
+
+echo "${TARGET}"
+echo "Tracker: ${PROGRESS} now says '${STATUS}' for ${NUMBER}."
+echo "Commit it: git -C <monorepo> add <project> ; git -C <monorepo> commit -F - -- <project>"

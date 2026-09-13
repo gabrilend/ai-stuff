@@ -1,0 +1,61 @@
+Data-flow patterns that turned out to be right in more than one place. Proven
+useful, therefore worth reaching for first the next time something looks similar.
+Several of these arrived from sibling projects in this monorepo with their
+evidence already attached.
+
+--
+
+## Generate, then view. Never both at once.
+
+The dune builder produces a heightfield; something else draws it. The simulation
+produces snapshots; something else renders them. The headless runner produces a
+report; something else reads it. The Markdown is the data; the HTML is a view of
+it. The tileset generator produces images; the viewer only ever loads them.
+
+Every time this split exists, a bug has a side, and the search space halves.
+Every time it does not, a wrong pixel and a wrong rule look identical.
+
+## A periodic effect is a pair of integers.
+
+One counter per effect, ticking for everyone at once. A unit records the counter's
+value when it subscribed. To know how many times the effect has fired for that
+unit: subtract. To know whether it fires this tick: compare the counter's
+increment to the tick. Four operations, no per-unit timer, no per-unit state
+beyond one integer.
+
+This is the vision's own pattern and it generalises past healing: reload,
+shield recharge, engineer recovery, the cloud's fight rounds, the discovery
+broadcast on the radio. Reach for it before reaching for a per-unit countdown.
+
+## Copy at the boundary. Never hold a reference across it.
+
+A tank carries its own copy of the pattern it follows, the damage it deals, and
+the falloff curve it deals it on. Nothing in the firing path dereferences a
+factory, a team record, or a catalogue to find out how strong something is.
+Copy at the boundary between something that changes rarely and something that is
+read constantly, and let the fast side touch only itself.
+
+The design consequence -- a unit keeps what it was born with -- is the vision's
+"they don't listen after they've left the factory", arrived at from the other
+direction. Fast and right often agree. Look for that.
+
+## Flat arrays, integer zero for "nothing", a validator at load.
+
+Every record is a row in a struct-of-arrays. A field that has no value holds the
+integer zero, not an absent value. Whether the builder got that right is a
+validator's question, asked once at load, not the tick's question asked a
+thousand times.
+
+## Intent goes through one door, and the door is a queue.
+
+Every player action is a command with a tick stamp, appended to one queue, applied
+at that tick. "Everything can be queued" is the vision's invariant; the network
+gets its whole design from it, because a queue that already tolerates a command
+arriving early tolerates one arriving from another machine.
+
+## Errors over fallbacks.
+
+A fallback is a warning and a warning is an error. If a lookup fails, stop and say
+what was looked for and where. A default silently substituted turns one bug into a
+mystery discovered three systems downstream. The tests in this project are built
+on this: a missing module is a named absence, not a skipped test.

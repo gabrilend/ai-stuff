@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+#
+# run-tests -- everything this project checks about itself, in one command.
+#
+# For a general: a project is only as trustworthy as the things it re-checks
+# without being asked. This runs all of them, from anywhere, and ends with one
+# line saying whether anything broke.
+#
+# Two halves, and they are genuinely different kinds of check.
+#
+# The written half: this project had documents and issue files before it had a
+# line of code, and they reference each other constantly. The documentation
+# validator is the compiler for them -- broken links, malformed issues, roadmap
+# drift, questions answered but still cited, documents missing from the table of
+# contents, source files without companions.
+#
+# The running half: every numbered file under tests/. Each one is a program that
+# loads the piece of the simulation it is about **by name**, and says plainly
+# when that piece does not exist yet -- which today is every one of them, because
+# the tests were written before the source on purpose. A test that cannot find
+# its subject is a named absence, reported as a failure, never a skip.
+#
+# Usage:
+#   ./run-tests                  -- everything
+#   ./run-tests docs             -- only the written half
+#   ./run-tests code             -- only the running half
+#   ./run-tests code the-clock   -- only the tests whose name contains "the-clock"
+#   ./run-tests /path/to/project -- elsewhere
+
+DIR="/mnt/mtwo/programming/ai-stuff/supcom-derivative-clone"
+
+# A leading argument is taken as a project root only when it actually looks like
+# one. Testing for "is a directory" alone is not enough: this script's own modes
+# are words like "docs" and "code", and a directory of that name in the working
+# directory would silently be mistaken for a checkout.
+if [ -d "$1/issues" ] && [ -d "$1/tests" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT="$(basename "${DIR}")"
+WHICH="${1:-all}"
+FILTER="${2:-}"
+
+# **The tests pin their own seed, and do not read the one in input/.**
+#
+# That file may say `random`, which is what it should say for anybody playing:
+# every match coming out of one seed means everybody has only ever seen one set
+# of dunes. A test suite wants the opposite -- half of what is asserted here is
+# that the same inputs produce the same match -- so the seed is named here, out
+# loud, and overriding it is how you ask "does this hold for a different field".
+#
+#   SDC_SEED=99 ./run-tests    -- the same suite, a different field
+export SDC_SEED="${SDC_SEED:-20260912}"
+
+# The RAM tiers, recreated rather than assumed.
+mkdir -p "/tmp/${PROJECT}"
+mkdir -p "/dev/shm/${PROJECT}"
+if [ ! -e "/tmp/${PROJECT}/shared-memory" ]; then
+    ln -sfn "/dev/shm/${PROJECT}" "/tmp/${PROJECT}/shared-memory"
+fi
+
+PASSED=0
+FAILED=0
+FAILED_NAMES=""
+
+# {{{ run_one
+# One test program: its file, run under LuaJIT with the project root handed to it,
+# and whether it held. The program prints its own name and its own findings; this
+# only counts.
+run_one() {
+    local file="$1"
+    local name
+    name="$(basename "${file}" .lua)"
+
+    printf '\n=== %s ===\n' "${name}"
+    if luajit "${file}" --dir "${DIR}"; then
+        PASSED=$((PASSED + 1))
+    else
+        FAILED=$((FAILED + 1))
+        FAILED_NAMES="${FAILED_NAMES}  ${name}\n"
+    fi
+}
+# }}}
+
+if [ "${WHICH}" = "all" ] || [ "${WHICH}" = "docs" ]; then
+    echo "== the written half =="
+    if "${DIR}/validate-documentation" "${DIR}"; then
+        PASSED=$((PASSED + 1))
+    else
+        FAILED=$((FAILED + 1))
+        FAILED_NAMES="${FAILED_NAMES}  validate-documentation\n"
+    fi
+    echo
+fi
+
+if [ "${WHICH}" = "all" ] || [ "${WHICH}" = "code" ]; then
+    echo "== the running half =="
+    FOUND=0
+    for FILE in "${DIR}"/tests/[0-9]*.lua; do
+        if [ ! -f "${FILE}" ]; then
+            continue
+        fi
+        if [ -n "${FILTER}" ] && [[ "$(basename "${FILE}")" != *"${FILTER}"* ]]; then
+            continue
+        fi
+        # A test program is a file that starts the harness. The harness itself is
+        # a library that every program loads; run alone it returns a table and
+        # exits cleanly, which would count as a check that held while checking
+        # nothing.
+        if ! grep -q '^harness\.start(' "${FILE}"; then
+            continue
+        fi
+        FOUND=$((FOUND + 1))
+        run_one "${FILE}"
+    done
+    if [ "${FOUND}" -eq 0 ]; then
+        echo "no test programs under ${DIR}/tests match '${FILTER}'"
+        FAILED=$((FAILED + 1))
+        FAILED_NAMES="${FAILED_NAMES}  (no tests found)\n"
+    fi
+fi
+
+printf '\n'
+printf '%s\n' "--------------------------------------------------------------"
+if [ "${FAILED}" -eq 0 ]; then
+    printf 'all %d checks held\n' "${PASSED}"
+else
+    printf '%d of %d checks held. These did not:\n' "${PASSED}" "$((PASSED + FAILED))"
+    printf "${FAILED_NAMES}"
+fi
+printf '\n'
+
+# The last thing a program in this project does is write to output/. Specifically,
+# it writes goodbye.
+mkdir -p "${DIR}/output"
+printf 'run-tests: %d of %d checks held\n%s\ngoodbye\n' \
+    "${PASSED}" "$((PASSED + FAILED))" "$(date -Iseconds)" > "${DIR}/output/goodbye"
+
+[ "${FAILED}" -eq 0 ]

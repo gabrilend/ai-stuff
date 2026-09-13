@@ -1,0 +1,25 @@
+# The RAM tiers are symlinks out of the repository. Nothing in them is ever
+# committed; they hold logs, builds, and scratch that is regenerated on demand.
+tmp
+
+# Deprecated temporary scripts are kept for exactly one commit and then removed,
+# so they are never ignored -- they are supposed to show up in the record once.
+
+# Editor and OS litter.
+*.swp
+*.swo
+.DS_Store
+
+# The browsable documentation is a **view**, not a source. Every page under docs/HTML
+# is written by ./build-documentation from the Markdown beside it. Committing generated
+# pages means every prose edit arrives as a diff of itself plus a hundred files of
+# machine output. Run ./build-documentation to get them back; nothing is lost by
+# their absence.
+docs/HTML/*
+!docs/HTML/.gitkeep
+
+# Third-party code arrives through ./install-dependencies, which copies pinned versions
+# out of the monorepo's shared library directories. What it copies is not committed
+# here, because it is already committed there. The manifest in input/ is what is
+# tracked; the copies are regenerable.
+libs/9*

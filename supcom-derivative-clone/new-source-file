@@ -1,0 +1,217 @@
+#!/usr/bin/env bash
+#
+# new-source-file -- the only sanctioned way to bring a source file into this
+# project.
+#
+# Every file here is numbered, and the numbers count up across the whole project
+# rather than restarting per directory, so that reading the project in index
+# order reads it as a story from the beginning. Every file also carries the AGPL
+# notice, and every file has a companion .info.md describing its exports as a
+# black box. Three pieces of bookkeeping, all of them the sort that rots the
+# moment a person is asked to do them by hand -- one file gets a stale licence,
+# another skips its companion, a third reuses an index because somebody guessed.
+#
+# So a person does not do them. This script does. It reads the highest index in
+# use from the hidden counter at the project root, claims the next one, stamps
+# the licence in Lua's comment syntax, writes a companion stub next to it, and
+# bumps the counter. The author is left with nothing to do except say what the
+# file is for.
+#
+# Usage:
+#   ./new-source-file the-clock
+#       -> src/NNN-the-clock.lua and src/NNN-the-clock.info.md
+#
+#   ./new-source-file --into tests the-clock-is-tested
+#       -> tests/NNN-the-clock-is-tested.lua and its companion
+#
+#   ./new-source-file --summary "Advances the world one tick." the-clock
+#       -> the same, with the one-line purpose already filled in
+#
+#   ./new-source-file --into tests --from-list tests.list
+#       -> one file per line of the list, each line "dashed-name | summary",
+#          claiming consecutive indices in one motion
+#
+#   ./new-source-file /path/to/project the-clock
+#       -> the same, against a checkout somewhere other than the default below
+#
+#   ./new-source-file --peek
+#       -> print the index that would be claimed next, and claim nothing
+
+# The project root. Hard-coded so the script runs correctly from any directory,
+# and overridable as a leading argument so a checkout elsewhere still works.
+DIR="/mnt/mtwo/programming/ai-stuff/supcom-derivative-clone"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+COUNTER="${DIR}/.file-index-counter"
+
+# Where the file lands, and what it is called. Defaults chosen because src/ is
+# where nearly everything goes and Lua is the project's language.
+INTO="src"
+SUMMARY=""
+PEEK="no"
+NAME=""
+LIST=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --into)      INTO="$2"    ; shift 2 ;;
+        --summary)   SUMMARY="$2" ; shift 2 ;;
+        --from-list) LIST="$2"    ; shift 2 ;;
+        --peek)      PEEK="yes"   ; shift ;;
+        -*)
+            echo "new-source-file: unknown option '$1'"
+            echo "Options are --into <dir>, --summary <text>, --from-list <file>, --peek."
+            exit 1
+            ;;
+        *)
+            NAME="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ ! -f "${COUNTER}" ]; then
+    echo "No index counter at ${COUNTER}."
+    echo "Either the project root is wrong, or the project has not been initialised."
+    exit 1
+fi
+
+TARGET_DIR="${DIR}/${INTO}"
+if [ ! -d "${TARGET_DIR}" ]; then
+    echo "No directory at ${TARGET_DIR} -- refusing to invent one."
+    exit 1
+fi
+
+# {{{ next_index
+next_index() {
+    local current
+    current="$(cat "${COUNTER}")"
+    printf '%03d' "$((10#${current} + 1))"
+}
+# }}}
+
+# {{{ claim_one
+# Writes one stamped source file and its companion at the next index, then bumps
+# the counter. Refuses rather than overwrites: a collision means the counter
+# disagrees with what is on disk, which is a real problem a silent overwrite
+# would bury.
+claim_one() {
+    local name="$1"
+    local summary="$2"
+    local index
+    local source_path
+    local companion_path
+
+    index="$(next_index)"
+    source_path="${TARGET_DIR}/${index}-${name}.lua"
+    companion_path="${TARGET_DIR}/${index}-${name}.info.md"
+
+    if [ -e "${source_path}" ]; then
+        echo "Refusing to overwrite ${source_path}."
+        echo "The counter says ${index} is free and the disk disagrees. Fix the counter."
+        return 1
+    fi
+
+    if [ -z "${summary}" ]; then
+        summary="TODO -- one line saying what this file is for."
+    fi
+
+    # The licence notice, verbatim from COPYING.md, in Lua's comment syntax. It is
+    # written once, here, so that there is exactly one copy of it in the project
+    # to keep current -- which is the entire argument for this script existing.
+    cat > "${source_path}" <<LUA
+-- supcom-derivative-clone — a factory war on dunes where nothing is out of range
+-- Copyright (C) 2026 gabrilend
+--
+-- This program is free software: you can redistribute it and/or modify it
+-- under the terms of the GNU Affero General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or (at
+-- your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful, but
+-- WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
+-- General Public License for more details.
+--
+-- You should have received a copy of the GNU Affero General Public License
+-- along with this program. If not, see <https://www.gnu.org/licenses/>.
+--
+-- SPDX-License-Identifier: AGPL-3.0-or-later
+
+-- ${index}-${name}.lua
+--
+-- ${summary}
+
+local M = {}
+
+return M
+LUA
+
+    cat > "${companion_path}" <<MD
+# ${index}-${name}
+
+${summary}
+
+Read this file rather than the source. The source is for when one specific
+function is misbehaving; this is for everything else.
+
+## What it is for
+
+TODO
+
+## Exports
+
+| Function | Arguments | Returns |
+| --- | --- | --- |
+
+## Data structures it owns
+
+TODO
+MD
+
+    echo "${index}" > "${COUNTER}"
+    echo "${source_path}"
+    echo "${companion_path}"
+}
+# }}}
+
+# --peek exists so a person writing a document can say which index a file will
+# take without creating it, and without reading the counter and doing the
+# arithmetic in their head -- which is how two files end up claiming one number.
+if [ "${PEEK}" = "yes" ]; then
+    next_index
+    echo
+    exit 0
+fi
+
+if [ -n "${LIST}" ]; then
+    if [ ! -f "${LIST}" ]; then
+        echo "No list at ${LIST}."
+        exit 1
+    fi
+    while IFS= read -r line; do
+        case "${line}" in
+            ''|'#'*) continue ;;
+        esac
+        NAME="$(printf '%s' "${line%%|*}" | sed -e 's/^ *//' -e 's/ *$//')"
+        SUMMARY="$(printf '%s' "${line#*|}" | sed -e 's/^ *//' -e 's/ *$//')"
+        if [ -z "${NAME}" ] || [ "${NAME}" = "${line}" ]; then
+            echo "new-source-file: cannot read '${line}' as 'name | summary'; stopping here."
+            exit 1
+        fi
+        claim_one "${NAME}" "${SUMMARY}" || exit 1
+    done < "${LIST}"
+    exit 0
+fi
+
+if [ -z "${NAME}" ]; then
+    echo "new-source-file: no name given."
+    echo "Usage: ./new-source-file [--into <dir>] [--summary <text>] <dashed-name>"
+    exit 1
+fi
+
+claim_one "${NAME}" "${SUMMARY}" || exit 1

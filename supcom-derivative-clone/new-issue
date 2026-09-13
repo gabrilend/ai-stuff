@@ -1,0 +1,289 @@
+#!/usr/bin/env bash
+#
+# new-issue -- brings an issue file into issues/ with every part the validator
+# will later insist on.
+#
+# An issue is a blueprint for building one piece of the software: what stands
+# today, what should stand, and how to get from one to the other. It carries a
+# small table of facts -- which phase, what it waits on, what waits on it, which
+# document it reads, which open questions it cites -- and three sections that
+# must exist by name. Every one of those is checked by ./validate-documentation,
+# and every one of them is the kind of thing a person forgets when writing the
+# eleventh file of an afternoon. So the tool writes the frame, and the person
+# writes the thinking.
+#
+# It also adds the issue's row to its phase's progress file, because an issue
+# that is not in its tracker is invisible to the roadmap and the validator says
+# so. The progress file must already exist: a phase's goal is a sentence a
+# person writes, not something a tool should invent.
+#
+# Naming: {PHASE}{ID}-{descr}, or {PHASE}{ID}{index}-{descr} for a sub-issue.
+# 101-the-project-is-built-by-its-tools is the first issue of phase 1;
+# 308a-a-pattern-is-a-list-of-points would be the first sub-issue of 308.
+#
+# Usage:
+#   ./new-issue 102 "The dunes are raised by a tool"
+#   ./new-issue 103 "Sightlines are read off the dunes" --blocked-by "102" --blocks "205"
+#   ./new-issue 308 "A pattern is drawn once" --reads docs/006-factories-and-patterns-in-the-sand.md --questions "A4"
+#
+#   ./new-issue --from-list issues.list
+#       -> one issue per line, each line
+#              number | title | blocked-by | reads | questions
+#          with "-" for an empty field. **Blocks is not in the list**: it is the
+#          inverse of every line's blocked-by, computed over the whole list before
+#          any file is written, so the two columns cannot disagree.
+#
+#   ./new-issue /path/to/project 102 "..."
+#
+# The title is kept exactly as given: the roadmap lists it and the validator
+# compares the two, so write it the way you want to read it.
+
+DIR="/mnt/mtwo/programming/ai-stuff/supcom-derivative-clone"
+
+if [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+# {{{ slug_of
+# A title becomes a file name: lower case, anything that is not a letter or a
+# digit becomes a dash, runs of dashes collapse, and the ends are trimmed.
+slug_of() {
+    printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9]\{1,\}/-/g' -e 's/^-//' -e 's/-$//'
+}
+# }}}
+
+# {{{ trim
+trim() {
+    printf '%s' "$1" | sed -e 's/^ *//' -e 's/ *$//'
+}
+# }}}
+
+# {{{ reads_cell
+# A document path becomes a Markdown link whose label is the document's name in
+# words -- the index and the dashes taken out.
+reads_cell() {
+    local reads="$1"
+    if [ -z "${reads}" ] || [ "${reads}" = "-" ]; then
+        printf '—'
+        return
+    fi
+    local label
+    label="$(basename "${reads}" .md | sed -e 's/^[0-9]*-//' -e 's/-/ /g')"
+    printf '[%s](../%s)' "${label}" "${reads}"
+}
+# }}}
+
+# {{{ claim_one
+# Writes one issue file and adds its row to the phase tracker. Refuses rather
+# than overwrites, and refuses a second file for a number that already has one:
+# building history is more useful if it is vertical.
+claim_one() {
+    local number="$1"
+    local title="$2"
+    local blocked_by="$3"
+    local blocks="$4"
+    local reads="$5"
+    local questions="$6"
+
+    case "${number}" in
+        [0-9][0-9][0-9]|[0-9][0-9][0-9][a-z]) ;;
+        *)
+            echo "new-issue: '${number}' is not an issue number. Three digits, optionally a letter."
+            return 1
+            ;;
+    esac
+
+    local phase="${number:0:1}"
+    local slug
+    slug="$(slug_of "${title}")"
+    local target="${DIR}/issues/${number}-${slug}.md"
+    local progress="${DIR}/issues/phase-${phase}-progress.md"
+
+    if [ -e "${target}" ]; then
+        echo "Refusing to overwrite ${target}."
+        return 1
+    fi
+
+    local existing
+    existing="$(ls -1 "${DIR}/issues/${number}-"*.md "${DIR}/issues/completed/${number}-"*.md 2>/dev/null | head -1)"
+    if [ -n "${existing}" ]; then
+        echo "Issue ${number} already exists: ${existing}"
+        echo "Building history is more useful if it is vertical. Reopen that one."
+        return 1
+    fi
+
+    if [ ! -f "${progress}" ]; then
+        echo "No progress file at ${progress}."
+        echo "Write the phase's goal there first; this tool only adds rows to a table that exists."
+        return 1
+    fi
+
+    # The phase's name, read off the progress file's own heading rather than
+    # asked for, so that the two cannot disagree.
+    local phase_name
+    phase_name="$(head -1 "${progress}" | sed -e 's/^# Phase [0-9]* Progress — //')"
+
+    [ -z "${blocked_by}" ] || [ "${blocked_by}" = "-" ] && blocked_by="—"
+    [ -z "${blocks}" ] || [ "${blocks}" = "-" ] && blocks="—"
+    [ -z "${questions}" ] || [ "${questions}" = "-" ] && questions="none"
+
+    cat > "${target}" <<MD
+# ${number} — ${title}
+
+| | |
+| --- | --- |
+| Phase | ${phase} — ${phase_name} |
+| Blocked by | ${blocked_by} |
+| Blocks | ${blocks} |
+| Reads | $(reads_cell "${reads}") |
+| Open questions | ${questions} |
+
+## Current behavior
+
+Nothing. TODO -- what stands today, in the present tense.
+
+## Intended behavior
+
+TODO -- what should stand when this is built, and why it is shaped that way.
+
+## Suggested implementation steps
+
+1. TODO
+
+## Related documents and tools
+
+- TODO
+
+## Still open
+
+Nothing beyond the questions in the table.
+MD
+
+    # The row goes after the last issue row of the progress table. The table is
+    # the only thing in that file that starts with "| " followed by a digit, so
+    # the last such line is the anchor; a file with no rows yet anchors on the
+    # header's separator line instead.
+    local row="| ${number} | ${title} | not started |"
+    local anchor
+    anchor="$(grep -n '^| [0-9]' "${progress}" | tail -1 | cut -d: -f1)"
+    if [ -z "${anchor}" ]; then
+        anchor="$(grep -n '^| --- | --- | --- |' "${progress}" | head -1 | cut -d: -f1)"
+    fi
+    if [ -z "${anchor}" ]; then
+        echo "The progress file ${progress} has no issue table; refusing to guess where the row goes."
+        rm -f "${target}"
+        return 1
+    fi
+
+    mkdir -p "/tmp/supcom-derivative-clone"
+    local scratch
+    scratch="$(mktemp "/tmp/supcom-derivative-clone/new-issue.XXXXXX")"
+    head -n "${anchor}" "${progress}" > "${scratch}"
+    printf '%s\n' "${row}" >> "${scratch}"
+    tail -n +"$((anchor + 1))" "${progress}" >> "${scratch}"
+    mv "${scratch}" "${progress}"
+
+    echo "${target}"
+}
+# }}}
+
+# --- the list mode ---------------------------------------------------------------
+
+if [ "$1" = "--from-list" ]; then
+    LIST="$2"
+    if [ ! -f "${LIST}" ]; then
+        echo "No list at ${LIST}."
+        exit 1
+    fi
+
+    declare -a ORDER=()
+    declare -A TITLE_OF=()
+    declare -A BLOCKED_BY_OF=()
+    declare -A READS_OF=()
+    declare -A QUESTIONS_OF=()
+    declare -A BLOCKS_OF=()
+
+    # First pass: read every line, so that the inverse of blocked-by can be built
+    # over the whole list before a single file exists.
+    while IFS= read -r line; do
+        case "${line}" in
+            ''|'#'*) continue ;;
+        esac
+        IFS='|' read -r f_number f_title f_blocked f_reads f_questions <<< "${line}"
+        f_number="$(trim "${f_number}")"
+        f_title="$(trim "${f_title}")"
+        f_blocked="$(trim "${f_blocked}")"
+        f_reads="$(trim "${f_reads}")"
+        f_questions="$(trim "${f_questions}")"
+        if [ -z "${f_number}" ] || [ -z "${f_title}" ]; then
+            echo "new-issue: cannot read '${line}' as 'number | title | blocked-by | reads | questions'."
+            exit 1
+        fi
+        ORDER+=("${f_number}")
+        TITLE_OF["${f_number}"]="${f_title}"
+        BLOCKED_BY_OF["${f_number}"]="${f_blocked}"
+        READS_OF["${f_number}"]="${f_reads}"
+        QUESTIONS_OF["${f_number}"]="${f_questions}"
+    done < "${LIST}"
+
+    for number in "${ORDER[@]}"; do
+        blocked="${BLOCKED_BY_OF[${number}]}"
+        if [ "${blocked}" = "-" ] || [ -z "${blocked}" ]; then
+            continue
+        fi
+        for upstream in ${blocked//,/ }; do
+            if [ -z "${TITLE_OF[${upstream}]}" ]; then
+                echo "new-issue: ${number} is blocked by ${upstream}, which is not in the list."
+                exit 1
+            fi
+            if [ -z "${BLOCKS_OF[${upstream}]}" ]; then
+                BLOCKS_OF["${upstream}"]="${number}"
+            else
+                BLOCKS_OF["${upstream}"]="${BLOCKS_OF[${upstream}]}, ${number}"
+            fi
+        done
+    done
+
+    # Second pass: write them, in list order.
+    for number in "${ORDER[@]}"; do
+        claim_one "${number}" "${TITLE_OF[${number}]}" "${BLOCKED_BY_OF[${number}]}" \
+                  "${BLOCKS_OF[${number}]}" "${READS_OF[${number}]}" "${QUESTIONS_OF[${number}]}" || exit 1
+    done
+    echo "${#ORDER[@]} issues written. Add each to the roadmap table as well."
+    exit 0
+fi
+
+# --- the single-issue mode --------------------------------------------------------
+
+NUMBER="$1"
+TITLE="$2"
+shift 2
+
+BLOCKED_BY="-"
+BLOCKS="-"
+READS="-"
+QUESTIONS="-"
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --blocked-by) BLOCKED_BY="$2" ; shift 2 ;;
+        --blocks)     BLOCKS="$2"     ; shift 2 ;;
+        --reads)      READS="$2"      ; shift 2 ;;
+        --questions)  QUESTIONS="$2"  ; shift 2 ;;
+        *)
+            echo "new-issue: unknown option '$1'"
+            echo "Options are --blocked-by, --blocks, --reads, --questions."
+            exit 1
+            ;;
+    esac
+done
+
+if [ -z "${NUMBER}" ] || [ -z "${TITLE}" ]; then
+    echo "Usage: ./new-issue <number> \"<title>\" [--blocked-by ...] [--blocks ...] [--reads ...] [--questions ...]"
+    echo "   or: ./new-issue --from-list <file>"
+    exit 1
+fi
+
+claim_one "${NUMBER}" "${TITLE}" "${BLOCKED_BY}" "${BLOCKS}" "${READS}" "${QUESTIONS}" || exit 1
+echo "Row added to the phase tracker. Add the issue to the roadmap table as well."

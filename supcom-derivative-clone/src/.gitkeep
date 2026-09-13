@@ -1,0 +1,3 @@
+Numbered source files live here, each beside its companion .info.md. There are none
+yet, on purpose: the tests in tests/ were written first and describe what will be
+built. See docs/013-the-shape-of-the-code.md.

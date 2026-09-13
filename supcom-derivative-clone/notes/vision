@@ -1,0 +1,147 @@
+supreme commander but all units have infinite range (some have lower damage from far away)
+and the ground is much more textured to give it a new paradigm - sightlines
+
+like a tank game
+buit with a factory game
+minimal resources, focus on inflows and outflows
+production lines
+you don't have to design them, they're already pre-factored built.
+just construct them.
+then, plan how their paths will take
+the units don't listen after they've left the factory
+
+there's also air and navel
+so we might as well build for both right now. better makes us able to apply the
+design patterns to multiple parts of the program. otherwise we might get things
+like scaling wrong, and that's hard to unfix. Because by the time you would,
+you're already too specialized and it'd waste a lot of effort. thus ensuring a
+mired production cycle. Not ideal!!
+
+better to just get the map right from the start. We'll say build for frigates,
+tanks, anti air, and helicopters. also a command tank that flies a plane in a
+direction chosen by compass wheel centered on the unit perpendicular to the ground
+.
+
+and it attempts to eliminate enemy command units, if it knows one is there then
+the next plane won't attack anything except that (unless it can reload before)
+because it can only shoot one missile at each target
+
+oh and planes can get in dogfights and the player can watch it with a mini viewer
+that they can open up like a tv-in-tv type of dealio. It looks like a big cloud
+and there's a swarm of fighters flying around in it. And depending on how they
+upgrade the planes, they'll fight better or worse accordingly. Sometimes, the
+player can direct planes to the battlefield, and that's the command tanks. They
+fly scout planes of their own design, free command tank unit ability, but the
+moment a scout plane sees an enemy then planes from the dogfight are encouraged
+to make bombing runs there. Which they can do if they're suitably unbothered and
+have the requisite bombing gear. Which, in the demo, all of them do.
+
+... anyway air factories build planes and they immediately go to the dogfight.
+if they don't have good air combat abilities compared to their foes, then they'll
+avoid combat. If they do, then they'll seek out enemy planes and attempt to
+intercept them. If only defensive planes remain, then AA engages and can attack
+the enemy planes. Because the defensive planes fly over friendly territory, where
+anti-air can be stationed.
+
+meanwhile, land units engage according to patterns drawn in the sand by the
+player when they're assigning the output of a factory. They can't re-design it
+after it's done, so they're encouraged to take the most strategic attack routes
+they can find. Everything can be queue'd up, this is an invariant. Few things
+can be moved, like command trucks.
+
+territory implies mass, which means metal, which means more units.
+
+time and construction power implies energy generation, which is managed through
+an always open menu. Four buttons to determine how many of your engineers get
+put toward energy exploitation. Sometimes you can find bonus chunks of energy
+in the territory you find (hydrocarbon). This buffs the next energy building
+you construct. They are naturally spread out and when losing territory, you lose
+the energy that was built while that part of territory was controlled by your
+guys.
+
+mass comes with territory. Also you can assign energy and mass to improving it.
+construction power costs energy and mass, depending on how your item is aligned -
+for example, land tends to need 10 mass for every 1 energy, while air is the
+opposite with 10 energy for every 1 mass. Naval needs 10 of both. High tech units
+cost 100 of whichever, and experimental units cost 1000.
+
+but for the demo, we just have the units I specified earlier. Still though, when
+we're building for constructing units, we should include these price-points as
+design guides.
+
+some units are variants, and deserve separate pricing - for example, anti-air
+units are land and can target air - therefore they should be 1 for 1, or 5 for 5
+depending on how you want to think about it. Their costs should be equal. Most
+units cost between 40 and 70 mass and 120 - 400 energy. they take construction
+power, same as your engineers. Engineers can be assigned separately from your
+builders. You can build more builders trivially, but engineers take time and
+effort. If your air units have been overcome then enemy units can attack your
+backline with plane attacks. If so, then you can lose engineers and builders
+as your territory goes. If you lose 4% of your territory, then you lose 4% of
+your engineers and builders. Random ones take damage, and they heal slowly. More
+if there are many engineers. Build power can be used to create defenses which
+deal damage to enemy units as they take your territory - for 1% of territory,
+apply this much damage to the foe. In the full game we'll have many tower types
+but for now treat them like artillery. They deal thorns damage, essentially. But
+they lose in capacity as territory is claimed.
+
+everyone has the same experimentals. It takes one attack pattern and maximizes
+it's impact. For example, pick range - everyone can build an experimental
+artillery. Take damage - everyone can build a powerful gunship. How about a type
+of utility, like creating units? Land factory, and underwater carrier that can
+product air units, then surface and unleash aircraft storms. Engineers build
+these, and builders help too. The land and underwater carrier attack patterns
+follow the unit in question. But only when they're standing still - the rest of
+the time, when they're moving, they're constructing (for free btw) and moving
+and keeping the units inside - then, when they stand, they swarm out and attack.
+unless they're marked to "keep hold" in which case they won't, unless the unit
+is under attack, in which case they will spawn and attack their attacker.
+
+same for air factory - they can create bomber attack patterns, then move up
+close to the enemy and unleash them. There's no anti-submarine units in the demo
+but in the full game there'll be subs and torpedo launching planes. And except
+for the carrier, which can be countered with AA, there's not much that torpedos
+can do to contest the player.
+
+if you want to really have fun, make AI units that walk forward like heroes and
+can reclaim the bones of enemies. They are taller than tanks, and so should be
+carefully placed, but they can claim territory with ease and then profit off of
+it. The more they consume, the more they can upgrade, and you can set the
+proportion at the factory. How much goes to the treasury, and how much goes to
+upgrading the unit. They have a powerful cannon on their arms but their heads
+often put them in danger before they can use the cannon. They are a tech 2 unit
+tho (the only one in the demo) and they have a rechargable shield that is a
+sphere around them and can protect allied units too.
+
+tier 1 units generally take 4 hits to be destroyed by a tank shell. AA is 3.
+command trucks are 1, and t2 enforcers take 6. Their shield takes 4. They cost
+10 for 10. A tank shell deals about 25 damage. Health recovers in increments, on
+a different timer for each unit type - for example, there's one timer that counts
+down all the tanks - one timer. When it expires, say... every 7 seconds, then 1
+hp is restored to EVERY tank. Because they are repairing. They are fully modular
+
+then there's another timer, say every 10 seconds, and when it expires (and
+restarts) 1 hp is restored to each anti-air unit. Then another timer that's every
+5 seconds it restores one to a plane or something.
+
+all of the periodic effects in the game operate like this. units keep track of
+the increment they were started at for each effect they subscribe to, and then
+whenever they need to access something related to that they reference that
+number and compare it to the increment that is now - usually by adding them
+together I think? Or subtract their created-at timedate and the current time and
+do something with the time that they last updated the thing, and then suddenly
+every increment is like what, 4 operations? Easy! That's a perfectly sized
+function call! perfect for soramech
+
+/home/ritz/programming/ai-playground/minimal-soramech/
+
+playable on sorends with multiple adjustible views
+
+/home/ritz/programming/ai-stuff/soren-ds/
+
+the map is topographical and randomly generated to look like sand dunes and the
+art background is stable diffusion AI generated... it has to be because it's
+random each time. The number of artwork textures needed to construct it manually
+imply that it would get repetitive quickly since there's so many different
+shapes that it can be. But if an AI generates a tileset... it could be much
+easier and allow us to focus on things that matter.

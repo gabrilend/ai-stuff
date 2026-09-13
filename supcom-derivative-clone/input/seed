@@ -1,0 +1,13 @@
+# The match seed. One integer, or the word `random`.
+#
+# Everything random in a match descends from it through named streams -- the dunes,
+# which engineer is hurt when ground is lost, which plane a scout's report reaches
+# first -- so the same seed and the same commands produce the same match, tick for
+# tick, on every machine in it. That is not a convenience; it is what lets other
+# players' machines run the same match instead of being told about it.
+#
+# `random` draws a fresh one each run and writes it to the append-only notebook at
+# tmp/shared-memory/seeds.log, so a match worth keeping can be got back afterwards by
+# copying its seed in here. A seed named on the command line -- SDC_SEED -- beats both
+# and is not logged, because a seed you typed is one you already have.
+random
