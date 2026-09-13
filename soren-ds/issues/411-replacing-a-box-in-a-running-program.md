@@ -28,9 +28,10 @@ So the replacement uses only operations that already exist:
    before                          after
 
    ─→ [ old ] ─→                   ─→ [ new ] ─→
-                                        ▲
-                                   [ old ]   ← still there, unwired,
-                                               never runs again
+
+                                   the old station is gone, and its
+                                   place is available to the next
+                                   station anybody adds
 ```
 
 | step | operation |
@@ -38,23 +39,51 @@ So the replacement uses only operations that already exist:
 | 1 | place a station running the new box |
 | 2 | draw the arrows into it, as one batch |
 | 3 | draw the arrows out of it, as one batch |
-| 4 | give the old station's inputs no source |
+| 4 | remove the old station |
 
-**Step 4 is the same *no source* state that parks a program (213) and
-that a failing box uses to take itself out of service (214).** Three
-different needs, one mechanism, and each time it costs nothing while
-inactive — no delivery arrives, no check runs, no core ever looks.
+**Step 4 used to be *give the old station's inputs no source*,** because
+a station could not be removed. It can (207), so it is, and three things
+follow. The table stops growing by one station per edit, which on a device
+whose purpose is being edited while it runs was the whole worry. The page
+of code the old box lived in becomes reclaimable, where before it stayed
+reachable forever (410). And the removal itself cuts every arrow that
+named the old station, so the walk in step 4 is doing work the unwiring
+had to do anyway.
+
+The *no source* state is still what parks a program (213) and what a
+failing box uses to take itself out of service (214) — those two want a
+station that stops running and **stays**, which is a different thing from
+one that goes away.
+
+**Step 4 is a separate step, and a caller may defer it.** The programming
+environment does (804): a person who has just saved a box is still looking
+at the result, and putting the arrows back is how they undo a save — which
+needs something to put them back to. So the editor stops after step 3 and
+removes the old station when the person has decided. Removal being an act a
+caller performs, rather than something that happens to them as a
+consequence of rewiring, is what makes that possible without a second
+mechanism.
 
 **Arrows move in batches**, which matters more here than anywhere else.
 Attach one arrow into the new station and values start arriving; attach
 the next a moment later and it has already missed everything the first
 one got. A batch means every arrow starts from the same instant.
 
-**Values already in the old station's ports stay there.** They are not
-drained, not delivered, not discarded — the station simply never becomes
-ready again, so they sit. Whether that is acceptable depends on what the
-box was doing, and it is the honest answer rather than a tidy one: the
-engine will not invent a policy for values a person's edit stranded.
+**Values already in the old station's ports are discarded with it.** They
+are not drained and not delivered. Whether that is acceptable depends on
+what the box was doing, and it is the honest answer rather than a tidy
+one: the engine will not invent a policy for values a person's edit
+stranded, and it will not keep a station alive forever so that the values
+inside it can go on existing unreachably.
+
+**A value already in flight toward the old station is also discarded**,
+because a worker reads a port's destination list once and then visits the
+entries, so a removal can land in between. That is what this engine does
+with any value that has nowhere to go.
+
+Somebody who wants those values to survive an edit has a way to say so
+that does not need a new mechanism: wire the old station's output
+somewhere that keeps them, and remove it after they have drained.
 
 **What the old plan bought that this does not.** A hot swap kept the
 station, so it kept the station's identity, its buffered values, and its
@@ -67,6 +96,12 @@ being sized to a box.
 way the old one could — there is no window in which a station's ports
 and its box disagree about what a value is. And it needs no new
 mechanism at all: four calls that already exist, in a sequence.
+
+**And the loss is smaller than it was.** While a replaced station had to
+stay in the table, a program written back out carried one dead station per
+edit, so the shape drifted further from what somebody wrote with every
+save. Now the only difference is which place in the table the live station
+sits in, and a place is not something a map file mentions.
 
 ### Rolling back is the same act, backwards
 

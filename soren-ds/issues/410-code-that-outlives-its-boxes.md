@@ -55,23 +55,34 @@ obvious. Take the lock, confirm the page is still filed, unfile it, free
 it, all under one hold, so a second arrival does not find it. The lock
 is a leaf; nothing else may be acquired while holding it.
 
-### Only unplaced code can ever be reclaimed
+### What can be reclaimed, now that a station can go away
 
-This is the part that reads as a disappointment and is worth stating
-plainly rather than discovering.
+**A station's box still cannot be changed** — that is a property of a
+station, which is one placement of one box, and swapping the function
+underneath a running one is the thing there is no safe moment for.
 
-**A station's box cannot be changed, and a station cannot be removed.**
-An index is a position; reclaiming one means either a hole every walk
-must skip or a renumbering that invalidates every arrow at once (207).
-So a page of code stays reachable for as long as any station places that
-box — which is forever, because the station stays in the table.
+**But a station can be removed and its place reused** (207), which widens
+what this sweep reaches. Cutting every wire that names a station is one
+walk, because a wire exists only as a destination record on some station's
+output port; with none left, nothing stale survives to be followed, so no
+arrow needs a generation tag and delivery pays nothing for the
+possibility.
 
-What this reclaims is therefore **the box that was compiled and then not
-placed, or placed somewhere that was never wired**. Somebody saving
-fifteen times while getting a box right produces fourteen of those, so it
-is narrower than it sounds and still worth building. The alternative is
-code accumulating forever in a device whose entire purpose is being
-edited while it runs.
+So a page of code is reachable for exactly as long as some station in the
+table places a box from it, and that is no longer forever. Three things
+are reclaimable:
+
+| | |
+|---|---|
+| **a box compiled and never placed** | somebody saving fifteen times while getting a box right produces fourteen of these |
+| **a box placed somewhere that was never wired** | the same, one step further along |
+| **a box whose every station has been removed** | which is what happens when an edited box's old station is retired (411) and when an app closes (909) |
+
+The third is new and it is the one that matters over a day of use. It is
+also why removal and this sweep are one design rather than two: removal
+hands a station's parts to the same scrapyard an old destination array
+goes to, and the same per-core counter sweep decides when nobody can be
+inside either.
 
 **There is no reference counting and no generation number.** The old
 plan had both — a count incremented when a task started running a box

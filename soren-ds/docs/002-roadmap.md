@@ -71,7 +71,18 @@ themselves rather than maintained by hand — the map file format
 and its loader, the routing kinds, and the two doors that let one
 program be placed inside another. The loader calls the same
 place-configure-wire operations phase 2 built, so there is one
-way a station comes into existence rather than two.
+way a station comes into existence rather than two, and then a
+fourth act, repeatable, in which a caller says the program is
+finished and whatever can only be checked about a whole program
+gets checked.
+
+The map file format is the parent project's own rather than a
+simplified one: the kind is the first word of a station line, a box
+address names the file its function lives in, every path is relative
+to the file it is written in, every wire is written at both ends, and
+a `$` on a port line is where the program's arguments arrive and its
+results leave. The reasons are in `012-soramech-runtime.md` and the
+format itself is issue 305.
 
 The initial box library is compiled into the kernel image — the
 box that says something down the serial line, the two that read

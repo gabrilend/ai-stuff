@@ -18,11 +18,30 @@ is already there.
 **A box is not swapped in underneath a running station.** A station's
 ports were sized to its box's parameter widths and may be holding
 values right now, so its box cannot change. Replacing one is a new
-station, the arrows moved to it in a batch, and the old station left
-with no source — the same inert state that parks a program and that a
-failing box uses to take itself out of service. The old code is freed
-once no core can still be inside it, by the same per-core counters
-that reclaim an old set of arrows.
+station, the arrows moved to it in a batch, and then the old station
+**removed** — its place handed back for whatever is added next. The old
+code is freed once no core can still be inside it, by the same per-core
+counters that reclaim an old set of arrows.
+
+That last step used to leave the old station standing with no source
+forever, because a station could not be removed. It can (207, and the
+reasoning is in `phase-2-progress.md`), and on this phase it is the
+difference between a device that accumulates one dead station per save and
+one that does not. The inert no-source state still exists for the two things
+that want a station to stop running and stay: parking a program, and a
+failing box taking itself out of service. The editor defers the removal
+until the person is done looking (804), because putting the arrows back is
+how somebody undoes a save.
+
+**And a box compiled here gets a real address.** A station line names a
+file and a function, so a box compiled on the device is addressed by the
+file its source was saved to — which it has, because the source arrived by
+being written to the card. That is what lets a program assembled at the
+touchscreen be **written back out as something that can be built again**:
+a map file plus a directory of the C of every box it places, the ones from
+the kernel image and the ones from somebody's fingers written out
+identically. Without it, a program containing a device-written box could be
+described and never rebuilt.
 
 
 ## The story of the phase

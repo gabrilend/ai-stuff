@@ -22,15 +22,28 @@ performs an orderly teardown:
 4. Free the app's memory region (902) and reset its page table
    entries to kernel-only (901). Any held-but-not-currently-
    in-use memory the app accumulated is reclaimed.
-5. Give every one of the app's stations no source on every input,
-   so none of them can ever become ready again. **They are not
-   removed** — an index is a position and reclaiming one means
-   either a hole every walk must skip or a renumbering that
-   invalidates every arrow at once (207). An unwired station
-   costs nothing while inactive, but the table does not shrink,
-   and a device opened and closed all day accumulates them. That
-   is the strongest argument anybody has for making stations
-   removable, and it belongs here where the cost is visible.
+5. **Remove every one of the app's stations, and get the places
+   back.** This step used to unwire them and leave them standing,
+   because an index is a position and reclaiming one looked like
+   it meant either a hole every walk must skip or a renumbering
+   that invalidates every arrow at once. It does not: a wire
+   exists only as a destination record on some station's output
+   port, so cutting every wire that names a station is one walk,
+   and once none is left nothing stale survives to be followed
+   (207). The parts go to the same scrapyard an old destination
+   array goes to and the same per-core sweep frees them.
+
+   This is the step that argument was written for. A device opened
+   and closed all day used to accumulate one dead station per
+   station per app, forever; now it accumulates nothing, and the
+   cost of removal is a walk at close time rather than a
+   comparison on every delivery for the life of the device.
+
+   Removing several at once is one act rather than a loop: take
+   the rewiring lock once, mark them all, walk the table once
+   cutting every wire that names any of them, and file them
+   together. A loop would walk the whole table once per station
+   and would briefly leave an app half-removed.
 6. Nothing to decrement. Code compiled on the device is reclaimed
    by the sweep (410) once no core can be inside it, which needs
    no count and no cooperation from this path.
