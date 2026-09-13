@@ -1,0 +1,36 @@
+An expectation of boons and blessings. Things believed to be true before there is
+evidence, written down so that when the evidence arrives it is clear which
+beliefs it confirmed and which it demolished.
+
+--
+
+I believe infinite range with distance falloff is a better game than bounded
+range. Bounded range makes positioning a question of circles; falloff plus
+sightlines makes it a question of ground, and ground is more interesting than
+circles.
+
+I believe that units which stop listening once they leave the factory will be
+loved rather than resented, because it moves the game from reacting to planning,
+and a plan you cannot fiddle with is a plan you have to think about first.
+
+I believe the per-kind timer -- one countdown that heals every tank at once, a
+different one that heals every anti-air gun -- will turn out to be the most
+important structural decision in the project. Not because of the healing. Because
+every periodic effect in the game will be shaped like it, and a game whose every
+periodic effect is "compare two integers" is a game that fits on a handheld and
+in a box.
+
+I believe deterministic lockstep is the right network model here and would have
+been wrong for a game with a hero in it. Commands are rare, pre-planned and
+queued; the only thing crossing the radio is intent, and intent is small.
+
+I believe the demo's six unit kinds are enough to find out whether the sightline
+idea works, and that the full catalogue should not be started until they have.
+
+I believe the vision's two names for one unit -- the command tank that flies a
+plane and the command truck that dies in one hit -- are the same unit, and that
+the difference is a slip of the pen rather than a design. This one is a belief
+and not a decision; it is written down as an open question.
+
+I believe somebody will draw a pattern that sends every tank into the sea within
+the first hour, and that it will be funnier than anything written here.

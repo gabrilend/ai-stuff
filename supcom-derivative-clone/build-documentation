@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#
+# build-documentation -- turns every document, issue and companion into browsable,
+# cross-linked HTML.
+#
+# This project is read far more than it is run. There are more words in it than
+# code, the words came first, and reconstructing the software means reading them
+# -- but they reference each other constantly, and a directory of files is a bad
+# way to follow a reference.
+#
+# So: every page reachable from every other, a table of contents down the side
+# that can be filtered, every issue number a link, and the numbers the design
+# rests on drawn as things you can push on rather than tables you read.
+#
+# The Markdown is the data and these pages are a view of it, generated rather than
+# maintained -- the same rule the simulation and the viewer follow, applied to the
+# project's own prose. Do not edit the output.
+#
+# The work is done by the numbered Lua generator under scripts/, found here by
+# name rather than by number so that renumbering the project never breaks the
+# front door. The output directory is made here, in the shell, because the
+# generator only ever writes files and never runs commands.
+#
+# Usage:
+#   ./build-documentation              -- build into docs/HTML/
+#   ./build-documentation /path/to/prj
+
+DIR="/mnt/mtwo/programming/ai-stuff/supcom-derivative-clone"
+if [ -d "$1/issues" ] && [ -d "$1/docs" ]; then
+    DIR="$1"
+fi
+
+GENERATOR="$(ls -1 "${DIR}"/scripts/[0-9]*-the-documentation-becomes-html.lua 2>/dev/null | head -1)"
+if [ -z "${GENERATOR}" ]; then
+    echo "No generator under ${DIR}/scripts/ named *-the-documentation-becomes-html.lua."
+    exit 1
+fi
+
+mkdir -p "${DIR}/docs/HTML"
+
+luajit "${GENERATOR}" --dir "${DIR}"

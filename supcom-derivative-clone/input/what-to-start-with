@@ -1,0 +1,23 @@
+The first thing any program in this project does is read this directory.
+
+Right now there is nothing to configure, because nothing has been built. When
+there is, this is where a match's opening decisions live: the seed the dunes are
+raised from, the size of the field, how many players and which of them are bots,
+which catalogue tables to load, and which transport to reach other players over.
+
+The reason this is a directory of files rather than a wall of command-line flags:
+a match is a small number of decisions made before it starts, and they should be
+readable, diffable, and copyable. A replay header is nearly the same set of
+fields. Anything you would want to pin down and hand to somebody else so they can
+run the same match belongs here.
+
+What is here already:
+    dependencies      -- what the build needs beyond LuaJIT, and where it comes from
+    seed              -- the match seed, one integer or the word `random`
+
+What goes here eventually:
+    field             -- the dune field's size and roughness, and where the water sits
+    players           -- one line per player: a name, a team, person or bot
+    catalogues        -- which unit, cost, timer, and experimental tables to load
+    transport         -- how other players are reached: `local`, `udp`, or the
+                         handheld's peer table

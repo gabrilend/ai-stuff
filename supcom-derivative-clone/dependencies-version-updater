@@ -1,0 +1,379 @@
+#!/usr/bin/env bash
+#
+# dependencies-version-updater -- what this project needs, whether this machine
+# has it, and how the record of that is kept current.
+#
+# For a general: a project depends on things it did not write -- a compiler, an
+# engine, a library from a sibling project -- and every one of them changes on
+# its own schedule. This script keeps one list of them (input/dependencies) and
+# does three things with it. It can bring the list up to date with what is
+# actually on this machine and in the sibling repositories. It can make this
+# project match the list, copying pinned files into libs/ and refusing when a
+# system tool is missing or has drifted from the recorded version. And it can
+# compile, so that "update, install, compile" is one command.
+#
+# One script, three names. Which job it does depends on the name it was invoked
+# by, which is what the two symlinks beside it are for:
+#
+#   ./update-dependencies            -- rewrite the versions and pins in the
+#                                       manifest to what is current now, and
+#                                       show the difference
+#   ./install-dependencies           -- make libs/ match the manifest; check
+#                                       every system tool; fail on any drift
+#   ./dependencies-version-updater   -- all three: update, install, compile
+#
+# Any of them accepts a project root as its first argument.
+#
+# Nothing here installs a system package or asks for elevated rights. A missing
+# system tool is reported and the script stops, because installing something
+# system-wide without being asked is precisely the fallback this project refuses.
+
+DIR="/mnt/mtwo/programming/ai-stuff/supcom-derivative-clone"
+
+if [ -d "$1" ] && [ -f "$1/.file-index-counter" ]; then
+    DIR="$1"
+    shift
+fi
+
+PROJECT="$(basename "${DIR}")"
+MANIFEST="${DIR}/input/dependencies"
+INVOKED_AS="$(basename "$0")"
+
+if [ ! -f "${MANIFEST}" ]; then
+    echo "No manifest at ${MANIFEST}. The first thing this program does is read input/, and it cannot."
+    exit 1
+fi
+
+mkdir -p "/tmp/${PROJECT}"
+mkdir -p "/dev/shm/${PROJECT}"
+if [ ! -e "/tmp/${PROJECT}/shared-memory" ]; then
+    ln -sfn "/dev/shm/${PROJECT}" "/tmp/${PROJECT}/shared-memory"
+fi
+LOG="/dev/shm/${PROJECT}/dependencies.log"
+
+# A copy of the manifest with the comments taken out, so that every paragraph
+# left is a stanza. The original is never parsed directly, because a comment
+# block is also a paragraph and would read as a dependency with no name.
+STANZAS="/tmp/${PROJECT}/dependencies.stanzas"
+grep -v '^#' "${MANIFEST}" > "${STANZAS}"
+
+# {{{ say
+say() {
+    printf '%s\n' "$1"
+    printf '%s %s\n' "$(date -Iseconds)" "$1" >> "${LOG}"
+}
+# }}}
+
+# {{{ stanza_count
+# How many stanzas carry a name. Paragraph mode in awk (a blank record separator)
+# splits the comment-free copy on blank lines.
+stanza_count() {
+    awk 'BEGIN { RS = "" } /(^|\n)name: / { count++ } END { print count + 0 }' "${STANZAS}"
+}
+# }}}
+
+# {{{ stanza_field
+# The value of one key in the Nth named stanza. A key that appears more than once
+# (file:) yields one line per appearance; a key that is absent yields nothing.
+stanza_field() {
+    local wanted="$1"
+    local key="$2"
+    awk -v wanted="${wanted}" -v key="${key}" '
+        BEGIN { RS = ""; FS = "\n" }
+        /(^|\n)name: / {
+            seen++
+            if (seen != wanted) next
+            for (i = 1; i <= NF; i++) {
+                if (index($i, key ": ") == 1) print substr($i, length(key) + 3)
+            }
+        }' "${STANZAS}"
+}
+# }}}
+
+# {{{ first_line_of_version
+# A tool's version is the first line it prints, with any trailing " -- copyright"
+# clause removed, because LuaJIT puts a copyright notice on the same line as its
+# version and a pin that includes a year drifts on the first of January.
+first_line_of_version() {
+    local command="$1"
+    local flag="$2"
+    local line
+    line="$("${command}" ${flag} 2>&1 | head -1)"
+    printf '%s' "${line}" | sed -e 's/ -- .*//'
+}
+# }}}
+
+# --- fresh values, one function per kind -----------------------------------------
+#
+# Each returns what the manifest *should* say for one stanza, read from the world.
+# `update` writes these into the manifest; `install` compares the manifest
+# against them.
+
+# {{{ fresh_system_tool
+fresh_system_tool() {
+    local n="$1"
+    local command
+    local flag
+    command="$(stanza_field "${n}" command)"
+    flag="$(stanza_field "${n}" version-flag)"
+    if ! command -v "${command}" > /dev/null; then
+        printf 'ABSENT'
+        return 1
+    fi
+    first_line_of_version "${command}" "${flag}"
+}
+# }}}
+
+# {{{ fresh_sibling_tool
+# The same as a system tool, but the command is an absolute path into another
+# project's build products rather than a name on the PATH.
+fresh_sibling_tool() {
+    local n="$1"
+    local command
+    local flag
+    command="$(stanza_field "${n}" command)"
+    flag="$(stanza_field "${n}" version-flag)"
+    if [ ! -x "${command}" ]; then
+        printf 'ABSENT'
+        return 1
+    fi
+    first_line_of_version "${command}" "${flag}"
+}
+# }}}
+
+# {{{ fresh_system_lua_module
+fresh_system_lua_module() {
+    local n="$1"
+    local module
+    local field
+    local answer
+    module="$(stanza_field "${n}" module)"
+    field="$(stanza_field "${n}" version-field)"
+    answer="$(luajit -e "local ok, m = pcall(require, '${module}'); if not ok then os.exit(1) end; io.write(tostring(m.${field}))" 2>&1)"
+    if [ "$?" -ne 0 ]; then
+        printf 'ABSENT'
+        return 1
+    fi
+    printf '%s' "${answer}"
+}
+# }}}
+
+# {{{ fresh_sibling_project
+# A sibling project's freshness is its git head. Read with git rather than by
+# looking at files, so that an uncommitted edit in the sibling's working tree is
+# never silently pinned.
+fresh_sibling_project() {
+    local n="$1"
+    local source
+    source="$(stanza_field "${n}" source)"
+    if [ ! -d "${source}/.git" ] && ! git -C "${source}" rev-parse --git-dir > /dev/null 2>&1; then
+        printf 'ABSENT'
+        return 1
+    fi
+    git -C "${source}" rev-parse HEAD
+}
+# }}}
+
+declare -A FRESH=(
+    [system-tool]=fresh_system_tool
+    [sibling-tool]=fresh_sibling_tool
+    [system-lua-module]=fresh_system_lua_module
+    [sibling-project]=fresh_sibling_project
+)
+
+# Which manifest key each kind's freshness is recorded under.
+declare -A RECORDED_AS=(
+    [system-tool]=version
+    [sibling-tool]=version
+    [system-lua-module]=version
+    [sibling-project]=pin
+)
+
+# --- the three jobs ---------------------------------------------------------------
+
+# {{{ do_update
+# Rewrites every version: and pin: line in the manifest to the fresh value for
+# its stanza, and shows what changed. Comments and every other line are carried
+# through untouched. A dependency that is absent keeps its old value and is
+# named, because "ABSENT" is not a version anybody wants pinned.
+do_update() {
+    local count
+    local n
+    local name
+    local kind
+    local fresh
+    local scratch
+    local current_name=""
+    local line
+    local key
+    local -A NEW_VALUE
+
+    count="$(stanza_count)"
+    say "update: reading ${count} dependencies from ${MANIFEST#${DIR}/}"
+
+    for n in $(seq 1 "${count}"); do
+        name="$(stanza_field "${n}" name)"
+        kind="$(stanza_field "${n}" kind)"
+        if [ -z "${FRESH[${kind}]}" ]; then
+            say "  ${name}: unknown kind '${kind}'; the kinds are ${!FRESH[*]}"
+            return 1
+        fi
+        fresh="$("${FRESH[${kind}]}" "${n}")"
+        if [ "${fresh}" = "ABSENT" ]; then
+            say "  ${name}: absent on this machine; its recorded ${RECORDED_AS[${kind}]} is kept"
+        else
+            NEW_VALUE["${name}"]="${fresh}"
+        fi
+    done
+
+    scratch="$(mktemp "/tmp/${PROJECT}/dependencies.XXXXXX")"
+    while IFS= read -r line; do
+        case "${line}" in
+            "name: "*)
+                current_name="${line#name: }"
+                printf '%s\n' "${line}" >> "${scratch}"
+                ;;
+            "version: "*|"pin: "*)
+                key="${line%%:*}"
+                if [ -n "${NEW_VALUE[${current_name}]}" ]; then
+                    printf '%s: %s\n' "${key}" "${NEW_VALUE[${current_name}]}" >> "${scratch}"
+                else
+                    printf '%s\n' "${line}" >> "${scratch}"
+                fi
+                ;;
+            *)
+                printf '%s\n' "${line}" >> "${scratch}"
+                ;;
+        esac
+    done < "${MANIFEST}"
+
+    if diff "${MANIFEST}" "${scratch}"; then
+        say "update: every version and pin was already current"
+    else
+        say "update: the lines above changed"
+    fi
+    mv "${scratch}" "${MANIFEST}"
+    return 0
+}
+# }}}
+
+# {{{ do_install
+# Makes the project match the manifest. Tools are checked and must match the
+# recorded version exactly -- a drift is a warning, a warning is an error, and the
+# way to accept a new version is ./update-dependencies, which records it on
+# purpose. Sibling-project files are copied out of git at the pinned commit, so
+# what lands in libs/ is exactly what was pinned and not whatever the sibling's
+# working tree holds today.
+do_install() {
+    local count
+    local n
+    local name
+    local kind
+    local recorded
+    local fresh
+    local source
+    local pin
+    local mapping
+    local from
+    local to
+    local problems=0
+
+    count="$(stanza_count)"
+    say "install: ${count} dependencies"
+
+    for n in $(seq 1 "${count}"); do
+        name="$(stanza_field "${n}" name)"
+        kind="$(stanza_field "${n}" kind)"
+        if [ -z "${FRESH[${kind}]}" ]; then
+            say "  ${name}: unknown kind '${kind}'"
+            problems=$((problems + 1))
+            continue
+        fi
+        recorded="$(stanza_field "${n}" "${RECORDED_AS[${kind}]}")"
+        fresh="$("${FRESH[${kind}]}" "${n}")"
+
+        if [ "${fresh}" = "ABSENT" ]; then
+            say "  ${name}: ABSENT -- needed for $(stanza_field "${n}" needed-for)"
+            problems=$((problems + 1))
+            continue
+        fi
+
+        if [ "${fresh}" != "${recorded}" ]; then
+            say "  ${name}: this machine has '${fresh}' but the manifest records '${recorded}'"
+            say "      run ./update-dependencies to accept it on purpose"
+            problems=$((problems + 1))
+            continue
+        fi
+
+        if [ "${kind}" = "sibling-project" ]; then
+            source="$(stanza_field "${n}" source)"
+            pin="$(stanza_field "${n}" pin)"
+            while IFS= read -r mapping; do
+                [ -z "${mapping}" ] && continue
+                from="${mapping%% -> *}"
+                to="${mapping##* -> }"
+                mkdir -p "$(dirname "${DIR}/${to}")"
+                if git -C "${source}" show "${pin}:${from}" > "${DIR}/${to}.installing" 2>> "${LOG}"; then
+                    mv "${DIR}/${to}.installing" "${DIR}/${to}"
+                    say "  ${name}: ${from} @ ${pin:0:10} -> ${to}"
+                else
+                    rm -f "${DIR}/${to}.installing"
+                    say "  ${name}: git could not show ${pin:0:10}:${from} in ${source}"
+                    problems=$((problems + 1))
+                fi
+            done <<< "$(stanza_field "${n}" file)"
+        else
+            say "  ${name}: ${fresh}"
+        fi
+    done
+
+    if [ "${problems}" -gt 0 ]; then
+        say "install: ${problems} problem(s); nothing was hidden"
+        return 1
+    fi
+    say "install: everything matches the manifest"
+    return 0
+}
+# }}}
+
+# {{{ do_compile
+do_compile() {
+    "${DIR}/compile" "${DIR}"
+}
+# }}}
+
+# {{{ do_all
+do_all() {
+    do_update || return 1
+    do_install || return 1
+    do_compile
+}
+# }}}
+
+# {{{ write_goodbye
+write_goodbye() {
+    mkdir -p "${DIR}/output"
+    printf '%s: %s\n%s\ngoodbye\n' "${INVOKED_AS}" "$1" "$(date -Iseconds)" > "${DIR}/output/goodbye"
+}
+# }}}
+
+# The name this script was called by picks the job. A dispatch table rather than
+# a chain of tests, so that a fourth name is a row and not a branch.
+declare -A JOB=(
+    [update-dependencies]=do_update
+    [install-dependencies]=do_install
+    [dependencies-version-updater]=do_all
+)
+
+if [ -z "${JOB[${INVOKED_AS}]}" ]; then
+    echo "Invoked as '${INVOKED_AS}', which is not one of: ${!JOB[*]}"
+    exit 1
+fi
+
+if "${JOB[${INVOKED_AS}]}"; then
+    write_goodbye "done"
+    exit 0
+fi
+
+write_goodbye "stopped on a problem"
+exit 1

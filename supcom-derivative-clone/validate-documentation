@@ -1,0 +1,427 @@
+#!/usr/bin/env luajit
+--
+-- validate-documentation -- checks that the written half of this project still
+-- hangs together.
+--
+-- This project had documents, issue files and tests long before it had a line of
+-- source, and they reference each other constantly. This script is the
+-- equivalent of a compiler for them. It finds these kinds of rot:
+--
+--   1. Broken links       -- a document points at a file that is not there.
+--   2. Malformed issues   -- an issue missing a section it is supposed to have, or
+--                            absent from its phase's progress tracker, or named as a
+--                            blocker while having no file.
+--   3. Roadmap drift      -- the roadmap and the issue files disagree about which
+--                            issues exist, or about their titles.
+--   4. Stale questions    -- an issue cites an open question that has since been
+--                            answered, or one that does not exist.
+--   5. Orphan documents   -- a file in docs/ or notes/ that the table of contents
+--                            does not mention, so nobody would find it.
+--   6. Lonely sources     -- a numbered Lua file with no .info.md beside it, or a
+--                            companion whose file is gone.
+--   7. Coverage claims    -- a test naming an issue that has no file. Also counted,
+--                            not failed: how many issues have a test naming them,
+--                            because the tests are the specification here and an
+--                            issue no test names is an issue nobody has specified.
+--
+-- The fourth is the one that catches real design rot. Answering a question means
+-- editing the document it changes, and it is easy to leave a dozen issue files
+-- still claiming to be waiting on it.
+--
+-- Usage:
+--   ./validate-documentation              -- check the hard-coded project root
+--   ./validate-documentation /path/to/prj -- check a checkout elsewhere
+--
+-- Exits non-zero if anything is wrong, so it can be wired into a build. Every
+-- listing here is read-only; this script writes nothing anywhere.
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/supcom-derivative-clone"
+
+local argument = {...}
+if argument[1] ~= nil and argument[1]:sub(1, 2) ~= "--" then
+  DIR = argument[1]
+end
+
+local ROADMAP = DIR .. "/docs/015-roadmap.md"
+local QUESTIONS = DIR .. "/docs/016-open-questions.md"
+local CONTENTS = DIR .. "/docs/table-of-contents.md"
+
+local bad = 0
+
+-- {{{ local function fail()
+local function fail(message)
+  io.write(message, "\n")
+  bad = bad + 1
+end
+-- }}}
+
+-- {{{ local function read_file()
+local function read_file(path)
+  local handle = io.open(path, "r")
+  if handle == nil then
+    return nil
+  end
+  local text = handle:read("*a")
+  handle:close()
+  return text
+end
+-- }}}
+
+-- {{{ local function exists()
+local function exists(path)
+  local handle = io.open(path, "r")
+  if handle == nil then
+    -- A directory opens on some systems and not others, so a failed open is asked
+    -- again as a listing before being believed.
+    local probe = io.popen("test -e '" .. path .. "' && echo yes")
+    local answer = probe:read("*l")
+    probe:close()
+    return answer == "yes"
+  end
+  handle:close()
+  return true
+end
+-- }}}
+
+-- {{{ local function list()
+-- Every entry in a directory whose name matches a pattern, sorted. One listing
+-- per directory, read-only.
+local function list(directory, pattern)
+  local found = {}
+  local handle = io.popen("ls -1 '" .. directory .. "' 2>/dev/null")
+  for name in handle:lines() do
+    if name:match(pattern) then
+      found[#found + 1] = name
+    end
+  end
+  handle:close()
+  table.sort(found)
+  return found
+end
+-- }}}
+
+-- {{{ local function lines_of()
+local function lines_of(text)
+  local collected = {}
+  for line in (text .. "\n"):gmatch("(.-)\n") do
+    collected[#collected + 1] = line
+  end
+  return collected
+end
+-- }}}
+
+-- {{{ local function sorted_keys()
+-- The keys of a set, in order, so that two runs over the same files say the same
+-- thing in the same order. A validator whose output shuffled would make every diff
+-- of its output useless.
+local function sorted_keys(set)
+  local keys = {}
+  for key in pairs(set) do
+    keys[#keys + 1] = key
+  end
+  table.sort(keys)
+  return keys
+end
+-- }}}
+
+-- {{{ local function count()
+local function count(set)
+  local total = 0
+  for _ in pairs(set) do total = total + 1 end
+  return total
+end
+-- }}}
+
+-- {{{ local function directory_of()
+local function directory_of(path)
+  return path:match("^(.*)/[^/]*$") or "."
+end
+-- }}}
+
+-- {{{ local function identity_of()
+-- An issue's number, including a sub-issue's letter.
+--
+-- A large feature is broken into sub-issues named {phase}{id}{index} -- 306a, 306b
+-- and so on -- and each of those is its own issue with its own row on the roadmap
+-- and in the progress file. Reading the first three characters and stopping would
+-- make every sub-issue claim to *be* its parent.
+local function identity_of(name)
+  local identifier = name:match("^(%d%d%d%l?)%-")
+  if identifier == nil then
+    fail("unreadable issue name: " .. name)
+    return name:sub(1, 3)
+  end
+  return identifier
+end
+-- }}}
+
+-- {{{ local function without_code()
+-- A document with its fenced blocks and code spans removed, so that a link
+-- *quoted* as syntax -- the generator's companion explains `[label](path.md)` --
+-- is not read as a link to a file called path.
+local function without_code(text)
+  text = text:gsub("```.-```", "")
+  text = text:gsub("`[^`\n]*`", "")
+  return text
+end
+-- }}}
+
+-- -- 1. every relative markdown link resolves ---------------------------------
+for _, place in ipairs({DIR .. "/docs", DIR .. "/issues", DIR .. "/issues/completed",
+                        DIR .. "/src", DIR .. "/tests", DIR .. "/scripts", DIR .. "/assets"}) do
+  for _, name in ipairs(list(place, "%.md$")) do
+    local path = place .. "/" .. name
+    local text = without_code(read_file(path))
+    for link in text:gmatch("%]%(([%w%./_%-]+%.md)%)") do
+      if not exists(directory_of(path) .. "/" .. link) then
+        fail("broken link: " .. name .. " -> " .. link)
+      end
+    end
+  end
+end
+-- The README at the root links into docs/ the same way.
+do
+  local readme = read_file(DIR .. "/README.md")
+  if readme ~= nil then
+    readme = without_code(readme)
+    for link in readme:gmatch("%]%(([%w%./_%-]+%.md)%)") do
+      if not exists(DIR .. "/" .. link) then
+        fail("broken link: README.md -> " .. link)
+      end
+    end
+  end
+end
+
+-- -- 2. issue files are well formed --------------------------------------------
+local REQUIRED = {"## Current behavior", "## Intended behavior",
+                  "## Suggested implementation steps"}
+
+-- Open and completed issues are one population for every check below: a
+-- completed issue is still on the roadmap, still in its progress file, and still
+-- a valid target for a blocker.
+local issue_files = {}
+for _, name in ipairs(list(DIR .. "/issues", "^%d%d%d%l?%-.*%.md$")) do
+  issue_files[#issue_files + 1] = DIR .. "/issues/" .. name
+end
+for _, name in ipairs(list(DIR .. "/issues/completed", "^%d%d%d%l?%-.*%.md$")) do
+  issue_files[#issue_files + 1] = DIR .. "/issues/completed/" .. name
+end
+
+local have = {}
+for _, path in ipairs(issue_files) do
+  local name = path:match("([^/]+)$")
+  local text = read_file(path)
+
+  for _, section in ipairs(REQUIRED) do
+    if not text:find(section, 1, true) then
+      fail("missing section: " .. name .. " -> " .. section)
+    end
+  end
+
+  local identifier = identity_of(name)
+  if have[identifier] then
+    fail("two files for issue " .. identifier .. ": " .. name .. " and " .. have[identifier])
+  end
+  have[identifier] = name
+
+  local progress_path = DIR .. "/issues/phase-" .. identifier:sub(1, 1) .. "-progress.md"
+  local progress = read_file(progress_path)
+  if progress == nil then
+    fail("no progress file for phase " .. identifier:sub(1, 1))
+  elseif not progress:find("| " .. identifier .. " |", 1, true) then
+    fail("not in progress file: " .. name)
+  end
+end
+
+for _, path in ipairs(issue_files) do
+  local name = path:match("([^/]+)$")
+  for _, line in ipairs(lines_of(read_file(path))) do
+    -- Both spellings of the same row. Written as two literal tests rather than
+    -- one clever pattern because Lua patterns have no alternation, and a clever
+    -- pattern that matched neither would fail silently.
+    local blockers = line:match("^| Blocks | ([%d%l, ]+)|")
+                  or line:match("^| Blocked by | ([%d%l, ]+)|")
+    if blockers ~= nil then
+      for reference in blockers:gmatch("%d%d%d%l?") do
+        if not have[reference] then
+          fail("dangling blocker: " .. name .. " names issue " .. reference ..
+               ", which has no file")
+        end
+      end
+    end
+  end
+end
+
+-- -- 3. the roadmap agrees with the files ---------------------------------------
+local roadmap = read_file(ROADMAP)
+if roadmap == nil then
+  fail("no roadmap at " .. ROADMAP)
+  roadmap = ""
+end
+local listed = {}
+for _, line in ipairs(lines_of(roadmap)) do
+  local identifier, title = line:match("^| (%d%d%d%l?) | ([^|]+) |")
+  if identifier ~= nil then
+    listed[identifier] = title:gsub("%s+$", "")
+  end
+end
+
+for _, identifier in ipairs(sorted_keys(have)) do
+  if listed[identifier] == nil then
+    fail("roadmap missing issue " .. identifier)
+  end
+end
+for _, identifier in ipairs(sorted_keys(listed)) do
+  if not have[identifier] then
+    fail("roadmap lists issue " .. identifier .. ", which has no file")
+  end
+end
+
+for _, path in ipairs(issue_files) do
+  local name = path:match("([^/]+)$")
+  local identifier = identity_of(name)
+  if listed[identifier] ~= nil then
+    local heading = read_file(path):match("^([^\n]*)")
+    local title = heading:gsub("^# %d%d%d%l? — ", ""):lower()
+    local wanted = listed[identifier]:gsub(" — %*%*capstone%*%*$", ""):lower()
+    if title ~= wanted then
+      fail("title mismatch " .. identifier .. ": file '" .. title ..
+           "' vs roadmap '" .. wanted .. "'")
+    end
+  end
+end
+
+-- -- 4. cited open questions are real, and still open ---------------------------
+--
+-- Questions live in lettered groups on one page, headed "## A1. Title" and marked
+-- ANSWERED, MOOT, DIRECTION SET, or AWAITING EVIDENCE when they are no longer a
+-- decision somebody has to make. **A through H are the shared groups and nothing
+-- else may use those letters.** An issue that raises a question nobody outside it
+-- needs to see keeps it in its own file under a letter of its own picking, which
+-- this check does not know about on purpose.
+local questions = read_file(QUESTIONS)
+if questions == nil then
+  fail("no open questions page at " .. QUESTIONS)
+  questions = ""
+end
+local known, answered, awaiting = {}, {}, {}
+
+for _, line in ipairs(lines_of(questions)) do
+  local heading = line:match("^## ([A-H]%d+[%l%-]*)%.")
+  if heading ~= nil then
+    known[heading] = true
+    if line:find("ANSWERED", 1, true) or line:find("MOOT", 1, true)
+       or line:find("DIRECTION SET", 1, true) then
+      answered[heading] = true
+    end
+    if line:find("AWAITING EVIDENCE", 1, true) then
+      awaiting[heading] = true
+    end
+  end
+end
+
+for _, path in ipairs(issue_files) do
+  local name = path:match("([^/]+)$")
+  for _, line in ipairs(lines_of(read_file(path))) do
+    local row = line:match("^| Open questions | (.+) |$")
+    if row ~= nil then
+      for reference in row:gmatch("%f[%a]([A-H]%d+[%l%-]*)") do
+        if answered[reference] then
+          fail("stale question: " .. name .. " cites " .. reference ..
+               ", which is answered")
+        elseif not known[reference] then
+          fail("unknown question: " .. name .. " cites " .. reference ..
+               ", which is not on the page")
+        end
+      end
+    end
+  end
+end
+
+-- A question can be open in three different ways and the difference matters more
+-- than the count does. "Awaiting evidence" is not indecision -- it is a question
+-- that cannot be settled by argument at all, only by running the thing and
+-- looking.
+local undecided = {}
+for _, reference in ipairs(sorted_keys(known)) do
+  if not answered[reference] and not awaiting[reference] then
+    undecided[#undecided + 1] = reference
+  end
+end
+
+-- -- 5. every document and note is in the table of contents ---------------------
+local contents = read_file(CONTENTS)
+if contents == nil then
+  fail("no table of contents at " .. CONTENTS)
+  contents = ""
+end
+for _, name in ipairs(list(DIR .. "/docs", "%.md$")) do
+  local stem = name:gsub("%.md$", "")
+  if name ~= "table-of-contents.md" and not contents:find(stem, 1, true) then
+    fail("not in the table of contents: docs/" .. name)
+  end
+end
+for _, name in ipairs(list(DIR .. "/notes", "^[^.]")) do
+  if not contents:find(name, 1, true) then
+    fail("not in the table of contents: notes/" .. name)
+  end
+end
+
+-- -- 6. every numbered source file has a companion, and no companion is alone ----
+for _, place in ipairs({"src", "tests", "scripts", "assets", "libs"}) do
+  local directory = DIR .. "/" .. place
+  local sources, companions = {}, {}
+  for _, name in ipairs(list(directory, "^%d%d%d%-.*%.lua$")) do
+    sources[name:gsub("%.lua$", "")] = true
+  end
+  for _, name in ipairs(list(directory, "^%d%d%d%-.*%.info%.md$")) do
+    companions[name:gsub("%.info%.md$", "")] = true
+  end
+  for _, stem in ipairs(sorted_keys(sources)) do
+    if not companions[stem] then
+      fail("no companion: " .. place .. "/" .. stem .. ".lua has no " .. stem .. ".info.md")
+    end
+  end
+  for _, stem in ipairs(sorted_keys(companions)) do
+    -- libs/ may carry a companion for a C file, which is fine; only Lua is checked.
+    if not sources[stem] and place ~= "libs" then
+      fail("orphan companion: " .. place .. "/" .. stem .. ".info.md has no " .. stem .. ".lua")
+    end
+  end
+end
+
+-- -- 7. coverage claims name real issues, and the census ------------------------
+--
+-- Every test file carries a line "-- covers: 101, 102, ..." naming the issues it
+-- can be shown to specify. A test claiming an issue that has no file is a claim
+-- about nothing. The census below is a count, not a failure, because at this
+-- stage the tests *are* the specification and the number is the interesting part.
+local covered = {}
+for _, name in ipairs(list(DIR .. "/tests", "^%d%d%d%-.*%.lua$")) do
+  local text = read_file(DIR .. "/tests/" .. name)
+  local claim = text:match("\n%-%-%s*covers:%s*([^\n]*)")
+  if claim == nil then
+    fail("no covers line: tests/" .. name .. " does not say which issues it specifies")
+  else
+    -- The claim may continue onto following comment lines beginning with spaces.
+    local continued = text:match("\n%-%-%s*covers:%s*[^\n]*\n((%-%-%s%s+[^\n]*\n)+)") or ""
+    for reference in (claim .. " " .. continued):gmatch("%d%d%d%l?") do
+      if not have[reference] then
+        fail("coverage of nothing: tests/" .. name .. " covers " .. reference ..
+             ", which has no file")
+      else
+        covered[reference] = true
+      end
+    end
+  end
+end
+
+io.write(string.format("%d issues, %d questions, %d answered, %d awaiting evidence.\n",
+                       #issue_files, count(known), count(answered), count(awaiting)))
+io.write("awaiting evidence: " .. table.concat(sorted_keys(awaiting), " ") .. "\n")
+io.write("needs a decision: " .. table.concat(undecided, " ") .. "\n")
+io.write(string.format("%d of %d issues have a test naming them.\n",
+                       count(covered), count(have)))
+
+io.write("problems: " .. bad .. "\n")
+os.exit(bad > 0 and 1 or 0)
