@@ -62,9 +62,19 @@ hero-less-moba/
 ├── tests/ .................................... The invariants, and a sandbox that
 │                                               measures the formation on a bare
 │                                               field. Both run by ./run-tests.
-├── scenarios/ ................................ Described worlds, written by hand.
-│                                               A scenario that reproduces a bug is
-│                                               a bug report anybody can run.
+├── scenes/ ................................... Tests on a short straight road with
+│                                               only the machinery each one names.
+├── scenarios/ ................................ Tests on the real map with the whole
+│                                               cast, put where the test asked for.
+│                                               Both kinds are tables that name
+│                                               things and contain no behavior, and
+│                                               both run through ./scripts/run-a-test.
+│                                               A test that reproduces a bug is a bug
+│                                               report anybody can run.
+├── scripts/ .................................. The tools that read the project rather
+│                                               than run it: the one front door over
+│                                               every test, and the census that counts
+│                                               which mechanics have one.
 ├── inspiration/ .............................. Reference images for the challenge
 │   └── NOTICE.md ............................. monsters. **Not ours and not under
 │                                               the project's licence** -- read the
@@ -175,7 +185,9 @@ hero-less-moba/
 │   │                                           asked: a short straight road, a few
 │   │                                           bodies, and only the machinery the
 │   │                                           scene named. What it did not ask for
-│   │                                           is absent rather than idle.
+│   │                                           is absent rather than idle -- and
+│   │                                           what a test may say, now that a test
+│   │                                           may not say anything else.
 │   │
 │   ├── table-of-contents ..................... This page.
 │   ├── balance-updates ....................... Append-only ledger of knobs turned

@@ -17,6 +17,7 @@ applied to the project's own prose.
 | 706 | The documentation becomes HTML | built |
 | 707 | The way in | menu built, replays and lobby still owed |
 | 708 | The camera is a lens you push into | built |
+| 709 | The drawn body lags the real one | not started |
 
 **Blocking:** nothing. D1 was the last decision in the project with a deadline
 and it is made: **LÖVE**, because it is already LuaJIT — no FFI boundary between

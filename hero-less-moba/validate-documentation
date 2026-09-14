@@ -1,154 +1,349 @@
-#!/usr/bin/env bash
-#
-# validate-documentation -- checks that the written half of this project still
-# hangs together.
-#
-# There is no source code yet; what this project has is documents and issue
-# files, and they reference each other constantly. This script is the equivalent
-# of a compiler for them. It finds four kinds of rot:
-#
-#   1. Broken links       -- a document points at a file that is not there.
-#   2. Malformed issues   -- an issue missing a section it is supposed to have,
-#                            or absent from its phase's progress tracker, or
-#                            named as a blocker while having no file.
-#   3. Roadmap drift      -- the roadmap and the issue files disagree about
-#                            which issues exist, or about their titles.
-#   4. Stale questions    -- an issue cites an open question that has since been
-#                            answered, or one that does not exist.
-#
-# The fourth is the one that catches real design rot. Answering a question means
-# editing the document it changes, and it is easy to leave a dozen issue files
-# still claiming to be waiting on it.
-#
-# Usage:
-#   ./validate-documentation              -- check the hard-coded project root
-#   ./validate-documentation /path/to/prj -- check a checkout elsewhere
-#
-# Exits non-zero if anything is wrong, so it can be wired into a build.
+#!/usr/bin/env luajit
+--
+-- validate-documentation -- checks that the written half of this project still hangs
+-- together.
+--
+-- This project had documents and issue files long before it had a line of code, and they
+-- reference each other constantly. This script is the equivalent of a compiler for them.
+-- It finds five kinds of rot:
+--
+--   1. Broken links       -- a document points at a file that is not there.
+--   2. Malformed issues   -- an issue missing a section it is supposed to have, or
+--                            absent from its phase's progress tracker, or named as a
+--                            blocker while having no file.
+--   3. Roadmap drift      -- the roadmap and the issue files disagree about which issues
+--                            exist, or about their titles.
+--   4. Stale questions    -- an issue cites an open question that has since been
+--                            answered, or one that does not exist.
+--   5. Untested mechanics -- a mechanic in a phase that has code, with no test naming
+--                            it. Counted by the census, which derives the list from the
+--                            roadmap rather than keeping one of its own.
+--
+-- The fourth is the one that catches real design rot. Answering a question means editing
+-- the document it changes, and it is easy to leave a dozen issue files still claiming to
+-- be waiting on it.
+--
+-- The fifth is the newest and is the one that will fail today. It is supposed to: "every
+-- mechanic should have a test" was an intention for as long as nothing counted, in the
+-- same way "every issue should be on the roadmap" was until the third check went in.
+--
+-- Usage:
+--   ./validate-documentation              -- check the hard-coded project root
+--   ./validate-documentation /path/to/prj -- check a checkout elsewhere
+--   ./validate-documentation --no-census  -- skip the coverage check
+--
+-- Exits non-zero if anything is wrong, so it can be wired into a build.
 
-DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
-if [ -n "$1" ]; then
-    DIR="$1"
-fi
+local DIR = "/mnt/mtwo/programming/ai-stuff/hero-less-moba"
 
-if [ ! -d "${DIR}/issues" ]; then
-    echo "No issues directory at ${DIR}/issues -- wrong project root?"
-    exit 1
-fi
+local argument = {...}
+if argument[1] ~= nil and argument[1]:sub(1, 2) ~= "--" then
+  DIR = argument[1]
+  table.remove(argument, 1)
+end
+local SKIP_CENSUS = (argument[1] == "--no-census")
 
-python3 - "${DIR}" <<'PY'
-import re, sys, pathlib
+local bad = 0
 
-root   = pathlib.Path(sys.argv[1])
-docs   = root / "docs"
-issues = root / "issues"
-bad    = 0
+-- {{{ local function fail()
+local function fail(message)
+  io.write(message, "\n")
+  bad = bad + 1
+end
+-- }}}
 
-def fail(msg):
-    global bad
-    print(msg)
-    bad += 1
+-- {{{ local function read_file()
+local function read_file(path)
+  local handle = io.open(path, "r")
+  if handle == nil then
+    return nil
+  end
+  local text = handle:read("*a")
+  handle:close()
+  return text
+end
+-- }}}
 
-# -- 1. every relative markdown link resolves ------------------------------
-for f in list(docs.rglob("*.md")) + list(issues.rglob("*.md")):
-    for link in re.findall(r"\]\(([0-9a-zA-Z./_-]+\.md)\)", f.read_text()):
-        if not (f.parent / link).exists():
-            fail(f"broken link: {f.name} -> {link}")
+-- {{{ local function exists()
+local function exists(path)
+  local handle = io.open(path, "r")
+  if handle == nil then
+    -- A directory opens on some systems and not others, so a failed open is asked
+    -- again as a listing before being believed.
+    local probe = io.popen("test -e '" .. path .. "' && echo yes")
+    local answer = probe:read("*l")
+    probe:close()
+    return answer == "yes"
+  end
+  handle:close()
+  return true
+end
+-- }}}
 
-# -- 2. issue files are well formed ---------------------------------------
-def identity_of(path):
-    """An issue's number, including a sub-issue's letter.
+-- {{{ local function find_markdown()
+-- Every markdown file under a directory, at any depth.
+local function find_markdown(directory)
+  local found = {}
+  local handle = io.popen("find '" .. directory .. "' -name '*.md' | sort")
+  for path in handle:lines() do
+    found[#found + 1] = path
+  end
+  handle:close()
+  return found
+end
+-- }}}
 
-    A large feature is broken into sub-issues named {phase}{id}{index} -- 211a, 211b
-    and so on -- and each of those is its own issue with its own row on the roadmap
-    and in the progress file. Reading the first three characters and stopping made
-    every sub-issue of 211 claim to *be* 211, so four of them reported a title that
-    disagreed with the roadmap while the roadmap was perfectly correct.
-    """
-    match = re.match(r"^(\d{3}[a-z]?)-", path.name)
-    if not match:
-        fail(f"unreadable issue name: {path.name}")
-        return path.name[:3]
-    return match.group(1)
+-- {{{ local function lines_of()
+local function lines_of(text)
+  local collected = {}
+  for line in (text .. "\n"):gmatch("(.-)\n") do
+    collected[#collected + 1] = line
+  end
+  return collected
+end
+-- }}}
 
+-- {{{ local function sorted_keys()
+-- The keys of a set, in order, so that two runs over the same files say the same thing
+-- in the same order. A validator whose output shuffled would make every diff of its
+-- output useless.
+local function sorted_keys(set)
+  local keys = {}
+  for key in pairs(set) do
+    keys[#keys + 1] = key
+  end
+  table.sort(keys)
+  return keys
+end
+-- }}}
 
-required = ("## Current behavior", "## Intended behavior",
-            "## Suggested implementation steps")
-issue_files = sorted(issues.glob("[0-9]*.md"))
-for f in issue_files:
-    text = f.read_text()
-    for section in required:
-        if section not in text:
-            fail(f"missing section: {f.name} -> {section}")
-    ident = identity_of(f)
-    progress = issues / f"phase-{ident[0]}-progress.md"
-    if not progress.exists():
-        fail(f"no progress file for phase {ident[0]}")
-    elif f"| {ident} |" not in progress.read_text():
-        fail(f"not in progress file: {f.name}")
+-- {{{ local function directory_of()
+local function directory_of(path)
+  return path:match("^(.*)/[^/]*$") or "."
+end
+-- }}}
 
-have = {identity_of(f) for f in issue_files}
-for f in issue_files:
-    row = re.search(r"^\| Block(?:s|ed by) \| ([0-9, ]+)\|", f.read_text(), re.M)
-    for block in re.findall(r"^\| Block(?:s|ed by) \| ([0-9, ]+)\|", f.read_text(), re.M):
-        for ref in re.findall(r"\d{3}", block):
-            if ref not in have:
-                fail(f"dangling blocker: {f.name} names issue {ref}, which has no file")
+-- {{{ local function identity_of()
+-- An issue's number, including a sub-issue's letter.
+--
+-- A large feature is broken into sub-issues named {phase}{id}{index} -- 211a, 211b and
+-- so on -- and each of those is its own issue with its own row on the roadmap and in the
+-- progress file. Reading the first three characters and stopping made every sub-issue of
+-- 211 claim to *be* 211, so four of them reported a title that disagreed with the
+-- roadmap while the roadmap was perfectly correct.
+local function identity_of(name)
+  local identifier = name:match("^(%d%d%d%l?)%-")
+  if identifier == nil then
+    fail("unreadable issue name: " .. name)
+    return name:sub(1, 3)
+  end
+  return identifier
+end
+-- }}}
 
-# -- 3. the roadmap agrees with the files ---------------------------------
-roadmap = (docs / "019-roadmap.md").read_text()
-listed  = dict(re.findall(r"^\| (\d{3}[a-z]?) \| ([^|]+?) *\|", roadmap, re.M))
-if set(listed) != have:
-    for missing in sorted(have - set(listed)):
-        fail(f"roadmap missing issue {missing}")
-    for extra in sorted(set(listed) - have):
-        fail(f"roadmap lists issue {extra}, which has no file")
-for f in issue_files:
-    ident = identity_of(f)
-    if ident not in listed:
-        continue
-    title = f.read_text().split("\n", 1)[0]
-    title = re.sub(r"^# \d{3}[a-z]? — ", "", title).lower()
-    want  = re.sub(r" — \*\*capstone\*\*$", "", listed[ident]).lower()
-    if title != want:
-        fail(f"title mismatch {ident}: file '{title}' vs roadmap '{want}'")
+-- -- 1. every relative markdown link resolves ---------------------------------
+for _, place in ipairs({DIR .. "/docs", DIR .. "/issues"}) do
+  for _, path in ipairs(find_markdown(place)) do
+    local text = read_file(path)
+    local name = path:match("([^/]+)$")
+    for link in text:gmatch("%]%(([%w%./_%-]+%.md)%)") do
+      if not exists(directory_of(path) .. "/" .. link) then
+        fail("broken link: " .. name .. " -> " .. link)
+      end
+    end
+  end
+end
 
-# -- 4. cited open questions are real, and still open ----------------------
-# Groups run A through H. G was added when the design was first built: writing
-# the program is itself a review, and it turns up disagreements between documents
-# that no amount of reading them against each other would have found, because
-# they only become visible when something has to pick one.
-#
-# H is the same lesson one level down. Those turned up while building the replay
-# log, which records the same thing the network sync records -- so it hit the
-# network design's unresolved parts years before the network exists, and found two
-# of them by crashing on one and measuring the other.
-oq       = (docs / "020-open-questions.md").read_text()
-answered = set(re.findall(r"^## ([A-H]\d+[a-z-]*)\..*(?:ANSWERED|MOOT|DIRECTION SET)", oq, re.M))
-known    = set(re.findall(r"^## ([A-H]\d+[a-z-]*)\.", oq, re.M))
-known   |= set(re.findall(r"^- \*\*(B\d+)\.", oq, re.M))
-for f in issue_files:
-    row = re.search(r"^\| Open questions \| (.+?) \|$", f.read_text(), re.M)
-    if not row:
-        continue
-    for ref in re.findall(r"\b([A-H]\d+[a-z-]*)\b", row.group(1)):
-        if ref in answered:
-            fail(f"stale question: {f.name} cites {ref}, which is answered")
-        elif ref not in known:
-            fail(f"unknown question: {f.name} cites {ref}, which is not on the page")
+-- -- 2. issue files are well formed --------------------------------------------
+local REQUIRED = {"## Current behavior", "## Intended behavior",
+                  "## Suggested implementation steps"}
 
-# A question can be open in three different ways and the difference matters more
-# than the count does. "Awaiting evidence" is not indecision -- it is a question
-# that cannot be settled by argument at all, only by running the thing and
-# looking. Lumping those in with real undecided design questions made the open
-# list read as a backlog when most of it was a to-measure list.
-awaiting = set(re.findall(r"^## ([A-H]\d+[a-z-]*)\..*AWAITING EVIDENCE", oq, re.M))
-awaiting |= set(re.findall(r"^- \*\*(B\d+)\.[^\n]*[Aa]waiting evidence", oq, re.M))
-undecided = sorted(known - answered - awaiting)
-print(f"{len(issue_files)} issues, {len(known)} questions, "
-      f"{len(answered)} answered, {len(awaiting)} awaiting evidence.")
-print("awaiting evidence: " + " ".join(sorted(awaiting)))
-print("needs a decision: " + " ".join(undecided))
-print(f"problems: {bad}")
-sys.exit(1 if bad else 0)
-PY
+local issue_files = {}
+local handle = io.popen("ls -1 '" .. DIR .. "/issues'/[0-9]*.md 2>/dev/null | sort")
+for path in handle:lines() do
+  issue_files[#issue_files + 1] = path
+end
+handle:close()
+
+local have = {}
+for _, path in ipairs(issue_files) do
+  local name = path:match("([^/]+)$")
+  local text = read_file(path)
+
+  for _, section in ipairs(REQUIRED) do
+    if not text:find(section, 1, true) then
+      fail("missing section: " .. name .. " -> " .. section)
+    end
+  end
+
+  local identifier = identity_of(name)
+  have[identifier] = true
+
+  local progress_path = DIR .. "/issues/phase-" .. identifier:sub(1, 1) .. "-progress.md"
+  local progress = read_file(progress_path)
+  if progress == nil then
+    fail("no progress file for phase " .. identifier:sub(1, 1))
+  elseif not progress:find("| " .. identifier .. " |", 1, true) then
+    fail("not in progress file: " .. name)
+  end
+end
+
+for _, path in ipairs(issue_files) do
+  local name = path:match("([^/]+)$")
+  for _, line in ipairs(lines_of(read_file(path))) do
+    -- Both spellings of the same row. Written as two literal tests rather than one
+    -- clever pattern because Lua patterns have no alternation, and a clever pattern that
+    -- matched neither would fail silently.
+    local blockers = line:match("^| Blocks | ([%d, ]+)|")
+                  or line:match("^| Blocked by | ([%d, ]+)|")
+    if blockers ~= nil then
+      for reference in blockers:gmatch("%d%d%d%l?") do
+        if not have[reference] then
+          fail("dangling blocker: " .. name .. " names issue " .. reference ..
+               ", which has no file")
+        end
+      end
+    end
+  end
+end
+
+-- -- 3. the roadmap agrees with the files ---------------------------------------
+local roadmap = read_file(DIR .. "/docs/019-roadmap.md")
+local listed = {}
+for _, line in ipairs(lines_of(roadmap)) do
+  local identifier, title = line:match("^| (%d%d%d%l?) | ([^|]+) |")
+  if identifier ~= nil then
+    listed[identifier] = title:gsub("%s+$", "")
+  end
+end
+
+for _, identifier in ipairs(sorted_keys(have)) do
+  if listed[identifier] == nil then
+    fail("roadmap missing issue " .. identifier)
+  end
+end
+for _, identifier in ipairs(sorted_keys(listed)) do
+  if not have[identifier] then
+    fail("roadmap lists issue " .. identifier .. ", which has no file")
+  end
+end
+
+for _, path in ipairs(issue_files) do
+  local name = path:match("([^/]+)$")
+  local identifier = identity_of(name)
+  if listed[identifier] ~= nil then
+    local heading = read_file(path):match("^([^\n]*)")
+    local title = heading:gsub("^# %d%d%d%l? — ", ""):lower()
+    local wanted = listed[identifier]:gsub(" — %*%*capstone%*%*$", ""):lower()
+    if title ~= wanted then
+      fail("title mismatch " .. identifier .. ": file '" .. title ..
+           "' vs roadmap '" .. wanted .. "'")
+    end
+  end
+end
+
+-- -- 4. cited open questions are real, and still open ---------------------------
+--
+-- Groups run A through H. G was added when the design was first built: writing the
+-- program is itself a review, and it turns up disagreements between documents that no
+-- amount of reading them against each other would have found, because they only become
+-- visible when something has to pick one.
+--
+-- H is the same lesson one level down. Those turned up while building the replay log,
+-- which records the same thing the network sync records -- so it hit the network
+-- design's unresolved parts years before the network exists, and found two of them by
+-- crashing on one and measuring the other.
+--
+-- **A through H are the shared groups and nothing else may use those letters.** An issue
+-- that raises a question nobody outside it needs to see keeps it in its own file under a
+-- letter of its own picking -- P in the proving ground, Z in the one about size, R in
+-- the one about drawn positions, W in the one about going round, T in the one about
+-- every mechanic having a test. Those are invisible here on purpose. The check below
+-- only knows A-H, so an issue that names its local questions G1..G3 gets told they are
+-- stale the moment the real G group is answered, which is exactly what happened and is
+-- why W exists.
+local questions = read_file(DIR .. "/docs/020-open-questions.md")
+local known, answered, awaiting = {}, {}, {}
+
+for _, line in ipairs(lines_of(questions)) do
+  local heading = line:match("^## ([A-H]%d+[%l%-]*)%.")
+  if heading ~= nil then
+    known[heading] = true
+    if line:find("ANSWERED", 1, true) or line:find("MOOT", 1, true)
+       or line:find("DIRECTION SET", 1, true) then
+      answered[heading] = true
+    end
+    if line:find("AWAITING EVIDENCE", 1, true) then
+      awaiting[heading] = true
+    end
+  end
+  local bullet = line:match("^%- %*%*(B%d+)%.")
+  if bullet ~= nil then
+    known[bullet] = true
+    if line:find("waiting evidence") then
+      awaiting[bullet] = true
+    end
+  end
+end
+
+for _, path in ipairs(issue_files) do
+  local name = path:match("([^/]+)$")
+  for _, line in ipairs(lines_of(read_file(path))) do
+    local row = line:match("^| Open questions | (.+) |$")
+    if row ~= nil then
+      for reference in row:gmatch("%f[%a]([A-H]%d+[%l%-]*)") do
+        if answered[reference] then
+          fail("stale question: " .. name .. " cites " .. reference ..
+               ", which is answered")
+        elseif not known[reference] then
+          fail("unknown question: " .. name .. " cites " .. reference ..
+               ", which is not on the page")
+        end
+      end
+    end
+  end
+end
+
+-- A question can be open in three different ways and the difference matters more than
+-- the count does. "Awaiting evidence" is not indecision -- it is a question that cannot
+-- be settled by argument at all, only by running the thing and looking. Lumping those in
+-- with real undecided design questions made the open list read as a backlog when most of
+-- it was a to-measure list.
+local undecided = {}
+for _, reference in ipairs(sorted_keys(known)) do
+  if not answered[reference] and not awaiting[reference] then
+    undecided[#undecided + 1] = reference
+  end
+end
+
+local function count(set)
+  local total = 0
+  for _ in pairs(set) do total = total + 1 end
+  return total
+end
+
+io.write(string.format("%d issues, %d questions, %d answered, %d awaiting evidence.\n",
+                       #issue_files, count(known), count(answered), count(awaiting)))
+io.write("awaiting evidence: " .. table.concat(sorted_keys(awaiting), " ") .. "\n")
+io.write("needs a decision: " .. table.concat(undecided, " ") .. "\n")
+
+-- -- 5. every mechanic with code behind it has a test ---------------------------
+--
+-- Run rather than reimplemented. The census derives its list of mechanics from the same
+-- roadmap this file has just checked, and a second copy of that reading here would be a
+-- second thing to keep in step.
+if not SKIP_CENSUS then
+  io.write("\n")
+  local census = io.popen("'" .. DIR .. "/scripts/census-the-mechanics' '" .. DIR .. "'")
+  local report = census:read("*a")
+  local ok = census:close()
+  if not ok then
+    io.write(report)
+    fail("mechanics with code behind them and no test naming them (see above)")
+  else
+    io.write(report)
+  end
+end
+
+io.write("problems: " .. bad .. "\n")
+os.exit(bad > 0 and 1 or 0)

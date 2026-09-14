@@ -12,7 +12,12 @@ struck through with the commit that did it.
 
 ## Blocked on a question, and the question is yours
 
-### Q1. Terror, and what it does to death — issue [212](212-a-beaten-body-gets-one-roll.md), [602](602-the-surge-turns-waves-into-a-stream.md)
+These three now live on [the open questions page](../docs/020-open-questions.md) as
+**H15, H16, H17**, where the documentation validator counts them. Before that they were
+written down only here, so the validator reported two questions needing a decision when
+there were five.
+
+### Q1 → [H15](../docs/020-open-questions.md). Terror, and what it does to dying — issue [212](212-a-beaten-body-gets-one-roll.md), [602](602-the-surge-turns-waves-into-a-stream.md)
 **blocked**
 
 The rule is settled: a body carries **terror** as well as health, morale attacks
@@ -26,13 +31,13 @@ rather than die. So either ordinary damage does not push health below zero, or
 retreating and dying are separated by something else, or issue 212's roll is what
 decides between them. The third reads best and is not yet written down as the answer.
 
-### Q2. Do two allied formations pass through each other, or does one go round? — issue [214](214-going-round-what-is-in-the-way.md)
+### Q2 → [H16](../docs/020-open-questions.md). Do two allied formations pass through each other, or does one go round? — issue [214](214-going-round-what-is-in-the-way.md)
 **blocked**
 
 The scene is built and shows them deadlocking. Which of the two pictures is right is a
 design call and changes the caption as much as the code.
 
-### Q3. Does a retreating body still count? — issue [602](602-the-surge-turns-waves-into-a-stream.md)
+### Q3 → [H17](../docs/020-open-questions.md). Does a retreating body still count? — issue [602](602-the-surge-turns-waves-into-a-stream.md)
 **blocked**
 
 A body streaming home is on the field, taking up room, blocking lines of sight, and in
@@ -43,30 +48,27 @@ wrong way may read as a mess rather than as a current.
 
 ## Queued, in build order
 
-### 1. Stepping aside, both versions — issue [214](214-going-round-what-is-in-the-way.md)
-**queued** · reproduced in [the proving ground](111-the-proving-ground.md), two scenes
+### 1. Bodies cannot stand in the same place — issue [214](214-going-round-what-is-in-the-way.md)
+**done** · reproduced in [the proving ground](111-the-proving-ground.md), both scenes
 
-Two separate things, and they are alternatives to be built and compared rather than one
-design:
+Neither of the two designs was built and neither will be. The ruling on
+[H16](../docs/020-open-questions.md) is one circle test on the ground a body's next step
+lands on, and a formation flowing round another formation is fifteen bodies each
+declining to stand inside somebody.
 
-- **Swarm pathfinding** — every body for itself, going round whatever is in front of it.
-- **Formation-respecting avoidance** — a formation gives way to another formation as a
-  body; a formation does **not** move for a stray, and its members filter round him and
-  close up behind.
-
-And underneath both: **a body can move laterally between files** to fill an opening in
-the front. A hole in the line ahead of you is a place to rush to, not a place to wait
-behind.
+**Still owed:** a body cannot change file, so head-on the rule stops a body rather than
+moving it aside — which means one stationary ally still halts a formation. That is
+**H18** and it is a question for you.
 
 ### 2. A body has a size — issue [215](215-a-body-has-a-size.md)
-**queued**
+**done, except one part**
 
-Large bodies walk far too close to everything and small bodies stand inside them,
-because there is one `personal_space` for a monster and a soldier alike. Room becomes a
-question about **both** bodies' sizes. Size grows with upgrades, so a fed lane is
-visibly bigger. The renderer's separate drawn-size table goes away — which reverses a
-decision that file states and defends, and hands the drawing back the problem it was
-avoiding.
+Every body carries a radius. It is what is drawn, what is stood on, what another body
+may not come inside, and what something must reach past to hit it. Reach is now measured
+to a body's skin, without which no melee body could ever touch a monster.
+
+**Still owed:** size does not grow with upgrades, so a fed lane still looks like an empty
+one. That was half the point of the issue and it waits on Z3.
 
 ### 3. The surge — issue [602](602-the-surge-turns-waves-into-a-stream.md)
 **queued** · partly blocked on Q1 and Q3
@@ -102,11 +104,16 @@ The only event in the game with no picture at all, and five healer archetypes de
 to differ in shape that a player cannot currently tell apart.
 
 ### 7. Monsters spread across the centre lane — issue [606](606-what-walks-out-of-the-middle.md)
-**queued** · small
+**done**, and it taught something
 
-Two monsters at the midpoint, spaced evenly **across** the lane's width rather than both
-on its centre line. The widest ground in the game and they are standing inside each
-other.
+They were eighteen paces either side of the centre line, which is less than one
+monster's radius, so two of them stood inside each other. They are now spread by their
+own size and no further — and the "and no further" is the lesson. Spread across the
+*road*, which is what "evenly across the lane" sounds like it means, each monster ends up
+eighty paces off the centre line and **holds that file all the way down**, so it arrives
+beside the library rather than at it, outside its own reach, and stands there hitting
+nothing. Both Golems arrived and neither could touch a library. The deadline is the walk,
+and the walk has to end somewhere it can reach.
 
 ### 8. Rendering that lags the simulation with inertia
 **queued** · no issue yet · the largest of these
@@ -136,6 +143,24 @@ tree still holds uncommitted work from more than one session.
 ---
 
 ## Done this session
+
+- **Bodies are solid** — [214](214-going-round-what-is-in-the-way.md),
+  [215](215-a-body-has-a-size.md), answering
+  [H16](../docs/020-open-questions.md). Every body has a radius; nothing stands inside
+  anything; reach is measured to a body's skin.
+- **Two spawners were putting bodies in the same place**, invisibly, since they were
+  written: every tower's guards on the tower's own node, and every wave's rear ranks on
+  the library node all three lanes share.
+- **A queue is bodies going your own way.** Two allied formations parked nose to nose
+  because each was in the other's queue, and neither was ever going to move. Narrowing
+  it further — to bodies of your own wave — was tried and reverted: waves stopped
+  queueing behind each other, lines stopped forming, and over six thousand ticks nobody
+  died at all.
+- **Surge bodies are born spread across the starting line** and hold that file down the
+  lane, which is [the picture you drew](../inspiration/how-units-should-move-through-a-lane.png).
+- **Two new questions for you: H18 and H19.**
+
+## Done the session before
 
 - **The proving ground** — [111](111-the-proving-ground.md). A short straight road, a
   named subset of the machinery, and a window that draws nothing belonging to a match.
