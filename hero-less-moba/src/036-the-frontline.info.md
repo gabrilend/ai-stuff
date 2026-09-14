@@ -17,8 +17,108 @@ reads "I am winning that lane" off the shape of two crowds rather than off a num
 
 | Function | Arguments | Returns |
 | --- | --- | --- |
+| `clear_of_bodies(world, id, x, y)` | a point in **world** coordinates | That point, or the nearest one to it that is not inside anybody. |
 | `blocked(world, id)` | | Whether this body must stop short this tick. |
-| `for_each_candidate(world, id, spacing, visit)` | | — Every body within one personal space. |
+| `separate_pass(world)` | | — Pushes apart anybody left standing inside anybody. |
+| `gather_contacts(world)` | | How many gathered pairs are actually overlapping. |
+| `relax_contacts(world)` | | — Pushes apart everybody on the gathered list. |
+| `for_each_candidate(world, id, spacing, visit)` | | — Every living body within `spacing` of this one. |
+| `SEPARATION_SLACK` | *(number)* | How close counts as touching rather than overlapping. |
+| `SEPARATION_ROUNDS` | *(number)* | The ceiling on relaxing rounds within one sweep. |
+
+## Refusing, and then separating
+
+Two things keep bodies out of each other, and the second exists because the first
+cannot do it alone.
+
+**The refusal** is a question about a step: may I stand on this ground? Three things get
+past it, and each was measured rather than argued. A cleared step is shortened afterwards
+by the body's own speed limit, so it lands short of the circle it was aimed at — which is
+to say inside. Only the deepest of several obstacles is resolved per call. And a body that
+is not moving is never asked at all.
+
+**The separation pass** runs after every body has moved and pushes apart anybody still
+overlapping, by exactly the overlap, split between the two in inverse proportion to their
+area — so a soldier walking into a Golem moves and the Golem barely does. It is a stage of
+the tick like any other, so a test that names marching gets it and cannot accidentally
+measure a world where bodies may overlap.
+
+Together they hold a stronger property than either: across a whole eight-thousand-tick
+match, **no two bodies overlap at any tick**, measured rather than asserted.
+
+### A sweep, then a look, then a sweep
+
+The pass gathers every pair close enough to matter in one walk of the spatial grid, then
+relaxes that list over and over until a round finds nothing. Then it **looks again**, and
+only leaves after a look that finds nobody overlapping — never straight after a push,
+because a push is precisely the thing that has not been checked.
+
+That structure is not caution for its own sake. Gathering once and trusting a margin was
+tried, and the pass spent an afternoon *creating* overlaps: a hero dropped onto a wave is
+born seven paces inside somebody, pushing it out moves it seven paces, and it lands inside
+a body three paces away that was never on the list because it was further off than the
+margin.
+
+### Two numbers that had to be measured
+
+**The slack** — a millionth of a pace — is not "close enough", it is the width of the
+arithmetic. Two bodies pushed to exactly touching land a few parts in ten thousand million
+either side of exact, half the time inside. Both the relaxing *and the look* have to use
+it: with an exact comparison in the look, a settled crowd read as still overlapping and
+the pass burned its whole sweep ceiling on seven thousand four hundred ticks out of eight
+thousand, doing nothing.
+
+**The round ceiling** — a hundred and twenty-eight — is a guarantee of termination rather
+than a budget, because the relaxing leaves the moment a round finds nothing. Every smaller
+number that looked right was measured and was not: a dozen bodies on a short road converge
+in twenty-four, three hundred bodies in three lanes of a real match do not, and the
+residue they leave is a few ten-thousandths of a pace — small enough that every arena
+scene passed and nothing looked wrong.
+
+### What it costs
+
+A whole match runs about **one and a half times slower** with the pass than without it.
+That is the price of the guarantee and it is worth stating plainly; it is paid by the
+headless runner, which plays thousands of matches, rather than by anybody watching one.
+
+## Two rules, and they answer different questions
+
+|  | `clear_of_bodies` | `blocked` |
+| --- | --- | --- |
+| asks | may I stand here | should I push past the man in front of me |
+| about | everything on the field, the enemy included | my own side, in my own file |
+| distance | the two bodies' radii — about seven paces | a rank's spacing — eighteen, or eleven for a body with a reach |
+| its answer | go **there** instead | **wait** |
+
+The first is physical and the second is tactical, and each does something the other
+cannot. Deleting the second and keeping only the first was built and measured: bodies
+press to touching, a losing wave spreads out and is killed piecemeal instead of
+stiffening into a block, and matches stopped running their phase arc.
+
+## The rule about standing on people
+
+A body is about to walk into another body if there is a body within
+`self.radius + other.radius` of the ground its next step lands on. If there is, that
+ground snaps to the point on the other body's circle nearest to us, and then moves
+back toward our own centre by our own radius — landing exactly at the sum of the two
+radii, on the side we were coming from.
+
+**The near side matters.** A body pushed round to the far side of an obstacle would
+have passed through it to get there, which is the one thing this exists to forbid.
+
+**It is asked about the step, not the destination.** The place a formation has for a
+body can be ninety paces away, and whether somebody is standing on it is a question
+about the future. Asked about the slot instead, bodies are pushed off their places for
+obstacles they are nowhere near, formations stop dressing, and — because the anchor
+waits for its own stragglers — waves stop advancing.
+
+**One obstacle per call.** Ground inside two bodies is moved out of the one it is
+furthest inside, which may leave it inside the other; the body chooses again next tick.
+Resolving all of them at once means iterating toward a fixed point that need not exist.
+
+**Two bodies may never be born in the same place**, because this cannot separate them
+afterwards — there is no direction to push them apart along. It raises an event rather
+than pretending.
 
 ## A rank is a melee thing
 

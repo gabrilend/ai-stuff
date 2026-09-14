@@ -71,23 +71,21 @@ local function walking(world, id)
     if soldier.target[id] ~= 0 or soldier.target_structure[id] ~= 0 then
       return 2
     end
-    if not world.frontline.blocked(world, id) then
-      world.walking.step(world, id)
-    end
+    world.walking.step(world, id)
     return 1
   end
 
-  -- Walking off the map during a calm. It has turned round, it acquires nothing,
-  -- and it vanishes when it arrives -- a hero handing back what it cost on the way
-  -- out, because the one fight designed to be fought all-in is the one you are
-  -- allowed to go all-in on.
+  -- Arriving at the far end during a calm, which is where a hero going home stops
+  -- existing and hands back what it cost. Checked here rather than inside the pattern
+  -- that walks it there, because a pattern places a goal and may not end a life.
   if soldier.going_home[id] == 1 then
     local lane = world.map.lane[soldier.lane[id]]
     if lane ~= nil then
       local home = (soldier.facing[id] == 1) and lane.length or 0
-      local along = soldier.lane_along[id] + soldier.speed[id] * soldier.facing[id]
-      local arrived = (soldier.facing[id] == 1) and (along >= home) or (along <= home)
-      if arrived then
+      local reached = (soldier.facing[id] == 1)
+                      and (soldier.lane_along[id] >= home - soldier.speed[id])
+                      or (soldier.lane_along[id] <= home + soldier.speed[id])
+      if reached then
         if soldier.flavour[id] == 2 then
           world.commanders.refund_hero(world, id)
         end
@@ -95,18 +93,7 @@ local function walking(world, id)
         soldier.state[id] = 5
         return 5
       end
-      world.walking.set_lane_position(world, id, along, soldier.lane_across[id])
     end
-    return 1
-  end
-
-  -- The Golem walks and nothing else. No acquisition, no closing, no fighting.
-  local row = world.parameters.unit.archetype[soldier.archetype[id]]
-  if row ~= nil and row.deathless then
-    local lane = world.map.lane[soldier.lane[id]]
-    local along = soldier.lane_along[id] + soldier.speed[id] * soldier.facing[id]
-    world.walking.set_lane_position(world, id, along, soldier.lane_across[id])
-    return 1
   end
 
   -- A hero crossing a connector is committed to it: it has already obeyed its one
@@ -135,17 +122,13 @@ local function walking(world, id)
     return 1
   end
 
-  -- A hero belongs to no wave, so it has no place in a formation to hold. It walks
-  -- its lane on its own -- which is also what makes it fragile in a way a wave body
-  -- is not, and part of what the purchase is buying.
-  if soldier.wave[id] == 0 then
-    local lane = world.map.lane[soldier.lane[id]]
-    local along = soldier.lane_along[id] + soldier.speed[id] * soldier.facing[id]
-    world.walking.set_lane_position(world, id, along, soldier.lane_across[id])
-    return 1
-  end
-
-  world.walking.step_in_formation(world, id)
+  -- **Everything left is a body wanting to be somewhere.** Which somewhere is a row in
+  -- the pattern table -- marching its place in a formation, walking its lane alone,
+  -- withdrawing off the map -- and every one of those rows does the same two things: say
+  -- where, and say how fast. Getting there, and not walking through anybody on the way, is
+  -- the layer underneath and is the same code for all of them.
+  world.patterns.choose(world, id)
+  world.walking.take_step(world, id)
   return 1
 end
 -- }}}
@@ -195,7 +178,10 @@ local function closing(world, id)
       soldier.target_generation[id] = 0
       return 1
     end
-    if distance_to_target(world, id) <= soldier.range[id] then
+    -- To the target's skin rather than to its middle. A body that has walked up to
+    -- something is standing against it, and how far that is from its centre depends
+    -- on how big it is.
+    if distance_to_target(world, id) <= targeting.reach_to(world, id, soldier.target[id]) then
       return 3
     end
   elseif soldier.target_structure[id] ~= 0 then
@@ -213,16 +199,20 @@ local function closing(world, id)
 
   -- Guards close across the graph, because they are not on a lane at all.
   if soldier.flavour[id] == 3 then
-    if not world.frontline.blocked(world, id) then
-      world.walking.step(world, id)
-    end
+    world.walking.step(world, id)
     return 2
   end
 
-  local goal_along, goal_across = target_in_lane_coordinates(world, id)
-  if not world.frontline.blocked(world, id) then
-    world.walking.step_toward_point(world, id, goal_along, goal_across)
-  end
+  -- Nothing gates this. A body walks at what it is closing on and gets as near as the
+  -- bodies between it and the target allow, which the step rule decides one pace at a
+  -- time. There is no separate answer for "you may not move".
+  --
+  -- **And it hurries.** A charging body is the one thing in the game allowed to exceed
+  -- marching pace: it has left its formation's business, which the cohesion budget already
+  -- recognises by excluding it, so there is no line for it to be pulling out of shape.
+  world.patterns.pattern.charge.place(world, id)
+  soldier.pattern[id] = 0
+  world.walking.take_step(world, id)
   return 2
 end
 -- }}}
@@ -245,7 +235,7 @@ local function fighting(world, id)
     -- Out of range again: the target moved, or this body was pushed off it by a
     -- knockback that does not exist yet. Close again rather than swinging at
     -- nothing.
-    if distance_to_target(world, id) > soldier.range[id] then
+    if distance_to_target(world, id) > targeting.reach_to(world, id, soldier.target[id]) then
       return 2
     end
 

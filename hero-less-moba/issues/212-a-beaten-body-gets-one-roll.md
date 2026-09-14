@@ -6,7 +6,7 @@
 | Blocked by | 211d, 210 |
 | Blocks | — |
 | Reads | [combat and damage](../docs/006-combat-and-damage.md), [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md) |
-| Open questions | none |
+| Open questions | H15 |
 
 ## Current behavior
 

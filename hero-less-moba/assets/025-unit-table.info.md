@@ -16,6 +16,23 @@ took.
 knight and a barbarian are the same body with different art. What a commander sets
 is the mixture and the captain, not a private stat block.
 
+## One number for how big a body is
+
+Every row carries a **radius**, in paces, and it is the only size in the project. It
+is how large the body is drawn, how much ground it stands on, how close another body
+may come, and how far something must reach to hit it.
+
+Those were three separate numbers in three separate files before — a drawing table in
+the renderer, one shared `personal_space` in the map shape, and a fifth of that shared
+number in the targeting pass — and they were free to disagree, which meant a monster
+drawn at twenty-six paces kept the same eighteen paces of room as a soldier drawn at
+three and a half, so soldiers stood inside it.
+
+The values are the renderer's old ones, because those were the only considered set that
+existed. The sight width was `personal_space * 0.20`, which is 3.6 — the melee body's
+drawn radius exactly. It had been tuned to the picture and written as a fraction of
+something else.
+
 ## Exports
 
 | Name | Type | Meaning |
@@ -24,6 +41,7 @@ is the mixture and the captain, not a private stat block.
 | `sync_cycle_seconds` | integer | How often machines correct each other's arithmetic. |
 | `decay_ticks` | integer | How long a fallen body holds its slot before its death is final. **Two sync cycles**, written as that multiplication rather than as a number, so that changing the cadence carries this with it. See issue 210. |
 | `archetype` | array of rows | One row per kind of body. A body's `archetype` field is an index into this. |
+| `max_radius` | number | The biggest body in the catalogue, in paces. **Derived from the rows**, not written down, so an archetype larger than the Golem cannot silently make a spatial query too small to find it. |
 | `wave` | table | What a wave is made of and how often one leaves the base. |
 
 ## An archetype row

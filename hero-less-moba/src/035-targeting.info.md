@@ -21,6 +21,7 @@ The ranking, cheapest test first:
 | `choose(world, id)` | | — Runs the whole ranking for one body. |
 | `target_is_alive(world, id)` | | Whether the stored target is still the body it thought it was. |
 | `sweep_attackers(world)` | | — Rebuilds "who is swinging at me" and `incoming_dps`. |
+| `reach_to(world, id, other)` | two bodies | How far apart their centres may be and still be in reach — `range + other.radius`. |
 | `hostile(a, b)` | two team numbers | Whether they are enemies. |
 | `can_see(world, id, target)` | | Whether there is a clear line, with **allies** as the only blockers. |
 

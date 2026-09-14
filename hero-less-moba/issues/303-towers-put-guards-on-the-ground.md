@@ -17,10 +17,24 @@ cannot shut a tower down permanently.
 
 A guard is stamped from its tower's slot and re-stamped when that slot changes.
 
+**It is put beside the tower rather than on it.** A node is a point, and a point holds
+one body: placing every guard at the tower's own node made them all stand inside each
+other for their whole lives, which nothing could correct afterwards because bodies at
+the same point have no direction to be pushed apart along. They are spread across the
+road instead, alternating sides, one body's width further out each pair.
+
+**The axis is the tower's own, not the world's** — it runs from that team's library to
+that tower. That matters and was learned by getting it wrong: the first version used a
+fixed spiral in world coordinates, and the map is a mirror, so it put one team's guards
+a pace toward the enemy and the other team's a pace toward home. Four matches with
+nobody playing, and the same side won all four. Anything offset from a thing has to be
+offset in a frame that belongs to that thing.
+
 ## Intended behavior
 
 Each tower keeps a small standing patrol. On a timer, if it has an empty guard
-slot, it puts a soldier on the ground at its own node.
+slot, it puts a soldier on the ground beside its own node — beside, because two bodies
+may never be born in the same place.
 
 A guard is an **ordinary soldier record** with `flavour = 3` — same store, same
 brain, same combat. Two fields make it a guard:

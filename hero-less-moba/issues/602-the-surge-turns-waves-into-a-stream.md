@@ -6,7 +6,7 @@
 | Blocked by | 207, 601 |
 | Blocks | 603, 605, 607 |
 | Reads | [the siege-surge](../docs/014-the-siege-surge.md) |
-| Open questions | B2 — surge length and stream rate |
+| Open questions | B2 — surge length and stream rate; H15, H17 |
 
 ## Current behavior
 

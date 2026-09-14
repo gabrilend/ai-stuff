@@ -48,21 +48,38 @@ see by how much.
 The figures used to be in this paragraph, and then the ranks were spread out and the
 paragraph was describing a formation that no longer exists.
 
-## Three gears, and nothing ever hurries
+## Three gears, and only a body that has left the line hurries
 
 Fighting, dying and blocking pull a formation out of shape, so bodies out of place
 correct. A body is in a **gear**, not on a dial:
 
 | Gear | | When |
 | --- | --- | --- |
-| walking | 0.70 of its pace | it has got ahead of its place |
-| marching | its pace | it is where it should be, or catching up |
-| running | — | leaving. Not here; see issue 212. |
+| relax | 0.70 of its pace | it has got ahead of its place |
+| normal | its pace | it is where it should be, or catching up |
+| hurry | 1.35 of its pace | it has left the line: charging, running home, withdrawing |
 
-**Nothing exceeds marching pace.** There is no budget and nothing is handed speed: a
-formation dresses itself by the inside of a turn slowing rather than by the outside
-sprinting, which is what a body of troops actually does. Asking the outer rank to run
-is how a line becomes a crowd.
+The three numbers live in the unit catalogue rather than in the code, so they are
+turned by looking rather than by editing, and every turn of them is recorded in
+[the balance ledger](../docs/balance-updates.md).
+
+**Nothing marching in a line exceeds marching pace.** There is no budget and nothing is
+handed speed: a formation dresses itself by the inside of a turn slowing rather than by
+the outside sprinting, which is what a body of troops actually does. Asking the outer rank
+to run is how a line becomes a crowd.
+
+**That sentence used to have no first clause, and losing it is deliberate.** There is now a
+third gait above marching, and a body takes it when it charges, when a guard runs home, and
+when a hero walks off the map during a calm. The reasoning above was always about *a line*,
+and a body that has left the line to charge something is no longer dressing anything -- the
+cohesion budget already excludes it, on the grounds that averaging in a body which has
+charged would tell every body still in line that it was badly out of position. What changes
+is that leaving the line is now visibly a change of gait.
+
+Which gait a body is in is decided by
+[its movement pattern](072-the-movement-patterns.info.md) rather than by how far it is from
+its place, because a body a long way from its goal and hurrying is a charge, and the same
+body a long way from its goal and marching is a straggler, and those should not look alike.
 
 What was here before was a continuous multiplier with the extra taken from whoever
 was ahead — conserved, and it read as breathing rather than marching, because every
