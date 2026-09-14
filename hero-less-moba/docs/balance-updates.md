@@ -507,3 +507,70 @@ The field filling up is not caused by the sight rule.
 **The flag stays off.** Not because the gridlock reading stands — it does not — but
 because all of the above is one seed, and one seed is exactly what produced the wrong
 answer the first time. See H14.
+
+## Bodies got sizes, and three distances moved with them
+
+Not a knob-turn — the levers moved as a consequence of H16 and 215 — but they are
+distances that decide fights, so they belong in the ledger.
+
+**Reach is now `range + the target's radius`** instead of `range`. Between two ordinary
+soldiers that is +3.6 paces on 17, about a fifth further. Against the challenge monsters
+it is +21, +26 and +31 on reaches of 46 to 58 — which is not a balance change but a
+correctness one: with bodies unable to overlap, a soldier stands against a monster at
+thirty paces from its centre, so measured centre to centre **no melee body could ever
+hit a monster**, and the challenge phase never ended.
+
+**How much of a shot a body blocks is its own radius**, where it used to be
+`personal_space * 0.20` for every body alike. That fraction evaluates to 3.6, which is
+exactly the melee radius, so nothing changed for a soldier — but a Golem now blocks with
+thirty-one paces of Golem rather than with three and a half. The flat-arrow flag is still
+off, so today this only affects the druid's moon spike.
+
+**There is a floor on how close two bodies can be**, at the sum of their radii — about
+seven paces for two soldiers. The rank's spacing is still eighteen and still does the
+work of making a rank; this is underneath it and only binds when something is pressing.
+
+**Measured across the phase arc.** Four seeds with nobody playing, before: three
+challenges and four monsters slain, every time, ending between ticks 23,400 and 25,300.
+After: the same three challenges and four monsters, but matches run **longer** — some
+past 30,000 ticks. Two lines that cannot flow through each other jam harder than two
+lines that could, and a game that was decisive is now grindier. Whether that wants
+answering with numbers is open.
+
+**Monsters now stand apart.** They were placed eighteen paces either side of the centre
+lane's middle, which is one `personal_space` and was the only number available when it
+was written. A monster is twenty-one to thirty-one paces of radius, so two of them
+thirty-six apart stood inside each other on the widest ground in the game. They are now
+spread evenly across the road, less a monster's radius at each verge.
+
+**Surge bodies are born spread across the starting line** rather than all on the lane's
+centre. A surge emits one body every fifteen ticks and each was appearing exactly where
+the last one had been, which is what made a stream pile up instead of stream.
+
+## Three paces, and hurry is faster than marching
+
+Movement used to have two gears: seven tenths of a body's speed if it had got ahead of its
+place, and full speed otherwise, with a rule that nothing ever went faster than the second.
+
+There are now three, they live in the unit catalogue rather than in the code, and the third
+is above what used to be the ceiling.
+
+| Pace | Multiplier | Taken by |
+| --- | --- | --- |
+| relax | 0.70 | ahead of its place; a guard on patrol; a body with a reach giving ground |
+| normal | 1.00 | marching in line; walking a lane alone; crossing between lanes |
+| hurry | 1.35 | charging; a guard running home; a hero withdrawing off the map |
+
+**Why the ceiling moved.** The old rule — a line dresses itself by the inside of a turn
+slowing rather than the outside sprinting — was about a line, and it still holds there: a
+body marching in formation never takes hurry. A body that has left the line to charge
+something is no longer dressing anything, and the cohesion budget already excluded it on
+exactly those grounds.
+
+**1.35 is a first draft.** It was chosen to be visibly faster without being a different
+animal, and the right way to settle it is to watch a charge and to run several thousand
+matches and look at what moved in the phase clock. That is M5 in issue 216c and it is open.
+
+Nothing is ever *handed* speed — a pace is a multiplier on a body's own number — so the
+fastest anything can move is its own speed times the largest of these, and a straggler
+cannot read as a teleport the way it did under the conserved-budget version.

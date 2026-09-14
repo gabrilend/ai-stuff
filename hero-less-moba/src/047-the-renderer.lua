@@ -91,41 +91,23 @@ local COLOUR = {
   text        = {0.780, 0.800, 0.840},
 }
 
--- How large each archetype is drawn, in paces. A captain is visibly the biggest
--- thing in a wave, which is the point of there being one in every lane.
+-- **How large a body is drawn is no longer a decision this file makes.** It reads
+-- `radius` off the snapshot, which the simulation stamped from the unit catalogue.
 --
--- **Much smaller than the room a body keeps.** The formation walks at a spacing set
--- in the formation module and a body is drawn at roughly a sixth of it, because a
--- rank drawn at the spacing it walks at is a solid bar, and what a player has to be
--- able to do is count a line and see it thin. The two numbers are deliberately
--- unrelated: one is about standing in a crowd and this one is about looking at it.
+-- There used to be a table here, one row per archetype, and a paragraph defending it:
+-- how big a thing is drawn is a question about looking at it, and how much room it
+-- keeps is a question about standing in a crowd, so the two numbers were free to
+-- disagree and did -- a body was drawn at roughly a sixth of the space it kept.
 --
--- A parallel table indexed by archetype is a thing that goes stale -- add an
--- archetype to the catalogue and it silently draws at the fallback size. That is a
--- real fragility and it is accepted here rather than solved, because the alternative
--- is putting a drawing number into the simulation's catalogue, and the line between
--- the two programs is worth more than this table is dangerous.
-local BODY_RADIUS = {
-  [1] = 3.6,   -- melee
-  [2] = 3.0,   -- ranged
-  [3] = 5.8,   -- captain, melee
-  [4] = 3.8,   -- guard
-  [5] = 5.8,   -- captain, ranged
-  -- Heroes. Bigger than a wave body and smaller than a captain in a stacked lane,
-  -- which is the right relationship: the chest economy out-scales the wallet
-  -- economy in a lane somebody committed to, and a hero standing beside an enormous
-  -- captain is **meant** to look unaffected, because lane upgrades never touch it.
-  [6] = 5.2, [7] = 4.9, [8] = 5.4, [9] = 4.8, [10] = 4.6, [11] = 5.2,
-  [12] = 4.8, [13] = 4.8, [14] = 4.6, [15] = 4.8,
-  -- The three that come out of the middle. Enormous, and drawn in the third team's
-  -- colour, which is neither side's -- a monster aimed at your base is not an ally
-  -- of the other team and must not look like one.
-  --
-  -- Shrunk less than the wave bodies were, on purpose. Everything else got smaller
-  -- so a rank reads as countable people rather than a bar; these are not part of a
-  -- rank and the whole point of them is that the field is not big enough.
-  [16] = 21, [17] = 26, [18] = 31,
-}
+-- That defence held right up until bodies stopped being allowed to overlap. Once a
+-- body's size decides who may stand where, drawing it at a different size is drawing
+-- a lie: the player sees room that is not there and a gap that cannot be walked
+-- through. The table also had the failure it admitted to -- add an archetype, forget
+-- a row, and it silently drew at the fallback size, which is a fallback and therefore
+-- a bug waiting behind a number that looks deliberate.
+--
+-- The values did not change. They were already the ones somebody had looked at and
+-- tuned; they are now in the catalogue, where the simulation can read them too.
 
 -- Below this zoom fraction a body is a dot and nothing else. Above it, detail
 -- starts arriving. Named rather than written inline three times, because the
@@ -540,7 +522,7 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
     -- and costs four comparisons per body; at close zoom it rejects almost
     -- everything, which is exactly when the frame has the least room to spare.
     if x >= left and x <= right and y >= top and y <= bottom then
-      local radius = BODY_RADIUS[newest.archetype[id]] or 5
+      local radius = newest.radius[id]
       if newest.flavour[id] == 2 then
         hero_count = hero_count + 1
         hero_list[hero_count] = id
@@ -599,7 +581,7 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
     local id = newest.fading[index]
     local x, y = newest.x[id], newest.y[id]
     if x >= left and x <= right and y >= top and y <= bottom then
-      local radius = BODY_RADIUS[newest.archetype[id]] or 5
+      local radius = newest.radius[id]
       local fade = newest.fade[id]
       -- Shrinking as well as fading, and to two thirds rather than to nothing, so
       -- that what the eye reads is a body going down rather than a body walking
@@ -618,7 +600,7 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
 
   for index = 1, hero_count do
     local id = hero_list[index]
-    local radius = BODY_RADIUS[newest.archetype[id]] or 6
+    local radius = newest.radius[id]
     set_colour(COLOUR.team[newest.team[id]], 0.95)
     love.graphics.setLineWidth(2 / camera.drawn_scale)
     love.graphics.circle("line", hero_x[index], hero_y[index], radius + 3.5, 14)
@@ -632,7 +614,7 @@ local function draw_bodies(world, camera, previous, newest, blend, detail)
     local id = newest.live[index]
     if newest.flavour[id] == 4 then
       local x, y = interpolated_position(previous, newest, id, blend)
-      local radius = BODY_RADIUS[newest.archetype[id]] or 26
+      local radius = newest.radius[id]
 
       love.graphics.setColor(0, 0, 0, 0.5)
       love.graphics.circle("fill", x + SHADOW_OFFSET * 2, y + SHADOW_OFFSET * 2, radius * 0.95, 20)
@@ -692,7 +674,7 @@ local function draw_body_detail(world, camera, previous, newest, blend, detail)
     local x, y = interpolated_position(previous, newest, id, blend)
 
     if x >= left and x <= right and y >= top and y <= bottom then
-      local radius = BODY_RADIUS[newest.archetype[id]] or 5
+      local radius = newest.radius[id]
 
       if detail >= DETAIL_HEALTH then
         local fraction = newest.health_fraction[id]

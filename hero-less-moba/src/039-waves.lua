@@ -84,6 +84,8 @@ function M.new_wave(world, team, lane, member_count)
   -- out afterwards.
   local start_in = 70
   local anchor = (team == 1) and start_in or (lane_record.length - start_in)
+  -- Kept on the record because whether it was far enough in cannot be known here:
+  -- it depends on how deep the wave turns out to be, and no body has a place yet.
 
   -- A wave advances at its slowest member's pace, so it does not walk away from
   -- its own rear rank. That is the captain's speed -- and it stays the captain's
@@ -122,6 +124,7 @@ function M.new_wave(world, team, lane, member_count)
     across_offset = 0,
 
     anchor       = anchor,
+    start_in     = start_in,
     pace         = pace,
     facing       = facing,
     engaged      = 0,
@@ -196,6 +199,16 @@ end
 --
 -- It gets no formation for the same reason. A surge is the one thing in this game
 -- that walks out in a line.
+--
+-- **Across the starting line rather than on one point.** Every body of a surge used
+-- to appear at the exact centre of the lane, one every few ticks, so a surge was a
+-- single file of bodies each standing where the last one had been -- which is what
+-- made it pile up rather than stream. A lane is wide; a surge should use it.
+--
+-- The draw is uniform across the road, less this body's own radius at either verge so
+-- that nothing is born hanging off the edge. It is a stream body's one random number
+-- and it is drawn from a stream of its own, so what a body carries does not depend on
+-- where it stood.
 function M.spawn_stream_body(world, team, lane_id, archetype)
   local id = world.allocate(world)
   local soldier = world.soldier
@@ -217,7 +230,9 @@ function M.spawn_stream_body(world, team, lane_id, archetype)
   soldier.slot_across[id] = 0
 
   local along = (team == 1) and 40 or (lane.length - 40)
-  world.walking.set_lane_position(world, id, along, 0)
+  local room = world.parameters.shape.lane_width[lane_id] * 0.5 - soldier.radius[id]
+  local across = (world.stream.spawn[team]:next_float() * 2 - 1) * room
+  world.walking.set_lane_position(world, id, along, across)
 
   -- Its colour still comes from a commander -- whoever's turn it would have been.
   local commander_id = world.commanders.commander_for_wave(world, team, world.wave_turn + 1)
@@ -232,10 +247,22 @@ function M.spawn_stream_body(world, team, lane_id, archetype)
 end
 -- }}}
 
+-- {{{ local function lane_record_length()
+-- How long the lane a wave is walking is. A one-line reader, because the wave record
+-- holds which lane it walks and not how long that lane is, and asking twice in two
+-- different ways is how the two come apart.
+local function lane_record_length(world, wave)
+  return world.map.lane[wave.lane].length
+end
+-- }}}
+
 -- {{{ local function queue_wave()
--- Creates a wave record and schedules its bodies to leave the library a few
--- ticks apart, so a wave walks out as a column rather than as one stacked point.
+-- Creates a wave record and puts every one of its bodies on the ground at once,
+-- already standing in its ranks -- see the note further down about why there is no
+-- filing out. Then checks that the ranks all fitted on the lane, which is the one
+-- thing about a formation that cannot be known before it has been built.
 local function queue_wave(world, team, lane, turn)
+  local soldier = world.soldier
   local settings = world.parameters.unit.wave
   local total = settings.melee_count + settings.ranged_count + settings.captain_count
   -- Where it walks, which during a challenge is the middle whatever lane it was
@@ -337,6 +364,50 @@ local function queue_wave(world, team, lane, turn)
   -- Now that every body has a place, the formation knows how deep it is, and every
   -- place can be written down as a bearing from its centre.
   world.formations.settle_the_disc(world, wave_id)
+
+  -- **And now that the depth is known, the wave can be put far enough in.**
+  --
+  -- The anchor is the formation's front and was chosen before any of this, when
+  -- nothing knew how many ranks the wave would turn out to occupy -- that depends on
+  -- the commander's mixture, on how wide the lane is, and on how far behind the line
+  -- the archers sit. A wave deeper than the distance it starts in from the library
+  -- has its rear ranks placed at a negative distance along the lane, which
+  -- `set_lane_position` clamps to zero.
+  --
+  -- Zero is the library node, and **all three lanes share it**. So the rear rank of
+  -- every wave leaving a base was placed on one point, on top of the rear ranks of
+  -- the other two lanes' waves -- bodies standing exactly inside each other, which
+  -- nothing could push apart afterwards because bodies at the same point have no
+  -- direction to be pushed along.
+  --
+  -- It was invisible until bodies were given sizes and the rule about not overlapping
+  -- started saying so out loud.
+  -- **The whole wave starts in from the library, not just its front.** The anchor is
+  -- the front, so putting the anchor seventy paces in puts the rear rank of a
+  -- ninety-deep formation twenty paces *behind* the library -- which
+  -- `set_lane_position` clamps to zero, and zero is the library node that **all three
+  -- lanes share**. Every lane's rear rank was placed on that one point, inside the
+  -- other two lanes' rear ranks.
+  --
+  -- So the front goes in by the wave's own depth *plus* the margin, which puts the
+  -- rearmost body where the front used to be. By then the three lanes have pulled
+  -- apart far enough to be three roads.
+  --
+  -- Re-placed from each body's own slot rather than by shifting where it currently
+  -- stands, because the bodies that were clamped have already lost the position that
+  -- would have been shifted -- they are all sitting on the same clamped value.
+  local wave = world.wave[wave_id]
+  local wants = (wave.depth or 0) + wave.start_in
+  if wants > wave.start_in then
+    wave.anchor = (wave.facing == 1) and wants or (lane_record_length(world, wave) - wants)
+    for id = 1, world.high_water do
+      if soldier.wave[id] == wave_id and soldier.alive[id] == 1 then
+        world.walking.set_lane_position(world, id,
+          wave.anchor + soldier.slot_along[id] * soldier.facing[id],
+          soldier.slot_across[id] + (wave.across_offset or 0))
+      end
+    end
+  end
 
   return wave_id
 end

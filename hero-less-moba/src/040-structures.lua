@@ -119,7 +119,41 @@ local function put_guard_on_the_ground(world, structure)
   end
   soldier.guard_of[id] = structure.id
 
-  world.walking.place_at_node(world, id, structure.node)
+  -- **Beside the tower, not on it.** Every guard used to be placed at the tower's own
+  -- node, so a tower's guards were born standing inside one another and stayed there:
+  -- two bodies at exactly the same point have no direction to be pushed apart along,
+  -- so the rule that keeps bodies out of each other cannot fix it afterwards. It has
+  -- to not happen.
+  --
+  -- **Across the road, alternating, and the axis is the tower's own.** The direction
+  -- runs from this team's library to this tower, turned a quarter turn -- which is a
+  -- frame belonging to the tower rather than to the world.
+  --
+  -- That distinction is the whole of this paragraph and it was learned the hard way.
+  -- The first version spread the guards on a spiral in world coordinates, the same
+  -- absolute directions for both teams. **The map is a mirror**, so an offset that put
+  -- team 1's guards a pace toward the enemy put team 2's a pace toward their own base,
+  -- and the two sides stopped being the same game: measured over four matches with
+  -- nobody playing, the same side won every one. A frame derived from the tower
+  -- mirrors when the tower does.
+  local index = #structure.guard_slot + 1
+  local here = world.map.node[structure.node]
+  local home = world.map.node[world.map.library_node[structure.team]]
+  local dx, dy = here.x - home.x, here.y - home.y
+  local length = math.sqrt(dx * dx + dy * dy)
+  if length < 0.0001 then
+    world.raise(world, "tower_on_its_own_library", {structure = structure.id})
+    length = 1
+    dx, dy = 1, 0
+  end
+  -- Out to alternating sides, one body's width further each pair, so any number of
+  -- guards fits without being told how many there will be -- they are put out one at
+  -- a time as they are replaced and nothing knows the total.
+  local side = (index % 2 == 1) and 1 or -1
+  local rank = math.ceil(index / 2)
+  local distance = soldier.radius[id] * 2.2 * rank * side
+  world.walking.place_at_node(world, id, structure.node,
+                              -dy / length * distance, dx / length * distance)
   world.chest.stamp_from_stone(world, id, structure)
 
   structure.guard_slot[#structure.guard_slot + 1] = id

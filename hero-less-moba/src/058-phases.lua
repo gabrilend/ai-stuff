@@ -190,8 +190,13 @@ function M.put_monsters_out(world)
   local lane = world.map.lane[2]
   local midpoint = lane.cumulative[lane.milestone_index[4]]
 
+  -- One monster per team, and how many there are decides how they are spread across
+  -- the road below. Named rather than written as a 2 in two places, so that the two
+  -- cannot come apart.
+  local count = 2
+
   world.monster = {}
-  for team = 1, 2 do
+  for team = 1, count do
     local id = world.allocate(world)
     local soldier = world.soldier
     world.give_body(world, id, world.parameters.unit.archetype[row.archetype])
@@ -213,7 +218,31 @@ function M.put_monsters_out(world)
     -- it for team 2 -- the opposite of the direction that team's own bodies walk.
     soldier.facing[id] = (team == 1) and -1 or 1
     soldier.path_index[id] = lane.milestone_index[4]
-    world.walking.set_lane_position(world, id, midpoint, (team == 1) and -18 or 18)
+
+    -- **Far enough apart not to be standing inside each other, and no further.**
+    --
+    -- They used to be placed eighteen paces either side of the centre line, which was
+    -- one `personal_space` back when that was the only number anybody had for how much
+    -- room a body takes. A monster is twenty-one to thirty-one paces of radius, so two
+    -- of them thirty-six apart stood inside each other on the widest ground in the game.
+    --
+    -- The distance is sized from the monster's own radius rather than from the road,
+    -- and that is the whole lesson here. Spread across the full width instead -- which
+    -- is what "spaced evenly across the lane" sounds like it means -- each monster ends
+    -- up eighty-odd paces to the side of the centre line, and **it holds that offset all
+    -- the way down the lane**, because a body with no wave keeps the file it was born
+    -- in. So it arrives beside the library rather than at it, outside its own reach, and
+    -- stands there hitting nothing. Both Golems arrived and neither could touch a
+    -- library; the match ran to sixty thousand ticks and two thousand bodies with no
+    -- ending. **The deadline is the walk, and the walk has to end somewhere it can
+    -- reach.**
+    local room = soldier.radius[id] * 1.1
+    local across = room * (2 * team - count - 1)
+    if room >= soldier.range[id] then
+      world.raise(world, "monster_cannot_reach_its_library",
+                  {archetype = row.archetype, room = room, range = soldier.range[id]})
+    end
+    world.walking.set_lane_position(world, id, midpoint, across)
     -- **With its generation.** Slots are recycled, so an id alone is not a body -- a
     -- dead monster's slot is handed to the next thing that spawns, and asking
     -- "is this still alive" of the id alone gets a cheerful yes about a stranger.

@@ -14,8 +14,26 @@ Waves spawn on a cadence, one per lane per team, and the whole wave appears at
 once already in its ranks. The commanders take turns, so the captain and the mixture
 that walk out are somebody's in particular.
 
-During a surge the spawner is a stream instead; during a calm nothing spawns; during
-a challenge the waves go to the middle carrying their own lane's upgrades.
+**The whole wave starts in from the library, not just its front.** The anchor is the
+formation's front, and it used to be placed a fixed seventy paces in — so a formation
+deeper than seventy had its rear ranks placed at a *negative* distance along the lane,
+which clamps to zero. **Zero is the library node, and all three lanes share it.** The
+back of every wave leaving a base was therefore born standing inside the back of the
+other two lanes' waves. How deep a wave will be is not knowable when the anchor is
+chosen — it depends on the commander's mixture, the lane's width, and how far behind the
+line the archers sit — so the wave is put together first and moved in afterwards, by its
+own depth plus the margin.
+
+During a surge the spawner is a stream instead. **A stream body is born at a random
+point across the lane's starting line**, drawn from a stream of its own so that where a
+body stands does not decide what it carries; every one used to appear at the exact
+centre of the road, one every fifteen ticks, each standing where the last one had been,
+which is what made a stream pile up rather than stream. It then holds that offset the
+whole way down the lane, including round the junction bend, where a constant offset is a
+concentric arc — so a body born on the left hugs the left the whole way.
+
+During a calm nothing spawns; during a challenge the waves go to the middle carrying
+their own lane's upgrades.
 
 ## Intended behavior
 

@@ -10,23 +10,55 @@
 
 ## Current behavior
 
-**Nothing in the simulation knows how big a body is.**
+**Every body carries a radius in paces, stamped at birth from its archetype row like
+health and damage, and four things that used to disagree now read it.**
 
-There is one number, `personal_space`, and it is the same eighteen paces for a wave
-soldier, a captain at two and a half times the health, a tower guard, a bought hero
-and a challenge monster. [The frontline queue](206-the-frontline-is-a-queue.md) uses
-it for every body alike, with a single exception: a body with a reach keeps six tenths
-of it, because it is not queueing for the front.
+| Reads it | What it used to read |
+| --- | --- |
+| the rule that keeps two bodies off the same ground | did not exist |
+| how large the body is drawn | a table in the renderer, indexed by archetype, with a fallback size for any row somebody forgot |
+| how much of a straight shot a body blocks | one fifth of the shared `personal_space` — which is 3.6, the melee body's drawn radius, arrived at by tuning |
+| how far a body can reach to hit another | nothing: reach was measured centre to centre |
 
-The viewer keeps a **second, unrelated** table of how large each archetype is *drawn* —
-3.6 paces for a melee body, 5.8 for a captain, 26 for a monster — and the renderer says
-in as many words that the two numbers are deliberately unrelated, one being about
-standing in a crowd and the other about looking at it.
+The values are the renderer's old ones, because those were the only considered set
+that existed. The largest is derived rather than written down, so an archetype bigger
+than the Golem cannot silently make a spatial query too small to find it.
 
-The consequence is visible the moment anybody looks: **large bodies walk far too close
-to everything, and small bodies stand inside large ones.** A monster drawn at twenty-six
-paces keeps the same eighteen paces of room as a soldier drawn at three and a half, so
-soldiers overlap it; and it in turn crowds whatever it is walking behind.
+**Reach is measured to a body's skin.** `range + other.radius`. This is not a
+refinement — a soldier stops against a monster at thirty paces from its centre while
+its sword reaches seventeen, so measured centre to centre every melee body in the game
+misses every monster forever, and what that looks like from outside is a challenge
+phase that never ends.
+
+### Two parts of the design below are not built
+
+**Size does not grow with upgrades.** A fed lane still sends out soldiers the same size
+as an empty one, so the readable-across-the-map half of this is still owed. Z3 is the
+question it waits on.
+
+**The rank rule still uses one global number.** [The frontline
+queue](206-the-frontline-is-a-queue.md) keeps its eighteen-pace bubble for every body
+alike. That number turned out to be about a *rank's spacing* rather than about a body's
+size, so it is not obviously wrong to leave it one number — but it is not the design
+below either, and Z1 is the question.
+
+### What it flushed out
+
+Giving bodies sizes made two spawners visibly wrong, both of which had been placing
+bodies exactly on top of each other since they were written:
+
+- **Every tower's guards were placed on the tower's own node** — one point, so all of
+  a tower's guards stood inside one another. They are now spread across the road,
+  alternating sides, on an axis running from that team's library to that tower.
+  **The axis has to belong to the tower rather than to the world**: the first version
+  used a spiral in world coordinates, and since the map is a mirror, that put one
+  team's guards a pace toward the enemy and the other's a pace toward home. Four
+  matches with nobody playing, and the same side won all four.
+- **A wave deeper than its start distance had its rear ranks placed behind the
+  library**, which clamps to zero, and zero is the node all three lanes share. The
+  back of every wave leaving a base was born inside the back of the other two. A wave
+  now starts in by its own depth plus the margin, so the rearmost body stands where
+  the front used to.
 
 ## Intended behavior
 

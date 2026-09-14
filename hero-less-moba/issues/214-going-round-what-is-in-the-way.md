@@ -6,128 +6,165 @@
 | Blocked by | 206, 211c, 111 |
 | Blocks | 602 |
 | Reads | [standing off and falling back](../docs/022-standing-off-and-falling-back.md) |
-| Open questions | G1, G2, G3 |
+| Open questions | W1, W2, W3, H18 |
 
 ## Current behavior
 
-**A body that cannot move forward stops, and that is the whole of it.**
+**Bodies are solid, and there are two rules that make them so: one that refuses to walk
+into somebody, and one that pushes apart anybody who ended up inside somebody anyway.**
 
-[The frontline queue](206-the-frontline-is-a-queue.md) asks one question — would I
-end this step inside a friendly body ahead of me in roughly my own file — and the
-only answer it can give is *stop short*. There is no sideways.
+Before every move, the ground a body's next step lands on is checked against
+everything standing near it. If a body's centre is within `self.radius +
+other.radius` of that ground, the step is moved: to the point on that body's circle
+nearest to us, and then back toward our own centre by our own radius. The two steps
+land it exactly at the sum of the two radii, on the side we were coming from.
 
-That was written for a rank forming up, where stopping is right: the front rank
-fights and the ranks behind wait their turn. It is wrong everywhere else, and it is
-visibly wrong during a siege-surge, where a stream of bodies walking down a lane
-concertinas into a stationary column behind whichever one stopped first. They are not
-queueing for anything. They are just stuck.
+**And then, after every body has moved, anyone still overlapping is pushed apart.** That
+is the separation pass, it is a stage of the tick like any other, and it is what makes
+"no two bodies overlap" a fact rather than an intention. Refusing to walk into somebody
+is not enough on its own for three reasons, all of which were measured rather than
+argued:
 
-The same rule means one stationary body — a guard, a straggler, anything that has
-stopped for its own reasons — is an immovable plug in a lane. Everything behind it
-stops, and nothing ever goes round.
+- **A cleared step gets scaled back afterwards.** The correction pushes a body radially
+  out of the obstacle, which can make the step longer in the world than the body's own
+  speed allows -- so the speed limit shortens it, and the body lands short of the circle
+  it was aimed at, which is to say inside. In the scene where a formation meets a lone
+  ally this put the leading body four thousandths of a pace inside him at tick 408.
+- **Only the deepest obstacle is resolved per call.** Ground inside two bodies is moved
+  out of the one it is furthest inside and may still be inside the other.
+- **A body that is not moving is never asked.** The refusal is a question about a step.
+  Something standing still, inside somebody, stays there for as long as it stands.
+
+It applies to **everything on the field, the enemy included**, and it is asked once
+per moving body per tick. Bodies walking a lane are asked about it in lane
+coordinates; a guard walking the graph is asked about it in world coordinates, and
+keeps the answer as an offset from its edge, because a guard's position is otherwise
+re-derived from the graph every tick and any correction written into it lasts exactly
+one tick.
+
+**The rank rule is still here and is a different rule.** [The frontline
+queue](206-the-frontline-is-a-queue.md) asks whether a body should push past the man
+in front of it in its own file — about its own side, at a rank's spacing rather than
+a body's width, and its answer is *wait* rather than *go there instead*. Both are
+true at once and each does something the other does not.
 
 ## Intended behavior
 
-**Occupied ground is a thing to go round, not a thing to wait behind.**
+**Occupied ground is not somewhere you may stand.**
 
-### Two of them, and they are alternatives rather than layers
+That is the whole design and it replaces the two that were written here before —
+swarm pathfinding, and formation-respecting avoidance — neither of which was built.
+Both were answers to "what is a group of soldiers"; the ruling is that the question
+does not need answering at this level, because a group is made of bodies and the
+bodies are what cannot overlap. Fifteen of them each declining to stand inside
+somebody is a formation flowing round another formation.
 
-**Swarm pathfinding.** Every body for itself. It goes round whatever is in front of it,
-and a group crossing the ground is a group only in the sense that it started together.
-Cheap, robust, and it will never deadlock — and a wave that walks it stops looking like
-an army, which is most of what this game is for.
+### The point it is asked about is the step, not the destination
 
-**Formation-respecting avoidance.** The three rules below: a body steps aside, a
-formation gives way to another formation as a body, and a formation does not move for a
-stray. More expensive, and it can deadlock in ways the swarm cannot.
+A marching body has two things that could be called its waypoint: the place its
+formation has for it, which can be ninety paces away, and the ground its next step
+lands on, which is one pace away. **It is the second.**
 
-**Both get built**, and the comparison is the point rather than a step on the way to
-picking one. They are two different answers to "what is a group of soldiers", and the
-arena can run the same scene under each — which is the first thing
-[111](111-the-proving-ground.md) was built to make possible. It is also likely that the
-right answer is neither uniformly: a surge is a stream and probably wants the swarm,
-while a wave is a formation and wants the other.
+Asked about the slot, a body is pushed off its place for obstacles it is nowhere
+near, and a formation that never dresses is a wave that never advances, because the
+anchor waits for its own stragglers. The distinction is not a refinement; it is the
+difference between the game running its arc and being over in the first challenge.
 
-### A body moves sideways between files, not only forward
+### One obstacle per call, and the deepest one
 
-Underneath both: **a hole in the line ahead of you is a place to rush to.** A body that
-can see an opening in the front moves *across* — between files — to fill it, rather than
-waiting in its own file for the body ahead to die.
+Ground inside two bodies is moved out of the one it is furthest inside, which may
+leave it inside the other. The body chooses again next tick. Resolving all of them at
+once, *inside the refusal*, means iterating toward a fixed point that need not exist —
+three bodies around a gap one body wide have no answer — and a body that arrives a tick
+late is invisible while a frozen frame is not.
 
-Files, not ranks. A rank is the row standing shoulder to shoulder; a file is the column
-one behind another. A body waits behind the body in front of it, which is its file, and
-what it needs to be able to do is change which file it is in.
+### And then nobody is left inside anybody
 
-That is what makes a line close up rather than develop holes, and it is the same
-movement as stepping aside seen from the other end — one is going round something in the
-way, the other is going into somewhere nothing is.
+**No two sprites overlap. Ever.** Not "rarely", not "by less than a hundredth of a
+pace" — a body standing inside another body is a picture of a rule that is not working,
+and a player reads it that way whatever the number is.
 
-### The three rules
+The refusal above cannot deliver that on its own, for the three reasons in the current
+behaviour. So after every body has moved, a **separation pass**: every pair still
+overlapping is pushed apart along the line between their centres, by exactly the overlap,
+**split between the two in inverse proportion to their size.** A soldier walking into a
+Golem moves; the Golem barely does. Two soldiers each give half.
 
-The distinctions between them are the whole of the second design.
+Three properties it has to have, and each one rules out an obvious simpler version:
 
-### A body steps aside
+- **Every push is computed before any is applied.** Resolving pairs one at a time makes
+  the answer depend on the order the bodies were visited, and two machines that visited
+  them differently would produce different worlds out of nothing.
+- **A bounded number of rounds, not a solve.** Pushing A out of B can put A into C.
+  Iterating to a fixed point is the thing that need not terminate — three bodies round a
+  gap one body wide still have no answer — so the pass runs a fixed small number of
+  rounds per tick and lets the rest settle over the following ticks. The cost is the same
+  every tick, which a search would not be.
+- **It is a stage of the tick**, named in the same table as every other stage, so a test
+  that wants marching gets separation with it and cannot accidentally measure a world
+  where bodies may overlap.
 
-If the place a body is trying to move into is occupied, it tries to move **to the
-side** instead. Not instead of advancing — as the way of advancing. A body that
-cannot go straight goes diagonally, and a body that cannot go either way is the only
-one that stops.
+**What this buys beyond tidiness**: it is the first thing in the game that can move a
+body *sideways* out of a file. The refusal has no sideways in it when a body walks dead
+at somebody — the push runs from the obstacle's centre through ours, and head-on that
+direction is straight back the way we came. Separation runs on the same line but acts on
+bodies that are already touching, in a crowd, where the lines between centres point every
+way at once. That is what W1 through W3 and H18 are about.
 
-Which side is a decision and has to be held, the way the orbit's side is held: a body
-that picks left on one tick and right on the next has not gone round anything, it has
-vibrated.
+### Two bodies may never be *born* in the same place
 
-### A formation goes round a formation
-
-A formation moving to engage — meaning **no enemy is within range of any body that
-would be joining it** — gives way to *other formations*, as a body. Two bodies of
-troops crossing the same ground do not interpenetrate; one goes round.
-
-That is a decision made once, for the whole group, and not by each body separately.
-A formation whose members each independently decided to sidestep is a formation that
-has dissolved into a crowd, which is the thing the whole formation module exists to
-prevent.
-
-### But a formation does not go round a stray
-
-**A formation does not step aside for a single body, and this is the important half.**
-One soldier standing in a field does not move an army. What happens instead is that
-the formation walks through the ground it was going to walk through, and **its
-individual members filter round the obstacle** and close up again behind it — which is
-the first rule doing its job inside the second.
-
-So the picture to check the design against: a formation crossing the arena, one
-allied body standing still in the middle, and the formation **keeping its line and
-its heading** while a hole opens and closes around the one body as it passes through.
-The formation is not deflected. The bodies are.
+Two bodies at one point have no direction along which to be pushed apart, so the only
+thing available is an arbitrary one, and an arbitrary direction chosen the same way on
+every machine is the best that can be done with a situation that should not exist. It is
+raised as an event rather than smoothed over. See [215](215-a-body-has-a-size.md) for the
+two spawners that were doing it.
 
 ## Suggested implementation steps
 
-1. Build the arena scene first — see [111](111-the-proving-ground.md) — and watch
-   what happens today. The design above is a description of what should be seen, and
-   it should be checked against a picture before it is checked against code.
-2. Give the queue a second answer besides stopping: a sideways step, with the side
-   chosen once and held.
-3. Decide what counts as a formation being under way rather than fighting, in the
-   terms the formation module already has — its anchor, its members, whether any of
-   them has a target.
-4. Give the formation's plan a sideways offset of its own, against other formations
-   only, so that going round is one decision applied to every member's place rather
-   than a decision each member makes.
-5. Assert the picture: the line's heading and width are unchanged as it passes the
-   stray, and no member ends up standing inside it.
+1. Give every body a radius — [215](215-a-body-has-a-size.md) is a hard prerequisite
+   rather than a related improvement, because the rule has no numbers without it.
+2. Write the circle test in world coordinates, in the frontline module, beside the
+   rank rule it sits next to.
+3. Give the walking module a lane-coordinate wrapper: out through the lane's own
+   point-and-tangent, back as a local resolution against the tangent and the normal
+   rather than a projection, which would be a search per body per tick for an answer
+   that agrees to five figures.
+4. Route every mover through it — marching, closing, and the graph walk a guard uses
+   — and give the graph walk somewhere to keep its answer.
+5. Give the walking module one primitive for **nudging a body by a small distance in
+   world coordinates**, writing through whichever representation that body's position
+   actually lives in — lane coordinates for anything on a road, an offset from a node for
+   a guard. Without it a correction written into a lane body's world position is erased
+   the next time its lane position is read.
+6. Write the separation pass in the frontline module beside the refusal, computing every
+   push before applying any, weighted by size, over a fixed small number of rounds.
+7. **Gather the contacts once per sweep and relax the list, rather than asking the spatial
+   grid on every round.** A hundred grid queries per body per tick makes a whole match
+   four and a half times slower on its own.
+8. **And then look at the field again, and only stop after a look that finds nothing.**
+   A margin on the gathered list is not a bound on how far a push can move a body: a hero
+   dropped onto a wave is born seven paces inside somebody, and pushing it out lands it
+   inside a body that was never on the list.
+9. Use the same slack in the look as in the relaxing. An exact comparison makes a crowd
+   that has just been pushed to exactly touching read as still overlapping.
+10. Give the tick a named row for it, after the move, and put it in the selections a test
+   can name — with the field indexed again in between, because everybody has just moved.
+11. Measure the match arc across several seeds before and after. A rule this deep in
+   the movement path changes the game, and the phase clock is the thing that says
+   whether it changed it for the worse.
+
 
 ## Open questions
 
-**G1. How far to the side, and for how long?** A step aside that is too small never
+**W1. How far to the side, and for how long?** A step aside that is too small never
 clears anybody; one that is too large is a body leaving its file over a pebble. And
 having gone round, when does a body stop going round?
 
-**G2. What decides which side?** For a single body the cheap answer is whichever side
+**W2. What decides which side?** For a single body the cheap answer is whichever side
 it is already nearer, the way the orbit picks. For a formation meeting another
 formation there is a right answer and a wrong one, and both may pick the same.
 
-**G3. Does a body going round give up its place, or carry it?** A body that keeps its
+**W3. Does a body going round give up its place, or carry it?** A body that keeps its
 formation slot while stepping round will be pulled back into line by the cohesion
 budget while it is still going round the obstacle, which may be exactly right or may
 be the two rules fighting each other.

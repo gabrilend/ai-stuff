@@ -89,6 +89,11 @@ local function make_frame(world)
     flavour   = zeroed(capacity),
     archetype = zeroed(capacity),
     reach     = zeroed(capacity),
+    -- How big the body is, in paces. The renderer used to keep its own table of
+    -- these indexed by archetype, which went stale the moment somebody added an
+    -- archetype and did not think to add a row. It is now one number on the body,
+    -- and the picture is drawing the thing the simulation is actually standing on.
+    radius    = zeroed(capacity),
     lane      = zeroed(capacity),
     milestone = zeroed(capacity),
     -- A fraction rather than a figure, because the viewer draws a bar and never
@@ -258,6 +263,7 @@ function M.stamp(world)
       frame.flavour[id]   = soldier.flavour[id]
       frame.archetype[id] = soldier.archetype[id]
       frame.reach[id]     = soldier.reach[id]
+      frame.radius[id]    = soldier.radius[id]
       frame.lane[id]      = soldier.lane[id]
       frame.milestone[id] = soldier.milestone[id]
       frame.spawned_lane[id] = soldier.lane[id]
@@ -295,6 +301,7 @@ function M.stamp(world)
       frame.flavour[id]   = soldier.flavour[id]
       frame.archetype[id] = soldier.archetype[id]
       frame.reach[id]     = soldier.reach[id]
+      frame.radius[id]    = soldier.radius[id]
       frame.lane[id]      = soldier.lane[id]
     end
   end
