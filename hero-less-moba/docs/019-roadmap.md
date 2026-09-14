@@ -47,6 +47,8 @@ nobody is ever working blind.
 | 108 | The headless runner |
 | 109 | A terminal viewer, so we are not blind |
 | 110 | A scenario you can hold at the gate |
+| 111 | The proving ground |
+| 111a | Every mechanic has a test |
 
 ## Phase 2 — Things That Walk and Fight
 
@@ -77,6 +79,13 @@ problem statement, rendered.
 | 211d | Marching speed is not running speed |
 | 212 | A beaten body gets one roll |
 | 213 | What the lane can afford |
+| 214 | Going round what is in the way |
+| 215 | A body has a size |
+| 216 | Movement is a goal and a step |
+| 216a | A goal, and a step |
+| 216b | Every way of moving is a row |
+| 216c | Three paces, and hurry is faster than marching |
+| 216d | A guard is still an edge walker |
 
 ## Phase 3 — Things That Stand and Hold
 
@@ -182,6 +191,7 @@ Ends with: a human playing a full match against the phase-8 bot with a mouse.
 | 706 | The documentation becomes HTML |
 | 707 | The way in |
 | 708 | The camera is a lens you push into |
+| 709 | The drawn body lags the real one |
 
 ## Phase 8 — Six Players
 
