@@ -17,6 +17,29 @@ fixed number of ticks or run until any event the simulation already announces.
 
 `./run-scenario` loads one, describes it, and waits.
 
+**Two verbs have been corrected since, and both were silent failures.**
+
+The verb that poses a wave placed nothing in any scenario that also set a clock. Setting
+the clock pushes the spawner's own timer forward so it does not dump every wave it thinks
+it owes; the verb then asked that spawner for a wave, found none due, and placed nothing
+without saying so. It also raised six waves as a side effect on the occasions it worked --
+one per team per lane -- of which five were not asked for. The wave-raising routine is now
+exported and called directly, so a posed wave is a real wave with a commander, a mixture,
+a captain and ranks, and it is the only one raised.
+
+The verb that slots an upgrade into stone armed no towers. A team's slot counts are one
+cache over its upgrades and a tower keeps a second -- its own copy of what its lane's
+stone holds, so that swinging never reaches into a team record -- and only the first was
+being rebuilt. Every posed world that slotted something into stone had the slot reading
+one and every tower shooting with nothing. It now re-stamps the lanes exactly as the real
+placement path does.
+
+**And one trap that is staying.** The clock verb always writes the *ordinary* stretch's
+length into the phase deadline, and a match's first stretch is longer than the ones
+between challenges -- so `tick 0` does not produce the world a match starts in. That is
+right for what the verb means, and it is written down beside it, because two runs of one
+test with and without the row play different matches and neither looks wrong.
+
 ## Intended behavior
 
 A **scenario**: a described starting state, loaded into a fresh world, **held at a

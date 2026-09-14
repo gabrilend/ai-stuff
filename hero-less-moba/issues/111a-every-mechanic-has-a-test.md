@@ -221,13 +221,20 @@ Every one of those is a sentence somebody has already wanted to write about the 
 scene. What the shape of such a claim should be — a reading over a window of ticks, a
 sequence of claims, something else — is not decided.
 
-**T5. The `wave` verb silently does nothing, and has for as long as it has existed.**
+**T5. The `wave` verb silently did nothing, and now raises a wave directly. Answered.**
 Setting a clock pushes the spawner's own clock forward so it does not dump every wave it
-thinks it owes; asking that spawner for a wave then finds none due, and it places nothing
-and says nothing. Both match tests carry a comment about it and both now fail a claim on
-account of it. The fix is either to make the verb place bodies directly rather than ask
-the spawner, or to make it refuse out loud — and which of those is right depends on
-whether a posed wave should be a real wave with a real wave record behind it.
+thinks it owes; asking that spawner for a wave then found none due, so the verb placed
+nothing and said nothing about it. The choice was between placing bodies directly and
+refusing out loud, and it turned on whether a posed wave should be a real wave with a real
+wave record behind it.
+
+It should, so the wave-raising routine is exported from the waves module and the verb
+calls it. A posed wave now has a commander, a mixture, a captain, ranks and a bounty per
+body, and it is the only wave raised -- the old route produced six as a side effect, one
+per team per lane, of which five were not asked for.
+
+Both match tests that carried a comment about this now pose what they wanted. The dragon
+scenario has bodies in it for the first time.
 
 **T6. Two allied columns pass through each other. Is that the answer to H18, or a
 regression?**

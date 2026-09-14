@@ -57,7 +57,7 @@ and what it claims, instead of alone in a file of lines.
 | `tick <n>` | Start the clock here. |
 | `phase <name>` | normal, surge, challenge or calm — **by name**, because `phase 2` is a worse sentence than `phase surge` in every way that matters. |
 | `challenge <n>` | Put a named monster on the field. |
-| `wave <team> <lane> <milestone>` | A wave of that team's ordinary composition, standing that far along. |
+| `wave <team> <lane> <milestone>` | A wave of that team's ordinary composition, standing that far along. **A real wave** — a commander, a mixture, a captain, ranks and a bounty per body — raised directly rather than by asking the spawner whether one is due. |
 | `rubble <team> <lane> <milestone>` | A tower that has already fallen. |
 | `stone <team> <kind> <where> [lane]` | An upgrade already held or already placed. |
 | `points <player> <colour> <amount>` | What somebody is holding. |
@@ -70,6 +70,21 @@ measures everything and a scenario should read the way the game reads.
 
 Written by hand, diffable, made of the same words the documents use. That is worth
 more than any amount of describing what you saw.
+
+## A posed wave is a real wave, and for a long time it was no wave at all
+
+The verb used to run the whole spawn pass and then look for whatever new wave belonged to
+the team and lane asked for. The spawn pass only produces anything when the clock says a
+wave is due — and the clock verb pushes the wave timer forward precisely so the spawner
+does not dump every wave it thinks it owes. So in any scenario that set a clock, which is
+every scenario, the verb placed nothing and said nothing about having placed nothing. Two
+scenarios carried a comment about it; one of them had the rows it wanted commented out.
+
+It also raised six waves as a side effect on the occasions it did work — one per team per
+lane — of which five were not asked for and were left standing at their bases.
+
+The wave-raising routine is now exported from the waves module and called directly, so
+what a scenario poses is the same thing the cadence produces, and only the one asked for.
 
 ## The clock verb moves every clock
 

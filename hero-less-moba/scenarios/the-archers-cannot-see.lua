@@ -10,20 +10,13 @@
 --
 -- or without the window:   ./run-a-test the-archers-cannot-see report
 --
--- **This file wanted to put two waves nose to nose in the top lane and cannot.** The
--- `wave` verb does not work in any test that also sets a clock: the `tick` verb pushes
--- the wave timer forward to stop the spawner dumping every wave it thinks it owes, and
--- the `wave` verb asks that same spawner for a wave -- which is now never due. It places
--- nothing, and says nothing about having placed nothing. The rows that tried are left
--- here as a comment rather than deleted, because a test that quietly does half of what
--- it says is worse than one that does not try.
---
---   {"wave", 1, 1, 4},
---   {"wave", 2, 1, 4},
---
--- Until that is fixed, this file is a clock and the lanes fill themselves. Everything
--- it is for is still visible -- it just arrives on the game's own schedule rather than
--- being posed.
+-- **This file wanted to put two waves nose to nose in the top lane and now can.** For a
+-- long time it could not: the `wave` verb asked the spawner for a wave by running the
+-- whole spawn pass, and the spawn pass only produces anything when the clock says one is
+-- due -- so in any scenario that also set the clock, which is every scenario, it placed
+-- nothing and said nothing about having placed nothing. The rows were kept here as a
+-- comment, because a test that quietly does half of what it says is worse than one that
+-- does not try. A wave is now raised directly and the rows are back.
 
 return {
   covers = {"204"},
@@ -40,6 +33,11 @@ return {
 
   arrange = {
     {"tick", 6000},
+    -- Two waves, both teams, the top lane, four milestones in -- which is about where
+    -- they would have met on their own, posed so they are there from the first tick
+    -- rather than ninety seconds in.
+    {"wave", 1, 1, 4},
+    {"wave", 2, 1, 4},
   },
 
   ticks = 900,
@@ -48,10 +46,8 @@ return {
     {"overlaps", "equals", 0},
   },
 
-  -- **Not a standing claim.** Setting the clock to six thousand empties the field for a
-  -- moment -- the tick verb pushes the wave timer forward so the spawner does not dump
-  -- every wave it thinks it owes, which means the first waves of this world are still
-  -- due. A run that demanded bodies at every tick failed on its first one, correctly.
+  -- The two posed waves are on the field from the first tick, so unlike most match tests
+  -- this one can ask for bodies throughout rather than only at the end.
   ["finally"] = {
     {"bodies", "at_least", 1},
   },
