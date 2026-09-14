@@ -43,13 +43,19 @@ return {
     -- nothing swings or nothing is ever paid what it is owed, and those look the same.
     {"wounded", "ever_at_least", 1},
 
+    -- And somebody was swinging while it happened, at some tick of the run.
+    {"fighting", "ever_at_least", 1},
+
     -- Nothing is ever healed past what it was born with. A body over its own maximum is
     -- a buffer that was paid twice.
     {"wounded", "at_least", 0},
   },
 
   ["finally"] = {
-    -- And somebody was actually swinging while it happened.
-    {"fighting", "at_least", 1},
+    -- Nothing here; see the claim above. A first version asked for somebody to be
+    -- swinging **at the tick the run stopped**, which passed for weeks and then failed
+    -- the day an unrelated change moved the match along a slightly different line. A
+    -- fight is a thing that happens, not a thing that is true at an arbitrary moment.
+    {"health", "at_least", 1},
   },
 }

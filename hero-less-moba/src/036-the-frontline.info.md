@@ -19,11 +19,33 @@ reads "I am winning that lane" off the shape of two crowds rather than off a num
 | --- | --- | --- |
 | `clear_of_bodies(world, id, x, y)` | a point in **world** coordinates | That point, or the nearest one to it that is not inside anybody. |
 | `blocked(world, id)` | | Whether this body must stop short this tick. |
-| `separate_pass(world)` | | — Pushes apart anybody left standing inside anybody. |
+| `separate_pass(world)` | | — Pushes bodies out of buildings, then pushes apart anybody left standing inside anybody. |
+| `push_out_of_stone(world)` | | How many bodies it had to move out of a building. |
+| `push_body_out_of_stone(world, id)` | | — The same, for one body against every building. |
 | `gather_contacts(world)` | | How many gathered pairs are actually overlapping. |
 | `relax_contacts(world)` | | — Pushes apart everybody on the gathered list. |
 | `for_each_candidate(world, id, spacing, visit)` | | — Every living body within `spacing` of this one. |
 | `SEPARATION_SLACK` | *(number)* | How close counts as touching rather than overlapping. |
+
+### Stone is solid, and the order between the two passes decides which rule wins
+
+A building occupies real ground — nineteen paces of masonry for a tower, thirty for a
+library — and until a structure carried a radius on its record the only place a tower had
+a size at all was a number inside a drawing routine. Bodies walked through towers and a
+tower's own guards were placed inside the square being drawn around them.
+
+Stone takes no part in the shoving between bodies, because a building cannot give ground
+and there is nothing to share. So it is a **separate pass, and it runs first.**
+
+The order is the whole of it. Run last, pushing a body out of a tower puts it into
+whoever was standing beside it and nothing runs afterwards to fix that — a match that had
+never had two bodies inside each other started having them. Run first, the residue lands
+the other way: a body the crowd shoves into a wall is inside it until the next tick, which
+is the same tolerance everything else here has.
+
+It is asked from the stone's side — twenty grid queries, one per building — rather than
+by walking every body, because a match has twenty buildings and can have four hundred
+bodies.
 | `SEPARATION_ROUNDS` | *(number)* | The ceiling on relaxing rounds within one sweep. |
 
 ## Refusing, and then separating

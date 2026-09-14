@@ -47,6 +47,22 @@ M.tower = {
   -- ground rather than a spot already under maximum fire.
   command_radius = 232,
 
+  -- **How much ground the tower itself stands on, in paces.** One number, and it is
+  -- the only one -- the same thing a body's radius is, for the same reasons.
+  --
+  -- Until now the only place a tower had a size was a local variable inside the
+  -- renderer, which drew a square nineteen paces on a side and told nobody. So nothing
+  -- in the simulation knew a tower occupied any ground at all, and the guards a tower
+  -- put out were spread from its centre by their own width -- which put the first pair
+  -- of them a little under eight paces out, inside the square being drawn around them.
+  -- They looked like they were standing in the masonry because they were.
+  --
+  -- Measured to the **corner** of that square rather than the middle of its edge, so
+  -- that nothing placed on this circle is inside the drawing: half of nineteen, times
+  -- the root of two. The renderer now derives its square back out of this, so the
+  -- picture and the ground cannot drift apart the way they just did.
+  radius        = 13.44,
+
   -- How many guards a tower may hold at once, before any upgrade raises it.
   guard_cap     = 2,
 
@@ -83,6 +99,10 @@ M.library = {
   -- A game whose premise is "the frontline must move" cannot afford a fortress
   -- at the end of it.
   health_in_towers = 1.5,
+
+  -- The ground a library stands on, measured the same way as a tower's: the corner of
+  -- the square it is drawn as, which is thirty paces on a side.
+  radius       = 21.21,
 
   damage       = 0,     -- it is a building, not a defence
   range        = 0,

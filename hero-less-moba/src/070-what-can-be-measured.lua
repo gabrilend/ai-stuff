@@ -791,6 +791,62 @@ M.reading.aiming_towers = {
   end,
 }
 -- }}}
+
+-- {{{ M.reading.inside_stone
+-- Living bodies standing inside a structure that is still up.
+--
+-- **Should be nought at every tick of every test**, in the same way and for the same
+-- reason nothing stands inside anything else. A tower is nineteen paces of masonry and a
+-- library thirty, and until a structure carried that number the only place a tower had a
+-- size at all was inside a drawing routine -- so the simulation did not know stone
+-- occupied ground, bodies walked through towers, and a tower's own guards were put out
+-- inside the square being drawn round them.
+--
+-- Walks every body against every structure, which is twenty tests a body. Fine for a
+-- reading that is only taken when a test names it, and much too expensive to do in the
+-- rule itself -- which checks the two nodes at the ends of the edge a body is on instead,
+-- because that is the only stone a body can be walking into.
+-- Both rows count the same thing over different bodies, so the walk is written once and
+-- they differ only by which bodies each is willing to look at.
+local function counting_inside_stone(name, wanted)
+  return {
+  label = name, format = "%d",
+  of = function(world)
+    local stone = insist(world, "structure", name)
+    local soldier, node, count = world.soldier, world.map.node, 0
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 and (wanted == nil or wanted(soldier, id)) then
+        for which = 1, #stone do
+          local building = stone[which]
+          if building.alive == 1 then
+            local here = node[building.node]
+            local room = soldier.radius[id] + building.radius
+            local dx = soldier.x[id] - here.x
+            local dy = soldier.y[id] - here.y
+            if dx * dx + dy * dy < room * room then
+              count = count + 1
+              break
+            end
+          end
+        end
+      end
+    end
+    return count
+  end,
+  }
+end
+
+M.reading.inside_stone = counting_inside_stone("inside stone", nil)
+
+-- **Only the bodies a tower put out itself**, which is the half of this that is settled.
+-- Guards stand on a ring outside the masonry and are never inside it. Wave bodies walk
+-- the lane, a tower sits on the lane, and steering a column round a building is work
+-- nobody has done -- so the wider reading above is a live number in a real match and this
+-- one is nought.
+M.reading.guards_inside_stone =
+  counting_inside_stone("guards inside stone",
+                        function(soldier, id) return soldier.guard_of[id] ~= 0 end)
+-- }}}
 -- {{{ M.reading.wallets
 -- Every point of personal resource every player is holding, of every colour.
 --

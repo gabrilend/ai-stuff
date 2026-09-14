@@ -425,7 +425,12 @@ local function draw_structures(world, camera, frame, detail)
   end
 
   for _, view in ipairs(frame.structure) do
-    local size = (view.kind == 3) and 30 or 19
+    -- **The square is derived from the ground it stands on, not typed in here.** It
+    -- used to be two numbers in this line and nowhere else, which meant the simulation
+    -- did not know a tower occupied any ground and the guards it put out were placed
+    -- inside the drawing. The radius is measured to the corner of this square, so the
+    -- side of it is that radius times the root of two.
+    local size = view.radius * 1.41421356
 
     if view.alive == 0 then
       -- Rubble stays. "There used to be a tower here" is information, and erasing
