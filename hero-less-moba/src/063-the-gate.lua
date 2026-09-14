@@ -49,29 +49,33 @@ local M = {}
 -- {{{ local function put_a_wave_at()
 -- Places a wave of a team's ordinary composition at a given depth along a lane,
 -- measured in milestones so a scenario reads the way the game does.
+--
+-- **Raised directly rather than by asking the spawner to run.** The first version ran the
+-- whole spawn pass and then looked for whatever new wave belonged to this team and lane.
+-- That produced nothing in any scenario that also set the clock -- the clock verb pushes
+-- the wave timer forward so the spawner does not dump every wave it thinks it owes, and a
+-- spawner with nothing due does nothing -- so the verb placed no bodies and said nothing
+-- about it. It also raised six waves as a side effect when it did work, one per team per
+-- lane, of which five were not asked for.
+--
+-- The spawner puts a wave at the base; a scenario wants it somewhere else, so the anchor
+-- is moved and every member is moved with it. Moving the anchor alone would leave the
+-- bodies behind and the cohesion budget would spend the next few seconds dragging them
+-- up, which is a thing a scenario should not have to wait through.
 local function put_a_wave_at(world, team, lane_id, milestone)
   local lane = world.map.lane[lane_id]
-  local turn = (world.wave_turn or 0) + 1
-  world.wave_turn = turn
+  local wave_id = world.waves.raise_one(world, team, lane_id)
+  local wave = world.wave[wave_id]
 
-  local before = #world.wave
-  world.waves.spawn_pass(world)
-  -- The spawner puts them at the base; a scenario wants them somewhere else, so the
-  -- anchor is moved and every member is moved with it. Moving the anchor alone would
-  -- leave the bodies behind and the cohesion budget would spend the next few seconds
-  -- dragging them up, which is a thing a scenario should not have to wait through.
-  for id = before + 1, #world.wave do
-    local wave = world.wave[id]
-    if wave.team == team and wave.lane == lane_id then
-      wave.anchor = lane.cumulative[lane.milestone_index[milestone]]
-      for body = 1, world.high_water do
-        if world.soldier.alive[body] == 1 and world.soldier.wave[body] == wave.id then
-          local along, across = world.formations.target_of(world, body)
-          world.walking.set_lane_position(world, body, along, across)
-        end
-      end
+  wave.anchor = lane.cumulative[lane.milestone_index[milestone]]
+  for body = 1, world.high_water do
+    if world.soldier.alive[body] == 1 and world.soldier.wave[body] == wave.id then
+      local along, across = world.formations.target_of(world, body)
+      world.walking.set_lane_position(world, body, along, across)
     end
   end
+
+  return wave_id
 end
 -- }}}
 

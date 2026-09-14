@@ -413,6 +413,29 @@ local function queue_wave(world, team, lane, turn)
 end
 -- }}}
 
+-- {{{ function M.raise_one()
+-- One wave of a team's ordinary composition, put out now, whatever the clock says.
+--
+-- **The same routine the cadence uses**, exported so that a posed wave is a real wave
+-- with a real wave record behind it -- a commander, a mixture, a captain, ranks, a
+-- bounty per body -- rather than a handful of loose soldiers that look like one.
+--
+-- It exists because a scenario could not pose a wave at all. The verb that says "a wave
+-- of that team stands this far along" asked the spawner for one by running the whole
+-- spawn pass, and the spawn pass only produces anything when the clock says a wave is
+-- due. Any scenario that also set the clock pushed the wave timer forward to stop the
+-- spawner dumping every wave it thought it owed -- and then no wave was due, so the verb
+-- placed nothing and said nothing about having placed nothing. Two scenarios carried a
+-- comment about it and both quietly did half of what they said.
+--
+-- The turn is taken and advanced here, because which commander sends a wave is decided
+-- by whose turn it is and a posed wave should take its turn like any other.
+function M.raise_one(world, team, lane)
+  world.wave_turn = (world.wave_turn or 0) + 1
+  return queue_wave(world, team, lane, world.wave_turn)
+end
+-- }}}
+
 -- {{{ function M.spawn_pass()
 -- The tick's spawn system. Starts waves when the cadence says so, then puts on
 -- the ground whatever is due this tick.
