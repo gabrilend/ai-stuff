@@ -15,6 +15,7 @@ group and a pile of unrelated bodies has no groups in it.
 | --- | --- | --- |
 | `begin(world)` | | — Sets the cadence running. Called once at assembly. |
 | `spawn_pass(world)` | | — Starts waves when due, then puts on the ground whatever is due. |
+| `raise_one(world, team, lane)` | | The wave id. One wave of that team's ordinary composition, now, whatever the clock says. |
 | `spawn_body(world, team, lane, archetype, wave_id)` | | The new body's id. |
 | `member_died(world, wave_id)` | | — One member gone. Called once per death from the reap pass. |
 
