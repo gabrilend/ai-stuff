@@ -314,6 +314,541 @@ M.reading.overlaps = {
   end,
 }
 -- }}}
+
+-- {{{ local function insist()
+-- The named part of a world, or a refusal that says which one is missing.
+--
+-- A reading about the chest asked of an arena world would otherwise index a nil and
+-- blame a line inside this file. The reading knows what it needed; the error should
+-- say so, because the fix is one word in the test's `want` list.
+local function insist(world, field, wanted_by)
+  local part = world[field]
+  if part == nil then
+    error("the reading '" .. wanted_by .. "' needs the world's " .. field ..
+          ", and this world has none -- an arena hangs only the modules a test named")
+  end
+  return part
+end
+-- }}}
+
+-- {{{ M.reading.health
+-- Every point of health standing on the field, added up.
+--
+-- One number for "how much army is left", which is a different question from how many
+-- bodies are left: fifteen soldiers at a tenth of their health and one at full are the
+-- same count and nowhere near the same line.
+M.reading.health = {
+  label = "health", format = "%.0f",
+  of = function(world)
+    local soldier, total = world.soldier, 0
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 then total = total + soldier.health[id] end
+    end
+    return total
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.wounded
+-- Living bodies carrying less than the health they were born with.
+--
+-- The cheapest proof that a blow landed. A test about damage that watched the count of
+-- the living would see nothing at all until something finally died, which is dozens of
+-- seconds after the thing it was watching for.
+M.reading.wounded = {
+  label = "wounded", format = "%d",
+  of = function(world)
+    local soldier, count = world.soldier, 0
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 and soldier.health[id] < soldier.health_max[id] then
+        count = count + 1
+      end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.guards
+-- Living bodies that belong to a tower.
+--
+-- A guard is the only body that answers to a structure rather than to a wave, which is
+-- why it is counted by what it belongs to rather than by what it is made of.
+M.reading.guards = {
+  label = "guards", format = "%d",
+  of = function(world)
+    local soldier, count = world.soldier, 0
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 and soldier.guard_of[id] ~= 0 then count = count + 1 end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.heroes
+-- Living bodies somebody paid for out of a personal wallet.
+--
+-- Counted by flavour, which is what a body is made of, rather than by asking the
+-- players what they bought: a hero that has been bought and has since died is still on
+-- somebody's tally and is not on the field.
+M.reading.heroes = {
+  label = "heroes", format = "%d",
+  of = function(world)
+    local soldier, count = world.soldier, 0
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 and soldier.flavour[id] == 2 then count = count + 1 end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.monsters
+-- Living bodies of the kind that walks out of the middle during a challenge.
+M.reading.monsters = {
+  label = "monsters", format = "%d",
+  of = function(world)
+    local soldier, count = world.soldier, 0
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 and soldier.flavour[id] == 4 then count = count + 1 end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ local function counting_state()
+-- A reading that counts the living bodies in one state of the brain.
+--
+-- Written once and called five times rather than five near-identical rows, because
+-- five copies of a loop over every body is five places to forget the test for alive.
+local function counting_state(name, wanted)
+  return {
+    label = name, format = "%d",
+    of = function(world)
+      local soldier, count = world.soldier, 0
+      for id = 1, world.high_water do
+        if soldier.alive[id] == 1 and soldier.state[id] == wanted then
+          count = count + 1
+        end
+      end
+      return count
+    end,
+  }
+end
+-- }}}
+
+-- {{{ the five states, one reading each
+-- **What every body on the field is doing, as five numbers that add up to the living.**
+--
+-- The brain is a dispatch table with a row per state, and until now the only way to see
+-- which row was running was to watch the picture and guess. A test that claims nobody
+-- is fighting is a test that can tell marching from a brawl without looking at
+-- positions at all.
+--
+-- The numbers here are the brain's own state numbers, not a second list: 1 walking,
+-- 2 closing, 3 fighting, 4 leashing, 5 dying. Two further states exist in the table and
+-- are not built, so nothing here counts them and a reading that returned zero forever
+-- would be a reading nobody could tell from a broken one.
+M.reading.walking  = counting_state("walking", 1)
+M.reading.closing  = counting_state("closing", 2)
+M.reading.fighting = counting_state("fighting", 3)
+M.reading.leashing = counting_state("leashing", 4)
+M.reading.dying    = counting_state("dying", 5)
+-- }}}
+
+-- {{{ M.reading.hurrying
+-- How many bodies asked for the fastest gait on the tick this was read.
+--
+-- A gait is chosen fresh every tick by whichever movement pattern placed the goal, so
+-- this is a reading about **now** and not a tally: a column that charged and then
+-- settled back into a march reads zero afterwards, correctly.
+M.reading.hurrying = {
+  label = "hurrying", format = "%d",
+  of = function(world)
+    local soldier, count = world.soldier, 0
+    local hurry = world.parameters.unit.PACE_HURRY
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 and soldier.goal_pace[id] == hurry then
+        count = count + 1
+      end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.patterns
+-- How many different movement patterns placed a goal this tick.
+--
+-- The point of the pattern table is that every way of moving is a row in it rather than
+-- an early return buried in a walking routine, and the way to tell whether that is true
+-- of a running match is to count how many rows actually get used. One pattern doing all
+-- the work means the others are decoration.
+M.reading.patterns = {
+  label = "patterns", format = "%d",
+  of = function(world)
+    local soldier, seen, count = world.soldier, {}, 0
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 then
+        local which = soldier.pattern[id]
+        if which ~= 0 and seen[which] == nil then
+          seen[which] = true
+          count = count + 1
+        end
+      end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.waves
+-- Wave records with anybody left alive in them.
+--
+-- A wave is the unit the upgrade economy is paid in -- wiping one is what draws a card
+-- -- so "how many waves are on the field" is a different and more useful question than
+-- how many bodies are.
+M.reading.waves = {
+  label = "waves", format = "%d",
+  of = function(world)
+    local record = insist(world, "wave", "waves")
+    local count = 0
+    for id = 1, #record do
+      if record[id].living_count > 0 then count = count + 1 end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.wipes
+-- How many waves have been wiped out, both teams and every lane, since the match began.
+--
+-- **A tally rather than a state**, and the only reading here that cannot go down. A
+-- wipe is the moment the chest grows, and a claim that it never happened is a claim
+-- about the economy rather than about the field.
+M.reading.wipes = {
+  label = "wipes", format = "%d",
+  of = function(world)
+    local teams = insist(world, "team", "wipes")
+    local count = 0
+    for id = 1, #teams do
+      for lane = 1, #teams[id].waves_lost do
+        count = count + teams[id].waves_lost[lane]
+      end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.towers
+-- Guard towers still standing, both teams. Libraries are not towers and are counted
+-- separately, because the one that matters is the one whose fall ends the match.
+M.reading.towers = {
+  label = "towers", format = "%d",
+  of = function(world)
+    local stone = insist(world, "structure", "towers")
+    local count = 0
+    for id = 1, #stone do
+      if stone[id].alive == 1 and stone[id].kind ~= 3 then count = count + 1 end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.rubble
+-- Guard towers that have fallen. The complement of the reading above, written down
+-- rather than subtracted in a caller, because a test claiming one tower has fallen
+-- should not have to know how many there were to begin with.
+M.reading.rubble = {
+  label = "rubble", format = "%d",
+  of = function(world)
+    local stone = insist(world, "structure", "rubble")
+    local count = 0
+    for id = 1, #stone do
+      if stone[id].alive == 0 and stone[id].kind ~= 3 then count = count + 1 end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.libraries
+-- Libraries still standing. Two at the start of every match and one at the end of
+-- every finished one.
+M.reading.libraries = {
+  label = "libraries", format = "%d",
+  of = function(world)
+    local stone = insist(world, "structure", "libraries")
+    local count = 0
+    for id = 1, #stone do
+      if stone[id].alive == 1 and stone[id].kind == 3 then count = count + 1 end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.stone_health
+-- Every point of health left in every standing structure, added up.
+--
+-- What a push is actually worth. Bodies arriving at a tower and bodies hurting it are
+-- two different events, and the count of the living cannot tell them apart.
+M.reading.stone_health = {
+  label = "stone health", format = "%.0f",
+  of = function(world)
+    local stone = insist(world, "structure", "stone_health")
+    local total = 0
+    for id = 1, #stone do
+      if stone[id].alive == 1 then total = total + stone[id].health end
+    end
+    return total
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.chest
+-- Upgrades drawn and not yet placed anywhere, both teams.
+--
+-- The chest and every slot are counts per kind rather than objects, so placing one is
+-- moving a number from one count to another. That makes this reading and the one below
+-- halves of a total that only grows when somebody draws.
+M.reading.chest = {
+  label = "chest", format = "%d",
+  of = function(world)
+    local teams = insist(world, "team", "chest")
+    local count = 0
+    for id = 1, #teams do
+      for kind = 1, #teams[id].chest do
+        count = count + teams[id].chest[kind]
+      end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.placed
+-- Upgrades sitting in a lane, in a tower's stone, or in a library, both teams.
+M.reading.placed = {
+  label = "placed", format = "%d",
+  of = function(world)
+    local teams = insist(world, "team", "placed")
+    local count = 0
+    for id = 1, #teams do
+      local team = teams[id]
+      for lane = 1, #team.lane_slot do
+        for kind = 1, #team.lane_slot[lane] do
+          count = count + team.lane_slot[lane][kind] + team.tower_slot[lane][kind]
+        end
+      end
+      for kind = 1, #team.library_slot do
+        count = count + team.library_slot[kind]
+      end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.carried
+-- Living bodies stamped at birth with at least one upgrade.
+--
+-- The proof that placing a thing in a lane reaches the soldiers walking down it. A
+-- body is stamped once, when it is made, and never reads the team's slots again -- so a
+-- lane that was fed after this body was born is a lane whose next wave is different and
+-- whose current one is not.
+M.reading.carried = {
+  label = "carried", format = "%d",
+  of = function(world)
+    -- **Indexed kind-then-body**, like every other per-body number here: the world
+    -- keeps one flat array per upgrade kind rather than one table per body, so a
+    -- soldier's upgrades are a column through a dozen arrays and not a row in one.
+    local soldier, count = world.soldier, 0
+    local kinds = soldier.upgrade_count
+    for id = 1, world.high_water do
+      if soldier.alive[id] == 1 then
+        for kind = 1, #kinds do
+          if kinds[kind][id] > 0 then
+            count = count + 1
+            break
+          end
+        end
+      end
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ local function counting_slot()
+-- A reading that counts one team's upgrades in one kind of place.
+--
+-- The three slots are the same shape -- counts per upgrade kind -- because placing one
+-- is moving a number between them and nothing else. So is the loop that adds them up,
+-- and writing it three times would be three chances to forget a team.
+local function counting_slot(name, pick)
+  return {
+    label = name, format = "%d",
+    of = function(world)
+      local teams = insist(world, "team", name)
+      local count = 0
+      for id = 1, #teams do
+        count = count + pick(teams[id])
+      end
+      return count
+    end,
+  }
+end
+-- }}}
+
+-- {{{ the three places an upgrade can be standing
+-- **`placed` above is these three added together**, and they are here separately
+-- because a test about slotting into stone and a test about feeding a lane would
+-- otherwise make the same claim and pass for each other's reasons.
+M.reading.in_lanes = counting_slot("in lanes", function(team)
+  local count = 0
+  for lane = 1, #team.lane_slot do
+    for kind = 1, #team.lane_slot[lane] do
+      count = count + team.lane_slot[lane][kind]
+    end
+  end
+  return count
+end)
+
+M.reading.in_stone = counting_slot("in stone", function(team)
+  local count = 0
+  for lane = 1, #team.tower_slot do
+    for kind = 1, #team.tower_slot[lane] do
+      count = count + team.tower_slot[lane][kind]
+    end
+  end
+  return count
+end)
+
+M.reading.in_library = counting_slot("in library", function(team)
+  local count = 0
+  for kind = 1, #team.library_slot do
+    count = count + team.library_slot[kind]
+  end
+  return count
+end)
+-- }}}
+
+-- {{{ M.reading.armed_towers
+-- Standing towers shooting with at least one upgrade in them.
+--
+-- A tower keeps its own copy of what its lane's stone slot holds, rebuilt whenever that
+-- slot changes, so that the swing path never reaches into a team record. This reading is
+-- the proof the copy happened: a slot that filled while no tower noticed would leave the
+-- count above at one and this one at nought.
+M.reading.armed_towers = {
+  label = "armed towers", format = "%d",
+  of = function(world)
+    local stone = insist(world, "structure", "armed_towers")
+    local count = 0
+    for id = 1, #stone do
+      local tower = stone[id]
+      if tower.alive == 1 and tower.upgrade_count ~= nil then
+        for kind = 1, #tower.upgrade_count do
+          if tower.upgrade_count[kind] > 0 then
+            count = count + 1
+            break
+          end
+        end
+      end
+    end
+    return count
+  end,
+}
+-- }}}
+
+
+-- {{{ M.reading.aiming_towers
+-- Standing towers currently holding a target.
+--
+-- A tower picks the nearest body in range and **keeps it while it lives**, rather than
+-- re-choosing every tick. That commitment is the whole of its personality: a tower that
+-- re-picked constantly would spread its damage across a whole wave and kill nobody, and
+-- from outside the only visible difference is that the wave walks past.
+--
+-- Nought here with bodies standing inside a tower's reach is a tower that acquires
+-- nothing. A number that matches the towers in contact, held steady while those bodies
+-- live, is the commitment working.
+M.reading.aiming_towers = {
+  label = "aiming towers", format = "%d",
+  of = function(world)
+    local stone = insist(world, "structure", "aiming_towers")
+    local count = 0
+    for id = 1, #stone do
+      if stone[id].alive == 1 and stone[id].target ~= 0 then count = count + 1 end
+    end
+    return count
+  end,
+}
+-- }}}
+-- {{{ M.reading.wallets
+-- Every point of personal resource every player is holding, of every colour.
+--
+-- One number for an economy with six wallets in it, which is enough to tell whether
+-- killing pays at all. Whether it pays the right people is a claim about one wallet and
+-- is not something a single reading can make.
+M.reading.wallets = {
+  label = "wallets", format = "%d",
+  of = function(world)
+    local players = insist(world, "player", "wallets")
+    local total = 0
+    for number = 1, #players do
+      local points = players[number].points
+      for colour = 1, #points do
+        total = total + points[colour]
+      end
+    end
+    return total
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.bought
+-- Heroes paid for since the match began, both teams. A tally, so it never goes down.
+M.reading.bought = {
+  label = "bought", format = "%d",
+  of = function(world)
+    local players = insist(world, "player", "bought")
+    local count = 0
+    for number = 1, #players do
+      count = count + players[number].heroes_bought
+    end
+    return count
+  end,
+}
+-- }}}
+
+-- {{{ M.reading.phase
+-- Which of the five phases the match is in: 1 normal, 2 surge, 3 challenge, 4 calm,
+-- 5 over.
+--
+-- A number rather than a name because a claim compares numbers, and the five are
+-- already numbered by the world itself. A test that wants to say "and it is still an
+-- ordinary match at the end" says the phase equals one.
+M.reading.phase = {
+  label = "phase", format = "%d",
+  of = function(world) return world.phase end,
+}
+-- }}}
+
+-- {{{ M.reading.winner
+-- Nought while the match is running, the winning team's number once it is not, and
+-- three for the draw where both libraries fall inside one buffered damage pass.
+M.reading.winner = {
+  label = "winner", format = "%d",
+  of = function(world) return world.winner end,
+}
+-- }}}
 -- }}}
 
 -- {{{ M.readout
@@ -327,6 +862,25 @@ M.readout = {
               "going_round"},
   crowding = {"tick", "alive", "bodies", "strays", "closest_approach", "overlaps",
               "widest_offset", "off_the_road"},
+
+  -- What every living body is doing, and what it has cost. The five states add up to
+  -- the living, so a column here that does not is a body in a state nobody built.
+  minds    = {"tick", "alive", "walking", "closing", "fighting", "leashing", "dying"},
+
+  -- A fight, from the outside: who is left, how hurt they are, and whether anything
+  -- has actually been swung at yet.
+  wounds   = {"tick", "alive", "health", "wounded", "fighting", "waves", "wipes"},
+
+  -- The stone. Three counts and a total, which between them say whether a push is
+  -- arriving, landing, or already finished.
+  stone    = {"tick", "towers", "rubble", "libraries", "stone_health"},
+
+  -- The two economies in one line: what has been drawn and not placed, what has been
+  -- placed, how many bodies are carrying any of it, and what the wallets hold.
+  economy  = {"tick", "chest", "placed", "carried", "wallets", "bought"},
+
+  -- The match itself, at the altitude a report reads at.
+  match    = {"tick", "phase", "alive", "waves", "towers", "libraries", "winner"},
 }
 -- }}}
 
@@ -432,6 +986,36 @@ M.claim.within = {
     return off <= tolerance,
            string.format("%.3f is %.3f away from %.3f, further than %.3f",
                          value, off, wanted, tolerance)
+  end,
+}
+
+-- `ever_at_least` and `ever_at_most` -- **the same two comparisons asked of the other
+-- end of the run.**
+--
+-- `at_least` fails at the lowest a reading ever got, which is what you want for a floor
+-- that must hold the whole way. But half of what a test wants to say is "this happened",
+-- and a thing that happened is a thing that was true at one tick and false at the others
+-- -- a tower acquired a target, a body was pushed out of somebody, three movement
+-- patterns were in use at once. Asked with `at_least` every one of those fails on tick
+-- nought, correctly and uselessly.
+--
+-- So these two are the reached-it claims: `ever_at_least` is judged at the **highest**
+-- the reading got, `ever_at_most` at the lowest. They say nothing about how long it
+-- lasted or when -- that is still missing, and is the open question about durations and
+-- orderings on issue 111a.
+M.claim.ever_at_least = {
+  sides = {"max"},
+  test = function(value, wanted)
+    return value >= wanted,
+           string.format("%.3f is the most it ever reached, not %.3f", value, wanted)
+  end,
+}
+
+M.claim.ever_at_most = {
+  sides = {"min"},
+  test = function(value, wanted)
+    return value <= wanted,
+           string.format("%.3f is the least it ever reached, not %.3f", value, wanted)
   end,
 }
 
