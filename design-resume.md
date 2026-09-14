@@ -60,6 +60,39 @@ This defines the **fundamental directory structure** that all agents can assume 
 
 ---
 
+### D-063: Local Library Installation
+> "Libraries install locally to each project rather than globally."
+
+**Category:** Project Structure
+**Multi-Agent Relevance:** HIGH
+
+Dependencies live in the project's own `libs/`, fetched by an `install.sh` that
+takes a `DIR` argument so it runs from anywhere and is idempotent — safe to run
+twice, fetching only what is missing. An agent cloning a project gets exactly
+what that project needs, without a system-wide install to conflict with another
+project's version of the same library. The installer doubles as the manifest:
+reading it tells you every piece of external code the project depends on.
+
+### D-064: Single-Command Launch
+> "the run script pipelines the entire launch process into a single command."
+
+**Category:** Project Structure
+**Multi-Agent Relevance:** HIGH
+
+`run.sh` is the one entry point. It calls the installer, sets `LUA_PATH` to the
+project's own `libs/` and `src/`, and launches. An agent that wants to run a
+project does not need to know how it is assembled, and "works on my machine"
+stops being a category of failure.
+
+**Numbering note.** These two were written into the root README on 24 February
+2026 carrying the identifiers D-055 and D-056, which this registry had already
+given to Documentation Error Correction and Parallelization ninety minutes
+earlier the same day. The rules were never in dispute, only the numbers; they
+were renumbered here rather than in the registry, because the registry holds the
+quoted source material and is cited from more places.
+
+---
+
 ## 1.2 Issue Files & Management
 
 Issue files are the **central coordination mechanism** of this system. Nearly every other directive references or depends on them. Understanding issue files is essential.
@@ -1228,6 +1261,8 @@ Organized by priority and dependency.
 | D-060 | Code as Story | Code Organization | High |
 | D-061 | ToC Generation | Tooling | Medium |
 | D-062 | Demos as Deliverables | Deliverables | Medium |
+| D-063 | Local Library Installation | Project Structure | High |
+| D-064 | Single-Command Launch | Project Structure | High |
 
 ## Critical Path
 
