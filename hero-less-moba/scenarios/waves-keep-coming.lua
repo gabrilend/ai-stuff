@@ -31,7 +31,12 @@ return {
     {"tick", 3000},
   },
 
-  ticks = 1800,
+  -- **Two minutes rather than one.** A minute is enough for the waves and was not always
+  -- enough for the wipe: whether the first lane finishes the other off inside sixty
+  -- seconds depends on where the lines happen to meet, and an unrelated change elsewhere
+  -- moved it past the edge once already. What is being claimed is that a wave ends at
+  -- all, so the run is given room rather than the claim being weakened.
+  ticks = 3600,
 
   measure = {"tick", "alive", "bodies", "waves", "wipes", "fighting", "phase"},
 

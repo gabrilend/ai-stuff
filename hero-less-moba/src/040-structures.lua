@@ -49,6 +49,25 @@
 
 local M = {}
 
+-- {{{ where a tower's guards stand
+-- **A quarter turn from the way the tower faces**, which is square across the road. The
+-- first pair of guards stand there, one on each side, which is where a body walking the
+-- lane meets them.
+local QUARTER_TURN = math.pi / 2
+
+-- How much further round the ring each pair after the first stands. Wide enough that two
+-- guards are not shoulder to shoulder and narrow enough that eight of them are still in
+-- front of the tower rather than behind it.
+local GUARD_ARC = math.pi / 4.5
+
+-- Daylight between the corner of the masonry and the skin of a guard, in paces. Not
+-- nought: a guard exactly touching the stone reads as a guard leaning on it, and the
+-- rule that keeps bodies out of stone would be resolving a contact every tick for a body
+-- that is not going anywhere.
+local GUARD_STANDOFF = 2
+-- }}}
+
+
 -- The guard archetype's row in the unit table.
 local GUARD = 4
 
@@ -136,7 +155,25 @@ local function put_guard_on_the_ground(world, structure)
   -- and the two sides stopped being the same game: measured over four matches with
   -- nobody playing, the same side won every one. A frame derived from the tower
   -- mirrors when the tower does.
+  -- **A base tower's guards stand around the library, not around the tower.**
+  --
+  -- The three towers inside a base sit close enough to the library that their footprints
+  -- overlap it: a ring drawn outside a base tower is still inside the library, and a body
+  -- pushed out of one building lands in the other. Four guards spent every match being
+  -- shoved back and forth between two walls, a correction that ran every tick and never
+  -- finished.
+  --
+  -- Standing them around the library instead is not a workaround for that; it is what the
+  -- design already says. A base guard is leashed to the library rather than to the tower
+  -- that made it, because **the interior of a base is one open room** rather than three
+  -- corridors. Where it is put out should agree with what it is tied to.
+  --
+  -- The angle still comes from its own tower, so each tower's guards stand on that
+  -- tower's side of the room and a player can still read which lane mouth is held.
   local index = #structure.guard_slot + 1
+  local anchor_node = (structure.kind == 2)
+    and world.map.library_node[structure.team] or structure.node
+  local anchor = world.structure[world.map.node[anchor_node].structure]
   local here = world.map.node[structure.node]
   local home = world.map.node[world.map.library_node[structure.team]]
   local dx, dy = here.x - home.x, here.y - home.y
@@ -146,14 +183,40 @@ local function put_guard_on_the_ground(world, structure)
     length = 1
     dx, dy = 1, 0
   end
-  -- Out to alternating sides, one body's width further each pair, so any number of
-  -- guards fits without being told how many there will be -- they are put out one at
-  -- a time as they are replaced and nothing knows the total.
+  -- **On a ring outside the masonry, not on a line through it.**
+  --
+  -- The offset used to be the guard's own width times its place in the queue, measured
+  -- from the tower's centre -- which put the first pair of guards a little under eight
+  -- paces out, while the tower being drawn around them is nineteen paces across. They
+  -- were standing in the stone. Nothing noticed, because until a structure had a size on
+  -- its record the only place a tower had one at all was a number typed into a drawing
+  -- routine.
+  --
+  -- They now stand on a circle whose radius is the tower's own plus the guard's own plus
+  -- a pace or two of daylight, so the innermost edge of a guard is outside the outermost
+  -- corner of the tower by construction rather than by a number somebody chose.
+  --
+  -- Around the ring rather than out from it: the first pair stand square across the
+  -- road, and each pair after that is a further step round, alternating sides. Any
+  -- number of guards fits without anybody being told how many there will be -- they are
+  -- put out one at a time as they are replaced, and nothing knows the total.
+  local out_x, out_y = dx / length, dy / length
   local side = (index % 2 == 1) and 1 or -1
   local rank = math.ceil(index / 2)
-  local distance = soldier.radius[id] * 2.2 * rank * side
-  world.walking.place_at_node(world, id, structure.node,
-                              -dy / length * distance, dx / length * distance)
+  local angle = side * (QUARTER_TURN + (rank - 1) * GUARD_ARC)
+  local turn_cos, turn_sin = math.cos(angle), math.sin(angle)
+  local ring = anchor.radius + soldier.radius[id] + GUARD_STANDOFF
+  world.walking.place_at_node(world, id, anchor_node,
+                              (out_x * turn_cos - out_y * turn_sin) * ring,
+                              (out_x * turn_sin + out_y * turn_cos) * ring)
+  -- **And out of anything else it landed in.** The ring is drawn around this tower and
+  -- clears this tower by construction, which is not the same as clearing every building:
+  -- inside a base, three towers stand close enough to a library that a guard put out on a
+  -- ring around one of them can land inside another. This pass runs after the separation
+  -- pass in the order of a tick, so a guard placed badly here would be standing in
+  -- masonry for a whole tick with everything free to look at it.
+  world.frontline.push_body_out_of_stone(world, id)
+
   world.chest.stamp_from_stone(world, id, structure)
 
   structure.guard_slot[#structure.guard_slot + 1] = id

@@ -6,13 +6,13 @@
 | Blocked by | 111 |
 | Blocks | — |
 | Reads | [the proving ground](../docs/024-the-proving-ground.md), [the shape of the code](../docs/018-the-shape-of-the-code.md) |
-| Open questions | T1, T2, T3, T4, T5, T6, T7, T8 |
+| Open questions | T1, T2, T3, T4, T5, T6, T7, T7b, T8 |
 
 ## Current behavior
 
-**One kind of test, one front door, and forty-eight of eighty mechanics named by one.**
-The shape is built and the census is being worked down. Thirteen tests exist; two of them
-fail a claim, and both failures are findings rather than flakes.
+**One kind of test, one front door, and forty-nine of eighty mechanics named by one.**
+The shape is built and the census is being worked down. Sixteen tests exist; three of them fail a
+claim, and all three failures are findings rather than flakes.
 
 What exists:
 
@@ -53,10 +53,19 @@ because nothing had counted them.
   *first* stretch is longer than the ones between challenges. Two runs of the same test,
   one with the row and one without, play different matches and neither looks wrong. Left
   as it is — it means "the clock is here now" — and written down beside the verb.
-- **No guard ever leashes.** Across five thousand ticks of a real match, with four towers
-  felled and forty bodies fighting, the leashing state is never entered once. The
-  mechanism is present and reads correctly; ordinary play simply never pulls a guard far
-  enough from its tower to need it. See T7.
+- **No guard ever leashes, because the guards were standing inside the tower.** A tower
+  had no size anywhere in the simulation — the only place one existed was a number inside
+  a drawing routine — so a guard placed a few paces from a tower's centre was inside a
+  building nobody had told the simulation was there, and the rope was never pulled tight.
+  A structure now carries a radius, guards stand on a ring outside it, and nothing walks
+  into masonry. See T7.
+- **Claims pinned to the last tick of a match are claims about luck.** Three of the new
+  tests asked for somebody to be fighting, or something to have been placed, at the
+  instant the run stopped. All three passed, and all three failed the moment an unrelated
+  change moved the match along a slightly different line. A thing that *happens* is asked
+  about the highest a reading ever reached; a thing that *holds* is asked about the
+  lowest; and a reading about how the bots happen to be playing is watched rather than
+  claimed at all.
 - **The surge does not empty a chest, it copies one.** The count of upgrades held does not
   move for the whole surge while the count of bodies carrying something climbs into the
   hundreds. That is consistent with the design sentence — nothing is lost — but the
@@ -233,19 +242,33 @@ stand **inside** each other by up to seventeen thousandths of a pace, and bodies
 **off the road** — sixty-seven and a half paces from the centre line of a road whose
 half-width is sixty-six.
 
-**T7. No guard ever enters the leashing state.**
+**T7. No guard ever enters the leashing state — and the reason turned out to be where
+they were standing.**
 Measured over five thousand ticks of a real match: nought, every tick. The tower pass
 measures every guard against its leash node each tick and flips the state when it is
-outside the radius, and that code is reached — the guards are simply always inside it,
-because a guard's reach and its wander both keep it well within the rope.
+outside the radius, and that code is reached — the guards were simply always inside it.
 
-So the rule that brings a guard home has never once been needed. Three readings of that
-and they want different things done: the leash radius is too generous and should be
-tightened until the rule bites; or guards should be willing to chase further, which is a
-change to what a guard is for; or the rule is correct as a guarantee that costs nothing
-and should be left alone with a claim watching it. A test asserting the count is always
-nought is in place, so a change that starts sending guards down lanes is noticed — but
-**that is not coverage of the mechanic** and the census still counts 304 as missing.
+Asked about it, the answer was that **the guards were standing inside the tower**, and
+that they should be walking around outside it. Which was exactly right and was not
+something a reading of the leash could have said: a tower had no size anywhere in the
+simulation, so a guard placed a few paces from a tower's centre was inside a building
+nobody had told the simulation was there.
+
+That is fixed — a structure carries a radius, guards stand on a ring outside it, a base
+tower's guards stand around the library they are leashed to, and nothing walks into
+masonry any more. **The leash is still never pulled tight**, and now it is a question
+about the rope rather than about the ground: the radius is a hundred and twenty-eight
+paces and a guard's whole patrol fits inside it. Whether to tighten it until the rule
+bites, let guards chase further, or leave it as a guarantee that costs nothing is still
+open, and a claim asserting the count is always nought is watching it either way.
+
+**T7b. One guard gets wedged in stone about four minutes into a match, and stays.**
+With seven towers down, the count of guards standing inside a building goes from nought
+to one and does not come back. It is not a blip — the same body is in the same stone for
+the rest of the match — which means something walks it back in as fast as the separation
+pass takes it out. The most likely shape is a guard whose patrol node *is* a building's
+node, walking at the centre of it every tick, but that has not been confirmed. The whole
+match reproduces it, which makes it a bug report anybody can run.
 
 **T8. A third of the census is things a test of this kind cannot cover.**
 The roadmap is the list of mechanics, and the census counts every row of it in a phase

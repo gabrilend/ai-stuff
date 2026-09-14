@@ -18,6 +18,22 @@ What stops that becoming an impenetrable ball is the towers themselves: their ar
 are a plain radius and in practice only reach the mouth of the one lane they sit at.
 Bodies flow across a base freely; arrows do not.
 
+**And they are put out around the library too, not only leashed to it**, which is a
+change forced by the room being genuinely crowded. Once a structure carried a size, the
+three base towers turned out to stand close enough to the library that a ring drawn
+outside one of them is still inside the other. Four guards spent every match being shoved
+back and forth between two walls by a correction that ran every tick and never finished.
+
+Anchoring where they are placed to the same building they answer to fixes it and is the
+more honest arrangement anyway: a guard tied to the library that begins its life at a
+tower was two ideas about where it belongs. The angle still comes from its own tower, so
+each tower's guards hold that tower's side of the room and a player can still read which
+lane mouth is covered.
+
+**Nothing stands inside a building any more**, and that is asserted by a whole match run
+end to end with the count of bodies in masonry claimed at nought. One guard still gets
+wedged about four minutes in and stays wedged; that is written up on issue 111a.
+
 ## Intended behavior
 
 The interior of a base is **one open space**, not three corridors. Its three

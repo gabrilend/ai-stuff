@@ -9,10 +9,14 @@
 -- pays nothing, and the field looks perfectly ordinary while it happens. A draw that
 -- happens without a wipe pays everybody constantly and the whole economy goes flat.
 --
--- So the numbers are watched together: the tally of wipes, which only ever rises, and
--- what has been drawn -- which is the upgrades still held **plus** the ones already
--- placed, because a bot is playing both sides and a bot places what it draws. Counting
--- only the chest would read a busy team as a poor one.
+-- So the two numbers are watched together: the tally of wipes, which only ever rises, and
+-- the upgrades held in hand.
+--
+-- **What has been placed is watched and not claimed.** A bot is playing both sides and a
+-- bot places what it draws, so the count in the lanes is a reading about how the bots
+-- happen to be playing this particular match rather than about whether a wipe pays.
+-- Claiming it passed for a while and then failed on a run where the bots had not got
+-- round to placing yet, which is a test reporting the wrong thing having gone right.
 
 return {
   covers = {"403"},
@@ -44,6 +48,6 @@ return {
     -- because a reading is one number and adding two of them would be arithmetic in
     -- a test -- which is the one thing a test here is not allowed to contain.
     {"chest", "at_least", 1},
-    {"placed", "at_least", 1},
   },
+
 }

@@ -72,6 +72,8 @@ taken when a test names it.
 | `wipes` | Waves wiped out since the match began, both teams. **A tally, so it never falls.** |
 | `towers` / `rubble` / `libraries` | Guard towers standing, guard towers fallen, libraries standing. |
 | `stone_health` | Every point of health left in every standing structure. |
+| `inside_stone` | Living bodies standing inside a building that is still up. **Should be nought**, for the same reason `overlaps` should be. |
+| `guards_inside_stone` | The same, counting only the bodies a tower put out itself. |
 | `aiming_towers` | Standing towers currently holding a target. Nought with bodies in reach is a tower that acquires nothing. |
 | `armed_towers` | Standing towers shooting with at least one upgrade. The proof a tower's own copy of its lane's stone was rebuilt. |
 | `chest` | Upgrades drawn and not yet placed, both teams. |

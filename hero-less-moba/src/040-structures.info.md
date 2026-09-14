@@ -19,6 +19,29 @@ so the slotting decision is visible from across the map.
 | `guard_died(world, id)` | | — One guard gone; its tower forgets it. |
 | `tower_fell(world, structure)` | | — Kills its guards, pays three upgrades. |
 
+## Where a guard stands
+
+**On a ring outside the masonry, and for a base tower the ring is around the library.**
+
+A guard used to be placed at its tower's own node and offset by its own width times its
+place in the queue, which put the first pair a little under eight paces out — inside a
+tower drawn nineteen paces across. They were standing in the stone, and nothing noticed,
+because the simulation did not know a tower occupied any ground.
+
+The ring is the anchor building's radius plus the guard's own plus a pace or two of
+daylight, so the innermost edge of a guard is outside the outermost corner of the building
+by construction rather than by a number somebody chose. Guards go round it a pair at a
+time, starting square across the road, so any number fits without anybody being told how
+many there will be.
+
+**A base tower's guards are anchored to the library.** The three towers inside a base sit
+close enough to it that a ring drawn outside one of them is still inside the other, and
+four guards spent every match being shoved back and forth between two walls. Anchoring
+them to the library is also what the design already said — a base guard is *leashed* to
+the library rather than to its tower, because the interior of a base is one open room —
+and the angle still comes from its own tower, so each tower's guards hold that tower's
+side of the room.
+
 ## The command radius, and the inversion at the heart of it
 
 A tower fills its patrol back up to a cap, **and only while no enemy stands inside its

@@ -35,10 +35,21 @@ return {
 
   measure = {"tick", "alive", "walking", "closing", "fighting", "leashing", "dying"},
 
-  ["finally"] = {
-    -- Three rows in use at once, which is the least that can be called a table.
-    {"walking", "at_least", 1},
-    {"closing", "at_least", 1},
-    {"fighting", "at_least", 1},
+  always = {
+    -- Three rows in use, which is the least that can be called a table.
+    --
+    -- **Asked of the highest each reached rather than of the last tick.** A first version
+    -- asked for somebody to be fighting at the moment the run stopped; it passed, and then
+    -- failed the day an unrelated change moved the match along a slightly different line
+    -- and the last tick happened to fall between two engagements. Which row of a dispatch
+    -- table has ever run is the question; which one is running at an arbitrary instant is
+    -- not.
+    {"walking", "ever_at_least", 1},
+    {"closing", "ever_at_least", 1},
+    {"fighting", "ever_at_least", 1},
+
+    -- And the two rows that are not built stay empty. A count coming off nought here
+    -- would mean a state nobody has written is being entered.
+    {"leashing", "at_most", 0},
   },
 }
