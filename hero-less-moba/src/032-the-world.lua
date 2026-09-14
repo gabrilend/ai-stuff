@@ -150,6 +150,43 @@ local function make_soldier_arrays(capacity, kind_count)
   -- looked up through the archetype row.
   soldier.reach         = zeroed(capacity)
 
+  -- How big this body is, in paces. Copied from the archetype row at birth like
+  -- every other stat, because the collision test reads it for two bodies at a time
+  -- on every waypoint of every body every tick, and that path must not chase a
+  -- pointer into the catalogue.
+  --
+  -- It is one number doing four jobs -- drawn size, ground occupied, how near
+  -- another body may come, how much sight it blocks -- and that is deliberate. See
+  -- the catalogue for what it replaced.
+  soldier.radius        = zeroed(capacity)
+
+  -- 1 while this body's last waypoint had to be moved out of somebody. Written by
+  -- the rule that moves it and read by nothing in the simulation -- it exists so the
+  -- proving ground can draw a ring round every body that is going round something,
+  -- which is the difference between watching the rule work and totalling it up.
+  --
+  -- It is as current as the body's last move. A body that has stopped moving keeps
+  -- whatever it had when it last asked, which is right for a picture and would be
+  -- wrong for a decision -- so nothing decides anything on it.
+  soldier.gave_way      = zeroed(capacity)
+
+  -- How far this body stands from the line its graph position puts it on, in world
+  -- paces. **Only a body with no lane has one** -- a guard, and only a guard.
+  --
+  -- A body on a lane says where it is across the road with `lane_across`, and its
+  -- world position is derived from that against the lane's curve. A guard has no lane
+  -- and no across: its position is "on the edge between these two nodes, this far
+  -- along", which is a line with no width, and every guard on the same edge at the
+  -- same progress is at the same point.
+  --
+  -- That is why this exists rather than the rule simply writing x and y. It did, and
+  -- the correction lasted exactly one tick, because the next move pass re-derived the
+  -- position from the edge and put the guard back on top of whoever it had just
+  -- stepped away from. Two guards at one tower stood inside each other for the whole
+  -- match while the rule ran every tick and achieved nothing.
+  soldier.offset_x      = zeroed(capacity)
+  soldier.offset_y      = zeroed(capacity)
+
   -- Mind
   soldier.state             = zeroed(capacity)
   soldier.incoming_dps      = zeroed(capacity)
@@ -164,6 +201,32 @@ local function make_soldier_arrays(capacity, kind_count)
   -- guard. Read by the re-stamp sweep, which has to find every body standing
   -- under a tower whose slot just changed.
   soldier.guard_of          = zeroed(capacity)
+  -- **Where this body wants to be**, in world paces, and how urgently.
+  --
+  -- Placed fresh every tick by whichever movement pattern the body is using, and allowed
+  -- to be a very long way off: a formation's place for a body can be ninety paces away
+  -- and an enemy can be across the lane. A pattern may not look at whether anything is
+  -- standing in the way -- that is the layer below's question, and keeping the two apart
+  -- is the whole point of there being two.
+  --
+  -- **World coordinates, for every body alike.** A body on a road and a guard at a tower
+  -- have kept their positions in two different currencies since the beginning, and every
+  -- rule that wanted to move either one had to know which. Intentions are one currency;
+  -- one place converts.
+  soldier.goal_x            = zeroed(capacity)
+  soldier.goal_y            = zeroed(capacity)
+  -- 1 relax, 2 normal, 3 hurry. Indexes the pace table in the unit catalogue.
+  soldier.goal_pace         = zeroed(capacity)
+  -- Which movement pattern placed that goal, as an index into the pattern table. Written
+  -- down rather than recomputed so that what a body is trying to do can be drawn on a
+  -- screen and asserted on in a test.
+  soldier.pattern           = zeroed(capacity)
+
+  -- **Where this body will actually stand at the end of this tick.** The goal, pulled back
+  -- to within one pace of here and then moved out of anybody standing on it.
+  soldier.step_x            = zeroed(capacity)
+  soldier.step_y            = zeroed(capacity)
+
   -- **Where a body on a lane actually is**, in lane coordinates: how far along the
   -- lane it has got, and how far to one side of the lane's centre it stands.
   --
@@ -379,6 +442,32 @@ function M.create(parameters, map, stream)
     live_count = 0,
     high_water = 0,
 
+    -- The biggest body standing on the field, in paces. Re-measured every tick by the
+    -- grid rebuild, which is already walking every living body; the collision test and
+    -- the line of sight both need it to size a query, because a query takes one
+    -- distance and has to be wide enough for the largest thing it might find.
+    --
+    -- Started at the biggest row in the catalogue, which is the only safe value before
+    -- anything has been measured -- too wide is slow and too narrow is wrong.
+    largest_body = parameters.unit.max_radius,
+
+    -- Where the separation pass accumulates each body's push before any of them is
+    -- applied. Allocated once with the world rather than built per tick, because it is
+    -- written every tick for the life of a match and a table built and thrown away that
+    -- often is a match's worth of garbage for no reason.
+    --
+    -- **Two arrays rather than one array of pairs**, like everything else about a body
+    -- here: the pass writes x and y in separate loops over flat memory.
+    separation_x = zeroed(capacity),
+    separation_y = zeroed(capacity),
+
+    -- The pairs of bodies close enough to be worth relaxing, gathered once a tick and
+    -- then read over and over. Two flat arrays of slot numbers rather than a list of
+    -- pairs, because the pass walks them in step and a table per contact per tick is a
+    -- match's worth of garbage.
+    separation_first  = {},
+    separation_second = {},
+
     structure = {},
     wave      = {},
     team      = {},
@@ -513,6 +602,10 @@ function M.release(world, id)
   soldier.cooldown[id] = 0
   soldier.cooldown_max[id] = 0
   soldier.reach[id] = 0
+  soldier.radius[id] = 0
+  soldier.gave_way[id] = 0
+  soldier.offset_x[id] = 0
+  soldier.offset_y[id] = 0
   soldier.state[id] = 0
   soldier.incoming_dps[id] = 0
   soldier.target[id] = 0
@@ -628,6 +721,7 @@ function M.give_body(world, id, row)
   local soldier = world.soldier
   soldier.flavour[id]       = row.flavour
   soldier.reach[id]         = row.reach
+  soldier.radius[id]        = row.radius
   soldier.health[id]        = row.health
   soldier.health_max[id]    = row.health
   soldier.damage[id]        = row.damage

@@ -26,7 +26,7 @@ heroes at the centre of it, visibly stupid soldiers are the whole product.
 
 | # | State | What it does |
 | --- | --- | --- |
-| 1 | **walking** | Advance along the lane, unless blocked by the rank ahead. Act on whatever targeting wrote down. |
+| 1 | **walking** | Choose a [movement pattern](072-the-movement-patterns.info.md), which places a goal; then take one step toward it. |
 | 2 | **closing** | Keep advancing until the target is inside weapon range. Recheck the target's generation every tick. |
 | 3 | **fighting** | Stop. The attack pass swings; this only decides whether the body is still in a fight. |
 | 4 | **leashing** | Guards only. Walk back toward the leash node, **refusing to acquire anything on the way**. |
@@ -48,6 +48,18 @@ supposed to be denying ends up empty while the guard chases somebody down the la
 
 **Fighting can fall back to closing.** If the target moved out of range the body
 closes again rather than swinging at nothing.
+
+## The states say what; a pattern says where
+
+This table decides **what a body is doing**. It no longer decides where the body goes or
+how fast, because those used to be nine early returns inside the walking state, every one
+of them correct, with the order between them as the policy -- and a policy that is a
+position in a sequence can only be read by reading the sequence.
+
+They are now rows in [the pattern table](072-the-movement-patterns.info.md). The state
+chooses a pattern, the pattern places a goal and a pace, and
+[one mover](034-walking.info.md) caps the step, moves it out of anybody standing on it, and
+places the body. Every state that moves anything on a road goes through the same two calls.
 
 ## The one body that will not use this
 

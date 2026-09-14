@@ -18,6 +18,16 @@
 
 -- 051-the-invariants.lua
 --
+-- covers: 101, 102, 105, 107, 110, 201, 204, 210, 211c, 211d, 404, 412,
+--         502, 503, 508, 601, 602, 603, 605, 608, 707, 708
+--
+-- **Under-claimed on purpose.** The line above names the mechanics this file can be
+-- shown to demonstrate by reading it, and no others. Several of its checks are about
+-- things the roadmap does not have a row for, and a few are about mechanics it would
+-- take an argument to claim -- those are left off, because a mechanic wrongly marked
+-- covered is worse than one marked missing. The census reports what is here; it does
+-- not reward optimism.
+--
 -- The properties this project refuses to break, checked in one run.
 --
 -- Tests are cheap and there should be many. These are the ones that earn their
@@ -1186,9 +1196,14 @@ end
 -- the scenario asked for is standing in the world. Held, and not yet advanced.
 local function test_the_bypass_reaches_the_gate()
   local world, modules = fresh_world(tick_module)
-  local path = ROOT .. "/scenarios/the-dragon-at-the-midpoint"
 
-  modules.gate.load(world, path)
+  -- Read through the bench, the way every other test in this project is now read: the
+  -- file is a table naming an arrangement of the gate's own verbs, and the gate performs
+  -- the rows. Nothing here knows what any of those verbs do.
+  local bench = loadfile(ROOT .. "/src/071-the-bench.lua")()
+  local scenario = bench.read(ROOT, "the-dragon-at-the-midpoint")
+  modules.gate.begin(world, scenario.file)
+  modules.gate.perform(world, scenario.arrange)
 
   -- The scenario names tick 14000 and challenge 2. Both have to have landed, and
   -- the clock is the one that catches a gate that silently did nothing: a fresh

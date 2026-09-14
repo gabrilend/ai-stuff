@@ -212,6 +212,21 @@ end
 -- {{{ local function attack()
 -- Cooldowns come down; anything ready and in range writes into the pending
 -- damage buffer rather than straight into health.
+-- {{{ local function separate()
+-- Anybody who ended the move standing inside anybody else is pushed out.
+--
+-- **After the move and before anything reads a position.** The refusal that keeps a body
+-- from walking into somebody is a question about a step, and three things get past it: a
+-- cleared step is shortened afterwards by the body's own speed limit and lands short of
+-- the circle it was aimed at; only the deepest of several obstacles is resolved per call;
+-- and a body that is not moving is never asked. This is what turns "no two bodies
+-- overlap" from an intention into a fact.
+local function separate(world)
+  world.frontline.separate_pass(world)
+end
+-- }}}
+
+-- {{{ local function attack()
 local function attack(world)
   world.combat.attack_pass(world)
   world.structures.tower_pass(world)
@@ -377,6 +392,14 @@ end
 --   * **measure after reap.** Push depth is a statement about the living, so it
 --     has to be taken after the dead have been removed. Measured before, a lane
 --     would report a depth held by a body that died this tick.
+--
+-- **The march row is not in the order below**, and that is the one thing about this
+-- table that has to be said out loud. The real game moves a body through the brain,
+-- which decides between marching, closing, standing off, falling back, healing,
+-- fleeing and decaying. A test about walking wants marching and none of the other six,
+-- so it needs a row the game itself never runs -- and it needs that row to live *here*,
+-- beside the real one, so that a change to how a tick marches is one edit rather than
+-- two. See the stage catalogue below.
 M.system = {
   {name = "clear",    run = clear_buffers},
   {name = "think",    run = think},
@@ -387,6 +410,12 @@ M.system = {
   {name = "form",     run = form_up},
   {name = "retarget", run = retarget},
   {name = "move",     run = move},
+  -- The field is indexed **again** here, and this is the one repeated row in the table.
+  -- Every body has just moved, so the grid built before the move now says where everybody
+  -- was rather than where anybody is -- and a separation pass reading a stale grid misses
+  -- exactly the pairs that moved into each other this tick, which are all of them.
+  {name = "index",    run = index_the_field},
+  {name = "separate", run = separate},
   {name = "attack",   run = attack},
   {name = "resolve",  run = resolve_damage},
   {name = "reap",     run = reap},
@@ -397,17 +426,101 @@ M.system = {
 }
 -- }}}
 
--- {{{ function M.advance()
--- One tick. The whole simulation, in the order above.
-function M.advance(world)
+-- {{{ M.stage
+-- Every stage that exists, by name, whether or not the whole match runs it.
+--
+-- The array above is an *order*; this is a *vocabulary*. A test names the stages it
+-- wants and gets these rows -- the engine's own -- rather than a hand-written
+-- imitation of them, which is the whole reason a test may not define behavior: two
+-- descriptions of what a tick does will disagree eventually, and when they do, the
+-- test is measuring the harness.
+M.stage = {}
+for index = 1, #M.system do
+  M.stage[M.system[index].name] = M.system[index].run
+end
+
+-- Marching, with no brain around it. Every body that belongs to a formation takes one
+-- step toward its place; strays stand still. The definition lives in the walking
+-- module beside the single step it repeats, and this row is only the name for it.
+M.stage.march = function(world)
+  world.walking.march_pass(world)
+end
+-- }}}
+
+-- {{{ M.selection
+-- The named selections of stages a test is likely to want.
+--
+-- A test that recited a list of stage names would be a test with an opinion about what
+-- marching consists of, and fifteen of them would hold fifteen slightly different
+-- opinions. A selection is that opinion written once, in the engine, where being wrong
+-- about it is one edit.
+M.selection = {
+  -- The whole simulation, in the order the game runs it.
+  whole_match = {"clear", "think", "record", "commands", "spawn", "index", "form",
+                 "retarget", "move", "index", "separate", "attack", "resolve", "reap",
+                 "measure", "phase", "snapshot", "log"},
+
+  -- Bodies walking and nothing else: put everyone in the grid, let each formation
+  -- plan, then step. Nothing acquires a target, nothing swings, nothing dies, no wave
+  -- is due and no phase turns over. Anything that moves is walking.
+  marching = {"index", "form", "march", "index", "separate"},
+
+  -- Walking with fighting on top, and still no spawner, no phase clock and no economy.
+  fighting = {"index", "form", "retarget", "march", "index", "separate",
+              "attack", "resolve", "reap"},
+}
+-- }}}
+
+-- {{{ function M.select()
+-- The run functions for a named selection, or for a list of stage names.
+--
+-- Refuses anything it does not recognise, by name, at the moment of asking. A test
+-- that misspells a stage should not quietly run one stage fewer and report a number.
+function M.select(stages)
+  if type(stages) == "string" then
+    local named = M.selection[stages]
+    if named == nil then
+      error("no selection of stages called '" .. stages .. "'")
+    end
+    stages = named
+  end
+
+  local chosen = {}
+  for index = 1, #stages do
+    local run = M.stage[stages[index]]
+    if run == nil then
+      error("the tick has no stage called '" .. tostring(stages[index]) .. "'")
+    end
+    chosen[index] = {name = stages[index], run = run}
+  end
+  return chosen
+end
+-- }}}
+
+-- {{{ function M.advance_through()
+-- One tick made of exactly the stages given, and nothing else.
+--
+-- The world's clock moves whichever stages ran, because a world that did not count its
+-- own ticks would make every measurement taken against a tick number a lie.
+--
+-- Returns false once the match is over, which an arena world never is: it has no phase
+-- clock, its phase is never set, and `nil` is not 5.
+function M.advance_through(world, chosen)
   if world.phase == 5 then
     return false
   end
   world.tick = world.tick + 1
-  for index = 1, #M.system do
-    M.system[index].run(world)
+  for index = 1, #chosen do
+    chosen[index].run(world)
   end
   return true
+end
+-- }}}
+
+-- {{{ function M.advance()
+-- One tick. The whole simulation, in the order above.
+function M.advance(world)
+  return M.advance_through(world, M.system)
 end
 -- }}}
 
@@ -446,6 +559,7 @@ M.cast = {
   {name = "rest_of_brain",    file = "062-the-rest-of-the-brain"},
   {name = "gate",             file = "063-the-gate"},
   {name = "replay",           file = "066-the-replay-log"},
+  {name = "patterns",         file = "072-the-movement-patterns"},
 }
 -- }}}
 
@@ -500,6 +614,7 @@ function M.assemble(modules, parameters)
   world.bot_module = modules.bot
   world.stones     = modules.stones
   world.rest_of_brain = modules.rest_of_brain
+  world.patterns   = modules.patterns
   world.gate_module = modules.gate
   world.replay_module = modules.replay
   world.random_streams = modules.random_streams

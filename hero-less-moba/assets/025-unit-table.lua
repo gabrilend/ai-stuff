@@ -36,6 +36,47 @@ local M = {}
 -- every table is a whole number of these.
 M.ticks_per_second = 30
 
+-- {{{ M.pace
+-- **The three gaits, as multipliers on a body's own speed.**
+--
+-- Every body that moves is doing it at one of these and never at anything between them,
+-- so "how fast is that soldier going" has one answer a person can read off the screen.
+-- An earlier version was a continuous multiplier with the extra taken from whoever was
+-- ahead; it read as breathing rather than marching, and it could not be measured, because
+-- the answer was different per body per tick.
+--
+-- Which one a body takes is decided by **what it is doing**, not by how far it is from
+-- where it is going. That distinction is the whole reason the pace is chosen by a
+-- movement pattern: a body a long way from its goal and hurrying is a charge, and the
+-- same body a long way from its goal and marching is a straggler, and those should not
+-- look alike.
+--
+-- **Hurry is faster than marching, which reverses a rule this project used to hold.** The
+-- old rule -- that nothing ever exceeds marching pace, because a line dresses itself by
+-- the inside of a turn slowing rather than the outside sprinting -- was about *a line*,
+-- and it still holds there: a body still marching in formation never takes hurry. A body
+-- that has left the line to charge something has left the formation's business, which the
+-- cohesion budget already recognises by excluding it, and it is allowed to run.
+--
+-- Nothing is ever *handed* speed, which is what stops a straggler reading as a teleport:
+-- a pace is a multiplier on a body's own number, so the fastest anything moves is its own
+-- speed times the largest of these.
+M.pace = {
+  -- Ahead of your place; a guard on patrol; a body with a reach giving ground.
+  relax  = 0.70,
+  -- Marching in line; walking a lane alone; crossing between lanes.
+  normal = 1.00,
+  -- Charging; a guard running home; a body walking off the map during a calm.
+  hurry  = 1.35,
+}
+
+-- The pace numbers as an array too, so a pattern can name one with an integer and the
+-- move pass can look it up without a string compare per body per tick.
+M.PACE_RELAX, M.PACE_NORMAL, M.PACE_HURRY = 1, 2, 3
+M.pace_multiplier = {M.pace.relax, M.pace.normal, M.pace.hurry}
+M.pace_name = {"relax", "normal", "hurry"}
+-- }}}
+
 -- **Whether an ordinary arrow needs a clear line to what it is shooting at.**
 --
 -- It should. An arrow is long-ranged and flat -- a hundred feet and more of it -- and
@@ -85,6 +126,24 @@ M.decay_ticks = M.ticks_per_second * M.sync_cycle_seconds * 2
 -- reach: 1 = melee, forms the rank. 2 = ranged, holds behind the rank at its own
 -- reach and shoots over it. That single field is what splits the frontline queue
 -- into two behaviours, and it is read there and nowhere else.
+--
+-- radius: how big the body is, in paces. **One number, and it is the only one.**
+--
+-- It is how large the body is drawn, how much ground it stands on, how close
+-- another body may come to it, and how much of a line of sight it blocks. Those
+-- were three separate numbers in three separate files -- a drawing table in the
+-- renderer, one shared `personal_space` in the map shape, and a fraction of that
+-- shared number in the targeting pass -- and they were free to disagree, which meant
+-- a monster drawn at twenty-six paces kept the same eighteen paces of room as a
+-- soldier drawn at three and a half, so soldiers stood inside it.
+--
+-- The values are the ones the renderer's table already carried, because those were
+-- the numbers somebody had actually looked at. The line of sight width was
+-- `personal_space * 0.20`, which is 3.6 -- the melee body's drawn radius exactly. It
+-- had been tuned to the picture and written as a fraction of something else.
+--
+-- Bodies are never closer than the sum of two of these, and the rule that enforces
+-- it is the whole of the pathfinding: see the waypoint snap in the walking module.
 M.archetype = {
 
   -- 1 -- the melee wave body. The baseline every other row is a multiple of.
@@ -92,6 +151,7 @@ M.archetype = {
     name         = "melee",
     flavour      = 1,
     reach        = 1,
+    radius       = 3.6,
     health       = 90,
     damage       = 16,
     armour       = 2,
@@ -110,6 +170,7 @@ M.archetype = {
     name         = "ranged",
     flavour      = 1,
     reach        = 2,
+    radius       = 3.0,
     health       = 90,
     damage       = 16,
     armour       = 2,
@@ -127,6 +188,7 @@ M.archetype = {
     name         = "captain",
     flavour      = 1,
     reach        = 1,
+    radius       = 5.8,
     -- Which rank it stands in, in the middle of it. The front, for one carrying a
     -- shield: the most useful place to be and the most visible, and a player who
     -- cannot find the captain cannot read what a lane is worth.
@@ -147,6 +209,7 @@ M.archetype = {
     name         = "guard",
     flavour      = 3,
     reach        = 1,
+    radius       = 3.8,
     health       = 100,
     damage       = 17,
     armour       = 3,
@@ -165,6 +228,7 @@ M.archetype = {
     name         = "ranged captain",
     flavour      = 1,
     reach        = 2,
+    radius       = 5.8,
     -- Back with the archers. A captain carrying a bow given the front rank is a bow
     -- standing in front of the people whose job is to be in front of it. The number
     -- is a request rather than a promise -- how many ranks the line occupies depends
@@ -201,6 +265,7 @@ M.archetype = {
     name         = "bulwark knight",
     flavour      = 2,
     reach        = 1,
+    radius       = 5.2,
     health       = 320,
     damage       = 18,
     armour       = 7,
@@ -216,6 +281,7 @@ M.archetype = {
     name         = "storm lancer",
     flavour      = 2,
     reach        = 1,
+    radius       = 4.9,
     health       = 210,
     damage       = 26,
     armour       = 3,
@@ -231,6 +297,7 @@ M.archetype = {
     name         = "siege ram",
     flavour      = 2,
     reach        = 1,
+    radius       = 5.4,
     health       = 260,
     damage       = 20,
     armour       = 5,
@@ -247,6 +314,7 @@ M.archetype = {
     name         = "sunlight paladin",
     flavour      = 2,
     reach        = 2,
+    radius       = 4.8,
     health       = 230,
     damage       = 14,
     armour       = 4,
@@ -270,6 +338,7 @@ M.archetype = {
     arcs         = true,
     flavour      = 2,
     reach        = 2,
+    radius       = 4.6,
     health       = 190,
     damage       = 30,
     armour       = 2,
@@ -286,6 +355,7 @@ M.archetype = {
     name         = "coal warden",
     flavour      = 2,
     reach        = 1,
+    radius       = 5.2,
     health       = 300,
     damage       = 19,
     armour       = 6,
@@ -308,6 +378,7 @@ M.archetype = {
     name         = "priest",
     flavour      = 2,
     reach        = 2,
+    radius       = 4.8,
     health       = 200, damage = 12, armour = 3,
     range        = 96, acquire_range = 132,
     speed        = 1.05, cooldown_max = 32,
@@ -319,6 +390,7 @@ M.archetype = {
     name         = "druid",
     flavour      = 2,
     reach        = 2,
+    radius       = 4.8,
     health       = 210, damage = 13, armour = 3,
     range        = 92, acquire_range = 128,
     speed        = 1.1, cooldown_max = 26,
@@ -334,6 +406,7 @@ M.archetype = {
     name         = "curse-doctor",
     flavour      = 2,
     reach        = 2,
+    radius       = 4.6,
     health       = 195, damage = 15, armour = 2,
     range        = 104, acquire_range = 140,
     speed        = 1.1, cooldown_max = 30,
@@ -348,6 +421,7 @@ M.archetype = {
     arcs         = true,
     flavour      = 2,
     reach        = 2,
+    radius       = 4.8,
     health       = 205, damage = 13, armour = 3,
     range        = 98, acquire_range = 134,
     speed        = 1.08, cooldown_max = 34,
@@ -375,6 +449,7 @@ M.archetype = {
     name         = "the Pillar Orc",
     flavour      = 4,
     reach        = 1,
+    radius       = 21,
     health       = 19000,
     damage       = 95,
     armour       = 12,
@@ -389,6 +464,7 @@ M.archetype = {
     name         = "the Field Dragon",
     flavour      = 4,
     reach        = 1,
+    radius       = 26,
     health       = 31000,
     damage       = 140,
     armour       = 16,
@@ -413,6 +489,7 @@ M.archetype = {
     name         = "the Eternal Golem",
     flavour      = 4,
     reach        = 1,
+    radius       = 31,
     health       = 1,          -- unused; it cannot be hurt at all
     damage       = 260,
     armour       = 0,
@@ -474,6 +551,25 @@ M.bounty = {
   hero    = 5,
   monster = 40,
 }
+-- }}}
+
+-- {{{ M.max_radius
+-- The biggest body in the catalogue, in paces.
+--
+-- The collision test asks the spatial grid "is there anything whose circle contains
+-- this point", and a grid query has to be given a distance up front. A body's own
+-- radius is not enough: a soldier three and a half paces across can still be standing
+-- inside a Golem's thirty-one, and a query sized to the soldier would miss it.
+--
+-- Computed rather than written down, so that adding an archetype larger than the
+-- Golem cannot silently make the query too small -- which would read as bodies walking
+-- through the one thing in the game most obviously solid.
+M.max_radius = 0
+for index = 1, #M.archetype do
+  if M.archetype[index].radius > M.max_radius then
+    M.max_radius = M.archetype[index].radius
+  end
+end
 -- }}}
 
 return M

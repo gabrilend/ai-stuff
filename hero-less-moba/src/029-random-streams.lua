@@ -171,6 +171,15 @@ function M.make_set(seed)
     boon    = M.new(seed, "boon"),
     -- The deal order when the chest is dealt across a surge spawn.
     surge   = { M.new(seed, "surge-1"), M.new(seed, "surge-2") },
+    -- Where across the lane a body appears when it is put out somewhere other than
+    -- in a formation: a siege-surge's stream, and the monsters at the midpoint.
+    --
+    -- Its own stream rather than the surge's, even though the surge is its biggest
+    -- reader, because the surge stream decides the *deal order* -- who gets which
+    -- upgrade -- and drawing spawn positions from it would make what a body carries
+    -- depend on where the body before it happened to stand. Two questions sharing a
+    -- sequence is two questions whose answers are coupled for no reason.
+    spawn   = { M.new(seed, "spawn-1"), M.new(seed, "spawn-2") },
     -- **No waypoint stream here**, and the absence is deliberate.
     --
     -- Which column a wave takes down a road, and where inside it the wave is heading,

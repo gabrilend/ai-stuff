@@ -52,25 +52,25 @@
 
 local M = {}
 
--- How wide a body stands as an obstacle to a straight shot, as a fraction of the room
--- it keeps around itself.
+-- **How wide a body stands as an obstacle to a straight shot is its radius**, and
+-- there is nothing left here to tune.
 --
--- About a body's own drawn size rather than the whole of its personal space: that
--- space is how much room a soldier *wants*, not how much of one there is, and a shot
--- passing between two of them standing comfortably apart should get through.
+-- It used to be a fraction -- a fifth -- of the one shared `personal_space`, with a
+-- paragraph explaining that the fraction was there because a body's own size is
+-- smaller than the room it wants, and a shot between two soldiers standing
+-- comfortably apart should get through. That reasoning was right and it was
+-- reconstructing, in a constant, a number the game did not have: a fifth of eighteen
+-- is 3.6, which is exactly the melee body's size. It had been tuned to the picture.
 --
--- Measured over nine thousand ticks, with flat arrows needing a line:
+-- Now that a body has a size, it is that. A Golem blocks a shot with thirty-one paces
+-- of Golem and a soldier with three and a half of soldier, which the fraction could
+-- not say at all -- it gave every body in the game the same width, and the widest
+-- thing on the field was the thing it was most wrong about.
 --
---   width   kills   left standing
---   8.1       759     506
---   5.4       696     476
---   3.6       827     433
---   2.2       835     430
---
--- Which is the useful shape of the answer: **the width is not the lever.** Halving it
--- recovers a tenth of the damage and the pile-up stays. See the note in the unit
--- catalogue about what actually decides this.
-local BLOCKS_THE_VIEW = 0.20
+-- Measured over nine thousand ticks with flat arrows needing a line, before this
+-- changed, across widths of 8.1, 5.4, 3.6 and 2.2 paces: the width is **not** the
+-- lever. Halving it recovers a tenth of the damage and the pile-up stays. The tables
+-- are in H14 of the open questions along with the sweep that still wants running.
 
 -- How many ticks a body whose shot was blocked waits before looking again.
 --
@@ -144,14 +144,30 @@ function M.rebuild_grid(world)
     end
   end
 
+  -- **And the biggest body actually standing on the field**, which the collision test
+  -- needs and which is not the same thing as the biggest body in the catalogue.
+  --
+  -- That test asks "is anything's circle over this point", and a grid query takes one
+  -- distance up front, so it has to be sized for the largest thing it might find. Sized
+  -- from the catalogue it is always the Golem's thirty-one paces, which is nearly four
+  -- times the area to search for the whole of every match in which no monster is out --
+  -- and a monster is out for a few thousand ticks of a match that lasts tens of them.
+  --
+  -- Taken here because this loop already walks every living body, so it is exact and
+  -- costs a comparison per body rather than a second pass.
   local soldier = world.soldier
+  local largest = 0
   for id = 1, world.high_water do
     if soldier.alive[id] == 1 then
       local index = cell_index(grid, soldier.x[id], soldier.y[id])
       local bucket = grid.bucket[index]
       bucket[#bucket + 1] = id
+      if soldier.radius[id] > largest then
+        largest = soldier.radius[id]
+      end
     end
   end
+  world.largest_body = largest
 end
 -- }}}
 
@@ -201,6 +217,31 @@ function M.for_each_near(world, x, y, radius, visit)
 end
 -- }}}
 
+-- {{{ function M.reach_to()
+-- How far apart two bodies' **centres** may be and still be in reach of each other.
+--
+-- A body's `range` is measured from its own centre, and it always was. What changed is
+-- that the thing it is swinging at now has a size, so the far end of the measurement
+-- is that body's skin rather than its middle: `range + other.radius`.
+--
+-- This is not a refinement, it is the difference between the game working and not.
+-- Bodies stop against each other at the sum of their radii, so a soldier standing on a
+-- monster is thirty paces from its centre while its sword reaches seventeen. Measured
+-- centre to centre, **every melee body in the game misses every monster, forever**, and
+-- what that looks like from outside is a challenge phase that never ends: the monsters
+-- do not die, so the calm never begins, so no boon is ever offered.
+--
+-- Between two ordinary soldiers it moves engagement by three and a half paces, which
+-- is a body's width and is the correct amount to move it by.
+--
+-- One function rather than the four places that each wrote the comparison out, because
+-- four copies of a rule is four chances for one of them to still be measuring to the
+-- middle.
+function M.reach_to(world, id, other)
+  return world.soldier.range[id] + world.soldier.radius[other]
+end
+-- }}}
+
 -- {{{ function M.can_see()
 -- Whether this body has a clear line to that one, with **its own allies** as the
 -- only blockers.
@@ -233,10 +274,12 @@ function M.can_see(world, id, target)
     return true
   end
 
-  local width = world.parameters.shape.personal_space * BLOCKS_THE_VIEW
+  -- The search has to be wide enough for the widest possible blocker, because the
+  -- test that follows is per candidate and a body missed by the query is never asked.
+  local widest = world.largest_body
   local blocked = false
   M.for_each_near(world, (ax + bx) * 0.5, (ay + by) * 0.5,
-                  length * 0.5 + width, function(other)
+                  length * 0.5 + widest, function(other)
     if blocked or other == id or other == target then
       return
     end
@@ -252,7 +295,7 @@ function M.can_see(world, id, target)
     end
     local across = px * (dy / length) - py * (dx / length)
     if across < 0 then across = -across end
-    if across < width then
+    if across < soldier.radius[other] then
       blocked = true
     end
   end)
@@ -275,35 +318,78 @@ function M.hostile(a, b)
 end
 -- }}}
 
--- {{{ local function lowest_health_enemy()
--- Rule 2. Returns the id of the weakest enemy in range, or 0.
+-- {{{ local function enemy_to_swing_at()
+-- Rule 2. The enemy this body picks, or 0.
 --
--- Exact ties are broken by the tie stream using reservoir sampling: the nth
--- equally-good candidate replaces the incumbent with probability 1/n. That gives
--- a uniform choice among the tied while advancing the stream a fixed number of
--- times, which keeps a replay reproducible.
-local function lowest_health_enemy(world, id, must_see)
+-- **Anything it can already reach, chosen at random. Otherwise the nearest.**
+--
+-- Two rules that are really one: a body fights whoever is in front of it. When several
+-- are, it has no reason to prefer any of them, and picking at random is what stops an
+-- entire rank fixating on one man while the ones beside him swing at nobody.
+--
+-- ## What this replaced, and why it was the wrong rule
+--
+-- It used to take the **weakest enemy anywhere in acquisition range** -- seventy-four
+-- paces for a melee body, a hundred and thirty for an archer -- with a random choice
+-- only among exact health ties, which stop happening the moment anybody is wounded.
+--
+-- It reads sensibly: finish the hurt one. What it actually does is send a soldier past
+-- the man standing in front of him to reach somebody bleeding seventy paces away, and
+-- when two lines meet, *both* sides do it at once. Everybody converges on whoever is
+-- most hurt, from every direction, and the two lines walk through each other rather
+-- than into each other. There is no frontline because nobody is fighting the person
+-- opposite them.
+--
+-- That mattered much less when bodies could stand inside one another and a rank was
+-- held together by a queueing rule. With bodies solid and the queue gone, targeting is
+-- what makes a line: two ranks stop against each other because each body is swinging at
+-- the body in front of it.
+--
+-- The reservoir sampling is kept and now does real work rather than breaking rare
+-- ties: the nth equally-good candidate replaces the incumbent with probability 1/n,
+-- which is a uniform choice among them while advancing the stream a fixed number of
+-- times per call -- and a fixed number of steps is what keeps a replay reproducible.
+local function enemy_to_swing_at(world, id, must_see)
   local soldier = world.soldier
   local team = soldier.team[id]
-  local best, best_health, ties = 0, math.huge, 0
+
+  -- Anything inside this body's reach, and anything at all, gathered in one sweep.
+  -- Reach is measured to the other body's skin, so a large enemy is reachable from
+  -- further out -- see `reach_to`.
+  local in_reach, in_reach_count = 0, 0
+  local nearest, nearest_distance, nearest_ties = 0, math.huge, 0
 
   M.for_each_near(world, soldier.x[id], soldier.y[id], soldier.acquire_range[id],
     function(other)
       if M.hostile(team, soldier.team[other])
          and (not must_see or M.can_see(world, id, other)) then
-        local health = soldier.health[other]
-        if health < best_health then
-          best, best_health, ties = other, health, 1
-        elseif health == best_health then
-          ties = ties + 1
-          if world.stream.tie[team]:next_below(ties) == 1 then
-            best = other
+        local dx = soldier.x[other] - soldier.x[id]
+        local dy = soldier.y[other] - soldier.y[id]
+        local distance = dx * dx + dy * dy
+
+        local reach = M.reach_to(world, id, other)
+        if distance <= reach * reach then
+          in_reach_count = in_reach_count + 1
+          if world.stream.tie[team]:next_below(in_reach_count) == 1 then
+            in_reach = other
+          end
+        end
+
+        if distance < nearest_distance then
+          nearest, nearest_distance, nearest_ties = other, distance, 1
+        elseif distance == nearest_distance then
+          nearest_ties = nearest_ties + 1
+          if world.stream.tie[team]:next_below(nearest_ties) == 1 then
+            nearest = other
           end
         end
       end
     end)
 
-  return best
+  if in_reach ~= 0 then
+    return in_reach
+  end
+  return nearest
 end
 -- }}}
 
@@ -374,7 +460,7 @@ function M.choose(world, id)
     return
   end
 
-  -- Rule 2 -- the weakest enemy within acquisition range.
+  -- Rule 2 -- whoever this body can already reach, or the nearest it cannot.
   --
   -- **And one it has a line to, if it needs one.** An ordinary arrow is long-ranged
   -- and flat, so its own side's rank is in the way of it; only a longbow and certain
@@ -390,17 +476,17 @@ function M.choose(world, id)
   -- always, so the fallback ran nearly every tick for nearly every archer -- a grid
   -- query per candidate inside a grid query over candidates. One match went from
   -- twenty-eight seconds to five minutes.
-  local weakest = lowest_health_enemy(world, id, false)
+  local chosen = enemy_to_swing_at(world, id, false)
   local row = world.parameters.unit.archetype[soldier.archetype[id]]
   if world.parameters.unit.flat_arrows_need_a_line
-     and weakest ~= 0 and soldier.reach[id] == 2 and not (row ~= nil and row.arcs)
-     and not M.can_see(world, id, weakest) then
-    weakest = 0
+     and chosen ~= 0 and soldier.reach[id] == 2 and not (row ~= nil and row.arcs)
+     and not M.can_see(world, id, chosen) then
+    chosen = 0
     soldier.search_pause[id] = BLOCKED_PATIENCE
   end
-  if weakest ~= 0 then
-    soldier.target[id] = weakest
-    soldier.target_generation[id] = soldier.generation[weakest]
+  if chosen ~= 0 then
+    soldier.target[id] = chosen
+    soldier.target_generation[id] = soldier.generation[chosen]
     soldier.target_structure[id] = 0
     return
   end

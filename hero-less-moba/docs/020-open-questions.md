@@ -5039,3 +5039,284 @@ before anything is switched on.
   rather than what would have to be built.
 - **Does the field filling up want fixing on its own?** It happens either way, and
   nothing in the design says it should. It may be the more interesting bug.
+
+## H15. Terror is a second pool, and it has collided with dying — **NEEDS A DECISION**
+
+Found while writing up the siege-surge, which is the first place morale attacks exist.
+
+**The rule as it stands.** A body carries **terror** alongside health. The morale
+attacks — *fear*, *despair*, *ruin* — deal terror rather than damage. And **a body
+retreats when terror plus health falls below zero.**
+
+That is a clean rule and it is settled. What it collides with is the oldest rule in
+the simulation: **a body dies at zero health.**
+
+Line the two up and they do not describe the same body:
+
+| Health | Terror | Terror + health | What each rule says |
+| --- | --- | --- | --- |
+| 0 | 0 | 0 | dies (health rule); does not retreat — zero is not below zero |
+| 0 | 5 | 5 | dies; does not retreat |
+| −3 | 0 | −3 | dies; **and retreats** |
+| 4 | −9 | −5 | alive; retreats |
+
+The last row is what the rule was written for and it works. The third row is the
+problem: an ordinary blow that takes a body past zero has already put the sum below
+zero, so **every death is also a retreat**, and the body with the most terror left is
+the one hardest to frighten. That is backwards.
+
+**Three ways out, and they are genuinely different games:**
+
+1. **Ordinary damage does not push health below zero.** Health floors at zero, the sum
+   can only be driven under by terror, and retreat becomes a purely morale event. Cheap
+   to build. It also means overkill stops existing, which the challenge monsters may
+   care about.
+2. **Retreating and dying are separated by something else** — a flag, a state, a
+   different threshold. Honest, and it means writing down what that something is,
+   which is the work this option is hiding.
+3. **[212](../issues/212-a-beaten-body-gets-one-roll.md)'s roll is what decides
+   between them.** Falling below zero makes a body **beaten**, and beaten is not an
+   outcome, it is the moment the will save happens. Fail and it runs; pass and it
+   stays, lands its one blow, and dies. Dying and retreating stop being two rules that
+   have to be told apart, because they are the two faces of one roll.
+
+**The third reads best**, and it is the reason to prefer it: 212 already says the
+condition for "beaten and cannot continue" is the one thing in that issue not yet
+written, and lists three candidates for it. Terror plus health below zero is a fourth
+candidate, and it is better than the three because it is the only one that is a
+*number the player can affect* rather than a threshold somebody picked.
+
+**Changes when answered:** issues
+[212](../issues/212-a-beaten-body-gets-one-roll.md) — the definition of beaten — and
+[602](../issues/602-the-surge-turns-waves-into-a-stream.md), plus
+[combat and damage](006-combat-and-damage.md) and
+[a unit and what it carries](004-a-unit-and-what-it-carries.md), which is where the
+second pool has to be written down as a field.
+
+## H16. Do two allied formations pass through each other, or does one go round? — **ANSWERED, and it deletes the question**
+
+Found by building the scene and watching it, which is what
+[the proving ground](024-the-proving-ground.md) is for.
+
+[214](../issues/214-going-round-what-is-in-the-way.md) settles the enemy case and the
+stray case. Two formations crossing the same ground do not interpenetrate — one goes
+round, decided once for the whole group. A formation does not move for a single body;
+its members filter round him and close up behind.
+
+**Neither of those covers two friendly formations walking into each other**, and the
+arena scene shows what happens today: they **deadlock**. Each is a formation, so
+neither is entitled to walk through the other; each is waiting for the other to give
+way; nobody does.
+
+The two pictures, and this is a design call rather than a bug:
+
+- **They pass through each other.** Allies are not an obstacle to allies. Two friendly
+  columns cross and both keep their heading, and for a moment the ground holds twice
+  as many bodies as it has room for. Costs nothing, never deadlocks, and the picture
+  is two armies made of ghosts.
+- **One goes round.** Somebody yields, and the rule that decides who has to exist —
+  seniority, who is closer to an enemy, who was moving first, or the cheap one, whoever
+  is nearer the side they would move toward. Reads like soldiers. Can deadlock in the
+  symmetric case, which is exactly the case the scene builds.
+
+The answer changes the caption as much as the code: it is the difference between a
+formation being a *body* and a formation being a *claim on ground*.
+
+### Answer: neither, because a formation is not the thing that goes round
+
+**Units never walk through each other. They are flesh and blood and rock and stone.**
+
+That is the whole ruling and it is not a rule about formations at all. It is a rule
+about one body and one step, and the formations inherit it by being made of bodies:
+
+> A body is about to walk into another body if there is a body within
+> **`self.radius + other.radius`** of the ground its next step lands on. If there is,
+> that ground snaps to the point on the other body's circle nearest to us, and then
+> moves back toward our own centre by `self.radius`. The body may choose again next
+> tick. **That is all of the pathfinding logic.**
+
+The two designs 214 was going to build and compare — swarm pathfinding, and
+formation-respecting avoidance — are both answered by this and neither gets built.
+There is no formation-level decision to give way, no rule for which of two formations
+yields, and no tiebreak for the symmetric case. Fifteen bodies each declining to stand
+inside somebody is a formation flowing round another formation, and it costs one
+circle test per body per tick.
+
+**Why the snap lands where it does.** The nearest point on the obstacle's circle is
+the side we are coming from, so a body stops on the near face rather than being thrown
+round to the far one — it never crosses through to get out of the way. Pushing back by
+our own radius is what turns "touch their skin" into "our skin touches their skin",
+which is the only distance at which two bodies are neither overlapping nor apart.
+
+### The step, not the destination — and this is the whole difference between it working and not
+
+The rule says *waypoint*, and a marching body has two things that could be called one:
+the place its formation has for it, which may be **ninety paces away**, and the ground
+its next step lands on, which is one pace away. Written the first way it reads more
+naturally and it is wrong, because whether somebody is standing on your place ninety
+paces from here is a question about the future.
+
+Asked about the slot, a body was pushed off its place for obstacles it was nowhere
+near. The line stopped dressing — the mean distance from a body to its place went from
+six and a half paces to ten and a half — and because the anchor waits for its own
+stragglers, waves that never dressed never advanced. Matches stopped running their arc:
+**nine in ten reached the third challenge before, and roughly none after**, the rest
+decided by a base falling during the first one.
+
+Asked about the step, the arc comes back. Same rule, same numbers, one word different
+about which point it is asked at.
+
+### What it does *not* delete: the rank
+
+The frontline queue survives, and it was a mistake to read this ruling as removing it.
+The two rules answer different questions and are both true:
+
+| | the physical rule | the rank rule |
+| --- | --- | --- |
+| asks | may I stand here | should I push past the man in front |
+| about | everything on the field, the enemy included | my own side, in my own file |
+| distance | two bodies' radii — about seven paces | a rank's spacing — eighteen |
+| when it stops a body | it does not; it moves where the body is going | it does; the body waits |
+
+Deleting the queue and keeping only the physical rule was built and measured. Bodies
+press to touching, a losing wave spreads out and is killed piecemeal rather than
+stiffening into a block, and attrition stops self-correcting — the same collapse as
+above and for a different reason. **The queue is what makes a wave arrive as a rank.
+This rule is what stops two bodies being in one place.** Neither does the other's job.
+
+### What it needed first
+
+A radius, which no body had — [215](../issues/215-a-body-has-a-size.md) is a hard
+prerequisite rather than a related improvement. Three things came with it:
+
+- **Reach is measured to a body's skin, not its centre.** `range + other.radius`. Without
+  it a soldier stands against a monster at thirty paces from its centre while its sword
+  reaches seventeen, so **every melee body misses every monster forever** — which from
+  outside looks like a challenge phase that never ends and a calm that never begins.
+- **Two bodies may not be *born* in the same place.** The rule cannot separate them
+  afterwards: bodies at one point have no direction to be pushed apart along. Two
+  spawners were doing it, invisibly, and are covered in 215.
+- **An offset given to a body must be in a frame belonging to the thing it is offset
+  from.** Guards spread on a spiral in world coordinates put team 1's a pace toward the
+  enemy and team 2's a pace toward home, because **the map is a mirror**. Four matches
+  with nobody playing, and the same side won all four.
+
+**Changes:** issues
+[214](../issues/214-going-round-what-is-in-the-way.md),
+[215](../issues/215-a-body-has-a-size.md),
+[206](../issues/206-the-frontline-is-a-queue.md) — which keeps its rule and gains a
+neighbour — [303](../issues/303-towers-put-guards-on-the-ground.md),
+[207](../issues/207-waves-spawn-on-a-cadence.md), and
+[709](../issues/709-the-drawn-body-lags-the-real-one.md), which had the same snapping
+rule written into it as a rendering concern and now gets it from the simulation.
+
+## H17. Does a retreating body still count? — **NEEDS A DECISION**
+
+A body running home is still on the field. Which means, unless something says
+otherwise, it is:
+
+- **taking up room** — other bodies queue behind it and go round it
+- **blocking lines of sight** — an archer behind it cannot shoot through it
+- **counted in push depth** — the measure of how far a lane has been pushed reads it
+  as a body present in that zone
+
+All three are the defaults, and all three are arguable. A surge whose lanes fill with
+bodies going the wrong way may read as a **current**, which is what it is for — or as
+a **mess**, which is what it will be if a hundred routed soldiers are shouldering
+through a hundred advancing ones and blocking every arrow on the way.
+
+The three can be answered separately and probably should be. Room is the one that is
+hardest to take away, and H16 is why: bodies are solid now, and a body you can walk
+through is a body that is not made of anything. Push depth is the one that is easiest
+to argue: a body fleeing a zone is not holding it, and counting it means a lane reads
+as contested precisely while it is being lost.
+
+**Changes when answered:** issues
+[602](../issues/602-the-surge-turns-waves-into-a-stream.md),
+[212](../issues/212-a-beaten-body-gets-one-roll.md),
+[206](../issues/206-the-frontline-is-a-queue.md) and
+[102](../issues/102-milestones-measure-a-push.md).
+
+## H18. Head-on, the rule stops a body rather than moving it aside — does a body need a way to change file? — **NEEDS A DECISION**
+
+Found by building H16's rule and then watching the two scenes it was built for.
+
+The rule moves the ground a body is walking onto to the near face of whatever is
+standing there, along the line from that body's centre through ours. **Head-on, that
+line has no sideways in it.** A body walking directly at an obstacle is pushed straight
+back along its own path — slowed, never deflected. Going round only emerges when a body
+arrives at an angle.
+
+Both arena scenes show the consequence and neither of them is wrong about it:
+
+- **Two allied formations** meet and stop against each other, touching exactly,
+  overlapping nowhere. Nobody gives way, because in the head-on case there is nobody the
+  rule could tell to.
+- **A formation and one stationary ally** is the sharper one. The formation does not
+  care about him — it holds its depth to within a pace or two and walks up past him —
+  but the file he is standing in never gets by, so that file lags, and because a wave's
+  anchor waits for its own stragglers, the whole line stops. **One man in a field stops
+  fifteen**, which is precisely what [214](../issues/214-going-round-what-is-in-the-way.md)
+  exists to prevent.
+
+Being pushed back along your own path is a good property and was chosen deliberately: a
+body displaced backwards keeps its file, keeps its heading, keeps its place in the line,
+and simply arrives later. Push it sideways and you have moved it out of a formation to
+solve a problem that was about timing. **But something has to give when the thing in
+front is never going to move.**
+
+Candidates, and they are not exclusive:
+
+1. **A body may change file.** The lateral move 214 already describes — a hole in the
+   line ahead of you is a place to rush to. Costs a rule about when a body is allowed to
+   leave its file and when it must not.
+2. **The snap gains a sideways component when the body has been stopped for a while.**
+   Cheap, and it makes "stuck" a state rather than a fact.
+3. **A stationary body is not an obstacle to the formation's anchor.** The anchor stops
+   waiting for a straggler that is stuck rather than slow, and the line goes on without
+   him. Cheapest, and it means a formation can leave people behind.
+4. **Nothing.** Two files walking directly at each other stopping is what two files
+   walking directly at each other should do, and the stray case wants fixing by not
+   having strays stand in roads.
+
+**Changes when answered:** issue
+[214](../issues/214-going-round-what-is-in-the-way.md) and both arena scenes, which
+already reproduce it.
+
+## H19. The match got slower and less decisive — is that the game now? — **NEEDS A DECISION**
+
+Solid bodies change how a fight resolves, and it shows at the scale of a whole match
+rather than at the scale of a rank.
+
+Measured with nobody playing, across nine seeds each:
+
+| | before | after |
+| --- | --- | --- |
+| reached the third challenge | 9 of 10 | 5 of 9 |
+| when a match ended | ticks 23,400–25,300 | ticks 19,700–29,300 |
+| bodies alive at a challenge | a few hundred | a thousand and more |
+
+The direction of the change is one thing and it is not obviously wrong: **two lines that
+cannot flow through each other jam harder than two lines that could**, so fewer bodies
+are in contact at once, so killing is slower, so waves accumulate rather than clearing.
+That is the "front rank fights and the ranks behind wait" property arriving as physics
+instead of as a rule, and a player would read it as a game with more weight in it.
+
+The spread is the other thing and it is worse: matches that used to end at a predictable
+point now end anywhere from the second challenge to past the third, and four of nine did
+not run the arc the phase clock was designed around. The pinned test seed is one of
+those, so `test_a_match_ends` is currently failing on the arc it asserts.
+
+Three ways to read it, and the choice is a design one rather than a measurement:
+
+1. **Rebalance around it.** The bodies are right and the numbers around them are stale —
+   wave size, cadence, health, the phase clock's own durations were all chosen for a game
+   where bodies could stand inside each other.
+2. **Give the bodies less room.** Radii are the renderer's old drawing numbers, picked to
+   look right rather than to be stood on. Smaller bodies jam less.
+3. **Accept the spread and change the test.** A match that ends between the second and
+   third challenge may be a fine match; it is only failing an assertion that says three.
+
+**Changes when answered:** the unit catalogue, the boon table's phase durations, and
+[the invariants](../tests/051-the-invariants.info.md) — plus the balance ledger either
+way.

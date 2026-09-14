@@ -23,34 +23,27 @@ being drawn has no state of its own to carry.
 Three separate things were asked for together and they are separable. Only the third is
 an architecture change; the first two are visible immediately without it.
 
-### A movement target is pushed off an occupied place
+### A movement target is pushed off an occupied place — **built, and it left this file**
 
-When the place a body is being sent to falls within **`self.radius + other.radius`** of
-another body, the target does not stay there. It **snaps to the point on that circle
-that is most "up"** — see below for what up means here.
+This is now a rule of the simulation rather than of the drawing, and it lives in
+[214](214-going-round-what-is-in-the-way.md). Bodies cannot occupy the same ground at
+all, so a destination inside somebody is not a picture problem to be smoothed over —
+it is a place the body may not be, and the simulation says so.
 
-This is [215](215-a-body-has-a-size.md)'s two-body spacing question asked at the moment
-a destination is chosen rather than at the moment a step is taken, and the two want to
-agree: a target that lands somewhere the queue would refuse is a body ordered to stand
-where it cannot stand.
+Two things about it came out differently from the sketch that was here:
 
-**"Up" means back the way it came.** Not a third axis and not a screen direction — the
-circle's highest point in the sense that matters to a body walking somewhere, which is
-the point nearest to where it has just been.
+**It is asked about the step, not the destination.** A marching body's place in its
+formation can be ninety paces away, and whether somebody is standing on it is a
+question about the future. Asked about the place instead of about the next pace,
+bodies were shoved off their slots for obstacles they were nowhere near.
 
-That is a good deal better than any of the spatial readings, and for a reason worth
-writing down: **a body displaced backwards along its own path is a body that has been
-slowed, not deflected.** It keeps its file, keeps its heading, keeps its place in the
-line, and simply arrives later. Push it sideways and you have moved it out of its
-formation to solve a problem that was about timing; push it forward and you have moved
-it past the thing it was supposed to be behind.
+**The direction is toward the body's own centre, and that is what "up" meant.** The
+paragraph here reasoned its way to the near point of the circle — the point nearest
+where the body has just been — and that reasoning was right and is what got built. A
+body displaced backwards along its own path has been slowed rather than deflected: it
+keeps its file, keeps its heading, and arrives later.
 
-It also makes the queue and the target agree. Stopping short — the one answer the
-frontline rule has ever had — *is* being pushed back along your own path, in the
-smallest possible amount. Snapping the target to the near point of the circle is that
-same rule, applied once at the moment a destination is chosen rather than every tick as
-a body walks into one, and it gives a body a place it can actually stand instead of an
-order it will spend the rest of the match failing to carry out.
+What remains in this file is the drawing.
 
 ### The drawn body travels toward the simulated one, with inertia
 

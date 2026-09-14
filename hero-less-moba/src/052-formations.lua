@@ -133,6 +133,12 @@ local GEAR_CHANGE = 2
 -- formation into a column.
 local ANCHOR_PATIENCE = RANK_SPACING * 0.5
 
+-- The slowest a stretched formation's front may go, as a fraction of its pace. **Not
+-- zero, and that is the point.** Anything that can reach zero can deadlock, and a wave
+-- held up by one stationary body has to be able to grind past it rather than wait on
+-- it for the rest of the match.
+local ANCHOR_FLOOR = 0.35
+
 -- How far behind its place a body can be and still be **in** the formation.
 --
 -- Beyond this it is not out of position, it is **rejoining** -- it fell out of the
@@ -779,141 +785,134 @@ local function advance_anchor(world, wave)
   -- a wave that sped up when its captain died would be a wave rewarded for losing
   -- the most valuable thing in it.
   --
-  -- **And it waits when the formation is stretched.** Nothing goes faster than
-  -- marching pace, so a body on the outside of a bend cannot make up the extra ground
-  -- by hurrying -- the front has to stop asking for it. Read from last tick's
-  -- measurement, which is a tick of latency and invisible at a tenth of a pace.
-  if (wave.mean_lag or 0) > ANCHOR_PATIENCE then
+  -- **It does not wait for its stragglers. It waits for its front.**
+  --
+  -- The anchor is the formation's front, and a front that has walked away from the
+  -- people it is the front of is not a front. So it advances at the wave's pace and is
+  -- then held to within a rank of the body that is actually furthest forward.
+  --
+  -- What this replaces waited on the **mean** lag across the wave, which is the wrong
+  -- statistic and was the single most damaging line in the module. A mean moves when
+  -- any one body moves it, so once bodies became solid a single ally standing still in
+  -- a lane was enough to stop an army: the body behind him could not get past, its lag
+  -- dragged the mean over the threshold, and fifteen soldiers stood in a field waiting
+  -- on one man who was never going to move. Measured against the frontmost body
+  -- instead, a straggler at the back is somebody's private problem -- the line walks
+  -- on and he closes the gap when the ground in front of him clears.
+  --
+  -- It is still needed, and taking it out entirely was tried: with nothing bounding it
+  -- the anchor runs away down the lane. On a bend the body on the outside has further
+  -- to walk in the world and is capped at its own speed, so it falls behind and cannot
+  -- make it up; the anchor does not care, the waypoints go with it, and the formation
+  -- stretches the length of the lane. Measured at two thousand paces of bend against a
+  -- rank of thirty.
+  -- **A stretched formation slows down. It never stops.**
+  --
+  -- The distinction is the whole of it, and both halves were learned by getting them
+  -- wrong. Stopping outright is what the old rule did once the mean lag passed a
+  -- threshold, and a mean moves when any one body moves it -- so a single ally standing
+  -- still in a lane froze fifteen soldiers behind him for ever. Not bounding it at all
+  -- was the other extreme: on a bend the outer body has further to walk in the world
+  -- and is capped at its own speed, so it falls behind and cannot make it up, and an
+  -- unbounded anchor simply walks away from its own wave. Measured at two thousand
+  -- paces of stretch against a rank of thirty, and at a formation occupying the entire
+  -- road.
+  --
+  -- Bounding it against the **frontmost** body instead of the mean fails a third way:
+  -- the front is itself carried by the anchor, so the two run off together and leave
+  -- everybody else behind.
+  --
+  -- Slowing keeps what stopping was for -- the front stops asking for ground the line
+  -- cannot cover -- and gives up the part that was doing harm, because a wave that is
+  -- merely slow gets past its obstacle eventually and a wave that has stopped does not.
+  local pace = wave.pace
+  local lag = wave.mean_lag or 0
+  if lag > ANCHOR_PATIENCE then
+    local eased = ANCHOR_PATIENCE / lag
+    if eased < ANCHOR_FLOOR then eased = ANCHOR_FLOOR end
+    pace = pace * eased
     wave.waiting = 1
-    return
+  else
+    wave.waiting = 0
   end
-  wave.waiting = 0
 
-  wave.anchor = wave.anchor + wave.pace * facing
+  wave.anchor = wave.anchor + pace * facing
+
   if wave.anchor < 0 then wave.anchor = 0 end
   if wave.anchor > lane.length then wave.anchor = lane.length end
 end
 -- }}}
 
--- {{{ local function share_out_speed()
--- The conserved correction.
+-- {{{ local function measure_the_lag()
+-- How far behind its place each body is, recorded and nothing more.
 --
--- Each body's lag is how far behind its place it is, measured along the direction
--- of travel. The wave's mean lag is subtracted, so what is left is a **deviation**
--- that sums to zero across the wave -- and a multiplier built from it hands out
--- exactly as much speed as it takes away, every tick, structurally, rather than
--- because somebody remembered to balance the books.
+-- **This used to hand out speed.** Each body's lag had the wave's mean subtracted to
+-- give a deviation that summed to zero, and a multiplier built from that handed out
+-- exactly as much speed as it took away -- bodies ahead of their place dropping to
+-- seven tenths of pace so bodies behind theirs could catch up, in three gears with a
+-- dead band, conserved by construction. It was careful work and it is gone.
 --
--- The mean matters as well as the deviation: a wave whose every member is behind
--- is not out of formation, it is a wave whose anchor has got ahead of it, and
--- speeding all of them up would be a wave that accelerates for no reason.
-local function share_out_speed(world, wave, members, count)
+-- It is gone because **a formation is now only a thing that says where each body
+-- should be standing.** A body does not know it is in one. It has a place, it walks
+-- toward it at its own speed, and what happens when it cannot get there is that it
+-- does not get there -- not that fourteen other bodies adjust their pace on its
+-- behalf. The whole apparatus existed to hold a line together in a world where
+-- nothing physically stopped bodies passing through each other. Something does now.
+--
+-- What is kept is the measurement, because the sandbox and the viewer both read it
+-- and "how far is this line out of shape" is worth being able to ask.
+local function measure_the_lag(world, wave, members, count)
   local soldier = world.soldier
   if count == 0 then
     return
   end
 
-  -- **Only bodies still marching are in the budget.** One that has closed on an
-  -- enemy has left the formation's business -- *once fighting begins it is less
-  -- important to retain cohesion* -- and including it would be the formation trying
-  -- to drag a body out of a fight by the collar.
-  --
-  -- It also keeps the budget honest. A body that has charged is a very long way
-  -- from its place, and averaging that in would tell every body still in line that
-  -- it was badly out of position when it is standing exactly where it should be.
-  local marching, marching_count = wave.marching_scratch, 0
-  if marching == nil then
-    marching = {}
-    wave.marching_scratch = marching
-  end
-
-  local sum = 0
+  local sum, marching = 0, 0
+  local front = nil
   for index = 1, count do
     local id = members[index]
+    soldier.speed_scale[id] = 1
+
+    -- **How far the furthest-forward body has actually got.** The anchor reads this
+    -- next tick and refuses to get more than a rank ahead of it, which is what stops a
+    -- formation's front walking away from the formation. Taken over every member
+    -- rather than only the marching ones: a body that has closed on an enemy is still
+    -- the front of this wave, and is usually the point of it.
+    local along = soldier.lane_along[id]
+    if front == nil or (along - front) * soldier.facing[id] > 0 then
+      front = along
+    end
+
     if soldier.state[id] == 1 then
       local target_along = M.target_of(world, id)
       -- Positive means behind. Multiplying by facing folds the two directions into
       -- one sign, so team 2 lags the same way team 1 does.
       local lag = (target_along - soldier.lane_along[id]) * soldier.facing[id]
       wave.lag_of[id] = lag
-
-      if lag > REJOIN_DISTANCE or lag < -REJOIN_DISTANCE then
-        -- Rejoining rather than out of position. Outside the budget entirely.
-        soldier.speed_scale[id] = 1
-      else
-        marching_count = marching_count + 1
-        marching[marching_count] = id
-        sum = sum + lag
-      end
+      sum = sum + lag
+      marching = marching + 1
     else
       wave.lag_of[id] = 0
-      soldier.speed_scale[id] = 1
     end
   end
+  wave.front_along = front
 
-  if marching_count == 0 then
-    wave.speed_balance = 0
-    wave.speed_shared_among = 0
-    return
-  end
-
-  members, count = marching, marching_count
-  local mean = sum / count
-  -- Published so the anchor can read it next tick and wait if the formation has been
-  -- pulled out of shape. Positive means the wave as a whole is behind its own front.
-  wave.mean_lag = mean
-
-  local handed_out = 0
-  for index = 1, count do
-    local id = members[index]
-    local deviation = wave.lag_of[id] - mean
-
-    -- **A body is in a gear, not on a dial.**
-    --
-    -- This was a continuous multiplier -- a body's speed scaled smoothly with how far
-    -- behind its place it was -- and a formation of them never settles: everybody is
-    -- always slightly correcting, at a slightly different rate, and the line breathes
-    -- rather than marches. It also cannot be measured, because "how fast is that
-    -- soldier going" has a different answer for every soldier and every tick.
-    --
-    -- So there are three speeds and a body is in one of them:
-    --
-    --   walking   giving way. A body ahead of its place, letting the line catch up.
-    --   marching  the pace, and the catching-up pace: what a body does when it is
-    --             where it should be, and what it does to get back there.
-    --   running   leaving. Nothing running is in a formation any more -- see 212.
-    --
-    -- Which one is a question about the deviation, asked with a dead band around
-    -- zero so that a body standing very nearly right does not switch gear every tick
-    -- over a fraction of a pace. The band is the hesitancy this replaces.
-    local scale = MARCHING
-    if deviation < -GEAR_CHANGE then
-      scale = WALKING
-    end
-    soldier.speed_scale[id] = scale
-    handed_out = handed_out + scale
-  end
-
-  -- How far off the books came out this tick, recorded rather than asserted.
-  --
-  -- It should be zero: the deviations sum to zero by construction, so the speed
-  -- handed out equals the speed given up without anybody counting. The clamps are
-  -- allowed to break that, and are supposed to -- a straggler that could sprint
-  -- would read as teleporting -- so what this number is for is noticing a
-  -- *systematic* drift, which would mean a wave quietly moving faster than its
-  -- catalogue says.
-  --
-  -- Kept here rather than measured from outside because the set of bodies this was
-  -- shared among is the set that was alive when it was shared, and some of them
-  -- will be dead by the time anybody else looks.
-  wave.speed_balance = handed_out - count
-  wave.speed_shared_among = count
+  wave.mean_lag = (marching > 0) and (sum / marching) or 0
+  -- Nothing is handed out any more, so nothing can fail to balance. Left at zero
+  -- rather than deleted because the sandbox prints it, and a number that has stopped
+  -- meaning anything should read as zero rather than as the last value it had.
+  wave.speed_balance = 0
+  wave.speed_shared_among = marching
 end
 -- }}}
 
 -- {{{ function M.plan()
--- Advances every wave's anchor and shares out the cohesion budget. Once per tick,
--- before the brain runs.
+-- Advances every wave's anchor and writes down where each of its bodies should be
+-- standing. Once per tick, before the brain runs.
+--
+-- That is the whole of what a formation does now. It publishes places; the bodies walk
+-- toward them knowing nothing about each other, and the rule that stops two bodies
+-- occupying one piece of ground does the rest.
 function M.plan(world)
   local soldier = world.soldier
 
@@ -932,7 +931,7 @@ function M.plan(world)
       if count > 0 then
         wave.radius = M.live_radius(world, members, count)
         advance_anchor(world, wave)
-        share_out_speed(world, wave, members, count)
+        measure_the_lag(world, wave, members, count)
       end
     end
   end

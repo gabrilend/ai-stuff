@@ -10,9 +10,28 @@
 
 ## Current behavior
 
-Ranked, cheapest test first: somebody already swinging at me, then the
-lowest-health enemy in acquisition range, then a structure in weapon range, then
-nothing. Lowest health rather than nearest, because bodies should finish things.
+Ranked, cheapest test first: somebody already swinging at me, then an enemy soldier
+in acquisition range, then a structure in weapon range, then nothing.
+
+**Rule 2 now picks whoever this body can already reach, at random among them, and the
+nearest one it cannot reach otherwise.** It used to take the **lowest-health** enemy
+anywhere in acquisition range -- seventy-four paces for a melee body, a hundred and
+thirty for an archer -- with the random choice reserved for exact health ties, which
+stop occurring the moment anybody is wounded.
+
+The document below always said *nearest*; the code said *weakest*, with a line
+defending it: bodies should finish things. What that actually does is send a soldier
+past the man standing in front of him to reach somebody bleeding seventy paces away,
+and when two lines meet, both sides do it at once. Everybody converges on whoever is
+most hurt, from every direction, and the two lines walk through each other instead of
+into each other. Measured: two lines that had been sitting a hundred and seventeen
+paces apart with nobody fighting closed to seven, with six bodies engaged on each
+side.
+
+It mattered less while bodies could stand inside one another and a queueing rule held
+a rank together. With bodies solid and that rule gone, **targeting is what makes a
+line** -- two ranks stop against each other because each body is swinging at the body
+in front of it.
 
 Ties are broken by the team's own tie stream with reservoir sampling, which advances
 the stream a fixed number of times so a replay stays reproducible. A spatial grid
@@ -29,12 +48,61 @@ second enemy and never once look round.
 
 Target selection, ranked, cheapest test first:
 
-1. **An enemy soldier already attacking me.** Free to check — it is a field, not
-   a search — and it is what makes a frontline hold together rather than
-   scattering to chase.
+1. **Whoever this body can already reach**, chosen at random when there are several.
+   A body fights whoever is in front of it, and when several are, it has no reason to
+   prefer any of them — picking at random is what stops a whole rank fixating on one
+   man while the soldiers beside him swing at nobody.
 2. **The nearest enemy soldier within acquisition range.**
 3. **An enemy structure within weapon range.**
 4. **Nothing.** Keep walking.
+
+### An enemy that has struck you is always a valid target, at any distance
+
+**Not an override — a candidate.** Whoever hits a body for the first time joins that
+body's list of things it may choose from, and it joins it *regardless of range*: the
+one target in this game that does not have to be inside acquisition range to be
+picked. Everything else about the choice is unchanged, so the ranking above still
+decides between it and everybody else.
+
+Two consequences, and the second is the reason it is a candidate rather than a
+command:
+
+**A body being shot from beyond its own sight walks toward the thing shooting it.**
+An archer at a hundred and thirty paces is outside a melee body's seventy-four, so it
+does not appear in any search that body makes. Without this rule a soldier stands and
+is killed by something it is not permitted to notice. With it, the archer is on the
+list, is the only thing on the list, and the soldier closes on it.
+
+**And a body in a melee does not abandon it to chase that archer.** If something is
+already inside this body's reach, rule 1 takes it and the distant assailant loses —
+which is right, and is the whole reason this is not an override. Being hit from far
+away makes the striker *available*, not *urgent*. A rule that forced it would turn
+every ranged volley into an invitation to break formation and run at the enemy
+backline, and a line that does that is not a line.
+
+**This is not what the code does today.** Today the striker outranks everything and is
+taken immediately, which is the forcing version — so a body currently *does* abandon
+the enemy in front of it to go after whoever shot it last.
+
+### The list is rebuilt, not remembered
+
+**Every time a body needs to choose, it identifies the nearby potentials afresh.** The
+proximity search runs, and the remembered strikers are added to what it found. The list
+is a thing assembled at the moment of asking, not a thing accumulated and carried.
+
+That is what makes the striker memory's shortness harmless. It holds only the few most
+recent assailants and a new one pushes the oldest off, so it is fair to ask what happens
+to a body that has been forgotten — and the answer is nothing, because forgetting is not
+exclusion. Anything standing near this body is found by the search whether it is
+remembered or not. **There is no case where a body becomes unable to target an actor
+again.**
+
+The memory is doing one job only, and it is worth stating narrowly: it carries the
+enemies that are *out of reach of the search* — the archer at a hundred and thirty paces
+that a melee body's seventy-four will never sweep up. Anything inside the sweep needs no
+memory. So a striker that falls off the end of the list has lost exactly one privilege:
+being chased when it is too far away to see. If it is anywhere near, it is a candidate
+like everybody else.
 
 Structures rank **below** soldiers deliberately. A soldier that walks past a
 defended tower to chew on the tower is a soldier that dies for free, and a

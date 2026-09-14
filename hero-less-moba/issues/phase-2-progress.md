@@ -27,6 +27,13 @@ problem statement, rendered, and phase 4's demo is the answer to it.
 | 211d | Marching speed is not running speed | gears built; running not |
 | 212 | A beaten body gets one roll | not started |
 | 213 | What the lane can afford | not started — fully specified |
+| 214 | Going round what is in the way | built — and neither of its two designs was |
+| 215 | A body has a size | built, except that size does not grow with upgrades |
+| 216 | Movement is a goal and a step | in progress — the umbrella |
+| 216a | A goal, and a step | built |
+| 216b | Every way of moving is a row | built for everything on a road |
+| 216c | Three paces, and hurry is faster than marching | built — M5 open |
+| 216d | A guard is still an edge walker | not started |
 
 **Blocking:** nothing.
 
@@ -136,3 +143,60 @@ statement about scale rather than about a number.
 than here: bodies further apart, drawn smaller, roads wider — and the map checker
 now refuses a map whose roads no longer carry the number of bodies abreast that the
 shape file says they should.
+
+## Bodies stopped being able to stand in the same place, and four things fell out
+
+The ruling on H16 is that **units never walk through each other**, enforced one way:
+before a body moves, the ground its next step lands on is checked against everything
+near it, and if it is inside somebody it is moved to that body's near face. Both of the
+designs 214 was going to build and compare — swarm pathfinding, and formations giving
+way to formations as bodies — were dropped without being built, because fifteen bodies
+each declining to stand inside somebody *is* a formation flowing round another one.
+
+**It could not be built without giving bodies sizes**, which was 215 and had been
+sitting behind it. Three numbers that had been allowed to disagree became one: the
+renderer's drawing table, the single `personal_space` every body shared, and the sight
+width that was a fifth of that. The fifth turned out to be 3.6 — exactly the melee
+body's drawn radius — so it had been tuned to the picture all along and written as a
+fraction of something else.
+
+**Reach had to start measuring to a body's skin.** A soldier stops against a monster at
+thirty paces from its centre and its sword reaches seventeen. Measured centre to centre,
+every melee body in the game misses every monster forever, and what that looks like from
+outside is not a combat bug: it is a challenge phase that never ends, a calm that never
+begins, and no boon ever offered.
+
+### Three things learned, each of them the hard way
+
+**The rule is about the step, not the destination.** A marching body's formation slot
+can be ninety paces off, and whether somebody is standing on it is a question about the
+future. Asked about the slot, bodies were shoved off their places for obstacles they
+were nowhere near; the line stopped dressing, and since a wave's anchor waits for its
+own stragglers, waves stopped advancing. Matches went from running the three-challenge
+arc nine times in ten to almost never — decided instead by a base falling during the
+first challenge. Same rule, one word different about where it is asked.
+
+**Two bodies must never be *born* in one place**, because nothing can separate them
+afterwards: bodies at one point have no direction to be pushed apart along. Two spawners
+had been doing it since they were written, invisibly, and only became visible once
+overlapping was forbidden. Every tower put all its guards on the tower's own node. And a
+wave deeper than its start distance had its rear ranks placed behind the library, which
+clamps to zero — and zero is the node **all three lanes share**, so the back of every
+wave leaving a base was born inside the back of the other two.
+
+**An offset must be expressed in a frame belonging to the thing it is offset from.** The
+guards were first spread on a spiral in world coordinates, which is a fixed set of
+absolute directions. The map is a mirror, so that put one team's guards a pace toward
+the enemy and the other team's a pace toward home. Four matches with nobody playing, and
+the same side won all four. The axis now runs from that team's library to that tower, so
+it mirrors when the tower does.
+
+### What the queue turned out to be for
+
+Deleting the frontline queue and keeping only the physical rule was built and measured,
+and it does not work. Bodies press to touching, a losing wave spreads out and is killed
+piecemeal instead of stiffening into a block, and attrition stops self-correcting. The
+two rules are not versions of each other: one asks *may I stand here* about everything
+on the field at two bodies' widths, and the other asks *should I push past the man in
+front of me* about my own side at a rank's spacing. The first cannot make a rank and the
+second cannot stop a body standing inside a monster.

@@ -18,8 +18,47 @@ is much easier to find when the order is a list you can read.
 | `load_cast(root)` | project root | Every module, keyed by the name it is hung on the world under. |
 | `assemble(modules, parameters)` | | A world with every system wired and every starting condition set. |
 | `advance(world)` | | `true` if a tick ran; `false` once the match is over. |
+| `advance_through(world, chosen)` | a list of `{name, run}` | The same, made of exactly those stages. |
+| `select(stages)` | a selection's name, or a list of stage names | Those stages, refusing anything unrecognised. |
 | `system` | *(table)* | The order of the simulation. |
+| `stage` | *(table)* | Every stage that exists, by name. |
+| `selection` | *(table)* | The named groups of stages a test is likely to want. |
 | `cast` | *(table)* | Module names and the files they live in. |
+
+## An order, and a vocabulary
+
+`system` is an **order**: what the game runs, in the sequence it runs it. `stage` is a
+**vocabulary**: every stage that exists, by name, whether or not the whole match runs it.
+
+The distinction earns its keep in one place. A test names the stages it wants and gets
+these rows — the engine's own — rather than a hand-written imitation of them. That is the
+whole reason [a test](071-the-bench.info.md) may not define behavior: two descriptions of
+what a tick does will disagree eventually, and when they do, the test is measuring the
+harness.
+
+**The `march` row is not in the order.** The real game moves a body through the brain,
+which decides between marching, closing, standing off, falling back, healing, fleeing and
+decaying. A test about walking wants marching and none of the other six, so it needs a
+row the game itself never runs — and it needs that row to live beside the real one, so
+that a change to how a tick marches is one edit rather than two.
+
+| Selection | Stages | For |
+| --- | --- | --- |
+| `whole_match` | all of them, in order | a match test |
+| `marching` | index, form, march, index, separate | bodies walking and nothing else: nothing acquires a target, nothing swings, nothing dies, no wave is due, no phase turns over |
+| `fighting` | index, form, retarget, march, index, separate, attack, resolve, reap | walking with fighting on top, and still no spawner, phase clock or economy |
+
+**`index` appears twice in every one of them**, and that is the one repeated row in the
+table. Every body has just moved, so the grid built before the move says where everybody
+*was*; a separation pass reading it would miss exactly the pairs that moved into each
+other this tick, which are all of them.
+
+**`separate` is why no two bodies overlap.** It is in every selection on purpose: a test
+that could leave it out would be a test measuring a world with a different rule in it than
+the game has.
+
+A selection is an opinion about what marching consists of, written once, in the engine.
+Fifteen tests reciting their own lists would hold fifteen slightly different ones.
 
 ## The order
 

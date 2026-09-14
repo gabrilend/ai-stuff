@@ -158,12 +158,16 @@ M.parameters = {
   -- How far apart two bodies stand when they are queueing, and how close a guard
   -- has to get to its tower to call itself home. Those are the only two readers.
   --
-  -- It used to say the renderer drew bodies about this size and that was never true
-  -- -- the renderer keeps its own table of radii, one per archetype, because how big
-  -- a thing is drawn is a question about looking at it and this is a question about
-  -- standing in a crowd. The two numbers are free to disagree and currently do: a
-  -- body is drawn a good deal smaller than the room it keeps around itself, which is
-  -- what makes a rank read as a rank rather than as a solid bar.
+  -- **This is a rank's spacing and it is not a body's size.** That distinction was
+  -- muddled for a long time and is now settled by there being a real size: every
+  -- archetype carries a `radius` in the unit catalogue, and that is what decides how
+  -- much ground a body stands on, how large it is drawn, how much of a shot it blocks,
+  -- and how near another body may come.
+  --
+  -- What is left here is the tactical distance -- how much room a soldier wants behind
+  -- the man in front of him, which is several times his own width and always was. A
+  -- previous note here claimed this was roughly the drawn size of a body; it never was,
+  -- and it is now five times it.
   personal_space = 18,
 }
 -- }}}

@@ -35,7 +35,7 @@ Coordinates are in **paces**, with y increasing downward to match the screen.
 | `milestone_fraction` | double[0..8] | Where each milestone sits along its lane, as a fraction of the lane's length from team 1's library to team 2's. **Indexed from 0** — do not take its length. |
 | `milestone_count` | integer | Nine. Walk `milestone_fraction` with this rather than with `#`. |
 | `lane_width` | double[1..3] | How many paces across each lane is. The centre's is larger. |
-| `personal_space` | double | How far apart two bodies stand when queueing. |
+| `personal_space` | double | A **rank's spacing**: how far apart two bodies stand when one is queueing behind the other, and how close a guard has to get to its tower to call itself home. Not a body's size — that is `radius`, one per archetype, in the [unit catalogue](025-unit-table.info.md). |
 | `bend_smoothing_window` | integer | How many nodes each way of a junction may move when the corner is rounded. |
 | `bend_smoothing_passes` | integer | How round it gets. |
 

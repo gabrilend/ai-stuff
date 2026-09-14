@@ -125,11 +125,20 @@ function M.attack_pass(world)
       local row = world.parameters.unit.archetype[soldier.archetype[id]]
       if row ~= nil and row.deathless and soldier.cooldown[id] <= 0 then
         local landed = false
-        world.targeting.for_each_near(world, soldier.x[id], soldier.y[id], soldier.range[id],
+        -- The query is widened by the biggest body in the catalogue and then each
+        -- candidate is measured properly, because what counts as in reach depends on
+        -- how big *that* body is and a query only takes one distance.
+        local sweep = soldier.range[id] + world.largest_body
+        world.targeting.for_each_near(world, soldier.x[id], soldier.y[id], sweep,
           function(other)
             if world.targeting.hostile(soldier.team[id], soldier.team[other]) then
-              M.strike(world, other, soldier.damage[id])
-              landed = true
+              local dx = soldier.x[other] - soldier.x[id]
+              local dy = soldier.y[other] - soldier.y[id]
+              local reach = world.targeting.reach_to(world, id, other)
+              if dx * dx + dy * dy <= reach * reach then
+                M.strike(world, other, soldier.damage[id])
+                landed = true
+              end
             end
           end)
         for _, structure in ipairs(world.structure) do
@@ -171,7 +180,8 @@ function M.attack_pass(world)
             clear = world.targeting.can_see(world, id, target)
           end
 
-          if clear and dx * dx + dy * dy <= soldier.range[id] ^ 2 then
+          local reach = world.targeting.reach_to(world, id, target)
+          if clear and dx * dx + dy * dy <= reach * reach then
             -- A frightened body hits softer. Fear is not damage and never was --
             -- it is what the enemy actually does to you, and it is inflicted on
             -- purpose by something that meant to.
