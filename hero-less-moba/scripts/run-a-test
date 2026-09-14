@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+#
+# run-a-test -- the one front door to everything this project checks about itself.
+#
+# Before this existed there were three ways to run a test and three sets of arguments to
+# remember: one script for a scene on a small square of ground, another for a scenario on
+# the whole map, and a third that ran two Lua suites and the documentation validator.
+# Nothing listed them together, so "what does this project actually check" had no answer
+# short of reading four directories.
+#
+# There is now one kind of test. A test is a table that names things -- which mechanics
+# it demonstrates, which ground it stands on, which machinery to hang, how to arrange the
+# bodies, which part of the tick to run, what to measure and what to claim -- and every
+# one of those names is looked up in the engine. **A test contains no behavior of its
+# own**, which is what stops a test quietly becoming an instrument that measures itself.
+#
+# Usage:
+#   ./scripts/run-a-test                    -- list every test
+#   ./scripts/run-a-test <name>             -- open it in a window, held
+#   ./scripts/run-a-test <name> report      -- run it with no window and print the numbers
+#   ./scripts/run-a-test all                -- run every test, and fail if any claim fails
+#   ./scripts/run-a-test /path/to/prj ...   -- against a checkout somewhere else
+#
+# **The window is the default and the report is the mode you ask for.** It was the other
+# way round for about an hour and that was wrong: the numbers are a summary of something,
+# and the something is the thing you came to look at. A test that reports front, back and
+# depth has told you a column crossed a road; it has not told you how, and how is nearly
+# always the question. `all` still reports rather than opening fifteen windows.
+
+DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
+
+# A leading argument is taken as a project root only when it looks like one. Testing for
+# "is a directory" alone is not enough: this script's own modes are words, and a
+# directory of that name in the working directory would be mistaken for a checkout.
+if [ -d "$1/issues" ] && [ -d "$1/src" ]; then
+    DIR="$1"
+    shift
+fi
+
+NAME="$1"
+MODE="${2:-watch}"
+
+# **The tests pin their own seed and do not read the one in input/.**
+#
+# That file may say `random`, which is what it should say for anybody looking at the
+# game: every match and scene coming out of one seed means everybody has only ever
+# watched one match, and a rule broken in general looks fine because the one arrangement
+# everybody saw happened not to hit it.
+#
+# A test wants the opposite. A claim that holds on Tuesday and fails on Wednesday
+# because the seed moved underneath it is a claim nobody can act on -- and this was not
+# hypothetical: the first runs of the crossing scene reported bodies stepping off the
+# road on one seed and staying on it on the next.
+#
+#   HLM_SEED=99 ./scripts/run-a-test <name>   -- the same test, a different world
+export HLM_SEED="${HLM_SEED:-20260826}"
+
+# The RAM tiers, recreated rather than assumed -- /tmp and /dev/shm do not survive a
+# reboot and the symlinks in the repository would otherwise dangle.
+mkdir -p "/tmp/hero-less-moba/tmp"
+mkdir -p "/dev/shm/hero-less-moba"
+if [ ! -e "/tmp/hero-less-moba/shared-memory" ]; then
+    ln -sfn "/dev/shm/hero-less-moba" "/tmp/hero-less-moba/shared-memory"
+fi
+
+# Everything below is a call into the bench. The logic of listing, running, measuring and
+# judging lives in Lua beside the simulation it is measuring, for the same reason a test
+# may not define behavior: a shell script that computed a number about the world would be
+# one more place holding an opinion about what the world is doing.
+
+if [ -z "${NAME}" ]; then
+    luajit -e "
+    local bench = loadfile('${DIR}/src/071-the-bench.lua')()
+    print('')
+    print('Tests:')
+    print('')
+    for _, entry in ipairs(bench.list('${DIR}')) do
+      local test = bench.read('${DIR}', entry.name)
+      print(string.format('  %-28s %-6s covers %s',
+                          entry.name, entry.ground, table.concat(test.covers, ', ')))
+      print(string.format('  %-28s %s', '', test.name))
+      print('')
+    end
+    "
+    exit 0
+fi
+
+if [ "${NAME}" = "all" ]; then
+    luajit -e "
+    local bench = loadfile('${DIR}/src/071-the-bench.lua')()
+    local failed = 0
+    for _, entry in ipairs(bench.list('${DIR}')) do
+      local report = bench.run('${DIR}', entry.name)
+      print(bench.tell(report))
+      if not report.held then failed = failed + 1 end
+    end
+    if failed > 0 then
+      print(failed .. ' test(s) made a claim that did not hold.')
+      os.exit(1)
+    end
+    "
+    exit "$?"
+fi
+
+if [ "${MODE}" = "watch" ]; then
+    if ! command -v love > /dev/null; then
+        echo "LOVE is not installed, and the window needs it."
+        echo "The same test runs with no window at all:"
+        echo "    ${DIR}/scripts/run-a-test ${NAME} report"
+        exit 1
+    fi
+
+    echo "Opening ${NAME}, held."
+    echo
+    echo "  P              start it, and hold it again"
+    echo "  1 / 2 / 3      speed"
+    echo "  R              back to the beginning"
+    echo "  ESC            close"
+    echo
+    echo "  Bodies ringed in red are ones whose step was moved out of somebody."
+    echo "  The yellow body is a stray, drawn with the room it keeps around itself."
+    echo
+
+    HLM_START="test:${NAME}" love "${DIR}"
+    exit "$?"
+fi
+
+luajit -e "
+local bench = loadfile('${DIR}/src/071-the-bench.lua')()
+local report = bench.run('${DIR}', '${NAME}')
+print(bench.tell(report))
+if not report.held then os.exit(1) end
+"

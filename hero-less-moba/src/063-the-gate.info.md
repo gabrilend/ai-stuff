@@ -23,25 +23,34 @@ it does.
 ## Running one
 
 ```
-./run-scenario the-dragon-at-the-midpoint                -- load, describe, hold
-./run-scenario the-dragon-at-the-midpoint step 400       -- advance and hold again
-./run-scenario the-dragon-at-the-midpoint until monster_slain
+./scripts/run-a-test the-dragon-at-the-midpoint          -- run it and report
+./scripts/run-a-test the-dragon-at-the-midpoint watch    -- open it in the window, held
 ```
 
 ## Exports
 
 | Function | Arguments | Returns |
 | --- | --- | --- |
-| `load(world, path)` | | The world, described and held. |
+| `begin(world, source)` | | The world, given a gate: held, with an empty script. |
+| `perform(world, rows)` | rows of `{verb, arguments...}` | The world, put into the described state. |
+| `fire_due(world)` | | — Everything the script says should have happened by now. |
 | `step(world, tick_module, count)` | | `false` if the match ended. |
 | `until_event(world, tick_module, name, limit)` | | Reached, and why. |
 | `describe(world)` | | What it looks like right now, as text. |
-| `verb` | *(table)* | What a scenario file may say. |
+| `verb` | *(table)* | What a scenario may say. |
 
-## What a scenario file says
+## What a scenario says
 
-One verb per line, `#` for a comment. A dispatch table rather than a parser with
-branches in it, so adding something a scenario can describe is adding a row.
+A row is a verb and its arguments — `{"stone", 1, 1, "lane", 2}`. A dispatch table rather
+than a parser with branches in it, so adding something a scenario can describe is adding
+a row.
+
+The rows live in a test file, which is a table read by [the bench](071-the-bench.info.md)
+and is the same shape a scene has. **The verbs were already the right idea and the
+scenario was already the right shape**: it named things the engine does and contained no
+behavior of its own, which is now the rule for every test in the project. What changed is
+only that the rows sit in a Lua table beside a name, a caption, the mechanics it covers
+and what it claims, instead of alone in a file of lines.
 
 | Verb | Says |
 | --- | --- |

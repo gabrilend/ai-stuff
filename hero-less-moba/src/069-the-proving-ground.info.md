@@ -14,14 +14,15 @@ look at can be seen. **What is absent here is the feature.**
 
 | Function | Arguments | Returns |
 | --- | --- | --- |
-| `load(root, scene)` | | — Reads the scene, builds its arena, places its bodies, holds. |
-| `update(dt)` | | — Advances the scene's own mechanics at the scene's own rate. |
+| `load(root, scene)` | | — Reads the test through [the bench](071-the-bench.info.md), raises it, and holds. |
+| `update(dt)` | | — Advances the bench one tick at a time, through the stages the test named. |
 | `draw()` | | — Ground, bodies, readout. |
 | `keypressed(key)` | | — P holds, 1/2/3 speed, R restarts, ESC closes. |
 
-Reached through `main.lua` when `HLM_START` reads `arena:<scene>`, which is the one
-decision left in that doorway: there are two windows in this project and they are not
-two versions of one thing.
+Reached through `main.lua` when `HLM_START` reads `test:<name>`. That doorway reads the
+test's own `ground` field to choose between this window and the match viewer, so there
+are still two windows and they are still not two versions of one thing — but the choice
+is made by the test rather than by the name of an environment variable.
 
 ## What is on the screen
 
@@ -41,6 +42,12 @@ than one more soldier.
 
 **A red ring on every body the queue is stopping this tick.** The match viewer does not
 show this and this one must: who is blocked is the entire question the first scenes ask.
+
+**And one line of numbers, which this file no longer works out.** The readout is the same
+string a terminal report prints, taken from
+[the measurement catalogue](070-what-can-be-measured.info.md), because it used to be a
+third copy of front-minus-back — one here, one in a shell script, one in whichever test
+wanted it — and three copies of one sentence are free to stop agreeing.
 
 Bodies are drawn **larger** than the match renderer draws them, which reverses that
 file's rule. A match is a map and its bodies are weather; an arena is a diagram of a

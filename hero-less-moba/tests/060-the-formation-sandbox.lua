@@ -18,6 +18,8 @@
 
 -- 060-the-formation-sandbox.lua
 --
+-- covers: 211b, 211c, 211d, 214
+--
 -- A field with nothing on it but two formations.
 --
 -- ## Why this is not part of the invariants
@@ -92,6 +94,9 @@ local random_streams = loadfile(ROOT .. "/src/029-random-streams.lua")()
 -- which is the sandbox discovering a dependency rather than assuming one. It is
 -- listed at the bottom of the log with the others.
 local rest_of_brain = loadfile(ROOT .. "/src/062-the-rest-of-the-brain.lua")()
+-- Where a body wants to be, as a table of rows. The brain places a goal through this
+-- before anything moves, so a sandbox without it is a sandbox where nothing walks.
+local patterns = loadfile(ROOT .. "/src/072-the-movement-patterns.lua")()
 
 -- How wide the sandbox builds its lanes: **the real side lane's width**, read from
 -- the shape parameters rather than written down here.
@@ -129,6 +134,7 @@ local function sandbox(polyline, width)
   world.combat = combat
   world.formations = formations
   world.rest_of_brain = rest_of_brain
+  world.patterns = patterns
   world.map_builder = map_builder
   -- A wave makes its own waypoint stream from the match seed and its own number, so
   -- the sandbox has to be able to hand it the thing that makes streams.

@@ -1,0 +1,256 @@
+#!/usr/bin/env luajit
+--
+-- census-the-mechanics -- which of this game's mechanics have a test, and which do not.
+--
+-- The list of mechanics is not kept here and is not kept anywhere by hand. It is the
+-- roadmap, which is already the authoritative list of what this game is made of and is
+-- already checked against the issue files by the documentation validator. A second list
+-- would be a second thing to forget to update, and the first symptom of forgetting is a
+-- number that looks fine.
+--
+-- The tests are read out of every directory tests live in. Each one names the mechanics
+-- it demonstrates, in one of two ways, and both are read **textually** rather than by
+-- loading the file:
+--
+--   * a suite, which is a program, says so in a header comment:  -- covers: 204, 205
+--   * a scene or a scenario, which is a table, says so in a field:  covers = {"214"}
+--
+-- Textually for two reasons. A test that is an executable and a test that is a
+-- declarative table can then be counted the same way. And a test with a syntax error in
+-- it still shows up as covering its mechanic, rather than quietly vanishing from the
+-- census by crashing it -- which would make the coverage number climb every time
+-- somebody broke a test.
+--
+-- Usage:
+--   ./scripts/census-the-mechanics             -- the summary and what is missing
+--   ./scripts/census-the-mechanics --all       -- every mechanic, covered or not
+--   ./scripts/census-the-mechanics --check     -- silent unless something is missing,
+--                                                 and exits non-zero if it is
+--   ./scripts/census-the-mechanics /path/prj   -- against a checkout somewhere else
+
+-- The project root. Hard-coded so this runs from any directory, overridable as a
+-- leading argument so a checkout elsewhere still works.
+local DIR = "/mnt/mtwo/programming/ai-stuff/hero-less-moba"
+
+local argument = {...}
+local first = argument[1]
+if first ~= nil and first:sub(1, 2) ~= "--" then
+  DIR = first
+  table.remove(argument, 1)
+end
+local MODE = argument[1]
+
+-- **Phases 8 and 9 have no code**, so their mechanics cannot have tests and are not
+-- counted as missing. Written as the highest phase that is built rather than as a list
+-- of exclusions, so that finishing phase 8 is one number here and nothing else.
+local HIGHEST_BUILT_PHASE = 7
+
+-- Where tests live. A directory added here is a directory counted; nothing else needs
+-- to change, which is the point of the census being a tool rather than a list.
+local TEST_DIRECTORY = {"tests", "scenes", "scenarios"}
+
+-- {{{ local function lines_of()
+-- Every line of a file, or nothing if it is not there.
+local function lines_of(path)
+  local handle = io.open(path, "r")
+  if handle == nil then
+    return nil
+  end
+  local collected = {}
+  for line in handle:lines() do
+    collected[#collected + 1] = line
+  end
+  handle:close()
+  return collected
+end
+-- }}}
+
+-- {{{ local function files_in()
+-- The Lua files in a directory, in name order.
+local function files_in(directory)
+  local found = {}
+  local handle = io.popen("ls -1 " .. directory .. "/*.lua 2>/dev/null")
+  if handle == nil then
+    return found
+  end
+  for path in handle:lines() do
+    found[#found + 1] = path
+  end
+  handle:close()
+  return found
+end
+-- }}}
+
+-- {{{ local function harvest()
+-- Every issue identifier in a piece of text, appended to a list.
+--
+-- An identifier is three digits and an optional letter: a sub-issue like 211a is its own
+-- mechanic with its own roadmap row, and reading three characters and stopping would
+-- have four sub-issues of 211 all claiming to be 211.
+local function harvest(text, into)
+  for identifier in text:gmatch("%d%d%d%l?") do
+    into[#into + 1] = identifier
+  end
+end
+-- }}}
+
+-- {{{ local function covered_by()
+-- What one test file says it covers.
+--
+-- Two shapes, and each needs its own idea of where the declaration stops. A table's
+-- `covers` runs until its closing brace. A comment's runs onto any following comment
+-- line that holds nothing but identifiers and separators -- which is not tidiness: the
+-- first version of this read one line only, silently dropped the ten mechanics on the
+-- second, and reported a coverage number that was wrong in the safe direction. A census
+-- that can be quietly wrong about its own input is worse than no census.
+local function covered_by(path)
+  local lines = lines_of(path)
+  if lines == nil then
+    return {}
+  end
+
+  local found = {}
+  local index = 1
+  while index <= #lines do
+    local line = lines[index]
+
+    local table_form = line:match("covers%s*=%s*(.*)$")
+    local comment_form = line:match("%-%-%s*covers%s*:%s*(.*)$")
+
+    if table_form ~= nil then
+      harvest(table_form, found)
+      -- Onward until the brace closes, so a long list wrapped across lines is read
+      -- whole.
+      while not line:find("}", 1, true) and index < #lines do
+        index = index + 1
+        line = lines[index]
+        harvest(line, found)
+      end
+    elseif comment_form ~= nil then
+      harvest(comment_form, found)
+      while index < #lines do
+        local next_line = lines[index + 1]
+        -- A continuation is a comment line made only of identifiers, letters and
+        -- separators, and containing at least one digit. Anything else has ended the
+        -- declaration.
+        if next_line:match("^%s*%-%-[%s%d,%l]*$") and next_line:find("%d") then
+          index = index + 1
+          harvest(next_line, found)
+        else
+          break
+        end
+      end
+    end
+
+    index = index + 1
+  end
+  return found
+end
+-- }}}
+
+-- {{{ local function read_the_roadmap()
+-- The mechanics, in the order the roadmap lists them, which is build order rather than
+-- the order they were thought of.
+local function read_the_roadmap(path)
+  local lines = lines_of(path)
+  if lines == nil then
+    io.write("No roadmap at ", path, ".\n")
+    os.exit(1)
+  end
+  local mechanics = {}
+  for _, line in ipairs(lines) do
+    local identifier, title = line:match("^| (%d%d%d%l?) | ([^|]+) |")
+    if identifier ~= nil then
+      mechanics[#mechanics + 1] = {
+        identifier = identifier,
+        title = title:gsub("%s+$", ""),
+      }
+    end
+  end
+  return mechanics
+end
+-- }}}
+
+local mechanics = read_the_roadmap(DIR .. "/docs/019-roadmap.md")
+
+-- Which tests name each mechanic.
+local named_by = {}
+for _, directory in ipairs(TEST_DIRECTORY) do
+  for _, path in ipairs(files_in(DIR .. "/" .. directory)) do
+    local file = path:match("([^/]+)$")
+    for _, identifier in ipairs(covered_by(path)) do
+      named_by[identifier] = named_by[identifier] or {}
+      -- One test naming a mechanic twice is one test, not two.
+      local already = false
+      for _, seen in ipairs(named_by[identifier]) do
+        if seen == file then already = true end
+      end
+      if not already then
+        named_by[identifier][#named_by[identifier] + 1] = file
+      end
+    end
+  end
+end
+
+local have, want = 0, 0
+local missing_by_phase, phases_with_gaps = {}, {}
+local every_line = {}
+
+for _, mechanic in ipairs(mechanics) do
+  local phase = tonumber(mechanic.identifier:sub(1, 1))
+  local tests = named_by[mechanic.identifier]
+  local buildable = phase <= HIGHEST_BUILT_PHASE
+
+  if buildable then
+    want = want + 1
+    if tests ~= nil then
+      have = have + 1
+    else
+      if missing_by_phase[phase] == nil then
+        missing_by_phase[phase] = {}
+        phases_with_gaps[#phases_with_gaps + 1] = phase
+      end
+      local into = missing_by_phase[phase]
+      into[#into + 1] = mechanic
+    end
+  end
+
+  local mark = tests and "yes" or (buildable and "MISSING" or "--")
+  every_line[#every_line + 1] = string.format("  %-5s %-8s %s%s",
+    mechanic.identifier, mark, mechanic.title,
+    tests and ("   [" .. table.concat(tests, ", ") .. "]") or "")
+end
+
+table.sort(phases_with_gaps)
+
+if MODE == "--all" then
+  io.write(table.concat(every_line, "\n"), "\n\n")
+end
+
+if MODE ~= "--check" then
+  io.write(string.format("%d of %d mechanics in phases 1-%d have a test.\n",
+                         have, want, HIGHEST_BUILT_PHASE))
+  if #mechanics > want then
+    io.write(string.format(
+      "%d more are in phases with no code yet, and are not counted.\n",
+      #mechanics - want))
+  end
+  io.write("\n")
+end
+
+if #phases_with_gaps > 0 then
+  if MODE ~= "--check" then
+    io.write("No test names these:\n")
+  end
+  for _, phase in ipairs(phases_with_gaps) do
+    io.write("  phase ", phase, "\n")
+    for _, mechanic in ipairs(missing_by_phase[phase]) do
+      io.write(string.format("    %-5s %s\n", mechanic.identifier, mechanic.title))
+    end
+  end
+  os.exit(1)
+end
+
+if MODE ~= "--check" then
+  io.write("Every mechanic with code behind it has a test.\n")
+end

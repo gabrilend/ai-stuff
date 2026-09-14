@@ -45,12 +45,18 @@ M.MENU = 1
 M.PLAYING = 2
 
 -- {{{ local function list_scenarios()
+-- The described worlds the menu can offer, by the name a test is known by.
+--
+-- **Without the extension.** A test is named for what it shows, and everything that
+-- takes one -- the bench, the front door, the doorway's own HLM_START -- takes that
+-- name and finds the file itself. Handing the menu a file name instead would make the
+-- menu the one place in the project that knew where tests are kept.
 local function list_scenarios(root)
   local names = {}
   local pipe = io.popen("ls -1 '" .. root .. "/scenarios' 2>/dev/null")
   if pipe ~= nil then
     for name in pipe:lines() do
-      names[#names + 1] = name
+      names[#names + 1] = (name:gsub("%.lua$", ""))
     end
     pipe:close()
   end

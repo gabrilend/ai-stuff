@@ -119,24 +119,14 @@ end
 -- a module because a scene looked like it might want it would be exactly the coupling
 -- this whole arrangement exists to remove.
 function M.load(root, scene_name)
-  local tick_module = loadfile(root .. "/src/042-the-tick.lua")()
-  local modules = tick_module.load_cast(root)
-  local arena = loadfile(root .. "/src/068-the-arena.lua")()
-
-  local path = root .. "/scenes/" .. scene_name .. ".lua"
-  local chunk, message = loadfile(path)
-  if chunk == nil then
-    error("no scene at " .. path .. ": " .. tostring(message))
-  end
-  local scene = chunk()
-
-  local world = arena.assemble(modules, modules.match_parameters.load(),
-                               scene.want, scene.arena)
-  scene.setup(world, arena)
+  local bench_module = loadfile(root .. "/src/071-the-bench.lua")()
+  local scene = bench_module.read(root, scene_name)
+  local bench = bench_module.raise(root, scene)
 
   M.root = root
-  M.arena = arena
-  M.world = world
+  M.bench_module = bench_module
+  M.bench = bench
+  M.world = bench.world
   M.scene = scene
   -- Held, for the same reason a scenario is held: the most useful moment when
   -- something is going wrong is almost always the tick before it does, and a test that
@@ -171,7 +161,7 @@ function M.update(dt)
   -- produces the same picture.
   if M.capture ~= nil then
     while M.world.tick < M.capture.at do
-      M.arena.march_tick(M.world)
+      M.bench_module.advance(M.bench, 1)
     end
     return
   end
@@ -183,7 +173,10 @@ function M.update(dt)
   M.accumulated = M.accumulated + dt * per_second
   while M.accumulated >= 1 do
     M.accumulated = M.accumulated - 1
-    M.arena.march_tick(M.world)
+    -- **One tick, through the bench, through the stages the test named.** The window
+    -- used to call a tick the arena defined for it, which meant the picture and the
+    -- terminal report were two different simulations that were supposed to agree.
+    M.bench_module.advance(M.bench, 1)
   end
 end
 -- }}}
@@ -235,9 +228,9 @@ end
 --
 -- Discs for melee and wedges for anything with a reach, the same distinction the real
 -- renderer draws, because a person moving between the two windows should not have to
--- learn two vocabularies. A body the queue is currently stopping is ringed in red --
--- which the real viewer does not show and this one must, because "who is blocked" is
--- the entire question the first scene asks.
+-- learn two vocabularies. A body whose destination had to be moved out of somebody is
+-- ringed in red -- which the real viewer does not show and this one must, because "who
+-- is going round what" is the entire question the first scene asks.
 local function draw_bodies(world, view)
   local soldier = world.soldier
   local blocked_count = 0
@@ -260,16 +253,18 @@ local function draw_bodies(world, view)
       end
 
       -- A stray is what an army has to get past, so it is drawn as a thing in the way
-      -- rather than as one more soldier: its own colour and a ring of the room it
-      -- keeps around itself, which is the distance the queue rule actually measures.
+      -- rather than as one more soldier: its own colour and a ring at its own radius,
+      -- which is the ground nobody else may stand on.
       if stray then
-        local space = world.parameters.shape.personal_space * view.scale
+        local space = soldier.radius[id] * view.scale
         love.graphics.setColor(colour[1], colour[2], colour[3], 0.28)
         love.graphics.circle("line", x, y, space, 28)
       end
 
-      if world.frontline ~= nil and soldier.wave[id] ~= 0
-         and world.frontline.blocked(world, id) then
+      -- A ring means this body's destination was inside somebody and had to be
+      -- moved -- it is going round something right now. Under the old queue this
+      -- ring meant the opposite: a body that had given up and stopped.
+      if soldier.gave_way[id] == 1 and soldier.wave[id] ~= 0 then
         blocked_count = blocked_count + 1
         love.graphics.setColor(COLOUR.blocked)
         love.graphics.setLineWidth(1.5)
@@ -287,49 +282,45 @@ end
 --
 -- Deliberately few. A readout that printed everything would be a panel, and a panel is
 -- the thing this window exists to not have.
-local function draw_readout(world, view, blocked_count)
-  local soldier = world.soldier
+local function draw_readout(world, view)
   -- Under the ground, wherever the ground turned out to end.
   local top = view.ground_bottom + 40
-  local front, back, marching, total = -math.huge, math.huge, 0, 0
-
-  for id = 1, world.high_water do
-    if soldier.alive[id] == 1 and soldier.wave[id] ~= 0 then
-      total = total + 1
-      local along = soldier.lane_along[id]
-      if along > front then front = along end
-      if along < back then back = along end
-      if world.frontline == nil or not world.frontline.blocked(world, id) then
-        marching = marching + 1
-      end
-    end
-  end
-  if total == 0 then front, back = 0, 0 end
 
   love.graphics.setFont(M.font_title)
   love.graphics.setColor(COLOUR.text)
   love.graphics.print(M.scene.name, 40, top)
 
+  -- **How tall the caption turned out**, rather than a constant. It was a constant, and
+  -- the constant was ninety-six pixels, which fits a four-line caption and is overwritten
+  -- by a six-line one -- so the numbers were printed through the middle of the sentence
+  -- explaining them. A caption is written to say what should happen and is as long as
+  -- that takes, so the thing below it has to ask.
+  local wrap_width = love.graphics.getWidth() - 80
   love.graphics.setFont(M.font)
   love.graphics.setColor(COLOUR.dim)
-  love.graphics.printf(M.scene.caption, 40, top + 28,
-                       love.graphics.getWidth() - 80)
+  love.graphics.printf(M.scene.caption, 40, top + 28, wrap_width)
 
+  local _, wrapped = M.font:getWrap(M.scene.caption, wrap_width)
+  local below_caption = top + 28 + #wrapped * M.font:getHeight() + 16
+
+  -- **The numbers come from the measurement catalogue, not from here.** This function
+  -- used to work out how far the leading body had come with a loop of its own, and so
+  -- did a shell script, and so did whichever test wanted to know -- three copies of one
+  -- sentence, free to stop agreeing on the day one of them learned to skip the dead.
+  -- What is printed here is now the same string a terminal report prints, because it is
+  -- the same function reading the same world.
   love.graphics.setFont(M.font_small)
   love.graphics.setColor(COLOUR.text)
-  love.graphics.print(string.format(
-    "tick %d      formation front %.0f   back %.0f   depth %.0f      marching %d of %d      blocked %d",
-    world.tick, front, back, front - back, marching, total, blocked_count),
-    40, top + 96)
+  love.graphics.print(M.bench_module.line(M.bench), 40, below_caption)
 
   love.graphics.setColor(COLOUR.dim)
   love.graphics.print(
     "P pauses and starts  --  1 2 3 speed  --  R reloads the scene from the beginning  --  ESC closes",
-    40, top + 116)
+    40, below_caption + 20)
 
   if M.paused then
     love.graphics.setColor(COLOUR.stray)
-    love.graphics.print("HELD", love.graphics.getWidth() - 90, top + 96)
+    love.graphics.print("HELD", love.graphics.getWidth() - 90, below_caption)
   end
 
   -- What the scene declared it was running. On the screen rather than in the file,
@@ -353,8 +344,11 @@ function M.draw()
   local world = M.world
   local view = fit(world)
   draw_ground(world, view)
-  local blocked_count = draw_bodies(world, view)
-  draw_readout(world, view, blocked_count)
+  -- The red rings are drawn by the body pass; the count of them is read out of the
+  -- measurement catalogue rather than passed along from there, so the ring and the
+  -- number cannot disagree about what "going round" means.
+  draw_bodies(world, view)
+  draw_readout(world, view)
 
   -- Written after the frame is drawn and before it is shown, which is the only moment
   -- the finished picture exists.

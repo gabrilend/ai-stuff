@@ -102,8 +102,8 @@ case "${MODE}" in
             ls -1 "${DIR}/scenarios" | sed 's/^/    /'
             exit 1
         fi
-        if [ ! -f "${DIR}/scenarios/${NAME}" ]; then
-            echo "No scenario at ${DIR}/scenarios/${NAME}"
+        if [ ! -f "${DIR}/scenarios/${NAME}.lua" ]; then
+            echo "No scenario at ${DIR}/scenarios/${NAME}.lua"
             exit 1
         fi
         echo "Opening ${NAME}, held. P starts it."

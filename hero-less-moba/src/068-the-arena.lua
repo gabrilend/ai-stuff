@@ -391,6 +391,24 @@ function M.put_a_formation(world, team, along, melee_count, ranged_count, headin
   -- last body has somewhere to stand.
   world.formations.settle_the_disc(world, wave_id)
 
+  -- **And far enough onto the road that all of it fits.** `along` names the front,
+  -- and a formation deeper than that has its rear ranks placed at a negative distance,
+  -- which clamps -- so every rank that fell off the back was put on the same point,
+  -- standing inside the ones beside it. The scene asking for a formation cannot know
+  -- how deep it will turn out to be, because that depends on the counts it passed and
+  -- on how wide the road is, so the answer is worked out here, after the fact, the same
+  -- way the real spawner does it.
+  --
+  -- Pushed rather than refused, because a scene saying "a formation, here" is naming
+  -- where it wants the front and does not want a lecture about ranks.
+  local shortfall = (wave.depth or 0) - along * heading
+  if heading == -1 then
+    shortfall = (wave.depth or 0) - (lane.length - along)
+  end
+  if shortfall > 0 then
+    wave.anchor = along + shortfall * heading
+  end
+
   -- Put every body on its place immediately. A formation that has to walk from
   -- wherever it was born to where the test wanted it spends the first seconds of the
   -- test dressing its line, which is a different thing to watch.
@@ -435,39 +453,40 @@ function M.put_a_body(world, team, along, across, archetype)
 end
 -- }}}
 
--- {{{ function M.march_tick()
--- One tick of **marching and nothing else**.
+-- {{{ M.verb
+-- What an arena test may arrange, as a dispatch table.
 --
--- Three calls, in the order the real brain makes them: put every body back in the
--- spatial grid, let each formation advance its anchor and share out its cohesion
--- budget, then move each body toward its place unless the queue says it must stop.
+-- The same shape as [the gate's](063-the-gate.info.md) verb table, taking the world
+-- and the rest of the row, because a test on a small square of ground and a test on a
+-- whole map should be arranged by the same kind of sentence. Adding something an arena
+-- test can arrange is adding a row here, next to the thing being arranged, rather than
+-- a function inside a test file.
 --
--- This is deliberately **not** the brain. The brain is a five-state machine that also
--- acquires targets, stands off, orbits, falls back, heals, flees and decays, and every
--- one of those is a way for a movement test to be about something else. A test that
--- says "march" and gets marching can attribute what it sees.
---
--- The cost of writing it out here is that this is a second place that knows marching
--- is grid-then-plan-then-step. That is a real cost and it is the trade the arena makes
--- everywhere: a test that assembled the whole brain would not have it, and would not
--- be able to tell you anything either.
-function M.march_tick(world)
-  world.tick = world.tick + 1
-  world.targeting.rebuild_grid(world)
-  world.formations.plan(world)
+-- Arguments arrive as whatever the row held -- numbers from a Lua table, strings from a
+-- parsed line -- and every row runs them through `tonumber`, which is why one
+-- vocabulary can serve both.
+M.verb = {}
 
-  local soldier = world.soldier
-  for id = 1, world.high_water do
-    -- A body with no wave is a stray: nothing is keeping it in a line and nothing
-    -- comes to collect it. It stands exactly where it was put, which is the whole of
-    -- its job in the scene where an army has to get past it.
-    if soldier.alive[id] == 1 and soldier.wave[id] ~= 0 then
-      if not world.frontline.blocked(world, id) then
-        world.walking.step_in_formation(world, id)
-      end
-    end
-  end
+-- {{{ M.verb.formation
+-- `formation <team> <along> <melee> <ranged> [heading]` -- a body of troops standing
+-- that far down the road, facing the way it walks.
+M.verb.formation = function(world, words)
+  return M.put_a_formation(world, tonumber(words[1]), tonumber(words[2]),
+                           tonumber(words[3]), tonumber(words[4]),
+                           words[5] and tonumber(words[5]) or nil)
 end
+-- }}}
+
+-- {{{ M.verb.body
+-- `body <team> <along> <across> [archetype]` -- one body on its own, in no formation.
+-- The stray: the thing an army has to get past.
+M.verb.body = function(world, words)
+  return M.put_a_body(world, tonumber(words[1]), tonumber(words[2]),
+                      tonumber(words[3]), words[4] and tonumber(words[4]) or nil)
+end
+-- }}}
+-- }}}
+
 -- }}}
 
 return M
