@@ -96,6 +96,17 @@ M.verb.tick = function(world, words)
   world.next_wave_tick = world.tick + world.parameters.unit.wave.interval
   world.next_stream_tick = world.tick
   world.next_rung_tick = world.tick + world.parameters.commander.rung_interval
+
+  -- **The ordinary length, even at tick nought.** A match's first stretch before the
+  -- first surge is longer than the ones between challenges -- the board needs time to
+  -- become worth disturbing -- so a scenario that says `tick 0` does not produce the
+  -- world a match starts in. It produces one where the first surge arrives twenty
+  -- seconds early.
+  --
+  -- That is right for what this verb is for: it means "the clock is here now", and a
+  -- test posing a moment in the middle of a match wants the ordinary cadence around it.
+  -- It is written down because the exception is invisible -- two runs of the same test,
+  -- one with the row and one without, play different matches and neither looks wrong.
   world.phase_ends_at = world.tick + world.parameters.boon.timing.normal
 end
 -- }}}
@@ -178,6 +189,21 @@ M.verb.stone = function(world, words)
   stone.slot_kind = slot
   stone.slot_lane = tonumber(words[4]) or 0
   world.stones.rebuild_counts(world, team)
+
+  -- **And the stone is put into the towers, which the line above does not do.** The
+  -- team's slot counts are a cache over the stones; a tower keeps a *second* cache, its
+  -- own copy of what its lane's stone holds, so that swinging never reaches into a team
+  -- record. Only the first of those was being rebuilt here.
+  --
+  -- A scenario that slotted an upgrade into stone therefore produced a world where the
+  -- slot said one, the interface said one, and every tower shot with nothing -- silently,
+  -- and for the whole run. The placement path in the stones module does both; so does
+  -- this now, for the same lanes and in the same order, because a posed world that
+  -- differs from a played one is an instrument that lies about the thing it was built to
+  -- show.
+  for lane = 1, world.parameters.lane_count do
+    world.chest.restamp_stone(world, team, lane)
+  end
 end
 -- }}}
 

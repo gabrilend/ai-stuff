@@ -50,6 +50,43 @@ The last four walk every pair or every body, which is fine for the dozen bodies 
 holds and expensive on a whole match. That is the caller's choice: a reading is only
 taken when a test names it.
 
+### What a body is carrying and doing
+
+| Name | What it is |
+| --- | --- |
+| `health` | Every point of health standing on the field, added up. |
+| `wounded` | Living bodies carrying less than the health they were born with. The cheapest proof a blow landed. |
+| `guards` | Living bodies that belong to a tower. |
+| `heroes` | Living bodies somebody paid for out of a wallet. |
+| `monsters` | Living bodies of the kind that walks out of the middle. |
+| `walking` / `closing` / `fighting` / `leashing` / `dying` | The five built rows of the brain, one count each. They add up to the living. |
+| `hurrying` | How many asked for the fastest gait **on the tick this was read** — a pace is chosen fresh every tick, so this is a state and not a tally. |
+| `patterns` | How many different movement patterns placed a goal this tick. One row doing all the work means the others are decoration. |
+| `carried` | Living bodies stamped at birth with at least one upgrade. |
+
+### The waves, the stone and the two economies
+
+| Name | What it is |
+| --- | --- |
+| `waves` | Wave records with anybody left alive in them. |
+| `wipes` | Waves wiped out since the match began, both teams. **A tally, so it never falls.** |
+| `towers` / `rubble` / `libraries` | Guard towers standing, guard towers fallen, libraries standing. |
+| `stone_health` | Every point of health left in every standing structure. |
+| `aiming_towers` | Standing towers currently holding a target. Nought with bodies in reach is a tower that acquires nothing. |
+| `armed_towers` | Standing towers shooting with at least one upgrade. The proof a tower's own copy of its lane's stone was rebuilt. |
+| `chest` | Upgrades drawn and not yet placed, both teams. |
+| `placed` | Upgrades sitting in any slot. **The sum of the three below.** |
+| `in_lanes` / `in_stone` / `in_library` | The same count, split by which of the three places it is standing in. |
+| `wallets` | Every point of personal resource every player holds, of every colour. |
+| `bought` | Heroes paid for since the match began. A tally. |
+| `phase` | 1 normal, 2 surge, 3 challenge, 4 calm, 5 over. |
+| `winner` | Nought while the match runs; the winning team after; 3 for the double library. |
+
+A reading that needs part of a world an arena does not build — the chest, the players,
+the structures — refuses **by name**, saying which reading wanted what. An arena hangs
+only the modules a test asked for, so the fix is nearly always one word in a `want` list,
+and an error that blamed a line inside the catalogue would not say so.
+
 ## A claim is a row, and it has a side
 
 A claim is a reading, a comparison and a number — `{"overlaps", "equals", 0}`. A test
@@ -73,6 +110,17 @@ what had happened.
 | `equals <n>` | exactly, throughout |
 | `within <n> <tolerance>` | near enough, for anything that came out of arithmetic on positions |
 | `between <low> <high>` | inside a band |
+| `ever_at_least <n>` | **reached it at least once** — judged at the highest the reading got |
+| `ever_at_most <n>` | reached it at least once, from the other side |
+
+The last two are the reached-it claims, and half of what a test wants to say needs them.
+A thing that *happened* — a tower acquired a target, three movement patterns were in use
+at once, a body was pushed out of somebody — is true at one tick and false at the others,
+so asking it with `at_least` fails on tick nought, correctly and uselessly.
+
+They still say nothing about **how long** something lasted or **what order** two things
+happened in. That gap is open, and is written up on
+[issue 111a](../issues/111a-every-mechanic-has-a-test.md).
 
 ## Adding one
 
