@@ -206,37 +206,62 @@ end
 -- }}}
 -- }}}
 
--- {{{ function M.load()
--- Reads a scenario file into a world that is already assembled, and holds it.
-function M.load(world, path)
-  local handle = io.open(path, "r")
-  if handle == nil then
-    error("no scenario at " .. path)
+-- {{{ function M.begin()
+-- Give a world its gate: held, with an empty script of things that happen later.
+--
+-- Separate from performing an arrangement because the `at` verb writes into that
+-- script while the arrangement is being performed, so it has to exist first.
+function M.begin(world, source)
+  world.gate = {held = true, script = {}, source = source}
+  return world
+end
+-- }}}
+
+-- {{{ function M.perform()
+-- Put the world into a described state, one row at a time.
+--
+-- A row is a verb and its arguments: `{"stone", 1, 1, "lane", 2}`. Every verb is a row
+-- in the dispatch table above, which is the whole of why a test file may contain no
+-- behavior of its own -- there is nothing for it to contain. It names things that
+-- already exist and the engine does them.
+--
+-- Refuses an unknown verb by name at the moment it is reached, rather than skipping it.
+-- A scenario that quietly does half of what it says is worse than one that does not
+-- run: the half it did is still a picture, and somebody will read it.
+function M.perform(world, rows)
+  for index = 1, #rows do
+    local row = rows[index]
+    local name = row[1]
+    local verb = M.verb[name]
+    if verb == nil then
+      error(string.format("row %d: no scenario verb called '%s'", index, tostring(name)))
+    end
+    local rest = {}
+    for at = 2, #row do
+      rest[#rest + 1] = row[at]
+    end
+    verb(world, rest)
   end
+  return world
+end
+-- }}}
 
-  world.gate = {held = true, script = {}, source = path}
-
-  for line in handle:lines() do
-    local trimmed = line:match("^%s*(.-)%s*$")
-    if trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
-      local words = {}
-      for word in trimmed:gmatch("%S+") do
-        words[#words + 1] = word
+-- {{{ function M.fire_due()
+-- Everything the script says should have happened by now, happening now.
+--
+-- Walked backwards so that removing an entry does not move the one after it out from
+-- under the loop.
+function M.fire_due(world)
+  for index = #world.gate.script, 1, -1 do
+    local entry = world.gate.script[index]
+    if world.tick >= entry.tick then
+      local verb = M.verb[entry.verb]
+      if verb ~= nil then
+        verb(world, entry.words)
       end
-      local verb = M.verb[words[1]]
-      if verb == nil then
-        error(string.format("%s: no scenario verb called '%s'", path, tostring(words[1])))
-      end
-      local rest = {}
-      for index = 2, #words do
-        rest[#rest + 1] = words[index]
-      end
-      verb(world, rest)
+      table.remove(world.gate.script, index)
     end
   end
-  handle:close()
-
-  return world
 end
 -- }}}
 
@@ -245,16 +270,7 @@ end
 function M.step(world, tick_module, count)
   for _ = 1, count do
     -- Anything the script says fires before the tick it is stamped with.
-    for index = #world.gate.script, 1, -1 do
-      local entry = world.gate.script[index]
-      if world.tick >= entry.tick then
-        local verb = M.verb[entry.verb]
-        if verb ~= nil then
-          verb(world, entry.words)
-        end
-        table.remove(world.gate.script, index)
-      end
-    end
+    M.fire_due(world)
     if not tick_module.advance(world) then
       return false
     end

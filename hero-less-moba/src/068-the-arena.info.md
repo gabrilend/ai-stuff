@@ -17,7 +17,7 @@ assembly that hangs a **named subset** of the cast on a world and nothing else.
 | `assemble(modules, base, want, options)` | `want` is a list of module names | A world with those modules hung on it. |
 | `put_a_formation(world, team, along, melee, ranged, heading)` | | The wave id. |
 | `put_a_body(world, team, along, across, archetype)` | | The body's id — a stray, in no formation. |
-| `march_tick(world)` | | — One tick of marching and nothing else. |
+| `verb` | *(table)* | What an arena test may arrange. |
 
 ## The ground
 
@@ -65,15 +65,29 @@ from the team instead of reading the heading off the wave record it had been car
 all along — identical for every wave the game raises, and wrong for the first wave
 anything else raised.
 
-## The march tick
+## The arrangement vocabulary
 
-Three calls, in the order the real brain makes them: rebuild the grid, plan each
-formation, step each body unless the queue stops it.
+The same shape as [the gate's](063-the-gate.info.md) verb table, taking the world and the
+rest of the row, because a test on a short straight road and a test on a whole map should
+be arranged by the same kind of sentence.
 
-Deliberately **not** the brain, which is a five-state machine that also acquires
-targets, stands off, orbits, falls back, heals, flees and decays — every one of them a
-way for a movement test to be about something else.
+| Verb | Says |
+| --- | --- |
+| `formation <team> <along> <melee> <ranged> [heading]` | a body of troops standing that far down the road |
+| `body <team> <along> <across> [archetype]` | one body on its own, in no formation: the stray |
 
-The cost: this is a second place that knows marching is grid-then-plan-then-step, and
-if the real one grows a fourth step this will not have it. Stated rather than hidden,
-because it is the trade the whole arena makes.
+Adding something an arena test can arrange is adding a row here, next to the thing being
+arranged, rather than a function inside a test file.
+
+## The arena no longer has a tick
+
+It used to. `march_tick` called the same three functions the real brain calls to march a
+body, in the same order, and [the proving ground document](../docs/024-the-proving-ground.md)
+stated the cost of that plainly: a second place in the project that knew marching is
+grid-then-plan-then-step, which would quietly be testing something else the day the real
+one grew a fourth step.
+
+That is gone. The march loop lives in [the walking module](034-walking.info.md) beside
+the single step it repeats, [the tick](042-the-tick.info.md) has a named row for it, and
+a test names the stages it wants. The arena builds ground and puts bodies on it, and
+nothing here has an opinion about what a tick is.

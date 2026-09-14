@@ -14,12 +14,17 @@
 # the camera's anchor, the map's symmetry, and the premise itself -- that putting
 # upgrades in a lane moves a frontline.
 #
+# And the declared half: every test that is a table rather than a program. Each names
+# which mechanics it demonstrates, which ground it stands on and what it claims, and
+# contains no behavior of its own. These are the ones a person can also watch.
+#
 # Both halves exit non-zero on failure, so this can be wired into a build.
 #
 # Usage:
 #   ./run-tests                  -- everything
 #   ./run-tests docs             -- only the written half
 #   ./run-tests code             -- only the running half
+#   ./run-tests scenes           -- only the tests that are tables
 #   ./run-tests /path/to/project -- elsewhere
 
 DIR="/mnt/mtwo/programming/ai-stuff/hero-less-moba"
@@ -73,6 +78,15 @@ if [ "${WHICH}" = "all" ] || [ "${WHICH}" = "code" ]; then
     # at the formation rather than at whatever else happened to be running.
     echo
     luajit "${DIR}/tests/060-the-formation-sandbox.lua"
+    if [ "$?" -ne 0 ]; then
+        FAILED=1
+    fi
+fi
+
+if [ "${WHICH}" = "all" ] || [ "${WHICH}" = "scenes" ]; then
+    echo
+    echo "== the declared half =="
+    "${DIR}/scripts/run-a-test" "${DIR}" all
     if [ "$?" -ne 0 ]; then
         FAILED=1
     fi

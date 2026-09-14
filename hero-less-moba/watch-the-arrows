@@ -45,8 +45,8 @@ case "${MODE}" in
         ;;
 esac
 
-if [ ! -f "${DIR}/scenarios/${SCENARIO}" ]; then
-    echo "No scenario at ${DIR}/scenarios/${SCENARIO}"
+if [ ! -f "${DIR}/scenarios/${SCENARIO}.lua" ]; then
+    echo "No scenario at ${DIR}/scenarios/${SCENARIO}.lua"
     echo
     echo "Available:"
     ls -1 "${DIR}/scenarios" | sed 's/^/    /'
