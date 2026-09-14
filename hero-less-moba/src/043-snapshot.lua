@@ -160,6 +160,10 @@ local function make_frame(world)
     frame.structure[id] = {
       id = id, team = 0, kind = 0, lane = 0, alive = 0,
       x = 0, y = 0, health_fraction = 0, command_radius = 0,
+      -- How much ground it stands on. The renderer used to keep this as a number
+      -- typed into a drawing routine, so the picture and the simulation disagreed
+      -- about how big a tower was and neither could find out.
+      radius = 0,
       guard_count = 0, upgrade_count = zeroed(kind_count),
     }
   end
@@ -324,6 +328,7 @@ function M.stamp(world)
     -- in this game both sides can see, because the attacker and the defender have
     -- to reason about the same circle at the same moment.
     view.command_radius = structure.command_radius
+    view.radius = structure.radius
     view.guard_count = #structure.guard_slot
     for kind = 1, kind_count do
       view.upgrade_count[kind] = structure.upgrade_count[kind]

@@ -26,7 +26,8 @@ which makes the slotting decision visible from across the map.
 | --- | --- | --- |
 | `health`, `damage`, `range` | double | The usual. |
 | `cooldown_max` | integer | Ticks between arrows. |
-| `command_radius` | double | The circle around the tower that gates guard replacement and hero placement. Larger than `range`. |
+| `radius` | double | **How much ground the building itself stands on.** One number doing every job a body's radius does: how large it is drawn, what a body may not stand inside, and where its guards are put out. Measured to the corner of the square it is drawn as, so nothing placed on that circle is inside the drawing. |
+| `command_radius` | double | The circle around the tower that gates guard replacement and hero placement. Larger than `range`, and much larger than `radius` — one is a rule about reach and the other is masonry. |
 | `guard_cap` | integer | How many guards it may hold at once, before any upgrade raises it. |
 | `guard_interval` | integer | Ticks between putting one guard on the ground and the next — **and only counting down while the radius is clear.** |
 | `leash_radius` | double | How far a guard may drift before it turns round and goes home. |

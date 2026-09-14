@@ -510,6 +510,10 @@ function M.create(parameters, map, stream)
       cooldown_max  = is_library and library_row.cooldown_max or tower_row.cooldown_max,
       target        = 0,
       target_generation = 0,
+      -- How much ground this structure stands on. Copied onto the record like every
+      -- other stat, so that anything asking "may I stand here" reads one field rather
+      -- than branching on what kind of building it is.
+      radius        = is_library and library_row.radius or tower_row.radius,
       command_radius = is_library and 0 or tower_row.command_radius,
       guard_cap     = is_library and 0 or tower_row.guard_cap,
       guard_slot    = {},

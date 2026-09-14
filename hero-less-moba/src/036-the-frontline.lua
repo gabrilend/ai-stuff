@@ -120,8 +120,54 @@ function M.clear_of_bodies(world, id, want_x, want_y)
     end
   end)
 
-  soldier.gave_way[id] = (worst_id == 0) and 0 or 1
-  if worst_id == 0 then
+  -- **And the stone, which is not in the grid and is not a body.**
+  --
+  -- A structure occupies real ground -- a tower is nineteen paces of masonry and a
+  -- library thirty -- and until it had a size on the record, nothing in the simulation
+  -- knew that. Bodies walked through towers and a tower's own guards were placed inside
+  -- the square being drawn round them.
+  --
+  -- Only the two structures at the ends of the edge this body is standing on are
+  -- checked, rather than all twenty. A body is somewhere on a line between two nodes;
+  -- the only stone it can be walking into is stone standing on one of those two nodes,
+  -- because a structure sits on a node and the nodes are much further apart than
+  -- anything is wide. Twenty tests per body per tick to learn the same thing would be
+  -- nineteen of them answering about masonry on the other side of the map.
+  local node = world.map.node
+  local worst_x, worst_y, worst_room = 0, 0, 0
+  if worst_id ~= 0 then
+    worst_x, worst_y = soldier.x[worst_id], soldier.y[worst_id]
+    worst_room = mine + soldier.radius[worst_id]
+  end
+
+  for _, end_id in ipairs({soldier.node_from[id], soldier.node_to[id]}) do
+    local here = node[end_id]
+    local stone = here ~= nil and here.structure or 0
+    if stone ~= nil and stone ~= 0 then
+      local building = world.structure[stone]
+      -- Rubble is walked over. "There used to be a tower here" is information and it is
+      -- drawn, but it is not a wall -- a fallen tower that still blocked a lane would
+      -- make felling one a punishment for the team that did it.
+      if building ~= nil and building.alive == 1 then
+        -- **A structure stands where its node is.** It keeps no coordinates of its own,
+        -- which is right -- a building that could drift from the node it sits on is a
+        -- building two parts of the map disagree about -- and it means the position is
+        -- the node we already have in hand.
+        local room = mine + building.radius
+        local dx = want_x - here.x
+        local dy = want_y - here.y
+        local overlap = room - math.sqrt(dx * dx + dy * dy)
+        if overlap > worst_overlap then
+          worst_overlap = overlap
+          worst_id = 0
+          worst_x, worst_y, worst_room = here.x, here.y, room
+        end
+      end
+    end
+  end
+
+  soldier.gave_way[id] = (worst_room == 0) and 0 or 1
+  if worst_room == 0 then
     return want_x, want_y
   end
 
@@ -141,8 +187,8 @@ function M.clear_of_bodies(world, id, want_x, want_y)
   -- destination. A step cannot land on the far side of a body it has not reached, so
   -- pushing it radially out can never put us through him. Asked about a distant
   -- waypoint it could, which is a second reason the rule is about the step.
-  local room = mine + soldier.radius[worst_id]
-  local ox, oy = soldier.x[worst_id], soldier.y[worst_id]
+  local room = worst_room
+  local ox, oy = worst_x, worst_y
   local dx = want_x - ox
   local dy = want_y - oy
   local distance = math.sqrt(dx * dx + dy * dy)
@@ -164,7 +210,10 @@ function M.clear_of_bodies(world, id, want_x, want_y)
     -- would put two machines' worlds into different shapes over a disagreement about
     -- nothing.
     world.raise(world, "bodies_coincide", {id = id, other = worst_id})
-    local side = (id < worst_id) and -1 or 1
+    -- Standing exactly on a building rather than on another body has no second slot
+    -- number to break the tie with, so the lower of the two is the body's own and the
+    -- push goes the same way every time on every machine, which is all that is needed.
+    local side = (worst_id == 0 or id < worst_id) and -1 or 1
     return ox + room * side, oy
   end
 
@@ -223,6 +272,14 @@ end
 --
 -- A body is drawn at three and a half paces across on a road thirteen hundred paces long.
 -- A millionth of a pace is not a pixel; it is not a millionth of a pixel.
+-- How many times to push bodies out of buildings before leaving it for the next tick.
+--
+-- Small, because the only thing that needs more than one pass is a body between two
+-- buildings whose ground overlaps, and inside a base that is a handful of bodies rather
+-- than a crowd. The body-against-body pass next door needs a hundred and twenty-eight
+-- for the same reason a rank is a chain; stone is not a chain.
+local STONE_SWEEPS = 4
+
 local SEPARATION_SLACK = 1e-6
 M.SEPARATION_SLACK = SEPARATION_SLACK
 
@@ -273,6 +330,34 @@ local SEPARATION_MARGIN = 2
 local SEPARATION_SWEEPS = 8
 
 function M.separate_pass(world)
+  -- **The walls first, then the crowd.**
+  --
+  -- Stone takes no part in the shoving below -- a building cannot give ground, so there is
+  -- nothing to share -- so it is done as a separate pass, and the order between the two
+  -- decides which invariant gets the last word.
+  --
+  -- It was the other way round first, and that was wrong in a way worth keeping written
+  -- down: pushing a body out of a tower puts it into whoever was standing beside it, and
+  -- with nothing running afterwards it stayed there. A match that had never had two bodies
+  -- inside each other started having them, and the reading that says so is the one thing
+  -- in this project that must never be anything but nought.
+  --
+  -- This way the residue lands the other way: a body the crowd shoves into a wall is
+  -- inside it until the next tick. That is the lesser of the two, and it is the same
+  -- tolerance everything else here has -- whatever is left settles over the following
+  -- ticks.
+  --
+  -- **A few sweeps, not one and not until it settles.** Pushing a body out of one building
+  -- can put it into another; inside a base the three towers and the library stand close
+  -- enough for that. Iterating until nobody is in anything is the version that need not
+  -- terminate at all, so this is a small fixed number, and it leaves the moment a sweep
+  -- finds nothing -- which is nearly every tick.
+  for _ = 1, STONE_SWEEPS do
+    if M.push_out_of_stone(world) == 0 then
+      break
+    end
+  end
+
   for _ = 1, SEPARATION_SWEEPS do
     if M.gather_contacts(world) == 0 then
       -- A look that found nobody overlapping. This is the only way out that proves
@@ -280,6 +365,109 @@ function M.separate_pass(world)
       return
     end
     M.relax_contacts(world)
+  end
+end
+-- }}}
+
+-- {{{ function M.push_out_of_stone()
+-- Every living body standing inside a building is moved out to its edge.
+--
+-- **The building does not move.** Everywhere else in this pass an overlap is split
+-- between two bodies in inverse proportion to their area, because both of them are things
+-- that can be shoved. A tower is not, so the body gives up the whole gap.
+--
+-- **Asked from the stone's side rather than the body's**, which is the difference between
+-- twenty grid queries and a walk over every body on the field. There are twenty buildings
+-- in a match and there can be four hundred bodies, so the cheap direction is to ask each
+-- building who is standing in it.
+--
+-- The first version asked it the other way and looked only at the structures on the two
+-- nodes at the ends of the edge each body was walking. That is correct for a body walking
+-- into a tower and wrong for the inside of a base, where three towers stand close enough
+-- to a library that a guard put out on a ring around one of them lands inside another
+-- building entirely -- which is exactly where the guards that were still in the masonry
+-- turned out to be.
+--
+-- Applied through the same nudge every other correction goes through, which is what makes
+-- it stick for both kinds of body: a guard's position is a node and an offset, a wave
+-- body's is how far along and how far across its lane, and a push written straight into x
+-- and y is undone by the next move pass for the second kind.
+function M.push_out_of_stone(world)
+  local soldier = world.soldier
+  local node = world.map.node
+  local moved = 0
+
+  for which = 1, #world.structure do
+    local building = world.structure[which]
+    -- Rubble is walked over. A fallen tower that still blocked a lane would make felling
+    -- one a punishment for the team that managed it.
+    if building.alive == 1 then
+      local here = node[building.node]
+      world.targeting.for_each_near(world, here.x, here.y,
+                                    building.radius + world.largest_body,
+        function(id)
+          if soldier.alive[id] ~= 1 then
+            return
+          end
+          local room = soldier.radius[id] + building.radius
+          local dx = soldier.x[id] - here.x
+          local dy = soldier.y[id] - here.y
+          local distance = math.sqrt(dx * dx + dy * dy)
+          if distance < room - SEPARATION_SLACK then
+            if distance < 0.0001 then
+              -- Standing dead on the building's own node, which is where a body that was
+              -- placed rather than walked ends up. There is no line out, so the world's x
+              -- axis is used -- arbitrary, but the same arbitrary choice on every machine,
+              -- which is what matters in a game that reconciles rather than replays.
+              world.raise(world, "body_inside_stone", {id = id, structure = which})
+              dx, dy, distance = 1, 0, 1
+            end
+            world.walking.nudge(world, id,
+                                dx / distance * (room - distance),
+                                dy / distance * (room - distance))
+            moved = moved + 1
+          end
+        end)
+    end
+  end
+
+  return moved
+end
+-- }}}
+
+-- {{{ function M.push_body_out_of_stone()
+-- The same correction, for one body, asked of every building rather than of one.
+--
+-- **For the moment a body is placed rather than walked.** A tower puts its guards out
+-- during the pass that also makes towers shoot, which runs *after* the separation pass in
+-- the order of a tick -- so a guard that lands inside something stays there until the
+-- next tick, and anything reading the field in between sees it. One body against twenty
+-- buildings, once, at the only moment it can be wrong.
+--
+-- Twenty tests rather than a grid query because the grid holds bodies, and the question
+-- here is the other way round.
+function M.push_body_out_of_stone(world, id)
+  local soldier = world.soldier
+  local node = world.map.node
+
+  for which = 1, #world.structure do
+    local building = world.structure[which]
+    if building.alive == 1 then
+      local here = node[building.node]
+      local room = soldier.radius[id] + building.radius
+      local dx = soldier.x[id] - here.x
+      local dy = soldier.y[id] - here.y
+      local distance = math.sqrt(dx * dx + dy * dy)
+      if distance < room - SEPARATION_SLACK then
+        if distance < 0.0001 then
+          world.raise(world, "body_inside_stone", {id = id, structure = which})
+          dx, dy, distance = 1, 0, 1
+        end
+        world.walking.nudge(world, id,
+                            dx / distance * (room - distance),
+                            dy / distance * (room - distance))
+      end
+    end
   end
 end
 -- }}}

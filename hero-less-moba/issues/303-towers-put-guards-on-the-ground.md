@@ -17,11 +17,29 @@ cannot shut a tower down permanently.
 
 A guard is stamped from its tower's slot and re-stamped when that slot changes.
 
-**It is put beside the tower rather than on it.** A node is a point, and a point holds
-one body: placing every guard at the tower's own node made them all stand inside each
-other for their whole lives, which nothing could correct afterwards because bodies at
-the same point have no direction to be pushed apart along. They are spread across the
-road instead, alternating sides, one body's width further out each pair.
+**It is put on a ring outside the masonry.** Two mistakes in sequence got it there.
+
+A node is a point, and a point holds one body: placing every guard at the tower's own
+node made them all stand inside each other for their whole lives, which nothing could
+correct afterwards, because bodies at the same point have no direction to be pushed apart
+along. So they were spread across the road, alternating sides, one body's width further
+out each pair.
+
+That put the first pair a little under eight paces from the tower's centre — **inside a
+tower drawn nineteen paces across.** Nothing noticed for the same reason as before: a
+structure had no size anywhere in the simulation, and the only place a tower had one at
+all was a number inside a drawing routine. The guards were standing in the stone, and the
+visible consequence was somewhere else entirely — the rule that walks a strayed guard
+home had never once fired in a whole match, because a guard that begins inside its tower
+never gets far enough out to need it.
+
+A structure now carries a radius, measured to the corner of the square it is drawn as.
+Guards stand on a circle of that radius plus their own plus a pace or two of daylight, so
+a guard is outside the building by construction rather than by a number somebody chose,
+and they go round it a pair at a time starting square across the road. Any number fits
+without anything being told how many there will be.
+
+**A base tower's guards stand around the library instead.** See issue 305.
 
 **The axis is the tower's own, not the world's** — it runs from that team's library to
 that tower. That matters and was learned by getting it wrong: the first version used a
