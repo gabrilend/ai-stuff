@@ -43,10 +43,24 @@ function love.load()
   -- rule on a small square of ground with nothing else running. Choosing between them
   -- is the last decision that belongs in a doorway, and it is made by reading one
   -- variable rather than by either viewer knowing the other exists.
-  local scene = (os.getenv("HLM_START") or ""):match("^arena:(.+)$")
-  if scene ~= nil then
-    viewer = loadfile(root .. "/src/069-the-proving-ground.lua")()
-    viewer.load(root, scene)
+  -- **The test says which window it wants, and the doorway asks it.** A test names its
+  -- ground -- a short straight road with only the machinery it asked for, or the real
+  -- map with the whole cast -- and those are the two windows. Reading the ground off the
+  -- test rather than off the name of the variable means adding a third kind of test
+  -- never comes back here.
+  local named = (os.getenv("HLM_START") or ""):match("^test:(.+)$")
+                or (os.getenv("HLM_START") or ""):match("^arena:(.+)$")
+  if named ~= nil then
+    local bench = loadfile(root .. "/src/071-the-bench.lua")()
+    local test = bench.read(root, named)
+    if test.ground == "arena" then
+      viewer = loadfile(root .. "/src/069-the-proving-ground.lua")()
+      viewer.load(root, named)
+      return
+    end
+    viewer = loadfile(root .. "/src/050-the-viewer.lua")()
+    viewer.load(root)
+    viewer.begin_scenario(named)
     return
   end
 

@@ -42,12 +42,40 @@ spawn a wave, because the wave spawner is not there, proves something.
 | | What it is |
 | --- | --- |
 | [The arena](../src/068-the-arena.info.md) | One straight lane, left to right. No bend, no stone, no junction, no bases. And the subset assembly: name your modules, get those and no others. |
-| A scene | A file naming the mechanics, the ground, the bodies, and a sentence saying what should happen. |
+| A test | A table naming the mechanics, the ground, the bodies, what to measure and what it claims — **and containing no behavior of its own.** |
+| [What can be measured](../src/070-what-can-be-measured.info.md) | Every reading a test may take, and every claim it may make. One definition each. |
+| [The bench](../src/071-the-bench.info.md) | Reads a test, builds the world it named, arranges it, runs it, reports. |
 | [The proving ground](../src/069-the-proving-ground.info.md) | The window. Ground, bodies, what each is doing, the caption. No chest panel, no roster, no badges, no clock. |
 
-Run one with `./run-arena <scene>`, or `./run-arena <scene> headless` for the numbers
-with no window. Both print the same figures, so a number seen in one is the same number
-as in the other rather than two measurements that ought to agree.
+Run one with `./scripts/run-a-test <name>`, or `./scripts/run-a-test <name> watch` to
+open it in a window. Both print the same figures — literally the same function reading
+the same world — so a number seen in one is the same number as in the other rather than
+two measurements that ought to agree.
+
+## The rule, once the bargain was written down
+
+> A test is an arrangement of functionality we want to measure. The engine runs
+> everything. A test pulls functionality from the engine and never defines any of its
+> own.
+
+The bargain above is about what is *absent* from a test's world. This is about what is
+absent from the test file, and it turned out to be the same idea one level up. The
+arena's small world stops a measurement being pushed around by machinery nobody asked
+for; this stops a measurement being pushed around by the measuring.
+
+A test file holds no functions. Every value in it is a number, a string, or a row whose
+first word the engine can look up — a module, a verb, a stage, a reading, a comparison.
+The loader refuses a function in any field rather than trusting the rule to hold.
+
+Three things were quietly breaking it and are gone. The arena had a **tick of its own**,
+which meant a marching test measured the harness's idea of marching. The window and a
+shell script each had their **own arithmetic** for how far a column had come, which meant
+the picture and the report were two measurements that were supposed to agree. And a scene
+had a **Lua closure** in it that placed the bodies.
+
+**There is one front door and one kind of test.** A scene on a short straight road and a
+scenario on the whole map differ by one field — `ground` — and are read, arranged, run,
+measured and judged by the same code.
 
 ## The rules of the thing
 
@@ -90,14 +118,38 @@ before seeing the question.
 The two do meet: once a scene has settled what should happen, the assertion it implies
 belongs in the invariants, and the scene stays as the picture of why.
 
-## The cost, stated plainly
+## The cost that used to be stated here, and is not any more
 
-The arena's tick is **written out rather than borrowed**. It calls the same three
-functions the real brain calls to march a body, in the same order, and that is a second
-place in the project that knows marching is grid-then-plan-then-step. If the real one
-grows a fourth step, this one will not have it and will quietly be testing something
-else.
+The arena's tick was **written out rather than borrowed**: three calls, in the order the
+real brain makes them, which was a second place in the project that knew marching is
+grid-then-plan-then-step. The day the real one grew a fourth step, this one would quietly
+have been testing something else.
 
-That is a real cost and it is the trade the arena makes everywhere. A test that
-assembled the whole brain would not have it, and would not be able to tell you anything
-either.
+That is gone. The march loop lives in [the walking module](../src/034-walking.info.md)
+beside the single step it repeats, [the tick](../src/042-the-tick.info.md) carries a named
+row for it that the game itself never runs, and a test names a selection of stages. There
+is one description of what a marching tick is.
+
+## What a claim is asked about
+
+A claim is a row — a reading, a comparison, a number — and it comes in two kinds.
+`always` must hold at **every tick** of the run; `finally` is about the world when it
+stopped.
+
+The default being `always` is not a preference. The first version judged the last tick
+only, and reported a clean field for a run in which two allied columns had walked into
+each other, stood inside one another, squeezed past and arrived at opposite ends of the
+road. Every number was correct at the end. All of the interesting behaviour was in the
+middle.
+
+## A scene may now assert, which argues with what is written above
+
+The section before last says the arena shows and the suites assert, and that the value of
+a scene is in the case where nobody yet knows what the right behaviour is — where writing
+an assertion first means guessing the answer before seeing the question.
+
+Both are kept, and the reconciliation is that claims are **optional**. A test with none
+is reported as *watched*, not as *passed*: a test that asserts nothing has not been
+checked by running it. When a scene has settled what should happen, the claim it implies
+can go straight into the file that shows it, rather than into a suite somewhere else —
+and the scene stays as the picture of why.

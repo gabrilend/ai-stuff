@@ -250,7 +250,15 @@ end
 -- be looked at before it moves.
 function M.begin_scenario(name)
   M.begin_match()
-  M.modules.gate.load(M.world, M.root .. "/scenarios/" .. name)
+
+  -- A match test is a table naming an arrangement of the gate's verbs. The gate is
+  -- given its script first, because the verb that says "and this happens later" writes
+  -- into that script while the arrangement is being performed.
+  local bench = loadfile(M.root .. "/src/071-the-bench.lua")()
+  local test = bench.read(M.root, name)
+  M.modules.gate.begin(M.world, name)
+  M.modules.gate.perform(M.world, test.arrange or {})
+
   M.state.paused = true
   M.modules.snapshot.stamp(M.world)
 end
