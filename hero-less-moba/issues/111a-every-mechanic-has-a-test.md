@@ -6,13 +6,13 @@
 | Blocked by | 111 |
 | Blocks | — |
 | Reads | [the proving ground](../docs/024-the-proving-ground.md), [the shape of the code](../docs/018-the-shape-of-the-code.md) |
-| Open questions | T1, T2, T3, T4, T5, T6 |
+| Open questions | T1, T2, T3, T4, T5, T6, T7, T8 |
 
 ## Current behavior
 
-**One kind of test, one front door, and twenty-eight of seventy-four mechanics named by
-one.** Built; the census is not yet worked down, and four of the four declared tests fail
-a claim.
+**One kind of test, one front door, and forty-eight of eighty mechanics named by one.**
+The shape is built and the census is being worked down. Thirteen tests exist; two of them
+fail a claim, and both failures are findings rather than flakes.
 
 What exists:
 
@@ -21,31 +21,49 @@ What exists:
 - **Two grounds** — a short straight road with only the machinery named, and the real map
   with the whole cast — differing by one field, arranged by two verb tables that are the
   same shape.
-- **The arena has no tick of its own.** The march loop moved into the walking module, the
+- **The arena has no tick of its own.** The march loop lives in the walking module, the
   tick's stage table carries a named row for it that the game never runs, and a test names
   a selection of stages.
-- **One measurement catalogue.** The window's readout, a terminal report and an assertion
-  all ask the same named reading of the same world.
-- **Claims hold over a whole run**, not merely at its last tick.
+- **One measurement catalogue**, now forty-three readings deep: bodies and where they are,
+  what they are carrying and which row of the brain they are running, the waves, the
+  stone, the two economies and the phase. The window's readout, a terminal report and an
+  assertion all ask the same named reading of the same world.
+- **Claims hold over a whole run**, not merely at its last tick, and there are now claims
+  for the other end of a run — `ever_at_least` and `ever_at_most`, judged at the highest
+  and lowest a reading reached. Half of what a test wants to say is that something
+  *happened*, which is true at one tick and false at the others.
 - **The census reads all three directories** and is wired into the documentation
-  validator, which now fails on any mechanic in a built phase with no test.
+  validator, which fails on any mechanic in a built phase with no test.
 - **The census and the validator are Lua**, not shell wrapping python.
 
-What the four tests report, all of it new information nobody had before:
+### What writing the tests found
 
-- Two allied columns **pass through each other** and arrive at opposite ends of the road.
-  A body steps off the road on the way past. The overlapping this also showed has since
-  been fixed — see [214](214-going-round-what-is-in-the-way.md).
-- A formation **does** get past a lone ally standing in its way, which contradicts the
-  scene's own written account of it. It now does so by *filtering round him*, which is
-  what the scene was written to check for in the first place.
-- A `wave` row places nothing in any test that also sets a clock, on the whole map, in
-  silence — long known and now failing a claim rather than sitting in a comment.
-- Two pairs of bodies stood inside each other in an ordinary match with no formations on
-  the field at all. **Nothing overlaps anywhere any more**: across a whole eight-thousand
-  tick match, at every tick, no two bodies are inside each other. That took a separation
-  pass, and finding it took the claims being asked about every tick rather than the last
-  one.
+One was a live fault and is fixed; one is a trap that is staying and is now
+written down beside the code; three are findings about the game that nobody had before,
+because nothing had counted them.
+
+- **The gate armed no towers.** A team's slot counts are one cache over its stones and a
+  tower keeps a second — its own copy of what its lane's stone holds, so that swinging
+  never reaches into a team record. The `stone` verb rebuilt only the first, so every
+  scenario ever written that slotted an upgrade into stone posed a world where the slot
+  said one, the interface said one, and every tower shot with nothing. Fixed: the verb
+  now re-stamps every lane, which is what the real placement path does.
+- **Setting the clock to nought is not the same as not setting it.** The `tick` verb
+  always writes the ordinary stretch's length into the phase deadline, and a match's
+  *first* stretch is longer than the ones between challenges. Two runs of the same test,
+  one with the row and one without, play different matches and neither looks wrong. Left
+  as it is — it means "the clock is here now" — and written down beside the verb.
+- **No guard ever leashes.** Across five thousand ticks of a real match, with four towers
+  felled and forty bodies fighting, the leashing state is never entered once. The
+  mechanism is present and reads correctly; ordinary play simply never pulls a guard far
+  enough from its tower to need it. See T7.
+- **The surge does not empty a chest, it copies one.** The count of upgrades held does not
+  move for the whole surge while the count of bodies carrying something climbs into the
+  hundreds. That is consistent with the design sentence — nothing is lost — but the
+  sentence reads as though the chest is spent, and it is not.
+- **Removing the separation pass from a crossing changes nothing.** Two allied columns run
+  through a shortened tick with no separation pass overlap exactly as much as they do with
+  one: never. They also never come within the rank spacing of each other. See T6.
 
 ## Intended behavior
 
@@ -214,6 +232,37 @@ Under either reading, two things in that run are defects rather than decisions: 
 stand **inside** each other by up to seventeen thousandths of a pace, and bodies step
 **off the road** — sixty-seven and a half paces from the centre line of a road whose
 half-width is sixty-six.
+
+**T7. No guard ever enters the leashing state.**
+Measured over five thousand ticks of a real match: nought, every tick. The tower pass
+measures every guard against its leash node each tick and flips the state when it is
+outside the radius, and that code is reached — the guards are simply always inside it,
+because a guard's reach and its wander both keep it well within the rope.
+
+So the rule that brings a guard home has never once been needed. Three readings of that
+and they want different things done: the leash radius is too generous and should be
+tightened until the rule bites; or guards should be willing to chase further, which is a
+change to what a guard is for; or the rule is correct as a guarantee that costs nothing
+and should be left alone with a claim watching it. A test asserting the count is always
+nought is in place, so a change that starts sending guards down lanes is noticed — but
+**that is not coverage of the mechanic** and the census still counts 304 as missing.
+
+**T8. A third of the census is things a test of this kind cannot cover.**
+The roadmap is the list of mechanics, and the census counts every row of it in a phase
+that has code. Several of those rows are not mechanics a world can be measured for: the
+headless runner and the terminal viewer are tools, the proving ground is the ground the
+tests stand on, this issue is the census itself, and the whole of phase 7 is a window
+somebody has to look at.
+
+That is eighteen of the thirty-two still outstanding. They will never come off the list
+under the present rule, which means the validator will fail forever for a reason nobody
+can act on — and a check that always fails is a check people learn to read past.
+
+Three ways out, and they are not equivalent: mark those rows on the roadmap as not
+testable and have the census skip them; count them against a different denominator so the
+number is honest without failing the build; or accept that some of them *are* testable by
+something that is not a simulation test — a viewer that draws a frame and compares it, a
+runner that runs and is checked for its report — and build that instead.
 
 ## Related documents and tools
 
