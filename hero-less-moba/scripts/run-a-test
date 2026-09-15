@@ -21,6 +21,14 @@
 #   ./scripts/run-a-test all                -- run every test, and fail if any claim fails
 #   ./scripts/run-a-test /path/to/prj ...   -- against a checkout somewhere else
 #
+# **Some tests are performed by a person**, because a third of what this project is made
+# of is not a mechanic a world can be measured for: the headless runner and the terminal
+# viewer are tools, the proving ground is the ground the other tests stand on, and the
+# whole drawing phase is a window that has to be looked at. Those name a command to run
+# and a short list of things to look for; running one prints them, asks each in turn, and
+# appends what you said to by-hand/what-was-seen.md. `all` lists them rather than running
+# them, because a build cannot look at anything.
+#
 # **The window is the default and the report is the mode you ask for.** It was the other
 # way round for about an hour and that was wrong: the numbers are a summary of something,
 # and the something is the thing you came to look at. A test that reports front, back and
@@ -89,17 +97,85 @@ if [ "${NAME}" = "all" ]; then
     luajit -e "
     local bench = loadfile('${DIR}/src/071-the-bench.lua')()
     local failed = 0
+    local by_hand = {}
     for _, entry in ipairs(bench.list('${DIR}')) do
-      local report = bench.run('${DIR}', entry.name)
-      print(bench.tell(report))
-      if not report.held then failed = failed + 1 end
+      local test = bench.read('${DIR}', entry.name)
+      if bench.ground[test.ground].by_hand then
+        -- Skipped rather than failed. A test somebody performs cannot be run by a build,
+        -- and treating it as a failure would make the build red for a reason nobody can
+        -- fix at a keyboard. It is listed at the end instead, which is the whole point:
+        -- the build's job here is to remember to ask.
+        by_hand[#by_hand + 1] = entry.name
+      else
+        local report = bench.run('${DIR}', entry.name)
+        print(bench.tell(report))
+        if not report.held then failed = failed + 1 end
+      end
+    end
+    if #by_hand > 0 then
+      print('')
+      print(#by_hand .. ' test(s) need a person. Run each of these and answer what it asks:')
+      for _, name in ipairs(by_hand) do
+        print('    ./scripts/run-a-test ' .. name)
+      end
     end
     if failed > 0 then
+      print('')
       print(failed .. ' test(s) made a claim that did not hold.')
       os.exit(1)
     end
     "
     exit "$?"
+fi
+
+# **A test whose instrument is somebody's eyes.**
+#
+# It names a command to run and a short list of things to look for, and this walks
+# through them one at a time and writes down what was said. The questions are written in
+# advance and read out unchanged, for the same reason a claim is a row rather than a
+# predicate: a question invented while looking at the screen is a question that agrees
+# with whatever is on it.
+BY_HAND="$(luajit -e "
+local bench = loadfile('${DIR}/src/071-the-bench.lua')()
+local test = bench.read('${DIR}', '${NAME}')
+io.write(bench.ground[test.ground].by_hand and 'yes' or 'no')
+")"
+
+if [ "${BY_HAND}" = "yes" ]; then
+    RECORD="${DIR}/by-hand/what-was-seen.md"
+
+    luajit -e "
+    local bench = loadfile('${DIR}/src/071-the-bench.lua')()
+    local test = bench.read('${DIR}', '${NAME}')
+    print(table.concat(bench.script(test), '\n'))
+    "
+
+    # Append-only, and the answers go in the repository rather than into the RAM tier.
+    # What somebody saw on a particular day is the only record there will ever be that a
+    # window was looked at, and a log that a reboot clears is no record at all.
+    printf '\n## %s -- %s\n\n' "${NAME}" "$(date -u '+%Y-%m-%d %H:%M UTC')" >> "${RECORD}"
+
+    COUNT="$(luajit -e "
+    local bench = loadfile('${DIR}/src/071-the-bench.lua')()
+    io.write(#bench.read('${DIR}', '${NAME}').ask)
+    ")"
+
+    INDEX=1
+    while [ "${INDEX}" -le "${COUNT}" ]; do
+        QUESTION="$(luajit -e "
+        local bench = loadfile('${DIR}/src/071-the-bench.lua')()
+        io.write(bench.read('${DIR}', '${NAME}').ask[${INDEX}])
+        ")"
+        printf '  %s. %s\n' "${INDEX}" "${QUESTION}"
+        printf '     yes / no / skip, and anything else you want written down: '
+        read -r ANSWER
+        printf -- '- %s\n  %s\n' "${QUESTION}" "${ANSWER}" >> "${RECORD}"
+        INDEX=$((INDEX + 1))
+    done
+
+    echo
+    echo "Written to ${RECORD}"
+    exit 0
 fi
 
 if [ "${MODE}" = "watch" ]; then
