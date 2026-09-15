@@ -37,7 +37,8 @@ a different instrument.
 | `ground` | *(table)* | The three grounds. |
 | `script(test)` | | What a person is to look for, as lines. |
 | `what_was_seen(root)` | | The latest verdict on every mechanic a person has been asked about. |
-| `outstanding(root)` | | The ones that were not a yes. |
+| `outstanding(root)` | | The `no`s and the could-not-reproduces. |
+| `caveats(root)` | | The yeses that came with something attached. |
 | `where` | *(table)* | The directories tests live in. |
 
 ## What a test file may say
@@ -117,16 +118,31 @@ answered from memory of the last time.
 | | |
 | --- | --- |
 | `y` | it does that |
+| `b` | it does that, **but** — a yes with something attached |
 | `n` | it does something else |
 | `x` | could not reproduce — the run never got into the state the question is about |
 | `r` | run it again |
 
+**`b` is the same answer as `y` and a different note.** Most of what a person notices
+while looking at a working thing is not a fault: it works and the colour is wrong, it
+works and it took a moment to find. With nowhere to put that it goes in as a `no`, which
+sends somebody to fix a thing that is not broken — or it goes nowhere, which is worse,
+because the person had to decide to throw it away and will decide faster next time.
+
+A `yes, but` does not join the list of things to pick up. It is printed after that list
+and under its own heading, because it is not a queue: mixed in with the faults it would
+either make them look more numerous than they are or teach people to skim the one list
+that has the faults in it.
+
 **`x` is a finding about the simulation, not about the person.** A question nobody can
 answer because the situation never arose means the thing that was supposed to produce that
 situation does not — a build fault, sitting exactly where a test failure would be if a
-bench could reach it. A `no` and an `x` both ask for a note, and a `yes` does not: a prompt
-on every answer is a prompt people learn to hit return through, and then the notes that
-matter are lost among the ones that are not.
+bench could reach it.
+
+Everything except a plain `yes` asks for a note, worded for which kind it was — "What did
+you see instead?" for a `no` or an `x`, and "But?" for a `b`. A plain yes asks nothing,
+because a prompt on every answer is a prompt people learn to hit return through, and then
+the notes that matter are lost among the ones that are not.
 
 ### One question, one mechanic, and the record is the pickup
 
