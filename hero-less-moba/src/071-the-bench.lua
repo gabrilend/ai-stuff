@@ -265,6 +265,40 @@ function M.read(root, name)
     if test.ask == nil or #test.ask == 0 then
       error(entry.path .. ": a test somebody performs has to say what to look for")
     end
+
+    -- **One question, one mechanic, and the mechanic has to be one this test claims.**
+    --
+    -- A question that is evidence for nothing in particular produces an answer nobody
+    -- can act on: "it looked a bit odd" against a file covering three mechanics leaves
+    -- somebody guessing which of the three to go and read. Naming the mechanic on the
+    -- question is what makes an answer pickable up months later -- it lands in the
+    -- record beside an issue number, and that is the whole of how a person's eyes get
+    -- to be an instrument rather than an anecdote.
+    local claimed = {}
+    for index = 1, #test.covers do
+      claimed[test.covers[index]] = true
+    end
+    for index = 1, #test.ask do
+      local row = test.ask[index]
+      if type(row) ~= "table" or row[1] == nil or row[2] == nil then
+        error(entry.path .. ": question " .. index .. " is not a mechanic and a " ..
+              "question. Every row of `ask` is {\"<issue>\", \"<question>\"}.")
+      end
+      if not claimed[row[1]] then
+        error(entry.path .. ": question " .. index .. " is about mechanic " .. row[1] ..
+              ", which this test does not say it covers.")
+      end
+    end
+    for mechanic in pairs(claimed) do
+      local asked = false
+      for index = 1, #test.ask do
+        if test.ask[index][1] == mechanic then asked = true end
+      end
+      if not asked then
+        error(entry.path .. ": says it covers " .. mechanic .. " and asks nothing " ..
+              "about it. A mechanic nobody is asked about is a mechanic nobody checked.")
+      end
+    end
     for index = 1, #NEEDS_A_WORLD do
       local field = NEEDS_A_WORLD[index]
       if test[field] ~= nil then
@@ -453,18 +487,79 @@ function M.script(test)
     "",
     test.name,
     "  " .. test.file .. "   " .. M.ground[test.ground].label,
-    "  covers " .. table.concat(test.covers, ", "),
     "",
     "  " .. test.caption,
     "",
-    "  Run this:  " .. test.run,
-    "",
   }
   for index = 1, #test.ask do
-    lines[#lines + 1] = "  " .. index .. ". " .. test.ask[index]
+    lines[#lines + 1] = string.format("  %d. [%s] %s",
+                                      index, test.ask[index][1], test.ask[index][2])
   end
   lines[#lines + 1] = ""
   return lines
+end
+-- }}}
+
+-- {{{ function M.what_was_seen()
+-- The latest verdict on every mechanic a person has been asked about.
+--
+-- **The record is append-only**, so a mechanic answered three times has three rows and
+-- the last one is the standing answer. Reading it back rather than keeping a tidy summary
+-- beside it is deliberate: a summary is a second file to update, and the first symptom of
+-- forgetting to is a report that says a thing was fixed.
+--
+-- Parsed out of the table it is written as, which is a markdown table because the same
+-- file has two readers -- somebody scrolling it, and this. A separate machine format
+-- would mean the two could disagree about what was said.
+--
+-- Returns rows of `{test, mechanic, verdict, note, when}`, newest answer per mechanic,
+-- in the order the mechanics were first asked about.
+function M.what_was_seen(root)
+  local handle = io.open(root .. "/by-hand/what-was-seen.md", "r")
+  if handle == nil then
+    return {}
+  end
+
+  local rows, seen = {}, {}
+  for line in handle:lines() do
+    local when, test, mechanic, verdict, note =
+      line:match("^|%s*([^|]-)%s*|%s*([^|]-)%s*|%s*([^|]-)%s*|%s*([^|]-)%s*|%s*([^|]-)%s*|$")
+    -- The header and the divider match the shape of a row, so they are skipped by what
+    -- they say rather than by counting lines -- a file somebody has added a paragraph to
+    -- still reads correctly.
+    if when ~= nil and when ~= "when" and when:sub(1, 1) ~= "-" then
+      local key = test .. "/" .. mechanic
+      local row = {test = test, mechanic = mechanic, verdict = verdict,
+                   note = note, when = when}
+      if seen[key] == nil then
+        rows[#rows + 1] = row
+        seen[key] = #rows
+      else
+        rows[seen[key]] = row
+      end
+    end
+  end
+  handle:close()
+
+  return rows
+end
+-- }}}
+
+-- {{{ function M.outstanding()
+-- Everything a person has looked at and not been able to say yes to.
+--
+-- These are the rows to pick up. A `no` is behaviour that is not what the design says; a
+-- `not built` is a question nobody could answer because the run never got into the state
+-- it is about, which is a fault in the simulation sitting where a test failure would be
+-- if a bench could reach it.
+function M.outstanding(root)
+  local left = {}
+  for _, row in ipairs(M.what_was_seen(root)) do
+    if row.verdict ~= "yes" then
+      left[#left + 1] = row
+    end
+  end
+  return left
 end
 -- }}}
 
