@@ -58,6 +58,7 @@ local M = {}
 M.where = {
   {directory = "scenes",    ground = "arena"},
   {directory = "scenarios", ground = "match"},
+  {directory = "by-hand",   ground = "person"},
 }
 
 -- Every field a test may have. **Anything else is refused by name at load.** A field
@@ -68,6 +69,15 @@ local KNOWN_FIELD = {
   file = true, covers = true, name = true, caption = true, note = true,
   ground = true, shape = true, want = true, stages = true, ticks = true,
   arrange = true, measure = true, always = true, finally = true,
+  -- The two a test standing on a person has instead of stages and claims.
+  run = true, ask = true,
+}
+
+-- The fields that only mean something when there is a world. A hand test that carried
+-- one would be a hand test somebody had started to automate and stopped, and it would sit
+-- there looking like it measured something.
+local NEEDS_A_WORLD = {
+  "shape", "want", "stages", "ticks", "arrange", "measure", "always", "finally",
 }
 
 -- {{{ M.ground
@@ -128,6 +138,31 @@ M.ground.match = {
   before = function(context, world)
     context.modules.gate.fire_due(world)
   end,
+}
+-- }}}
+
+-- {{{ M.ground.person
+-- **A test whose instrument is somebody's eyes.**
+--
+-- A third of what the census counts is not a mechanic a world can be measured for. The
+-- headless runner and the terminal viewer are tools; the proving ground is the ground the
+-- other tests stand on; the whole of the drawing phase is a window that has to be looked
+-- at. Those rows were never going to come off the list under a bench that reads numbers,
+-- which meant a check that failed the build forever for a reason nobody could act on --
+-- and a check that always fails is a check people learn to read past.
+--
+-- So this ground asks. A test standing on it names a command to run and a short list of
+-- things to look for, and the front door walks a person through them one at a time and
+-- writes down what they said. It raises no world, runs no stages and makes no claims,
+-- because the person is the instrument and a number here would be a second opinion about
+-- something nobody measured.
+--
+-- **It is still a table of nouns.** What a person is asked is a sentence somebody wrote
+-- down in advance, which is the same discipline as a claim: a question invented while
+-- looking at the screen is a question that agrees with whatever is on it.
+M.ground.person = {
+  label = "a person, looking at it",
+  by_hand = true,
 }
 -- }}}
 -- }}}
@@ -218,8 +253,29 @@ function M.read(root, name)
 
   test.file = entry.name
   test.ground = test.ground or entry.ground
-  if M.ground[test.ground] == nil then
+  local ground = M.ground[test.ground]
+  if ground == nil then
     error(entry.path .. ": there is no ground called '" .. tostring(test.ground) .. "'")
+  end
+
+  if ground.by_hand then
+    if test.run == nil then
+      error(entry.path .. ": a test somebody performs has to say what to run")
+    end
+    if test.ask == nil or #test.ask == 0 then
+      error(entry.path .. ": a test somebody performs has to say what to look for")
+    end
+    for index = 1, #NEEDS_A_WORLD do
+      local field = NEEDS_A_WORLD[index]
+      if test[field] ~= nil then
+        error(entry.path .. ": '" .. field .. "' needs a world, and this test is " ..
+              "performed by a person. A half-automated test looks like it measures " ..
+              "something and does not.")
+      end
+    end
+  elseif test.ask ~= nil or test.run ~= nil then
+    error(entry.path .. ": 'ask' and 'run' belong to a test a person performs. This one " ..
+          "stands on " .. test.ground .. ", where the instrument is a reading.")
   end
 
   return test, entry
@@ -234,6 +290,11 @@ end
 -- chosen stages, and the names of the readings to take. Nothing in it is a closure over
 -- anything, so a caller can look at all of it.
 function M.raise(root, test)
+  if M.ground[test.ground].by_hand then
+    error(test.file .. " is performed by a person and has no world to raise. " ..
+          "Run it with the front door, which will walk you through it.")
+  end
+
   local tick = loadfile(root .. "/src/042-the-tick.lua")()
   local context = {
     root    = root,
@@ -378,6 +439,32 @@ function M.run(root, name)
     ticks = bench.ticks, finished = finished,
     held = held, complaints = complaints, claims = claims,
   }
+end
+-- }}}
+
+-- {{{ function M.script()
+-- What a person is to do and what they are to look for, as the lines they read.
+--
+-- Returned rather than printed for the same reason a run is: the same script is read at a
+-- terminal and written into the record of what was seen, and a function that printed
+-- would force the second reader to parse the first one's output back out.
+function M.script(test)
+  local lines = {
+    "",
+    test.name,
+    "  " .. test.file .. "   " .. M.ground[test.ground].label,
+    "  covers " .. table.concat(test.covers, ", "),
+    "",
+    "  " .. test.caption,
+    "",
+    "  Run this:  " .. test.run,
+    "",
+  }
+  for index = 1, #test.ask do
+    lines[#lines + 1] = "  " .. index .. ". " .. test.ask[index]
+  end
+  lines[#lines + 1] = ""
+  return lines
 end
 -- }}}
 

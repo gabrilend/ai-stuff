@@ -21,7 +21,7 @@ works blind.
 | 109 | A terminal viewer, so we are not blind | built |
 | 110 | A scenario you can hold at the gate | built, with a gate |
 | 111 | The proving ground | built |
-| 111a | Every mechanic has a test | the shape is built; the census is 49 of 80 |
+| 111a | Every mechanic has a test | the shape is built; the census is 59 of 80 |
 
 **Blocking:** nothing. E2 used to block this phase and phase 2 — fixed point or
 floating point — and it is answered: **doubles are fine.** The project is not
