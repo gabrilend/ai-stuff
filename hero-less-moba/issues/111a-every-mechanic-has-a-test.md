@@ -296,12 +296,24 @@ makes no claims. Running one prints what to look for, **runs the command**, wait
 to finish, and only then asks — a question asked before the thing has been seen is a
 question answered from memory of the last time.
 
-**Four verdicts, and the third is the one that earns its place.** Yes, no, *could not
-reproduce*, and run it again. A question nobody can answer because the situation never
-arose means the thing that was supposed to produce that situation does not — a fault in
-the simulation, sitting exactly where a test failure would be if a bench could reach it.
-A no and a could-not-reproduce both ask what was seen instead; a yes does not, because a
-prompt on every answer is a prompt people learn to hit return through.
+**Four answers and a replay**, and two of the four are the ones that earn their place.
+
+*Could not reproduce* means the run never got into the state the question is about, which
+is not a person failing to look properly — it means whatever was supposed to produce that
+state does not, and that is a fault in the simulation sitting exactly where a test failure
+would be if a bench could reach it.
+
+*Yes, but* is a yes with something attached. Most of what a person notices while looking
+at a working thing is not a fault: it works and the colour is wrong, it works and it took
+a moment to find. With nowhere to put that it goes in as a no, which sends somebody to fix
+a thing that is not broken — or it goes nowhere, which is worse, because the person had to
+decide to throw it away and will decide faster next time. It does not join the list of
+things to pick up; it is printed after it, under its own heading, because it is not a
+queue.
+
+Everything except a plain yes asks for a note, worded for which kind it was. A plain yes
+asks nothing, because a prompt on every answer is a prompt people learn to hit return
+through.
 
 Every question names the mechanic it is evidence for, and the loader refuses a question
 about a mechanic the test does not claim, or a claimed mechanic nothing asks about. That
