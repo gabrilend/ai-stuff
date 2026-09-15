@@ -34,7 +34,8 @@ a different instrument.
 | `judge(bench)` | | Whether every claim held, the complaints, and how many were made. |
 | `run(root, name)` | | Raise, run for as long as the test asked, and report. |
 | `tell(report)` | | A run, as the lines a person reads. |
-| `ground` | *(table)* | The two grounds. |
+| `ground` | *(table)* | The three grounds. |
+| `script(test)` | | What a person is to do and look for, as lines. |
 | `where` | *(table)* | The directories tests live in. |
 
 ## What a test file may say
@@ -45,7 +46,7 @@ a different instrument.
 | `name` | what it is called on screen. Required. |
 | `caption` | what a person is looking at, and what would be wrong. Required. |
 | `note` | why a module is present, when the reason is not the obvious one. |
-| `ground` | `arena` or `match`. |
+| `ground` | `arena`, `match`, or `person`. |
 | `want` | the modules to hang, by their name in the tick's cast. Arena only. |
 | `shape` | the ground: `length`, `width`, `files`. Arena only. |
 | `arrange` | the rows that put the world in the state being tested. |
@@ -53,6 +54,8 @@ a different instrument.
 | `ticks` | how long it runs when it is reported rather than watched. |
 | `measure` | which readings to take. |
 | `always` | claims that must hold at **every tick** of the run. |
+| `run` | the command a person types to see it. Hand tests only. |
+| `ask` | what they are to look for, one question a line. Hand tests only. |
 | `finally` | claims about the world **when it stopped**. |
 
 Anything else is refused by name at load. A field nobody reads is a field that silently
@@ -89,3 +92,29 @@ ever inside anybody" is a standing claim and is nearly always the one worth maki
 A test that asserts nothing has not been checked by running it, and a report that counted
 it among the passes would overstate what the project knows about itself — which is the
 exact failure the census exists to stop, arriving by a different door.
+
+## The third ground is a person
+
+A third of what the census counts is not a mechanic a world can be measured for. The
+headless runner and the terminal viewer are tools; the proving ground is the ground the
+other tests stand on; the census is itself one of the rows; the whole drawing phase is a
+window that has to be looked at. Those were never going to come off the list under a bench
+that reads numbers — which meant a check failing the build forever for a reason nobody
+could act on, and a check that always fails is a check people learn to read past.
+
+So a test may stand on `person`. It names a command and a short list of things to look
+for, raises no world, runs no stages and makes no claims — the person is the instrument,
+and a number here would be a second opinion about something nobody measured. The front
+door prints the list, runs through it one question at a time, and appends what was said to
+`by-hand/what-was-seen.md`, which lives in the repository rather than in the RAM tier
+because what somebody saw on a particular day is the only record there will ever be that a
+window was looked at.
+
+It is still a table of nouns. What a person is asked is written down in advance, for the
+same reason a claim is a row rather than a predicate: a question invented while looking at
+the screen is a question that agrees with whatever is on it.
+
+A hand test carrying any of the fields that need a world — `stages`, `measure`, `always`,
+`arrange` and the rest — is refused by name at load. One that did would be a test somebody
+had started to automate and stopped, and it would sit there looking like it measured
+something.

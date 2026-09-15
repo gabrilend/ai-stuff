@@ -6,13 +6,14 @@
 | Blocked by | 111 |
 | Blocks | — |
 | Reads | [the proving ground](../docs/024-the-proving-ground.md), [the shape of the code](../docs/018-the-shape-of-the-code.md) |
-| Open questions | T1, T2, T3, T4, T5, T6, T7, T7b, T8 |
+| Open questions | T1, T2, T3, T4, T6, T7, T7b |
 
 ## Current behavior
 
-**One kind of test, one front door, and forty-nine of eighty mechanics named by one.**
-The shape is built and the census is being worked down. Sixteen tests exist; three of them fail a
-claim, and all three failures are findings rather than flakes.
+**Two kinds of test, one front door, and fifty-nine of eighty mechanics named by one.**
+The shape is built and the census is being worked down. Twenty-five tests exist. Seventeen are read by a
+bench and eight by a person; two of the seventeen fail a claim, and both failures are
+findings rather than flakes.
 
 What exists:
 
@@ -277,22 +278,39 @@ pass takes it out. The most likely shape is a guard whose patrol node *is* a bui
 node, walking at the centre of it every tick, but that has not been confirmed. The whole
 match reproduces it, which makes it a bug report anybody can run.
 
-**T8. A third of the census is things a test of this kind cannot cover.**
-The roadmap is the list of mechanics, and the census counts every row of it in a phase
-that has code. Several of those rows are not mechanics a world can be measured for: the
+**T8. A third of the census was things a test of this kind cannot cover. Answered: ask a
+person.**
+The roadmap is the list of mechanics and the census counts every row of it in a phase that
+has code. Several of those rows are not mechanics a world can be measured for: the
 headless runner and the terminal viewer are tools, the proving ground is the ground the
-tests stand on, this issue is the census itself, and the whole of phase 7 is a window
-somebody has to look at.
+tests stand on, this issue is the census itself, and the whole drawing phase is a window
+somebody has to look at. Eighteen rows that were never coming off the list, in a check that
+fails the build — and a check that always fails is a check people learn to read past.
 
-That is eighteen of the thirty-two still outstanding. They will never come off the list
-under the present rule, which means the validator will fail forever for a reason nobody
-can act on — and a check that always fails is a check people learn to read past.
+The answer given was the one nobody had written down as an option: **just ask me to test
+them.**
 
-Three ways out, and they are not equivalent: mark those rows on the roadmap as not
-testable and have the census skip them; count them against a different denominator so the
-number is honest without failing the build; or accept that some of them *are* testable by
-something that is not a simulation test — a viewer that draws a frame and compares it, a
-runner that runs and is checked for its report — and build that instead.
+So there is a third ground, `person`, and a fourth directory of tests. A hand test names a
+command to run and a short list of things to look for, raises no world, runs no stages and
+makes no claims. Running one prints the list, asks each question in turn, and appends what
+was said to a record that lives in the repository — because what somebody saw on a
+particular day is the only evidence there will ever be that a window was looked at. `all`
+lists them rather than running them, since a build cannot look at anything.
+
+They are still tables of nouns. What a person is asked is written in advance, for the same
+reason a claim is a row rather than a predicate: a question invented while looking at the
+screen is a question that agrees with whatever is on it. A hand test carrying a field that
+needs a world is refused by name at load, because a half-automated test looks like it
+measures something and does not.
+
+Eight of them exist and the census counts them like anything else, which is what makes the
+number honest — the question was never "has this been automated", it was "is anybody
+checking this at all".
+
+**What is left is a real list.** Twenty-one rows, and five of them belong to mechanics
+nobody has started building. The rest — the commander catalogue, abilities, the three ways
+a hero can be spawned, rerolling, staking, the zones a lane is cut into — are ordinary
+gaps that an ordinary test would close.
 
 ## Related documents and tools
 

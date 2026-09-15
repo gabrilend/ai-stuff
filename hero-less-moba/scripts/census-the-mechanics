@@ -47,7 +47,20 @@ local HIGHEST_BUILT_PHASE = 7
 
 -- Where tests live. A directory added here is a directory counted; nothing else needs
 -- to change, which is the point of the census being a tool rather than a list.
-local TEST_DIRECTORY = {"tests", "scenes", "scenarios"}
+--
+-- **`by-hand` holds the tests whose instrument is somebody's eyes**, and they count the
+-- same as any other. A third of what this census was counting is not a mechanic a world
+-- can be measured for -- the headless runner and the terminal viewer are tools, the
+-- proving ground is the ground the other tests stand on, this census is itself one of the
+-- rows, and the whole drawing phase is a window that has to be looked at. Those were
+-- never going to come off the list under a bench that reads numbers, which meant a check
+-- that failed the build forever for a reason nobody could act on.
+--
+-- A hand test names a command to run and a short list of things to look for, and the
+-- front door walks a person through them and writes down what they said. Counting them
+-- here is what makes the number honest: the question was never "has this been automated",
+-- it was "is anybody checking this at all".
+local TEST_DIRECTORY = {"tests", "scenes", "scenarios", "by-hand"}
 
 -- {{{ local function lines_of()
 -- Every line of a file, or nothing if it is not there.
