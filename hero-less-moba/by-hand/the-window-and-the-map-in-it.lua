@@ -1,33 +1,25 @@
--- The real viewer: a window, the whole map, and a match running in it.
+-- The real viewer, opened paused so the map can be looked at before anything moves.
 --
--- Two mechanics at once because they cannot be separated by looking. The window holds two
--- snapshots and draws between them, and the map draws itself from the same description
--- the simulation walks -- and the only way to tell either of those is working is that the
--- picture is smooth and that what is drawn is where things are.
---
--- **Zoom reveals detail; it never reveals events.** That is the rule the whole viewing
--- layer is built on and it is the third question below: everything a player has to react
--- to has to be legible at the default view, or the game is asking people to hunt.
+-- Two mechanics, one window, and they fail in ways you can tell apart: the window draws
+-- between two snapshots, so if that is wrong the motion steps once a tick; the map draws
+-- itself from the same description the simulation walks, so if that is wrong the picture
+-- and the game disagree about where things are.
 
 return {
   covers = {"701", "702"},
 
   name = "The window, and the map in it",
 
-  caption = "A whole match in a window. Three lanes, two bases, stone at the lane " ..
-            "mouths, waves walking out of both ends. Wheel to zoom, and the zoom is " ..
-            "anchored to the cursor rather than to the middle of the screen.",
+  caption = "A match in a window, paused. Press P to start it. Wheel to zoom -- the zoom " ..
+            "goes toward the cursor.",
 
   ground = "person",
 
-  run = "./run-prototype play",
+  run = "./run-prototype watch",
 
   ask = {
-    "Is the movement smooth, rather than stepping once a tick?",
-    "At the default view, can you see all three lanes and both bases at once?",
-    "Is there anything you have to zoom in to notice, rather than to examine?",
-    "Does zooming go toward the cursor rather than the centre of the screen?",
-    "Can you tell a melee body from one with a bow without zooming?",
-    "When a tower falls, is the rubble still drawn where it was?",
+    {"702", "At the default view, could you see all three lanes, both bases and the " ..
+            "stone at the lane mouths?"},
+    {"701", "Once running, did the bodies move smoothly rather than stepping once a tick?"},
   },
 }

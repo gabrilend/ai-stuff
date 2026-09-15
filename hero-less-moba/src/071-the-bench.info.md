@@ -35,7 +35,9 @@ a different instrument.
 | `run(root, name)` | | Raise, run for as long as the test asked, and report. |
 | `tell(report)` | | A run, as the lines a person reads. |
 | `ground` | *(table)* | The three grounds. |
-| `script(test)` | | What a person is to do and look for, as lines. |
+| `script(test)` | | What a person is to look for, as lines. |
+| `what_was_seen(root)` | | The latest verdict on every mechanic a person has been asked about. |
+| `outstanding(root)` | | The ones that were not a yes. |
 | `where` | *(table)* | The directories tests live in. |
 
 ## What a test file may say
@@ -54,8 +56,8 @@ a different instrument.
 | `ticks` | how long it runs when it is reported rather than watched. |
 | `measure` | which readings to take. |
 | `always` | claims that must hold at **every tick** of the run. |
-| `run` | the command a person types to see it. Hand tests only. |
-| `ask` | what they are to look for, one question a line. Hand tests only. |
+| `run` | the command to run before asking. Hand tests only. |
+| `ask` | rows of `{mechanic, question}`. Hand tests only. |
 | `finally` | claims about the world **when it stopped**. |
 
 Anything else is refused by name at load. A field nobody reads is a field that silently
@@ -102,17 +104,45 @@ window that has to be looked at. Those were never going to come off the list und
 that reads numbers — which meant a check failing the build forever for a reason nobody
 could act on, and a check that always fails is a check people learn to read past.
 
-So a test may stand on `person`. It names a command and a short list of things to look
-for, raises no world, runs no stages and makes no claims — the person is the instrument,
-and a number here would be a second opinion about something nobody measured. The front
-door prints the list, runs through it one question at a time, and appends what was said to
-`by-hand/what-was-seen.md`, which lives in the repository rather than in the RAM tier
-because what somebody saw on a particular day is the only record there will ever be that a
-window was looked at.
+So a test may stand on `person`. It names a command and **one question per mechanic it
+covers**, raises no world, runs no stages and makes no claims — the person is the
+instrument, and a number here would be a second opinion about something nobody measured.
 
-It is still a table of nouns. What a person is asked is written down in advance, for the
-same reason a claim is a row rather than a predicate: a question invented while looking at
-the screen is a question that agrees with whatever is on it.
+The front door prints what to look for, **runs the command**, waits for it to finish, and
+then asks. In that order: a question asked before the thing has been seen is a question
+answered from memory of the last time.
+
+### Four verdicts, and the third is the one that earns its place
+
+| | |
+| --- | --- |
+| `y` | it does that |
+| `n` | it does something else |
+| `x` | could not reproduce — the run never got into the state the question is about |
+| `r` | run it again |
+
+**`x` is a finding about the simulation, not about the person.** A question nobody can
+answer because the situation never arose means the thing that was supposed to produce that
+situation does not — a build fault, sitting exactly where a test failure would be if a
+bench could reach it. A `no` and an `x` both ask for a note, and a `yes` does not: a prompt
+on every answer is a prompt people learn to hit return through, and then the notes that
+matter are lost among the ones that are not.
+
+### One question, one mechanic, and the record is the pickup
+
+Every question names the mechanic it is evidence for, and the loader refuses a question
+about a mechanic the test does not claim, or a claimed mechanic nothing asks about. That
+is what makes an answer usable months later: it lands in the record beside an issue
+number, rather than as "it looked a bit odd" against a file covering three things.
+
+Answers append to `by-hand/what-was-seen.md`, which lives in the repository rather than in
+the RAM tier, because what somebody saw on a particular day is the only evidence there
+will ever be that a window was looked at. Running everything reads it back and prints
+whatever was not a yes, before the list of tests nobody has looked at — so the next person
+to open the project starts from what the last one saw. The record is append-only and the
+latest row for a mechanic is the standing answer; there is no summary beside it, because a
+summary is a second file to update and the first symptom of forgetting is a report saying
+something was fixed.
 
 A hand test carrying any of the fields that need a world — `stages`, `measure`, `always`,
 `arrange` and the rest — is refused by name at load. One that did would be a test somebody
