@@ -27,8 +27,8 @@
 # whole drawing phase is a window that has to be looked at.
 #
 # One of those names a command and one question per mechanic it covers. Running it prints
-# what to look for, runs the command, waits, and then asks -- y for yes, n for no, x for
-# could not reproduce, r to run it again. Answers append to by-hand/what-was-seen.md, and
+# what to look for, runs the command, waits, and then asks -- y for yes, b for yes-but,
+# n for no, x for could not reproduce, r to run it again. Answers append to by-hand/what-was-seen.md, and
 # `all` reads that back and prints whatever was not a yes before listing the tests nobody
 # has looked at yet. `all` does not run them: a build cannot look at anything.
 #
@@ -128,6 +128,18 @@ if [ "${NAME}" = "all" ]; then
                             (row.note ~= '' and row.note) or row.test))
       end
     end
+    -- Printed after, and printed differently, because these are not a queue. Somebody
+    -- looked at a working thing and noticed something; putting that in the same list as
+    -- the faults would either make the faults look longer than they are or teach people
+    -- to skim the list that has the faults in it.
+    local aside = bench.caveats('${DIR}')
+    if #aside > 0 then
+      print('')
+      print('Answered yes, with something attached:')
+      for _, row in ipairs(aside) do
+        print(string.format('    %-6s %s', row.mechanic, row.note))
+      end
+    end
     if #by_hand > 0 then
       print('')
       print(#by_hand .. ' test(s) need a person. Run each of these and answer what it asks:')
@@ -153,9 +165,17 @@ fi
 # Four verdicts, and the third is the one that earns its place:
 #
 #   y   it does that
+#   b   it does that, but -- a yes with something attached
 #   n   it does something else
 #   x   could not reproduce -- the run never got into the state the question is about
 #   r   run it again
+#
+# **`b` is the same answer as `y` and a different note.** Most of what a person notices
+# while looking at a working thing is not a fault: it works and the colour is wrong, it
+# works and it took a moment to find. Without somewhere to put that, it goes in as a `no`
+# -- which sends somebody to fix a thing that is not broken -- or it goes nowhere, which
+# is worse, because the person had to decide to throw it away and will decide faster next
+# time.
 #
 # **`x` is a finding about the simulation, not about the person.** A question nobody can
 # answer because the situation never arose means the thing that was supposed to produce
@@ -200,7 +220,10 @@ if [ "${BY_HAND}" = "yes" ]; then
             printf 'A verdict of `not built` means the run never got into the state the\n'
             printf 'question is about -- a fault in the simulation, sitting where a test\n'
             printf 'failure would be if a bench could reach it. Those are the rows to pick\n'
-            printf 'up first.\n\n'
+            printf 'up first, with the plain `no`s.\n\n'
+            printf 'A `yes, but` is a yes. The mechanic works and somebody noticed\n'
+            printf 'something else while watching it, which is most of what a person\n'
+            printf 'notices. Read those; they are not a queue.\n\n'
             printf '| when | test | mechanic | verdict | what was said |\n'
             printf '| --- | --- | --- | --- | --- |\n'
         } > "${RECORD}"
@@ -222,7 +245,7 @@ if [ "${BY_HAND}" = "yes" ]; then
         VERDICT=""
         while [ -z "${VERDICT}" ]; do
             printf '\n  [%s] %s\n' "${MECHANIC}" "${QUESTION}"
-            printf '  y yes   n no   x could not reproduce   r run it again  > '
+            printf '  y yes   b yes, but   n no   x could not reproduce   r again  > '
             # **A closed input ends the questioning rather than looping on it.** Without
             # this, anything that is not a person at a keyboard -- a pipe, a build, a
             # terminal that went away -- spins here forever printing the same prompt,
@@ -234,22 +257,24 @@ if [ "${BY_HAND}" = "yes" ]; then
             fi
             case "${REPLY}" in
                 y|Y) VERDICT="yes" ;;
+                b|B) VERDICT="yes, but" ;;
                 n|N) VERDICT="no" ;;
                 x|X) VERDICT="not built" ; NOT_BUILT=$((NOT_BUILT + 1)) ;;
                 r|R) printf '\n  Running: %s\n\n' "${RUN}"
                      env -C "${DIR}" sh -c "${RUN}" ;;
-                *)   printf '  y, n, x or r.\n' ;;
+                *)   printf '  y, b, n, x or r.\n' ;;
             esac
         done
 
-        # Asked only when the answer is not a plain yes. A note on every yes is a prompt
-        # people learn to hit return through, and then the notes that matter are lost
-        # among the ones that are not.
+        # Asked whenever the answer is not a plain yes, and worded for which kind of
+        # not-plain-yes it was. A note on every yes is a prompt people learn to hit return
+        # through, and then the notes that matter are lost among the ones that are not.
         NOTE=""
-        if [ "${VERDICT}" != "yes" ]; then
-            printf '  What did you see instead? '
-            read -r NOTE
-        fi
+        case "${VERDICT}" in
+            "yes, but") printf '  But? ' ; read -r NOTE ;;
+            yes)        : ;;
+            *)          printf '  What did you see instead? ' ; read -r NOTE ;;
+        esac
 
         printf '| %s | %s | %s | %s | %s |\n' \
             "${WHEN}" "${NAME}" "${MECHANIC}" "${VERDICT}" "${NOTE}" >> "${RECORD}"

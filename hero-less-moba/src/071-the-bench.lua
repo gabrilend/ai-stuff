@@ -546,20 +546,46 @@ end
 -- }}}
 
 -- {{{ function M.outstanding()
--- Everything a person has looked at and not been able to say yes to.
+-- Everything a person has looked at and could not say yes to.
 --
 -- These are the rows to pick up. A `no` is behaviour that is not what the design says; a
 -- `not built` is a question nobody could answer because the run never got into the state
 -- it is about, which is a fault in the simulation sitting where a test failure would be
 -- if a bench could reach it.
+--
+-- **A `yes, but` is not here.** It is a yes -- see below.
 function M.outstanding(root)
   local left = {}
   for _, row in ipairs(M.what_was_seen(root)) do
-    if row.verdict ~= "yes" then
+    if row.verdict == "no" or row.verdict == "not built" then
       left[#left + 1] = row
     end
   end
   return left
+end
+-- }}}
+
+-- {{{ function M.caveats()
+-- The yeses that came with something attached.
+--
+-- **Most of what a person notices while looking at a working thing is not a fault.** It
+-- works and the colour is wrong; it works and it took a moment to find; it works and the
+-- second one was slower than the first. With nowhere to put that, it goes in as a `no` --
+-- which sends somebody to fix a thing that is not broken -- or it goes nowhere at all,
+-- which is worse, because the person had to decide to throw it away and will decide
+-- faster next time.
+--
+-- Kept apart from the list above rather than mixed into it. These are not a queue: put in
+-- with the faults they would either make the faults look more numerous than they are, or
+-- teach people to skim the one list that has the faults in it.
+function M.caveats(root)
+  local noted = {}
+  for _, row in ipairs(M.what_was_seen(root)) do
+    if row.verdict == "yes, but" and row.note ~= "" then
+      noted[#noted + 1] = row
+    end
+  end
+  return noted
 end
 -- }}}
 

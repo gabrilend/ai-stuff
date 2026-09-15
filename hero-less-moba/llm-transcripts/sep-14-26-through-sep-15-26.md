@@ -1,6 +1,6 @@
 # Conversation Summary: 09b1f2ed-6cb3-4243-bd3a-fe3b541b23d8
 
-Generated on: 2026-09-14 19:01:37
+Generated on: 2026-09-15 03:54:01
 
 --------------------------------------------------------------------------------
 
@@ -234,5 +234,81 @@ Twenty-one rows left uncovered, five of them mechanics nobody has started
 building. The rest — the commander catalogue, abilities, the three ways to
 spawn a hero, rerolling, staking, the zones a lane is cut into — are ordinary
 gaps.
+
+--------------------------------------------------------------------------------
+
+### User Request 4
+
+For the human tests, can you make it interactively ask the user after the test
+about the behavior you're testing? And write down their answers, ready for
+pickup next time you're working on issues. Also give them an option to play the
+simulation again. Make sure they're precise and to the point and only include
+the mechanics for each test that are relevant. Make sure there's an option for
+"could not reproduce the behavior you're trying to test" which means we didn't
+build the sim right. Prefer being lean over comprehensive when designing the
+sims.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 4
+
+Reworking the hand tests: the runner will launch the sim itself, then ask one
+precise question per mechanic, with a "could not reproduce" verdict and a replay
+option.
+
+Done, committed, tree clean.
+
+**The flow now.** `./scripts/run-a-test <name>` on a hand test prints what to
+look for, **runs the command itself**, waits for it to finish, then asks — in
+that order, because a question asked before the thing has been seen is answered
+from memory of the last time.
+
+```
+  [702] At the default view, could you see all three lanes, both bases and
+        the stone at the lane mouths?
+  y yes   n no   x could not reproduce   r run it again  >
+```
+
+`r` re-launches and re-asks the same question. `n` and `x` then ask "What did
+you see instead?"; `y` does not — a prompt on every answer is one people learn
+to hit return through, and the notes that matter get lost among the ones that
+don't.
+
+**"Could not reproduce" is the verdict that earns its place.** It doesn't mean
+you failed to look properly — it means the run never got into the state the
+question is about, so whatever was supposed to produce that state doesn't.
+That's a fault in the simulation sitting exactly where a test failure would be
+if a bench could reach it. It's counted separately and said out loud at the end.
+
+**Every question names one mechanic, and one mechanic gets one question.** The
+loader refuses a question about something the test doesn't claim, and refuses a
+claimed mechanic nothing asks about. All eight tests were cut to the single
+sharpest thing that would be false if that mechanic were broken — **38
+questions became 10**.
+
+**Pickup.** Answers append to `by-hand/what-was-seen.md` as a table — when,
+test, mechanic, verdict, what was said — in the repository, not the RAM tier.
+`run-a-test all` reads it back and prints everything that wasn't a yes *before*
+listing the tests nobody has looked at:
+
+```
+Answered by somebody, and not with a yes:
+    111a   not built  the window never opened
+
+8 test(s) need a person. Run each of these and answer what it asks:
+    ./scripts/run-a-test a-match-with-nobody-watching
+    ...
+```
+
+Latest row for a mechanic is the standing answer. No summary file beside it —
+a summary is a second thing to update, and the first symptom of forgetting is a
+report saying something was fixed.
+
+Two bugs in the asking itself, both found by running it rather than reading it:
+the prompt was reading from the file of questions instead of the terminal, so
+the first answer typed was never seen — the read that asked for it took the
+next question and called it an answer. And a closed input spun the prompt
+forever, since a read at end-of-input succeeds at reading nothing, and nothing
+isn't one of the four letters.
 
 --------------------------------------------------------------------------------
