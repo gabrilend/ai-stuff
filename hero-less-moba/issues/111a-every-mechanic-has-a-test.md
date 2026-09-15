@@ -291,11 +291,28 @@ The answer given was the one nobody had written down as an option: **just ask me
 them.**
 
 So there is a third ground, `person`, and a fourth directory of tests. A hand test names a
-command to run and a short list of things to look for, raises no world, runs no stages and
-makes no claims. Running one prints the list, asks each question in turn, and appends what
-was said to a record that lives in the repository — because what somebody saw on a
-particular day is the only evidence there will ever be that a window was looked at. `all`
-lists them rather than running them, since a build cannot look at anything.
+command and **one question per mechanic it covers**, raises no world, runs no stages and
+makes no claims. Running one prints what to look for, **runs the command**, waits for it
+to finish, and only then asks — a question asked before the thing has been seen is a
+question answered from memory of the last time.
+
+**Four verdicts, and the third is the one that earns its place.** Yes, no, *could not
+reproduce*, and run it again. A question nobody can answer because the situation never
+arose means the thing that was supposed to produce that situation does not — a fault in
+the simulation, sitting exactly where a test failure would be if a bench could reach it.
+A no and a could-not-reproduce both ask what was seen instead; a yes does not, because a
+prompt on every answer is a prompt people learn to hit return through.
+
+Every question names the mechanic it is evidence for, and the loader refuses a question
+about a mechanic the test does not claim, or a claimed mechanic nothing asks about. That
+is what makes an answer usable months later: it lands beside an issue number rather than
+as "it looked a bit odd" against a file covering three things.
+
+Answers append to a record in the repository — what somebody saw on a particular day is
+the only evidence there will ever be that a window was looked at — and running everything
+reads it back and prints whatever was not a yes, before listing the tests nobody has
+looked at. So the next person to open the project starts from what the last one saw. `all`
+does not run them, since a build cannot look at anything.
 
 They are still tables of nouns. What a person is asked is written in advance, for the same
 reason a claim is a row rather than a predicate: a question invented while looking at the

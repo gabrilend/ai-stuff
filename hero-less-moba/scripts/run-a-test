@@ -24,10 +24,13 @@
 # **Some tests are performed by a person**, because a third of what this project is made
 # of is not a mechanic a world can be measured for: the headless runner and the terminal
 # viewer are tools, the proving ground is the ground the other tests stand on, and the
-# whole drawing phase is a window that has to be looked at. Those name a command to run
-# and a short list of things to look for; running one prints them, asks each in turn, and
-# appends what you said to by-hand/what-was-seen.md. `all` lists them rather than running
-# them, because a build cannot look at anything.
+# whole drawing phase is a window that has to be looked at.
+#
+# One of those names a command and one question per mechanic it covers. Running it prints
+# what to look for, runs the command, waits, and then asks -- y for yes, n for no, x for
+# could not reproduce, r to run it again. Answers append to by-hand/what-was-seen.md, and
+# `all` reads that back and prints whatever was not a yes before listing the tests nobody
+# has looked at yet. `all` does not run them: a build cannot look at anything.
 #
 # **The window is the default and the report is the mode you ask for.** It was the other
 # way round for about an hour and that was wrong: the numbers are a summary of something,
@@ -112,6 +115,19 @@ if [ "${NAME}" = "all" ]; then
         if not report.held then failed = failed + 1 end
       end
     end
+    -- **What a person said last time, before what nobody has looked at yet.** A build
+    -- that only ever listed the tests needing a person would be a build that forgot every
+    -- answer the moment it was given, and the point of writing them down is that the next
+    -- person to open this project starts from what the last one saw.
+    local left = bench.outstanding('${DIR}')
+    if #left > 0 then
+      print('')
+      print('Answered by somebody, and not with a yes:')
+      for _, row in ipairs(left) do
+        print(string.format('    %-6s %-10s %s', row.mechanic, row.verdict,
+                            (row.note ~= '' and row.note) or row.test))
+      end
+    end
     if #by_hand > 0 then
       print('')
       print(#by_hand .. ' test(s) need a person. Run each of these and answer what it asks:')
@@ -130,11 +146,21 @@ fi
 
 # **A test whose instrument is somebody's eyes.**
 #
-# It names a command to run and a short list of things to look for, and this walks
-# through them one at a time and writes down what was said. The questions are written in
-# advance and read out unchanged, for the same reason a claim is a row rather than a
-# predicate: a question invented while looking at the screen is a question that agrees
-# with whatever is on it.
+# It names a command and one question per mechanic it covers. This runs the command,
+# waits for it to finish, and then asks -- in that order, because a question asked before
+# the thing has been seen is a question answered from memory of the last time.
+#
+# Four verdicts, and the third is the one that earns its place:
+#
+#   y   it does that
+#   n   it does something else
+#   x   could not reproduce -- the run never got into the state the question is about
+#   r   run it again
+#
+# **`x` is a finding about the simulation, not about the person.** A question nobody can
+# answer because the situation never arose means the thing that was supposed to produce
+# that situation does not, and that is a build fault sitting where a test failure would be
+# if a bench could reach it. It is written down as loudly as a `no`.
 BY_HAND="$(luajit -e "
 local bench = loadfile('${DIR}/src/071-the-bench.lua')()
 local test = bench.read('${DIR}', '${NAME}')
@@ -143,38 +169,99 @@ io.write(bench.ground[test.ground].by_hand and 'yes' or 'no')
 
 if [ "${BY_HAND}" = "yes" ]; then
     RECORD="${DIR}/by-hand/what-was-seen.md"
+    SCRATCH="/tmp/hero-less-moba/tmp/by-hand-${NAME}"
 
+    # The questions pulled out once, one per line, mechanic and question separated by a
+    # tab -- so the loop below reads them rather than calling back into Lua per question.
     luajit -e "
     local bench = loadfile('${DIR}/src/071-the-bench.lua')()
     local test = bench.read('${DIR}', '${NAME}')
-    print(table.concat(bench.script(test), '\n'))
-    "
+    for _, row in ipairs(test.ask) do
+      io.write(row[1], '\t', row[2], '\n')
+    end
+    " > "${SCRATCH}"
 
-    # Append-only, and the answers go in the repository rather than into the RAM tier.
-    # What somebody saw on a particular day is the only record there will ever be that a
-    # window was looked at, and a log that a reboot clears is no record at all.
-    printf '\n## %s -- %s\n\n' "${NAME}" "$(date -u '+%Y-%m-%d %H:%M UTC')" >> "${RECORD}"
-
-    COUNT="$(luajit -e "
+    RUN="$(luajit -e "
     local bench = loadfile('${DIR}/src/071-the-bench.lua')()
-    io.write(#bench.read('${DIR}', '${NAME}').ask)
+    io.write(bench.read('${DIR}', '${NAME}').run)
     ")"
 
-    INDEX=1
-    while [ "${INDEX}" -le "${COUNT}" ]; do
-        QUESTION="$(luajit -e "
-        local bench = loadfile('${DIR}/src/071-the-bench.lua')()
-        io.write(bench.read('${DIR}', '${NAME}').ask[${INDEX}])
-        ")"
-        printf '  %s. %s\n' "${INDEX}" "${QUESTION}"
-        printf '     yes / no / skip, and anything else you want written down: '
-        read -r ANSWER
-        printf -- '- %s\n  %s\n' "${QUESTION}" "${ANSWER}" >> "${RECORD}"
-        INDEX=$((INDEX + 1))
-    done
+    luajit -e "
+    local bench = loadfile('${DIR}/src/071-the-bench.lua')()
+    print(table.concat(bench.script(bench.read('${DIR}', '${NAME}')), '\n'))
+    "
 
-    echo
-    echo "Written to ${RECORD}"
+    # The header, written once ever. Everything after it is one row per answer, which is
+    # what makes the file readable by a person and greppable by whoever picks it up.
+    if [ ! -f "${RECORD}" ]; then
+        {
+            printf '# What Was Seen\n\n'
+            printf 'Answers from the tests a person performs. Append-only.\n\n'
+            printf 'A verdict of `not built` means the run never got into the state the\n'
+            printf 'question is about -- a fault in the simulation, sitting where a test\n'
+            printf 'failure would be if a bench could reach it. Those are the rows to pick\n'
+            printf 'up first.\n\n'
+            printf '| when | test | mechanic | verdict | what was said |\n'
+            printf '| --- | --- | --- | --- | --- |\n'
+        } > "${RECORD}"
+    fi
+
+    # The command is run from the project root, because a test names its front doors the
+    # way the documents do -- ./run-prototype -- and those are written relative to it.
+    printf '\n  Running: %s\n\n' "${RUN}"
+    env -C "${DIR}" sh -c "${RUN}"
+
+    WHEN="$(date -u '+%Y-%m-%d %H:%M')"
+    NOT_BUILT=0
+
+    # **The questions are read on their own descriptor**, because the prompts inside this
+    # loop have to read from the terminal. Fed through plain standard input, the file of
+    # questions *is* standard input, and the first answer somebody types is never seen --
+    # the read that asks for it takes the next question instead and calls it an answer.
+    while IFS="$(printf '\t')" read -r MECHANIC QUESTION <&3; do
+        VERDICT=""
+        while [ -z "${VERDICT}" ]; do
+            printf '\n  [%s] %s\n' "${MECHANIC}" "${QUESTION}"
+            printf '  y yes   n no   x could not reproduce   r run it again  > '
+            # **A closed input ends the questioning rather than looping on it.** Without
+            # this, anything that is not a person at a keyboard -- a pipe, a build, a
+            # terminal that went away -- spins here forever printing the same prompt,
+            # because a read that reaches the end of its input succeeds at reading
+            # nothing and the nothing is not one of the four letters.
+            if ! read -r REPLY; then
+                printf '\n  Nobody there. Stopping, and writing down what was answered.\n'
+                break 2
+            fi
+            case "${REPLY}" in
+                y|Y) VERDICT="yes" ;;
+                n|N) VERDICT="no" ;;
+                x|X) VERDICT="not built" ; NOT_BUILT=$((NOT_BUILT + 1)) ;;
+                r|R) printf '\n  Running: %s\n\n' "${RUN}"
+                     env -C "${DIR}" sh -c "${RUN}" ;;
+                *)   printf '  y, n, x or r.\n' ;;
+            esac
+        done
+
+        # Asked only when the answer is not a plain yes. A note on every yes is a prompt
+        # people learn to hit return through, and then the notes that matter are lost
+        # among the ones that are not.
+        NOTE=""
+        if [ "${VERDICT}" != "yes" ]; then
+            printf '  What did you see instead? '
+            read -r NOTE
+        fi
+
+        printf '| %s | %s | %s | %s | %s |\n' \
+            "${WHEN}" "${NAME}" "${MECHANIC}" "${VERDICT}" "${NOTE}" >> "${RECORD}"
+    done 3< "${SCRATCH}"
+
+    rm -f "${SCRATCH}"
+
+    printf '\n  Written to %s\n' "${RECORD}"
+    if [ "${NOT_BUILT}" -gt 0 ]; then
+        printf '  %s of those could not be reproduced. That is the simulation, not you.\n' \
+            "${NOT_BUILT}"
+    fi
     exit 0
 fi
 
