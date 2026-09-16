@@ -317,84 +317,352 @@ local function mark_quoted_lines(text, prior_speech)
 end
 -- }}}
 
+-- {{{ strip_terminal_escapes
+-- Remove the bytes that were meant for a terminal rather than for a file.
+--
+-- Slash-command output is composed to be drawn, not stored. It carries CSI
+-- sequences - the escape byte, "[", some digits and semicolons, then a letter
+-- naming the effect - which a terminal reads as "bold on", "colour", "reset".
+-- Copied into a markdown file they are invisible control characters that
+-- corrupt every reader that is not a terminal: an editor, a diff, a web page,
+-- a search index.
+--
+-- Three encodings of the same thing reach us, and all three are real, found by
+-- searching the corpus rather than guessed:
+--
+--   * the raw escape byte, decimal 27, which is what the JSON decoder hands
+--     back for the six-character "backslash-u-0-0-1-b" it finds in the log.
+--     This is much the commonest case.
+--   * those six characters still literal, which is what a log records when the
+--     text it captured had ALREADY been JSON-encoded once before being stored,
+--     so the decoder unwraps only the outer layer.
+--   * the printable stand-in U+241B (SYMBOL FOR ESCAPE), which appears where
+--     something upstream had already replaced the control byte with a visible
+--     symbol.
+--
+-- Each is stripped by the same shape: introducer, optional digits and
+-- semicolons, one letter. A lone introducer with no sequence after it is
+-- dropped last, so a stray byte cannot survive by not matching the full form.
+local function strip_terminal_escapes(text)
+    if type(text) ~= "string" then return text end
+
+    text = text:gsub("\27%[[%d;]*%a", "")          -- the real control byte
+    text = text:gsub("\\u001[bB]%[[%d;]*%a", "")   -- one JSON layer left on
+    text = text:gsub("\226\144\155%[[%d;]*%a", "") -- U+241B, printable stand-in
+
+    text = text:gsub("\27", "")
+    text = text:gsub("\\u001[bB]", "")
+    text = text:gsub("\226\144\155", "")
+
+    return text
+end
+-- }}}
+
+-- {{{ right_justify
+-- Push already-wrapped prose against the right edge of the measure, by adding
+-- spaces to the LEFT of each line. Never to the right, so no line gains
+-- trailing whitespace.
+--
+-- Why this exists: the transcript gives both speakers the same left margin, so
+-- telling who is talking means reading a heading that says so. Putting the
+-- assistant's prose on the other side of the page lets a reader follow the
+-- turn-taking without reading a word (issue 027).
+--
+-- What is deliberately left alone, because its meaning IS its column position:
+-- fenced code and everything inside it, indented code, table rows, headings,
+-- and the horizontal rules between turns. A line already at or past the
+-- measure is also left alone - padding it would push it past the edge, which
+-- is worse than an over-long line.
+--
+-- Known and accepted cost: in markdown, four or more leading spaces means
+-- "code block", so a renderer shows this as a monospace box rather than as
+-- right-aligned prose. These files are read in a terminal, an editor, less and
+-- a diff, where the padding does exactly what it is for. Recorded in issue 027
+-- rather than worked around.
+local function right_justify(text, width)
+    width = width or 80
+    local out = {}
+    local in_code_block = false
+
+    for _, line in ipairs(split_lines(text)) do
+        if line:match("^%s*```") then
+            in_code_block = not in_code_block
+            out[#out + 1] = line
+        elseif in_code_block
+            or line:match("^%s*$")
+            or line:match("^#")
+            or line:match("^%s*|")
+            or line:match("^    ")
+            or line:match("^\t")
+            or line:match("^%-%-%-%-")
+            or #line >= width then
+            out[#out + 1] = line
+        else
+            out[#out + 1] = string.rep(" ", width - #line) .. line
+        end
+    end
+
+    return table.concat(out, "\n")
+end
+-- }}}
+
+-- {{{ quote_block
+-- Prefix every line of an already-formatted block with the quote marker, so a
+-- reader can see at a glance that this was said while the work was still going
+-- on rather than after it had finished (issue 028).
+--
+-- The marker occupies two columns, so callers wrap and justify to width minus
+-- two and add the marker here; that is what keeps a quoted line's right edge
+-- landing in the same place as an unquoted one.
+local function quote_block(text)
+    local out = {}
+    for _, line in ipairs(split_lines(text)) do
+        if line == "" then
+            out[#out + 1] = ">"
+        else
+            out[#out + 1] = "> " .. line
+        end
+    end
+    return table.concat(out, "\n")
+end
+-- }}}
+
+-- {{{ split_envelope
+-- Separate what the USER wrote from what the HARNESS wrote, inside a single
+-- message that holds both.
+--
+-- A session log has only one seat for text addressed to the model, so Claude
+-- Code files its own machine-authored messages there too: the boilerplate
+-- caveat that precedes local command output, the scaffolding of a slash
+-- command, that command's output, notifications that a background task
+-- finished, and reminders addressed to the model. All of it used to arrive
+-- under a "### User Request N" heading, indistinguishable from something the
+-- user typed and consuming a number in the same sequence (issue 022).
+--
+-- Returns two things: the prose actually left after the machine's text is
+-- lifted out, and a list of the envelope items that were lifted, each a table
+-- of { kind, text }. An item's kind decides how the caller renders it:
+--
+--   command  a slash command the user invoked. Carries the command and its
+--            arguments. What the command DID is a separate item, because the
+--            log files it as a separate message.
+--   output   what a local command printed. For /model this is the only place
+--            the chosen model is named, which is why it is kept rather than
+--            dropped (see issue 023).
+--   note     a background task reporting in. Reduced to its summary line; the
+--            full result is a JSON dump running to thousands of characters
+--            and is not prose anybody reads.
+--   recap    the machine-written summary that opens a continued session.
+--
+-- Two kinds are removed and NOT returned, because they carry nothing a reader
+-- of the transcript wants: the local-command caveat, which is fixed
+-- boilerplate saying "do not respond to this", and system reminders, which are
+-- addressed to the model rather than written by the user.
+--
+-- A tag whose closing half is missing will not match, and its text stays in
+-- the prose where a reader can see it. That is deliberate: a silent drop would
+-- hide the fact that the log's shape had changed again.
+local function split_envelope(text)
+    local items = {}
+    if type(text) ~= "string" then return "", items end
+    local rest = text
+
+    rest = rest:gsub("<local%-command%-caveat>.-</local%-command%-caveat>", "")
+    rest = rest:gsub("<system%-reminder>.-</system%-reminder>", "")
+
+    rest = rest:gsub("<task%-notification>(.-)</task%-notification>",
+        function(body)
+            local summary = body:match("<summary>(.-)</summary>")
+            local status = body:match("<status>(.-)</status>")
+            local id = body:match("<task%-id>(.-)</task%-id>")
+            local said = summary or ("task " .. (id or "?"))
+            -- The summary almost always ends by saying it completed, so
+            -- repeating a "completed" status just stutters. A status worth
+            -- printing is one that says something the summary did not -
+            -- a failure, a cancellation.
+            if status and status ~= "" and status ~= "completed" then
+                said = said .. " (" .. status .. ")"
+            end
+            items[#items + 1] = { kind = "note", text = said }
+            return ""
+        end)
+
+    -- The command's own name and arguments arrive as separate tags in one
+    -- message. Arguments are read before the name is removed, because
+    -- removing them in the wrong order loses the pairing.
+    local args = rest:match("<command%-args>(.-)</command%-args>")
+    -- A skill invocation wears the same scaffolding as a slash command, with
+    -- one extra tag. The difference matters downstream: a slash command is
+    -- followed by its output, whereas a skill is followed by the skill's whole
+    -- text arriving as if the user had typed it. The caller needs to know
+    -- which it is looking at to know what to do with the message after this
+    -- one.
+    local is_skill = rest:find("<skill%-format>") ~= nil
+    rest = rest:gsub("<command%-args>.-</command%-args>", "")
+    rest = rest:gsub("<command%-message>.-</command%-message>", "")
+    rest = rest:gsub("<skill%-format>.-</skill%-format>", "")
+    rest = rest:gsub("<command%-name>(.-)</command%-name>",
+        function(name)
+            local said = name
+            if args and args:match("%S") then
+                said = said .. " " .. args:match("^%s*(.-)%s*$")
+            end
+            items[#items + 1] = {
+                kind = is_skill and "skill" or "command",
+                text = said,
+            }
+            return ""
+        end)
+
+    for _, tag in ipairs({ "local%-command%-stdout", "local%-command%-stderr" }) do
+        rest = rest:gsub("<" .. tag .. ">(.-)</" .. tag .. ">",
+            function(body)
+                local said = body:match("^%s*(.-)%s*$")
+                if said ~= "" then
+                    items[#items + 1] = { kind = "output", text = said }
+                end
+                return ""
+            end)
+    end
+
+    if rest:find("This session is being continued from a previous conversation",
+        1, true) then
+        items[#items + 1] = { kind = "recap", text = rest:match("^%s*(.-)%s*$") }
+        rest = ""
+    end
+
+    return rest:match("^%s*(.-)%s*$"), items
+end
+-- }}}
+
+-- {{{ user_text_of
+-- Reduce a message's content to the single string the user is taken to have
+-- said, whatever shape the log stored it in.
+--
+-- Content arrives either as a plain string or as a list of typed blocks. The
+-- exporter only ever handled the string case, and emitted a heading with
+-- nothing under it whenever a message arrived as a list - which is where the
+-- empty numbered blocks in the corpus come from (issue 022). Here the list
+-- case is handled by joining its text blocks, so the heading and the words
+-- arrive together or neither does.
+local function user_text_of(content)
+    if type(content) == "string" then
+        return content
+    end
+    if type(content) ~= "table" then
+        return ""
+    end
+    local parts = {}
+    for _, item in ipairs(content) do
+        if type(item) == "table" and item.type == "text" and item.text then
+            parts[#parts + 1] = item.text
+        elseif type(item) == "string" then
+            parts[#parts + 1] = item
+        end
+    end
+    return table.concat(parts, "\n\n")
+end
+-- }}}
+
 -- {{{ format_content
--- Format content by converting ### to ## and wrapping text
-local function format_content(content)
+-- Put one block of text into the shape the transcript wants: heading levels
+-- pushed down one, so a heading the model wrote cannot outrank the transcript's
+-- own "### User Request" headings, then wrapped to the measure.
+--
+-- The measure is a parameter rather than a constant because narration is
+-- quoted, and the two columns the quote marker takes have to come out of the
+-- text's width or the quoted lines end up two columns wider than everything
+-- else (issues 027 and 028).
+local function format_content(content, width)
     if not content or content == "" then
         return ""
     end
 
-    -- Convert ### to ## (downgrade heading levels)
     content = content:gsub("\n###", "\n##")
     content = content:gsub("^###", "##")
 
-    -- Wrap the text
-    content = wrap_text(content, 80)
+    content = wrap_text(content, width or 80)
 
     return content
 end
 -- }}}
 
 -- {{{ extract_askq_answers
--- Recover each AskUserQuestion answer from the tool-result string by anchoring
--- on the exact question text (known from the tool call). The result reads
--- '"Q1"="A1", "Q2"="A2", … . You can now continue…', and answers can themselves
--- contain commas or quotes, so we bound each answer by the *next question's*
--- anchor rather than by naive splitting. Returns answers[i] keyed by question
--- index; a question with no locatable answer is simply absent.
-local function extract_askq_answers(result_string, questions)
-    local answers = {}
-    if type(result_string) ~= "string" then return answers end
+-- Recover what the user actually chose, from the structured record the
+-- harness files rather than from the English sentence it also writes.
+--
+-- The sentence was the old source, and it was the wrong one. It reads
+-- '"Q1"="A1", "Q2"="A2". Read the answers carefully...', so recovering an
+-- answer meant finding the question text, stepping past an equals sign and a
+-- quote, and reading forward to a guessed boundary. Two things defeated that,
+-- both silently. An answer is not always quoted - a custom reply arrives as
+-- '=(no option selected) notes: ...' with no quotes at all, and read as no
+-- answer. And the boundary was guessed from a comma, while 172 of the 503
+-- answers in the corpus contain a comma of their own.
+--
+-- Alongside that sentence the log carries a machine-readable copy on the
+-- message record itself, under toolUseResult:
+--
+--   answers      map: question text -> the answer, as a single string. For a
+--                multi-select question the chosen labels arrive already
+--                joined. Present on all 240 question exchanges in the corpus,
+--                so there is no older shape to fall back to.
+--   annotations  map: question text -> { notes, preview }. "notes" is free
+--                text the user typed alongside their pick - their own
+--                reasoning, in their own words. 115 of the 240 exchanges
+--                carry some, and every one of them used to be discarded.
+--
+-- Both maps are keyed by the full question text, which is also what the tool
+-- call carries, so pairing them needs no positional guessing at all.
+--
+-- Returns two lists keyed by question index: the answers, and the notes. A
+-- question with neither is simply absent from both.
+local function extract_askq_answers(tool_use_result, questions)
+    local answers, notes = {}, {}
+    if type(tool_use_result) ~= "table" then return answers, notes end
+
+    local recorded = tool_use_result.answers
+    local annotated = tool_use_result.annotations
+
     for i, q in ipairs(questions) do
-        local anchor = '"' .. (q.question or "") .. '"="'
-        local s = result_string:find(anchor, 1, true)
-        if s then
-            local astart = s + #anchor
-            local aend
-            local nq = questions[i + 1]
-            if nq then
-                -- '"Ai", "Q(i+1)"=' — the closing quote of Ai sits right before
-                -- this anchor, so aend lands on Ai's last character.
-                local ns = result_string:find('", "' .. (nq.question or "") .. '"="', astart, true)
-                if ns then aend = ns - 1 end
+        local key = q.question or ""
+        if type(recorded) == "table" and type(recorded[key]) == "string" then
+            answers[i] = recorded[key]
+        end
+        if type(annotated) == "table" and type(annotated[key]) == "table" then
+            local note = annotated[key].notes
+            if type(note) == "string" and note:match("%S") then
+                notes[i] = note
             end
-            if not aend then
-                -- Last answer (or the next anchor was not found): stop before
-                -- the trailing '". You can now continue…' sentence, else drop a
-                -- single trailing closing quote.
-                local suf = result_string:find('". You can now continue', astart, true)
-                if suf then
-                    aend = suf - 1
-                else
-                    aend = #result_string
-                    if result_string:sub(aend, aend) == '"' then aend = aend - 1 end
-                end
-            end
-            answers[i] = result_string:sub(astart, aend)
         end
     end
-    return answers
+
+    return answers, notes
 end
 -- }}}
 
 -- {{{ format_askuserquestion
--- Render one AskUserQuestion tool call, with its recorded answers, as readable
--- markdown — so the decision it captured survives in the transcript instead of
--- being dropped with the rest of the tool stream. For each question: the header
--- and question, every option offered, and the outcome. An answer that exactly
--- matches an option label is shown as a Selection; anything else (a typed
--- correction, or a multi-select join) is shown as an Answer, so the user's own
--- words stay visibly distinct from a menu pick.
-local function format_askuserquestion(input, result_string)
+-- Render one question exchange, with its outcome, as readable markdown - so
+-- the decision it captured survives in the transcript instead of being dropped
+-- with the rest of the tool stream.
+--
+-- For each question: the header and the question, every option that was
+-- offered, and what came back. An answer that exactly matches one of the
+-- offered labels is shown as a selection; anything else is shown as an
+-- answer, so words the user typed themselves stay visibly distinct from a
+-- menu pick. Any note they added is shown under it, because a note is the
+-- part that says WHY, and it is usually the more informative half.
+local function format_askuserquestion(input, tool_use_result)
     local questions = input and input.questions
     if type(questions) ~= "table" then return "" end
-    local answers = extract_askq_answers(result_string, questions)
+    local answers, notes = extract_askq_answers(tool_use_result, questions)
 
     local parts = { "**[Asked the user]**" }
     for i, q in ipairs(questions) do
         parts[#parts + 1] = ""
         local header = q.header and (" — " .. q.header) or ""
-        parts[#parts + 1] = string.format("*Q%d%s:* %s", i, header, q.question or "")
+        parts[#parts + 1] = string.format("*Q%d%s:* %s", i, header,
+            q.question or "")
         if type(q.options) == "table" then
             for _, opt in ipairs(q.options) do
                 local desc = opt.description and (" — " .. opt.description) or ""
@@ -409,9 +677,13 @@ local function format_askuserquestion(input, result_string)
                     if opt.label == ans then is_option = true break end
                 end
             end
-            parts[#parts + 1] = (is_option and "→ **Selected:** " or "→ **Answered:** ") .. ans
+            parts[#parts + 1] =
+                (is_option and "→ **Selected:** " or "→ **Answered:** ") .. ans
         else
             parts[#parts + 1] = "→ *(no answer recorded)*"
+        end
+        if notes[i] then
+            parts[#parts + 1] = "→ **They added:** " .. notes[i]
         end
     end
     return table.concat(parts, "\n")
@@ -491,7 +763,13 @@ end
 -- }}}
 
 -- {{{ parse_conversation
--- Parse JSONL conversation file and generate markdown summary
+-- Turn one session log into a readable markdown transcript.
+--
+-- The log is a list of message records. Three kinds matter here: what the user
+-- typed, what the model wrote back, and what the harness filed into the user's
+-- seat because that is the only seat text addressed to the model can occupy.
+-- The third kind used to be indistinguishable from the first; split_envelope
+-- is what tells them apart now.
 local function parse_conversation(jsonl_file, output_file)
     local json = load_dkjson()
 
@@ -527,6 +805,50 @@ local function parse_conversation(jsonl_file, output_file)
 
     f:close()
 
+    -- Pre-pass one: map every tool-result back to the tool call it answers, so
+    -- the question renderer can pair a question block with its outcome. What
+    -- is kept is the whole toolUseResult record rather than the prose string
+    -- inside it, because the structured answers and the user's own notes live
+    -- on the record and only a sentence lives in the string (issue 019).
+    local tool_results_by_id = {}
+    for _, msg in ipairs(messages) do
+        if (msg.type or "") == "user" then
+            local content = msg.message and msg.message.content
+            if type(content) == "table" then
+                for _, item in ipairs(content) do
+                    if type(item) == "table" and item.tool_use_id
+                        and item.type == "tool_result" then
+                        tool_results_by_id[item.tool_use_id] = msg.toolUseResult
+                    end
+                end
+            end
+        end
+    end
+
+    -- Pre-pass two: every model that served a reply in this session, in the
+    -- order each was first seen. The header needs the whole list before the
+    -- first message is written, which is why this cannot wait for the main
+    -- loop. Read from the per-message field rather than from any /model
+    -- command, because a model can arrive by launch flag, by a changed
+    -- default, or by delegation, and the command sees none of those
+    -- (issue 023).
+    -- The harness files its own notices - "you have hit your session limit",
+    -- and the like - as assistant messages under a placeholder model name.
+    -- Nothing served those replies, so they are kept out of the header list
+    -- and rendered as notices rather than as prose the model wrote.
+    local SYNTHETIC_MODEL = "<synthetic>"
+    local models_seen, models_order = {}, {}
+    for _, msg in ipairs(messages) do
+        if (msg.type or "") == "assistant" then
+            local model = msg.message and msg.message.model
+            if type(model) == "string" and model ~= ""
+                and model ~= SYNTHETIC_MODEL and not models_seen[model] then
+                models_seen[model] = true
+                models_order[#models_order + 1] = model
+            end
+        end
+    end
+
     -- Generate markdown output
     local out = io.open(output_file, "w")
     if not out then
@@ -536,41 +858,121 @@ local function parse_conversation(jsonl_file, output_file)
     -- Extract conversation ID from filename
     local conversation_id = jsonl_file:match("([^/]+)%.jsonl$") or "unknown"
 
+    local RULE = string.rep("-", 80)
+
     -- Header
     out:write("# Conversation Summary: " .. conversation_id .. "\n")
     out:write("\n")
     out:write("Generated on: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n")
+    if #models_order > 0 then
+        out:write("Models: " .. table.concat(models_order, ", ") .. "\n")
+    end
     out:write("\n")
-    out:write(string.rep("-", 80) .. "\n")
+    out:write(RULE .. "\n")
     out:write("\n")
 
     local user_count = 1
     local current_user_uuid = nil
-    local assistant_responses = {}
+    -- Each entry is { text = <what was said>, model = <what said it> }. The
+    -- model travels with the block so a change can be marked where it happened
+    -- rather than where the flush happens to fall.
+    local assistant_blocks = {}
+    local last_model_announced = nil
+    -- True once a response section has already been written for the current
+    -- user turn, so a second one can say it is a continuation instead of
+    -- claiming the same number twice.
+    local response_continued = false
+    -- A slash command whose output has not arrived yet. The log files the
+    -- command and what it did as two separate messages, so pairing them takes
+    -- a one-item memory that survives from one message to the next.
+    local pending_command = nil
+    -- The name of a skill just invoked, held until the message carrying that
+    -- skill's text arrives in the user's seat behind it.
+    local pending_skill = nil
     -- Everything the model has said so far this conversation, reduced to
     -- the form a reader saw, so a line the user pastes back can be found
-    -- in it. Unlike assistant_responses above, this is NEVER emptied at a
+    -- in it. Unlike assistant_blocks above, this is NEVER emptied at a
     -- user turn: the user quotes answers from far earlier in the session,
     -- not only the one they just read.
     local prior_speech = {}
 
-    -- Pre-pass: map every tool-result back to the tool call it answers, so the
-    -- AskUserQuestion renderer can pair a question block with its answer. The
-    -- map covers all results (cheap); only AskUserQuestion is looked up below.
-    local tool_results_by_id = {}
-    for _, msg in ipairs(messages) do
-        if (msg.type or "") == "user" then
-            local content = msg.message and msg.message.content
-            if type(content) == "table" then
-                for _, item in ipairs(content) do
-                    if type(item) == "table" and item.tool_use_id
-                        and item.type == "tool_result" then
-                        tool_results_by_id[item.tool_use_id] = item.content
-                    end
-                end
-            end
+    -- {{{ emit_marginal(text)
+    -- Write one short line that is neither a user turn nor an assistant turn -
+    -- a command that was run, a background task reporting in, a change of
+    -- model. It sits on the assistant's side of the page because it is a fact
+    -- about the machine, and carries no number because it is not part of the
+    -- conversation's counting.
+    local function emit_marginal(text)
+        out:write(right_justify(wrap_text(text, 80), 80) .. "\n")
+        out:write("\n")
+        out:write(RULE .. "\n")
+        out:write("\n")
+    end
+    -- }}}
+
+    -- {{{ flush_pending_command()
+    -- Write a slash command that never got its output, so an invocation is
+    -- never silently lost just because nothing was printed after it.
+    local function flush_pending_command()
+        if pending_command then
+            emit_marginal("`" .. pending_command .. "`")
+            pending_command = nil
         end
     end
+    -- }}}
+
+    -- {{{ flush_assistant()
+    -- Write everything the model said since the last user turn.
+    --
+    -- Two things happen here that did not before. The blocks are kept apart
+    -- instead of being joined, and every block but the last is marked as
+    -- narration - what was said while the work was still going on, as against
+    -- the considered answer at the end (issue 028). And where the model
+    -- changed between one block and the next, a line says so (issue 023).
+    --
+    -- Both flush points in the old code were copies of each other, which is
+    -- exactly the drift this single routine exists to prevent.
+    local function flush_assistant()
+        if not current_user_uuid or #assistant_blocks == 0 then
+            return
+        end
+
+        local heading = "### Assistant Response " .. (user_count - 1)
+        if response_continued then
+            heading = heading .. " (continued)"
+        end
+        out:write(heading .. "\n")
+        out:write("\n")
+
+        for i, block in ipairs(assistant_blocks) do
+            if block.model and block.model ~= last_model_announced then
+                if last_model_announced ~= nil then
+                    out:write(right_justify("*model: " .. block.model .. "*", 80))
+                    out:write("\n\n")
+                end
+                last_model_announced = block.model
+            end
+
+            local is_narration = (i < #assistant_blocks)
+            if is_narration then
+                -- Two columns are spent on the quote marker, so the text is
+                -- measured and positioned in the 78 that remain. That is what
+                -- keeps a quoted line's right edge level with an unquoted
+                -- one's.
+                local body = format_content(block.text, 78)
+                out:write(quote_block(right_justify(body, 78)) .. "\n")
+            else
+                out:write(right_justify(format_content(block.text, 80), 80) .. "\n")
+            end
+            out:write("\n")
+        end
+
+        out:write(RULE .. "\n")
+        out:write("\n")
+        assistant_blocks = {}
+        response_continued = true
+    end
+    -- }}}
 
     for _, msg in ipairs(messages) do
         local msg_type = msg.type or ""
@@ -588,35 +990,76 @@ local function parse_conversation(jsonl_file, output_file)
             end
 
             if not is_tool_result then
-                -- Flush every assistant text block accumulated since the
-                -- previous user turn, joined by blank lines so each chunk
-                -- still reads as its own paragraph.
-                if current_user_uuid and #assistant_responses > 0 then
-                    out:write("### Assistant Response " .. (user_count - 1) .. "\n")
-                    out:write("\n")
-                    local combined = table.concat(assistant_responses, "\n\n")
-                    local formatted_response = format_content(combined)
-                    out:write(formatted_response .. "\n")
-                    out:write("\n")
-                    out:write(string.rep("-", 80) .. "\n")
-                    out:write("\n")
-                    assistant_responses = {}
+                local raw = strip_terminal_escapes(user_text_of(content))
+                local prose, envelope = split_envelope(raw)
+
+                -- Anything reaching the page has to come after what the model
+                -- said before it, so pending prose is written out first.
+                if #envelope > 0 or prose ~= "" then
+                    flush_assistant()
                 end
 
-                -- Output user message
-                out:write("### User Request " .. user_count .. "\n")
-                out:write("\n")
-                if type(content) == "string" then
-                    local quoted = mark_quoted_lines(content, prior_speech)
-                    local formatted_request = format_content(quoted)
-                    out:write(formatted_request .. "\n")
+                for _, item in ipairs(envelope) do
+                    if item.kind == "command" then
+                        flush_pending_command()
+                        pending_command = item.text
+                    elseif item.kind == "output" then
+                        -- The output of the command just seen belongs on the
+                        -- same line as it: for /model this is the only place
+                        -- the chosen model is ever named, and the verb tells a
+                        -- change apart from a dismissal.
+                        if pending_command then
+                            emit_marginal("`" .. pending_command .. "` - "
+                                .. item.text)
+                            pending_command = nil
+                        else
+                            emit_marginal(item.text)
+                        end
+                    elseif item.kind == "skill" then
+                        flush_pending_command()
+                        emit_marginal("`" .. item.text .. "` *(skill)*")
+                        pending_skill = item.text
+                    elseif item.kind == "note" then
+                        flush_pending_command()
+                        emit_marginal("*[background task] " .. item.text .. "*")
+                    elseif item.kind == "recap" then
+                        flush_pending_command()
+                        out:write("### Session Recap (written by the harness, not by either speaker)\n")
+                        out:write("\n")
+                        out:write(format_content(item.text, 80) .. "\n")
+                        out:write("\n")
+                        out:write(RULE .. "\n")
+                        out:write("\n")
+                    end
                 end
-                out:write("\n")
-                out:write(string.rep("-", 80) .. "\n")
-                out:write("\n")
 
-                current_user_uuid = msg.uuid or ""
-                user_count = user_count + 1
+                -- A message that was nothing but harness traffic is not a user
+                -- turn and must not take a number in the user's sequence. This
+                -- is also what stops the empty numbered blocks: a heading is
+                -- now only ever written when there are words to put under it.
+                if prose ~= "" and pending_skill then
+                    -- The body of the skill just invoked, arriving in the
+                    -- user's seat as though they had typed a reference manual.
+                    -- It is the same text every time that skill is used, it is
+                    -- addressed to the model rather than to any reader, and at
+                    -- several thousand words it buries the conversation it
+                    -- sits inside. The invocation line above already records
+                    -- that it happened, which is the part worth keeping.
+                    pending_skill = nil
+                elseif prose ~= "" then
+                    flush_pending_command()
+                    out:write("### User Request " .. user_count .. "\n")
+                    out:write("\n")
+                    local quoted = mark_quoted_lines(prose, prior_speech)
+                    out:write(format_content(quoted, 80) .. "\n")
+                    out:write("\n")
+                    out:write(RULE .. "\n")
+                    out:write("\n")
+
+                    current_user_uuid = msg.uuid or ""
+                    user_count = user_count + 1
+                    response_continued = false
+                end
             end
 
         -- Process assistant messages
@@ -628,15 +1071,29 @@ local function parse_conversation(jsonl_file, output_file)
         -- only tool_use (and thinking) blocks.
         elseif msg_type == "assistant" and current_user_uuid then
             local content_list = msg.message and msg.message.content or {}
+            local model = msg.message and msg.message.model
 
-            if type(content_list) == "table" then
+            if model == SYNTHETIC_MODEL then
+                -- A notice from the harness wearing the model's seat. It is
+                -- not something the model said, so it must not be mistaken
+                -- for an answer, and it must not be marked as narration
+                -- either. It goes in the margin, where the commands go.
+                flush_assistant()
+                for _, item in ipairs(content_list) do
+                    if type(item) == "table" and item.type == "text"
+                        and (item.text or "") ~= "" then
+                        emit_marginal("*" ..
+                            strip_terminal_escapes(item.text) .. "*")
+                    end
+                end
+            elseif type(content_list) == "table" then
                 for _, item in ipairs(content_list) do
                     if type(item) == "table" and item.type == "text" then
-                        local text = item.text or ""
+                        local text = strip_terminal_escapes(item.text or "")
                         if text ~= "" then
-                            table.insert(assistant_responses, text)
-                            prior_speech[#prior_speech + 1] =
-                                spoken_form(text)
+                            assistant_blocks[#assistant_blocks + 1] =
+                                { text = text, model = model }
+                            prior_speech[#prior_speech + 1] = spoken_form(text)
                         end
                     elseif type(item) == "table" and item.type == "tool_use"
                         and item.name == "AskUserQuestion" then
@@ -645,7 +1102,8 @@ local function parse_conversation(jsonl_file, output_file)
                         local block = format_askuserquestion(item.input,
                             tool_results_by_id[item.id])
                         if block ~= "" then
-                            table.insert(assistant_responses, block)
+                            assistant_blocks[#assistant_blocks + 1] =
+                                { text = block, model = model }
                         end
                     end
                 end
@@ -659,19 +1117,10 @@ local function parse_conversation(jsonl_file, output_file)
     -- shape the Stop-hook race can produce. Computed here, at the same
     -- boundary the final flush uses, so the two can never disagree.
     local ends_with_user = (current_user_uuid ~= nil)
-        and (#assistant_responses == 0)
+        and (#assistant_blocks == 0)
 
-    -- Final flush: same combining behavior as the mid-stream flush above,
-    -- for any trailing assistant prose after the last user message.
-    if current_user_uuid and #assistant_responses > 0 then
-        out:write("### Assistant Response " .. (user_count - 1) .. "\n")
-        out:write("\n")
-        local combined = table.concat(assistant_responses, "\n\n")
-        local formatted_response = format_content(combined)
-        out:write(formatted_response .. "\n")
-        out:write("\n")
-        out:write(string.rep("-", 80) .. "\n")
-    end
+    flush_assistant()
+    flush_pending_command()
 
     out:close()
 
