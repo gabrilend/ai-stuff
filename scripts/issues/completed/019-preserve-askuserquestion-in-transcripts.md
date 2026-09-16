@@ -1,10 +1,19 @@
 # Issue #019: Preserve AskUserQuestion exchanges in transcripts
 
-**Status: in progress.** The question side shipped and works. The answer side
-ships broken — it recovers answers by re-parsing an English sentence whose
-format has since changed, so the user's own typed words are silently dropped.
-This file has been updated to describe the real data available, which was not
-known when the first implementation was written.
+**Status: shipped.** Both sides work. Answers are no longer recovered from
+prose at all: the harness files a structured copy on the message record, under
+`toolUseResult`, carrying an `answers` map keyed by question text and an
+`annotations` map holding the free-text notes the user typed alongside their
+pick. Every one of the 240 question exchanges in the corpus carries that map,
+so there is no older shape to fall back to and no guessing left to do.
+
+The notes were a gain nobody had asked for: 115 of those 240 exchanges carry
+some, and every one used to be discarded, because the English sentence never
+contained them. They are usually the half that says *why*.
+
+The sections below describe the failure that prompted this, and are kept
+because they explain why the structured record is read rather than the
+sentence.
 
 ## Current Behavior
 
