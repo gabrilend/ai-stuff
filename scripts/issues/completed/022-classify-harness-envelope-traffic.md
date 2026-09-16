@@ -1,5 +1,20 @@
 # Issue #022: Classify harness envelope traffic in transcripts
 
+**Status: shipped.** Machine-authored text is lifted out of the user's seat and
+rendered in the margin, taking no number in the user's sequence. Two kinds are
+dropped outright, having nothing a reader wants: the boilerplate caveat and
+system reminders. The rest is kept in a readable form — a slash command joined
+with its output into one line, a background task reduced to its summary, a
+continued session's recap under a heading naming its author.
+
+Two decisions were taken here that the original text did not anticipate. The
+`/model` command is **rendered rather than dropped**, at the developer's
+request: see issue 023 for why the two records are complementary. And two
+further kinds were found in the corpus that this file never counted —
+background task notifications, present in 64 logs and by far the largest
+offender, and skill invocations, whose body arrives behind them as if the user
+had typed a reference manual.
+
 ## Current Behavior
 
 A session log records more than a conversation. Alongside what the user typed

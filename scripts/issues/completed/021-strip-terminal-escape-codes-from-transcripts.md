@@ -1,5 +1,14 @@
 # Issue #021: Strip terminal escape codes from exported transcripts
 
+**Status: shipped.** Three encodings of the sequence are removed, all three
+found by searching the corpus rather than guessed at: the raw control byte the
+JSON decoder hands back, the same six characters still literal where a log had
+been encoded twice before being stored, and the printable stand-in U+241B. A
+lone introducer with no sequence behind it is dropped last, so a stray byte
+cannot survive by failing to match the full form. Verified across all 417
+session logs on the machine: none of the transcripts produced from them carries
+an escape byte.
+
 ## Current Behavior
 
 Some of the text Claude Code writes into a session's JSONL was composed for a
