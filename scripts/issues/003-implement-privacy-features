@@ -24,7 +24,9 @@ strip out any PII, replacing it with anonymized identifiers such as "user-1" and
 
 ## Reopened: this is now a blocker, not a tidiness task
 
-Added when transcript publishing was planned (issues 029 and 030). The text
+Added when transcript publishing was planned. Those two issues have since moved
+to the Double Diaper Dungeon project, where the work they describe belongs; they
+are named below. The text
 above is unchanged; this section says what has changed around it.
 
 The transcripts are no longer only on disk. Double Diaper Dungeon's are mirrored
@@ -72,8 +74,10 @@ as publishing the second, and nothing should treat them alike.
 
 ## Related
 
-- `issues/029-render-transcripts-as-a-website.md` — the renderer
-- `issues/030-publish-the-transcript-site-to-neocities.md` — names this issue as
+- `double-diaper-dungeon/issues/10-003-the-transcript-renderer.md` — the
+  renderer. Was issue 029 here; moved, because it renders one project's
+  conversations into one project's website
+- `double-diaper-dungeon/issues/10-004-publish-the-site.md` — names this issue as
   its first implementation step, because it gates everything after it
 - `double-diaper-dungeon/scripts/sync-transcripts-for-github` — already
   publishing to GitHub, so the first exposure has happened and the question is
@@ -97,6 +101,7 @@ So this is not a gate on the publishing system. It is a gate on *a particular
 project publishing*, and the two must not be confused — building the first as
 though it required the second would stop work that has no reason to wait.
 
-What issue 030 should carry, then, is not "settle this first" but "a project
+What the publishing issue should carry, then, is not "settle this first" but "a
+project
 publishes only once somebody has said it may", with Double Diaper Dungeon
 already having been said of.
