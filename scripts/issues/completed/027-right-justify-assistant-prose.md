@@ -1,108 +1,97 @@
 # Issue #027: Right-justify the assistant's prose
 
-**Status: shipped.** Assistant prose is padded on the left so its right edge
-lands at column 80; user prose is untouched. Structure whose meaning is its
-column position is never moved. The markdown-renderer consequence described
-below was accepted knowingly rather than worked around.
+**Status: built, shipped, and withdrawn the same day. Do not rebuild it.**
+
+This file sits in the completed directory because the work was done, not
+because the feature exists. It does not. Anyone reconstructing this project
+from these issue files should implement the *Intended Behavior* section below,
+which describes where the idea actually landed, and should not implement the
+padding described in *What Was Tried*.
 
 ## Current Behavior
 
-A transcript gives both speakers the same left margin. A user turn and an
-assistant turn are distinguished only by their heading — `### User Request 7`
-against `### Assistant Response 7` — so telling who is speaking means reading
-a line of text that says so, rather than seeing it.
-
-The renderer in `libs/conversation-parser.lua` wraps prose at 80 columns and
-passes structure through untouched. Every wrapped line begins at column 0,
-whoever said it.
+Both speakers' prose begins at the left margin. A transcript says who is
+speaking with the heading above each block — `### User Request 7` against
+`### Assistant Response 7` — and with the quote marker that issue 028 puts on
+in-progress narration. Nothing is repositioned, and no line carries a margin it
+was not written with.
 
 ## Intended Behavior
 
-The assistant's prose sits against the right edge of the 80-column measure;
-the user's prose stays against the left. The page itself then says who is
-talking, and a reader skimming a long transcript can follow the turn-taking
-without reading a word.
+**Alignment is a property of a view, and a transcript is data. The two are kept
+apart.**
 
-    ### User Request 7
+If the assistant's words should sit on the other side of the page, that belongs
+to whatever renders a transcript — a stylesheet saying `text-align: right`,
+which is a renderer's actual job — and never to the file on disk. The file
+stays plain, wrapped, left-aligned markdown that reads correctly in a terminal,
+an editor, a diff, a search index, and a web renderer alike.
 
-    hiiiiiiiiiiiiiiiii can you read the vision file and tell me what you
-    think?
+This is the house rule about generation and viewing being separate concerns,
+turning up in a place nobody expected to find it.
 
-    ### Assistant Response 7
+## What Was Tried
 
-                 I'll find the vision file under the project's notes
-              directory and read it, then give you my take. Love2D 11.5
-                and LuaJIT 2.1 are installed, and both project paths
-                             point at the same directory.
+The assistant's prose was padded on the left so each line's right edge landed
+at column 80, putting the two speakers on opposite sides of the page so the
+turn-taking could be followed without reading a word. Padding went on the left
+only, so no line gained trailing whitespace. Structure whose meaning is its
+column position — fenced code, indented code, table rows, headings, rules — was
+never moved.
 
-Padding is added to the **left** of each line, never the right, so no line
-gains trailing whitespace.
+It worked exactly as intended in a terminal, an editor and `less`. It was
+withdrawn within hours of shipping.
 
-### What stays left
+### Why it was withdrawn
 
-Right-justifying a paragraph is safe. Right-justifying anything whose meaning
-depends on column position destroys it. The following keep their existing
-treatment and are never padded:
+**The stated reason, known in advance and accepted anyway.** In markdown, four
+or more leading spaces means *code block*. Right-padded prose therefore renders
+as a monospace box in any markdown renderer — which is how these files look on
+GitHub, where the developer went to read them. The cost was written into this
+file before the work started and judged acceptable on the grounds that
+transcripts are read in terminals. That judgement was wrong, because it assumed
+the reading happens where the writing happens.
 
-- fenced code blocks, and every line inside one
-- indented code blocks
-- table rows, whose pipes must stay in a column to read as a table
-- headings and the horizontal rules between turns
-- a single token longer than the measure — a URL, an absolute path — which
-  already refuses to wrap and would only be pushed off the edge
+**The real reason, visible only once the first one bit.** A transcript is the
+*record* of a conversation; where the words sit on a page is a *presentation*
+of that record. Baking presentation into storage hands every future reader one
+viewer's preference, and the single renderer that disagrees — which turned out
+to be the commonest one — cannot be overruled without rewriting every file.
 
-### The consequence, stated rather than worked around
-
-In markdown, four or more leading spaces means *code block*. Right-padded
-prose therefore renders as a monospace box on a web page rather than as
-right-aligned text. This is a real cost and it was accepted knowingly: these
-files are read in a terminal, an editor, `less`, and a diff, and in all four
-the padding does exactly what it is meant to. The HTML documentation pages are
-generated from the docs tree, not from transcripts, so nothing in that
-pipeline is harmed.
-
-If a rendered view is ever wanted, the fix is an alignment wrapper around each
-prose block rather than a change to the padding, and both can coexist.
-
-### Interaction with issue #028
-
-Narration is marked with a leading quote marker. The marker sits at column 0
-and the padding is measured from after it, so a quoted line's right edge lands
-in the same place as an unquoted one:
-
-    >           I'll find the vision file under the project's notes
-    >        directory and read it, then give you my take.
-
-                  The vision holds together. Three things stood out,
-                    and one of them genuinely worries me.
+**A third cost, unanticipated.** Right-justifying a wrapped list item destroys
+its hanging indent, because a ragged-left edge and a fixed indent are two
+different pictures and only one can be on a page. Removing the padding restored
+the hanging indent on the assistant's side without anyone asking, which is a
+fair sign the padding had been fighting the formatter rather than extending it.
 
 ## Suggested Implementation Steps
 
-1. Give the wrapping routine a notion of which side a block is aligned to. It
-   already distinguishes prose from structure in order to decide what may be
-   wrapped at all; the same test decides what may be padded.
-2. Pad after wrapping, never before. Wrapping measures the text; padding
-   positions it. Doing them in the other order makes the measure wrong by the
-   width of the padding.
-3. Pass the speaker down from the two places that flush a block, so a user
-   turn and an assistant turn render through the same routine with different
-   alignment rather than through two routines that will drift apart.
-4. Leave a line whose content already exceeds the measure exactly as it is —
-   padding it to the right edge would push it past the edge, which is worse
-   than an over-long line.
-5. Test with a transcript containing all six structural kinds at once: a
-   paragraph, a bullet list with a wrapped continuation, a fenced code block,
-   a table, an indented block, and an over-long URL.
+Nothing to implement in the exporter. The work, if still wanted, lives in a
+viewer:
+
+1. A renderer for the transcript corpus — the HTML documentation pages this
+   project already builds for other document kinds are the obvious home.
+2. Alignment there is a stylesheet rule, so it can differ per reader, be turned
+   off, or be changed later without touching a single stored file.
+3. A viewer can also do what padding could only gesture at: narration in a
+   genuinely different visual register rather than borrowing the quote marker,
+   model provenance as a gutter down the side, and search across the whole
+   corpus at once.
 
 ## Related Documents and Tools
 
-- `libs/conversation-parser.lua` — the wrapping and formatting routines
-- `README-backup-conversations.md` — its "Output Format" section describes the
-  80-column behaviour and will need the alignment rule added
-- Issue #028, which marks narration and shares the padding measure
+- `libs/conversation-parser.lua` — the wrapping routine, which is all that
+  remains of this
+- `tests/test-transcript-wrapping.sh` — asserts that nothing is padded; the
+  absence is the feature, so it is tested like one
+- `issues/transcript-system-progress.md` — where this reversal is recorded as
+  part of the development journey
+- Issue #028, which marks narration and is unaffected: the quote marker is real
+  markdown that renders correctly everywhere, so it stayed
 
 ## Notes
 
-Requested directly by the developer while reviewing the Double Diaper Dungeon
-transcripts, alongside #028. The two were asked for together and are most
-easily read together.
+Requested by the developer, built, and then withdrawn by the same developer
+after reading the result on GitHub. The lesson was worth the day: the question
+"where does this belong, the data or the view?" is worth asking before the work
+rather than after a renderer answers it for you.

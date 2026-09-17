@@ -85,7 +85,8 @@ local ans = line_holding(out, "THE SETTLED ANSWER")
 check(n1 and n1:sub(1, 1) == ">", "the first block is marked as narration")
 check(n2 and n2:sub(1, 1) == ">", "the middle block is marked as narration")
 check(ans and ans:sub(1, 1) ~= ">", "the last block is left plain as the answer")
-check(ans and ans:sub(1, 1) == " ", "...and is still pushed to the right edge")
+check(ans and ans:sub(1, 1) ~= " ",
+    "...and starts at the left margin, carrying no padding")
 
 print("A turn with only one block is an answer, not narration:")
 local lone = line_holding(out, "LONE BLOCK")

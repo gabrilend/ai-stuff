@@ -2,7 +2,7 @@
 
 Extracts Claude conversation transcripts from `~/.claude/projects/` and writes summaries to project-specific `llm-transcripts/` directories. Keeps every user request and every block of assistant prose the model emitted between user turns — tool calls and tool results are dropped, but in-progress narration ("now I'll check X", "found the bug", etc.) is preserved, marked as narration, because that's content the model wanted the user to read.
 
-The two speakers are given opposite sides of the page: the user's words stay against the left margin, the model's are pushed to the right. Text the *harness* wrote into the user's seat — slash commands, their output, background-task notices, boilerplate caveats — is neither, and is rendered in the margin without taking a number in the user's sequence.
+Text the *harness* wrote into the user's seat — slash commands, their output, background-task notices, boilerplate caveats — is neither speaker, and is rendered as a short line of its own without taking a number in the user's sequence.
 
 ## Use Cases
 
@@ -41,9 +41,8 @@ Useful for documenting how AI assistance was used during development.
 - **User/Assistant Extraction**: Parses JSONL conversation files to extract the dialogue flow
 - **Prose Preservation**: Keeps every assistant text block between user turns, each as its own block rather than joined into one lump. Skips only tool_use blocks (and any internal thinking blocks).
 - **Narration marking**: every block but the last in a turn is marked as narration with a quote marker, so running commentary written while the work was underway is not mistaken for the considered answer at the end (issue 028)
-- **Speaker alignment**: the assistant's prose is pushed to the right edge of the 80-column measure and the user's stays at the left, so the turn-taking can be followed without reading a heading (issue 027)
 - **Escape-code stripping**: the control bytes that slash-command output carries for a terminal are removed in all three encodings found in the corpus, so the file is clean for an editor, a diff, or a web page (issue 021)
-- **Harness traffic classified**: machine-authored text filed into the user's seat is lifted out and rendered in the margin rather than numbered as a user request (issue 022; see *Harness traffic* below)
+- **Harness traffic classified**: machine-authored text filed into the user's seat is lifted out and rendered as a short line of its own rather than numbered as a user request (issue 022; see *Harness traffic* below)
 - **Model provenance**: the header lists every model that served a reply, and a change of model is marked inline where it happened (issue 023)
 - **Decisions rescued**: a question put to the user survives with its options, the answer chosen, and any note typed alongside it, read from the structured record rather than from prose (issue 019)
 - **Markdown Formatting**: Outputs clean, readable markdown summaries
@@ -102,30 +101,6 @@ pass through verbatim, and a single token longer than 80 (a URL, a path) stays
 long rather than being broken. Blank lines are reproduced exactly as written —
 one stays one.
 
-### Who sits where
-
-The user's words stay against the left margin. The model's are pushed to the
-right edge of the same 80-column measure, by adding spaces to the left of each
-line — never to the right, so no line gains trailing whitespace. The page
-itself then says who is talking, and a long transcript can be skimmed for the
-turn-taking without reading a word.
-
-Anything whose meaning is its column position is never moved: fenced code and
-everything inside it, indented code, table rows, headings, and the rules
-between turns. A line already at or past the measure is left alone too, since
-padding it would push it past the edge.
-
-One consequence, accepted rather than worked around: in markdown four or more
-leading spaces means *code block*, so a renderer shows right-padded prose as a
-monospace box rather than as right-aligned text. These files are read in a
-terminal, an editor, `less` and a diff, where the padding does what it is for.
-Recorded in issue 027.
-
-A second consequence: right-justifying a wrapped list item loses the hanging
-indent, because a ragged-left edge and a fixed indent are two different
-pictures and only one can be on the page. The hanging indent still applies on
-the user's side, where nothing is repositioned.
-
 ### Narration and the answer
 
 Between two user turns the model usually speaks several times — saying what it
@@ -138,14 +113,15 @@ They are kept apart now, and every block but the last carries a quote marker:
 
     ### Assistant Response 7
 
-    >           I'll find the vision file under the project's notes
-    >        directory and read it, then give you my take.
+    > I'll find the vision file under the project's notes directory and read
+    > it, then give you my take.
 
-                  The vision holds together. Three things stood out,
-                    and one of them genuinely worries me.
+    The vision holds together. Three things stood out, and one of them
+    genuinely worries me.
 
-The marker costs two columns, so narration is measured and positioned in the 78
-that remain and a quoted line's right edge lands level with an unquoted one's.
+The marker costs two columns, so narration is wrapped to the 78 that remain,
+which keeps a quoted line the same total width as an unquoted one instead of
+two columns wider.
 
 A turn in which the model spoke exactly once is an answer, not narration, and
 is not marked — marking it would claim a distinction the session never made.
@@ -163,14 +139,14 @@ under a `### User Request N` heading, indistinguishable from something the user
 typed and consuming a number in the same sequence, so the numbering stopped
 counting the conversation.
 
-It is now lifted out and rendered in the margin, taking no number:
+It is now lifted out and rendered as a short line of its own, taking no number:
 
 | what it is | what happens to it |
 | --- | --- |
 | a slash command and its output | joined into one line naming the command and what it did — `` `/model` - Set model to Fable 5.1 …`` |
 | a skill invocation | the invocation is named; the skill's own text, which arrives behind it as though the user had typed a reference manual, is dropped |
 | a background task reporting in | reduced to its summary line; the machine-readable result dump is dropped |
-| a notice from the harness itself | kept, in the margin, rather than presented as something the model said |
+| a notice from the harness itself | kept, on a line of its own, rather than presented as something the model said |
 | a continued session's recap | kept under its own heading, which says it was written by neither speaker |
 | the local-command caveat | dropped — fixed boilerplate saying "do not respond to this" |
 | a system reminder | dropped — addressed to the model, not written by the user |
@@ -190,7 +166,7 @@ appears:
     Generated on: 2026-09-16 11:39:39
     Models: claude-fable-5-1, claude-opus-5
 
-and a change of model is marked inline, in the margin, where it happened. A
+and a change of model is marked inline where it happened. A
 session that used one model throughout names it in the header and carries no
 inline marks at all.
 
@@ -248,27 +224,32 @@ Models: {every model that served a reply, in first-appearance order}
 
 --------------------------------------------------------------------------------
 
-                  `/model` - {what the command did, if one was run}
+`/model` - {what the command did, if one was run}
 
 --------------------------------------------------------------------------------
 
 ### User Request 1
 
-{first user message, against the left margin}
+{first user message}
 
 --------------------------------------------------------------------------------
 
 ### Assistant Response 1
 
->            {narration: what was said while the work was still underway}
+> {narration: what was said while the work was still underway}
 
-                 {the considered answer, against the right margin}
+{the considered answer}
 
 --------------------------------------------------------------------------------
 ```
 
 The `Models:` line is omitted when no assistant message named a model, and the
 command line when no command was run. Everything else is always present.
+
+Every line begins at the left margin. Nothing is padded or repositioned: a
+transcript is a record, and where its words sit on a page belongs to whatever
+renders it. Issue 027 has the reasoning, and the story of the afternoon that
+argument was lost and then won.
 
 The `Generated on:` line records when that file was first written, not when
 the exporter last looked at it. A re-export that finds nothing new to say
