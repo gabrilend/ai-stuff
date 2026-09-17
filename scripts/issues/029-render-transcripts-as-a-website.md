@@ -48,26 +48,60 @@ What the pages do that the markdown cannot:
   with its first user request as a summary line, so the reading starts from a
   contents page rather than from a directory listing.
 
-### The size guard
+### Nothing is redacted; the build reports instead
 
-A transcript may contain code the model wrote out in prose. Measured across the
-whole corpus (5,224 fenced blocks): the median block is 9 lines and three
-quarters are under 20 — an illustration of a mechanic, which is exactly what
-belongs in a development record. The top one per cent are 576 lines and more,
-with the largest at 4,754. Those are whole files, not illustrations.
+An earlier draft of this issue called for a size guard: a fenced block longer
+than some threshold would be replaced on the page by a marker naming how many
+lines were withheld. That is withdrawn before being built, because the numbers
+do not support it and the cost is higher than it looks.
 
-So a block longer than a threshold is replaced on the page by a marker naming
-how many lines were withheld. The threshold is a setting, not a constant in the
-prose: re-derive the distribution before choosing one rather than trusting the
-numbers above, which will drift as the corpus grows.
+**The premise is real but lives elsewhere.** Whole source files do end up in
+transcripts, once a project is writing code in earnest: blocks of 300 lines and
+more appear in 45 of one project's transcripts and 42 of another's, and sampling
+them finds exactly what you would fear — Rust source, module headers, `use`
+declarations. So the concern was not imagined.
 
-This matters because of what the site is *for* — see issue 030. It does not
-matter for the stored transcript, which is not published by this issue.
+**It does not apply here.** Double Diaper Dungeon's largest fenced block in its
+entire history is **eight lines**. Not eight hundred; eight. Its fenced content
+is command names, an algorithm outline written as prose inside a fence, and one
+short function. A guard against whole-file leakage would, across this project's
+whole corpus to date, guard against nothing at all.
+
+**And redacting damages the thing the site is for.** A development record's
+value is the reasoning together with the code that reasoning produced. Cutting
+the code out leaves an argument about something the reader cannot see. The nine
+lines that illustrate a mechanic are not a leak of the mechanic; they are the
+only part of the page that shows what was actually decided.
+
+**The paywall does not need it either.** A subscriber is paying for the
+repository, the issues, the discussions and a say in the project — not for the
+source to be secret from the people reading the devlog. A reconstruction
+assembled from fragments scattered across hundreds of transcripts, out of date
+and out of order, is more work than writing the thing.
+
+So: publish every block as written, and have the build **say what it saw**.
+
+    3 fenced blocks over 200 lines in this run:
+      sep-22-26.md   412 lines   (lua)
+      sep-22-26.md   380 lines   (lua)
+      sep-24-26.md   233 lines
+
+A count, printed, every time. Nothing hidden, nothing silently altered, and a
+number that starts climbing the moment the project's character changes — which
+is the actual signal wanted. The house rule prefers a warning to a silent
+fallback, and a redaction that quietly removes content from a published page is
+exactly the silent fallback that rule exists to prevent.
+
+If the report ever shows something that should not be published, that is a
+decision for a person on that day, and the options then are to edit the
+transcript, to withhold the file, or to accept it. None of those need code
+written today.
 
 **One protection already exists and should be recorded so nobody rebuilds it:**
 the parser drops every tool call and tool result, so file contents the model
 *read* never enter a transcript at all. The only code that can appear is code
-the model chose to show the reader, which is why the median block is nine lines.
+the model chose to show the reader — which is why the median fenced block across
+the entire corpus is nine lines, and why this project's largest is eight.
 
 ### The landing page is a commit timeline, not a file listing
 
@@ -158,12 +192,12 @@ design exists to avoid.
 6. Put every visual decision in one stylesheet. Alignment, the narration
    register, the provenance gutter. That is the whole point of the relocation
    and it should be obvious to the next reader.
-7. Apply the size guard between parsing and rendering, so the threshold is one
-   decision in one place.
+7. Count oversized fenced blocks while parsing and print the list at the end of
+   the run. Report only — never alter what reaches the page.
 8. Test with the shapes that break renderers: a project whose sessions overlap
    so the commit order and the filename order genuinely disagree, an empty
    commit run with no conversation beside it, and a transcript containing a table,
-   a fenced block longer than the threshold, a pasted-back quote, a question
+   an unusually large fenced block, a pasted-back quote, a question
    exchange, and a model change mid-answer.
 
 ## Related Documents and Tools
