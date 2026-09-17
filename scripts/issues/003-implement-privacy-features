@@ -78,3 +78,25 @@ as publishing the second, and nothing should treat them alike.
 - `double-diaper-dungeon/scripts/sync-transcripts-for-github` — already
   publishing to GitHub, so the first exposure has happened and the question is
   live rather than hypothetical
+
+## Decision: which projects this gates
+
+Made by the developer when transcript publishing was planned.
+
+**Double Diaper Dungeon is cleared and does not wait on this.** Its subject
+matter is its own game; no third party appears in it, and the pattern scan
+agrees with that reading. Publishing it needs no audit and no stripping system.
+
+**The concern is specific to projects whose subject matter is other people.**
+neocities-modernization is the example that raised this issue and remains the
+case that needs it: it processes posts from the fediverse and bluesky, so other
+people's names and handles arrive in the transcripts as ordinary content rather
+than as accidents.
+
+So this is not a gate on the publishing system. It is a gate on *a particular
+project publishing*, and the two must not be confused — building the first as
+though it required the second would stop work that has no reason to wait.
+
+What issue 030 should carry, then, is not "settle this first" but "a project
+publishes only once somebody has said it may", with Double Diaper Dungeon
+already having been said of.
