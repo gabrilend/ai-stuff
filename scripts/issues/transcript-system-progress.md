@@ -139,18 +139,56 @@ one is telling the truth.**
 The command is still rendered, at the developer's request, because what the
 user *did* is a different fact from what the machine did. Both are kept.
 
-**The two speakers now sit on opposite sides of the page (027, 028).** The
-assistant's prose is padded to the right edge; the user's stays left. Running
-commentary written while work was underway is marked with a quote marker and
-the considered answer is left plain.
+**Narration was separated from the answer (028).** Running commentary written
+while work was underway carries a quote marker; the considered answer at the
+end is left plain. This one held.
 
-Two costs were accepted rather than worked around, and are recorded because a
-later reader will otherwise think they were oversights. Four or more leading
-spaces means *code block* in markdown, so a renderer shows right-padded prose
-as a monospace box — these files are read in terminals, and that was judged the
-right trade. And right-justifying a wrapped list item loses its hanging indent,
-because a ragged-left edge and a fixed indent are two pictures and only one can
-be on the page; the indent survives on the user's side, where nothing moves.
+### The alignment reversal (027)
+
+Shipped and withdrawn the same day, and worth recording in full because the
+reason it failed is more useful than the feature would have been.
+
+The assistant's prose was padded on the left so its right edge landed at column
+80, putting the two speakers on opposite sides of the page. The idea was that
+the page itself would say who was talking, so a long transcript could be
+skimmed for its turn-taking without reading a word. In a terminal, an editor
+and `less`, it did exactly that.
+
+One cost was known before the work began and written into the issue file: four
+or more leading spaces means *code block* in markdown, so any markdown renderer
+shows right-padded prose as a monospace box. It was judged an acceptable trade
+on the grounds that these files are read in terminals.
+
+**That judgement was wrong, and the mistake in it was not the trade.** It was
+the assumption that reading happens where writing happens. The transcripts were
+committed to repositories, several of which are on GitHub, and GitHub renders
+markdown. The first place anybody went to read the finished work was the one
+place the padding was guaranteed to look worst.
+
+The deeper fault only became visible once that one bit. **Alignment is a
+property of a view; a transcript is data.** Padding the file bakes one viewer's
+preference into storage, where every future reader inherits it and the one
+renderer that disagrees cannot be overruled without rewriting every file. The
+house rule about generation and viewing being separate concerns had been broken
+without anybody noticing, because it does not usually get stated about
+whitespace.
+
+A third cost had not been anticipated at all: right-justifying a wrapped list
+item destroys its hanging indent, since a ragged-left edge and a fixed indent
+are two different pictures and only one can be on a page. Taking the padding
+out restored the hanging indent on the assistant's side unasked — a fair sign
+the feature had been fighting the formatter rather than extending it.
+
+What survives is the question, which is worth asking earlier next time: *does
+this belong to the data or to the view?* If the answer is "the view", it does
+not go in the file, however good it looks in the terminal where it was written.
+
+The alignment itself is not abandoned, only relocated. A renderer can do it
+with one stylesheet rule, per reader, reversibly — and can do what padding
+could only gesture at besides: narration in a genuinely different visual
+register rather than borrowing the quote marker, model provenance as a gutter
+down the side, and search across the whole corpus at once.
+
 
 ### Verification
 
