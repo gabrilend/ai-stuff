@@ -358,62 +358,15 @@ local function strip_terminal_escapes(text)
 end
 -- }}}
 
--- {{{ right_justify
--- Push already-wrapped prose against the right edge of the measure, by adding
--- spaces to the LEFT of each line. Never to the right, so no line gains
--- trailing whitespace.
---
--- Why this exists: the transcript gives both speakers the same left margin, so
--- telling who is talking means reading a heading that says so. Putting the
--- assistant's prose on the other side of the page lets a reader follow the
--- turn-taking without reading a word (issue 027).
---
--- What is deliberately left alone, because its meaning IS its column position:
--- fenced code and everything inside it, indented code, table rows, headings,
--- and the horizontal rules between turns. A line already at or past the
--- measure is also left alone - padding it would push it past the edge, which
--- is worse than an over-long line.
---
--- Known and accepted cost: in markdown, four or more leading spaces means
--- "code block", so a renderer shows this as a monospace box rather than as
--- right-aligned prose. These files are read in a terminal, an editor, less and
--- a diff, where the padding does exactly what it is for. Recorded in issue 027
--- rather than worked around.
-local function right_justify(text, width)
-    width = width or 80
-    local out = {}
-    local in_code_block = false
-
-    for _, line in ipairs(split_lines(text)) do
-        if line:match("^%s*```") then
-            in_code_block = not in_code_block
-            out[#out + 1] = line
-        elseif in_code_block
-            or line:match("^%s*$")
-            or line:match("^#")
-            or line:match("^%s*|")
-            or line:match("^    ")
-            or line:match("^\t")
-            or line:match("^%-%-%-%-")
-            or #line >= width then
-            out[#out + 1] = line
-        else
-            out[#out + 1] = string.rep(" ", width - #line) .. line
-        end
-    end
-
-    return table.concat(out, "\n")
-end
--- }}}
 
 -- {{{ quote_block
 -- Prefix every line of an already-formatted block with the quote marker, so a
 -- reader can see at a glance that this was said while the work was still going
 -- on rather than after it had finished (issue 028).
 --
--- The marker occupies two columns, so callers wrap and justify to width minus
--- two and add the marker here; that is what keeps a quoted line's right edge
--- landing in the same place as an unquoted one.
+-- The marker occupies two columns, so callers wrap to the measure minus two
+-- and add the marker here. That is what keeps a quoted line the same total
+-- width as an unquoted one instead of two columns wider.
 local function quote_block(text)
     local out = {}
     for _, line in ipairs(split_lines(text)) do
@@ -572,7 +525,7 @@ end
 -- The measure is a parameter rather than a constant because narration is
 -- quoted, and the two columns the quote marker takes have to come out of the
 -- text's width or the quoted lines end up two columns wider than everything
--- else (issues 027 and 028).
+-- else (issue 028).
 local function format_content(content, width)
     if not content or content == "" then
         return ""
@@ -903,7 +856,7 @@ local function parse_conversation(jsonl_file, output_file)
     -- about the machine, and carries no number because it is not part of the
     -- conversation's counting.
     local function emit_marginal(text)
-        out:write(right_justify(wrap_text(text, 80), 80) .. "\n")
+        out:write(wrap_text(text, 80) .. "\n")
         out:write("\n")
         out:write(RULE .. "\n")
         out:write("\n")
@@ -947,7 +900,7 @@ local function parse_conversation(jsonl_file, output_file)
         for i, block in ipairs(assistant_blocks) do
             if block.model and block.model ~= last_model_announced then
                 if last_model_announced ~= nil then
-                    out:write(right_justify("*model: " .. block.model .. "*", 80))
+                    out:write("*model: " .. block.model .. "*")
                     out:write("\n\n")
                 end
                 last_model_announced = block.model
@@ -960,9 +913,9 @@ local function parse_conversation(jsonl_file, output_file)
                 -- keeps a quoted line's right edge level with an unquoted
                 -- one's.
                 local body = format_content(block.text, 78)
-                out:write(quote_block(right_justify(body, 78)) .. "\n")
+                out:write(quote_block(body) .. "\n")
             else
-                out:write(right_justify(format_content(block.text, 80), 80) .. "\n")
+                out:write(format_content(block.text, 80) .. "\n")
             end
             out:write("\n")
         end

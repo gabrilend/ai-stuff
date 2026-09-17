@@ -1,24 +1,23 @@
 #!/bin/bash
-# test-transcript-wrapping.sh - proves the transcript formatter wraps prose to
-# 80 columns, pushes the assistant's prose to the right edge while leaving the
-# user's against the left, and corrupts no structure doing either.
+# test-transcript-wrapping.sh - proves the transcript formatter wraps prose at
+# 80 columns without corrupting structure, and without repositioning anything.
 #
 # In general terms: feeds the exporter one hand-made session whose reply
 # contains every troublesome shape - a paragraph opening with **bold**, a long
 # bullet item, a fenced code block, a table row, and plain prose - plus a long
-# user question, then checks that prose wrapped, that the two speakers ended up
-# on opposite sides of the page, and that code and tables came through
-# untouched. Uses the fixture seam from issue 020; nothing under ~/.claude is
-# read or written.
+# user question, then checks that prose wrapped, that lists got hanging
+# indents, that code and tables came through untouched, and that nothing
+# acquired a left margin it was not written with. Uses the fixture seam from
+# issue 020; nothing under ~/.claude is read or written.
 #
-# ON THE HANGING INDENT. An earlier version of this file asserted that a
-# wrapped bullet's continuation began with exactly two spaces, so it sat under
-# the item's text. That is still true of the user's prose. It cannot be true of
-# the assistant's any more: right-justification (issue 027) positions every
-# line by its right edge, so a ragged-left edge and a fixed hanging indent are
-# two different pictures and only one can be on the page. The assertion moved
-# to the user side rather than being deleted, because the behaviour it guards
-# still exists there.
+# ON THE LEFT MARGIN. For a short while the assistant's prose was padded on the
+# left so its right edge landed at column 80, to put the two speakers on
+# opposite sides of the page. That was withdrawn: in markdown four or more
+# leading spaces means *code block*, so every renderer showed the padded prose
+# as a monospace box. The deeper objection is that alignment is a property of a
+# VIEW and the transcript is DATA, and putting one in the other is the mistake
+# rather than the rendering being unlucky. These assertions therefore check
+# that nothing is padded - the absence is the feature.
 
 DIR="${DIR:-/mnt/mtwo/programming/ai-stuff}"
 [ "${1:-}" = "--dir" ] && [ -n "${2:-}" ] && DIR="$2"
@@ -62,7 +61,6 @@ EOF
 # -- {{{ test_only_structure_exceeds_width
 function test_only_structure_exceeds_width() {
     # The only lines allowed past 80 are the code line and the table row.
-    # Padding must never push anything over the edge it is measuring from.
     local offenders
     offenders=$(echo "$TRANSCRIPT" | awk 'length > 80' | grep -cv "this_is_code\|column one")
     check "only code and table lines exceed 80 (other offenders: $offenders)" \
@@ -70,68 +68,71 @@ function test_only_structure_exceeds_width() {
 }
 # }}}
 
-# -- {{{ test_assistant_prose_is_right_aligned
-function test_assistant_prose_is_right_aligned() {
-    # The bold opener is the assistant's; it must carry leading padding and
-    # end flush with column 80. Checking the right edge is the real assertion -
-    # leading spaces alone would also be satisfied by an accidental indent.
-    local line width
-    line=$(echo "$TRANSCRIPT" | grep '\*\*A bold opener paragraph\*\*' | head -1)
-    width=${#line}
-    local ok=no
-    if [ -n "$line" ] && [ "$width" = 80 ] && [[ "$line" == " "* ]]; then
-        ok=yes
-    fi
-    check "assistant prose pushed to the right edge (width: $width)" "$ok"
+# -- {{{ test_nothing_is_padded
+function test_nothing_is_padded() {
+    # No line may begin with four or more spaces unless it was authored that
+    # way, because that is the threshold at which markdown starts reading prose
+    # as a code block. The fixture contains no indented code, so any such line
+    # is padding that should not be there.
+    local padded
+    padded=$(echo "$TRANSCRIPT" | grep -c "^    ")
+    check "no line acquired a left margin (padded lines: $padded)" \
+        "$([ "$padded" = 0 ] && echo yes || echo no)"
 }
 # }}}
 
-# -- {{{ test_user_prose_stays_left
-function test_user_prose_stays_left() {
-    # The user's own words must not move. Both the paragraph and the bullet
-    # start at column zero.
+# -- {{{ test_both_speakers_start_at_the_margin
+function test_both_speakers_start_at_the_margin() {
+    # The user's paragraph and bullet, and the assistant's, all begin at
+    # column zero. Who is speaking is said by the heading above them.
     local ok=no
     if echo "$TRANSCRIPT" | grep -q "^Show me every shape" \
-        && echo "$TRANSCRIPT" | grep -q "^- A user bullet"; then
+        && echo "$TRANSCRIPT" | grep -q "^- A user bullet" \
+        && echo "$TRANSCRIPT" | grep -q "^\*\*A bold opener paragraph\*\*" \
+        && echo "$TRANSCRIPT" | grep -q "^- \*\*First bullet\*\*"; then
         ok=yes
     fi
-    check "user prose stays against the left margin" "$ok"
+    check "both speakers' prose starts at the left margin" "$ok"
 }
 # }}}
 
-# -- {{{ test_user_bullet_hanging_indent
-function test_user_bullet_hanging_indent() {
-    # On the user's side, where nothing is repositioned, a wrapped bullet's
-    # continuation still sits under the item's text at exactly two spaces.
+# -- {{{ test_bold_opener_wraps
+function test_bold_opener_wraps() {
+    # Wrapping is deterministic for a fixed sentence, so the continuation
+    # line's first words are a stable assertion target.
     local ok=no
-    if echo "$TRANSCRIPT" | grep -q "^  [^ ].*userhangingmarker\|^  userhangingmarker"; then
+    if echo "$TRANSCRIPT" | grep -q "^because it keeps"; then
         ok=yes
     fi
-    check "user bullet keeps its two-space hanging indent" "$ok"
+    check "bold-opening paragraph wrapped into plain continuations" "$ok"
 }
 # }}}
 
-# -- {{{ test_assistant_bullet_marker_survives
-function test_assistant_bullet_marker_survives() {
-    # Right-justification repositions the line but must not eat the marker
-    # that makes it a list item in the first place.
-    local ok=no
-    if echo "$TRANSCRIPT" | grep -q "^ *- \*\*First bullet\*\*"; then
-        ok=yes
-    fi
-    check "assistant bullet keeps its list marker after being moved" "$ok"
+# -- {{{ test_hanging_indents_survive
+function test_hanging_indents_survive() {
+    # A wrapped bullet's continuation sits under the item's text at exactly two
+    # spaces, the width of "- ". This works for both speakers again now that
+    # nothing is repositioned; while the assistant's prose was being padded it
+    # could only be true of the user's.
+    local user_ok=no assistant_ok=no
+    echo "$TRANSCRIPT" | grep -q "^  [^ ].*userhangingmarker\|^  userhangingmarker" \
+        && user_ok=yes
+    echo "$TRANSCRIPT" | grep -q "^  [^ ].*hangingindentmarker\|^  hangingindentmarker" \
+        && assistant_ok=yes
+    check "user bullet keeps its two-space hanging indent" "$user_ok"
+    check "assistant bullet keeps its two-space hanging indent" "$assistant_ok"
 }
 # }}}
 
 # -- {{{ test_code_and_table_untouched
 function test_code_and_table_untouched() {
-    # Structure whose meaning is its column position is never padded.
+    # Structure whose meaning is its column position passes through verbatim.
     local code_lines table_lines
     code_lines=$(echo "$TRANSCRIPT" | grep -c "^this_is_code_with_a_deliberately_long_line")
     table_lines=$(echo "$TRANSCRIPT" | grep -c "^| column one | column two |")
-    check "code block line intact, unwrapped and unmoved (found: $code_lines)" \
+    check "code block line intact and unwrapped (found: $code_lines)" \
         "$([ "$code_lines" = 1 ] && echo yes || echo no)"
-    check "table row intact, unwrapped and unmoved (found: $table_lines)" \
+    check "table row intact and unwrapped (found: $table_lines)" \
         "$([ "$table_lines" = 1 ] && echo yes || echo no)"
 }
 # }}}
@@ -139,10 +140,10 @@ function test_code_and_table_untouched() {
 echo "transcript wrapping test suite"
 build_and_export
 test_only_structure_exceeds_width
-test_assistant_prose_is_right_aligned
-test_user_prose_stays_left
-test_user_bullet_hanging_indent
-test_assistant_bullet_marker_survives
+test_nothing_is_padded
+test_both_speakers_start_at_the_margin
+test_bold_opener_wraps
+test_hanging_indents_survive
 test_code_and_table_untouched
 rm -rf "$SCRATCH"
 echo ""
