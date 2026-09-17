@@ -60,13 +60,14 @@ offline; deploying is not. The same split applies, for the same reason.
 Neocities serves to anyone. So does the GitHub mirror, which is already live.
 Three consequences worth stating before the first deploy rather than after:
 
-- **Issue #003 is a blocker, and is unverified rather than resolved.** It
-  records that transcripts have carried other people's usernames, and says
-  plainly that those people did not consent. A crude scan of the DDD transcripts
-  finds no addresses or handles, and of the neocities-modernization transcripts
-  finds two addresses — but a scan by pattern cannot find a bare name, and the
-  person who raised that issue was reading the content rather than grepping it.
-  Publishing is the act that makes the omission permanent.
+- **Issue #003 gates some projects and not others.** It records that
+  transcripts have carried other people's usernames, and says plainly that
+  those people did not consent. That risk tracks a project's subject matter:
+  Double Diaper Dungeon is about its own game and contains nobody else, while
+  neocities-modernization processes other people's posts and so carries them
+  as ordinary content. The developer has cleared the first and not the second.
+  A pattern scan supports that reading without settling it, since an address
+  has a shape a search can match and a bare name does not.
 - **Publishing is not reversible by deleting.** A page that was up is indexed
   and cached. This is a property of the act, not of Neocities.
 - **The site and the paywall pull against each other.** If access to the source
@@ -79,8 +80,13 @@ Three consequences worth stating before the first deploy rather than after:
 
 ## Suggested Implementation Steps
 
-1. Settle issue #003 first, at least for the projects being published. It is
-   listed as a step rather than a note because it gates everything after it.
+1. Carry a per-project permission rather than a corpus-wide audit. A project
+   publishes only once somebody has said it may, and that permission is
+   recorded where a later reader can find it. Double Diaper Dungeon has been
+   said of: its subject matter is its own game and no third party appears in
+   it. neocities-modernization has not, and should not publish until issue 003
+   is settled for it, because its subject matter IS other people. The
+   distinction is per project, not per corpus (see issue 003).
 2. Give the generator an output directory under the mirror, ignored by the
    mirror's own git, so building never dirties the repository it read from.
 3. Reuse the existing deploy rather than writing a second one. It already takes
@@ -108,7 +114,7 @@ Three consequences worth stating before the first deploy rather than after:
 - `neocities-modernization/scripts/deploy-to-neocities` and the two libraries
   above
 - Issue #029, which generates what this publishes
-- Issue #003, the blocker
+- Issue #003, which gates neocities-modernization but not Double Diaper Dungeon
 - `double-diaper-dungeon/issues/10-001-sell-access-through-subscribestar.md`,
   which shares this boundary from the other side
 
