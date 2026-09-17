@@ -1,6 +1,6 @@
 # Conversation Summary: 3af1649c-9a08-450f-90b7-6772b60a9272
 
-Generated on: 2026-09-16 15:56:36
+Generated on: 2026-09-16 18:00:05
 Models: claude-opus-5
 
 --------------------------------------------------------------------------------
@@ -13,134 +13,134 @@ hi can you make a vtt program according to my standards?
 
 ### Assistant Response 1
 
->        I'll start by looking at what's already in the project directory before
->                                                             creating anything.
+> I'll start by looking at what's already in the project directory before
+> creating anything.
 
->  Empty directory, fresh start. Let me look at how your other projects are laid
->               out so I match the house conventions rather than inventing them.
+> Empty directory, fresh start. Let me look at how your other projects are laid
+> out so I match the house conventions rather than inventing them.
 
->    `/mnt/mtwo/programming/ai-stuff` is one big git repo holding every project,
->     and `/home/ritz/...` resolves to the same place. Let me check the RAM-tier
->                                       symlink layout and the seed directories.
+> `/mnt/mtwo/programming/ai-stuff` is one big git repo holding every project,
+> and `/home/ritz/...` resolves to the same place. Let me check the RAM-tier
+> symlink layout and the seed directories.
 
->    Now I have the house pattern. Let me build the scaffold — the parts fully
->                       determined by your standards, with no guessing involved.
+> Now I have the house pattern. Let me build the scaffold — the parts fully
+> determined by your standards, with no guessing involved.
 
->                RAM tier chain resolves. Now the repository housekeeping files.
+> RAM tier chain resolves. Now the repository housekeeping files.
 
->             The skeleton is in place. Now the part I genuinely can't guess at.
+> The skeleton is in place. Now the part I genuinely can't guess at.
 >
->  Your standards say a project is initialized by reading `notes/vision` — and
->       there isn't one here. Looking at how the vision file works in your other
->     projects, it's your voice, your design calls, written before anything else
->      exists. I'm not going to invent one and hand it back to you as if it were
->                                                                         yours.
+> Your standards say a project is initialized by reading `notes/vision` — and
+> there isn't one here. Looking at how the vision file works in your other
+> projects, it's your voice, your design calls, written before anything else
+> exists. I'm not going to invent one and hand it back to you as if it were
+> yours.
 >
->        So let me ask you the four things that actually change what gets built.
+> So let me ask you the four things that actually change what gets built.
 
->                                                           **[Asked the user]**
+> **[Asked the user]**
 >
->    *Q1 — What it is:* First, so I don't build the wrong program entirely —
->                                                              what is VTT here?
->    - Virtual tabletop, system-agnostic — A shared map and tokens for playing
->    tabletop RPGs over a network, where the rules are data you load rather than
->    something hard-coded. The program knows about grids, tokens, dice, and turn
->                               order, but does not know what a saving throw is.
->   - Virtual tabletop, one specific system — Same, but built around a ruleset
->    you already have — one of your own, or an existing one. The program knows
->                      what a character sheet contains and what an ability does.
->    - WebVTT — subtitles and captions — Tooling for the WebVTT caption file
+> *Q1 — What it is:* First, so I don't build the wrong program entirely —
+> what is VTT here?
+> - Virtual tabletop, system-agnostic — A shared map and tokens for playing
+>   tabletop RPGs over a network, where the rules are data you load rather than
+>   something hard-coded. The program knows about grids, tokens, dice, and turn
+>   order, but does not know what a saving throw is.
+> - Virtual tabletop, one specific system — Same, but built around a ruleset
+>   you already have — one of your own, or an existing one. The program knows
+>   what a character sheet contains and what an ability does.
+> - WebVTT — subtitles and captions — Tooling for the WebVTT caption file
 >   format: timing, cue editing, transcription alignment. This would sit next to
->     your video-transcription and screen-record-stream projects instead of your
->                                                                 game projects.
->                            → **Selected:** Virtual tabletop, system-agnostic
+>   your video-transcription and screen-record-stream projects instead of your
+>   game projects.
+> → **Selected:** Virtual tabletop, system-agnostic
 >
->        *Q2 — Architecture:* Where does it run? This is the fork that decides
->          everything downstream — it picks the language boundary, the network
->                protocol, and whether there is a browser in the picture at all.
->    - LuaJIT server, browser view layer — Authoritative game state lives in a
->    LuaJIT process. Players connect with a browser over websockets; the browser
->           only draws and sends commands. Matches your generate-then-view split
->     cleanly, and nobody installs anything. Cost: the view layer is JavaScript,
->                                                                       not Lua.
->  - LÖVE desktop client, LuaJIT server — Everything is Lua all the way down.
->    Players run a real desktop application that talks to the same authoritative
->     server. Full control of rendering and input. Cost: every player installs a
->             binary, and you write your own window, widgets, and asset loading.
->  - Terminal first, graphics later — Start with a headless authoritative core
->        and a terminal viewer, exactly like the moba's phase 1. Prove the state
->     model and the sync before any pixel exists. The graphical client becomes a
->                                     later phase that swaps in as another view.
+> *Q2 — Architecture:* Where does it run? This is the fork that decides
+> everything downstream — it picks the language boundary, the network
+> protocol, and whether there is a browser in the picture at all.
+> - LuaJIT server, browser view layer — Authoritative game state lives in a
+>   LuaJIT process. Players connect with a browser over websockets; the browser
+>   only draws and sends commands. Matches your generate-then-view split
+>   cleanly, and nobody installs anything. Cost: the view layer is JavaScript,
+>   not Lua.
+> - LÖVE desktop client, LuaJIT server — Everything is Lua all the way down.
+>   Players run a real desktop application that talks to the same authoritative
+>   server. Full control of rendering and input. Cost: every player installs a
+>   binary, and you write your own window, widgets, and asset loading.
+> - Terminal first, graphics later — Start with a headless authoritative core
+>   and a terminal viewer, exactly like the moba's phase 1. Prove the state
+>   model and the sync before any pixel exists. The graphical client becomes a
+>   later phase that swaps in as another view.
 > - Single machine, no network — A tool for one person at the table — the GM
->        drives it, everyone else looks at a screen. No sync, no permissions, no
->                                          reconciliation. Much smaller program.
+>   drives it, everyone else looks at a screen. No sync, no permissions, no
+>   reconciliation. Much smaller program.
 > → **Answered:** we should use a server in C, with users each connecting to a
->       different port and viewing it through their browser. Just run the client
->     program with an IP and port and it'll connect, and you can view it in your
->   browser localhost:12345 style. But, you're not hosting it per se, the server
->          is hosted on the server computer, but they can connect just the same.
+> different port and viewing it through their browser. Just run the client
+> program with an IP and port and it'll connect, and you can view it in your
+> browser localhost:12345 style. But, you're not hosting it per se, the server
+> is hosted on the server computer, but they can connect just the same.
 >
->   *Q3 — The core:* A VTT is many programs wearing one name. Which one is the
->                      interesting one — the part you actually want to design?
->   - Shared state and sync — Several people editing one world at once without
->                           stepping on each other. Authority, conflict, replay,
->       who-is-allowed-to-move-what. The hardest and most general problem in the
->                                                                          list.
+> *Q3 — The core:* A VTT is many programs wearing one name. Which one is the
+> interesting one — the part you actually want to design?
+> - Shared state and sync — Several people editing one world at once without
+>   stepping on each other. Authority, conflict, replay,
+>   who-is-allowed-to-move-what. The hardest and most general problem in the
+>   list.
 > - The map: sight, fog, walls — Grid or gridless geometry, line-of-sight from
 >   a token's eyes, walls that block it, fog that remembers what each player has
->                       seen. Heavy computational geometry, very parallelizable.
->   - The rules layer — Dice, sheets, scripted abilities — a little language
->    for expressing what a rule does, running inside the constraints of the host
->                                 program. Your notes call this the noblest art.
->  - Content generation — Maps, dungeons, tokens, and encounters made by tools
->              rather than by hand. Nothing hand-edited, everything regenerable.
->       → **Answered:** "The map: sight, fog, walls", The rules layer, Content
->  generation, Shared state and sync, "I want to make the art dynamic, more like
->              a video game and less like a .png that you move tokens around on"
+>   seen. Heavy computational geometry, very parallelizable.
+> - The rules layer — Dice, sheets, scripted abilities — a little language
+>   for expressing what a rule does, running inside the constraints of the host
+>   program. Your notes call this the noblest art.
+> - Content generation — Maps, dungeons, tokens, and encounters made by tools
+>   rather than by hand. Nothing hand-edited, everything regenerable.
+> → **Answered:** "The map: sight, fog, walls", The rules layer, Content
+> generation, Shared state and sync, "I want to make the art dynamic, more like
+> a video game and less like a .png that you move tokens around on"
 >
->  *Q4 — The table:* How much of the table is present at once, and how much do
->     they trust each other? This decides whether there is a permission model at
->                                                                           all.
+> *Q4 — The table:* How much of the table is present at once, and how much do
+> they trust each other? This decides whether there is a permission model at
+> all.
 > - GM plus players, GM has secrets — Asymmetric. The server must never send a
->      player something they should not see — hidden monsters, unexplored map,
->          the GM's notes. Fog of war becomes a security boundary, not a drawing
->                                                                        effect.
->  - Everyone sees everything — Symmetric and trusting. Every client holds the
->       whole world. Vastly simpler — no per-client filtering, and a replay is
->    just the command log. Hidden information becomes a social convention rather
->                                           than something the program enforces.
->      - No GM at all — The system runs the world; the humans are all players.
->       Anything a GM would adjudicate has to be a rule the program can execute,
->                                      which pushes weight onto the rules layer.
->   → **Answered:** GM plus players, GM has secrets, but there can be multiple
->     GM's. One server, but players can connect as a player or a DM and they can
->          control certain types of units. Players just control one, wasd style.
->     commanders control several, usually weaker but not always, RTS style. GM's
->   command the entire map. There can be commanders that control abstract things
+>   player something they should not see — hidden monsters, unexplored map,
+>   the GM's notes. Fog of war becomes a security boundary, not a drawing
+>   effect.
+> - Everyone sees everything — Symmetric and trusting. Every client holds the
+>   whole world. Vastly simpler — no per-client filtering, and a replay is
+>   just the command log. Hidden information becomes a social convention rather
+>   than something the program enforces.
+> - No GM at all — The system runs the world; the humans are all players.
+>   Anything a GM would adjudicate has to be a rule the program can execute,
+>   which pushes weight onto the rules layer.
+> → **Answered:** GM plus players, GM has secrets, but there can be multiple
+> GM's. One server, but players can connect as a player or a DM and they can
+> control certain types of units. Players just control one, wasd style.
+> commanders control several, usually weaker but not always, RTS style. GM's
+> command the entire map. There can be commanders that control abstract things
 > like the dungeon or the forest or the taverns in town, and they can move stuff
->   around like coffee cups and goblin patrols. The players can control up to an
+> around like coffee cups and goblin patrols. The players can control up to an
 > entire party at once, but generally not more, and specifically their viewpoint
->                                         is limited to what's in front of them.
+> is limited to what's in front of them.
 
->    That's a rich answer, and it changes the shape of the program considerably.
->  Let me capture it as the vision document first — that's the seed everything
->                                                               else grows from.
+> That's a rich answer, and it changes the shape of the program considerably.
+> Let me capture it as the vision document first — that's the seed everything
+> else grows from.
 
->    Now the documentation pass. Starting with the document that holds the whole
->                                                                       picture.
+> Now the documentation pass. Starting with the document that holds the whole
+> picture.
 
->   Now the roadmap — phases as clusters of functionality, foundational first.
+> Now the roadmap — phases as clusters of functionality, foundational first.
 
 > Now the open questions document — which by your standards is what keeps this
->                                            task honest about being unfinished.
+> task honest about being unfinished.
 
 > The documentation pass is complete. Now breaking the roadmap into issue files,
->                                                       starting with phase one.
+> starting with phase one.
 
- Good — and that second algorithm is specifically a *tabletop* idea, which the
+Good — and that second algorithm is specifically a *tabletop* idea, which the
 first one isn't: rating as a byproduct of play rather than a separate chore. Let
- me load the studio framework so I build this on the right apparatus rather than
-                                                inventing a parallel vocabulary.
+me load the studio framework so I build this on the right apparatus rather than
+inventing a parallel vocabulary.
 
 --------------------------------------------------------------------------------
 
@@ -650,624 +650,624 @@ during live play as they encounter them.
 
 ### Assistant Response 2
 
->        Loaded. Your algorithm B is a genuinely different machine from A, not a
->              variant — I'll write both in. Capturing it as its own document.
+> Loaded. Your algorithm B is a genuinely different machine from A, not a
+> variant — I'll write both in. Capturing it as its own document.
 
->  Let me check the git situation before committing, since this repo holds every
->                                                               project at once.
+> Let me check the git situation before committing, since this repo holds every
+> project at once.
 
->  My changes are entirely inside the new `my-own-custom-vtt/` directory — the
->     other 122 modified files across your other projects are untouched and will
->                                              stay that way. Staging only mine.
+> My changes are entirely inside the new `my-own-custom-vtt/` directory — the
+> other 122 modified files across your other projects are untouched and will
+> stay that way. Staging only mine.
 
->      Clean — 40 files, all mine, and the RAM-tier symlink correctly ignored.
+> Clean — 40 files, all mine, and the RAM-tier symlink correctly ignored.
 
->  Committed cleanly — and worth noting, another commit (`1a552201`) landed in
->   this repo while I was working, so somebody else is active here. Staging only
->    my own directory kept us out of each other's way; all 122 of their modified
->                                                           files are untouched.
+> Committed cleanly — and worth noting, another commit (`1a552201`) landed in
+> this repo while I was working, so somebody else is active here. Staging only
+> my own directory kept us out of each other's way; all 122 of their modified
+> files are untouched.
 >
 > ## Where this stands
 >
->                                                                     **Built:**
+> **Built:**
 >
 > - **Scaffold** — the directory set, both RAM tiers (`/tmp/my-own-custom-vtt`
->        for executables, `/dev/shm/my-own-custom-vtt` for logs, chained through
->                                `tmp/shared-memory`), gitignore, index counter.
->  - **`notes/vision`** — your answers, in your words, with the questions they
->                                    raised left sitting in the text unanswered.
->         - **17 documents plus a table of contents** — the whole design, from
->                                fixed-point arithmetic up to the sprite studio.
->      - **`input/`, `output/`, `desire/`, `faith/`, `strategems/`** — seeded.
->  - **`run-phase-demo`** — works now, correctly reports that nothing has been
->                                                                     built yet.
->                        - **Phase 1's nine issue files and its progress file.**
+>   for executables, `/dev/shm/my-own-custom-vtt` for logs, chained through
+>   `tmp/shared-memory`), gitignore, index counter.
+> - **`notes/vision`** — your answers, in your words, with the questions they
+>   raised left sitting in the text unanswered.
+> - **17 documents plus a table of contents** — the whole design, from
+>   fixed-point arithmetic up to the sprite studio.
+> - **`input/`, `output/`, `desire/`, `faith/`, `strategems/`** — seeded.
+> - **`run-phase-demo`** — works now, correctly reports that nothing has been
+>   built yet.
+> - **Phase 1's nine issue files and its progress file.**
 >
->   **Not built:** issue files for phases 2 through 10 (roughly 57 of them), and
->                                                                no code at all.
+> **Not built:** issue files for phases 2 through 10 (roughly 57 of them), and
+> no code at all.
 >
->       **The task is not complete**, and the reason is your own standard: about
->                     thirty open questions surfaced while writing, and they are
->      blueprints-in-waiting until they're worked through. Writing 57 more issue
->            files on top of unanswered questions would mean writing them twice.
+> **The task is not complete**, and the reason is your own standard: about
+> thirty open questions surfaced while writing, and they are
+> blueprints-in-waiting until they're worked through. Writing 57 more issue
+> files on top of unanswered questions would mean writing them twice.
 >
->                                         Two things I'll flag rather than bury:
+> Two things I'll flag rather than bury:
 >
->     **Your port design works, and it costs one specific thing.** One listening
+> **Your port design works, and it costs one specific thing.** One listening
 > port per participant means the kernel resolves identity before any of our code
->   runs, and the per-person outbound filter binds to the socket once instead of
+> runs, and the per-person outbound filter binds to the socket once instead of
 > being passed as a parameter that could be threaded wrong. That second property
->      is genuinely load-bearing for the security model. The cost is that a host
->        behind a home router forwards a *range*, not a port — that's a longer
->    conversation with a router's web interface, and I think it's the thing that
->   will actually stop somebody joining on the first evening. I built the design
+> is genuinely load-bearing for the security model. The cost is that a host
+> behind a home router forwards a *range*, not a port — that's a longer
+> conversation with a router's web interface, and I think it's the thing that
+> will actually stop somebody joining on the first evening. I built the design
 > around your choice and wrote the counter-argument down rather than deciding it
->                                                                        myself.
+> myself.
 >
->        **Your algorithm B is a different machine from A, not a variant.** A is
->        large-pool, thin-judgment, and measures how far the machine's taste has
->      drifted from yours. B is bounded by one person's patience and has no such
+> **Your algorithm B is a different machine from A, not a variant.** A is
+> large-pool, thin-judgment, and measures how far the machine's taste has
+> drifted from yours. B is bounded by one person's patience and has no such
 > measurement — but it judges a sprite *in context*, mid-session, on "did that
 > read as a goblin at the moment I needed it to," which is a better question and
->   can only be asked while playing. Both are written in as phase 9, and neither
->                                         counts as built until both are tested.
+> can only be asked while playing. Both are written in as phase 9, and neither
+> counts as built until both are tested.
 >
->    Starting on the open questions — these four are independent of each other
->                                                            and block the most.
+> Starting on the open questions — these four are independent of each other
+> and block the most.
 
->                                                           **[Asked the user]**
+> **[Asked the user]**
 >
->      *Q1 — Scale:* Is one world unit one foot? Positions are 32-bit integers
->  counting in 1/1024ths of a unit, so this constant sets the map's maximum size
->                                                    and its precision together.
->      - One foot — Range about ±400 miles, precision about a hundredth of an
->    inch. Matches the 5-foot-square convention most tabletops already think in.
->                    Dungeons and buildings are comfortable; a continent is not.
->   - One metre — Range about ±1300 kilometres, precision about a millimetre.
+> *Q1 — Scale:* Is one world unit one foot? Positions are 32-bit integers
+> counting in 1/1024ths of a unit, so this constant sets the map's maximum size
+> and its precision together.
+> - One foot — Range about ±400 miles, precision about a hundredth of an
+>   inch. Matches the 5-foot-square convention most tabletops already think in.
+>   Dungeons and buildings are comfortable; a continent is not.
+> - One metre — Range about ±1300 kilometres, precision about a millimetre.
 >   Better if you think in metric or want larger outdoor spaces, and the numbers
->                     people say out loud stop matching the usual tabletop grid.
->   - One inch — the tabletop's own unit — Range about ±33 miles, precision
+>   people say out loud stop matching the usual tabletop grid.
+> - One inch — the tabletop's own unit — Range about ±33 miles, precision
 >   under a thousandth of an inch. Matches physical miniatures, where everything
->          is measured in inches on a real table. Much tighter maximum map size.
->      - Make it configuration, not a constant — The scale is written into the
->       world file header and worlds carry their own. Flexible, and it means two
+>   is measured in inches on a real table. Much tighter maximum map size.
+> - Make it configuration, not a constant — The scale is written into the
+>   world file header and worlds carry their own. Flexible, and it means two
 >   worlds at different scales cannot be compared or merged without a conversion
->                                                   nobody will write correctly.
->   → **Answered:** one foot for the renderer, but 1 metre for the simulation.
->                                  rounded to the nearest foot for the renderer.
+>   nobody will write correctly.
+> → **Answered:** one foot for the renderer, but 1 metre for the simulation.
+> rounded to the nearest foot for the renderer.
 >
->      *Q2 — Persistence:* Does anything persist between sessions? Right now a
->                    session is a world file, a command log, and then it's over.
->       - Nothing persists — Each session loads a world and ends. The snapshot
->           format stays a debugging convenience with no versioning obligations.
->       Simplest, and it means "the players burned down the tavern last week" is
->                                           something the GM re-creates by hand.
+> *Q2 — Persistence:* Does anything persist between sessions? Right now a
+> session is a world file, a command log, and then it's over.
+> - Nothing persists — Each session loads a world and ends. The snapshot
+>   format stays a debugging convenience with no versioning obligations.
+>   Simplest, and it means "the players burned down the tavern last week" is
+>   something the GM re-creates by hand.
 > - The world persists — A session ends by writing the world back out, and the
->       next one loads it. The snapshot becomes a long-lived format that needs a
->       version story and migration when records change shape — a real ongoing
->                                                                          cost.
->    - The world persists, and so does fog — As above, plus each participant's
->    memory of what they have explored survives between sessions. A campaign map
->        that fills in over months. Largest commitment, and the most like what a
->                                                    table actually experiences.
+>   next one loads it. The snapshot becomes a long-lived format that needs a
+>   version story and migration when records change shape — a real ongoing
+>   cost.
+> - The world persists, and so does fog — As above, plus each participant's
+>   memory of what they have explored survives between sessions. A campaign map
+>   that fills in over months. Largest commitment, and the most like what a
+>   table actually experiences.
 > → **Answered:** a txt file with ascii art bespoke for that record log of the
 > previous runs statistics. it is themed like an ornate metal carving of a fish,
->  a bird, a dragon, a mammoth, etc. It is part of the action bar, that displays
->      the cells of the excel style database that is the file itself. There is a
->       parser script that exists that turns it into variables in code, and also
->   another that does the opposite, generating a new record log using the values
->  stored in the variables in the script when it was run to produce a new record
->        log. It is intentionally fragile, but it can easily be shared with your
->                                                   friends with another script.
+> a bird, a dragon, a mammoth, etc. It is part of the action bar, that displays
+> the cells of the excel style database that is the file itself. There is a
+> parser script that exists that turns it into variables in code, and also
+> another that does the opposite, generating a new record log using the values
+> stored in the variables in the script when it was run to produce a new record
+> log. It is intentionally fragile, but it can easily be shared with your
+> friends with another script.
 >
->    *Q3 — Time:* Does the world run continuously, or stop between turns? This
->         decides whether "turn order" is a thing the server knows about at all.
->  - Always running; turns are a ruleset's refusals — The world never stops. A
->    system with initiative implements it by refusing commands from bodies whose
->        turn it isn't. Keeps the two ideas separate, and a system with no turns
->        needs no special case. Cost: in a turn-based game everything not acting
->                            stands perfectly still while the world runs anyway.
->         - The world can be genuinely paused — The ruleset can stop the tick.
+> *Q3 — Time:* Does the world run continuously, or stop between turns? This
+> decides whether "turn order" is a thing the server knows about at all.
+> - Always running; turns are a ruleset's refusals — The world never stops. A
+>   system with initiative implements it by refusing commands from bodies whose
+>   turn it isn't. Keeps the two ideas separate, and a system with no turns
+>   needs no special case. Cost: in a turn-based game everything not acting
+>   stands perfectly still while the world runs anyway.
+> - The world can be genuinely paused — The ruleset can stop the tick.
 >   Turn-based systems feel honestly turn-based rather than like a running world
->     where everyone is frozen. Cost: the server now knows what a turn is, which
->                                              is a crack in system-agnosticism.
->   - Two clocks — ambient keeps running, actors don't — Torches flicker and
+>   where everyone is frozen. Cost: the server now knows what a turn is, which
+>   is a crack in system-agnosticism.
+> - Two clocks — ambient keeps running, actors don't — Torches flicker and
 >   doors swing continuously, but anything under a ruleset's turn structure only
->          moves on its turn. Probably what a table actually wants, and the most
->                                               complex of the three to specify.
+>   moves on its turn. Probably what a table actually wants, and the most
+>   complex of the three to specify.
 > → **Answered:** the server receives messages from clients and parses them in
->  a bitflag-sorted value-recorded bytecode VM style. It doesn't accept anything
->     it doesn't recognize, it only writes to pre-sized location containers. The
->      values it accepts are ranged between the values that it can store in it's
->                 bits. Rounded to the nearest of these, if impossible to parse.
+> a bitflag-sorted value-recorded bytecode VM style. It doesn't accept anything
+> it doesn't recognize, it only writes to pre-sized location containers. The
+> values it accepts are ranged between the values that it can store in it's
+> bits. Rounded to the nearest of these, if impossible to parse.
 >
->   *Q4 — Ports:* The port range is the one part of your architecture I have a
->                                  real concern about. Which way do you want it?
->      - Keep one port per participant — As you specified. The host forwards a
->        range through their router. Buys kernel-level identity resolution and a
->       filter that binds once per socket and cannot be misthreaded — which is
->                                              what the security model leans on.
->   - One port, many sockets — The conventional design. No port range, crosses
->          NAT with a single forward, dispatch that is well-trodden. Cost: every
->      outbound message must carry "who is this for" and be right about it every
->          time, which is a place a secret can leak through a threading mistake.
->  - Both — range preferred, single-port fallback — Use the range when it is
->           available, fall back to one port when it isn't. Your standards treat
->       fallbacks as warnings and warnings as errors, so this would need to be a
->     loud, explicit mode choice at startup rather than a silent degradation —
->                                                         and both modes tested.
->                                → **Selected:** Keep one port per participant
+> *Q4 — Ports:* The port range is the one part of your architecture I have a
+> real concern about. Which way do you want it?
+> - Keep one port per participant — As you specified. The host forwards a
+>   range through their router. Buys kernel-level identity resolution and a
+>   filter that binds once per socket and cannot be misthreaded — which is
+>   what the security model leans on.
+> - One port, many sockets — The conventional design. No port range, crosses
+>   NAT with a single forward, dispatch that is well-trodden. Cost: every
+>   outbound message must carry "who is this for" and be right about it every
+>   time, which is a place a secret can leak through a threading mistake.
+> - Both — range preferred, single-port fallback — Use the range when it is
+>   available, fall back to one port when it isn't. Your standards treat
+>   fallbacks as warnings and warnings as errors, so this would need to be a
+>   loud, explicit mode choice at startup rather than a silent degradation —
+>   and both modes tested.
+> → **Selected:** Keep one port per participant
 
->    These answers change three documents and add a fourth. Taking them one at a
->  time — starting with the record log, which is the largest new thing and the
->                                                       one I want to get right.
+> These answers change three documents and add a fourth. Taking them one at a
+> time — starting with the record log, which is the largest new thing and the
+> one I want to get right.
 
->                                        I deleted the wrong line there. Fixing.
+> I deleted the wrong line there. Fixing.
 
->       Now the command intake — your bytecode-VM answer replaces most of that
->                                                                      document.
+> Now the command intake — your bytecode-VM answer replaces most of that
+> document.
 
->  Committed. Both rounds are in, my directory is clean, and the other 122 files
->                                         across your projects remain untouched.
+> Committed. Both rounds are in, my directory is clean, and the other 122 files
+> across your projects remain untouched.
 >
->   Three of the four landed. The time question got answered with something else
->    — the bytecode intake, which was worth more than what I asked — so it's
->                                                   still open. These four next.
+> Three of the four landed. The time question got answered with something else
+> — the bytecode intake, which was worth more than what I asked — so it's
+> still open. These four next.
 
->                                                           **[Asked the user]**
+> **[Asked the user]**
 >
 > *Q1 — Time:* Still open from last round: does the world keep running between
 > turns? Your bytecode answer covered how commands get *in*, but not whether the
->                                                               tick ever stops.
->  - Always running; turns are refusals — The tick never stops. A ruleset with
->        initiative implements it by refusing commands from bodies whose turn it
->      isn't. The server never learns what a turn is. Cost: in a turn-based game
->         everything not acting stands frozen while the world runs on around it.
+> tick ever stops.
+> - Always running; turns are refusals — The tick never stops. A ruleset with
+>   initiative implements it by refusing commands from bodies whose turn it
+>   isn't. The server never learns what a turn is. Cost: in a turn-based game
+>   everything not acting stands frozen while the world runs on around it.
 > - Two clocks — Ambient things keep running always — torches flicker, doors
->       finish swinging, patrols walk. Anything under a ruleset's turn structure
->              moves only on its turn. Probably closest to what a table actually
->                           experiences, and the most work to specify precisely.
->   - The ruleset can pause the tick — A turn-based system genuinely stops the
+>   finish swinging, patrols walk. Anything under a ruleset's turn structure
+>   moves only on its turn. Probably closest to what a table actually
+>   experiences, and the most work to specify precisely.
+> - The ruleset can pause the tick — A turn-based system genuinely stops the
 >   world between turns. Honest and simple to reason about. Cost: the server now
->      has a concept of "paused for a turn", which is a crack in knowing nothing
->                                                                   about rules.
->                → **Answered:** turns are simultaneous and can be rolled back
+>   has a concept of "paused for a turn", which is a crack in knowing nothing
+>   about rules.
+> → **Answered:** turns are simultaneous and can be rolled back
 >
->         *Q2 — The world:* The engraving carries statistics. Does the world's
->  *geometry* persist too — is the tavern the players burned down still burned
->                                                                     next week?
+> *Q2 — The world:* The engraving carries statistics. Does the world's
+> *geometry* persist too — is the tavern the players burned down still burned
+> next week?
 > - No — only the engraving survives — Each session loads a generated world.
 >   The snapshot format stays a debugging convenience with no obligations. "They
 >   burned the tavern" lives as a number on a carving, and the GM re-creates the
->                                        consequence by editing the description.
->       - Yes — the world is written back out — A session ends by saving the
->          world; the next loads it. The snapshot becomes long-lived: it needs a
->      version number, and a migration path every time a record changes shape. A
->             real recurring cost paid on every future change to the data model.
->   - The description persists, not the world — What is saved is the generator
->    description plus the seed plus the edits made during play — a few hundred
->    bytes, not a world file. Regenerating replays the burning. Keeps everything
->    regenerable, and means an edit that the description language cannot express
->                                                               cannot be saved.
->                        → **Selected:** Yes — the world is written back out
+>   consequence by editing the description.
+> - Yes — the world is written back out — A session ends by saving the
+>   world; the next loads it. The snapshot becomes long-lived: it needs a
+>   version number, and a migration path every time a record changes shape. A
+>   real recurring cost paid on every future change to the data model.
+> - The description persists, not the world — What is saved is the generator
+>   description plus the seed plus the edits made during play — a few hundred
+>   bytes, not a world file. Regenerating replays the burning. Keeps everything
+>   regenerable, and means an edit that the description language cannot express
+>   cannot be saved.
+> → **Selected:** Yes — the world is written back out
 >
->        *Q3 — Rounding:* I need to check one reading of your bytecode answer,
->         because it collides with a standing rule of yours. You said values are
->                     "rounded to the nearest of these, if impossible to parse."
+> *Q3 — Rounding:* I need to check one reading of your bytecode answer,
+> because it collides with a standing rule of yours. You said values are
+> "rounded to the nearest of these, if impossible to parse."
 > - Round within range; refuse outside it — How I wrote it. A slot's bit width
->    IS its range, so an out-of-range value is unsayable rather than rejected. A
->             value landing between representable steps rounds — that's what a
->         fixed-width field means, not an error being swallowed. References stay
->         checked, since an index can be a legal number and still point past the
->                                                                         array.
->  - Round always, including clamping down — The literal reading: anything too
->    large becomes the maximum. Simpler and never refuses. But it is a fallback,
->     and your standing rule treats fallbacks as warnings and warnings as errors
->     — so this would need that rule relaxed here, deliberately, and the clamp
->                                                announced loudly when it fires.
->      - Never round anything — refuse it all — Any value that isn't exactly
->      representable is refused with a sentence. Strictest, most consistent with
+>   IS its range, so an out-of-range value is unsayable rather than rejected. A
+>   value landing between representable steps rounds — that's what a
+>   fixed-width field means, not an error being swallowed. References stay
+>   checked, since an index can be a legal number and still point past the
+>   array.
+> - Round always, including clamping down — The literal reading: anything too
+>   large becomes the maximum. Simpler and never refuses. But it is a fallback,
+>   and your standing rule treats fallbacks as warnings and warnings as errors
+>   — so this would need that rule relaxed here, deliberately, and the clamp
+>   announced loudly when it fires.
+> - Never round anything — refuse it all — Any value that isn't exactly
+>   representable is refused with a sentence. Strictest, most consistent with
 >   your fallback rule. Cost: a client must know every slot's exact quantisation
->     to send a legal command, which pushes real complexity out to every client.
->                        → **Selected:** Round within range; refuse outside it
+>   to send a legal command, which pushes real complexity out to every client.
+> → **Selected:** Round within range; refuse outside it
 >
->      *Q4 — Bitflags:* What does "bitflag-sorted" mean exactly? Both readings
->                                           work; they build different decoders.
+> *Q4 — Bitflags:* What does "bitflag-sorted" mean exactly? Both readings
+> work; they build different decoders.
 > - Flags say which operands are present — How I wrote it. A flag word follows
->        the opcode, one bit per operand, operands following in bit order low to
->      high. The decoder walks set bits into slots. Length becomes derivable, so
->           nobody sends a length they could lie about, and there is exactly one
->                                                       encoding of any command.
->  - The opcode table is sorted by flag value — Dispatch becomes a range check
->      rather than an index — related opcodes share high bits, so "is this any
->    kind of movement command" is one mask instead of a list. Groups commands by
->                                                       family at the bit level.
->    - Both, at different layers — Opcodes grouped into families by their high
->    bits, and a presence-flag word for operands underneath. More machinery, and
->    it makes permission checks cheap: "does this scope allow any command in the
->                          movement family" becomes one mask against the opcode.
->      → **Answered:** each received packet has a bitflag (or multiple) at the
->       beginning. If the first bit of any of the bitflags is 1, then that means
->       there's another one after this one. Our server can configure how many to
->  listen for in the config file. Default is like, 2 or 5 or 1, depending on how
->   many things we actually want to listen for. The bitflags are positional, not
->   stacking, so it doesn't go 0 1 2 3 like 00 01 10 11 but instead like 0 0 0 0
->     then 0 1 0 0 then 0 1 1 0 then 0 1 1 1 where the 0 bit is always "is there
->                another one after this?" which is was 0 in the examples before.
+>   the opcode, one bit per operand, operands following in bit order low to
+>   high. The decoder walks set bits into slots. Length becomes derivable, so
+>   nobody sends a length they could lie about, and there is exactly one
+>   encoding of any command.
+> - The opcode table is sorted by flag value — Dispatch becomes a range check
+>   rather than an index — related opcodes share high bits, so "is this any
+>   kind of movement command" is one mask instead of a list. Groups commands by
+>   family at the bit level.
+> - Both, at different layers — Opcodes grouped into families by their high
+>   bits, and a presence-flag word for operands underneath. More machinery, and
+>   it makes permission checks cheap: "does this scope allow any command in the
+>   movement family" becomes one mask against the opcode.
+> → **Answered:** each received packet has a bitflag (or multiple) at the
+> beginning. If the first bit of any of the bitflags is 1, then that means
+> there's another one after this one. Our server can configure how many to
+> listen for in the config file. Default is like, 2 or 5 or 1, depending on how
+> many things we actually want to listen for. The bitflags are positional, not
+> stacking, so it doesn't go 0 1 2 3 like 00 01 10 11 but instead like 0 0 0 0
+> then 0 1 0 0 then 0 1 1 0 then 0 1 1 1 where the 0 bit is always "is there
+> another one after this?" which is was 0 in the examples before.
 
->    Four answers, and two of them are architecturally larger than what I asked.
->    Let me take the biggest first — simultaneous turns with rollback is a new
->                                                      mechanism, not a setting.
+> Four answers, and two of them are architecturally larger than what I asked.
+> Let me take the biggest first — simultaneous turns with rollback is a new
+> mechanism, not a setting.
 
->    Now the flag chain in the command document — your design is more specific
->                                                         than what I'd written.
+> Now the flag chain in the command document — your design is more specific
+> than what I'd written.
 
->         There's a duplicated scale section now. Let me look at the whole file.
+> There's a duplicated scale section now. Let me look at the whole file.
 
->                                                  Clean. Committing this round.
+> Clean. Committing this round.
 
 > Three commits in, directory clean. Now the bulk of what's left — issue files
->                                             for the remaining phases. Phase 2.
+> for the remaining phases. Phase 2.
 
->           Phase 3 — now the larger one, since it carries turns and rollback.
+> Phase 3 — now the larger one, since it carries turns and rollback.
 
->                              Four commits in. Here's where the project stands.
+> Four commits in. Here's where the project stands.
 >
 > ## Built
 >
->      **19 documents plus the table of contents** — the complete design, from
+> **19 documents plus the table of contents** — the complete design, from
 > integer arithmetic through sight-as-a-security-boundary, the control dial, the
->  bytecode intake, turns-as-transactions, the sprite studio, and the engraving.
+> bytecode intake, turns-as-transactions, the sprite studio, and the engraving.
 >
 > **Issue files for phases 1–3** — 26 blueprints and 3 progress files. Phase
->   1 (the data model), phase 2 (sight and fog), phase 3 (time, determinism, and
->                                                                     rollback).
+> 1 (the data model), phase 2 (sight and fog), phase 3 (time, determinism, and
+> rollback).
 >
->      **Five questions answered and written back into the design.** Two of them
->  reshaped issues rather than filling in constants: the world persisting turned
->  the save format from a debugging convenience into something needing a version
->       and a migration chain from the first commit, and rollback added a second
->                             snapshot path that never touches the file encoder.
+> **Five questions answered and written back into the design.** Two of them
+> reshaped issues rather than filling in constants: the world persisting turned
+> the save format from a debugging convenience into something needing a version
+> and a migration chain from the first commit, and rollback added a second
+> snapshot path that never touches the file encoder.
 >
 > ## Not built
 >
->         **Issue files for phases 4–11** — roughly 50 more. Networking, the
->        browser, the control dial, the rules layer, generation, the studio, the
->                                                    engraving, the second view.
+> **Issue files for phases 4–11** — roughly 50 more. Networking, the
+> browser, the control dial, the rules layer, generation, the studio, the
+> engraving, the second view.
 >
->                                        **No code.** Nothing has been compiled.
+> **No code.** Nothing has been compiled.
 >
->     **About 28 open questions remain.** One of them, 3.3, blocks an issue from
->  being *completed* rather than started: whether fog rolls back with the world.
->  I left `309-taking-a-turn-back` marked blocked rather than writing around it.
+> **About 28 open questions remain.** One of them, 3.3, blocks an issue from
+> being *completed* rather than started: whether fog rolls back with the world.
+> I left `309-taking-a-turn-back` marked blocked rather than writing around it.
 >
 > ## One thing I want to flag
 >
->         Phase 3's demo is written to put the fog problem on screen rather than
->      describe it — roll back a turn where somebody walked into an unexplored
->        room, and show either the map closing over a place they saw, or the map
->   keeping a room the world says nobody entered. Both are uncomfortable. That's
->  deliberate: the program can restore state, it cannot restore ignorance, and a
->    rollback at a table has always been a social agreement rather than a memory
->                                                                          wipe.
+> Phase 3's demo is written to put the fog problem on screen rather than
+> describe it — roll back a turn where somebody walked into an unexplored
+> room, and show either the map closing over a place they saw, or the map
+> keeping a room the world says nobody entered. Both are uncomfortable. That's
+> deliberate: the program can restore state, it cannot restore ignorance, and a
+> rollback at a table has always been a social agreement rather than a memory
+> wipe.
 
->                                                           **[Asked the user]**
+> **[Asked the user]**
 >
->       *Q1 — Next:* What should I do next? Roughly 50 issue blueprints remain
->                                  unwritten, and nothing has been compiled yet.
->  - Finish the blueprints first — Write issues for phases 4 through 11 before
->              any code exists. Follows your standard that the project should be
->       reconstructible from the completed issues alone — the whole story gets
+> *Q1 — Next:* What should I do next? Roughly 50 issue blueprints remain
+> unwritten, and nothing has been compiled yet.
+> - Finish the blueprints first — Write issues for phases 4 through 11 before
+>   any code exists. Follows your standard that the project should be
+>   reconstructible from the completed issues alone — the whole story gets
 >   written before the first line is compiled. Cost: a long stretch with nothing
->                                                                      runnable.
->    - Build phase 1 now — Start writing C against the nine phase-1 issues —
->       fixed-point arithmetic, the flat arrays, the records, the validator, the
->    versioned world file — and get `./run-phase-demo 1` actually running. The
->                          later phases get their blueprints when we reach them.
->      - Blueprint phase 4, then build — Phase 4 is the security model — the
->        outbound filter, the leak tests, the one function allowed to write to a
->         socket. Write those blueprints while the argument is fresh, then start
->                                                         building from phase 1.
->        - Work the open questions instead — Stop producing and go through the
->        remaining ~28 questions one at a time. Several of them — who may roll
->      back, what closes a window, whether a GM sees the players' fog — change
->                                          what gets built rather than just how.
->   → **Answered:** keep working on the project until it's done. We've got all
->     night to do this so take your time, and keep on going until it's finished.
->   Feel free to ask questions if you please, but focus on just getting the main
->                                idea right - we can adjust later the specifics.
+>   runnable.
+> - Build phase 1 now — Start writing C against the nine phase-1 issues —
+>   fixed-point arithmetic, the flat arrays, the records, the validator, the
+>   versioned world file — and get `./run-phase-demo 1` actually running. The
+>   later phases get their blueprints when we reach them.
+> - Blueprint phase 4, then build — Phase 4 is the security model — the
+>   outbound filter, the leak tests, the one function allowed to write to a
+>   socket. Write those blueprints while the argument is fresh, then start
+>   building from phase 1.
+> - Work the open questions instead — Stop producing and go through the
+>   remaining ~28 questions one at a time. Several of them — who may roll
+>   back, what closes a window, whether a GM sees the players' fog — change
+>   what gets built rather than just how.
+> → **Answered:** keep working on the project until it's done. We've got all
+> night to do this so take your time, and keep on going until it's finished.
+> Feel free to ask questions if you please, but focus on just getting the main
+> idea right - we can adjust later the specifics.
 >
->    *Q2 — Fog undo:* Blocking issue 309: when a turn is rolled back, does the
->          fog roll back with it? Neither answer is right — you cannot restore
->                                                                     ignorance.
->    - Fog rolls back with the world — The program stays internally consistent
->          — the map matches the world exactly. The person still remembers the
->     corridor they looked at, so the screen now knows less than they do. Treats
->       the rollback as a full state restore and lets the humans handle the rest
->                                                                      socially.
->  - Fog is never rolled back — The map is honest about what somebody actually
->     saw. But it now shows a place reached in a turn that never happened, which
->            will contradict the world the moment anyone walks there again — a
->         permanent small inconsistency in exchange for never lying about what a
->                                                                  person knows.
->  - The GM decides per rollback — The rollback command carries a bit: restore
->     fog, or leave it. A GM correcting their own mistake leaves fog alone; a GM
->        undoing a turn that revealed a secret too early rolls it back. Puts the
->       impossible choice on the person who knows why the rollback is happening.
->                                → **Selected:** Fog rolls back with the world
+> *Q2 — Fog undo:* Blocking issue 309: when a turn is rolled back, does the
+> fog roll back with it? Neither answer is right — you cannot restore
+> ignorance.
+> - Fog rolls back with the world — The program stays internally consistent
+>   — the map matches the world exactly. The person still remembers the
+>   corridor they looked at, so the screen now knows less than they do. Treats
+>   the rollback as a full state restore and lets the humans handle the rest
+>   socially.
+> - Fog is never rolled back — The map is honest about what somebody actually
+>   saw. But it now shows a place reached in a turn that never happened, which
+>   will contradict the world the moment anyone walks there again — a
+>   permanent small inconsistency in exchange for never lying about what a
+>   person knows.
+> - The GM decides per rollback — The rollback command carries a bit: restore
+>   fog, or leave it. A GM correcting their own mistake leaves fog alone; a GM
+>   undoing a turn that revealed a secret too early rolls it back. Puts the
+>   impossible choice on the person who knows why the rollback is happening.
+> → **Selected:** Fog rolls back with the world
 
->          All night it is. Fog rolls back with the world — that unblocks 309.
->       Recording the decision, then I'm building rather than only blueprinting.
+> All night it is. Fog rolls back with the world — that unblocks 309.
+> Recording the decision, then I'm building rather than only blueprinting.
 
->     Two splice errors — a missing blank line and a truncated step 5. Fixing.
+> Two splice errors — a missing blank line and a truncated step 5. Fixing.
 
->     Issue 309 is clean and unblocked. Updating the progress file, then I start
->                                                                     writing C.
+> Issue 309 is clean and unblocked. Updating the progress file, then I start
+> writing C.
 
->     Issue 309 unblocked. Now building. Starting with the arithmetic everything
->                                                                 else rests on.
+> Issue 309 unblocked. Now building. Starting with the arithmetic everything
+> else rests on.
 
->                  Now a build script, so I can actually compile and check this.
+> Now a build script, so I can actually compile and check this.
 
 > `M_PI` isn't in strict C99. Defining it in the generator rather than depending
->                                                               on an extension.
+> on an extension.
 
->         Compiles clean, and the floating-point check works. Before adding more
->            modules, let me put the test harness first in the reading order —
->                                                  renumbering while it's cheap.
+> Compiles clean, and the floating-point check works. Before adding more
+> modules, let me put the test harness first in the reading order —
+> renumbering while it's cheap.
 
->            139 checks pass. Now the companion files, then the world's storage.
+> 139 checks pass. Now the companion files, then the world's storage.
 
 > Now the world's storage. A generic block first — every array in the world is
->                                                                  one of these.
+> one of these.
 
->  3033 checks pass. Now the string pool — the one place a human-readable name
->                                                              enters the world.
+> 3033 checks pass. Now the string pool — the one place a human-readable name
+> enters the world.
 
->            Now the world itself — the records and the blocks that hold them.
+> Now the world itself — the records and the blocks that hold them.
 
->     All record sizes came out exactly as designed — no padding anywhere. But
->      building this surfaced a real inconsistency in my own docs: the sight and
->      movement flags were numbered differently for bodies and walls. Fixing the
->                                                  documentation that caused it.
+> All record sizes came out exactly as designed — no padding anywhere. But
+> building this surfaced a real inconsistency in my own docs: the sight and
+> movement flags were numbered differently for bodies and walls. Fixing the
+> documentation that caused it.
 
->        Both tables agree now. Continuing with the geometry the sight pass will
->                                                                   interrogate.
+> Both tables agree now. Continuing with the geometry the sight pass will
+> interrogate.
 
->               All passing, including the vertex-on-ray case that's the classic
->       point-in-polygon failure. Let me tidy the issue that drifted and commit.
+> All passing, including the vertex-on-ray case that's the classic
+> point-in-polygon failure. Let me tidy the issue that drifted and commit.
 
->     Let me write the companion files for what's built, then move the completed
->                                                                        issues.
+> Let me write the companion files for what's built, then move the completed
+> issues.
 
->                   Committed. Continuing phase 1 — regions and their nesting.
+> Committed. Continuing phase 1 — regions and their nesting.
 
->   Regions nest correctly. Now the validator — the file that buys every other
->                                                 file's right to skip checking.
+> Regions nest correctly. Now the validator — the file that buys every other
+> file's right to skip checking.
 
->    Validator catches every deliberately-broken case and names the right field.
->        Now the world file — versioned from the first commit, since the world
->                                                                      persists.
+> Validator catches every deliberately-broken case and names the right field.
+> Now the world file — versioned from the first commit, since the world
+> persists.
 
->                   `truncate` is POSIX, not C99. Doing it with plain C instead.
+> `truncate` is POSIX, not C99. Doing it with plain C instead.
 
->      Round trip is byte-identical. Now the fixture maker — a permanent tool,
->                          since every later phase needs worlds to test against.
+> Round trip is byte-identical. Now the fixture maker — a permanent tool,
+> since every later phase needs worlds to test against.
 
 > Fixture validates. Now the phase 1 demo — which by your standards is part of
->                                              the deliverable, not scaffolding.
+> the deliverable, not scaffolding.
 
->        The demo works. Now the runner script so `./run-phase-demo 1` finds it.
+> The demo works. Now the runner script so `./run-phase-demo 1` finds it.
 
->     `./run-phase-demo 1` works end to end. Phase 1 is complete — writing the
->                                  remaining companion files and closing it out.
+> `./run-phase-demo 1` works end to end. Phase 1 is complete — writing the
+> remaining companion files and closing it out.
 
->  Phase 1 committed. Phase 2 now — starting with the pool, since sight is the
->                                                                 parallel pass.
+> Phase 1 committed. Phase 2 now — starting with the pool, since sight is the
+> parallel pass.
 
 > That pointer arithmetic to recover the pool from a worker's index is wrong —
->                               and too clever regardless. Rewriting it plainly.
+> and too clever regardless. Rewriting it plainly.
 
->    Thread pool holds. Now the sweep itself — the most important algorithm in
->                                                                   the project.
+> Thread pool holds. Now the sweep itself — the most important algorithm in
+> the project.
 
 > Three failures, and all three are my test's arithmetic, not the code's — the
->  ray caster is behaving correctly. Let me verify that claim rather than assume
->                                                                            it.
+> ray caster is behaving correctly. Let me verify that claim rather than assume
+> it.
 
->     Confirmed — the code is right and my expectations were wrong. Fixing the
->                                                                         tests.
+> Confirmed — the code is right and my expectations were wrong. Fixing the
+> tests.
 
->  Sight holds — including 2,600 sampled points where the drawing path and the
->                    permission path agree. Now memory, which is the other half.
+> Sight holds — including 2,600 sampled points where the drawing path and the
+> permission path agree. Now memory, which is the other half.
 
->   Fog holds, including the rollback restore. Now the phase 2 demo — this one
->                                                  needs a picture, not a table.
+> Fog holds, including the rollback restore. Now the phase 2 demo — this one
+> needs a picture, not a table.
 
->         The pillar's shadow is visible as the wedge of blank cells, and memory
->                              accumulates behind the body. Let me see the rest.
+> The pillar's shadow is visible as the wedge of blank cells, and memory
+> accumulates behind the body. Let me see the rest.
 
->     The demo is informative, but that timing table is misleading — `clock()`
->        counts CPU time across all threads, so the "speedup" column reads as if
->                        threading makes it slower. Measuring wall time instead.
+> The demo is informative, but that timing table is misleading — `clock()`
+> counts CPU time across all threads, so the "speedup" column reads as if
+> threading makes it slower. Measuring wall time instead.
 
->               Real speedup now: 3.46× on 8 threads. Let me close phase 2 out.
+> Real speedup now: 3.46× on 8 threads. Let me close phase 2 out.
 
->   Issue 206 needs scopes, which don't exist yet — moving it back rather than
->            claiming it done, and recording why 203's sweep became ray casting.
+> Issue 206 needs scopes, which don't exist yet — moving it back rather than
+> claiming it done, and recording why 203's sweep became ray casting.
 
->  Understood — switching to absolute paths and `git -C` for the rest of this.
->                    I had been using `cd` in compound commands; that stops now.
+> Understood — switching to absolute paths and `git -C` for the rest of this.
+> I had been using `cd` in compound commands; that stops now.
 
->         Phase 2 committed. Phase 3 now — starting with the randomness, since
->                                                     determinism depends on it.
+> Phase 2 committed. Phase 3 now — starting with the randomness, since
+> determinism depends on it.
 
->     Streams hold — 7,290 checks including the fairness distribution. Now the
->                                                          heartbeat and motion.
+> Streams hold — 7,290 checks including the fairness distribution. Now the
+> heartbeat and motion.
 
 > Determinism holds across thread counts, compared beat by beat. Now the command
->           log — which has to be editable, because a retcon is an edit to it.
+> log — which has to be editable, because a retcon is an edit to it.
 
->      Now the session — the turn window, the snapshot ring, and taking a turn
->                                                                          back.
+> Now the session — the turn window, the snapshot ring, and taking a turn
+> back.
 
->    All passing first try, including the retcon. Now the phase 3 demo — which
->                  has to put the fog problem on screen rather than describe it.
+> All passing first try, including the retcon. Now the phase 3 demo — which
+> has to put the fog problem on screen rather than describe it.
 
->     Everything works — but that timing table shows threading making the tick
->   *slower*, which is a real finding I should surface rather than leave looking
->                                                                    like a bug.
+> Everything works — but that timing table shows threading making the tick
+> *slower*, which is a real finding I should surface rather than leave looking
+> like a bug.
 
->    The fog problem is on screen exactly as intended — the far room fills in,
->                                             then empties. Closing phase 3 out.
+> The fog problem is on screen exactly as intended — the far room fills in,
+> then empties. Closing phase 3 out.
 
->      That hung waiting for stdin — `run-phase-demo` with no argument prompts
->                    interactively. Verifying with an explicit argument instead.
+> That hung waiting for stdin — `run-phase-demo` with no argument prompts
+> interactively. Verifying with an explicit argument instead.
 
 > All three demos run through the front door. Adding the threading finding as an
->                                         open question, then closing the phase.
+> open question, then closing the phase.
 
->    Three phases done, 11,278 checks passing. Phase 4 is networking — and its
->                              issue files don't exist yet, so those come first.
+> Three phases done, 11,278 checks passing. Phase 4 is networking — and its
+> issue files don't exist yet, so those come first.
 
->  Phase 4 issues are written. Now implementing — the wire format first, since
->                                     the filter and the sockets both sit on it.
+> Phase 4 issues are written. Now implementing — the wire format first, since
+> the filter and the sockets both sit on it.
 
->            Noted, and worth surfacing: the shell's directory currently sits at
+> Noted, and worth surfacing: the shell's directory currently sits at
 >
 > ```
 > /mnt/mtwo/programming/ai-stuff/my-own-custom-vtt/issues
 > ```
 >
->   An earlier `cd ... && mv ...` of mine left it there, before you first asked.
+> An earlier `cd ... && mv ...` of mine left it there, before you first asked.
 > Everything since has used absolute paths and `git -C`, so nothing has moved it
->    — and I won't move it back unless you say so, since that would be another
->                      change. All my commands work regardless of where it sits.
+> — and I won't move it back unless you say so, since that would be another
+> change. All my commands work regardless of where it sits.
 >
->                                             Continuing with the protocol test.
+> Continuing with the protocol test.
 
->   Protocol holds. Now the viewers, and then the one file that matters most —
->                                                                    the filter.
+> Protocol holds. Now the viewers, and then the one file that matters most —
+> the filter.
 
->  That's the actual problem, and it's mine — transcripts are written relative
->  to the working directory, and I left it in `issues/`. Let me find what landed
->                                                                         there.
+> That's the actual problem, and it's mine — transcripts are written relative
+> to the working directory, and I left it in `issues/`. Let me find what landed
+> there.
 
->      No transcripts were misplaced — `llm-transcripts/` is empty and nothing
->                   stray exists anywhere. The damage was potential, not actual.
+> No transcripts were misplaced — `llm-transcripts/` is empty and nothing
+> stray exists anywhere. The damage was potential, not actual.
 >
 > Restoring the directory to the project root, which is the one directory change
->                                                             you actually want:
+> you actually want:
 
->  Restored, and it will stay there — every other command uses absolute paths.
->                                     Continuing with the viewer implementation.
+> Restored, and it will stay there — every other command uses absolute paths.
+> Continuing with the viewer implementation.
 
->  Now the file that matters most — the only one permitted to write a thing to
->                                                                      a socket.
+> Now the file that matters most — the only one permitted to write a thing to
+> a socket.
 
->   Now the leak test — the one that searches raw bytes rather than asking the
->                                                                        filter.
+> Now the leak test — the one that searches raw bytes rather than asking the
+> filter.
 
->  One failure, and it's my magic number — the wall-memory heuristic uses each
->        wall's midpoint, so fewer are remembered than I guessed. The meaningful
->      property is that memory only grows; let me test that instead of a guessed
->                                                                         count.
+> One failure, and it's my magic number — the wall-memory heuristic uses each
+> wall's midpoint, so fewer are remembered than I guessed. The meaningful
+> property is that memory only grows; let me test that instead of a guessed
+> count.
 
->     Leak test passes, inverted halves included. Now the actual sockets — the
->                                                    door and the private ports.
+> Leak test passes, inverted halves included. Now the actual sockets — the
+> door and the private ports.
 
->          Real sockets hold. Now the phase 4 demo — several participants, one
->                                               misbehaving, and the leak sweep.
+> Real sockets hold. Now the phase 4 demo — several participants, one
+> misbehaving, and the leak sweep.
 
->    The validator caught the demo setting up an invalid world — bodies in the
->         east room claiming to be in the west. That's it doing its job. Fixing.
+> The validator caught the demo setting up an invalid world — bodies in the
+> east room claiming to be in the west. That's it doing its job. Fixing.
 
->        Phase 4 works end to end with real sockets — and the leak sweep shows
->  exactly the right thing: geometry says Cuthbert can see the ambush, the bytes
->                                        say nobody was told. Closing the phase.
+> Phase 4 works end to end with real sockets — and the leak sweep shows
+> exactly the right thing: geometry says Cuthbert can see the ambush, the bytes
+> say nobody was told. Closing the phase.
 
->    Four phases committed, 11,435 checks passing. Phase 5 is the bridge and the
->                                                 browser — issue files first.
+> Four phases committed, 11,435 checks passing. Phase 5 is the bridge and the
+> browser — issue files first.
 
 > Phase 5 issues written. Now the HTTP and websocket server the bridge needs —
->                   which means implementing SHA-1 and base64 for the handshake.
+> which means implementing SHA-1 and base64 for the handshake.
 
->  SHA-1, base64, and the RFC 6455 worked example all pass. My loopback test was
+> SHA-1, base64, and the RFC 6455 worked example all pass. My loopback test was
 > reasoning backwards though — binding `INADDR_ANY` over a bound loopback port
->                  *does* fail. Let me check the bound address directly instead.
+> *does* fail. Let me check the bound address directly instead.
 
 > SHA-1 handshake verified against the spec's own example. Now the browser view.
 
->       Now the two programs, plus a build step to embed the view files into the
->                                                                        bridge.
+> Now the two programs, plus a build step to embed the view files into the
+> bridge.
 
->   Both programs compile. Let me actually run them together and fetch the page.
+> Both programs compile. Let me actually run them together and fetch the page.
 
->         The server's output is invisible because stdout is fully buffered when
->  redirected — a server whose startup banner never appears looks hung. Fixing
->                                                                 that properly.
+> The server's output is invisible because stdout is fully buffered when
+> redirected — a server whose startup banner never appears looks hung. Fixing
+> that properly.
 
->    The server beats at exactly 20.0/second and shuts down cleanly on a signal.
->                                                                Now the bridge.
+> The server beats at exactly 20.0/second and shuts down cleanly on a signal.
+> Now the bridge.
 
->       The bridge was refused, and the reason it printed is itself wrong — it
->  reports "wrong protocol" when the truth is the door never answered. Two bugs.
->                                               Let me look at the actual cause.
+> The bridge was refused, and the reason it printed is itself wrong — it
+> reports "wrong protocol" when the truth is the door never answered. Two bugs.
+> Let me look at the actual cause.
 
->   Confirmed: the accepted door socket is made non-blocking, then the join read
->    spins 1,000 times with no wait — microseconds — and gives up before the
->                   client's bytes land. Fixing that, and the misleading reason.
+> Confirmed: the accepted door socket is made non-blocking, then the join read
+> spins 1,000 times with no wait — microseconds — and gives up before the
+> client's bytes land. Fixing that, and the misleading reason.
 
->     Those are stale logs. Let me start fresh with new log files and verify the
->                                       processes are actually the new binaries.
+> Those are stale logs. Let me start fresh with new log files and verify the
+> processes are actually the new binaries.
 
->  The bridge is in and the server assigned it a body. Let me fetch the page and
->                                      confirm the generated tables are correct.
+> The bridge is in and the server assigned it a body. Let me fetch the page and
+> confirm the generated tables are correct.
 
->   Slot table generated from the C source — one source of truth. Now the real
->                           test: does the websocket actually carry world state?
+> Slot table generated from the C source — one source of truth. Now the real
+> test: does the websocket actually carry world state?
 
->    The whole spine works: handshake verified, binary frames carrying 1 tick, 2
+> The whole spine works: handshake verified, binary frames carrying 1 tick, 2
 > walls, 4 things, 104 visibility boundaries. Now the other direction — does a
->                                              keypress actually move something?
+> keypress actually move something?
 
 > Full round trip confirmed: the command went browser → bridge → server, the
->  body moved 9.99 metres east, and the door leaf *dropped out* of the update as
->          the new angle put it behind a corner. That's the filter working live.
+> body moved 9.99 metres east, and the door leaf *dropped out* of the update as
+> the new angle put it behind a corner. That's the filter working live.
 
 > Both stopped — the only match was my own command line. The server's goodbye:
->          1,931 beats in 96.5 seconds at exactly 20.0/second, 1.4 MB delivered.
+> 1,931 beats in 96.5 seconds at exactly 20.0/second, 1.4 MB delivered.
 >
->     Now the phase 5 demo, which unlike the others is something you play rather
->                                                                     than read.
+> Now the phase 5 demo, which unlike the others is something you play rather
+> than read.
 
->                      Both stopped cleanly. Let me capture the output properly.
+> Both stopped cleanly. Let me capture the output properly.
 
->      One blemish: the stop message prints twice because both the TERM and EXIT
->                                              traps fire. Making it idempotent.
+> One blemish: the stop message prints twice because both the TERM and EXIT
+> traps fire. Making it idempotent.
 
 > Five phases committed and the thing is playable. Phase 6 — the control dial.
->                                                                  Issues first.
+> Issues first.
 
->                        Phase 6 issues written. Now adding scopes to the world.
+> Phase 6 issues written. Now adding scopes to the world.
 
->                   Now the scope queries — the load-bearing permission check.
+> Now the scope queries — the load-bearing permission check.
 
->     Now wiring scopes into the filter — gate 1 stops being a stub, and sight
->                                                               becomes a union.
+> Now wiring scopes into the filter — gate 1 stops being a stub, and sight
+> becomes a union.
 
->   The leak test's "hidden beats even a GM" assertion now fails — and this is
->         exactly the deliberate change its own phase-4 comment predicted. Worth
->                                      thinking about rather than just flipping.
+> The leak test's "hidden beats even a GM" assertion now fails — and this is
+> exactly the deliberate change its own phase-4 comment predicted. Worth
+> thinking about rather than just flipping.
 
->         Now the gauntlet — the membership and style gates that were stubbed.
+> Now the gauntlet — the membership and style gates that were stubbed.
 
-     Now the scope test, including the patrol crossing that open question 6.1 is
-                                                                          about.
+Now the scope test, including the patrol crossing that open question 6.1 is
+about.
 
 --------------------------------------------------------------------------------
 
-          *You've hit your session limit · resets 3:40am (America/Los_Angeles)*
+*You've hit your session limit · resets 3:40am (America/Los_Angeles)*
 
 --------------------------------------------------------------------------------
 
@@ -1280,122 +1280,122 @@ the limit was reached; do not repeat work that is already complete.
 
 ### Assistant Response 3
 
->    Scope test passes — including the tavern case that proves the dial is one
->                     mechanism, and the patrol crossing. Now the handover verb.
+> Scope test passes — including the tavern case that proves the dial is one
+> mechanism, and the patrol crossing. Now the handover verb.
 
->                   Now the phase 6 demo — four seats on the dial in one room.
+> Now the phase 6 demo — four seats on the dial in one room.
 
->   The demo works. One line is wrong though — the table shows the tavern with
+> The demo works. One line is wrong though — the table shows the tavern with
 > one pair of eyes while the text says it runs none. Correcting that rather than
->                                 leaving a demo that contradicts its own table.
+> leaving a demo that contradicts its own table.
 
->   Six phases committed. Phase 7 is the rules layer — which needs LuaJIT. Let
->                 me check what's actually available before designing around it.
+> Six phases committed. Phase 7 is the rules layer — which needs LuaJIT. Let
+> me check what's actually available before designing around it.
 
->       LuaJIT 2.1 is installed with pkg-config. Let me confirm the headers work
->                                                       before building on them.
+> LuaJIT 2.1 is installed with pkg-config. Let me confirm the headers work
+> before building on them.
 
->                                        LuaJIT embeds and runs. Phase 7 issues.
+> LuaJIT embeds and runs. Phase 7 issues.
 
->                            Phase 7 issues written. Now the rules layer itself.
+> Phase 7 issues written. Now the rules layer itself.
 
->   The compiler is right — that could truncate. Bounding it explicitly rather
->                                                      than widening the buffer.
+> The compiler is right — that could truncate. Bounding it explicitly rather
+> than widening the buffer.
 
->  The float check caught the rules module — Lua's number type is `double`, so
->    every value crossing the boundary is floating point. That's a real finding,
->    not a nuisance. Let me handle it as a named exemption rather than weakening
->                                                                     the check.
+> The float check caught the rules module — Lua's number type is `double`, so
+> every value crossing the boundary is floating point. That's a real finding,
+> not a nuisance. Let me handle it as a named exemption rather than weakening
+> the check.
 
->                         Now the two deliberately-unlike rulesets and the test.
+> Now the two deliberately-unlike rulesets and the test.
 
->                              I referenced a helper that doesn't exist. Fixing.
+> I referenced a helper that doesn't exist. Fixing.
 
->  Sandbox holds and the rulesets genuinely disagree. Now wiring gate 6 into the
->             real gauntlet — which means separating checking from performing.
+> Sandbox holds and the rulesets genuinely disagree. Now wiring gate 6 into the
+> real gauntlet — which means separating checking from performing.
 
->                   Now the phase 7 demo — the same world under both rulesets.
+> Now the phase 7 demo — the same world under both rulesets.
 
->   Works end to end. One design decision the demo shows but doesn't name — an
->                         abandoned hook fails *open*, not closed. Worth saying.
+> Works end to end. One design decision the demo shows but doesn't name — an
+> abandoned hook fails *open*, not closed. Worth saying.
 
->  Seven phases committed, 11,574 checks. Phase 8 — content generation. Issues
->                                                                         first.
+> Seven phases committed, 11,574 checks. Phase 8 — content generation. Issues
+> first.
 
->   Now implementing. One reconsideration first: issue 801 argued for Lua as the
->    description parser, but that would spread the floating-point exemption to a
->    second module. For a closed vocabulary of scalar fields a small C reader is
->   genuinely adequate — recording the change of mind in the issue rather than
->                                                            silently deviating.
+> Now implementing. One reconsideration first: issue 801 argued for Lua as the
+> description parser, but that would spread the floating-point exemption to a
+> second module. For a closed vocabulary of scalar fields a small C reader is
+> genuinely adequate — recording the change of mind in the issue rather than
+> silently deviating.
 
 > Now the generator itself — graph, geometry, furnishing, and its own checker.
 
->     Generator holds across 40 seeds. Now recording where a world came from —
->     which finally exercises the version ladder that's been sitting empty since
->                                                                       phase 1.
+> Generator holds across 40 seeds. Now recording where a world came from —
+> which finally exercises the version ladder that's been sitting empty since
+> phase 1.
 
->    Good warning — and I think I know the culprit. Let me look for spin loops
->                                                    before doing anything else.
+> Good warning — and I think I know the culprit. Let me look for spin loops
+> before doing anything else.
 
 > Found it. `send_all` in the httpd spins on `EAGAIN` with no bound and no sleep
 > — the websocket sockets are non-blocking, so if a browser stops reading, the
->       bridge pegs a core at 100% forever. That's almost certainly your freeze.
+> bridge pegs a core at 100% forever. That's almost certainly your freeze.
 
->  Only `send_all` was a true hot spin — `door_flush` breaks correctly. Let me
->  also stop the client from hanging forever and de-spin the phase 4 demo's wait
->                                                                         loops.
+> Only `send_all` was a true hot spin — `door_flush` breaks correctly. Let me
+> also stop the client from hanging forever and de-spin the phase 4 demo's wait
+> loops.
 
->   Let me verify the fix actually holds, carefully and with hard timeouts — a
->     websocket client that connects and then stops reading, which is what would
->                                                                have frozen it.
+> Let me verify the fix actually holds, carefully and with hard timeouts — a
+> websocket client that connects and then stops reading, which is what would
+> have frozen it.
 
 > Those background processes don't survive the tool call. Better approach anyway
->          — a permanent regression test for the exact bug, which is what your
->                                                             standards ask for.
+> — a permanent regression test for the exact bug, which is what your
+> standards ask for.
 
->      Regression test passes and returns promptly. That freeze is fixed and now
->                                                           permanently guarded.
+> Regression test passes and returns promptly. That freeze is fixed and now
+> permanently guarded.
 >
->  Now back to phase 8 — recording where a world came from, which finally uses
->                                     the version ladder built empty in phase 1.
+> Now back to phase 8 — recording where a world came from, which finally uses
+> the version ladder built empty in phase 1.
 
->   A duplicate — an earlier edit of mine already added those fields. Removing
->     my second copy and checking whether the world file got double-patched too.
+> A duplicate — an earlier edit of mine already added those fields. Removing
+> my second copy and checking whether the world file got double-patched too.
 
->                                Now the generator program and the phase 8 demo.
+> Now the generator program and the phase 8 demo.
 
->    The generator ran — but look: the description asked for **1 loop** and it
->     produced **0**, and the checker passed it. That's precisely the "generator
->    quietly ignoring its description" failure `generate_check` exists to catch.
->                                                                      Two bugs.
+> The generator ran — but look: the description asked for **1 loop** and it
+> produced **0**, and the checker passed it. That's precisely the "generator
+> quietly ignoring its description" failure `generate_check` exists to catch.
+> Two bugs.
 
->     Now 1 requested, 1 produced. The existing test only asserted "at most" —
->         tightening it to match the stronger guarantee, and checking the larger
->                                                                   description.
+> Now 1 requested, 1 produced. The existing test only asserted "at most" —
+> tightening it to match the stronger guarantee, and checking the larger
+> description.
 
->                    Both descriptions generate correctly. Now the phase 8 demo.
+> Both descriptions generate correctly. Now the phase 8 demo.
 
->    The demo works — but look at the picture: the rooms are **disconnected**.
->  The graph says they're joined; the geometry never cut the doorways. Issue 803
->         specified corridors and I didn't build them. Let me fix that properly.
+> The demo works — but look at the picture: the rooms are **disconnected**.
+> The graph says they're joined; the geometry never cut the doorways. Issue 803
+> specified corridors and I didn't build them. Let me fix that properly.
 
->       Now genuinely connected — corridors between rooms and the loop channel
->          arcing over the top. But the real lesson is that nothing *caught* the
->                                         disconnection. Let me close that hole.
+> Now genuinely connected — corridors between rooms and the loop channel
+> arcing over the top. But the real lesson is that nothing *caught* the
+> disconnection. Let me close that hole.
 
 > The check passes across all 40 seeds — but a check that passes everything is
->                       worthless. Let me prove it would catch a sealed dungeon.
+> worthless. Let me prove it would catch a sealed dungeon.
 
->    Now closing phase 8 out — companion files, demo script, issues, progress,
->                                                                        commit.
+> Now closing phase 8 out — companion files, demo script, issues, progress,
+> commit.
 
->           Eight phases committed. Phase 9 — the sprite studio. Issues first.
+> Eight phases committed. Phase 9 — the sprite studio. Issues first.
 
-              Now implementing. The sprite paintbrush and the SVG encoder first.
+Now implementing. The sprite paintbrush and the SVG encoder first.
 
 --------------------------------------------------------------------------------
 
-                                                            *Prompt is too long*
+*Prompt is too long*
 
 --------------------------------------------------------------------------------
 
@@ -1774,7 +1774,7 @@ up the last task as if the break never happened.
 
 --------------------------------------------------------------------------------
 
-                                                          `/compact` - Compacted
+`/compact` - Compacted
 
 --------------------------------------------------------------------------------
 
@@ -1787,146 +1787,146 @@ please continue
 ### Assistant Response 5
 
 > I'll write the sprite source now. Let me check the header I just wrote and the
->                                       stream registry interface it depends on.
+> stream registry interface it depends on.
 
->    Now I'll fix the header's signature — a sprite must be a pure function of
->       its description, and a session-positional stream would make it depend on
->                                                            *when* it was made.
+> Now I'll fix the header's signature — a sprite must be a pure function of
+> its description, and a session-positional stream would make it depend on
+> *when* it was made.
 
->   Now the implementation — encoder, an independent reader, and the heuristic
->                                                                        grader.
+> Now the implementation — encoder, an independent reader, and the heuristic
+> grader.
 
->     Now the test — the round trip, sweep across many seeds, and the grader's
->                                                                     behaviour.
+> Now the test — the round trip, sweep across many seeds, and the grader's
+> behaviour.
 
->      The round trip held across all 3,000 sprites. Two genuine findings — an
->  empty word gets a confident suggestion, and the generator can't reach tier 1.
->          Let me measure the score distribution rather than guess at cut lines.
+> The round trip held across all 3,000 sprites. Two genuine findings — an
+> empty word gets a confident suggestion, and the generator can't reach tier 1.
+> Let me measure the score distribution rather than guess at cut lines.
 
 > Scores run 27–95, centred at 64 — my cut lines left tier 1 unreachable and
 > put 90% into two buckets. I'll calibrate against the measured distribution and
->                                                       keep the measuring tool.
+> keep the measuring tool.
 
->                                              Calibration holds. Now the tests.
+> Calibration holds. Now the tests.
 
 > Same hole exists in the description parser's suggester — let me fix it there
->                                                                           too.
+> too.
 
->    The shapes render but read as a pile, not a creature. Two cheap changes fix
->         that without widening the vocabulary: a solid body, and detail hung in
->                                                                mirrored pairs.
+> The shapes render but read as a pile, not a creature. Two cheap changes fix
+> that without widening the vocabulary: a solid body, and detail hung in
+> mirrored pairs.
 
->      The tool caught the shift — every line moved two points. Updating them,
->                                 which is precisely the workflow it exists for.
+> The tool caught the shift — every line moved two points. Updating them,
+> which is precisely the workflow it exists for.
 
->        Now closing out 901 and 902, and updating 905's current state since its
->                                            agreement-rate half needs the pool.
+> Now closing out 901 and 902, and updating 905's current state since its
+> agreement-rate half needs the pool.
 
 > The phase 9 issue files were never committed — they need to enter the record
->           as issues before moving. Let me check what's actually mine to stage.
+> as issues before moving. Let me check what's actually mine to stage.
 
->      The root `.gitignore` has been silently swallowing this project's `build`
->           script — it's untracked, and the project can't be rebuilt from the
->                                                         repository without it.
+> The root `.gitignore` has been silently swallowing this project's `build`
+> script — it's untracked, and the project can't be rebuilt from the
+> repository without it.
 
->    Now the pool. Let me check how the project allocates and how the world does
->                                               provenance, so the pool matches.
+> Now the pool. Let me check how the project allocates and how the world does
+> provenance, so the pool matches.
 
->    The session already has a `struct pool` — the thread pool. I'll name this
+> The session already has a `struct pool` — the thread pool. I'll name this
 > one `sprite_pool`. First, the paintbrush fingerprint the pool needs to record.
 
->                                                           Now the pool itself.
+> Now the pool itself.
 
->   Now the studio layer — agreement, the anchor, and the dial that quotes its
->                                                          cost before it moves.
+> Now the studio layer — agreement, the anchor, and the dial that quotes its
+> cost before it moves.
 
->        Now wiring re-tiering through the command door — the thing that makes
->                         algorithm B a tabletop idea rather than a gallery one.
+> Now wiring re-tiering through the command door — the thing that makes
+> algorithm B a tabletop idea rather than a gallery one.
 
->   A real gap surfaced: nothing ties a thing in the world to a sprite, so there
->             is nothing to re-tier. Let me look at what adding that link costs.
+> A real gap surfaced: nothing ties a thing in the world to a sprite, so there
+> is nothing to re-tier. Let me look at what adding that link costs.
 
->        Now the issue file for the link that phase 9's demo turned out to need.
+> Now the issue file for the link that phase 9's demo turned out to need.
 
->               Now the world file: version 3, the converter rung, and the hash.
+> Now the world file: version 3, the converter rung, and the hash.
 
->      The version bump exposed a real flaw: the stored hash walks the *current*
->    field set, so no migrated file could ever pass its own integrity check. The
->                                    ladder was untested against a shape change.
+> The version bump exposed a real flaw: the stored hash walks the *current*
+> field set, so no migrated file could ever pass its own integrity check. The
+> ladder was untested against a shape change.
 
->  Now `VERB_RETIER` — the command that changes nothing in the world and still
->                                                       runs the whole gauntlet.
+> Now `VERB_RETIER` — the command that changes nothing in the world and still
+> runs the whole gauntlet.
 
->    A display name would be the wrong identity here — the project is explicit
->  that names are display-only and never decide anything. The pool records which
->                                                               *seat* rated it.
+> A display name would be the wrong identity here — the project is explicit
+> that names are display-only and never decide anything. The pool records which
+> *seat* rated it.
 
->  Now the live-session re-tier: it must land in the library and leave the world
->                                                                     untouched.
+> Now the live-session re-tier: it must land in the library and leave the world
+> untouched.
 
->                All green. Now closing out the studio issues before committing.
+> All green. Now closing out the studio issues before committing.
 
->     Another agent is committing to sibling projects in this shared repo — my
->         commits are intact and scoped to this directory. Now the phase 9 demo.
+> Another agent is committing to sibling projects in this shared repo — my
+> commits are intact and scoped to this directory. Now the phase 9 demo.
 
->                                                   Now the phase 9 demo itself.
+> Now the phase 9 demo itself.
 
->     Two things the demo just exposed: a suggestion for "idle" that points at a
->     shape, and a balance score that punishes the mirrored sprites for having a
->                                                                          face.
+> Two things the demo just exposed: a suggestion for "idle" that points at a
+> shape, and a balance score that punishes the mirrored sprites for having a
+> face.
 
->       The tool caught it and refused. Updating the lines to the newly measured
->                                                                   percentiles.
+> The tool caught it and refused. Updating the lines to the newly measured
+> percentiles.
 
->  Two fixes, and the demo should show the artifact rather than only describe it
->                                              — a contact sheet you can open.
+> Two fixes, and the demo should show the artifact rather than only describe it
+> — a contact sheet you can open.
 
->      Phase 9 is complete. On to phase 10 — the engraving. Let me re-read its
->                                                         design document first.
+> Phase 9 is complete. On to phase 10 — the engraving. Let me re-read its
+> design document first.
 
->                      Phase 10 is the engraving. Writing its issue files first.
+> Phase 10 is the engraving. Writing its issue files first.
 
->                                       Now the canvas that joins its own lines.
+> Now the canvas that joins its own lines.
 
->      Now the creature — a tiling of chambers where each chamber *is* a cell.
+> Now the creature — a tiling of chambers where each chamber *is* a cell.
 
->                 Let me see what these actually look like before going further.
+> Let me see what these actually look like before going further.
 
->  Several real defects — an eye overwriting a label, wings crossing the body,
->    six legs on a mammoth. Let me add collision detection so the canvas catches
->                             ornament touching walls, then rebuild the anatomy.
+> Several real defects — an eye overwriting a label, wings crossing the body,
+> six legs on a mammoth. Let me add collision detection so the canvas catches
+> ornament touching walls, then rebuild the anatomy.
 
->  Now the two halves that must not know each other — the writer, and a reader
->                                                        that walks the picture.
+> Now the two halves that must not know each other — the writer, and a reader
+> that walks the picture.
 
->                Now the round-trip test — both halves, across every creature.
+> Now the round-trip test — both halves, across every creature.
 
->  The plain alphabet can't distinguish corners by character — the reader must
->                     use geometry. Rewriting the chamber scan to work for both.
+> The plain alphabet can't distinguish corners by character — the reader must
+> use geometry. Rewriting the chamber scan to work for both.
 
->         Two silent truncations — the buffers were one short, and `take_text`
->      truncated rather than refusing. Fixing both, and mixing the seed so small
->                                          seeds don't all pick the same animal.
+> Two silent truncations — the buffers were one short, and `take_text`
+> truncated rather than refusing. Fixing both, and mixing the seed so small
+> seeds don't all pick the same animal.
 
->                                   Now the two programs and the sharing script.
+> Now the two programs and the sharing script.
 
->                                                         Now the phase 10 demo.
+> Now the phase 10 demo.
 
->   The demo mangles the wrong cell — it lands on the first number in the row,
->         not the checksum. Let me target the top band and show the misalignment
->                                                                    explicitly.
+> The demo mangles the wrong cell — it lands on the first number in the row,
+> not the checksum. Let me target the top band and show the misalignment
+> explicitly.
 
->                Now closing out the phase 10 issues and updating the documents.
+> Now closing out the phase 10 issues and updating the documents.
 
->   The `goodbye` edit replaced every occurrence of the word. Let me restore and
->                                                              redo it properly.
+> The `goodbye` edit replaced every occurrence of the word. Let me restore and
+> redo it properly.
 
-             Phase 10 is complete. Phase 11 is the last — the second view, the
-                     documentation site, and getting the sprites onto the table.
+Phase 10 is complete. Phase 11 is the last — the second view, the
+documentation site, and getting the sprites onto the table.
 
 --------------------------------------------------------------------------------
 
-             *You've hit your session limit · resets 4pm (America/Los_Angeles)*
+*You've hit your session limit · resets 4pm (America/Los_Angeles)*
 
 --------------------------------------------------------------------------------
 
@@ -1939,83 +1939,83 @@ the limit was reached; do not repeat work that is already complete.
 
 ### Assistant Response 6
 
->              Now the drawing itself — assembling the layers and moving them.
+> Now the drawing itself — assembling the layers and moving them.
 
->  Now the second view — a terminal client speaking the same protocol, with no
->                                                                server changes.
+> Now the second view — a terminal client speaking the same protocol, with no
+> server changes.
 
->    The second view found a real defect: `outbound_build` clears the buffer, so
->         the hello written at join time was wiped every beat. The browser never
->                                                           received one either.
+> The second view found a real defect: `outbound_build` clears the buffer, so
+> the hello written at join time was wiped every beat. The browser never
+> received one either.
 
->  The terminal view works against a generated place. Now the documentation site
->                                            — in Lua, as the project prefers.
+> The terminal view works against a generated place. Now the documentation site
+> — in Lua, as the project prefers.
 
->     The tool found 165 dead links — and they're real: every issue moved into
->        `completed/` had its `../docs/` links silently broken by the move. That
->                          happens on *every* completion, so it deserves a tool.
+> The tool found 165 dead links — and they're real: every issue moved into
+> `completed/` had its `../docs/` links silently broken by the move. That
+> happens on *every* completion, so it deserves a tool.
 
->     From 165 to 4. Those last four point at source files — so let me put the
->               source in the site too, and auto-link every mention of a module.
+> From 165 to 4. Those last four point at source files — so let me put the
+> source in the site too, and auto-link every mention of a module.
 
->                           Now the phase 11 demo — the in-process half first.
+> Now the phase 11 demo — the in-process half first.
 
->         Now the companion files for the new modules, and closing out phase 11.
+> Now the companion files for the new modules, and closing out phase 11.
 
->   All eleven phases are built. Let me verify every phase demo still runs after
->            these changes — they're part of the deliverable, not scaffolding.
+> All eleven phases are built. Let me verify every phase demo still runs after
+> these changes — they're part of the deliverable, not scaffolding.
 
->     Several of these were answered by what got built. Let me check each before
->                                                                   claiming it.
+> Several of these were answered by what got built. Let me check each before
+> claiming it.
 
->       The largest known hole — rolled-back turns not restoring the ruleset's
->      sheets — looks closable. Let me check the phase 7 issues before opening
->                                                                      anything.
+> The largest known hole — rolled-back turns not restoring the ruleset's
+> sheets — looks closable. Let me check the phase 7 issues before opening
+> anything.
 
->      This is closable, and issue 703 is where it belongs — so I'll reopen it
->                                                   rather than start a new one.
+> This is closable, and issue 703 is where it belongs — so I'll reopen it
+> rather than start a new one.
 
->            Now the sheet snapshot. Reopening issue 703 first, as the project's
->                                                           conventions require.
+> Now the sheet snapshot. Reopening issue 703 first, as the project's
+> conventions require.
 
->  Now the snapshot and restore entry points, and wiring them into the session's
->                                                                          ring.
+> Now the snapshot and restore entry points, and wiring them into the session's
+> ring.
 
->                                Now wiring it into the session's snapshot ring.
+> Now wiring it into the session's snapshot ring.
 
->  The Lua chunk has a broken string literal — let me rewrite it carefully and
->                                                check it compiles as Lua first.
+> The Lua chunk has a broken string literal — let me rewrite it carefully and
+> check it compiles as Lua first.
 
->  The Lua is correct — let me put it in its own file and have the build embed
->                                      it, rather than hand-escaping a C string.
+> The Lua is correct — let me put it in its own file and have the build embed
+> it, rather than hand-escaping a C string.
 
->     Now the tests that prove it — a sheet field surviving a rollback, and an
->                                                uncopyable one refused by name.
+> Now the tests that prove it — a sheet field surviving a rollback, and an
+> uncopyable one refused by name.
 
->   The hole is closed end to end. Now updating everything that documented it as
->                                                                          open.
+> The hole is closed end to end. Now updating everything that documented it as
+> open.
 
->      Ten hit points back. Now updating the documents that recorded this as the
->                                                        project's largest hole.
+> Ten hit points back. Now updating the documents that recorded this as the
+> project's largest hole.
 
->  34 remain. Several are answerable from the code rather than by preference —
->                             let me verify those against what's actually built.
+> 34 remain. Several are answerable from the code rather than by preference —
+> let me verify those against what's actually built.
 
->          Now open question 15.4 — a migrated world file's integrity can't be
->                           verified. Let me look at how the writer emits bytes.
+> Now open question 15.4 — a migrated world file's integrity can't be
+> verified. Let me look at how the writer emits bytes.
 
->                 Now the trailer itself, the version bump, and the ladder rung.
+> Now the trailer itself, the version bump, and the ladder rung.
 
->  The rungs ended up out of order. Let me rewrite the ladder so it reads top to
->                                                                        bottom.
+> The rungs ended up out of order. Let me rewrite the ladder so it reads top to
+> bottom.
 
->           Every byte flip in the file is caught. Updating the question and the
->                                                                     companion.
+> Every byte flip in the file is caught. Updating the question and the
+> companion.
 
 > All eleven phases are built. Here's where it stands, and then four questions I
->                                                          can't answer for you.
+> can't answer for you.
 >
->                                                                  **What runs**
+> **What runs**
 >
 > | | |
 > | --- | --- |
@@ -2024,229 +2024,229 @@ the limit was reached; do not repeat work that is already complete.
 > | `./build-docs` | 300 linked pages, every reference resolving |
 > | `./share-engraving`, `./mend-links` | the two smaller front doors |
 >
->  The server generates a place from a description, hands each arrival a private
->    port and a body wearing a generated sprite, and sends each person only what
->   their own gates let through. A browser and a terminal watch the same session
+> The server generates a place from a description, hands each arrival a private
+> port and a body wearing a generated sprite, and sends each person only what
+> their own gates let through. A browser and a terminal watch the same session
 > from different rooms. When it ends it carves eight numbers as an ornate animal
 > whose lines are the walls of the table holding them, and the next bridge hangs
->                                                        that in the action bar.
+> that in the action bar.
 >
->    **Since the last report I closed the two holes the project had named as its
->    worst.** Undoing a fight now puts the hit points back with the geometry —
->    the option that had been rejected for "breaking quietly" was rejected for a
+> **Since the last report I closed the two holes the project had named as its
+> worst.** Undoing a fight now puts the hit points back with the geometry —
+> the option that had been rejected for "breaking quietly" was rejected for a
 > property of one implementation, not of the idea, so the copier refuses by name
->       instead (`sheet.2.attack holds a function`) and a turn holding something
->      uncopyable simply isn't a turn you can take back. And a saved map can now
->  prove it wasn't damaged whatever version it is, because the check is over its
+> instead (`sheet.2.attack holds a function`) and a turn holding something
+> uncopyable simply isn't a turn you can take back. And a saved map can now
+> prove it wasn't damaged whatever version it is, because the check is over its
 > bytes rather than over a field list that goes stale; the test flips every byte
->                                                     in the file one at a time.
+> in the file one at a time.
 >
->    Writing the terminal view found a defect that had been there since phase 4:
->      the greeting saying who you are and how big the world is had **never once
->   arrived**, and the browser had been degrading silently and correctly for six
->                                                                        phases.
+> Writing the terminal view found a defect that had been there since phase 4:
+> the greeting saying who you are and how big the world is had **never once
+> arrived**, and the browser had been degrading silently and correctly for six
+> phases.
 >
->   **Twenty-two open questions are now answered, twenty-nine are not.** Four of
->                                              those are yours rather than mine:
+> **Twenty-two open questions are now answered, twenty-nine are not.** Four of
+> those are yours rather than mine:
 
->                                                           **[Asked the user]**
+> **[Asked the user]**
 >
->  *Q1 — Who gets in:* Right now the door admits whoever knocks and hands them
+> *Q1 — Who gets in:* Right now the door admits whoever knocks and hands them
 > a body. The join request has a `secret` field that nothing checks. What should
->                                                                      be in it?
+> be in it?
 > - A per-person secret in input/ — input/participants lists each person, what
->        proves them, and which scopes they hold. Permission is looked up, never
+>   proves them, and which scopes they hold. Permission is looked up, never
 >   claimed by a client. Most work, and the only version where two people at one
->                                      table have genuinely different authority.
->  - One shared password — A single secret for the whole table, checked at the
->        door. Enough to keep strangers off a LAN game. Everybody who gets in is
->                        equal, so scopes are still handed out by arrival order.
+>   table have genuinely different authority.
+> - One shared password — A single secret for the whole table, checked at the
+>   door. Enough to keep strangers off a LAN game. Everybody who gets in is
+>   equal, so scopes are still handed out by arrival order.
 > - Nothing, and say so loudly — Keep the current behaviour. This is a program
->    a host runs for a table they already have, on a machine they control. Print
->    a line at startup saying the door is open to anyone who can reach the port.
->     → **Answered:** Nothing. If the host wants to they can kick a player and
->                                                   roll back any actions taken.
+>   a host runs for a table they already have, on a machine they control. Print
+>   a line at startup saying the door is open to anyone who can reach the port.
+> → **Answered:** Nothing. If the host wants to they can kick a player and
+> roll back any actions taken.
 >
->       *Q2 — The patrol:* A commander owns the forest and its goblin patrols.
->      Another owns the tavern. A patrol walks out of the forest and through the
->                                                  tavern door. Whose is it now?
+> *Q2 — The patrol:* A commander owns the forest and its goblin patrols.
+> Another owns the tavern. A patrol walks out of the forest and through the
+> tavern door. Whose is it now?
 > - It keeps its forest scope — Ownership travels with the thing. The tavern's
->        commander can see it walk in and cannot touch it. Simplest, and means a
->                scope is a list of things you own rather than a place you rule.
+>   commander can see it walk in and cannot touch it. Simplest, and means a
+>   scope is a list of things you own rather than a place you rule.
 > - The region hands it over — Whoever commands the region you are standing in
->    commands you. Makes a region-scope genuinely territorial, and means walking
->         into a room is a transfer of control that nobody explicitly performed.
->    - Both, most specific wins — The tavern is inside the forest's world; the
->      innermost scope containing the thing gets it. Matches how regions already
->            nest. Costs a rule about what happens when two scopes are siblings.
->    → **Answered:** Both, but not as described. It is owned by the forest, it
->      obeys it's commands, but if the person controlling the tavern wants to do
->  something to it (activate a trap door, poison their drinks, offer a bounty on
->       bugbears, decline them mead) it can do so. Player ownership in this case
->     refers to the ability to move the pieces on the board and wield them to do
->     things. It does not determine who is able to affect other things - you can
->         absolutely kill the goblins, tavern-owner. But you better explain how.
+>   commands you. Makes a region-scope genuinely territorial, and means walking
+>   into a room is a transfer of control that nobody explicitly performed.
+> - Both, most specific wins — The tavern is inside the forest's world; the
+>   innermost scope containing the thing gets it. Matches how regions already
+>   nest. Costs a rule about what happens when two scopes are siblings.
+> → **Answered:** Both, but not as described. It is owned by the forest, it
+> obeys it's commands, but if the person controlling the tavern wants to do
+> something to it (activate a trap door, poison their drinks, offer a bounty on
+> bugbears, decline them mead) it can do so. Player ownership in this case
+> refers to the ability to move the pieces on the board and wield them to do
+> things. It does not determine who is able to affect other things - you can
+> absolutely kill the goblins, tavern-owner. But you better explain how.
 >
->   *Q3 — The party:* The vision says a player controls "up to an entire party
->              at once, but generally not more". Four bodies, one keyboard. How?
->   - Drive one, three follow — You drive one body with the keys and the other
->      three keep formation behind it. Common in games, feels immediate, and the
->                            followers need pathfinding that does not exist yet.
+> *Q3 — The party:* The vision says a player controls "up to an entire party
+> at once, but generally not more". Four bodies, one keyboard. How?
+> - Drive one, three follow — You drive one body with the keys and the other
+>   three keep formation behind it. Common in games, feels immediate, and the
+>   followers need pathfinding that does not exist yet.
 > - Order all four, RTS style — A party is just a small commander scope: click
 >   a destination, they walk. Already built — this is the ORDERED style on the
->                                existing dial, and it needs no new code at all.
->   - Drive one, switch with a key — Only one is ever driven; the others stand
->    where you left them until you switch to them. Honest about the one-keyboard
->    problem and makes a party feel like four people rather than one person with
->                                                                       escorts.
+>   existing dial, and it needs no new code at all.
+> - Drive one, switch with a key — Only one is ever driven; the others stand
+>   where you left them until you switch to them. Honest about the one-keyboard
+>   problem and makes a party feel like four people rather than one person with
+>   escorts.
 > → **Answered:** the controls are pretty complicated. Basically the camera is
->  movable in 3D wasd style, and the player can do some key combinations to move
->         units around. See an example of the control scheme possibilities here:
+> movable in 3D wasd style, and the player can do some key combinations to move
+> units around. See an example of the control scheme possibilities here:
 > /home/ritz/games/city-of-heroes/drive_c/users/ritz/Documents/ and specifically
->    the keybinds.txt and the binds in the binds directory related to ninjas and
->                                                                         thugs.
+> the keybinds.txt and the binds in the binds directory related to ninjas and
+> thugs.
 >
->     *Q4 — The window:* Turns are simultaneous and a window closes on a fixed
->                               number of beats. What should actually close one?
+> *Q4 — The window:* Turns are simultaneous and a window closes on a fixed
+> number of beats. What should actually close one?
 > - Everybody has declared, or a timer — Closes as soon as every seat that can
->          act has said something, with a beat count as a backstop so one person
->    stepping away does not stop the table. Fastest at a table paying attention.
+>   act has said something, with a beat count as a backstop so one person
+>   stepping away does not stop the table. Fastest at a table paying attention.
 > - A fixed number of beats — What is built. The window is a metronome and the
->    table works to it. Predictable, never waits for anybody, and means somebody
->                                             who was thinking loses their turn.
->  - The GM closes it — Play runs continuously and a window closes when the GM
+>   table works to it. Predictable, never waits for anybody, and means somebody
+>   who was thinking loses their turn.
+> - The GM closes it — Play runs continuously and a window closes when the GM
 >   says so. Matches how a real table works, and means the GM has one more thing
->                                             to remember while running a fight.
->        → **Answered:** What do you mean by a window? Play runs continuously.
+>   to remember while running a fight.
+> → **Answered:** What do you mean by a window? Play runs continuously.
 
 > Four real answers, and two of them change the design. Let me read the keybinds
->                                         you pointed at before I plan anything.
+> you pointed at before I plan anything.
 
->    The keybinds are a modal state machine whose current state is drawn back to
+> The keybinds are a modal state machine whose current state is drawn back to
 > you as ASCII. That's a much better answer than any of my options. Let me first
->                             check whether "window" actually makes anyone wait.
+> check whether "window" actually makes anyone wait.
 
->    Confirmed — nothing ever waits. The concept is misnamed, which is exactly
->                                           what made the question unanswerable.
+> Confirmed — nothing ever waits. The concept is misnamed, which is exactly
+> what made the question unanswerable.
 
->   Now phase 12, from your four answers. Let me put it in the roadmap and write
->                                                                    the issues.
+> Now phase 12, from your four answers. Let me put it in the roadmap and write
+> the issues.
 
->    Now building 1201. The sight gate must use the same visibility the outbound
->     filter uses, or there are two answers — let me see how outbound decides.
+> Now building 1201. The sight gate must use the same visibility the outbound
+> filter uses, or there are two answers — let me see how outbound decides.
 
->   The answer already exists once per beat in the outbound path — so the gate
+> The answer already exists once per beat in the outbound path — so the gate
 > should be *what you were told about*, which is the same decision rather than a
->                                                                    second one.
+> second one.
 
->               Now the verb, the "were you told about it" record, and the gate.
+> Now the verb, the "were you told about it" record, and the gate.
 
->       Now the record of what each viewer was told about — written by the one
->                                  function that sends things, read by the gate.
+> Now the record of what each viewer was told about — written by the one
+> function that sends things, read by the gate.
 
->                     Now a ruleset that has an opinion about it, and the tests.
+> Now a ruleset that has an opinion about it, and the tests.
 
->  Now the pair: removing somebody, and unwinding what they did. Let me read how
->                                                       the retcon replay works.
+> Now the pair: removing somebody, and unwinding what they did. Let me read how
+> the retcon replay works.
 
->  Both halves work, and the hash matches a run where the guest never spoke. Now
->                                            the server has to act on the queue.
+> Both halves work, and the hash matches a run where the guest never spoke. Now
+> the server has to act on the queue.
 
->   Now the control dial. The resolution is arithmetic, so it goes in C where it
->                                               can be tested without a browser.
+> Now the control dial. The resolution is arithmetic, so it goes in C where it
+> can be tested without a browser.
 
->      The diagrams read clearly. Now the browser needs the same numbers, so the
->             bridge should generate them rather than the view duplicating them.
+> The diagrams read clearly. Now the browser needs the same numbers, so the
+> bridge should generate them rather than the view duplicating them.
 
->                  Now the browser side — the dial, the keys, and its diagram.
+> Now the browser side — the dial, the keys, and its diagram.
 
->             Now the phase 12 demo, which has to show all four answers working.
+> Now the phase 12 demo, which has to show all four answers working.
 
->      The demo's comparison is wrong, not the code: removing somebody genuinely
->  unholds their scope, and the world hash includes that. Let me compare against
->            a world where the guest joined, said nothing, and was also removed.
+> The demo's comparison is wrong, not the code: removing somebody genuinely
+> unholds their scope, and the world hash includes that. Let me compare against
+> a world where the guest joined, said nothing, and was also removed.
 
 > Found something real: unwinding past a removal undoes the removal, because who
->                 holds a scope is world state. The order of operations matters.
+> holds a scope is world state. The order of operations matters.
 
->   Identical both times. Let me record that ordering where it belongs, wire the
->                                                 demo up, and finish the phase.
+> Identical both times. Let me record that ordering where it belongs, wire the
+> demo up, and finish the phase.
 
->                     Two more are answered by what's built. Let me record them.
+> Two more are answered by what's built. Let me record them.
 
-      All four answers are built, and phase 12 is complete. Here's what each one
-                                                                    turned into.
+All four answers are built, and phase 12 is complete. Here's what each one
+turned into.
 
-       **"Nothing. If the host wants to they can kick a player and roll back any
-                                                               actions taken."**
+**"Nothing. If the host wants to they can kick a player and roll back any
+actions taken."**
 
-    That's a real answer, not a deferral — but it was only honest once both of
+That's a real answer, not a deferral — but it was only honest once both of
 those existed, and neither did. So there's now a way to show somebody out (their
 socket closes, their port returns, their scopes become nobody's, their character
-    stays) and a way to replay a stretch without one seat's commands. The second
-   needed *nothing new*: the log already recorded who asked for what, so undoing
-  one person is the existing replay with one condition inside the loop. That the
-    record was already kept at the right grain, four phases before anyone needed
-                                                     this, is the pleasant part.
+stays) and a way to replay a stretch without one seat's commands. The second
+needed *nothing new*: the log already recorded who asked for what, so undoing
+one person is the existing replay with one condition inside the loop. That the
+record was already kept at the right grain, four phases before anyone needed
+this, is the pleasant part.
 
-   Writing the demo found the ordering, which nothing local would ever have told
- me: **unwind first, then remove.** A rollback reaches back past the removal and
-  undoes it, and the person is back at the table. Neither piece is wrong — the
-                                         order is a fact about how they compose.
+Writing the demo found the ordering, which nothing local would ever have told
+me: **unwind first, then remove.** A rollback reaches back past the removal and
+undoes it, and the person is back at the table. Neither piece is wrong — the
+order is a fact about how they compose.
 
-                  **"It is owned by the forest… but you better explain how."**
+**"It is owned by the forest… but you better explain how."**
 
-  The permission model had one gate where it needed two. Moving a piece is yours
- only if you hold it; doing something to a piece needs only that you can see it,
-    and what happens is the rules layer's business. The tavern owner still can't
-      walk the patrol anywhere, and can now poison its drink, spring a trapdoor,
-       refuse it mead, or put a bounty on it — each answered in the game's own
-      sentence. One of the four does nothing to the goblin at all, deliberately,
-   because a system that only allowed attacks would have quietly become a combat
-                                                                         system.
+The permission model had one gate where it needed two. Moving a piece is yours
+only if you hold it; doing something to a piece needs only that you can see it,
+and what happens is the rules layer's business. The tavern owner still can't
+walk the patrol anywhere, and can now poison its drink, spring a trapdoor,
+refuse it mead, or put a bounty on it — each answered in the game's own
+sentence. One of the four does nothing to the goblin at all, deliberately,
+because a system that only allowed attacks would have quietly become a combat
+system.
 
-      The gate is *what you were told about* — the outbound filter's decision,
-  remembered rather than recomputed, because two answers to "can this person see
-                   that" is how a permission model grows a hole nobody can find.
+The gate is *what you were told about* — the outbound filter's decision,
+remembered rather than recomputed, because two answers to "can this person see
+that" is how a permission model grows a hole nobody can find.
 
-                                                               **The keybinds.**
+**The keybinds.**
 
-    Reading them beat every option I'd offered. It's a modal state machine whose
- mode is drawn back to you as a diagram — three dials (which units, which way,
-  how far) and three keys that actually do anything. Aiming costs nothing and is
-        undoable. The whole party is a *position on the same dial* rather than a
+Reading them beat every option I'd offered. It's a modal state machine whose
+mode is drawn back to you as a diagram — three dials (which units, which way,
+how far) and three keys that actually do anything. Aiming costs nothing and is
+undoable. The whole party is a *position on the same dial* rather than a
 separate mode, which is what makes pointing at four as cheap as pointing at one.
- The arithmetic lives in C so it can be tested without a browser; the browser is
-  handed the compass rather than keeping a second copy of what north-east means.
+The arithmetic lives in C so it can be tested without a browser; the browser is
+handed the compass rather than keeping a second copy of what north-east means.
 
-  A diagonal moves seven tenths on each axis, because otherwise going north-east
-     would carry you 40% further than going north for the same key — something
-                       you'd feel through your hands without being able to name.
+A diagonal moves seven tenths on each axis, because otherwise going north-east
+would carry you 40% further than going north for the same key — something
+you'd feel through your hands without being able to name.
 
-   That diagram is the **third** time this project has landed on *make the state
-  its own display* from an unrelated direction. It's written into the strategems
-                                                                            now.
+That diagram is the **third** time this project has landed on *make the state
+its own display* from an unrelated direction. It's written into the strategems
+now.
 
-                     **"What do you mean by a window? Play runs continuously."**
+**"What do you mean by a window? Play runs continuously."**
 
-     The most valuable thing you said. Nothing had ever waited — commands were
-     accepted every beat and applied on the beat they arrived. But *window* is a
-        thing you wait in, so the documents had grown a paragraph about everyone
-  declaring and everything resolving, describing something more ceremonious than
+The most valuable thing you said. Nothing had ever waited — commands were
+accepted every beat and applied on the beat they arrived. But *window* is a
+thing you wait in, so the documents had grown a paragraph about everyone
+declaring and everything resolving, describing something more ceremonious than
 anything built. Two open questions had accumulated about it, and three plausible
 answers had been written down for one. All three were answers about a thing that
-  does not exist. It's called `beats_between_checkpoints` now and both questions
-                                                                      dissolved.
+does not exist. It's called `beats_between_checkpoints` now and both questions
+dissolved.
 
-                                                                             ---
+---
 
-     Also closed since the last report, without needing you: undoing a fight now
+Also closed since the last report, without needing you: undoing a fight now
 restores hit points (the option rejected for "breaking quietly" was rejected for
- a property of one implementation, not of the idea), and a map file can prove it
-                                          wasn't damaged whatever version it is.
+a property of one implementation, not of the idea), and a map file can prove it
+wasn't damaged whatever version it is.
 
-  **Twelve phases, 28 questions answered, 23 still open.** `./run-phase-demo 12`
-                 shows all four of these; `./build-docs` makes 304 linked pages.
+**Twelve phases, 28 questions answered, 23 still open.** `./run-phase-demo 12`
+shows all four of these; `./build-docs` makes 304 linked pages.
 
 --------------------------------------------------------------------------------
 
