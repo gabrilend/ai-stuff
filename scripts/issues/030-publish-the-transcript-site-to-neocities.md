@@ -70,13 +70,13 @@ Three consequences worth stating before the first deploy rather than after:
   has a shape a search can match and a bare name does not.
 - **Publishing is not reversible by deleting.** A page that was up is indexed
   and cached. This is a property of the act, not of Neocities.
-- **The site and the paywall pull against each other.** If access to the source
-  is being sold (DDD issue 10-001), then a development record containing that
-  source undermines what is being sold. Today it barely applies: the DDD
-  transcripts hold 127 fenced lines out of 8,516, mostly command names and
-  algorithm outlines in prose. It will apply once implementation starts in
-  earnest, which is why issue 029 carries a size guard rather than waiting for
-  someone to notice.
+- **The site and the paywall pull against each other, in theory.** If access to
+  the source is being sold (DDD issue 10-001), a development record containing
+  that source would undermine what is being sold. Measured, it does not: the
+  DDD transcripts hold 127 fenced lines out of 8,516 — command names and
+  algorithm outlines in prose — and the largest single block in the project's
+  entire history is eight lines. Issue 029 therefore redacts nothing and only
+  reports what it saw, so the number is watched rather than guessed at.
 
 ## Suggested Implementation Steps
 
