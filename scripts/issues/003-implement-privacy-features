@@ -19,3 +19,62 @@ create lua functions that are called dynamically from the main script when the
 transcription script is run. They should iterate through the transcript and
 strip out any PII, replacing it with anonymized identifiers such as "user-1" and
 "user-2" etc.
+
+---
+
+## Reopened: this is now a blocker, not a tidiness task
+
+Added when transcript publishing was planned (issues 029 and 030). The text
+above is unchanged; this section says what has changed around it.
+
+The transcripts are no longer only on disk. Double Diaper Dungeon's are mirrored
+to a public GitHub repository on every push, and the plan is to render the
+corpus as a website and publish it to Neocities. Publishing is the act that
+makes an omission permanent: a page that was up is indexed and cached, and
+taking it down afterwards does not take it back.
+
+So this stopped being a cleanup that could wait and became the thing that gates
+a deploy.
+
+## What a first scan found, and why it settles nothing
+
+Searching the live corpus by pattern:
+
+| project | addresses | at-handles | notes |
+| --- | --- | --- | --- |
+| double-diaper-dungeon | none | none | only `/home/ritz`, which the text above explicitly permits |
+| neocities-modernization | two | eight, and most are numeric ids rather than handles | the project this issue was raised about |
+
+That looks reassuring and should not be trusted. A pattern search finds an
+address because an address has a shape. **A bare name has no shape**, and the
+person who raised this issue was reading the transcripts rather than grepping
+them. The scan narrows where to look; it does not answer the question.
+
+The distinction that matters for sequencing: the risk is **per project**, not
+corpus-wide. A solo project's transcripts contain one person. A project that
+processes other people's posts — which is what neocities-modernization does —
+contains everybody it processed. Publishing the first is not the same decision
+as publishing the second, and nothing should treat them alike.
+
+## What this now needs, beyond the original text
+
+1. **An audit that a person does, per project, before that project publishes.**
+   Not a pattern scan. The scan is a tool for the person, not a substitute.
+2. **The stripping system the text above describes**, still wanted, still
+   per-project, still living beside the transcripts it governs.
+3. **A refusal rather than a warning.** A publish step that finds no audit
+   recorded for a project should stop, not proceed with a printed note. The
+   house rule prefers a broken build to a silent fallback, and this is the case
+   that rule exists for.
+4. **A record of what was decided per project**, so the answer is not
+   re-derived from memory each time and so a later reader can see that the
+   question was asked at all.
+
+## Related
+
+- `issues/029-render-transcripts-as-a-website.md` — the renderer
+- `issues/030-publish-the-transcript-site-to-neocities.md` — names this issue as
+  its first implementation step, because it gates everything after it
+- `double-diaper-dungeon/scripts/sync-transcripts-for-github` — already
+  publishing to GitHub, so the first exposure has happened and the question is
+  live rather than hypothetical
