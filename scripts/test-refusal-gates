@@ -2,9 +2,9 @@
 #
 # test-refusal-gates
 #
-# Checks that the two gates in front of Claude Code's shell commands refuse what
-# they should and allow what they should, by feeding each a synthesised tool
-# call and looking at whether a refusal comes back.
+# Checks that the three gates in front of Claude Code's shell commands refuse
+# what they should and allow what they should, by feeding each a synthesised
+# tool call and looking at whether a refusal comes back.
 #
 # The cases live in this file rather than being typed at a prompt for a reason
 # that is itself a finding: a gate reading commands as text cannot tell a
@@ -22,11 +22,13 @@ DIR="${1:-/home/ritz/programming/ai-stuff/scripts}"
 
 CWD_GATE="${DIR}/refuse-directory-change"
 COMMIT_GATE="${DIR}/refuse-unscoped-commit"
+RELREF_GATE="${DIR}/refuse-relative-commit-ref"
 
 # Throwaway token paths, so a real pending permission is never spent by a test.
 CWD_TOKEN="/tmp/claude-test-token-cwd-$$"
 COMMIT_TOKEN="/tmp/claude-test-token-commit-$$"
-trap 'rm -f "${CWD_TOKEN}" "${COMMIT_TOKEN}"' EXIT
+RELREF_TOKEN="/tmp/claude-test-token-relref-$$"
+trap 'rm -f "${CWD_TOKEN}" "${COMMIT_TOKEN}" "${RELREF_TOKEN}"' EXIT
 
 failures=0
 checked=0
@@ -99,18 +101,119 @@ expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'echo "files in that commit"
 git -C /repo show --name-only HEAD'
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'ls -a && git commit -- some/path'
 
+printf '\nThe relative-reference gate\n'
+rm -f "${RELREF_TOKEN}"
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard HEAD~1'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard HEAD~'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git revert HEAD^'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git revert HEAD^^'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git rebase -i HEAD~5'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git rebase --onto main~3 topic'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git cherry-pick abc123~2'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git commit --fixup=HEAD~1'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git commit --squash=@~1'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git branch -f main HEAD~2'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git -C /repo reset --soft HEAD~3'
+# @ is git's own shorthand for HEAD, so @~2 is the same count wearing a hat.
+# The first version of the gate missed it, because the character class that said
+# "a reference comes before the tilde" had not been told that @ is one.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard @~2'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git revert @^'
+# The reflog is a count as well -- moves ago rather than commits back.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard HEAD@{1}'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard @{-1}'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git reset --hard 4f2a1c9'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git revert 4f2a1c9e8b2d1a0c9f3b7e6d5c4b3a2918273645'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git rebase -i 4f2a1c9'
+# No count is named at all in these, so there is nothing to get wrong.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git reset --hard HEAD'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git commit --amend --only -F -'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git branch feature-x'
+# Reading is not modifying, and counting backwards is how the hash gets found.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git log --oneline -5 HEAD~5'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git show HEAD~3 --stat'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git diff HEAD~2 HEAD'
+# The mirror image of the commit gate's motivating case: the reading half of the
+# line must not condemn the naming half.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git log HEAD~5 && git reset --hard 4f2a1c9'
+# Peeling is not a step. HEAD^{commit} is the commit HEAD already points at.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git show HEAD^{commit}'
+# A tilde and a caret are ordinary characters in prose, and prose is quoted.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git commit -- src/ -m "handle ^C and drop ~/.cache"'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'ls ~/programming'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git status'
+# The working-tree commands move no history, and are gated because the same slip
+# destroys uncommitted work instead: the file is overwritten from wherever the
+# count lands, and no commit is holding the version that was there.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git checkout HEAD~1 -- src/main.c'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git restore --source=HEAD~2 src/'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git switch --detach HEAD~3'
+# Detaching to look around is caught too. That is the deliberate cost of
+# catching the line above it, not an oversight.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git checkout HEAD~1'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git checkout 4f2a1c9'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git checkout -b feature-x'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git switch main'
+# A branch name is a name. It moves, but it was asked for by name rather than by
+# distance, and requiring a raw hash would cost every ordinary rebase.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git reset --hard main'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git rebase main'
+
+# A quoted span that runs across a newline has to be taken away whole. Before
+# the stripper was handed sed's -z it worked one line at a time, and this gate
+# refused the very edit that was adding the checkout examples to its own
+# documentation -- the inner lines of a multi-line argument stayed exposed.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed "sed -i '34a\\
+#   git checkout HEAD~1 -- src/main.c
+#   git restore --source=HEAD~2 src/' notes.txt"
+# Double-quoted spans are removed before single-quoted ones, so an apostrophe in
+# prose cannot open a span that swallows the command after it. Strip in the
+# other order and this one comes back allowed, which is the wrong direction.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused "echo \"don't do this\" ; git reset --hard HEAD~1"
+# A push is not a history-moving command by itself, so it is gated only when a
+# force flag rides along with the count. That is the one shape whose damage
+# travels: it lands on a branch other people have already pulled, and their
+# reflog holds nothing that undoes it.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git push --force origin HEAD~1:main'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git push -f origin @~2:main'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git push --force-with-lease origin HEAD~3:main'
+# A lease checks that the remote tip is where it was last seen, which is a
+# different question from whether the count was right -- so it is a force flag
+# here, but on its own, with nothing counted, there is nothing to object to.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git push --force-with-lease origin main'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git push --force origin 4f2a1c9:main'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git push origin main'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git push'
+# A count with no force behind it: git itself rejects a non-fast-forward push,
+# so the gate leaves the argument to git rather than duplicating it.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git push origin HEAD~1:main'
+
+
+
 printf '\nThe tokens\n'
 rm -f "${COMMIT_TOKEN}"
 touch "${COMMIT_TOKEN}"
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit -m x'
 checked=$((checked + 1))
 if [ -e "${COMMIT_TOKEN}" ]; then
-    printf '  FAILED   the token was not consumed\n'
+    printf '  FAILED   the commit token was not consumed\n'
     failures=$((failures + 1))
 else
-    printf '  ok       the token was consumed\n'
+    printf '  ok       the commit token was consumed\n'
 fi
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -m x'
+
+rm -f "${RELREF_TOKEN}"
+touch "${RELREF_TOKEN}"
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git reset --hard HEAD~1'
+checked=$((checked + 1))
+if [ -e "${RELREF_TOKEN}" ]; then
+    printf '  FAILED   the relative-reference token was not consumed\n'
+    failures=$((failures + 1))
+else
+    printf '  ok       the relative-reference token was consumed\n'
+fi
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard HEAD~1'
 
 printf '\n%s cases, %s failures\n' "${checked}" "${failures}"
 [ "${failures}" -eq 0 ] || exit 1

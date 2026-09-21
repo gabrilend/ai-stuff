@@ -1,0 +1,233 @@
+#!/usr/bin/env bash
+#
+# refuse-relative-commit-ref
+#
+# A gate that sits in front of every shell command Claude Code tries to run and
+# refuses any history-changing git command that names its target commit by
+# counting backwards -- HEAD~1, HEAD^, @~2, main~3, HEAD@{1} -- instead of by
+# the commit's own hash.
+#
+# The reason it exists: HEAD~1 is not a name, it is a sum. Nothing about it is
+# checked. It means "one step back from wherever HEAD is standing at the instant
+# this runs", and HEAD moves -- another session commits, an earlier command on
+# the same line commits, a rebase lands, a merge fast-forwards. When that
+# happens the sum does not fail. It quietly resolves to a different commit, and
+# `reset --hard` does not ask twice.
+#
+# A hash is the opposite kind of reference. It is checked rather than computed:
+# either that object is there and is the one that was read out of the log a
+# moment ago, or git refuses the command. The failure mode of a wrong hash is an
+# error message. The failure mode of a wrong count is a lost afternoon.
+#
+# Reading the log first and pasting the hash also puts a person's eyes on the
+# commit about to be destroyed, which is most of the value of the pause.
+#
+# WHAT IS REFUSED
+#
+#   git reset --hard HEAD~1            a count, evaluated at run time
+#   git revert HEAD^                   the same, one parent back
+#   git rebase -i HEAD~5
+#   git rebase --onto main~3 topic
+#   git cherry-pick abc123~2
+#   git commit --fixup=HEAD~1
+#   git branch -f main HEAD~2
+#   git reset --hard HEAD@{1}          the reflog is a count too
+#   git checkout HEAD~1 -- src/main.c  overwrites the file from an ancestor
+#   git restore --source=HEAD~2 src/   the same, wearing another name
+#   git push --force origin HEAD~1:main
+#                                      a count aimed at other people's clones
+#
+# WHAT IS ALLOWED
+#
+#   git reset --hard 4f2a1c9           a name; checked, not computed
+#   git revert 4f2a1c9
+#   git rebase -i 4f2a1c9
+#   git reset --hard HEAD              no count; "throw away my edits"
+#   git commit --amend                 no revision named at all
+#   git log -3 HEAD~5                  reading is not modifying
+#   git log HEAD~5 && git reset --hard 4f2a1c9
+#                                      each part of a line is judged alone
+#   git show HEAD^{commit}             peeling names the same commit
+#   git push --force-with-lease origin main
+#                                      forced, but nothing is counted
+#   git push origin main               not forced, nothing counted
+#
+# The gated subcommands are revert, reset, rebase, cherry-pick, commit, branch,
+# tag, replace, filter-branch, checkout, switch and restore. The last three move
+# no history at all. They are here because the same slip destroys uncommitted
+# work instead: `git checkout HEAD~1 -- somefile` overwrites that file in the
+# working tree from wherever the count lands, and no commit is holding the
+# version it just wrote over. A bare `git checkout HEAD~1` to detach and look
+# around is caught too, which is the deliberate cost of catching the other.
+#
+# `push` is the exception to all of that. It is gated only when a force flag is
+# on the line as well, because an ordinary push that mentions a count is git's
+# argument to have, not this gate's -- git rejects a non-fast-forward push by
+# itself. A forced one is different: it lands on a branch other people have
+# already pulled, and nothing in their reflog undoes it.
+#
+# The reading commands -- log, show, diff, blame -- are left alone entirely,
+# because counting backwards to look at something is how the hash gets found in
+# the first place, and a gate that stopped that would be telling you to fetch
+# water in the bucket it just took away.
+#
+# WHAT THIS IS NOT
+#
+# Not a security boundary, and it reads the command as text rather than
+# understanding it. Quoted spans are removed before anything looks, so a ~1
+# inside a commit message is invisible to it, but a determined line could still
+# slip past, and the assistant it constrains can edit this file or remove the
+# hook that installs it. What it buys is that the careless form is not available
+# by habit, and that every way around is something a person would see in the
+# transcript. An honour system with a witness, not a lock.
+#
+# The refusal can be lifted one time by creating the permission token below.
+#
+# Reads the pending command as JSON on standard input. Says nothing at all when
+# the command is fine; prints a refusal when it is not.
+#
+# Usage: refuse-relative-commit-ref [token-path]
+
+set -uo pipefail
+
+# Where a person leaves a one-time permission. Its own token, not shared with
+# the other gates: allowing one directory change should not also allow one
+# blind reset.
+TOKEN="${1:-/tmp/claude-allow-relative-commit-ref}"
+
+# The command Claude is about to run. Unreadable input is treated as "nothing to
+# object to" rather than as an error -- a gate that crashes would block every
+# command in the session, which is far worse than missing one.
+pending_command="$(jq -r '.tool_input.command // ""' 2>/dev/null || printf '')"
+
+if [ -z "${pending_command}" ]; then
+    exit 0
+fi
+
+# Quoted spans go first, before anything else looks at the command.
+#
+# A commit message is the one place a ~ or a ^ turns up innocently -- "handle ^C
+# properly", "drop the ~/.cache lookup" -- and a message is always quoted.
+# Removing quoted spans wholesale means the scan below never reads message text
+# at all, and as a bonus a whole command quoted inside an echo stops looking
+# like a command.
+#
+# The -z is load-bearing. Without it sed works a line at a time, and a quoted
+# span that runs across a newline -- a heredoc-ish argument, a multi-line sed
+# script, any long string with examples in it -- keeps its inner lines exposed
+# to the scan. This gate refused its own documentation being written that way,
+# which is how the flag got here.
+#
+# Double-quoted spans are removed before single-quoted ones, and the order is
+# also load-bearing: prose is full of apostrophes, and "don't" must be taken
+# away whole rather than having its apostrophe open a span that swallows the
+# rest of the command.
+unquoted="$(printf '%s\n' "${pending_command}" | sed -z -e 's/"[^"]*"//g' -e "s/'[^']*'//g")"
+
+# One line per command, so each is judged on its own.
+#
+# This matters for the same reason it mattered in the commit gate, where a
+# pathspec on an earlier `git add` must not vouch for the commit that follows
+# it. Here it is the mirror image: the natural way to find a hash is to count
+# backwards to it, so `git log HEAD~5 && git reset --hard <hash>` has to survive
+# on the strength of its second half. Separators become newlines, and each
+# segment is asked separately whether it is a history-changing git command that
+# counts.
+segments="$(printf '%s\n' "${unquoted}" | sed -e 's/&&/\n/g' -e 's/||/\n/g' -e 's/[;|&()]/\n/g')"
+
+# `git` where a command goes, then any of git's own global options, then one of
+# the subcommands that moves history around. Same shape as the commit gate's
+# test, for the same reason: two loose searches would pair the word `reset` on
+# one line with a `git log` on another and refuse a read.
+git_global_option='-C[[:space:]]+[^[:space:]]+|-c[[:space:]]+[^[:space:]]+|--[a-z-]+=[^[:space:]]*|--no-pager|--paginate|--bare'
+gated_subcommand='revert|reset|rebase|cherry-pick|commit|branch|tag|replace|filter-branch|checkout|switch|restore'
+gated_invocation="(^|[[:space:]])git([[:space:]]+(${git_global_option}))*[[:space:]]+(${gated_subcommand})([[:space:]]|$)"
+
+# `push` is judged differently from all of those. A push is not a history-moving
+# command by itself, and gating every push that mentions a count would refuse
+# ordinary work -- so it is gated only when a force flag is also on the line.
+# That is the one shape whose damage travels: a forced push of a count lands on
+# a remote branch other people have already pulled, and there is no local reflog
+# of theirs that undoes it. `--force-with-lease` counts as a force flag here; it
+# checks that the remote tip is where you last saw it, which is a different
+# question from whether you counted back the right number of commits.
+git_push_invocation="(^|[[:space:]])git([[:space:]]+(${git_global_option}))*[[:space:]]+push([[:space:]]|$)"
+force_flag='(^|[[:space:]])(-f|--force|--force-with-lease(=[^[:space:]]*)?|--force-if-includes)([[:space:]]|$)'
+
+# What makes a word a count rather than a name:
+#
+#   ~ or ~N   with ref characters before it     HEAD~  HEAD~3  main~2
+#   ^ or ^N   with ref characters before it     HEAD^  HEAD^2
+#   @{...}    the reflog, which is a count too  HEAD@{1}  @{-1}
+#
+# The "before it" is what keeps a home directory out: ~/notes has nothing ahead
+# of the tilde, so it is a path rather than an ancestor. And a ^ followed by {
+# is git's peeling syntax -- HEAD^{commit} is the commit HEAD already points at,
+# no step taken -- so it is deliberately left alone.
+counts_backwards='[A-Za-z0-9_}@]~[0-9]*([^/A-Za-z0-9]|$)|[A-Za-z0-9_}@]\^([0-9]|[^{A-Za-z0-9_]|$)|@\{'
+
+offending=""
+
+# Globbing off while the words are walked. These words are read, never run, and
+# a stray * in somebody's pathspec must not turn into a listing of the current
+# directory partway through a security decision.
+set -f
+
+while IFS= read -r segment; do
+    [ -n "${segment}" ] || continue
+
+    # Either a subcommand that moves history, or a push carrying a force flag.
+    # Anything else in this segment is somebody else's business.
+    if grep -qE "${gated_invocation}" <<< "${segment}"; then
+        :
+    elif grep -qE "${git_push_invocation}" <<< "${segment}" \
+      && grep -qE "${force_flag}" <<< "${segment}"; then
+        :
+    else
+        continue
+    fi
+
+    for word in ${segment}; do
+        # A flag is not a revision, but a flag can carry one: --onto=HEAD~3,
+        # --fixup=HEAD~1, --squash=abc123^. Judge the value it carries. A flag
+        # carrying nothing is skipped, so --hard and -i never come into it.
+        case "${word}" in
+            --*=*) candidate="${word#*=}" ;;
+            -*)    continue ;;
+            *)     candidate="${word}" ;;
+        esac
+
+        [ -n "${candidate}" ] || continue
+
+        if grep -qE "${counts_backwards}" <<< "${candidate}"; then
+            offending="${candidate}"
+            break 2
+        fi
+    done
+done <<< "${segments}"
+
+set +f
+
+if [ -z "${offending}" ]; then
+    exit 0
+fi
+
+# The person left a token, so they asked for this specifically. Spend it and
+# stand aside. Deleting it first means a crash after this point still consumes
+# the grant, which is the safe direction to fail.
+if [ -e "${TOKEN}" ]; then
+    rm -f "${TOKEN}"
+    exit 0
+fi
+
+reason="This command reaches for the commit by counting backwards (${offending}) instead of naming it. The count is worked out when the command runs, against wherever HEAD is standing at that moment -- so if the history moved since the log was last read, the count still succeeds, it just lands on a different commit, and nothing reports an error. Read the hash first (git log --oneline -5) and pass that instead: git reset --hard 4f2a1c9. A hash is checked rather than calculated, so a wrong one fails loudly instead of quietly destroying the wrong thing. If the user genuinely wants the relative form this once, ask them to type: ! touch ${TOKEN}"
+
+jq -n --arg reason "${reason}" '{
+  hookSpecificOutput: {
+    hookEventName: "PreToolUse",
+    permissionDecision: "deny",
+    permissionDecisionReason: $reason
+  }
+}'
+
+exit 0
