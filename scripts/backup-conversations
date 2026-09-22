@@ -341,18 +341,40 @@ function export_logs() {
 # transcripts go to, and the folder where Claude keeps its session logs. Fails
 # before anything is created if the project or its session folder is missing,
 # so a lookup that misses no longer leaves an empty llm-transcripts/ behind.
+#
+# Claude Code names a session folder after the path the session STARTED in,
+# spelled as it was typed, links and all. A project reached through a symlink
+# (or moved and linked back, as the Claude Code program folder was on
+# 2026-09-22) therefore has its sessions filed under the link's spelling, not
+# the resolved one. So the session folder is looked up under both spellings:
+# as given (absolute, links kept), then with links resolved. A caller that
+# already knows the session folder (the Stop hook, told by Claude Code where
+# the log is) passes it as the second argument and skips the lookup.
 function resolve_project() {
-   local given="$1"
+   local given="$1" known_session_folder="${2:-}"
    if [ ! -d "$given" ]; then
       echo "backup-conversations: '$given' is not a directory" >&2
       return 1
    fi
    PROJECT_DIR=$(realpath "$given")
    TRANSCRIPT_DIR="${TRANSCRIPT_DIR_OVERRIDE[$PROJECT_DIR]:-$PROJECT_DIR/llm-transcripts}"
-   SESSION_FOLDER=$(session_folder_for "$PROJECT_DIR")
-   if [ ! -d "$SESSION_FOLDER" ]; then
-      echo "backup-conversations: Claude has no session folder for $PROJECT_DIR (looked for $SESSION_FOLDER)" >&2
-      return 1
+   if [ -n "$known_session_folder" ]; then
+      # The hook path: Claude Code named the log, so its folder is the answer.
+      SESSION_FOLDER="$known_session_folder"
+   else
+      # The sweep path: try the spelling as given first, since that is how a
+      # session started through a link is filed; fall back to the resolved one.
+      local as_given resolved
+      as_given=$(session_folder_for "$(realpath -s "$given")")
+      resolved=$(session_folder_for "$PROJECT_DIR")
+      if [ -d "$as_given" ]; then
+         SESSION_FOLDER="$as_given"
+      elif [ -d "$resolved" ]; then
+         SESSION_FOLDER="$resolved"
+      else
+         echo "backup-conversations: Claude has no session folder for $given (looked for $as_given and $resolved)" >&2
+         return 1
+      fi
    fi
    mkdir -p "$TRANSCRIPT_DIR"
 }
@@ -380,15 +402,22 @@ function run_hook() {
       echo "backup-conversations: --hook needs CLAUDE_PROJECT_DIR, which Claude Code sets for hooks" >&2
       return 1
    fi
-   resolve_project "$CLAUDE_PROJECT_DIR" || return 1
-
-   # The log Claude Code named must be where this script expects it. If the
-   # two disagree, Claude Code has changed its layout again and the sweep
-   # would miss it too - say so rather than export from a guess.
-   if [ "$(dirname "$transcript_path")" != "$SESSION_FOLDER" ]; then
-      echo "backup-conversations: Claude's log $transcript_path is not in the expected folder $SESSION_FOLDER" >&2
+   # The log Claude Code named must sit directly inside its sessions root, one
+   # folder per project. If it does not, Claude Code has changed its layout
+   # again and the sweep would miss it too - say so rather than export from a
+   # guess. Which project folder it sits in is Claude Code's call (it follows
+   # the path the session started in, which a moved or linked project no
+   # longer resolves to), so that is trusted rather than recomputed.
+   local log_folder
+   log_folder=$(dirname "$transcript_path")
+   # Both sides are resolved before comparing: the root can be spelled through
+   # a link (~ is itself a link to /mnt/mtwo on this machine).
+   if [ "$(realpath "$(dirname "$log_folder")")" != "$(realpath "$CLAUDE_SESSIONS_ROOT")" ]; then
+      echo "backup-conversations: Claude's log $transcript_path is not in a project folder under $CLAUDE_SESSIONS_ROOT" >&2
       return 1
    fi
+   resolve_project "$CLAUDE_PROJECT_DIR" "$log_folder" || return 1
+
    if [ ! -f "$transcript_path" ]; then
       echo "backup-conversations: Claude named a log that does not exist: $transcript_path" >&2
       return 1
