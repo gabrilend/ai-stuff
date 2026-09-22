@@ -1,290 +1,531 @@
 #!/bin/bash
+#
+# backup-conversations
+#
+# Copies Claude Code conversations out of Claude's private session store and
+# into the project they belong to, as readable markdown in the project's
+# llm-transcripts/ folder. It keeps what the person typed and what the model
+# wrote for them to read, and drops the machinery (tool calls, tool output).
+# Conversations with helper agents ("subagents") are saved too, beside the
+# conversation that spawned them.
+#
+# It runs in two ways:
+#
+#   automatically, after every reply, as Claude Code's "Stop" hook. Claude
+#   Code tells it which conversation just paused, and only that conversation
+#   and its helpers are re-exported - a few hundred milliseconds instead of
+#   re-reading every conversation the project has ever had.
+#
+#   by hand, to sweep a whole project: every conversation Claude has on
+#   record for that folder is exported.
+#
+# Anything that goes wrong is reported and the run ends in failure. It does
+# not quietly say "nothing to back up" - that habit hid two broken searches
+# for months (issue 025).
+#
+# Usage:
+#   backup-conversations --hook              read the Stop hook's JSON on stdin
+#   backup-conversations [--all] [project-dir]
+#                                            sweep every conversation of a
+#                                            project (default: current folder)
+#   backup-conversations --session <id> [project-dir]
+#                                            export one conversation by hand
+#
+# Environment seams (for tests):
+#   CLAUDE_SESSIONS_ROOT   where Claude keeps session logs
+#                          (default: ~/.claude/projects)
+#   SCRIPTS_DIR            where this toolchain lives (default below)
+
 set -euo pipefail
 
+# Where the shared transcript libraries live. Hard-coded per house convention,
+# overridable through the environment so a test or a relocated checkout can
+# point elsewhere.
+SCRIPTS_DIR="${SCRIPTS_DIR:-/mnt/mtwo/programming/ai-stuff/scripts}"
+
+# The toolchain's own RAM-backed scratch tiers (see ensure_scratch_tiers).
+# The name is the project's, so it cannot collide with another project's
+# /tmp or /dev/shm folder.
+SCRATCH_PROJECT_NAME="ai-stuff-scripts"
+
+# -- {{{ ensure_scratch_tiers
+# Make sure the toolchain's scratch folders exist before anything is written to
+# them. House layout: <project>/tmp is a link to /tmp/<name> (the tier for
+# executable scratch), and inside it shared-memory is a link to /dev/shm/<name>
+# (guaranteed RAM, for logs and locks). A reboot empties both targets and
+# leaves the links dangling, so this re-creates them on every run rather than
+# trusting that someone else did.
+function ensure_scratch_tiers() {
+   local exec_tier="/tmp/${SCRATCH_PROJECT_NAME}"
+   local ram_tier="/dev/shm/${SCRATCH_PROJECT_NAME}"
+   mkdir -p "$exec_tier" "$ram_tier"
+
+   # The project's tmp link. Three states: missing (create it), already a link
+   # (leave it - it may point somewhere deliberately), or a real file/folder in
+   # the way (an error: something else owns that name).
+   if [ ! -e "$SCRIPTS_DIR/tmp" ] && [ ! -L "$SCRIPTS_DIR/tmp" ]; then
+      ln -s "$exec_tier" "$SCRIPTS_DIR/tmp"
+   elif [ ! -L "$SCRIPTS_DIR/tmp" ]; then
+      echo "backup-conversations: $SCRIPTS_DIR/tmp exists and is not a link; refusing to write scratch files into it" >&2
+      return 1
+   fi
+
+   # The shared-memory link inside the exec tier, same three states.
+   if [ ! -e "$exec_tier/shared-memory" ] && [ ! -L "$exec_tier/shared-memory" ]; then
+      ln -s "$ram_tier" "$exec_tier/shared-memory"
+   elif [ ! -L "$exec_tier/shared-memory" ]; then
+      echo "backup-conversations: $exec_tier/shared-memory exists and is not a link" >&2
+      return 1
+   fi
+
+   SCRATCH_DIR="$SCRIPTS_DIR/tmp/shared-memory"
+   LOG_FILE="$SCRATCH_DIR/backup-conversations.log"
+}
+# }}}
+
+# Special output folders for sessions opened in places that are not projects.
+# A conversation started in the home folder or at the top of the big drive has
+# no project to belong to, so it goes to a shared archive instead; one old
+# nested layout keeps its own sub-folder. Anything not listed here writes to
+# <project>/llm-transcripts.
+declare -gA TRANSCRIPT_DIR_OVERRIDE=(
+   ["/home/ritz"]="/home/ritz/ai/llm-transcripts"
+   ["/mnt/mtwo"]="/home/ritz/ai/llm-transcripts"
+   ["/mnt/mtwo/scripts/llm-transcripts"]="/mnt/mtwo/scripts/llm-transcripts/transcripts"
+)
+
+# -- {{{ session_folder_for
+# Claude Code files a project's session logs under a folder named after the
+# project's path, with every character that is not a letter or a digit turned
+# into a dash: /mnt/mtwo/.config/nvim becomes -mnt-mtwo--config-nvim. The old
+# version only turned slashes into dashes, so any project with a dot (or an
+# underscore, or a space) in its path was never found (issue 025).
+function session_folder_for() {
+   local project_dir="$1"
+   printf '%s/%s\n' "$CLAUDE_SESSIONS_ROOT" "$(printf '%s' "$project_dir" | sed 's/[^A-Za-z0-9]/-/g')"
+}
+# }}}
+
+# -- {{{ subagent_logs_of
+# List the helper-agent logs belonging to one session, one path per line.
+# Claude Code keeps them in <session-folder>/<session-id>/subagents/. Before
+# mid-2025 they sat loose in the session folder as agent-*.jsonl; that older
+# layout is still read, so a project restored from an old backup keeps its
+# helpers too.
+function subagent_logs_of() {
+   local session_folder="$1"
+   local session_id="$2"
+   local f
+   for f in "$session_folder/$session_id"/subagents/agent-*.jsonl; do
+      [ -f "$f" ] || continue
+      printf '%s\n' "$f"
+   done
+}
+# }}}
+
+# -- {{{ all_logs_in
+# The full sweep's work list: every main conversation first, then every helper.
+# Order matters, because the naming rulebook hands the bare date name to the
+# first claimant and numbered "_agent-N" slots to later ones - main
+# conversations are meant to get the bare names.
+function all_logs_in() {
+   local session_folder="$1"
+   local f
+   for f in "$session_folder"/*.jsonl; do
+      [ -f "$f" ] || continue
+      case "$(basename "$f")" in
+         agent-*) : ;;                   # the old loose layout: helpers go last
+         *) printf '%s\n' "$f" ;;
+      esac
+   done
+   for f in "$session_folder"/agent-*.jsonl "$session_folder"/*/subagents/agent-*.jsonl; do
+      [ -f "$f" ] || continue
+      printf '%s\n' "$f"
+   done
+}
+# }}}
+
+# -- {{{ export_one_log
+# Turn one session log into one transcript file, applying the naming rules.
+# Returns non-zero when the log could not be exported; the caller counts that
+# as a failure but carries on with the other logs, so one damaged log does not
+# stop the rest of the project being saved.
+function export_one_log() {
+   local jsonl_file="$1"
+   local conversation_id
+   conversation_id=$(basename "$jsonl_file" .jsonl)
+   echo "Processing conversation: $conversation_id"
+
+   # Parse into a private temp file first: the final name depends on dates
+   # only the parser can report. The name is hidden, has no .md suffix (so the
+   # naming rulebook never mistakes it for a transcript), and is unique per
+   # run, so two exports of the same conversation at once - two sessions
+   # stopping together - cannot write into each other's file.
+   local temp_file
+   temp_file=$(mktemp "$TRANSCRIPT_DIR/.transcript-${conversation_id}.XXXXXX") || return 1
+   TEMP_FILES+=("$temp_file")
+
+   # The parser reports dates and warnings on stderr and writes the transcript
+   # itself to the temp file. A parser that fails outright is a real error:
+   # report what it said and give up on this log.
+   local parser_signals
+   if ! parser_signals=$(lua "$PARSER" "$jsonl_file" "$temp_file" 2>&1 >/dev/null); then
+      echo "  ERROR: parser failed on $jsonl_file:" >&2
+      printf '%s\n' "$parser_signals" | sed 's/^/    /' >&2
+      rm -f "$temp_file"
+      return 1
+   fi
+
+   # Race guard (issue 020). ENDS_WITH_USER is the fingerprint of the
+   # Stop-hook race: the hook and the log's append of the final reply are
+   # sibling effects of the same completion, so the log can be read before the
+   # reply lands. Three outcomes per retry: the reply appears (done); the
+   # fingerprint persists (try again); the budget runs out (export as-is with a
+   # loud warning - a session that really is mid-reply legitimately has this
+   # shape, and repairs itself on its own next Stop).
+   local guard_tries=0
+   while [ "$guard_tries" -lt 3 ]; do
+      case "$parser_signals" in
+         *"ENDS_WITH_USER:1"*)
+            guard_tries=$((guard_tries + 1))
+            sleep 0.2
+            if ! parser_signals=$(lua "$PARSER" "$jsonl_file" "$temp_file" 2>&1 >/dev/null); then
+               echo "  ERROR: parser failed on $jsonl_file during the race-guard retry:" >&2
+               printf '%s\n' "$parser_signals" | sed 's/^/    /' >&2
+               rm -f "$temp_file"
+               return 1
+            fi
+            ;;
+         *) break ;;
+      esac
+   done
+   case "$parser_signals" in
+      *"ENDS_WITH_USER:1"*)
+         echo "  WARNING: $conversation_id ends with an unanswered user message; exported as-is"
+         ;;
+   esac
+
+   # The parser succeeded, so it must have written its file. If it did not,
+   # the parser and this script disagree about the contract - an error.
+   if [ ! -s "$temp_file" ]; then
+      echo "  ERROR: parser reported success but wrote nothing for $conversation_id" >&2
+      rm -f "$temp_file"
+      return 1
+   fi
+
+   # Each signal is optional: a husk session carries no dates at all, so a
+   # missing line is a normal answer here, not a failure. That is the only
+   # reason for "|| true" on these three reads.
+   local final_timestamp start_date final_date
+   final_timestamp=$(printf '%s\n' "$parser_signals" | grep "^FINAL_TIMESTAMP:" | cut -d: -f2 || true)
+   start_date=$(printf '%s\n' "$parser_signals" | grep "^START_DATE:" | cut -d: -f2 || true)
+   final_date=$(printf '%s\n' "$parser_signals" | grep "^FINAL_DATE:" | cut -d: -f2 || true)
+
+   # No dates at all means a husk: a session opened and titled but never spoken
+   # in. It gets no file (a warning line instead - issue 020), and any stale
+   # file claiming it, under whatever name, is retired by its header.
+   local base husk_claim
+   if [ -n "$start_date" ] || [ -n "$final_date" ]; then
+      base=$(transcript_span_basename "$start_date" "$final_date") || return 1
+   else
+      echo "  WARNING: no messages in $conversation_id; no transcript written"
+      rm -f "$temp_file"
+      if husk_claim=$(transcript_find_claim "$TRANSCRIPT_DIR" "$conversation_id"); then
+         rm -f "$husk_claim" || return 1
+         echo "  retired husk transcript: $(basename "$husk_claim")"
+      fi
+      return 0
+   fi
+
+   # Name idempotency: a conversation that already owns a file keeps it, and
+   # is re-placed only when its span of dates (hence its name) grew. "No claim
+   # yet" is a normal answer, hence "|| true".
+   local claim dest claim_base
+   claim=$(transcript_find_claim "$TRANSCRIPT_DIR" "$conversation_id" || true)
+   if [ -n "$claim" ]; then
+      claim_base=$(transcript_strip_suffix "$claim")
+      if [ "$claim_base" = "$base" ]; then
+         dest="$claim"                              # same span: overwrite in place
+      else
+         dest=$(transcript_pick_free_name "$TRANSCRIPT_DIR" "$base" "$claim") || return 1
+      fi
+   else
+      dest=$(transcript_pick_free_name "$TRANSCRIPT_DIR" "$base") || return 1
+   fi
+
+   # Content idempotency: the parser stamps a fresh "Generated on:" clock into
+   # everything it writes, so an unchanged conversation re-exported after
+   # every reply used to dirty every transcript in the project (80% of
+   # minimal-soramech's early transcript churn was that one line). When only
+   # the stamp would move, keep the file on disk exactly as it is - but still
+   # re-derive its mtime, which is a projection of the log just like its name,
+   # and which repairs a file a checkout or copy has scrambled.
+   if [ "$dest" = "$claim" ] && transcript_same_content "$temp_file" "$dest"; then
+      rm -f "$temp_file"
+      stamp_mtime "$dest" "$final_timestamp" || return 1
+      echo "Unchanged: $dest"
+      return 0
+   fi
+
+   # Move content into place, retire any stale prior name, and stamp the mtime
+   # from the last message so the file's timestamp agrees with its name's date.
+   mv -f "$temp_file" "$dest" || return 1
+   if [ -n "$claim" ] && [ "$claim" != "$dest" ]; then
+      rm -f "$claim" || return 1
+   fi
+   stamp_mtime "$dest" "$final_timestamp" || return 1
+   echo "Created: $dest"
+}
+# }}}
+
+# -- {{{ stamp_mtime
+# Set a transcript's modification time to the instant of its last message.
+# A log with no timestamp at all leaves the mtime alone (there is nothing to
+# set it to); a timestamp that touch rejects is an error and is reported.
+function stamp_mtime() {
+   local file="$1"
+   local epoch="$2"
+   if [ -n "$epoch" ] && [ "$epoch" -gt 0 ]; then
+      touch -d "@$epoch" "$file" || return 1
+   fi
+}
+# }}}
+
+# -- {{{ export_logs
+# Export a list of logs (one path per line on stdin) into TRANSCRIPT_DIR,
+# holding a lock for the duration so two runs for the same project take turns
+# instead of racing each other through the naming rules (two sessions stopping
+# at once would otherwise both see a name as free and both take it).
+function export_logs() {
+   local lock_file
+   lock_file="$SCRATCH_DIR/transcript-export-$(printf '%s' "$TRANSCRIPT_DIR" | md5sum | cut -c1-16).lock"
+   exec {lock_fd}>"$lock_file"
+   flock "$lock_fd"
+
+   local failures=0 exported=0 jsonl_file
+   while IFS= read -r jsonl_file; do
+      [ -n "$jsonl_file" ] || continue
+      exported=$((exported + 1))
+      if ! export_one_log "$jsonl_file"; then
+         failures=$((failures + 1))
+      fi
+   done
+
+   exec {lock_fd}>&-
+   echo "Exported $exported log(s), $failures failure(s)."
+   [ "$failures" -eq 0 ]
+}
+# }}}
+
+# -- {{{ resolve_project
+# Settle the three places one run touches: the project folder, the folder its
+# transcripts go to, and the folder where Claude keeps its session logs. Fails
+# before anything is created if the project or its session folder is missing,
+# so a lookup that misses no longer leaves an empty llm-transcripts/ behind.
+function resolve_project() {
+   local given="$1"
+   if [ ! -d "$given" ]; then
+      echo "backup-conversations: '$given' is not a directory" >&2
+      return 1
+   fi
+   PROJECT_DIR=$(realpath "$given")
+   TRANSCRIPT_DIR="${TRANSCRIPT_DIR_OVERRIDE[$PROJECT_DIR]:-$PROJECT_DIR/llm-transcripts}"
+   SESSION_FOLDER=$(session_folder_for "$PROJECT_DIR")
+   if [ ! -d "$SESSION_FOLDER" ]; then
+      echo "backup-conversations: Claude has no session folder for $PROJECT_DIR (looked for $SESSION_FOLDER)" >&2
+      return 1
+   fi
+   mkdir -p "$TRANSCRIPT_DIR"
+}
+# }}}
+
+# -- {{{ run_hook
+# Stop-hook mode. Claude Code passes a JSON record on stdin naming the session
+# that just paused and the path of its log; the project is Claude Code's
+# CLAUDE_PROJECT_DIR. Only that session and its helpers are exported.
+function run_hook() {
+   local payload session_id transcript_path
+   payload=$(cat)
+   # Both fields are required; a record without them means the hook's input
+   # format changed, which is reported rather than guessed around.
+   if ! session_id=$(printf '%s' "$payload" | jq -er '.session_id'); then
+      echo "backup-conversations: the Stop hook input has no session_id: $payload" >&2
+      return 1
+   fi
+   if ! transcript_path=$(printf '%s' "$payload" | jq -er '.transcript_path'); then
+      echo "backup-conversations: the Stop hook input has no transcript_path: $payload" >&2
+      return 1
+   fi
+
+   if [ -z "${CLAUDE_PROJECT_DIR:-}" ]; then
+      echo "backup-conversations: --hook needs CLAUDE_PROJECT_DIR, which Claude Code sets for hooks" >&2
+      return 1
+   fi
+   resolve_project "$CLAUDE_PROJECT_DIR" || return 1
+
+   # The log Claude Code named must be where this script expects it. If the
+   # two disagree, Claude Code has changed its layout again and the sweep
+   # would miss it too - say so rather than export from a guess.
+   if [ "$(dirname "$transcript_path")" != "$SESSION_FOLDER" ]; then
+      echo "backup-conversations: Claude's log $transcript_path is not in the expected folder $SESSION_FOLDER" >&2
+      return 1
+   fi
+   if [ ! -f "$transcript_path" ]; then
+      echo "backup-conversations: Claude named a log that does not exist: $transcript_path" >&2
+      return 1
+   fi
+
+   echo "Exporting session $session_id to $TRANSCRIPT_DIR"
+   { printf '%s\n' "$transcript_path"; subagent_logs_of "$SESSION_FOLDER" "$session_id"; } | export_logs
+}
+# }}}
+
+# -- {{{ run_sweep
+# Hand-run mode: export every conversation Claude has for the project, and say
+# how many helper logs the search found, so a layout change that hides them
+# shows up as a surprising zero instead of as silence.
+function run_sweep() {
+   resolve_project "$1" || return 1
+   local logs main_count helper_count
+   logs=$(all_logs_in "$SESSION_FOLDER")
+   # grep -c prints 0 and exits 1 when nothing matches; zero is a normal
+   # count here, hence "|| true". An empty list is counted as zero of each
+   # rather than as one blank line.
+   main_count=0
+   helper_count=0
+   if [ -n "$logs" ]; then
+      main_count=$(printf '%s\n' "$logs" | grep -cv '/agent-[^/]*\.jsonl$' || true)
+      helper_count=$(printf '%s\n' "$logs" | grep -c '/agent-[^/]*\.jsonl$' || true)
+   fi
+   echo "Sweeping $SESSION_FOLDER: $main_count conversation(s), $helper_count helper-agent log(s) -> $TRANSCRIPT_DIR"
+   printf '%s\n' "$logs" | export_logs
+}
+# }}}
+
+# -- {{{ run_session
+# Hand-run mode for one conversation, by its id.
+function run_session() {
+   local session_id="$1"
+   resolve_project "$2" || return 1
+   local main_log="$SESSION_FOLDER/$session_id.jsonl"
+   if [ ! -f "$main_log" ]; then
+      echo "backup-conversations: no log for session $session_id in $SESSION_FOLDER" >&2
+      return 1
+   fi
+   { printf '%s\n' "$main_log"; subagent_logs_of "$SESSION_FOLDER" "$session_id"; } | export_logs
+}
+# }}}
+
+# -- {{{ cleanup_temp_files
+# Remove any half-written temp transcripts left behind by an interrupted run.
+function cleanup_temp_files() {
+   local f
+   for f in "${TEMP_FILES[@]}"; do
+      rm -f "$f"
+   done
+}
+# }}}
+
+# -- {{{ main
+function main() {
+   CLAUDE_SESSIONS_ROOT="${CLAUDE_SESSIONS_ROOT:-$HOME/.claude/projects}"
+   TEMP_FILES=()
+   trap cleanup_temp_files EXIT
+
+   # Missing tools are errors, named plainly, not a skipped backup.
+   local tool
+   for tool in lua jq flock md5sum; do
+      if ! command -v "$tool" >/dev/null; then
+         echo "backup-conversations: required tool '$tool' is not installed" >&2
+         return 1
+      fi
+   done
+
+   source "$SCRIPTS_DIR/libs/transcript-discovery.sh"
+   PARSER="$SCRIPTS_DIR/libs/conversation-parser.lua"
+
+   # With no project named, the project is Claude Code's project folder when
+   # running under Claude Code (it sets CLAUDE_PROJECT_DIR for hooks), and the
+   # current folder otherwise. This keeps an older hook entry that passes no
+   # arguments working, as a whole-project sweep, until it is switched to
+   # --hook.
+   local default_project="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+
+   # Mode dispatch: the first argument picks the mode; anything else is a
+   # project directory for the default sweep.
+   case "${1:-}" in
+      --hook)    run_hook ;;
+      --session) run_session "${2:?--session needs a session id}" "${3:-$default_project}" ;;
+      --all)     run_sweep "${2:-$default_project}" ;;
+      -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//' ;;
+      *)         run_sweep "${1:-$default_project}" ;;
+   esac
+}
+# }}}
+
+# Run only when executed; when sourced (older scripts did that to reach the
+# helper functions below), just define things.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+   # The scratch tiers come first because the log lives in them.
+   ensure_scratch_tiers
+   # Everything this run says also goes to the toolchain's RAM log, so the
+   # hook's output can be read after the fact; errors additionally reach
+   # stderr, where Claude Code shows them to the person. A run is marked in
+   # the log so consecutive runs can be told apart.
+   echo "=== $(date '+%Y-%m-%d %H:%M:%S') backup-conversations $*" >> "$LOG_FILE"
+   #
+   # main runs in a subshell with stop-on-error switched on inside it. Writing
+   # "main || status=$?" instead would look equivalent and is not: bash turns
+   # stop-on-error off for everything inside the left side of an ||, so every
+   # unchecked failure in main would be skipped over silently - the very bug
+   # that let a missing session folder report success (issue 025).
+   set +e
+   ( set -e; main "$@" ) > >(tee -a "$LOG_FILE") 2> >(tee -a "$LOG_FILE" >&2)
+   status=$?
+   set -e
+   # The tee processes run in the background; let them drain before exiting.
+   wait
+   exit "$status"
+fi
+
+# -- {{{ backup-conversations (sourced form)
+# Older tools source this file and call "backup-conversations <project>" as a
+# function. Keep that working by running the script itself as a sweep, so
+# there is one implementation and the sourced form cannot drift from it.
+function backup-conversations() {
+   "${SCRIPTS_DIR}/backup-conversations" --all "$@"
+}
+function backup-conversation() {
+   backup-conversations "$@"
+}
+# }}}
+
+# -- {{{ start_claude
 function start-claude(){
    claude
 }
+# }}}
 
-# see issues in the project directory (scripts) too
-
-function write-transcripts-to-project-directory(){ # {{{
-   DIR="${1:-$(pwd)}"
-   
-   # Resolve to absolute path
-   DIR=$(realpath "$DIR")
-   
-   if [ ! -d "$DIR" ]; then
-      echo "Error: '$DIR' is not a directory"
-      echo ""
-      echo "Usage: write-transcripts-to-project-directory [project-directory]"
-      echo ""
-      echo "Extracts Claude conversation transcripts and writes summaries to the specified"
-      echo "project directory. If no directory is provided, uses current directory."
-      echo "Output files are placed in '<project-directory>/llm-transcripts/'"
-      echo "and contain every user prompt plus every block of assistant prose between"
-      echo "user turns. Tool calls and tool results are dropped, but in-progress"
-      echo "narration the model wrote for the user to read is preserved."
-      return 1
-   fi
-   
-   # Create output directory - special handling for /home/ritz/ and llm-transcripts
-   if [ "$DIR" = "/home/ritz" ] || [ "$DIR" = "/mnt/mtwo" ]; then
-      TRANSCRIPT_DIR="/home/ritz/ai/llm-transcripts"
-   elif [ "$DIR" = "/mnt/mtwo/scripts/llm-transcripts" ]; then
-      TRANSCRIPT_DIR="/mnt/mtwo/scripts/llm-transcripts/transcripts"
-   else
-      TRANSCRIPT_DIR="${DIR}/llm-transcripts"
-   fi
-   mkdir -p "$TRANSCRIPT_DIR"
-   
-   # Find the corresponding Claude project directory. The sessions root is
-   # overridable so tests can point the exporter at fixture JSONLs instead of
-   # the real ~/.claude/projects (issue 020).
-   PROJECT_NAME=$(basename "$DIR")
-   CLAUDE_SESSIONS_ROOT="${CLAUDE_SESSIONS_ROOT:-$HOME/.claude/projects}"
-   CLAUDE_PROJECT_DIR="$CLAUDE_SESSIONS_ROOT/-$(echo "$DIR" | sed 's|^/||' | tr '/' '-')"
-   
-   if [ ! -d "$CLAUDE_PROJECT_DIR" ]; then
-      echo "Could not find Claude project directory: $CLAUDE_PROJECT_DIR"
-      return 1
-   fi
-   
-   echo "Extracting transcripts from $CLAUDE_PROJECT_DIR to $TRANSCRIPT_DIR"
-   
-   # THE NAMING AUTHORITY RULE (issue 020): this exporter is the one and only
-   # program that names, renames, or removes transcript files. It re-derives
-   # every name from the session JSONL on every run and enforces the result,
-   # so any other writer will simply be overruled on the next Stop hook - the
-   # one-shot migrator learned this the hard way and was retired. Tools that
-   # need names read them through the shared rulebook; they never write them.
-   #
-   # Naming, identity, and collision rules all live in one shared library so the
-   # producer and the analytics consumers can never disagree.
-   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-   source "${SCRIPT_DIR}/libs/transcript-discovery.sh"
-   PARSER="${SCRIPT_DIR}/libs/conversation-parser.lua"
-
-   # Order matters. The main conversation should claim the bare date name and
-   # its agent sidechains should fall into the "_agent-N" collision slots, so we
-   # feed the main "<uuid>.jsonl" files first and the "agent-*.jsonl" ones last.
-   local ordered_jsonl=()
-   for jsonl_file in "$CLAUDE_PROJECT_DIR"/*.jsonl; do
-      [ -f "$jsonl_file" ] || continue
-      case "$(basename "$jsonl_file")" in
-         agent-*) : ;;                       # held back for the second pass
-         *) ordered_jsonl+=("$jsonl_file") ;;
-      esac
-   done
-   for jsonl_file in "$CLAUDE_PROJECT_DIR"/agent-*.jsonl; do
-      [ -f "$jsonl_file" ] || continue
-      ordered_jsonl+=("$jsonl_file")
-   done
-
-   for jsonl_file in "${ordered_jsonl[@]}"; do
-      conversation_id=$(basename "$jsonl_file" .jsonl)
-      echo "Processing conversation: $conversation_id"
-
-      # Parse into a temp file first: the final name depends on the start/end
-      # dates that only the parser can report. The temp name is hidden and lacks
-      # a .md suffix, so the discovery library never mistakes it for a claimant.
-      local temp_file="$TRANSCRIPT_DIR/.transcript-${conversation_id}.tmp"
-      local parser_signals
-      parser_signals=$(lua "$PARSER" "$jsonl_file" "$temp_file" 2>&1 >/dev/null)
-
-      # Race guard (issue 020). ENDS_WITH_USER is the fingerprint of the
-      # Stop-hook race: the hook and the JSONL append of the final reply are
-      # sibling effects of the same completion, so the exporter can read the
-      # log before the reply's line lands. On the fingerprint: wait a beat and
-      # re-parse, bounded. Three outcomes per retry: the reply appears (guard
-      # ends, export is complete); the fingerprint persists (retry again); the
-      # budget runs out (surrender LOUDLY below and export as-is - some other
-      # live session mid-reply is a legitimate owner of this shape, and it
-      # repairs itself on its own next Stop).
-      local guard_tries=0
-      while [ "$guard_tries" -lt 3 ]; do
-         case "$parser_signals" in
-            *"ENDS_WITH_USER:1"*)
-               guard_tries=$((guard_tries + 1))
-               sleep 0.2
-               parser_signals=$(lua "$PARSER" "$jsonl_file" "$temp_file" 2>&1 >/dev/null)
-               ;;
-            *) break ;;
-         esac
-      done
-      case "$parser_signals" in
-         *"ENDS_WITH_USER:1"*)
-            echo "  WARNING: $conversation_id ends with an unanswered user message; exported as-is"
-            ;;
-      esac
-
-      if [ ! -f "$temp_file" ]; then
-         echo "  (parser produced no output for $conversation_id)"
-         continue
-      fi
-
-      local final_timestamp start_date final_date
-      final_timestamp=$(echo "$parser_signals" | grep "FINAL_TIMESTAMP:" | cut -d: -f2 || true)
-      start_date=$(echo "$parser_signals" | grep "START_DATE:" | cut -d: -f2 || true)
-      final_date=$(echo "$parser_signals" | grep "FINAL_DATE:" | cut -d: -f2 || true)
-
-      # Build the date-span basename. No dates at all means a husk: a session
-      # that was opened and titled but never exchanged a message. Husks used
-      # to be written under their raw conversation id as a warning-name; that
-      # flag kept being misread as a misspelling and "fixed" by hand (issue
-      # 020), so now the warning is a printed line and no file: nothing to
-      # shelve, nothing to misname. If an earlier run or a stray rename left
-      # a file claiming this conversation, retire it - the header, not the
-      # name, identifies the claim.
-      local base husk_claim
-      if [ -n "$start_date" ] || [ -n "$final_date" ]; then
-         base=$(transcript_span_basename "$start_date" "$final_date")
-      else
-         echo "  WARNING: no messages in $conversation_id; no transcript written"
-         rm -f "$temp_file"
-         if husk_claim=$(transcript_find_claim "$TRANSCRIPT_DIR" "$conversation_id"); then
-            rm -f "$husk_claim"
-            echo "  retired husk transcript: $(basename "$husk_claim")"
-         fi
-         continue
-      fi
-
-      # Name idempotency: if this conversation already owns a transcript,
-      # reuse it, re-placing it only when the span (hence the base) grew -
-      # e.g. the conversation continued into a new day. Whether that file's
-      # *contents* then need rewriting is a separate question, asked below.
-      local claim dest claim_base
-      claim=$(transcript_find_claim "$TRANSCRIPT_DIR" "$conversation_id" || true)
-      if [ -n "$claim" ]; then
-         claim_base=$(transcript_strip_suffix "$claim")
-         if [ "$claim_base" = "$base" ]; then
-            dest="$claim"                               # same span: overwrite in place
-         else
-            dest=$(transcript_pick_free_name "$TRANSCRIPT_DIR" "$base" "$claim")
-         fi
-      else
-         dest=$(transcript_pick_free_name "$TRANSCRIPT_DIR" "$base")
-      fi
-
-      # Content idempotency (the other half of the name idempotency above).
-      # The parser stamps a fresh "Generated on:" wall clock into everything
-      # it writes, so re-exporting a conversation nobody had added a word to
-      # still produced a file differing by that one line - and this runs from
-      # a Stop hook, after every single assistant turn. The result was a
-      # treadmill: every transcript in a project went dirty again seconds
-      # after being committed, so a project's `git status` could never be
-      # clean and could never be read for which transcripts had actually
-      # grown. Measured in minimal-soramech before this guard existed: 116 of
-      # the first 145 transcript changes recorded in git history were that
-      # line and nothing else - 80% of the churn.
-      #
-      # So ask what was actually said, and when only the stamp would move,
-      # keep the file already on disk exactly as it is. An unchanged
-      # conversation is now a genuine no-op.
-      #
-      # Only the overwrite-in-place case may be skipped. When dest and claim
-      # differ, the conversation has crossed into a new day and the file has
-      # to be re-placed under its new span name - a real change, however
-      # little the prose grew.
-      if [ "$dest" = "$claim" ] && transcript_same_content "$temp_file" "$dest"; then
-         rm -f "$temp_file"
-         # The mtime is still re-derived on this path. It is a projection of
-         # the session log in exactly the way the filename is, so it gets
-         # enforced on every run whether or not the prose moved - that is
-         # what repairs a file whose timestamp a checkout, a copy, or a
-         # restore has scrambled. Nothing in git watches an mtime, so
-         # re-stamping here buys back the churn this branch just avoided.
-         if [ -n "$final_timestamp" ] && [ "$final_timestamp" -gt 0 ]; then
-            touch -d "@$final_timestamp" "$dest" 2>/dev/null || true
-         fi
-         echo "Unchanged: $dest"
-         continue
-      fi
-
-      # Move content into place, retire any stale prior name, stamp the mtime
-      # from the last message so the file's timestamp matches its name's date.
-      mv -f "$temp_file" "$dest"
-      if [ -n "$claim" ] && [ "$claim" != "$dest" ]; then
-         rm -f "$claim"
-      fi
-      if [ -n "$final_timestamp" ] && [ "$final_timestamp" -gt 0 ]; then
-         touch -d "@$final_timestamp" "$dest" 2>/dev/null || true
-      fi
-
-      echo "Created: $dest"
-   done
-
-   echo "Transcript extraction complete!"
-} # }}}
-
-
-function backup-conversation(){
-   DIR="${1:-$(pwd)}" # first argument, or current directory if no argument
-    echo "Backing up Claude conversation transcripts..."
-    if command -v lua &> /dev/null; then
-        write-transcripts-to-project-directory "${DIR}" 2>/dev/null || echo "  (No new transcripts to backup)"
-    else
-        echo "  (Transcript backup unavailable - missing lua)"
-    fi
- }
-
-# Alias for plural form
-function backup-conversations(){
-    backup-conversation "$@"
-}
-
-# Direct-invocation entry point.
-# Until now this file only defined functions; running it as a command did
-# nothing, which silently broke batch-transcript-backup.sh and made it
-# impossible to use as a Stop-hook target. Now: when executed directly
-# (rather than sourced), run the backup against the given path, or against
-# $CLAUDE_PROJECT_DIR / $(pwd) as fallback. The "no transcripts to back up"
-# case is already swallowed inside backup-conversation, so this stays quiet
-# when there is nothing to do.
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    target="${1:-${CLAUDE_PROJECT_DIR:-$(pwd)}}"
-    backup-conversation "$target"
-    exit 0
-fi
-
+# -- {{{ claude-next
+# Open the next numbered "claude-next" todo file in the current folder's
+# todo/claude-next/, counting both open and completed ones.
 function claude-next(){
    DIR=$(pwd)
    CLAUDE_NEXT_DIR="${DIR}/todo/claude-next"
-   
-   # Create directories if they don't exist
    mkdir -p "${CLAUDE_NEXT_DIR}/completed"
-   
-   # Find highest number in both current and completed directories
+
    NEXT=0
-   
-   # Check current directory
-   if [ -d "${CLAUDE_NEXT_DIR}" ]; then
-      for file in "${CLAUDE_NEXT_DIR}"/claude-next-*; do
-         if [ -f "$file" ]; then
-            filename=$(basename "$file")
-            if [[ $filename =~ claude-next-([0-9]+) ]]; then
-               num=${BASH_REMATCH[1]}
-               if [ "$num" -ge "$NEXT" ]; then
-                  NEXT=$((num + 1))
-               fi
-            fi
+   for file in "${CLAUDE_NEXT_DIR}"/claude-next-* "${CLAUDE_NEXT_DIR}/completed"/claude-next-*; do
+      [ -f "$file" ] || continue
+      filename=$(basename "$file")
+      if [[ $filename =~ claude-next-([0-9]+) ]]; then
+         num=${BASH_REMATCH[1]}
+         if [ "$num" -ge "$NEXT" ]; then
+            NEXT=$((num + 1))
          fi
-      done
-   fi
-   
-   # Check completed directory
-   if [ -d "${CLAUDE_NEXT_DIR}/completed" ]; then
-      for file in "${CLAUDE_NEXT_DIR}/completed"/claude-next-*; do
-         if [ -f "$file" ]; then
-            filename=$(basename "$file")
-            if [[ $filename =~ claude-next-([0-9]+) ]]; then
-               num=${BASH_REMATCH[1]}
-               if [ "$num" -ge "$NEXT" ]; then
-                  NEXT=$((num + 1))
-               fi
-            fi
-         fi
-      done
-   fi
-   
+      fi
+   done
+
    nvim "${CLAUDE_NEXT_DIR}/claude-next-${NEXT}"
 }
+# }}}
