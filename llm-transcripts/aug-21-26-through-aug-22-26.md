@@ -1,0 +1,412 @@
+# Conversation Summary: a80cedeb-c69c-45b9-99c3-8134bed42e97
+
+Generated on: 2026-09-21 19:46:00
+Models: claude-opus-5
+
+--------------------------------------------------------------------------------
+
+### User Request 1
+
+hi, can you add a license file for this monorepo?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 1
+
+> Before I write it: this repo already contains your own hand-rolled license in
+> the neocities project — "The Do What You Want, But Don't Be Cruel" License
+> — and the root README currently says each project may carry its own. It also
+> contains vendored upstream code with foreign licenses (the mGBA link-cable
+> source and the Link's Awakening DX HD tree), so whatever I write at the root
+> needs a clause saying it doesn't claim to cover code you didn't write.
+
+> **[Asked the user]**
+>
+> *Q1 — License:* Which license should sit at the root of the monorepo?
+> - The Don't Be Cruel license (Recommended) — Reuse the exact text already
+>   living in the neocities project, adapted at the root to cover the whole
+>   monorepo. Legally it behaves like a permissive public-domain-ish grant —
+>   copy, modify, sell, no attribution required, no warranty — with an
+>   unenforceable moral request attached. It's already your voice, and it means
+>   the repo speaks with one license instead of two.
+> - MIT — The standard permissive license. Anyone may use, copy, modify, and
+>   sell the code; they must keep your copyright notice and the disclaimer of
+>   warranty. Recognized by every package manager, license scanner, and
+>   corporate legal department — the practical choice if you ever want
+>   someone's employer to be able to say yes to using this.
+> - GPL-3.0 — Copyleft. Anyone may use and modify the code, but if they
+>   distribute a modified version or a program built from it, they must ship the
+>   source under GPL-3.0 too. It forces derivative work back into the open; it
+>   also makes the code unusable inside most proprietary products, which is
+>   either the point or the problem depending on what you want.
+> - CC0 / public domain — The maximal giveaway: you waive every copyright
+>   interest you hold, worldwide, as far as law allows, and where waiver isn't
+>   possible you grant an unconditional license instead. No attribution, no
+>   conditions, no moral clause. Closest thing to putting the work into the
+>   commons and walking away from it entirely.
+> → **Answered:** (notes only)
+> → **They added:** but also if it's a big corporation they should pay me
+> before using this software because that's what they do - they throw money
+> around
+
+> You didn't pick a base, but the note tells me the shape you want. I'm reading
+> "but also" as *extend the Don't Be Cruel license* rather than replace it —
+> it's already your text and your voice. Two things I can't decide for you,
+> because they change what the document actually does:
+
+> **[Asked the user]**
+>
+> *Q1 — Teeth:* Should the pay-me clause have legal teeth, or be a second
+> moral ask like the don't-be-cruel one?
+> - Teeth: a real condition (Recommended) — The grant becomes conditional.
+>   Small users get everything free; a company over the line has no license at
+>   all until it buys one from you, so using it anyway is ordinary copyright
+>   infringement you could sue over. Cost: this is no longer OSI-approved open
+>   source. GitHub's sidebar will say 'Unrecognized license', and corporate
+>   license scanners flag it red — which is the point, since a red flag is
+>   what makes a lawyer email you instead of ignoring you.
+> - No teeth: a second request — The license stays fully permissive and
+>   genuinely open source — anyone may use it, including the biggest company
+>   in the world — and the payment ask sits next to the cruelty ask as a thing
+>   you're asked, not required, to do. Honest actors sometimes honor these. The
+>   kind of company that throws money around because it can afford to ignore you
+>   will ignore you.
+> - All commercial use needs a yes — The widest restriction: free for any
+>   non-commercial purpose, and *any* company — two people in a garage
+>   included — must contact you before using it commercially. Simpler to state
+>   and impossible to game with corporate structuring, but it also stops the
+>   small shop that would have loved this, and every such person now has to
+>   email you and wait.
+> → *(no answer recorded)*
+>
+> *Q2 — The line:* Where should the line between 'big corporation' and
+> everybody else fall?
+> - $1M revenue or 50 people (Recommended) — The threshold most fair-source
+>   licenses use (PolyForm Small Business draws it here). A company is 'large'
+>   if it made over one million US dollars gross in the last twelve months, or
+>   employs more than fifty people, counting parent and subsidiary companies
+>   together so a big firm can't route usage through a shell subsidiary. Wide
+>   enough that essentially every real small business stays free.
+> - $10M revenue or 250 people — A much higher bar. Free for essentially every
+>   startup, agency, and mid-size shop; only genuinely large firms owe you
+>   anything. Fewer people ever have to think about the clause, and the ones who
+>   trip it unambiguously have a legal department and a budget. Trades away
+>   revenue from the mid-tier that could have paid you.
+> - No number, just judgment — State it in plain language — 'if you are the
+>   kind of company that has a legal department and a procurement process, you
+>   are the kind of company I mean' — and let the reader decide which side
+>   they're on. Fits the voice of the rest of the document and is unfalsifiable
+>   in the good way. It's also vague, and vagueness is what a hostile lawyer
+>   eats for lunch.
+> → *(no answer recorded)*
+
+What would you like to clarify?
+
+--------------------------------------------------------------------------------
+
+### User Request 2
+
+changed my mind, let's use agpl for everything
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 2
+
+> Verified: two independent system copies of the AGPL-3.0 text are
+> byte-identical across all 661 lines except three `http`→`https` URL updates,
+> so the text is unmodified FSF wording. Using the current-URL copy.
+
+Done. Three files touched at the monorepo root.
+
+**`LICENSE`** — the verbatim AGPL-3.0 text, 661 lines, copied from a system
+package rather than typed or fetched. I cross-checked two independent copies on
+your machine against each other; they matched byte-for-byte except three URLs
+where the older copy still said `http` instead of `https`, which is the FSF's
+own later revision. So the wording is unmodified. The file must stay unmodified
+— its own header says copying is permitted but changing it is not.
+
+**`COPYRIGHT`** — new file, because the license text can't be edited, so
+everything *about* how it applies has to live beside it. It holds your copyright
+line, an explanation of what the Affero clause actually does mechanically, the
+list of code here that isn't yours, and the per-file notice to paste into new
+source files.
+
+The mechanism, since it's the whole reason AGPL exists as a separate license: an
+ordinary GPL's obligation to release source is triggered by *distribution* —
+handing someone a copy. A company can take GPL code, modify it, run it on their
+own servers, sell access over a network, and never hand out a copy, so the
+obligation never fires and users never see the source. Section 13 of the AGPL
+makes network interaction itself the trigger: if someone runs a modified version
+and lets people talk to it remotely, they owe those people the source of their
+modified version, over that same network, free. Running as a service is treated
+exactly like distributing copies.
+
+**`README.md`** — line 499 said "Individual projects may have their own
+licenses." It now names the AGPL and points at both files.
+
+**What I found that isn't yours.** Only six license files are actually tracked
+in git, so this was checkable rather than guesswork. Two Kenney tilesets under
+the game project's assets (Creative Commons Zero — public domain, no
+conditions), a LuaHPDF copy under the words-pdf backup tree (MIT, Kurt Jung),
+the Link's Awakening tree (MIT, .NET Foundation), and the mGBA checkout that's
+currently untracked (Mozilla Public License 2.0, which explicitly permits
+combining with AGPL work, so it composes fine).
+
+**Open questions — four, and the first one is a real conflict:**
+
+1. The `Links Awakening DX HD` subfolder ships under Microsoft's .NET Library
+   license terms, which are proprietary redistribution terms, not a free
+   software license. Those cannot be reconciled with the AGPL if that tree were
+   ever combined with your code and distributed. I carved it out in COPYRIGHT
+   and described it factually. Do you want it left carved out, or pulled out of
+   the repo?
+
+2. Your neocities project keeps its own "Do What You Want, But Don't Be Cruel"
+   license, which is permissive and much looser than the AGPL. "Use AGPL for
+   everything" might have meant that one too. I left it in place deliberately
+   rather than overwriting your own writing — it's your work and your license
+   either way, so it's a preference, not a conflict. Convert it, or let it
+   stand?
+
+3. The AGPL wants a short notice at the top of each source file so a file that
+   travels away from here still says what it is. That's thousands of files
+   across this repo. You'd want a tool that stamps them per language rather than
+   hand-editing — should I build one?
+
+4. Several projects here are network-facing — the neocities generator, the
+   screen-record stream, the 3d multiplayer server, the LLM HTTP thing. If any
+   of those ever get deployed publicly, section 13 needs each one to offer users
+   a route to its source: a "Source" link in the web interface, a line in help
+   output, something reachable from where the user is standing. None of them
+   have that yet.
+
+I did not commit. Your working tree has unrelated modifications sitting in it
+— transcript files across three projects, two page templates, and a couple of
+deletions — and I don't know whose those are. Say the word and I'll stage only
+the license, copyright, and README change.
+
+One footnote on the corporate-payment idea you raised before changing your mind:
+the AGPL is the standard foundation for getting exactly that. Because a company
+must open its own source to use AGPL code in a service, the ones that can't
+stomach that come to the copyright holder and buy an exception. You keep the
+option; it just runs through selling a commercial license rather than through a
+clause in this one.
+
+--------------------------------------------------------------------------------
+
+### User Request 3
+
+> 1. The Links Awakening DX HD subfolder ships under Microsoft's .NET Library
+> license terms, which are proprietary redistribution terms, not a free software
+> license. Those cannot be reconciled with the AGPL if that tree were ever
+> combined with your code and distributed. I carved it
+>      out in COPYRIGHT and described it factually. Do you want it left carved out, or pulled out of the repo?
+
+that's not my project so we should let it be covered by it's own license. Just
+include a clause that says "anything I didn't write isn't covered by the
+license, and instead is covered by whatever license the original author
+provides" - we don't have to specifically single out that directory so long as
+there's a license in there.
+
+> 2. Your neocities project keeps its own "Do What You Want, But Don't Be Cruel"
+> license, which is permissive and much looser than the AGPL. "Use AGPL for
+> everything" might have meant that one too. I left it in place deliberately
+> rather than overwriting your own writing — it's your
+>      work and your license either way, so it's a preference, not a conflict. Convert it, or let it stand?
+
+that's fine, let it stand
+
+> 3. The AGPL wants a short notice at the top of each source file so a file that
+> travels away from here still says what it is. That's thousands of files across
+> this repo. You'd want a tool that stamps them per language rather than
+> hand-editing — should I build one?
+
+um I don't care about this, let's skip it for now unless it's a hardcore
+requirement
+
+> 4. Several projects here are network-facing — the neocities generator, the
+> screen-record stream, the 3d multiplayer server, the LLM HTTP thing. If any of
+> those ever get deployed publicly, section 13 needs each one to offer users a
+> route to its source: a "Source" link in the web
+>      interface, a line in help output, something reachable from where the user is standing. None of them have that yet.
+
+I don't trust that sort of line - the system could just send whatever. So just
+require that we have a git repo or something that mirrors the source-code to the
+internet and we'll be fine.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 3
+
+All four answers are in. Here's what changed and one thing I found while
+checking your first answer.
+
+**The blanket clause replaced the enumerated list.** The "work I did not write"
+section no longer names specific directories. It says anything that came from
+somewhere else is covered by whatever license its original author gave it, that
+a directory carrying its own license file governs that directory, and that this
+applies to vendored dependencies, upstream checkouts, downloaded assets, and
+toolchains alike — including where the original terms are proprietary and
+could never combine with the AGPL. The Microsoft-licensed tree is now covered by
+the general rule instead of being singled out.
+
+**Neocities stands.** The clause has a sentence for it: a few of my own projects
+carry a different license of their own choosing, those are mine either way, so
+the subdirectory license simply wins. No conflict, no need to name it.
+
+**Per-file headers: not a hardcore requirement, so they're skipped.** The AGPL's
+suggestion to stamp every file lives in its closing "How to Apply These Terms"
+section, which is advice appended after the license ends — not an operative
+term. A license file at the repo root licenses the work. Nothing here is out of
+compliance for lacking headers. The only cost is that a single file torn out of
+the repo and mailed to someone arrives with no evidence of its own terms. I left
+the paste-in template in COPYRIGHT as a reference and said plainly that it's
+optional.
+
+**The mirror replaced the link, and your reasoning is in the file.** COPYRIGHT
+now says the "Source" link shape is untrustworthy because the link is served by
+the very system whose source is in question — a system with something to hide
+serves whatever source it likes behind its own link, and the user can't tell.
+Self-attestation isn't evidence. The named mechanism is the public mirror at
+`https://github.com/gabrilend/ai-stuff`, which is independently reachable and
+can be compared against what a running service claims. Two conditions I wrote
+down: it has to stay publicly readable, and if it ever goes private the source
+needs to surface somewhere else public with this file updated to say where.
+
+Worth knowing: section 13 binds whoever *modifies* the code and runs it as a
+service. That's mostly other people, not you. You only trip it yourself if you
+deploy a modified version publicly, and the mirror handles that case.
+
+**What I found checking "so long as there's a license in there."** That
+condition isn't met everywhere, so I added a correction to the walk-up rule: a
+missing license file does not make someone else's work yours. If a vendored
+library landed here without its license attached, that's a bug in how it was
+stored, not a transfer of ownership — it stays under whatever terms its author
+granted, and the fix is to put the file where it belongs. The rule also now says
+to read the file's own header, since plenty of single-file libraries carry the
+whole grant inline and ship no separate license file.
+
+Two concrete gaps in tracked code:
+
+- The LuaHPDF copy under the words-pdf backup tree kept its MIT license at
+  `doc/license.md`, which the walk-up rule would miss — someone holding
+  `hpdf.c` walks up and hits the repo root. I copied that same file to the tree
+  root as `LICENSE`. Same text, just findable now.
+- The LuaSocket install under `libs/lua/luasocket/` has no license text anywhere
+  in the tree. It's MIT upstream, Diego Nehab, but I'm not writing a license
+  into your repo from memory. Say the word and I'll pull the canonical text from
+  the project and drop it in.
+
+Your `libs/lua/dkjson.lua` is fine — it carries David Kolf's copyright and
+permission text inline, which is exactly the case the header clause now covers.
+
+Nothing committed. Untracked: `LICENSE`, `COPYRIGHT`, and the LuaHPDF license
+copy. Modified: `README.md`, line 499 only. The rest of your dirty tree I
+haven't touched.
+
+--------------------------------------------------------------------------------
+
+### User Request 4
+
+okay sounds good
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 4
+
+Two things still open, both small.
+
+The LuaSocket tree under your shared Lua libs has no license text in it at all.
+Want me to fetch the canonical MIT text from the project and drop it in, or
+leave it — the correction clause in COPYRIGHT already says a missing file
+doesn't make it yours, so nothing is misrepresented either way. It's a tidiness
+question, not a correctness one.
+
+And nothing is committed. When you want it in, I'll stage just the license file,
+the copyright file, the one README line, and the LuaHPDF license copy — your
+other modified files stay out of it.
+
+--------------------------------------------------------------------------------
+
+### User Request 5
+
+> The LuaSocket tree under your shared Lua libs has no license text in it at
+> all. Want me to fetch the canonical MIT text from the project and drop it in,
+> or leave it — the correction clause in COPYRIGHT already says a missing file
+> doesn't make it yours, so nothing is misrepresented
+>   either way. It's a tidiness question, not a correctness one.
+
+uh, sure, just make sure you validate that it is actually MIT licensed first by
+searching the internet or whatever.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 5
+
+> Verified three ways before writing anything:
+>
+> - Your own tree's rockspec —
+>   `libs/lua/luasocket/lib/luarocks/rocks-5.1/luasocket/3.1.0-1/luasocket-3.1.0-1.rockspec`
+>   — declares `license = "MIT"`. That's the package's own shipped metadata
+>   for the exact version you have installed.
+> - The canonical upstream `LICENSE` at
+>   [lunarmodules/luasocket](https://github.com/lunarmodules/luasocket) is MIT,
+>   Copyright (C) 2004-2022 Diego Nehab.
+> - Search results corroborate MIT for 3.1.0.
+
+Written verbatim to `libs/lua/luasocket/LICENSE`, at the root of that tree so
+the walk-up rule in COPYRIGHT finds it from any file inside. No annotations or
+provenance header — the license text stands alone, since MIT requires the
+copyright notice travel intact and a wrapper note would muddy whether the text
+had been altered.
+
+That closes the last open question. Five paths, none committed:
+
+| Path | State |
+|---|---|
+| `LICENSE` | new — AGPL-3.0, 661 lines, verbatim FSF text |
+| `COPYRIGHT` | new — scope, the Affero mechanism, the blanket third-party clause, the mirror |
+| `README.md` | modified — line 499 only |
+| `libs/lua/luasocket/LICENSE` | new — MIT, Diego Nehab, verified above |
+| `words-pdf/backup-mvp/libs/luahpdf/LICENSE` | new — copy of the MIT text already at `doc/license.md` in that tree |
+
+Say the word and I'll stage exactly those five and commit, leaving your other
+modified files untouched.
+
+Sources: [lunarmodules/luasocket](https://github.com/lunarmodules/luasocket),
+[LuaSocket 3.1.0-1 on
+LuaRocks](https://luarocks.org/modules/lunarmodules/luasocket/3.1.0-1),
+[LuaSocket project page](https://lunarmodules.github.io/luasocket/)
+
+--------------------------------------------------------------------------------
+
+### User Request 6
+
+sounds good
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 6
+
+Committed as `eeab4a73` on master — five files, 831 insertions, one deletion.
+Your other in-progress work is exactly where it was: the transcript edits across
+three projects, the two page templates, the two deletions, and the untracked
+directories are all still unstaged and untouched.
+
+I committed straight to master rather than branching, since that's what your
+history does and a branch would have left you with a merge to do for a license
+file. Say if you'd rather it had been a branch and I'll move it.
+
+The commit message covers the license choice and the mechanism, and calls out
+the three changes that went beyond simply adding a license: the README line, and
+the two vendored libraries that got a copy of their own terms placed at the root
+of their trees where a reader walking up from a source file would actually pass
+them.
+
+I did not push. `origin` points at `github.com/gabrilend/ai-stuff`, which is the
+address COPYRIGHT names as the public mirror — so that file is making a
+promise the remote doesn't yet reflect. Worth pushing when you're ready, though
+I'd leave that until your other work is in a state you want mirrored too.
+
+--------------------------------------------------------------------------------
+

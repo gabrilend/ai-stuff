@@ -643,6 +643,52 @@ local function format_askuserquestion(input, tool_use_result)
 end
 -- }}}
 
+-- {{{ utc_fields_to_epoch
+-- Turn a UTC calendar reading into the instant it actually names.
+--
+-- Lua's os.time reads the table handed to it as LOCAL time, and the session
+-- logs record UTC (their timestamps end in "Z"). Calling os.time on those
+-- fields directly therefore lands one whole UTC offset away from the truth -
+-- seven or eight hours here, depending on daylight saving. That error used to
+-- be stamped onto every transcript's mtime, and the matching error in the
+-- date reducer below put it in every filename too (issue 018).
+--
+-- Standard Lua has no timegm, so the offset is measured rather than assumed:
+-- break the first, wrong answer back down into UTC fields, push those through
+-- os.time a second time, and the gap between the two passes IS the offset
+-- that os.time applied - including whichever daylight-saving rule was in
+-- force on that date. Adding the gap back lands on the true instant.
+--
+-- Both passes must ask the same question, and that turns on one field. A UTC
+-- breakdown comes back carrying isdst = false, because UTC keeps no daylight
+-- saving; handing that table straight back to os.time forces it to convert at
+-- the STANDARD offset while the first pass had already guessed the DAYLIGHT
+-- one. The two passes then measure different offsets and the gap between them
+-- is an hour short - correct all winter, an hour early all summer, which is
+-- the sort of fault that hides for half the year. Clearing the field puts the
+-- second pass back on the same footing as the first: both guess, both guess
+-- alike, and the gap is the offset and nothing else.
+--
+-- The one place this can still slip is a reading falling within the offset's
+-- own width of a daylight-saving boundary, where the two passes can land on
+-- opposite sides. That is a sub-hour ambiguity twice a year, and it cannot
+-- move a calendar date except for a conversation ending within an hour of
+-- midnight on those two nights.
+local function utc_fields_to_epoch(time_table)
+    local as_if_local = os.time(time_table)
+    if not as_if_local then
+        return nil
+    end
+    local utc_view = os.date("!*t", as_if_local)
+    utc_view.isdst = nil
+    local round_trip = os.time(utc_view)
+    if not round_trip then
+        return as_if_local
+    end
+    return as_if_local + (as_if_local - round_trip)
+end
+-- }}}
+
 -- {{{ parse_timestamp
 -- Parse timestamp from various formats
 local function parse_timestamp(timestamp_value)
@@ -673,7 +719,9 @@ local function parse_timestamp(timestamp_value)
             timestamp_value:match("(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)")
 
         if year then
-            -- Convert to Unix timestamp (rough approximation)
+            -- These fields came out of a "...Z" string, so they are UTC and
+            -- must be converted as UTC. Handing them straight to os.time,
+            -- which would read them as local, is the bug issue 018 records.
             local time_table = {
                 year = tonumber(year),
                 month = tonumber(month),
@@ -682,7 +730,7 @@ local function parse_timestamp(timestamp_value)
                 min = tonumber(min),
                 sec = tonumber(sec)
             }
-            return os.time(time_table)
+            return utc_fields_to_epoch(time_table)
         end
     end
 
@@ -691,24 +739,24 @@ end
 -- }}}
 
 -- {{{ to_date_string
--- Reduce a raw timestamp value to a calendar date "YYYY-MM-DD".
--- We read the date straight off the ISO string when we can, on purpose:
--- the recorded timestamps are UTC ("...Z"), and pulling the date fields
--- verbatim keeps the filename date matching the date the file's mtime lands
--- on (mtime is stamped from the same fields via os.time), so naming and the
--- on-disk timestamp never disagree. Only if the value arrives as a bare epoch
--- number do we fall back to formatting it.
+-- Reduce a raw timestamp value to the calendar date "YYYY-MM-DD" on which the
+-- conversation was actually held, in this machine's local time.
+--
+-- The earlier version of this function copied the date characters straight
+-- out of the ISO string, which is a UTC reading. That filed every evening
+-- conversation under the following day: 7:49pm local is already past midnight
+-- in UTC, so a session held on the 16th was named for the 17th. The comment
+-- here used to defend that choice on the grounds that it matched the mtime -
+-- and it did match, because the mtime was wrong in exactly the same
+-- direction. Both halves are corrected together (issue 018); correcting only
+-- one would trade a shared error for a disagreement.
+--
+-- So: always resolve to a real instant first, then ask local time what day
+-- that instant fell on. No '!' on the format string - that would be UTC again.
 local function to_date_string(timestamp_value)
-    if type(timestamp_value) == "string" then
-        local year, month, day = timestamp_value:match("(%d%d%d%d)%-(%d%d)%-(%d%d)")
-        if year then
-            return year .. "-" .. month .. "-" .. day
-        end
-    end
-
     local epoch = parse_timestamp(timestamp_value)
     if epoch then
-        return os.date("!%Y-%m-%d", epoch) -- '!' formats in UTC to match above
+        return os.date("%Y-%m-%d", epoch)
     end
 
     return nil
@@ -1127,8 +1175,12 @@ local function main(args)
 end
 -- }}}
 
--- Run main if executed as script
-if arg and arg[0]:match("conversation%-parser%.lua$") then
+-- Run main if executed as script.
+-- arg[0] is checked for existence as well as content: when this file is
+-- pulled in as a library by something that was itself started with -e, arg
+-- exists but arg[0] does not, and indexing straight into it took the whole
+-- process down rather than simply declining to run main.
+if arg and arg[0] and arg[0]:match("conversation%-parser%.lua$") then
     os.exit(main(arg))
 end
 
@@ -1136,6 +1188,10 @@ end
 return {
     parse_conversation = parse_conversation,
     parse_timestamp = parse_timestamp,
+    -- Exported so the archive repair tool corrects dates by the very same
+    -- reasoning the exporter uses, rather than keeping a second copy of it
+    -- that could drift.
+    utc_fields_to_epoch = utc_fields_to_epoch,
     format_content = format_content,
     wrap_text = wrap_text,
     spoken_form = spoken_form,
