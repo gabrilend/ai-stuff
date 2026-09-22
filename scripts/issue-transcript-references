@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+#
+# issue-transcript-references
+#
+# Finds where each completed issue was talked about in a project's saved
+# conversations, and prints the places as a list of transcript lines -- ready to
+# be added to the issue's "related documents" section.
+#
+# In plain terms: an issue file says what was built; the conversation in
+# llm-transcripts/ says how it came to be built that way. The two are only
+# connected if somebody writes the connection down, and by the time anybody
+# wants it, nobody remembers which of forty conversations held the argument.
+# This reads every completed issue's name, searches every transcript for it,
+# and reports each hit as <transcript>:<line>, so the connection is looked up
+# rather than remembered.
+#
+# Two strengths of evidence are reported separately, because they mean
+# different things:
+#
+#   named     -- the issue's whole filename stem appears (e.g.
+#                014-create-maintenance-utilities). Almost always a real
+#                reference: nobody types that string by accident.
+#   numbered  -- only "issue 014" / "Issue 014" / "#014" appears. Often right,
+#                but a number can belong to another project's issue 014, so
+#                these are candidates to read, not facts to paste.
+#
+# It reads and reports. It never edits an issue file: completed issues may be
+# added to but never rewritten, and deciding which hits deserve a line in the
+# issue is a judgement for whoever is doing the linking.
+#
+# Usage:
+#   issue-transcript-references                  the project below
+#   issue-transcript-references <project-dir>    another project
+#   issue-transcript-references <project-dir> <max-hits-per-issue>
+#
+# Exits 1 when the project has no issues/completed/ or no llm-transcripts/ --
+# an empty report from a project that has neither would look like "nothing was
+# ever discussed", which is a different and false statement.
+
+set -euo pipefail
+
+# {{{ Paths and settings
+# The project to read, hard-coded so the script runs from any directory and
+# overridable as the first argument (house convention).
+DIR="/home/ritz/programming/ai-stuff/delta-version"
+if [ -n "${1:-}" ]; then
+    DIR="$1"
+fi
+
+# How many hits to print per issue per strength. A long-lived issue can be
+# mentioned hundreds of times; the first few are where it was argued, the rest
+# are status chatter.
+MAX_HITS="${2:-12}"
+
+SCRIPTS_DIR="/home/ritz/programming/ai-stuff/scripts"
+ISSUES_DIR="${DIR}/issues/completed"
+TRANSCRIPTS_DIR="${DIR}/llm-transcripts"
+
+# shellcheck source=libs/transcript-discovery.sh
+source "${SCRIPTS_DIR}/libs/transcript-discovery.sh"
+# }}}
+
+# {{{ refuse_without_inputs
+# Both halves must exist; see the header for why an empty report is refused
+# rather than printed.
+refuse_without_inputs() {
+    if [ ! -d "${ISSUES_DIR}" ]; then
+        echo "issue-transcript-references: no ${ISSUES_DIR}" >&2
+        exit 1
+    fi
+    if [ ! -d "${TRANSCRIPTS_DIR}" ]; then
+        echo "issue-transcript-references: no ${TRANSCRIPTS_DIR}" >&2
+        exit 1
+    fi
+}
+# }}}
+
+# {{{ search_one_issue
+# Writes one issue's report into its own slot file. Each issue is independent,
+# so every issue is searched at once and the slots are printed in order after.
+search_one_issue() {
+    local issue_file="$1"
+    local slot_file="$2"
+    local stem
+    local number
+    local named_hits
+    local numbered_hits
+
+    stem="$(basename "${issue_file}" .md)"
+    # The number is everything before the first dash that starts a word part:
+    # 014 from 014-create-..., 522 from 522-fix-..., A03 from A03-...
+    number="${stem%%-*}"
+
+    # grep exits 1 on no match; that is an answer here, not an error.
+    named_hits="$(grep -n -F -- "${stem}" "${TRANSCRIPT_LIST[@]}" | head -n "${MAX_HITS}" || true)"
+    numbered_hits="$(grep -n -E -- "([Ii]ssue|#)[[:space:]]*${number}([^0-9A-Za-z]|$)" "${TRANSCRIPT_LIST[@]}" \
+        | grep -v -F -- "${stem}" | head -n "${MAX_HITS}" || true)"
+
+    {
+        printf '## %s\n\n' "${stem}"
+        if [ -z "${named_hits}" ] && [ -z "${numbered_hits}" ]; then
+            printf 'No transcript mentions this issue.\n\n'
+        fi
+        if [ -n "${named_hits}" ]; then
+            printf 'named:\n'
+            # Print path relative to the project, then the line, then the text
+            # trimmed to one screen line so the report stays scannable.
+            printf '%s\n' "${named_hits}" | sed -e "s|^${DIR}/||" | cut -c1-160 | sed 's/^/  /'
+            printf '\n'
+        fi
+        if [ -n "${numbered_hits}" ]; then
+            printf 'numbered (read before trusting):\n'
+            printf '%s\n' "${numbered_hits}" | sed -e "s|^${DIR}/||" | cut -c1-160 | sed 's/^/  /'
+            printf '\n'
+        fi
+    } > "${slot_file}"
+}
+# }}}
+
+# {{{ main
+main() {
+    refuse_without_inputs
+
+    # Only real transcripts, recognised by their header line -- the shared
+    # rulebook's definition, so this never disagrees with the exporter about
+    # what a transcript is.
+    mapfile -t TRANSCRIPT_LIST < <(transcript_list_files "${TRANSCRIPTS_DIR}" | sort)
+    if [ "${#TRANSCRIPT_LIST[@]}" -eq 0 ]; then
+        echo "issue-transcript-references: ${TRANSCRIPTS_DIR} holds no transcripts" >&2
+        exit 1
+    fi
+
+    local issues=()
+    mapfile -t issues < <(find "${ISSUES_DIR}" -maxdepth 1 -type f -name '*.md' | sort)
+
+    # Slots live in RAM and are removed on exit, whatever the exit.
+    local slot_dir
+    slot_dir="$(mktemp -d /dev/shm/issue-transcript-references.XXXXXX)"
+    trap 'rm -rf "'"${slot_dir}"'"' EXIT
+
+    # Assign every slot first, then fill them all at once.
+    # Each worker is waited on by name, so one that fails fails the run instead
+    # of leaving a silently missing section in the report.
+    local index=0
+    local issue_file
+    local worker_pids=()
+    for issue_file in "${issues[@]}"; do
+        search_one_issue "${issue_file}" "${slot_dir}/$(printf '%05d' "${index}")" &
+        worker_pids+=("$!")
+        index=$((index + 1))
+    done
+    local pid
+    for pid in "${worker_pids[@]}"; do
+        wait "${pid}"
+    done
+
+    printf '# Transcript references for %s\n\n' "$(basename "${DIR}")"
+    printf '%s issues, %s transcripts searched.\n\n' "${#issues[@]}" "${#TRANSCRIPT_LIST[@]}"
+    # No completed issues is a real state (a young project), so it is said
+    # rather than printed as an empty report.
+    if [ "${#issues[@]}" -eq 0 ]; then
+        printf 'No completed issues yet.\n'
+        return 0
+    fi
+    cat "${slot_dir}"/*
+}
+# }}}
+
+main
