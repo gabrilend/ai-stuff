@@ -4,36 +4,83 @@ Extracts Claude conversation transcripts from `~/.claude/projects/` and writes s
 
 Text the *harness* wrote into the user's seat — slash commands, their output, background-task notices, boilerplate caveats — is neither speaker, and is rendered as a short line of its own without taking a number in the user's sequence.
 
+Conversations with helper agents ("subagents") are saved too, beside the
+conversation that spawned them (issue 025).
+
 ## Use Cases
 
-### Backup All Conversations for a Project
-Extract and save transcripts from Claude Code sessions for a specific project.
+### After every reply: the Stop hook
+Claude Code runs this after each reply it finishes, and names the
+conversation that just paused on stdin. Only that conversation and its helpers
+are exported, so the cost follows the size of one session rather than the
+project's whole history (about 0.75 s against 10 s for a full sweep of
+minimal-soramech; issue 034).
 
-```bash
-./backup-conversations /path/to/project
+```json
+"Stop": [ { "hooks": [ { "type": "command",
+  "command": "/home/ritz/programming/ai-stuff/scripts/backup-conversations --hook",
+  "timeout": 30 } ] } ]
 ```
 
-### Backup Current Project
-Run from within a project directory to backup its conversations.
+### Sweep a whole project
+Export every conversation Claude has on record for a project, then every
+helper conversation. The sweep says how many of each it found.
 
 ```bash
-cd /home/ritz/programming/ai-stuff/my-project
-/path/to/scripts/backup-conversations
-```
-
-### Create Archive of AI Collaboration History
-Useful for documenting how AI assistance was used during development.
-
-```bash
-./backup-conversations /home/ritz/programming/ai-stuff/world-edit-to-execute
+/home/ritz/programming/ai-stuff/scripts/backup-conversations /home/ritz/programming/ai-stuff/world-edit-to-execute
 # Output: world-edit-to-execute/llm-transcripts/*.md
+```
+
+### Export one conversation by hand
+
+```bash
+/home/ritz/programming/ai-stuff/scripts/backup-conversations --session <session-id> /path/to/project
 ```
 
 ## Configuration Options
 
 | Option | Description |
 |--------|-------------|
-| `[project-dir]` | Project directory to backup (default: current directory) |
+| `--hook` | Stop-hook mode: read `session_id` and `transcript_path` from stdin; the project is `CLAUDE_PROJECT_DIR` |
+| `[--all] [project-dir]` | Sweep every conversation of a project (the default mode) |
+| `--session <id> [project-dir]` | Export one conversation and its helpers |
+| `-h`, `--help` | Print the script's header |
+
+With no project named, the project is `CLAUDE_PROJECT_DIR` when running under
+Claude Code and the current folder otherwise.
+
+Environment seams, used by the tests: `CLAUDE_SESSIONS_ROOT` (where Claude
+keeps session logs, default `~/.claude/projects`) and `SCRIPTS_DIR` (where the
+toolchain lives, default `/mnt/mtwo/programming/ai-stuff/scripts`).
+
+## Finding a project's conversations
+
+Claude Code files a project's session logs under `~/.claude/projects/`, in a
+folder named after the project's resolved path with every character that is
+not a letter or digit turned into a dash: `/mnt/mtwo/.config/nvim` becomes
+`-mnt-mtwo--config-nvim`. Helper conversations sit inside it at
+`<session-id>/subagents/agent-*.jsonl` (older ones sat loose as
+`agent-*.jsonl`; both are read).
+
+A forked helper — one that inherits its parent's conversation rather than
+starting fresh — carries its orders in an unusual shape, which the parser
+recognises by the log's opening `fork-context-ref` record (issue 025).
+
+## Failures
+
+Every failure is reported on stderr and ends the run with exit status 1, which
+Claude Code shows as a non-blocking hook error. Never status 2, which for a
+Stop hook would mean "keep working". Covered: no session folder for the
+project (and no empty `llm-transcripts/` is left behind), garbled hook input, a
+log the parser cannot read (the other logs are still exported), a missing
+tool. Two exports for the same project take turns under a lock, and write
+through unique temp files.
+
+The script's own log is kept in RAM at
+`scripts/tmp/shared-memory/backup-conversations.log` (the links
+`scripts/tmp -> /tmp/ai-stuff-scripts` and `shared-memory ->
+/dev/shm/ai-stuff-scripts` are re-created on every run), one timestamped
+header line per run.
 
 ## Capabilities
 
@@ -68,10 +115,14 @@ tomorrow if the log's date characters were taken at face value; they are
 resolved to an instant and re-read locally instead.
 
 The date token is `<lowercase-month>-<day>-<2-digit-year>`. When several
-transcripts resolve to the same span in one folder — typically a conversation
-and its agent sidechains — the first keeps the bare name and the rest take a
-suffix placed just before `.md`: `jul-3-26_agent-1.md`, `jul-3-26_agent-2.md`,
-and so on.
+transcripts resolve to the same span in one folder — a conversation and its
+helper conversations, or two conversations held the same day — the first keeps
+the bare name and the rest take a suffix placed just before `.md`:
+`jul-3-26_agent-1.md`, `jul-3-26_agent-2.md`, and so on. Main conversations are
+exported before helpers so that they hold the bare names. The suffix alone does
+not say which kind a file is; its header does (`agent-<hash>` for a helper, a
+uuid for a main conversation). Whether to split the suffix is an open question
+in issue 025.
 
 The header line `# Conversation Summary: <id>` is the file's stable identity.
 It is how this tool re-finds a conversation's file on later runs (so re-running
@@ -279,16 +330,29 @@ the date consumers sort the corpus by is the file's mtime.
 
 ## Related Functions
 
-The script defines several functions that can be sourced:
+Sourcing the file defines these, and runs nothing:
 
-- `backup-conversations` / `backup-conversation` - Main backup function
-- `write-transcripts-to-project-directory` - Core extraction logic
+- `backup-conversations` / `backup-conversation` - run the script itself as a
+  sweep of the given project (kept for tools that source this file)
 - `start-claude` - Launch Claude CLI
 - `claude-next` - Create numbered todo files for Claude
 
 ## Dependencies
 
-- Lua (LuaJIT-compatible) — the JSONL reading and markdown rendering both live in `libs/conversation-parser.lua`. Without `lua` on the path the tool prints a notice and writes nothing.
+- Lua (LuaJIT-compatible) — the JSONL reading and markdown rendering both live in `libs/conversation-parser.lua`.
+- `jq` (reads the Stop hook's input), `flock` (the per-project lock), `md5sum`.
+
+A missing tool is an error that names the tool, not a skipped backup.
+
+## Tests
+
+- `tests/test-backup-conversations-sessions.sh` — which logs each mode exports,
+  helper conversations in both layouts, forks, dotted project paths, the lock,
+  and every failure path.
+- `tests/test-transcript-export-guards.sh` — the race guard, husks, and both
+  kinds of idempotency.
+- `tests/test-transcript-wrapping.sh` and `tests/test_conversation-parser-*.lua`
+  — the transcript format.
 
 ## Related Scripts
 

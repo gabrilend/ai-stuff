@@ -422,6 +422,11 @@ local function split_envelope(text)
 
     rest = rest:gsub("<local%-command%-caveat>.-</local%-command%-caveat>", "")
     rest = rest:gsub("<system%-reminder>.-</system%-reminder>", "")
+    -- The fixed rules the harness prepends to every forked subagent's orders
+    -- ("you are a worker fork, execute one directive"). Identical in every
+    -- fork, addressed to the model, and written by neither speaker; the
+    -- directive after it is the part a reader wants (issue 025).
+    rest = rest:gsub("<fork%-boilerplate>.-</fork%-boilerplate>", "")
 
     rest = rest:gsub("<task%-notification>(.-)</task%-notification>",
         function(body)
@@ -838,6 +843,28 @@ local function parse_conversation(jsonl_file, output_file)
     -- Nothing served those replies, so they are kept out of the header list
     -- and rendered as notices rather than as prose the model wrote.
     local SYNTHETIC_MODEL = "<synthetic>"
+
+    -- Pre-pass three: is this the log of a forked subagent? A fork inherits
+    -- its parent's whole conversation instead of starting from a fresh
+    -- prompt, and its log opens with a "fork-context-ref" record pointing
+    -- back at the parent rather than repeating that history. Its first user
+    -- message is then an odd shape: the answer to the parent's spawning call
+    -- (a tool result) with the fork's directive riding along as a text block
+    -- in the same message. The main loop below skips any message that opens
+    -- with a tool result, which for a fork swallowed the directive and - with
+    -- no user turn ever opened - every word the fork said after it, leaving a
+    -- header and nothing else (issue 025). Only in a fork, and only for its
+    -- first user turn, are the text blocks of such a message read as the
+    -- request. Ordinary sessions keep the old rule untouched, so no existing
+    -- transcript changes shape.
+    local is_fork_log = false
+    for _, msg in ipairs(messages) do
+        if (msg.type or "") == "fork-context-ref" then
+            is_fork_log = true
+            break
+        end
+    end
+
     local models_seen, models_order = {}, {}
     for _, msg in ipairs(messages) do
         if (msg.type or "") == "assistant" then
@@ -988,6 +1015,14 @@ local function parse_conversation(jsonl_file, output_file)
                 if content[1].tool_use_id then
                     is_tool_result = true
                 end
+            end
+
+            -- A fork's directive: a tool result carrying the fork's orders as
+            -- text (see pre-pass three). Read it as the request only while no
+            -- user turn has been opened yet; any later tool result in a fork is
+            -- an ordinary tool result and is skipped like everywhere else.
+            if is_tool_result and is_fork_log and not current_user_uuid then
+                is_tool_result = false
             end
 
             if not is_tool_result then
