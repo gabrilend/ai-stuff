@@ -8,7 +8,7 @@
 # archive. This copies the whole thing first, checks the copy really matches,
 # and writes the means to put it all back.
 #
-# Three things go into the snapshot:
+# Two things go into the snapshot:
 #
 #   the transcripts themselves, with their modification times intact. Those
 #   times are not incidental here: for most of the archive the timestamp is
@@ -19,9 +19,6 @@
 #   It is appended to continuously, so a snapshot of the corpus without the
 #   history it was judged against cannot be re-checked later.
 #
-#   whatever plan was about to be carried out, if one is sitting in the
-#   repair tool's scratch area - so the question "what did we think we were
-#   doing?" has an answer afterwards.
 #
 # Usage:
 #   backup-transcript-corpus                  snapshot into /tmp, verify it
@@ -42,7 +39,6 @@ DIR="${DIR:-/home/ritz/programming/ai-stuff/scripts}"
 SEARCH_ROOTS=(/mnt/mtwo /mnt/cmdo /mnt/kaun)
 
 PROMPT_HISTORY="${PROMPT_HISTORY:-$HOME/.claude/history.jsonl}"
-REPAIR_WORK="${REPAIR_WORK:-/dev/shm/transcript-timezone-repair}"
 
 DESTINATION_ROOT="${DESTINATION_ROOT:-/tmp}"
 VERIFY=true
@@ -123,9 +119,6 @@ write_archive() {
 
    if [ -f "$PROMPT_HISTORY" ]; then
       cp -p "$PROMPT_HISTORY" "$snapshot/history.jsonl"
-   fi
-   if [ -f "$REPAIR_WORK/plan.tsv" ]; then
-      cp -p "$REPAIR_WORK/plan.tsv" "$snapshot/intended-plan.tsv"
    fi
 }
 # }}}
@@ -278,7 +271,6 @@ here are the only surviving record of them.
 | \`manifest.tsv\` | one line per file: path, modification time in epoch seconds, SHA-256, and the conversation id from its header |
 | \`folders.txt\` | every folder the snapshot covers |
 | \`history.jsonl\` | the prompt history as it stood, which is the evidence any date repair reasons from |
-| \`intended-plan.tsv\` | what the repair tool was about to do, if a plan existed when this was taken |
 | \`restore.sh\` | puts it all back |
 
 ## Putting it back

@@ -349,12 +349,46 @@ giving up, a second run being a no-op, and the recovery path.
   across the corpus: no folder is in that state. Files that do share an mtime
   are sidechains of one conversation, which legitimately share a last message.
 
+## What was kept, and what was retired
+
+The migration was carried out once and the archive is correct, so the tools
+built only to carry it out were removed afterwards rather than left lying
+around pretending to be part of the system. They are one commit deep and
+recoverable by name:
+
+    git show 909db5e7 -- scripts/repair-transcript-timezone
+
+Retired: `repair-transcript-timezone` and its `.info.md`,
+`libs/transcript-repair-plan.lua` and its `.info.md`,
+`tests/test-transcript-repair-plan.sh`, `tests/test-transcript-repair-apply.sh`,
+and the 60 `.timezone-repaired` notes they dropped in the transcript folders.
+The notes existed to stop the repair running twice; with no repair to run,
+nothing reads them and their instruction had no tool behind it.
+
+Kept, and not to be removed:
+
+- **the correction itself**, in `libs/conversation-parser.lua`
+- **`tests/test_conversation-parser-timezone.lua`** — the correction converts
+  a time and converts it back, which reads like pointless double work and
+  invites being "simplified" into the single call that caused all this. That
+  simplification would pass unnoticed for months. This test fails on it
+  immediately, and is the reason the fault cannot quietly return.
+- **`backup-transcript-corpus`** — nothing to do with timezones. Taking a
+  verified snapshot before doing something irreversible to the archive is a
+  standing need.
+- **the depth fix in `rederive-transcripts`**, which was two levels too
+  shallow to see a project that had a live session log all along.
+
+Anything here that needs doing again starts by recovering the tool from the
+commit above, which is also where to read what it did.
+
 ## Open questions
 
 - The transcripts in the preserved project keep names taken from a copy's
   date. Twenty-six of them could be dated from the prompt history if the
   folder's consistency were ever judged less important than its accuracy.
-  Left open deliberately rather than closed.
+  Left open deliberately rather than closed - though acting on it now means
+  recovering the retired tool from the commit named above first.
 - The day-wide window for disbelieving a stamp is a judgement, not a
   measurement. Nothing in the corpus now sits near the boundary, but nothing
   checks that either. Should the tool report its closest call, so the window

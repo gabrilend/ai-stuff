@@ -56,7 +56,6 @@ checked rather than trusted.
 | `manifest.tsv` | per file: path, modification time in epoch seconds, SHA-256, conversation id |
 | `folders.txt` | every folder covered |
 | `history.jsonl` | the prompt history as it stood — the evidence any date repair reasons from, and a file that is appended to continuously, so it cannot be recovered later |
-| `intended-plan.tsv` | what the repair tool was about to do, if a plan existed |
 | `restore.sh` | puts it back |
 | `README.md` | the above, written for whoever finds the folder cold |
 
@@ -76,5 +75,5 @@ are included, because a safety net with holes chosen by reasoning is not one.
 
 ## Related
 
-- `repair-transcript-timezone` — the thing you are usually protecting against
-- `issues/018-date-range-transcript-naming.md` — the ticket
+- `issues/018-date-range-transcript-naming.md` — the archive-wide date repair
+  this was first built for, and the kind of operation it exists to precede
