@@ -215,9 +215,9 @@ These issues provide foundational utilities and can be implemented independently
   - *Status*: Completed 2024-12-15
 
 - **Issue 031**: Import Project Histories ✅
-  - *Implemented*: `/scripts/import-project-histories.sh`
-  - *Features*: History-preserving branch import, embedded .git cleanup, master branch creation
-  - *Status*: Completed 2024-12-15
+  - *Implemented*: `/scripts/import-project-histories.sh` (first version: side branches), then `/scripts/graft-project-histories` (2026-09-22: the histories became real ancestors of the trunk)
+  - *Features*: the trunk's first commit stands on six projects' 52 earlier commits, so `git log -- <folder>/` and blame reach back to 2025; old ids kept as archive tags and translated through `archive/history-graft/commits.map`; the trunk is named main
+  - *Status*: First version completed 2024-12-15; reopened and completed again 2026-09-22
 
 ## In Progress
 - **Issue 042a**: The integration audits still unbuilt — the three `check-utilities.sh` flags (`--issue-standards`, `--transcripts`, `--tui-audit`) that print "not yet implemented". Carried out of 042 so 042 could close.
@@ -227,6 +227,7 @@ These issues provide foundational utilities and can be implemented independently
 (Issue 008, listed here until September 2026, is in `completed/`.)
 
 ## Recently Completed
+- **Issue 031**: Import Project Histories, reopened — the six projects' pre-monorepo histories are joined under the trunk's first commit, published 2026-09-22; worktrees and side branches are retired.
 - **Issue 042**: Project integration checker (`scripts/check-utilities.sh`) — moved to completed 2026-09-22; its deferred audits continue as 042a.
 - **Issue 043**: Issue initialization workflow (`scripts/initialize-issue.sh`) — moved to completed 2026-09-22 (all acceptance criteria were met in January).
 - **Issue A03**: Unified test runner — completed as superseded by the shared `scripts/test-runner.sh`.
