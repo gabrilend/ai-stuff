@@ -169,8 +169,29 @@ end
 
 local excluded_count = 0
 
+-- Issue 10-068: tooling subdirectories of the notes source (e.g. the rmail
+-- mailbox) are pruned from the walk. The sync already keeps them out of
+-- input/, but this extractor also reads ZIP extractions and any copy an older
+-- sync left behind, so it enforces the same list itself. -prune stops find
+-- from descending at all, so nothing beneath the mailbox is ever opened.
+local excluded_subdirectories = notes_directories[1].excluded_subdirectories
+local prune_expression = ""
+for _, subdirectory_name in ipairs(excluded_subdirectories) do
+    if prune_expression ~= "" then
+        prune_expression = prune_expression .. " -o "
+    end
+    prune_expression = prune_expression .. "-path "
+        .. shell_escape(notes_dir .. "/" .. subdirectory_name)
+end
+if prune_expression ~= "" then
+    print("🚫 Notes tooling subdirectories skipped: "
+        .. table.concat(excluded_subdirectories, ", "))
+    prune_expression = "\\( " .. prune_expression .. " \\) -prune -o "
+end
+
 -- Scan notes directory for files (exclude files/ subdirectory to avoid reading our own output)
-local find_cmd = string.format("find %s -type f -not -path '*/files/*'", shell_escape(notes_dir))
+local find_cmd = string.format("find %s %s-type f -not -path '*/files/*' -print",
+    shell_escape(notes_dir), prune_expression)
 local find_handle = io.popen(find_cmd)
 
 local poems_json = {}

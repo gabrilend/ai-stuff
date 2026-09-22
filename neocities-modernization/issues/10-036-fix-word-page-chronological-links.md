@@ -9,10 +9,52 @@ chronological view is split into numbered pages, the link has to name the right
 page number, and `#poem-N` alone is not enough — an anchor pointing into the
 wrong page scrolls nowhere.
 
-All three page families now do this correctly, and a regression test
-(`src/flat-html-generator.chronological-links.test.lua`) holds the behavior in
-place by asserting that poems mapped to different pages produce links to
-different pages.
+When the chronological mapping reaches the formatter, all three page families
+name the right page, and a regression test
+(`src/flat-html-generator.chronological-links.test.lua`) holds that in place by
+asserting that poems mapped to different pages produce links to different
+pages. **It does not yet hold when the mapping is missing, and the similar /
+different pages link to next pages that were never written** — see the
+reopening below.
+
+### Reopened 2026-09-22 (sorted from `next-issue-please-sort`)
+
+The owner reported:
+
+> also. clicking "chronological" takes you to chronological page 1.
+>
+> if you click "next page" then it takes you to "page not found"
+
+What the code does today (the pages themselves were not on disk to measure;
+`output/similar/`, `output/different/` and `output/chronological/` were empty on
+2026-09-22 after a forced clean):
+
+- **The "never guess" fallback still lands on page 1.** When a poem has no
+  mapping entry, or the build is not marked as paginated, the link is written as
+  `chronological/index.html#poem-…`. In a paginated build that `index.html` is a
+  meta-refresh redirect to page 01, and the redirect drops the `#poem` anchor, so
+  the reader lands at the top of page 1 — exactly what was reported. The
+  single-threaded path logs one warning when this happens; per project rule that
+  warning is an error that did not stop the build.
+- **The threaded worker falls back silently.** When the worker finds no mapping
+  entry for a poem, it substitutes a default entry saying "page 1 of 1" and
+  writes the same `index.html` link, with no warning at all.
+- **Similar / different pages link to next pages that were never written.** The
+  single-threaded page builder counts how many pages a poem's list *could* fill,
+  and the previous/next navigation writes "Next Page ▶" to page 02 whenever the
+  current page is below that count. But only the pages requested are actually
+  written (by default, page 1 only). So every such page 1 carries a Next link to
+  a file that does not exist: a certain page-not-found.
+- **`--pages all` writes one page in the worker.** The worker's page-count line
+  treats "all" as one page instead of every page.
+- **Chronological pages' own Next / Prev links are consistent** with the
+  filenames the chronological writer produces, so they are not the source of the
+  404 unless the live site is missing chronological pages (for example after a
+  partial deploy or a prune).
+- **Correction to the Code Path Analysis below:** on 2026-09-22 the threading
+  library loaded, so the threaded worker is reachable again; the single-threaded
+  path runs when the thread count is 1 or the library fails to load. Both paths
+  must be fixed.
 
 ## The two failures this issue covers
 
@@ -208,8 +250,44 @@ threading in `run.sh`'s word-cloud invocations.
   changes every answer this mapping gives. It must reuse this mapping, not
   reimplement it.
 
+## Intended Behavior
+
+- Every "chronological" link under a poem, on word pages and on similar /
+  different pages, in both renderers, opens the chronological page that holds
+  that poem and scrolls to it.
+- A poem with no chronological mapping entry stops the build with an error
+  naming the poem; no link is ever guessed.
+- Every navigation link on every generated page points at a file that was
+  actually written. A page with no written successor shows no Next link.
+- `--pages all` writes every page in both renderers.
+
+## Suggested Implementation Steps (reopening, 2026-09-22)
+
+1. Make a missing chronological mapping entry an **error** in both renderers,
+   naming the poem. Remove the worker's silent "page 1 of 1" default and the
+   single-threaded warn-once fallback.
+2. In paginated builds, never write a link through `chronological/index.html`;
+   the redirect cannot carry the `#poem` anchor. (Unpaginated builds keep
+   `index.html`, which is the real page there.)
+3. Compute "Next Page" and "Last Page" on similar / different pages from the set
+   of pages actually written, not from the number of pages the list could fill:
+   pass the list of pages being generated into the previous/next navigation
+   builder, and omit a link whose target is not in that list.
+4. Fix the worker's page count so `--pages all` writes every page.
+5. Extend `src/flat-html-generator.chronological-links.test.lua`: a poem with no
+   mapping entry must stop the build; a page-1-only build must not contain a
+   Next link to page 02.
+6. Run the whole-output link checker being built under 9-006 after every HTML
+   build: resolve every relative link under `output/` and fail on any target
+   that is missing. That check would have caught both reported symptoms.
+
 ## Open Questions
 
+- **Answered: which "next page" gave page-not-found, and at what URL?** Owner
+  (2026-09-22): "Um, I dunno." Treated as unknown. The code points at the
+  similar / different page's "Next Page ▶". Instead of relying on memory, the
+  link checker in the whole-output validator (9-006) resolves every relative
+  link under `output/` and lists each missing target. That list is the answer.
 - **The live output still carries the old links.** The fix is in the generator;
   `output/similar/` and `output/different/` were built on 2026-06-29 and are not
   regenerated by it. Whether to spend a full HTML rebuild now, or fold it into
@@ -225,5 +303,8 @@ threading in `run.sh`'s word-cloud invocations.
 
 **COMPLETED** - 2026-03-23 (word pages)
 **REOPENED / FIXED** - similar and different pages, same defect class; regression
-test added. Open questions above are unanswered, and the live site has not been
-regenerated.
+test added.
+**REOPENED** - 2026-09-22, sorted from `next-issue-please-sort`: the missing-mapping
+fallback still lands on page 1, and similar / different pages link to next pages
+that were never written. Open questions above are unanswered, and the live site
+has not been regenerated.
