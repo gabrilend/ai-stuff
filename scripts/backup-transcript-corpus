@@ -1,0 +1,347 @@
+#!/usr/bin/env bash
+# backup-transcript-corpus - Take a complete, verified, restorable snapshot of
+# every saved conversation on the machine before something rewrites them.
+#
+# In plain terms: the transcripts are the only surviving record of most of
+# these conversations - their original session logs were deleted long ago - so
+# any tool that renames or rewrites them is operating on an irreplaceable
+# archive. This copies the whole thing first, checks the copy really matches,
+# and writes the means to put it all back.
+#
+# Three things go into the snapshot:
+#
+#   the transcripts themselves, with their modification times intact. Those
+#   times are not incidental here: for most of the archive the timestamp is
+#   the only surviving evidence of when the conversation happened, so a copy
+#   that lost them would not be a backup of anything that matters.
+#
+#   the prompt history, which is the other evidence any repair reasons from.
+#   It is appended to continuously, so a snapshot of the corpus without the
+#   history it was judged against cannot be re-checked later.
+#
+#   whatever plan was about to be carried out, if one is sitting in the
+#   repair tool's scratch area - so the question "what did we think we were
+#   doing?" has an answer afterwards.
+#
+# Usage:
+#   backup-transcript-corpus                  snapshot into /tmp, verify it
+#   backup-transcript-corpus --to <dir>       somewhere else
+#   backup-transcript-corpus --no-verify      skip the re-read check
+#   backup-transcript-corpus --dir <path>     where the scripts live
+
+set -euo pipefail
+
+# -- {{{ Paths and settings
+# Hard-coded default root, overridable by environment or --dir, so the script
+# runs from any directory (house convention).
+DIR="${DIR:-/home/ritz/programming/ai-stuff/scripts}"
+
+# Where conversations might be kept. Worktrees and backup copies are included
+# deliberately: this is a safety net, and a safety net with holes chosen by
+# reasoning is not one.
+SEARCH_ROOTS=(/mnt/mtwo /mnt/cmdo /mnt/kaun)
+
+PROMPT_HISTORY="${PROMPT_HISTORY:-$HOME/.claude/history.jsonl}"
+REPAIR_WORK="${REPAIR_WORK:-/dev/shm/transcript-timezone-repair}"
+
+DESTINATION_ROOT="${DESTINATION_ROOT:-/tmp}"
+VERIFY=true
+# }}}
+
+# -- {{{ parse_arguments()
+parse_arguments() {
+   while [ $# -gt 0 ]; do
+      case "$1" in
+         --to)        shift ; DESTINATION_ROOT="${1:-$DESTINATION_ROOT}" ;;
+         --no-verify) VERIFY=false ;;
+         --dir)       shift ; DIR="${1:-$DIR}" ;;
+         --help|-h)   sed -n '2,29p' "$0" ; exit 0 ;;
+         *) echo "unknown argument: $1" >&2 ; exit 1 ;;
+      esac
+      shift
+   done
+}
+# }}}
+
+# -- {{{ find_transcript_dirs()
+# Unreadable directories are pruned rather than walked into: one that cannot
+# be opened cannot be searched either way, so declining to descend loses
+# nothing and spares the run a screenful of complaints about other people's
+# database files. Anything find still reports afterwards is genuinely new and
+# stays on stderr to be read.
+#
+# Backup directories are NOT pruned here, unlike in the repair tool. This is
+# a safety net, and a safety net with holes chosen by reasoning is not one.
+find_transcript_dirs() {
+   local root
+   for root in "${SEARCH_ROOTS[@]}"; do
+      [ -d "$root" ] || continue
+      find "$root" \( -type d ! -readable -prune \) -o \
+                   \( -type d -name llm-transcripts -print \) || true
+   done | sort -u
+}
+# }}}
+
+# -- {{{ build_manifest()
+# One line per file: where it lives, when it was last modified, what it
+# contains, and which conversation it belongs to.
+#
+# The modification time is recorded as a plain number of seconds rather than
+# left to the archive alone, because it is the single most easily destroyed
+# thing here - an ordinary copy silently replaces every one of them with the
+# time of the copy - and having it written down in text means a restore can
+# be checked rather than trusted.
+build_manifest() {
+   local snapshot="$1"
+   local folder file stamp digest identity
+
+   printf 'path\tmtime_epoch\tsha256\tconversation_id\n' > "$snapshot/manifest.tsv"
+   while read -r folder; do
+      while read -r file; do
+         stamp=$(stat -c %Y "$file")
+         digest=$(sha256sum "$file" | cut -d' ' -f1)
+         identity=$(head -1 "$file" | sed -n 's/^# Conversation Summary: //p')
+         printf '%s\t%s\t%s\t%s\n' "$file" "$stamp" "$digest" "${identity:-(not a transcript)}" \
+            >> "$snapshot/manifest.tsv"
+      done < <(find "$folder" -maxdepth 1 -type f -name '*.md' || true)
+   done < <(find_transcript_dirs)
+}
+# }}}
+
+# -- {{{ write_archive()
+# tar is used rather than a plain copy for one reason: it records ownership,
+# permissions and modification times as data inside the archive, so restoring
+# puts back what was there instead of what the restoring process happened to
+# be. Paths are stored without their leading slash and put back with -C /.
+write_archive() {
+   local snapshot="$1"
+   find_transcript_dirs > "$snapshot/folders.txt"
+   tar --create --gzip \
+       --file "$snapshot/transcripts.tar.gz" \
+       --files-from "$snapshot/folders.txt" \
+       --absolute-names --transform 's|^/||'
+
+   if [ -f "$PROMPT_HISTORY" ]; then
+      cp -p "$PROMPT_HISTORY" "$snapshot/history.jsonl"
+   fi
+   if [ -f "$REPAIR_WORK/plan.tsv" ]; then
+      cp -p "$REPAIR_WORK/plan.tsv" "$snapshot/intended-plan.tsv"
+   fi
+}
+# }}}
+
+# -- {{{ verify_archive()
+# Read the archive back and compare it against the manifest. A backup nobody
+# has read is a belief, not a backup: the failure this catches is the one
+# where the copy ran, reported success, and wrote something incomplete.
+verify_archive() {
+   local snapshot="$1"
+   local scratch="$snapshot/.verify"
+   rm -rf "$scratch"
+   mkdir -p "$scratch"
+
+   tar --extract --gzip --file "$snapshot/transcripts.tar.gz" -C "$scratch"
+
+   local checked=0 wrong_content=0 wrong_stamp=0 missing=0
+   local path stamp digest identity restored restored_digest restored_stamp
+   while IFS=$'\t' read -r path stamp digest identity; do
+      [ "$path" = "path" ] && continue
+      restored="$scratch/${path#/}"
+      if [ ! -f "$restored" ]; then
+         missing=$((missing + 1))
+         continue
+      fi
+      restored_digest=$(sha256sum "$restored" | cut -d' ' -f1)
+      restored_stamp=$(stat -c %Y "$restored")
+      [ "$restored_digest" = "$digest" ] || wrong_content=$((wrong_content + 1))
+      [ "$restored_stamp" = "$stamp" ]   || wrong_stamp=$((wrong_stamp + 1))
+      checked=$((checked + 1))
+   done < "$snapshot/manifest.tsv"
+
+   rm -rf "$scratch"
+
+   echo "  files checked against the manifest : $checked"
+   echo "  missing from the archive           : $missing"
+   echo "  contents that differ               : $wrong_content"
+   echo "  modification times that differ     : $wrong_stamp"
+
+   if [ "$missing" -eq 0 ] && [ "$wrong_content" -eq 0 ] && [ "$wrong_stamp" -eq 0 ]; then
+      echo "  VERIFIED - the archive reproduces the corpus exactly"
+      return 0
+   fi
+   echo "  FAILED - do not rely on this snapshot" >&2
+   return 1
+}
+# }}}
+
+# -- {{{ write_restore_script()
+# The restore is deliberately awkward to trigger and trivial to rehearse.
+# Putting files back is the dangerous direction, so the default is to say
+# what would happen and do nothing.
+write_restore_script() {
+   local snapshot="$1"
+   cat > "$snapshot/restore.sh" <<'RESTORE'
+#!/usr/bin/env bash
+# restore.sh - Put this snapshot's transcripts back where they came from.
+#
+# Restoring overwrites whatever is there now, so by default this only says
+# what it would do. Pass --confirm to actually write.
+#
+#   ./restore.sh                 list what would be restored, change nothing
+#   ./restore.sh --confirm       restore every file, modification times included
+#   ./restore.sh --confirm --only <path>   restore one subtree
+
+set -euo pipefail
+
+# The snapshot is wherever this script is. Resolved without moving anywhere,
+# so running it from another directory cannot change what it points at.
+SNAPSHOT="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+CONFIRM=false
+ONLY=""
+
+while [ $# -gt 0 ]; do
+   case "$1" in
+      --confirm) CONFIRM=true ;;
+      --only)    shift ; ONLY="${1:-}" ;;
+      *) echo "unknown argument: $1" >&2 ; exit 1 ;;
+   esac
+   shift
+done
+
+if [ "$CONFIRM" = false ]; then
+   echo "Would restore from: $SNAPSHOT"
+   echo ""
+   echo "Folders held in this snapshot:"
+   cat "$SNAPSHOT/folders.txt"
+   echo ""
+   echo "Files held: $(( $(wc -l < "$SNAPSHOT/manifest.tsv") - 1 ))"
+   echo ""
+   echo "Nothing written. Re-run with --confirm to restore."
+   exit 0
+fi
+
+# -C / puts each stored path back at its original absolute location, and
+# tar's own record of the modification times is what makes this a restore
+# rather than a copy - the timestamps are evidence, not decoration.
+if [ -n "$ONLY" ]; then
+   tar --extract --gzip --file "$SNAPSHOT/transcripts.tar.gz" \
+       -C / --wildcards "${ONLY#/}*"
+else
+   tar --extract --gzip --file "$SNAPSHOT/transcripts.tar.gz" -C /
+fi
+
+echo "Restored. Checking against the manifest:"
+bad=0
+while IFS=$'\t' read -r path stamp digest identity; do
+   [ "$path" = "path" ] && continue
+   if [ -n "$ONLY" ]; then
+      case "$path" in "$ONLY"*) : ;; *) continue ;; esac
+   fi
+   [ -f "$path" ] || { echo "  missing: $path"; bad=$((bad+1)); continue; }
+   now_digest=$(sha256sum "$path" | cut -d' ' -f1)
+   [ "$now_digest" = "$digest" ] || { echo "  differs: $path"; bad=$((bad+1)); }
+done < "$SNAPSHOT/manifest.tsv"
+[ "$bad" -eq 0 ] && echo "  all restored files match the manifest" || echo "  $bad problem(s)"
+RESTORE
+   chmod +x "$snapshot/restore.sh"
+}
+# }}}
+
+# -- {{{ write_readme()
+write_readme() {
+   local snapshot="$1"
+   local volatility_note=""
+   case "$DESTINATION_ROOT" in
+      /tmp*|/dev/shm*)
+         volatility_note="This snapshot sits on a RAM-backed filesystem. It protects against the repair going wrong. It does **not** survive a reboot. Copy it onto a disk if it needs to outlive one."
+         ;;
+      *)
+         volatility_note="This snapshot is on ordinary storage and survives a reboot."
+         ;;
+   esac
+
+   cat > "$snapshot/README.md" <<README
+# Transcript corpus snapshot
+
+Taken $(date '+%Y-%m-%d %H:%M:%S %Z') by \`backup-transcript-corpus\`.
+
+A complete copy of every saved conversation on the machine, taken before a
+tool rewrote their names and modification times. For most of these
+conversations the original session log was deleted long ago, so the files
+here are the only surviving record of them.
+
+## What is in here
+
+| file | what it holds |
+| --- | --- |
+| \`transcripts.tar.gz\` | every transcript folder, with modification times and permissions recorded inside the archive |
+| \`manifest.tsv\` | one line per file: path, modification time in epoch seconds, SHA-256, and the conversation id from its header |
+| \`folders.txt\` | every folder the snapshot covers |
+| \`history.jsonl\` | the prompt history as it stood, which is the evidence any date repair reasons from |
+| \`intended-plan.tsv\` | what the repair tool was about to do, if a plan existed when this was taken |
+| \`restore.sh\` | puts it all back |
+
+## Putting it back
+
+    ./restore.sh                        say what would happen, change nothing
+    ./restore.sh --confirm              restore everything
+    ./restore.sh --confirm --only /mnt/mtwo/programs/r-mail
+
+The restore checks every file it wrote against the manifest afterwards and
+reports anything that does not match.
+
+## Why the modification times matter
+
+They are not incidental. For most of this archive the file's timestamp is the
+only surviving evidence of when the conversation happened, which is why the
+manifest records each one as a number in text as well as leaving it to the
+archive. An ordinary \`cp -r\` would have replaced every one of them with the
+time of the copy, and would have looked like it worked.
+
+## Where this lives
+
+$volatility_note
+README
+}
+# }}}
+
+# -- {{{ main()
+main() {
+   parse_arguments "$@"
+   DIR=$(realpath "$DIR")
+
+   local snapshot="$DESTINATION_ROOT/transcript-corpus-backup-$(date '+%Y%m%d-%H%M%S')"
+   mkdir -p "$snapshot"
+
+   echo "Snapshotting the transcript corpus into:"
+   echo "  $snapshot"
+   echo ""
+
+   echo "Reading the corpus..."
+   build_manifest "$snapshot"
+   local files
+   files=$(( $(wc -l < "$snapshot/manifest.tsv") - 1 ))
+   echo "  files found: $files"
+
+   echo "Writing the archive..."
+   write_archive "$snapshot"
+   echo "  archive size: $(du -h "$snapshot/transcripts.tar.gz" | cut -f1)"
+
+   write_restore_script "$snapshot"
+   write_readme "$snapshot"
+
+   if [ "$VERIFY" = true ]; then
+      echo "Verifying by reading it back..."
+      verify_archive "$snapshot"
+   else
+      echo "Verification skipped by request."
+   fi
+
+   echo ""
+   echo "Snapshot complete."
+   echo "  rehearse a restore : $snapshot/restore.sh"
+   echo "  restore for real   : $snapshot/restore.sh --confirm"
+}
+# }}}
+
+main "$@"
