@@ -1,10 +1,47 @@
 #!/bin/bash
+#
+# filesystem_scanner.sh
+#
+# Walks a folder and writes one plain-text picture of everything inside it --
+# every subfolder as an indented tree, every file with its size, every symlink
+# with where it points -- followed by totals. The picture is meant to be handed
+# to a language model as context ("here is what this machine holds"), so it is
+# plain text with a fixed layout. It can also put itself in cron to redraw the
+# picture weekly.
+#
+# Where things go, and why:
+#   - The picture is written to the scripts folder's RAM artifact tier,
+#     tmp/shared-memory/filesystem-scanner/, named after the scanned folder.
+#     It is a regenerable artifact, so it lives in RAM; and it is never
+#     written INTO the folder being scanned. An earlier version did, which
+#     meant scanning / (its old default) tried to write /filesystem_hierarchy.txt
+#     and every scan of a project left a file in that project.
+#   - The folder scanned by default is the ai-stuff monorepo (DIR below),
+#     not /. Scanning the whole machine is still possible; it just has to be
+#     asked for by name.
+#   - Cron is only ever touched by the explicit --install-cron and
+#     --uninstall-cron commands, and the cron job logs into the same RAM tier
+#     (the old /var/log path is not writable by a normal user, so every cron
+#     run failed to log).
+#
+# Usage:
+#   filesystem_scanner.sh [folder] [-o output-file]
+#   filesystem_scanner.sh --install-cron [folder]
+#   filesystem_scanner.sh --uninstall-cron
+#   filesystem_scanner.sh --show-cron [folder]
+#   filesystem_scanner.sh -h
 
-# Default directory path - can be overridden by argument
-DIR="${1:-/}"
+# The folder scanned when none is named. Hard-coded per the house rule;
+# override with the first argument.
+DIR="/home/ritz/programming/ai-stuff"
 
-# Output file for the filesystem hierarchy
-OUTPUT_FILE="${DIR%/}/filesystem_hierarchy.txt"
+# Where this script and its RAM tier live.
+SCRIPTS_DIR="/home/ritz/programming/ai-stuff/scripts"
+ARTIFACT_DIR="${SCRIPTS_DIR}/tmp/shared-memory/filesystem-scanner"
+
+# Output file; set from the scanned folder's name once arguments are read,
+# unless -o names one.
+OUTPUT_FILE=""
 
 # Cron job configuration - modify these human-readable values as needed
 CRON_MINUTE=0              # 0-59: Minute of the hour
@@ -13,12 +50,11 @@ CRON_DAY_OF_MONTH="*"      # 1-31 or "*": Day of month (* = every day)
 CRON_MONTH="*"             # 1-12 or "*": Month (* = every month)
 CRON_DAY_OF_WEEK=0         # 0-7 or "*": Day of week (0=Sunday, 7=Sunday, * = every day)
 CRON_USER="$(whoami)"      # Current user
-CRON_LOG_FILE="/var/log/filesystem_scanner.log"
+CRON_LOG_FILE="${ARTIFACT_DIR}/cron.log"
 CRON_COMMENT="# Automated filesystem hierarchy scanner"
 
-# Get absolute path of this script
-SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-
+# Absolute path of this script, for the cron line.
+SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
 # {{{ build_cron_schedule
 build_cron_schedule() {
     CRON_SCHEDULE="$CRON_MINUTE $CRON_HOUR $CRON_DAY_OF_MONTH $CRON_MONTH $CRON_DAY_OF_WEEK"
@@ -96,10 +132,10 @@ print_usage() {
     build_cron_schedule
     local human_schedule=$(get_human_readable_schedule)
     
-    echo "Usage: $0 [directory_path|--install-cron|--uninstall-cron]"
+    echo "Usage: $0 [folder] [-o output-file]   |   --install-cron [folder]   |   --uninstall-cron   |   --show-cron [folder]"
     echo "Scans filesystem hierarchy and creates text display for LLM processing"
-    echo "Default directory: / (entire filesystem)"
-    echo "Output: filesystem_hierarchy.txt in specified directory"
+    echo "Default folder: $DIR"
+    echo "Output: $ARTIFACT_DIR/<folder-name>-hierarchy.txt (RAM; never inside the scanned folder)"
     echo ""
     echo "Cron job options:"
     echo "  --install-cron    Install cron job with schedule: $human_schedule"
@@ -364,6 +400,37 @@ main_execution() {
 }
 # }}}
 
+# {{{ prepare_output
+# Settles the output path and makes sure the RAM tier behind it exists (it is
+# erased by every reboot). Stops, rather than writing somewhere else, if the
+# tier cannot be built.
+prepare_output() {
+    # shellcheck source=libs/ensure-ram-tiers
+    source "${SCRIPTS_DIR}/libs/ensure-ram-tiers"
+    ensure_ram_tiers "$SCRIPTS_DIR" || exit 1
+    mkdir -p "$ARTIFACT_DIR"
+    if [[ -z "$OUTPUT_FILE" ]]; then
+        local name
+        name="$(realpath "$DIR" | sed 's|^/||; s|/|-|g')"
+        [[ -z "$name" ]] && name="root"
+        OUTPUT_FILE="${ARTIFACT_DIR}/${name}-hierarchy.txt"
+    fi
+}
+# }}}
+
+# {{{ read_folder_and_output
+# Reads "[folder] [-o file]" from what follows a command.
+read_folder_and_output() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -o|--output) OUTPUT_FILE="$2"; shift 2 ;;
+            -*) echo "Unknown option: $1" >&2; print_usage; exit 1 ;;
+            *) DIR="$1"; shift ;;
+        esac
+    done
+}
+# }}}
+
 # Handle command line arguments
 case "${1:-}" in
     -h|--help)
@@ -371,6 +438,10 @@ case "${1:-}" in
         exit 0
         ;;
     --install-cron)
+        shift
+        read_folder_and_output "$@"
+        validate_directory
+        prepare_output
         install_cronjob
         exit 0
         ;;
@@ -379,10 +450,14 @@ case "${1:-}" in
         exit 0
         ;;
     --show-cron)
+        shift
+        read_folder_and_output "$@"
         show_cronjob_config
         exit 0
         ;;
     *)
+        read_folder_and_output "$@"
+        prepare_output
         main_execution
         ;;
 esac
