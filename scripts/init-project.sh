@@ -30,15 +30,23 @@
 # send your source code somewhere still can. This walls off the disk. Treat the
 # network as unguarded, because it is.
 #
-# It also does not, yet, carry work back out of the sandbox on commit. That
-# half depends on an unsettled question about how the monorepo's branches
-# should be arranged, and is marked below as a seam rather than guessed at.
-# Until then the sandbox is a one-way copy and RAM is volatile, which is the
+# Work leaves the sandbox by being committed and by no other route. The
+# launcher starts carry-back.sh alongside the session, and it copies each new
+# commit into the real repository on disk within a few seconds, then once more
+# on the way out. Anything not committed is still only in RAM, which is the
 # single most important thing the generated CLAUDE.md tells the agent.
+#
+# THE TWO HALVES
+#
+# The skeleton (folders, table of contents, index counter, phase-demo picker,
+# RAM scratch tiers, .gitignore lines) is wanted by every project anywhere. The
+# sandbox needs a monorepo checkout to clone from. --skeleton-only builds the
+# first half alone, for any folder, inside the monorepo or not.
 #
 # USAGE
 #
 #   init-project.sh <name>                    create a project and its sandbox
+#   init-project.sh --skeleton-only <path>    lay out a project anywhere; no sandbox
 #   init-project.sh --refresh <name>          rebuild the sandbox for a project
 #   init-project.sh --writable <path> <name>  bind an ignored path read-write
 #   init-project.sh --dir <path> <name>       operate on a different monorepo
@@ -89,6 +97,8 @@ SANDBOX_PATH=""
 SANDBOX_PROJECT_PATH=""
 OBJECT_LINK_PATH=""
 REFRESH_ONLY="no"
+SKELETON_ONLY="no"
+SKELETON_TARGET=""
 UNSAVED_WORK=""
 
 # The branch the sandbox works on. Defaults to the trunk, because a sandbox is
@@ -105,6 +115,14 @@ declare -a IGNORED_PATHS=()
 # script from somewhere other than the monorepo it is pointed at.
 SELF_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 
+# The RAM tier layout is not written in this script. It lives in one shared
+# library that the session-start hook and every run script also use, so the
+# layout cannot drift between the tool that creates it and the tools that
+# repair it. The library sits beside this script, found through SELF_PATH
+# rather than DIR, because DIR is the monorepo and the scripts may be elsewhere.
+# shellcheck source=libs/ensure-ram-tiers
+source "${SELF_PATH%/*}/libs/ensure-ram-tiers"
+
 # {{{ print_usage()
 print_usage() {
     cat <<'USAGE'
@@ -113,6 +131,12 @@ init-project.sh - create a project and a sandbox it cannot escape
   init-project.sh <name>
       Create ai-stuff/<name> with the standard skeleton, then provision a
       RAM-backed sandbox for it and write a launcher.
+
+  init-project.sh --skeleton-only <path>
+      Lay out the standard skeleton in <path>, which may be anywhere, inside
+      the monorepo or not, and need not exist yet. No clone, no sandbox, no
+      launcher, and no sandbox notice in CLAUDE.md. Safe to re-run: it only
+      adds what is missing.
 
   init-project.sh --refresh <name>
       Leave the project alone; rebuild the sandbox and launcher from current
@@ -146,10 +170,14 @@ fail() {
 }
 # }}}
 
-# {{{ require_tools()
+# {{{ require_sandbox_tools()
 # Checked up front rather than discovered halfway through provisioning, because
 # a half-built sandbox is worse than no sandbox: it looks ready and isn't.
-require_tools() {
+#
+# These are the sandbox's needs only. The skeleton half uses nothing beyond
+# coreutils, so --skeleton-only never calls this: a machine without bubblewrap
+# can still lay out a project.
+require_sandbox_tools() {
     local tool
     for tool in bwrap git rsync; do
         command -v "$tool" >/dev/null 2>&1 \
@@ -165,6 +193,19 @@ require_tools() {
     if [ "${namespace_limit}" -lt 1 ]; then
         fail "unprivileged user namespaces are disabled; bwrap cannot isolate anything"
     fi
+
+    # The sandbox is a shared clone of the monorepo, so DIR has to be the top
+    # of a git checkout. When it is not, the right move is to say so and name
+    # the flag that does the half that can work - not to quietly do that half
+    # instead. Someone who typed a bare project name asked for a sandbox, and
+    # a skeleton delivered in its place would be a fallback they never chose.
+    local toplevel
+    toplevel=$(git -C "${DIR}" rev-parse --show-toplevel 2>&1) \
+        || fail "${DIR} is not a git checkout, so there is nothing to clone a sandbox from.
+       To lay out the project without a sandbox, run:
+       ${SELF_PATH} --skeleton-only ${DIR}/${PROJECT_NAME}"
+    [ "$(realpath "${toplevel}")" = "$(realpath "${DIR}")" ] \
+        || fail "${DIR} is inside the git checkout at ${toplevel}, not the top of one; point --dir at the top"
 }
 # }}}
 
@@ -179,6 +220,14 @@ parse_arguments() {
             --branch)
                 [ $# -ge 2 ] || fail "--branch needs a branch name"
                 SANDBOX_BRANCH="$2"
+                shift 2
+                ;;
+            --skeleton-only)
+                # A path, not a name: the whole point is that it may be
+                # anywhere, so it cannot be spelled relative to DIR.
+                [ $# -ge 2 ] || fail "--skeleton-only needs a path"
+                SKELETON_ONLY="yes"
+                SKELETON_TARGET="$2"
                 shift 2
                 ;;
             --refresh)
@@ -208,6 +257,11 @@ parse_arguments() {
                 ;;
         esac
     done
+
+    if [ "${SKELETON_ONLY}" = "yes" ]; then
+        settle_skeleton_target
+        return 0
+    fi
 
     [ -n "${PROJECT_NAME}" ] || { print_usage; exit 1; }
 
@@ -243,6 +297,32 @@ parse_arguments() {
 }
 # }}}
 
+# {{{ settle_skeleton_target()
+# Turns the --skeleton-only path into PROJECT_PATH and PROJECT_NAME, refusing
+# combinations that would mean the person asked for two different things.
+settle_skeleton_target() {
+    # The sandbox flags describe a sandbox. Given alongside --skeleton-only they
+    # would be silently ignored, and a flag that does nothing is a lie in the
+    # command line, so they are refused instead.
+    [ -z "${PROJECT_NAME}" ] \
+        || fail "--skeleton-only takes a path, not a project name as well (got '${PROJECT_NAME}')"
+    [ "${REFRESH_ONLY}" = "no" ] || fail "--refresh rebuilds a sandbox; --skeleton-only builds none"
+    [ "${#WRITABLE_PATHS[@]}" -eq 0 ] || fail "--writable is a sandbox mount option; --skeleton-only builds no sandbox"
+
+    # A file is the one thing that cannot become a project. A missing folder is
+    # fine - it is created - and an existing one gains only what it lacks.
+    [ ! -e "${SKELETON_TARGET}" ] || [ -d "${SKELETON_TARGET}" ] \
+        || fail "not a folder: ${SKELETON_TARGET}"
+
+    # -m because the folder may not exist yet; -s so a path through a symlink
+    # (/home/ritz is one) keeps the spelling the person used, which is the
+    # spelling the generated scripts will carry as their DIR.
+    PROJECT_PATH=$(realpath -m -s -- "${SKELETON_TARGET}")
+    PROJECT_NAME=$(basename -- "${PROJECT_PATH}")
+    [ "${PROJECT_PATH}" != "/" ] || fail "refusing to lay out a project at /"
+}
+# }}}
+
 # {{{ create_project_skeleton()
 # The standard folder set. mkdir -p throughout, so an existing project gains
 # any directories it is missing and loses nothing it already has - which is
@@ -252,6 +332,13 @@ create_project_skeleton() {
 
     local subdirectory
     for subdirectory in docs notes src libs assets issues issues/completed scripts; do
+        mkdir -p "${target}/${subdirectory}"
+    done
+
+    # Where the conventions put their outputs: generated HTML documentation,
+    # the phase demos (which are part of the deliverable, not scrap), and the
+    # conversation record that rides along with every commit.
+    for subdirectory in docs/HTML issues/completed/demos llm-transcripts; do
         mkdir -p "${target}/${subdirectory}"
     done
 
@@ -278,8 +365,125 @@ and issue files do not; they have their own indexes.
 ## Phases
 Phases group related functionality, not calendar time. It is normal for the
 last issue completed in a project to belong to phase 1.
+
+## Project files
+- .file-index-counter - the highest reading-order index used by any file in
+  the project, so a new file can take the next number without a search.
+- run-phase-demo - asks which completed phase to demonstrate, then runs it.
 EOF
     fi
+
+    # The reading-order counter. Written only when absent, because the number
+    # in an existing one is the project's real high-water mark and resetting it
+    # would hand out indices that are already taken.
+    #
+    # The name on disk is .file-index-counter (hidden, as the counter projects
+    # already use it); CLAUDE.md spells it "file-index-counter" and calls it
+    # hidden, which is the same file described without its dot.
+    if [ ! -e "${target}/.file-index-counter" ]; then
+        printf '000\n' > "${target}/.file-index-counter"
+    fi
+
+    # The first phase's progress file, so the file every completed issue must
+    # update exists before the first issue is completed. Only when absent.
+    if [ ! -e "${target}/issues/phase-1-progress.md" ]; then
+        cat > "${target}/issues/phase-1-progress.md" <<'EOF'
+# Phase 1 Progress
+
+## Goals
+(What this phase's cluster of functionality is for. Copied from the roadmap
+when the roadmap is written.)
+
+## Completed Issues
+(None yet. Each completed issue adds a line here saying what it built and how
+it moves the phase toward its goals.)
+EOF
+    fi
+
+    write_phase_demo_picker "${target}"
+}
+# }}}
+
+# {{{ write_phase_demo_picker()
+# Writes the root script that asks which phase to demonstrate and runs it.
+# Written only when absent, so a project's own hand-tuned picker survives.
+#
+# The generated script carries PROJECT_PATH as its DIR - the real path, even
+# when the file is being written into a sandbox, because the sandbox presents
+# itself at the real path and that is where the script will run.
+write_phase_demo_picker() {
+    local target="$1"
+    local picker="${target}/run-phase-demo"
+    [ ! -e "${picker}" ] || return 0
+
+    cat > "${picker}" <<EOF
+#!/usr/bin/env bash
+#
+# run-phase-demo - the front door to this project's phase demonstrations.
+#
+# Each phase of development ends with a demo: a runnable program showing what
+# that phase built, recombining tools from earlier phases. The demos are part of
+# what the project delivers and are kept working. This script finds every demo
+# that exists, offers them by number, and runs the one picked.
+#
+# A demo is issues/completed/demos/phase-N-demo, executable; any other file in
+# that folder supports one of them. Phases are found by listing, not by counting
+# to nine, so phase 10 and beyond are offered like any other.
+#
+# Usage:
+#   ./run-phase-demo              ask which phase
+#   ./run-phase-demo 3            run phase 3's demo
+#   ./run-phase-demo <dir> [N]    the same, for the project at <dir>
+
+DIR="${PROJECT_PATH}"
+if [ -d "\${1:-}" ]; then
+    DIR="\$1"
+    shift
+fi
+
+DEMO_DIR="\${DIR}/issues/completed/demos"
+if [ ! -d "\${DEMO_DIR}" ]; then
+    echo "No demos folder at \${DEMO_DIR}; is \${DIR} the project root?" >&2
+    exit 1
+fi
+
+# Collect the phase numbers of executable demos, in numeric order.
+PHASES=()
+for DEMO in "\${DEMO_DIR}"/phase-*-demo; do
+    [ -x "\${DEMO}" ] || continue
+    NUMBER="\${DEMO##*/phase-}"
+    NUMBER="\${NUMBER%-demo}"
+    case "\${NUMBER}" in
+        # A phase number is digits only; anything else is a support file.
+        ''|*[!0-9]*) continue ;;
+        *) PHASES+=("\${NUMBER}") ;;
+    esac
+done
+mapfile -t PHASES < <(printf '%s\n' "\${PHASES[@]}" | sort -n | sed '/^\$/d')
+
+if [ "\${#PHASES[@]}" -eq 0 ]; then
+    echo "No phase has a demo yet. Each phase ends with one, at:"
+    echo "    \${DEMO_DIR}/phase-N-demo"
+    exit 0
+fi
+
+CHOICE="\${1:-}"
+if [ -z "\${CHOICE}" ]; then
+    echo "Phases with a demo: \${PHASES[*]}"
+    printf 'Which phase (1-%s)? ' "\${PHASES[\${#PHASES[@]}-1]}"
+    read -r CHOICE
+fi
+
+for NUMBER in "\${PHASES[@]}"; do
+    if [ "\${CHOICE}" = "\${NUMBER}" ]; then
+        exec "\${DEMO_DIR}/phase-\${NUMBER}-demo" "\${DIR}"
+    fi
+done
+
+echo "Phase \${CHOICE} has no demo. Phases with one: \${PHASES[*]}" >&2
+exit 1
+EOF
+    chmod +x "${picker}"
 }
 # }}}
 
@@ -288,18 +492,15 @@ EOF
 # /dev/shm/<name> for things that get written and read but never run. The
 # project reaches both through a single tmp/ symlink in its root, so nothing in
 # the project ever has to name an absolute path outside itself.
+#
+# The layout itself lives in libs/ensure-ram-tiers (see issue 033), shared with
+# the session-start hook that rebuilds the tiers after a reboot and with every
+# run script that writes into tmp/. Ensure mode creates the link when the
+# project has none and otherwise honours the one it has, so re-running this on
+# a project whose tmp/ points at a custom name no longer re-points it.
 link_ram_directories() {
-    local exec_tier="/tmp/${PROJECT_NAME}"
-    local artifact_tier="/dev/shm/${PROJECT_NAME}"
-
-    mkdir -p "${exec_tier}/tmp"
-    mkdir -p "${artifact_tier}"
-
-    # ln -sfn rather than plain ln -s: without -n, pointing a symlink at a
-    # directory that already exists as a symlink creates a link *inside* it,
-    # and you end up with tmp/tmp/tmp after enough re-runs.
-    ln -sfn "${exec_tier}" "${PROJECT_PATH}/tmp"
-    ln -sfn "${artifact_tier}" "${exec_tier}/shared-memory"
+    ensure_ram_tiers "${PROJECT_PATH}" \
+        || fail "could not set up the RAM scratch tiers for ${PROJECT_PATH} (see the message above)"
 }
 # }}}
 
@@ -307,8 +508,16 @@ link_ram_directories() {
 # Only ever adds lines, and only ones that are missing. A .gitignore is a file
 # people edit by hand, so rewriting it wholesale would throw away decisions
 # somebody made on purpose.
+#
+# The wanted lines are passed in rather than held here, because the two halves
+# want different lists: the sandbox adds its generated launcher, while a
+# skeleton-only project has no launcher and would carry a meaningless line.
+#
+#   write_project_gitignore <project-dir> <line>...
 write_project_gitignore() {
     local gitignore="$1/.gitignore"
+    shift
+    local -a wanted=("$@")
 
     # Created only when absent, never touched when present. An unconditional
     # `touch` here bumped the modification time on every run, which the
@@ -318,11 +527,6 @@ write_project_gitignore() {
     if [ ! -f "${gitignore}" ]; then
         : > "${gitignore}"
     fi
-
-    local -a wanted=(
-        "tmp"
-        "scripts/enter-sandbox.sh"
-    )
 
     local entry
     for entry in "${wanted[@]}"; do
@@ -514,13 +718,19 @@ sandbox_has_unsaved_work() {
     # and so destroy the one case it exists to catch.
     #
     # The cost is narrow and worth stating: an edit made inside the sandbox to
-    # one of these four files, outside its generated region, is not protected
-    # by this check.
+    # one of these files, outside its generated region, is not protected by
+    # this check until it is committed. The last three are seeded by the
+    # skeleton only when absent; without them here, a brand-new project's very
+    # first --refresh would refuse, because the seeds exist in the sandbox and
+    # not yet on disk.
     exclusions+=(
         --exclude '/CLAUDE.md'
         --exclude '/.gitignore'
         --exclude '/scripts/enter-sandbox.sh'
         --exclude '/docs/table-of-contents.md'
+        --exclude '/.file-index-counter'
+        --exclude '/run-phase-demo'
+        --exclude '/issues/phase-1-progress.md'
     )
 
     UNSAVED_WORK=$(rsync --archive --checksum --itemize-changes --dry-run \
@@ -1052,10 +1262,36 @@ report() {
 }
 # }}}
 
-# {{{ main()
-main() {
-    parse_arguments "$@"
-    require_tools
+# {{{ report_skeleton_only()
+# Says which half ran, and why the other did not, rather than being silent
+# about the half it skipped.
+report_skeleton_only() {
+    printf '\n'
+    printf '  project   %s\n' "${PROJECT_PATH}"
+    printf '  scratch   %s -> %s\n' "${PROJECT_PATH}/tmp" "$(readlink "${PROJECT_PATH}/tmp")"
+    printf '  demos     %s/run-phase-demo\n' "${PROJECT_PATH}"
+    printf '\n  sandbox   not built: --skeleton-only lays out the folders only.\n'
+    printf '            For a sandbox, the project must live in a monorepo checkout:\n'
+    printf '            %s <name>\n\n' "${SELF_PATH}"
+}
+# }}}
+
+# {{{ run_skeleton_only()
+# The half every project wants, written straight into the real folder. The
+# sandbox's single-writer rule does not apply: with no sandbox there is no
+# carry-back competing for the directory.
+run_skeleton_only() {
+    mkdir -p "${PROJECT_PATH}"
+    create_project_skeleton "${PROJECT_PATH}"
+    write_project_gitignore "${PROJECT_PATH}" "tmp"
+    link_ram_directories
+    report_skeleton_only
+}
+# }}}
+
+# {{{ run_with_sandbox()
+run_with_sandbox() {
+    require_sandbox_tools
 
     if [ "${REFRESH_ONLY}" = "yes" ]; then
         [ -d "${PROJECT_PATH}" ] || fail "no such project to refresh: ${PROJECT_PATH}"
@@ -1076,7 +1312,7 @@ main() {
     # Everything from here writes into the sandbox. mkdir -p and the marker
     # block make each of these safe on a project that already has content.
     create_project_skeleton "${SANDBOX_PROJECT_PATH}"
-    write_project_gitignore "${SANDBOX_PROJECT_PATH}"
+    write_project_gitignore "${SANDBOX_PROJECT_PATH}" "tmp" "scripts/enter-sandbox.sh"
     write_sandbox_notice
 
     # The launcher is the exception that proves the rule: it is gitignored, so
@@ -1088,6 +1324,20 @@ main() {
         "${SANDBOX_PROJECT_PATH}/scripts/enter-sandbox.sh"
 
     report
+}
+# }}}
+
+# {{{ main()
+# Two ways through, chosen by a table rather than an if/else, so a third half
+# (should one ever exist) is one row here.
+main() {
+    parse_arguments "$@"
+
+    declare -A halves=(
+        [yes]=run_skeleton_only
+        [no]=run_with_sandbox
+    )
+    "${halves[${SKELETON_ONLY}]}"
 }
 # }}}
 
