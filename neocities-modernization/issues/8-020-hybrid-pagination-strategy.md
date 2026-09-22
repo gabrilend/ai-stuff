@@ -26,6 +26,18 @@ Issue 8-012 implemented a pagination system for all pages. This issue refines th
 3. **UX reality** - For similarity/diversity, top-N is actually more useful than full corpus
 4. **Future planning** - Must reserve space for Phase 11 maze generation
 
+## Current Behavior
+
+Similar / different pages are paginated, but on 2026-09-22 a known defect in
+the page set was found: the single-threaded page builder writes "Next Page ▶"
+and "Last Page" links based on how many pages a poem's list *could* fill, while
+only the requested pages (by default page 1) are actually written. So page 1
+links to a page 02 that does not exist, and the reader gets page-not-found. The
+threaded worker also treats `--pages all` as one page. The fix (navigation
+computed from the pages actually written) is tracked in 10-036, which is where
+the owner's report was sorted; whichever page limit this issue settles on must
+reach the navigation builder as the list of written pages.
+
 ## Intended Behavior
 
 ### Chronological Index (FULL)

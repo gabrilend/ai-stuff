@@ -186,6 +186,15 @@ local function run_rsync(source_path, dest_path, options)
         rsync_opts = rsync_opts .. " --ignore-existing"
     end
 
+    -- Issue 10-068: the leading slash anchors each exclude to the top of the
+    -- transfer, so "rmail" skips <source>/rmail/ but not some deeper folder
+    -- that happens to share the name. The trailing slash limits it to
+    -- directories. Names were checked to be single path components by
+    -- sync_source before we get here.
+    for _, subdirectory_name in ipairs(options.excluded_subdirectories or {}) do
+        rsync_opts = rsync_opts .. " --exclude='/" .. subdirectory_name .. "/'"
+    end
+
     -- Ensure destination directory exists
     os.execute("mkdir -p '" .. dest_path .. "'")
 
@@ -266,9 +275,61 @@ function M.sync_source(source_entry)
         }
     end
 
+    -- Issue 10-068: tooling subdirectories inside a source (e.g. the rmail
+    -- mailbox inside the notes directory). Each name must be one plain path
+    -- component that exists under the source: a slash or ".." would let the
+    -- stale-copy removal below reach outside input/, and a name that matches
+    -- nothing means the config has drifted from the disk -- both refuse the
+    -- sync rather than continue on a guess.
+    local excluded_subdirectories = source_entry.excluded_subdirectories or {}
+    for _, subdirectory_name in ipairs(excluded_subdirectories) do
+        if subdirectory_name == "" or subdirectory_name:find("/", 1, true)
+           or subdirectory_name == "." or subdirectory_name == ".."
+           or subdirectory_name:find("'", 1, true) then
+            return {
+                success = false,
+                name = name,
+                files_synced = 0,
+                message = "Excluded subdirectory must be one plain name: '"
+                    .. subdirectory_name .. "'"
+            }
+        end
+        if not is_directory(source_path .. "/" .. subdirectory_name) then
+            return {
+                success = false,
+                name = name,
+                files_synced = 0,
+                message = "Excluded subdirectory not found in source: "
+                    .. source_path .. "/" .. subdirectory_name
+            }
+        end
+    end
+
+    -- Issue 10-068: syncs made before an exclusion existed left a copy in
+    -- input/, and rsync never deletes (it runs without --delete so that files
+    -- generated inside input/ survive). Remove that copy by name. The source
+    -- original is untouched.
+    for _, subdirectory_name in ipairs(excluded_subdirectories) do
+        local stale_copy_path = full_dest .. "/" .. subdirectory_name
+        if path_exists(stale_copy_path) then
+            local removed = os.execute("rm -rf '" .. stale_copy_path .. "'")
+            if not (removed == 0 or removed == true) then
+                return {
+                    success = false,
+                    name = name,
+                    files_synced = 0,
+                    message = "Could not remove stale excluded copy: " .. stale_copy_path
+                }
+            end
+            log_warning("🧹 " .. name .. ": removed excluded subdirectory copy "
+                .. stale_copy_path)
+        end
+    end
+
     -- Run rsync
     local success, files_synced = run_rsync(source_path, full_dest, {
-        overwrite = false  -- Don't overwrite existing files
+        overwrite = false,  -- Don't overwrite existing files
+        excluded_subdirectories = excluded_subdirectories
     })
 
     if success then

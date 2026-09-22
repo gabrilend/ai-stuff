@@ -167,7 +167,10 @@ function M.get_directories(source_type)
             description = dir.description or "",
             -- Issue 10-030: Randomization options for image sources
             randomize_order = dir.randomize_order or false,
-            random_seed = dir.random_seed  -- nil means use system random
+            random_seed = dir.random_seed,  -- nil means use system random
+            -- Issue 10-068: names of subdirectories that are tooling, not
+            -- content (array of strings; empty when none are configured)
+            excluded_subdirectories = dir.excluded_subdirectories or {}
         })
     end
 
@@ -461,7 +464,9 @@ function M.get_all_external_syncs()
                         source = dir.external.source,
                         destination = dest,
                         is_archive = false,
-                        source_type = source_type
+                        source_type = source_type,
+                        -- Issue 10-068: tooling subdirectories rsync must skip
+                        excluded_subdirectories = dir.excluded_subdirectories or {}
                     })
                 end
             end

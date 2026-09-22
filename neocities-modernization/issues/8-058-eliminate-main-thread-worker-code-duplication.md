@@ -30,6 +30,45 @@ The recent 8-045 implementation required changes in three places:
 
 If the worker wasn't updated, similar/different pages would show position-based progress while chronological pages showed timeline-based progress.
 
+### Worked example: the duplication has already produced visible bugs (sorted 2026-09-22)
+
+The opposite happened. The worker was updated and a fourth copy was not: the
+single-threaded formatter, `format_single_poem_with_progress_and_color()`, which
+builds similar/different pages when the thread count is 1 or effil fails to
+load. The owner's bug report of 2026-09-22 (the `next-issue-please-sort` inbox)
+was drawn from pages built by that copy. Three defects in it trace straight back
+to "the same job written in more than one place":
+
+- **Progress bars (8-045, reopened).** The single-threaded copy still divides a
+  global index by the largest id in a list that mixes two numbering schemes. A
+  poem written early (messages/260) shows an almost-full bar, and some bars run
+  past the 83-column frame (messages/1514, 1106). The main-thread bar-drawing
+  code also repeats `src/poem-bars.lua` instead of calling it.
+- **Anchor poem printed twice (10-025, reopened).** The single-threaded ranked
+  list puts the anchor in at rank 1 under its global index. The skip loop then
+  compares per-source numbers, so the anchor is not recognised and prints again,
+  while an unrelated poem that happens to share its per-source number is hidden.
+  The worker's similarity converter has no self-filter at all. Only its
+  diversity converter got one.
+- **Content-warning boxes (9-011, reopened).** Five separate builders draw a
+  content-warning box: the main-thread one (the only one that wraps, and it
+  wraps badly), two in the worker, and the word pages' own. None of them agree.
+
+Each is a place where a fix reached one copy and not the others. Removing the
+copies, as the Intended Behavior below describes, is what keeps them from
+coming back.
+
+### Answered question
+
+- **Should an effil load failure be a hard error?** Today, when effil does not
+  load, the generator logs a warning and quietly builds every page with the
+  single-threaded path. That path is the one carrying the drifted code above.
+  - **Owner's answer (2026-09-22):** "Yeah, stop the build if we can't load a
+    library. Errors, not fallbacks."
+  - **What it changes:** step 0 below. A threading library that fails to load
+    stops the build with an error naming the library. The single-threaded path
+    is no longer a silent substitute.
+
 ## Intended Behavior
 
 **The main thread should be a coordinator, not a worker.**
@@ -148,6 +187,13 @@ Write index files
    - Worker spawning and coordination logic
 
 ## Suggested Implementation Steps
+
+0. **Library load failure stops the build** (owner, 2026-09-22): where
+   `src/flat-html-generator.lua` loads effil and currently only logs a warning
+   before dropping to the single-threaded branch, raise an error naming the
+   library and exit non-zero. Do the same anywhere else a library load failure
+   is caught and substituted. Add a test that simulates a missing library and
+   checks that the build stops.
 
 1. **Audit**: Run grep for duplicated function names across all HTML generators
    ```bash
