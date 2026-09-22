@@ -1,0 +1,552 @@
+#!/usr/bin/env luajit
+-- transcript-patches
+--
+-- Keeps deliberate edits to conversation transcripts alive across re-exports.
+--
+-- A transcript is a rendering of a Claude Code session log, and the exporter
+-- (backup-conversations) re-renders it whenever that session is exported
+-- again. A hand edit would be overwritten by the next export. So an edit is
+-- written down instead, as a small "patch" file beside the transcripts, with a
+-- date and a reason, and the exporter applies every patch that targets a
+-- conversation each time it renders it. The original, unedited rendering can
+-- always be remade from the session log, and every transcript can say which
+-- patches it carries and why. (scripts/issues/036-transcript-patches.md)
+--
+-- Where patches live, applied in this order:
+--   <repository root>/.transcript-patches/*.lua   every transcript in the repo
+--   <project>/llm-transcripts/.patches/*.lua       that project's transcripts
+--
+-- A patch file returns one table:
+--   id          "001", matching the start of the file name
+--   date        "YYYY-MM-DD"
+--   reason      one line: why this edit exists
+--   applies_to  "all", or a list of conversation ids (from the transcript header)
+--   kind        "replace": old, new, count - literal text, exact occurrence count
+--               "commit-map": map - old/new commit ids, path relative to the
+--                             repository root
+--
+-- Usage:
+--   transcript-patches [--dir=<scripts>] apply <transcripts-dir> <conversation-id> <file>
+--   transcript-patches list <transcript>
+--   transcript-patches original <transcript> [<out-file>]
+--   transcript-patches verify <transcript>...
+--   transcript-patches new --for <conversation-id|all> --reason <text>
+--                          --old <file> --new <file> [--count N] [--repo-wide]
+--                          <transcripts-dir>
+
+-- Where this toolchain lives. Hard-coded per house convention; --dir=<path>
+-- as the first argument overrides it (tests point it at a checkout).
+local DIR = "/home/ritz/programming/ai-stuff/scripts"
+if arg[1] and arg[1]:match("^%-%-dir=") then
+   DIR = arg[1]:sub(7)
+   table.remove(arg, 1)
+end
+
+local EXACT_LIB  = DIR .. "/libs/exact-text.lua"
+local QUOTES_LIB = DIR .. "/../delta-version/scripts/libs/commit-id-quotes.lua"
+local PARSER     = DIR .. "/libs/conversation-parser.lua"
+local SESSIONS_ROOT = os.getenv("CLAUDE_SESSIONS_ROOT") or (os.getenv("HOME") .. "/.claude/projects")
+
+local HEADER_PREFIX = "# Conversation Summary: "
+local exact = dofile(EXACT_LIB)
+
+-- {{{ local function fail
+-- Every refusal ends here: one line on stderr naming what went wrong, exit 1.
+local function fail(message)
+   io.stderr:write("transcript-patches: " .. message .. "\n")
+   os.exit(1)
+end
+-- }}}
+
+-- {{{ local function quote
+-- Single-quote a string for the shell.
+local function quote(s)
+   return "'" .. s:gsub("'", "'\\''") .. "'"
+end
+-- }}}
+
+-- {{{ local function run
+-- Run a shell command and return its standard output and whether it
+-- succeeded. LuaJIT's popen close does not report the exit status, so the
+-- command echoes it on a final marker line.
+local function run(command)
+   local handle = io.popen(command .. "; echo \"__exit:$?\"")
+   local output = handle:read("*a")
+   handle:close()
+   local body, status = output:match("^(.-)__exit:(%d+)%s*$")
+   return body or output, status == "0"
+end
+-- }}}
+
+-- {{{ local function read_file
+local function read_file(path)
+   local handle, err = io.open(path, "rb")
+   if not handle then fail("cannot read " .. path .. ": " .. tostring(err)) end
+   local text = handle:read("*a")
+   handle:close()
+   return text
+end
+-- }}}
+
+-- {{{ local function write_file
+-- Write through a temp file and a rename, so a reader never sees half a file.
+local function write_file(path, text)
+   local temp = path .. ".patching"
+   local handle, err = io.open(temp, "wb")
+   if not handle then fail("cannot write " .. temp .. ": " .. tostring(err)) end
+   handle:write(text)
+   handle:close()
+   local ok, rename_err = os.rename(temp, path)
+   if not ok then fail("cannot replace " .. path .. ": " .. tostring(rename_err)) end
+end
+-- }}}
+
+-- {{{ local function dirname
+local function dirname(path)
+   return path:match("^(.*)/[^/]*$") or "."
+end
+-- }}}
+
+-- {{{ local function conversation_id_of
+-- The conversation id recorded in a transcript's first line. A file without
+-- that header is not a transcript, and no patch can be about it.
+local function conversation_id_of(path)
+   local handle = io.open(path, "rb")
+   if not handle then fail("cannot read " .. path) end
+   local first = handle:read("*l") or ""
+   handle:close()
+   local id = first:match("^" .. HEADER_PREFIX:gsub("%p", "%%%0") .. "(%S+)")
+   if not id then fail(path .. " has no transcript header, so it is not a transcript") end
+   return id
+end
+-- }}}
+
+-- {{{ local function repository_root_of
+-- The git repository a transcripts folder belongs to, or nil when it belongs
+-- to none (the shared archive for sessions opened outside any project). No
+-- repository simply means no repository-wide patches; it is not an error.
+local function repository_root_of(dir)
+   local output, ok = run("git -C " .. quote(dir) .. " rev-parse --show-toplevel 2>&1")
+   if not ok then return nil end
+   return (output:gsub("%s+$", ""))
+end
+-- }}}
+
+-- {{{ local function lua_files_in
+-- The .lua files directly inside a folder, sorted by name. A missing folder
+-- is the normal state of a project with no patches, so it yields nothing.
+local function lua_files_in(dir)
+   local output, ok = run("ls -1 " .. quote(dir) .. " 2>&1")
+   if not ok then return {} end
+   local files = {}
+   for name in output:gmatch("[^\n]+") do
+      if name:match("%.lua$") then files[#files + 1] = dir .. "/" .. name end
+   end
+   table.sort(files)
+   return files
+end
+-- }}}
+
+-- Validation per kind: the fields each kind needs, and their types.
+local KIND_FIELDS = {
+   ["replace"]    = { old = "string", new = "string", count = "number" },
+   ["commit-map"] = { map = "string" },
+}
+
+-- {{{ local function load_patch
+-- Load one patch file with an empty environment (it may hold data only), and
+-- check it has everything its kind needs. Any gap is an error naming the file:
+-- a patch that cannot be read must not be silently left out.
+local function load_patch(path, level, root)
+   local chunk, err = loadfile(path)
+   if not chunk then fail("patch " .. path .. " does not load: " .. tostring(err)) end
+   setfenv(chunk, {})
+   local ok, patch = pcall(chunk)
+   if not ok or type(patch) ~= "table" then
+      fail("patch " .. path .. " must return a table" .. (ok and "" or (": " .. tostring(patch))))
+   end
+   for _, field in ipairs({ "id", "date", "reason", "kind" }) do
+      if type(patch[field]) ~= "string" or patch[field] == "" then
+         fail("patch " .. path .. " has no " .. field)
+      end
+   end
+   local name_id = path:match("([^/]+)%.lua$"):match("^(%d+)")
+   if name_id ~= patch.id then
+      fail("patch " .. path .. " says id " .. patch.id .. " but its file name starts with " .. tostring(name_id))
+   end
+   local fields = KIND_FIELDS[patch.kind]
+   if not fields then fail("patch " .. path .. " has unknown kind " .. patch.kind) end
+   for field, kind in pairs(fields) do
+      if type(patch[field]) ~= kind then
+         fail("patch " .. path .. " (" .. patch.kind .. ") needs " .. field .. " as a " .. kind)
+      end
+   end
+   if patch.kind == "replace" and patch.old == "" then
+      fail("patch " .. path .. " has empty old text, which can never be an anchor")
+   end
+   local targets = patch.applies_to
+   if targets ~= "all" and type(targets) ~= "table" then
+      fail("patch " .. path .. " needs applies_to = \"all\" or a list of conversation ids")
+   end
+   patch.file, patch.level, patch.root = path, level, root
+   return patch
+end
+-- }}}
+
+-- {{{ local function targets_conversation
+local function targets_conversation(patch, conversation_id)
+   if patch.applies_to == "all" then return true end
+   for _, id in ipairs(patch.applies_to) do
+      if id == conversation_id then return true end
+   end
+   return false
+end
+-- }}}
+
+-- {{{ local function patches_for
+-- Every patch that targets one conversation, repository-wide ones first.
+local function patches_for(transcripts_dir, conversation_id)
+   local found = {}
+   local root = repository_root_of(transcripts_dir)
+   local levels = {}
+   if root then levels[#levels + 1] = { "repository", root .. "/.transcript-patches" } end
+   levels[#levels + 1] = { "project", transcripts_dir .. "/.patches" }
+   for _, level in ipairs(levels) do
+      for _, path in ipairs(lua_files_in(level[2])) do
+         local patch = load_patch(path, level[1], root)
+         if targets_conversation(patch, conversation_id) then found[#found + 1] = patch end
+      end
+   end
+   return found
+end
+-- }}}
+
+-- Commit-map state, loaded once per run: the id recogniser, each map, and each
+-- repository's set of known commits.
+local quotes_lib
+local maps, universes = {}, {}
+
+-- {{{ local function commit_map_context
+local function commit_map_context(patch)
+   if not patch.root then
+      fail("patch " .. patch.file .. " is a commit-map patch outside any repository")
+   end
+   quotes_lib = quotes_lib or dofile(QUOTES_LIB)
+   local map_path = patch.root .. "/" .. patch.map
+   if not maps[map_path] then
+      local handle = io.open(map_path, "rb")
+      if not handle then fail("patch " .. patch.file .. ": its map " .. map_path .. " is missing") end
+      handle:close()
+      maps[map_path] = quotes_lib.map_from_file(map_path)
+   end
+   if not universes[patch.root] then
+      -- Every commit the repository knows, old ids included: they stay
+      -- reachable through archive tags, which is what lets an old id be
+      -- recognised as a commit at all.
+      local output, ok = run("git -C " .. quote(patch.root) .. " rev-list --all 2>&1")
+      if not ok then fail("cannot list the commits of " .. patch.root .. ": " .. output) end
+      local universe = quotes_lib.new_universe()
+      for id in output:gmatch("%x+") do quotes_lib.universe_add(universe, id) end
+      universes[patch.root] = universe
+   end
+   local map, universe = maps[map_path], universes[patch.root]
+   return { before = universe, after = universe, lookup = function(old) return map[old] or old end }
+end
+-- }}}
+
+-- {{{ local function replace_state
+-- Where a replace patch stands against some text:
+--   "apply"   its old text occurs exactly the declared number of times
+--   "applied" its result is already there and the old text is gone (or the
+--             new text contains the old, so the old text cannot vanish)
+--   "stale"   neither: the text the patch was written against has changed
+local function replace_state(patch, text)
+   local old_count = exact.count(text, patch.old)
+   if old_count == patch.count then return "apply", old_count end
+   local applied
+   if patch.new == "" then
+      applied = old_count == 0
+   else
+      local new_count = exact.count(text, patch.new)
+      local new_holds_old = patch.new:find(patch.old, 1, true) ~= nil
+      applied = new_count >= patch.count and (old_count == 0 or new_holds_old)
+   end
+   return applied and "applied" or "stale", old_count
+end
+-- }}}
+
+-- {{{ local function apply_one
+-- Apply one patch to text. Returns the new text and a short report of what it
+-- did; a stale patch is an error naming the patch and the file.
+local function apply_one(patch, text, label)
+   if patch.kind == "replace" then
+      local state, old_count = replace_state(patch, text)
+      if state == "apply" then
+         local result = exact.replace_exactly(text, patch.old, patch.new, patch.count)
+         return result, string.format("%d replaced", patch.count)
+      elseif state == "applied" then
+         return text, "already applied"
+      end
+      fail(string.format("patch %s is stale for %s: it expects its text %d time(s) and found %d, and its result is not there either",
+         patch.file, label, patch.count, old_count))
+   end
+   -- commit-map: translating an already-translated text changes nothing, since
+   -- new ids map to themselves, so there is no stale state to detect here.
+   local ctx = commit_map_context(patch)
+   local result, stats = quotes_lib.rewrite(text, ctx)
+   return result, string.format("%d id(s) translated", stats.rewritten)
+end
+-- }}}
+
+-- {{{ local function apply_all
+-- Apply a list of patches in order, all in memory. Returns the final text and
+-- one report line per patch that changed something.
+local function apply_all(patches, text, label)
+   local reports = {}
+   for _, patch in ipairs(patches) do
+      local before = text
+      local report
+      text, report = apply_one(patch, text, label)
+      if text ~= before then
+         reports[#reports + 1] = string.format("  patched %s: %s %s (%s)", label, patch.level, patch.id, report)
+      end
+   end
+   return text, reports
+end
+-- }}}
+
+-- {{{ local function find_session_log
+-- The session log a transcript was rendered from, found by its conversation
+-- id anywhere in Claude Code's session store. More than one is reported, not
+-- guessed between.
+-- Returns the log's path, or nil and the reason when there is not exactly one.
+local function find_session_log(conversation_id)
+   local output = run("find " .. quote(SESSIONS_ROOT) .. " -maxdepth 4 -name " .. quote(conversation_id .. ".jsonl") .. " 2>&1")
+   local logs = {}
+   for line in output:gmatch("[^\n]+") do logs[#logs + 1] = line end
+   if #logs == 0 then
+      return nil, "no session log for " .. conversation_id .. " under " .. SESSIONS_ROOT .. " (the transcript is frozen: its original can no longer be remade)"
+   elseif #logs > 1 then
+      return nil, "more than one session log for " .. conversation_id .. ":\n  " .. table.concat(logs, "\n  ")
+   end
+   return logs[1]
+end
+-- }}}
+
+-- {{{ local function render_raw
+-- Render a session log with the exporter's own parser, patches off. Returns
+-- nil and the reason when the log cannot be found; a parser failure on a log
+-- that exists is an error.
+local function render_raw(conversation_id)
+   local log, why = find_session_log(conversation_id)
+   if not log then return nil, why end
+   local temp = os.tmpname()
+   local output, ok = run("lua " .. quote(PARSER) .. " " .. quote(log) .. " " .. quote(temp) .. " 2>&1")
+   if not ok then
+      os.remove(temp)
+      fail("the parser failed on " .. log .. ":\n" .. output)
+   end
+   local text = read_file(temp)
+   os.remove(temp)
+   return text
+end
+-- }}}
+
+-- {{{ local function without_stamp
+-- The parser writes a fresh "Generated on:" clock into every rendering; two
+-- renderings of the same log differ in that line and nowhere else.
+local function without_stamp(text)
+   return (text:gsub("\nGenerated on: [^\n]*\n", "\n", 1))
+end
+-- }}}
+
+-- {{{ local function mode_apply
+local function mode_apply(a)
+   local transcripts_dir, conversation_id, file = a[2], a[3], a[4]
+   if not file then fail("apply needs <transcripts-dir> <conversation-id> <file>") end
+   local patches = patches_for(transcripts_dir, conversation_id)
+   if #patches == 0 then return end
+   local text = read_file(file)
+   local result, reports = apply_all(patches, text, conversation_id)
+   if result ~= text then write_file(file, result) end
+   for _, line in ipairs(reports) do io.write(line, "\n") end
+end
+-- }}}
+
+-- {{{ local function mode_list
+local function mode_list(a)
+   local transcript = a[2] or fail("list needs a transcript")
+   local conversation_id = conversation_id_of(transcript)
+   local patches = patches_for(dirname(transcript), conversation_id)
+   io.write(string.format("%s (conversation %s): %d patch(es)\n", transcript, conversation_id, #patches))
+   local text = read_file(transcript)
+   for _, patch in ipairs(patches) do
+      local state
+      if patch.kind == "replace" then
+         local s, n = replace_state(patch, text)
+         state = ({ apply = "not yet applied", applied = "applied", stale = "stale" })[s]
+            .. string.format(" (%d occurrence(s) of its text)", n)
+      else
+         local ctx = commit_map_context(patch)
+         local _, stats = quotes_lib.rewrite(text, ctx)
+         state = stats.rewritten == 0 and "applied (no old ids left)"
+            or string.format("%d old id(s) still present", stats.rewritten)
+      end
+      io.write(string.format("  %-10s %s  %s  %-10s %s\n      %s\n", patch.level, patch.id, patch.date, patch.kind, state, patch.reason))
+   end
+end
+-- }}}
+
+-- {{{ local function mode_original
+-- Remake the unpatched rendering. It goes to a named file or standard output,
+-- never over the transcript itself.
+local function mode_original(a)
+   local transcript, out = a[2], a[3]
+   if not transcript then fail("original needs a transcript") end
+   local raw, why = render_raw(conversation_id_of(transcript))
+   if not raw then fail(why) end
+   if not out then
+      io.write(raw)
+      return
+   end
+   local real_out = run("realpath -m " .. quote(out)):gsub("%s+$", "")
+   local real_transcript = run("realpath -m " .. quote(transcript)):gsub("%s+$", "")
+   if real_out == real_transcript then
+      fail("refusing to write the original over the transcript itself; name another file")
+   end
+   write_file(out, raw)
+   io.write("original of ", transcript, " written to ", out, "\n")
+end
+-- }}}
+
+-- {{{ local function mode_verify
+-- Re-render, re-patch and compare with the file on disk, ignoring the clock
+-- line. Also re-applies the patches to their own output, which must change
+-- nothing. Any mismatch fails the run.
+local function mode_verify(a)
+   if not a[2] then fail("verify needs at least one transcript") end
+   local all_ok = true
+   for i = 2, #a do
+      local transcript = a[i]
+      local conversation_id = conversation_id_of(transcript)
+      local patches = patches_for(dirname(transcript), conversation_id)
+      local raw, why = render_raw(conversation_id)
+      local patched, again, on_disk
+      if raw then
+         patched = apply_all(patches, raw, conversation_id)
+         again = apply_all(patches, patched, conversation_id)
+         on_disk = read_file(transcript)
+      end
+      -- Four outcomes: no log to re-render from (cannot verify, which fails
+      -- the run - an unverifiable file is not a verified one); patches that
+      -- change their own output; a match; or a difference.
+      local verdict
+      if not raw then
+         verdict = "CANNOT VERIFY: " .. why
+         all_ok = false
+      elseif again ~= patched then
+         verdict = "NOT IDEMPOTENT: applying the patches a second time changed the text"
+         all_ok = false
+      elseif without_stamp(patched) == without_stamp(on_disk) then
+         verdict = string.format("matches (%d patch(es))", #patches)
+      else
+         local line = 1
+         local a_lines, b_lines = without_stamp(patched), without_stamp(on_disk)
+         for n = 1, math.min(#a_lines, #b_lines) do
+            if a_lines:sub(n, n) ~= b_lines:sub(n, n) then break end
+            if a_lines:sub(n, n) == "\n" then line = line + 1 end
+         end
+         verdict = string.format("DIFFERS from a fresh export, first at line %d", line)
+         all_ok = false
+      end
+      io.write(transcript, ": ", verdict, "\n")
+   end
+   if not all_ok then os.exit(1) end
+end
+-- }}}
+
+-- {{{ local function long_string
+-- Write text as a Lua long string that round-trips exactly: pick a level of
+-- '=' that the text does not contain, and protect a leading newline, which a
+-- long string would otherwise drop.
+local function long_string(text)
+   local level = 0
+   while text:find("]" .. string.rep("=", level) .. "]", 1, true) do level = level + 1 end
+   local eq = string.rep("=", level)
+   local lead = text:sub(1, 1) == "\n" and "\n" or ""
+   return "[" .. eq .. "[" .. lead .. text .. "]" .. eq .. "]"
+end
+-- }}}
+
+-- {{{ local function mode_new
+-- Scaffold a numbered replace patch from two text files. The count defaults
+-- to how often the old text occurs in the targeted conversation's transcript.
+local function mode_new(a)
+   local opts, rest = {}, {}
+   local i = 2
+   while i <= #a do
+      local flag = a[i]
+      if flag == "--repo-wide" then opts.repo_wide = true; i = i + 1
+      elseif flag:match("^%-%-") then opts[flag:sub(3)] = a[i + 1]; i = i + 2
+      else rest[#rest + 1] = flag; i = i + 1 end
+   end
+   local transcripts_dir = rest[1] or fail("new needs a transcripts folder")
+   local target = opts["for"] or fail("new needs --for <conversation-id|all>")
+   local reason = opts.reason or fail("new needs --reason")
+   local old = read_file(opts.old or fail("new needs --old <file>"))
+   local new = read_file(opts.new or fail("new needs --new <file>"))
+   local count = tonumber(opts.count or "")
+   if not count then
+      if target == "all" then fail("a patch for all conversations needs --count") end
+      local output = run("grep -l -x -F " .. quote(HEADER_PREFIX .. target) .. " " .. quote(transcripts_dir) .. "/*.md 2>&1")
+      local transcript = output:match("[^\n]+")
+      if not transcript or not transcript:match("%.md$") then fail("no transcript for conversation " .. target .. " in " .. transcripts_dir) end
+      count = exact.count(read_file(transcript), old)
+      if count == 0 then fail("the old text does not occur in " .. transcript) end
+   end
+   local folder
+   if opts.repo_wide then
+      local root = repository_root_of(transcripts_dir) or fail(transcripts_dir .. " is not in a repository")
+      folder = root .. "/.transcript-patches"
+   else
+      folder = transcripts_dir .. "/.patches"
+   end
+   local mkdir_output, made = run("mkdir -p " .. quote(folder) .. " 2>&1")
+   if not made then fail("cannot create " .. folder .. ": " .. mkdir_output) end
+   local highest = 0
+   for _, path in ipairs(lua_files_in(folder)) do
+      highest = math.max(highest, tonumber(path:match("([^/]+)%.lua$"):match("^(%d+)") or 0))
+   end
+   local id = string.format("%03d", highest + 1)
+   local slug = reason:lower():gsub("[^%w]+", "-"):gsub("^%-+", ""):sub(1, 40):gsub("%-+$", "")
+   local path = string.format("%s/%s-%s.lua", folder, id, slug)
+   local targets = target == "all" and '"all"' or ('{ "' .. target .. '" }')
+   local body = string.format(
+      "-- %s\nreturn {\n   id         = %q,\n   date       = %q,\n   reason     = %q,\n   applies_to = %s,\n   kind       = \"replace\",\n   count      = %d,\n   old        = %s,\n   new        = %s,\n}\n",
+      reason, id, os.date("%Y-%m-%d"), reason, targets, count, long_string(old), long_string(new))
+   write_file(path, body)
+   load_patch(path, opts.repo_wide and "repository" or "project", repository_root_of(transcripts_dir))
+   io.write("new patch: ", path, "\n")
+end
+-- }}}
+
+-- {{{ local function main
+local MODES = {
+   apply = mode_apply,
+   list = mode_list,
+   original = mode_original,
+   verify = mode_verify,
+   new = mode_new,
+}
+
+local function main(a)
+   local handler = MODES[a[1] or ""]
+   if not handler then
+      io.stderr:write("usage: transcript-patches apply|list|original|verify|new ... (see the header of this file)\n")
+      os.exit(2)
+   end
+   handler(a)
+end
+-- }}}
+
+main(arg)

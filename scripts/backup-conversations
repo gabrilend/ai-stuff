@@ -213,6 +213,25 @@ function export_one_log() {
       return 1
    fi
 
+   # Transcript patches (issue 036): deliberate edits recorded beside the
+   # transcripts are re-applied to every fresh rendering, here, before the
+   # unchanged-content check - so a patched conversation that has not moved
+   # still reads as unchanged. Two outcomes: the patches apply (or none target
+   # this conversation) and the export carries on; or a patch is stale or
+   # unreadable, which fails this conversation's export and leaves its file on
+   # disk exactly as it was, rather than writing the unpatched rendering over
+   # a patched one.
+   local patch_report
+   if ! patch_report=$(luajit "$PATCHER" "--dir=$SCRIPTS_DIR" apply "$TRANSCRIPT_DIR" "$conversation_id" "$temp_file" 2>&1); then
+      echo "  ERROR: transcript patches failed for $conversation_id; its transcript was not updated:" >&2
+      printf '%s\n' "$patch_report" | sed 's/^/    /' >&2
+      rm -f "$temp_file"
+      return 1
+   fi
+   if [ -n "$patch_report" ]; then
+      printf '%s\n' "$patch_report"
+   fi
+
    # Each signal is optional: a husk session carries no dates at all, so a
    # missing line is a normal answer here, not a failure. That is the only
    # reason for "|| true" on these three reads.
@@ -434,7 +453,7 @@ function main() {
 
    # Missing tools are errors, named plainly, not a skipped backup.
    local tool
-   for tool in lua jq flock md5sum; do
+   for tool in lua luajit jq flock md5sum; do
       if ! command -v "$tool" >/dev/null; then
          echo "backup-conversations: required tool '$tool' is not installed" >&2
          return 1
@@ -443,6 +462,7 @@ function main() {
 
    source "$SCRIPTS_DIR/libs/transcript-discovery.sh"
    PARSER="$SCRIPTS_DIR/libs/conversation-parser.lua"
+   PATCHER="$SCRIPTS_DIR/transcript-patches"
 
    # With no project named, the project is Claude Code's project folder when
    # running under Claude Code (it sets CLAUDE_PROJECT_DIR for hooks), and the
