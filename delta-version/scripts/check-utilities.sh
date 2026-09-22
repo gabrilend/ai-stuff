@@ -51,7 +51,9 @@ SPECIFIC_PROJECTS=()
 
 # -- {{{ show_help
 show_help() {
-    cat <<EOF
+    # The colour variables hold backslash escapes, which cat prints literally;
+    # printf %b turns them into the colours they name.
+    printf '%b\n' "$(cat <<EOF
 ${BOLD}USAGE:${NC}
     check-utilities.sh [OPTIONS] [PROJECT...]
 
@@ -101,6 +103,7 @@ ${BOLD}EXAMPLES:${NC}
     check-utilities.sh --utilities --dependencies --structure
         Complete delta-version health check
 EOF
+)"
 }
 # }}}
 
