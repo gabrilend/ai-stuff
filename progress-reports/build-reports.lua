@@ -24,7 +24,7 @@ local REPORTS_DIR = DIR .. "/reports"
 -- Where a transcript link points. The files also sit beside this directory on
 -- disk, but a page that gets shared is a page whose relative links are dead, so
 -- the canonical target is the copy on the forge.
-local FORGE = "https://github.com/gabrilend/ai-stuff/blob/master/"
+local FORGE = "https://github.com/gabrilend/ai-stuff/blob/main/"
 -- }}}
 
 -- {{{ local function escape_html(text)
