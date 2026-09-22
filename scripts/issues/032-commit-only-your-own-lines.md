@@ -28,10 +28,12 @@ another:
 
 **Status (2026-09-22):** everything in the steps below is built and passes
 `test-refusal-gates` (177 cases, including the reader's tests and the
-scratch-repository ledger test). The two rewritten gates are live. What remains
-is step 7 — the hook entries in `~/.claude/settings.json` (ledger added,
-`refuse-foreign-lines` in place of `refuse-unscoped-commit`) — and the open
-questions below.
+scratch-repository ledger test). Step 7 is done: the settings carry the ledger
+hook and `refuse-foreign-lines` in place of `refuse-unscoped-commit`, which is
+retired as `refuse-unscoped-commit-done`. The first commit through the new
+route (a shell rename, claimed out loud, staged from the ledger, passed by the
+gate) succeeded on the day of the switch. What remains is the open questions
+below.
 
 ## Intended Behavior
 
