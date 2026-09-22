@@ -1,55 +1,81 @@
 # Git Worktree Instructions for AI Agents
 
-**Read this before starting work on any issue.**
+**Read this before starting work on an issue in its own worktree.**
+
+A worktree is a second checkout of the same repository in another folder,
+on its own branch, sharing one `.git` store. Two agents in two worktrees can
+edit the same project without touching each other's files; their work meets
+again when a branch is merged.
+
+Every command below uses absolute paths and `git -C <folder>`. None of them
+changes the shell's working directory: the working directory belongs to the
+person at the terminal, and the directory-change gate refuses `cd`. Give
+tools the folder instead.
 
 ## Quick Reference
 
 | Action | Command |
 |--------|---------|
-| List worktrees | `./delta-version/scripts/manage-worktree.sh list` |
-| Create worktree | `./delta-version/scripts/manage-worktree.sh create <issue-num> <project>` |
-| Get path | `./delta-version/scripts/manage-worktree.sh path <issue-num> <project>` |
-| Check status | `./delta-version/scripts/manage-worktree.sh status` |
-| Remove worktree | `./delta-version/scripts/manage-worktree.sh remove <issue-num> <project>` |
+| List worktrees | `/mnt/mtwo/programming/ai-stuff/delta-version/scripts/manage-worktree.sh list` |
+| Create worktree | `/mnt/mtwo/programming/ai-stuff/delta-version/scripts/manage-worktree.sh create <issue-num> <project>` |
+| Get path | `/mnt/mtwo/programming/ai-stuff/delta-version/scripts/manage-worktree.sh path <issue-num> <project>` |
+| Check status | `/mnt/mtwo/programming/ai-stuff/delta-version/scripts/manage-worktree.sh status` |
+| Remove worktree | `/mnt/mtwo/programming/ai-stuff/delta-version/scripts/manage-worktree.sh remove <issue-num> <project>` |
 
-**Projects**: `delta-version`, `neocities-modernization`, `world-edit-to-execute`
+**Projects the script knows**: its list is written into `manage-worktree.sh`
+itself; run it with no arguments to see the current list. A project not on
+it needs adding there first.
 
 ## Before Starting Work
 
-1. Check if a worktree exists for your issue:
+1. Check whether a worktree exists for the issue:
    ```bash
-   cd /mnt/mtwo/programming/ai-stuff
-   ./delta-version/scripts/manage-worktree.sh list
+   /mnt/mtwo/programming/ai-stuff/delta-version/scripts/manage-worktree.sh list
    ```
 
 2. If not, create one:
    ```bash
-   ./delta-version/scripts/manage-worktree.sh create 017 delta-version
+   /mnt/mtwo/programming/ai-stuff/delta-version/scripts/manage-worktree.sh create 017 delta-version
    ```
 
-3. Work in the worktree, NOT the main repo:
+3. Ask for its folder once, and use that folder in every later command:
    ```bash
-   cd $(./delta-version/scripts/manage-worktree.sh path 017 delta-version)
+   /mnt/mtwo/programming/ai-stuff/delta-version/scripts/manage-worktree.sh path 017 delta-version
    ```
+   Then edit files by their absolute path inside that folder, and run git
+   as `git -C <that folder> ...`.
 
-## Critical Rules
+## Rules
 
-- **NEVER** work in `/mnt/mtwo/programming/ai-stuff/` for development
-- **ALWAYS** work in `/mnt/mtwo/programming/ai-worktrees/<project-short>/<issue>/`
-- **COMMIT FREQUENTLY** to preserve work
-- The main repo is locked to `master` branch (enforced by git hook)
-- **ROOT ISSUES ONLY**: Create worktrees for root issues (e.g., `041`), not sub-issues (e.g., `041a`, `041b`). Work on all sub-issues within the root issue's worktree.
+- Do development in `/mnt/mtwo/programming/ai-worktrees/<project-short>/<issue>/`,
+  not in `/mnt/mtwo/programming/ai-stuff/`.
+- The main repository is held on `master` by a post-checkout hook.
+- Create worktrees for root issues (`041`), not sub-issues (`041a`, `041b`);
+  sub-issues are worked in their root issue's worktree.
+- Commit the way the house gates require everywhere: stage only your own
+  lines, commit the index. The gates apply inside a worktree exactly as they
+  do in the main checkout.
 
 ## When Done
 
-1. Commit all changes in the worktree
-2. From main repo, merge directly to master:
+1. Commit your work in the worktree (`git -C <worktree folder> ...`).
+2. Merge into master from the main checkout, without moving there:
    ```bash
-   cd /mnt/mtwo/programming/ai-stuff
-   git checkout master  # (already there, enforced by hook)
-   git merge dv/issue-017
+   git -C /mnt/mtwo/programming/ai-stuff merge dv/issue-017
    ```
-3. Remove worktree: `./delta-version/scripts/manage-worktree.sh remove 017 delta-version`
+3. Remove the worktree:
+   ```bash
+   /mnt/mtwo/programming/ai-stuff/delta-version/scripts/manage-worktree.sh remove 017 delta-version
+   ```
+
+## Claude Code's own worktrees
+
+Claude Code can also give a helper agent a throwaway worktree of its own
+(the agent tool's worktree isolation), created and cleaned up by the harness.
+That is the simpler choice for a short, self-contained task: nothing to
+create or remove by hand. Use `manage-worktree.sh` when the work should
+live on a named issue branch (`dv/issue-017`) that outlasts one session and
+gets merged deliberately.
 
 ## Full Documentation
 

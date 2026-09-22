@@ -2,6 +2,13 @@
 
 This guide explains how to use git worktrees for parallel development, enabling multiple AI agents to work on the same project simultaneously without conflicts.
 
+> **For AI agents:** the examples below `cd` into folders, which is how a
+> person at a terminal works. An agent cannot: the directory-change gate
+> refuses `cd`, because the shell's working directory belongs to the person.
+> Use the same commands with absolute paths and `git -C <folder>` instead;
+> [worktree-agent-instructions.md](worktree-agent-instructions.md) spells
+> every step out that way.
+
 ## Overview
 
 Git worktrees allow you to have multiple working directories connected to the same repository. Each worktree has its own branch checked out, so agents can work independently without overwriting each other's uncommitted changes.
