@@ -1,499 +1,398 @@
 #!/usr/bin/env luajit
 -- progress-dashboard.lua
--- Scans issue directories and generates progress statistics with ASCII visualizations.
--- Project-abstract: works on any project following the issue naming convention.
+--
+-- Counts a project's issue files by phase and shows how many of each phase are
+-- done, as a terminal chart, a markdown table, or JSON. It is the statistics
+-- tool the documentation points at instead of writing numbers down, so the
+-- numbers are always read fresh from the files.
+--
+-- How it works, in general terms: it asks the shared issue-name reader
+-- (libs/issue-names.lua) for every issue in the project, groups them by the
+-- phase in their names, and counts an issue as done when it has been moved
+-- into issues/completed/. Anything it could not place -- a name that could be
+-- two phases, a folder it does not recognise, a phase with no progress file --
+-- is printed as a warning at the bottom rather than silently folded in.
 --
 -- Usage:
---   lua progress-dashboard.lua [options]
---   lua progress-dashboard.lua -t          (terminal output, default)
---   lua progress-dashboard.lua -m          (markdown output)
+--   progress-dashboard.lua [DIR] [options]
 --
--- Options:
---   -d, --dir <path>    Project directory (default: current)
---   -t, --terminal      Terminal output with ASCII graphics (default)
---   -m, --markdown      Markdown output
---   -j, --json          JSON output
---   -p, --phase <n>     Show only specific phase
---   -v, --verbose       Show individual issues
---   -h, --help          Show help
+--   DIR                 project to read (default: the hard-coded DIR below)
+--   -d, --dir <path>    same as DIR
+--   -t, --terminal      terminal chart (default)
+--   -m, --markdown      markdown table
+--   -j, --json          JSON
+--   -p, --phase <n>     only this phase
+--   -v, --verbose       list every issue under its phase
+--   -h, --help          this text
 --
--- Library usage:
---   local dashboard = require("progress-dashboard")
---   dashboard.init("/path/to/project")
---   local phases = dashboard.scan()
---   dashboard.render_terminal(phases)
+-- Library use:
+--   local dashboard = dofile("/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua")
+--   local phases, report = dashboard.collect("/path/to/project")
+--
+-- Exit status: 0 when nothing needed a warning, 1 when warnings were printed
+-- (warnings are treated as errors), 2 on bad arguments or a missing issues/.
 
-local DIR = arg[0]:match("(.*/)")
-if not DIR then DIR = "./" end
+-- {{{ local DIR
+-- The project read when no directory is given. Hard-coded per the house rule;
+-- override with a positional argument or -d.
+local DIR = "/home/ritz/programming/ai-stuff/scripts"
+-- Where this tool and its shared library live, independent of DIR.
+local SCRIPTS_DIR = "/home/ritz/programming/ai-stuff/scripts"
+-- }}}
 
--- {{{ Configuration
+local issue_names = dofile(SCRIPTS_DIR .. "/libs/issue-names.lua")
+
+-- {{{ local config
 local config = {
-    project_dir = ".",
-    issues_dir = "issues",
-    completed_dir = "issues/completed",
-    phase_pattern = "^([A-Z]?)(%d+)",  -- Match phase letter/number + issue ID
+    project_dir = DIR,
     output_mode = "terminal",
     target_phase = nil,
     verbose = false,
 }
 -- }}}
 
--- {{{ ANSI Colors
+-- {{{ local colors
 local colors = {
-    reset = "\27[0m",
-    bold = "\27[1m",
-    red = "\27[31m",
-    green = "\27[32m",
-    yellow = "\27[33m",
-    blue = "\27[34m",
-    cyan = "\27[36m",
+    reset = "\27[0m", bold = "\27[1m", red = "\27[31m", green = "\27[32m",
+    yellow = "\27[33m", blue = "\27[34m", cyan = "\27[36m",
 }
+-- }}}
 
-local function c(color, text)
+-- {{{ local function paint
+local function paint(color, text)
     return colors[color] .. text .. colors.reset
 end
 -- }}}
 
--- {{{ File utilities
-local function file_exists(path)
-    local f = io.open(path, "r")
-    if f then f:close() return true end
-    return false
-end
-
+-- {{{ local function read_file
 local function read_file(path)
-    local f = io.open(path, "r")
-    if not f then return nil end
+    local f = assert(io.open(path, "r"))
     local content = f:read("*a")
     f:close()
     return content
 end
-
-local function list_dir(path)
-    local files = {}
-    local handle = io.popen('ls -1 "' .. path .. '" 2>/dev/null')
-    if not handle then return files end
-    for file in handle:lines() do
-        files[#files + 1] = file
-    end
-    handle:close()
-    return files
-end
 -- }}}
 
--- {{{ parse_issue_file
--- Parse an issue file and extract metadata
-local function parse_issue_file(filepath)
-    local content = read_file(filepath)
-    if not content then return nil end
-
-    local issue = {
-        path = filepath,
-        name = filepath:match("([^/]+)%.md$"),
-        status = "pending",
-        total_criteria = 0,
-        completed_criteria = 0,
-    }
-
-    -- Extract phase from filename
-    local letter, number = issue.name:match(config.phase_pattern)
-    if letter and letter ~= "" then
-        issue.phase = letter
-    elseif number then
-        issue.phase = number:sub(1, 1)
-    else
-        issue.phase = "?"
-    end
-
-    -- Check if sub-issue (has letter suffix like 102a)
-    if issue.name:match("^%d+%d+%d+[a-z]%-") then
-        issue.is_sub = true
-    end
-
-    -- Count acceptance criteria
-    for line in content:gmatch("[^\n]+") do
-        if line:match("^%- %[.%]") then
-            issue.total_criteria = issue.total_criteria + 1
-            if line:match("^%- %[[xX]%]") then
-                issue.completed_criteria = issue.completed_criteria + 1
+-- {{{ local function count_criteria
+-- Checkbox lines are counted for information only. They never decide whether an
+-- issue is done: that is where the file sits (see libs/issue-names.lua).
+local function count_criteria(path)
+    local total, ticked = 0, 0
+    for line in read_file(path):gmatch("[^\n]+") do
+        if line:match("^%s*%- %[.%]") then
+            total = total + 1
+            if line:match("^%s*%- %[[xX]%]") then
+                ticked = ticked + 1
             end
         end
     end
-
-    -- Detect status
-    if content:match("%*%*Status:%*%*%s*Completed") or
-       content:match("%*%*Status:%*%*%s*%*%*Completed%*%*") then
-        issue.status = "completed"
-    elseif issue.total_criteria > 0 and issue.completed_criteria == issue.total_criteria then
-        issue.status = "completed"
-    elseif issue.completed_criteria > 0 then
-        issue.status = "in_progress"
-    else
-        issue.status = "pending"
-    end
-
-    return issue
+    return total, ticked
 end
 -- }}}
 
--- {{{ scan_issues
--- Scan issue directory and return grouped data
-local function scan_issues()
-    local issues = {}
-
-    -- Scan pending issues
-    local pending_path = config.project_dir .. "/" .. config.issues_dir
-    for _, file in ipairs(list_dir(pending_path)) do
-        if file:match("^[A-Z0-9].*%.md$") and file ~= "progress.md" then
-            local issue = parse_issue_file(pending_path .. "/" .. file)
-            if issue then
-                issues[#issues + 1] = issue
-            end
-        end
-    end
-
-    -- Scan completed issues
-    local completed_path = config.project_dir .. "/" .. config.completed_dir
-    for _, file in ipairs(list_dir(completed_path)) do
-        if file:match("^[A-Z0-9].*%.md$") then
-            local issue = parse_issue_file(completed_path .. "/" .. file)
-            if issue then
-                issue.status = "completed"  -- Force completed status
-                issues[#issues + 1] = issue
-            end
-        end
-    end
-
-    return issues
-end
--- }}}
-
--- {{{ group_by_phase
--- Group issues by phase
-local function group_by_phase(issues)
+-- {{{ local function collect
+-- Reads the project and groups its issues by phase. Returns the phases table
+-- (keyed by phase string) and the reader's report of what it could not place.
+-- Issues whose phase is ambiguous are left out of the phases and listed in the
+-- report instead.
+local function collect(project_dir)
+    local issues, report = issue_names.scan(project_dir)
     local phases = {}
-
     for _, issue in ipairs(issues) do
-        local phase = issue.phase
-        if not phases[phase] then
-            phases[phase] = {
-                id = phase,
-                issues = {},
-                completed = 0,
-                in_progress = 0,
-                pending = 0,
-                total_criteria = 0,
-                completed_criteria = 0,
-            }
+        -- an ambiguous name has no phase; it is already in report.ambiguous
+        if issue.phase then
+            local phase = phases[issue.phase]
+            if not phase then
+                phase = { id = issue.phase, issues = {}, completed = 0, open = 0,
+                          retired = 0, unknown = 0, total_criteria = 0,
+                          ticked_criteria = 0 }
+                phases[issue.phase] = phase
+            end
+            issue.total_criteria, issue.ticked_criteria = count_criteria(issue.path)
+            phase.issues[#phase.issues + 1] = issue
+            phase[issue.status] = phase[issue.status] + 1
+            phase.total_criteria = phase.total_criteria + issue.total_criteria
+            phase.ticked_criteria = phase.ticked_criteria + issue.ticked_criteria
         end
-
-        local p = phases[phase]
-        p.issues[#p.issues + 1] = issue
-        p[issue.status] = p[issue.status] + 1
-        p.total_criteria = p.total_criteria + issue.total_criteria
-        p.completed_criteria = p.completed_criteria + issue.completed_criteria
     end
-
-    return phases
+    return phases, report
 end
 -- }}}
 
--- {{{ progress_bar
--- Create ASCII progress bar
-local function progress_bar(completed, total, width)
-    width = width or 30
-    local ratio = total > 0 and (completed / total) or 0
+-- {{{ local function ordered_phase_ids
+local function ordered_phase_ids(phases)
+    local ids = {}
+    for id in pairs(phases) do
+        ids[#ids + 1] = id
+    end
+    table.sort(ids, function(a, b)
+        return issue_names.phase_sort_key(a) < issue_names.phase_sort_key(b)
+    end)
+    return ids
+end
+-- }}}
+
+-- {{{ local function counted_total
+-- Retired issues are neither done nor to-do, so they are left out of the
+-- denominator: a phase whose only leftovers were superseded reads as complete.
+local function counted_total(phase)
+    return #phase.issues - phase.retired
+end
+-- }}}
+
+-- {{{ local function progress_bar
+local function progress_bar(done, total, width)
+    local ratio = total > 0 and (done / total) or 0
     local filled = math.floor(ratio * width)
-    local empty = width - filled
-
-    local bar = string.rep("█", filled) .. string.rep("░", empty)
-    local pct = string.format("%.0f%%", ratio * 100)
-
-    return bar, pct
+    return string.rep("█", filled) .. string.rep("░", width - filled),
+           string.format("%.0f%%", ratio * 100)
 end
 -- }}}
 
--- {{{ render_terminal
--- Render ASCII dashboard to terminal
-local function render_terminal(phases)
-    local phase_order = {}
-    for phase_id in pairs(phases) do
-        phase_order[#phase_order + 1] = phase_id
+-- {{{ local function warning_lines
+-- Turns the reader's report into plain sentences, one per finding. Returns an
+-- empty list when there is nothing to warn about.
+local function warning_lines(report)
+    local lines = {}
+    -- only compact names ("522-...") need their digits split, so only they can
+    -- be split without confirmation
+    if report.has_compact and not report.width_confirmed then
+        lines[#lines + 1] = "nothing confirms how names split into phase and number "
+            .. "(no progress files, phase folders, or phase-N-demo names); split with a "
+            .. report.width .. "-digit issue number, the house rule"
     end
-    table.sort(phase_order)
+    for _, rel in ipairs(report.ambiguous) do
+        lines[#lines + 1] = "name has no valid phase with a " .. report.width
+            .. "-digit issue number: " .. rel
+    end
+    for _, line in ipairs(report.folder_disagreements) do
+        lines[#lines + 1] = "counted in its phase-N/ folder's phase, not its name's: " .. line
+    end
+    for _, rel in ipairs(report.unknown_locations) do
+        lines[#lines + 1] = "folder not recognised as open, completed or retired: " .. rel
+    end
+    for _, phase in ipairs(report.phases_without_evidence) do
+        lines[#lines + 1] = "phase " .. phase .. " has issues but no phase-"
+            .. phase .. "-progress.md"
+    end
+    return lines
+end
+-- }}}
 
+-- {{{ local function render_terminal
+local function render_terminal(phases, report)
     print("╔════════════════════════════════════════════════════════════╗")
     print("║              PROJECT PROGRESS DASHBOARD                    ║")
     print("╠════════════════════════════════════════════════════════════╣")
-
-    for _, phase_id in ipairs(phase_order) do
-        local phase = phases[phase_id]
-        local total = #phase.issues
-        local done = phase.completed
-
-        local bar, pct = progress_bar(done, total, 35)
-        local color = "yellow"
-        if done == total and total > 0 then
-            color = "green"
-        elseif done == 0 then
-            color = "red"
-        end
-
-        print(string.format("║ Phase %s: %s %d/%d (%s)",
-            phase_id, c(color, bar), done, total, pct))
-
-        print(string.format("║   Issues: %s%d done%s, %s%d in progress%s, %s%d pending%s",
-            colors.green, phase.completed, colors.reset,
-            colors.yellow, phase.in_progress, colors.reset,
-            colors.red, phase.pending, colors.reset))
-
-        if phase.total_criteria > 0 then
-            local cbar, cpct = progress_bar(phase.completed_criteria, phase.total_criteria, 25)
-            print(string.format("║   Criteria: %s %d/%d (%s)",
-                c(color, cbar), phase.completed_criteria, phase.total_criteria, cpct))
-        end
-
+    local all_total, all_done = 0, 0
+    for _, id in ipairs(ordered_phase_ids(phases)) do
+        local phase = phases[id]
+        local total = counted_total(phase)
+        local bar, pct = progress_bar(phase.completed, total, 35)
+        -- green = every counted issue done, red = none done, yellow = between
+        local color = (total > 0 and phase.completed == total) and "green"
+            or (phase.completed == 0 and "red" or "yellow")
+        print(string.format("║ Phase %s: %s %d/%d (%s)", id, paint(color, bar),
+            phase.completed, total, pct))
+        print(string.format("║   %s done, %s open, %d retired%s",
+            paint("green", tostring(phase.completed)), paint("red", tostring(phase.open)),
+            phase.retired, phase.unknown > 0 and (", " .. phase.unknown .. " in unknown folders") or ""))
         if config.verbose then
+            local icons = { completed = "✓", open = "○", retired = "–", unknown = "?" }
             for _, issue in ipairs(phase.issues) do
-                local status_icon = "○"
-                local status_color = "red"
-                if issue.status == "completed" then
-                    status_icon = "✓"
-                    status_color = "green"
-                elseif issue.status == "in_progress" then
-                    status_icon = "◐"
-                    status_color = "yellow"
-                end
-                print(string.format("║     %s %s",
-                    c(status_color, status_icon), issue.name))
+                print(string.format("║     %s %s", icons[issue.status], issue.rel))
             end
         end
-
         print("╠────────────────────────────────────────────────────────────╣")
+        all_total, all_done = all_total + total, all_done + phase.completed
     end
-
-    -- Summary
-    local total_issues = 0
-    local total_done = 0
-    local total_criteria = 0
-    local total_criteria_done = 0
-
-    for _, phase in pairs(phases) do
-        total_issues = total_issues + #phase.issues
-        total_done = total_done + phase.completed
-        total_criteria = total_criteria + phase.total_criteria
-        total_criteria_done = total_criteria_done + phase.completed_criteria
-    end
-
-    print(string.format("║ TOTAL: %d/%d issues (%.0f%%) | %d/%d criteria (%.0f%%)",
-        total_done, total_issues,
-        total_issues > 0 and (total_done / total_issues * 100) or 0,
-        total_criteria_done, total_criteria,
-        total_criteria > 0 and (total_criteria_done / total_criteria * 100) or 0))
+    print(string.format("║ TOTAL: %d/%d issues (%.0f%%)", all_done, all_total,
+        all_total > 0 and (all_done / all_total * 100) or 0))
     print("╚════════════════════════════════════════════════════════════╝")
+    local warnings = warning_lines(report)
+    for _, line in ipairs(warnings) do
+        io.stderr:write(paint("yellow", "warning: ") .. line .. "\n")
+    end
+    return #warnings
 end
 -- }}}
 
--- {{{ render_markdown
--- Render markdown report
-local function render_markdown(phases)
-    local lines = {}
-    lines[#lines + 1] = "# Project Progress Dashboard"
-    lines[#lines + 1] = ""
-    lines[#lines + 1] = "Generated: " .. os.date("%Y-%m-%d %H:%M")
-    lines[#lines + 1] = ""
-
-    -- Summary table
-    lines[#lines + 1] = "## Phase Summary"
-    lines[#lines + 1] = ""
-    lines[#lines + 1] = "| Phase | Issues | Progress | Criteria |"
-    lines[#lines + 1] = "|-------|--------|----------|----------|"
-
-    local phase_order = {}
-    for phase_id in pairs(phases) do
-        phase_order[#phase_order + 1] = phase_id
+-- {{{ local function render_markdown
+local function render_markdown(phases, report)
+    local lines = {
+        "# Project Progress Dashboard", "",
+        "Generated by `progress-dashboard.lua -m` on " .. os.date("%Y-%m-%d %H:%M") .. ".", "",
+        "| Phase | Done | Open | Retired | Progress |",
+        "|-------|------|------|---------|----------|",
+    }
+    for _, id in ipairs(ordered_phase_ids(phases)) do
+        local phase = phases[id]
+        local total = counted_total(phase)
+        local _, pct = progress_bar(phase.completed, total, 1)
+        lines[#lines + 1] = string.format("| %s | %d | %d | %d | %s |",
+            id, phase.completed, phase.open, phase.retired, pct)
     end
-    table.sort(phase_order)
-
-    for _, phase_id in ipairs(phase_order) do
-        local phase = phases[phase_id]
-        local total = #phase.issues
-        local issue_pct = total > 0 and math.floor(phase.completed / total * 100) or 0
-        local criteria_pct = phase.total_criteria > 0 and
-            math.floor(phase.completed_criteria / phase.total_criteria * 100) or 0
-
-        lines[#lines + 1] = string.format("| %s | %d/%d (%d%%) | %s | %d/%d (%d%%) |",
-            phase_id, phase.completed, total, issue_pct,
-            phase.completed == total and total > 0 and "✓ Complete" or "In Progress",
-            phase.completed_criteria, phase.total_criteria, criteria_pct)
-    end
-
     if config.verbose then
-        lines[#lines + 1] = ""
-        lines[#lines + 1] = "## Issue Details"
-        lines[#lines + 1] = ""
-
-        for _, phase_id in ipairs(phase_order) do
-            local phase = phases[phase_id]
-            lines[#lines + 1] = "### Phase " .. phase_id
+        for _, id in ipairs(ordered_phase_ids(phases)) do
             lines[#lines + 1] = ""
-            lines[#lines + 1] = "| Issue | Status | Criteria |"
-            lines[#lines + 1] = "|-------|--------|----------|"
-
-            for _, issue in ipairs(phase.issues) do
-                local status = issue.status == "completed" and "✓" or
-                    issue.status == "in_progress" and "◐" or "○"
-                lines[#lines + 1] = string.format("| %s | %s | %d/%d |",
-                    issue.name, status, issue.completed_criteria, issue.total_criteria)
+            lines[#lines + 1] = "## Phase " .. id
+            lines[#lines + 1] = ""
+            for _, issue in ipairs(phases[id].issues) do
+                lines[#lines + 1] = "- " .. issue.status .. ": `" .. issue.rel .. "`"
             end
-            lines[#lines + 1] = ""
         end
     end
-
-    return table.concat(lines, "\n")
+    local warnings = warning_lines(report)
+    if #warnings > 0 then
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = "## Warnings"
+        lines[#lines + 1] = ""
+        for _, line in ipairs(warnings) do
+            lines[#lines + 1] = "- " .. line
+        end
+    end
+    print(table.concat(lines, "\n"))
+    return #warnings
 end
 -- }}}
 
--- {{{ render_json
--- Render JSON output
-local function render_json(phases)
-    local lines = {}
-    lines[#lines + 1] = "{"
-    lines[#lines + 1] = '  "generated": "' .. os.date("%Y-%m-%dT%H:%M:%S") .. '",'
-    lines[#lines + 1] = '  "phases": {'
-
-    local phase_order = {}
-    for phase_id in pairs(phases) do
-        phase_order[#phase_order + 1] = phase_id
-    end
-    table.sort(phase_order)
-
-    for i, phase_id in ipairs(phase_order) do
-        local phase = phases[phase_id]
-        lines[#lines + 1] = '    "' .. phase_id .. '": {'
-        lines[#lines + 1] = '      "total": ' .. #phase.issues .. ','
-        lines[#lines + 1] = '      "completed": ' .. phase.completed .. ','
-        lines[#lines + 1] = '      "in_progress": ' .. phase.in_progress .. ','
-        lines[#lines + 1] = '      "pending": ' .. phase.pending .. ','
-        lines[#lines + 1] = '      "total_criteria": ' .. phase.total_criteria .. ','
-        lines[#lines + 1] = '      "completed_criteria": ' .. phase.completed_criteria
-        lines[#lines + 1] = '    }' .. (i < #phase_order and ',' or '')
-    end
-
-    lines[#lines + 1] = "  }"
-    lines[#lines + 1] = "}"
-
-    return table.concat(lines, "\n")
+-- {{{ local function json_string
+local function json_string(text)
+    return '"' .. text:gsub('[%c"\\]', function(ch)
+        return string.format("\\u%04x", ch:byte())
+    end) .. '"'
 end
 -- }}}
 
--- {{{ parse_args
+-- {{{ local function render_json
+local function render_json(phases, report)
+    local parts = {}
+    for _, id in ipairs(ordered_phase_ids(phases)) do
+        local phase = phases[id]
+        parts[#parts + 1] = string.format(
+            '%s:{"total":%d,"completed":%d,"open":%d,"retired":%d,"unknown":%d,'
+            .. '"total_criteria":%d,"ticked_criteria":%d}',
+            json_string(id), #phase.issues, phase.completed, phase.open,
+            phase.retired, phase.unknown, phase.total_criteria, phase.ticked_criteria)
+    end
+    local warnings = warning_lines(report)
+    local quoted = {}
+    for i, line in ipairs(warnings) do
+        quoted[i] = json_string(line)
+    end
+    print(string.format('{"generated":%s,"issue_number_width":%d,"phases":{%s},"warnings":[%s]}',
+        json_string(os.date("%Y-%m-%dT%H:%M:%S")), report.width,
+        table.concat(parts, ","), table.concat(quoted, ",")))
+    return #warnings
+end
+-- }}}
+
+-- {{{ local renderers
+local renderers = {
+    terminal = render_terminal,
+    markdown = render_markdown,
+    json = render_json,
+}
+-- }}}
+
+-- {{{ local function usage
+local function usage()
+    print([[
+progress-dashboard.lua - count a project's issues by phase
+
+USAGE:  progress-dashboard.lua [DIR] [-t|-m|-j] [-p PHASE] [-v]
+
+    DIR / -d PATH    project to read (default ]] .. DIR .. [[)
+    -t               terminal chart (default)
+    -m               markdown table
+    -j               JSON
+    -p PHASE         only this phase
+    -v               list every issue
+    -h               this help
+
+An issue is done when it sits in issues/completed/. Exit 1 means warnings were
+printed; read them.]])
+end
+-- }}}
+
+-- {{{ local function parse_args
+-- Each flag is a small handler returning how many arguments it consumed.
+-- An unknown flag is an error rather than something to skip past.
 local function parse_args(args)
+    local takes_value = function(key)
+        return function(i)
+            if not args[i + 1] then
+                io.stderr:write("missing value after " .. args[i] .. "\n")
+                os.exit(2)
+            end
+            config[key] = args[i + 1]
+            return 2
+        end
+    end
+    local sets_mode = function(mode)
+        return function() config.output_mode = mode return 1 end
+    end
+    local handlers = {
+        ["-d"] = takes_value("project_dir"), ["--dir"] = takes_value("project_dir"),
+        ["-p"] = takes_value("target_phase"), ["--phase"] = takes_value("target_phase"),
+        ["-t"] = sets_mode("terminal"), ["--terminal"] = sets_mode("terminal"),
+        ["-m"] = sets_mode("markdown"), ["--markdown"] = sets_mode("markdown"),
+        ["-j"] = sets_mode("json"), ["--json"] = sets_mode("json"),
+        ["-v"] = function() config.verbose = true return 1 end,
+        ["--verbose"] = function() config.verbose = true return 1 end,
+        ["-h"] = function() usage() os.exit(0) end,
+        ["--help"] = function() usage() os.exit(0) end,
+    }
     local i = 1
     while i <= #args do
-        local arg = args[i]
-        if arg == "-d" or arg == "--dir" then
-            config.project_dir = args[i + 1]
-            i = i + 2
-        elseif arg == "-t" or arg == "--terminal" then
-            config.output_mode = "terminal"
+        local handler = handlers[args[i]]
+        -- a known flag consumes itself (and its value)
+        if handler then
+            i = i + handler(i)
+        -- a bare word is the project directory
+        elseif not args[i]:match("^%-") then
+            config.project_dir = args[i]
             i = i + 1
-        elseif arg == "-m" or arg == "--markdown" then
-            config.output_mode = "markdown"
-            i = i + 1
-        elseif arg == "-j" or arg == "--json" then
-            config.output_mode = "json"
-            i = i + 1
-        elseif arg == "-p" or arg == "--phase" then
-            config.target_phase = args[i + 1]
-            i = i + 2
-        elseif arg == "-v" or arg == "--verbose" then
-            config.verbose = true
-            i = i + 1
-        elseif arg == "-h" or arg == "--help" then
-            print([[
-progress-dashboard.lua - Generate project progress visualizations
-
-USAGE:
-    lua progress-dashboard.lua [options]
-
-OPTIONS:
-    -d, --dir <path>    Project directory (default: current)
-    -t, --terminal      Terminal output with ASCII graphics (default)
-    -m, --markdown      Markdown output
-    -j, --json          JSON output
-    -p, --phase <n>     Show only specific phase
-    -v, --verbose       Show individual issues
-    -h, --help          Show help
-
-EXAMPLES:
-    lua progress-dashboard.lua -t           # Terminal output
-    lua progress-dashboard.lua -m > report.md
-    lua progress-dashboard.lua -j | jq .
-    lua progress-dashboard.lua -v -p 2      # Verbose Phase 2 only
-]])
-            os.exit(0)
+        -- anything else is a mistake worth stopping for
         else
-            i = i + 1
+            io.stderr:write("unknown option: " .. args[i] .. "\n")
+            os.exit(2)
         end
     end
 end
 -- }}}
 
--- {{{ init
--- Initialize dashboard for library use
-local function init(project_dir)
-    config.project_dir = project_dir or "."
-end
--- }}}
-
--- {{{ main
+-- {{{ local function main
 local function main()
     parse_args(arg)
-
-    local issues = scan_issues()
-    local phases = group_by_phase(issues)
-
-    -- Filter to target phase if specified
+    local ok, phases, report = pcall(collect, config.project_dir)
+    if not ok then
+        io.stderr:write(tostring(phases) .. "\n")
+        os.exit(2)
+    end
+    -- -p keeps one phase; asking for a phase that does not exist is an error
     if config.target_phase then
-        local filtered = {}
-        if phases[config.target_phase] then
-            filtered[config.target_phase] = phases[config.target_phase]
+        if not phases[config.target_phase] then
+            io.stderr:write("no issues in phase " .. config.target_phase .. "\n")
+            os.exit(2)
         end
-        phases = filtered
+        phases = { [config.target_phase] = phases[config.target_phase] }
     end
-
-    if config.output_mode == "terminal" then
-        render_terminal(phases)
-    elseif config.output_mode == "markdown" then
-        print(render_markdown(phases))
-    elseif config.output_mode == "json" then
-        print(render_json(phases))
-    end
+    local warning_count = renderers[config.output_mode](phases, report)
+    os.exit(warning_count > 0 and 1 or 0)
 end
 -- }}}
 
--- Export for library use
 local dashboard = {
-    init = init,
-    scan = scan_issues,
-    group_by_phase = group_by_phase,
+    collect = collect,
     render_terminal = render_terminal,
     render_markdown = render_markdown,
     render_json = render_json,
-    get_stats = function(phases)
-        local total_issues = 0
-        local total_done = 0
-        for _, phase in pairs(phases) do
-            total_issues = total_issues + #phase.issues
-            total_done = total_done + phase.completed
-        end
-        return { total = total_issues, completed = total_done }
-    end,
+    warning_lines = warning_lines,
 }
 
--- Run if executed directly
-if arg and arg[0] then
+-- run as a program only when invoked directly, not when loaded with dofile
+if arg and arg[0] and arg[0]:match("progress%-dashboard%.lua$") then
     main()
 end
 
