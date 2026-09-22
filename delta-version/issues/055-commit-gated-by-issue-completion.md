@@ -1,11 +1,103 @@
 # Issue 055: Commit-Gated-By-Issue-Completion Hook and Wrapper Tool
 
-**Status**: Open
-**Priority**: High
+**Status**: Open (redesigned 2026-09-22; nothing built)
+**Priority**: Medium
 **Created**: 2026-05-21
-**Type**: Harness configuration + new wrapper utility
+**Type**: Wrapper utility + one extra rule in the shared commit gate
+**Depends on**: `scripts/issues/032-commit-only-your-own-lines.md` (the line
+ledger, `stage-own-changes`, and the `refuse-foreign-lines` commit gate)
 
 ---
+
+## Current Behavior (2026-09-22)
+
+Nothing from this issue is built. Since it was written, two things changed
+the ground it stands on:
+
+1. **A shared commit gate now exists for every project**, and a stricter one
+   is being built under `scripts/issues/032`: a commit may carry only lines
+   the session itself wrote, recorded in a per-session ledger as each edit
+   happens. That covers the "a bot stages a pile of unrelated edits" symptom
+   below, in every project rather than only this one.
+2. **The original design could not have worked**, for two reasons found on
+   review:
+   - The gate was to let the wrapper's commit through by seeing an
+     environment variable the wrapper exported. A PreToolUse hook runs
+     *before* the command, in the harness's own process, and is handed the
+     command's text -- it never sees a variable the command will export once
+     it runs.
+   - It did not need to. The `git commit` inside the wrapper script is not a
+     separate tool call, so the hook never sees it at all. Only a `git
+     commit` typed directly into the shell tool reaches a gate.
+   What a hook *can* do, and the original design missed, is run git itself:
+   it can read the index of the repository the commit is aimed at before the
+   commit happens. The redesign uses that.
+
+The standing instructions also allow commits that close no issue: a bug fix
+is recorded by its commit alone, and documentation work needs no issue file.
+So "every commit must close an issue", as first written, would refuse
+commits the owner has said are fine.
+
+## Intended Behavior (redesign)
+
+Two small pieces, sitting on top of 032 instead of beside it:
+
+1. **A wrapper that closes an issue in one step**
+   (`scripts/commit-completed-issue.sh <issue-file> [message-file]`):
+   - validates the issue has its three required sections (through the
+     shared issue validator from `scripts/issues/A04`; until that exists,
+     `validate_issue` in `manage-issues.sh`);
+   - moves the file into its `issues/completed/` folder with plain `mv`
+     (keeping its modified date) and claims the move in the ledger;
+   - updates the phase progress file the standing instructions name
+     (`issues/phase-X-progress.md`, or this project's `issues/progress.md`)
+     and claims those lines;
+   - stages exactly the session's own lines with `stage-own-changes`, which
+     also stages the project's `llm-transcripts/`;
+   - commits the index as it stands -- no `-a`, no pathspec -- so the commit
+     gate from 032 would accept it even if it were typed by hand.
+   It refuses and changes nothing if any step fails.
+2. **One extra rule in the shared commit gate** (`refuse-foreign-lines`, from
+   032): if the index being committed moves an issue file into a
+   `completed/` folder, the same index must also change that project's
+   progress file. The gate reads this from `git diff --cached --name-status
+   -M`, not from the command text, so it holds however the commit is typed.
+   A commit that closes no issue is not affected.
+
+Deliberately not done: refusing commits that close no issue (conflicts with
+the standing instructions above), and any environment-variable handshake
+between wrapper and gate (the gate never sees the wrapper's commit).
+
+## Suggested Implementation Steps (redesign)
+
+1. Wait for 032's ledger, `claim-own-change`, `stage-own-changes` and
+   `refuse-foreign-lines` to land; this issue only adds to them.
+2. Write `commit-completed-issue.sh` with the house script shape: hard-coded
+   `DIR` overridable by the first argument, a header comment in plain
+   language, fold markers per function.
+3. Add the progress-file rule to `refuse-foreign-lines`, with cases in
+   `test-refusal-gates`: a move into `completed/` without a progress change
+   is refused; with one, allowed; a commit that moves no issue is untouched.
+4. Test the wrapper in a scratch repository: a valid issue closes in one
+   commit that contains the move, the progress change and the transcripts;
+   an issue missing a section leaves the tree exactly as it was.
+5. Point `manage-issues.sh complete_issue` at the wrapper so there is one
+   way to close an issue from the command line.
+
+## Open Questions
+
+- Which progress file does a project without phases update -- `issues/
+  progress.md` (delta-version's) or a `phase-X-progress.md` per the
+  standing instructions? The wrapper needs one rule for projects that have
+  both kinds.
+
+---
+
+## Original design (2026-05-21), kept as written
+
+Everything below is the issue as first filed. The redesign above replaces
+its wrapper-recognition and "one path for every commit" parts; its
+description of the wrapper's steps and its test cases still hold.
 
 ## Current Behavior
 
