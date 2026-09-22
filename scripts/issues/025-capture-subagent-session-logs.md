@@ -1,188 +1,148 @@
-# Issue #025: Subagent session logs are no longer captured
+# Issue #025: Capture subagent session logs
 
 ## Current Behavior
 
-Subagent conversations — the sidechains a session spawns when it delegates
-work — are not being exported. They have not been since Claude Code changed
-where it stores them, and nothing reported the change.
+Subagent conversations — the side conversations a session spawns when it
+delegates work to a helper agent — are exported alongside the conversation
+that spawned them, in both of Claude Code's storage layouts.
 
-### How the exporter looks for session logs
+### Where Claude Code keeps them
 
-`backup-conversations` builds its work list by listing files in the project's
-session-log directory under `~/.claude/projects/`. It does this in two passes,
-deliberately ordered so that main conversations claim the plain date-based
-filename and sidechains fall into the collision slots behind them:
-
-1. every `*.jsonl` directly in the project directory, excluding names starting
-   with `agent-`
-2. every `agent-*.jsonl` directly in the project directory
-
-Both passes look **only** in the project directory itself. Neither descends
-into subdirectories.
-
-### What Claude Code now does
-
-Subagent logs used to sit flat in the project directory as `agent-*.jsonl`,
-which is exactly what the second pass was written to find. They are now
-written one level down, in a directory named after the parent session, under a
-`subagents/` folder:
+Subagent logs used to sit loose in the project's session folder as
+`agent-*.jsonl`. Since mid-2025 they are written one level down, in a folder
+named after the parent session:
 
 ```
 ~/.claude/projects/<project>/<parent-session-uuid>/subagents/agent-<hash>.jsonl
+~/.claude/projects/<project>/<parent-session-uuid>/subagents/agent-<hash>.meta.json
 ```
 
-Counting across all projects on disk:
+The `.meta.json` beside each log records what kind of helper it was (a
+general-purpose agent, a fork, ...), the one-line description it was given,
+and how deep in the spawning tree it sat. The exporter does not read it yet
+(see Open Questions).
 
-| measure | count |
-| --- | --- |
-| flat `agent-*.jsonl` files the exporter can see | 0 |
-| nested `subagents/*.jsonl` files it cannot see | 101 |
-| most recent nested subagent log | 2026-07-29 |
+For roughly seven months the exporter looked only in the old place, found
+nothing, and said nothing; the error-swallowing that hid this is covered by
+issue 034.
 
-The second pass now matches nothing, anywhere. Every subagent log in existence
-is in the nested layout.
+### How the exporter finds them
 
-### How long this has been broken
+`backup-conversations` has two ways of choosing what to export (issue 034):
 
-The most recent transcript in the corpus whose header records a genuine
-sidechain conversation id is
-`delta-version/llm-transcripts/dec-21-25_agent-1.md`, whose first line reads
-`# Conversation Summary: agent-a68961a`.
+- **After every reply (the Stop hook)** it exports the conversation Claude Code
+  names, followed by every log in that conversation's `subagents/` folder.
+- **By hand (a sweep)** it exports every main conversation in the project's
+  session folder first, then every helper log in both layouts — loose
+  `agent-*.jsonl` files, and `*/subagents/agent-*.jsonl`. The sweep prints how
+  many of each it found, so a future layout change shows up as a surprising
+  "0 helper-agent log(s)" instead of as silence.
 
-Transcripts with more recent dates do carry an `_agent-N` suffix in their
-filenames, but that is misleading — see below. Checking their headers shows
-plain conversation uuids, not sidechain ids. The newest examples,
-`games/first-person-spellcraft/llm-transcripts/jul-21-26-through-jul-22-26_agent-1.md`
-and `soren-ds/llm-transcripts/jul-2-26-through-jul-3-26_agent-1.md`, both hold
-ordinary uuids.
+The order is deliberate: the naming rulebook (`libs/transcript-discovery.sh`)
+hands the bare date name to the first claimant of a date span and numbered
+`_agent-N` slots to later ones, and main conversations are meant to hold the
+bare names.
 
-### The overloaded suffix that hid it
+### Forked helpers
 
-The `_agent-N` suffix means two different things, and that is why the gap was
-invisible from a directory listing.
+A forked helper inherits its parent's whole conversation instead of starting
+from a fresh prompt. Its log therefore opens with a `fork-context-ref` record
+pointing back at the parent, and its orders arrive in an unusual shape: as a
+text block riding along with the answer to the parent's spawning call (a tool
+result). The parser skips any message that opens with a tool result, so a
+fork's transcript used to be a header and nothing else — the orders were
+skipped, and with no user turn ever opened, every reply after them was too.
 
-The naming rulebook (`libs/transcript-discovery.sh`) hands out `_agent-1`,
-`_agent-2`, and so on as **collision slots**: when a transcript's date-span
-name is already taken, the next claimant gets a numbered suffix. Separately,
-the ordering of the exporter's two passes was designed so that sidechains would
-land in exactly those slots, which made "has an `_agent-N` suffix" and "is a
-sidechain" the same thing in practice.
+`libs/conversation-parser.lua` now recognises a fork log by its
+`fork-context-ref` record, and reads the text blocks of the first tool-result
+message in a fork as the request. Ordinary logs keep the old rule, so no
+existing transcript changes shape. The harness's fixed fork preamble
+(`<fork-boilerplate>`) is dropped like the other harness envelopes: it is
+identical in every fork and written by neither speaker.
 
-They stopped being the same thing when two ordinary conversations began sharing
-a date span — a second session on the same day now takes `_agent-1` — and they
-stopped being the same thing again when sidechains left the directory the
-exporter searches. The suffix kept appearing, so nothing looked wrong.
+### What a helper's transcript contains
 
-### Consequence
+The helper's instructions, every piece of prose it wrote, and its final
+message. A helper's full report travels back to its parent through a tool
+call, which the parser drops like every tool call; the report is kept in the
+parent's transcript, where it arrived as a message.
 
-Subagent logs are subject to the same retention deletion as any other session
-log. Under the previous 30-day default, every subagent conversation older than
-a month has already been deleted without ever being exported. The 101 currently
-on disk are inside the retention window and are recoverable today; the
-retention window is now 20 years (issue #024 records the setting), so nothing
-further will be lost to deletion, but nothing already deleted comes back.
+### The overloaded suffix
+
+`_agent-N` still means two things: "a helper conversation" and "a second
+conversation claiming the same date span". The header line
+(`# Conversation Summary: agent-<hash>` for a helper, a uuid for a main
+conversation) tells them apart without ambiguity; the filename alone does not.
+This was left as it is — see Open Questions.
 
 ## Intended Behavior
 
-Unresolved, because it depends on whether subagent conversations are wanted in
-the corpus at all. Two coherent positions:
-
-**Capture them.** The exporter's search descends into the nested layout, and
-subagent conversations get transcripts as they did before the layout change.
-
-**Do not.** Subagent transcripts are mostly tool-driven work with little of the
-design reasoning the corpus exists to preserve. If they were never valued, the
-loss is not a loss, and the correct fix is to delete the now-dead second pass
-rather than extend it — leaving a program that claims to look for something it
-does not want.
-
-What is not acceptable is the present state: a search that looks for sidechains
-in a place they no longer exist, finds nothing, and reports nothing.
+Capture them (decided September 2026: the owner confirmed the gap was a real
+loss and asked for it fixed). Every helper conversation reaches the project's
+`llm-transcripts/` folder on the same Stop hook that saves its parent, and a
+search that stops finding helpers where helpers exist says so.
 
 ## Suggested Implementation Steps
 
-These apply only under the capture position.
-
-1. **Extend the search to the nested layout**, keeping the two-pass ordering
-   intact so that main conversations still claim plain names and sidechains
-   still fall behind them.
-2. **Decide how a sidechain's parent is recorded.** The nested path names the
-   parent session, which the flat layout never did. That relationship is
-   information the corpus has never had, and the transcript directory is flat,
-   so it has nowhere obvious to go. See Open Questions.
-3. **Disambiguate the suffix.** With sidechains and same-day collisions both
-   landing in `_agent-N`, a reader cannot tell which is which without opening
-   the file and reading its header. Whichever meaning keeps the suffix, the
-   other needs a different one.
-4. **Report what the search found.** A pass that finds zero sidechain logs
-   across an entire corpus is the signal that would have caught this in July.
-   Per project convention a silent absence is a fallback, and a fallback is a
-   warning.
+1. Extend the search to the nested layout, keeping main-conversations-first
+   ordering (`backup-conversations`: the helper-listing routines for one
+   session and for a whole sweep).
+2. Report the counts the sweep found.
+3. Teach the parser the fork shape (`libs/conversation-parser.lua`: pre-pass
+   three, the fork exception in the user-message branch, and the
+   `fork-boilerplate` removal in the envelope splitter).
+4. Test with fixtures in both shapes:
+   `tests/test-backup-conversations-sessions.sh` (a plain helper, a fork, the
+   ordering, the counts). The older suites — `tests/test-transcript-export-guards.sh`,
+   `tests/test-transcript-wrapping.sh`, and the parser suites
+   `tests/test_conversation-parser-*.lua` — must keep passing unchanged.
 
 ## Related Documents and Tools
 
-- `backup-conversations` — the file changed; the two-pass search is at the top
-  of its transcript-writing routine.
-- `libs/transcript-discovery.sh` — owns the collision-suffix rules that the
-  sidechain naming depends on.
+- `backup-conversations` — the exporter.
+- `libs/conversation-parser.lua` — reads one log, writes one transcript.
+- `libs/transcript-discovery.sh` — owns the collision-suffix rules the helper
+  naming depends on.
+- `issues/034-export-only-the-session-that-stopped.md` — the Stop-hook mode
+  that exports one session and its helpers, and the end of silent failures.
 - `issues/completed/020-transcript-export-race-guard-and-single-naming-authority.md`
-  — establishes the exporter as sole naming authority, which constrains any
-  change to how these files are named.
-- `issues/018-date-range-transcript-naming.md` — where the date-span naming and
-  its collision behaviour were designed.
-- `issues/024-backfill-existing-transcript-corpus.md` — the 101 surviving
-  subagent logs are a backfill opportunity that exists only while they survive.
+  — the exporter is the sole naming authority; nothing here changes that.
+- `issues/018-date-range-transcript-naming.md` — date-span naming and its
+  collision behaviour.
+- `issues/024-backfill-existing-transcript-corpus.md` — the surviving helper
+  logs across all projects are exported by each project's next sweep, or by
+  its Stop hook the next time one of those sessions is resumed.
 
 ## Metadata
 
-- **Priority**: unset — see Open Questions.
-- **Complexity**: Low to extend the search. The naming disambiguation is the
-  part with judgement in it.
-- **Dependencies**: None. Independent of #019, #021, #022, #023.
-- **Impact**: Under the capture position, 101 subagent conversations become
-  exportable. Under the other position, a dead code path is removed and the
-  program stops implying it captures something it does not.
+- **Status**: complete. The open questions below refine the result; none of
+  them block the capture itself.
+- **Complexity**: Low for the search; the fork shape needed a parser change.
+- **Dependencies**: none.
 
 ## Success Criteria
 
-Under the capture position:
-
-- A project whose sessions spawned subagents produces transcripts for them.
-- A reader can tell a sidechain transcript from a same-day collision without
-  opening the file.
-- A run that finds no sidechain logs where sidechain logs exist reports it.
-
-Under the other position:
-
-- The second search pass is removed rather than left matching nothing.
+- A project whose sessions spawned helpers produces transcripts for them.
+- A fork's transcript carries its orders and its replies.
+- A sweep that finds no helper logs reports the count.
+- A reader can tell a helper transcript from a same-day collision without
+  opening the file — not met; see Open Questions.
 
 ## Open Questions
 
-1. **Do we want subagent transcripts at all?** This is the question the whole
-   issue turns on. They are bulky and mostly mechanical, and the corpus exists
-   to show how the project was designed rather than how each delegated task was
-   executed. If they were never wanted, the honest fix is deletion of the dead
-   path, not repair.
-2. **If they are wanted, should the parent-child relationship be visible?** The
-   nested source layout records which session spawned which subagent. The
-   transcript directory is flat and has never carried that relationship. Making
-   it visible means either encoding it in filenames or introducing
-   subdirectories, and the second would change assumptions the naming rulebook
-   and every consumer of it currently make.
-3. **Which meaning keeps the `_agent-N` suffix?** It currently serves both
-   "sidechain" and "second file claiming this date span". Splitting them is
-   necessary under the capture position and needs a name for whichever meaning
-   moves.
-4. **What is the actual invariant that broke here?** Two readings: that the
-   suffix was overloaded from the start and got away with it while sidechains
-   were the only source of same-day collisions, or that "one conversation per
-   project per day" quietly stopped being true and took the suffix's meaning
-   with it. Which reading is right decides whether the fix is a new suffix or a
-   different naming scheme.
-5. **Should the 101 surviving logs be exported retroactively?** They are inside
-   the retention window now, so this is possible today and will remain possible
-   under the 20-year window. It is the same class of decision as issue #024 and
-   should probably be decided with it.
-6. **How would a future layout change be noticed?** This one produced no error
-   for roughly seven months. Whatever answers question 4 should also answer
-   what would have made this visible in July.
+1. **Should the `_agent-N` suffix be split?** Helpers and same-day collisions
+   still share it. The header tells them apart; the filename does not. Splitting
+   means a second suffix (for example `_sub-N` for helpers), which changes the
+   naming rulebook and every tool that reads names through it (the storyline
+   library in delta-version, `rederive-transcripts`,
+   `check-transcripts-are-filed-right`). Left unsplit until the owner decides it
+   is worth that change.
+2. **Should a helper's transcript name its parent and its description?** The
+   `.meta.json` beside each log has the one-line description it was given and
+   its type; the log's records carry the parent session id. One header line
+   ("Helper for <parent> — <description>") would make a folder of helper
+   transcripts readable without opening them. Other tools read only the first
+   line of a transcript, so a second header line is believed safe.
+3. **Should the Stop hook also report a zero?** The sweep prints its helper
+   count; the hook exports one session and does not, because a session with no
+   helpers is normal. A layout change would still surface on the next sweep.
