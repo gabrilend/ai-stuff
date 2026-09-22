@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # migrate-dev-branches.sh - Merge and remove project /dev branches
 #
-# Merges all project/dev branches to master and removes them, simplifying
+# Merges all project/dev branches to main and removes them, simplifying
 # the branch architecture to eliminate branch confusion and accidental commits.
 
 DIR="${DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
@@ -53,7 +53,7 @@ check_worktrees() {
 # -- {{{ merge_dev_branches
 merge_dev_branches() {
     echo
-    echo -e "${BOLD}Merging /dev branches to master${NC}"
+    echo -e "${BOLD}Merging /dev branches to main${NC}"
     echo "=================================="
     echo
 
@@ -70,9 +70,9 @@ merge_dev_branches() {
     echo "Found ${#dev_branches[@]} dev branches: ${dev_branches[@]}"
     echo
 
-    # Ensure we're on master
-    git checkout master || {
-        echo -e "${RED}✗ Failed to checkout master${NC}"
+    # Ensure we're on main
+    git checkout main || {
+        echo -e "${RED}✗ Failed to checkout main${NC}"
         return 1
     }
 
@@ -80,15 +80,15 @@ merge_dev_branches() {
     for dev_branch in "${dev_branches[@]}"; do
         echo -e "${CYAN}Merging ${dev_branch}...${NC}"
 
-        # Check if branch has commits not in master
-        local ahead=$(git rev-list --count master..${dev_branch} 2>/dev/null)
+        # Check if branch has commits not in main
+        local ahead=$(git rev-list --count main..${dev_branch} 2>/dev/null)
 
         if [[ $ahead -eq 0 ]]; then
             echo -e "${GREEN}✓ ${dev_branch} has no new commits, skipping${NC}"
             continue
         fi
 
-        echo "  ${dev_branch} is $ahead commits ahead of master"
+        echo "  ${dev_branch} is $ahead commits ahead of main"
 
         # Attempt merge
         git merge --no-edit ${dev_branch} || {
@@ -104,11 +104,11 @@ merge_dev_branches() {
             return 1
         }
 
-        echo -e "${GREEN}✓ Merged ${dev_branch} to master${NC}"
+        echo -e "${GREEN}✓ Merged ${dev_branch} to main${NC}"
         echo
     done
 
-    echo -e "${GREEN}✓ All /dev branches merged to master${NC}"
+    echo -e "${GREEN}✓ All /dev branches merged to main${NC}"
     return 0
 }
 # }}}
@@ -166,8 +166,8 @@ verify_migration() {
     local current_branch=$(git symbolic-ref --short HEAD)
     echo -e "Current branch: ${GREEN}${current_branch}${NC}"
 
-    if [[ "$current_branch" != "master" ]]; then
-        echo -e "${YELLOW}Warning: Not on master${NC}"
+    if [[ "$current_branch" != "main" ]]; then
+        echo -e "${YELLOW}Warning: Not on main${NC}"
     fi
 
     # Check for remaining /dev branches
@@ -198,7 +198,7 @@ main() {
     echo
     echo "This script will:"
     echo "  1. Save current branch state"
-    echo "  2. Merge all project/dev branches to master"
+    echo "  2. Merge all project/dev branches to main"
     echo "  3. Delete all project/dev branches"
     echo "  4. Verify the migration"
     echo
@@ -225,8 +225,8 @@ main() {
     echo -e "${BOLD}═══════════════════════════════════════════════════════${NC}"
     echo -e "${GREEN}✓ Migration complete!${NC}"
     echo
-    echo "Main repository is now on master (locked)."
-    echo "All issue branches will now branch from master."
+    echo "Main repository is now on main (locked)."
+    echo "All issue branches will now branch from main."
     echo
     echo "Next steps:"
     echo "  1. Review git log to verify merges"

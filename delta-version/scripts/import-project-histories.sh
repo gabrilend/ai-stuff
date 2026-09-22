@@ -125,7 +125,7 @@ function remove_embedded_git_dirs() {
 # -- {{{ create_master_commit
 function create_master_commit() {
     echo ""
-    echo "Creating master branch with all projects..."
+    echo "Creating main branch with all projects..."
 
     cd "$REPO_DIR" || exit 1
 
@@ -206,7 +206,7 @@ function run_import() {
     remove_embedded_git_dirs
 
     echo ""
-    echo "Step 3: Create master branch commit"
+    echo "Step 3: Create main branch commit"
     echo "------------------------------------"
     create_master_commit
 
@@ -232,7 +232,7 @@ function run_interactive_mode() {
     echo "This will:"
     echo "  1. Import existing project git histories as branches"
     echo "  2. Remove embedded .git directories"
-    echo "  3. Create master branch with all projects"
+    echo "  3. Create main branch with all projects"
     echo ""
     echo "Repository: $REPO_DIR"
     echo ""
@@ -274,7 +274,7 @@ function show_help() {
     echo "This script:"
     echo "  1. Imports project .git histories as branches"
     echo "  2. Removes embedded .git directories"
-    echo "  3. Creates master branch with all projects"
+    echo "  3. Creates main branch with all projects"
 }
 # }}}
 

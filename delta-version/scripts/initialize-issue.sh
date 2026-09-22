@@ -368,7 +368,7 @@ print_next_steps() {
 
         echo -e "${BOLD}When complete:${NC}"
         echo -e "  cd /mnt/mtwo/programming/ai-stuff"
-        echo -e "  git checkout master"
+        echo -e "  git checkout main"
         echo -e "  git merge ${short_name}/issue-${issue_num}"
         echo -e "  ./delta-version/scripts/manage-worktree.sh remove $issue_num $project"
     else
