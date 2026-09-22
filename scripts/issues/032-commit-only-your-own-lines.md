@@ -152,8 +152,9 @@ fallback, and it is announced every time rather than taken silently.
 
 1. Should a `git commit --amend` that only rewords (nothing staged) need a
    token? Right now it passes, since there are no staged lines to check.
-2. Should the ledger be cleared when a session ends (a `SessionEnd` hook), or
-   left in RAM until reboot? Leaving it lets a resumed session keep its claims.
+2. ~~Should the ledger be cleared when a session ends, or left in RAM until
+   reboot?~~ Answered 2026-09-22: kept until reboot, so a resumed session keeps
+   its claims. That is the behavior as built; no `SessionEnd` hook is added.
 3. Is a whole-file claim (`claim-own-change`) too blunt for files two sessions
    share? The alternative is a claim by line range, which is more typing for
    the session and harder for a person to read in the transcript.

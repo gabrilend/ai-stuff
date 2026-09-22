@@ -125,9 +125,9 @@ forgotten:
 
 - Two projects with the same directory name in different places (a game under
   `games/` and one at the top level, say) would share `/tmp/<name>` and
-  `/dev/shm/<name>`. No such pair exists today. Should the tier name be made
-  unique (for example by including the parent directory), or is a name clash
-  something to refuse loudly when it happens?
+  `/dev/shm/<name>`. No such pair exists today. Answered 2026-09-22: leave it —
+  the tiers are temporary by design, so neither unique names nor a refusal is
+  added.
 - CLAUDE.md names the exec tier as "/tmp/{project_name}/tmp/" and says the
   project's `tmp` link points at `/tmp/{project_name}`. The library follows
   that, which means code run from `tmp/` lives at `tmp/tmp/`. Is that
