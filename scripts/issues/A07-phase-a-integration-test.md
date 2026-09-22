@@ -11,6 +11,14 @@
 
 No integration test exists for Phase A infrastructure tools.
 
+Two of the tools this test would exercise have moved since it was
+written: the parser coverage report (A06) went back to
+world-edit-to-execute, where its maps and parsers are, so it drops out of
+a shared-tools test; and the unified test runner (A03, completed) now
+finds and runs every project's tests -- including this one, once it
+exists as `tests/test-phase-a-*` or a `test-*` script in the scripts
+folder.
+
 ---
 
 ## Intended Behavior
