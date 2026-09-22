@@ -166,7 +166,8 @@ other's transcripts.
 
 ## Metadata
 
-- **Status**: complete once the settings entry is switched (step 8).
+- **Status**: step 8 is done — the Stop hook entry runs `--hook`. Open
+  questions remain, so the issue stays open.
 - **Complexity**: Medium.
 - **Dependencies**: none.
 
