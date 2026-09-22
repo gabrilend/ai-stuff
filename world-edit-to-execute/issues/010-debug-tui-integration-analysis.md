@@ -510,8 +510,8 @@ fi
 
 - issues/004-redesign-interactive-mode-interface.md
 - scripts/libs/menu.sh (lines 1074-1224 - incremental update)
-- scripts/test-menu-render.sh
-- scripts/test-menu-render-v2.sh
+- scripts/debug/menu-render-repro.sh (was scripts/test-menu-render.sh)
+- scripts/debug/menu-render-repro-v2.sh (was scripts/test-menu-render-v2.sh)
 - scripts/libs/test-menu.sh
 
 ---
