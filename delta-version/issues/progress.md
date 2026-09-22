@@ -13,34 +13,33 @@ Delta-Version is the meta-project responsible for git repository management and 
 
 ## Phase A: Shared Infrastructure Tools
 
-> **Status:** 3/7 Complete (A01, A02, A03 implemented)
->
 > Phase A tools are project-abstract utilities that live in `/home/ritz/programming/ai-stuff/scripts/`
-> and are symlinked into projects. They provide common functionality across all projects.
+> and take the project folder as an argument. Their issue files live in `scripts/issues/`
+> (open) and `scripts/issues/completed/`; this table is a pointer, not the record.
 
-| ID | Tool | Status | Location |
+| ID | Tool | Status (2026-09-22) | Location |
 |----|------|--------|----------|
-| **A01** | Git History Prettifier | ✅ **Completed** | `scripts/git-history.sh` |
-| **A02** | Progress Dashboard | ✅ **Completed** | `scripts/progress-dashboard.lua` |
-| **A03** | Unified Test Runner | ✅ **Completed** | `world-edit-to-execute/src/cli/run-tests.sh` → needs move to `scripts/` |
-| **A04** | Issue Validator | ⏳ Pending | TBD |
+| **A01** | Git History Prettifier | Working; phases now read from issue files, not commit messages. Open: `src/cli/` link, incremental mode | `scripts/git-history.sh` |
+| **A02** | Progress Dashboard | Working; phase parsing being fixed for phases ≥10 | `scripts/progress-dashboard.lua` |
+| **A03** | Unified Test Runner | ✅ Completed (shared runner, any project) | `scripts/test-runner.sh` |
+| **A04** | Issue Validator | ⏳ Pending (planned as part of the issue-lifecycle skill) | TBD |
 | **A05** | TOC Updater | ⏳ Pending | TBD |
-| **A06** | Parser Coverage Report | ⏳ Pending | TBD |
-| **A07** | Phase A Integration Test | ⏳ Pending | Depends on A01-A06 |
+| **A06** | Parser Coverage Report | Moved back to `world-edit-to-execute/issues/` — it only applies there | — |
+| **A07** | Phase A Integration Test | ⏳ Pending | Depends on A01–A05 |
 
 ### Completed Tools
 
 **A01 - git-history.sh**: Generates prettified commit logs by phase with markdown output
 - See: `scripts/README-git-history.md`
-- Usage: `./scripts/git-history.sh -p 2` or `./scripts/git-history.sh -a`
+- Usage: `scripts/git-history.sh -d <project> -a -s`
 
 **A02 - progress-dashboard.lua**: Scans issue directories and generates progress statistics
 - See: `scripts/README-progress-dashboard.md`
-- Usage: `lua scripts/progress-dashboard.lua -t` or `-m` for markdown
+- Usage: `luajit scripts/progress-dashboard.lua -t` or `-m` for markdown
 
-**A03 - run-tests.sh**: Discovers and runs Lua test files with aggregated reporting
-- See: `issues/A03-unified-test-runner.md`
-- Initial prototype in world-edit-to-execute, needs migration to shared location
+**A03 - test-runner.sh**: Finds every test a project keeps (Lua tests, `test-*` programs, `check-*` verifiers) and runs them in parallel
+- See: `scripts/issues/completed/A03-unified-test-runner.md`
+- Usage: `scripts/test-runner.sh <project>`; delta-version's own A03 (the world-edit prototype) is completed as superseded
 
 ---
 
@@ -221,9 +220,16 @@ These issues provide foundational utilities and can be implemented independently
   - *Status*: Completed 2024-12-15
 
 ## In Progress
-- **Issue 008**: Validation and Documentation (partial - CLAUDE.md template created, user docs pending)
+- **Issue 042a**: The integration audits still unbuilt — the three `check-utilities.sh` flags (`--issue-standards`, `--transcripts`, `--tui-audit`) that print "not yet implemented". Carried out of 042 so 042 could close.
+- **Issue 055**: Commit gated by issue completion — rewritten 2026-09-22 so the design can work (a gate only sees the command text) and narrowed to sit beside the shared line-ledger commit gate rather than duplicate it. Nothing built yet.
+- **Issue 056**: Recursive transcript summarisation — 056a (llama.cpp client) exists; 056b–d unbuilt.
+
+(Issue 008, listed here until September 2026, is in `completed/`.)
 
 ## Recently Completed
+- **Issue 042**: Project integration checker (`scripts/check-utilities.sh`) — moved to completed 2026-09-22; its deferred audits continue as 042a.
+- **Issue 043**: Issue initialization workflow (`scripts/initialize-issue.sh`) — moved to completed 2026-09-22 (all acceptance criteria were met in January).
+- **Issue A03**: Unified test runner — completed as superseded by the shared `scripts/test-runner.sh`.
 - **Issue 057**: Centralized Transcript Storyline Library (2026-07-23)
   - One symlink per transcript collection-wide in `library/storyline/`, ISO-date-prefixed so a plain listing reads as a chronology
   - Reverse date parser (token → ISO date) contributed to the shared transcript-discovery rulebook
@@ -462,24 +468,30 @@ These issues provide foundational utilities and can be implemented independently
 ## Pending
 
 ### Phase 2 Remaining (Gitignore)
-- **Issue 013**: Implement Validation and Testing
-- **Issue 014**: Create Maintenance Utilities
-- **Issue 015**: Integration and Workflow Setup
+- None open. 013, 014 and 015 are in `completed/` (013 and 014 also have
+  older copies under `issues/phase-2/`, kept as that phase's record).
 
 ### Phase 3+ (Future)
-- **Issue 016-022**: Ticket Distribution System
-- **Issue 024**: External Project Directory Configuration
-- **Issue 026**: Project Metadata System
+- **Issue 017–022**: Ticket Distribution System (016, the markup language, is completed)
 - **Issue 027**: Basic Reporting Framework
+- (024 and 026, listed here until September 2026, are completed.)
 
 ## Summary Statistics
-- **Total Issues**: ~79 (including sub-issues)
-- **Completed**: 29 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 016, 023, 026, 029, 030, 031, 035 w/ all sub-issues, 037, 038, 047, 050)
-- **In Progress**: 0
-- **Partial**: 2 (005, 008)
-- **Pending**: ~48 (including 040, 049, 051, and 053)
-- **High Priority**: 051 (Git Documentation Generator), 053 (TODONE)
-- **New (Phase 4)**: 30 (040, 040a-i, 049, 049a-d, 051, 051a-g, 053, 053a-f)
+
+Counts are not written here, because a number typed into a document is
+wrong the day after. Ask the tools that read the files:
+
+- `luajit /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /home/ritz/programming/ai-stuff/delta-version -t`
+  — issues open and completed, by phase (an issue is done when it sits in `issues/completed/`).
+- `luajit /home/ritz/programming/ai-stuff/delta-version/scripts/census-projects.lua --markdown`
+  — the same, across every project in the monorepo.
+
+What the counts will not tell you: 040 (self-revising CLAUDE.md), 049
+(transcript viewer), 051 (docs from git history) and 053 (cross-project
+roadmap) are detailed specifications with nothing built. Much of their
+reasoning could now be done by Claude inside a skill rather than by a local
+model pipeline; see the September 2026 skills survey in the llm-transcripts
+before building any of them as written.
 
 ## Notes
 - Issues follow CLAUDE.md conventions for implementation
