@@ -9,9 +9,34 @@
 
 ## Current Behavior
 
-Git history is only accessible via `git log` command. No formatted, phase-specific
-commit history exists. CLAUDE.md requires: "git log should be appended to a long
-history file, one for each phase of the project."
+`scripts/git-history.sh` exists and writes one markdown file per phase
+(`docs/history/phase-X-commits.md`, or wherever `-o` points), with optional
+statistics, date filters, and a TUI picker. It works as a CLI and can be
+sourced as a library.
+
+Phase is decided by the issue files a commit touched, not by the commit
+message. The first version read "Issue 204:" / "Phase 2:" out of commit
+subjects; once the house commit style became plain English with no issue
+numbers, no commit matched and every phase came out empty. Every finished
+piece of work still edits its issue file and moves it into
+`issues/completed/`, and the filename (or a `phase-N/` folder) names the
+phase, so that is what the tool reads now -- one `git log --name-status`
+pass over the project's `issues/` folder.
+
+It finds the repository root through git, so a project that is one folder
+of the monorepo works, and its line statistics cover only that folder.
+Verified against delta-version (phases 0, 1, 2, A) and soren-ds (phases
+through 10), writing into a scratch folder.
+
+Not yet done: the per-project `src/cli/` symlink, incremental updates
+(every run rewrites the files whole).
+
+**Open question (owner):** in a four-digit issue number such as `1001`,
+is the phase `10` (issue 01) or `1` (issue 001)? The tool reads it as
+phase 10 because soren-ds, the one project past phase 9, named its files
+that way. `progress-dashboard.lua` must use the same rule; until the
+convention is written down in CLAUDE.md, the two tools can only agree by
+copying each other.
 
 ---
 
@@ -197,16 +222,16 @@ standard (pre-1.31) and extended (1.31+) formats.
 
 ## Acceptance Criteria
 
-- [ ] Script lives in shared scripts directory
+- [x] Script lives in shared scripts directory
 - [ ] Symlink created in project src/cli/
-- [ ] Detects phases from commit messages
-- [ ] Generates per-phase markdown files
-- [ ] Includes commit statistics
-- [ ] Includes file change details
+- [x] Detects phases from the issue files each commit touches
+- [x] Generates per-phase markdown files
+- [x] Includes commit statistics (scoped to the project folder)
+- [x] Includes file change details
 - [ ] Supports incremental updates
-- [ ] Works as both CLI and library
-- [ ] Interactive mode with TUI
-- [ ] Project-abstract (works on any conforming project)
+- [x] Works as both CLI and library
+- [x] Interactive mode with TUI
+- [x] Project-abstract (works on any conforming project, monorepo or not)
 
 ---
 
