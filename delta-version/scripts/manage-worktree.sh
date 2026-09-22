@@ -3,7 +3,7 @@
 #
 # ============================================================================
 # DEPRECATED (2026-09-22). Worktrees are retired from this development
-# environment: new work happens on master in the main tree, and a session's
+# environment: new work happens on main in the main tree, and a session's
 # own lines are kept apart at commit time by the line ledger and its commit
 # gate (scripts/issues/032-commit-only-your-own-lines.md), not by separate
 # checkouts. This script still works so that existing worktrees can be listed,
@@ -119,7 +119,7 @@ ensure_dev_branch() {
     cd "$DIR"
     if ! git rev-parse --verify "$dev_branch" >/dev/null 2>&1; then
         log "Creating project dev branch: $dev_branch"
-        git branch "$dev_branch" master
+        git branch "$dev_branch" main
     fi
 }
 # }}}
@@ -162,9 +162,9 @@ cmd_create() {
         log "Branch $branch_name already exists, creating worktree from it"
         git worktree add "$worktree_path" "$branch_name"
     else
-        # Create new branch from master
-        log "Creating new branch $branch_name from master"
-        git worktree add -b "$branch_name" "$worktree_path" "master"
+        # Create new branch from main
+        log "Creating new branch $branch_name from main"
+        git worktree add -b "$branch_name" "$worktree_path" "main"
     fi
 
     # Minimal output - let calling script provide instructions
@@ -355,7 +355,7 @@ main() {
     # warning reaches a person even when stdout is captured. Behaviour is
     # otherwise unchanged -- listing and removal are still needed to retire
     # the worktrees that exist.
-    echo -e "${YELLOW}[DEPRECATED]${NC} worktrees are retired; work on master and migrate existing worktree results into the main tree." >&2
+    echo -e "${YELLOW}[DEPRECATED]${NC} worktrees are retired; work on main and migrate existing worktree results into the main tree." >&2
 
     case "$command" in
         create)
