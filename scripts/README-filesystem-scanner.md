@@ -11,8 +11,15 @@ Generate a hierarchy file for the specified directory.
 ./filesystem_scanner.sh /path/to/scan
 ```
 
+### Scan the Default Folder
+With no folder named, the ai-stuff monorepo is scanned (not `/`).
+
+```bash
+./filesystem_scanner.sh
+```
+
 ### Scan Entire Filesystem
-Run from root (requires appropriate permissions).
+Only when asked for by name (and with the permissions to read it).
 
 ```bash
 sudo ./filesystem_scanner.sh /
@@ -22,7 +29,7 @@ sudo ./filesystem_scanner.sh /
 Set up a cron job for regular filesystem snapshots.
 
 ```bash
-./filesystem_scanner.sh --install-cron
+./filesystem_scanner.sh --install-cron /path/to/scan
 ```
 
 ### View Cron Configuration
@@ -43,8 +50,9 @@ Uninstall automatic scanning.
 
 | Option | Description |
 |--------|-------------|
-| `[directory]` | Directory to scan (default: `/`) |
-| `--install-cron` | Install cron job with configured schedule |
+| `[folder]` | Folder to scan (default: the ai-stuff monorepo) |
+| `-o, --output <file>` | Write the picture here instead of the RAM tier |
+| `--install-cron [folder]` | Install cron job with configured schedule, scanning that folder |
 | `--uninstall-cron` | Remove cron job for this script |
 | `--show-cron` | Show current cron job configuration |
 | `-h, --help` | Show usage information |
@@ -60,7 +68,7 @@ Modify these at the top of the script to customize the schedule:
 | `CRON_DAY_OF_MONTH` | * | Day of month (1-31 or *) |
 | `CRON_MONTH` | * | Month (1-12 or *) |
 | `CRON_DAY_OF_WEEK` | 0 | Day of week (0-7, 0=Sunday) |
-| `CRON_LOG_FILE` | `/var/log/filesystem_scanner.log` | Log file path |
+| `CRON_LOG_FILE` | `scripts/tmp/shared-memory/filesystem-scanner/cron.log` | Log file path (RAM; a user cannot write `/var/log`) |
 
 ## Capabilities
 
@@ -107,7 +115,7 @@ Scan completed at: Sat Dec 27 14:00:05 2024
 
 ## Output Location
 
-Output is saved to `filesystem_hierarchy.txt` in the scanned directory.
+Output is saved to `scripts/tmp/shared-memory/filesystem-scanner/<folder-name>-hierarchy.txt`, the scripts folder's RAM artifact tier (rebuilt first if a reboot erased it), or wherever `-o` points. It is never written into the folder being scanned: earlier versions did, which littered every scanned project and, with the old default of `/`, tried to write into the root of the filesystem.
 
 ## Scanning Behavior
 
