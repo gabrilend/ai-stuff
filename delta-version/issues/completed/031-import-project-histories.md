@@ -2,6 +2,22 @@
 
 ## Current Behavior
 
+**Done and published 2026-09-22.** The trunk now stands on each project's
+earlier history: `15268505` "Initial commit: AI project collection" has the six
+projects' last pre-import commits as its parents, so plain `git log -- <folder>/`
+and `git blame` reach back to September–December 2025, on GitHub too. Every
+trunk commit kept its files, authors, dates and message; commit ids changed,
+and the ids quoted in files and messages were translated
+(`delta-version/archive/history-graft/commits.map` lists old beside new). The
+old trunk is kept whole as the tag `archive/main-before-history-graft`, and
+each project's pre-import tip as `archive/pre-import/<folder>`, all pushed.
+RPG-autobattler's four commits made after the import (in its nested repository)
+joined the trunk as a side history without changing any trunk file, and the
+nested repository was then removed; the five retired GitHub branches and the
+bundle were deleted, since the tags hold the same commits.
+
+What follows describes the situation before the rewrite.
+
 Before the monorepo existed, six projects kept their own git histories. The
 first version of this issue imported five of them as side branches
 (`import-project-histories.sh`), planning a branch-per-project layout beside a
@@ -85,7 +101,11 @@ Decided on 2026-09-22 (the person's answers):
 
 ## Suggested Implementation Steps
 
-Steps 1–3 are done; the rest is the swap-day checklist.
+All steps are done (2026-09-22). One snag on the day: the quote commit's
+fast-forward stopped because another session's backup hook kept rewriting a
+transcript it touches; that file was set aside, the fast-forward applied, and
+the newer copy restored and passed through `translate`. Kept below as the
+checklist for any future rewrite.
 
 1. ~~Build the tool (prepare / swap / translate), the quote library, and their
    tests.~~
@@ -158,14 +178,16 @@ Measured on scratch copies on 2026-09-22.
 
 ## Open Questions
 
-1. Should the transcript exporter apply `commits.map` when it renders, so a
-   re-rendered transcript keeps the new ids?
-2. After the swap, RPG-autobattler's nested repository adds nothing: its first
-   36 commits are on the trunk, and its 4 later ones mirror trunk work. Should
-   it be archived to the same bundle folder and removed?
-3. The bundle becomes redundant once the swap is published, because the
-   pre-import tags hold the same commits on GitHub. Keep it, or delete it
-   then?
+All answered 2026-09-22:
+
+1. Re-rendered transcripts keeping the new ids: handled by a transcript patch
+   system rather than by the exporter — edits to a transcript are recorded as
+   idempotent patches reapplied whenever it is re-exported, with the original
+   always recoverable (`scripts/issues/036-transcript-patches.md`). The id
+   translation is its first patch.
+2. RPG-autobattler's nested repository: its four later commits were carried
+   into the trunk (side history, files unchanged), then it was removed.
+3. The bundle: deleted once the pre-import tags were confirmed on GitHub.
 
 ## Related
 
