@@ -1,15 +1,47 @@
 # Issue 16-010: Monospace Font Enforcement
 
+## Status
+- **Status**: REOPENED (2026-09-22). Sorted from `next-issue-please-sort`.
+- **Numbering note**: a second, unrelated completed issue also carries the
+  number 16-010 (`issues/completed/16-010-wordcloud-display-colors-and-url-fixes.md`).
+  This file is the monospace one.
+
 ## Priority
-Low (Visual Consistency)
+Medium (was Low). Mobile readers see mangled frames.
+
+## What the Owner Reported
+
+> progress bars and the similar/different boxes are just totally mangled on mobile.
+> we should ensure that our monospace font is not only used on all computers, but
+> is also properly padded no matter the screen size.
 
 ## Current Behavior
 
-Every generated page ships with the font it renders in. `fonts/` holds Hack Nerd
-Font in both weights; `scripts/install-fonts` copies them into `output/fonts/`
-before any page is built; `src/page-head.lua` writes the `@font-face` rules, the
-viewport declaration and the text-size lock into every `<head>`. One module owns
-all of it, so the four generators cannot disagree.
+The font half works. Every generated page ships with the font it renders in.
+`fonts/` holds Hack Nerd Font in both weights. `scripts/install-fonts` copies
+them into `output/fonts/` before any page is built. `src/page-head.lua` writes
+the `@font-face` rules, the viewport tag and the text-size lock into every
+`<head>`. One module owns all of it, so the four generators cannot disagree.
+
+The screen-size half does not work:
+
+- **The recorded decision was to scroll sideways.** `src/page-head.lua`
+  (around lines 83-89) says the grid "must never reflow" and that the page
+  scrolling sideways is "the honest outcome". At the default 16-pixel size an
+  83-column grid is about 800 pixels wide. A phone screen is about 390 pixels,
+  so a phone shows about half of each frame. The owner's request above reverses
+  this decision.
+- **The mobile checks were never run.** Every box in the Testing Checklist
+  below is still unticked, including "Mobile browsers".
+- **Each text block is centred on its own.** `POEM_PAGE_CSS` in
+  `src/flat-html-generator.lua` (around lines 163-166) makes every `<pre>` block
+  shrink to fit its widest line and then centres it. A page that closes and
+  reopens `<pre>` around images is several blocks. If one block holds a line
+  that is too long (see 9-011 and 9-006), that block becomes wider and moves
+  left, so its frame edges no longer line up with the blocks above and below.
+- **Emoji are drawn from another font.** Hack has no emoji, so the browser
+  takes each emoji from a different font whose characters are not one grid cell
+  wide. Any line containing an emoji shifts everything after it.
 
 ## Intended Behavior
 
@@ -19,6 +51,10 @@ by shipping the font rather than naming fonts and hoping.
 1. Consistent visual appearance regardless of the visitor's system
 2. Readable poetry rendering
 3. **Exact character alignment** — this is the requirement the others serve
+4. **Works at every screen width, dynamically** (owner, 2026-09-22: "Gotta
+   make it work, and it's gotta be dynamic.") — readable and aligned on a phone
+   as well as a desktop. Sideways scrolling and unreadably small text both
+   fail this requirement.
 
 ## Why Alignment Is the Whole Requirement
 
@@ -284,7 +320,44 @@ there does not error in a browser; it silently falls back to the device font and
 the layout quietly breaks again. The build has to be the thing that notices,
 because the visitor's browser never will.
 
-## Suggested Implementation Steps
+## Suggested Implementation Steps (reopened work, 2026-09-22)
+
+1. **Scale the grid to the screen with CSS alone.** In the base style that
+   `src/page-head.lua` writes, set the text size of `<pre>` blocks to the
+   smaller of normal size and "screen width minus both side margins, divided by
+   84 cells". Hack's cell is 0.602 of the text size wide, which gives the ratio.
+   No JavaScript: issue 3-006 rules it out. Add a 16-pixel side margin to the
+   page body.
+2. **Give every poem block the same width.** Replace shrink-to-fit centring
+   with a fixed width of 84 character cells, so all blocks on a page share one
+   left edge even when one of them holds an over-long line.
+3. **Deal with emoji.** Either give each emoji a fixed one- or two-cell box,
+   or record that emoji lines are allowed to drift. This needs a decision (see
+   Open Questions).
+4. **Test on real phone widths**: 360, 390 and 430 pixels, at least in
+   Firefox's responsive design mode. Tick the Testing Checklist below and
+   record what was seen.
+5. The width validator reopened in 9-006 should pass on the pages used for
+   these tests, so that remaining misalignment can be blamed on CSS and not on
+   over-long lines.
+
+## Open Questions
+
+1. **Partly answered: tiny text, or a different phone layout?** At 390 pixels,
+   fitting 84 cells means text about 7.5 pixels tall. Owner (2026-09-22):
+   "Gotta make it work, and it's gotta be dynamic."
+   - **Requirement recorded:** a fixed scale-down to unreadable text is not the
+     answer. The layout must adapt to the screen width as it changes, and frames
+     must stay aligned at every width.
+   - **Still open, the how:** for example, the font scales with the viewport
+     down to a readable floor, and below that floor poems are drawn in a
+     narrower frame (bars, nav boxes and CW boxes re-drawn at the narrower
+     width). This must still be done without JavaScript (3-006), so either
+     CSS only, or pages generated at more than one width and chosen by CSS.
+2. Should emoji keep their colour glyphs and be forced into the grid, or be
+   replaced with a monospace symbol?
+
+## Original Implementation Steps (2026-02/03)
 
 1. **Choose font**
    - Download from official source
@@ -315,15 +388,23 @@ because the visitor's browser never will.
 - [ ] Fallback works if font fails to load
 - [ ] Character alignment correct for formatted text
 - [ ] Bold weight works (if included)
+- [ ] Frames line up on a 360-pixel screen
+- [ ] Frames line up on a 390-pixel screen
+- [ ] Frames line up on a 430-pixel screen
+- [ ] No sideways scrolling on any of the three
 
 ## Related Documents
 
 - 16-005: Trust warning intermediate page (uses fonts)
-- `src/html-generator.lua` — Template generation
+- `src/page-head.lua` — owns the font rules, viewport tag and base style
+- `src/flat-html-generator.lua` — `POEM_PAGE_CSS`, the per-block centring
+- 9-011 (reopened) — content-warning boxes wider than the frame
+- 9-006 (reopened) — whole-output width validator
+- 11-009 — pure-black backgrounds (same page-head module)
 
 ## Metadata
 
-- **Status**: ✅ COMPLETED
+- **Status**: REOPENED 2026-09-22 (first completed 2026-03-18)
 - **Created**: 2026-02-20
 - **Completed**: 2026-03-18
 - **Phase**: 16 (Network Media)

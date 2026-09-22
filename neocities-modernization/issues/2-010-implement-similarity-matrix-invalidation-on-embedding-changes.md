@@ -1,6 +1,110 @@
 # Issue 010: Implement Similarity Matrix Invalidation on Embedding Changes
 
+## Status
+- **Phase**: 2 (Similarity Engine)
+- **Status**: REOPENED 2026-09-22 — the first round (November 2025, recorded
+  further down) guarded the similarity matrix against a changed *embedding
+  count*. It did not guard the caches that the HTML stage actually reads against
+  a changed *poem numbering*. That gap is the reopened scope.
+- **Sorted from**: `next-issue-please-sort` (item 3)
+- **Related**: 5-024 (multi-algorithm similarity), 6-033 (embedding content
+  preprocessing), 12-002 (dual-axis theme/style) — those are about how good the
+  similarity is; this issue is about whether the stored results still belong to
+  the poems they are shown beside.
+
+## The owner's report (verbatim)
+
+> also, the similarity calculations are way off. they're just, totally unrelated.
+
 ## Current Behavior
+
+- The HTML stage does not compute similarity. It reads two caches written by
+  earlier stages: the similarity-rankings cache (for each poem, the other poems
+  ordered from most to least similar) and the diversity cache (for each poem,
+  the sequence used by the "different" pages).
+- Both caches name poems by **global poem index** — one integer per poem across
+  the whole corpus. Those integers are handed out category by category
+  (fediverse first, then boosts, notes, messages, then the image pseudo-poems),
+  so one new fediverse post shifts the index of every poem after it.
+- The two cache loaders in `src/flat-html-generator.lua`
+  (`load_similarity_rankings_cache` and `load_diversity_cache`) check only that
+  the file exists and is not empty. Nothing compares the cache with the
+  `assets/poems.json` it is being joined to. A cache written before a
+  re-extraction is therefore accepted, and every neighbour on every page points
+  at whichever poem now sits at that number — pages that look "totally
+  unrelated".
+- Two smaller mismatches in the single-threaded page builder make the same class
+  of error possible even with a fresh cache:
+  - the anchor poem is looked up by its **position in the poems array** rather
+    than by its global index (aligned today only by accident: 0 mismatches
+    measured);
+  - the three "skip the anchor" loops compare **per-category numbers** (e.g.
+    messages/260 vs fediverse/260), not global indices.
+
+### Evidence (measured 2026-09-22)
+
+- The **current** cache (embeddinggemma, mean-centred, written Sep 9) is sound.
+  Its neighbours are plainly related:
+  - messages/260 → the deplatforming / "send them their data" post, "copyright is
+    a flawed system", and messages/259 "we own that content";
+  - messages/1514 → "going through something with someone", "trusting someone
+    doesn't mean…";
+  - fediverse/696 → fediverse/310, which is the same text.
+  It holds 9,191 entries (8,531 poems + 660 image pseudo-poems), and no poem
+  lists itself.
+- An **older** cache (nomic) records 8,588 poems in its metadata, against 8,531
+  in poems.json now. Its list for poem 1 contains 8102–8108 back to back, which
+  looks like numbering drift rather than meaning. So a cache out of step with
+  poems.json has existed in this project, and nothing would have stopped it being
+  used.
+- Conclusion: what the owner saw was most likely pages built from a stale cache.
+  It could also be a complaint about model quality; the open question below
+  separates the two.
+
+## Intended Behavior (reopened scope)
+
+- Every cache keyed by global poem index carries a **fingerprint** of the
+  numbering it was built against: the poem count plus a hash of the ordered list
+  of (category, per-category id, global index), and a hash of the image manifest
+  (the image pseudo-poems are numbered after the poems).
+- Before the HTML stage uses a cache, it recomputes that fingerprint from the
+  live poems.json and image manifest. On any difference it **stops** and prints
+  the command that regenerates the cache. It never continues with a warning:
+  a stale cache produces confidently wrong pages, which is worse than none.
+- Inside the page builders, poems are found and compared by global index only.
+  Per-category numbers are for display (`messages/260`), never for identity.
+
+## Suggested Implementation Steps (reopened scope)
+
+1. When `scripts/generate-similarity-rankings-cache` and the GPU diversity-cache
+   writer (`scripts/precompute-diversity-sequences-gpu`) save a cache, write the
+   fingerprint into its metadata.
+2. In `load_similarity_rankings_cache` and `load_diversity_cache`
+   (`src/flat-html-generator.lua`), recompute the fingerprint and refuse on a
+   mismatch, naming the regenerate command. A cache without a fingerprint is
+   also refused (it predates the guard).
+3. In `generate_similarity_ranked_list`, find the anchor through the
+   global-index table that function already builds, not by array position.
+4. In the three skip loops of the single-threaded formatter, compare global
+   indices. (The anchor-shown-twice half of this is tracked in 10-025; do the
+   two together.)
+5. Test: copy poems.json, shift one poem's global index, and check the HTML
+   stage refuses to start and names the regenerate command. A second test
+   confirms an unchanged poems.json passes.
+6. Update `src/flat-html-generator.lua`'s cache-loading comments to say why the
+   fingerprint exists (numbering is category by category, so it shifts).
+
+## Open Questions
+
+1. **Answered: which page showed unrelated results, and when was it
+   deployed?** Owner (2026-09-22): "Um, I dunno." Treated as unknown. The
+   fingerprint guard above makes a stale cache impossible to build from, which
+   removes the likeliest cause however the page was produced. If unrelated
+   neighbours appear after the guard is in place, the complaint is about the
+   model or the centring, and belongs with 5-024 / 6-033. The whole-output
+   validator (9-006) is where any such page would next be caught.
+
+## Original Behavior (November 2025, before the first round)
 - Similarity matrix is generated based on available embeddings at time of calculation
 - Matrix persists even when new embeddings are added to the dataset
 - No validation that similarity matrix represents complete dataset
@@ -196,9 +300,9 @@ This ticket addresses the critical requirement that:
 3. ✅ Clear warnings about dataset completeness
 4. ✅ Data integrity maintenance across embedding updates
 
-**ISSUE STATUS: COMPLETED** ✅
+**ISSUE STATUS (first round): COMPLETED** ✅ — reopened 2026-09-22, see Status at top.
 
-## IMPLEMENTATION COMPLETED
+## IMPLEMENTATION COMPLETED (first round)
 
 **Date:** November 3, 2025  
 **Status:** All critical objectives achieved

@@ -103,6 +103,13 @@ return {
                     external = {
                         source = "/home/ritz/notes",
                     },
+                    -- Issue 10-068: subdirectories of the source that are
+                    -- machinery, not writing. Never synced into input/, never
+                    -- extracted. "rmail" is the phone-to-notes mailbox: its
+                    -- config, contacts (shared secrets), hooks and state would
+                    -- otherwise be published as poems. Each name must exist in
+                    -- the source; a stale entry stops the sync.
+                    excluded_subdirectories = { "rmail" },
                 },
             },
         },

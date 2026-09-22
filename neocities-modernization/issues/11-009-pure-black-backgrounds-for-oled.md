@@ -6,7 +6,8 @@
 - **Type**: Bug / consistency audit
 - **Status**: OPEN — audited, not fixed
 - **Created**: 2026-08-08
-- **Sorted from**: `new-issue-please-sort`
+- **Sorted from**: `new-issue-please-sort`; extended 2026-09-22 from
+  `next-issue-please-sort` (item 5)
 - **Builds on**: 8-047 (dark mode always on), which established the intent
 
 ## Summary
@@ -72,6 +73,34 @@ Both are **diagnostic outputs, not the published site** — which is why they we
 never caught. Whether they should match the site's palette is a judgement call
 (see Open Questions), not obviously a bug.
 
+### Second report: two panel colours (2026-09-22)
+
+The owner's words, verbatim:
+
+> also there seems to be two different background panel colors?
+
+Re-audit of what is on disk now:
+
+- Pure black (`bgcolor="#000000"`, no competing CSS background): the word-cloud
+  menu, the explore page, the gallery, the word pages, both poem-page templates
+  in `src/flat-html-generator.lua`, and the chronological redirect page. (The
+  poem pages themselves were not on disk to re-measure; their templates were
+  read instead.)
+- **Not pure black: only the source browser** (`output/source/`). Its pages
+  still open with a bare `<body>`, and its stylesheet paints near-black panels
+  (`--ink` `#0b0c10`, side panels `#13151f` / `#0e1018`) with gradients. Moving
+  from a poem page into it shows a second, slightly lit "black".
+- No second background colour was found on the poem pages.
+
+Two explanations fit, and the open question below tells them apart:
+
+1. The owner saw the source browser's near-black panels next to the pure-black
+   poem pages — the defect this issue already records.
+2. A **mobile browser's automatic dark mode** re-coloured the page. Several
+   phone browsers repaint pages they judge to be "light" or unstyled, darkening
+   some regions and not others. The pages do not currently tell the browser
+   they are already dark, so the browser is free to guess.
+
 ## Intended Behavior
 
 Every page a reader can reach from the site renders on `#000000`.
@@ -94,6 +123,13 @@ new page type correct by default rather than correct by remembering.
 3. Re-run the audit across every page family after the next build; the command
    above is the whole test.
 4. Check the diagnostic outputs separately, once their intent is settled.
+5. Declare the pages dark in the shared page head (`src/page-head.lua`): a
+   `color-scheme` meta tag saying "dark", and the matching `color-scheme`
+   property in its base style. That tells phone browsers the page is already
+   dark, so their automatic dark mode leaves it alone. Every page that uses the
+   shared head gets it at once; the source browser gets it as part of step 1.
+6. After the next build, look at a poem page and a source-browser page on a
+   phone (or Firefox's responsive mode) and confirm one background colour.
 
 ## Relevant Files
 
@@ -102,6 +138,7 @@ new page type correct by default rather than correct by remembering.
   the site uses
 - `src/generate-gallery-pages.lua`, `src/wordcloud-generator.lua`,
   `src/generate-word-pages.lua` — other page emitters, currently correct
+- `src/page-head.lua` — the shared page head; where the dark declaration goes
 - `src/model-comparison.lua` — the `#0f1117` palette
 - `src/report-generator.lua` — the light backgrounds
 - `config.lua` — has no colour-theme section today; a candidate home if the
@@ -125,6 +162,12 @@ new page type correct by default rather than correct by remembering.
 4. **Are the four `link`/`vlink` colours OLED-appropriate?** `#6699FF` and
    `#9966FF` are mid-brightness on a black field; they were chosen for the
    look, not measured for it.
+5. **Answered: which two background colours, and where?** Owner (2026-09-22):
+   "don't remember." Treated as unknown. Steps 1–3 (the source browser) and
+   step 5 (declaring the pages dark so phone browsers do not repaint them) cover
+   both likely causes. The whole-output validator (9-006) should also report
+   every background colour each page declares, so a second colour anywhere is
+   found by the tool and not by memory.
 
 ## Related Issues
 
