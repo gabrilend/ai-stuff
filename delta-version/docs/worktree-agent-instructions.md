@@ -1,5 +1,13 @@
 # Git Worktree Instructions for AI Agents
 
+> **Deprecated (2026-09-22).** Do not start new work in a worktree. Work on
+> `master` in the main tree, stage only your own lines with
+> `stage-own-changes`, and commit the index (see the issue-lifecycle skill
+> and `scripts/issues/032-commit-only-your-own-lines.md`). If you find an
+> existing worktree, its results are to be migrated into the main tree --
+> compare its commits against master first, since most such work has
+> already landed there -- and the worktree then removed.
+
 **Read this before starting work on an issue in its own worktree.**
 
 A worktree is a second checkout of the same repository in another folder,

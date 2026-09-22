@@ -1,5 +1,13 @@
 # Git Worktree Guide for Multi-Agent Development
 
+> **Deprecated (2026-09-22).** Worktrees are retired from this development
+> environment. New work happens on `master` in the main tree; parallel
+> sessions are kept apart at commit time by the line ledger and its commit
+> gate (`scripts/issues/032-commit-only-your-own-lines.md`), which commits
+> only the lines a session wrote. Any worktree that still exists should have
+> its results migrated into the main tree and then be removed. This guide is
+> kept as a record of how the worktree layout worked.
+
 This guide explains how to use git worktrees for parallel development, enabling multiple AI agents to work on the same project simultaneously without conflicts.
 
 > **For AI agents:** the examples below `cd` into folders, which is how a
