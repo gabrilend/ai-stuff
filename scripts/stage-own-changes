@@ -1,0 +1,283 @@
+#!/usr/bin/env luajit
+--
+-- stage-own-changes
+--
+-- Stages, in one repository, exactly the lines this Claude Code session wrote
+-- -- and nothing else -- ready for a plain `git commit`. It is the staging half
+-- of "commit only your own lines"; the other half is the commit gate
+-- (refuse-foreign-lines), which checks the index this leaves behind.
+--
+-- How it works, in plain terms:
+--   1. It reads this session's edit ledger (kept by the record-own-edits hook
+--      and claim-own-change) to learn which files the session touched and
+--      which lines in them it added or removed.
+--   2. For those files it asks git for the difference between the working
+--      tree and the index, with no context lines, so each change block is only
+--      the lines that actually changed.
+--   3. It keeps each change block whose every added and removed line is
+--      claimed, renumbers the kept blocks so they still line up once the
+--      skipped ones are gone, and hands the result to
+--      `git apply --cached --unidiff-zero` -- the staging method the standing
+--      instructions ask for.
+--   4. A new file that is wholly this session's is added whole, and so is a
+--      binary or mode-only change in a file claimed whole.
+--   5. Every llm-transcripts/ folder between a touched file and the repository
+--      root is staged too, since transcripts ride along with every commit.
+--   6. It prints what it staged and, by file and line, every change block it
+--      left out and why: "foreign" (no line in it is this session's) or
+--      "mixed" (this session's lines sit right next to someone else's, with no
+--      unchanged line between them, so git cannot stage one without the other).
+--
+-- A mixed block is left for a person to sort out, or for the session to
+-- resolve by moving its edit a line away. It is never staged whole.
+--
+-- The session is read from CLAUDE_CODE_SESSION_ID, which Claude Code sets for
+-- every shell command it runs.
+--
+-- Usage: stage-own-changes [repository-directory] [--scripts-dir <dir>]
+--   repository-directory defaults to the ai-stuff monorepo below.
+
+local DIR = "/mnt/mtwo/programming/ai-stuff"
+local SCRIPTS_DIR = "/home/ritz/programming/ai-stuff/scripts"
+do
+    local i = 1
+    while arg[i] do
+        -- one option, the scripts directory; a bare word is the repository
+        if arg[i] == "--scripts-dir" then
+            SCRIPTS_DIR = arg[i + 1]
+            i = i + 2
+        else
+            DIR = arg[i]
+            i = i + 1
+        end
+    end
+end
+
+package.path = SCRIPTS_DIR .. "/libs/?.lua;" .. package.path
+local ledger = require("own-lines-ledger")
+local gate = require("hook-gate")
+
+-- {{{ local function fail()
+local function fail(message)
+    io.stderr:write("stage-own-changes: ", message, "\n")
+    os.exit(1)
+end
+-- }}}
+
+-- {{{ local function git()
+-- Runs git in the repository and returns its output, failing loudly.
+local function git(top, args)
+    local argv = { "git", "-C", top }
+    for _, a in ipairs(args) do argv[#argv + 1] = a end
+    local out, ok = gate.run(argv)
+    if not ok then fail("git " .. table.concat(args, " ") .. " failed:\n" .. out) end
+    return out
+end
+-- }}}
+
+-- {{{ local function classify_hunk()
+-- "ours" when every added and removed line is claimed, "foreign" when none is,
+-- "mixed" otherwise.
+local function classify_hunk(claims, path, hunk)
+    local mine, theirs = 0, 0
+    for _, line in ipairs(hunk.lines) do
+        local mark = line:sub(1, 1)
+        if mark == "+" or mark == "-" then
+            if ledger.line_claimed(claims, path, mark, line:sub(2)) then
+                mine = mine + 1
+            else
+                theirs = theirs + 1
+            end
+        end
+    end
+    if theirs == 0 then return "ours" end
+    if mine == 0 then return "foreign" end
+    return "mixed"
+end
+-- }}}
+
+-- {{{ local function header_says()
+-- Whether a diff entry's header carries a line starting with the given text.
+local function header_says(entry, prefix)
+    for _, line in ipairs(entry.header) do
+        if line:sub(1, #prefix) == prefix then return true end
+    end
+    return false
+end
+-- }}}
+
+-- {{{ local function filter_entry()
+-- Decides what to stage from one file's diff. Returns the patch text to apply
+-- (or nil), whether the file should instead be added whole, and a report list.
+local function filter_entry(claims, top, entry, report)
+    local rel = ledger.file_path(entry)
+    local path = top .. "/" .. rel
+    local c = claims[path]
+
+    -- a change with no lines to judge -- binary content or a mode change --
+    -- is staged only when the file is claimed whole
+    if entry.binary or #entry.hunks == 0 then
+        if c and c.whole then
+            report[#report + 1] = "  staged whole   " .. rel .. " (binary or mode change, claimed whole)"
+            return nil, true
+        end
+        report[#report + 1] = "  left out       " .. rel .. " (binary or mode change; claim it with claim-own-change if it is yours)"
+        return nil, false
+    end
+
+    -- a new or deleted file is all-or-nothing: git cannot half-create a file
+    local all_or_nothing = header_says(entry, "new file mode") or header_says(entry, "deleted file mode")
+
+    local kept, shift = {}, 0
+    for _, hunk in ipairs(entry.hunks) do
+        local verdict = classify_hunk(claims, path, hunk)
+        if verdict == "ours" then
+            kept[#kept + 1] = { hunk = hunk, new_start = hunk.new_start - shift }
+        else
+            -- a skipped block's lines never land, so later blocks move up
+            shift = shift + (hunk.new_count - hunk.old_count)
+            report[#report + 1] = string.format("  left out       %s:%d (%s)", rel, hunk.new_start, verdict)
+        end
+    end
+    if #kept == 0 then return nil, false end
+    if all_or_nothing and #kept < #entry.hunks then
+        report[#report + 1] = "  left out       " .. rel .. " (a new or deleted file with lines that are not this session's)"
+        return nil, false
+    end
+
+    local out = {}
+    for _, line in ipairs(entry.header) do out[#out + 1] = line end
+    for _, k in ipairs(kept) do
+        local h = k.hunk
+        out[#out + 1] = string.format("@@ -%d,%d +%d,%d @@%s", h.old_start, h.old_count, k.new_start, h.new_count, h.suffix)
+        for _, line in ipairs(h.lines) do out[#out + 1] = line end
+    end
+    report[#report + 1] = string.format("  staged         %s (%d of %d change blocks)", rel, #kept, #entry.hunks)
+    return table.concat(out, "\n") .. "\n", false
+end
+-- }}}
+
+-- {{{ local function untracked_whole()
+-- A file git does not know yet. Staged whole when every line in it is claimed
+-- (it was written by this session), otherwise left out.
+local function untracked_whole(claims, top, rel, report)
+    local path = top .. "/" .. rel
+    local c = claims[path]
+    local f = io.open(path, "rb")
+    if not f then return false end
+    local content = f:read("*a")
+    f:close()
+    if c and c.whole then
+        report[#report + 1] = "  staged whole   " .. rel .. " (new file, claimed whole)"
+        return true
+    end
+    if content:find("\0", 1, true) then
+        report[#report + 1] = "  left out       " .. rel .. " (new binary file; claim it with claim-own-change if it is yours)"
+        return false
+    end
+    for line in (content:sub(-1) == "\n" and content or content .. "\n"):gmatch("(.-)\n") do
+        if not ledger.line_claimed(claims, path, "+", line) then
+            report[#report + 1] = "  left out       " .. rel .. " (new file with lines this session did not write)"
+            return false
+        end
+    end
+    report[#report + 1] = "  staged whole   " .. rel .. " (new file written by this session)"
+    return true
+end
+-- }}}
+
+-- {{{ local function transcript_folders()
+-- Every llm-transcripts/ folder from each touched file's folder up to the
+-- repository root.
+local function transcript_folders(top, rels)
+    local found, list = {}, {}
+    for _, rel in ipairs(rels) do
+        local dir = rel:match("^(.*)/[^/]*$") or ""
+        while true do
+            local candidate = (dir == "" and "" or dir .. "/") .. "llm-transcripts"
+            if not found[candidate] and os.rename(top .. "/" .. candidate, top .. "/" .. candidate) then
+                found[candidate] = true
+                list[#list + 1] = candidate
+            end
+            if dir == "" then break end
+            dir = dir:match("^(.*)/[^/]*$") or ""
+        end
+    end
+    return list
+end
+-- }}}
+
+-- {{{ local function main()
+local function main()
+    local session_id = os.getenv("CLAUDE_CODE_SESSION_ID")
+    if not session_id or session_id == "" then
+        fail("CLAUDE_CODE_SESSION_ID is not set; this only works inside a Claude Code session")
+    end
+    local top = git(DIR, { "rev-parse", "--show-toplevel" }):gsub("%s+$", "")
+    local claims = ledger.load(session_id)
+
+    local rels = {}
+    for path in pairs(claims) do
+        if path:sub(1, #top + 1) == top .. "/" then rels[#rels + 1] = path:sub(#top + 2) end
+    end
+    table.sort(rels)
+    if #rels == 0 then
+        io.write("stage-own-changes: this session's ledger names no files under ", top, "; nothing staged\n")
+        return
+    end
+
+    local report = {}
+    local patches, whole = {}, {}
+
+    -- tracked files: changed, deleted, mode-changed
+    local diff_args = { "diff", "-U0", "--no-color", "--no-ext-diff", "--no-renames",
+        "--src-prefix=a/", "--dst-prefix=b/", "--" }
+    for _, rel in ipairs(rels) do diff_args[#diff_args + 1] = rel end
+    for _, entry in ipairs(ledger.parse_diff(git(top, diff_args))) do
+        local rel = ledger.file_path(entry)
+        if ledger.exempt(rel) then
+            whole[#whole + 1] = rel
+        else
+            local patch, add_whole = filter_entry(claims, top, entry, report)
+            if patch then patches[#patches + 1] = patch end
+            if add_whole then whole[#whole + 1] = rel end
+        end
+    end
+
+    -- files git has never seen, and that are not ignored
+    local others_args = { "ls-files", "--others", "--exclude-standard", "--" }
+    for _, rel in ipairs(rels) do others_args[#others_args + 1] = rel end
+    for rel in git(top, others_args):gmatch("[^\n]+") do
+        if untracked_whole(claims, top, rel, report) then whole[#whole + 1] = rel end
+    end
+
+    if #patches > 0 then
+        local patch_path = ledger.session_dir(session_id) .. "/stage.patch"
+        local f = assert(io.open(patch_path, "w"))
+        f:write(table.concat(patches))
+        f:close()
+        git(top, { "apply", "--cached", "--unidiff-zero", "--whitespace=nowarn", patch_path })
+    end
+    if #whole > 0 then
+        local add_args = { "add", "--" }
+        for _, rel in ipairs(whole) do add_args[#add_args + 1] = rel end
+        git(top, add_args)
+    end
+
+    local transcripts = transcript_folders(top, rels)
+    if #transcripts > 0 then
+        local add_args = { "add", "--" }
+        for _, rel in ipairs(transcripts) do
+            add_args[#add_args + 1] = rel
+            report[#report + 1] = "  transcripts    " .. rel .. "/"
+        end
+        git(top, add_args)
+    end
+
+    io.write("stage-own-changes in ", top, " for session ", session_id, "\n")
+    if #report == 0 then report[1] = "  nothing to stage: the touched files match the index" end
+    io.write(table.concat(report, "\n"), "\n")
+end
+-- }}}
+
+main()

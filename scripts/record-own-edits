@@ -1,0 +1,163 @@
+#!/usr/bin/env luajit
+--
+-- record-own-edits
+--
+-- Keeps a running list of every line this Claude Code session writes, so that
+-- a commit can later be checked for lines somebody else wrote. It runs after
+-- each file edit (a PostToolUse hook) and appends the lines that edit added
+-- and removed to a ledger kept in RAM. Nothing is ever refused here; it only
+-- takes notes.
+--
+-- Why it exists: in a repository where several sessions and people work at
+-- once, a file can hold your edit and someone else's uncommitted edit side by
+-- side. The commit gate (refuse-foreign-lines) and the staging tool
+-- (stage-own-changes) need to know which lines are yours, and the only
+-- reliable moment to learn that is the moment you write them.
+--
+-- WHAT EACH TOOL REPORTS (read from session records under ~/.claude/projects,
+-- Claude Code 2.1.280; the hook's tool_response carries the same object)
+--
+--   Edit, MultiEdit   structuredPatch: change blocks whose lines start with
+--                     " " (context), "-" (removed) or "+" (added)
+--   Write             type "create" or "update", the new content, and for an
+--                     update a structuredPatch as well
+--   NotebookEdit      notebook JSON; lines in git's view are JSON-escaped, so
+--                     the notebook is claimed whole
+--   Bash              bashEditDiff, when the command edited files the harness
+--                     was tracking: files[] each with hunks[] (same shape as
+--                     structuredPatch), and changedFiles[]; a file changed
+--                     without a diff shows up only in changedFiles
+--
+-- A file a shell command changed without a reported diff cannot be recorded
+-- line by line. The hook tells the model so (additionalContext), naming the
+-- files, so it can claim them out loud with claim-own-change if they are its
+-- own. An edit whose response has no change blocks at all is announced to the
+-- person too, since that means the payload changed shape and the ledger is
+-- missing lines.
+--
+-- Usage: record-own-edits [scripts-directory]      (hook input on stdin)
+
+local DIR = arg[1] or "/home/ritz/programming/ai-stuff/scripts"
+local HOOK_NAME = "record-own-edits"
+
+package.path = DIR .. "/libs/?.lua;" .. package.path
+local gate = require("hook-gate")
+local ledger = require("own-lines-ledger")
+
+-- {{{ local function lines_of()
+local function lines_of(text)
+    local out = {}
+    if text == nil or text == "" then return out end
+    for line in (text:sub(-1) == "\n" and text or text .. "\n"):gmatch("(.-)\n") do
+        out[#out + 1] = line
+    end
+    return out
+end
+-- }}}
+
+-- What to record for each tool. Each handler receives the hook input and a
+-- records list to fill, and returns a list of notes for the model (files it
+-- could not record) and a list of warnings for the person.
+local RECORDERS = {}
+
+-- {{{ RECORDERS.Edit
+RECORDERS.Edit = function(input, records)
+    local path = ledger.realpath(input.tool_input.file_path)
+    local response = input.tool_response
+    local hunks = type(response) == "table" and response.structuredPatch
+    -- the normal path: the harness says exactly which lines changed
+    if type(hunks) == "table" and #hunks > 0 then
+        ledger.records_from_hunks(path, hunks, records)
+        return {}, {}
+    end
+    -- no change blocks: either nothing changed, or the payload changed shape
+    return {}, { "an edit to " .. path .. " reported no change blocks, so its lines are not in the ledger; if the commit gate refuses them, claim the file with claim-own-change" }
+end
+RECORDERS.MultiEdit = RECORDERS.Edit
+-- }}}
+
+-- {{{ RECORDERS.Write
+RECORDERS.Write = function(input, records)
+    local path = ledger.realpath(input.tool_input.file_path)
+    local response = type(input.tool_response) == "table" and input.tool_response or {}
+    local hunks = response.structuredPatch
+    if type(hunks) == "table" and #hunks > 0 then
+        -- an overwrite with a diff: record it exactly
+        ledger.records_from_hunks(path, hunks, records)
+    else
+        -- a new file, or an overwrite without a diff: every line of the new
+        -- content is ours, and so is whatever the overwrite removed
+        for _, line in ipairs(lines_of(input.tool_input.content)) do
+            records[#records + 1] = { "+", path, line }
+        end
+        records[#records + 1] = { "R", path, "" }
+    end
+    return {}, {}
+end
+-- }}}
+
+-- {{{ RECORDERS.NotebookEdit
+RECORDERS.NotebookEdit = function(input, records)
+    local path = ledger.realpath(input.tool_input.notebook_path)
+    records[#records + 1] = { "W", path, "" }
+    return {}, {}
+end
+-- }}}
+
+-- {{{ RECORDERS.Bash
+RECORDERS.Bash = function(input, records)
+    local response = input.tool_response
+    local diff = type(response) == "table" and response.bashEditDiff
+    -- most shell commands edit nothing the harness tracks: nothing to record
+    if type(diff) ~= "table" then return {}, {} end
+    local recorded = {}
+    for _, f in ipairs(diff.files or {}) do
+        local path = ledger.realpath(f.filePath)
+        ledger.records_from_hunks(path, f.hunks, records)
+        recorded[path] = true
+    end
+    local notes = {}
+    for _, changed in ipairs(diff.changedFiles or {}) do
+        local path = ledger.realpath(changed)
+        if not recorded[path] then notes[#notes + 1] = path end
+    end
+    if (tonumber(diff.moreFiles) or 0) > 0 then
+        notes[#notes + 1] = tostring(diff.moreFiles) .. " more file(s) the harness did not list"
+    end
+    return notes, {}
+end
+-- }}}
+
+-- {{{ local function main()
+local function main()
+    local input, json = gate.read_input(HOOK_NAME, DIR)
+    local recorder = RECORDERS[input.tool_name]
+    -- a tool that writes no files: nothing to note
+    if not recorder then os.exit(0) end
+    if type(input.session_id) ~= "string" or type(input.tool_input) ~= "table" then
+        gate.warn_and_allow(HOOK_NAME, "hook input has no session_id or tool_input, so this edit is not in the ledger")
+    end
+
+    local records = {}
+    local notes, warnings = recorder(input, records)
+    local ok, err = ledger.append(input.session_id, records)
+    if not ok then warnings[#warnings + 1] = "could not write the ledger: " .. tostring(err) end
+
+    local output = {}
+    if #warnings > 0 then
+        output.systemMessage = HOOK_NAME .. ": " .. table.concat(warnings, "; ")
+    end
+    if #notes > 0 then
+        output.hookSpecificOutput = {
+            hookEventName = "PostToolUse",
+            additionalContext = "That command changed files without a line-by-line diff, so they are not in the own-lines ledger: "
+                .. table.concat(notes, ", ")
+                .. ". If they are this session's own work and will be committed, claim them out loud with: claim-own-change <file>...",
+        }
+    end
+    if next(output) then io.stdout:write(json.encode(output), "\n") end
+    os.exit(0)
+end
+-- }}}
+
+main()

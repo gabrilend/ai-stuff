@@ -1,0 +1,66 @@
+#!/usr/bin/env luajit
+--
+-- claim-own-change
+--
+-- Says, out loud and on the record, "these files are this session's own work",
+-- for files the edit ledger could not see being written -- the output of a
+-- generator, a file moved or rewritten by a shell command, a deletion. The
+-- commit gate then treats every line of each named file as this session's.
+--
+-- Why it is a command rather than something the gate infers: a whole-file claim
+-- is the bluntest statement the ledger can hold, and a person should be able to
+-- see it being made. Typed as a command, it lands in the transcript with the
+-- file names in it, where it can be read and disputed.
+--
+-- Use it only for files this session produced. For a file someone else is also
+-- editing, a whole-file claim would sweep their lines into your commit; edit it
+-- with the edit tools instead, so the ledger records only your lines.
+--
+-- The session is read from CLAUDE_CODE_SESSION_ID, which Claude Code sets for
+-- every shell command it runs.
+--
+-- Usage: claim-own-change <file>... [--scripts-dir <scripts-directory>]
+
+local DIR = "/home/ritz/programming/ai-stuff/scripts"
+local files = {}
+local i = 1
+while arg[i] do
+    -- one option, the scripts directory; everything else is a file to claim
+    if arg[i] == "--scripts-dir" then
+        DIR = arg[i + 1]
+        i = i + 2
+    else
+        files[#files + 1] = arg[i]
+        i = i + 1
+    end
+end
+
+package.path = DIR .. "/libs/?.lua;" .. package.path
+local ledger = require("own-lines-ledger")
+
+-- {{{ local function main()
+local function main()
+    local session_id = os.getenv("CLAUDE_CODE_SESSION_ID")
+    if not session_id or session_id == "" then
+        io.stderr:write("claim-own-change: CLAUDE_CODE_SESSION_ID is not set; this only works inside a Claude Code session\n")
+        os.exit(1)
+    end
+    if #files == 0 then
+        io.stderr:write("usage: claim-own-change <file>...\n")
+        os.exit(1)
+    end
+    local records = {}
+    for _, f in ipairs(files) do
+        local path = ledger.realpath(f)
+        records[#records + 1] = { "W", path, "" }
+        io.write("claimed whole file for session ", session_id, ": ", path, "\n")
+    end
+    local ok, err = ledger.append(session_id, records)
+    if not ok then
+        io.stderr:write("claim-own-change: could not write the ledger: ", tostring(err), "\n")
+        os.exit(1)
+    end
+end
+-- }}}
+
+main()

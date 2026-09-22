@@ -1,20 +1,29 @@
-# The refusal gates
+# The refusal gates, and committing only your own lines
 
-Three small scripts that sit in front of every shell command Claude Code runs and
-refuse a specific bad habit each. They are installed as `PreToolUse` hooks on
-`Bash` in `~/.claude/settings.json`, so they apply to **every session on this
+Small scripts that sit in front of every shell command Claude Code runs and
+refuse a specific bad habit each, plus a note-taking hook and two commands that
+together let a session commit exactly the lines it wrote. They are installed as
+hooks in `~/.claude/settings.json`, so they apply to **every session on this
 machine, in every project**.
 
-| Script | Refuses | Token to lift it once |
-| --- | --- | --- |
-| `refuse-directory-change` | `cd`, `pushd`, `popd` | `touch /tmp/claude-allow-cwd-change` |
-| `refuse-unscoped-commit` | a `git commit` that does not name its files | `touch /tmp/claude-allow-unscoped-commit` |
-| `refuse-relative-commit-ref` | a history-changing git command that counts backwards to its commit instead of naming it | `touch /tmp/claude-allow-relative-commit-ref` |
+| Script | Kind | What it does | Token to lift it once |
+| --- | --- | --- | --- |
+| `refuse-directory-change` | gate (before Bash) | refuses `cd`, `pushd`, `popd` | `touch /tmp/claude-allow-cwd-change` |
+| `refuse-relative-commit-ref` | gate (before Bash) | refuses a history-changing git command that counts backwards to its commit instead of naming it | `touch /tmp/claude-allow-relative-commit-ref` |
+| `refuse-foreign-lines` | gate (before Bash) | refuses a `git commit` whose index holds a line this session did not write, or whose form bypasses the index | `touch /tmp/claude-allow-foreign-commit` |
+| `record-own-edits` | note-taker (after Edit, Write, MultiEdit, NotebookEdit, Bash) | appends every line the session adds or removes to its edit ledger | — |
+| `stage-own-changes [repo]` | command | stages only this session's lines, with `git apply --cached` | — |
+| `claim-own-change <file>...` | command | claims whole files the ledger could not see being written | — |
+
+`refuse-unscoped-commit`, the commit gate before `refuse-foreign-lines`, is
+retired; see "Why the commit gate changed" below.
 
 Each gate spends its token on the next offending command and deletes it. A
 permission granted once is not a permission granted forever, and the tokens are
 separate on purpose — allowing one directory change should not also allow one
-repository-wide commit, nor one blind reset.
+foreign commit, nor one blind reset. A token that cannot be deleted (a
+directory with something in it) is not honoured, since it would otherwise
+permit every later command.
 
 ## Why each exists
 
@@ -24,120 +33,164 @@ prompt, the status line and the person's own sense of where they are quietly
 disagree with reality. Nearly every real need has a flag instead — `git -C`,
 `make -C`, `tar -C` — so refusing costs almost nothing.
 
-**A bare `git commit` does not commit your work.** It commits whatever is in the
-index, and in a monorepo where several assistants work at once the index belongs
-to the repository rather than to whoever is typing. This is not hypothetical: one
-session's commit message ended up attached to another session's files, while the
-first session's own work stayed uncommitted and unnoticed for hours.
-
-Scoping the `git add` does not fix it. That still leaves the correctly-staged
-files sitting there for anybody else's bare commit to carry away. Naming the
-paths on the **commit** is what fixes it, because those paths are taken straight
-from the working tree, the rest of the index is ignored, and nothing is left
-staged between commands.
-
 **`HEAD~1` is not a name, it is a sum.** Nothing about it is checked. It means
 "one step back from wherever HEAD is standing at the instant this runs", and HEAD
 moves — another session commits, an earlier command on the same line commits, a
 rebase lands, a merge fast-forwards. When that happens the sum does not fail. It
 quietly resolves to a different commit, and `reset --hard` does not ask twice.
+A hash is checked rather than computed: **the failure mode of a wrong hash is an
+error message; the failure mode of a wrong count is a lost afternoon.**
 
-A hash is the opposite kind of reference. It is checked rather than computed:
-either that object is there and is the one that was read out of the log a moment
-ago, or git refuses the command. **The failure mode of a wrong hash is an error
-message. The failure mode of a wrong count is a lost afternoon.** Reading the log
-first and pasting the hash also puts a person's eyes on the commit about to be
-destroyed, which is most of the value of the pause.
+**The index belongs to the repository, not to whoever is typing.** In a
+monorepo where several sessions work at once, a bare `git commit` commits
+whatever anybody staged. This is not hypothetical: one session's commit message
+ended up attached to another session's files, while the first session's own
+work stayed uncommitted and unnoticed for hours.
 
-## What is allowed
+## Committing only your own lines
+
+Three pieces, one ledger:
+
+1. **`record-own-edits` takes notes.** After every file edit it appends the
+   lines the edit added and removed to a per-session ledger in RAM
+   (`/dev/shm/claude-own-edits/<session-id>/ledger.tsv`). It learns them from
+   what the tool reports: an edit's change blocks, a new file's content, a
+   notebook (claimed whole), and — since Claude Code 2.1.271 — the file diff a
+   shell command reports when it edits files the harness was tracking. A shell
+   command that changed files *without* a diff is named back to the model, so it
+   can claim them.
+2. **`stage-own-changes` stages.** For each file in the ledger it compares the
+   working tree with the index, with no context lines, keeps each change block
+   whose every line is claimed, renumbers the kept blocks so they still line up,
+   and applies them with `git apply --cached --unidiff-zero`. New files wholly
+   written by the session are added whole. The project's `llm-transcripts/`
+   folder is staged alongside. Blocks it leaves out are listed by file and line
+   — "foreign" (none of it is ours) or "mixed" (our line touches someone else's
+   with no unchanged line between, so git cannot take one without the other).
+3. **`refuse-foreign-lines` checks.** Before any `git commit`, it reads the
+   index of the repository the commit will use and refuses if any staged added
+   or removed line (outside `llm-transcripts/`) is not in the ledger, listing
+   them by file and line. It also refuses the forms that bypass the index:
+   `-a`/`--all`, `-i`/`--include`, `--only` with paths, a pathspec,
+   `--pathspec-from-file` — and a line that stages with a raw git command and
+   commits in the same breath, because the gate runs before the line does.
+
+The everyday shape:
 
 ```
-git commit -- some/path                 named paths, index ignored
-git -C repo commit -F - -- some/path    the same, message on stdin
-git commit --amend --only               correcting a message, no new files
-
-git reset --hard 4f2a1c9                a name; checked, not computed
-git reset --hard HEAD                   no count; "throw away my edits"
-git log --oneline -5 HEAD~5             reading is not modifying
-git log HEAD~5 && git reset --hard 4f2a1c9
-                                        each part of a line is judged alone
-git show HEAD^{commit}                  peeling names the same commit
-git reset --hard main                   a branch is a name, not a distance
-git checkout 4f2a1c9                    and so is a hash, obviously
-git push --force-with-lease origin main forced, but nothing is counted
-git push origin HEAD~1:main             a count, but git will reject it itself
+stage-own-changes /mnt/mtwo/programming/ai-stuff
+git -C /mnt/mtwo/programming/ai-stuff commit -F - <<'EOF'
+...message...
+EOF
 ```
 
-The third gate covers the subcommands that move history around — `revert`,
-`reset`, `rebase`, `cherry-pick`, `commit`, `branch`, `tag`, `replace`,
-`filter-branch` — and also `checkout`, `switch` and `restore`, which move no
-history at all. Those last three are there because the same slip destroys
-uncommitted work instead: `git checkout HEAD~1 -- somefile` overwrites that file
-in the working tree from wherever the count lands, and no commit is holding the
-version it just wrote over. A bare `git checkout HEAD~1` to detach and look
-around is caught too, which is the deliberate cost of catching the other.
+If the gate lists lines that are **someone else's staged work**, do not unstage
+them without asking the user — they may be about to commit them. Ask who goes
+first. If the lines are **yours but came from a shell command the ledger did
+not see**, claim the file out loud (`claim-own-change <file>`) and try again.
 
-`push` is the exception to all of that. It is gated only when a force flag is on
-the line as well, because an ordinary push that mentions a count is git's argument
-to have rather than this gate's — git rejects a non-fast-forward push by itself. A
-forced one is different: it lands on a branch other people have already pulled,
-and nothing in their reflog undoes it. `--force-with-lease` counts as a force flag
-here, since checking that the remote tip has not moved is a different question
-from whether you counted back the right number of commits.
+### Why the commit gate changed
 
-A branch or tag name is accepted. It is mutable state like `HEAD` is, so this is
-a line drawn rather than a principle carried to its end — but `main` was asked
-for by name rather than by distance, and insisting on a raw hash would cost every
-ordinary `git rebase main`.
+The previous gate, `refuse-unscoped-commit`, insisted every commit name its
+paths (`git commit -- <paths>`). Naming paths makes git take those files whole
+from disk and ignore the index. That kept other sessions' *staged files* out,
+but a file holding your edit and someone else's uncommitted edit was committed
+whole — their lines included — and staging individual lines with
+`git apply --cached`, which the standing instructions ask for, was thrown away.
+The person's call, when asked which rule should win: *"let's prefer the
+claude.md implementation. We need more rigid guard-rails about always committing
+just lines that were edited by us."* So now the index is kept, and checked
+line by line against what the session is known to have written. The design is
+issue 032, `issues/032-commit-only-your-own-lines.md`.
 
-The reading commands — `log`, `show`, `diff`, `blame` — are left alone entirely,
-because counting backwards to look at something is how the hash gets found in the
-first place, and a gate that stopped that would be telling you to fetch water in
-the bucket it just took away.
+## How the gates read a command
+
+All three gates read commands through one shared reader,
+`libs/shell-command-scan.lua`, which splits a line the way a shell does:
+quotes, backslashes, comments, heredoc bodies (set aside, since text written to
+a file is data), `$( )` and backticks (read as commands of their own), `eval`,
+`bash -c`, a heredoc fed to a shell, redirection targets (dropped), and the
+words that put something in front of a command — `NAME=value`, `env`,
+`command`, `builtin`, `exec`, `time`, `nice`, `nohup`, `sudo`, `timeout`,
+`xargs`, and the shell keywords `if then else elif do while until ! { }`.
+
+The gates used to search the raw text with regular expressions. The review of
+2026-09-22 found every bypass and every false refusal came from that:
+
+- `if [ -d x ]; then cd x; fi`, `builtin cd`, `FOO=1 cd`, `eval "cd x"` passed,
+  while a heredoc writing a script that contained `cd` was refused.
+- `git reset --hard 'HEAD@{1}'` passed, because quoted spans were removed
+  before the scan — along with the revision inside them. After
+  `git -C "/a path"`, the removal also let `-C` swallow the subcommand.
+- A command over 64 KB passed the first two gates: they piped it into
+  `grep -q`, which stops reading at its first match; the writer died of a broken
+  pipe, and `pipefail` turned that into "no match".
+- The relative-reference gate ran one `grep` per word, and a 3000-path
+  `git restore` took about 20 seconds — past the 10-second hook timeout, which
+  let it through unchecked. The reader walks the line once (about 45 ms).
+
+The relative-reference gate now also covers `stash drop/pop/apply/branch
+stash@{N}`, `checkout -` and the other commands where `-` means "the previous
+branch", `ORIG_HEAD`, `:/text`, `merge`, `update-ref`, `worktree add`, `notes`,
+a forced push by `+refspec`, and a count held in a variable the same line sets
+(`R=HEAD~1; git reset --hard $R`). It skips the values of message options and
+every word after `--`, so an editor backup file (`file~`) after `--` is a path.
+
+A `cd` inside a child shell — `(cd x && make)`, `$(cd x && pwd)`,
+`bash -c 'cd x'` — cannot move the session's directory, and is refused anyway:
+partly habit, and partly because `( cd x ); make` and `cd x; make` differ by two
+characters. `git -C` leaves nothing to judge.
+
+**Observed on Claude Code 2.1.280:** the harness appears to drop a leading
+`cd <the current directory> &&` before hooks see the command, so that no-op
+shape passes live even though the directory gate refuses it when fed the text.
+To tell that from a broken gate, try a change inside a subshell — `(cd /tmp &&
+pwd)` — which the harness leaves alone and the gate refuses.
+
+## When a gate cannot read its input
+
+It lets the command run, and says so to the person every time, as a warning
+(`systemMessage`, and on standard error): "…this command was NOT checked."
+The old gates allowed the command silently, reasoning that a crashed gate would
+block every command. That was never true — only exit code 2 blocks; any other
+failure is a non-blocking error — so the silence bought nothing. An announced
+fallback is a warning; a silent one was the bug.
 
 ## What these are not
 
-**None is a security boundary.** They read commands as text rather than
-understanding them, so a `--` inside a commit message would satisfy the second
-one without scoping anything. And the assistant they constrain can edit these
-files, remove the hook that installs them, or create the tokens itself.
+**None is a security boundary.** The session they constrain can edit these
+files, remove the hooks, create the tokens, write its own ledger, or claim any
+file. What they buy is that the careless form is not available by habit, and
+that every way around is something a person would see in the transcript — a
+token touched, a file claimed, a script edited. **An honour system with a
+witness, not a lock.**
 
-What they buy is not prevention. It is that the careless form is not available by
-habit, and that every way around is something a person would see in the
-transcript — a token being touched, a script being edited. **An honour system
-with a witness, not a lock.**
+Known limits, each a place where a determined line passes:
+
+- Claims are by line text within a file: a foreign line identical to one of
+  ours in the same file (a blank line, a lone `end`) passes.
+- `source ./script`, aliases, functions, `shopt -s autocd`, and a script piped
+  into a shell (`echo … | bash`) are not read.
+- A git alias (`git ci`) and commands that make commits without `git commit`
+  (`commit-tree`, `merge`, `cherry-pick`) are not checked by the commit gate.
 
 ## If a gate is wrong
 
-Fix the script, not the caller. All three were tested in both directions before
-installation, by `test-refusal-gates`, which keeps its cases in a file rather
-than typing them at a prompt — a gate reading commands as text cannot tell a
-command from a command quoted inside another command, so typing the bad forms in
-order to test them gets them refused.
+Fix the script, not the caller. `test-refusal-gates` holds every case — kept in
+a file rather than typed at a prompt, since typing the bad forms gets them
+refused — and runs the reader's own tests (`tests/test_shell-command-scan.lua`)
+and the ledger/staging/commit test in a scratch repository
+(`tests/test-own-lines.sh`). Run it after any change:
 
-Four of those cases are worth knowing about. Two are the same mistake seen from
-both sides: a pathspec on an earlier `git add` must not vouch for the bare commit
-that follows it, and a `HEAD~5` on an earlier `git log` must not condemn the
-hash-named reset that follows it. Both are fixed by judging each part of a line
-on its own, and the second was written in from the start because the first had
-already been paid for once.
+```
+/home/ritz/programming/ai-stuff/scripts/test-refusal-gates
+```
 
-The third is the one the new gate actually got wrong on its first attempt: `@` is
-git's own shorthand for HEAD, so `@~2` is the same count wearing a hat, and the
-character class that decided "a reference comes before this tilde" had not been
-told that `@` is one.
+A gate can be tried on a copy before it goes live: `test-refusal-gates <dir>`
+runs every case against the gates in `<dir>`, and each gate takes the scripts
+directory as its second argument, so a staged copy loads its own libraries.
+That matters because the installed gates judge every command in every session
+the moment the file changes.
 
-The fourth caught itself in the act. Quoted spans are stripped before the scan
-runs, so that a tilde in a commit message is invisible to it — but the stripper
-worked one line at a time, and a quoted span running across a newline kept its
-inner lines exposed. The gate refused the very edit that was adding the checkout
-examples to its own documentation. Two changes fixed it: sed's `-z`, so a span
-can cross a newline, and stripping double-quoted spans before single-quoted ones,
-so that an apostrophe in prose cannot open a span that swallows the command after
-it. Both directions are now pinned by tests.
-
-Disable any of them by removing its entry from `hooks.PreToolUse` in
-`~/.claude/settings.json`. Backups of that file from before each was added sit
-beside it as `settings.json.before-cd-hook`, `settings.json.before-commit-hook`
-and `settings.json.before-relative-ref-hook`, and can be deleted once you are
-happy.
+Disable any of them by removing its entry from `hooks` in
+`~/.claude/settings.json`.
