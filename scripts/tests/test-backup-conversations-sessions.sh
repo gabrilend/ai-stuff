@@ -255,10 +255,50 @@ function test_unreadable_log_fails_but_others_still_export() {
 }
 # }}}
 
+# -- {{{ test_linked_project_is_found_under_the_spelling_it_started_with
+# A project reached through a symlink - or moved and linked back, as the Claude
+# Code program folder was on 2026-09-22 - has its sessions filed under the
+# link's spelling, while its real path spells a folder that does not exist.
+# Before the fix both the hook and the sweep looked only under the real
+# spelling, so every export for such a session failed.
+function test_linked_project_is_found_under_the_spelling_it_started_with() {
+    local real="$SCRATCH/moved-home/linked.project"
+    local link="$SCRATCH/old-home"
+    mkdir -p "$real" "$SCRATCH/moved-home"
+    ln -s "$SCRATCH/moved-home" "$link"
+    local link_spelling="$link/linked.project"
+    local folder="$SESSIONS_ROOT/$(session_folder_name "$link_spelling")"
+    local id="cccccccc-3333-3333-3333-333333333333"
+    mkdir -p "$folder"
+    cat > "$folder/$id.jsonl" <<'EOF'
+{"type":"user","timestamp":"2026-09-02T10:00:00.000Z","uuid":"u1","message":{"role":"user","content":"Move the folder and link it back."}}
+{"type":"assistant","timestamp":"2026-09-02T10:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Moved and linked."}]}}
+EOF
+
+    # The hook, told the real path as its project (what Claude Code reports
+    # once the folder has moved) and the log's true location.
+    local out status
+    out=$(printf '{"session_id":"%s","transcript_path":"%s/%s.jsonl","cwd":"%s","hook_event_name":"Stop"}\n' \
+            "$id" "$folder" "$id" "$real" \
+        | CLAUDE_SESSIONS_ROOT="$SESSIONS_ROOT" CLAUDE_PROJECT_DIR="$real" "$EXPORTER" --hook 2>&1)
+    status=$?
+    check "linked: the hook exports a session filed under the link's spelling (status $status)" \
+        "$([ "$status" = 0 ] && grep -q "Moved and linked." "$real/llm-transcripts"/*.md && echo yes || echo no)"
+
+    # The sweep, given the link spelling, finds the same folder.
+    rm -rf "$real/llm-transcripts"
+    out=$(CLAUDE_SESSIONS_ROOT="$SESSIONS_ROOT" "$EXPORTER" "$link_spelling" 2>&1)
+    status=$?
+    check "linked: the sweep finds the session folder under the spelling it was given (status $status)" \
+        "$([ "$status" = 0 ] && grep -q "Moved and linked." "$real/llm-transcripts"/*.md && echo yes || echo no)"
+}
+# }}}
+
 echo "backup-conversations session-selection test suite"
 build_fixtures
 test_hook_exports_named_session_and_its_helpers
 test_sweep_exports_everything_and_counts_helpers
+test_linked_project_is_found_under_the_spelling_it_started_with
 test_simultaneous_exports_make_one_file
 test_missing_session_folder_fails_loudly
 test_garbled_hook_input_fails_loudly

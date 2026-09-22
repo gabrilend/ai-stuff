@@ -44,10 +44,18 @@ Claude Code names a project's session folder after the project's path, with
 every character that is not a letter or digit turned into a dash:
 `/mnt/mtwo/.config/nvim` becomes `-mnt-mtwo--config-nvim`. The exporter used to
 turn only slashes into dashes, so every project with a dot in its path
-(`.config/nvim`, `.dominions6`, ...) was never backed up. The project's path is
-resolved through symlinks first, because Claude Code records the resolved path
-(`/home/ritz/programming` is a link to `/mnt/mtwo/programming`, and every
-folder name uses the latter).
+(`.config/nvim`, `.dominions6`, ...) was never backed up.
+
+Claude Code files a session under the project path as it resolved **when the
+session started** (`/home/ritz/programming` is a link to
+`/mnt/mtwo/programming`, and folder names use the latter). A folder moved or
+re-linked later resolves differently from then on, so recomputing the folder
+name can miss sessions that already exist: on 2026-09-22 the Claude Code
+program folder moved into `~/.claude` with a link left behind, and every
+export of the running session failed. So in hook mode the session folder is
+taken from the log path Claude Code hands over (checked only to sit directly
+inside the sessions root), and the sweep looks under both spellings of the
+project path, as given and resolved.
 
 The project's `llm-transcripts/` folder is created only once the session
 folder has been found, so a lookup that misses no longer leaves an empty
