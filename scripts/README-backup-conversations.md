@@ -48,7 +48,7 @@ Useful for documenting how AI assistance was used during development.
 - **Markdown Formatting**: Outputs clean, readable markdown summaries
 - **Text Wrapping**: Wraps long lines at 80 characters while preserving markdown structure
 - **Quoted-line marking**: a line the user pasted back from an earlier answer is rendered as a blockquote, so the record shows which sentence a turn was aimed at (see *Quoted lines* below)
-- **Timestamp Preservation**: Sets file modification times to match the conversation's final timestamp. The log's UTC clock fields are read verbatim for both this and the filename's date, so the two always agree with each other — at the cost of sitting one UTC offset away from local wall time. That trade is recorded at `to_date_string()` in `libs/conversation-parser.lua`.
+- **Timestamp Preservation**: Sets file modification times to the instant of the conversation's final message, in local time, matching the date its filename carries. The session log records every message in UTC; both the stamp and the filename's date are resolved to a real instant first and then read in local time, so an evening conversation is filed on the evening it happened. Earlier versions copied the UTC clock fields verbatim into both, which agreed with each other while sitting one UTC offset away from the truth — every conversation after about 5pm was filed a day late. The correction, and the daylight-saving trap inside it, are recorded at `to_date_string()` and `utc_fields_to_epoch()` in `libs/conversation-parser.lua` and in issue 018. Transcripts written before the correction are repaired by `repair-transcript-timezone`.
 - **Date-Range Naming**: Names each file by the span of dates the conversation covers (see *File Naming* below)
 - **Idempotent in name**: Re-running reuses each conversation's existing file (matched by its header id), renaming it only when the conversation continues into a new day
 - **Idempotent in content**: A conversation nobody has added a word to is left entirely alone — same bytes, same inode, same `Generated on:` stamp it was first written with. Only the mtime is still re-derived, because that is a projection of the session log in the way the filename is, and re-deriving it repairs a file some checkout or copy has scrambled. Without this the Stop hook re-dirtied every transcript in a project after every single assistant turn, so `git status` could never be read for which transcripts had actually grown
@@ -60,6 +60,12 @@ like a timeline:
 
 - single-day conversation: `jul-3-26.md`
 - multi-day conversation: `jul-3-26-through-jul-5-26.md`
+
+The dates are the **local** calendar days the conversation was held on. The
+session log records UTC, so a conversation that ran from 8pm to 11pm on a
+single evening spans two days by UTC's reckoning and would be misfiled under
+tomorrow if the log's date characters were taken at face value; they are
+resolved to an instant and re-read locally instead.
 
 The date token is `<lowercase-month>-<day>-<2-digit-year>`. When several
 transcripts resolve to the same span in one folder — typically a conversation
@@ -78,6 +84,13 @@ program that names, renames, or removes transcript files, and it re-derives
 every name from the session log on every run. Renaming a transcript by hand
 does not stick — the next Stop hook re-places it. The one-time migration tool
 that once shared this job has been retired.
+
+There is exactly one narrow exception, and it proves the rule.
+`repair-transcript-timezone` renames transcripts whose **session log has been
+deleted**. This tool iterates over session logs, so it can never revisit
+those files, and its authority over them is therefore vacant rather than
+merely unexercised. That tool refuses to touch any transcript whose log does
+survive, handing those back here to be rebuilt from source.
 
 Two guards ride along with every export:
 

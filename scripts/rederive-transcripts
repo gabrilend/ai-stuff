@@ -33,7 +33,19 @@ CLAUDE_SESSIONS_ROOT="${CLAUDE_SESSIONS_ROOT:-$HOME/.claude/projects}"
 
 # Where projects live. A project is anything holding an llm-transcripts folder.
 SEARCH_ROOTS=(/mnt/mtwo /mnt/cmdo /mnt/kaun)
-SEARCH_DEPTH=6
+
+# Deep enough to reach the deepest project that exists, with room to spare.
+# At 6 this missed one project seven levels down - it had a surviving session
+# log, so it should have been rebuilt on every run, and never was. Nothing in
+# the output said so: a project the search cannot see is indistinguishable
+# from a project that is not there. Measured across all three roots, the
+# deepest transcript folder sits at 7; re-derive that with:
+#
+#   find <root> -type d -name llm-transcripts | awk '{print gsub("/","/")}' | sort -n | tail -1
+#
+# remembering that the figure it prints counts from "/" while -maxdepth counts
+# from the search root, two components in.
+SEARCH_DEPTH=8
 
 # Conversation ids of every session log still on disk, filled once at start.
 declare -A SURVIVING_LOGS=()
