@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 # manage-worktree.sh - Create and manage git worktrees for parallel development
 #
+# ============================================================================
+# DEPRECATED (2026-09-22). Worktrees are retired from this development
+# environment: new work happens on master in the main tree, and a session's
+# own lines are kept apart at commit time by the line ledger and its commit
+# gate (scripts/issues/032-commit-only-your-own-lines.md), not by separate
+# checkouts. This script still works so that existing worktrees can be listed,
+# inspected and removed once their results have been migrated into the main
+# tree -- it warns on every run. Do not create new worktrees with it.
+# ============================================================================
+#
 # Provides isolated working directories for each issue, enabling multiple
 # AI agents to work on the same project simultaneously. Each worktree gets
 # its own branch and directory, sharing the same git repository.
@@ -340,6 +350,12 @@ EOF
 # -- {{{ main
 main() {
     local command="${1:-}"
+
+    # Deprecated: every run says so on stderr, whatever the command, so the
+    # warning reaches a person even when stdout is captured. Behaviour is
+    # otherwise unchanged -- listing and removal are still needed to retire
+    # the worktrees that exist.
+    echo -e "${YELLOW}[DEPRECATED]${NC} worktrees are retired; work on master and migrate existing worktree results into the main tree." >&2
 
     case "$command" in
         create)
