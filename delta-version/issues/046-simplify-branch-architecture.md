@@ -6,6 +6,14 @@ Worktrees exist to eliminate branch switching confusion. Each directory should b
 
 ## Current Behavior (THE PROBLEM)
 
+> **Deprecated (2026-09-22).** Worktrees are retired, so the two-layer
+> worktree design below is no longer the goal. What survives of this issue
+> is its core: the main repo stays on `master` (the post-checkout hook still
+> enforces it). The remaining steps shrink to migrating any existing
+> worktree's results into master and removing the worktree; session
+> separation is now the line ledger's job
+> (`scripts/issues/032-commit-only-your-own-lines.md`).
+
 ### Symptom: Agents Commit to Wrong Branches
 
 Agents report: "How did I start committing to the wrong branch? I thought I was on issue-042!"

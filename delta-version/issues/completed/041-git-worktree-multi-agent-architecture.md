@@ -2,6 +2,14 @@
 
 ## Current Behavior
 
+> **Deprecated (2026-09-22).** The worktree architecture this issue built is
+> retired. Work happens on `master` in the main tree, and parallel sessions
+> are kept apart at commit time by the line ledger and its commit gate
+> (`scripts/issues/032-commit-only-your-own-lines.md`). `manage-worktree.sh`
+> still runs, with a warning, so existing worktrees can be inspected and
+> removed after their results are migrated. The text below describes the
+> state before this issue was built and is kept as the record.
+
 All development happens directly on the `master` branch in a single working directory (`/mnt/mtwo/programming/ai-stuff/`). This works for single-agent workflows but breaks when multiple AI agents attempt to work simultaneously:
 
 1. Git can only have ONE branch checked out per working directory
