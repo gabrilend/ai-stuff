@@ -32,7 +32,7 @@ An issue file is a blueprint rather than a record, so a later paragraph appearin
 misrepresents when a thought arrived but never what was built.
 
 **Nothing is rewritten.** Every commit is new and sits on top of what was already there,
-so the whole run undoes with `git reset --hard 6f2ecc8a` and the tree comes back from the
+so the whole run undoes with `git reset --hard 8061e6a7` and the tree comes back from the
 copy in `/dev/shm/hero-less-moba-replay-backup`.
 
 ## Why this document exists

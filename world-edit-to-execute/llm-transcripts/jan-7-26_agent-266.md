@@ -1908,7 +1908,7 @@ already committed. Investigation revealed:
     - Git repo root is at /mnt/mtwo/programming/ai-stuff (parent directory)
     - Files existed at both /mnt and /home paths (same inode)
     - A parallel Claude session had already committed the changes in commit
-271f55a8
+24268481
 
 11. **User Clarification**: User explained "a different person did this"
 referring to the parallel session that committed the changes.
@@ -2017,7 +2017,7 @@ heuristic
      - Discovery: Git repo root is parent directory
 (/mnt/mtwo/programming/ai-stuff), and files were already committed by parallel
 session
-     - Resolution: Confirmed work was complete via commit 271f55a8
+     - Resolution: Confirmed work was complete via commit 24268481
 
 5. Problem Solving:
    - Identified is_building() heuristic limitation and documented in

@@ -88,8 +88,8 @@ Total: 25/25 PASS
 ```
 
 **Commits:**
-- `f5f77630` - Issue 302: Implement war3map.wct parser
-- `7f2ff80c` - Improve wct test coverage with map integration
+- `392c8599` - Issue 302: Implement war3map.wct parser
+- `29af0261` - Improve wct test coverage with map integration
 
 Phase 3 progress: **3/9 issues complete** (301, 302, 303 done). Next up is issue
 304 (JASS lexer).
@@ -136,7 +136,7 @@ test_lexer_literals.lua: 53/53 PASS
 Total:                  137/137 PASS
 ```
 
-**Commit:** `b54b3ce3` - Issue 304c: Implement JASS lexer literals
+**Commit:** `212a2648` - Issue 304c: Implement JASS lexer literals
 
 **JASS Lexer Status:**
 - 304a: Core infrastructure ✓
@@ -1788,7 +1788,7 @@ Done. Here's the summary of tonight's work:
 - Gold mine depletion with ECS integration
 - Periodic income for custom maps
 
-**Commit:** `f34c6501` - Issue 406: Implement resource management system
+**Commit:** `bda35d58` - Issue 406: Implement resource management system
 
 Phase 4 progress: 24/27 issues complete. Good night.
 

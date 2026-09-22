@@ -575,7 +575,7 @@ Committed. Here's where things stand and what you need to do next:
 - `output/kernel.img` and `output/bootable-sd.img` are both rebuilt with the
   probe in place.
 
-- Committed as `babab7a3` with the temporary-diagnostic disposition spelled out
+- Committed as `9c46c3c2` with the temporary-diagnostic disposition spelled out
   in the source comment and the issue file.
 
 
@@ -4930,7 +4930,7 @@ Summary:
 
 8. Current Work:
 
-   The last commit (95db6fca) completed the handoff to the night shift. I
+   The last commit (edeae6e7) completed the handoff to the night shift. I
    reopened both 110a and 110f issues with detailed register-by-register
    playbooks, updated docs/017-clocks-and-timers.md with the new clock and reset
    entries, reverted src/002-main.c from the diagnostic test pattern code back
@@ -10970,7 +10970,7 @@ the probe rework — I've correctly left it out. Let me write the commit message
 and commit to master (matching your single-branch history).
 
 
-Committed — **`c759c875`**, 23 files, cleanly scoped to the probe rework. The
+Committed — **`62763ad4`**, 23 files, cleanly scoped to the probe rework. The
 probe sources, the build-flag plumbing, the engine, the retired tooling, 110i
 (now in `completed/`), and 110j are all in. Nothing from
 neocities/games/words-pdf, and — importantly — none of the earlier eMMC/SD
@@ -11142,7 +11142,7 @@ eMMC/SD drivers, all the recon docs, and the text-only datasheet index; no PDFs,
 nothing unrelated. Let me commit it.
 
 
-Both commits are in: **`9448d75d`** (eMMC/SD base) and **`c759c875`** (probe
+Both commits are in: **`4c91e972`** (eMMC/SD base) and **`62763ad4`** (probe
 rework). 110a and 110f are closed and moved to `completed/`, the reconnaissance
 docs (017–024) landed, and the 145 MB of datasheet PDFs are now git-ignored
 (the text index stays).
@@ -12314,7 +12314,7 @@ Now stage the i2c0 + PWM work and verify the set is clean:
 Clean — exactly the five i2c0/PWM files. Writing the commit message:
 
 
-Committed — **`66cb2946`**, the two verified fixes banked, both issues left
+Committed — **`c44c45f2`**, the two verified fixes banked, both issues left
 open with their progress recorded.
 
 
@@ -12859,7 +12859,7 @@ Clean — exactly the PMIC-capability files (114 renamed into `completed/`).
 Writing the message and committing:
 
 
-**Committed — `e841f924`.** 114 is complete and moved to `completed/`. The
+**Committed — `fac8a85f`.** 114 is complete and moved to `completed/`. The
 whole i2c0/PMIC arc is done: we can **read, write, and program voltage rails**
 on the RK817, and the issue's recorded with all three layers verified on
 hardware.
@@ -15894,7 +15894,7 @@ actually write (the CPU finding belongs there), so let me add it and fold it
 into the same commit:
 
 
-Done — committed as `bfc9bc64` (26 files, only mine; the run-list issue moved
+Done — committed as `0831f0bc` (26 files, only mine; the run-list issue moved
 to completed). Here's what the logs delivered:
 
 
@@ -17514,7 +17514,7 @@ Summary:
      applied, round-trip OK); CPU recon (816MHz, caches are the real lever); SD
      capabilities (4-bit, Class10/U3, High-Speed at 3.3V).
 
-   - COMMITTED: bfc9bc64 (26 soren-ds files only, monorepo-aware staging).
+   - COMMITTED: 0831f0bc (26 soren-ds files only, monorepo-aware staging).
 
    - IN PROGRESS: full eMMC dump (110m) — scaffold written, cap removed, probe
      enabled, awaiting first full-dump flash.

@@ -118,9 +118,9 @@ awk '
 
 ## Related Commits
 
-- `babd3c4c` - Disable Skip Analyzed option when Execute mode is selected
-- `71394bda` - Fix parse_analysis to capture tables under sub-headings
-- `939439b3` - Only use the LAST analysis section when multiple exist
+- `02aeccec` - Disable Skip Analyzed option when Execute mode is selected
+- `73b26641` - Fix parse_analysis to capture tables under sub-headings
+- `920bf3cd` - Only use the LAST analysis section when multiple exist
 
 ---
 

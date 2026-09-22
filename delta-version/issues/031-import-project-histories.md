@@ -7,7 +7,7 @@ first version of this issue imported five of them as side branches
 (`import-project-histories.sh`), planning a branch-per-project layout beside a
 trunk holding every project. That layout was dropped (046 retired side
 branches; worktrees are retired too), and the trunk began instead at one
-snapshot, `930edf0d` "Initial commit: AI project collection" (2025-12-15), a
+snapshot, `15268505` "Initial commit: AI project collection" (2025-12-15), a
 commit with no parents. So on the trunk every project's history starts at the
 snapshot: `git log -- handheld-office/` begins on 2025-12-15, and `git blame`
 credits the snapshot for lines written in September.
@@ -21,7 +21,7 @@ The earlier commits, 52 in all:
 | progress-ii | 2 | 2025-12-01 | bundle; GitHub branch |
 | magic-rumble | 1 | 2025-09-10 | bundle; GitHub branch |
 | adroit | 1 | 2025-12-02 | bundle; GitHub branch |
-| RPG-autobattler | 36 | 2025-10-22 | the repository nested in its folder, up to `cc62a2f0` |
+| RPG-autobattler | 36 | 2025-10-22 | the repository nested in its folder, up to `28a21142` |
 
 The five retired branches' local copies were deleted on 2026-09-22 once their
 files were confirmed present, in later form, on main. Their complete history
@@ -36,7 +36,7 @@ never imported and its history no longer exists.
 `test-graft-project-histories.sh`: 17 unit checks and 21 integration checks,
 all passing, including a full prepare-and-swap on a toy repository). Its
 `prepare` step runs against the real trunk read-only and passes every gate
-(2026-09-22, main at `77c10b94`, 1611 commits, 118 s):
+(2026-09-22, main at `92e35c00`, 1611 commits, 118 s):
 
 - the rebuilt trunk has 1611 + 52 = 1663 commits, and its final files are
   identical to the old trunk's;
@@ -124,8 +124,8 @@ Measured on scratch copies on 2026-09-22.
 
 - **A. Rewrite the trunk with the join built in (chosen).** Measured above.
   Every trunk commit id changes. Five commits made in GitHub's web editor lose
-  GitHub's signature (`33bcff7d`, `28590707`, `17c74464`, `035a0a89`,
-  `e0642cd2`); the archive tag keeps the signed originals.
+  GitHub's signature (`6b419ee3`, `a9dea9fa`, `c4221769`, `7ae32396`,
+  `a1ec2243`); the archive tag keeps the signed originals.
 - **B. Join with merge commits, rewrite nothing.** No ids change. But git's
   default history view follows the parent the merge's files match, so
   `git log -- <folder>/` and blame still start at the snapshot, on GitHub too.

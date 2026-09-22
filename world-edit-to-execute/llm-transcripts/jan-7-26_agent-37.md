@@ -807,7 +807,7 @@ delay (0-30s)
 
 **Configuration summary box** displays after selection showing all chosen options.
 
-Committed as `3268e897 Enhance issue-splitter TUI with full capability
+Committed as `05c7117b Enhance issue-splitter TUI with full capability
 exposure`.
 
 --------------------------------------------------------------------------------
@@ -862,7 +862,7 @@ Done. Here's a summary of the TUI improvements:
 - `r` - Run with selections
 - `q` - Quit
 
-Committed as `826a4251 Enhance TUI menu with checkbox left/right and numeric
+Committed as `ffb70f6f Enhance TUI menu with checkbox left/right and numeric
 jump`.
 
 --------------------------------------------------------------------------------
@@ -886,7 +886,7 @@ will display to the user in the right-justified space reserved for them.
 
 ### Assistant Response 14
 
-Committed as `f7941f09`. Here's a summary:
+Committed as `a76d213d`. Here's a summary:
 
 ---
 
@@ -971,7 +971,7 @@ Streaming Settings (type digits, →=default, ←=off)
 - **Dim** = Disabled (value is 0)
 - **Inverse** = Currently editing
 
-Committed as `080c3aae Update issue-splitter to use inline flag inputs`.
+Committed as `f22ec75f Update issue-splitter to use inline flag inputs`.
 
 --------------------------------------------------------------------------------
 
@@ -1051,7 +1051,7 @@ When you run `./issue-splitter.sh -I` from a real terminal, the full TUI should
 now work. The error I got here is expected since Claude Code's Bash tool runs
 through pipes, not a TTY.
 
-Committed as `8f2e59e0 Remove fallback pattern from interactive mode`.
+Committed as `e19fcfcc Remove fallback pattern from interactive mode`.
 
 --------------------------------------------------------------------------------
 
@@ -1098,7 +1098,7 @@ item. The TUI flashes because:
 
 **Fix:** Changed `((i++))` to `((++i))` (pre-increment returns new value, which is truthy).
 
-Committed as `871238e0 Fix post-increment causing exit with set -e`.
+Committed as `dcd19bd6 Fix post-increment causing exit with set -e`.
 
 Try `-I` again - the TUI should now work.
 
@@ -1204,7 +1204,7 @@ into `result`, which then got parsed as numbers.
 
 **Fix:** Use global variables (`MENU_RENDER_ROW`, `MENU_RENDER_GLOBAL_INDEX`) instead of stdout.
 
-Committed as `368cee21`. Try `-I` again.
+Committed as `3d4f2314`. Try `-I` again.
 
 --------------------------------------------------------------------------------
 

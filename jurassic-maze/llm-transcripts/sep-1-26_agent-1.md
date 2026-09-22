@@ -75,7 +75,7 @@ step-by-step estimations for the ways the structure fits into the larger
 > `hero-less-moba/docs/HTML/*.html` files already staged in the index that
 > aren't mine. I'll leave those exactly where they are and commit only my paths.
 
-Committed. `87a3c8a2` — the two transcript files, and nothing else.
+Committed. `bbd4532f` — the two transcript files, and nothing else.
 
 **What went in:** `llm-transcripts/aug-31-26-through-sep-1-26.md` and
 `llm-transcripts/sep-1-26.md`, 2,363 lines between them. They were the only

@@ -41,7 +41,7 @@ print(w3r.format(result))            -- Human-readable output
 - 16/16 test maps process successfully (all happen to have no regions)
 - Synthetic data test validates all parsing logic: floats, strings, lookups
 
-**Commit:** `27d70d00 Issue 203: Implement war3map.w3r region parser`
+**Commit:** `0eef48d6 Issue 203: Implement war3map.w3r region parser`
 
 --------------------------------------------------------------------------------
 
@@ -88,7 +88,7 @@ Each issue includes:
 - Acceptance criteria
 - Related document references
 
-**Commit:** `12e64d41 Create Phase 3 issue files: Logic Layer - Triggers and JASS`
+**Commit:** `3ad919e2 Create Phase 3 issue files: Logic Layer - Triggers and JASS`
 
 --------------------------------------------------------------------------------
 

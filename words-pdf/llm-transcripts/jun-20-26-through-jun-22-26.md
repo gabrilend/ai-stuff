@@ -429,9 +429,9 @@ else alone. Two thematic commits (the file-level entanglement ruled out
 per-issue splits):
 
 
-- `7d0e2260` — **self-hosted inference servers, live progress UI, hardened lifecycle** (issues 025/026 + the 031 teardown hardening) — 22 files
+- `c654e611` — **self-hosted inference servers, live progress UI, hardened lifecycle** (issues 025/026 + the 031 teardown hardening) — 22 files
 
-- `3a6acaf6` — **data-driven theme system from corpus clusters to per-poem art** (issues 027–031) — 16 files
+- `f3af56ab` — **data-driven theme system from corpus clusters to per-poem art** (issues 027–031) — 16 files
 
 
 **Left untouched, as you chose:** neocities-modernization, soren-ds, games, and all untracked junk (`roms/`, the new game/project dirs, `input/notes/` poems, `input/compiled.txt`, `libs/cuda/`, `put-a-microphone-in.txt`, etc.). The only remaining words-pdf changes are 4 auto-regenerated `llm-transcripts/*.md` backups and that left-alone content.
@@ -512,7 +512,7 @@ programming_philosophy, …) instead of the uniform lavender dashes.
 
 **Git:**
 
-- ✅ Committed: `7d0e2260` (infra/migration, issues 025/026) and `3a6acaf6` (theme system, 027–031)
+- ✅ Committed: `c654e611` (infra/migration, issues 025/026) and `f3af56ab` (theme system, 027–031)
 
 - ⏳ Uncommitted: just the `run` `--help` change (small) + the left-alone junk you chose to skip (`input/`, `libs/cuda/`, transcript backups)
 

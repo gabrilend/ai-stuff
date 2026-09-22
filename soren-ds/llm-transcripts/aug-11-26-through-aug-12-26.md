@@ -630,14 +630,14 @@ All three commits are in. Here's where things stand.
 
 | commit | issue | files, only their own lines |
 |---|---|---|
-| `9fb90f63` | project build system | the build's own config, plus three scripts — the one hunk in `build-bootable-sd` that repairs the work directory, and nothing else from that file |
-| `d402ac92` | air-gapped flash workflow | the issue, the new networked script, the error messages that now name two routes, and the other three hunks of `build-bootable-sd` |
+| `4a2b3610` | project build system | the build's own config, plus three scripts — the one hunk in `build-bootable-sd` that repairs the work directory, and nothing else from that file |
+| `031c0377` | air-gapped flash workflow | the issue, the new networked script, the error messages that now name two routes, and the other three hunks of `build-bootable-sd` |
 
 `build-bootable-sd` carried changes belonging to both, so it was split by hunk
 and staged with `git apply --cached`. The first commit's diff of that file is
 one hunk; the second's is the remaining three.
 
-**The transition, `5b9b86b0`** — 65 files, twelve new phase-3 issues alongside
+**The transition, `d7ba2aa6`** — 65 files, twelve new phase-3 issues alongside
 the fifteen from before, all 22 old issues moved with their history intact.
 
 Phase 3 stopped being a format and a parser and became a joint. A box is a C

@@ -35,18 +35,18 @@ All commits are organized and ready. Here's the summary:
 
 `★ Insight ─────────────────────────────────────`
 **Commits created this session:**
-1. `ebd47008` - neocities: Corner box styling for regular poems
-2. `8f5d69a1` - world-edit: PKWARE DCL decompression (16/16 maps now pass)
-3. `4c39da5f` - world-edit: Phase 4 issues (Runtime Engine)
-4. `57ffdcd3` - world-edit: Phase A issues (Infrastructure Tools)
-5. `aa57d6b1` - world-edit: Progress and roadmap updates
-6. `b733e440` - delta-version: Economic incentive issues (033, 034)
-7. `3a4645ae` - scripts: TUI menu incremental rendering fix
-8. `9b2e33b1` - scripts: Shared infrastructure utilities
-9. `f4fdcb24` - README.md for repository
-10. `015f4fc3` - neocities: Issue file renames
-11. `92f5de31` - scripts: Lua menu system
-12. `552fce9c` - History and archive updates
+1. `4c6f4562` - neocities: Corner box styling for regular poems
+2. `765babd1` - world-edit: PKWARE DCL decompression (16/16 maps now pass)
+3. `ac4bc0fe` - world-edit: Phase 4 issues (Runtime Engine)
+4. `bb9598a0` - world-edit: Phase A issues (Infrastructure Tools)
+5. `7eaacdc2` - world-edit: Progress and roadmap updates
+6. `e7d4c3c9` - delta-version: Economic incentive issues (033, 034)
+7. `246cd2ed` - scripts: TUI menu incremental rendering fix
+8. `8aeef3dc` - scripts: Shared infrastructure utilities
+9. `a6390c48` - README.md for repository
+10. `ccfe5898` - neocities: Issue file renames
+11. `731a8f7f` - scripts: Lua menu system
+12. `623f712a` - History and archive updates
 `─────────────────────────────────────────────────`
 
 **Remaining untracked files:**
@@ -78,8 +78,8 @@ alright they should be pushed, can you check?
 **Status:** 2 commits still need to be pushed:
 
 ```
-0423098e Add history tools documentation and project status
-21bdf395 Issue 8-009: Project cleanup and organization
+0feb98fa Add history tools documentation and project status
+7daac160 Issue 8-009: Project cleanup and organization
 ```
 
 Also, there are **new uncommitted changes** that appeared:
@@ -132,7 +132,7 @@ keyword match)
 - `delta-version/scripts/reconstruct-history.sh` (+265 lines of association logic)
 - `delta-version/issues/progress.md` (updated status)
 
-**Commit:** `8b5028a4` - Issue 035d: Implement file-to-issue association heuristics
+**Commit:** `9cba0aa8` - Issue 035d: Implement file-to-issue association heuristics
 
 The delta-version project now has 19 completed issues, with 035e (history
 rewriting with rebase) and 035f (local LLM integration) remaining for Issue 035.
@@ -234,7 +234,7 @@ Done! Added to Issue 035f:
 - Historical record for isolating which knob-twiddling actually helped
 `─────────────────────────────────────────────────`
 
-Commit: `a8250cad` - Add LLM success/failure tracking to Issue 035f spec
+Commit: `921b9c40` - Add LLM success/failure tracking to Issue 035f spec
 
 --------------------------------------------------------------------------------
 
@@ -292,7 +292,7 @@ WARNING: LLM requested but ollama not available, disabling
 ...
 ```
 
-**Commit:** `dc9037ac` - Issue 035f: Implement local LLM integration for ambiguous decisions
+**Commit:** `baf24d65` - Issue 035f: Implement local LLM integration for ambiguous decisions
 
 ---
 

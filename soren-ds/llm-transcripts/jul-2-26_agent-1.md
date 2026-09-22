@@ -536,7 +536,7 @@ Exactly my three files staged; everything else (other projects, transcripts)
 left alone. Committing:
 
 
-Committed to `master` as `4b6e226b` — exactly the three files, pure additions.
+Committed to `master` as `c693118f` — exactly the three files, pure additions.
 Now building you a fresh image from the committed source:
 
 
@@ -546,7 +546,7 @@ Both are done. Let me give you the final artifact details for the flash:
 Both done.
 
 
-**Committed** — `master 4b6e226b`, just the three files (probe engine, display
+**Committed** — `master c693118f`, just the three files (probe engine, display
 probe, issue blueprint), 415 insertions and no deletions since it's all
 additive. The other modified files across your tree were left untouched.
 
@@ -1267,13 +1267,13 @@ the two validated changes, then check a couple of code facts (watchdog presence,
 USB enumeration state) before I lay out the analysis.
 
 
-Both committed cleanly (`78ca2df6`, `3b4330a2`); the RNG work stays uncommitted
+Both committed cleanly (`14baefd0`, `92fe324e`); the RNG work stays uncommitted
 for validation. (`src/018-bringup-test-suite.c` shows untracked — not mine,
 leaving it.) Two quick code facts before I lay this out — is a watchdog in
 place, and what's the state of the USB enumeration code:
 
 
-Both committed (`78ca2df6` display fix, `3b4330a2` dump-from-sd flush). RNG work
+Both committed (`14baefd0` display fix, `92fe324e` dump-from-sd flush). RNG work
 held back for validation. Now the real conversation.
 
 

@@ -68,7 +68,7 @@ functions, not the file.
 ## Cautionary context (why this issue is careful, not aggressive)
 
 This cleanup runs right after a near-identical mistake in the opposite direction:
-the GPU-only migration (745ce6a9) deleted `src/similarity-engine.lua` as "CPU
+the GPU-only migration (7c48268e) deleted `src/similarity-engine.lua` as "CPU
 similarity code", but that module was ALSO the embedding generator, so the next full
 regeneration failed at stage 6. It was restored (separate commit). Lesson: "dead
 code" must be proven unreferenced by EVERY entry point -- `.lua` requires AND the

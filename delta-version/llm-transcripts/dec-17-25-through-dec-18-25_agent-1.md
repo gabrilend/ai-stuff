@@ -657,14 +657,14 @@ accomplished:
 `★ Insight ─────────────────────────────────────`
 **Completed Work Summary:**
 
-1. **Issue 005** (sync-visions.sh) - Commit `309baecf`
+1. **Issue 005** (sync-visions.sh) - Commit `08ad999f`
    - Created a vision documentation viewer that discovers vision files across 27
 projects
    - Symlinks are stored in `/scripts/visions/` for centralized access
    - Key technical fix: Used `((++count))` prefix increment instead of
 `((count++))` to avoid `set -e` exit when count is zero
 
-2. **Issue 035a** (Project Detection and External Import) - Commit `75a3b465`
+2. **Issue 035a** (Project Detection and External Import) - Commit `a8fcf7d0`
    - Unified workflow in `reconstruct-history.sh` handles both external projects
 and in-place reconstruction
    - State machine classifies projects as: `external`, `no_git`, `flat_blob`,
@@ -752,7 +752,7 @@ creates.
 | 036e | Navigation and input handling |
 | 036f | Session state management |
 
-**Commit**: `65d28142` - Issue 036: Create commit history viewer specification
+**Commit**: `db6579da` - Issue 036: Create commit history viewer specification
 
 --------------------------------------------------------------------------------
 
@@ -812,7 +812,7 @@ simplifies build processes.
 | 006d | Update symlinks and references |
 | 006e | Populate dependency reference |
 
-**Commit**: `795a384f` - Issue 006: Create libs directory reorganization specification
+**Commit**: `95d97120` - Issue 006: Create libs directory reorganization specification
 
 --------------------------------------------------------------------------------
 
@@ -862,7 +862,7 @@ produces *better* output when used with reconstructed history from Issue 035
 
 **File created**: `/mnt/mtwo/programming/ai-stuff/delta-version/issues/037-project-history-narrative-generator.md`
 
-**Commit**: `ef8ae819` - Issue 037: Create project history narrative generator specification
+**Commit**: `49870f54` - Issue 037: Create project history narrative generator specification
 
 --------------------------------------------------------------------------------
 
@@ -918,7 +918,7 @@ my-libs/           # Everything "callable" lives here
 a private/internal convention)
 `─────────────────────────────────────────────────`
 
-**Commit**: `b1d0517b` - Issue 006: Update structure - rename _impl to script-files in my-libs
+**Commit**: `1718465d` - Issue 006: Update structure - rename _impl to script-files in my-libs
 
 --------------------------------------------------------------------------------
 
@@ -976,7 +976,7 @@ TODO list that kept growing.
 | 037 | Added commit classification table; new `--completed-only` and
 `--skip-specs` flags |
 
-**Commit**: `e56157ce` - Issues 036, 037: Clarify completed vs new issue handling
+**Commit**: `36f4d3a5` - Issues 036, 037: Clarify completed vs new issue handling
 
 --------------------------------------------------------------------------------
 
@@ -1029,7 +1029,7 @@ infrastructure first.
 
 **File created**: `/mnt/mtwo/programming/ai-stuff/delta-version/issues/PRIORITY.md`
 
-**Commit**: `3f3dc4cd` - Add issue prioritization document
+**Commit**: `c31e24c1` - Add issue prioritization document
 
 --------------------------------------------------------------------------------
 
@@ -1681,7 +1681,7 @@ issues (broken doc links) shouldn't block development, but should be visible.
 | 037 | Project History Narrative Generator | ✅ (prior session) |
 | 035b | Dependency graph and topological sort | ✅ (prior session) |
 | 035c | Date estimation and interpolation | ✅ (prior session) |
-| 008 | User documentation and validation | ✅ `08a80b76` |
+| 008 | User documentation and validation | ✅ `ca370997` |
 
 ## Files Created/Modified:
 
@@ -2191,7 +2191,7 @@ All tasks completed successfully.
 
 ```
 37 commits created:
-├── e8a7233 Initial vision: RPG-autobattler project purpose and goals
+├── 9c09f1a Initial vision: RPG-autobattler project purpose and goals
 ├── 6558d89 Issue #001: Initialize Love2D Project Structure
 ├── 52c3c55 Issue #002: Setup Basic main.lua with Love Callbacks
 │   ... (issues 003-034) ...

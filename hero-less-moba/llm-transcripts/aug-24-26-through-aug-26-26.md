@@ -1078,7 +1078,7 @@ please continue?
 > Now the commit. Staging only the hero-less-moba files I touched — nothing
 > from the other four projects, and not the transcripts:
 
-Committed as `6a5b8088` — 33 files, nothing from the other four projects,
+Committed as `36a0c229` — 33 files, nothing from the other four projects,
 transcripts left alone.
 
 ---
@@ -1340,7 +1340,7 @@ dunno, figure it out.
 > Three of the standing-notes files now contradict decisions we made. Since
 > they're project documents rather than yours, fixing them properly:
 
-All three landed, plus both corrections. Committed as `c793012e`.
+All three landed, plus both corrections. Committed as `23fb7462`.
 
 ## Your two corrections
 
@@ -1588,7 +1588,7 @@ the last thing anyone sees before a match ends, and it's one of the few places
 where the answer is aesthetic before it's mechanical. Worth more than a shrug,
 or genuinely not?
 
-Committed as `c03785eb`.
+Committed as `8aed91ac`.
 
 --------------------------------------------------------------------------------
 
@@ -1681,7 +1681,7 @@ let's go with "lazer beams or something idk" for now
 
 > Now the wave composition into doc 005, and F20's rule into the map:
 
-Worked through. **24 → 1.** Committed as `8af1c359`.
+Worked through. **24 → 1.** Committed as `0e64b27b`.
 
 ## The list was two lists
 
@@ -1855,7 +1855,7 @@ what you said, can you remind me?
 
 > Now the four issue files that still build the deleted fields:
 
-Both done, committed as `1a552201`.
+Both done, committed as `2d8c6147`.
 
 ## The vision — `notes/vision-2`
 
@@ -2053,7 +2053,7 @@ drawn, team A draws stone 9 and team B draws the stone 9.
 
 > Now the vocabulary, where the term collision lives:
 
-Committed as `a2ce5407`. Three things landed, and one of them is bigger than it
+Committed as `b8adf132`. Three things landed, and one of them is bigger than it
 looked.
 
 ## Both visions are stored as they arrived
@@ -2214,7 +2214,7 @@ and one of the "languages" was "ported to azerothcore"
 > Only issues 406 and 407 still contain the lock machinery — which is exactly
 > what F31b is about, so leaving them pending that decision is correct.
 
-All four landed. `beee4759`, plus the skill at
+All four landed. `55967ff7`, plus the skill at
 `~/.claude/skills/polyglot-source/`.
 
 ## Contribute-and-dismiss is better than what it replaces
@@ -2395,7 +2395,7 @@ more questions for me? yay!!
 
 > Found a real hole. Let me record it and a companion before I ask.
 
-All four in, committed as `1635fb95`. And yes — questions, including one
+All four in, committed as `3de27de3`. And yes — questions, including one
 that's a genuine hole rather than a preference.
 
 ## I had the moss balls wrong
@@ -2612,7 +2612,7 @@ issues/will-not-implement/ directory.
 > Now the two remaining answers — the request verb and per-colour ceilings —
 > and closing F31b:
 
-All six answered, `3a169234`. And the reference you asked for:
+All six answered, `77cdb160`. And the reference you asked for:
 **`notes/vision-3`, lines 59–69** — from your vision-3 message earlier
 today. That's the only place commander compositions appear; this message is the
 first time the *distribution* problem came up.
@@ -2785,7 +2785,7 @@ including a severage destroyer and a spiked mammoth.
 > All 41 entries intact, F26 back in the awaiting list. Now the queue-depth
 > exception you flagged:
 
-Committed as `f1f9fce1`. One thing to flag first.
+Committed as `33831246`. One thing to flag first.
 
 **I destroyed nine ledger entries mid-turn and restored them from HEAD.** My
 extraction said "give me F27 through F28" — but the entries aren't in numeric
@@ -2895,7 +2895,7 @@ uses their constitution dice.
 
 > That's a good puzzle and I think I see it. Let me write it down properly.
 
-Yes — I think I can see it. Written up as F39, committed in `bf1c27aa`.
+Yes — I think I can see it. Written up as F39, committed in `3702da7e`.
 
 ## Why that configuration is hard
 
@@ -3066,7 +3066,7 @@ Allies block LoS for the purposes of this spell.
 
 > 022 landed before 021 — the table is in index order. Fixing:
 
-Committed as `7a865559`. Your positional rule is the good part of this, and I
+Committed as `5f6892be`. Your positional rule is the good part of this, and I
 want to say why.
 
 ## You solved the matching problem by not solving it
@@ -3219,7 +3219,7 @@ cap of 5 as well.
 > That's deliberate parallelism, not corruption — but I'll tighten it so the
 > detector stays clean:
 
-**Nothing needs a decision.** First time since the audit started — `f6854512`.
+**Nothing needs a decision.** First time since the audit started — `c0bfbf6e`.
 
 ```
 78 issues, 106 questions, 94 answered, 12 awaiting evidence
@@ -3365,7 +3365,7 @@ hi, please continue? Although be aware, you keep freezing lmao
 ### Assistant Response 21
 
 Sorry — the commit landed but I went quiet before saying anything about it.
-`d75aa0df`.
+`40826a97`.
 
 ## Goblin archers
 

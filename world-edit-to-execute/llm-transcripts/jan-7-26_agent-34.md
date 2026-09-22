@@ -372,8 +372,8 @@ Issue 405 collision detection work is complete and committed. Summary:
 - 4 test files with 255 total tests
 
 **Commits:**
-- `0b6d98a0` - Issue 405 implementation (4538 lines added)
-- `8f6b4bd0` - Progress file update
+- `8f03f323` - Issue 405 implementation (4538 lines added)
+- `7e978b44` - Progress file update
 
 **Blocked:**
 - **405d** (movement collision integration) - Pending Issue 404 (unit movement system)
@@ -472,7 +472,7 @@ orders.has_orders(), orders.on_complete()
    - Order system runs at priority 15 (after movement at priority 10)
 
 9. **Commits Made**:
-   - `9b1165cf` - Issue 404c: Implement movement orders system
+   - `93cb8e16` - Issue 404c: Implement movement orders system
 
 10. **Final Status**:
     - 404a, 404b, 404c all complete (213 tests)
@@ -579,7 +579,7 @@ optional enhancement
 orders.hold(), order queuing
    - `src/tests/test_orders.lua` with 74 passing tests
 
-   Committed as: `9b1165cf Issue 404c: Implement movement orders system`
+   Committed as: `93cb8e16 Issue 404c: Implement movement orders system`
 
    Final status presented to user:
    - 404a - Core movement system: ✅ Complete (90 tests)
@@ -775,7 +775,7 @@ wedge, column)
    - Added `collision_radius` to movement component defaults in
 `src/runtime/systems/movement.lua`
    - Fixed one failing test by adjusting the avoidance integration test
-   - Committed as `821fd0d1`
+   - Committed as `1676d91f`
 
 4. **User Request 2**: "sure, can you work on issue 404 error issue not found
 please select an unrelated issue of trivial importance like tooling or data
@@ -798,8 +798,8 @@ config file"
      - Added `-P|--print-command` flag
      - Added print logic in `interactive_mode_tui()` that prints command and
 optionally copies to clipboard
-   - Committed to scripts repo as `c31d226c`
-   - Moved issue to completed and committed as `2e6b5e01`
+   - Committed to scripts repo as `452300e1`
+   - Moved issue to completed and committed as `718dc76e`
 
 6. **User Request 3**: "great! now can you build out a profession style
 system... just build the issue files for it" - User wanted death and
@@ -809,7 +809,7 @@ resurrection system issue document.
    - Created `issues/701-death-and-resurrection-system.md` with comprehensive
 specification
    - Covers death states, spirit world, ghost form, resurrection mechanics
-   - Committed as `5adaad2b`
+   - Committed as `59a6b8b7`
 
 8. **User Request 4**: "great! now can you build out a profession style system
 that is equally usable by both wow-chat playerbots and warcraft 3 units? just
@@ -1224,7 +1224,7 @@ groups
 The same character data renders differently based on perspective. F5 switches
 between them with smooth camera and UI transitions.
 
-All 6 issues committed (`c1a88d15`). Want me to update the progress file or
+All 6 issues committed (`d2bed7a6`). Want me to update the progress file or
 roadmap with these new Phase 5 issues?
 
 --------------------------------------------------------------------------------
@@ -1237,7 +1237,7 @@ yes please!
 
 ### Assistant Response 19
 
-Updated and committed (`61c9e54e`):
+Updated and committed (`0aba6f98`):
 
 **progress.md changes:**
 - Phase Summary table: Phase 5 now shows 0/49 (was 0/7), Phase 7 shows 0/7
@@ -1297,14 +1297,14 @@ the more we use it."
 questions, design decisions, and technical debt
    - Created symlink at `docs/critical-path.md`
    - Updated `docs/table-of-contents.md` to include the new document
-   - Committed as `5828cc01`
+   - Committed as `9553b116`
 
 3. **User Request 2**: "yay yay okay prompt me"
    - I used the AskUserQuestion tool to get decisions on critical questions
    - User decided: Raylib renderer, WC3-style Y-up coordinates, API-driven
 integration
    - Updated CRITICAL-PATH.md with these decisions (OQ-001, OQ-002, OQ-003/004)
-   - Committed as `df66aa7a`
+   - Committed as `bde1dd4d`
 
 4. **User Request 3**: "great! now can you help me work on UI? we should build
 out a structure of issue documentation for the Warcraft 3 style UI and the World
@@ -1318,7 +1318,7 @@ warlord like Thrall or Arthas."
      - 510c-perspective-switching.md
      - 510d-shared-ui-components.md
      - 510e-ui-state-persistence.md
-   - Committed as `c1a88d15`
+   - Committed as `d2bed7a6`
 
 5. **User Request 4**: "yes please!" (to update progress/roadmap)
    - Updated `issues/progress.md`:
@@ -1332,7 +1332,7 @@ warlord like Thrall or Arthas."
      - Phase 3 marked complete
      - Phase 5 expanded with full breakdown
      - Phase 7 expanded with death/profession systems
-   - Committed as `61c9e54e`
+   - Committed as `0aba6f98`
 
 6. **User Request 5**: "Okay. now can you read through all the recent issue
 files and ensure they're also compliant in the documentation structures? not
@@ -1569,7 +1569,7 @@ model |
 
 ## Documentation Updated
 
-Added "Issue Document Types" section to `CLAUDE.md` (commit `ad2268f9`)
+Added "Issue Document Types" section to `CLAUDE.md` (commit `12950c04`)
 officially recognizing both formats:
 
 1. **Implementation Issues** - Concrete tasks with Current/Intended Behavior and
@@ -1628,7 +1628,7 @@ lua src/tests/test_phase4_core.lua
 3. **Pathfinding tests** use deep water (`water_level > 64`) to simulate blocked
 tiles per WC3 semantics
 
-**Commit:** `ee5068dc`
+**Commit:** `96218e60`
 
 Phase 4 is now 30/34 complete. Remaining: 408b (entity tests), 408c (player
 tests), 408e (visual demo).
@@ -1688,7 +1688,7 @@ Results: 26 passed, 0 failed
 All tests passed!
 ```
 
-**Commits:** `ee5068dc` (408a tests), `c5dda38b` (demo system)
+**Commits:** `96218e60` (408a tests), `fb4d3057` (demo system)
 
 --------------------------------------------------------------------------------
 
@@ -1734,7 +1734,7 @@ to just `ecs.reset()` to preserve component cleanup hooks
 criteria
    - Moved issue to `issues/completed/408a-unit-tests-core-systems.md`
    - Updated `issues/progress.md` to show Phase 4 at 30/34
-   - Committed as `ee5068dc`
+   - Committed as `96218e60`
 
 6. **User Request 2**: "can you build that test runner into the phase-demo
 script? and the rest of the test runners? basically we just gotta work on the
@@ -1758,7 +1758,7 @@ gameloop, ECS, pathfinding
 8. **Testing and Commit**:
    - Tested `./run-demo.sh -n 4` - works
    - Tested `./issues/completed/demos/run_phase4.sh -t` - 26/26 pass
-   - Committed as `c5dda38b`
+   - Committed as `fb4d3057`
 
 Key technical details:
 - Game loop runs at 62.5 Hz (WC3 standard)
@@ -1913,7 +1913,7 @@ phase-4 and before."
    - Updated `run-demo.sh` with Phase 3/4 support
    - Tested demos: `./run-demo.sh -n 4` and
 `./issues/completed/demos/run_phase4.sh -t`
-   - Committed as `c5dda38b`
+   - Committed as `fb4d3057`
 
    Final test output:
    ```

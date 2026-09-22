@@ -605,7 +605,7 @@ Summary:
      file btw, so do they," and no `llm-transcripts/` file has been created for
      this session
    - **Correct the crossed git commits** — the user asked for this; two
-     batches of my files were absorbed into commits `7962156c` and `4399f839`.
+     batches of my files were absorbed into commits `aa4ef04b` and `443a0b15`.
      Not done, and it requires rewriting history other agents have built on, so
      it needs discussing with the user before acting
    - Optionally: the 110 orphan symbols; the interactive slider half of `099`
@@ -852,9 +852,9 @@ Three commits absorbed 26 of this project's files under other projects' names:
 
 | commit | files | committed as |
 |---|---|---|
-| `e2b151d5` | 10 issue tickets | my-own-custom-vtt phase four |
-| `4399f839` | 15 issue tickets | my-own-custom-vtt, first code |
-| `7962156c` | the vision note's move into `notes/` | kanji-learning-image-generator |
+| `1e94aa53` | 10 issue tickets | my-own-custom-vtt phase four |
+| `443a0b15` | 15 issue tickets | my-own-custom-vtt, first code |
+| `aa4ef04b` | the vision note's move into `notes/` | kanji-learning-image-generator |
 
 The oldest is 78 commits back and other agents have built on top of all three.
 Correcting them means rewriting shared history, which would break anything
@@ -879,11 +879,11 @@ The one thing I need you to decide
   ┌──────────┬────────────────────────────────────┬────────────────────────────────┐
   │ commit │ files │ committed as │
   ├──────────┼────────────────────────────────────┼────────────────────────────────┤
-  │ e2b151d5 │ 10 issue tickets │ my-own-custom-vtt phase four │
+  │ 1e94aa53 │ 10 issue tickets │ my-own-custom-vtt phase four │
   ├──────────┼────────────────────────────────────┼────────────────────────────────┤
-  │ 4399f839 │ 15 issue tickets │ my-own-custom-vtt, first code │
+  │ 443a0b15 │ 15 issue tickets │ my-own-custom-vtt, first code │
   ├──────────┼────────────────────────────────────┼────────────────────────────────┤
-  │ 7962156c │ the vision note's move into notes/ │
+  │ aa4ef04b │ the vision note's move into notes/ │
   kanji-learning-image-generator │
   └──────────┴────────────────────────────────────┴────────────────────────────────┘
 
@@ -982,7 +982,7 @@ since my last catch-up, so it needs one more replay first.
 Two commands, best run when the other agents are idle:
 
 ```
-! git -C /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix cherry-pick --allow-empty --keep-redundant-commits c9bfcdd5..master
+! git -C /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix cherry-pick --allow-empty --keep-redundant-commits 3d2b5fe5..master
 ```
 ```
 ! git update-ref refs/heads/master $(git -C /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix rev-parse HEAD) $(git rev-parse master)
@@ -1103,15 +1103,15 @@ commits; it's 10 now.
 
 **Three reference points, all safe:**
 - `history-fix/tip` → `a8c026b7` — the repair
-- `backup/before-history-fix` → `dd71e598` — where master was when I started
-- `master` → `f0f5cf3c` — untouched, nothing lost
+- `backup/before-history-fix` → `0b2697d2` — where master was when I started
+- `master` → `c46dac94` — untouched, nothing lost
 
 The main checkout was never touched. My project still passes 566 of 566.
 
 **To finish**, when the other agents are quiet:
 
 ```
-! git -C /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix cherry-pick --allow-empty --keep-redundant-commits c9bfcdd5..master
+! git -C /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix cherry-pick --allow-empty --keep-redundant-commits 3d2b5fe5..master
 ```
 ```
 ! git update-ref refs/heads/master $(git -C /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix rev-parse HEAD) $(git rev-parse master)
@@ -1156,7 +1156,7 @@ development of any kind.
 > literal values, which sidesteps it:
 >
 > ```
-> ! git update-ref refs/heads/master 690a4d37713c78f2a7b0157826382a87fd959a05 eb8d02612802e13639b599a2557b214f0af4104c
+> ! git update-ref refs/heads/master 690a4d37713c78f2a7b0157826382a87fd959a05 864a23dcb6138cfac9fe28e5c871250abfc3bc6b
 > ```
 >
 > Your cherry-pick caught the branch all the way up, and I've confirmed both
@@ -1211,7 +1211,7 @@ all the way up to master, and both tips end in the identical tree `8f0256b1`.
 Run this and it's done:
 
 ```
-! git update-ref refs/heads/master 690a4d37713c78f2a7b0157826382a87fd959a05 eb8d02612802e13639b599a2557b214f0af4104c
+! git update-ref refs/heads/master 690a4d37713c78f2a7b0157826382a87fd959a05 864a23dcb6138cfac9fe28e5c871250abfc3bc6b
 ```
 
 It fails safely rather than clobbering if master has moved again — tell me if
@@ -1265,10 +1265,10 @@ pages.
 
 [ritz@kuvalu six-sided-dice-layer-cake]$ git update-ref refs/heads/master
 690a4d37713c78f2a7b0157826382a87fd959a05
-eb8d02612802e13639b599a2557b214f0af4104c
+864a23dcb6138cfac9fe28e5c871250abfc3bc6b
 fatal: update_ref failed for ref 'refs/heads/master': cannot lock ref
-'refs/heads/master': is at 40cd2993864125a228dc8fb0f93bb66250bd93b5 but expected
-eb8d02612802e13639b599a2557b214f0af4104c
+'refs/heads/master': is at 69997570223a2a16207d00d7b49aabd160bc9ce9 but expected
+864a23dcb6138cfac9fe28e5c871250abfc3bc6b
 
 can you tell me what this project is about in your own words?
 

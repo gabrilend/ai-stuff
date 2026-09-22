@@ -3737,18 +3737,18 @@ All commits are organized and ready. Here's the summary:
 
 `★ Insight ─────────────────────────────────────`
 **Commits created this session:**
-1. `ebd47008` - neocities: Corner box styling for regular poems
-2. `8f5d69a1` - world-edit: PKWARE DCL decompression (16/16 maps now pass)
-3. `4c39da5f` - world-edit: Phase 4 issues (Runtime Engine)
-4. `57ffdcd3` - world-edit: Phase A issues (Infrastructure Tools)
-5. `aa57d6b1` - world-edit: Progress and roadmap updates
-6. `b733e440` - delta-version: Economic incentive issues (033, 034)
-7. `3a4645ae` - scripts: TUI menu incremental rendering fix
-8. `9b2e33b1` - scripts: Shared infrastructure utilities
-9. `f4fdcb24` - README.md for repository
-10. `015f4fc3` - neocities: Issue file renames
-11. `92f5de31` - scripts: Lua menu system
-12. `552fce9c` - History and archive updates
+1. `4c6f4562` - neocities: Corner box styling for regular poems
+2. `765babd1` - world-edit: PKWARE DCL decompression (16/16 maps now pass)
+3. `ac4bc0fe` - world-edit: Phase 4 issues (Runtime Engine)
+4. `bb9598a0` - world-edit: Phase A issues (Infrastructure Tools)
+5. `7eaacdc2` - world-edit: Progress and roadmap updates
+6. `e7d4c3c9` - delta-version: Economic incentive issues (033, 034)
+7. `246cd2ed` - scripts: TUI menu incremental rendering fix
+8. `8aeef3dc` - scripts: Shared infrastructure utilities
+9. `a6390c48` - README.md for repository
+10. `ccfe5898` - neocities: Issue file renames
+11. `731a8f7f` - scripts: Lua menu system
+12. `623f712a` - History and archive updates
 `─────────────────────────────────────────────────`
 
 **Remaining untracked files:**
@@ -3780,8 +3780,8 @@ alright they should be pushed, can you check?
 **Status:** 2 commits still need to be pushed:
 
 ```
-0423098e Add history tools documentation and project status
-21bdf395 Issue 8-009: Project cleanup and organization
+0feb98fa Add history tools documentation and project status
+7daac160 Issue 8-009: Project cleanup and organization
 ```
 
 Also, there are **new uncommitted changes** that appeared:
@@ -3834,7 +3834,7 @@ keyword match)
 - `delta-version/scripts/reconstruct-history.sh` (+265 lines of association logic)
 - `delta-version/issues/progress.md` (updated status)
 
-**Commit:** `8b5028a4` - Issue 035d: Implement file-to-issue association heuristics
+**Commit:** `9cba0aa8` - Issue 035d: Implement file-to-issue association heuristics
 
 The delta-version project now has 19 completed issues, with 035e (history
 rewriting with rebase) and 035f (local LLM integration) remaining for Issue 035.
@@ -3936,7 +3936,7 @@ Done! Added to Issue 035f:
 - Historical record for isolating which knob-twiddling actually helped
 `─────────────────────────────────────────────────`
 
-Commit: `a8250cad` - Add LLM success/failure tracking to Issue 035f spec
+Commit: `921b9c40` - Add LLM success/failure tracking to Issue 035f spec
 
 --------------------------------------------------------------------------------
 
@@ -3994,7 +3994,7 @@ WARNING: LLM requested but ollama not available, disabling
 ...
 ```
 
-**Commit:** `dc9037ac` - Issue 035f: Implement local LLM integration for ambiguous decisions
+**Commit:** `baf24d65` - Issue 035f: Implement local LLM integration for ambiguous decisions
 
 ---
 
@@ -9434,7 +9434,7 @@ A concise onboarding guide (~100 lines) that covers:
 - **Structure pattern:** The guide follows a natural progression: clone → explore → understand → work. This mirrors how developers actually approach unfamiliar codebases.
 `─────────────────────────────────────────────────`
 
-**Commit:** `62b7b3f1` - Add QUICK-START.md onboarding guide
+**Commit:** `6afa3820` - Add QUICK-START.md onboarding guide
 
 **Issue 008 status:** Still partially complete - remaining items are:
 - README.md for delta-version
@@ -9570,7 +9570,7 @@ A concise project overview (~90 lines) featuring:
 - **Script table pattern:** Listing all scripts in a table is a simple but powerful pattern - it saves users from running `ls scripts/` and reading each file's header to understand what's available.
 `─────────────────────────────────────────────────`
 
-**Commit:** `8b80c2d6` - Add README.md project overview
+**Commit:** `eeecf7b3` - Add README.md project overview
 
 ---
 
@@ -11876,7 +11876,7 @@ staff and this coast.
 
 ## Phase 1: Unblock the File Server ✅
 
-**Commit:** `39570f57` - Issue 007: Convert project-file-server to pure HTML
+**Commit:** `e9a49019` - Issue 007: Convert project-file-server to pure HTML
 
 | Metric | Before | After |
 |--------|--------|-------|
@@ -16004,14 +16004,14 @@ accomplished:
 `★ Insight ─────────────────────────────────────`
 **Completed Work Summary:**
 
-1. **Issue 005** (sync-visions.sh) - Commit `309baecf`
+1. **Issue 005** (sync-visions.sh) - Commit `08ad999f`
    - Created a vision documentation viewer that discovers vision files across 27
 projects
    - Symlinks are stored in `/scripts/visions/` for centralized access
    - Key technical fix: Used `((++count))` prefix increment instead of
 `((count++))` to avoid `set -e` exit when count is zero
 
-2. **Issue 035a** (Project Detection and External Import) - Commit `75a3b465`
+2. **Issue 035a** (Project Detection and External Import) - Commit `a8fcf7d0`
    - Unified workflow in `reconstruct-history.sh` handles both external projects
 and in-place reconstruction
    - State machine classifies projects as: `external`, `no_git`, `flat_blob`,
@@ -16424,7 +16424,7 @@ Examples:
 | 036e | Navigation and input handling |
 | 036f | Session state management |
 
-**Commit**: `65d28142` - Issue 036: Create commit history viewer specification
+**Commit**: `db6579da` - Issue 036: Create commit history viewer specification
 
 --------------------------------------------------------------------------------
 
@@ -16769,7 +16769,7 @@ exec "${DIR}/my-libs/script-files/{script-name}.sh" "$@"
 | 006d | Update symlinks and references |
 | 006e | Populate dependency reference |
 
-**Commit**: `795a384f` - Issue 006: Create libs directory reorganization specification
+**Commit**: `95d97120` - Issue 006: Create libs directory reorganization specification
 
 --------------------------------------------------------------------------------
 
@@ -16819,7 +16819,7 @@ produces *better* output when used with reconstructed history from Issue 035
 
 **File created**: `/mnt/mtwo/programming/ai-stuff/delta-version/issues/037-project-history-narrative-generator.md`
 
-**Commit**: `ef8ae819` - Issue 037: Create project history narrative generator specification
+**Commit**: `49870f54` - Issue 037: Create project history narrative generator specification
 
 --------------------------------------------------------------------------------
 
@@ -16875,7 +16875,7 @@ my-libs/           # Everything "callable" lives here
 a private/internal convention)
 `─────────────────────────────────────────────────`
 
-**Commit**: `b1d0517b` - Issue 006: Update structure - rename _impl to script-files in my-libs
+**Commit**: `1718465d` - Issue 006: Update structure - rename _impl to script-files in my-libs
 
 --------------------------------------------------------------------------------
 
@@ -16933,7 +16933,7 @@ TODO list that kept growing.
 | 037 | Added commit classification table; new `--completed-only` and
 `--skip-specs` flags |
 
-**Commit**: `e56157ce` - Issues 036, 037: Clarify completed vs new issue handling
+**Commit**: `36f4d3a5` - Issues 036, 037: Clarify completed vs new issue handling
 
 --------------------------------------------------------------------------------
 
@@ -17253,7 +17253,7 @@ LATER:
 ```
 
 
-**Commit**: `3f3dc4cd` - Add issue prioritization document
+**Commit**: `c31e24c1` - Add issue prioritization document
 
 --------------------------------------------------------------------------------
 
@@ -20421,7 +20421,7 @@ issues (broken doc links) shouldn't block development, but should be visible.
 | 037 | Project History Narrative Generator | ✅ (prior session) |
 | 035b | Dependency graph and topological sort | ✅ (prior session) |
 | 035c | Date estimation and interpolation | ✅ (prior session) |
-| 008 | User documentation and validation | ✅ `08a80b76` |
+| 008 | User documentation and validation | ✅ `ca370997` |
 
 ## Files Created/Modified:
 
@@ -22007,7 +22007,7 @@ All tasks completed successfully.
 
 ```
 37 commits created:
-├── e8a7233 Initial vision: RPG-autobattler project purpose and goals
+├── 9c09f1a Initial vision: RPG-autobattler project purpose and goals
 ├── 6558d89 Issue #001: Initialize Love2D Project Structure
 ├── 52c3c55 Issue #002: Setup Basic main.lua with Love Callbacks
 │   ... (issues 003-034) ...
@@ -26122,7 +26122,7 @@ please commit them
 Done! Committed successfully:
 
 ```
-[master c06be5ad] Add donation/support links issue and update documentation
+[master 26cdf244] Add donation/support links issue and update documentation
  10 files changed, 318 insertions(+), 30 deletions(-)
  create mode 100644 delta-version/issues/032-project-donation-support-links.md
  rename delta-version/issues/{ => completed}/004-extract-project-histories.md
@@ -26156,7 +26156,7 @@ feel free to push. it's gonna happen sometime, might as well be now
 Pushed! 15 commits sent to GitHub:
 
 ```
-930edf0d..c06be5ad  master -> master
+15268505..26cdf244  master -> master
 ```
 
 Your repo at https://github.com/gabrilend/ai-stuff is now up to date with all
@@ -32839,18 +32839,18 @@ All commits are organized and ready. Here's the summary:
 
 `★ Insight ─────────────────────────────────────`
 **Commits created this session:**
-1. `ebd47008` - neocities: Corner box styling for regular poems
-2. `8f5d69a1` - world-edit: PKWARE DCL decompression (16/16 maps now pass)
-3. `4c39da5f` - world-edit: Phase 4 issues (Runtime Engine)
-4. `57ffdcd3` - world-edit: Phase A issues (Infrastructure Tools)
-5. `aa57d6b1` - world-edit: Progress and roadmap updates
-6. `b733e440` - delta-version: Economic incentive issues (033, 034)
-7. `3a4645ae` - scripts: TUI menu incremental rendering fix
-8. `9b2e33b1` - scripts: Shared infrastructure utilities
-9. `f4fdcb24` - README.md for repository
-10. `015f4fc3` - neocities: Issue file renames
-11. `92f5de31` - scripts: Lua menu system
-12. `552fce9c` - History and archive updates
+1. `4c6f4562` - neocities: Corner box styling for regular poems
+2. `765babd1` - world-edit: PKWARE DCL decompression (16/16 maps now pass)
+3. `ac4bc0fe` - world-edit: Phase 4 issues (Runtime Engine)
+4. `bb9598a0` - world-edit: Phase A issues (Infrastructure Tools)
+5. `7eaacdc2` - world-edit: Progress and roadmap updates
+6. `e7d4c3c9` - delta-version: Economic incentive issues (033, 034)
+7. `246cd2ed` - scripts: TUI menu incremental rendering fix
+8. `8aeef3dc` - scripts: Shared infrastructure utilities
+9. `a6390c48` - README.md for repository
+10. `ccfe5898` - neocities: Issue file renames
+11. `731a8f7f` - scripts: Lua menu system
+12. `623f712a` - History and archive updates
 `─────────────────────────────────────────────────`
 
 **Remaining untracked files:**
@@ -32882,8 +32882,8 @@ alright they should be pushed, can you check?
 **Status:** 2 commits still need to be pushed:
 
 ```
-0423098e Add history tools documentation and project status
-21bdf395 Issue 8-009: Project cleanup and organization
+0feb98fa Add history tools documentation and project status
+7daac160 Issue 8-009: Project cleanup and organization
 ```
 
 Also, there are **new uncommitted changes** that appeared:
@@ -32936,7 +32936,7 @@ keyword match)
 - `delta-version/scripts/reconstruct-history.sh` (+265 lines of association logic)
 - `delta-version/issues/progress.md` (updated status)
 
-**Commit:** `8b5028a4` - Issue 035d: Implement file-to-issue association heuristics
+**Commit:** `9cba0aa8` - Issue 035d: Implement file-to-issue association heuristics
 
 The delta-version project now has 19 completed issues, with 035e (history
 rewriting with rebase) and 035f (local LLM integration) remaining for Issue 035.
@@ -33038,7 +33038,7 @@ Done! Added to Issue 035f:
 - Historical record for isolating which knob-twiddling actually helped
 `─────────────────────────────────────────────────`
 
-Commit: `a8250cad` - Add LLM success/failure tracking to Issue 035f spec
+Commit: `921b9c40` - Add LLM success/failure tracking to Issue 035f spec
 
 --------------------------------------------------------------------------------
 
@@ -33096,7 +33096,7 @@ WARNING: LLM requested but ollama not available, disabling
 ...
 ```
 
-**Commit:** `dc9037ac` - Issue 035f: Implement local LLM integration for ambiguous decisions
+**Commit:** `baf24d65` - Issue 035f: Implement local LLM integration for ambiguous decisions
 
 ---
 
@@ -38536,7 +38536,7 @@ A concise onboarding guide (~100 lines) that covers:
 - **Structure pattern:** The guide follows a natural progression: clone → explore → understand → work. This mirrors how developers actually approach unfamiliar codebases.
 `─────────────────────────────────────────────────`
 
-**Commit:** `62b7b3f1` - Add QUICK-START.md onboarding guide
+**Commit:** `6afa3820` - Add QUICK-START.md onboarding guide
 
 **Issue 008 status:** Still partially complete - remaining items are:
 - README.md for delta-version
@@ -38672,7 +38672,7 @@ A concise project overview (~90 lines) featuring:
 - **Script table pattern:** Listing all scripts in a table is a simple but powerful pattern - it saves users from running `ls scripts/` and reading each file's header to understand what's available.
 `─────────────────────────────────────────────────`
 
-**Commit:** `8b80c2d6` - Add README.md project overview
+**Commit:** `eeecf7b3` - Add README.md project overview
 
 ---
 
@@ -40978,7 +40978,7 @@ staff and this coast.
 
 ## Phase 1: Unblock the File Server ✅
 
-**Commit:** `39570f57` - Issue 007: Convert project-file-server to pure HTML
+**Commit:** `e9a49019` - Issue 007: Convert project-file-server to pure HTML
 
 | Metric | Before | After |
 |--------|--------|-------|
@@ -45419,14 +45419,14 @@ accomplished:
 `★ Insight ─────────────────────────────────────`
 **Completed Work Summary:**
 
-1. **Issue 005** (sync-visions.sh) - Commit `309baecf`
+1. **Issue 005** (sync-visions.sh) - Commit `08ad999f`
    - Created a vision documentation viewer that discovers vision files across 27
 projects
    - Symlinks are stored in `/scripts/visions/` for centralized access
    - Key technical fix: Used `((++count))` prefix increment instead of
 `((count++))` to avoid `set -e` exit when count is zero
 
-2. **Issue 035a** (Project Detection and External Import) - Commit `75a3b465`
+2. **Issue 035a** (Project Detection and External Import) - Commit `a8fcf7d0`
    - Unified workflow in `reconstruct-history.sh` handles both external projects
 and in-place reconstruction
    - State machine classifies projects as: `external`, `no_git`, `flat_blob`,
@@ -45839,7 +45839,7 @@ Examples:
 | 036e | Navigation and input handling |
 | 036f | Session state management |
 
-**Commit**: `65d28142` - Issue 036: Create commit history viewer specification
+**Commit**: `db6579da` - Issue 036: Create commit history viewer specification
 
 --------------------------------------------------------------------------------
 
@@ -46184,7 +46184,7 @@ exec "${DIR}/my-libs/script-files/{script-name}.sh" "$@"
 | 006d | Update symlinks and references |
 | 006e | Populate dependency reference |
 
-**Commit**: `795a384f` - Issue 006: Create libs directory reorganization specification
+**Commit**: `95d97120` - Issue 006: Create libs directory reorganization specification
 
 --------------------------------------------------------------------------------
 
@@ -46234,7 +46234,7 @@ produces *better* output when used with reconstructed history from Issue 035
 
 **File created**: `/mnt/mtwo/programming/ai-stuff/delta-version/issues/037-project-history-narrative-generator.md`
 
-**Commit**: `ef8ae819` - Issue 037: Create project history narrative generator specification
+**Commit**: `49870f54` - Issue 037: Create project history narrative generator specification
 
 --------------------------------------------------------------------------------
 
@@ -46290,7 +46290,7 @@ my-libs/           # Everything "callable" lives here
 a private/internal convention)
 `─────────────────────────────────────────────────`
 
-**Commit**: `b1d0517b` - Issue 006: Update structure - rename _impl to script-files in my-libs
+**Commit**: `1718465d` - Issue 006: Update structure - rename _impl to script-files in my-libs
 
 --------------------------------------------------------------------------------
 
@@ -46348,7 +46348,7 @@ TODO list that kept growing.
 | 037 | Added commit classification table; new `--completed-only` and
 `--skip-specs` flags |
 
-**Commit**: `e56157ce` - Issues 036, 037: Clarify completed vs new issue handling
+**Commit**: `36f4d3a5` - Issues 036, 037: Clarify completed vs new issue handling
 
 --------------------------------------------------------------------------------
 
@@ -46668,7 +46668,7 @@ LATER:
 ```
 
 
-**Commit**: `3f3dc4cd` - Add issue prioritization document
+**Commit**: `c31e24c1` - Add issue prioritization document
 
 --------------------------------------------------------------------------------
 
@@ -49836,7 +49836,7 @@ issues (broken doc links) shouldn't block development, but should be visible.
 | 037 | Project History Narrative Generator | ✅ (prior session) |
 | 035b | Dependency graph and topological sort | ✅ (prior session) |
 | 035c | Date estimation and interpolation | ✅ (prior session) |
-| 008 | User documentation and validation | ✅ `08a80b76` |
+| 008 | User documentation and validation | ✅ `ca370997` |
 
 ## Files Created/Modified:
 
@@ -51422,7 +51422,7 @@ All tasks completed successfully.
 
 ```
 37 commits created:
-├── e8a7233 Initial vision: RPG-autobattler project purpose and goals
+├── 9c09f1a Initial vision: RPG-autobattler project purpose and goals
 ├── 6558d89 Issue #001: Initialize Love2D Project Structure
 ├── 52c3c55 Issue #002: Setup Basic main.lua with Love Callbacks
 │   ... (issues 003-034) ...
@@ -55537,7 +55537,7 @@ please commit them
 Done! Committed successfully:
 
 ```
-[master c06be5ad] Add donation/support links issue and update documentation
+[master 26cdf244] Add donation/support links issue and update documentation
  10 files changed, 318 insertions(+), 30 deletions(-)
  create mode 100644 delta-version/issues/032-project-donation-support-links.md
  rename delta-version/issues/{ => completed}/004-extract-project-histories.md
@@ -55571,7 +55571,7 @@ feel free to push. it's gonna happen sometime, might as well be now
 Pushed! 15 commits sent to GitHub:
 
 ```
-930edf0d..c06be5ad  master -> master
+15268505..26cdf244  master -> master
 ```
 
 Your repo at https://github.com/gabrilend/ai-stuff is now up to date with all

@@ -1860,7 +1860,7 @@ other team's change — physics-sim, neocities, the transcripts, and my own
 `.gitignore` line — is left unstaged. Clean isolation. Committing just these:
 
 
-Committed as `0c43c6e4` — exactly my 7 files (the hardware-overview
+Committed as `0e094a66` — exactly my 7 files (the hardware-overview
 reconciliation, the new recovery doc, the strategem, the archive manifest + 2.7
 MB restore slice + checksum). Every other team's change and my own `.gitignore`
 line are left unstaged, untouched. And `git apply --cached` was the right call
@@ -2598,7 +2598,7 @@ night.
 Quick status so you can close the laptop without worrying:
 
 
-- **Committed** (`0c43c6e4`): the hardware-overview reconciliation, the
+- **Committed** (`0e094a66`): the hardware-overview reconciliation, the
   recovery-modes doc, the strategem, and the archive manifest + the 2.7 MB
   boot-chain restore slice. Only my files; nobody else's work touched.
 

@@ -6,11 +6,11 @@ The `/home/ritz/programming/ai-stuff/` directory contains multiple independent s
 
 ### Existing Git Repositories
 - **Main Repository**: `/home/ritz/programming/ai-stuff/.git` - Exists but has no commits, contains all projects as untracked files
-- **adroit/**: Character system project with 1 commit (d0a0ec8)
-- **progress-ii/**: Terminal game with 2 commits (c121808, b5f489d)
+- **adroit/**: Character system project with 1 commit (73a769b)
+- **progress-ii/**: Terminal game with 2 commits (5597bc3, 341e83c)
 - **progress-ii/game-state/**: Nested game state repository with 1 commit (bf1b4ea)
 - **risc-v-university/**: Educational project with 5+ commits, active development
-- **magic-rumble/**: Game project with 1 commit (89ee180)
+- **magic-rumble/**: Game project with 1 commit (99d1e31)
 - **handheld-office/**: Office application with 4+ commits, active development
 
 ### Library Dependencies (External Repos)

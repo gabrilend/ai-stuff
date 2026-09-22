@@ -3189,7 +3189,7 @@ Exactly my 5 LED files, nothing else. Committing (on master, per your repo's
 convention):
 
 
-Committed cleanly: `fcc4570b` — the LED-via-PWM work, exactly 5 files, all
+Committed cleanly: `8c2b344a` — the LED-via-PWM work, exactly 5 files, all
 mine. Now let me reframe the todo list per your I/O-validation insight before I
 answer the rest:
 
@@ -3300,7 +3300,7 @@ future/blocked:
 ## The commits — one landed, one needs your DMA work first
 
 
-**Committed** (`fcc4570b`): the LED-via-PWM work — fully independent, only my
+**Committed** (`8c2b344a`): the LED-via-PWM work — fully independent, only my
 5 files, both build variants still clean.
 
 
@@ -3491,7 +3491,7 @@ Good pattern — I'll treat all the pure-recon probes that way.
 
 ## Git — LED committed, probe-refactor patched, your DMA untouched
 
-- **Committed** `fcc4570b`: the LED-via-PWM work (only my 5 files).
+- **Committed** `8c2b344a`: the LED-via-PWM work (only my 5 files).
 
 - **Patched**: `patches/110n-probe-refactor.patch` — a **clean, mine-only**
   patch of the probe refactor (the engine, `kernel_main`, the build system,
@@ -3622,7 +3622,7 @@ not my 557-line refactor), no cross-project files, no my-probe files. Committing
 the storage work:
 
 
-Storage committed (`4f56ec32`) — a clean, storage-only commit (`019` shows
+Storage committed (`c13aff37`) — a clean, storage-only commit (`019` shows
 just the +30 DMA lines, not my refactor). Now re-apply my patch to restore the
 probe refactor (dry-run first):
 
@@ -3645,7 +3645,7 @@ HEAD builds both ways:
 
 
 All three of my commits landed and both builds are green, with no leftover
-changes of mine. But I notice an intervening commit — **`3637b4cf "added some
+changes of mine. But I notice an intervening commit — **`dcf20da1 "added some
 input files"`** — that I didn't make; it appeared between my LED commit and my
 storage commit. Someone (you, or a hook) committed in parallel during my work.
 Let me confirm what it grabbed, to be sure it didn't sweep up anything of mine
@@ -3663,13 +3663,13 @@ committing in parallel; nothing to reconcile.
 
 ```
 
-40451302  probes: a callable, self-clearing run_probes() over a runtime run-flag array
+a3223844  probes: a callable, self-clearing run_probes() over a runtime run-flag array
 
-4f56ec32  storage: move transfers by DMA, and bring up the fast microSD write path
+c13aff37  storage: move transfers by DMA, and bring up the fast microSD write path
 
- (3637b4cf  your words-pdf input files — different project, unrelated)
+ (dcf20da1  your words-pdf input files — different project, unrelated)
 
-fcc4570b  led: drive the indicator lights over PWM, restoring graded brightness
+8c2b344a  led: drive the indicator lights over PWM, restoring graded brightness
 
 ```
 
@@ -3720,7 +3720,7 @@ We don't want any patch files hanging around
 
 On it. Removing both — my redundant `110n-probe-refactor.patch`, and also the
 pre-existing `0001-docs-...patch` (not mine, but it's a leftover `format-patch`
-of commit `4e7bfe39` which is already in history, so nothing's lost by removing
+of commit `e768b5b7` which is already in history, so nothing's lost by removing
 it):
 
 

@@ -191,7 +191,7 @@ Commits: 15 | Lines: +2,450 / -320 | Files: 45
 
 ---
 
-## [96862a8b] Issue 204: Implement war3map.w3c camera parser
+## [4d13b5a4] Issue 204: Implement war3map.w3c camera parser
 
 **Date:** 2025-12-16 19:33 | **Author:** User Name
 
@@ -206,7 +206,7 @@ standard (pre-1.31) and extended (1.31+) formats.
 
 ---
 
-## [27d70d00] Issue 203: Implement war3map.w3r region parser
+## [0eef48d6] Issue 203: Implement war3map.w3r region parser
 ...
 ```
 

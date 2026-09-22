@@ -1536,7 +1536,7 @@ transcripts, archive, the stray `.tmp`) is untouched. Committing now with an
 abstract, mechanical message per your conventions:
 
 
-Commit `bd256264` landed — 16 files, all mine. The final check confirms
+Commit `25c33a74` landed — 16 files, all mine. The final check confirms
 nothing of mine is left uncommitted (the filtered list is empty — only the
 not-mine categories remain). Let me do one last confirmation that their
 config.lua image line survived intact in the working tree:
@@ -1545,7 +1545,7 @@ config.lua image line survived intact in the working tree:
 Committed cleanly. Everything verified.
 
 
-## Commit `bd256264` — 16 files, all mine
+## Commit `25c33a74` — 16 files, all mine
 
 
 `★ Insight
@@ -2953,7 +2953,7 @@ words into editable input files," so this file is expected to exist.
 
 
 The files **are committed in git** (`explore.txt`, `explore-math.txt` from
-commit 54721e8c) but the entire `input/pages/` directory is gone from the
+commit e8e0a969) but the entire `input/pages/` directory is gone from the
 working tree — they were deleted on disk along with the broad `input/` pruning
 visible in the session-start `git status`. The code correctly hard-errors
 instead of silently falling back (good design). Let me confirm it's a
@@ -2983,7 +2983,7 @@ fix is restoring data, not changing code.
 `─────────────────────────────────────────────────`
 
 
-**Root cause:** `input/pages/explore.txt` and `explore-math.txt` were committed last session (54721e8c, "move the explore pages' words into editable input files") but then deleted from the working tree — they got swept up in the broad `input/` pruning that's also showing dozens of deleted `input/images/...` in `git status`. I restored just the two the HTML build needs with `git restore`; they're back and clean against HEAD.
+**Root cause:** `input/pages/explore.txt` and `explore-math.txt` were committed last session (e8e0a969, "move the explore pages' words into editable input files") but then deleted from the working tree — they got swept up in the broad `input/` pruning that's also showing dozens of deleted `input/images/...` in `git status`. I restored just the two the HTML build needs with `git restore`; they're back and clean against HEAD.
 
 
 Let me check whether stage 9 will hit anything *else* (the gemma diversity cache
@@ -3527,7 +3527,7 @@ Clean — those two "quoted" lines are just git escaping special characters in
 (input hygiene)**:
 
 
-Commit 1 landed (b8c7e403). Now **commit 2 (model/server)** — apply run.sh
+Commit 1 landed (dd7bd24a). Now **commit 2 (model/server)** — apply run.sh
 hunks 1-3 (help + dir-automation) and stage the whole model/server files
 (config.lua now has only the collapse hunk left):
 
@@ -3536,7 +3536,7 @@ Commit 2 staged precisely — run.sh has only the help + dir-automation hunks
 (not the table), config.lua only the collapse. Committing:
 
 
-Commit 2 landed (6d23f73b). Now **commit 3 (output UX)** — run.sh has only the
+Commit 2 landed (cf713fe9). Now **commit 3 (output UX)** — run.sh has only the
 table hunk left, so a plain `git add` works; plus the timing + progress-bar
 files:
 
@@ -3550,7 +3550,7 @@ never commit). Let me do a final integrity check: confirm the other projects
 were untouched and the tree is in the expected state.
 
 
-One flag to resolve: b8c7e403 shows "2 files outside" — almost certainly the
+One flag to resolve: dd7bd24a shows "2 files outside" — almost certainly the
 git-quoting false positive (input filenames with special characters get a
 leading `"`, so they don't match `^neocities-modernization/`). Let me confirm
 those 2 are quoted neocities input deletions, not actual stray files:
@@ -3568,14 +3568,14 @@ neocities-only; soren-ds/words-pdf are untouched.**
 
 ```
 
-e2a73e7a neocities: animated progress bars and an aligned pre-flight stage table
+f7cc02ee neocities: animated progress bars and an aligned pre-flight stage table
 
-6d23f73b neocities: one local server serving several selectable models
+cf713fe9 neocities: one local server serving several selectable models
 
-b8c7e403 neocities: make input/ fully regenerable; give the explore-page copy a
+dd7bd24a neocities: make input/ fully regenerable; give the explore-page copy a
 committed home
 
-bd256264 embeddings: honor the chosen model everywhere... (earlier this session)
+25c33a74 embeddings: honor the chosen model everywhere... (earlier this session)
 
 ```
 

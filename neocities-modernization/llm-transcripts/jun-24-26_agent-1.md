@@ -4149,7 +4149,7 @@ Both slices are in, clean, with nothing of mine left behind and nothing foreign
 swept in:
 
 
-- **`5a25eea6`** — the recording mechanism (`stage-timing.sh` + test + `.gitignore`)
+- **`aa544a5b`** — the recording mechanism (`stage-timing.sh` + test + `.gitignore`)
 
 - **`6a057a2c`** — the run.sh wiring + issue blueprint
 
@@ -4212,7 +4212,7 @@ Now move the issue to `completed/`, stage the progress update, and amend it all
 into the completing commit (6a057a2c). Doing the move and amend together:
 
 
-The amend worked — the completing commit (now `96dc3bc2`) holds the run.sh
+The amend worked — the completing commit (now `9c907282`) holds the run.sh
 wiring, the issue **moved to `completed/`** with its edits, and the progress.md
 row, all together. Let me confirm the final state is clean:
 
@@ -4220,9 +4220,9 @@ row, all together. Let me confirm the final state is clean:
 Done. Everything's where it should be:
 
 
-- **`96dc3bc2`** (the completing commit, amended) now carries the run.sh wiring **plus** the issue moved to `issues/completed/10-051-…md` and the `10-progress.md` row marking it Completed `2026-06-24`.
+- **`9c907282`** (the completing commit, amended) now carries the run.sh wiring **plus** the issue moved to `issues/completed/10-051-…md` and the `10-progress.md` row marking it Completed `2026-06-24`.
 
-- **`5a25eea6`** — the recording-mechanism library + test (unchanged).
+- **`aa544a5b`** — the recording-mechanism library + test (unchanged).
 
 - The issue is gone from `issues/` (now in `completed/`), and nothing of mine is left uncommitted.
 

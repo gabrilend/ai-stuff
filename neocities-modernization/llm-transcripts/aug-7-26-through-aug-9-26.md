@@ -2406,7 +2406,7 @@ uh-oh, error! Can we fix this before we commit?
 > `RM` in the initial status). Let me correct that without disturbing their
 > staged state:
 
-Committed cleanly as `f22fc38d`, and the other project's staged renames are back
+Committed cleanly as `0fca532b`, and the other project's staged renames are back
 exactly as they were.
 
 ## The error, and what caused it
@@ -2705,7 +2705,7 @@ um idk you organize that as you'd like
 
 > Now settling the two questions you answered:
 
-Committed as `49ca7922`.
+Committed as `e80db338`.
 
 ## The progress bar wasn't ignoring `--debug`
 
@@ -2792,7 +2792,7 @@ double meanings. Easy.
 
 Written to `notes/development-cadence-aug-7-through-9-2026`, listed under a new
 **Process and Reading** heading in the table of contents, committed as
-`ae4ab9c7`.
+`5b962d57`.
 
 ## What the timing actually showed
 

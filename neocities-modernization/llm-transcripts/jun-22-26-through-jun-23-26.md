@@ -7277,10 +7277,10 @@ Both fixes are committed. Here's the close-out on your log scan:
 ## Two issues found, both fixed
 
 
-**1. Swallowed error — `temp/` → `tmp/`** (commit `1a07c11b`). The numeric-index builder wrote its preview to a `DIR/temp/` that never existed, failing every run with an error printed *under* the success banner. Now writes to the `tmp/` RAM symlink; verified clean.
+**1. Swallowed error — `temp/` → `tmp/`** (commit `38dbd5f1`). The numeric-index builder wrote its preview to a `DIR/temp/` that never existed, failing every run with an error printed *under* the success banner. Now writes to the `tmp/` RAM symlink; verified clean.
 
 
-**2. 546 fediverse attachments silently skipped — path corrected** (commit `8b94c2b9`). The `fediverse-media` source pointed at `input/images/files`, but the ZIP extraction actually writes the deeply-nested Mastodon media to `input/media_attachments/files/`. Repointed it there; confirmed the path now resolves to all 546 files (485 png, 29 jpeg, 10 jpg, 9 webp, 9 mp4, 4 mp3).
+**2. 546 fediverse attachments silently skipped — path corrected** (commit `af7f279d`). The `fediverse-media` source pointed at `input/images/files`, but the ZIP extraction actually writes the deeply-nested Mastodon media to `input/media_attachments/files/`. Repointed it there; confirmed the path now resolves to all 546 files (485 png, 29 jpeg, 10 jpg, 9 webp, 9 mp4, 4 mp3).
 
 
 `★ Insight
@@ -7618,9 +7618,9 @@ where things stand and the one decision I need from you.
 ## Fixed and committed this round
 
 
-- **Golden bottom bar** (`eef12303`) — the chronological pages' golden bar was one column off (left junction at column 11, not under its nav-box corner at 10). The word pages were already correct; this main-thread copy now matches. The similar/different pages were never affected (their worker already uses the shared module).
+- **Golden bottom bar** (`34647008`) — the chronological pages' golden bar was one column off (left junction at column 11, not under its nav-box corner at 10). The word pages were already correct; this main-thread copy now matches. The similar/different pages were never affected (their worker already uses the shared module).
 
-- **Gallery** (`988d7d65`) — two things: it's now **wired into the pipeline** (it was never in `run.sh`, which is why everything you saw was stale — old grid, the unencoded `?`, clipped names). And the masonry is tightened to your spec: exactly 4 independent column-stacks, block items, 8px vertical gap. I regenerated it and verified: `column-count:4`, the `TROUBLE-U-?` file is now `%3F`-encoded (the raw `?` was being read as a URL query-start, which is *exactly* why it didn't render), and captions wrap instead of truncating.
+- **Gallery** (`fcc9ef60`) — two things: it's now **wired into the pipeline** (it was never in `run.sh`, which is why everything you saw was stale — old grid, the unencoded `?`, clipped names). And the masonry is tightened to your spec: exactly 4 independent column-stacks, block items, 8px vertical gap. I regenerated it and verified: `column-count:4`, the `TROUBLE-U-?` file is now `%3F`-encoded (the raw `?` was being read as a URL query-start, which is *exactly* why it didn't render), and captions wrap instead of truncating.
 
 
 `★ Insight
@@ -8078,7 +8078,7 @@ Your experiment paid off. The data settled it: midpoint averaging made images
 averaging). So I implemented your idea — leading dims from the poem before,
 trailing dims from the poem after — with the seam as a tunable `SEAM_FRACTION`
 flavor knob (default 0.5; set it to 0.4 anytime, it won't affect hubness). Tests
-green, committed as `7f1cd5e9`. Images will rank like ordinary poems on the next
+green, committed as `4a07b412`. Images will rank like ordinary poems on the next
 embedding run.
 
 
@@ -8147,7 +8147,7 @@ still averaging). So I implemented your idea — leading dims
 from the poem before, trailing dims from the poem after — with the seam as a
 tunable SEAM_FRACTION flavor knob (default 0.5; set it to 0.4
 
-anytime, it won't affect hubness). Tests green, committed as 7f1cd5e9. Images
+anytime, it won't affect hubness). Tests green, committed as 4a07b412. Images
 will rank like ordinary poems on the next embedding run.
 
 
@@ -8288,7 +8288,7 @@ path). Let me remove them and the config block:
 Let me verify the pipeline still loads cleanly after the removal, then commit:
 
 
-✅ **Golden full sweep done & committed** (`3b21d87a`) — 12 dead files + the
+✅ **Golden full sweep done & committed** (`afae1dce`) — 12 dead files + the
 config block gone, live pipeline verified loading. The corpus had a lot of
 vestigial scaffolding from before the flat-HTML migration; that's a real chunk
 of it cleared.
@@ -8374,11 +8374,11 @@ question directly — "central" means *cosine to the corpus centroid* (the mean
 of all 8,596 embeddings), i.e. close to the collection's average direction,
 which makes a vector generically-similar-to-everything → a hub. Not a topic
 cluster; the literal center of mass. I also **kept the experiment as a reusable
-tool** (`src/hubness-experiment.lua`, commit `80d471d7`) so you can re-measure
+tool** (`src/hubness-experiment.lua`, commit `f007135c`) so you can re-measure
 any time you tune the seam.
 
 
-## ✅ Golden full sweep (`3b21d87a`)
+## ✅ Golden full sweep (`afae1dce`)
 
 The entire dead subsystem is gone — `golden-poem-bonus`, `similarity-engine`,
 `template-engine`, `golden-collection-generator` + 8 tests + the config block
@@ -8387,7 +8387,7 @@ this clears the vestigial scaffolding. Live pipeline verified loading; the
 flat-HTML + GPU path is untouched.
 
 
-## ✅ Exclusion feature (`ad9a2bae`, issue `10-053`)
+## ✅ Exclusion feature (`5fe81f3f`, issue `10-053`)
 
 - **`excluded_images`** config (relative paths) — the feature you asked for.
 
@@ -8682,7 +8682,7 @@ pages, you're minting a new one.
 Let me commit the three-in-one tool:
 
 
-Done — committed as `c50e5dfa`. The tool (`src/hubness-experiment.lua`) now
+Done — committed as `982e6a2d`. The tool (`src/hubness-experiment.lua`) now
 sweeps all three lenses in one run; the knobs (`PAIR_SAMPLES`, `NBR_PAIRS`,
 `CORPUS`, `TOPK`) are at the top if you want to trade speed for resolution.
 
@@ -8843,7 +8843,7 @@ Settled and shipped. The image-embedding thread is complete:
 ## What you now have
 
 `src/hubness-experiment.lua` measures any blend four ways in one run (commit
-`758c85b2`):
+`32ec30ef`):
 
 1. **Centrality** — is it a hub? (crooked: no)
 
@@ -9128,7 +9128,7 @@ Verified inert — `embeddings_dir()` returns the exact same disk path as before
 safe foundation:
 
 
-Foundation committed (`f2000f49`). Here's the honest status — I owe you a
+Foundation committed (`dd0fa153`). Here's the honest status — I owe you a
 clear accounting because this turned out bigger than the "clean lever" I
 pitched.
 
@@ -9298,7 +9298,7 @@ it's verified inert (still resolves to disk, switch off). Let me commit this
 correctness-critical layer:
 
 
-Generation layer committed (`444a280f`). Now — what actually blocks a *safe*
+Generation layer committed (`ca6c1792`). Now — what actually blocks a *safe*
 flip? The generation path is done. The asset-root caches (7MB total) can just
 **stay on disk** (no desync, negligible wear). The real remaining risk is the
 **validators**: after a flip they'd check the disk path, find the movable caches
@@ -9785,7 +9785,7 @@ fixed the stale-model default (it now resolves the real
 `nomic-embed-text-v1.5`). Let me commit:
 
 
-All done — both validators are switch-aware now (committed `97b1e80e`). Here's
+All done — both validators are switch-aware now (committed `0d018d5c`). Here's
 the full picture on your three questions.
 
 

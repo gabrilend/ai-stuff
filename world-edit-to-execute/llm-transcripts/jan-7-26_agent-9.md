@@ -589,7 +589,7 @@ Aggregate Statistics:
 - CLI tool for map inspection (mapdump.lua)
 
 ## Git
-- Committed: `ccab4c31` - Issue 108: Complete Phase 1 integration test
+- Committed: `a8acd6d3` - Issue 108: Complete Phase 1 integration test
 - Tagged: `v0.1.0-phase1`
 
 You can run the demo with:
