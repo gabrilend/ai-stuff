@@ -2,17 +2,26 @@
 #
 # test-refusal-gates
 #
-# Checks that the three gates in front of Claude Code's shell commands refuse
-# what they should and allow what they should, by feeding each a synthesised
-# tool call and looking at whether a refusal comes back.
+# Checks that the gates in front of Claude Code's shell commands refuse what
+# they should and allow what they should, by feeding each a synthesised tool
+# call and looking at whether a refusal comes back.
 #
 # The cases live in this file rather than being typed at a prompt for a reason
-# that is itself a finding: a gate reading commands as text cannot tell a
-# command from a command quoted inside another command, so typing the bad forms
-# in order to test them gets them refused. Kept in a file, they are read rather
-# than run, and the gates never see them.
+# that is itself a finding: typed at the prompt, the bad forms are commands the
+# live gates read and refuse. Kept in a file, they are read rather than run,
+# and the gates never see them.
+#
+# Three gates are covered here: the working-directory gate, the relative-
+# reference gate, and the command-form half of the commit gate (the forms that
+# bypass the index). The commit gate's other half -- comparing staged lines
+# with the session's edit ledger -- needs a scratch repository and lives in
+# tests/test-own-lines.sh, which this script runs at the end. The shell-word
+# reader all of them share is tested by tests/test_shell-command-scan.lua,
+# also run at the end.
 #
 # Exit 0 when every case behaves, 1 otherwise, so this can sit in a test run.
+# The gates' own warnings (standard error) are collected in a log under the
+# scratch folder and printed if anything fails.
 #
 # Usage: test-refusal-gates [script-directory]
 
@@ -21,24 +30,44 @@ set -uo pipefail
 DIR="${1:-/home/ritz/programming/ai-stuff/scripts}"
 
 CWD_GATE="${DIR}/refuse-directory-change"
-COMMIT_GATE="${DIR}/refuse-unscoped-commit"
 RELREF_GATE="${DIR}/refuse-relative-commit-ref"
+COMMIT_GATE="${DIR}/refuse-foreign-lines"
 
 # Throwaway token paths, so a real pending permission is never spent by a test.
-CWD_TOKEN="/tmp/claude-test-token-cwd-$$"
-COMMIT_TOKEN="/tmp/claude-test-token-commit-$$"
-RELREF_TOKEN="/tmp/claude-test-token-relref-$$"
-trap 'rm -f "${CWD_TOKEN}" "${COMMIT_TOKEN}" "${RELREF_TOKEN}"' EXIT
+SCRATCH="/tmp/claude-1000/refusal-gate-tests-$$"
+mkdir -p "${SCRATCH}"
+CWD_TOKEN="${SCRATCH}/token-cwd"
+RELREF_TOKEN="${SCRATCH}/token-relref"
+COMMIT_TOKEN="${SCRATCH}/token-commit"
+GATE_STDERR="${SCRATCH}/gate-stderr.log"
+trap 'rm -rf "${SCRATCH}"' EXIT
 
 failures=0
 checked=0
 
 # {{{ ask()
-# Feeds one command to one gate and prints whether it was refused.
+# Feeds one command to one gate and prints the gate's answer. The gates are
+# given the scripts directory too, so a copy under test loads its own libraries.
 ask() {
     local gate="$1" token="$2" command="$3"
-    printf '{"tool_name":"Bash","tool_input":{"command":%s}}' \
-        "$(printf '%s' "${command}" | jq -Rs .)" | "${gate}" "${token}"
+    local input
+    # the command goes in on standard input, not as an argument, since the
+    # 200 KB cases are longer than an argument may be
+    input="$(printf '%s' "${command}" | jq -Rs --arg cwd "${SCRATCH}" \
+        '{tool_name: "Bash", tool_input: {command: .}, cwd: $cwd}')"
+    "${gate}" "${token}" "${DIR}" <<< "${input}" 2>> "${GATE_STDERR}"
+}
+# }}}
+
+# {{{ verdict_of()
+# "refused" when the gate printed a deny decision, "allowed" otherwise. A
+# warning (systemMessage) is not a refusal: the command runs.
+verdict_of() {
+    local out="$1"
+    local decision
+    if [ -z "${out}" ]; then printf 'allowed'; return; fi
+    decision="$(jq -r '.hookSpecificOutput.permissionDecision // "none"' <<< "${out}")"
+    if [ "${decision}" = "deny" ]; then printf 'refused'; else printf 'allowed'; fi
 }
 # }}}
 
@@ -46,63 +75,92 @@ ask() {
 # Asserts that a gate does or does not refuse a command.
 expect() {
     local gate="$1" token="$2" want="$3" command="$4"
-    local out verdict
+    local out verdict shown
     out="$(ask "${gate}" "${token}" "${command}")"
+    verdict="$(verdict_of "${out}")"
     checked=$((checked + 1))
-
-    if [ -n "${out}" ]; then verdict="refused"; else verdict="allowed"; fi
+    shown="$(printf '%s' "${command}" | head -c 110 | tr '\n' ' ')"
 
     if [ "${verdict}" = "${want}" ]; then
-        printf '  ok       %-8s %s\n' "${verdict}" "${command}"
+        printf '  ok       %-8s %s\n' "${verdict}" "${shown}"
     else
-        printf '  FAILED   wanted %s, got %s: %s\n' "${want}" "${verdict}" "${command}"
+        printf '  FAILED   wanted %s, got %s: %s\n' "${want}" "${verdict}" "${shown}"
         failures=$((failures + 1))
     fi
 }
 # }}}
 
+# {{{ check()
+# Records one yes/no assertion that is not a gate verdict.
+check() {
+    local description="$1" result="$2"
+    checked=$((checked + 1))
+    if [ "${result}" = "yes" ]; then
+        printf '  ok       %s\n' "${description}"
+    else
+        printf '  FAILED   %s\n' "${description}"
+        failures=$((failures + 1))
+    fi
+}
+# }}}
+
+# A 200 KB tail for the large-input cases. The old gates piped the command into
+# grep -q, which stopped reading at its first match; the writer died of a
+# broken pipe, pipefail turned that into "no match", and anything this long
+# after a cd got through.
+PADDING="$(printf 'echo %0200000d' 0)"
+
 printf '\nThe working-directory gate\n'
-rm -f "${CWD_TOKEN}"
 expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'cd /tmp'
 expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'cd /mnt/mtwo && git commit -q -F -'
 expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'ls; cd /tmp'
 expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'mkdir -p a && cd a'
 expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'pushd /tmp'
 expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'popd'
+# Shapes the text-matching version let through: grammar, wrappers and quoting
+# in front of the command word.
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'if [ -d x ]; then cd x; fi'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'while false; do cd /tmp; done'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'builtin cd /tmp'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'command cd /tmp'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'eval "cd /tmp"'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused '! cd /tmp'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'time cd /tmp'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'FOO=1 cd /tmp'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused '\cd /tmp'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused '"cd" /tmp'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'cd>/dev/null /tmp'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused "cd /tmp
+${PADDING}"
+# Child shells cannot move the session, and are refused anyway: habit, and the
+# difference is two characters. git -C and make -C leave nothing to judge.
 expect "${CWD_GATE}" "${CWD_TOKEN}" refused '$(cd /x && pwd)'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused '(cd /tmp && make)'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused "bash -c 'cd /tmp && ls'"
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'echo `cd /tmp`'
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'bash <<EOF
+cd /tmp
+EOF'
 expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'git -C /mnt/mtwo status'
 expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'make -C build all'
 expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'echo "cd is blocked"'
 expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'cdrecord --version'
 expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'rsync --cvs-exclude a b'
 expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'ls -la /tmp'
-
-printf '\nThe commit gate\n'
-rm -f "${COMMIT_TOKEN}"
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -m "a message"'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -a -m "sweep"'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git -C /repo commit -F -'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git --no-pager commit -m x'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit --amend'
-# The one that motivated the gate: an earlier staging command's pathspec must
-# not satisfy the check on behalf of the commit that follows it.
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git add -A -- x/ && git commit -F -'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit -- games/enheim-tome/'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git -C /repo commit -F - -- games/enheim-tome/'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit --amend --only -F -'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit --only --amend -q -F -'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git status'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git add -A -- games/enheim-tome/'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git log --oneline -3'
-# A read-only git command on one line and the word elsewhere on another must not
-# be paired into a false refusal. This failed on the first attempt.
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'echo "files in that commit"
-git -C /repo show --name-only HEAD'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'ls -a && git commit -- some/path'
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'command -v cd'
+# Text that mentions cd is not a directory change: quoted strings, and heredocs
+# written to files or fed to a commit as its message.
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'echo "a; cd b"'
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed "printf '%s\\n' 'x | cd y'"
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed "awk '{ if (x) cd = 1 }' f"
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed 'cat > run.sh <<EOF
+cd "$(dirname "$0")"
+EOF'
+expect "${CWD_GATE}" "${CWD_TOKEN}" allowed "git commit -F - <<'EOF'
+cd into build/ before running make
+EOF"
 
 printf '\nThe relative-reference gate\n'
-rm -f "${RELREF_TOKEN}"
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard HEAD~1'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard HEAD~'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git revert HEAD^'
@@ -115,13 +173,48 @@ expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git commit --squash=@~1'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git branch -f main HEAD~2'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git -C /repo reset --soft HEAD~3'
 # @ is git's own shorthand for HEAD, so @~2 is the same count wearing a hat.
-# The first version of the gate missed it, because the character class that said
-# "a reference comes before the tilde" had not been told that @ is one.
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard @~2'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git revert @^'
 # The reflog is a count as well -- moves ago rather than commits back.
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard HEAD@{1}'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard @{-1}'
+# Quoting a revision does not make it a name. The old gate removed quoted
+# spans from the text before looking, which removed the revision with them;
+# after git -C "/a path" it also let -C swallow the subcommand.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused "git reset --hard 'HEAD@{1}'"
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard "HEAD~1"'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard HEAD\~1'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git -C "/path with space" reset --hard HEAD~1'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused "git -C '/p' reset --hard HEAD~1"
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git --git-dir /r/.git reset --hard HEAD~1'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard $(git rev-parse HEAD~1)'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused "echo 'a\"b' ; git reset --hard HEAD~1 ; echo 'c\"d'"
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused "echo \"don't do this\" ; git reset --hard HEAD~1"
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused "cat <<'EOF'
+Don't count: HEAD~1
+EOF
+git reset --hard HEAD~1 # that's it"
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused "git reset --hard HEAD~1
+${PADDING}"
+# Counts that are not tildes or carets.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git stash drop stash@{1}'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git stash pop stash@{2}'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git checkout -'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git switch -'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard ORIG_HEAD'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard :/fix'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git update-ref refs/heads/main HEAD~1'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git worktree add /tmp/w HEAD~1'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git notes add -m x HEAD~1'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard -'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git merge HEAD~1'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git merge -'
+# A count carried in a variable the same line sets is judged on its value.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'R=HEAD~1; git reset --hard $R'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'R=HEAD~1 && git reset --hard "${R}"'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'R=4f2a1c9; git reset --hard $R'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git merge topic'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git merge -m "fold in HEAD~1 work" topic'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git reset --hard 4f2a1c9'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git revert 4f2a1c9e8b2d1a0c9f3b7e6d5c4b3a2918273645'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git rebase -i 4f2a1c9'
@@ -129,92 +222,171 @@ expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git rebase -i 4f2a1c9'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git reset --hard HEAD'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git commit --amend --only -F -'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git branch feature-x'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git stash list'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git stash show stash@{1}'
 # Reading is not modifying, and counting backwards is how the hash gets found.
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git log --oneline -5 HEAD~5'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git show HEAD~3 --stat'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git diff HEAD~2 HEAD'
-# The mirror image of the commit gate's motivating case: the reading half of the
-# line must not condemn the naming half.
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git log HEAD~5 && git reset --hard 4f2a1c9'
 # Peeling is not a step. HEAD^{commit} is the commit HEAD already points at.
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git show HEAD^{commit}'
-# A tilde and a caret are ordinary characters in prose, and prose is quoted.
+# Prose and paths: a message is prose, and after -- every word is a path,
+# including editor backup files that end in a tilde.
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git commit -- src/ -m "handle ^C and drop ~/.cache"'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git commit -m "undo HEAD~1 by hand"'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git checkout -- backup.txt~'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git checkout main -- file~'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git reset HEAD -- file.txt~'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git commit -m x -- a@{b}'
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed "git commit -F - <<'EOF'
+Never run git reset --hard HEAD~1 on a shared branch.
+EOF"
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'ls ~/programming'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git status'
-# The working-tree commands move no history, and are gated because the same slip
-# destroys uncommitted work instead: the file is overwritten from wherever the
-# count lands, and no commit is holding the version that was there.
+# The working-tree commands move no history, and are gated because the same
+# slip destroys uncommitted work instead.
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git checkout HEAD~1 -- src/main.c'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git restore --source=HEAD~2 src/'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git switch --detach HEAD~3'
-# Detaching to look around is caught too. That is the deliberate cost of
-# catching the line above it, not an oversight.
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git checkout HEAD~1'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git checkout 4f2a1c9'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git checkout -b feature-x'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git switch main'
-# A branch name is a name. It moves, but it was asked for by name rather than by
-# distance, and requiring a raw hash would cost every ordinary rebase.
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git reset --hard main'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git rebase main'
-
-# A quoted span that runs across a newline has to be taken away whole. Before
-# the stripper was handed sed's -z it worked one line at a time, and this gate
-# refused the very edit that was adding the checkout examples to its own
-# documentation -- the inner lines of a multi-line argument stayed exposed.
+# A quoted span running across newlines is one word, however many lines.
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed "sed -i '34a\\
 #   git checkout HEAD~1 -- src/main.c
 #   git restore --source=HEAD~2 src/' notes.txt"
-# Double-quoted spans are removed before single-quoted ones, so an apostrophe in
-# prose cannot open a span that swallows the command after it. Strip in the
-# other order and this one comes back allowed, which is the wrong direction.
-expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused "echo \"don't do this\" ; git reset --hard HEAD~1"
-# A push is not a history-moving command by itself, so it is gated only when a
-# force flag rides along with the count. That is the one shape whose damage
-# travels: it lands on a branch other people have already pulled, and their
-# reflog holds nothing that undoes it.
+# A push is gated only when forced -- a flag, or a +refspec.
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git push --force origin HEAD~1:main'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git push -f origin @~2:main'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git push --force-with-lease origin HEAD~3:main'
-# A lease checks that the remote tip is where it was last seen, which is a
-# different question from whether the count was right -- so it is a force flag
-# here, but on its own, with nothing counted, there is nothing to object to.
+expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git push origin +HEAD~1:main'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git push --force-with-lease origin main'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git push --force origin 4f2a1c9:main'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git push origin main'
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git push'
-# A count with no force behind it: git itself rejects a non-fast-forward push,
-# so the gate leaves the argument to git rather than duplicating it.
 expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git push origin HEAD~1:main'
 
+printf '\nThe commit gate: forms that bypass the index\n'
+# These are refused on their form alone, before any index is read.
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -a -m "sweep"'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit --all -m x'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -am x'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -qam x'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'GIT_AUTHOR_NAME=x git commit -a -m y'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'env GIT_DIR=x git commit -am y'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'command git commit -a'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused '/usr/bin/git commit -a -m y'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git -P commit -a -m y'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git --no-optional-locks commit -a'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'bash -c "git commit -a -m y"'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'eval git commit -a -m y'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'echo x | xargs -n 1 git commit -a -m'
+# A pathspec takes the named files whole from disk, ignoring the index -- so
+# every path form is refused, including the ones as wide as -a.
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -- games/enheim-tome/'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git -C "/repo with space" commit -m x -- a.lua'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -m x -- .'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -m x -- :/'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -m "msg" -- $(git diff --name-only)'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -m x src/'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit --pathspec-from-file=list.txt -m x'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -i -m x a.lua'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit --only -m x a.lua'
+# Staging and committing on one line: the gate would be checking the index as
+# it was before the staging ran.
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git add -A -- x/ && git commit -F -'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git apply --cached p.patch && git commit -m x'
+# Allowed on form. Without a session in the input the index check announces
+# that it was skipped (a warning, not a refusal), which is enough to show the
+# form itself passed. The index check is tested in tests/test-own-lines.sh.
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit --dry-run'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit -h'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit --amend --only -F -'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git status'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git add -A -- games/enheim-tome/'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git log --oneline -3'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit -m "use -a or --all"'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit -m "x; y | z & w"'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git add games/x/llm-transcripts/ && git commit -F -'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'stage-own-changes /repo && git -C /repo commit -F -'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed "git -C /repo commit -F - <<'EOF'
+Stop using git commit -a in the docs.
+EOF"
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'echo "files in that commit"
+git -C /repo show --name-only HEAD'
 
+printf '\nUnreadable input is announced, never silent\n'
+for gate in "${CWD_GATE}" "${RELREF_GATE}" "${COMMIT_GATE}"; do
+    name="$(basename "${gate}")"
+    out="$(printf 'not json' | "${gate}" "${SCRATCH}/unused" "${DIR}" 2>> "${GATE_STDERR}")"
+    said="$(jq -r '.systemMessage // ""' <<< "${out}")"
+    check "${name}: invalid JSON gives a warning and no refusal" \
+        "$( [ -n "${said}" ] && [ "$(verdict_of "${out}")" = "allowed" ] && echo yes || echo no)"
+    out="$(printf '' | "${gate}" "${SCRATCH}/unused" "${DIR}" 2>> "${GATE_STDERR}")"
+    said="$(jq -r '.systemMessage // ""' <<< "${out}")"
+    check "${name}: empty input gives a warning" "$( [ -n "${said}" ] && echo yes || echo no)"
+    out="$(printf '{"tool_name":"Bash","tool_input":{}}' | "${gate}" "${SCRATCH}/unused" "${DIR}" 2>> "${GATE_STDERR}")"
+    said="$(jq -r '.systemMessage // ""' <<< "${out}")"
+    check "${name}: missing command gives a warning" "$( [ -n "${said}" ] && echo yes || echo no)"
+done
+
+printf '\nSpeed\n'
+# The old relative-reference gate ran one grep per word and took about 20 s on
+# a 3000-path restore, past the 10 s hook timeout, which let it through
+# unchecked. The reader walks the line once.
+MANY="git restore --source=4f2a1c9 $(seq -f 'file%g.txt' 1 3000 | tr '\n' ' ')"
+start="$(date +%s%N)"
+ask "${RELREF_GATE}" "${RELREF_TOKEN}" "${MANY}" > /dev/null
+elapsed_ms="$(( ($(date +%s%N) - start) / 1000000 ))"
+check "a 3000-word command is judged in under 2 s (took ${elapsed_ms} ms)" \
+    "$( [ "${elapsed_ms}" -lt 2000 ] && echo yes || echo no)"
 
 printf '\nThe tokens\n'
-rm -f "${COMMIT_TOKEN}"
-touch "${COMMIT_TOKEN}"
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit -m x'
-checked=$((checked + 1))
-if [ -e "${COMMIT_TOKEN}" ]; then
-    printf '  FAILED   the commit token was not consumed\n'
-    failures=$((failures + 1))
-else
-    printf '  ok       the commit token was consumed\n'
-fi
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -m x'
+# {{{ token_case()
+# A token lets exactly one offending command through and is gone afterwards.
+token_case() {
+    local label="$1" gate="$2" token="$3" command="$4"
+    rm -rf "${token}"
+    touch "${token}"
+    expect "${gate}" "${token}" allowed "${command}"
+    check "the ${label} token was consumed" "$( [ -e "${token}" ] && echo no || echo yes)"
+    expect "${gate}" "${token}" refused "${command}"
+}
+# }}}
+token_case "directory" "${CWD_GATE}" "${CWD_TOKEN}" 'cd /tmp'
+token_case "relative-reference" "${RELREF_GATE}" "${RELREF_TOKEN}" 'git reset --hard HEAD~1'
+token_case "commit" "${COMMIT_GATE}" "${COMMIT_TOKEN}" 'git commit -a -m x'
+# A token that cannot be removed -- a directory with something in it -- would
+# otherwise permit every later command. It is not honoured.
+rm -rf "${CWD_TOKEN}"
+mkdir -p "${CWD_TOKEN}/inside"
+expect "${CWD_GATE}" "${CWD_TOKEN}" refused 'cd /tmp'
+rm -rf "${CWD_TOKEN}"
 
-rm -f "${RELREF_TOKEN}"
-touch "${RELREF_TOKEN}"
-expect "${RELREF_GATE}" "${RELREF_TOKEN}" allowed 'git reset --hard HEAD~1'
-checked=$((checked + 1))
-if [ -e "${RELREF_TOKEN}" ]; then
-    printf '  FAILED   the relative-reference token was not consumed\n'
-    failures=$((failures + 1))
+printf '\nThe shell-word reader\n'
+if luajit "${DIR}/tests/test_shell-command-scan.lua" "${DIR}" > "${SCRATCH}/reader.log" 2>&1; then
+    check "tests/test_shell-command-scan.lua passes ($(tail -1 "${SCRATCH}/reader.log"))" yes
 else
-    printf '  ok       the relative-reference token was consumed\n'
+    cat "${SCRATCH}/reader.log"
+    check "tests/test_shell-command-scan.lua passes" no
 fi
-expect "${RELREF_GATE}" "${RELREF_TOKEN}" refused 'git reset --hard HEAD~1'
+
+printf '\nThe edit ledger, staging tool and commit gate\n'
+if bash "${DIR}/tests/test-own-lines.sh" "${DIR}" > "${SCRATCH}/own-lines.log" 2>&1; then
+    check "tests/test-own-lines.sh passes ($(tail -1 "${SCRATCH}/own-lines.log"))" yes
+else
+    cat "${SCRATCH}/own-lines.log"
+    check "tests/test-own-lines.sh passes" no
+fi
 
 printf '\n%s cases, %s failures\n' "${checked}" "${failures}"
-[ "${failures}" -eq 0 ] || exit 1
+if [ "${failures}" -ne 0 ]; then
+    printf '\nWhat the gates wrote to standard error:\n'
+    cat "${GATE_STDERR}"
+    exit 1
+fi
 exit 0
