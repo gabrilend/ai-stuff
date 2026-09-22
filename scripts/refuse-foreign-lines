@@ -1,0 +1,338 @@
+#!/usr/bin/env luajit
+--
+-- refuse-foreign-lines
+--
+-- A gate in front of every `git commit` Claude Code tries to run. It refuses
+-- the commit if the index -- the set of changes git is about to record --
+-- holds a single added or removed line that this session did not write.
+--
+-- The reason it exists: in a repository where several sessions and people work
+-- at once, the index belongs to the repository, not to whoever is typing. One
+-- session's commit message has ended up on another session's files. The gate
+-- before this one fixed that by insisting every commit name its paths, which
+-- makes git take those files whole from disk -- so a file holding your edit
+-- and someone else's uncommitted edit was committed whole, their lines
+-- included, and staging individual lines with `git apply --cached` (which the
+-- standing instructions ask for) was thrown away. This gate keeps the index,
+-- and checks what is in it.
+--
+-- How it knows whose lines are whose: the record-own-edits hook writes every
+-- line this session adds or removes to a ledger as the edit happens, and
+-- claim-own-change lets the session claim a whole file out loud. The gate
+-- compares each staged line against that ledger. See own-lines-ledger.lua.
+--
+-- WHAT IS REFUSED
+--
+--   a staged line (outside llm-transcripts/) this session did not write
+--   git commit -a / --all               takes every tracked change from disk
+--   git commit -i / --include, --only with paths, a pathspec, or
+--   --pathspec-from-file                takes the named files whole from disk
+--   git add ... && git commit           on one line: this gate runs before the
+--                                       line does, so it would be checking the
+--                                       index as it was before the add
+--
+-- WHAT IS ALLOWED
+--
+--   git -C <repo> commit -F -            the index, once every line in it is ours
+--   stage-own-changes <repo> && git -C <repo> commit -F -
+--                                       that tool only ever stages our lines,
+--                                       and what was staged before it is checked
+--   git commit --amend --only -F -       rewording; no content changes
+--   git commit --dry-run, git commit -h  nothing is recorded
+--
+-- The commit is found however it is spelled: behind NAME=value, env, command,
+-- a full path to git, git's own global options (-C "/a path", -c x=y, -P,
+-- --git-dir=...), inside bash -c or eval. The index checked is the one the
+-- commit will use: git is run with the command's own global options, from the
+-- session's working directory.
+--
+-- WHAT THIS IS NOT
+--
+-- Not a security boundary. The session can write its own ledger or claim any
+-- file. What it buys is that sweeping someone else's lines into a commit is no
+-- longer the easy path, and that the ways around it -- a claim, a token -- are
+-- on the record in the transcript.
+--
+-- The refusal can be lifted one time by creating the permission token below.
+--
+-- Usage: refuse-foreign-lines [token-path] [scripts-directory]
+
+local TOKEN = arg[1] or "/tmp/claude-allow-foreign-commit"
+local DIR = arg[2] or "/home/ritz/programming/ai-stuff/scripts"
+local GATE_NAME = "refuse-foreign-lines"
+
+package.path = DIR .. "/libs/?.lua;" .. package.path
+local gate = require("hook-gate")
+local scan = require("shell-command-scan")
+local ledger = require("own-lines-ledger")
+
+-- How many foreign lines a refusal lists before it summarises.
+local LIST_LIMIT = 15
+
+-- {{{ commit option tables
+-- Short options whose value is the rest of the cluster or the next word.
+local SHORT_WITH_VALUE = { m = true, F = true, C = true, c = true, t = true }
+-- Long options whose value may be the next word.
+local LONG_WITH_VALUE = {
+    ["--message"] = true, ["--file"] = true, ["--reuse-message"] = true,
+    ["--reedit-message"] = true, ["--author"] = true, ["--date"] = true,
+    ["--template"] = true, ["--fixup"] = true, ["--squash"] = true,
+    ["--trailer"] = true, ["--cleanup"] = true, ["--pathspec-from-file"] = true,
+}
+-- Short letters that change what a commit takes, and the flag each sets.
+local SHORT_FLAGS = { a = "all", i = "include", o = "only", h = "help" }
+-- Long options that change what a commit takes.
+local LONG_FLAGS = {
+    ["--all"] = "all", ["--include"] = "include", ["--only"] = "only",
+    ["--amend"] = "amend", ["--dry-run"] = "dry_run", ["--help"] = "help",
+    ["--pathspec-from-file"] = "pathspec_file",
+}
+-- }}}
+
+-- {{{ local function read_commit_args()
+-- Reads a commit's arguments into { flags = {name = true}, paths = {...} }.
+local function read_commit_args(args)
+    local flags, paths = {}, {}
+    local i = 1
+    while args[i] do
+        local w = args[i]
+        if w == "--" then
+            -- everything after -- is a path
+            for j = i + 1, #args do paths[#paths + 1] = args[j] end
+            break
+        elseif w:sub(1, 2) == "--" then
+            local name = w:match("^([^=]+)")
+            if LONG_FLAGS[name] then flags[LONG_FLAGS[name]] = true end
+            -- a long option without =value takes the next word when it needs one
+            i = i + ((LONG_WITH_VALUE[name] and not w:find("=", 1, true)) and 2 or 1)
+        elseif w:sub(1, 1) == "-" and #w > 1 then
+            -- a short cluster: letters until one that takes a value
+            local j = 2
+            local takes_next = false
+            while j <= #w do
+                local letter = w:sub(j, j)
+                if SHORT_FLAGS[letter] then flags[SHORT_FLAGS[letter]] = true end
+                if SHORT_WITH_VALUE[letter] then
+                    takes_next = (j == #w)
+                    break
+                end
+                j = j + 1
+            end
+            i = i + (takes_next and 2 or 1)
+        else
+            -- a bare word is a pathspec
+            paths[#paths + 1] = w
+            i = i + 1
+        end
+    end
+    return { flags = flags, paths = paths }
+end
+-- }}}
+
+-- The git subcommands that write the index. On the same line as a commit they
+-- make the gate's check stale, because the gate runs before the line does.
+-- Each entry decides from the arguments whether this use writes the index.
+local INDEX_WRITERS = {
+    add = function(args)
+        -- adding only transcripts is part of every commit, and harmless
+        for _, a in ipairs(args) do
+            if a:sub(1, 1) ~= "-" and not ledger.exempt(a) then return true end
+        end
+        return false
+    end,
+    rm = function() return true end,
+    mv = function() return true end,
+    stage = function() return true end,
+    ["update-index"] = function() return true end,
+    ["read-tree"] = function() return true end,
+    apply = function(args)
+        for _, a in ipairs(args) do
+            if a == "--cached" or a == "--index" then return true end
+        end
+        return false
+    end,
+    checkout = function(args)
+        for _, a in ipairs(args) do if a == "--" then return true end end
+        return false
+    end,
+    restore = function(args)
+        for _, a in ipairs(args) do
+            if a == "--staged" or a == "-S" then return true end
+        end
+        return false
+    end,
+    merge = function() return true end,
+    pull = function() return true end,
+    am = function() return true end,
+    ["cherry-pick"] = function() return true end,
+    revert = function() return true end,
+}
+
+-- {{{ local function find_commits()
+-- Every commit on the line, plus the first index-writing git command, if any.
+local function find_commits(command_text)
+    local commits, writer = {}, nil
+    for _, command in ipairs(scan.all_commands(command_text)) do
+        local invocation = scan.git_invocation(scan.effective_words(command))
+        if invocation then
+            if invocation.subcommand == "commit" then
+                commits[#commits + 1] = invocation
+            elseif INDEX_WRITERS[invocation.subcommand]
+                and INDEX_WRITERS[invocation.subcommand](invocation.args) then
+                writer = writer or ("git " .. invocation.subcommand .. " " .. table.concat(invocation.args, " "))
+            end
+        end
+    end
+    return commits, writer
+end
+-- }}}
+
+-- {{{ local function form_problem()
+-- Whether the commit's own form bypasses the index. Returns a reason or nil,
+-- and a second value true when the commit records nothing and needs no check.
+local function form_problem(commit)
+    local parsed = read_commit_args(commit.args)
+    local f = parsed.flags
+    -- asking for help or a dry run records nothing
+    if f.help or f.dry_run then return nil, true end
+    if f.all then
+        return "it uses -a/--all, which takes every tracked file's changes straight from disk -- including lines other sessions or people have not committed yet"
+    end
+    if f.include or f.pathspec_file or #parsed.paths > 0 then
+        return "it names paths (" .. (#parsed.paths > 0 and table.concat(parsed.paths, " ") or "--pathspec-from-file") .. "), which makes git take those files whole from disk and ignore what was staged -- so any other lines in them come along"
+    end
+    if f.only and f.amend then
+        -- rewording the last commit: --only with no paths records no content
+        return nil, true
+    end
+    return nil, false
+end
+-- }}}
+
+-- {{{ local function git_argv()
+-- git, run from the session's directory with the commit's own global options,
+-- so the index read is the index the commit will use.
+local function git_argv(cwd, globals, rest)
+    local argv = { "git", "-C", cwd }
+    for _, g in ipairs(globals) do argv[#argv + 1] = g end
+    for _, r in ipairs(rest) do argv[#argv + 1] = r end
+    return argv
+end
+-- }}}
+
+-- {{{ local function foreign_lines()
+-- Staged lines not in the ledger, as { rel, line_number, mark, text } plus the
+-- repository root. Returns nil and a reason when the index cannot be read.
+local function foreign_lines(cwd, globals, claims)
+    local top_out, ok = gate.run(git_argv(cwd, globals, { "rev-parse", "--show-toplevel" }))
+    if not ok then return nil, "could not find the repository (" .. top_out:gsub("%s+$", "") .. ")" end
+    local top = top_out:gsub("%s+$", "")
+    local diff, diff_ok = gate.run(git_argv(cwd, globals, {
+        "diff", "--cached", "-U0", "--no-color", "--no-ext-diff", "--no-renames",
+        "--src-prefix=a/", "--dst-prefix=b/",
+    }))
+    if not diff_ok then return nil, "could not read the index (" .. diff:gsub("%s+$", "") .. ")" end
+
+    local found = {}
+    for _, entry in ipairs(ledger.parse_diff(diff)) do
+        local rel = ledger.file_path(entry)
+        local path = top .. "/" .. rel
+        -- transcripts ride along with every commit and are never foreign
+        if not ledger.exempt(rel) then
+            local c = claims[path]
+            if (entry.binary or #entry.hunks == 0) and not (c and c.whole) then
+                found[#found + 1] = { rel, 0, "~", "binary or mode change" }
+            end
+            for _, hunk in ipairs(entry.hunks) do
+                local old_n, new_n = hunk.old_start, hunk.new_start
+                for _, line in ipairs(hunk.lines) do
+                    local mark, text = line:sub(1, 1), line:sub(2)
+                    if mark == "+" then
+                        if not ledger.line_claimed(claims, path, "+", text) then
+                            found[#found + 1] = { rel, new_n, "+", text }
+                        end
+                        new_n = new_n + 1
+                    elseif mark == "-" then
+                        if not ledger.line_claimed(claims, path, "-", text) then
+                            found[#found + 1] = { rel, old_n, "-", text }
+                        end
+                        old_n = old_n + 1
+                    end
+                end
+            end
+        end
+    end
+    return found, top
+end
+-- }}}
+
+-- {{{ local function describe_foreign()
+local function describe_foreign(found)
+    local lines, files, seen = {}, {}, {}
+    for i, f in ipairs(found) do
+        if i <= LIST_LIMIT then
+            local text = f[4]
+            if #text > 60 then text = text:sub(1, 57) .. "..." end
+            lines[#lines + 1] = string.format("%s:%d %s %s", f[1], f[2], f[3], text)
+        end
+        if not seen[f[1]] then seen[f[1]] = true; files[#files + 1] = f[1] end
+    end
+    if #found > LIST_LIMIT then
+        lines[#lines + 1] = string.format("... and %d more", #found - LIST_LIMIT)
+    end
+    return table.concat(lines, "\n"), files
+end
+-- }}}
+
+-- {{{ local function main()
+local function main()
+    local input, json = gate.read_input(GATE_NAME, DIR)
+    local command_text = gate.pending_command(GATE_NAME, input)
+
+    local commits, writer = find_commits(command_text)
+    -- no commit on the line: nothing for this gate to look at
+    if #commits == 0 then os.exit(0) end
+
+    local refusal = nil
+    if writer then
+        refusal = "This line changes the index (" .. writer .. ") and commits in the same breath. This gate runs before the whole line does, so it would be checking the index as it was before that command -- it cannot vouch for what the commit will carry. Stage in its own command first, then commit: stage-own-changes <repo> stages only this session's lines (it is fine on the same line as the commit), and git apply --cached stages a patch you have checked."
+    end
+
+    local needs_check = false
+    for _, commit in ipairs(commits) do
+        if refusal then break end
+        local problem, records_nothing = form_problem(commit)
+        if problem then
+            refusal = "This commit bypasses the index: " .. problem .. ". Stage your own lines instead -- stage-own-changes <repo> does it from this session's edit ledger, or git apply --cached with a patch you have checked -- and commit the index as it stands: git -C <repo> commit -F -."
+        elseif not records_nothing then
+            needs_check = true
+        end
+    end
+
+    if not refusal and needs_check then
+        if type(input.session_id) ~= "string" then
+            gate.warn_and_allow(GATE_NAME, "hook input has no session_id, so the index could not be compared with this session's edits")
+        end
+        local cwd = type(input.cwd) == "string" and input.cwd or os.getenv("PWD") or "."
+        local claims = ledger.load(input.session_id)
+        -- every commit on the line shares one index; the first commit's globals
+        -- name the repository
+        local found, top_or_reason = foreign_lines(cwd, commits[1].globals, claims)
+        if not found then
+            gate.warn_and_allow(GATE_NAME, top_or_reason)
+        end
+        if #found > 0 then
+            local listing, files = describe_foreign(found)
+            refusal = "The index holds " .. #found .. " line(s) this session did not write (the edit ledger has no record of them), so this commit would carry someone else's work:\n" .. listing
+                .. "\n\nIf they are another session's or the user's staged work, do not unstage them without asking the user -- they may be about to commit them; ask who goes first. If they are lines you produced with a shell command the ledger could not see, claim the file out loud (claim-own-change " .. top_or_reason .. "/" .. files[1] .. " ...) and try again. To take a file of yours back out of the index: git -C " .. top_or_reason .. " restore --staged -- <file>, then stage-own-changes " .. top_or_reason .. "."
+        end
+    end
+
+    -- nothing wrong with this commit: let it through
+    if not refusal then os.exit(0) end
+    gate.refuse_unless_token(json, TOKEN,
+        refusal .. " If the user genuinely wants this commit as it stands, ask them to type: ! touch " .. TOKEN)
+end
+-- }}}
+
+main()
