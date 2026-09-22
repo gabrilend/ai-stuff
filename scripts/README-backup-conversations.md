@@ -156,6 +156,16 @@ Two guards ride along with every export:
   name — is retired, keyed by the header. The warning is a printed line,
   not a UUID filename.
 
+## Patches
+
+Every rendering passes through `transcript-patches apply` before it is
+compared with the file on disk and written: deliberate edits recorded as
+patches (`<repository>/.transcript-patches/`, `llm-transcripts/.patches/`)
+are re-applied on every export, so they survive it. A stale patch fails that
+conversation's export and leaves its file as it was. See
+`transcript-patches.info.md`; `transcript-patches original <transcript>`
+remakes the unpatched rendering.
+
 ## Output Format
 
 Prose is wrapped at 80 columns — including paragraphs that open with
