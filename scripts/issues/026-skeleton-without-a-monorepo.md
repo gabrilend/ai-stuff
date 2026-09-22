@@ -139,9 +139,9 @@ more than an argument rearrangement:
   reason, when a sandbox cannot be built. It was implemented as an error that
   names `--skeleton-only` instead (see Current Behavior). Is the error right,
   or should the automatic, announced skeleton come back?
-- CLAUDE.md spells the counter `file-index-counter` and calls it hidden; every
-  project on disk and this script use `.file-index-counter`. Should CLAUDE.md's
-  spelling gain the dot?
+- CLAUDE.md spelled the counter `file-index-counter` while calling it hidden;
+  every project on disk and this script use `.file-index-counter`. Answered
+  2026-09-22: the dot stays, and CLAUDE.md's spelling was changed to match.
 
 ## Notes
 
