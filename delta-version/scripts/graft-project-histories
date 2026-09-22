@@ -1,0 +1,597 @@
+#!/usr/bin/env bash
+#
+# graft-project-histories - gives the monorepo's projects back the history they
+# had before they were gathered into it.
+#
+# In plain terms: several projects were written in their own small repositories
+# before 15 December 2025, when one snapshot commit ("Initial commit: AI project
+# collection") gathered everything into this repository. Their earlier commits
+# survived only on the side. This tool rebuilds the trunk so that snapshot
+# commit stands on those earlier histories: each project's old commits are
+# moved into the project's folder, unchanged in author, date and message, and
+# become the snapshot's parents. Afterwards `git log -- <project>/` and
+# `git blame` reach back to the day each line was really written.
+#
+# Rebuilding the trunk gives every later commit a new id, so the tool also
+# writes an old-to-new map and rewrites the commit ids quoted in the trunk's
+# files (transcripts, issue files, documents) and commit messages. Every old id
+# stays reachable afterwards through an archive tag.
+#
+# Two steps, kept apart on purpose:
+#
+#   prepare   (default, safe) builds the whole new history in a separate
+#             scratch repository in RAM, checks it against every gate below,
+#             and prints a report. The real repository is only read.
+#   swap      (explicit flag and typed confirmation) moves the real trunk to
+#             the prepared history, tags the old trunk, moves the release
+#             tags, and prints the push commands. It never pushes.
+#   translate rewrites quoted ids in working-tree files after the swap, for
+#             files written later or never committed.
+#
+# The gates prepare checks before it will report success:
+#   - every original commit has a rebuilt twin with the same files, author,
+#     committer, both dates and message (message ids translated);
+#   - the rebuilt trunk has exactly (old count + moved commits) commits;
+#   - the rebuilt trunk's final files are byte-identical to the old trunk's;
+#   - the default `git log -- <project>/` reaches each project's first commit;
+#   - no two old ids share a new id; carried tags point at their twins;
+#   - every rewritten quote reads back to the original when reversed, and every
+#     new shortened id is unambiguous.
+#
+# Usage:
+#   graft-project-histories [prepare] [--dir REPO] [--work DIR] [--projects FILE]
+#                           [--join SHA] [--carry-tags "t1 t2"]
+#   graft-project-histories swap --i-understand-this-rewrites-history [--dir REPO] [--work DIR]
+#   graft-project-histories translate [--dir REPO] FILE...
+#
+# The scratch area defaults to /tmp/ai-stuff-history-graft, which is RAM: a
+# reboot empties it, and prepare simply runs again (about two minutes).
+
+set -euo pipefail
+
+# {{{ configuration
+# The repository to act on. Overridable so the tests can point it at a small
+# synthetic repository.
+DIR="/mnt/mtwo/programming/ai-stuff"
+
+# Where this script lives, resolved through symlinks, so its library is found
+# whatever DIR is set to.
+SCRIPT_HOME="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+QUOTES_LIB="${SCRIPT_HOME}/libs/commit-id-quotes.lua"
+
+WORK="/tmp/ai-stuff-history-graft"
+
+# The snapshot commit the histories join at: the monorepo's first commit.
+JOIN_COMMIT="930edf0d635b5a93f54be20e75439c41f1270ff5"
+
+# Release and backup tags on the trunk, moved to their rebuilt twins.
+CARRY_TAGS="phase12-complete-stable v0.1.0-phase1 backup/before-history-fix"
+
+# Where the old trunk is kept, and where each project's pre-import tip is kept.
+ARCHIVE_TAG="archive/main-before-history-graft"
+PRE_IMPORT_TAG_PREFIX="archive/pre-import"
+
+# Committed in the quote-rewrite commit: the translation table and its note.
+MAP_PATH="delta-version/archive/history-graft/commits.map"
+MAP_NOTE_PATH="delta-version/archive/history-graft/README.md"
+
+# Where each project's history comes from, one per line:
+#   <folder> <source> <ref>
+# <source> is a git bundle or a repository path; <ref> is the last commit
+# before the snapshot. The five retired branches are read from the bundle kept
+# on disk (the branches themselves are to be deleted from GitHub);
+# RPG-autobattler's are read from the repository nested in its own folder,
+# stopping at its last commit before the snapshot.
+PROJECTS_FILE=""
+DEFAULT_PROJECTS="adroit /mnt/mtwo/programming/archives/ai-stuff/retired-project-branches.bundle refs/remotes/origin/adroit
+handheld-office /mnt/mtwo/programming/archives/ai-stuff/retired-project-branches.bundle refs/remotes/origin/handheld-office
+magic-rumble /mnt/mtwo/programming/archives/ai-stuff/retired-project-branches.bundle refs/remotes/origin/magic-rumble
+progress-ii /mnt/mtwo/programming/archives/ai-stuff/retired-project-branches.bundle refs/remotes/origin/progress-ii
+risc-v-university /mnt/mtwo/programming/archives/ai-stuff/retired-project-branches.bundle refs/remotes/origin/risc-v-university
+RPG-autobattler /mnt/mtwo/programming/ai-stuff/RPG-autobattler cc62a2f069101a0d1e78c7bccbf1e9c783d25274"
+# }}}
+
+# {{{ say
+say() { printf '%s\n' "$*"; }
+# }}}
+
+# {{{ die
+die() { printf 'graft-project-histories: %s\n' "$*" >&2; exit 1; }
+# }}}
+
+# {{{ gate
+# A gate either passes and says so, or stops the run with its reason.
+gate() {
+   local name="$1" ok="$2" detail="$3"
+   if [ "$ok" = yes ]; then
+      printf '  PASS  %-44s %s\n' "$name" "$detail"
+   else
+      printf '  FAIL  %-44s %s\n' "$name" "$detail"
+      die "gate failed: $name"
+   fi
+}
+# }}}
+
+# {{{ scratch_git
+scratch_git() { git --git-dir="${WORK}/repo.git" "$@"; }
+# }}}
+
+# {{{ project_lines
+# The project list, from --projects FILE or the defaults, without blank lines.
+project_lines() {
+   if [ -n "${PROJECTS_FILE}" ]; then
+      grep -v '^[[:space:]]*$' "${PROJECTS_FILE}"
+   else
+      printf '%s\n' "${DEFAULT_PROJECTS}"
+   fi
+}
+# }}}
+
+# {{{ check_sources
+# Every source must exist and hold its ref, and every project folder must exist
+# in the snapshot; a missing one stops the run rather than being skipped,
+# because a history quietly left out is exactly what this tool exists to stop.
+check_sources() {
+   git -C "${DIR}" cat-file -e "${JOIN_COMMIT}^{commit}" || die "join commit ${JOIN_COMMIT} not in ${DIR}"
+   [ -z "$(git -C "${DIR}" log -1 --format=%P "${JOIN_COMMIT}")" ] \
+      || die "join commit ${JOIN_COMMIT} already has parents"
+   git -C "${DIR}" merge-base --is-ancestor "${JOIN_COMMIT}" main || die "join commit is not on main"
+   local folder source ref
+   while read -r folder source ref; do
+      git -C "${DIR}" cat-file -e "${JOIN_COMMIT}:${folder}" \
+         || die "project folder ${folder} is not in the join commit"
+      if [ -f "${source}" ]; then
+         # A bundle: it must verify, and list the ref.
+         git -C "${DIR}" bundle verify -q "${source}" || die "bundle ${source} does not verify"
+         git bundle list-heads "${source}" | grep -q " ${ref}\$" || die "bundle ${source} lacks ${ref}"
+      elif [ -d "${source}" ]; then
+         # A repository: the ref must be a commit reachable from its HEAD.
+         git -C "${source}" cat-file -e "${ref}^{commit}" || die "${source} lacks ${ref}"
+         git -C "${source}" merge-base --is-ancestor "${ref}" HEAD || die "${ref} is not on ${source}'s HEAD"
+      else
+         die "source ${source} for ${folder} does not exist"
+      fi
+   done < <(project_lines)
+}
+# }}}
+
+# {{{ build_scratch
+# A bare scratch repository that borrows the real one's objects (read-only),
+# holding: main as it is now (also saved as old-main), the carried tags, and
+# each project's original history as old/<folder>.
+build_scratch() {
+   rm -rf "${WORK}"
+   mkdir -p "${WORK}"
+   git clone -q --bare --shared --no-tags --single-branch -b main "${DIR}" "${WORK}/repo.git"
+   scratch_git branch old-main main
+   local tag
+   for tag in ${CARRY_TAGS}; do
+      scratch_git fetch -q --no-tags "${DIR}" "refs/tags/${tag}:refs/tags/${tag}"
+   done
+   local folder source ref
+   while read -r folder source ref; do
+      if [ -f "${source}" ]; then
+         scratch_git fetch -q --no-tags "${source}" "${ref}:refs/heads/old/${folder}"
+      else
+         # A repository cannot always be asked for a bare commit id, so its
+         # HEAD is fetched and the branch set at the ref inside that history.
+         scratch_git fetch -q --no-tags "${source}" "HEAD:refs/sources/${folder}"
+         scratch_git branch -f "old/${folder}" "${ref}"
+      fi
+   done < <(project_lines)
+}
+# }}}
+
+# {{{ build_universes
+# universe.before: every commit a quote written so far could mean -- all refs
+# of the real repository and each project source's full history.
+# rewritten.candidates: the commits this run rebuilds.
+build_universes() {
+   {
+      git -C "${DIR}" rev-list --all
+      scratch_git rev-list --all
+      local folder source ref
+      while read -r folder source ref; do
+         if [ -d "${source}" ]; then git -C "${source}" rev-list --all; fi
+      done < <(project_lines)
+   } | sort -u > "${WORK}/universe.before"
+   { scratch_git rev-list old-main; scratch_git rev-list --branches='old/*'; } | sort -u > "${WORK}/rewritten.candidates"
+}
+# }}}
+
+# {{{ move_into_folders
+# Re-creates each project commit with its whole tree placed under the project's
+# folder: same author, committer, raw dates and message; parents mapped.
+move_into_folders() {
+   : > "${WORK}/folder.map"
+   local folder source ref c tree wrapped new p
+   while read -r folder source ref; do
+      declare -A moved=()
+      while read -r c; do
+         tree=$(scratch_git rev-parse "${c}^{tree}")
+         wrapped=$(printf '040000 tree %s\t%s\n' "${tree}" "${folder}" | scratch_git mktree)
+         local parents=()
+         for p in $(scratch_git log -1 --format=%P "${c}"); do
+            parents+=(-p "${moved[$p]}")
+         done
+         new=$(
+            export GIT_AUTHOR_NAME="$(scratch_git log -1 --format=%an "${c}")"
+            export GIT_AUTHOR_EMAIL="$(scratch_git log -1 --format=%ae "${c}")"
+            export GIT_AUTHOR_DATE="$(scratch_git log -1 --format=%ad --date=raw "${c}")"
+            export GIT_COMMITTER_NAME="$(scratch_git log -1 --format=%cn "${c}")"
+            export GIT_COMMITTER_EMAIL="$(scratch_git log -1 --format=%ce "${c}")"
+            export GIT_COMMITTER_DATE="$(scratch_git log -1 --format=%cd --date=raw "${c}")"
+            scratch_git cat-file commit "${c}" | sed '1,/^$/d' \
+               | scratch_git commit-tree "${wrapped}" "${parents[@]}"
+         )
+         moved[$c]="${new}"
+         printf '%s %s\n' "${c}" "${new}" >> "${WORK}/folder.map"
+      done < <(scratch_git rev-list --reverse --topo-order "old/${folder}")
+      scratch_git branch -f "infolder/${folder}" "${moved[$(scratch_git rev-parse "old/${folder}")]}"
+      unset moved
+   done < <(project_lines)
+}
+# }}}
+
+# {{{ rebuild_trunk
+# Grafts the moved histories under the join commit and rebuilds main (and the
+# carried tags) with the graft baked in. The message filter rewrites quoted
+# ids; the commit filter records every old -> new pair as it goes.
+rebuild_trunk() {
+   local tips=() folder source ref tag
+   while read -r folder source ref; do
+      tips+=("$(scratch_git rev-parse "infolder/${folder}")")
+   done < <(project_lines)
+   scratch_git replace --graft "${JOIN_COMMIT}" "${tips[@]}"
+
+   scratch_git log --format='%H%x00%B%x01' main \
+      | luajit "${QUOTES_LIB}" scan-messages "${WORK}" > "${WORK}/msg-touch.list"
+   mkdir -p "${WORK}/msg-touch"
+   local id
+   while read -r id; do : > "${WORK}/msg-touch/${id}"; done < "${WORK}/msg-touch.list"
+
+   : > "${WORK}/filter.map"
+   local refs=(main)
+   for tag in ${CARRY_TAGS}; do refs+=("refs/tags/${tag}"); done
+   export GRAFT_WORK="${WORK}" GRAFT_LIB="${QUOTES_LIB}"
+   # filter-branch is noisy; its progress goes to a log, and a failure is
+   # reported with that log's tail.
+   if ! FILTER_BRANCH_SQUELCH_WARNING=1 scratch_git filter-branch -f -d "${WORK}/fb" \
+         --msg-filter 'if [ -e "$GRAFT_WORK/msg-touch/$GIT_COMMIT" ]; then luajit "$GRAFT_LIB" msg "$GRAFT_WORK"; else cat; fi' \
+         --commit-filter 'new=$(git commit-tree "$@") && printf "%s %s\n" "$GIT_COMMIT" "$new" >> "$GRAFT_WORK/filter.map" && printf "%s\n" "$new"' \
+         --tag-name-filter cat \
+         -- "${refs[@]}" > "${WORK}/filter-branch.log" 2>&1; then
+      tail -5 "${WORK}/filter-branch.log" >&2
+      die "filter-branch failed"
+   fi
+   scratch_git replace -d "${JOIN_COMMIT}" > /dev/null
+}
+# }}}
+
+# {{{ compose_map
+# commits.map: every original commit -> its twin on the new trunk. Trunk
+# commits map directly; project commits map through their moved copy.
+compose_map() {
+   luajit - "${WORK}" <<'LUA'
+      local work = arg[1]
+      local function load(p) local m = {} for l in io.lines(p) do local a, b = l:match("^(%x+) (%x+)$") if a then m[a] = b end end return m end
+      local fb, folder = load(work .. "/filter.map"), load(work .. "/folder.map")
+      local out = assert(io.open(work .. "/commits.map", "w"))
+      for l in io.lines(work .. "/old-trunk.ids") do
+         assert(fb[l], "no rebuilt twin for trunk commit " .. l)
+         out:write(l, " ", fb[l], "\n")
+      end
+      for old, moved in pairs(folder) do
+         assert(fb[moved], "no rebuilt twin for project commit " .. old)
+         out:write(old, " ", fb[moved], "\n")
+      end
+      out:close()
+LUA
+   { cat "${WORK}/universe.before"; cut -d' ' -f2 "${WORK}/commits.map"; } | sort -u > "${WORK}/universe.after"
+}
+# }}}
+
+# {{{ run_gates
+run_gates() {
+   local old_count moved_count new_count
+   old_count=$(scratch_git rev-list --count old-main)
+   moved_count=$(wc -l < "${WORK}/folder.map")
+   new_count=$(scratch_git rev-list --count main)
+   gate "commit count = old + moved" "$( [ "${new_count}" -eq $((old_count + moved_count)) ] && echo yes || echo no)" \
+      "${old_count} + ${moved_count} = ${new_count}"
+
+   gate "final files identical to old trunk" \
+      "$( [ "$(scratch_git rev-parse old-main^{tree})" = "$(scratch_git rev-parse main^{tree})" ] && echo yes || echo no)" \
+      "tree $(scratch_git rev-parse --short main^{tree})"
+
+   local map_problems
+   map_problems=$(luajit - "${SCRIPT_HOME}" "${WORK}/commits.map" <<'LUA'
+      local q = dofile(arg[1] .. "/libs/commit-id-quotes.lua")
+      for _, p in ipairs(q.map_problems(q.map_from_file(arg[2]))) do print(p) end
+LUA
+)
+   gate "map: one twin per commit, full ids" "$( [ -z "${map_problems}" ] && echo yes || echo no)" \
+      "$(wc -l < "${WORK}/commits.map") entries${map_problems:+: ${map_problems}}"
+
+   # Trunk commits: identical tree, identities, dates.
+   local fmt='%T|%an|%ae|%ad|%cn|%ce|%cd'
+   local mismatches=0 old new
+   while read -r old new; do
+      if grep -qx "${old}" "${WORK}/old-trunk.ids"; then
+         [ "$(scratch_git log -1 --format="${fmt}" --date=raw "${old}")" = "$(scratch_git log -1 --format="${fmt}" --date=raw "${new}")" ] \
+            || { echo "    mismatch ${old} -> ${new}"; mismatches=$((mismatches + 1)); }
+      fi
+   done < "${WORK}/commits.map"
+   gate "trunk twins: tree, author, committer, dates" "$( [ "${mismatches}" -eq 0 ] && echo yes || echo no)" \
+      "$(wc -l < "${WORK}/old-trunk.ids") compared"
+
+   # Project commits: the folder holds the original tree; identities and dates equal.
+   local folder source ref twin fmt2='%an|%ae|%ad|%cn|%ce|%cd' checked=0
+   mismatches=0
+   while read -r folder source ref; do
+      while read -r old; do
+         twin=$(grep "^${old} " "${WORK}/commits.map" | cut -d' ' -f2)
+         [ "$(scratch_git rev-parse "${old}^{tree}")" = "$(scratch_git rev-parse "${twin}:${folder}")" ] \
+            || { echo "    tree mismatch ${old}"; mismatches=$((mismatches + 1)); }
+         [ "$(scratch_git log -1 --format="${fmt2}" --date=raw "${old}")" = "$(scratch_git log -1 --format="${fmt2}" --date=raw "${twin}")" ] \
+            || { echo "    metadata mismatch ${old}"; mismatches=$((mismatches + 1)); }
+         checked=$((checked + 1))
+      done < <(scratch_git rev-list "old/${folder}")
+   done < <(project_lines)
+   gate "project twins: folder tree, identities, dates" "$( [ "${mismatches}" -eq 0 ] && echo yes || echo no)" \
+      "${checked} compared"
+
+   local verify_out
+   if verify_out=$(luajit "${QUOTES_LIB}" verify-messages "${WORK}" 2>&1); then
+      gate "messages equal, quoted ids translated" yes "${verify_out}"
+   else
+      printf '%s\n' "${verify_out}" | tail -5
+      gate "messages equal, quoted ids translated" no "${verify_out##*$'\n'}"
+   fi
+
+   # The default path-limited log must reach each project's first commit.
+   local first reached bad_paths=""
+   while read -r folder source ref; do
+      first=$(scratch_git rev-list --max-parents=0 "old/${folder}")
+      twin=$(grep "^${first} " "${WORK}/commits.map" | cut -d' ' -f2)
+      reached=$(scratch_git log --format=%H main -- "${folder}/" | tail -1)
+      [ "${reached}" = "${twin}" ] || bad_paths="${bad_paths} ${folder}"
+   done < <(project_lines)
+   gate "git log -- <project>/ reaches first commit" "$( [ -z "${bad_paths}" ] && echo yes || echo no)" \
+      "${bad_paths:-all $(project_lines | wc -l) projects}"
+
+   # Carried tags point at the twins of what they pointed at.
+   local tag old_target new_target bad_tags=""
+   for tag in ${CARRY_TAGS}; do
+      old_target=$(git -C "${DIR}" rev-parse "refs/tags/${tag}^{commit}")
+      new_target=$(scratch_git rev-parse "refs/tags/${tag}^{commit}")
+      [ "$(grep "^${old_target} " "${WORK}/commits.map" | cut -d' ' -f2)" = "${new_target}" ] || bad_tags="${bad_tags} ${tag}"
+   done
+   gate "carried tags follow their commits" "$( [ -z "${bad_tags}" ] && echo yes || echo no)" "${bad_tags:-${CARRY_TAGS}}"
+}
+# }}}
+
+# {{{ build_quote_commit
+# One commit on top of the rebuilt trunk: the quoted ids in the trunk's text
+# files rewritten, plus the map and its note. The map is added after the
+# rewrite, so its own old ids are never translated.
+build_quote_commit() {
+   local tip index
+   tip=$(scratch_git rev-parse main)
+   # Text files only (-I), paths unquoted so unusual names survive the join
+   # below, blobs only (a symlink's target is not a document).
+   scratch_git -c core.quotePath=false grep -l -I -E '[0-9a-f]{7,40}' "${tip}" | sed "s|^${tip}:||" | sort > "${WORK}/tree.paths"
+   scratch_git -c core.quotePath=false ls-tree -r "${tip}" \
+      | awk -F'\t' 'NR==FNR{want[$0]=1; next} ($2 in want){split($1,a," "); if (a[2]=="blob") print a[1] " " a[3] "\t" $2}' \
+      "${WORK}/tree.paths" - > "${WORK}/tree.candidates"
+   luajit "${QUOTES_LIB}" tree "${WORK}" > "${WORK}/tree.update" 2> "${WORK}/tree.summary" \
+      || { cat "${WORK}/tree.summary" >&2; die "quote rewrite failed its reverse check"; }
+
+   index="${WORK}/quote.index"
+   rm -f "${index}"
+   GIT_INDEX_FILE="${index}" scratch_git read-tree "${tip}"
+   GIT_INDEX_FILE="${index}" scratch_git update-index --index-info < "${WORK}/tree.update"
+   local map_blob note_blob
+   map_blob=$(scratch_git hash-object -w "${WORK}/commits.map")
+   write_map_note > "${WORK}/map-note.md"
+   note_blob=$(scratch_git hash-object -w "${WORK}/map-note.md")
+   printf '100644 %s\t%s\n100644 %s\t%s\n' "${map_blob}" "${MAP_PATH}" "${note_blob}" "${MAP_NOTE_PATH}" \
+      | GIT_INDEX_FILE="${index}" scratch_git update-index --index-info
+   local tree quoted
+   tree=$(GIT_INDEX_FILE="${index}" scratch_git write-tree)
+   quoted=$(scratch_git commit-tree "${tree}" -p "${tip}" <<EOF
+Quoted commit ids point at the rebuilt history
+
+The trunk was rebuilt so each project's history from before the monorepo's
+first commit joins it there, which gave every later commit a new id. The ids
+quoted in the trunk's files -- transcripts, issue files, documents -- are
+rewritten to the new ids, each shortened id kept at its length unless that
+length became ambiguous. The translation table and a note on how to use it
+are added under delta-version/archive/history-graft/, and the old trunk stays
+reachable as ${ARCHIVE_TAG}.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+EOF
+)
+   scratch_git branch -f quoted "${quoted}"
+}
+# }}}
+
+# {{{ write_map_note
+write_map_note() {
+   cat <<EOF
+# The history graft
+
+On the day this file was committed the trunk was rebuilt so that the projects
+which had their own repositories before the monorepo's first commit
+(\`${JOIN_COMMIT:0:8}\`, "Initial commit: AI project collection") join it
+there: their earlier commits were moved into their folders, unchanged in
+author, date and message, and became that commit's parents. Every commit
+after it received a new id.
+
+- \`commits.map\` lists every original commit and its new twin, one
+  \`old new\` pair of full ids per line.
+- The old trunk is kept, unchanged, as the tag \`${ARCHIVE_TAG}\`, and each
+  project's last commit before the join as \`${PRE_IMPORT_TAG_PREFIX}/<folder>\`, so every
+  old id quoted anywhere still resolves.
+- Quoted ids in the trunk's files and commit messages were rewritten at the
+  same time. To translate ids in a file written elsewhere:
+  \`delta-version/scripts/graft-project-histories translate <file>...\`
+
+The plan and its checks are in delta-version/issues/031-import-project-histories.md.
+EOF
+}
+# }}}
+
+# {{{ write_state
+write_state() {
+   cat > "${WORK}/state" <<EOF
+DIR=${DIR}
+OLD_MAIN=$(scratch_git rev-parse old-main)
+NEW_MAIN=$(scratch_git rev-parse main)
+QUOTED=$(scratch_git rev-parse quoted)
+ORIGIN_MAIN=$(git -C "${DIR}" rev-parse --verify --quiet refs/remotes/origin/main || echo none)
+PREPARED_AT=$(date -Iseconds)
+EOF
+}
+# }}}
+
+# {{{ do_prepare
+do_prepare() {
+   local started
+   started=$(date +%s)
+   command -v luajit > /dev/null || die "luajit is required"
+   say "graft-project-histories prepare"
+   say "  repository  ${DIR}"
+   say "  scratch     ${WORK}"
+   check_sources
+   build_scratch
+   scratch_git rev-list old-main > "${WORK}/old-trunk.ids"
+   build_universes
+   say "  main        $(scratch_git rev-parse --short old-main) ($(wc -l < "${WORK}/old-trunk.ids") commits)"
+   move_into_folders
+   say "  moved       $(wc -l < "${WORK}/folder.map") project commits into their folders"
+   rebuild_trunk
+   compose_map
+   say ""
+   say "Gates"
+   run_gates
+   build_quote_commit
+   gate "quoted ids rewritten, reverse check" yes "$(cat "${WORK}/tree.summary")"
+   write_state
+
+   local real_now
+   real_now=$(git -C "${DIR}" rev-parse main)
+   say ""
+   say "Result"
+   say "  old main        $(scratch_git rev-parse --short old-main)"
+   say "  rebuilt main    $(scratch_git rev-parse --short main)   (same files, histories joined)"
+   say "  quote commit    $(scratch_git rev-parse --short quoted)   ($(wc -l < "${WORK}/tree.update") files, plus the map)"
+   say "  message quotes  $(wc -l < "${WORK}/msg-touch.list") messages held ids; pending: $( [ -s "${WORK}/msg-pending.log" ] && wc -l < "${WORK}/msg-pending.log" || echo 0)"
+   say "  per-file detail ${WORK}/tree-report.txt"
+   say "  took            $(( $(date +%s) - started )) s"
+   if [ "${real_now}" != "$(scratch_git rev-parse old-main)" ]; then
+      say ""
+      say "  NOTE: main moved to ${real_now:0:8} while this ran; prepare again before a swap."
+   fi
+}
+# }}}
+
+# {{{ load_state
+load_state() {
+   [ -f "${WORK}/state" ] || die "no prepared history in ${WORK}; run prepare first"
+   # shellcheck disable=SC1091
+   source "${WORK}/state"
+}
+# }}}
+
+# {{{ do_swap
+do_swap() {
+   load_state
+   [ "${CONFIRM_FLAG:-}" = yes ] || die "swap needs --i-understand-this-rewrites-history"
+   local real_main
+   real_main=$(git -C "${DIR}" rev-parse main)
+   [ "${real_main}" = "${OLD_MAIN}" ] || die "main is ${real_main:0:8}, prepared from ${OLD_MAIN:0:8}; prepare again"
+   git -C "${DIR}" diff --cached --quiet || die "the index holds staged changes; they must be committed or unstaged first"
+   [ "$(git -C "${DIR}" symbolic-ref HEAD)" = "refs/heads/main" ] || die "HEAD is not on main"
+   local gitdir
+   gitdir=$(git -C "${DIR}" rev-parse --absolute-git-dir)
+   [ ! -e "${gitdir}/MERGE_HEAD" ] && [ ! -d "${gitdir}/rebase-merge" ] && [ ! -d "${gitdir}/rebase-apply" ] \
+      || die "a merge or rebase is in progress"
+   [ -t 0 ] || die "swap asks for a typed confirmation; run it from a terminal"
+   say "This moves main from ${OLD_MAIN:0:8} to the rebuilt history ${QUOTED:0:8},"
+   say "tags the old trunk as ${ARCHIVE_TAG}, and moves: ${CARRY_TAGS}."
+   local answer
+   read -r -p "Type 'rewrite main' to continue: " answer
+   [ "${answer}" = "rewrite main" ] || die "not confirmed; nothing changed"
+
+   git -C "${DIR}" fetch -q --no-tags "${WORK}/repo.git" \
+      "refs/heads/main:refs/graft/new-main" "refs/heads/quoted:refs/graft/quoted" \
+      "refs/heads/old/*:refs/graft/old/*" "refs/tags/*:refs/graft/tags/*"
+   git -C "${DIR}" tag "${ARCHIVE_TAG}" "${OLD_MAIN}"
+   local folder source ref tag
+   while read -r folder source ref; do
+      git -C "${DIR}" tag "${PRE_IMPORT_TAG_PREFIX}/${folder}" "refs/graft/old/${folder}"
+   done < <(project_lines)
+   # Same files before and after, so moving the branch changes nothing on disk.
+   git -C "${DIR}" update-ref -m "graft-project-histories: histories joined" \
+      refs/heads/main "${NEW_MAIN}" "${OLD_MAIN}"
+   for tag in ${CARRY_TAGS}; do
+      git -C "${DIR}" update-ref "refs/tags/${tag}" "$(git -C "${DIR}" rev-parse "refs/graft/tags/${tag}")" \
+         "$(git -C "${DIR}" rev-parse "refs/tags/${tag}")"
+   done
+   # The quote commit changes files; a fast-forward only touches those files
+   # and refuses if one of them holds uncommitted work.
+   if ! git -C "${DIR}" merge -q --ff-only refs/graft/quoted; then
+      say "main is on the rebuilt history (${NEW_MAIN:0:8}); the quote commit was not applied"
+      say "because a file it changes has uncommitted work. Commit or set that aside, then:"
+      say "  git -C ${DIR} merge --ff-only ${QUOTED}"
+      exit 1
+   fi
+   git -C "${DIR}" for-each-ref --format='%(refname)' refs/graft | while read -r r; do git -C "${DIR}" update-ref -d "${r}"; done
+   say ""
+   say "Swapped. Nothing has been pushed. To publish, in order:"
+   say "  git -C ${DIR} push origin ${ARCHIVE_TAG} 'refs/tags/${PRE_IMPORT_TAG_PREFIX}/*'"
+   say "  git -C ${DIR} push --force-with-lease=main:${ORIGIN_MAIN} origin main"
+   say "  git -C ${DIR} push --force origin $(for t in ${CARRY_TAGS}; do printf 'refs/tags/%s ' "${t}"; done)"
+   say "  git -C ${DIR} push origin --delete adroit handheld-office magic-rumble progress-ii risc-v-university"
+   say "  git -C ${DIR} fetch --prune origin"
+}
+# }}}
+
+# {{{ do_translate
+do_translate() {
+   [ "$#" -gt 0 ] || die "translate needs at least one file"
+   local map="${DIR}/${MAP_PATH}"
+   [ -f "${map}" ] || die "no map at ${map}; translate is for after the swap"
+   local universe
+   universe=$(mktemp)
+   git -C "${DIR}" rev-list --all | sort -u > "${universe}"
+   luajit "${QUOTES_LIB}" translate "${map}" "${universe}" "$@"
+   rm -f "${universe}"
+}
+# }}}
+
+# {{{ main
+MODE=prepare
+case "${1:-}" in
+   prepare|swap|translate) MODE="$1"; shift ;;
+esac
+CONFIRM_FLAG=no
+FILES=()
+while [ "$#" -gt 0 ]; do
+   case "$1" in
+      --dir) DIR="$2"; shift 2 ;;
+      --work) WORK="$2"; shift 2 ;;
+      --projects) PROJECTS_FILE="$2"; shift 2 ;;
+      --join) JOIN_COMMIT="$(git -C "${DIR}" rev-parse "$2")"; shift 2 ;;
+      --carry-tags) CARRY_TAGS="$2"; shift 2 ;;
+      --i-understand-this-rewrites-history) CONFIRM_FLAG=yes; shift ;;
+      -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d'; exit 0 ;;
+      -*) die "unknown option $1" ;;
+      *) FILES+=("$1"); shift ;;
+   esac
+done
+declare -A MODES=([prepare]=do_prepare [swap]=do_swap [translate]=do_translate)
+"${MODES[$MODE]}" "${FILES[@]+"${FILES[@]}"}"
+# }}}

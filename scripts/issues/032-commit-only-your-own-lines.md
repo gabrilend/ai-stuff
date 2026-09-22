@@ -158,6 +158,14 @@ fallback, and it is announced every time rather than taken silently.
 3. Is a whole-file claim (`claim-own-change`) too blunt for files two sessions
    share? The alternative is a claim by line range, which is more typing for
    the session and harder for a person to read in the transcript.
+4. The staging command stages the `llm-transcripts/` folder of every project
+   the session touched, so one small edit in a project another session is
+   working in also stages that other session's transcripts (seen 2026-09-22 in
+   neocities-modernization). Transcript files are named by date, not by
+   session, so the command cannot tell whose they are. Should it stage only the
+   transcripts of projects where this session made most of its changes, only
+   when every transcript change in that folder is new since the session began,
+   or should transcripts be staged by hand?
 
 ## Related
 
