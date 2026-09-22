@@ -10,7 +10,7 @@ When navigating the menu with UP/DOWN keys, the incremental update renders menu 
 
 Debug observations:
 - Row calculations in `menu_compute_item_row()` appear correct
-- Test scripts (`test-menu-render.sh`, `test-menu-render-v2.sh`) with identical logic work correctly
+- Test scripts (`debug/menu-render-repro.sh`, `debug/menu-render-repro-v2.sh`) with identical logic work correctly
 - The bug is specific to `menu.sh` when sourced into `issue-splitter.sh`
 - Writing debug markers to `/dev/tty` positions correctly, but content to stdout appears offset
 
@@ -45,8 +45,8 @@ Frame-by-frame logging added to `libs/menu.sh`:
 
 - `libs/menu.sh` - Main TUI menu library (contains bug)
 - `libs/tui.sh` - Base TUI library
-- `test-menu-render.sh` - Simple test (works correctly)
-- `test-menu-render-v2.sh` - Complex test with sections (works correctly)
+- `debug/menu-render-repro.sh` - Simple test (works correctly)
+- `debug/menu-render-repro-v2.sh` - Complex test with sections (works correctly)
 - `issue-splitter.sh` - Script using menu.sh (exhibits bug)
 
 ## Notes

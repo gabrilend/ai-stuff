@@ -11,7 +11,17 @@
 
 ## Current Behavior
 
-Tests must be run individually via `luajit src/tests/test_*.lua`. No way to:
+**Superseded (2026-09-22).** The shared runner this issue asked for exists
+as `/home/ritz/programming/ai-stuff/scripts/test-runner.sh` (its blueprint
+is `scripts/issues/completed/A03-unified-test-runner.md`). It takes the
+project folder as its first argument, so nothing needs moving or
+symlinking: the two TODOs in the implementation notes below are answered
+by that design rather than done as written. world-edit-to-execute's
+`src/cli/run-tests.sh` stays as that project's own runner; it is the only
+one of the two that counts individual assertions inside a test's output.
+
+What this issue started from: tests had to be run individually via
+`luajit src/tests/test_*.lua`. No way to:
 - Run all tests at once
 - Filter tests by pattern
 - Get aggregate pass/fail statistics

@@ -9,8 +9,17 @@
 
 ## Current Behavior
 
-Tests are run individually via `lua src/tests/test_*.lua`. No unified runner
-exists to execute all tests, filter by category, or aggregate results.
+`scripts/test-runner.sh` runs every test a project keeps, all at once, and
+exits 0 (all passed), 1 (something failed) or 2 (nothing to run, or it
+could not start). See "Design as built" at the end for what it finds, and
+for the parts of the original plan it deliberately does not do.
+
+Before this, a first version of the script existed but could not have run:
+it was not executable, it doubled the project path onto the test folder,
+its counters stopped the script on the first test under exit-on-error, and
+it only knew `src/tests/test_*.lua`, so none of this repository's own tests
+(`tests/`, `test-refusal-gates`, `check-transcripts-are-filed-right`) were
+ever run by anything.
 
 ---
 
@@ -273,19 +282,19 @@ test_runner_render_terminal
 
 ## Acceptance Criteria
 
-- [ ] Script lives in shared scripts directory
-- [ ] Symlink created in project src/cli/
-- [ ] Discovers test files by pattern
-- [ ] Filters by phase
-- [ ] Runs tests with timeout
-- [ ] Aggregates pass/fail statistics
-- [ ] Terminal output with colors/symbols
-- [ ] JUnit XML output for CI
-- [ ] JSON output
-- [ ] Verbose mode shows test output
-- [ ] Interactive TUI mode
-- [ ] Works as both CLI and library
-- [ ] Project-abstract configuration
+- [x] Script lives in shared scripts directory
+- [—] Symlink created in project src/cli/ (not needed: project folder is an argument; see Design as built)
+- [x] Discovers test files by pattern
+- [—] Filters by phase (replaced by -f; see Design as built)
+- [x] Runs tests with timeout
+- [x] Aggregates pass/fail statistics
+- [x] Terminal output with colors/symbols
+- [—] JUnit XML output for CI (dropped; see Design as built)
+- [x] JSON output
+- [x] Verbose mode shows test output
+- [—] Interactive TUI mode (dropped; see Design as built)
+- [—] Works as both CLI and library (CLI only; see Design as built)
+- [x] Project-abstract configuration
 
 ---
 
@@ -298,3 +307,44 @@ Consider supporting parallel test execution for faster runs on large
 test suites, with proper output interleaving handling.
 
 LuaJIT and Lua 5.4 may need different invocation - make LUA_CMD configurable.
+
+---
+
+## Design as built
+
+**What counts as a test** (found by place and name, no configuration):
+- `test_*.lua` / `test-*.lua` in `src/tests/` or `tests/` -- run with luajit.
+- `test-*` / `test_*` in the project root, `tests/` or `src/tests/` that is
+  executable or ends in `.sh` -- run as a program.
+- `check-*` executables in the project root -- the house writes verifiers as
+  read-only reporters that exit 1 on a fault, and they are tests too.
+- Anything ending `-done` (the retired-file marker) is skipped, and the
+  runner never runs itself.
+
+**How it runs them:** every test is a background job, as many at once as
+there are cores (`-j` to change), each under a timeout (`-t`, default 120s).
+Each test's full output goes to `<project>/tmp/shared-memory/test-runner/
+<run>/`, the RAM artifact tier, which `libs/ensure-ram-tiers` builds first.
+Results print in discovery order so two runs read the same; a failure shows
+its last 15 lines. `--json <file>` writes a machine-readable copy; `-l`
+lists without running; `-f` filters by path text.
+
+**Deliberately not done** (decisions, not deferred work):
+- *Lua 5.4 fallback* -- the house language is LuaJIT and 5.4 syntax is not
+  allowed, so a missing luajit stops the run instead of quietly using 5.4.
+- *Per-project `src/cli/` symlink* -- the project folder is the first
+  argument, so one shared copy serves every project without a link.
+- *Phase filter* -- test files are not named by phase in any project;
+  `-f <text>` covers selecting a subset.
+- *JUnit XML, TUI mode, sourcing as a library* -- nothing consumes JUnit,
+  the bash TUI libraries it would have used are being retired, and no other
+  tool needs the runner's internals. JSON covers the machine-readable need.
+
+**Acceptance, re-read against that design:** discovers tests by pattern ✓,
+runs with timeout ✓, aggregates pass/fail ✓, terminal output with colour
+(only when a person is watching) ✓, JSON output ✓, verbose mode ✓,
+project-abstract (any folder, no configuration) ✓. Verified on this
+repository: 11 tests found and run in parallel; 10 passed, and
+`check-transcripts-are-filed-right` failed on a real misfiled transcript
+(`filesystem-tapestry/llm-transcripts/jul-15-26.md`, recorded under a
+different working directory) -- the runner reporting a true fault.
