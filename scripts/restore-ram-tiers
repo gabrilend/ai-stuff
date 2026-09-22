@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+#
+# restore-ram-tiers
+#
+# A hook that runs as each Claude Code session starts and puts back the project's
+# RAM scratch space if a reboot has erased it.
+#
+# In plain terms: every project keeps its throwaway files - logs, builds, test
+# output - in memory, reached through a `tmp` link in the project folder. The link
+# is on disk and survives a reboot; the memory behind it does not. After a restart
+# every project's `tmp` opens onto nothing, and the first tool that tries to write
+# a log there fails. This hook finds the project the session is starting in and
+# rebuilds what is missing, before anything needs it.
+#
+# It finds the project by walking upward from the folder the session starts in
+# until it meets a folder holding a `tmp` link. It only ever repairs a link that is
+# already there; it never gives a folder a `tmp` link it did not have, because a
+# session can start anywhere and a hook that planted links wherever it landed
+# could not be trusted. The layout itself is not written here - it lives in
+# libs/ensure-ram-tiers, which the run and build scripts also use.
+#
+# Talking to Claude Code:
+#   - Input is the hook's JSON on standard input; only `.cwd` is read.
+#   - Success prints nothing. A SessionStart hook's standard output is added to
+#     the conversation, so even a cheerful "tiers restored" would cost context
+#     on every session start.
+#   - Failure prints one line to standard error and exits 1, which Claude Code
+#     shows the person as a non-blocking error. It never exits 2: that code means
+#     "block", and nothing here is worth blocking a session over.
+#
+# Usage (as installed in settings.json):
+#   restore-ram-tiers [scripts-dir]     reads the hook JSON on stdin
+#
+# The optional argument overrides DIR, the folder holding libs/ensure-ram-tiers,
+# so the tests can point it at a checkout other than the real one.
+
+DIR="/mnt/mtwo/programming/ai-stuff/scripts"
+if [ $# -ge 1 ]; then
+    DIR="$1"
+fi
+
+set -o nounset
+set -o pipefail
+
+# {{{ complain
+complain() {
+    printf 'restore-ram-tiers: %s\n' "$1" >&2
+    exit 1
+}
+# }}}
+
+# {{{ find_project_root
+# Prints the nearest folder at or above the start that holds a `tmp` symlink.
+# Returns 1 when the walk reaches / without finding one. The filesystem root is
+# never a candidate: /tmp there is the system's own folder, not a project's link.
+find_project_root() {
+    local folder="$1"
+    while [ "${folder}" != "/" ] && [ -n "${folder}" ]; do
+        if [ -L "${folder}/tmp" ]; then
+            printf '%s\n' "${folder}"
+            return 0
+        fi
+        folder=$(dirname -- "${folder}")
+    done
+    return 1
+}
+# }}}
+
+# {{{ main
+main() {
+    [ -f "${DIR}/libs/ensure-ram-tiers" ] || complain "cannot find ${DIR}/libs/ensure-ram-tiers"
+    # shellcheck source=libs/ensure-ram-tiers
+    source "${DIR}/libs/ensure-ram-tiers"
+
+    # jq missing or input unreadable is a failure the person should see: a
+    # silent pass here would look like "tiers are fine" when nothing checked.
+    command -v jq >/dev/null || complain "jq is not installed, so the session's folder cannot be read; the RAM tiers were not checked"
+
+    local hook_input start
+    hook_input=$(cat)
+    start=$(jq -r '.cwd // empty' <<< "${hook_input}") \
+        || complain "the hook input is not JSON; the RAM tiers were not checked"
+    [ -n "${start}" ] || complain "the hook input has no cwd field; the RAM tiers were not checked"
+
+    local project_root
+    if ! project_root=$(find_project_root "${start}"); then
+        # The session started somewhere with no project scratch link above it
+        # (the home folder, a system folder, a project that uses none). There
+        # is nothing owed and nothing wrong, so nothing is said.
+        exit 0
+    fi
+
+    restore_ram_tiers "${project_root}" || exit 1
+}
+# }}}
+
+main

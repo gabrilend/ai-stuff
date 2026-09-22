@@ -1,7 +1,30 @@
 # init-project.sh
 
-Creates a project in the monorepo and gives it a workspace an agent cannot
-escape from.
+Lays out a project's standard skeleton anywhere, and - for a project inside the
+monorepo - gives it a workspace an agent cannot escape from.
+
+## The two halves
+
+The **skeleton** is wanted by every project: the standard folders, the intent
+folders (`input output desire faith strategems`), `docs/HTML/`,
+`issues/completed/demos/`, `llm-transcripts/`, the table of contents, a
+`.file-index-counter` starting at `000`, an `issues/phase-1-progress.md` stub,
+the root `run-phase-demo` picker, the RAM scratch tiers, and `tmp` in
+`.gitignore`. Each is written only when absent, so re-running over a project
+that has been worked in changes nothing. It needs only coreutils.
+
+The **sandbox** (everything below "What it is for") needs a monorepo git
+checkout to clone from, and bubblewrap.
+
+`--skeleton-only <path>` builds the first half alone, in any folder. A bare
+project name builds both. Asking for a sandbox where the monorepo root is not a
+git checkout is refused with a message naming `--skeleton-only`, rather than
+quietly delivering the skeleton instead.
+
+The RAM tier layout is not defined here: `link_ram_directories` calls ensure
+mode of `libs/ensure-ram-tiers`, the same definition the session-start hook
+`restore-ram-tiers` uses to rebuild the tiers after a reboot (issue 033). An
+existing `tmp` link is honoured, not re-pointed.
 
 ## What it is for
 
@@ -30,6 +53,11 @@ commit happens, the work exists only in memory.
 
     init-project.sh <name>
         Create the project folder, its skeleton, its sandbox, and its launcher.
+
+    init-project.sh --skeleton-only <path>
+        Lay out the skeleton in <path> (created if missing), inside the
+        monorepo or not. No clone, launcher, or sandbox notice. Refused
+        together with --refresh, --writable, or a project name.
 
     init-project.sh --refresh <name>
         Rebuild the sandbox and launcher from current disk state. Leaves the
@@ -154,13 +182,19 @@ interface is its command line.
 | Function | Does |
 |---|---|
 | `parse_arguments` | reads the command line; rejects project names that could escape the monorepo root |
-| `require_tools` | confirms bubblewrap, git and rsync exist, and that the kernel permits unprivileged user namespaces - without which nothing here isolates anything |
-| `create_project_skeleton` | makes the standard folder set in the sandbox, and the table of contents if absent |
-| `link_ram_directories` | wires the project's `tmp/` symlink to the two RAM tiers |
-| `write_project_gitignore` | adds missing entries only; never rewrites |
+| `settle_skeleton_target` | turns the `--skeleton-only` path into the project path and name; refuses a file, or sandbox-only flags given alongside |
+| `main` | picks one of the two halves from a table: `run_skeleton_only` or `run_with_sandbox` |
+| `run_skeleton_only` | skeleton, gitignore (`tmp` only), RAM tiers, then a report saying the sandbox was not built and why |
+| `run_with_sandbox` | the original full path, now beginning with `require_sandbox_tools` |
+| `require_sandbox_tools` | confirms bubblewrap, git and rsync exist, that the kernel permits unprivileged user namespaces - without which nothing here isolates anything - and that the monorepo root is the top of a git checkout |
+| `create_project_skeleton` | makes the standard folder set, and seeds the table of contents, `.file-index-counter`, the phase-1 progress file and the demo picker where absent |
+| `write_phase_demo_picker` | writes `run-phase-demo`, which lists `issues/completed/demos/phase-N-demo` in numeric order (so phase 10 works) and runs the one asked for |
+| `link_ram_directories` | ensure mode of `libs/ensure-ram-tiers`: builds the RAM tiers and the `tmp/` link, or rebuilds behind an existing link |
+| `write_project_gitignore` | adds the given missing entries only; never rewrites |
+| `report_skeleton_only` | what the skeleton-only run built, and the sandbox half it did not |
 | `collect_ignored_paths` | asks git what is ignored, re-expands accidentally-collapsed directories, and drops duplicates and never-bind entries |
 | `is_writable_path` | whether `--writable` promoted a given path; slash-insensitive |
-| `sandbox_has_unsaved_work` | uncommitted edits plus uncarried commits; ignores bare directories and the four files this script generates, or it would cry wolf on every refresh |
+| `sandbox_has_unsaved_work` | uncommitted edits plus uncarried commits; ignores bare directories and the seven files this script generates or seeds, or it would cry wolf on every refresh |
 | `check_sandbox_capacity` | refuses if the project would not fit in free RAM, since tmpfs exhaustion kills processes rather than slowing down |
 | `provision_sandbox` | shared clone, sparse checkout, then rsync of current disk state so uncommitted work is not silently discarded |
 | `write_sandbox_notice` | writes or replaces the marked block in CLAUDE.md |

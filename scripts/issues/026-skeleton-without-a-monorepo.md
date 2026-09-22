@@ -2,6 +2,36 @@
 
 ## Current Behavior
 
+Implemented, with one departure from the intended behavior below that is
+waiting on the open question at the end of this file.
+
+`init-project.sh --skeleton-only <path>` now lays out a project in any folder,
+inside the monorepo or not, existing or not. It needs nothing beyond coreutils:
+the bubblewrap, rsync and user-namespace checks moved into the sandbox half. It
+adds, only where absent: the standard folders, the intent folders,
+`docs/HTML/`, `issues/completed/demos/`, `llm-transcripts/`, the table of
+contents, `.file-index-counter` at `000`, an `issues/phase-1-progress.md` stub,
+the root `run-phase-demo` picker (which finds phases by listing, so phase 10
+and beyond work), the RAM tiers through the shared library from issue 033, and
+`tmp` in `.gitignore`. It writes no launcher and no sandbox notice, and its
+report says the sandbox was not built and why. Re-running it changes nothing,
+and a re-run over a copy of Double Diaper Dungeon changed nothing, down to the
+modification times. Flags that only mean something to a sandbox (`--refresh`,
+`--writable`, a project name) are refused alongside it rather than ignored.
+
+The sandbox half gains the same new skeleton pieces, and its unsaved-work
+check now ignores the three new seed files, so a new project's first
+`--refresh` still succeeds. Tested by `tests/test-init-project-skeleton.sh`
+and, for the sandbox half, by a one-off run against a scratch monorepo.
+
+**The departure.** Asking for a sandbox (a bare project name) when the
+monorepo root is not a git checkout now stops with an error naming
+`--skeleton-only`, instead of quietly doing the skeleton half. Someone who asked
+for a sandbox and silently got a skeleton would have received a fallback they
+never chose, which the standing rules count as an error.
+
+What follows is the problem as it was first described.
+
 `init-project.sh` does two jobs in one pass. The first is ordinary and wanted
 everywhere: lay out a project's standard folders, write the table of contents
 if it is absent, wire the two RAM scratch tiers to a `tmp/` symlink, and add
@@ -102,6 +132,16 @@ more than an argument rearrangement:
   should say so.
 - `/mnt/cmdo/ritz/games/tq/ai-stuff/double-diaper-dungeon`, the project that
   went without, and the test case for step 8.
+
+## Open Questions
+
+- Step 6 asked for the skeleton half to run automatically, with a printed
+  reason, when a sandbox cannot be built. It was implemented as an error that
+  names `--skeleton-only` instead (see Current Behavior). Is the error right,
+  or should the automatic, announced skeleton come back?
+- CLAUDE.md spells the counter `file-index-counter` and calls it hidden; every
+  project on disk and this script use `.file-index-counter`. Should CLAUDE.md's
+  spelling gain the dot?
 
 ## Notes
 

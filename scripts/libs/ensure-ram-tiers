@@ -1,0 +1,273 @@
+#!/usr/bin/env bash
+# ensure-ram-tiers - the one place that knows how a project's RAM scratch space
+# is laid out, and how to put it back after a reboot has erased it.
+#
+# In plain terms: every project keeps its throwaway files in memory rather than
+# on disk, in two rooms reached through one door. The door is a `tmp` symlink
+# in the project folder, and it survives a reboot because it is on disk. The
+# rooms are in RAM, so a reboot empties them away and leaves the door opening
+# onto nothing. This library rebuilds the rooms behind an existing door, or
+# builds door and rooms together for a project that has neither.
+#
+#   <project>/tmp               -> /tmp/<name>        the exec tier
+#   /tmp/<name>/tmp/                                   things that get executed
+#   /tmp/<name>/shared-memory   -> /dev/shm/<name>    the artifact tier: logs,
+#                                                      builds, anything read or
+#                                                      written but never run
+#
+# Two modes, one definition:
+#
+#   ensure   for tools that are about to write into tmp/. Creates the door if
+#            the project has none, then repairs the rooms.
+#   restore  for the session-start hook. Repairs the rooms behind a door that
+#            already exists, and never gives a directory a door it did not
+#            have - a session can start anywhere, and planting symlinks
+#            wherever one landed would make the hook untrustworthy.
+#
+# Usage, sourced (the normal way; nothing runs on source):
+#   source "${DIR}/libs/ensure-ram-tiers"
+#   ensure_ram_tiers  <project-dir>  || exit 1
+#   restore_ram_tiers <project-dir>  || exit 1
+#
+# Usage, executed:
+#   ensure-ram-tiers [--restore] <project-dir>
+#
+# The functions print one line to stderr and return 1 when they cannot do the
+# job; they never exit, because exiting from a sourced library would take the
+# caller's shell down with it. Success is silent.
+
+# DIR is where this library lives, and it is set only when the file is run
+# directly. Sourced, it must not touch DIR: every script that sources it has a
+# DIR of its own (init-project.sh's is the monorepo root), and a library that
+# quietly overwrote its caller's DIR would send that caller's later paths
+# somewhere else entirely. The project to act on is never DIR in either case;
+# it is always named explicitly, because guessing it from the working directory
+# is how a tool ends up building tiers for the wrong folder.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+   DIR="/mnt/mtwo/programming/ai-stuff/scripts"
+fi
+
+# Where the two tiers are allowed to live. Overridable from the environment
+# only so the test suite can build tiers under a scratch folder instead of the
+# real /tmp and /dev/shm; nothing else should set these.
+EXEC_TIER_ROOT="${EXEC_TIER_ROOT:-/tmp}"
+ARTIFACT_TIER_ROOT="${ARTIFACT_TIER_ROOT:-/dev/shm}"
+
+# {{{ ram_tier_complain
+# Every refusal funnels through here, so the prefix is uniform and a caller can
+# tell which tool spoke. Returns 1 so a caller can write `|| return 1`.
+ram_tier_complain() {
+   printf 'ensure-ram-tiers: %s\n' "$1" >&2
+   return 1
+}
+# }}}
+
+# {{{ ram_tier_path_is_ram
+# Is this absolute, normalised path inside one of the two RAM roots?
+#
+# The tiers are RAM by convention, and the convention is the point: scratch data
+# that lands on spinning disk wears it out and outlives the session it belonged
+# to. A link that points anywhere else is either a mistake or a decision someone
+# should make on purpose, and rebuilding it silently would bless it.
+ram_tier_path_is_ram() {
+   local candidate="$1"
+   case "${candidate}" in
+      # Inside the exec root or the artifact root: the two places a tier may be.
+      "${EXEC_TIER_ROOT}"/?*|"${ARTIFACT_TIER_ROOT}"/?*) return 0 ;;
+      # Anywhere else, including the roots themselves, is not a tier.
+      *) return 1 ;;
+   esac
+}
+# }}}
+
+# {{{ ram_tier_link_target
+# Prints the absolute, normalised path a symlink points at.
+#
+# readlink alone returns whatever text the link was made with, which may be
+# relative to the link's own folder. realpath -m then normalises `..` and
+# doubled slashes without requiring the target to exist - it usually does not,
+# which is the whole reason we are here after a reboot.
+ram_tier_link_target() {
+   local link="$1"
+   local raw
+   raw=$(readlink -- "${link}") || { ram_tier_complain "cannot read the symlink ${link}"; return 1; }
+   case "${raw}" in
+      # Absolute: taken as written.
+      /*) ;;
+      # Relative: it is relative to the folder holding the link, not to us.
+      *)  raw="$(dirname -- "${link}")/${raw}" ;;
+   esac
+   realpath -m -- "${raw}"
+}
+# }}}
+
+# {{{ ram_tier_make_directory
+# Makes one tier folder, refusing when something else already occupies the name.
+ram_tier_make_directory() {
+   local folder="$1"
+   if [ -d "${folder}" ]; then
+      # Already a directory (or a symlink to one): nothing to do.
+      return 0
+   fi
+   if [ -L "${folder}" ]; then
+      # A symlink that leads nowhere. mkdir -p would fail on it with "File
+      # exists", which names the wrong problem, so name the right one.
+      ram_tier_complain "${folder} is a symlink to something that is not there; remove it or point it somewhere real"
+      return 1
+   fi
+   if [ -e "${folder}" ]; then
+      # A file where a folder belongs. Deleting it would destroy whatever it is.
+      ram_tier_complain "${folder} exists and is not a directory; it is in the way of the scratch tier"
+      return 1
+   fi
+   mkdir -p -- "${folder}" || { ram_tier_complain "could not create ${folder}"; return 1; }
+}
+# }}}
+
+# {{{ ram_tier_repair_behind_door
+# Rebuilds both rooms behind a door whose target is already known.
+#
+# The exec tier is rebuilt wherever the door points, because an existing link
+# records where the project wants its tier (two projects on disk use a name
+# other than their own folder's). The artifact tier's name cannot be recovered
+# after a reboot - the link that recorded it lived inside the erased exec tier -
+# so a missing one is rebuilt at <artifact root>/<project folder name>.
+ram_tier_repair_behind_door() {
+   local project_dir="$1"
+   local exec_tier="$2"
+
+   ram_tier_path_is_ram "${exec_tier}" \
+      || { ram_tier_complain "${project_dir}/tmp points at ${exec_tier}, which is not under ${EXEC_TIER_ROOT} or ${ARTIFACT_TIER_ROOT}; refusing to build scratch space on disk"; return 1; }
+
+   ram_tier_make_directory "${exec_tier}" || return 1
+   ram_tier_make_directory "${exec_tier}/tmp" || return 1
+
+   local artifact_link="${exec_tier}/shared-memory"
+   if [ -L "${artifact_link}" ]; then
+      # The inner door survived (no reboot since, or the tier was only partly
+      # wiped): rebuild the room it names, after checking it names RAM.
+      local artifact_tier
+      artifact_tier=$(ram_tier_link_target "${artifact_link}") || return 1
+      ram_tier_path_is_ram "${artifact_tier}" \
+         || { ram_tier_complain "${artifact_link} points at ${artifact_tier}, which is not RAM; refusing"; return 1; }
+      ram_tier_make_directory "${artifact_tier}" || return 1
+   elif [ -e "${artifact_link}" ]; then
+      # A real folder or file named shared-memory. The convention says this is
+      # a door into /dev/shm; a folder here would quietly keep logs in the exec
+      # tier instead, so say so rather than guess which one was meant.
+      ram_tier_complain "${artifact_link} exists but is not a symlink; the artifact tier must be a link into ${ARTIFACT_TIER_ROOT}"
+      return 1
+   else
+      # The usual post-reboot case: the inner door went with the exec tier.
+      # Build the room first and the door second, so the door never dangles.
+      local artifact_tier
+      artifact_tier="${ARTIFACT_TIER_ROOT}/$(basename -- "${project_dir}")"
+      ram_tier_make_directory "${artifact_tier}" || return 1
+      ln -s -- "${artifact_tier}" "${artifact_link}" \
+         || { ram_tier_complain "could not link ${artifact_link} to ${artifact_tier}"; return 1; }
+   fi
+}
+# }}}
+
+# {{{ ram_tier_normalise_project
+# Prints the project folder as an absolute path with no trailing slash, after
+# checking it is a folder. `basename .` is `.`, so a relative or dotted name
+# would otherwise produce a tier called /tmp/. - normalising first prevents it.
+# The -s keeps symlinked components as written, so /home/ritz/... stays itself.
+ram_tier_normalise_project() {
+   local given="$1"
+   [ -n "${given}" ] || { ram_tier_complain "no project folder was named"; return 1; }
+   [ -d "${given}" ] || { ram_tier_complain "not a folder: ${given}"; return 1; }
+   realpath -s -- "${given}"
+}
+# }}}
+
+# {{{ ensure_ram_tiers
+# ensure mode: whatever state the project is in, leave it with a working door
+# and both rooms behind it.
+ensure_ram_tiers() {
+   local project_dir
+   project_dir=$(ram_tier_normalise_project "$1") || return 1
+   local door="${project_dir}/tmp"
+
+   if [ -L "${door}" ]; then
+      # A door exists: honour where it points and rebuild behind it.
+      local exec_tier
+      exec_tier=$(ram_tier_link_target "${door}") || return 1
+      ram_tier_repair_behind_door "${project_dir}" "${exec_tier}"
+   elif [ -e "${door}" ]; then
+      # tmp is a real folder. Inside an init-project sandbox that is correct
+      # and deliberate - the whole project already lives in RAM, and a link out
+      # would dangle inside the mount namespace - so it is left exactly as it is.
+      # A tool that then needs tmp/shared-memory creates it as a folder there.
+      return 0
+   else
+      # No door at all: a new project, or one made by hand. Build the rooms
+      # first and the door last, so there is never a moment where it dangles.
+      local exec_tier="${EXEC_TIER_ROOT}/$(basename -- "${project_dir}")"
+      ram_tier_repair_behind_door "${project_dir}" "${exec_tier}" || return 1
+      ln -s -- "${exec_tier}" "${door}" \
+         || { ram_tier_complain "could not link ${door} to ${exec_tier}"; return 1; }
+   fi
+}
+# }}}
+
+# {{{ restore_ram_tiers
+# restore mode: rebuild behind an existing door; never create one.
+restore_ram_tiers() {
+   local project_dir
+   project_dir=$(ram_tier_normalise_project "$1") || return 1
+   local door="${project_dir}/tmp"
+
+   if [ -L "${door}" ]; then
+      # The case this mode exists for.
+      local exec_tier
+      exec_tier=$(ram_tier_link_target "${door}") || return 1
+      ram_tier_repair_behind_door "${project_dir}" "${exec_tier}"
+   elif [ -e "${door}" ]; then
+      # A real tmp folder (the sandbox case, see ensure_ram_tiers): fine as is.
+      return 0
+   else
+      # The caller asked to restore a door that is not there. The hook only
+      # calls this after finding a door, so reaching here is a caller's bug,
+      # and creating one now would be exactly what restore mode promises not to do.
+      ram_tier_complain "${project_dir} has no tmp link; restore mode never creates one (use ensure mode)"
+      return 1
+   fi
+}
+# }}}
+
+# {{{ ram_tier_main
+# The executed form. A dispatch table maps the mode flag to the function, so a
+# third mode is one line here rather than another branch.
+ram_tier_main() {
+   declare -A mode_functions=(
+      [--ensure]=ensure_ram_tiers
+      [--restore]=restore_ram_tiers
+   )
+   local mode="--ensure"
+   case "${1:-}" in
+      # An explicit mode flag: take it off the front.
+      --ensure|--restore) mode="$1"; shift ;;
+      --help|-h)
+         sed -n '2,40p' "${BASH_SOURCE[0]}"
+         return 0 ;;
+      # Any other flag is a typo, and a typo must not fall through to ensure
+      # mode, which creates things.
+      -*) ram_tier_complain "unknown option: $1"; return 1 ;;
+      # No flag: ensure mode, which is what a tool wants.
+      *) ;;
+   esac
+   [ $# -eq 1 ] || { ram_tier_complain "name exactly one project folder (got $#)"; return 1; }
+   "${mode_functions[${mode}]}" "$1"
+}
+# }}}
+
+# Run only when executed, never when sourced: sourcing must define functions
+# and do nothing else, or every tool that sources it would get a surprise.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+   set -o nounset
+   set -o pipefail
+   ram_tier_main "$@"
+   exit $?
+fi
