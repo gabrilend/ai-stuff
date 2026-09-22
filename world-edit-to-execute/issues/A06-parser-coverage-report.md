@@ -9,6 +9,12 @@
 
 ## Current Behavior
 
+*Where this issue lives:* it moved to the shared `scripts/issues/` folder
+with the other Phase A tools in December 2025, and came back here in
+September 2026. Every part of it -- the test maps, the parsers, the file
+types -- belongs to this project, and no other project could run it; a
+shared tool that only one project can use is this project's tool.
+
 No visibility into which file types in test maps have parsers and which
 don't. Parser success/failure across test maps isn't aggregated into a
 single view.
