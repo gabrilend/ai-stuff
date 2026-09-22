@@ -1,6 +1,6 @@
 # git-history.sh
 
-Generates prettified commit logs segmented by project phase. Outputs human-readable markdown files preserving statistics and metadata. Works on any project following the phase-based issue naming convention (e.g., `Issue 301: description`).
+Generates prettified commit logs segmented by project phase. Outputs human-readable markdown files preserving statistics and metadata. Works on any project that keeps issue files named by phase (`522-fix-update-script.md`, `A03-test-runner.md`, or files under `issues/phase-N/`), whether the project is its own repository or one folder of a monorepo.
 
 ## Use Cases
 
@@ -56,7 +56,8 @@ Use TUI to select which phases to export.
 
 ## Capabilities
 
-- **Phase Detection**: Extracts phase from commit messages using patterns like `Issue XXX:` or `Phase X:`
+- **Phase Detection**: A commit belongs to a phase when it touches one of that phase's issue files -- editing it, or moving it into `issues/completed/` when the work is done. The phase comes from the issue filename (or its `phase-N/` folder). Commit messages are not read, because the house style writes them in plain English with no issue numbers. See the comment above `git_history_phase_of_issue_path` in the script for every filename shape and the open question about four-digit numbers.
+- **Project-Scoped Statistics**: In a monorepo, line counts and changed-file lists cover only the project's own folder, not the whole commit.
 - **Automatic Phase Discovery**: Scans commit history to find all phases present
 - **Markdown Output**: Creates `docs/history/phase-X-commits.md` files
 - **File Change Tracking**: Lists modified files with status (A/M/D)
@@ -86,7 +87,7 @@ Total: 15 commits
 
 ---
 
-## [a1b2c3d] Issue 201: Implement core parser
+## [a1b2c3d] The parser reads the core grammar
 
 **Date:** 2024-12-01 | **Author:** ritz <ritz@example.com>
 
@@ -111,7 +112,7 @@ The script can be sourced for programmatic use:
 source /path/to/scripts/git-history.sh
 git_history_init "$PROJECT_DIR"
 commits=$(git_history_get_phase_commits 2)
-git_history_format_markdown "$commits" > output.md
+git_history_format_markdown 2 > output.md
 ```
 
 ### Library Functions

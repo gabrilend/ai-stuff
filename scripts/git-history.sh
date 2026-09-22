@@ -4,6 +4,14 @@
 # Outputs human-readable markdown files preserving statistics and metadata.
 # Project-abstract: works on any project following the issue naming convention.
 #
+# How it decides which phase a commit belongs to: by the issue files the commit
+# touched. Every piece of finished work edits its issue file and, at the end,
+# moves it into issues/completed/; the issue's filename (or the phase-N/ folder
+# it sits in) names its phase. Commit messages are not read for this, because
+# the house style writes them in plain English with no issue numbers. Works for
+# a project that is its own repository and for one folder of a monorepo; the
+# statistics count only the lines changed inside the project folder.
+#
 # Usage:
 #   ./git-history.sh [options]
 #   ./git-history.sh -p 2          (generate for Phase 2)
@@ -24,7 +32,7 @@
 #   source /path/to/scripts/git-history.sh
 #   git_history_init "$PROJECT_DIR"
 #   commits=$(git_history_get_phase_commits 2)
-#   git_history_format_markdown "$commits" > output.md
+#   git_history_format_markdown 2 > output.md
 
 set -euo pipefail
 
@@ -48,9 +56,6 @@ SINCE_DATE=""
 UNTIL_DATE=""
 INTERACTIVE=false
 
-# Pattern for extracting phase from commit messages
-# Default: "Issue XXX:" where first digit is phase
-ISSUE_PATTERN='Issue ([A-Z]?[0-9]+)'
 # }}}
 
 # {{{ TUI Libraries
@@ -164,79 +169,148 @@ parse_args() {
 # }}}
 
 # {{{ git_history_init
-# Initialize with project directory
+# Initialize with project directory. The project may be a whole repository or
+# one folder inside a larger one (the ai-stuff monorepo holds thirty-odd
+# projects in a single repository), so the repository root is asked of git
+# rather than assumed to be the project folder itself.
 git_history_init() {
     PROJECT_DIR="${1:-$(pwd)}"
-    if [[ ! -d "${PROJECT_DIR}/.git" ]]; then
-        echo "Error: Not a git repository: $PROJECT_DIR" >&2
+    if ! REPO_ROOT="$(git -C "$PROJECT_DIR" rev-parse --show-toplevel)"; then
+        echo "Error: Not inside a git repository: $PROJECT_DIR" >&2
         return 1
+    fi
+    # Where the project's issues/ folder sits, spelled the way git spells paths
+    # in its output (relative to the repository root, no leading slash).
+    PROJECT_PREFIX="$(git -C "$PROJECT_DIR" rev-parse --show-prefix)"
+    ISSUES_PREFIX="${PROJECT_PREFIX}issues/"
+    if [[ ! -d "${PROJECT_DIR}/issues" ]]; then
+        echo "Error: No issues/ folder in $PROJECT_DIR -- phases are read from issue files" >&2
+        return 1
+    fi
+    git_history_index_commits
+}
+# }}}
+
+# {{{ git_history_phase_of_issue_path
+# Turn an issue file's path into the phase it belongs to.
+#
+# Why phases come from issue files and not from commit messages: this tool
+# used to read "Issue 204:" or "Phase 2:" out of each commit subject. The
+# house commit style changed to plain descriptive English (no issue numbers,
+# no function names), after which no commit matched and every phase came out
+# empty. What every completed piece of work still does, whatever its message
+# says, is touch its issue file -- and the commit that finishes it moves that
+# file into issues/completed/. The filename carries the phase.
+#
+# Filename shapes seen across the projects, and the phase each yields:
+#   522-fix-update-script.md    three digits  -> first digit      (5)
+#   1001-phase-10-intro.md      four digits   -> first two digits (10)
+#   10-004-command-preview.md   digits-dash-  -> the part before the dash (10)
+#   A03-unified-test-runner.md  a capital     -> the letter       (A)
+#   042a-deferred-audits.md     sub-issue     -> as its parent    (0)
+#   phase-1/004-extract.md      in a phase-N/ folder -> the folder (1)
+# The folder rule comes first: delta-version files its early issues under
+# phase-1/ and phase-2/ with plain three-digit numbers, and the folder is the
+# author's more specific statement of which phase they meant.
+# Anything else (progress files, CLAUDE.md, READMEs, folders of notes) is not
+# an issue file and yields nothing.
+#
+# The four-digit rule is a convention, not a certainty: 1001 could also be read
+# as phase 1, issue 001. It is written down in scripts/issues/A01 as an open
+# question for the owner; until it is settled, four digits mean a two-digit
+# phase because that is how the one project past phase 9 (soren-ds) named its
+# files.
+git_history_phase_of_issue_path() {
+    local path="$1"
+    local name="${path##*/}"
+    [[ "$name" == *.md ]] || return 0
+    local folder_phase=""
+    if [[ "$path" =~ /phase-([0-9A-Z]+)/[^/]+$ ]]; then
+        folder_phase="${BASH_REMATCH[1]}"
+    fi
+    if [[ -n "$folder_phase" ]] && [[ "$name" =~ ^[0-9A-Z]+[a-z]?- ]]; then
+        echo "$folder_phase"
+    elif [[ "$name" =~ ^([0-9]+)-[0-9]{3}[a-z]?- ]]; then
+        echo "${BASH_REMATCH[1]}"
+    elif [[ "$name" =~ ^([A-Z])[0-9]+[a-z]?- ]]; then
+        echo "${BASH_REMATCH[1]}"
+    elif [[ "$name" =~ ^([0-9]{2})[0-9]{2}[a-z]?- ]]; then
+        echo "$((10#${BASH_REMATCH[1]}))"
+    elif [[ "$name" =~ ^([0-9])[0-9]{2}[a-z]?- ]]; then
+        echo "${BASH_REMATCH[1]}"
     fi
 }
 # }}}
 
-# {{{ git_history_detect_phase
-# Extract phase from commit message
-# Returns: phase identifier (0, 1, 2, A, etc.) or empty
-git_history_detect_phase() {
-    local message="$1"
+# {{{ git_history_index_commits
+# Read the project's issue-file history once and remember, for every commit,
+# which phases it touched. One git call for the whole history, instead of one
+# git call per commit, which is what made the old version slow on big repos.
+#
+# Fills two globals:
+#   COMMIT_PHASES[hash]  = space-separated phases that commit touched
+#   PHASE_ORDER          = every phase seen, sorted
+# A commit that touches issue files of two phases belongs to both.
+declare -gA COMMIT_PHASES=()
+declare -ga PHASE_ORDER=()
+declare -ga INDEXED_COMMITS=()
+git_history_index_commits() {
+    COMMIT_PHASES=()
+    PHASE_ORDER=()
+    INDEXED_COMMITS=()
+    local git_args=("log" "--all" "--name-status" "-M" "--format=@@%H")
+    [[ -n "$SINCE_DATE" ]] && git_args+=("--since=$SINCE_DATE")
+    [[ -n "$UNTIL_DATE" ]] && git_args+=("--until=$UNTIL_DATE")
+    git_args+=("--" "$ISSUES_PREFIX")
 
-    # Try "Issue XXX:" pattern
-    if [[ "$message" =~ $ISSUE_PATTERN ]]; then
-        local issue_id="${BASH_REMATCH[1]}"
-        # First character is phase
-        echo "${issue_id:0:1}"
-        return 0
+    local log_text
+    log_text="$(git -C "$REPO_ROOT" "${git_args[@]}")"
+
+    local hash="" line path phase
+    local -A seen_phase=()
+    while IFS= read -r line; do
+        # "@@<hash>" starts a commit; the file lines follow it.
+        if [[ "$line" == @@* ]]; then
+            hash="${line#@@}"
+            INDEXED_COMMITS+=("$hash")
+            continue
+        fi
+        [[ -z "$line" || -z "$hash" ]] && continue
+        # Status lines are "M<TAB>path" or, for a rename, "R100<TAB>old<TAB>new".
+        # The last field is the path as it stands after the commit.
+        path="${line##*$'\t'}"
+        phase="$(git_history_phase_of_issue_path "$path")"
+        [[ -z "$phase" ]] && continue
+        if [[ " ${COMMIT_PHASES[$hash]:-} " != *" $phase "* ]]; then
+            COMMIT_PHASES[$hash]="${COMMIT_PHASES[$hash]:-}${COMMIT_PHASES[$hash]:+ }$phase"
+        fi
+        seen_phase[$phase]=1
+    done <<< "$log_text"
+
+    if [[ ${#seen_phase[@]} -gt 0 ]]; then
+        mapfile -t PHASE_ORDER < <(printf '%s\n' "${!seen_phase[@]}" | sort -V)
     fi
-
-    # Try "Phase X:" pattern
-    if [[ "$message" =~ Phase[[:space:]]([A-Z0-9]+) ]]; then
-        echo "${BASH_REMATCH[1]}"
-        return 0
-    fi
-
-    echo ""
 }
 # }}}
 
 # {{{ git_history_get_phases
-# Detect all phases present in commit history
+# Every phase that has at least one commit touching one of its issue files.
 git_history_get_phases() {
-    local phases=()
-    local seen=()
-
-    local git_args=("log" "--oneline" "--all")
-    [[ -n "$SINCE_DATE" ]] && git_args+=("--since=$SINCE_DATE")
-    [[ -n "$UNTIL_DATE" ]] && git_args+=("--until=$UNTIL_DATE")
-
-    while IFS= read -r line; do
-        local phase=$(git_history_detect_phase "$line")
-        if [[ -n "$phase" ]] && [[ ! " ${seen[*]} " =~ " $phase " ]]; then
-            seen+=("$phase")
-            phases+=("$phase")
-        fi
-    done < <(git -C "$PROJECT_DIR" "${git_args[@]}" 2>/dev/null)
-
-    # Sort phases
-    printf '%s\n' "${phases[@]}" | sort -u
+    [[ ${#PHASE_ORDER[@]} -gt 0 ]] && printf '%s\n' "${PHASE_ORDER[@]}"
+    return 0
 }
 # }}}
 
 # {{{ git_history_get_phase_commits
-# Get commit hashes for a specific phase
+# Commit hashes (newest first) that touched an issue file of the given phase.
 git_history_get_phase_commits() {
     local phase="$1"
-
-    local git_args=("log" "--oneline" "--all" "--format=%H")
-    [[ -n "$SINCE_DATE" ]] && git_args+=("--since=$SINCE_DATE")
-    [[ -n "$UNTIL_DATE" ]] && git_args+=("--until=$UNTIL_DATE")
-
-    while IFS= read -r hash; do
-        local message=$(git -C "$PROJECT_DIR" log -1 --format="%s" "$hash" 2>/dev/null)
-        local commit_phase=$(git_history_detect_phase "$message")
-        if [[ "$commit_phase" == "$phase" ]]; then
+    local hash
+    for hash in "${INDEXED_COMMITS[@]}"; do
+        if [[ " ${COMMIT_PHASES[$hash]:-} " == *" $phase "* ]]; then
             echo "$hash"
         fi
-    done < <(git -C "$PROJECT_DIR" "${git_args[@]}" 2>/dev/null)
+    done
 }
 # }}}
 
@@ -253,8 +327,8 @@ git_history_format_commit() {
     local body=$(git -C "$PROJECT_DIR" log -1 --format="%b" "$hash")
 
     # Get file changes
-    local files_changed=$(git -C "$PROJECT_DIR" diff-tree --no-commit-id --name-status -r "$hash" 2>/dev/null)
-    local stats=$(git -C "$PROJECT_DIR" diff-tree --no-commit-id --stat "$hash" 2>/dev/null | tail -1)
+    local files_changed=$(git -C "$PROJECT_DIR" diff-tree --relative --no-commit-id --name-status -r "$hash")
+    local stats=$(git -C "$PROJECT_DIR" diff-tree --relative --no-commit-id --stat "$hash" | tail -1)
 
     echo "## [$short_hash] $subject"
     echo ""
@@ -262,16 +336,16 @@ git_history_format_commit() {
     echo ""
 
     if [[ -n "$body" ]]; then
-        echo "$body" | head -20
+        head -20 <<< "$body"
         echo ""
     fi
 
     if [[ -n "$files_changed" ]]; then
         echo "**Files changed:**"
         echo "\`\`\`"
-        echo "$files_changed" | head -20
-        if [[ $(echo "$files_changed" | wc -l) -gt 20 ]]; then
-            echo "... ($(echo "$files_changed" | wc -l) files total)"
+        head -20 <<< "$files_changed"
+        if [[ $(wc -l <<< "$files_changed") -gt 20 ]]; then
+            echo "... ($(wc -l <<< "$files_changed") files total)"
         fi
         echo "\`\`\`"
         echo ""
@@ -301,15 +375,16 @@ git_history_get_stats() {
 
     while IFS= read -r hash; do
         [[ -z "$hash" ]] && continue
-        ((commit_count++))
+        commit_count=$((commit_count + 1))
 
         # Get date
         local date=$(git -C "$PROJECT_DIR" log -1 --format="%ad" --date=short "$hash")
-        [[ -z "$first_date" ]] && first_date="$date"
-        last_date="$date"
+        # Commits arrive newest first, so the first date seen is the last one.
+        [[ -z "$last_date" ]] && last_date="$date"
+        first_date="$date"
 
         # Get stats
-        local stat_line=$(git -C "$PROJECT_DIR" diff-tree --no-commit-id --stat "$hash" 2>/dev/null | tail -1)
+        local stat_line=$(git -C "$PROJECT_DIR" diff-tree --relative --no-commit-id --stat "$hash" | tail -1)
         if [[ "$stat_line" =~ ([0-9]+)[[:space:]]insertion ]]; then
             ((insertions += ${BASH_REMATCH[1]}))
         fi
