@@ -3,361 +3,100 @@
 **Phase:** A - Infrastructure Tools
 **Type:** Tool
 **Priority:** Medium
-**Dependencies:** None
+**Dependencies:** A02 (shared issue-name reader)
 
 ---
 
 ## Current Behavior
 
-Issue files are created manually with no automated validation. Missing sections,
-malformed acceptance criteria, or invalid dependency references go undetected.
+Built. `validate-issues` checks any project's issue files and prints one line
+per finding, then the next free id per phase. Tested by
+`tests/test_validate-issues.lua` and by read-only runs against enheim-tome (0
+findings, matching its own `validate-issue-graph`), soren-ds,
+my-own-custom-vtt, scripts, delta-version, wow-chat-2026 and
+neocities-modernization — each of which has real findings to work through.
 
 ---
 
 ## Intended Behavior
 
-A project-abstract validation tool that:
-- Checks all issues have required sections
-- Validates acceptance criteria format
-- Verifies dependency references exist
-- Detects orphaned sub-issues
-- Reports warnings and errors
-- Works across any project following the issue convention
+A project-abstract checker the issue-lifecycle skill runs when an issue is
+created, edited or completed.
+
+- **Names** follow `{PHASE}{ID}{INDEX}-{DESCR}`: `.md` extension, description
+  in lower-case words joined by dashes.
+- **Sections**: every open issue has headings containing "Current Behavior",
+  "Intended Behavior" and "Implementation Steps" (the three the house rules
+  require). Completed issues are immutable, so their sections are checked only
+  with `--completed`.
+- **Duplicate ids** among open and completed files (a superseded file keeping
+  an old id is history, not a collision).
+- **Orphan sub-issues**: `104a` with no `104`.
+- **Links**: ids named under "Blocked by", "Blocks", "Dependencies" or
+  "Depends on" must have files; when a project writes links in both
+  directions, each link must be stated on both sides. Links in retired files
+  are ignored.
+- **Next free id** per phase, in the phase's own shape; `--next PHASE` prints
+  only that.
+- Findings are errors (exit 1): the house rule counts warnings as errors.
 
 ---
 
 ## Suggested Implementation Steps
 
-1. **Create shared script**
-   ```
-   /home/ritz/programming/ai-stuff/scripts/issue-validator.sh
-   ```
-   Symlinked into projects as `src/cli/issue-validator.sh`
+1. **Read names through the shared reader** `libs/issue-names.lua` (built in
+   A02), so phases agree with the dashboard. Numbering uses `name_phase` (what
+   the name says), not a `phase-N/` folder override.
+2. **Link fields in four shapes** — `extract_links`: a header-table row
+   (`| Blocked by | 101 |`), a bold label (`**Blocks:**`), a bold bullet
+   (`- **Blocks**:`), or a `##` heading whose body runs to the next heading.
+   Labels map to a direction in the `link_labels` table.
+3. **Ids from free text** — `ids_in_text`: dashed ids removed first, then
+   lettered, then compact; a token counts only if it names a phase the project
+   has issues in, so years, percentages and "Phase 4" are not links.
+4. **Checks** — `check_name`, `check_sections`, duplicate and orphan passes,
+   then the edge pass collecting "blocker → blocked" pairs with who asserted
+   them, and the agreement pass (only when both directions are in use).
+5. **Options** in a handler table: `[DIR]`, `--next PHASE`, `--file PATH`
+   (per-file checks for one file, links that touch it), `--completed`.
+   Unknown flags are errors. Hard-coded `DIR` default.
+6. **Tests** — `tests/test_validate-issues.lua`: a clean project exits 0 and
+   numbers correctly; a messy project shows each finding kind once; `--file`
+   narrows; a missing `issues/` exits 2.
 
-2. **Define validation rules**
-   ```bash
-   # Required sections (configurable)
-   REQUIRED_SECTIONS=(
-       "Current Behavior"
-       "Intended Behavior"
-       "Suggested Implementation Steps"
-       "Acceptance Criteria"
-   )
-
-   # Optional but recommended sections
-   RECOMMENDED_SECTIONS=(
-       "Related Documents"
-       "Notes"
-       "Technical Notes"
-   )
-
-   # Header fields
-   REQUIRED_FIELDS=(
-       "Phase"
-       "Type"
-       "Priority"
-   )
-   ```
-
-3. **Implement section detection**
-   ```bash
-   # {{{ check_sections
-   check_sections() {
-       local file="$1"
-       local missing=()
-
-       for section in "${REQUIRED_SECTIONS[@]}"; do
-           if ! grep -q "^## $section" "$file"; then
-               missing+=("$section")
-           fi
-       done
-
-       echo "${missing[@]}"
-   }
-   # }}}
-   ```
-
-4. **Implement acceptance criteria validation**
-   ```bash
-   # {{{ validate_acceptance_criteria
-   validate_acceptance_criteria() {
-       local file="$1"
-       local errors=()
-
-       # Extract acceptance criteria section
-       local in_section=false
-       local criteria_count=0
-
-       while IFS= read -r line; do
-           if [[ "$line" =~ ^##\ Acceptance\ Criteria ]]; then
-               in_section=true
-               continue
-           fi
-
-           if [[ "$in_section" == true ]]; then
-               if [[ "$line" =~ ^## ]]; then
-                   break
-               fi
-
-               # Check for checkbox format
-               if [[ "$line" =~ ^-\ \[.\] ]]; then
-                   ((criteria_count++))
-
-                   # Validate checkbox format
-                   if ! [[ "$line" =~ ^-\ \[(\ |x|X)\]\  ]]; then
-                       errors+=("Malformed checkbox: $line")
-                   fi
-               fi
-           fi
-       done < "$file"
-
-       if [[ $criteria_count -eq 0 ]]; then
-           errors+=("No acceptance criteria found")
-       fi
-
-       echo "${errors[@]}"
-   }
-   # }}}
-   ```
-
-5. **Implement dependency validation**
-   ```bash
-   # {{{ validate_dependencies
-   validate_dependencies() {
-       local file="$1"
-       local issues_dir="$2"
-       local errors=()
-
-       # Extract dependencies line
-       local deps=$(grep -oP "(?<=Dependencies:\*\*\s).*" "$file")
-
-       if [[ -n "$deps" ]]; then
-           # Parse dependency IDs
-           for dep in $(echo "$deps" | tr ',' '\n' | tr -d ' '); do
-               # Skip "None" or phase references
-               if [[ "$dep" == "None" ]] || [[ "$dep" =~ ^Phase ]]; then
-                   continue
-               fi
-
-               # Check if dependency file exists
-               local found=false
-               for issue_file in "$issues_dir"/*.md "$issues_dir"/completed/*.md; do
-                   if [[ "$(basename "$issue_file")" =~ ^$dep ]]; then
-                       found=true
-                       break
-                   fi
-               done
-
-               if [[ "$found" == false ]]; then
-                   errors+=("Missing dependency: $dep")
-               fi
-           done
-       fi
-
-       echo "${errors[@]}"
-   }
-   # }}}
-   ```
-
-6. **Implement sub-issue validation**
-   ```bash
-   # {{{ validate_subissues
-   validate_subissues() {
-       local issues_dir="$1"
-       local errors=()
-
-       # Find sub-issues (e.g., 102a, 102b)
-       for subissue in "$issues_dir"/*[a-z]-*.md; do
-           [[ -e "$subissue" ]] || continue
-
-           local basename=$(basename "$subissue" .md)
-           # Extract parent ID (e.g., 102 from 102a)
-           local parent_id=$(echo "$basename" | grep -oP "^\d+")
-
-           # Check parent exists
-           local parent_found=false
-           for parent in "$issues_dir"/${parent_id}-*.md; do
-               if [[ -e "$parent" ]] && ! [[ "$parent" =~ [a-z]-.*\.md$ ]]; then
-                   parent_found=true
-                   break
-               fi
-           done
-
-           if [[ "$parent_found" == false ]]; then
-               errors+=("Orphaned sub-issue: $basename (no parent $parent_id)")
-           fi
-       done
-
-       echo "${errors[@]}"
-   }
-   # }}}
-   ```
-
-7. **Implement naming convention check**
-   ```bash
-   # {{{ validate_naming
-   validate_naming() {
-       local file="$1"
-       local basename=$(basename "$file" .md)
-       local errors=()
-
-       # Expected: {PHASE}{ID}-{description}
-       # e.g., 204-parse-war3map-w3c
-       if ! [[ "$basename" =~ ^[A-Z0-9]+[0-9]+-[a-z0-9-]+$ ]]; then
-           errors+=("Non-standard filename: $basename")
-       fi
-
-       echo "${errors[@]}"
-   }
-   # }}}
-   ```
-
-8. **Implement report generation**
-   ```bash
-   # {{{ generate_report
-   generate_report() {
-       local issues_dir="$1"
-
-       echo "╔════════════════════════════════════════════════════════════╗"
-       echo "║               ISSUE VALIDATION REPORT                      ║"
-       echo "╠════════════════════════════════════════════════════════════╣"
-
-       local total_issues=0
-       local valid_issues=0
-       local warning_count=0
-       local error_count=0
-
-       for issue in "$issues_dir"/*.md; do
-           [[ -e "$issue" ]] || continue
-           ((total_issues++))
-
-           local name=$(basename "$issue")
-           local has_errors=false
-
-           # Run all validations
-           local missing_sections=$(check_sections "$issue")
-           local criteria_errors=$(validate_acceptance_criteria "$issue")
-           local dep_errors=$(validate_dependencies "$issue" "$issues_dir")
-           local naming_errors=$(validate_naming "$issue")
-
-           if [[ -n "$missing_sections" ]] || [[ -n "$criteria_errors" ]] ||
-              [[ -n "$dep_errors" ]] || [[ -n "$naming_errors" ]]; then
-               has_errors=true
-               printf "║ ✗ %-56s ║\n" "$name"
-
-               for error in $missing_sections; do
-                   printf "║   └─ Missing: %-42s ║\n" "$error"
-                   ((error_count++))
-               done
-               # ... other errors
-           else
-               ((valid_issues++))
-               printf "║ ✓ %-56s ║\n" "$name"
-           fi
-       done
-
-       echo "╠════════════════════════════════════════════════════════════╣"
-       printf "║ Valid: %d/%d | Errors: %d | Warnings: %d                  ║\n" \
-           $valid_issues $total_issues $error_count $warning_count
-       echo "╚════════════════════════════════════════════════════════════╝"
-   }
-   # }}}
-   ```
-
-9. **Add CLI interface**
-   ```bash
-   # Modes:
-   # -a, --all           Validate all issues
-   # -f, --file FILE     Validate specific file
-   # -q, --quiet         Only show errors
-   # -v, --verbose       Show all checks
-   # --fix               Auto-fix simple issues (add missing sections)
-   # --json              Output JSON report
-   # -I, --interactive   TUI mode
-   ```
+Ancestor: `/mnt/mtwo/programming/ai-stuff/games/enheim-tome/validate-issue-graph`
+(link agreement for one project's table-row format). This tool generalises its
+check and does not edit files; its `--fix` union rewrite was not carried over.
 
 ---
 
-## Library Design
+## Scope decisions
 
-```bash
-# As CLI
-./issue-validator.sh -a
-
-# As library
-source /path/to/scripts/issue-validator.sh
-issue_validator_init "$PROJECT_DIR"
-errors=$(issue_validator_check_file "$file")
-issue_validator_generate_report "$issues_dir"
-```
-
-### Exported Functions
-
-| Function | Description |
-|----------|-------------|
-| `issue_validator_init` | Initialize with project directory |
-| `issue_validator_check_sections` | Check for required sections |
-| `issue_validator_check_criteria` | Validate acceptance criteria |
-| `issue_validator_check_deps` | Validate dependency references |
-| `issue_validator_check_naming` | Validate naming convention |
-| `issue_validator_check_file` | Run all checks on a file |
-| `issue_validator_generate_report` | Generate validation report |
-
----
-
-## Output Example
-
-```
-╔════════════════════════════════════════════════════════════╗
-║               ISSUE VALIDATION REPORT                      ║
-╠════════════════════════════════════════════════════════════╣
-║ ✓ 201-parse-war3map-doo.md                                 ║
-║ ✓ 202-parse-war3map-units-doo.md                           ║
-║ ✗ 203-parse-war3map-w3r.md                                 ║
-║   └─ Missing: Related Documents                            ║
-║ ✓ 204-parse-war3map-w3c.md                                 ║
-║ ✗ 999-test-issue.md                                        ║
-║   └─ Missing dependency: 998                               ║
-║   └─ Non-standard filename                                 ║
-╠════════════════════════════════════════════════════════════╣
-║ Valid: 3/5 | Errors: 3 | Warnings: 0                       ║
-╚════════════════════════════════════════════════════════════╝
-```
+- **No acceptance-criteria or header-field checks.** The house rules require
+  three sections, not checkboxes or a Phase/Type/Priority header; checking
+  for them would fail most projects for following the rules.
+- **No `--fix`.** Rewriting issue files automatically would touch completed
+  issues, which are immutable; a person or the skill fixes the open side.
+- **No JSON or quiet mode.** Findings are already one line each and the exit
+  status is the quiet answer.
+- **No per-project symlinks.** One home, called by absolute path.
 
 ---
 
 ## Related Documents
 
-- CLAUDE.md (issue format requirements)
-- issues/ (validation targets)
-- /home/ritz/programming/ai-stuff/scripts/ (shared scripts)
-- Issue A02 (progress dashboard - complementary)
+- `validate-issues.info.md`, `libs/issue-names.info.md`
+- `progress-dashboard.lua` (A02)
+- `~/.claude/skills/issue-lifecycle/SKILL.md`
 
 ---
 
-## Acceptance Criteria
+## Open questions
 
-- [ ] Script lives in shared scripts directory
-- [ ] Symlink created in project src/cli/
-- [ ] Checks for required sections
-- [ ] Validates acceptance criteria format
-- [ ] Validates dependency references
-- [ ] Detects orphaned sub-issues
-- [ ] Validates naming convention
-- [ ] Generates clear error report
-- [ ] Supports quiet/verbose modes
-- [ ] JSON output option
-- [ ] Works as both CLI and library
-- [ ] Project-abstract configuration
-
----
-
-## Notes
-
-This tool ensures issue quality and consistency. Run it as a pre-commit
-hook or CI step to catch issues early.
-
-Consider adding an `--fix` mode that can automatically add missing
-sections with template content.
-
-Could integrate with issue-splitter.sh to validate generated sub-issues.
+- Several projects write links in both directions but keep them only half in
+  step (soren-ds ≈320 one-sided links, my-own-custom-vtt ≈80, delta-version
+  ≈80). Should the one-sided check stay strict, or should a project be able to
+  declare that it records links in one direction only?
+- `wow-chat-2026` has about 70 issue files without a `.md` extension
+  (`1001-rmail-dns-style-addresses`, ...). Rename them, or treat
+  extensionless files as a separate convention there?

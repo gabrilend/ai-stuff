@@ -1,0 +1,470 @@
+#!/usr/bin/env luajit
+-- validate-issues
+--
+-- Checks a project's issue files against the house rules and against each
+-- other, and says what the next free issue number is in each phase.
+--
+-- How it works, in general terms: it reads every issue through the shared
+-- issue-name reader (libs/issue-names.lua) -- the same one the progress
+-- dashboard uses, so both tools agree on phases -- then looks at each file's
+-- name and headings, collects the dependency links every file declares, and
+-- walks those links in both directions looking for places where two files
+-- tell different stories about the same link.
+--
+-- WHAT IT CHECKS
+--
+--   names      {PHASE}{ID}{INDEX}-{DESCR}: an .md extension, and a description
+--              written in lower-case words joined by dashes
+--   sections   "Current Behavior", "Intended Behavior" and "... Implementation
+--              Steps" headings (any heading level, any capitalisation). Open
+--              issues only by default: completed issues are immutable history,
+--              so a finding there could never be fixed; --completed adds them.
+--   duplicates two open or completed files claiming the same issue id (a
+--              superseded or declined file keeping an old id is history)
+--   orphans    a sub-issue (104a) whose parent (104) has no file
+--   links      every issue id named under "Blocked by", "Blocks",
+--              "Dependencies" or "Depends on" must have a file; and when the
+--              project writes links in both directions, "A blocks B" must be
+--              matched by B naming A among its blockers, and the reverse.
+--              Links written in retired (superseded, declined) files are
+--              ignored: that plan was abandoned.
+--
+-- The link fields are read in the four shapes found on disk:
+--   | Blocked by | 101, 102 |          header table row
+--   **Blocked by:** [101](101-x.md)     bold label
+--   - **Blocks**: 13-002d               bullet
+--   ## Blocked by  (then lines below)   section, until the next heading
+--
+-- Usage:
+--   validate-issues [DIR]                 check the whole project
+--   validate-issues [DIR] --next PHASE    print only the next free id in PHASE
+--   validate-issues [DIR] --file PATH     check one issue file (plus the links
+--                                         that touch it)
+--   validate-issues [DIR] --completed     also check sections of completed issues
+--
+-- Exit status: 0 no findings, 1 findings printed, 2 bad arguments or no issues/.
+-- Findings are all treated as errors: the house rule is that a warning is an
+-- error that has not been admitted yet.
+
+-- {{{ local DIR
+-- The project checked when none is given; override with the first argument.
+local DIR = "/home/ritz/programming/ai-stuff/scripts"
+-- Where this tool and its shared library live, independent of DIR.
+local SCRIPTS_DIR = "/home/ritz/programming/ai-stuff/scripts"
+-- }}}
+
+local issue_names = dofile(SCRIPTS_DIR .. "/libs/issue-names.lua")
+
+-- {{{ local required_sections
+-- Lower-case fragments a heading must contain, and how a finding names them.
+local required_sections = {
+    { fragment = "current behavior",     label = "Current Behavior" },
+    { fragment = "intended behavior",    label = "Intended Behavior" },
+    { fragment = "implementation steps", label = "Suggested Implementation Steps" },
+}
+-- }}}
+
+-- {{{ local link_labels
+-- Field label (lower case) -> which way the link points.
+--   after   this issue waits on the named ones
+--   before  the named ones wait on this issue
+local link_labels = {
+    ["blocked by"]   = "after",
+    ["depends on"]   = "after",
+    ["dependencies"] = "after",
+    ["blocks"]       = "before",
+}
+-- }}}
+
+-- {{{ local function read_file
+local function read_file(path)
+    local f = assert(io.open(path, "r"))
+    local content = f:read("*a")
+    f:close()
+    return content
+end
+-- }}}
+
+-- {{{ local function label_on_line
+-- Finds a link label written inline on one line, in any of the three inline
+-- shapes. Returns the label and the rest of the line after it, or nil.
+local function label_on_line(line)
+    local lower = line:lower()
+    for label in pairs(link_labels) do
+        local shapes = {
+            "^%s*|%s*" .. label .. "%s*|()",               -- | Blocked by | ...
+            "^%s*%*%*" .. label .. ":?%*%*:?()",            -- **Blocked by:** ...
+            "^%s*[-*]%s+%*%*" .. label .. ":?%*%*:?()",     -- - **Blocks**: ...
+        }
+        for _, shape in ipairs(shapes) do
+            local after = lower:match(shape)
+            if after then
+                return label, line:sub(after)
+            end
+        end
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ local function heading_label
+-- A "## Blocked by" style heading. Returns the label or nil.
+local function heading_label(line)
+    local text = line:lower():match("^#+%s*(.-)%s*:?%s*$")
+    if text and link_labels[text] then
+        return text
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ local function extract_links
+-- Reads every link field in a file. Returns a list of { label, text } where
+-- text is the raw value (a line, or a heading's body up to the next heading).
+local function extract_links(content)
+    local fields = {}
+    local open_heading = nil
+    for line in (content .. "\n"):gmatch("([^\n]*)\n") do
+        local heading = line:match("^#")
+        -- inside a link heading's body: collect until the next heading
+        if open_heading and not heading then
+            open_heading.text = open_heading.text .. " " .. line
+        else
+            open_heading = nil
+            local label = heading and heading_label(line)
+            -- a link heading starts a body
+            if label then
+                open_heading = { label = label, text = "" }
+                fields[#fields + 1] = open_heading
+            -- otherwise the line may carry an inline field
+            elseif not heading then
+                local inline, rest = label_on_line(line)
+                if inline then
+                    fields[#fields + 1] = { label = inline, text = rest }
+                end
+            end
+        end
+    end
+    return fields
+end
+-- }}}
+
+-- {{{ local function ids_in_text
+-- Pulls issue ids out of a link field's text, keeping only tokens that name a
+-- phase this project actually has issues in -- so a year ("2026"), a
+-- percentage, or "Phase 4" is not mistaken for a reference. Dashed ids are
+-- removed from the text first so their halves are not read again as compact.
+local function ids_in_text(text, context)
+    local found, seen = {}, {}
+    local function keep(id, phase)
+        if context.phases_with_issues[phase] and not seen[id] then
+            seen[id] = true
+            found[#found + 1] = id
+        end
+    end
+    text = text:gsub("[Pp]hase%s+%w+", " ")
+    text = text:gsub("(%d%d?)%-(%d%d%d[a-z]?)", function(p, rest)
+        keep(p .. "-" .. rest, tostring(tonumber(p)))
+        return " "
+    end)
+    text = text:gsub("%f[%w]([A-Z])(%d+[a-z]?)%f[^%w]", function(letter, rest)
+        keep(letter .. rest, letter)
+        return " "
+    end)
+    for digits, index in text:gmatch("%f[%w](%d+)([a-z]?)%f[^%w]") do
+        local phase = issue_names.phase_of_compact(digits, context.width)
+        if phase then
+            keep(digits .. index, phase)
+        end
+    end
+    return found
+end
+-- }}}
+
+-- {{{ local function check_name
+local function check_name(issue, add)
+    if not issue.has_extension then
+        add(issue.rel, "issue file has no .md extension")
+    end
+    if not issue.descr:gsub("%.md$", ""):match("^[a-z0-9]+[a-z0-9%-]*$") then
+        add(issue.rel, "description is not lower-case words joined by dashes: " .. issue.descr)
+    end
+end
+-- }}}
+
+-- {{{ local function check_sections
+local function check_sections(issue, content, add)
+    local headings = {}
+    for heading in content:gmatch("\n#+%s*([^\n]*)") do
+        headings[#headings + 1] = heading:lower()
+    end
+    for _, section in ipairs(required_sections) do
+        local present = false
+        for _, heading in ipairs(headings) do
+            if heading:find(section.fragment, 1, true) then
+                present = true
+                break
+            end
+        end
+        if not present then
+            add(issue.rel, "missing section: " .. section.label)
+        end
+    end
+end
+-- }}}
+
+-- {{{ local function next_free_ids
+-- For each phase: one past the highest issue number used, written in the
+-- phase's own shape (the shape most of its issues use). Sub-issue letters are
+-- ignored: 104c does not use up 105. Numbering follows what names say, not
+-- phase-N/ folders: a folder does not change the sequence the names count in.
+local function next_free_ids(issues, width)
+    local by_phase = {}
+    for _, issue in ipairs(issues) do
+        local phase = issue.name_phase
+        if phase and issue.number then
+            local entry = by_phase[phase] or { highest = 0, shapes = {} }
+            entry.highest = math.max(entry.highest, tonumber(issue.number))
+            entry.shapes[issue.shape] = (entry.shapes[issue.shape] or 0) + 1
+            by_phase[phase] = entry
+        end
+    end
+    local result = {}
+    for phase, entry in pairs(by_phase) do
+        local shape, most = nil, -1
+        for candidate, count in pairs(entry.shapes) do
+            if count > most then
+                shape, most = candidate, count
+            end
+        end
+        result[phase] = issue_names.format_id(shape, phase, entry.highest + 1, width)
+    end
+    return result
+end
+-- }}}
+
+-- {{{ local function dominant_shape
+-- The shape most of the project's issues use; a new phase starts in it.
+local function dominant_shape(issues)
+    local counts, best, most = {}, "compact", -1
+    for _, issue in ipairs(issues) do
+        counts[issue.shape] = (counts[issue.shape] or 0) + 1
+    end
+    for shape, count in pairs(counts) do
+        if count > most then
+            best, most = shape, count
+        end
+    end
+    return best
+end
+-- }}}
+
+-- {{{ local function parse_args
+local function parse_args(args)
+    local options = { project_dir = DIR, next_phase = nil, only_file = nil, completed = false }
+    local takes_value = function(key)
+        return function(i)
+            if not args[i + 1] then
+                io.stderr:write("missing value after " .. args[i] .. "\n")
+                os.exit(2)
+            end
+            options[key] = args[i + 1]
+            return 2
+        end
+    end
+    local handlers = {
+        ["--next"] = takes_value("next_phase"),
+        ["--file"] = takes_value("only_file"),
+        ["--completed"] = function() options.completed = true return 1 end,
+        ["-h"] = function()
+            print("usage: validate-issues [DIR] [--next PHASE | --file PATH] [--completed]")
+            os.exit(0)
+        end,
+    }
+    handlers["--help"] = handlers["-h"]
+    local i = 1
+    while i <= #args do
+        local handler = handlers[args[i]]
+        -- a known flag consumes itself and its value
+        if handler then
+            i = i + handler(i)
+        -- a bare word is the project directory
+        elseif not args[i]:match("^%-") then
+            options.project_dir = args[i]
+            i = i + 1
+        -- an unknown flag is a mistake, not something to skip
+        else
+            io.stderr:write("unknown option: " .. args[i] .. "\n")
+            os.exit(2)
+        end
+    end
+    return options
+end
+-- }}}
+
+-- {{{ local function main
+local function main()
+    local options = parse_args(arg)
+    local ok, issues, report = pcall(issue_names.scan, options.project_dir)
+    if not ok then
+        io.stderr:write(tostring(issues) .. "\n")
+        os.exit(2)
+    end
+
+    local next_ids = next_free_ids(issues, report.width)
+
+    -- --next: print one id and stop. A phase with no issues yet starts at 1 in
+    -- the project's usual shape.
+    if options.next_phase then
+        print(next_ids[options.next_phase]
+            or issue_names.format_id(dominant_shape(issues), options.next_phase, 1, report.width))
+        os.exit(0)
+    end
+
+    local findings = {}
+    local function add(where, what)
+        findings[#findings + 1] = where .. ": " .. what
+    end
+
+    -- --file narrows every per-file check to one file; links touching it are
+    -- still judged against the whole project
+    local only_rel = nil
+    if options.only_file then
+        only_rel = options.only_file:match("/issues/(.+)$") or options.only_file
+    end
+    local function in_scope(issue)
+        return only_rel == nil or issue.rel == only_rel
+    end
+
+    local by_id, phases_with_issues, contents = {}, {}, {}
+    for _, issue in ipairs(issues) do
+        if issue.phase then
+            phases_with_issues[issue.phase] = true
+        end
+        by_id[issue.id] = by_id[issue.id] or {}
+        table.insert(by_id[issue.id], issue)
+        contents[issue] = read_file(issue.path)
+    end
+
+    for _, issue in ipairs(issues) do
+        if in_scope(issue) then
+            check_name(issue, add)
+            -- completed issues are history; checked only when asked
+            if issue.status == "open" or options.completed then
+                check_sections(issue, contents[issue], add)
+            end
+            -- a sub-issue's parent id is its id without the letter
+            if issue.index ~= "" then
+                local parent = issue.id:sub(1, #issue.id - #issue.index)
+                if not by_id[parent] then
+                    add(issue.rel, "sub-issue has no parent issue " .. parent)
+                end
+            end
+        end
+    end
+
+    for id, files in pairs(by_id) do
+        -- a retired issue keeping an id that a live one reused is history, not
+        -- a collision: only count claims by open or completed files
+        local live = 0
+        for _, issue in ipairs(files) do
+            live = live + ((issue.status ~= "retired") and 1 or 0)
+        end
+        if live > 1 then
+            local names = {}
+            for _, issue in ipairs(files) do
+                names[#names + 1] = issue.rel
+            end
+            -- report a duplicate once, and only if it involves the file in scope
+            local involves_scope = only_rel == nil
+            for _, issue in ipairs(files) do
+                involves_scope = involves_scope or issue.rel == only_rel
+            end
+            if involves_scope then
+                add("id " .. id, "claimed by " .. #files .. " files: " .. table.concat(names, ", "))
+            end
+        end
+    end
+
+    -- links: collect every edge as "blocker -> blocked", remembering which file
+    -- asserted it and in which direction
+    local context = { phases_with_issues = phases_with_issues, width = report.width }
+    local edges, says_after, says_before = {}, {}, {}
+    local uses = { after = false, before = false }
+    for _, issue in ipairs(issues) do
+        says_after[issue.id], says_before[issue.id] = says_after[issue.id] or {}, says_before[issue.id] or {}
+        -- a retired issue's plan was abandoned, so its links assert nothing
+        local fields = issue.status == "retired" and {} or extract_links(contents[issue])
+        for _, field in ipairs(fields) do
+            local direction = link_labels[field.label]
+            uses[direction] = true
+            for _, other in ipairs(ids_in_text(field.text, context)) do
+                -- an id with no file is dangling, whichever way it points; it
+                -- makes no edge (reported only when the file is in scope)
+                if not by_id[other] then
+                    if in_scope(issue) then
+                        add(issue.rel, field.label .. " names " .. other .. ", which has no file")
+                    end
+                -- a link to itself is ignored; any other link is an edge
+                elseif other ~= issue.id then
+                    local blocker, blocked = other, issue.id
+                    if direction == "before" then
+                        blocker, blocked = issue.id, other
+                        says_before[issue.id][other] = true
+                    else
+                        says_after[issue.id][other] = true
+                    end
+                    edges[blocker .. "\0" .. blocked] = { blocker = blocker, blocked = blocked }
+                end
+            end
+        end
+    end
+
+    -- agreement is only expected where the project writes both directions
+    if uses.after and uses.before then
+        for _, edge in pairs(edges) do
+            local blocker_files, blocked_files = by_id[edge.blocker], by_id[edge.blocked]
+            local blocker_says = says_before[edge.blocker] and says_before[edge.blocker][edge.blocked]
+            local blocked_says = says_after[edge.blocked] and says_after[edge.blocked][edge.blocker]
+            local scope = only_rel == nil
+                or blocker_files[1].rel == only_rel or blocked_files[1].rel == only_rel
+            -- blocked names its blocker, but the blocker does not list it
+            if scope and not blocker_says then
+                add(blocker_files[1].rel, "does not list " .. edge.blocked
+                    .. " under Blocks, but " .. edge.blocked .. " names it as a blocker")
+            end
+            -- blocker lists it, but blocked does not name the blocker
+            if scope and not blocked_says then
+                add(blocked_files[1].rel, "does not name " .. edge.blocker
+                    .. " as a blocker, but " .. edge.blocker .. " says it blocks this")
+            end
+        end
+    end
+
+    table.sort(findings)
+    for _, line in ipairs(findings) do
+        print(line)
+    end
+
+    -- the next-free-id summary is printed for the whole-project run only
+    if not only_rel then
+        local ids = {}
+        for phase in pairs(next_ids) do
+            ids[#ids + 1] = phase
+        end
+        table.sort(ids, function(a, b)
+            return issue_names.phase_sort_key(a) < issue_names.phase_sort_key(b)
+        end)
+        local parts = {}
+        for _, phase in ipairs(ids) do
+            parts[#parts + 1] = phase .. "→" .. next_ids[phase]
+        end
+        print("")
+        print(#issues .. " issues, " .. #findings .. " findings")
+        print("next free id per phase: " .. table.concat(parts, "  "))
+    end
+    os.exit(#findings > 0 and 1 or 0)
+end
+-- }}}
+
+main()
