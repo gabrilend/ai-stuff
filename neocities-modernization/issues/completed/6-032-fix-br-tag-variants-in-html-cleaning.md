@@ -79,7 +79,7 @@ jq '.poems[2].content' input/fediverse/files/poems.json | grep -o "of.success"
 
 ## Completion Notes
 
-Fix was applied in commit `5a496512` — the pattern `<br>` was replaced with `<br%s*/?>` at line 357 of `scripts/extract-fediverse.lua`. All BR tag variants (`<br>`, `<br/>`, `<br />`) are now correctly converted to newlines before the generic tag stripper runs.
+Fix was applied in commit `7921323e` — the pattern `<br>` was replaced with `<br%s*/?>` at line 357 of `scripts/extract-fediverse.lua`. All BR tag variants (`<br>`, `<br/>`, `<br />`) are now correctly converted to newlines before the generic tag stripper runs.
 
 Issue file retroactively closed during housekeeping pass (2026-01-26).
 

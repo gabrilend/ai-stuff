@@ -47,7 +47,7 @@ is missing or points to the wrong place, the helper recreates it.
 
 ## Suggested implementation steps
 
-### First pass (completed in commit f45f587c)
+### First pass (completed in commit 8740c350)
 
 1. Created helper `scripts/ensure-tmp-symlink`. Accepts `${DIR}` as first
    argument with a hard-coded default, builds both tiers (`tmp/` ->

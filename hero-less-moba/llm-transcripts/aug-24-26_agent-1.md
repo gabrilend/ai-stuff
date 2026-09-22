@@ -1337,7 +1337,7 @@ help.
 > Audit clean and the writing is tighter. Committing to the monorepo now,
 > staging only this project:
 
-Committed as `1b0a4370` on top of the existing monorepo history, alongside its
+Committed as `a4f4cf20` on top of the existing monorepo history, alongside its
 siblings. 113 files tracked, working tree clean for this project, and the 18
 modified sibling files plus their untracked ones are exactly as I found them.
 

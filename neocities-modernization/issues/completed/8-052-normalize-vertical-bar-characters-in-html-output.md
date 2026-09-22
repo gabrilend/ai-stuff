@@ -80,7 +80,7 @@ This change applies **only to characters that appear in the HTML output** (insid
 
 2. **Replace ASCII `|` with Unicode `│`** in each location identified above. Each replacement is a simple string change — no logic modification needed.
 
-3. **Verify UTF-8 character counting**: The codebase already has `utf8_char_count()` helpers (added in commit b0a76af8) that correctly handle multi-byte box-drawing characters. Confirm that the replacement doesn't break any width calculations by checking:
+3. **Verify UTF-8 character counting**: The codebase already has `utf8_char_count()` helpers (added in commit ce38a58b) that correctly handle multi-byte box-drawing characters. Confirm that the replacement doesn't break any width calculations by checking:
    - Navigation text alignment within box structures
    - Pagination text centering
    - Any `string.rep(" ", width - #text)` padding that uses byte length instead of character length
@@ -111,7 +111,7 @@ This change applies **only to characters that appear in the HTML output** (insid
 - `src/generate-word-pages.lua` — Word page generator
 - `src/wordcloud-generator.lua` — Word cloud index generator
 - `src/centroid-html-generator.lua` — Centroid mood page generator
-- `issues/completed/8-044-golden-poem-detection-and-formatting-parity.md` — Added UTF-8 character counting (commit b0a76af8)
+- `issues/completed/8-044-golden-poem-detection-and-formatting-parity.md` — Added UTF-8 character counting (commit ce38a58b)
 - `issues/completed/8-047-implement-dark-mode-always-on.md` — HTML theme system
 
 ## Completion Notes

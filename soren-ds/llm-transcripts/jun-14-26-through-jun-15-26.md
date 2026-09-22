@@ -2073,7 +2073,7 @@ downloaded tarballs) need to stay out of the repo — both are reproduced by
 `build-deps`. Adding a project-level `.gitignore`, then committing.
 
 
-102 landed (`ca03e449`). Three commits now describing the toolchain pipeline
+102 landed (`7d3ca3b0`). Three commits now describing the toolchain pipeline
 going from sketch to verified.
 
 
@@ -2137,7 +2137,7 @@ Parent gitignore matches `build` anywhere in the tree, which catches our wrapper
 script. Re-including it explicitly.
 
 
-`4baa652e` lands. Four commits now tell the build-pipeline story from sketch to
+`b0eb95d4` lands. Four commits now tell the build-pipeline story from sketch to
 verified image.
 
 
@@ -2201,7 +2201,7 @@ BSS-zero loop (because no static state yet) → `bl kernel_main` at `0x00280050`
 → WFI fallback. `kernel_main` itself is the WFI-loop body. 88 bytes total.
 
 
-`2429f550` lands. Phase 1 has its first real bones now — entry point, stack,
+`3c30a508` lands. Phase 1 has its first real bones now — entry point, stack,
 BSS zeroed, C handoff.
 
 
@@ -2301,7 +2301,7 @@ sits on the dedicated SDHCI controller rather than SDMMC2.
 Let me stage and commit the harvest.
 
 
-`001e2185` committed. The harvest closed about half the hardware overview's
+`a9cd41ab` committed. The harvest closed about half the hardware overview's
 known unknowns in one pass — everything 106 needs to land is now concrete.
 
 
@@ -2383,7 +2383,7 @@ Got the data. Moving the codes file to `docs/` per your point —
 issue body to match and adding the entry to the table of contents.
 
 
-`ad4722c4` lands. Six phase 1 issues complete, and the kernel does something
+`2f50af54` lands. Six phase 1 issues complete, and the kernel does something
 observable for the first time — green + amber should light when our code
 reaches `kernel_main`.
 
@@ -2462,7 +2462,7 @@ exactly `0x80` apart, every entry branches to `common_panic` at `0x281000`,
 which calls into the C `panic_handler`. Let me wrap 105 up.
 
 
-`454b575b` lands. Seven phase 1 issues complete.
+`058234dd` lands. Seven phase 1 issues complete.
 
 
 **Next: issue 107 — flat memory layout.** Brief shape:
@@ -2511,7 +2511,7 @@ Comprehensive enough — let me also pull GPIO bases since those don't appear in
 the summary but we'll need them.
 
 
-`6854a526` lands. Eight phase 1 issues complete; the chip's full address space
+`d2230259` lands. Eight phase 1 issues complete; the chip's full address space
 now lives in a single documented place.
 
 
@@ -2590,7 +2590,7 @@ Image grew from 692 → 4,208 bytes with allocator + self-test wired in. All
 symbols present. Closing 108.
 
 
-`0ce8ef00` lands. Nine phase 1 issues complete. The kernel can now light its own
+`754c0e97` lands. Nine phase 1 issues complete. The kernel can now light its own
 LEDs, catch its own faults, and hand out its own memory.
 
 
@@ -3154,7 +3154,7 @@ okay that's fine, thanks. Let's just keep going. We don't have to do a refactor.
 Right, back to it. Splitting 109 first, then onto 109a.
 
 
-Split is committed (`1621a0e3`). Onto 109a — the silicon-level half.
+Split is committed (`886bc314`). Onto 109a — the silicon-level half.
 
 
 Before I start writing the bring-up code, I need the actual register addresses
@@ -3174,7 +3174,7 @@ GCTL at `0xFEC0_C110` for the soft-reset and device-mode select, DCFG at
 `0x5533`. Closing 109a.
 
 
-`9bac88d0` lands. Eleven phase 1 issues complete.
+`c0067e09` lands. Eleven phase 1 issues complete.
 
 
 **Next: 109b — USB device enumeration.** Heaviest piece by complexity even though 109a was heavier on hardware bring-up. Need:
@@ -3414,7 +3414,7 @@ buffer, event decoder, and state machine in one go.
 Build clean, image at 6448 bytes. All symbols present. Closing 109c.
 
 
-`01364f5e` committed. **Thirteen phase 1 issues complete.**
+`e73cdd40` committed. **Thirteen phase 1 issues complete.**
 
 
 Where we stand on phase 1:
@@ -3510,14 +3510,14 @@ The helpers I need to share were declared `static`. Removing that on the three
 names 011 needs.
 
 
-`4b259a96` lands. **Fourteen** phase 1 issues complete.
+`3e2ad75c` lands. **Fourteen** phase 1 issues complete.
 
 
 Next: 110a (eMMC controller driver). Looking at the issue file to remember what
 we committed to.
 
 
-`c3c7dea6` lands. **Fifteen** phase 1 issues. Onto 110b — bootable eMMC
+`3863e7cd` lands. **Fifteen** phase 1 issues. Onto 110b — bootable eMMC
 overwrite. This needs the linker to expose where the kernel image ends so I can
 size the boot.img header correctly.
 
@@ -3526,7 +3526,7 @@ Onto 110c. To keep scope honest, the MVP is "button-held-at-boot triggers eMMC
 overwrite, runtime USB-C re-flashing deferred."
 
 
-`af2a0a02` lands. **Seventeen** phase 1 issues complete. Before pushing into the
+`34a011cd` lands. **Seventeen** phase 1 issues complete. Before pushing into the
 display path, an honest situation report:
 
 
@@ -4211,7 +4211,7 @@ Let me work through all of 1-4 systematically.
 First, read what's currently in completed/110c so I rewrite the body honestly:
 
 
-`19c8a41c` committed. Honest accounting restored.
+`d6e91943` committed. Honest accounting restored.
 
 
 **State of the world now:**
@@ -4510,7 +4510,7 @@ the CDC-ACM auto-dump in `kernel_main` so the first hardware boot doesn't pull
 data to a USB-C-connected host.
 
 
-`5ecca562` committed. The plan is now honest about what it can and can't do.
+`381caef2` committed. The plan is now honest about what it can and can't do.
 
 
 **Current state of what `kernel_main` will do on first hardware boot:**
@@ -4722,7 +4722,7 @@ That `git add -A` picked up unrelated changes from sibling projects. Resetting
 and being explicit about staging only soren-ds files.
 
 
-`8b1e684f` lands. **Eighteen phase 1 issues complete, eight open.**
+`d077c2f9` lands. **Eighteen phase 1 issues complete, eight open.**
 
 
 Kernel image is 14,900 bytes now — 2 storage controllers, USB stack, CDC-ACM,
@@ -5320,7 +5320,7 @@ the debug stream work already lives). Then 310 references it specifically.
 Now let me do the paperwork in one pass.
 
 
-`e50c2c9f` committed. The threat model and the boot gap are both honest now.
+`388ab311` committed. The threat model and the boot gap are both honest now.
 
 
 **State of remaining phase 1:**
@@ -5409,7 +5409,7 @@ yeah let's do 110g.
 Build clean. Closing 110g.
 
 
-`2c734af3` and `52a78630` lands. **Nineteen phase 1 issues complete.**
+`e2d86a51` and `64a1057d` lands. **Nineteen phase 1 issues complete.**
 
 
 `kernel_main` now produces a diagnostic log on the SD card automatically as it

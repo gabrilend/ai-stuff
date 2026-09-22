@@ -21,7 +21,7 @@ by default; a reboot empties it, so run prepare again), `--projects FILE`,
 
 ## Inputs
 
-- **Join commit:** `930edf0d` "Initial commit: AI project collection", the
+- **Join commit:** `15268505` "Initial commit: AI project collection", the
   trunk's first commit. It must have no parents and be on `main`.
 - **Project sources**, one line each: `<folder> <source> <ref>`. `<source>` is a
   git bundle or a repository path, and `<ref>` is the project's last commit
@@ -30,7 +30,7 @@ by default; a reboot empties it, so run prepare again), `--projects FILE`,
     progress-ii, risc-v-university) from
     `/mnt/mtwo/programming/archives/ai-stuff/retired-project-branches.bundle`;
   - RPG-autobattler from the repository nested in its own folder, at
-    `cc62a2f0`.
+    `28a21142`.
 
   A missing source is an error, not a skip.
 - **Carried tags:** `phase12-complete-stable`, `v0.1.0-phase1` and

@@ -7091,11 +7091,11 @@ Three commits banked in sequence:
 
 ```
 
-a884d982 9-014: implement in-shader tiled candidate scan for L2 cache locality
+0805518d 9-014: implement in-shader tiled candidate scan for L2 cache locality
 
-56291c66 Add issue 10-049: replace Ollama with llama.cpp
+8eba0449 Add issue 10-049: replace Ollama with llama.cpp
 
-7052185a Checkpoint: stage-6 through stage-9 stabilization, model swap, FP16
+da20f523 Checkpoint: stage-6 through stage-9 stabilization, model swap, FP16
 diversity
 
 ```
@@ -7364,13 +7364,13 @@ but it stacks on a much faster baseline than before.
 
 ```
 
-9a913291 Switch default embedding model to nomic-embed-text:v1.5
+098880e9 Switch default embedding model to nomic-embed-text:v1.5
 
-a884d982 9-014: implement in-shader tiled candidate scan for L2 cache locality
+0805518d 9-014: implement in-shader tiled candidate scan for L2 cache locality
 
-56291c66 Add issue 10-049: replace Ollama with llama.cpp
+8eba0449 Add issue 10-049: replace Ollama with llama.cpp
 
-7052185a Checkpoint: stage-6 through stage-9 stabilization, model swap, FP16
+da20f523 Checkpoint: stage-6 through stage-9 stabilization, model swap, FP16
 diversity
 
 ```
@@ -7529,15 +7529,15 @@ Five commits banked, 9-014 fully landed.
 
 ```
 
-a1eb8c8e 9-014: finish with dispatch-per-tile + pipelining
+e38847ba 9-014: finish with dispatch-per-tile + pipelining
 
-9a913291 Switch default embedding model to nomic-embed-text:v1.5
+098880e9 Switch default embedding model to nomic-embed-text:v1.5
 
-a884d982 9-014: implement in-shader tiled candidate scan for L2 cache locality
+0805518d 9-014: implement in-shader tiled candidate scan for L2 cache locality
 
-56291c66 Add issue 10-049: replace Ollama with llama.cpp
+8eba0449 Add issue 10-049: replace Ollama with llama.cpp
 
-7052185a Checkpoint: stage-6 through stage-9 stabilization, model swap, FP16
+da20f523 Checkpoint: stage-6 through stage-9 stabilization, model swap, FP16
 diversity
 
 ```
@@ -7663,10 +7663,10 @@ clean:
 
 ```
 
-git reset --hard a884d982 # Back to in-shader tiling only (still has FP16,
+git reset --hard 0805518d # Back to in-shader tiling only (still has FP16,
 nomic, etc.)
 
-git reset --hard 9a913291 # Back even further, before any 9-014 finish
+git reset --hard 098880e9 # Back even further, before any 9-014 finish
 
 ```
 
@@ -7989,7 +7989,7 @@ raised.
 
 **Are we using llama.cpp or Ollama?**
 
-Still Ollama. The build script for llama.cpp now exists (commit `0f2f70d9`); the
+Still Ollama. The build script for llama.cpp now exists (commit `3812b8f1`); the
 actual code migration from Ollama → llama.cpp (issue 10-049) is the next major
 task and hasn't been done.
 
@@ -8026,9 +8026,9 @@ new commits checked out.
 
 ```
 
-0f2f70d9 Add scripts/build-deps.sh for the llama.cpp build
+3812b8f1 Add scripts/build-deps.sh for the llama.cpp build
 
-f7f2f691 Pipeline driver UX: signal trap, --stage flag, banner cleanup
+af4b9a40 Pipeline driver UX: signal trap, --stage flag, banner cleanup
 
 ```
 

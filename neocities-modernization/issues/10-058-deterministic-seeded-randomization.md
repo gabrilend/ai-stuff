@@ -79,7 +79,7 @@ about seeding is reproducible after the fact.
 - **Stale user-facing doc (in scope):** `src/flat-html-generator.lua` (~3228–3231)
   adds text to the explore-math HTML page claiming the diversity walk "is shuffled
   first with a Fisher–Yates pass … re-seeded from the clock on each build." That
-  described the CPU diversity engine deleted in `745ce6a9`; the GPU replacement is
+  described the CPU diversity engine deleted in `7c48268e`; the GPU replacement is
   deterministic. The page now misdescribes the algorithm to readers.
 
 ## Intended Behavior

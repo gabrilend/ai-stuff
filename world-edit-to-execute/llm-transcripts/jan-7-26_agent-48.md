@@ -104,7 +104,7 @@ documentation
 
 4. **Updated progress** - Marked 206f as completed in `issues/progress.md`
 
-5. **Committed** - `afe1c37e` with proper attribution
+5. **Committed** - `ddbc4f04` with proper attribution
 
 ## Phase 2 Status
 
@@ -316,7 +316,7 @@ status:
    - Found it was already fully implemented with 259 tests passing
    - Created the issue file with documentation
    - Updated progress.md, moved to completed
-   - Committed: `afe1c37e`
+   - Committed: `ddbc4f04`
 
 4. **Issue 206g (Finalize Module)**: User asked me to work on it.
    - Enhanced init.lua documentation
@@ -332,7 +332,7 @@ status:
      - test_spatial_integration.lua: 31 tests
      - test_data.lua: Map integration tests
    - Total 190+ assertions
-   - Verified all pass, documented, committed: `e87140ed`
+   - Verified all pass, documented, committed: `22be68fe`
 
 6. **Issue 208 (Phase 2 Integration)**: User asked me to work on it with
 parallelization.
@@ -358,7 +358,7 @@ while you're working."
      - Updated menu to show Phase 2 complete
    - Demo works in both interactive and non-interactive modes
 
-9. **Final Commit**: `d36df9bb` - All 208 sub-issues marked complete (208b and
+9. **Final Commit**: `a55d8f1a` - All 208 sub-issues marked complete (208b and
 208c were completed in parallel by someone else)
 
 Key files created/modified:
@@ -524,7 +524,7 @@ with 41 tests
    - **208d** (Phase 2 Demo Script) - Created run_phase2.sh, updated run-demo.sh
    - **208b** and **208c** were completed in parallel by another worker
 
-   Final commit: `d36df9bb` - "Issues 208a, 208d: Phase 2 integration tests and
+   Final commit: `a55d8f1a` - "Issues 208a, 208d: Phase 2 integration tests and
 demo script"
 
    Phase 2 is now **100% complete** with all integration tests passing and demo
@@ -604,7 +604,7 @@ Phase 2 cleanup complete. Here's what was done:
    - Phase 2 marked as **Completed** (30/30 issues)
    - Next steps section updated for Phase 3
 
-**Commit:** `f8147864` - Phase 2 Complete: Move root issues to completed directory
+**Commit:** `231d6b26` - Phase 2 Complete: Move root issues to completed directory
 
 **Phase 2 Stats:**
 - 30 total issues completed
@@ -1075,7 +1075,7 @@ issues/)
    - Moved all three to issues/completed/
    - Updated progress.md to show Phase 2 as complete (30/30 issues)
    - Changed current phase to Phase 3
-   - Committed: `f8147864`
+   - Committed: `231d6b26`
 
 4. **Second User Request**: "Can you work on issue 303?"
 
@@ -1111,7 +1111,7 @@ after-newline patterns for globals, endglobals, function, and endfunction.
     - Added Implementation Notes
     - Moved to issues/completed/
     - Updated progress.md (Phase 3: 1/9 issues)
-    - Committed: `40ae9f31`
+    - Committed: `c38560d8`
 
 Key files created/modified:
 - src/parsers/j.lua - New JASS script extractor
@@ -1239,7 +1239,7 @@ functionality
    - Updating the issue file with acceptance criteria and implementation notes
    - Moving issue to completed directory
    - Updating progress.md
-   - Commit `40ae9f31`: "Issue 303: Implement JASS script extractor and
+   - Commit `c38560d8`: "Issue 303: Implement JASS script extractor and
 analyzer"
 
 9. Optional Next Step:
@@ -1286,7 +1286,7 @@ issues directory and move them to the completed directory and such?"
    - All sub-issues were already completed
    - I updated acceptance criteria, added implementation notes, moved to
 completed/
-   - Committed as `f8147864`
+   - Committed as `231d6b26`
 
 3. **User's Second Request**: "Can you work on issue 303?"
    - Read issue 303-parse-war3map-j.md
@@ -1320,7 +1320,7 @@ Key files:
 - `issues/408b-unit-tests-entity-systems.md` - Created
 - Still pending: 408c, 408d, 408e
 
-The issue 303 was already committed (commit `40ae9f31`) and moved to completed/.
+The issue 303 was already committed (commit `c38560d8`) and moved to completed/.
 
 Summary:
 1. Primary Request and Intent:
@@ -1480,7 +1480,7 @@ You're right, I apologize for the confusion. Looking at the context, Issue 303
 - Created `src/tests/test_j.lua` - 64 tests passing
 - Moved issue to `issues/completed/`
 - Updated progress.md (Phase 3: 1/9)
-- Committed as `40ae9f31`
+- Committed as `c38560d8`
 
 The todo list showing 408 sub-issues was stale from a different context. Issue
 303 is done.
@@ -1499,7 +1499,7 @@ each individual sub-issue. But you can of course examine them if you'd like.
 
 ### Assistant Response 17
 
-Done. The roadmap has been updated and committed (`f02b9d0d`). Here's a summary
+Done. The roadmap has been updated and committed (`c03ded92`). Here's a summary
 of the changes:
 
 **Updated sections:**
@@ -1564,7 +1564,7 @@ Yes please! Fill out the placeholder skeleton issue files.
 
 ### Assistant Response 19
 
-Done! All three skeleton files have been filled out and committed (`c91773f7`).
+Done! All three skeleton files have been filled out and committed (`75e6fafc`).
 
 **Summary of filled-out issues:**
 

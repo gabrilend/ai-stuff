@@ -172,11 +172,11 @@ archives/2026-01-07-wow-professions/
 Commits archived from worktree `issue-702a`:
 
 ```
-fae77dfd Issue 702e: Add WoW-mode profession configuration
-2e2f0503 Issue 702b: Add gathering profession system
-ce4b01cc Issue 702c: Add crafting profession system
-8a182d55 Issue 702d: Add recipe and schematic system
-a631e288 Issue 702a: Complete profession system with registry and cooldowns
+e114c208 Issue 702e: Add WoW-mode profession configuration
+55cf3806 Issue 702b: Add gathering profession system
+1e9de22c Issue 702c: Add crafting profession system
+def2d5a2 Issue 702d: Add recipe and schematic system
+188d429d Issue 702a: Complete profession system with registry and cooldowns
 ```
 
 ---

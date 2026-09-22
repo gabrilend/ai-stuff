@@ -65,7 +65,7 @@ leftover) |
 - **10-051** — Persistent stage-timing ring buffer (the most recently *finished* work, moved to `completed/`). This is what the last several git commits are about: `run.sh` now records each pipeline stage's real wall-clock into a `.stage-timings` ring buffer and shows measured averages in the pre-flight list instead of stale hardcoded guesses.
 
 
-The latest commits (`96dc3bc2`, `5a25eea6`) are the tail end of landing 10-051.
+The latest commits (`9c907282`, `aa544a5b`) are the tail end of landing 10-051.
 
 
 ---
@@ -366,7 +366,7 @@ So I need your call on how to record these doc updates instead of amending:
 
 *Q1 — Commit strategy:* Amending the buried work-commits isn't safely possible (interactive rebase is banned, they're 7/19/28 commits deep, dirty tree). How should I record the three issue-file updates instead?
 
-- Three commits, cite work hash — One new commit per issue file, each message referencing the original work commit hash (e.g. '...follows up 58d532fc'). Closest to your 'associate with the work' intent without rewriting history.
+- Three commits, cite work hash — One new commit per issue file, each message referencing the original work commit hash (e.g. '...follows up 2a5bc9f3'). Closest to your 'associate with the work' intent without rewriting history.
 
 - One doc-reconciliation commit — A single new commit with all three issue files and a message explaining it reconciles stale status/Current-Behavior for 10-053, 10-054, 10-057.
 
@@ -382,7 +382,7 @@ One doc-reconciliation commit it is. Let me stage **only** my three issue files
 Exactly the three, nothing else. Committing:
 
 
-Committed as `dcff2f02` (docs-only, 3 files).
+Committed as `402b3f77` (docs-only, 3 files).
 
 
 The audit table now reflects reality, and the commit message records *why* this
@@ -502,8 +502,8 @@ Neocities — and fixes a specific broken `...TROUBLE-U-?...png` link on the
 similarity pages.
 
 
-This maps directly onto the recent committed thread — `75100b34` "route every
-image link through one collision-safe, relative rule", `9afbcdee` "make images
+This maps directly onto the recent committed thread — `26167aae` "route every
+image link through one collision-safe, relative rule", `6c2f58d0` "make images
 show up where they actually ship". It's the in-progress tail of the
 **standalone-image integration** work (10-042 family), almost certainly the same
 author continuing that series.
@@ -782,7 +782,7 @@ Done. Both pieces of work landed in two clean commits.
 ## What shipped
 
 
-**`dcff2f02`** — reconciled the three drifted issue files (10-053 → done, 10-054 → done, 10-057 → re-scoped), docs-only.
+**`402b3f77`** — reconciled the three drifted issue files (10-053 → done, 10-054 → done, 10-057 → re-scoped), docs-only.
 
 
 **`74c064b4`** — implemented issue 10-058, deterministic recorded seeding, across 7 files:
@@ -873,7 +873,7 @@ Let me verify the help renders correctly, then fold this into the 10-058 commit
 run.sh:
 
 
-Fixed and folded into the 10-058 commit (now `e42ac8dd`). `run.sh --help` now
+Fixed and folded into the 10-058 commit (now `1eff7af4`). `run.sh --help` now
 documents `--seed` with its precedence and the metadata record.
 
 
@@ -1120,7 +1120,7 @@ seed threaded), stage 9 dropped them and kept gallery + source-browser, help is
 updated, syntax clean. Let me mark the issue done and commit.
 
 
-Done — committed as `5c6bf5e8`.
+Done — committed as `d84d2910`.
 
 
 ## What changed
@@ -1287,7 +1287,7 @@ missing. Since it's HEAD and unpushed, I'll amend to include the progress file
 and make the message honest about everything in it:
 
 
-Clean now — `e775ef84` holds the 2 docs + 3 renames + progress update, with a
+Clean now — `f611750a` holds the 2 docs + 3 renames + progress update, with a
 message that matches. Let me do a final integrity check that none of my work is
 left dangling and only the pre-existing foreign changes remain:
 
@@ -1314,13 +1314,13 @@ strip-excluded PNG deletions, and auto-generated transcripts).
 ## Summary
 
 
-**1. Docs scrubbed** (`d6e7129a`→amended into `e775ef84`) — `data-flow-architecture.md` and `roadmap.md` no longer diagram the deleted `numeric-index.html`; I repointed them to the word-cloud menu (the real entry page + live poem index), so the diagrams describe what actually ships rather than leaving holes.
+**1. Docs scrubbed** (`d6e7129a`→amended into `f611750a`) — `data-flow-architecture.md` and `roadmap.md` no longer diagram the deleted `numeric-index.html`; I repointed them to the word-cloud menu (the real entry page + live poem index), so the diagrams describe what actually ships rather than leaving holes.
 
 
 **2. `mass-diversity-generator.lua` — it's dead code.** It generated the per-poem "different" pages back when diversity ran on the CPU (via `diversity-chaining`). Nothing in the live pipeline calls it; only its own test does. The diversity pages now come from `flat-html-generator.lua` on the GPU path. So its broken `../../index.html` links never ship — rot in a module that doesn't run. I left it in place (retiring it wants its own pass + confirming `diversity-chaining` has no other callers) — say the word and I'll scope that.
 
 
-**3. Finished issues moved + committed** (`e775ef84`) — `git mv`'d 10-053, 10-054, and 10-059 into `issues/completed/` (history preserved, R100), recorded them in `10-progress.md`, and left 10-057 (mid-rollout) and 10-058 (implemented, awaiting a real end-to-end run) in place. As you said: if we later find one wasn't actually done, we reopen it.
+**3. Finished issues moved + committed** (`f611750a`) — `git mv`'d 10-053, 10-054, and 10-059 into `issues/completed/` (history preserved, R100), recorded them in `10-progress.md`, and left 10-057 (mid-rollout) and 10-058 (implemented, awaiting a real end-to-end run) in place. As you said: if we later find one wasn't actually done, we reopen it.
 
 
 ## One cleanup I owe you a note on
@@ -1440,7 +1440,7 @@ confirm whether I caused this and what deleted it:
 
 
 Confirmed, and importantly: **this is not from my work.**
-`similarity-engine.lua` was deleted in `745ce6a9` ("make the GPU the only route
+`similarity-engine.lua` was deleted in `7c48268e` ("make the GPU the only route
 for similarity and diversity"), which predates my session — and
 `generate-embeddings.sh` still calls `require('similarity-engine')` in four
 places. The catch is that this module was *also the embedding generator*, which
@@ -1454,7 +1454,7 @@ Let me see exactly what that commit removed and how the embedding script uses
 the module, to find the right fix:
 
 
-Now the picture is complete. `745ce6a9` deleted `similarity-engine.lua` (1909
+Now the picture is complete. `7c48268e` deleted `similarity-engine.lua` (1909
 lines) and `similarity-engine-parallel.lua` (1305 lines) to kill the CPU
 similarity path — but **`similarity-engine.lua` also held the embedding
 generator** (`generate_all_embeddings`, `flush_embeddings_cache`,
@@ -1496,7 +1496,7 @@ carries the `embeddings_dir` RAM-cache routing — so stage 6 will work again.
 Let me commit this as a bugfix (staging only this file):
 
 
-Stage 6 is fixed — committed as `cc9139b2`. Let me check on that stray
+Stage 6 is fixed — committed as `f283cc5c`. Let me check on that stray
 background `find` and then verify the scrub candidates rigorously (the
 similarity-engine near-miss is a sharp reminder to check `.sh` inline-luajit
 callers, not just `require` in `.lua`):
@@ -1541,10 +1541,10 @@ unblocks you:
 ## ✅ Your regen is unblocked — re-run it
 
 The stage-6 failure was a **pre-existing regression, not from my work**: commit
-`745ce6a9` ("GPU the only route for similarity and diversity") deleted
+`7c48268e` ("GPU the only route for similarity and diversity") deleted
 `similarity-engine.lua` to remove CPU similarity — but that file was *also the
 embedding generator*, and `generate-embeddings.sh` still calls it. Your full
-regen was the first run to hit it. I restored the module (`cc9139b2`); it loads
+regen was the first run to hit it. I restored the module (`f283cc5c`); it loads
 cleanly with the RAM-cache routing intact. **Stage 6 will work now — go ahead
 and re-run.**
 
@@ -1560,7 +1560,7 @@ can make the run auto-stage them, or leave that to you.
 
 ## ✅ Dead code scrubbed (carefully)
 
-Retired `mass-diversity-generator.lua` + its test (`41d05cf3`) — confirmed
+Retired `mass-diversity-generator.lua` + its test (`57c0393e`) — confirmed
 dead (only its own test referenced it; the GPU path in `flat-html-generator.lua`
 replaced it). **Kept `diversity-chaining`** — `main.lua:895` actually calls
 it, so it's live.
@@ -2325,8 +2325,8 @@ ones, keeping all content but changing the path strategy
 
 - The work is thematically part of 10-042 family (standalone-image integration)
 
-- Transcripts reference commits `75100b34` ("route every image link through one
-collision-safe, relative rule") and `9afbcdee` ("make images show up where they
+- Transcripts reference commits `26167aae` ("route every image link through one
+collision-safe, relative rule") and `6c2f58d0` ("make images show up where they
 actually ship")
 
 
@@ -2822,7 +2822,7 @@ points to the collision-safe evolution:
 Now commit the image-path feature + the doc update (staging only those two):
 
 
-**Q2 is committed** (`4b79def1`) — the collision-safe relative image paths, plus the stale 8-048 doc updated to point at the new approach, and the unneeded 10-061 issue removed. Your regen will exercise this at stage 9 in a few minutes; if the `TROUBLE-U-?…` image renders, it's validated.
+**Q2 is committed** (`f51f1764`) — the collision-safe relative image paths, plus the stale 8-048 doc updated to point at the new approach, and the unneeded 10-061 issue removed. Your regen will exercise this at stage 9 in a few minutes; if the `TROUBLE-U-?…` image renders, it's validated.
 
 
 ## The input/ symlink — here's why I'm holding, and the plan that actually works
@@ -2956,7 +2956,7 @@ image-path commit caused this or whether it's missing data from the partial run
 from my commit, and whether the data actually exists on disk:
 
 
-Two crucial facts: the error check is from `e9a3217f` (**not my commit**), and
+Two crucial facts: the error check is from `b33b46aa` (**not my commit**), and
 the path it claims is missing — `input/media_attachments/files` — **actually
 exists on disk** (modified 11:26, has subdirs). So the resolution logic is
 rejecting a path that's present. Let me read how it resolves the path and
@@ -2964,14 +2964,14 @@ whether my commit touched that logic:
 
 
 My commit did **not** touch this — `git -L` shows the resolution logic
-(380–402) and the mandatory-source error are from `e9a3217f` and an earlier
-checkpoint, not `4b79def1`. My change was only the copy loop (`media_href`). And
+(380–402) and the mandatory-source error are from `b33b46aa` and an earlier
+checkpoint, not `f51f1764`. My change was only the copy loop (`media_href`). And
 `io.open` on that directory passes in this luajit. So the failure is in
 pre-existing resolution logic for the `fediverse-media` source specifically. Let
 me reproduce exactly what path it resolves:
 
 
-**Found the bug — and it's not from my commit.** `sources-loader` returns `dir.path` as an **already-absolute** path (`/mnt/.../input/media_attachments/files`), but `flatten_media_files` does `internal_path = DIR .. "/" .. dir.path` — prepending the project root **again**. That produces a doubled path (`/mnt/.../neocities-modernization//mnt/.../input/...`) that doesn't exist, so *every* image source resolves to "missing" — and `e9a3217f`'s mandatory-source check turns the first miss into a fatal error. My image-path change is in the copy loop *downstream* of this; it never even runs.
+**Found the bug — and it's not from my commit.** `sources-loader` returns `dir.path` as an **already-absolute** path (`/mnt/.../input/media_attachments/files`), but `flatten_media_files` does `internal_path = DIR .. "/" .. dir.path` — prepending the project root **again**. That produces a doubled path (`/mnt/.../neocities-modernization//mnt/.../input/...`) that doesn't exist, so *every* image source resolves to "missing" — and `b33b46aa`'s mandatory-source check turns the first miss into a fatal error. My image-path change is in the copy loop *downstream* of this; it never even runs.
 
 
 Let me confirm the fix direction by checking how the catalog stage (which
@@ -2983,7 +2983,7 @@ Root cause confirmed and it's a clean diagnosis: `sources-loader`'s
 working catalog stage (`image-manager`) uses them directly via `test -d`. But
 `flatten_media_files` prepends `DIR` again → doubled path → all sources
 "missing" → fatal. **Not my commit** (that line is from
-`7052185a`/`e9a3217f`).
+`da20f523`/`b33b46aa`).
 
 
 But there's a related second instance: my committed copy-loop also assumes
@@ -3005,7 +3005,7 @@ basename-flatten (Mastodon hashes), exactly matching `media_href` in the
 renderers. Committing the bugfix:
 
 
-Fixed and committed (`68787016`). Here's the situation and how to resume without
+Fixed and committed (`cd74d663`). Here's the situation and how to resume without
 paying for the expensive stages again.
 
 
@@ -3013,7 +3013,7 @@ paying for the expensive stages again.
 
 - **Root cause:** `sources-loader` returns **absolute** paths; `flatten_media_files` prepended the project root **again** → `/root//root/…` → every source "missing" → the mandatory-source check made it fatal.
 
-- **Not my image-path commit.** `git -L` shows that resolution line is from `7052185a`/`e9a3217f`, not `4b79def1`. My change is in the copy loop *downstream* — it never ran because resolution failed first. (I did fix a *matching* absolute-vs-relative assumption in that copy loop too, so it's consistent now.)
+- **Not my image-path commit.** `git -L` shows that resolution line is from `da20f523`/`b33b46aa`, not `f51f1764`. My change is in the copy loop *downstream* — it never ran because resolution failed first. (I did fix a *matching* absolute-vs-relative assumption in that copy loop too, so it's consistent now.)
 
 - **Verified:** all 6 sources now resolve; art namespaces correctly (`my-art`, …), `fediverse-media` flattens to basename — matching `media_href` in the renderers.
 
@@ -3045,7 +3045,7 @@ This bug had been *hiding behind a fallback*. The double-prepend almost
 certainly never worked — but the old code only `log_warn`'d and skipped a
 missing source, so the build limped on (images shipped via the old
 `../../input/...` direct references instead of `output/media/`). Two recent
-changes collided to expose it: `e9a3217f` turned the warn-skip into a hard error
+changes collided to expose it: `b33b46aa` turned the warn-skip into a hard error
 (your own "warnings are errors" principle, correctly applied), and the new
 `media_href` feature made `output/media/` actually load-bearing. A latent bug
 under a fallback stays invisible until something downstream finally *depends* on
@@ -3318,7 +3318,7 @@ All done and committed. Summary of everything in this batch:
 | **Stale orphans** (you're uploading) | ✅ Cleaned now — removed the 134
 broken pages; **0 broken links remain** in the postable site. Safe to upload. |
 
-| **Per-stage wipe** (prevent recurrence) | ✅ `91495c18` — stage 10 now
+| **Per-stage wipe** (prevent recurrence) | ✅ `008b911f` — stage 10 now
 wipes `output/wordcloud/` before rebuilding, every run. Matches your "each stage
 clears its own subdir" principle. |
 
@@ -3326,9 +3326,9 @@ clears its own subdir" principle. |
 llm-transcripts, validation_reports, additional-html-files-for-site,
 assets/output/tmp). |
 
-| **Include archives** | ✅ `cdd99de6` — added `archive/` to the allowlist. |
+| **Include archives** | ✅ `bc7b16d1` — added `archive/` to the allowlist. |
 
-| **Chrono image viewer** (reverse + 10 pages + jump bar) | ✅ `40149712` —
+| **Chrono image viewer** (reverse + 10 pages + jump bar) | ✅ `2f4a84b1` —
 issue **10-062** written, deferred per your call. |
 
 
@@ -3441,7 +3441,7 @@ All correct — archive HTML → viewable, other HTML (e.g. `docs/HTML/`) still
 renders as code (properly scoped). Let me mark the issue and commit:
 
 
-Done — committed `e8abfec3`.
+Done — committed `6b320bbf`.
 
 
 ## What this does
@@ -4018,7 +4018,7 @@ All working: `--help` prints full usage, bad flags error cleanly, syntax clean.
 Committing the script (scripting work needs no issue file per your conventions):
 
 
-Done — committed as `93b31529`. The script is complete and validated.
+Done — committed as `721963a1`. The script is complete and validated.
 
 
 ## `scripts/deploy-to-neocities` — ready
@@ -4131,7 +4131,7 @@ script (auto-detecting buckets from the staged tree, TTY-gated):
 Let me note the progress bars in `--help`, then syntax-check and commit:
 
 
-Done — committed `9cb3f98a`. Two files: the viewer
+Done — committed `4dd9568f`. Two files: the viewer
 (`scripts/neocities-push-progress.lua`) and the deploy-script integration.
 
 

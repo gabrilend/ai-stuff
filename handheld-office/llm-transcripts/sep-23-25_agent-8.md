@@ -206,7 +206,7 @@ in CLAUDE.md:
 ## **2. Commit Details**
 - **Branch**: `main` (ahead of origin by 1 commit)
 - **Files changed**: 30 files, 736 insertions, 171 deletions
-- **Commit hash**: `d757cfd`
+- **Commit hash**: `be53baf`
 
 ## **3. Changes Included**
 - **New comprehensive documentation**: `docs/data-flow-architecture.md` 
@@ -562,7 +562,7 @@ The commit included:
 
    Final commit message: "Local Script Integration: Add self-contained backup
 and fuzzy-computing modules"
-   Commit hash: 19b931a
+   Commit hash: eb5d8f5
 
 9. Optional Next Step:
    No specific next step required - the user's requests have been fully
@@ -586,7 +586,7 @@ project now has a fully self-contained script ecosystem with:
 ✅ **Updated documentation** - CLAUDE.md files now reference local scripts
 ✅ **Portable architecture** - Dynamic path resolution replaces hardcoded paths
 
-Commit `19b931a` contains 117 files with 23,021 insertions, making the project
+Commit `eb5d8f5` contains 117 files with 23,021 insertions, making the project
 completely independent of external script dependencies. The fuzzy-computing
 integration includes the full Lua ecosystem with dkjson, socket libraries, and
 intelligent LLM-based filename generation.
@@ -647,7 +647,7 @@ tracking is working correctly now.
 ## ✅ **File Movement Correction Complete**
 
 You were absolutely right - the files `game-list` and `wow-chat-lore` were moved
-to `/notes/games/`, not deleted. The git commit `7b5e272` now properly reflects
+to `/notes/games/`, not deleted. The git commit `eb641d1` now properly reflects
 this organization:
 
 - **Files correctly moved**: `notes/game-list` → `notes/games/game-list`

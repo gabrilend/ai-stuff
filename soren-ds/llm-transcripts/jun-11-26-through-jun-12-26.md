@@ -645,7 +645,7 @@ Let me check `.claude/` since it was in the listing but didn't end up staged.
 `.claude/` is being handled by the parent's ignore rules. Committing now.
 
 
-Commit `2a705248` landed — 32 files staged, nothing from the other projects
+Commit `d4d8b2b7` landed — 32 files staged, nothing from the other projects
 touched.
 
 
@@ -1147,7 +1147,7 @@ Two leftover mismatches.
 Committing the docs sweep.
 
 
-Committed (`06a6c9d5`). Now starting phase 2 issues — worker pool, task
+Committed (`fa15bef6`). Now starting phase 2 issues — worker pool, task
 struct, queue, gathering primitive, slot store, descriptor table, scheduling
 loop, idle/wake, and the torture-test demo.
 
@@ -1202,7 +1202,7 @@ let's keep going.
 You're right. Let me commit phase 2 and keep moving.
 
 
-Phase 2 committed (`602b187c`). On to phase 3 — the soramech runtime.
+Phase 2 committed (`7e580d28`). On to phase 3 — the soramech runtime.
 
 
 Phase 3 done. Now phase 4 — SD card, FAT, the six filesystem boxes, the

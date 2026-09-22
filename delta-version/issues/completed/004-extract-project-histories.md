@@ -3,11 +3,11 @@
 ## Current Behavior
 
 Multiple projects contain their own git repositories with valuable commit history:
-- **adroit/**: Character system project with 1 commit (d0a0ec8)
-- **progress-ii/**: Terminal game with 2 commits (c121808, b5f489d)
+- **adroit/**: Character system project with 1 commit (73a769b)
+- **progress-ii/**: Terminal game with 2 commits (5597bc3, 341e83c)
 - **progress-ii/game-state/**: Nested game state repository with 1 commit (bf1b4ea)
 - **risc-v-university/**: Educational project with 5+ commits, active development
-- **magic-rumble/**: Game project with 1 commit (89ee180)
+- **magic-rumble/**: Game project with 1 commit (99d1e31)
 - **handheld-office/**: Office application with 4+ commits, active development
 
 These histories are currently isolated and will be lost if projects are simply added to the main repository as untracked files.

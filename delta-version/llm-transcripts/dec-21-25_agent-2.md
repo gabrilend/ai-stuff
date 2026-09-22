@@ -133,7 +133,7 @@ A concise onboarding guide (~100 lines) that covers:
 - **Structure pattern:** The guide follows a natural progression: clone → explore → understand → work. This mirrors how developers actually approach unfamiliar codebases.
 `─────────────────────────────────────────────────`
 
-**Commit:** `62b7b3f1` - Add QUICK-START.md onboarding guide
+**Commit:** `6afa3820` - Add QUICK-START.md onboarding guide
 
 **Issue 008 status:** Still partially complete - remaining items are:
 - README.md for delta-version
@@ -173,7 +173,7 @@ A concise project overview (~90 lines) featuring:
 - **Script table pattern:** Listing all scripts in a table is a simple but powerful pattern - it saves users from running `ls scripts/` and reading each file's header to understand what's available.
 `─────────────────────────────────────────────────`
 
-**Commit:** `8b80c2d6` - Add README.md project overview
+**Commit:** `eeecf7b3` - Add README.md project overview
 
 ---
 
@@ -500,7 +500,7 @@ staff and this coast.
 
 ## Phase 1: Unblock the File Server ✅
 
-**Commit:** `39570f57` - Issue 007: Convert project-file-server to pure HTML
+**Commit:** `e9a49019` - Issue 007: Convert project-file-server to pure HTML
 
 | Metric | Before | After |
 |--------|--------|-------|

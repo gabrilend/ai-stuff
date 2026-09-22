@@ -2503,7 +2503,7 @@ deciding local model vs hosted API
 > Reorganization deferred, then. Let me record the demo rule and the deferral so
 > neither gets lost.
 
-Committed as `a856b922` — 18 files, 1,308 lines added.
+Committed as `b64c98a0` — 18 files, 1,308 lines added.
 
 **What I left out of the commit:** `llm-transcripts/` is untracked in this
 project and it isn't mine — it was already there when this session started.

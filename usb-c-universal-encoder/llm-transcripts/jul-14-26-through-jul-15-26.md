@@ -162,7 +162,7 @@ hi can you make this for me
 > so the parent repo's unrelated staged work stays exactly as it was.
 
 Done for this pass, and it's real: `luajit tests/00-ram-arena-test.lua` →
-**15/15 checks pass**, committed as its own scoped commit (`769d3f5a`, 19 files)
+**15/15 checks pass**, committed as its own scoped commit (`7c0c81fb`, 19 files)
 that left the parent repo's other staged work untouched.
 
 ## What "this" turned out to be
@@ -358,7 +358,7 @@ operators. plug it in, and it installs itself easily. then it just works.
 > leave them untouched, and commit only my work. Flagging them so you can decide
 > what they are.
 
-Both done, committed as `b12e889d` (15 files, only mine).
+Both done, committed as `fa65302e` (15 files, only mine).
 
 ## Built: the self-installing cable (issue 71, Phase 7) — tested, passing
 The cable now bears its own software. Three pieces, in `delivery/`:

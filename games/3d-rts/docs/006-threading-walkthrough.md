@@ -241,7 +241,7 @@ problem when the OS preempts a worker mid-action; the fix is to
 make the pool *frame-locked* rather than free-running.
 
 This is the part where the original walkthrough (commit
-`b2207e86`, drafted from issue 102 alone) got most things wrong.
+`495a4f6e`, drafted from issue 102 alone) got most things wrong.
 The pool isn't coroutines, the sim isn't fully serial, and the
 adopted parallel pattern isn't slice-by-tenths.
 

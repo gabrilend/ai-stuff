@@ -1073,7 +1073,7 @@ else sneaks in.
 Staging is clean. Committing just those four.
 
 
-Committed as `4e7bfe39` — only my 4 doc files; the other 47 changes in the
+Committed as `e768b5b7` — only my 4 doc files; the other 47 changes in the
 tree are untouched. Now the patch file for my committed work.
 
 
@@ -2765,7 +2765,7 @@ uncommitted fixes to `012`/`013`/`015` are sitting right where his commit would
 have touched.
 
 
-Hold on — the new commit isn't the SD/DMA guy's. It's `fcc4570b led: drive the
+Hold on — the new commit isn't the SD/DMA guy's. It's `8c2b344a led: drive the
 indicator lights over PWM` — that's the **PWM/LED (106c)** work, a different
 person. And my SD/DMA edits (`012`/`013`/`015`/`dump-from-sd`) are all still
 sitting uncommitted. So either your memory guy committed to a different branch,
@@ -2777,7 +2777,7 @@ Good thing I checked — this is the "verify, don't trust a distracted guy"
 lesson in the flesh:
 
 
-**There is no SD/DMA commit.** The commit that landed (`fcc4570b`) is the
+**There is no SD/DMA commit.** The commit that landed (`8c2b344a`) is the
 **PWM/LED person's** 106c work (`003-pwm.c`, `004-led.c`, the LED doc, 106c).
 HEAD's `012`/`015` contain **zero** DMA functions — `sd_write_blocks_dma` and
 `emmc_read_blocks_dma` aren't there. The *entire* DMA feature (710 lines now,
@@ -2954,10 +2954,10 @@ branches, any remote, and whether my working-tree work is still intact.
 The plot thickens — he pushed for real this time. Two new commits are now on
 `master`:
 
-- **`4f56ec32 storage: move transfers by DMA, and bring up the fast microSD
+- **`c13aff37 storage: move transfers by DMA, and bring up the fast microSD
   write path`** ← the SD/DMA guy's actual work
 
-- `40451302 probes: a callable, self-clearing run_probes()` ← the probe person
+- `a3223844 probes: a callable, self-clearing run_probes()` ← the probe person
   (110n)
 
 
@@ -2968,14 +2968,14 @@ before anything else.
 
 
 This is a relief, not a disaster — let me confirm it precisely. Only
-`013-boot-image.c` differs from HEAD. That means his commit `4f56ec32` **matches
+`013-boot-image.c` differs from HEAD. That means his commit `c13aff37` **matches
 my working-tree versions of `012`/`015`/`dump-from-sd`/`reconstruct-emmc`/`110m`
 byte-for-byte** — i.e., it *absorbed* my SD/DMA fixes rather than clobbering
 them. Let me verify my actual fixes are in HEAD and see what's left.
 
 
 Verified — and you can exhale. **He didn't clobber anything; he accidentally
-committed your work *for* you.** His commit `4f56ec32` is byte-for-byte
+committed your work *for* you.** His commit `c13aff37` is byte-for-byte
 identical to my working-tree versions of
 `012`/`015`/`dump-from-sd`/`reconstruct-emmc`/`110m` (the diff against HEAD is
 *zero* for all of them), which means it swept my SD/DMA fixes in along with the
@@ -3225,15 +3225,15 @@ and quiet: build first, stage *only* `013`, and abort if anything unexpected is
 staged.
 
 
-Done — committed as **`463e849c`**, and it went in clean:
+Done — committed as **`2d8fb2cb`**, and it went in clean:
 
 - **Build gate passed** — compiles and links against the new HEAD.
 
 - **Staged exactly one file** (`013`), nothing else swept in.
 
 - `013` is now clean; **every piece of my work this session is committed** (the
-  DMA fixes rode in on `4f56ec32`, the docs on `4e7bfe39`, this boot-LBA fix on
-  `463e849c`). Nothing of mine left dangling in the tree.
+  DMA fixes rode in on `c13aff37`, the docs on `e768b5b7`, this boot-LBA fix on
+  `2d8fb2cb`). Nothing of mine left dangling in the tree.
 
 
 On the "does the BootROM prefer SD over a *corrupt* eMMC?" assumption — I

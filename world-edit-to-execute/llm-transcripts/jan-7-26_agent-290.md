@@ -88,7 +88,7 @@ Created `src/tests/test_309a_trigger_files.lua` with **74 tests** covering:
 
 **Key finding:** All 16 test maps are "protected" (trigger files removed by map protection), so synthetic data tests provide the primary validation coverage.
 
-**Commit:** `1caf6687` - Issue 309a: Add trigger file parsing integration tests
+**Commit:** `09fbc041` - Issue 309a: Add trigger file parsing integration tests
 
 Would you like me to continue with another issue from Phase 3 or Phase 4?
 
@@ -219,7 +219,7 @@ helpers |
 - State queries (is_moving, get_target, get_effective_speed)
 - Speed modifier with clamping (10%-400%)
 
-**Commit:** `93c872ee` - Issue 404a: Implement core movement system
+**Commit:** `dd9f325a` - Issue 404a: Implement core movement system
 
 ---
 
@@ -349,7 +349,7 @@ parsing) to complete Phase 3 integration tests.
 is_initialized=false)
    - Fixed field name mismatch: `var.var_type` should be `var.type`
    - All 74 tests passed
-   - Committed as `1caf6687`
+   - Committed as `09fbc041`
 
 5. **User asked for critical path**: I showed Phase 3 and Phase 4 remaining
 issues.
@@ -363,7 +363,7 @@ follow your instincts."
    - Had to handle potential duplicate movement component registration from
 wc3_components.lua
    - 90 tests passed
-   - Committed as `93c872ee`
+   - Committed as `dd9f325a`
 
 7. **User requested integration test**: "Can you write the integration test?
 it'll be useful to know what kinds of information we'll be comparing to. might
@@ -562,7 +562,7 @@ test_movement_path.lua: 49 passed
 Total: 139 movement tests passing
 ```
 
-Committed as `9e67cd63`.
+Committed as `f28cc8c6`.
 
 **Remaining 404 sub-issues:**
 - 404c: Movement orders (order_move, order_stop, order_patrol)
@@ -673,7 +673,7 @@ great! Can you work on 408?
 | Metric | Value |
 |--------|-------|
 | Tests | **51 passed**, 0 failed |
-| Commit | `f45f0a81` |
+| Commit | `ff7994b6` |
 
 ## What Was Fixed
 
@@ -763,7 +763,7 @@ things should be built designed!
 
 ### Assistant Response 11
 
-**Phase 5 issue files created!** Committed as `b12f8ba4`.
+**Phase 5 issue files created!** Committed as `cf733fbf`.
 
 ## Phase 5: Rendering - Visual Abstraction
 
@@ -832,7 +832,7 @@ at it, so wecan use them to design the consideration matching.
 
 ### Assistant Response 12
 
-**Created!** Committed as `851ac700`.
+**Created!** Committed as `49edf7a3`.
 
 ## Two Documents Created
 
@@ -931,7 +931,7 @@ Lua)
    - Created test_movement_path.lua with 49 tests
    - Fixed a test that expected wrong time due to MAX speed cap
    - All 139 movement tests passed (90 core + 49 path)
-   - Committed as 9e67cd63
+   - Committed as f28cc8c6
 
 3. **Critical Path Request**: User asked for critical path analysis. I showed
 Phase 4 remaining issues (404c, 404d, 405d, 408).
@@ -946,27 +946,27 @@ Phase 4 remaining issues (404c, 404d, 405d, 408).
    - Updated movement simulation to use ECS-based movement
    - Created debug_victory.lua for troubleshooting
    - All 51 tests passed
-   - Committed as f45f0a81
+   - Committed as ff7994b6
 
 5. **404c Check**: User asked about 404c:
    - Found it was already implemented in src/runtime/orders/init.lua
    - Updated integration test to recognize orders module
    - Tests went from 51 to 55 (added 4 orders tests)
    - Gap analysis now shows "None - all integration requirements met!"
-   - Committed as 2b9a330a
+   - Committed as b6222aba
 
 6. **Phase 5 Issue Creation**: User asked to create Phase 5 issue files:
    - User guidance: "if you think you should make two of an issue file... mark
 it as a requirement for finishing the ticket"
    - Created 7 issue files (501-507) for Rendering phase
    - Updated progress.md with Phase 5 section
-   - Committed as b12f8ba4
+   - Committed as cf733fbf
 
 7. **Dual Interface Considerations**: User asked for consideration document for
 both Warcraft and WoW-chat style interfaces:
    - Created issues/500-dual-interface-rendering-considerations.md
    - Created notes/consideration-matching.md (methodology)
-   - Committed as 851ac700
+   - Committed as 49edf7a3
 
 Key user feedback:
 - "assume all tests pass. simply look for presence"
@@ -1146,7 +1146,7 @@ matching for a specific issue but as a question, not a request
    Just completed creating dual-interface consideration documents:
    - issues/500-dual-interface-rendering-considerations.md
    - notes/consideration-matching.md
-   Committed as 851ac700
+   Committed as 49edf7a3
 
    The last exchange was:
    - User: "we're going to need to be rendering in both a warcraft and wow-chat
@@ -1250,7 +1250,7 @@ Can you use the issue-splitter.sh command for me?
 
 ### Assistant Response 18
 
-Done. Committed as `17db128c` with 42 files changed (1822 insertions).
+Done. Committed as `f7cbdcb0` with 42 files changed (1822 insertions).
 
 ## Summary
 

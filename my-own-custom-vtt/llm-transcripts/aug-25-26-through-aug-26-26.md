@@ -662,7 +662,7 @@ during live play as they encounter them.
 
 > Clean — 40 files, all mine, and the RAM-tier symlink correctly ignored.
 
-> Committed cleanly — and worth noting, another commit (`1a552201`) landed in
+> Committed cleanly — and worth noting, another commit (`2d8c6147`) landed in
 > this repo while I was working, so somebody else is active here. Staging only
 > my own directory kept us out of each other's way; all 122 of their modified
 > files are untouched.
@@ -1745,7 +1745,7 @@ Summary:
      `sprite_to_svg`, `sprite_from_svg` (deliberately independent reader), and
      `sprite_machine_tier` documented as a heuristic
 
-   Prior to that I had committed phase 8 (`d19fd153`), which included the freeze
+   Prior to that I had committed phase 8 (`57276dc3`), which included the freeze
    fix. The build was green with 11,710 checks passing.
 
 9. **Optional Next Step:**

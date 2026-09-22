@@ -62,7 +62,7 @@ QUOTES_LIB="${SCRIPT_HOME}/libs/commit-id-quotes.lua"
 WORK="/tmp/ai-stuff-history-graft"
 
 # The snapshot commit the histories join at: the monorepo's first commit.
-JOIN_COMMIT="930edf0d635b5a93f54be20e75439c41f1270ff5"
+JOIN_COMMIT="1526850559c86fa24be8c927d13992b1b792669d"
 
 # Release and backup tags on the trunk, moved to their rebuilt twins.
 CARRY_TAGS="phase12-complete-stable v0.1.0-phase1 backup/before-history-fix"
@@ -88,7 +88,7 @@ handheld-office /mnt/mtwo/programming/archives/ai-stuff/retired-project-branches
 magic-rumble /mnt/mtwo/programming/archives/ai-stuff/retired-project-branches.bundle refs/remotes/origin/magic-rumble
 progress-ii /mnt/mtwo/programming/archives/ai-stuff/retired-project-branches.bundle refs/remotes/origin/progress-ii
 risc-v-university /mnt/mtwo/programming/archives/ai-stuff/retired-project-branches.bundle refs/remotes/origin/risc-v-university
-RPG-autobattler /mnt/mtwo/programming/ai-stuff/RPG-autobattler cc62a2f069101a0d1e78c7bccbf1e9c783d25274"
+RPG-autobattler /mnt/mtwo/programming/ai-stuff/RPG-autobattler 28a21142250c3870cbe5da8c0eab932d9d95ea17"
 # }}}
 
 # {{{ say
