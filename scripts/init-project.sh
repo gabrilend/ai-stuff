@@ -105,7 +105,7 @@ UNSAVED_WORK=""
 # an execution environment rather than a maturity level: work done inside it is
 # ordinary work, and it belongs on the branch it would have belonged on anyway.
 # Branch when you actually want to experiment, the same as you would outside.
-SANDBOX_BRANCH="master"
+SANDBOX_BRANCH="main"
 declare -a WRITABLE_PATHS=()
 declare -a IGNORED_PATHS=()
 
@@ -853,7 +853,7 @@ ${UNSAVED_WORK}
         git -C "${SANDBOX_PATH}" checkout --quiet "${SANDBOX_BRANCH}"
     else
         git -C "${SANDBOX_PATH}" checkout --quiet -b "${SANDBOX_BRANCH}" \
-            "refs/remotes/origin/master"
+            "refs/remotes/origin/main"
     fi
 
     # The ignored paths are excluded because they get bound in at launch rather

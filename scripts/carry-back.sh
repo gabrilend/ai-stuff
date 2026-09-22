@@ -183,7 +183,7 @@ pending_commits() {
     # makes a one-line revision walk sufficient to answer the question.
     local real_head
     real_head=$(git -C "${DIR}" rev-parse --verify --quiet "${SANDBOX_BRANCH}" \
-        || git -C "${DIR}" rev-parse --verify --quiet master)
+        || git -C "${DIR}" rev-parse --verify --quiet main)
 
     git -C "${SANDBOX_PATH}" log --oneline "${real_head}..HEAD" 2>/dev/null
 }
