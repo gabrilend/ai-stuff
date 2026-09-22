@@ -1,6 +1,8 @@
 # issue-splitter.sh
 
-Iterates through issue files and uses Claude Code to suggest sub-issue splits. Responses are appended to each issue file as a "Sub-Issue Analysis" section, and optionally creates sub-issue files from the recommendations.
+Iterates through issue files and uses Claude Code to suggest sub-issue splits. Each response is kept beside its issue in `issues/analysis/<issue>-split-analysis.md` -- never inside the issue, which stays a blueprint -- and the recommendations can then be turned into sub-issue files. The parent issue gains only a "Generated Sub-Issues" list naming the files that were created.
+
+The project must be named (first argument or `--dir`); there is no default project. The same splitting rubric is carried by the issue-lifecycle skill, for splitting an issue inside a Claude Code session without this script.
 
 ## Use Cases
 
@@ -8,58 +10,58 @@ Iterates through issue files and uses Claude Code to suggest sub-issue splits. R
 When an issue is too complex for a single implementation pass, use the splitter to get Claude's recommendations on how to break it into smaller, manageable sub-issues.
 
 ```bash
-./issue-splitter.sh --dir /path/to/project
+./issue-splitter.sh /path/to/project
 ```
 
 ### Interactive Mode with TUI
 Launch the full TUI interface to configure options, select specific issues, and preview the command before execution.
 
 ```bash
-./issue-splitter.sh -I
+./issue-splitter.sh /path/to/project -I
 ```
 
 ### Batch Processing with Parallel Execution
 Process many issues simultaneously using parallel Claude calls with streaming output.
 
 ```bash
-./issue-splitter.sh --stream --parallel 5
+./issue-splitter.sh /path/to/project --stream --parallel 5
 ```
 
 ### Creating Sub-Issue Files from Recommendations
 After analysis, execute recommendations to create skeleton sub-issue files.
 
 ```bash
-./issue-splitter.sh -x                    # With confirmation prompts
-./issue-splitter.sh -X                    # Without confirmation (auto-execute all)
-./issue-splitter.sh -x -G                 # Generate complete files via Claude
+./issue-splitter.sh /path/to/project -x       # With confirmation prompts
+./issue-splitter.sh /path/to/project -X       # Without confirmation (auto-execute all)
+./issue-splitter.sh /path/to/project -x -G    # Generate complete files via Claude
 ```
 
 ### Interactive Feedback Loop
 Have a back-and-forth conversation with Claude to refine the analysis.
 
 ```bash
-./issue-splitter.sh -F --max-rounds 5
+./issue-splitter.sh /path/to/project -F --max-rounds 5
 ```
 
 ### Reviewing Existing Structure
 Review root issues that already have sub-issues for further splitting opportunities.
 
 ```bash
-./issue-splitter.sh -r
+./issue-splitter.sh /path/to/project -r
 ```
 
-### Clearing Old Analysis
-Remove analysis sections to re-run fresh analysis.
+### Moving Old Analysis Out of Issue Files
+Issues analysed by earlier versions carry their analysis inside the issue. `-C` moves those sections into `issues/analysis/` and leaves the issue holding only its own sections (the "Generated Sub-Issues" list stays). Until then they are still read, with a warning naming the file.
 
 ```bash
-./issue-splitter.sh -C
+./issue-splitter.sh /path/to/project -C
 ```
 
 ## Configuration Options
 
 | Option | Description |
 |--------|-------------|
-| `-d, --dir <path>` | Project directory containing `issues/` folder |
+| `-d, --dir <path>` | Project directory containing `issues/` folder (required, or give it as the first argument) |
 | `-p, --pattern <glob>` | Issue file pattern (default: `[0-9]*.md`) |
 | `-s, --skip-existing` | Skip issues that already have analysis sections |
 | `-r, --review-only` | Only review roots with existing sub-issues |
@@ -69,8 +71,8 @@ Remove analysis sections to re-run fresh analysis.
 | `-x, --execute` | Create sub-issue files from recommendations |
 | `-G, --generate-complete` | Use Claude to write full issue content (not skeletons) |
 | `-X, --execute-all` | Execute without confirmation prompts |
-| `-A, --auto-implement` | Invoke Claude CLI to implement issues |
-| `-C, --clear` | Remove analysis sections (no Claude) |
+| `-A, --auto-implement` | Open an interactive Claude Code session to implement each issue, under your normal permission settings |
+| `-C, --clear` | Move old in-issue analysis sections into `issues/analysis/` (no Claude) |
 | `-F, --feedback` | Interactive Q&A feedback loop |
 | `-S, --session` | Reuse Claude context across issues |
 | `-E, --expert` | Fresh context per issue (default) |
