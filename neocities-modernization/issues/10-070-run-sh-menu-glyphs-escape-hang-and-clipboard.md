@@ -88,6 +88,20 @@ use the same library, so fixes 2 and 3 land in the library and help them too.
    (`menu.nav_up` / `menu.nav_down` in `menu.lua`) keeps stepping past items
    disabled by such a rule, and returns to where it started if that runs off
    the end. `run.sh` marks its ten per-stage force rules `"skip"`.
+8. **L/H on a radio list with nothing chosen.** Owner (2026-09-23): "if the
+   user is on the embedding model or inference server sections (with the
+   radio buttons) and they, for example, select the 4th item in the list and
+   push L, the expected behavior is that the fourth item will be selected
+   ... the current behavior is that the 2nd entry in the list is selected
+   ... H should be a non-op on an empty list, and L should enable. This is
+   just for radio buttons. Once an entry is selected, the current behavior of
+   scrolling up/down within the list is desired." Cause: `cycle_radio_next`
+   and `cycle_radio_prev` in `menu.lua` treated "nothing chosen" as "the
+   first entry is chosen" and stepped from there, so L always chose the
+   second entry and H the last. Now, with nothing chosen, L chooses the entry
+   under the cursor (nothing if the cursor is on a disabled or non-radio
+   line) and H does nothing; once something is chosen, both step through the
+   list as before. Checkbox lists are unchanged.
 - Test: `scripts/libs/test-menu-screen.sh` drives a four-item stand-in menu
   in a pretend terminal (`script`, sized with `stty`), replays the recording
   with `scripts/libs/test-menu-screen-replay.lua`, and checks the highlighted
@@ -96,7 +110,10 @@ use the same library, so fixes 2 and 3 land in the library and help them too.
   option still draws its box characters (4 checks). With the previous
   `tui.lua` the cut-character check fails. The same check against `run.sh`'s
   real menu: with force-all on, `j` `j` went Force ALL -> 1. Update Words ->
-  2. Extract.
+  2. Extract. It also drives a four-entry radio list with nothing chosen:
+  `l` on the fourth entry chooses it, `h` chooses nothing, and once an entry
+  is chosen `l` steps to the next (7 checks; the two empty-list checks fail
+  on the previous `menu.lua`, reproducing "the 2nd entry is selected").
 - Test: `scripts/libs/test-menu-clipboard.sh` -- a stand-in for the menu
   copies and exits, read through `$(…)` as `lua-menu.sh` does; it must return
   within two seconds and both selections must hold the text. Passes (45 ms);

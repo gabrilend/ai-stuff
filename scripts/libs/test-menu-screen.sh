@@ -49,16 +49,35 @@ EOF
 chmod +x "$WORK/menu.sh"
 # }}}
 
+# A radio list (one choice) with nothing chosen, like run.sh's embedding
+# model and inference server lists.
+cat > "$WORK/radio.sh" <<EOF
+#!/usr/bin/env bash
+LIBS_DIR="$LIBS_DIR"
+source "\$LIBS_DIR/lua-menu.sh"
+menu_init
+menu_set_title "Radio test" "keys are typed by the test"
+menu_add_section "model" "single" "Model"
+menu_add_item "model" "m1" "alpha" "checkbox" "0" "first" "" "--model alpha"
+menu_add_item "model" "m2" "bravo" "checkbox" "0" "second" "" "--model bravo"
+menu_add_item "model" "m3" "charlie" "checkbox" "0" "third" "" "--model charlie"
+menu_add_item "model" "m4" "delta" "checkbox" "0" "fourth" "" "--model delta"
+menu_run
+EOF
+chmod +x "$WORK/radio.sh"
+
 # {{{ run_menu <name> <keys...>
 # Types each key one second apart after the menu has had time to draw, then
 # q to leave; prints the replayed final screen.
 run_menu() {
     local name="$1"; shift
+    local script_file="$WORK/menu.sh"
+    case "$name" in radio*) script_file="$WORK/radio.sh" ;; esac
     {
         sleep 2
         for key in "$@"; do printf '%s' "$key"; sleep 1; done
         printf 'q'; sleep 1
-    } | timeout 20 script -qfc "stty rows 30 cols 100; $WORK/menu.sh" "$WORK/$name.log" >/dev/null 2>&1
+    } | timeout 20 script -qfc "stty rows 30 cols 100; $script_file" "$WORK/$name.log" >/dev/null 2>&1
     luajit "$LIBS_DIR/test-menu-screen-replay.lua" "$WORK/$name.log" 30 100 > "$WORK/$name.screen"
 }
 # }}}
@@ -78,6 +97,17 @@ run_menu skip ' ' j j      # turn Force ALL on, then down twice
 check "down skips the disabled option: cursor on 2. Second" "$(cursor_line skip)" "[*] 2. Second"
 check "the dimmed option still draws its box characters" \
     "$(grep -c '\[o\]     └─ Force regenerate' "$WORK/skip.screen")" "1"
+# }}}
+
+# {{{ radio list with nothing chosen: l chooses the entry under the cursor
+# The chosen entry draws as (*), the others as ( ).
+chosen() { grep -o '(\*) [a-z]*' "$WORK/$1.screen" | sed 's/(\*) //' | tr '\n' ' ' | sed 's/ $//'; }
+run_menu radio-l j j j l     # cursor to delta, then l
+check "l on an empty radio list chooses the entry under the cursor" "$(chosen radio-l)" "delta"
+run_menu radio-h j h         # cursor to bravo, then h
+check "h on an empty radio list chooses nothing" "$(chosen radio-h)" ""
+run_menu radio-lj j l l      # choose bravo with l, then l again steps on
+check "once chosen, l steps to the next entry" "$(chosen radio-lj)" "charlie"
 # }}}
 
 rm -rf "$WORK"
