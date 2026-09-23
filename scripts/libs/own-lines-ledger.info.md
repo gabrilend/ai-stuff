@@ -2,7 +2,9 @@
 
 The record of which lines a Claude Code session wrote, and the reading of
 unified diffs against it. Shared by `record-own-edits`, `claim-own-change`,
-`stage-own-changes` and `refuse-foreign-lines`. Design: issue 032.
+and the `own-changes-patch` library behind `commit-own-changes` and
+`stage-own-changes`.
+Design: issues 032 and 032a.
 
 ## Where it lives
 
@@ -50,7 +52,6 @@ Each line: `kind <TAB> absolute-real-path <TAB> line-text`, the text escaping
 | `line_claimed(claims, path, mark, text)` | claims, path, `"+"` or `"-"`, text | boolean |
 | `parse_diff(text)` | git unified diff (best with `-U0 --no-renames`) | list of **diff entry**; body lines are counted against the `@@` header, so a removed `-- comment` is never read as a file header |
 | `file_path(entry)` | a diff entry | its new path, or old path for a deletion |
-| `exempt(relative_path)` | path | true inside any `llm-transcripts/` folder |
 | `realpath(path)` | path | symlinks resolved, last part may not exist |
 | `session_dir(session_id)` | session id | the session's ledger folder |
 

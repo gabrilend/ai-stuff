@@ -1,11 +1,13 @@
 -- own-lines-ledger.lua
 --
 -- The record of which lines this session wrote, and the reading of unified
--- diffs against it. Four tools share it:
+-- diffs against it. These share it:
 --   record-own-edits    writes to the ledger after every file edit
 --   claim-own-change    writes a whole-file claim, said out loud
---   stage-own-changes   stages only claimed lines, with git apply --cached
---   refuse-foreign-lines refuses a commit whose index holds unclaimed lines
+--   own-changes-patch   (library) judges changes against it, for
+--   commit-own-changes  which commits only claimed lines, on a private
+--                       staging list, and
+--   stage-own-changes   which previews what that would commit
 --
 -- WHERE IT LIVES AND WHY
 --
@@ -243,14 +245,6 @@ end
 -- The path a diff entry is about: the new name, or the old one for a deletion.
 function ledger.file_path(entry)
     return entry.new_path or entry.old_path
-end
--- }}}
-
--- {{{ function ledger.exempt()
--- Transcripts ride along with every commit by standing instruction, so they
--- are never foreign.
-function ledger.exempt(relative_path)
-    return ("/" .. relative_path .. "/"):find("/llm%-transcripts/") ~= nil
 end
 -- }}}
 

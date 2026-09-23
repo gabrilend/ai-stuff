@@ -12,12 +12,12 @@
 # and the gates never see them.
 #
 # Three gates are covered here: the working-directory gate, the relative-
-# reference gate, and the command-form half of the commit gate (the forms that
-# bypass the index). The commit gate's other half -- comparing staged lines
-# with the session's edit ledger -- needs a scratch repository and lives in
-# tests/test-own-lines.sh, which this script runs at the end. The shell-word
-# reader all of them share is tested by tests/test_shell-command-scan.lua,
-# also run at the end.
+# reference gate, and the commit gate (which turns every recording git commit
+# away toward commit-own-changes). The ledger and the commit route need
+# scratch repositories and live in tests/test-own-lines.sh and
+# tests/test-commit-own-changes.sh, which this script runs at the end. The
+# shell-word reader all of them share is tested by
+# tests/test_shell-command-scan.lua, also run at the end.
 #
 # Exit 0 when every case behaves, 1 otherwise, so this can sit in a test run.
 # The gates' own warnings (standard error) are collected in a log under the
@@ -296,26 +296,32 @@ expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -m x src/'
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit --pathspec-from-file=list.txt -m x'
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -i -m x a.lua'
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit --only -m x a.lua'
-# Staging and committing on one line: the gate would be checking the index as
-# it was before the staging ran.
+# Since issue 032a every plain commit that records something is refused: it
+# would record the shared staging area, which another session can write
+# between the gate's look and the commit. Commits go through commit-own-changes.
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git add -A -- x/ && git commit -F -'
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git apply --cached p.patch && git commit -m x'
-# Allowed on form. Without a session in the input the index check announces
-# that it was skipped (a warning, not a refusal), which is enough to show the
-# form itself passed. The index check is tested in tests/test-own-lines.sh.
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit --amend --only -F -'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit --amend -m x'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -m "use -a or --all"'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git commit -m "x; y | z & w"'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'git add games/x/llm-transcripts/ && git commit -F -'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused 'stage-own-changes /repo && git -C /repo commit -F -'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" refused "git -C /repo commit -F - <<'EOF'
+Stop using git commit -a in the docs.
+EOF"
+# Allowed: nothing recorded, not a commit at all, or the commit route itself --
+# including when its message talks about git commit.
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit --dry-run'
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit -h'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit --amend --only -F -'
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git status'
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git add -A -- games/enheim-tome/'
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git log --oneline -3'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit -m "use -a or --all"'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git commit -m "x; y | z & w"'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'git add games/x/llm-transcripts/ && git commit -F -'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'stage-own-changes /repo && git -C /repo commit -F -'
-expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed "git -C /repo commit -F - <<'EOF'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'stage-own-changes /repo'
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed "commit-own-changes /repo -F - <<'EOF'
 Stop using git commit -a in the docs.
 EOF"
+expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed '/home/ritz/programming/ai-stuff/scripts/commit-own-changes /repo -m "x"'
 expect "${COMMIT_GATE}" "${COMMIT_TOKEN}" allowed 'echo "files in that commit"
 git -C /repo show --name-only HEAD'
 
@@ -375,12 +381,18 @@ else
     check "tests/test_shell-command-scan.lua passes" no
 fi
 
-printf '\nThe edit ledger, staging tool and commit gate\n'
+printf '\nThe edit ledger and the commit route\n'
 if bash "${DIR}/tests/test-own-lines.sh" "${DIR}" > "${SCRATCH}/own-lines.log" 2>&1; then
     check "tests/test-own-lines.sh passes ($(tail -1 "${SCRATCH}/own-lines.log"))" yes
 else
     cat "${SCRATCH}/own-lines.log"
     check "tests/test-own-lines.sh passes" no
+fi
+if bash "${DIR}/tests/test-commit-own-changes.sh" "${DIR}" > "${SCRATCH}/commit-own.log" 2>&1; then
+    check "tests/test-commit-own-changes.sh passes ($(tail -1 "${SCRATCH}/commit-own.log"))" yes
+else
+    cat "${SCRATCH}/commit-own.log"
+    check "tests/test-commit-own-changes.sh passes" no
 fi
 
 printf '\n%s cases, %s failures\n' "${checked}" "${failures}"

@@ -10,9 +10,9 @@
 --
 -- Why it exists: in a repository where several sessions and people work at
 -- once, a file can hold your edit and someone else's uncommitted edit side by
--- side. The commit gate (refuse-foreign-lines) and the staging tool
--- (stage-own-changes) need to know which lines are yours, and the only
--- reliable moment to learn that is the moment you write them.
+-- side. The commit route (commit-own-changes) needs to know which lines are
+-- yours, and the only reliable moment to learn that is the moment you write
+-- them.
 --
 -- WHAT EACH TOOL REPORTS (read from session records under ~/.claude/projects,
 -- Claude Code 2.1.280; the hook's tool_response carries the same object)
