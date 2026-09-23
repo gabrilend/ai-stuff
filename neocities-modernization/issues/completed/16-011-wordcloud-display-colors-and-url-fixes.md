@@ -1,4 +1,4 @@
-# Issue 16-010: Add Semantic Colors to Word Cloud Display & Fix URL Links
+# Issue 16-011: Add Semantic Colors to Word Cloud Display & Fix URL Links
 
 ## Priority
 Medium

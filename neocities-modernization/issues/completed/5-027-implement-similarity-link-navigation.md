@@ -1,4 +1,4 @@
-# Issue 014: Implement Simple "Similar" and "Unique" Link Navigation
+# Issue 5-027 (was 014, then a second 5-014): Implement Simple "Similar" and "Unique" Link Navigation
 
 ## Current Behavior
 - No simple navigation links between similarity and diversity exploration modes

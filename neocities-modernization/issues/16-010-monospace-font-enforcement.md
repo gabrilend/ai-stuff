@@ -2,9 +2,9 @@
 
 ## Status
 - **Status**: REOPENED (2026-09-22). Sorted from `next-issue-please-sort`.
-- **Numbering note**: a second, unrelated completed issue also carries the
-  number 16-010 (`issues/completed/16-010-wordcloud-display-colors-and-url-fixes.md`).
-  This file is the monospace one.
+- **Numbering note**: a second, unrelated completed issue used to carry the
+  number 16-010 as well; it was renumbered 16-011 on 2026-09-22
+  (`issues/completed/16-011-wordcloud-display-colors-and-url-fixes.md`).
 
 ## Priority
 Medium (was Low). Mobile readers see mangled frames.

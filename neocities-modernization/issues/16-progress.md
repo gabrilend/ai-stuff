@@ -48,7 +48,8 @@ Phase 16 extends the neocities modernization project beyond local files to treat
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
 | 16-006 | Chronological position-aware back navigation | Completed | 2026-03-18 |
-| 16-010 | Monospace font enforcement | Completed | 2026-03-18 |
+| 16-010 | Monospace font enforcement (reopened 2026-09-22 for mobile layout) | Reopened | 2026-03-18 |
+| 16-011 | Word cloud semantic colors and URL fixes (was a second 16-010; renumbered 2026-09-22) | Completed | — |
 
 **16-006: Chronological Position-Aware Back Navigation** - COMPLETED (2026-03-18)
 - Changed anchor ID format from category-based (`poem-fediverse-0042`) to sequential (`poem-4625`)

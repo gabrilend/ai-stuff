@@ -968,7 +968,7 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 <center>
 <h1>Poems similar to: <i><font color="%s">%s</font></i></h1>
 <p>The %d poems closest in meaning to this word, arranged to spread the colours (progress bar shows chronological position)</p>
-<!-- Issue 16-010: Changed main.html to wordcloud.html (main.html doesn't exist) -->
+<!-- Issue 16-011: Changed main.html to wordcloud.html (main.html doesn't exist) -->
 <p><a href="%s/wordcloud.html">Menu</a> │ <a href="%s">Chronological</a></p>
 </center>
 <hr>
