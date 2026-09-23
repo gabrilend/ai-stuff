@@ -2356,52 +2356,52 @@ interactive_mode_tui() {
 
     menu_add_item "stages" "update_words" "1. Update Words" "checkbox" "1" \
         "Sync input files from words repository" "" "--update-words"
-    menu_add_item "stages" "force_update_words" "    ↳ Force regenerate" "checkbox" "0" \
+    menu_add_item "stages" "force_update_words" "    └─ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 1"
 
     menu_add_item "stages" "extract" "2. Extract" "checkbox" "1" \
         "Extract content from backup archives" "" "--extract"
-    menu_add_item "stages" "force_extract" "    ↳ Force regenerate" "checkbox" "0" \
+    menu_add_item "stages" "force_extract" "    └─ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 2"
 
     menu_add_item "stages" "parse" "3. Parse" "checkbox" "1" \
         "Parse poems from JSON sources into poems.json" "" "--parse"
-    menu_add_item "stages" "force_parse" "    ↳ Force regenerate" "checkbox" "0" \
+    menu_add_item "stages" "force_parse" "    └─ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 3"
 
     menu_add_item "stages" "validate" "4. Validate" "checkbox" "1" \
         "Run poem validation" "" "--validate"
-    menu_add_item "stages" "force_validate" "    ↳ Force regenerate" "checkbox" "0" \
+    menu_add_item "stages" "force_validate" "    └─ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 4"
 
     menu_add_item "stages" "catalog_images" "5. Catalog Images" "checkbox" "1" \
         "Catalog images from input directories" "" "--catalog-images"
-    menu_add_item "stages" "force_catalog_images" "    ↳ Force regenerate" "checkbox" "0" \
+    menu_add_item "stages" "force_catalog_images" "    └─ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 5"
 
     menu_add_item "stages" "generate_embeddings" "6. Embeddings ⚠️" "checkbox" "0" \
         "Generate embeddings via the inference server" "" "--generate-embeddings"
-    menu_add_item "stages" "force_generate_embeddings" "    ↳ Force regenerate" "checkbox" "0" \
+    menu_add_item "stages" "force_generate_embeddings" "    └─ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 6"
 
     menu_add_item "stages" "generate_similarity" "7. Similarity ⚠️" "checkbox" "0" \
         "Build similarity matrix" "" "--generate-similarity"
-    menu_add_item "stages" "force_generate_similarity" "    ↳ Force regenerate" "checkbox" "0" \
+    menu_add_item "stages" "force_generate_similarity" "    └─ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 7"
 
     menu_add_item "stages" "generate_diversity" "8. Diversity ⚠️" "checkbox" "0" \
         "Pre-compute diversity cache" "" "--generate-diversity"
-    menu_add_item "stages" "force_generate_diversity" "    ↳ Force regenerate" "checkbox" "0" \
+    menu_add_item "stages" "force_generate_diversity" "    └─ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 8"
 
     menu_add_item "stages" "generate_html" "9. Generate HTML" "checkbox" "1" \
         "Generate website HTML (chronological + similarity pages)" "" "--generate-html"
-    menu_add_item "stages" "force_generate_html" "    ↳ Force regenerate" "checkbox" "0" \
+    menu_add_item "stages" "force_generate_html" "    └─ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 9"
 
     menu_add_item "stages" "generate_wordcloud" "10. Generate Word Cloud" "checkbox" "1" \
         "Generate the word-cloud menu and per-word similarity pages" "" "--generate-wordcloud"
-    menu_add_item "stages" "force_generate_wordcloud" "    ↳ Force regenerate" "checkbox" "0" \
+    menu_add_item "stages" "force_generate_wordcloud" "    └─ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 10"
 
     # Issue 10-016: Dependencies - per-stage force options disabled when global force is checked

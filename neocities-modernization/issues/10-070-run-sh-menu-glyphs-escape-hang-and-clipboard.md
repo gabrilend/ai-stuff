@@ -4,7 +4,7 @@
 - **Phase**: 10 (Developer Tooling)
 - **Priority**: High (the hang leaves a terminal stuck)
 - **Type**: Bug fixes
-- **Status**: OPEN — investigated, not built
+- **Status**: BUILT 2026-09-23; one open question (below)
 - **Created**: 2026-09-23
 - **Related**: 10-016 (per-stage force options; added the `↳` labels),
   10-043 (dual-checkbox stage selection), 10-013 (TUI config editor)
@@ -30,35 +30,37 @@ use the same library, so fixes 2 and 3 land in the library and help them too.
 
 ## Current Behavior
 
-1. **Missing glyphs.** Each per-stage option in the Pipeline Stages section is
-   labelled `    ↳ Force regenerate` (`run.sh`, the `menu_add_item` calls
-   for `force_update_words` … `force_generate_html`). `↳` is U+21B3 (a
-   down-then-right arrow). The menu library draws no emoji of its own, so
-   this is the only unusual character there, and the owner's terminal font
-   has no drawing for it.
-2. **Hang after leaving the menu — cause found.** The copy key (`~` on the
-   command preview) runs `copy_to_clipboard` in `menu.lua`, which starts
-   `xclip -selection primary` and `xclip -selection clipboard` (X11 here:
-   `DISPLAY=:0`, no Wayland, `xclip` installed, no `wl-copy` or `xsel`).
-   `xclip` keeps running in the background after the copy, to hand the
-   text to whoever pastes, and it inherits the screen's standard output --
-   which is the pipe `$(…)` in `menu_run` is reading. A `$(…)` capture
-   waits until every holder of its pipe closes it, so after a copy, leaving
-   the menu (Escape, `q`, Run) leaves `run.sh` waiting until something else
-   takes over the clipboard. Reproduced 2026-09-23 without the screen:
-   `x=$(timeout 8 luajit -e 'os.execute("echo t | xclip -selection clipboard 2>/dev/null")')`
-   returned only after 38 seconds, when the stray `xclip` was killed by
-   hand; `timeout` had ended the Lua process at 8 seconds.
-   A second, unconfirmed way to spin: the key loop in `menu.batch_pause` near the
-   end of `menu.lua` ("Wait for valid key") calls `tui.read_key()` in a
-   `while true` and never handles a nil key (end of input), so with the
-   terminal gone it would loop without pause; it also does not treat
-   Ctrl+C as a key.
-3. **Copy to clipboard.** The code already tries both clipboards (primary for
-   middle-click, clipboard for Ctrl+V). With the pipe problem above, the copy
-   reaches the clipboard, but the menu's run hangs on exit, and a stray
-   `xclip` holding the pipe is what the owner then kills or waits out; with
-   `2>/dev/null` only, `xclip`'s standard output is not redirected.
+1. **Marker.** The ten per-stage options read `    └─ Force regenerate`
+   (was `↳`, U+21B3, missing from the owner's terminal font). Owner:
+   "The suggested marker seems fine to me."
+2. **Hang after leaving the menu -- cause found and fixed.** The copy key
+   (`~` on the command preview) started `xclip` for each selection. `xclip`
+   stays running after a copy, to serve the text to whoever pastes, and it
+   inherited the menu's standard output -- the pipe `menu_run` in
+   `lua-menu.sh` reads the menu's answer from with `$(…)`. A `$(…)` waits for
+   every holder of its pipe, so `run.sh` hung after the menu closed.
+   Reproduced in a real menu session (2026-09-23, under `script`: open,
+   `` ` `` then `k` to reach the command preview, `~`, `Q`): the menu process
+   had exited, `run.sh` sat in a pipe read, and two `xclip` processes held the
+   pipe. It also explains "the command didn't end up being copied": the
+   copied text lived in those `xclip` processes, which belonged to the
+   terminal's foreground process group, so the Ctrl+C or closed window used
+   to escape the hang killed them and the copy with them.
+   Fix (`copy_to_clipboard` in `scripts/libs/menu.lua`): each tool is started
+   as `setsid TOOL < tmpfile >/dev/null 2>&1` -- its own session (Ctrl+C and
+   closing the terminal no longer end it) and no hold on anyone's output.
+   The same session now ends 0 s after `Q`, prints "Goodbye!", and both
+   clipboards hold the command afterwards.
+3. **Clipboard.** Both selections are written, as before: Ctrl+V
+   (clipboard) and middle-click (primary), with `wl-copy`, `xclip` or `xsel`.
+   What was broken was the hang above and the copy dying with it.
+4. **Prompt loop.** `menu.batch_pause` now cancels on end of input (a nil
+   key) and on Ctrl+C, instead of asking again forever.
+- Test: `scripts/libs/test-menu-clipboard.sh` -- a stand-in for the menu
+  copies and exits, read through `$(…)` as `lua-menu.sh` does; it must return
+  within two seconds and both selections must hold the text. Passes (45 ms);
+  run against the previous `menu.lua` it fails at its 10-second guard with
+  both selections empty. `menu.copy_to_clipboard` is exposed for it.
 
 ## Intended Behavior
 
@@ -91,8 +93,12 @@ use the same library, so fixes 2 and 3 land in the library and help them too.
 
 ## Open Questions
 
-1. Which screen was open when Escape ran away -- the main list, the command
-   preview, or a prompt (a yes/no question at the bottom)? The clipboard hang
-   needs a copy first; if the owner had not copied, the prompt loop (Current
-   Behavior 2, second part) is the likelier cause.
-2. `└─` for the per-stage labels, or another marker?
+1. **Partly answered.** Had the owner pressed the copy key before Escape
+   ran away? Owner (2026-09-23): "Nope the command didn't end up being
+   copied." Read as: the copy was tried and the text was gone afterwards,
+   which is exactly what the clipboard hang does (item 2). If the copy key
+   was never pressed, the runaway has another cause still to find -- the
+   owner is asked to try the menu again and, if it still happens, say which
+   screen was open.
+2. **Answered.** `└─` for the per-stage labels: "The suggested marker seems
+   fine to me."

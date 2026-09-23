@@ -1759,35 +1759,42 @@ local function copy_to_clipboard(text)
     f:write(text)
     f:close()
 
-    -- Wayland: wl-copy
+    -- How each tool is started (neocities-modernization issue 10-070).
+    -- These tools stay running after the copy: on X11 and Wayland the copied
+    -- text lives in the program that copied it, which answers every paste.
+    -- Started plainly, that background process kept the menu's standard
+    -- output open -- the pipe a calling script reads the menu's answer from
+    -- with $(...) -- so the script hung after the menu closed, and when the
+    -- person pressed Ctrl+C or closed the terminal to get out, the tool was
+    -- killed with the terminal's process group and the copied text vanished.
+    -- So each one gets:
+    --   setsid        its own session, out of the terminal's process group,
+    --                 so neither Ctrl+C nor closing the terminal ends it
+    --   < tmpfile     the text (read before the tool forks, so the file can
+    --                 be removed as soon as the command returns)
+    --   >/dev/null 2>&1  no hold on anyone's output pipe
+    local function start(command)
+        return os.execute("setsid " .. command .. " < " .. tmpfile .. " >/dev/null 2>&1")
+    end
+    local function ok(ret) return ret == 0 or ret == true end
+
+    -- Both selections: CLIPBOARD (Ctrl+V) and PRIMARY (middle-click).
+    local copies
     if tool == "wl-copy" then
-        local ret = os.execute("wl-copy < " .. tmpfile .. " 2>/dev/null")
-        if ret ~= 0 and ret ~= true then
-            os.remove(tmpfile)
-            return false, "wl-copy failed"
-        end
-        -- Also copy to primary selection
-        os.execute("wl-copy --primary < " .. tmpfile .. " 2>/dev/null")
-        os.remove(tmpfile)
-        return true, ""
+        copies = { { "clipboard", "wl-copy" }, { "primary", "wl-copy --primary" } }
+    elseif tool == "xclip" then
+        copies = { { "clipboard", "xclip -selection clipboard" },
+                   { "primary",   "xclip -selection primary" } }
+    else
+        copies = { { "clipboard", "xsel --clipboard --input" },
+                   { "primary",   "xsel --primary --input" } }
     end
-
-    -- X11: Copy to both PRIMARY (middle-click) and CLIPBOARD (Ctrl+V)
-    local selections = {"primary", "clipboard"}
-    for _, sel in ipairs(selections) do
-        local cmd
-        if tool == "xclip" then
-            cmd = "xclip -selection " .. sel .. " < " .. tmpfile .. " 2>/dev/null"
-        else
-            cmd = "xsel --" .. sel .. " --input < " .. tmpfile .. " 2>/dev/null"
-        end
-        local ret = os.execute(cmd)
-        if ret ~= 0 and ret ~= true then
+    for _, copy in ipairs(copies) do
+        if not ok(start(copy[2])) then
             os.remove(tmpfile)
-            return false, tool .. " failed for " .. sel
+            return false, tool .. " failed for the " .. copy[1] .. " selection"
         end
     end
-
     os.remove(tmpfile)
     return true, ""
 end
@@ -4741,6 +4748,15 @@ function menu.batch_pause(options)
     -- Wait for valid key
     while true do
         local key = tui.read_key()
+        -- No key means input has ended (terminal closed): without this the
+        -- loop asked again at once, forever, at full speed.  Ctrl+C is a key
+        -- here, not a signal (raw mode), so it has to be caught by name.
+        -- Both cancel, like ESC.  (neocities-modernization issue 10-070)
+        if key == nil or key == "CTRL_C" then
+            tui.clear_row(prompt_row)
+            tui.present()
+            return nil
+        end
         if key and valid_keys[key] then
             -- Clear the prompt
             tui.clear_row(prompt_row)
@@ -4879,5 +4895,9 @@ ensure_item_visible = function()
     end
 end
 -- }}}
+
+-- Exposed for test-menu-clipboard.sh, which checks that a copy neither holds
+-- a caller's $(...) open nor dies with the terminal (issue 10-070).
+menu.copy_to_clipboard = copy_to_clipboard
 
 return menu
