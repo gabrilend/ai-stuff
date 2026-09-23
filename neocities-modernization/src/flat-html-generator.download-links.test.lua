@@ -81,7 +81,7 @@ local function render(anchor, total_pages)
     end
     return generator.generate_paginated_poem_page_html(
         anchor, make_ranking({ 120, 3549 }), "similar", anchor.poem_index,
-        1, total_pages or 1, 400, mapping, false)
+        1, total_pages or 1, 400, mapping, false, { 1 })  -- this build writes page 1
 end
 -- }}}
 
