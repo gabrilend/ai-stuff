@@ -1,0 +1,51 @@
+#!/usr/bin/env luajit
+-- check-poem-dates -- confirms every poem has a date the site can place.
+--
+-- WHAT IT DOES (for a CEO): every poem's progress bar shows how far through
+-- the writing years it was written, and the chronological pages list poems in
+-- date order.  A poem with no date cannot be placed, and the page build stops
+-- on it -- hours into an overnight run.  This runs the same date reading and
+-- ordering the page build uses, in seconds, before the build starts, and
+-- lists the first undated poem.  It changes nothing.  (Issues 8-045, 10-069.)
+--
+-- Usage:  luajit scripts/check-poem-dates [DIR] [POEMS_JSON]
+--   DIR         project directory (default below)
+--   POEMS_JSON  the poem list to check (default DIR/assets/poems.json)
+-- Exit status: 0 when every poem has a date, 1 otherwise.
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+if arg[1] and arg[1] ~= "" then DIR = arg[1] end
+local POEMS_JSON = arg[2] or (DIR .. "/assets/poems.json")
+
+package.path = DIR .. "/src/?.lua;" .. DIR .. "/libs/?.lua;" .. package.path
+
+-- The generator reads its command line for an assets folder; give it none,
+-- so loading it here has no effect beyond defining its functions.
+local saved_arg = arg
+arg = {}
+local generator = require("flat-html-generator")
+arg = saved_arg
+local json = require("dkjson")
+
+-- {{{ read the poem list
+local handle = io.open(POEMS_JSON, "r")
+if not handle then
+    io.stderr:write("no poem list at " .. POEMS_JSON .. "\n")
+    os.exit(1)
+end
+local poems_data = json.decode(handle:read("*a"))
+handle:close()
+if type(poems_data) ~= "table" or type(poems_data.poems) ~= "table" then
+    io.stderr:write(POEMS_JSON .. " holds no poems list\n")
+    os.exit(1)
+end
+-- }}}
+
+-- The same ordering the page build runs; it raises an error naming the first
+-- poem it cannot date.
+local ok, err = pcall(generator.compute_chronological_mapping, poems_data, nil)
+if not ok then
+    io.stderr:write(tostring(err), "\n")
+    os.exit(1)
+end
+print(string.format("every one of %d poems has a date", #poems_data.poems))

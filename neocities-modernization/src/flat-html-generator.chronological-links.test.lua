@@ -197,32 +197,30 @@ do
 end
 -- }}}
 
--- {{{ Case: a missing mapping never guesses a page number
--- The old behaviour. With no mapping the generator cannot know the page, so it
--- must fall back to the one file that exists in both modes (index.html, which
--- is a redirect when paginated) rather than assert "01" and be wrong for
--- roughly 99% of a real corpus.
+-- {{{ Case: a missing mapping stops the page instead of guessing
+-- Once this fell back to "01" (wrong for ~99% of a real corpus), then to
+-- index.html (a redirect that drops the #poem anchor, so the reader still lands
+-- on page 1 -- issue 10-036). Since 8-045 the mapping also gives every poem its
+-- progress bar, so without it there is nothing honest to draw: the build stops
+-- and names the poem.
 do
-    local html = generator.generate_flat_poem_list_html(
+    local ok, err = pcall(generator.generate_flat_poem_list_html,
         make_poem(ANCHOR_INDEX), make_ranking(NEIGHBOUR_INDICES), "similar", ANCHOR_INDEX,
         nil, true)
-    check("missing mapping does not guess page 01",
-        html:find("chronological/01%.html") == nil,
-        "the '01' guess is back")
-    check("missing mapping falls back to index.html",
-        html:find("chronological/index%.html") ~= nil)
+    check("missing mapping stops the page", not ok, "a page was produced")
+    check("the error names the anchor poem",
+        tostring(err):find("poem " .. ANCHOR_INDEX .. " ", 1, true) ~= nil, tostring(err))
 end
 -- }}}
 
--- {{{ Case: a poem absent from the mapping falls back rather than guessing
+-- {{{ Case: a poem absent from the mapping stops the page
 do
     local mapping = make_mapping({ [7] = 7 }, TOTAL_PAGES)
-    local html = generator.generate_flat_poem_list_html(
+    local ok, err = pcall(generator.generate_flat_poem_list_html,
         make_poem(7), make_ranking({ 3549 }), "similar", 7, mapping, true)
-    local targets = chrono_targets(html)
-    check("mapped poem still resolves", targets["poem-7"] == "07")
-    check("unmapped poem falls back to index.html", targets["poem-3549"] == "index",
-        "got " .. tostring(targets["poem-3549"]))
+    check("an unmapped neighbour stops the page", not ok, "a page was produced")
+    check("the error names the unmapped poem",
+        tostring(err):find("poem 3549 ", 1, true) ~= nil, tostring(err))
 end
 -- }}}
 

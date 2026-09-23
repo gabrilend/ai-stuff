@@ -686,8 +686,14 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
     -- Use CHRONOLOGICAL position for progress bar (not similarity score)
     -- This matches similar/different pages and helps orient the reader in the story
     -- Issue 8-045: Use timeline_progress (time-based) instead of position-based
-    local chrono_info = chrono_map and chrono_map[poem_idx] or {position = 1, total_poems = 1, timeline_progress = 50}
-    local progress_pct = chrono_info.timeline_progress or ((chrono_info.position / chrono_info.total_poems) * 100)
+    -- A poem missing from the map used to get a 50% bar; now the page build
+    -- stops and names it (issue 8-045).
+    local chrono_info = chrono_map and chrono_map[poem_idx]
+    if not chrono_info then
+        error("word page: poem " .. tostring(poem_idx) .. " is not in the chronological map"
+            .. (chrono_map and "" or " (no map was passed)"))
+    end
+    local progress_pct = chrono_info.timeline_progress
 
     -- Calculate progress bar chars
     -- Regular: 83 chars total, Golden: 82 interior + 2 corners = 84 total
@@ -699,7 +705,7 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
     -- same as the similar/different + chronological pages).
     poem_bars.configure(color_config)
     local colored_progress = poem_bars.progress_dashes(
-        { percentage = progress_pct }, semantic_color, is_golden, "top", false).visual
+        { percentage = progress_pct, poem_id = poem_idx }, semantic_color, is_golden, "top", false).visual
 
     -- Navigation links
     local base_path = ".."
@@ -884,7 +890,7 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
     end
 
     local bottom_line = poem_bars.progress_dashes(
-        { percentage = progress_pct }, semantic_color, is_golden, "bottom", true).visual
+        { percentage = progress_pct, poem_id = poem_idx }, semantic_color, is_golden, "bottom", true).visual
 
     -- Build final output
     local output = {}

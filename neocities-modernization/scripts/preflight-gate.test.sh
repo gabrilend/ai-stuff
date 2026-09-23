@@ -44,6 +44,22 @@ check "no stages: gate passes" "$?" "0"
 check "no stages: prints nothing" "$out" ""
 # }}}
 
+# {{{ an undated poem stops the gate; the real poem list passes
+SCRATCH="$DIR/tmp/shared-memory/preflight-gate-test"
+mkdir -p "$SCRATCH"
+printf '{"poems":[{"id":1,"poem_index":1,"category":"notes","content":"no date"}]}' \
+    > "$SCRATCH/undated.json"
+out=$("$GATE" "$DIR" --poems-file "$SCRATCH/undated.json" 2>&1)
+check "undated poem: gate fails" "$?" "1"
+check "undated poem: names the date check" \
+    "$(printf '%s' "$out" | grep -c 'every poem has a date')" "1"
+check "undated poem: names the poem" \
+    "$(printf '%s' "$out" | grep -c 'poem 1 (notes')" "1"
+"$GATE" "$DIR" --poems-file "$DIR/assets/poems.json" >/dev/null 2>&1
+check "real poem list: gate passes" "$?" "0"
+rm -rf "$SCRATCH"
+# }}}
+
 # {{{ a malformed thread count is refused, not guessed at
 "$GATE" "$DIR" --html-threads many >/dev/null 2>&1
 check "non-numeric thread count refused" "$?" "1"

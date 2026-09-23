@@ -14,11 +14,13 @@
 #
 # Usage:
 #   scripts/preflight-gate [DIR] [--html-threads N] [--extract]
-#                          [--effil-cpath PATTERN]
+#                          [--poems-file PATH] [--effil-cpath PATTERN]
 #
 #   DIR             project directory (default below)
 #   --html-threads  stage 9 will run with N page workers
 #   --extract       stage 2 (extract, then strip excluded content) will run
+#   --poems-file    stage 9 or 10 will read this existing poem list (run.sh
+#                   passes it only when stage 3 is not rebuilding it this run)
 #   --effil-cpath   look for the threading library here instead of its real
 #                   home -- for the gate's own test, to prove a library that
 #                   cannot load is reported
@@ -29,6 +31,7 @@ DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
 HTML_THREADS=0
 EXTRACT=false
+POEMS_FILE=""
 EFFIL_CPATH=""
 
 # {{{ parse arguments
@@ -36,6 +39,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --html-threads) HTML_THREADS="$2"; shift 2 ;;
         --extract)      EXTRACT=true; shift ;;
+        --poems-file)   POEMS_FILE="$2"; shift 2 ;;
         --effil-cpath)  EFFIL_CPATH="$2"; shift 2 ;;
         --*)            echo "preflight-gate: unknown option $1" >&2; exit 1 ;;
         *)              DIR="$1"; shift ;;
@@ -77,10 +81,18 @@ needs_exclusions() { $EXTRACT; }
 check_exclusions() { lua "$DIR/scripts/strip-excluded" "$DIR" --check; }
 # }}}
 
+# {{{ needs_dates / check_dates
+# Stages 9 and 10 place every poem on the timeline by its date; an undated
+# poem stops them (8-045).  Uses the page build's own date reading.
+needs_dates() { [ -n "$POEMS_FILE" ]; }
+check_dates() { luajit "$DIR/scripts/check-poem-dates" "$DIR" "$POEMS_FILE"; }
+# }}}
+
 # label ; needs-function ; check-function
 CHECKS=(
     "threading library loads (stage 9, more than one thread);needs_threads;check_threads"
     "every excluded path resolves (stage 2);needs_exclusions;check_exclusions"
+    "every poem has a date (stages 9-10);needs_dates;check_dates"
 )
 # }}}
 

@@ -196,6 +196,12 @@ Write index files
      then exit 1; the old warning-and-fall-through is gone. The gate makes the
      same check before any stage runs; `scripts/preflight-gate.test.sh` proves
      a missing library stops it.
+   - **Done 2026-09-22: a failed worker stops the run.** The orchestrator used
+     to wait for every worker to ask for more work, so a worker that raised an
+     error left it waiting forever; and the end-of-run join logged a failed
+     worker and carried on. Now the orchestrator checks worker status once a
+     second and exits with the worker's error, and the join exits on any
+     worker that did not complete.
    - **Still to look at:** other caught-and-substituted loads found by
      `grep -rn 'pcall(require' src libs scripts`: `libs/external-sync.lua`
      falls back to the legacy `external_files` config when `sources-loader`

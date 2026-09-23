@@ -72,9 +72,16 @@ end
 -- {{{ local function render()
 -- Builds one similar page and returns its HTML. total_pages drives the plural.
 local function render(anchor, total_pages)
+    -- Every poem on the page needs a chronological map entry: it gives the
+    -- poem its progress bar, and a poem without one stops the build (8-045).
+    local mapping = {}
+    for _, index in ipairs({ anchor.poem_index, 120, 3549 }) do
+        mapping[index] = { position = 1, page_number = 1, total_poems = 3,
+                           total_pages = 1, timeline_progress = 50 }
+    end
     return generator.generate_paginated_poem_page_html(
         anchor, make_ranking({ 120, 3549 }), "similar", anchor.poem_index,
-        1, total_pages or 1, 400, nil, false)
+        1, total_pages or 1, 400, mapping, false)
 end
 -- }}}
 

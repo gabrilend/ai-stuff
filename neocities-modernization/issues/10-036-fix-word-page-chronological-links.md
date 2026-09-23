@@ -265,7 +265,13 @@ threading in `run.sh`'s word-cloud invocations.
 
 1. Make a missing chronological mapping entry an **error** in both renderers,
    naming the poem. Remove the worker's silent "page 1 of 1" default and the
-   single-threaded warn-once fallback.
+   single-threaded warn-once fallback. **Done 2026-09-22 as part of 8-045**:
+   the progress bar needs the same map entry, so a missing entry now stops
+   the page in both renderers and on word pages before any link is built.
+   The warn-once link fallback in the single-threaded formatter is
+   unreachable for a missing entry and can be deleted with step 2. The two
+   cases in `src/flat-html-generator.chronological-links.test.lua` that
+   expected the index.html fallback now expect the error.
 2. In paginated builds, never write a link through `chronological/index.html`;
    the redirect cannot carry the `#poem` anchor. (Unpaginated builds keep
    `index.html`, which is the real page there.)
