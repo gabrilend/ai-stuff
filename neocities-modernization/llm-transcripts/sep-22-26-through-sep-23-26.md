@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-23 09:28:02
+Generated on: 2026-09-23 09:35:34
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -2406,6 +2406,40 @@ Could you try `run.sh -I` once more: copy, then Escape? I read "the command
 didn't end up being copied" as meaning you did press copy, which matches this
 bug. If you never pressed copy and Escape still runs away, tell me which screen
 was open when you pressed it. That would be a second cause I haven't found yet.
+
+--------------------------------------------------------------------------------
+
+### User Request 21
+
+Okay the escape key doesn't do anything now. But pushing q seems to quit without
+the infinite loop. It also correctly copies to middle-mouse click and ctrl+v's
+registers.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 21
+
+> Good, copy and `q` both work. Escape "doing nothing" is expected from how the
+> code is written right now, and it's a design gap. To copy you're on the
+> command preview, and there Escape only switches out of text-editing mode; it
+> never quits. Checking the modes on that line so Escape can quit once you're
+> not editing.
+
+> Testing in a real menu session: go to the command preview, press Escape once,
+> and it should quit. Then the editing case, where Escape leaves editing mode
+> and a second Escape quits.
+
+Fixed and committed (`ec826079b`). Escape now quits from the command-preview
+line too, which is where the cursor sits after you copy. Before, Escape there
+only stepped out of editing mode and otherwise did nothing.
+
+- **Not editing:** Escape quits at once, like `q`.
+- **Editing (after `i`):** the first Escape returns to navigation, as in vim,
+  and a second one quits.
+- **The help lines** at the bottom now say `q/esc:quit`.
+
+I checked both cases in a real menu session. Issue 10-070 is marked done, with
+your confirmation of the copy and `q` recorded.
 
 --------------------------------------------------------------------------------
 

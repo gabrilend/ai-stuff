@@ -66,6 +66,37 @@ use the same library, so fixes 2 and 3 land in the library and help them too.
    Escape returns to vim-nav (as in vim) and a second one quits. The help
    lines read `q/esc:quit`. Checked in a real session: Escape on the command
    preview quits at once; `i`, Escape, Escape quits on the second Escape.
+6. **Box characters drew as garbage when highlighted or dimmed.** Owner
+   (2026-09-23): "the new markers look great, but there's two problems. When
+   the cursor highlights them, they return to the undiscipherable glyphs.
+   Also, if we enable 'force regenerate all stages' they also become
+   indecipherable." Cause: `tui.write_str` (`scripts/libs/tui.lua`) put one
+   BYTE in each screen cell. `└` and `─` are three bytes; unstyled, the three
+   cells went out back to back and the terminal reassembled them, but a
+   highlighted (black on white) or disabled (dim) cell is sent with its own
+   colour code in front, which cut each character into three broken bytes.
+   `write_str` now puts one UTF-8 character in each cell. (None of the
+   library's own drawing passes non-ASCII text, so only labels and other
+   data are affected -- and they now also take the right number of columns.)
+7. **Skip the per-stage force options while "force all" is on.** Owner:
+   "when force regenerate is enabled, we can't change their values, so we
+   should skip over their entry in the list. For example going from 1.
+   Update Words directly to 2. Extract". Built as an opt-in per rule, because
+   the menu deliberately lets the cursor land on a disabled item to show what
+   is disabling it: `menu_add_dependency` takes a seventh argument `"skip"`,
+   carried to the screen as `skip_when_disabled`; up/down movement
+   (`menu.nav_up` / `menu.nav_down` in `menu.lua`) keeps stepping past items
+   disabled by such a rule, and returns to where it started if that runs off
+   the end. `run.sh` marks its ten per-stage force rules `"skip"`.
+- Test: `scripts/libs/test-menu-screen.sh` drives a four-item stand-in menu
+  in a pretend terminal (`script`, sized with `stty`), replays the recording
+  with `scripts/libs/test-menu-screen-replay.lua`, and checks the highlighted
+  `└─` option draws whole (no character cut by a colour code), that down
+  passes over the disabled option to the next stage, and that the dimmed
+  option still draws its box characters (4 checks). With the previous
+  `tui.lua` the cut-character check fails. The same check against `run.sh`'s
+  real menu: with force-all on, `j` `j` went Force ALL -> 1. Update Words ->
+  2. Extract.
 - Test: `scripts/libs/test-menu-clipboard.sh` -- a stand-in for the menu
   copies and exits, read through `$(…)` as `lua-menu.sh` does; it must return
   within two seconds and both selections must hold the text. Passes (45 ms);

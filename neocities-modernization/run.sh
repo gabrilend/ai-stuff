@@ -2406,26 +2406,28 @@ interactive_mode_tui() {
 
     # Issue 10-016: Dependencies - per-stage force options disabled when global force is checked
     # invert=true means: enable per-stage force when global force is NOT checked
+    # "skip" (issue 10-070): while global force is on these cannot change, so
+    # up/down navigation passes straight over them (1. Update Words -> 2. Extract).
     menu_add_dependency "force_update_words" "force" "1" "true" \
-        "Disabled: global force is active" "orange"
+        "Disabled: global force is active" "orange" "skip"
     menu_add_dependency "force_extract" "force" "1" "true" \
-        "Disabled: global force is active" "orange"
+        "Disabled: global force is active" "orange" "skip"
     menu_add_dependency "force_parse" "force" "1" "true" \
-        "Disabled: global force is active" "orange"
+        "Disabled: global force is active" "orange" "skip"
     menu_add_dependency "force_validate" "force" "1" "true" \
-        "Disabled: global force is active" "orange"
+        "Disabled: global force is active" "orange" "skip"
     menu_add_dependency "force_catalog_images" "force" "1" "true" \
-        "Disabled: global force is active" "orange"
+        "Disabled: global force is active" "orange" "skip"
     menu_add_dependency "force_generate_embeddings" "force" "1" "true" \
-        "Disabled: global force is active" "orange"
+        "Disabled: global force is active" "orange" "skip"
     menu_add_dependency "force_generate_similarity" "force" "1" "true" \
-        "Disabled: global force is active" "orange"
+        "Disabled: global force is active" "orange" "skip"
     menu_add_dependency "force_generate_diversity" "force" "1" "true" \
-        "Disabled: global force is active" "orange"
+        "Disabled: global force is active" "orange" "skip"
     menu_add_dependency "force_generate_html" "force" "1" "true" \
-        "Disabled: global force is active" "orange"
+        "Disabled: global force is active" "orange" "skip"
     menu_add_dependency "force_generate_wordcloud" "force" "1" "true" \
-        "Disabled: global force is active" "orange"
+        "Disabled: global force is active" "orange" "skip"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 2: Configuration Options
