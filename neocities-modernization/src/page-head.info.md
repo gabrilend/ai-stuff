@@ -25,10 +25,16 @@ alone. This module is the single owner.
 ## External functions
 
 ### `M.viewport_meta()`
-- **returns**: the `<meta name="viewport">` tag as a string.
-- Without it a phone lays the page out for a 980-pixel screen and then shrinks
-  the result. It also switches off the browser's automatic per-block text
-  inflation, which would otherwise give two blocks two different cell widths.
+- **returns**: two tags as one string, newline-separated: `<meta name="viewport">`
+  and `<meta name="color-scheme" content="dark">`.
+- Without the viewport tag a phone lays the page out for a 980-pixel screen and
+  then shrinks the result. It also switches off the browser's automatic
+  per-block text inflation, which would otherwise give two blocks two different
+  cell widths.
+- The colour-scheme tag tells a phone's forced dark mode the page is already
+  dark, so it does not repaint the pure-black background as dark grey in some
+  regions (issue 11-009). It travels with the viewport tag because every
+  generator already emits that one.
 
 ### `M.style_block(base_path, extra_css)`
 - **base_path**: string, required. The relative route from this page back to the
