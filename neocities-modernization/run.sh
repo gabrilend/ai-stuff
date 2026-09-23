@@ -2761,6 +2761,12 @@ $EXTRACT && PREFLIGHT_ARGS+=(--extract)
 if { $GENERATE_HTML || $GENERATE_WORDCLOUD; } && ! $PARSE; then
     PREFLIGHT_ARGS+=(--poems-file "$ASSETS_DIR/poems.json")
 fi
+# The saved similarity rankings are checked against the poem list only when
+# stage 9 will read them as they are: not if stage 7 rebuilds them this run,
+# and not if stage 3 rebuilds the poem list (the old list proves nothing).
+if $GENERATE_HTML && ! $GENERATE_SIMILARITY && ! $PARSE; then
+    PREFLIGHT_ARGS+=(--rankings-dir "$(emb_cache_dir)")
+fi
 if ! "$DIR/scripts/preflight-gate" "${PREFLIGHT_ARGS[@]}"; then
     exit 1
 fi

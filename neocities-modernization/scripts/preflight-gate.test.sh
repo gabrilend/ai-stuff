@@ -60,6 +60,29 @@ check "real poem list: gate passes" "$?" "0"
 rm -rf "$SCRATCH"
 # }}}
 
+# {{{ rankings one poem short stop the gate; the real ones pass
+SCRATCH="$DIR/tmp/shared-memory/preflight-gate-test"
+mkdir -p "$SCRATCH/cache"
+printf '{"poems":[{"id":1,"poem_index":1,"creation_date":"2024-01-01T00:00:00Z"},{"id":2,"poem_index":2,"creation_date":"2024-01-02T00:00:00Z"},{"id":3,"poem_index":3,"creation_date":"2024-01-03T00:00:00Z"}]}' \
+    > "$SCRATCH/three-poems.json"
+printf '{"metadata":{},"images":{}}' > "$SCRATCH/cache/image-manifest.json"
+# Built when there were two poems: poem 3 has no ranking, and poem 1's list
+# still names a poem 4 that no longer exists.
+printf '{"metadata":{},"rankings":{"1":[2,4],"2":[1]}}' > "$SCRATCH/cache/similarity_rankings_cache.json"
+out=$("$GATE" "$DIR" --poems-file "$SCRATCH/three-poems.json" --rankings-dir "$SCRATCH/cache" 2>&1)
+check "stale rankings: gate fails" "$?" "1"
+check "stale rankings: names the check" \
+    "$(printf '%s' "$out" | grep -c 'saved rankings match the poem list')" "1"
+check "stale rankings: names the poem with no ranking" \
+    "$(printf '%s' "$out" | grep -c 'have no saved ranking (e.g. 3)')" "1"
+check "stale rankings: names the neighbour that no longer exists" \
+    "$(printf '%s' "$out" | grep -c 'point at numbers the poem list does not have (e.g. 4)')" "1"
+"$GATE" "$DIR" --poems-file "$DIR/assets/poems.json" \
+    --rankings-dir "$(luajit "$DIR/scripts/cache-dir" "$DIR" --model embeddinggemma-300m)" >/dev/null 2>&1
+check "real rankings: gate passes" "$?" "0"
+rm -rf "$SCRATCH"
+# }}}
+
 # {{{ a malformed thread count is refused, not guessed at
 "$GATE" "$DIR" --html-threads many >/dev/null 2>&1
 check "non-numeric thread count refused" "$?" "1"

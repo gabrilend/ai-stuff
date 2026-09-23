@@ -83,11 +83,22 @@
    (`src/flat-html-generator.lua`), recompute the fingerprint and refuse on a
    mismatch, naming the regenerate command. A cache without a fingerprint is
    also refused (it predates the guard).
-3. In `generate_similarity_ranked_list`, find the anchor through the
-   global-index table that function already builds, not by array position.
-4. In the three skip loops of the single-threaded formatter, compare global
-   indices. (The anchor-shown-twice half of this is tracked in 10-025; do the
-   two together.)
+3. **Done 2026-09-22 with 10-025.** In `generate_similarity_ranked_list`, find
+   the anchor through the global-index table that function already builds, not
+   by array position. (The list no longer carries the anchor at all.)
+4. **Done 2026-09-22 with 10-025.** In the three skip loops of the
+   single-threaded formatter, compare global indices.
+
+**Built 2026-09-23, before steps 1-2: a pre-flight check by numbers.**
+`scripts/check-rankings-match-poems` compares the saved rankings with the poem
+list and the image list: every poem and image number must have a ranking,
+every ranking must belong to one, and every neighbour must be one. run.sh's
+pre-flight gate (10-069) runs it when stage 9 will read the saved rankings as
+they are (stage 7 and stage 3 not in the run). It passes today (9,191 entries
+for 8,531 poems and 660 standalone images). Tested in
+`scripts/preflight-gate.test.sh`. What it cannot see: a renumbering that keeps
+the same set of numbers (two poems trading places). That needs the
+fingerprint of steps 1-2, which records which poem holds which number.
 5. Test: copy poems.json, shift one poem's global index, and check the HTML
    stage refuses to start and names the regenerate command. A second test
    confirms an unchanged poems.json passes.

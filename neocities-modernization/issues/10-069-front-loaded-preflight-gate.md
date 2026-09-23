@@ -39,6 +39,16 @@ without anymore input from us."
      the poem list this run): `scripts/check-poem-dates`, which runs the page
      build's own date ordering over `assets/poems.json` (half a second for
      8,531 poems) and names the first undated poem (8-045).
+  4. **Saved rankings match the poem list** (stage 9 reading the saved
+     rankings as they are, i.e. neither stage 7 nor stage 3 in the run):
+     `scripts/check-rankings-match-poems`, which checks every poem and image
+     number has a ranking and every ranking and neighbour is a real number
+     (2-010). About a second.
+- `run.sh` also checks the `--pages` value up front (10-036), alongside the
+  other command-line values.
+- The gate's test now also covers rankings built for fewer poems (fails,
+  naming the unranked poem and the vanished neighbour) and the real rankings
+  (passes): 18 checks.
 - `scripts/preflight-gate.test.sh` (13 checks): a missing library stops the
   gate and names the check; the real library passes; one worker never checks
   the library; no stages selected prints nothing; an undated poem stops the

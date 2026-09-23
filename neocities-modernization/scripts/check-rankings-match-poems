@@ -1,0 +1,121 @@
+#!/usr/bin/env luajit
+-- check-rankings-match-poems -- confirms the saved similarity rankings were
+-- built from the poem list the site is about to be built from.
+--
+-- WHAT IT DOES (for a CEO): every poem gets a number, handed out source by
+-- source, and the saved "most similar poems" lists refer to poems by those
+-- numbers.  Adding a single post renumbers every poem after it, so lists
+-- saved before that point send every neighbour to the wrong poem -- pages full
+-- of unrelated poems, with nothing reporting a problem.  This compares the
+-- saved lists against the current poem list and image list, in seconds,
+-- before a build starts, and says what does not line up.  It changes nothing.
+-- (Issues 2-010, 10-069.)
+--
+-- Usage:  luajit scripts/check-rankings-match-poems [DIR] POEMS_JSON CACHE_DIR
+--   DIR         project directory (default below)
+--   POEMS_JSON  the poem list the build will read
+--   CACHE_DIR   the model's cache folder, holding similarity_rankings_cache.json
+--               and image-manifest.json (from scripts/cache-dir)
+-- Exit status: 0 when they match, 1 otherwise.
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+local POEMS_JSON, CACHE_DIR
+if #arg >= 3 then
+    DIR, POEMS_JSON, CACHE_DIR = arg[1], arg[2], arg[3]
+else
+    POEMS_JSON, CACHE_DIR = arg[1], arg[2]
+end
+if not POEMS_JSON or not CACHE_DIR then
+    io.stderr:write("usage: check-rankings-match-poems [DIR] POEMS_JSON CACHE_DIR\n")
+    os.exit(1)
+end
+package.path = DIR .. "/libs/?.lua;" .. package.path
+local json = require("dkjson")
+
+-- {{{ local function read_json
+local function read_json(path, what)
+    local handle = io.open(path, "r")
+    if not handle then
+        io.stderr:write("no " .. what .. " at " .. path .. "\n")
+        os.exit(1)
+    end
+    local data = json.decode(handle:read("*a"))
+    handle:close()
+    if type(data) ~= "table" then
+        io.stderr:write(path .. " is not readable JSON\n")
+        os.exit(1)
+    end
+    return data
+end
+-- }}}
+
+local poems = read_json(POEMS_JSON, "poem list").poems or {}
+local manifest = read_json(CACHE_DIR .. "/image-manifest.json", "image list")
+local cache = read_json(CACHE_DIR .. "/similarity_rankings_cache.json", "similarity rankings")
+local rankings = cache.rankings or {}
+
+-- {{{ the numbers the build will ask for
+-- Every poem, plus every image entry: standalone images are numbered after
+-- the last poem, images attached to a poem share that poem's number.
+local expected, expected_count = {}, 0
+local function expect(index)
+    if index and not expected[index] then
+        expected[index] = true
+        expected_count = expected_count + 1
+    end
+end
+for _, poem in ipairs(poems) do expect(poem.poem_index) end
+for _, image in pairs(manifest.images or {}) do expect(image.poem_index) end
+-- }}}
+
+-- {{{ compare
+local problems = {}
+local function problem(text) problems[#problems + 1] = text end
+
+local missing, extra, dangling, ranking_count = {}, {}, {}, 0
+for index in pairs(expected) do
+    if not rankings[tostring(index)] then missing[#missing + 1] = index end
+end
+for key, neighbours in pairs(rankings) do
+    ranking_count = ranking_count + 1
+    local index = tonumber(key)
+    if not index or not expected[index] then extra[#extra + 1] = key end
+    for _, neighbour in ipairs(neighbours) do
+        if not expected[neighbour] then dangling[#dangling + 1] = neighbour end
+    end
+end
+table.sort(missing)
+
+-- {{{ local function sample
+local function sample(list)
+    local shown = {}
+    for i = 1, math.min(5, #list) do shown[i] = tostring(list[i]) end
+    return table.concat(shown, ", ") .. (#list > 5 and ", ..." or "")
+end
+-- }}}
+
+if #missing > 0 then
+    problem(string.format("%d poem/image number(s) have no saved ranking (e.g. %s)",
+        #missing, sample(missing)))
+end
+if #extra > 0 then
+    problem(string.format("%d saved ranking(s) belong to numbers the poem list does not have (e.g. %s)",
+        #extra, sample(extra)))
+end
+if #dangling > 0 then
+    problem(string.format("%d neighbour reference(s) point at numbers the poem list does not have (e.g. %s)",
+        #dangling, sample(dangling)))
+end
+-- }}}
+
+if #problems > 0 then
+    io.stderr:write(string.format(
+        "the saved similarity rankings (%d entries) do not match the poem list "
+        .. "(%d poems) and image list (%d numbers in all):\n",
+        ranking_count, #poems, expected_count))
+    for _, text in ipairs(problems) do io.stderr:write("  - " .. text .. "\n") end
+    io.stderr:write("rebuild them by including stage 7 (--generate-similarity) in the run\n")
+    os.exit(1)
+end
+print(string.format("saved rankings match: %d entries for %d poems and images",
+    ranking_count, expected_count))
