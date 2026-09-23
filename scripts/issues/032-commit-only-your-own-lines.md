@@ -35,6 +35,14 @@ route (a shell rename, claimed out loud, staged from the ledger, passed by the
 gate) succeeded on the day of the switch. What remains is the open questions
 below.
 
+**Superseded in part by 032a (same day):** staging into the shared index and
+checking it before `git commit` left a gap between the gate's look and the
+commit, and another session's commit swept 55 staged files through it. Commits
+now go through `commit-own-changes`, which builds each one on a private
+staging list; `stage-own-changes` only previews, and the gate refuses every
+plain `git commit`. The ledger, the claim command and the ledger hook described
+here are unchanged.
+
 ## Intended Behavior
 
 **A commit may carry only lines this session wrote**, and the thing that checks
@@ -150,25 +158,27 @@ fallback, and it is announced every time rather than taken silently.
 
 ## Open questions
 
-1. Should a `git commit --amend` that only rewords (nothing staged) need a
-   token? Right now it passes, since there are no staged lines to check.
+1. ~~Should a `git commit --amend` that only rewords need a token?~~ Answered by
+   032a: every plain `git commit` that records something is refused, amends
+   included; commits here are append-only, and the token covers exceptions.
 2. ~~Should the ledger be cleared when a session ends, or left in RAM until
    reboot?~~ Answered 2026-09-22: kept until reboot, so a resumed session keeps
    its claims. That is the behavior as built; no `SessionEnd` hook is added.
 3. Is a whole-file claim (`claim-own-change`) too blunt for files two sessions
    share? The alternative is a claim by line range, which is more typing for
    the session and harder for a person to read in the transcript.
-4. The staging command stages the `llm-transcripts/` folder of every project
-   the session touched, so one small edit in a project another session is
-   working in also stages that other session's transcripts (seen 2026-09-22 in
-   neocities-modernization). Transcript files are named by date, not by
-   session, so the command cannot tell whose they are. Should it stage only the
-   transcripts of projects where this session made most of its changes, only
-   when every transcript change in that folder is new since the session began,
-   or should transcripts be staged by hand?
+4. ~~The staging command staged the `llm-transcripts/` folder of every project
+   the session touched, other sessions' transcripts included (seen 2026-09-22
+   in neocities-modernization). Which transcripts should ride along?~~ Answered
+   by 032a: a transcript rides along when its header names this conversation or
+   one of its helpers, wherever it lives; file names are by date, but every
+   transcript's first line says whose conversation it is.
 
 ## Related
 
-- `README-refusal-gates.md` -- the gates, the ledger and the staging tool
+- `032a-commit-through-a-private-staging-area.md` -- the next step: commits
+  built on a private staging list (`commit-own-changes`), after a race on the
+  shared one swept one session's staged files into another's commit
+- `README-refusal-gates.md` -- the gates, the ledger and the commit route
 - `test-refusal-gates` -- the cases, kept in a file so they are read, not run
 - `refuse-unscoped-commit` -- the gate this replaces
