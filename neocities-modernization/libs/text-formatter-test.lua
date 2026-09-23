@@ -173,6 +173,18 @@ check("slicing keeps an entity whole",
     "chunk=[" .. ent_chunk .. "] rest=[" .. ent_rest .. "]")
 -- }}}
 
+-- {{{ an escaped entity is measured once, not twice
+-- A note quoting HTML source shows the text "&quot;" -- six characters,
+-- written into the page as "&amp;quot;".  Decoding "&amp;" before "&quot;"
+-- measured it as one character, and the line ran five columns past the frame.
+check("text showing a literal &quot; measures six columns",
+    tf.calculate_visible_width("&amp;quot;") == 6,
+    "got " .. tf.calculate_visible_width("&amp;quot;"))
+check("text showing a literal &lt;span&gt; measures twelve columns",
+    tf.calculate_visible_width("&amp;lt;span&amp;gt;") == 12,
+    "got " .. tf.calculate_visible_width("&amp;lt;span&amp;gt;"))
+-- }}}
+
 -- {{{ content-warning box (Issue 9-011)
 -- The warning that came out mangled on fediverse/696: 170 characters, mostly
 -- one dash-joined chain with no spaces to break on.

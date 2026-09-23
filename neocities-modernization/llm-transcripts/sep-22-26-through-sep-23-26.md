@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-23 08:43:35
+Generated on: 2026-09-23 08:49:18
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -2170,6 +2170,47 @@ tonight's run could end with a passing check.
 | 3 | Frame lines up to 90 wide | Find which poems produce the 123 over-wide frame lines. They look like golden-poem side walls pushed out by long content. | Checker counts before and after on the same pages. |
 
 Should I do all three before tonight's run?
+
+--------------------------------------------------------------------------------
+
+### User Request 18
+
+Great sounds good
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 18
+
+> Starting item 1: first letting the shared box shrink to fit a short warning,
+> as the old boxes did, then swapping the five places over.
+
+> Adding the shrink cases to the tests.
+
+> Box builder done. Now swapping the five call sites, starting with the main
+> builder's `format_warning_box`.
+
+> Now the two copies inside the page workers.
+
+> Now the word pages: their two warning-box copies, and (item 2) their own
+> paragraph wrapper right below.
+
+> The shared `format_poem_content` already adds the one-space margin and wraps
+> at 80, breaking long words. It's a direct replacement for the word pages'
+> wrapper.
+
+> Both word-page swaps are done. To prove them, I'll rebuild a few dozen word
+> pages with the real generator and run the checker on those. Checking how
+> `run.sh` calls the word-page stage.
+
+> 60 word pages rebuilt with the new code. Running the checker on just those 60.
+
+> 829 warning boxes on those pages, wrapped cleanly and breaking after dashes.
+> Running the full test set, and checking whether the old byte-counting wrap
+> helper is now unused.
+
+The scan step in that command won't work: `find` doesn't follow the symlink I
+pointed it at, so it'll check zero pages. When the rebuild finishes, I'll scan
+`output/wordcloud` directly instead.
 
 --------------------------------------------------------------------------------
 

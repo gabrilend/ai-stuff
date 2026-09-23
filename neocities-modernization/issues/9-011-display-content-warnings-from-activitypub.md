@@ -101,7 +101,14 @@ edge.
    (`--html-only --words 60`) and running `scripts/validate-output` on them:
    0 over-wide lines, 0 misshapen frames, 829 warning boxes on those pages
    (the full scan before the change had 23,858 over-wide lines across the
-   7,283 word pages, 18,281 of them warning boxes).
+   7,283 word pages, 18,281 of them warning boxes). Then all 7,290 word pages
+   were rebuilt (16 minutes) and scanned: 1 over-wide line left, 0 misshapen
+   frames. The 123 over-wide golden-frame lines are gone with the new wrapper.
+   The one left was a note quoting HTML source: the width measurer
+   (`decode_html_entities_for_width` in `libs/text-formatter.lua`) decoded
+   "&amp;" before "&quot;", so the visible text "&quot;" (written
+   "&amp;quot;") measured one column instead of six. It now decodes "&amp;"
+   last; tested in `libs/text-formatter-test.lua`.
 4. Tests, beside the existing text-formatter tests (**done 2026-09-22** in
    `libs/text-formatter-test.lua`, all passing; the accented-letter case uses
    "café &amp; crème", the emoji case one 🔥):
