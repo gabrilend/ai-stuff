@@ -19,12 +19,14 @@ EOF
 | --- | --- |
 | `repository` | defaults to the ai-stuff monorepo |
 | `-F -` / `-F <file>` / `-m <message>` | the commit message; one is required |
-| `--leave-mixed` | commit the session's other blocks even when some are tangled with someone else's lines |
+| `--leave-mixed` | commit the session's other blocks even when some changed the same place as someone else (blocks that merely touch are taken apart anyway) |
+| `--no-verify` | skip the `pre-commit` and `commit-msg` hooks, as git does |
+| `--project <dir>` | the session's project folder, whose changed transcripts ride along; default the current folder, which Claude Code keeps at the session's project |
 | `--scripts-dir <dir>` | where the libraries live (for trying a copy) |
-| `-- <path>...` | commit only this session's changes in these files or folders (repository-relative), to commit work in small pieces; every changed transcript still rides along |
+| `-- <path>...` | commit only this session's changes in these files or folders (repository-relative), to commit work in small pieces; the transcripts of the session's project and of the limited files' projects still ride along |
 
 Exit 0 when a commit was made; 1 for nothing to commit, a tangled block, a
-branch that kept moving, or any error. Preview first with
+refusing hook, a branch that kept moving, or any error. Preview first with
 `stage-own-changes <repository>`.
 
 ## What it does, in order
@@ -35,11 +37,14 @@ branch that kept moving, or any error. Preview first with
 3. Seeds a private staging list in RAM (`GIT_INDEX_FILE` under
    `/dev/shm/claude-own-edits/<session>/`) from the tip.
 4. Judges the ledger's files against it (`libs/own-changes-patch.lua`); stops
-   on a tangled block unless `--leave-mixed`.
+   takes apart blocks where its lines touch someone else's; stops on a block
+   where both changed the same place unless `--leave-mixed`.
 5. Applies this session's blocks with `git apply --cached`, adds whole-claimed
-   files and every changed transcript (any conversation's; a deleted one's
-   deletion too), writes the tree, and makes a commit
-   with the tip as parent (`git commit-tree`).
+   files and the changed transcripts of the commit's projects (any
+   conversation's; a deleted one's deletion too), runs `pre-commit` against
+   the private list, writes the tree, runs `prepare-commit-msg` and
+   `commit-msg` on a copy of the message, and makes a commit with the tip as
+   parent (`git commit-tree`).
 6. Moves the branch with `git update-ref <branch> <new> <tip>`, which refuses
    if the branch moved; then rebuilds on the new tip, up to 5 attempts.
 7. Updates the shared staging area for the committed paths only: an entry equal
@@ -49,7 +54,8 @@ branch that kept moving, or any error. Preview first with
 8. Prints the commit, what it took, what it left out, and any warning.
 
 Never written: the files on disk, and shared staging entries for any path it
-did not commit. Not run: `pre-commit` / `commit-msg` hooks.
+did not commit. After the branch moves, `post-commit` runs; its verdict is
+reported and changes nothing. Every hook sees `COMMIT_OWN_CHANGES=1`.
 
 ## Environment
 

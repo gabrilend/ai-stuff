@@ -12,14 +12,22 @@
 #     orders: two commits, each with only its own lines, nothing reverted;
 #   - the same, both committing at once, twenty times over;
 #   - two sessions changed the same line: the commit stops and changes nothing;
+#   - two sessions changed touching lines (a replacement beside a replacement,
+#     an insertion beside a replacement, a deletion beside a replacement with
+#     an own change further down): this session's lines are taken out;
 #   - someone hand-staged a change to a file being committed: their staged
 #     change survives on top of the commit, or is left alone with a warning
 #     when it overlaps;
 #   - another file's staged entry is untouched; the working tree is untouched;
-#   - new, deleted and renamed files; nothing to commit; every changed
-#     transcript rides along, whoever's conversation it is, even outside a
-#     path limit, even alone, and a transcript renamed by the exporter
-#     carries its deletion with it;
+#   - new, deleted and renamed files; nothing to commit; changed transcripts
+#     ride along, whoever's they are, from the session's project and from the
+#     projects of the committed files, never from an unrelated project (except
+#     this conversation's own), even alone, even outside a path limit; a
+#     transcript renamed by the exporter carries its deletion with it;
+#   - commit hooks: a refusing pre-commit stops the commit, --no-verify skips
+#     it, a pre-commit's staging lands in the commit, commit-msg rewrites the
+#     message, prepare-commit-msg gets git's arguments, post-commit runs after,
+#     a hook that is not executable is ignored;
 #   - a branch other than main; the branch moved by someone else mid-commit;
 #   - stage-own-changes previews and writes nothing;
 #   - the commit gate turns plain git commit away and lets this route through.
@@ -200,6 +208,36 @@ check "the message names the file and line" "$(yes_if grep -q 'notes.md:5' "${SC
 check "nothing was committed" "$( [ "$(git -C "${REPO}" rev-parse main)" = "${head_before}" ] && echo yes || echo no)"
 check "the shared staging area is untouched" "$( [ "$(git -C "${REPO}" ls-files -s | sha256sum)" = "${index_before}" ] && echo yes || echo no)"
 
+printf '\nTouching lines: a replacement beside someone else\x27s replacement\n'
+new_repo touch-replace
+set_line "${REPO}/notes.md" 3 own3; claim "${S1}" - "${REPO}/notes.md" line3; claim "${S1}" + "${REPO}/notes.md" own3
+set_line "${REPO}/notes.md" 4 their4
+coc "${S1}" "${REPO}" -m "own three"; s1=$?
+check "the commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
+check "the report says the block was taken apart" "$(yes_if grep -q 'untangled .*notes.md:3' "${SCRATCH}/out-${S1}")"
+check "only this session's line is committed" "$( [ "$(changed_lines main notes.md)" = "+own3 -line3 " ] && echo yes || echo no)"
+check "the other line is still on disk, uncommitted" "$(yes_if grep -qx their4 "${REPO}/notes.md")"
+check "the shared staging area is in step with main" "$(yes_if git -C "${REPO}" diff --cached --quiet)"
+
+printf '\nTouching lines: an insertion beside someone else\x27s replacement\n'
+new_repo touch-insert
+sed -i '2a new-after-2' "${REPO}/notes.md"; claim "${S1}" + "${REPO}/notes.md" new-after-2
+set_line "${REPO}/notes.md" 4 their3
+coc "${S1}" "${REPO}" -m "an insertion"; s1=$?
+check "the commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
+check "the insertion lands above the untouched line" \
+    "$( [ "$(git -C "${REPO}" show main:notes.md | sed -n '1,4p' | tr '\n' ' ')" = "line1 line2 new-after-2 line3 " ] && echo yes || echo no)"
+
+printf '\nTouching lines: a deletion beside an own change, and an own change below\n'
+new_repo touch-delete
+sed -i '5d' "${REPO}/notes.md"
+set_line "${REPO}/notes.md" 5 own6; claim "${S1}" - "${REPO}/notes.md" line6; claim "${S1}" + "${REPO}/notes.md" own6
+set_line "${REPO}/notes.md" 8 own9; claim "${S1}" - "${REPO}/notes.md" line9; claim "${S1}" + "${REPO}/notes.md" own9
+coc "${S1}" "${REPO}" -m "around a deletion"; s1=$?
+check "the commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
+check "someone else's deletion is not committed, both own changes land in place" \
+    "$( [ "$(git -C "${REPO}" show main:notes.md | tr '\n' ' ')" = "line1 line2 line3 line4 line5 own6 line7 line8 own9 line10 " ] && echo yes || echo no)"
+
 printf '\nSomeone hand-staged another part of the file being committed\n'
 new_repo handstaged
 set_line "${REPO}/notes.md" 10 P10; git -C "${REPO}" add notes.md
@@ -253,24 +291,49 @@ printf 'foreign\n' >> "${REPO}/notes.md"
 coc "${S1}" "${REPO}" -m "empty"; s1=$?
 check "only someone else's change: still nothing, still exit 1" "$( [ $s1 = 1 ] && [ "$(git -C "${REPO}" rev-list --count main)" = 1 ] && echo yes || echo no)"
 
-printf '\nEvery changed transcript rides along, whoever\x27s it is\n'
+printf '\nTranscripts ride along by project\n'
 new_repo transcripts
-mkdir -p "${REPO}/proj/llm-transcripts" "${SESSIONS}/-proj/${S1}/subagents"
+mkdir -p "${REPO}/proj/llm-transcripts" "${REPO}/far/llm-transcripts" "${REPO}/llm-transcripts" "${SESSIONS}/-proj/${S1}/subagents"
 : > "${SESSIONS}/-proj/${S1}/subagents/agent-abc123.jsonl"
 printf '# Conversation Summary: %s\n\nmine\n' "${S1}" > "${REPO}/proj/llm-transcripts/sep-1-26.md"
 printf '# Conversation Summary: agent-abc123\n\nmy helper\n' > "${REPO}/proj/llm-transcripts/sep-1-26_agent-1.md"
 printf '# Conversation Summary: someone-else\n\ntheirs\n' > "${REPO}/proj/llm-transcripts/sep-1-26_other.md"
+printf '# Conversation Summary: far-away\n\nunrelated\n' > "${REPO}/far/llm-transcripts/sep-1-26.md"
+printf '# Conversation Summary: %s\n\nmine, filed far away\n' "${S1}" > "${REPO}/far/llm-transcripts/sep-1-26_mine.md"
+printf '# Conversation Summary: at-the-top\n\nthe top project\n' > "${REPO}/llm-transcripts/sep-1-26.md"
 printf '# Conversation Summary: %s\n\nat the root\n' "${S1}" > "${REPO}/root-transcript.md"
 set_line "${REPO}/notes.md" 1 A1; claim "${S1}" - "${REPO}/notes.md" line1; claim "${S1}" + "${REPO}/notes.md" A1
-coc "${S1}" "${REPO}" -m "with transcripts"; s1=$?
+coc "${S1}" "${REPO}" --project "${REPO}/proj" -m "with transcripts"; s1=$?
 check "the commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
 check "this session's transcript rides along" "$(yes_if git -C "${REPO}" cat-file -e main:proj/llm-transcripts/sep-1-26.md)"
 check "its helper's transcript rides along" "$(yes_if git -C "${REPO}" cat-file -e main:proj/llm-transcripts/sep-1-26_agent-1.md)"
-check "another conversation's transcript rides along too" "$(yes_if git -C "${REPO}" cat-file -e main:proj/llm-transcripts/sep-1-26_other.md)"
+check "another conversation's transcript in the session's project rides along" "$(yes_if git -C "${REPO}" cat-file -e main:proj/llm-transcripts/sep-1-26_other.md)"
 check "the report tells this conversation's from another's" "$(yes_if grep -q 'sep-1-26_other.md (another conversation)' "${SCRATCH}/out-${S1}")"
+check "an unrelated project's transcript stays out" "$(absent main:far/llm-transcripts/sep-1-26.md)"
+check "this conversation's transcript rides along wherever it is filed" "$(yes_if git -C "${REPO}" cat-file -e main:far/llm-transcripts/sep-1-26_mine.md)"
 check "a file outside llm-transcripts/ is never taken for a transcript" "$(absent main:root-transcript.md)"
 
-# Transcripts are decided by whose conversation they are, never line by line.
+# notes.md sits in the top folder, which has an llm-transcripts/ folder, so
+# committing it makes the top a project of this commit: its transcript rides
+# along.
+check "a committed file's project brings its transcripts: the top's rides along" "$(yes_if git -C "${REPO}" cat-file -e main:llm-transcripts/sep-1-26.md)"
+
+printf '\nA file reached for outside the session\x27s project brings its project\x27s transcripts\n'
+new_repo transcript-reach
+mkdir -p "${REPO}/home/llm-transcripts" "${REPO}/tools/llm-transcripts" "${REPO}/tools/sub" "${REPO}/elsewhere/llm-transcripts"
+printf 't1\n' > "${REPO}/tools/sub/script.lua"
+printf '# Conversation Summary: tools-before\n\nfirst\n' > "${REPO}/tools/llm-transcripts/sep-2-26.md"
+git -C "${REPO}" add -A && git -C "${REPO}" commit -q -m "a tool"
+printf 'a straggler line\n' >> "${REPO}/tools/llm-transcripts/sep-2-26.md"
+printf '# Conversation Summary: elsewhere\n\nnot ours to carry\n' > "${REPO}/elsewhere/llm-transcripts/sep-2-26.md"
+printf 't2\n' >> "${REPO}/tools/sub/script.lua"; claim "${S1}" + "${REPO}/tools/sub/script.lua" t2
+coc "${S1}" "${REPO}" --project "${REPO}/home" -m "reach into tools"; s1=$?
+check "the commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
+check "the reached-for project's transcript rides along (nearest folder above with llm-transcripts/)" \
+    "$(yes_if git -C "${REPO}" grep -q 'a straggler line' main -- tools/llm-transcripts/sep-2-26.md)"
+check "an unrelated project's transcript stays out" "$(absent main:elsewhere/llm-transcripts/sep-2-26.md)"
+
+# Transcripts are decided whole, never line by line.
 # The ledger can still hold partial records of transcript lines -- a backup run
 # from a shell command reports its file diff, and the ledger hook records it --
 # and before 2026-09-22 those partial records made the session's own
@@ -286,29 +349,34 @@ printf 'their next line\n' >> "${REPO}/proj/llm-transcripts/sep-2-26_other.md"
 claim "${S1}" + "${REPO}/proj/llm-transcripts/sep-2-26.md" "third, seen by the ledger"
 claim "${S1}" + "${REPO}/proj/llm-transcripts/sep-2-26_other.md" "their next line"
 set_line "${REPO}/notes.md" 1 B1; claim "${S1}" - "${REPO}/notes.md" line1; claim "${S1}" + "${REPO}/notes.md" B1
-coc "${S1}" "${REPO}" -m "partial transcript records"; s1=$?
+coc "${S1}" "${REPO}" --project "${REPO}/proj" -m "partial transcript records"; s1=$?
 check "the commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
 check "this session's transcript is committed whole" "$(yes_if git -C "${REPO}" grep -q 'second, written by the backup hook' main -- proj/llm-transcripts/sep-2-26.md)"
 check "another conversation's transcript is committed whole, ledger record or not" "$(yes_if git -C "${REPO}" grep -q 'their next line' main -- proj/llm-transcripts/sep-2-26_other.md)"
 
 # The case that changed the rule (kiln, 2026-09-23): a session committed,
 # talked on, and quit, so its transcript grew after its last commit. A later
-# session with nothing else of its own to commit must still be able to carry
-# it, and a small commit limited to one file must carry it too.
+# session in the same project, with nothing else of its own to commit, must
+# still be able to carry it, and a small commit limited to one file must carry
+# it too. The project is named through a symlinked spelling, as
+# /home/ritz/programming is of /mnt/mtwo/programming.
 printf '\nA transcript left behind by a finished session is carried\n'
 new_repo transcript-left-behind
 mkdir -p "${REPO}/proj/llm-transcripts" "${REPO}/other-proj/llm-transcripts"
+ln -sfn "${REPO}/proj" "${SCRATCH}/proj-link"
 printf '# Conversation Summary: finished-session\n\nfirst\n' > "${REPO}/proj/llm-transcripts/sep-22-26.md"
 git -C "${REPO}" add -A && git -C "${REPO}" commit -q -m "yesterday's transcript as it was"
 printf 'the last words, after its last commit\n' >> "${REPO}/proj/llm-transcripts/sep-22-26.md"
-coc "${S1}" "${REPO}" -m "transcripts catch up"; s1=$?
+coc "${S1}" "${REPO}" --project "${SCRATCH}/proj-link" -m "transcripts catch up"; s1=$?
 check "a commit of transcripts alone succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
 check "the finished session's last words are committed" "$(yes_if git -C "${REPO}" grep -q 'the last words' main -- proj/llm-transcripts/sep-22-26.md)"
+printf 'more words\n' >> "${REPO}/proj/llm-transcripts/sep-22-26.md"
 printf '# Conversation Summary: third-session\n\nelsewhere\n' > "${REPO}/other-proj/llm-transcripts/sep-23-26.md"
 set_line "${REPO}/notes.md" 1 C1; claim "${S1}" - "${REPO}/notes.md" line1; claim "${S1}" + "${REPO}/notes.md" C1
-coc "${S1}" "${REPO}" -m "notes only" -- notes.md; s1=$?
+coc "${S1}" "${REPO}" --project "${SCRATCH}/proj-link" -m "notes only" -- notes.md; s1=$?
 check "a commit limited to one file succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
-check "it carries a changed transcript outside the limit" "$(yes_if git -C "${REPO}" cat-file -e main:other-proj/llm-transcripts/sep-23-26.md)"
+check "it carries the session's project's transcript, outside the limit" "$(yes_if git -C "${REPO}" grep -q 'more words' main -- proj/llm-transcripts/sep-22-26.md)"
+check "it leaves an unrelated project's transcript out" "$(absent main:other-proj/llm-transcripts/sep-23-26.md)"
 
 # The exporter renames a transcript when its conversation crosses midnight
 # (one day's name becomes a date range). The old name's deletion rides along
@@ -321,12 +389,44 @@ git -C "${REPO}" add -A && git -C "${REPO}" commit -q -m "one day's transcript"
 git -C "${REPO}" --no-optional-locks show main:proj/llm-transcripts/sep-22-26.md > "${REPO}/proj/llm-transcripts/sep-22-26-through-sep-23-26.md"
 printf 'day two\n' >> "${REPO}/proj/llm-transcripts/sep-22-26-through-sep-23-26.md"
 rm "${REPO}/proj/llm-transcripts/sep-22-26.md"
-coc "${S1}" "${REPO}" -m "the rename"; s1=$?
+coc "${S1}" "${REPO}" --project "${REPO}/proj" -m "the rename"; s1=$?
 check "the commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
 check "the new name is committed" "$(yes_if git -C "${REPO}" cat-file -e main:proj/llm-transcripts/sep-22-26-through-sep-23-26.md)"
 check "the old name's deletion is committed" "$(absent main:proj/llm-transcripts/sep-22-26.md)"
 check "the report says the old one is gone" "$(yes_if grep -q 'sep-22-26.md (gone from disk' "${SCRATCH}/out-${S1}")"
 check "nothing is left uncommitted" "$( [ -z "$(git -C "${REPO}" status --porcelain)" ] && echo yes || echo no)"
+
+printf '\nCommit hooks run as git would run them\n'
+new_repo hooks
+HOOKS="$(git -C "${REPO}" rev-parse --absolute-git-dir)/hooks"
+mkdir -p "${HOOKS}"
+printf '#!/bin/sh\necho "pre-commit says no"\nexit 1\n' > "${HOOKS}/pre-commit"; chmod +x "${HOOKS}/pre-commit"
+set_line "${REPO}/notes.md" 1 H1; claim "${S1}" - "${REPO}/notes.md" line1; claim "${S1}" + "${REPO}/notes.md" H1
+head_before="$(git -C "${REPO}" rev-parse main)"
+coc "${S1}" "${REPO}" -m "refused"; s1=$?
+check "a refusing pre-commit stops the commit" "$( [ $s1 = 1 ] && [ "$(git -C "${REPO}" rev-parse main)" = "${head_before}" ] && echo yes || echo no)"
+check "and its output is shown" "$(yes_if grep -q 'pre-commit says no' "${SCRATCH}/out-${S1}")"
+coc "${S1}" "${REPO}" -m "skipped" --no-verify; s1=$?
+check "--no-verify skips it" "$( [ $s1 = 0 ] && [ "$(git -C "${REPO}" rev-parse main)" != "${head_before}" ] && echo yes || echo no)"
+# a pre-commit that stages a file of its own, marked with what it was told
+printf '#!/bin/sh\nprintf "route=%%s\\n" "$COMMIT_OWN_CHANGES" > stamp.txt\ngit add stamp.txt\n' > "${HOOKS}/pre-commit"
+printf '#!/bin/sh\nprintf "\\nChecked-by: the commit-msg hook\\n" >> "$1"\n' > "${HOOKS}/commit-msg"; chmod +x "${HOOKS}/commit-msg"
+printf '#!/bin/sh\nprintf "%%s\\n" "$2" > "%s/prepare-args"\n' "${SCRATCH}" > "${HOOKS}/prepare-commit-msg"; chmod +x "${HOOKS}/prepare-commit-msg"
+printf '#!/bin/sh\ngit rev-parse HEAD > "%s/post-commit-saw"\n' "${SCRATCH}" > "${HOOKS}/post-commit"; chmod +x "${HOOKS}/post-commit"
+set_line "${REPO}/notes.md" 2 H2; claim "${S1}" - "${REPO}/notes.md" line2; claim "${S1}" + "${REPO}/notes.md" H2
+coc "${S1}" "${REPO}" -m "with hooks"; s1=$?
+check "the commit succeeds with all four hooks" "$( [ $s1 = 0 ] && echo yes || echo no)"
+check "what pre-commit staged is in the commit, and it saw COMMIT_OWN_CHANGES=1" \
+    "$( [ "$(git -C "${REPO}" show main:stamp.txt)" = "route=1" ] && echo yes || echo no)"
+check "commit-msg rewrote the message" "$(git -C "${REPO}" log -1 --format=%B main | grep -q 'Checked-by: the commit-msg hook' && echo yes || echo no)"
+check "prepare-commit-msg was told the message came from the command line" "$( [ "$(cat "${SCRATCH}/prepare-args")" = "message" ] && echo yes || echo no)"
+check "post-commit ran after the branch moved" "$( [ "$(cat "${SCRATCH}/post-commit-saw")" = "$(git -C "${REPO}" rev-parse main)" ] && echo yes || echo no)"
+check "the shared staging area is in step, the hook's file included" "$(yes_if git -C "${REPO}" diff --cached --quiet)"
+chmod -x "${HOOKS}/pre-commit" "${HOOKS}/commit-msg" "${HOOKS}/prepare-commit-msg" "${HOOKS}/post-commit"
+printf '#!/bin/sh\nexit 1\n' > "${HOOKS}/pre-commit"
+set_line "${REPO}/notes.md" 3 H3; claim "${S1}" - "${REPO}/notes.md" line3; claim "${S1}" + "${REPO}/notes.md" H3
+coc "${S1}" "${REPO}" -m "hooks switched off"; s1=$?
+check "a hook that is not executable is not run" "$( [ $s1 = 0 ] && echo yes || echo no)"
 
 printf '\nCommitting in small pieces with -- <paths>\n'
 new_repo pieces

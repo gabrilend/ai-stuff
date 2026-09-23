@@ -22,10 +22,12 @@
 --      staging list in RAM from that commit (git's GIT_INDEX_FILE).
 --   3. It compares the files on disk with that list, for the files this
 --      session's edit ledger names, and keeps only the change blocks the
---      session wrote (see own-changes-patch.lua). If a block of its own is
---      tangled with someone else's lines, it stops and changes nothing.
+--      session wrote (see own-changes-patch.lua). A block where its lines
+--      touch someone else's is taken apart and only its lines are kept; if
+--      both changed the same place, it stops and changes nothing.
 --   4. It applies those blocks to the private list with git apply --cached,
---      adds files claimed whole and every changed transcript, and makes
+--      adds files claimed whole and the changed transcripts of the commit's
+--      projects, runs the repository's commit hooks as git would, and makes
 --      a commit of it whose parent is the tip it started from.
 --   5. It moves the branch only if the branch still points at that tip (git
 --      update-ref with the old value), so anything else that moved the branch
@@ -38,22 +40,30 @@
 --      that merge conflicts. Every other entry is untouched.
 --   7. It prints what it committed and what it left out.
 --
--- The files on disk are never written. Hooks that `git commit` would run
--- (pre-commit, commit-msg) do not run, since the commit is made directly.
+-- The files on disk are never written (a hook may write them; that is the
+-- hook's doing). Hooks run as `git commit` runs them: pre-commit against the
+-- private list, prepare-commit-msg and commit-msg on a copy of the message,
+-- post-commit after the branch moves; each also sees COMMIT_OWN_CHANGES=1.
 --
 -- The session is read from CLAUDE_CODE_SESSION_ID, which Claude Code sets for
 -- every shell command it runs. Claude Code's session store, where helper
 -- conversations are found, is CLAUDE_SESSIONS_ROOT or ~/.claude/projects.
 --
 -- Usage: commit-own-changes [repository] (-F <file> | -F - | -m <message>)
---                           [--leave-mixed] [--scripts-dir <dir>] [-- <path>...]
+--                           [--leave-mixed] [--no-verify] [--project <dir>]
+--                           [--scripts-dir <dir>] [-- <path>...]
 --   repository      defaults to the ai-stuff monorepo below
 --   -F -            reads the message from standard input
---   --leave-mixed   commit the session's other blocks even when some are
---                   tangled with someone else's lines (they are reported)
+--   --leave-mixed   commit the session's other blocks even when some changed
+--                   the same place as someone else (they are reported)
+--   --no-verify     skip the pre-commit and commit-msg hooks, as git does
+--   --project <dir> the session's project folder, whose changed transcripts
+--                   ride along; defaults to the current folder, which Claude
+--                   Code keeps at the session's project
 --   -- <path>...    commit only this session's changes in these files or
 --                   folders (repository-relative), so work can be committed in
---                   small pieces; every changed transcript still rides along
+--                   small pieces; transcripts of the session's project
+--                   and of the limited files' projects still ride along
 --
 -- Exit status: 0 committed; 1 nothing to commit, a tangled block, or an error.
 
@@ -65,6 +75,10 @@ local LOCK_WAIT_SECONDS = "120"
 -- {{{ argument reading
 local message_file, message_text, message_from_stdin = nil, nil, false
 local leave_mixed = false
+local no_verify = false
+-- the folder the session runs in: Claude Code never moves the working
+-- directory, so "." is the session's project unless --project says otherwise
+local project_dir = "."
 local only = nil
 do
     local i = 1
@@ -85,6 +99,10 @@ do
             message_text = arg[i + 1]; i = i + 2
         elseif a == "--leave-mixed" then
             leave_mixed = true; i = i + 1
+        elseif a == "--no-verify" then
+            no_verify = true; i = i + 1
+        elseif a == "--project" then
+            project_dir = arg[i + 1]; i = i + 2
         else
             DIR = a; i = i + 1
         end
@@ -168,6 +186,10 @@ local function with_lock(session_id)
         "env", "COMMIT_OWN_CHANGES_LOCKED=1", "luajit", arg[0], DIR, "-F", msg_path,
         "--scripts-dir", SCRIPTS_DIR }
     if leave_mixed then argv[#argv + 1] = "--leave-mixed" end
+    if no_verify then argv[#argv + 1] = "--no-verify" end
+    -- resolved now: the re-run starts in the same folder, but say it plainly
+    argv[#argv + 1] = "--project"
+    argv[#argv + 1] = project_dir
     if only then
         argv[#argv + 1] = "--"
         for _, p in ipairs(only) do argv[#argv + 1] = p end
@@ -325,6 +347,39 @@ local function keep_within_only(list)
 end
 -- }}}
 
+-- {{{ local function run_hook()
+-- Runs one of the repository's git hooks the way `git commit` would: found
+-- where git looks for it (core.hooksPath honoured), run only when executable,
+-- from the repository's top folder, with `env` added to its environment.
+-- Every hook also sees COMMIT_OWN_CHANGES=1 (and the inherited
+-- CLAUDE_CODE_SESSION_ID), so it can tell this route from a person's commit.
+-- Returns nil when there is no such hook, else whether it succeeded and its
+-- output.
+local function run_hook(top, name, args, env)
+    local where = trim(git(top, { "rev-parse", "--git-path", "hooks/" .. name }))
+    -- git answers relative to the top folder unless the path is absolute
+    if where:sub(1, 1) ~= "/" then where = top .. "/" .. where end
+    local _, runnable = patch.run_quiet({ "test", "-x", where })
+    if not runnable then return nil end
+    local hook_env = { COMMIT_OWN_CHANGES = "1" }
+    for k, v in pairs(env or {}) do hook_env[k] = v end
+    local argv = { "env", "-C", top, where }
+    for _, a in ipairs(args) do argv[#argv + 1] = a end
+    local out, ok = patch.run(argv, hook_env)
+    return ok, trim(out)
+end
+-- }}}
+
+-- {{{ local function hook_report()
+-- Adds a hook's outcome to the report, its output indented beneath.
+local function hook_report(report, name, ok, out)
+    report[#report + 1] = "  hook           " .. name .. (ok and " passed" or " FAILED")
+    for line in (out .. "\n"):gmatch("([^\n]*)\n") do
+        if line ~= "" then report[#report + 1] = "                   " .. line end
+    end
+end
+-- }}}
+
 -- {{{ local function build_commit()
 -- One attempt: seed a private list from `old`, apply this session's changes,
 -- and make a commit. Returns the new commit id, or nil plus a reason
@@ -358,10 +413,15 @@ local function build_commit(top, old, claims, rels, ids, work, msg_path)
         git(top, args, env)
     end
 
-    -- every changed transcript rides along, whoever's it is and whatever the
-    -- `--` limit says: the story is kept as complete as it can be (see
+    -- changed transcripts ride along, whoever's they are, from the session's
+    -- project and the projects of the files this commit carries (see
     -- own-changes-patch.lua, TRANSCRIPTS)
-    local transcripts, terr = patch.changed_transcripts(top, old, ids)
+    local carried = {}
+    for _, rel in ipairs(result.taken) do carried[#carried + 1] = rel end
+    for _, rel in ipairs(result.whole) do carried[#carried + 1] = rel end
+    local projects, perr = patch.transcript_projects(top, project_dir, carried)
+    if not projects then cleanup(); return nil, perr, report end
+    local transcripts, terr = patch.changed_transcripts(top, old, ids, projects)
     if not transcripts then cleanup(); return nil, terr, report end
     local present, gone = {}, {}
     for _, t in ipairs(transcripts) do
@@ -381,11 +441,42 @@ local function build_commit(top, old, claims, rels, ids, work, msg_path)
     end
 
     local tree = trim(git(top, { "write-tree" }, env))
-    cleanup()
     if tree == trim(git(top, { "rev-parse", old .. "^{tree}" })) then
+        cleanup()
         return nil, "nothing", report
     end
-    local new = trim(git(top, { "commit-tree", tree, "-p", old, "-F", msg_path }))
+
+    -- the hooks `git commit` would run, in its order. pre-commit sees the
+    -- private list and may stage into it, so the tree is written again.
+    -- --no-verify skips pre-commit and commit-msg, as it does for git;
+    -- prepare-commit-msg runs regardless, as it does for git.
+    if not no_verify then
+        local ok, out = run_hook(top, "pre-commit", {}, env)
+        if ok ~= nil then hook_report(report, "pre-commit", ok, out) end
+        if ok == false then cleanup(); return nil, "hook", report end
+        tree = trim(git(top, { "write-tree" }, env))
+    end
+    -- the message hooks work on a copy, since they may rewrite it and a retry
+    -- must start again from the words the session gave
+    local attempt_msg = index_path .. ".message"
+    do
+        local f = assert(io.open(msg_path, "rb"))
+        write_file(attempt_msg, f:read("*a"))
+        f:close()
+    end
+    local function stop_on_hook(name, args)
+        local ok, out = run_hook(top, name, args, env)
+        if ok ~= nil then hook_report(report, name, ok, out) end
+        return ok == false
+    end
+    if stop_on_hook("prepare-commit-msg", { attempt_msg, "message" })
+        or (not no_verify and stop_on_hook("commit-msg", { attempt_msg })) then
+        cleanup(); os.remove(attempt_msg)
+        return nil, "hook", report
+    end
+    cleanup()
+    local new = trim(git(top, { "commit-tree", tree, "-p", old, "-F", attempt_msg }))
+    os.remove(attempt_msg)
     return new, nil, report
 end
 -- }}}
@@ -428,11 +519,14 @@ local function main()
             if reason == "nothing" then
                 io.stderr:write(table.concat(report, "\n"), (#report > 0 and "\n" or ""))
                 fail("nothing of this session's to commit in " .. top .. " (the ledger names " .. #rels .. " file(s) here)")
+            elseif reason == "hook" then
+                io.stderr:write(table.concat(report, "\n"), "\n")
+                fail("stopped, nothing committed: a commit hook refused (its output is above). Fix what it says, or pass --no-verify to skip pre-commit and commit-msg.")
             elseif reason == "mixed" then
                 io.stderr:write(table.concat(report, "\n"), "\n")
-                fail("stopped, nothing committed: a change block of this session's is tangled with lines it did not write, at "
+                fail("stopped, nothing committed: this session and someone else changed the same place, at "
                     .. table.concat(mixed, ", ")
-                    .. ". Two sessions have changed the same lines; decide what that region should say (or claim the lines with claim-own-change if they are this session's), or commit the rest with --leave-mixed.")
+                    .. ", so the order of the two sets of lines cannot be told. Decide what that region should say (or claim the lines with claim-own-change if they are this session's), or commit the rest with --leave-mixed.")
             end
             fail(reason)
         end
@@ -447,7 +541,12 @@ local function main()
     if not new then fail("the branch kept moving; gave up after " .. MAX_ATTEMPTS .. " attempts, nothing committed") end
 
     -- the commit has landed; a failure from here on must say so rather than
-    -- read as "nothing committed"
+    -- read as "nothing committed". post-commit's verdict changes nothing, as
+    -- in git; it is only reported.
+    do
+        local ok, out = run_hook(top, "post-commit", {}, nil)
+        if ok ~= nil then hook_report(notes, "post-commit", ok, out) end
+    end
     local sync_ok, synced = pcall(sync_shared, top, old, new)
     if not sync_ok then
         io.stderr:write("commit-own-changes: committed ", new:sub(1, 9), " on ", branch,
