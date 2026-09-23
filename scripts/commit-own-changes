@@ -1,0 +1,460 @@
+#!/usr/bin/env luajit
+--
+-- commit-own-changes
+--
+-- Commits, in one repository, exactly the lines this Claude Code session wrote
+-- -- and nothing anyone else has written or staged -- without ever reading or
+-- writing the staging area other sessions share.
+--
+-- Why it exists: every session in a repository shares one staging area, the
+-- file .git/index, and `git commit` records whatever is in it. On 2026-09-22 a
+-- gate checked that list, found it clean, and while the command line it had
+-- approved was still running, another session staged 55 files into the same
+-- list; the commit carried them all under the wrong message. No gate that runs
+-- before a command can close that gap, because the list is shared. So this
+-- builds each commit on a list of its own.
+--
+-- How it works, in plain terms:
+--   1. It takes this repository's commit lock (a file in the git directory,
+--      held with flock), so two sessions committing at the same instant take
+--      turns instead of interleaving.
+--   2. It reads the branch and the commit at its tip, and seeds a private
+--      staging list in RAM from that commit (git's GIT_INDEX_FILE).
+--   3. It compares the files on disk with that list, for the files this
+--      session's edit ledger names, and keeps only the change blocks the
+--      session wrote (see own-changes-patch.lua). If a block of its own is
+--      tangled with someone else's lines, it stops and changes nothing.
+--   4. It applies those blocks to the private list with git apply --cached,
+--      adds files claimed whole and this session's own transcripts, and makes
+--      a commit of it whose parent is the tip it started from.
+--   5. It moves the branch only if the branch still points at that tip (git
+--      update-ref with the old value), so anything else that moved the branch
+--      in the meantime makes it rebuild on the new tip and try again.
+--   6. Then, and only for the files it committed, it updates the shared
+--      staging area so `git status` does not show the new commit as staged to
+--      be undone. An entry nobody staged is set to the new content; an entry
+--      someone staged by hand is rebuilt as the new commit plus their staged
+--      change (a three-way merge of that file), or left alone with a warning if
+--      that merge conflicts. Every other entry is untouched.
+--   7. It prints what it committed and what it left out.
+--
+-- The files on disk are never written. Hooks that `git commit` would run
+-- (pre-commit, commit-msg) do not run, since the commit is made directly.
+--
+-- The session is read from CLAUDE_CODE_SESSION_ID, which Claude Code sets for
+-- every shell command it runs. Claude Code's session store, where helper
+-- conversations are found, is CLAUDE_SESSIONS_ROOT or ~/.claude/projects.
+--
+-- Usage: commit-own-changes [repository] (-F <file> | -F - | -m <message>)
+--                           [--leave-mixed] [--scripts-dir <dir>] [-- <path>...]
+--   repository      defaults to the ai-stuff monorepo below
+--   -F -            reads the message from standard input
+--   --leave-mixed   commit the session's other blocks even when some are
+--                   tangled with someone else's lines (they are reported)
+--   -- <path>...    commit only this session's changes in these files or
+--                   folders (repository-relative), so work can be committed in
+--                   small pieces; transcripts ride along only if listed too
+--
+-- Exit status: 0 committed; 1 nothing to commit, a tangled block, or an error.
+
+local DIR = "/mnt/mtwo/programming/ai-stuff"
+local SCRIPTS_DIR = "/home/ritz/programming/ai-stuff/scripts"
+local MAX_ATTEMPTS = 5
+local LOCK_WAIT_SECONDS = "120"
+
+-- {{{ argument reading
+local message_file, message_text, message_from_stdin = nil, nil, false
+local leave_mixed = false
+local only = nil
+do
+    local i = 1
+    while arg[i] do
+        local a = arg[i]
+        -- a dispatch on the few options; a bare word is the repository
+        if a == "--" then
+            -- everything after -- limits the commit to those paths
+            only = {}
+            for j = i + 1, #arg do only[#only + 1] = (arg[j]:gsub("/+$", "")) end
+            break
+        elseif a == "--scripts-dir" then
+            SCRIPTS_DIR = arg[i + 1]; i = i + 2
+        elseif a == "-F" or a == "--file" then
+            if arg[i + 1] == "-" then message_from_stdin = true else message_file = arg[i + 1] end
+            i = i + 2
+        elseif a == "-m" or a == "--message" then
+            message_text = arg[i + 1]; i = i + 2
+        elseif a == "--leave-mixed" then
+            leave_mixed = true; i = i + 1
+        else
+            DIR = a; i = i + 1
+        end
+    end
+end
+-- }}}
+
+package.path = SCRIPTS_DIR .. "/libs/?.lua;" .. package.path
+local ledger = require("own-lines-ledger")
+local patch = require("own-changes-patch")
+
+-- {{{ local function fail()
+local function fail(message)
+    io.stderr:write("commit-own-changes: ", message, "\n")
+    os.exit(1)
+end
+-- }}}
+
+-- {{{ local function git()
+-- Runs git in the repository, optionally against a private staging list, and
+-- returns standard output; fails loudly unless `soft` is set, in which case it
+-- returns the output, whether it succeeded, and standard error.
+local function git(top, args, env, soft)
+    local argv = { "git", "-C", top }
+    for _, a in ipairs(args) do argv[#argv + 1] = a end
+    local out, ok, err = patch.run_quiet(argv, env)
+    if soft then return out, ok, err end
+    if not ok then fail("git " .. table.concat(args, " ") .. " failed:\n" .. err .. out) end
+    return out
+end
+-- }}}
+
+-- {{{ local function trim()
+local function trim(s) return (s:gsub("%s+$", "")) end
+-- }}}
+
+-- {{{ local function shell_quote()
+local function shell_quote(word)
+    return "'" .. word:gsub("'", "'\\''") .. "'"
+end
+-- }}}
+
+-- {{{ local function write_file()
+local function write_file(path, content)
+    local f = assert(io.open(path, "wb"))
+    f:write(content)
+    f:close()
+end
+-- }}}
+
+-- {{{ local function session_workspace()
+-- This session's folder in RAM (the ledger's), created if missing.
+local function session_workspace(session_id)
+    local dir = ledger.session_dir(session_id)
+    os.execute("mkdir -p -m 700 " .. shell_quote(dir))
+    return dir
+end
+-- }}}
+
+-- {{{ local function with_lock()
+-- Re-runs this script under the repository's commit lock, unless it already
+-- holds it. The message is saved to RAM first, so standard input is read once.
+local function with_lock(session_id)
+    if os.getenv("COMMIT_OWN_CHANGES_LOCKED") == "1" then return end
+    local common = trim(git(DIR, { "rev-parse", "--path-format=absolute", "--git-common-dir" }))
+    local work = session_workspace(session_id)
+    local msg_path = work .. "/commit-message-" .. tostring(os.time()) .. "-" .. tostring(math.random(1e9))
+    -- the message: from standard input, a file, or -m; one of them is required
+    if message_from_stdin then
+        write_file(msg_path, io.stdin:read("*a"))
+    elseif message_file then
+        local f = io.open(message_file, "rb")
+        if not f then fail("cannot read the message file " .. message_file) end
+        write_file(msg_path, f:read("*a")); f:close()
+    elseif message_text then
+        write_file(msg_path, message_text .. "\n")
+    else
+        fail("a commit message is required: -F <file>, -F - (standard input) or -m <message>")
+    end
+    local argv = { "flock", "-w", LOCK_WAIT_SECONDS, common .. "/commit-own-changes.lock",
+        "env", "COMMIT_OWN_CHANGES_LOCKED=1", "luajit", arg[0], DIR, "-F", msg_path,
+        "--scripts-dir", SCRIPTS_DIR }
+    if leave_mixed then argv[#argv + 1] = "--leave-mixed" end
+    if only then
+        argv[#argv + 1] = "--"
+        for _, p in ipairs(only) do argv[#argv + 1] = p end
+    end
+    local line = {}
+    for i, w in ipairs(argv) do line[i] = shell_quote(w) end
+    local ok, _, code = os.execute(table.concat(line, " "))
+    os.remove(msg_path)
+    os.exit((ok == true or code == 0) and 0 or (code or 1))
+end
+-- }}}
+
+-- {{{ local function tree_entry()
+-- A path's mode and blob in a commit, or nil when the commit has no such file.
+local function tree_entry(top, commit, rel)
+    local out = git(top, { "ls-tree", "-z", commit, "--", rel })
+    local mode, kind, id = out:match("^(%d+) (%S+) (%x+)\t")
+    if not mode or kind ~= "blob" then return nil end
+    return { mode = mode, id = id }
+end
+-- }}}
+
+-- {{{ local function shared_entry()
+-- A path's entry in the SHARED staging list: { mode, id } at stage 0, nil when
+-- absent, or false when the path is mid-merge (conflict stages present).
+local function shared_entry(top, rel)
+    local out = git(top, { "ls-files", "-s", "-z", "--", rel })
+    local entry = nil
+    for record in out:gmatch("([^%z]+)") do
+        local mode, id, stage, path = record:match("^(%d+) (%x+) (%d)\t(.*)$")
+        if path == rel then
+            if stage ~= "0" then return false end
+            entry = { mode = mode, id = id }
+        end
+    end
+    return entry
+end
+-- }}}
+
+-- {{{ local function same()
+local function same(a, b)
+    if not a or not b then return a == b end
+    return a.mode == b.mode and a.id == b.id
+end
+-- }}}
+
+-- {{{ local function update_shared()
+-- Writes one entry of the shared staging list (nil removes it), retrying while
+-- another git process holds the list's lock. Returns true or false, reason.
+local function update_shared(top, rel, entry)
+    local args
+    if entry then
+        args = { "update-index", "--add", "--cacheinfo", entry.mode .. "," .. entry.id .. "," .. rel }
+    else
+        args = { "update-index", "--force-remove", "--", rel }
+    end
+    local last = ""
+    for _ = 1, 100 do
+        local out, ok, err = git(top, args, nil, true)
+        if ok then return true end
+        last = err .. out
+        -- only a held lock is worth waiting out; anything else is final
+        if not last:find("index.lock", 1, true) then break end
+        os.execute("sleep 0.05")
+    end
+    return false, trim(last)
+end
+-- }}}
+
+-- {{{ local function was_committed_version()
+-- Whether a blob is some committed version of the path within its recent
+-- history: such an entry is stale (left behind by a commit made some other
+-- way), not something a person staged.
+local function was_committed_version(top, tip, rel, id)
+    local log = git(top, { "log", "-n", "20", "--format=%H", tip, "--", rel })
+    for commit in log:gmatch("%x+") do
+        local e = tree_entry(top, commit, rel)
+        if e and e.id == id then return true end
+    end
+    return false
+end
+-- }}}
+
+-- {{{ local function sync_shared()
+-- Brings the shared staging list up to the new commit for the committed paths
+-- only. Returns report lines.
+local function sync_shared(top, old, new)
+    local report = {}
+    local names = git(top, { "diff", "--name-only", "-z", "--no-renames", old, new })
+    for rel in names:gmatch("([^%z]+)") do
+        local before, after = tree_entry(top, old, rel), tree_entry(top, new, rel)
+        local shared = shared_entry(top, rel)
+        local want, note = nil, nil
+        if shared == false then
+            -- someone is mid-merge on this path: not ours to touch
+            note = "  NOT SYNCED     " .. rel .. " is mid-merge in the shared staging area; left as it is"
+        elseif same(shared, after) then
+            -- already what the commit holds: nothing to do
+            want = "skip"
+        elseif same(shared, before) or (shared and was_committed_version(top, old, rel, shared.id)) then
+            -- nobody staged it (or it is a stale committed version): follow the commit
+            want = after or "remove"
+        elseif shared and before and after then
+            -- someone staged their own change to this file: keep it on top of ours
+            local merged, ok = git(top, { "merge-file", "--object-id", after.id, before.id, shared.id }, nil, true)
+            merged = trim(merged)
+            if ok and merged:match("^%x+$") then
+                want = { mode = shared.mode, id = merged }
+                note = "  kept staged    " .. rel .. " (someone's staged change, rebuilt on top of this commit)"
+            else
+                note = "  WARNING        " .. rel .. " has a hand-staged change that overlaps this commit; its shared staging entry was left as it was. Whoever staged it should re-stage the file."
+            end
+        else
+            -- staged as new or as deleted while this commit changed it the other way
+            note = "  WARNING        " .. rel .. " is staged by someone in a way that conflicts with this commit (new or deleted); its shared staging entry was left as it was."
+        end
+
+        if want and want ~= "skip" then
+            -- "remove" means the commit deleted the file: drop its entry
+            local target = want
+            if want == "remove" then target = nil end
+            local ok, reason = update_shared(top, rel, target)
+            if not ok then
+                note = "  WARNING        " .. rel .. ": could not update the shared staging area (" .. reason .. ")"
+            elseif not same(shared_entry(top, rel), target) then
+                -- someone wrote the entry between our read and our write
+                note = "  WARNING        " .. rel .. ": the shared staging entry changed while it was being updated; check it with git status"
+            end
+        end
+        if note then report[#report + 1] = note end
+    end
+    return report
+end
+-- }}}
+
+-- {{{ local function within_only()
+-- Whether a repository-relative path is inside the `-- <path>...` limit; with
+-- no limit given, everything is.
+local function within_only(rel)
+    if not only then return true end
+    for _, p in ipairs(only) do
+        if rel == p or rel:sub(1, #p + 1) == p .. "/" then return true end
+    end
+    return false
+end
+-- }}}
+
+-- {{{ local function keep_within_only()
+local function keep_within_only(list)
+    local kept = {}
+    for _, rel in ipairs(list) do
+        if within_only(rel) then kept[#kept + 1] = rel end
+    end
+    return kept
+end
+-- }}}
+
+-- {{{ local function build_commit()
+-- One attempt: seed a private list from `old`, apply this session's changes,
+-- and make a commit. Returns the new commit id, or nil plus a reason
+-- ("nothing" or "mixed" or a message), plus the report lines.
+local function build_commit(top, old, claims, rels, ids, work, msg_path)
+    local index_path = work .. "/private-index-" .. tostring(os.time()) .. "-" .. tostring(math.random(1e9))
+    local env = { GIT_INDEX_FILE = index_path }
+    local function cleanup() os.remove(index_path) end
+
+    git(top, { "read-tree", old }, env)
+    local result, reason = patch.collect(top, claims, rels, env)
+    if not result then cleanup(); return nil, reason, {} end
+    local report = result.report
+
+    -- a block of ours tangled with someone else's: stop unless told otherwise
+    if #result.mixed > 0 and not leave_mixed then
+        cleanup()
+        return nil, "mixed", report, result.mixed
+    end
+
+    if result.patch then
+        local patch_path = index_path .. ".patch"
+        write_file(patch_path, result.patch)
+        local out, ok, err = git(top, { "apply", "--cached", "--unidiff-zero", "--whitespace=nowarn", patch_path }, env, true)
+        os.remove(patch_path)
+        if not ok then cleanup(); return nil, "git apply --cached failed:\n" .. err .. out, report end
+    end
+    if #result.whole > 0 then
+        local args = { "add", "--" }
+        for _, rel in ipairs(result.whole) do args[#args + 1] = rel end
+        git(top, args, env)
+    end
+
+    local transcripts, terr = patch.own_transcripts(top, ids)
+    if not transcripts then cleanup(); return nil, terr, report end
+    transcripts = keep_within_only(transcripts)
+    if #transcripts > 0 then
+        local args = { "add", "--" }
+        for _, rel in ipairs(transcripts) do
+            args[#args + 1] = rel
+            report[#report + 1] = "  transcript     " .. rel
+        end
+        git(top, args, env)
+    end
+
+    local tree = trim(git(top, { "write-tree" }, env))
+    cleanup()
+    if tree == trim(git(top, { "rev-parse", old .. "^{tree}" })) then
+        return nil, "nothing", report
+    end
+    local new = trim(git(top, { "commit-tree", tree, "-p", old, "-F", msg_path }))
+    return new, nil, report
+end
+-- }}}
+
+-- {{{ local function main()
+local function main()
+    local session_id = os.getenv("CLAUDE_CODE_SESSION_ID")
+    if not session_id or session_id == "" then
+        fail("CLAUDE_CODE_SESSION_ID is not set; this only works inside a Claude Code session")
+    end
+    math.randomseed(os.time() + tonumber(tostring({}):match("0x(%x+)") or "0", 16) % 100000)
+    with_lock(session_id)
+
+    -- from here on this process holds the repository's commit lock
+    local msg_path = message_file
+    local top = trim(git(DIR, { "rev-parse", "--show-toplevel" }))
+    local branch_ref, ok = git(top, { "symbolic-ref", "-q", "HEAD" }, nil, true)
+    branch_ref = trim(branch_ref)
+    if not ok or branch_ref == "" then fail("HEAD is not on a branch in " .. top .. "; check out a branch first") end
+    local branch = branch_ref:gsub("^refs/heads/", "")
+
+    local claims = ledger.load(session_id)
+    local rels = keep_within_only(patch.ledger_files(claims, top))
+    local sessions_root = os.getenv("CLAUDE_SESSIONS_ROOT") or (os.getenv("HOME") .. "/.claude/projects")
+    local ids = patch.own_ids(session_id, sessions_root)
+    local work = session_workspace(session_id)
+    local subject = "commit"
+    do
+        local f = io.open(msg_path, "r")
+        if f then subject = (f:read("*l") or "commit"); f:close() end
+    end
+
+    local new, old, report, notes = nil, nil, {}, {}
+    for attempt = 1, MAX_ATTEMPTS do
+        old = trim(git(top, { "rev-parse", "--verify", branch_ref .. "^{commit}" }))
+        local reason, mixed
+        new, reason, report, mixed = build_commit(top, old, claims, rels, ids, work, msg_path)
+        if not new then
+            -- why nothing was made: a dispatch on the reason
+            if reason == "nothing" then
+                io.stderr:write(table.concat(report, "\n"), (#report > 0 and "\n" or ""))
+                fail("nothing of this session's to commit in " .. top .. " (the ledger names " .. #rels .. " file(s) here)")
+            elseif reason == "mixed" then
+                io.stderr:write(table.concat(report, "\n"), "\n")
+                fail("stopped, nothing committed: a change block of this session's is tangled with lines it did not write, at "
+                    .. table.concat(mixed, ", ")
+                    .. ". Two sessions have changed the same lines; decide what that region should say (or claim the lines with claim-own-change if they are this session's), or commit the rest with --leave-mixed.")
+            end
+            fail(reason)
+        end
+        -- a test can move the branch here, to prove the compare-and-swap
+        local hook = os.getenv("COMMIT_OWN_CHANGES_TEST_BEFORE_SWAP")
+        if hook and hook ~= "" then os.execute(hook) end
+        local _, swapped = git(top, { "update-ref", "-m", "commit-own-changes: " .. subject, branch_ref, new, old }, nil, true)
+        if swapped then break end
+        notes[#notes + 1] = "  retried        the branch moved while this commit was being built (attempt " .. attempt .. "); rebuilt on the new tip"
+        new = nil
+    end
+    if not new then fail("the branch kept moving; gave up after " .. MAX_ATTEMPTS .. " attempts, nothing committed") end
+
+    -- the commit has landed; a failure from here on must say so rather than
+    -- read as "nothing committed"
+    local sync_ok, synced = pcall(sync_shared, top, old, new)
+    if not sync_ok then
+        io.stderr:write("commit-own-changes: committed ", new:sub(1, 9), " on ", branch,
+            ", but bringing the shared staging area in step with it failed:\n  ", tostring(synced),
+            "\n`git status` may show that commit's files as staged to be undone. Check with\n  git -C ", top,
+            " diff --cached --stat\nand set a file's entry back to the commit with\n  git -C ", top,
+            " restore --staged -- <file>\n")
+        os.exit(1)
+    end
+    io.write("commit-own-changes: committed ", new:sub(1, 9), " on ", branch, " in ", top, "\n")
+    io.write("  ", subject, "\n")
+    local all = {}
+    for _, l in ipairs(report) do all[#all + 1] = l end
+    for _, l in ipairs(notes) do all[#all + 1] = l end
+    for _, l in ipairs(synced) do all[#all + 1] = l end
+    if #all > 0 then io.write(table.concat(all, "\n"), "\n") end
+end
+-- }}}
+
+main()

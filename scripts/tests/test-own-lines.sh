@@ -2,19 +2,21 @@
 #
 # test-own-lines.sh
 #
-# Checks the three pieces of "commit only your own lines" together, in a
-# scratch git repository: the edit ledger (record-own-edits and
-# claim-own-change), the staging tool (stage-own-changes), and the commit gate
-# (refuse-foreign-lines).
+# Checks the pieces of "commit only your own lines" together, in a scratch git
+# repository: the edit ledger (record-own-edits and claim-own-change), the
+# preview (stage-own-changes), the commit route (commit-own-changes) and the
+# commit gate (refuse-foreign-lines).
 #
 # The scene it builds: a repository where this session and "someone else" have
 # both edited files since the last commit. This session's edits are fed to the
 # ledger hook exactly as Claude Code would feed them after an edit, a new file,
 # and a shell command that reported a diff; the other person's edits are made
-# behind the ledger's back. Then it checks that the staging tool stages only
-# this session's lines -- in the right places, even when a skipped change
-# above them shifts the line numbers -- that the commit gate lets that index
-# through, and that it refuses once a foreign line is staged.
+# behind the ledger's back. Then it checks that the preview writes nothing,
+# that a commit stops on a block where this session's line touches someone
+# else's, and that with --leave-mixed it commits only this session's lines --
+# in the right places, even when a skipped change above them shifts the line
+# numbers -- and that the gate turns a plain git commit away. The concurrency
+# and shared-staging-area cases live in test-commit-own-changes.sh.
 #
 # The ledger lives in RAM under a session id made up for the test, and is
 # removed afterwards along with the scratch repository.
@@ -32,6 +34,8 @@ SESSION="own-lines-test-$$"
 LEDGER_DIR="/dev/shm/claude-own-edits/${SESSION}"
 TOKEN="${SCRATCH}/token-commit"
 export CLAUDE_CODE_SESSION_ID="${SESSION}"
+# helper conversations are looked up here, not in the real session store
+export CLAUDE_SESSIONS_ROOT="${SCRATCH}/sessions"
 trap 'rm -rf "${SCRATCH}" "${LEDGER_DIR}"' EXIT
 
 failures=0
@@ -156,55 +160,54 @@ check "the foreign deletion of g5 is in the working tree" "$(grep -qx g5 "${REPO
 check "the working tree holds both sessions' edits" \
     "$(grep -q foreign-4 "${REPO}/a.lua" && grep -q own-2 "${REPO}/a.lua" && echo yes || echo no)"
 
-printf '\nstage-own-changes stages only this session\x27s lines\n'
-stage_report="$("${DIR}/stage-own-changes" "${REPO}" --scripts-dir "${DIR}" 2>&1)"
-stage_status=$?
-printf '%s\n' "${stage_report}" | sed 's/^/    | /'
-check "the staging tool succeeded" "$( [ "${stage_status}" -eq 0 ] && echo yes || echo no)"
-staged="$(git -C "${REPO}" diff --cached)"
-check "own line added in a.lua is staged" "$(grep -q '^+own-2$' <<< "${staged}" && grep -q '^+own-6$' <<< "${staged}" && echo yes || echo no)"
-check "the foreign line in a.lua is not staged" "$(grep -q 'foreign-4' <<< "${staged}" && echo no || echo yes)"
-check "b.lua (only foreign lines) is not staged" "$(git -C "${REPO}" diff --cached --name-only | grep -qx 'b.lua' && echo no || echo yes)"
-check "c.lua (own line touching a foreign one) is left out" "$(git -C "${REPO}" diff --cached --name-only | grep -qx 'c.lua' && echo no || echo yes)"
-check "the mixed block is reported by file and line" "$(grep -q 'c.lua:2 (mixed)' <<< "${stage_report}" && echo yes || echo no)"
-check "a removed '-- comment' and an added '++ plus' line are staged" \
-    "$(git -C "${REPO}" show :d.lua | tr '\n' '|' | grep -qx 'keep|++ plus|' && echo yes || echo no)"
+printf '\nstage-own-changes previews and writes nothing\n'
+index_before="$(git -C "${REPO}" ls-files -s | sha256sum)"
+preview="$("${DIR}/stage-own-changes" "${REPO}" --scripts-dir "${DIR}" 2>&1)"
+preview_status=$?
+printf '%s\n' "${preview}" | sed 's/^/    | /'
+check "the preview succeeded" "$( [ "${preview_status}" -eq 0 ] && echo yes || echo no)"
+check "the preview names a.lua as this session's" "$(grep -q 'ours .*a.lua' <<< "${preview}" && echo yes || echo no)"
+check "the preview reports the mixed block by file and line" "$(grep -q 'c.lua:2 (mixed)' <<< "${preview}" && echo yes || echo no)"
+check "the preview left the shared staging area alone" "$( [ "$(git -C "${REPO}" ls-files -s | sha256sum)" = "${index_before}" ] && echo yes || echo no)"
+
+printf '\ncommit-own-changes commits only this session\x27s lines\n'
+head_before="$(git -C "${REPO}" rev-parse HEAD)"
+"${DIR}/commit-own-changes" "${REPO}" -m "own work" --scripts-dir "${DIR}" > "${SCRATCH}/commit.out" 2>&1
+check "with a tangled block it stops" "$( [ $? -eq 1 ] && grep -q 'c.lua:2' "${SCRATCH}/commit.out" && echo yes || echo no)"
+check "and commits nothing" "$( [ "$(git -C "${REPO}" rev-parse HEAD)" = "${head_before}" ] && echo yes || echo no)"
+"${DIR}/commit-own-changes" "${REPO}" -m "own work" --leave-mixed --scripts-dir "${DIR}" > "${SCRATCH}/commit.out" 2>&1
+commit_status=$?
+sed 's/^/    | /' "${SCRATCH}/commit.out"
+check "with --leave-mixed it commits the rest" "$( [ "${commit_status}" -eq 0 ] && echo yes || echo no)"
+check "own lines in a.lua land in place, the foreign line does not" \
+    "$(git -C "${REPO}" show HEAD:a.lua | tr '\n' '|' | grep -qx 'line1|own-2|line3|line4|line5|own-6|' && echo yes || echo no)"
+check "b.lua (only foreign lines) is not committed" "$(git -C "${REPO}" show HEAD:b.lua | grep -qx 'b1' && echo yes || echo no)"
+check "c.lua (own line touching a foreign one) is not committed" "$(git -C "${REPO}" show HEAD:c.lua | grep -qx 'c2' && echo yes || echo no)"
+check "a removed '-- comment' and an added '++ plus' line are committed" \
+    "$(git -C "${REPO}" show HEAD:d.lua | tr '\n' '|' | grep -qx 'keep|++ plus|' && echo yes || echo no)"
 check "g.lua's second own change landed on the right line after the skipped one" \
-    "$(git -C "${REPO}" show :g.lua | diff -q - <(printf 'g1\nown-g2a\nown-g2b\ng3\ng4\ng5\ng6\ng7\nown-g8\ng9\n') > /dev/null && echo yes || echo no)"
-check "a new file written by this session is staged" "$(git -C "${REPO}" diff --cached --name-only | grep -qx 'new.lua' && echo yes || echo no)"
-check "a file changed by a shell command with a diff is staged" "$(git -C "${REPO}" show :f.lua | grep -qx 'bash-f3' && echo yes || echo no)"
-check "a claimed generated file is staged" "$(git -C "${REPO}" diff --cached --name-only | grep -qx 'gen.txt' && echo yes || echo no)"
-check "the project's transcripts ride along" "$(git -C "${REPO}" diff --cached --name-only | grep -qx 'proj/llm-transcripts/t.md' && echo yes || echo no)"
+    "$(git -C "${REPO}" show HEAD:g.lua | diff -q - <(printf 'g1\nown-g2a\nown-g2b\ng3\ng4\ng5\ng6\ng7\nown-g8\ng9\n') > /dev/null && echo yes || echo no)"
+check "a new file written by this session is committed" "$(git -C "${REPO}" cat-file -e HEAD:new.lua && echo yes || echo no)"
+check "a file changed by a shell command with a diff is committed" "$(git -C "${REPO}" show HEAD:f.lua | grep -qx 'bash-f3' && echo yes || echo no)"
+check "a claimed generated file is committed" "$(git -C "${REPO}" cat-file -e HEAD:gen.txt && echo yes || echo no)"
+check "a transcript of some other conversation does not ride along" \
+    "$(git -C "${REPO}" show HEAD:proj/llm-transcripts/t.md | grep -q 'second transcript line' && echo no || echo yes)"
 check "the working tree still holds the foreign edits" "$(grep -q foreign-4 "${REPO}/a.lua" && echo yes || echo no)"
+check "the shared staging area is in step with the commit" "$(git -C "${REPO}" diff --cached --quiet && echo yes || echo no)"
 
 printf '\nThe commit gate\n'
-check "an index of only this session's lines is allowed" \
-    "$( [ "$(gate_verdict 'git commit -m own' "${REPO}")" = "allowed" ] && echo yes || echo no)"
-check "the same, named with -C from another directory" \
-    "$( [ "$(gate_verdict "git -C ${REPO} commit -F -" "/tmp")" = "allowed" ] && echo yes || echo no)"
-git -C "${REPO}" commit -q -m "own work"
-check "the commit carries own lines in place and leaves the foreign ones out" \
-    "$(git -C "${REPO}" show HEAD:a.lua | tr '\n' '|' | grep -qx 'line1|own-2|line3|line4|line5|own-6|' && echo yes || echo no)"
-
-git -C "${REPO}" add b.lua
-check "a staged foreign line is refused" \
-    "$( [ "$(gate_verdict 'git commit -m more' "${REPO}")" = "refused" ] && echo yes || echo no)"
-check "the refusal names the file and line" "$(grep -q 'b.lua:1 + foreign-b1' "${REASON_FILE}" && echo yes || echo no)"
-check "the refusal says not to unstage someone else's work without asking" "$(grep -q 'ask' "${REASON_FILE}" && echo yes || echo no)"
-check "the gate reads the repository named by -C, not the current one" \
-    "$( [ "$(gate_verdict "git -C ${REPO} commit -m more" "/tmp")" = "refused" ] && echo yes || echo no)"
-check "an unrelated command on a foreign index is not the gate's business" \
-    "$( [ "$(gate_verdict 'git status' "${REPO}")" = "allowed" ] && echo yes || echo no)"
+check "a plain git commit is refused" \
+    "$( [ "$(gate_verdict 'git commit -m own' "${REPO}")" = "refused" ] && echo yes || echo no)"
+check "the refusal points at commit-own-changes" "$(grep -q 'commit-own-changes' "${REASON_FILE}" && echo yes || echo no)"
+check "commit-own-changes is allowed" \
+    "$( [ "$(gate_verdict "commit-own-changes ${REPO} -F -" "/tmp")" = "allowed" ] && echo yes || echo no)"
 touch "${TOKEN}"
-check "a token lets that commit through once" \
+check "a token lets one plain commit through" \
     "$( [ "$(gate_verdict 'git commit -m more' "${REPO}")" = "allowed" ] && [ ! -e "${TOKEN}" ] && echo yes || echo no)"
 check "and only once" \
     "$( [ "$(gate_verdict 'git commit -m more' "${REPO}")" = "refused" ] && echo yes || echo no)"
-git -C "${REPO}" restore --staged b.lua
-check "once the foreign line is unstaged, the commit is allowed again" \
-    "$( [ "$(gate_verdict 'git commit -m more' "${REPO}")" = "allowed" ] && echo yes || echo no)"
-check "rewording the last commit is allowed" \
-    "$( [ "$(gate_verdict 'git commit --amend --only -F -' "${REPO}")" = "allowed" ] && echo yes || echo no)"
+check "an unrelated command is not the gate's business" \
+    "$( [ "$(gate_verdict 'git status' "${REPO}")" = "allowed" ] && echo yes || echo no)"
 
 printf '\n%s checks, %s failures\n' "${checked}" "${failures}"
 [ "${failures}" -eq 0 ] || exit 1
