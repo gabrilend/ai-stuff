@@ -14,6 +14,8 @@
 --   FINDINGS_FILE  where this worker writes its findings, one per line:
 --                  wide <TAB> page <TAB> line number <TAB> width <TAB> cause
 --                       <TAB> excerpt
+--                  shape <TAB> page <TAB> line number <TAB> width <TAB> frame
+--                       piece <TAB> what is wrong: excerpt
 --                  link <TAB> page <TAB> line number <TAB> target <TAB> count
 --                       <TAB> (empty)
 --                  An over-wide line is one row each.  A missing link target
@@ -27,6 +29,15 @@ local MAX_WIDTH = tonumber(arg[1])
 local FINDINGS_FILE = arg[2]
 assert(MAX_WIDTH and FINDINGS_FILE and arg[3],
     "usage: validate-output-worker.lua MAX_WIDTH FINDINGS_FILE PAGE...")
+
+-- {{{ POEM_FOLDERS
+-- The folders (under the site root) whose pages show poems in the 83/84-column
+-- frame.  Only there are line widths and frame shapes checked: the first run
+-- over a real site flagged 1,302 decorative 78-column rules on the gallery
+-- pages and hundreds of quoted examples on the source-browser pages, none of
+-- them poem frames.
+local POEM_FOLDERS = { similar = true, different = true, chronological = true, wordcloud = true }
+-- }}}
 
 -- {{{ local function visible_width
 -- Width as a reader sees it: tags removed, each entity (&amp; &#39;) one
@@ -54,6 +65,88 @@ local function cause_of(plain)
         if rule[2](plain) then return rule[1] end
     end
     return "text"
+end
+-- }}}
+
+-- {{{ FRAME_SHAPES
+-- Frame pieces are drawn to exact widths, so "not too wide" is not enough for
+-- them: a bar one column short shears the frame just as badly.  Each row is a
+-- piece a line can be recognised as, the exact width it must have, and -- for
+-- the bottom lines -- the columns (0-based) where its junctions must sit.
+-- Regular frames are 83 wide, golden (1024-character) poems 84; the shapes
+-- come from src/poem-bars.lua, which draws them.  (Folded in 2026-09-23 from
+-- the retired one-file checker, scripts/validate-poem-box-format.)
+--
+-- Patterns are written over a one-letter spelling of the line (BOX_LETTERS),
+-- because Lua patterns work on bytes: a class like [═─] would also accept ┐,
+-- which is built from the same bytes.
+-- The stand-ins are control characters (\1-\21, skipping tab, newline and
+-- carriage return), which never occur in page
+-- text, so an ordinary line of "=" or "-" can never pass for a frame bar.
+local BOX_LETTERS = {
+    ["═"] = "\1", ["─"] = "\2", ["╧"] = "\3", ["┴"] = "\4", ["╩"] = "\5", ["╨"] = "\6",
+    ["╘"] = "\7", ["╚"] = "\8", ["┘"] = "\11", ["┐"] = "\12", ["╔"] = "\14", ["┌"] = "\15",
+    ["└"] = "\16", ["╠"] = "\17", ["╗"] = "\18", ["┤"] = "\19", ["│"] = "\20", ["║"] = "\21",
+}
+-- Readable names for the stand-ins, used to spell the patterns below as
+-- "@" plus a letter (so the letters of "similar" are left alone):
+--   @H ═  @h ─  @J ╧  @j ┴  @K ╩  @k ╨  @L ╘  @M ╚  @R ┘  @r ┐
+--   @N ╔  @O ┌  @U └  @T ╠  @Q ╗  @t ┤  @V │  @W ║
+local function P(spelling)
+    local map = { H = "\1", h = "\2", J = "\3", j = "\4", K = "\5", k = "\6",
+                  L = "\7", M = "\8", R = "\11", r = "\12", N = "\14", O = "\15",
+                  U = "\16", T = "\17", Q = "\18", t = "\19", V = "\20", W = "\21" }
+    return (spelling:gsub("@(%a)", function(letter)
+        return assert(map[letter], "no stand-in for @" .. letter)
+    end))
+end
+local FRAME_SHAPES = {
+    { name = "bar",             pattern = P("^[@H@h]+$"),               width = 83 },
+    { name = "golden bar",      pattern = P("^@N[@H@h]+@r$"),           width = 84 },
+    { name = "bottom",          pattern = P("^@L[@H@h@J@j]+@R$"),       width = 83,
+      junctions = { [10] = P("[@J@j]"), [70] = P("[@J@j]") } },
+    { name = "golden bottom",   pattern = P("^@M[@H@h@K@k@J@j]+@R$"),   width = 84,
+      junctions = { [10] = P("[@K@k@j]"), [71] = P("[@J@j]") } },
+    { name = "nav top",         pattern = P("^@O@h+@r +@O@h+@r$"),      width = 83 },
+    { name = "nav bottom",      pattern = P("^@U@h+@R +@U@h+@R$"),      width = 83 },
+    { name = "golden nav top",  pattern = P("^@T@H+@Q +@O@h+@t$"),      width = 84 },
+    { name = "nav line",        pattern = P("^@V similar @V.*@V different @V$"), width = 83 },
+    { name = "golden nav line", pattern = P("^@W similar @W.*@V different @V$"), width = 84 },
+}
+-- }}}
+
+-- {{{ local function spell_in_letters
+-- The line with each box character replaced by its letter (others kept).
+-- Returns the spelling and the list of spelled characters, one per column.
+local function spell_in_letters(plain)
+    local columns = {}
+    for char in plain:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+        columns[#columns + 1] = BOX_LETTERS[char] or (#char == 1 and char or "?")
+    end
+    return table.concat(columns), columns
+end
+-- }}}
+
+-- {{{ local function shape_problem
+-- If the line is a frame piece, returns (shape name, what is wrong) when it
+-- is the wrong width or has a junction out of place; nil when it is fine or
+-- is not a frame piece.
+local function shape_problem(plain, width)
+    local spelled, columns = spell_in_letters(plain)
+    for _, shape in ipairs(FRAME_SHAPES) do
+        if spelled:match(shape.pattern) then
+            if width ~= shape.width then
+                return shape.name, string.format("%d wide, must be %d", width, shape.width)
+            end
+            for column, allowed in pairs(shape.junctions or {}) do
+                if not (columns[column + 1] or ""):match(allowed) then
+                    return shape.name, string.format("no junction at column %d", column)
+                end
+            end
+            return nil
+        end
+    end
+    return nil
 end
 -- }}}
 
@@ -120,6 +213,11 @@ end
 for i = 3, #arg do
     local page = arg[i]
     local page_dir = page:match("^(.*)/[^/]*$") or "."
+    -- Line widths and frame shapes are poem-column rules, checked only on
+    -- the pages that show poems (POEM_FOLDERS); the gallery, explore and
+    -- source-browser pages draw other rules and quote code. Links are
+    -- checked on every page.
+    local holds_poems = POEM_FOLDERS[page_dir:match("([^/]+)$") or ""] or false
     local handle = io.open(page, "r")
     if not handle then
         record_missing_link(page, 0, "(unreadable page) " .. page)
@@ -160,10 +258,16 @@ for i = 3, #arg do
                 measured = close_start and line:sub(1, close_start - 1) or line
                 if close_start then inside_pre = false end
             end
-            if measured then
+            if measured and holds_poems then
                 local width, plain = visible_width(measured)
                 if width > MAX_WIDTH then
                     record("wide", page, line_number, width, cause_of(plain), plain)
+                end
+                -- A frame piece must be exactly its frame's width, junctions
+                -- in place (one row per line, like an over-wide line).
+                local shape, problem = shape_problem(plain, width)
+                if shape then
+                    record("shape", page, line_number, width, shape, problem .. ": " .. plain)
                 end
             end
         end
