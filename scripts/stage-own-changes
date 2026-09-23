@@ -4,8 +4,8 @@
 --
 -- A preview: prints what commit-own-changes would commit in one repository --
 -- this Claude Code session's own change blocks, the files it would take whole,
--- its transcripts, and every block it would leave out and why -- and changes
--- nothing at all.
+-- every changed transcript, and every block it would leave out and why -- and
+-- changes nothing at all.
 --
 -- It used to stage those lines into the repository's shared staging area for a
 -- plain `git commit`. On 2026-09-22 that sharing let another session's commit
@@ -82,9 +82,9 @@ local function main()
     if not result then fail(reason) end
 
     local sessions_root = os.getenv("CLAUDE_SESSIONS_ROOT") or (os.getenv("HOME") .. "/.claude/projects")
-    local transcripts, terr = patch.own_transcripts(top, patch.own_ids(session_id, sessions_root))
+    local transcripts, terr = patch.changed_transcripts(top, tip, patch.own_ids(session_id, sessions_root))
     if not transcripts then fail(terr) end
-    for _, rel in ipairs(transcripts) do result.report[#result.report + 1] = "  transcript     " .. rel end
+    for _, t in ipairs(transcripts) do result.report[#result.report + 1] = patch.transcript_report_line(t) end
 
     io.write("stage-own-changes (preview; nothing is staged) in ", top, " for session ", session_id, "\n")
     io.write("commit-own-changes ", top, " -F - would commit:\n")

@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-23 09:42:54
+Generated on: 2026-09-23 09:55:58
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -2521,6 +2521,67 @@ Both fixes are in the shared menu library, so other menus that show non-ASCII
 text get the first one too. Stages 6–8 have a ⚠️ after their names. Now
 that each cell holds a whole character, anything drawn after that symbol on the
 same line may sit one column off. Tell me if you spot it.
+
+--------------------------------------------------------------------------------
+
+### User Request 23
+
+Oh also for the run.sh, if the user is on the embedding model or inference
+server sections (with the radio buttons) and they, for example, select the 4th
+item in the list and push L, the expected behavior is that the fourth item will
+be selected. This is the case because no entry is selected by default. However,
+the current behavior is that the 2nd entry in the list is selected. It seems to
+me that the "default" unselected selection status is the first entry, and
+pushing L (which is intended to move the selection down/forward, while H is to
+move it backward/up) moves it to the second entry and enables it. What we'd like
+is for an empty list to be enabled and disabled the same way that a checkbox
+list is - with L and H enabling and disabling an entry. However, a radio button
+needs a value, and can't be left empty (unless it's marked as optional maybe?).
+So, H should be a non-op on an empty list, and L should enable. This is just for
+radio buttons. Once an entry is selected, the current behavior of scrolling
+up/down within the list is desired.
+
+I'm currently running the pipeline now. We're in stage 6.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 23
+
+> Noted that the pipeline is running. I won't touch `run.sh` until it finishes,
+> because bash reads a running script from disk as it goes and an edit can
+> corrupt the run. This fix belongs in the shared menu library (`menu.lua`),
+> which is only loaded when a menu opens, so it's safe to change now. Finding
+> the L/H handling for the radio lists.
+
+> All 7 pass. Checking that the new radio checks fail on the previous menu code,
+> so they'd catch the bug coming back.
+
+Fixed and committed (`a93240de6`).
+
+- **Nothing chosen yet:** L chooses the entry the cursor is on, the way it ticks
+  a checkbox. H does nothing, since a radio list has no "unchosen" to go back
+  to.
+- **Something chosen:** L and H step through the list as before.
+- **What went wrong:** the old code treated "nothing chosen" as "the first entry
+  is chosen" and stepped from there. So L always picked the second entry and H
+  the last, wherever the cursor was.
+- **Checked:** the library's screen test gains three cases on a four-entry radio
+  list. L on the fourth entry chooses it, H chooses nothing, and L after a
+  choice steps on. All 7 checks pass. On the old code, the two empty-list checks
+  fail exactly as you described.
+- **Scope:** only radio lists changed; checkbox lists behave as before. The fix
+  is in the shared menu library, so it covers both `run.sh` lists (embedding
+  model and inference server) and any other menu that uses one.
+
+Your pipeline run wasn't affected. I didn't touch `run.sh`, and the library is
+only read when a menu opens, so you'll see this the next time you run `run.sh
+-I`.
+
+One thing about that commit: the commit tool added two transcript files I didn't
+list. One is a transcript at the ai-stuff root that it labels "another
+conversation"; the other is the deletion of a transcript file here that the
+exporter renamed. That's how the tool is set up to attach transcripts. Tell me
+if you'd rather that root one hadn't gone in.
 
 --------------------------------------------------------------------------------
 

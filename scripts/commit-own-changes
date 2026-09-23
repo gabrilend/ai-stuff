@@ -25,7 +25,7 @@
 --      session wrote (see own-changes-patch.lua). If a block of its own is
 --      tangled with someone else's lines, it stops and changes nothing.
 --   4. It applies those blocks to the private list with git apply --cached,
---      adds files claimed whole and this session's own transcripts, and makes
+--      adds files claimed whole and every changed transcript, and makes
 --      a commit of it whose parent is the tip it started from.
 --   5. It moves the branch only if the branch still points at that tip (git
 --      update-ref with the old value), so anything else that moved the branch
@@ -53,7 +53,7 @@
 --                   tangled with someone else's lines (they are reported)
 --   -- <path>...    commit only this session's changes in these files or
 --                   folders (repository-relative), so work can be committed in
---                   small pieces; transcripts ride along only if listed too
+--                   small pieces; every changed transcript still rides along
 --
 -- Exit status: 0 committed; 1 nothing to commit, a tangled block, or an error.
 
@@ -358,15 +358,25 @@ local function build_commit(top, old, claims, rels, ids, work, msg_path)
         git(top, args, env)
     end
 
-    local transcripts, terr = patch.own_transcripts(top, ids)
+    -- every changed transcript rides along, whoever's it is and whatever the
+    -- `--` limit says: the story is kept as complete as it can be (see
+    -- own-changes-patch.lua, TRANSCRIPTS)
+    local transcripts, terr = patch.changed_transcripts(top, old, ids)
     if not transcripts then cleanup(); return nil, terr, report end
-    transcripts = keep_within_only(transcripts)
-    if #transcripts > 0 then
+    local present, gone = {}, {}
+    for _, t in ipairs(transcripts) do
+        -- gone from disk: its deletion is recorded; otherwise its content is
+        if t.gone then gone[#gone + 1] = t.rel else present[#present + 1] = t.rel end
+        report[#report + 1] = patch.transcript_report_line(t)
+    end
+    if #present > 0 then
         local args = { "add", "--" }
-        for _, rel in ipairs(transcripts) do
-            args[#args + 1] = rel
-            report[#report + 1] = "  transcript     " .. rel
-        end
+        for _, rel in ipairs(present) do args[#args + 1] = rel end
+        git(top, args, env)
+    end
+    if #gone > 0 then
+        local args = { "rm", "--cached", "--quiet", "--" }
+        for _, rel in ipairs(gone) do args[#args + 1] = rel end
         git(top, args, env)
     end
 

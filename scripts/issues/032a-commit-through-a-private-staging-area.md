@@ -26,6 +26,11 @@ widened the window to seconds. No gate that runs before a command can close
 it: the list is shared, and anyone may write it between the check and the
 commit.
 
+The private route below is built and tested. Its transcript rule is the
+everything-that-changed rule described under Transcripts. The earlier rule,
+this-conversation-only, stranded transcripts, and this one replaced it on
+2026-09-23. The two open questions remain.
+
 ## Intended Behavior
 
 A session commits without reading or writing the shared staging area, so
@@ -75,15 +80,39 @@ talking, decides what that region says.
 
 ### Transcripts
 
-032's rule staged every `llm-transcripts/` folder near a touched file, which
-also swept up other sessions' transcripts written into the same folder (032,
-open question 4). Transcripts now ride along by whose conversation they are:
-a transcript file is committed when its first line, `# Conversation Summary:
-<id>`, names this session or one of its helpers (`agent-<id>`, found under
-the session's `subagents/` folder in Claude Code's session store). Its project
-does not matter; its content is taken whole, since the exporter regenerates it
-whole. A transcript this session edited by hand is judged line by line like
-any other file.
+Every commit carries every transcript in the repository that differs from the
+branch tip: new, grown, or gone. It doesn't matter whose conversation it is,
+which project folder it sits in, or whether a `-- <path>` limit was given.
+
+The transcripts are one story told across conversations, and git should hold
+as much of it as it can. A narrower rule left transcripts behind with no way
+to commit them. The first version (032) took every `llm-transcripts/` folder
+near a touched file. The second version (the first cut of this issue) took
+only transcripts whose header names this session or its helpers. Under the
+second rule, if a session committed, talked a little more, and then quit, its
+transcript's last lines were dirty for good: no later session could take the
+file, and a plain `git commit` is refused. That happened with the kiln
+project's transcript on 2026-09-23.
+
+Why taking another conversation's transcript is safe, when taking its source
+lines is not:
+- The exporter writes a transcript to a temporary file and moves it into place
+  (`mv -f`), so the file on disk is always a whole rendering and never a
+  half-written one. Taking it records one true moment of that conversation.
+  The next commit, by anyone, records the next moment.
+- Nobody edits a transcript line by line in the working tree. The exporter
+  rewrites it whole from the session log, and lasting edits go through
+  `llm-transcripts/.patches/` (issue 036). So there are no lines of anyone's to
+  tangle with, and a transcript is always taken whole, never judged against
+  the ledger.
+- A transcript that has disappeared from disk was renamed by the exporter (a
+  conversation that crosses midnight becomes a date-range file, issue 018) or
+  retired as a husk. Its deletion is committed alongside its new name, so the
+  rename shows up in one commit, and the old text stays in history.
+
+The report marks each transcript as this conversation's or another's, and
+marks it as gone when it was deleted, so the commit's reader can see what
+rode along.
 
 ### Amending
 
@@ -95,12 +124,12 @@ one-time token remains for the rare exception.
 
 1. Move the change-block judging out of `stage-own-changes` into a shared
    library (`libs/own-changes-patch.lua`): classify each block as ours, foreign
-   or mixed; build the patch of our blocks; judge untracked files; find this
-   session's transcripts. Both tools use it, so they cannot disagree.
+   or mixed; build the patch of our blocks; judge untracked files; find every
+   changed transcript and say whose each is. Both tools use it, so they cannot disagree.
 2. Write `commit-own-changes`: take the per-repository lock (`flock` on a file in
    the repository's git directory), read the branch and its tip, seed a private
    list in RAM, diff the working tree against it for the ledger's files, stop on
-   mixed blocks, apply our blocks, add whole claimed files and our transcripts,
+   mixed blocks, apply our blocks, add whole claimed files and every changed transcript,
    write the tree, commit it with the tip as parent, compare-and-swap the
    branch, retry on a moved branch, sync the shared list for the committed
    paths, and report.
@@ -111,7 +140,8 @@ one-time token remains for the rare exception.
    twenty rounds of simultaneous commits; an overlapping edit; hand-staged
    entries (clean merge and conflict); other entries and the working tree
    untouched; new, deleted and renamed files; nothing to commit; the transcript
-   rule; a branch other than main; a branch moved between build and swap
+   rule (this conversation's, another's, one outside the path limit, a
+   transcript-only commit, a renamed transcript's deletion); a branch other than main; a branch moved between build and swap
    (retry); the gate.
 6. Update `README-refusal-gates.md`, the `.info.md` files, and the
    issue-lifecycle and transcript-care skills.

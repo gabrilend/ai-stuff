@@ -190,8 +190,8 @@ check "g.lua's second own change landed on the right line after the skipped one"
 check "a new file written by this session is committed" "$(git -C "${REPO}" cat-file -e HEAD:new.lua && echo yes || echo no)"
 check "a file changed by a shell command with a diff is committed" "$(git -C "${REPO}" show HEAD:f.lua | grep -qx 'bash-f3' && echo yes || echo no)"
 check "a claimed generated file is committed" "$(git -C "${REPO}" cat-file -e HEAD:gen.txt && echo yes || echo no)"
-check "a transcript of some other conversation does not ride along" \
-    "$(git -C "${REPO}" show HEAD:proj/llm-transcripts/t.md | grep -q 'second transcript line' && echo no || echo yes)"
+check "a changed transcript rides along, whoever's conversation it is" \
+    "$(git -C "${REPO}" show HEAD:proj/llm-transcripts/t.md | grep -q 'second transcript line' && echo yes || echo no)"
 check "the working tree still holds the foreign edits" "$(grep -q foreign-4 "${REPO}/a.lua" && echo yes || echo no)"
 check "the shared staging area is in step with the commit" "$(git -C "${REPO}" diff --cached --quiet && echo yes || echo no)"
 
