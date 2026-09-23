@@ -9,9 +9,11 @@ The **skeleton** is wanted by every project: the standard folders, the intent
 folders (`input output desire faith strategems`), `docs/HTML/`,
 `issues/completed/demos/`, `llm-transcripts/`, the table of contents, a
 `.file-index-counter` starting at `000`, an `issues/phase-1-progress.md` stub,
-the root `run-phase-demo` picker, the RAM scratch tiers, and `tmp` in
-`.gitignore`. Each is written only when absent, so re-running over a project
-that has been worked in changes nothing. It needs only coreutils.
+the root `run-phase-demo` picker, the RAM scratch tiers, `tmp` in
+`.gitignore`, and a plain-text `README` in each of those folders that is still
+empty, saying what it is for (git keeps no empty folder). Each is written only
+when absent, so re-running over a project that has been worked in changes
+nothing. It needs only coreutils.
 
 The **sandbox** (everything below "What it is for") needs a monorepo git
 checkout to clone from, and bubblewrap.
@@ -188,13 +190,14 @@ interface is its command line.
 | `run_with_sandbox` | the original full path, now beginning with `require_sandbox_tools` |
 | `require_sandbox_tools` | confirms bubblewrap, git and rsync exist, that the kernel permits unprivileged user namespaces - without which nothing here isolates anything - and that the monorepo root is the top of a git checkout |
 | `create_project_skeleton` | makes the standard folder set, and seeds the table of contents, `.file-index-counter`, the phase-1 progress file and the demo picker where absent |
+| `write_folder_notes` | gives each skeleton folder that is still empty a plain `README` from the `FOLDER_PURPOSE` table, since git keeps no empty folder; named without `.md` so transcript, issue and table-of-contents tools do not read it |
 | `write_phase_demo_picker` | writes `run-phase-demo`, which lists `issues/completed/demos/phase-N-demo` in numeric order (so phase 10 works) and runs the one asked for |
 | `link_ram_directories` | ensure mode of `libs/ensure-ram-tiers`: builds the RAM tiers and the `tmp/` link, or rebuilds behind an existing link |
 | `write_project_gitignore` | adds the given missing entries only; never rewrites |
 | `report_skeleton_only` | what the skeleton-only run built, and the sandbox half it did not |
 | `collect_ignored_paths` | asks git what is ignored, re-expands accidentally-collapsed directories, and drops duplicates and never-bind entries |
 | `is_writable_path` | whether `--writable` promoted a given path; slash-insensitive |
-| `sandbox_has_unsaved_work` | uncommitted edits plus uncarried commits; ignores bare directories and the seven files this script generates or seeds, or it would cry wolf on every refresh |
+| `sandbox_has_unsaved_work` | uncommitted edits plus uncarried commits; ignores bare directories, the seven files this script generates or seeds, and the folder notes, or it would cry wolf on every refresh |
 | `check_sandbox_capacity` | refuses if the project would not fit in free RAM, since tmpfs exhaustion kills processes rather than slowing down |
 | `provision_sandbox` | shared clone, sparse checkout, then rsync of current disk state so uncommitted work is not silently discarded |
 | `write_sandbox_notice` | writes or replaces the marked block in CLAUDE.md |

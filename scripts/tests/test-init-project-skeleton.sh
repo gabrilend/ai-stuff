@@ -7,8 +7,10 @@
 # a brand-new one, one with hand-made files already in it, a copy of a real
 # project - and checks that it adds exactly the standard pieces, changes nothing
 # on a second run, keeps everything that was already there, refuses mixed-up
-# flags, and that the phase-demo picker it writes finds phase 10 as readily as
-# phase 1. The RAM tiers are pointed into the scratch folder for the run, so the
+# flags, that every folder it leaves empty holds a note saying what the folder
+# is for (git keeps no empty folder, so without one the folder never reaches a
+# remote), and that the phase-demo picker it writes finds phase 10 as readily
+# as phase 1. The RAM tiers are pointed into the scratch folder for the run, so the
 # real /tmp and /dev/shm are not touched.
 #
 # The sandbox half (a bare project name inside a monorepo) needs bubblewrap and
@@ -98,15 +100,35 @@ check "  ...the report says the sandbox was not built, and why" \
 check "  ...the picker carries this project's path as its DIR" \
     grep -qx "DIR=\"${fresh}\"" "${fresh}/run-phase-demo"
 
+# {{{ every_folder_kept
+# Every folder holds at least one file somewhere beneath it, so git would keep
+# them all.
+every_folder_kept() {
+    local p="$1" folder
+    while read -r folder; do
+        [ -n "$(find "${folder}" -type f -print -quit)" ] \
+            || { echo "        ${folder#"${p}"/} would be lost: no file in it"; return 1; }
+    done < <(find "${p}" -path "${p}/tmp" -prune -o -type d -print)
+}
+# }}}
+check "  ...every folder holds a file, so a clone would have them all" every_folder_kept "${fresh}"
+check "  ...the intent folder desire/ says what it is for" grep -q 'what you would like to be better' "${fresh}/desire/README"
+check "  ...the transcripts folder's note is not a .md file the transcript tools would read" \
+    bash -c "[ -f '${fresh}/llm-transcripts/README' ] && [ -z \"\$(find '${fresh}/llm-transcripts' -name '*.md')\" ]"
+check "  ...a folder that already holds something (docs/) gets no note" [ ! -e "${fresh}/docs/README" ]
+
+printf 'my own words\n' > "${fresh}/faith/README"
 before=$(snapshot "${fresh}")
 "${INIT}" --skeleton-only "${fresh}" >/dev/null 2>&1
 check "a second run changes nothing at all" [ "${before}" = "$(snapshot "${fresh}")" ]
+check "  ...an edited note is kept as it was" grep -qx 'my own words' "${fresh}/faith/README"
 
 echo "a project that already has hand-made pieces"
 kept="${SCRATCH}/kept"
 mkdir -p "${kept}/docs" "${kept}/issues"
 printf '058\n' > "${kept}/.file-index-counter"
 printf '# hand-written contents\n' > "${kept}/docs/table-of-contents.md"
+mkdir -p "${kept}/src"; printf 'print(1)\n' > "${kept}/src/001-main.lua"
 printf '# phase 1, well under way\n' > "${kept}/issues/phase-1-progress.md"
 printf '#!/bin/sh\necho mine\n' > "${kept}/run-phase-demo"
 chmod +x "${kept}/run-phase-demo"
@@ -115,6 +137,8 @@ printf 'build/\n' > "${kept}/.gitignore"
 check "the counter keeps its high-water mark" [ "$(cat "${kept}/.file-index-counter")" = "058" ]
 check "the hand-written table of contents is untouched" grep -q 'hand-written' "${kept}/docs/table-of-contents.md"
 check "the progress file is untouched" grep -q 'well under way' "${kept}/issues/phase-1-progress.md"
+check "src/, which holds code already, gets no note" [ ! -e "${kept}/src/README" ]
+check "  ...while a folder it had to make does" [ -f "${kept}/libs/README" ]
 check "the project's own picker is untouched" grep -q 'echo mine' "${kept}/run-phase-demo"
 check "the gitignore gained tmp and kept its own line" \
     [ "$(cat "${kept}/.gitignore")" = "$(printf 'build/\ntmp')" ]
@@ -149,7 +173,7 @@ fi
 
 echo "the phase-demo picker"
 demos="${fresh}/issues/completed/demos"
-check "with no demos it says so and succeeds" bash -c "'${fresh}/run-phase-demo' | grep -q 'No phase has a demo'"
+check "with no demos (only the folder's note) it says so and succeeds" bash -c "'${fresh}/run-phase-demo' | grep -q 'No phase has a demo'"
 for n in 1 2 10; do
     printf '#!/bin/sh\necho "phase %s ran in $1"\n' "${n}" > "${demos}/phase-${n}-demo"
     chmod +x "${demos}/phase-${n}-demo"

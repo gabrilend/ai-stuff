@@ -19,6 +19,11 @@ and a re-run over a copy of Double Diaper Dungeon changed nothing, down to the
 modification times. Flags that only mean something to a sandbox (`--refresh`,
 `--writable`, a project name) are refused alongside it rather than ignored.
 
+Each skeleton folder that would otherwise be empty holds a short plain-text
+`README` saying what the folder is for (see "Folders git would lose" below),
+so the folders reach a remote. Before 2026-09-23 they did not: rao-chat's
+first push would have arrived without twelve of its folders.
+
 The sandbox half gains the same new skeleton pieces, and its unsaved-work
 check now ignores the three new seed files, so a new project's first
 `--refresh` still succeeds. Tested by `tests/test-init-project-skeleton.sh`
@@ -96,6 +101,33 @@ more than an argument rearrangement:
   live. With no sandbox the skeleton writes to the real directory directly,
   which is the ordinary case and needs no ceremony.
 
+### Folders git would lose
+
+Git records files, not folders, so a folder with nothing in it is not in any
+commit and never reaches GitHub; a fresh clone lacks it, and so does every
+tool that later expects to find it. The skeleton therefore puts a note into
+each folder it makes that is empty once the other seeds are written: a
+plain-text file named `README`, a few lines saying what the folder is for,
+taken from the house conventions (the intent folders `input/ output/ desire/
+faith/ strategems/` especially, whose meaning is otherwise only in
+CLAUDE.md). A person browsing the folder on GitHub sees it, since GitHub shows
+a `README` of any kind beneath a folder's listing.
+
+- **Only in an empty folder, only once.** A folder holding anything already
+  survives on its own, so it gets no note; a note, once written, is never
+  rewritten. A re-run over a worked-in project therefore changes nothing,
+  apart from giving a note to a folder that is still empty.
+- **No `.md` extension, on purpose.** Tools read every `*.md` in
+  `llm-transcripts/` as a transcript (the filing check, the rederive count,
+  the corpus backup, the commit tool), every `*.md` in `issues/` as an issue,
+  and every document in `notes/` belongs in the table of contents. A plain
+  `README` is none of those.
+- **The sandbox's unsaved-work check ignores the notes**, like the other
+  seeds, or a new project's first `--refresh` would refuse over them.
+
+An empty placeholder (`.gitkeep`) was the other choice; it keeps the folder
+but tells a reader nothing, and the intent folders in particular need saying.
+
 ## Suggested Implementation Steps
 
 1. Split `create_project_skeleton`, `link_ram_directories` and
@@ -123,6 +155,13 @@ more than an argument rearrangement:
    reason printed), and a re-run over Double Diaper Dungeon, which must be a
    no-op that changes nothing, since every piece of its skeleton is already
    there and correct.
+
+9. Folder notes: after the seeds, walk the skeleton's folders; for each that
+   is empty, write its `README` from a table of folder to purpose. Add each to
+   the sandbox's unsaved-work exclusions. Test: every empty folder gains its
+   note, a folder with content gains none, an edited note survives a re-run,
+   the picker ignores the note in `demos/`, and nothing named `*.md` is
+   written by this step.
 
 ## Related Documents and Tools
 
