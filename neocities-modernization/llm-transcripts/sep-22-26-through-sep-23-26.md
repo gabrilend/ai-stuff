@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-23 08:49:18
+Generated on: 2026-09-23 09:07:37
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -2211,6 +2211,66 @@ Great sounds good
 The scan step in that command won't work: `find` doesn't follow the symlink I
 pointed it at, so it'll check zero pages. When the rebuild finishes, I'll scan
 `output/wordcloud` directly instead.
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command
+"N=/mnt/mtwo/programming/ai-stuff/neocities-modernization; start=$(date +%s);
+timeout 3000 luajit $N/src/generate-word-pages.lua $N --html-only --all
+--poems-per-page 100 --chrono-per-page 88 --dir $N/assets --model
+embeddinggemma-300m 2&gt;&amp;1 | tail -3; echo "build seconds: $(( $(date +%s)
+- start ))"; T=$N/tmp/shared-memory/wpall; rm -rf $T; mkdir -p $T; ln -s
+$N/output/wordcloud $T/wordcloud; $N/scripts/validate-output $N --output $T
+--report $T/report.txt &gt; /dev/null 2&gt;&amp;1; sed -n 3,14p $T/report.txt"
+failed with exit code 2 (failed)*
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 18 (continued)
+
+> The rebuild finished: all 7,290 word pages in 16 minutes. The scan step failed
+> as expected, so I'm scanning `output/wordcloud` directly.
+
+> My second test case has a sloppy label and the wrong number: the page shows
+> `&lt;span&gt;`, which is 12 characters.
+
+> Tests pass. Tonight's build rewrites that page with the fix. Recording the
+> result in issue 9-011 and committing.
+
+All three items are done. Rebuilding every word page with the new code and
+re-scanning took the over-wide lines from 23,858 to 1, and that last one was a
+real bug, now fixed.
+
+| # | What changed | Commit |
+|---|---|---|
+| 1 | All five places that draw a content-warning box use the shared builder. A long warning wraps after dashes and spaces and stays inside the frame; a short one keeps the small box pages always had. | `4faf52ff1` |
+| 2 | Word pages wrap poem text with the same wrapper as the other pages. Their own counted bytes, collapsed the author's spacing and never broke a long web address. | `4faf52ff1` |
+| 3 | The 123 over-wide golden-frame lines needed no separate fix; the new wrapper got rid of them. | — |
+| + | The width measurer read an escaped ampersand twice. A note quoting HTML source shows the text `&quot;` (six characters), and it was measured as one, so that line wrapped too late. Fixed, with two tests. | `1cef0676d` |
+
+## Scan of all 7,290 word pages after the rebuild
+
+| | Before | After |
+|---|---|---|
+| Over-wide lines | 23,858 | 1 (fixed since, in the source) |
+| Misshapen frames | 0 | 0 |
+
+- The rebuild took 16 minutes. The pages now in `output/wordcloud/` were built
+  with my test values (100 poems per page, 88 per chronological page), and
+  tonight's stage 10 replaces them.
+- The last over-wide line is still on disk in `vimfolds.html`, because it was
+  built before the fix. Tonight's build rewrites it.
+- The scan also found 2.2 million broken links. They point at the similar,
+  different and chronological pages, which aren't built yet.
+
+## Tonight
+
+The final check should find very few over-wide lines. It hasn't seen the
+similar, different or chronological pages yet, so those are the unknowns. The
+report will be at `tmp/shared-memory/validate-output-report.txt`.
+
+The only test still failing is `augment-embeddings-with-images.test.lua`. It was
+failing before any of today's changes.
 
 --------------------------------------------------------------------------------
 
