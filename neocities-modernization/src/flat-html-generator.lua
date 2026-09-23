@@ -53,16 +53,15 @@ inference_config.set_project_root(DIR)
 -- Initialize asset path configuration (CLI --dir takes precedence over config)
 utils.init_assets_root(arg)
 
--- Load effil for parallel processing (optional - falls back to single-threaded if unavailable)
--- CRITICAL: effil.so is a C library, must be in cpath not path
-package.cpath = package.cpath .. ';/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so'
-local effil = nil
-local has_threading = false
-
-local success, err = pcall(function()
-    effil = require('effil')
-    has_threading = true
-end)
+-- Load effil, the threading library the page workers run on.  Where it lives
+-- and how it is loaded is decided in libs/effil-loader.lua, shared with
+-- run.sh's pre-flight gate (issue 10-069) so the gate tests the same file.
+-- A failed load is remembered, not fatal here: a run with --threads 1 does not
+-- need effil at all.  A run that asked for threads and cannot have them stops
+-- where num_threads is known (issue 8-058).
+local effil_loader = require("effil-loader")
+local effil, effil_load_error = effil_loader.try_load()
+local has_threading = effil ~= nil
 
 -- Issue 10-034: Orchestrator message types for lazy loading parallel HTML generation
 -- Main thread acts as cache server, sending 80KB work slices instead of workers loading 700MB
@@ -3595,6 +3594,19 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     num_threads = num_threads or 1
     if num_threads < 1 then num_threads = 1 end
 
+    -- Issue 8-058: threads were asked for and the threading library would not
+    -- load.  This used to log a warning and quietly build every page on the
+    -- single-threaded path -- a separate copy of the page code that had drifted
+    -- (wrong progress bars, anchor poem printed twice).  Stop instead, and say
+    -- why.  run.sh's pre-flight gate (issue 10-069) makes the same check before
+    -- any stage runs, so a normal build never gets this far with a bad library.
+    if num_threads > 1 and not has_threading then
+        utils.log_error("Threads were requested (" .. num_threads .. ") but the threading "
+            .. "library (effil) did not load: " .. tostring(effil_load_error))
+        utils.log_error("Fix the library, or run with --threads 1 on purpose.")
+        os.exit(1)
+    end
+
     -- Issue 10-057 (Piece 1, wired): clamp the worker count to what fits in free RAM
     -- before spawning. After the cache cap (Fix B) the fixed cost is small, so on a
     -- roomy machine this is a no-op -- but it is the guard rail that keeps a big corpus
@@ -4548,9 +4560,9 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
     else
         -- {{{ Sequential processing (original code path)
-        if num_threads > 1 and not has_threading then
-            utils.log_warn("Parallel processing requested but effil not available, using single thread")
-        end
+        -- Reached only with --threads 1, or when the memory budget shrank the
+        -- worker count to one.  A missing threading library no longer lands
+        -- here: it stops the run where num_threads is normalised (issue 8-058).
 
         -- Generate similarity and diversity pages for each poem
         -- Note: Loop variable is poem_index (globally unique) not poem.id (per-category)

@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# preflight-gate -- every cheap check a build can fail, run before the build.
+#
+# WHAT IT DOES (for a CEO): a full site build runs for hours, overnight, with
+# nobody watching.  Anything that can be known to break it -- a library that
+# will not load, a configured path that points at nothing -- is checked here
+# first, in seconds.  If every check the chosen stages need passes, the build
+# can be left alone.  If any fails, all the failures are listed together and
+# nothing is started.  It never changes anything.  (Issue 10-069.)
+#
+# HOW: a list of checks.  Each row names what it checks, which stages need it,
+# and the command that checks it.  run.sh passes the stages it is about to
+# run; rows whose stages are not running are skipped.
+#
+# Usage:
+#   scripts/preflight-gate [DIR] [--html-threads N] [--extract]
+#                          [--effil-cpath PATTERN]
+#
+#   DIR             project directory (default below)
+#   --html-threads  stage 9 will run with N page workers
+#   --extract       stage 2 (extract, then strip excluded content) will run
+#   --effil-cpath   look for the threading library here instead of its real
+#                   home -- for the gate's own test, to prove a library that
+#                   cannot load is reported
+#
+# Exit status: 0 when every selected check passed, 1 otherwise.
+
+DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+
+HTML_THREADS=0
+EXTRACT=false
+EFFIL_CPATH=""
+
+# {{{ parse arguments
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --html-threads) HTML_THREADS="$2"; shift 2 ;;
+        --extract)      EXTRACT=true; shift ;;
+        --effil-cpath)  EFFIL_CPATH="$2"; shift 2 ;;
+        --*)            echo "preflight-gate: unknown option $1" >&2; exit 1 ;;
+        *)              DIR="$1"; shift ;;
+    esac
+done
+if ! [[ "$HTML_THREADS" =~ ^[0-9]+$ ]]; then
+    echo "preflight-gate: --html-threads needs a whole number, got '$HTML_THREADS'" >&2
+    exit 1
+fi
+# }}}
+
+# {{{ the checks
+# Each check is a pair of functions: needs_* says whether this run needs it
+# (true/false by exit status), check_* does it and prints why it failed.
+
+# {{{ needs_threads / check_threads
+# Stage 9 runs its page workers on effil.  With one worker it never loads it.
+needs_threads() { [ "$HTML_THREADS" -gt 1 ]; }
+check_threads() {
+    # The path comes from libs/effil-loader.lua, the same place the HTML
+    # generator reads it, so this loads the exact file stage 9 will.
+    luajit -e "
+        package.path = '$DIR/libs/?.lua;' .. package.path
+        local loader = require('effil-loader')
+        local override = '$EFFIL_CPATH'
+        local effil, err = loader.try_load(override ~= '' and override or nil)
+        if not effil then
+            io.stderr:write('the threading library (effil) did not load:\n', err, '\n')
+            io.stderr:write('fix the library, or run stage 9 with --threads 1 on purpose\n')
+            os.exit(1)
+        end
+    "
+}
+# }}}
+
+# {{{ needs_exclusions / check_exclusions
+# Stage 2 strips excluded content; a mistyped exclusion stops it (10-053).
+needs_exclusions() { $EXTRACT; }
+check_exclusions() { lua "$DIR/scripts/strip-excluded" "$DIR" --check; }
+# }}}
+
+# label ; needs-function ; check-function
+CHECKS=(
+    "threading library loads (stage 9, more than one thread);needs_threads;check_threads"
+    "every excluded path resolves (stage 2);needs_exclusions;check_exclusions"
+)
+# }}}
+
+# {{{ run the selected checks, collect every failure
+FAILED=0
+RAN=0
+for row in "${CHECKS[@]}"; do
+    IFS=';' read -r label needs check <<< "$row"
+    # A check whose stages are not running this time is skipped entirely.
+    "$needs" || continue
+    RAN=$((RAN + 1))
+    if output=$("$check" 2>&1); then
+        echo "   ✓ pre-flight: $label"
+    else
+        FAILED=$((FAILED + 1))
+        echo "   ✗ pre-flight: $label" >&2
+        printf '%s\n' "$output" | sed 's/^/        /' >&2
+    fi
+done
+
+if [ "$FAILED" -gt 0 ]; then
+    echo "" >&2
+    echo "Pre-flight: $FAILED of $RAN check(s) failed. No stage was started." >&2
+    exit 1
+fi
+exit 0
+# }}}

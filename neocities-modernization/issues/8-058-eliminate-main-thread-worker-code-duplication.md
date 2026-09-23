@@ -188,12 +188,22 @@ Write index files
 
 ## Suggested Implementation Steps
 
-0. **Library load failure stops the build** (owner, 2026-09-22): where
-   `src/flat-html-generator.lua` loads effil and currently only logs a warning
-   before dropping to the single-threaded branch, raise an error naming the
-   library and exit non-zero. Do the same anywhere else a library load failure
-   is caught and substituted. Add a test that simulates a missing library and
-   checks that the build stops.
+0. **Library load failure stops the build** (owner, 2026-09-22).
+   - **Done 2026-09-22 for effil.** The load moved to `libs/effil-loader.lua`
+     (shared with run.sh's pre-flight gate, issue 10-069). In
+     `generate_complete_flat_html_collection`, a request for more than one
+     thread with no effil is an error naming the library and its load error,
+     then exit 1; the old warning-and-fall-through is gone. The gate makes the
+     same check before any stage runs; `scripts/preflight-gate.test.sh` proves
+     a missing library stops it.
+   - **Still to look at:** other caught-and-substituted loads found by
+     `grep -rn 'pcall(require' src libs scripts`: `libs/external-sync.lua`
+     falls back to the legacy `external_files` config when `sources-loader`
+     will not load; `libs/exclusion-filter.lua`, `libs/utils.lua` and
+     `libs/pipeline-validator.lua` guard `config-loader` /
+     `inference-server-config`; `src/main.lua` treats the TUI `menu` module as
+     optional. Each needs a decision: a real optional feature, or a fallback
+     to turn into an error.
 
 1. **Audit**: Run grep for duplicated function names across all HTML generators
    ```bash
