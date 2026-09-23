@@ -76,7 +76,10 @@ local function main()
         fail("CLAUDE_CODE_SESSION_ID is not set; this only works inside a Claude Code session")
     end
     local top = git(DIR, { "rev-parse", "--show-toplevel" }):gsub("%s+$", "")
-    local tip = git(top, { "rev-parse", "--verify", "HEAD^{commit}" }):gsub("%s+$", "")
+    -- the branch tip, or git's empty tree when the branch has no commit yet
+    local tip_out, has_tip = patch.run_quiet({ "git", "-C", top, "rev-parse", "-q", "--verify", "HEAD^{commit}" })
+    local tip = has_tip and tip_out:gsub("%s+$", "")
+        or git(top, { "hash-object", "-t", "tree", "/dev/null" }):gsub("%s+$", "")
     local claims = ledger.load(session_id)
     local rels = patch.ledger_files(claims, top)
 

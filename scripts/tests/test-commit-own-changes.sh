@@ -28,6 +28,8 @@
 #     it, a pre-commit's staging lands in the commit, commit-msg rewrites the
 #     message, prepare-commit-msg gets git's arguments, post-commit runs after,
 #     a hook that is not executable is ignored;
+#   - a brand-new repository with no commit yet: the preview and the first
+#     commit work, the commit has no parent, and a second commit follows it;
 #   - a branch other than main; the branch moved by someone else mid-commit;
 #   - stage-own-changes previews and writes nothing;
 #   - the commit gate turns plain git commit away and lets this route through.
@@ -427,6 +429,31 @@ printf '#!/bin/sh\nexit 1\n' > "${HOOKS}/pre-commit"
 set_line "${REPO}/notes.md" 3 H3; claim "${S1}" - "${REPO}/notes.md" line3; claim "${S1}" + "${REPO}/notes.md" H3
 coc "${S1}" "${REPO}" -m "hooks switched off"; s1=$?
 check "a hook that is not executable is not run" "$( [ $s1 = 0 ] && echo yes || echo no)"
+
+# Found 2026-09-23: a project made by the skeleton tool could not make its
+# first commit, because there was no tip to start from.
+printf '\nThe first commit of a brand-new repository\n'
+REPO="${SCRATCH}/first"
+rm -rf "${REPO}"; mkdir -p "${REPO}/notes" "${REPO}/llm-transcripts"
+git -C "${REPO}" init -q -b main
+git -C "${REPO}" config user.name "test"; git -C "${REPO}" config user.email "test@example.invalid"
+reset_ledgers
+printf 'v1\n' > "${REPO}/notes/vision.md"; claim "${S1}" + "${REPO}/notes/vision.md" v1
+printf 'generated\n' > "${REPO}/.file-index-counter"; claim "${S1}" W "${REPO}/.file-index-counter"
+printf '# Conversation Summary: %s\n\nthe founding talk\n' "${S1}" > "${REPO}/llm-transcripts/sep-23-26.md"
+printf 'not mine\n' > "${REPO}/stranger.md"
+preview="$(CLAUDE_CODE_SESSION_ID="${S1}" CLAUDE_SESSIONS_ROOT="${SESSIONS}" "${DIR}/stage-own-changes" "${REPO}" --project "${REPO}" --scripts-dir "${DIR}" 2>&1)"; p=$?
+check "the preview works with no commit yet" "$( [ $p = 0 ] && grep -q 'notes/vision.md' <<< "${preview}" && echo yes || echo no)"
+coc "${S1}" "${REPO}" --project "${REPO}" -m "the first commit"; s1=$?
+check "the first commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
+check "it has no parent" "$( [ "$(git -C "${REPO}" rev-list --parents -n 1 main | wc -w)" = 1 ] && echo yes || echo no)"
+check "it holds the session's files and its transcript" \
+    "$(git -C "${REPO}" cat-file -e main:notes/vision.md && git -C "${REPO}" cat-file -e main:.file-index-counter && git -C "${REPO}" cat-file -e main:llm-transcripts/sep-23-26.md && echo yes || echo no)"
+check "a file nobody claimed stays out" "$(absent main:stranger.md)"
+check "git status afterwards shows only the stranger" "$( [ "$(git -C "${REPO}" status --porcelain)" = "?? stranger.md" ] && echo yes || echo no)"
+printf 'v2\n' >> "${REPO}/notes/vision.md"; claim "${S1}" + "${REPO}/notes/vision.md" v2
+coc "${S1}" "${REPO}" --project "${REPO}" -m "the second commit"; s1=$?
+check "a second commit follows it" "$( [ $s1 = 0 ] && [ "$(git -C "${REPO}" rev-list --count main)" = 2 ] && echo yes || echo no)"
 
 printf '\nCommitting in small pieces with -- <paths>\n'
 new_repo pieces

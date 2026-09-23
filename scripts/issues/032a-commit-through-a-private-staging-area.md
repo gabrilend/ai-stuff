@@ -44,6 +44,11 @@ session's can ride along in theirs.
   commit, and moves the branch with a compare-and-swap (`git update-ref
   <branch> NEW OLD`), which refuses if anyone moved the branch in between. On a
   refusal it rebuilds on the new tip and tries again.
+- A branch with no commit yet (a brand-new repository, or an orphan branch)
+  is committed through the same route: the private list starts from git's
+  empty tree, the commit has no parent, and the compare-and-swap asks that the
+  branch still not exist. Without this, a new project's first commit had no
+  route at all, since the plain `git commit` is refused.
 - Only then does it touch the shared staging area, and only for the paths it
   just committed, so `git status` does not show the new commit as staged to be
   undone. An entry nobody staged is set to the new content. An entry someone
