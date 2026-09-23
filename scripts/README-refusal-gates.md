@@ -1,7 +1,7 @@
 # The refusal gates, and committing only your own lines
 
 Small scripts that sit in front of every shell command Claude Code runs and
-refuse a specific bad habit each, plus a note-taking hook and two commands that
+refuse a specific bad habit each, plus a note-taking hook and three commands that
 together let a session commit exactly the lines it wrote. They are installed as
 hooks in `~/.claude/settings.json`, so they apply to **every session on this
 machine, in every project**.
@@ -10,9 +10,10 @@ machine, in every project**.
 | --- | --- | --- | --- |
 | `refuse-directory-change` | gate (before Bash) | refuses `cd`, `pushd`, `popd` | `touch /tmp/claude-allow-cwd-change` |
 | `refuse-relative-commit-ref` | gate (before Bash) | refuses a history-changing git command that counts backwards to its commit instead of naming it | `touch /tmp/claude-allow-relative-commit-ref` |
-| `refuse-foreign-lines` | gate (before Bash) | refuses a `git commit` whose index holds a line this session did not write, or whose form bypasses the index | `touch /tmp/claude-allow-foreign-commit` |
+| `refuse-foreign-lines` | gate (before Bash) | refuses a plain `git commit` that would record anything, pointing at `commit-own-changes` | `touch /tmp/claude-allow-foreign-commit` |
 | `record-own-edits` | note-taker (after Edit, Write, MultiEdit, NotebookEdit, Bash) | appends every line the session adds or removes to its edit ledger | — |
-| `stage-own-changes [repo]` | command | stages only this session's lines, with `git apply --cached` | — |
+| `commit-own-changes <repo> -F -` | command | commits only this session's lines, built on a private staging list | — |
+| `stage-own-changes [repo]` | command | previews what `commit-own-changes` would commit; writes nothing | — |
 | `claim-own-change <file>...` | command | claims whole files the ledger could not see being written | — |
 
 `refuse-unscoped-commit`, the commit gate before `refuse-foreign-lines`, is
@@ -59,35 +60,50 @@ Three pieces, one ledger:
    shell command reports when it edits files the harness was tracking. A shell
    command that changed files *without* a diff is named back to the model, so it
    can claim them.
-2. **`stage-own-changes` stages.** For each file in the ledger it compares the
-   working tree with the index, with no context lines, keeps each change block
-   whose every line is claimed, renumbers the kept blocks so they still line up,
-   and applies them with `git apply --cached --unidiff-zero`. New files wholly
-   written by the session are added whole. The project's `llm-transcripts/`
-   folder is staged alongside. Blocks it leaves out are listed by file and line
-   — "foreign" (none of it is ours) or "mixed" (our line touches someone else's
-   with no unchanged line between, so git cannot take one without the other).
-3. **`refuse-foreign-lines` checks.** Before any `git commit`, it reads the
-   index of the repository the commit will use and refuses if any staged added
-   or removed line (outside `llm-transcripts/`) is not in the ledger, listing
-   them by file and line. It also refuses the forms that bypass the index:
-   `-a`/`--all`, `-i`/`--include`, `--only` with paths, a pathspec,
-   `--pathspec-from-file` — and a line that stages with a raw git command and
-   commits in the same breath, because the gate runs before the line does.
+2. **`commit-own-changes` commits, privately.** It never uses the shared
+   staging area (`.git/index`). Under a per-repository lock it seeds a private
+   staging list in RAM from the branch tip, compares the working tree with it
+   for the ledger's files (no context lines), keeps each change block whose
+   every line is claimed, renumbers the kept blocks so they still line up, and
+   applies them to the private list with `git apply --cached --unidiff-zero`.
+   New files wholly written by the session are added whole, and so are this
+   session's own transcripts — a transcript counts when its header names this
+   conversation or one of its helpers, wherever it lives. It commits that list
+   with the tip as parent and moves the branch only if the branch still points
+   at the tip; otherwise it rebuilds on the new tip. Then it brings the shared
+   staging area in step for the files it committed, and only those, keeping
+   anything someone staged there by hand on top of the new commit. Blocks it
+   leaves out are listed by file and line — "foreign" (none of it is ours) or
+   "mixed" (our line touches someone else's with no unchanged line between). A
+   mixed block stops the commit, since two sessions have changed the same
+   lines; `--leave-mixed` commits the rest.
+3. **`refuse-foreign-lines` turns plain commits away.** Any `git commit` that
+   would record something — however it is spelled, amends included — is
+   refused with a pointer to `commit-own-changes`. Dry runs and `-h` pass.
+
+`stage-own-changes <repo>` previews what `commit-own-changes` would take and
+writes nothing.
 
 The everyday shape:
 
 ```
-stage-own-changes /mnt/mtwo/programming/ai-stuff
-git -C /mnt/mtwo/programming/ai-stuff commit -F - <<'EOF'
+commit-own-changes /mnt/mtwo/programming/ai-stuff -F - <<'EOF'
 ...message...
 EOF
 ```
 
-If the gate lists lines that are **someone else's staged work**, do not unstage
-them without asking the user — they may be about to commit them. Ask who goes
-first. If the lines are **yours but came from a shell command the ledger did
-not see**, claim the file out loud (`claim-own-change <file>`) and try again.
+Add `-- <path>...` (files or folders, repository-relative) to commit one piece
+of the work at a time.
+
+Two sessions editing the same file in different places is the everyday case,
+not an edge: each commit is built on whatever the branch holds at that moment
+plus that session's own blocks, so the two commits land in either order, each
+with only its own lines, and nothing is reverted.
+
+If a block of yours is **mixed**, someone else changed lines right next to or
+on top of yours; decide with them (or the user) what that region should say.
+If the lines are **yours but came from a shell command the ledger did not
+see**, claim the file out loud (`claim-own-change <file>`) and try again.
 
 ### Why the commit gate changed
 
@@ -99,9 +115,19 @@ whole — their lines included — and staging individual lines with
 `git apply --cached`, which the standing instructions ask for, was thrown away.
 The person's call, when asked which rule should win: *"let's prefer the
 claude.md implementation. We need more rigid guard-rails about always committing
-just lines that were edited by us."* So now the index is kept, and checked
-line by line against what the session is known to have written. The design is
-issue 032, `issues/032-commit-only-your-own-lines.md`.
+just lines that were edited by us."* So the index was kept, and checked line
+by line against what the session is known to have written (issue 032,
+`issues/032-commit-only-your-own-lines.md`).
+
+That check still shared one staging list between sessions, and on 2026-09-22
+it failed in the way only sharing can. One session's gate found the list clean
+and approved a line that staged its own lines and then committed; while that
+line's staging was still running, another session staged 55 files into the
+same list, and the commit carried them under the wrong message. A gate runs
+before the command it approves, so no gate can vouch for a list anyone may
+write in between. Commits now never touch the shared list: `commit-own-changes`
+builds each one on a private list and moves the branch with a compare-and-swap
+(issue 032a, `issues/032a-commit-through-a-private-staging-area.md`).
 
 ## How the gates read a command
 
@@ -173,14 +199,19 @@ Known limits, each a place where a determined line passes:
   into a shell (`echo … | bash`) are not read.
 - A git alias (`git ci`) and commands that make commits without `git commit`
   (`commit-tree`, `merge`, `cherry-pick`) are not checked by the commit gate.
+- `commit-own-changes` makes its commit directly, so `pre-commit` and
+  `commit-msg` hooks do not run (no repository here uses them).
 
 ## If a gate is wrong
 
 Fix the script, not the caller. `test-refusal-gates` holds every case — kept in
 a file rather than typed at a prompt, since typing the bad forms gets them
 refused — and runs the reader's own tests (`tests/test_shell-command-scan.lua`)
-and the ledger/staging/commit test in a scratch repository
-(`tests/test-own-lines.sh`). Run it after any change:
+the ledger/preview/commit test in a scratch repository
+(`tests/test-own-lines.sh`), and the commit route's own suite — two sessions on
+one file in both orders, twenty rounds of simultaneous commits, overlaps,
+hand-staged entries, a branch moved mid-commit
+(`tests/test-commit-own-changes.sh`). Run it after any change:
 
 ```
 /home/ritz/programming/ai-stuff/scripts/test-refusal-gates
