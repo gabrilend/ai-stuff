@@ -1,0 +1,9 @@
+# Conversations `transcript-patches translate-ids` never writes a patch for.
+# One conversation id per line; '#' starts a comment. An excluded
+# conversation keeps its transcript exactly as the exporter renders it.
+#
+# The 2026-09-22 conversation that planned and carried out the history graft.
+# It quotes the old commit ids on purpose, to tell the story of the rewrite.
+# (Its transcript lives in ~/.claude/claude-code, outside the monorepo, so the
+# generator would not reach it anyway; listed so it never will.)
+add0b000-a626-4ac3-9627-488e6e24c5e5
