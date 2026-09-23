@@ -268,8 +268,8 @@ threading in `run.sh`'s word-cloud invocations.
    single-threaded warn-once fallback. **Done 2026-09-22 as part of 8-045**:
    the progress bar needs the same map entry, so a missing entry now stops
    the page in both renderers and on word pages before any link is built.
-   The warn-once link fallback in the single-threaded formatter is
-   unreachable for a missing entry and can be deleted with step 2. The two
+   The warn-once link fallback in the single-threaded formatter was then
+   unreachable and has been deleted (2026-09-22). The two
    cases in `src/flat-html-generator.chronological-links.test.lua` that
    expected the index.html fallback now expect the error.
 2. In paginated builds, never write a link through `chronological/index.html`;

@@ -2195,24 +2195,6 @@ local function format_content_with_warnings(text, poem_category, poem, similar_l
 end
 -- }}}
 
--- One warning per process, not per poem. The check that needs announcing lives
--- inside the per-poem formatter, and a full build formats roughly 700,000
--- entries -- warning at each one would bury the message it is trying to deliver.
-local chrono_fallback_warned = false
-
--- {{{ local function warn_chrono_fallback_once
--- Announces that a chronological link could not be aimed at a real page number.
--- The reason string names WHICH way the mapping failed, so the caller that
--- dropped it can be found without re-deriving this whole path.
-local function warn_chrono_fallback_once(reason)
-    if chrono_fallback_warned then return end
-    chrono_fallback_warned = true
-    utils.log_warn(string.format(
-        "chronological links fell back to chronological/index.html (%s) - " ..
-        "the #poem anchor is lost across that redirect, so every link lands at " ..
-        "the top of the chronological view instead of at its poem", reason))
-end
--- }}}
 
 -- {{{ function format_single_poem_with_progress_and_color
 -- Issue 10-036: Added chrono_mapping for correct paginated chronological links
@@ -2281,23 +2263,18 @@ local function format_single_poem_with_progress_and_color(poem, poem_colors, chr
     -- how a full build shipped 694,530 links all pointing at chronological page
     -- 1: this sequential path ran with chrono_mapping = nil, so every poem on
     -- every similar/different page claimed to live among the first 88 poems.
-    -- A guess that is silently wrong for 99% of a corpus is worse than a stop,
-    -- so the fallback now goes to index.html -- the one file guaranteed to exist
-    -- in BOTH modes -- and says out loud that it gave up the anchor.
-    local chrono_info = chrono_mapping and chrono_mapping[poem_index]
+    -- A guess that is silently wrong for 99% of a corpus is worse than a stop.
+    -- A later fallback to index.html lost the #poem anchor across its redirect;
+    -- since 8-045 a poem missing from the map stops the build at the top of
+    -- this function (its progress bar needs the same entry), so chrono_entry is
+    -- always real here and no fallback is needed.
     local chronological_link
-    if chrono_info and chrono_paginated and (chrono_info.total_pages or 1) > 1 then
+    if chrono_paginated and (chrono_entry.total_pages or 1) > 1 then
         chronological_link = string.format("<a href='%s/chronological/%02d.html#%s'>chronological</a>",
-            base_path, chrono_info.page_number, anchor_id)
+            base_path, chrono_entry.page_number, anchor_id)
     else
-        -- Unpaginated with a real mapping is the correct, quiet case: index.html
-        -- IS the whole chronological view, and the anchor resolves inside it.
-        if not chrono_mapping then
-            warn_chrono_fallback_once("no chronological mapping reached this generator")
-        elseif not chrono_info then
-            warn_chrono_fallback_once(string.format(
-                "poem_index %d is absent from the chronological mapping", poem_index))
-        end
+        -- Unpaginated: index.html IS the whole chronological view, and the
+        -- anchor resolves inside it.
         chronological_link = string.format("<a href='%s/chronological/index.html#%s'>chronological</a>",
             base_path, anchor_id)
     end
