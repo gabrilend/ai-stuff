@@ -205,11 +205,21 @@ end
 
 -- {{{ function M.ledger_files()
 -- The repository-relative paths this session's ledger names under `top`,
--- sorted.
+-- sorted -- except transcripts. A transcript (any llm-transcripts/*.md) is
+-- decided whole by whose conversation it is (own_transcripts below), never
+-- line by line: the backup hook writes most of its lines, so the ledger only
+-- ever holds scraps of one (from a backup run by hand, whose file diff the
+-- ledger hook records), and judging those scraps made this session's own
+-- transcript look tangled and stopped the whole commit (2026-09-22).
 function M.ledger_files(claims, top)
     local rels = {}
     for path in pairs(claims) do
-        if path:sub(1, #top + 1) == top .. "/" then rels[#rels + 1] = path:sub(#top + 2) end
+        if path:sub(1, #top + 1) == top .. "/" then
+            local rel = path:sub(#top + 2)
+            -- a transcript: left to the conversation rule
+            -- anything else: judged by its claimed lines
+            if not rel:match("llm%-transcripts/[^/]+%.md$") then rels[#rels + 1] = rel end
+        end
     end
     table.sort(rels)
     return rels
