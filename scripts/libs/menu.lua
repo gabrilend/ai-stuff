@@ -3296,7 +3296,11 @@ function menu.cycle_radio_prev()
     end
 
     if #checkbox_items == 0 then return false end
-    if not selected_idx then selected_idx = 1 end
+    -- Nothing chosen yet: H does nothing.  It used to pretend the first
+    -- entry was chosen and step back from it, choosing the LAST entry
+    -- whatever the cursor was on.  A radio list needs a value, so there is
+    -- no "unchoose" for H to do.  (neocities-modernization issue 10-070)
+    if not selected_idx then return false end
 
     -- Calculate previous index with looping
     local new_idx = selected_idx - 1
@@ -3336,10 +3340,24 @@ function menu.cycle_radio_next()
     end
 
     if #checkbox_items == 0 then return false end
-    if not selected_idx then selected_idx = 1 end
 
-    -- Calculate next index with looping
-    local new_idx = (selected_idx % #checkbox_items) + 1
+    local new_idx
+    if not selected_idx then
+        -- Nothing chosen yet: L chooses the entry under the cursor, the way
+        -- L ticks a checkbox.  It used to pretend the first entry was chosen
+        -- and step forward from it, so L always chose the SECOND entry
+        -- whatever the cursor was on.  (neocities-modernization issue 10-070)
+        local cursor_id = get_current_item_id()
+        for i, iid in ipairs(checkbox_items) do
+            if iid == cursor_id then new_idx = i end
+        end
+        -- The cursor is on something that cannot be chosen (a disabled or
+        -- non-radio line): nothing to do.
+        if not new_idx then return false end
+    else
+        -- Something is chosen: step to the next entry, with looping.
+        new_idx = (selected_idx % #checkbox_items) + 1
+    end
 
     -- Unselect current, select new
     for i, iid in ipairs(checkbox_items) do

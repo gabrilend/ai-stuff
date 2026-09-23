@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-23 09:35:34
+Generated on: 2026-09-23 09:42:54
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -2440,6 +2440,87 @@ only stepped out of editing mode and otherwise did nothing.
 
 I checked both cases in a real menu session. Issue 10-070 is marked done, with
 your confirmation of the copy and `q` recorded.
+
+--------------------------------------------------------------------------------
+
+### User Request 22
+
+Oh and the new markers look great, but there's two problems. When the cursor
+highlights them, they return to the undiscipherable glyphs. Also, if we enable
+"force regenerate all stages" they also become indecipherable. Also, when force
+regenerate is enabled, we can't change their values, so we should skip over
+their entry in the list. For example going from 1. Update Words directly to 2.
+Extract instead of stopping by at the force-regenerate slot, which is enabled
+always because "force regenerate all stages" is enabled.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 22
+
+> Two different rendering paths are probably at work: the normal one draws
+> `└─` fine, but the highlight and disabled paths mangle it. Finding them in
+> the menu library.
+
+> Before changing it: 48 other calls use `write_str`, and the fix changes how
+> many columns a multi-byte string takes up. Checking which callers draw
+> non-ASCII text and position things by byte count.
+
+> None of the library's own drawing passes non-ASCII text, so multi-byte
+> characters only arrive through labels and other data. The change is safe for
+> the other menus. Making it.
+
+> Editing the shell side first: the helper takes an optional seventh argument,
+> and the JSON builder passes it on.
+
+> The shell side is done. Now the Lua side.
+
+> Syntax passes everywhere. Now `run.sh`: adding `skip` to the ten per-stage
+> force rules.
+
+> No matches, because every character on screen has its own colour code in
+> front, which breaks up the words. Stripping the colour codes first.
+
+> The descriptions still aren't there. The screen may position the cursor
+> between every character. Looking at the raw stream around "Update" to see how
+> the text is written.
+
+> Writing that screen test now.
+
+> Test passes (4/4). The cleaner version of the replay helper didn't get
+> written, because the tool requires reading the file first. Doing that now.
+
+> The test catches the old bug: with the previous screen code, the "character
+> cut apart" check fails. With the new code all 4 pass. Recording the two fixes
+> in issue 10-070 and committing.
+
+Both fixed and committed (`7d596d6f7`).
+
+**Garbled markers:** the menu's screen code stored one byte per screen cell, but
+`└` and `─` take three bytes each. Plain lines survived because the three
+bytes went out together. A highlighted or dimmed line sends a colour code in
+front of every cell, and that cut each character into broken pieces. Each cell
+now holds one whole character, so the markers read correctly whether
+highlighted, dimmed or plain.
+
+**Skipping the force options:** with "Force regenerate ALL" on, moving down now
+goes straight from 1. Update Words to 2. Extract, and so on down the list.
+- **Only these ten options:** the menu normally lets you land on a greyed-out
+  option so it can highlight what's blocking it, so I kept that everywhere else.
+  Skipping is an opt-in on each rule, and only `run.sh`'s per-stage force
+  options use it.
+- **With Force ALL off,** the cursor stops on them as before, since you can
+  change them then.
+
+**Checked:** in `run.sh`'s real menu, and with a new library test,
+`scripts/libs/test-menu-screen.sh`. It drives a small menu in a pretend terminal
+and reads back what was drawn. Its 4 checks pass, and on the old screen code the
+garbled-marker check fails. The existing library tests (19) and the clipboard
+test still pass.
+
+Both fixes are in the shared menu library, so other menus that show non-ASCII
+text get the first one too. Stages 6–8 have a ⚠️ after their names. Now
+that each cell holds a whole character, anything drawn after that symbol on the
+same line may sit one column off. Tell me if you spot it.
 
 --------------------------------------------------------------------------------
 
