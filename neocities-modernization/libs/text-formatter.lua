@@ -87,10 +87,14 @@ function M.decode_html_entities_for_width(content)
     local decoded = content
     -- Strip HTML tags first (they're invisible in display)
     decoded = decoded:gsub("<[^>]+>", "")
-    -- Decode common HTML entities to their display characters
+    -- Decode common HTML entities to their display characters.
+    -- "&amp;" goes LAST.  A page that shows the text "&quot;" writes it as
+    -- "&amp;quot;"; decoding "&amp;" first turned that into "&quot;", which
+    -- the next step decoded again to a single '"' -- measuring six visible
+    -- characters as one, so a note quoting HTML source wrapped too late and
+    -- ran past the frame (found by scripts/validate-output, 2026-09-23).
     decoded = decoded:gsub("&gt;", ">")
     decoded = decoded:gsub("&lt;", "<")
-    decoded = decoded:gsub("&amp;", "&")
     decoded = decoded:gsub("&quot;", '"')
     decoded = decoded:gsub("&#39;", "'")
     decoded = decoded:gsub("&nbsp;", " ")
@@ -102,6 +106,7 @@ function M.decode_html_entities_for_width(content)
         end
         return ""
     end)
+    decoded = decoded:gsub("&amp;", "&")
     return decoded
 end
 -- }}}
