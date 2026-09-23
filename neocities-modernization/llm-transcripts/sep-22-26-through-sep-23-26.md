@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-23 09:55:58
+Generated on: 2026-09-23 10:00:12
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -2582,6 +2582,163 @@ list. One is a transcript at the ai-stuff root that it labels "another
 conversation"; the other is the deletion of a transcript file here that the
 exporter renamed. That's how the tool is set up to attach transcripts. Tell me
 if you'd rather that root one hadn't gone in.
+
+--------------------------------------------------------------------------------
+
+### User Request 24
+
+Hi, I want to investigate this a little bit:
+
+
+
+<pasted_content id="abad">
+675 poems @ 1024 characters ← GOLDEN POEMS
+148 poems @ 28 characters
+58 poems @ 76 characters
+52 poems @ 74 characters
+52 poems @ 72 characters
+46 poems @ 80 characters
+45 poems @ 96 characters
+45 poems @ 78 characters
+44 poems @ 77 characters
+44 poems @ 82 characters
+44 poems @ 1023 characters
+43 poems @ 65 characters
+42 poems @ 83 characters
+42 poems @ 56 characters
+41 poems @ 81 characters
+41 poems @ 67 characters
+41 poems @ 84 characters
+40 poems @ 18 characters
+39 poems @ 51 characters
+39 poems @ 68 characters
+</pasted_content id="abad">
+
+
+1023 characters is an awfully specific amount, especially when all the other
+entries are sub-100. Can we look into that? There might be a problem with the
+golden-poem detection system.
+
+Also, this line here:
+
+🧹 primary: removed excluded subdirectory copy
+/mnt/mtwo/programming/ai-stuff/neocities-modernization/input/notes/rmail
+
+the emoji isn't displaying.
+
+Also, for these outputs:
+
+
+
+<pasted_content id="abad">
+=== IMAGE CATALOG STATISTICS ===
+Total Images: 1208
+Unique Images: 1180
+Duplicate Images: 28
+Total Size: 1008.95 MB
+Average Size: 0.855 MB
+
+Format Distribution:
+  jpeg: 43 images
+  webp: 40 images
+  png: 957 images
+  jpg: 140 images
+
+Size Distribution:
+  Small (<100KB): 438 images
+  Medium (100KB-1MB): 487 images
+  Large (>1MB): 255 images
+
+Resolution Distribution:
+  Low (<500px): 346 images
+  Medium (500-1500px): 551 images
+  High (>1500px): 283 images
+</pasted_content id="abad">
+
+
+can we align them on the semicolons within each section? To make it easier to
+scan through.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 24
+
+> Starting with the 1023-character question, read-only. Your pipeline may still
+> be running, so first I'll check which stage it's on before changing any file
+> it might still read.
+
+> The pipeline is in stage 6 (embeddings). The histogram comes from
+> `src/poem-validator.lua`. Reading how it counts characters, and how golden
+> poems are detected.
+
+> The histogram uses `golden_poem_character_count`, which the extraction step
+> computes. Looking at the 44 poems at 1023: which sources they come from, and
+> how their count differs from the poem text.
+
+> Still investigating the 1023s: comparing features of the stored HTML between
+> the 1023 and 1024 groups.
+
+> Adding a small helper that prints each section's label/value pairs with the
+> colons lined up, and using it for all four sections.
+
+> Colons line up in every section, and formats are sorted by count. Now
+> replacing `🧹` in the two files that aren't running with `✂` (scissors),
+> an old symbol that nearly every terminal font has.
+
+> Committing the alignment and the two symbol swaps. `run.sh` stays out until
+> your run finishes.
+
+I haven't found a bug in the golden-poem counter. The 1023 cluster fits a known
+limit of what the archive can show: posts typed to exactly 1024 that lost one
+character in storage. I can't prove it from the archive alone.
+
+**What the numbers show**
+
+| Characters | Poems |
+|---|---|
+| 1020 | 11 |
+| 1021 | 10 |
+| 1022 | 19 |
+| **1023** | **44** |
+| 1024 | 675 |
+| 1025 and up | 0 |
+
+- **A steep approach:** the counts climb toward the limit, and nothing goes
+  over. Some of the 44 are simply posts that stopped one short.
+- **Over-represented features:** two features are much more common at 1023 than
+  at 1024, which is what a counting gap would look like:
+  - replies starting with an @mention (30% vs 16%)
+  - text containing quote marks or `<`/`>` stored as HTML escapes (14% vs 3%)
+- **What I ruled out:** the counter prices mentions the way Mastodon's compose
+  box does, decodes each escape to one character, and counts emoji as one. I
+  found nothing it provably miscounts.
+
+**Where the missing character most likely went:** Mastodon discards some things
+you type before storing the post, and the archive only has the stored version.
+- Whitespace at the end of a post.
+- A second blank line between paragraphs. Three newlines are stored as a single
+  paragraph break, which the counter rebuilds as two newlines.
+
+The compose box counted those characters, so a post you filled to 1024 would
+come back as 1023 with no trace of what was lost.
+
+**How to settle it for certain:** Mastodon keeps the exact text you typed, for
+editing. Its API returns it for any post: `GET /api/v1/statuses/<id>/source`.
+Fetching that for the 44 posts would show directly whether each was 1024 when
+typed, and what the archive dropped. It needs your account's access token, so
+it's your call.
+
+A question for you: when you wrote posts to exactly 1024, did you tend to end
+with a trailing space or newline, or leave extra blank lines between stanzas? If
+so, that is likely the whole story.
+
+**The other two, done** (`8a9f0fd88`):
+- **Image statistics:** every section now lines up on its colons, and formats
+  are listed most-common first.
+- **`🧹`:** replaced with `✂` (scissors) in the excluded-folder line and the
+  extraction clean-up line. The same broom also heads the "Stripping excluded
+  content" stage in `run.sh`, and I'll change that one once your pipeline run
+  finishes.
 
 --------------------------------------------------------------------------------
 

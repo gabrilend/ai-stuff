@@ -135,6 +135,22 @@ end
 - Phase demo scripts updated to reflect improved golden poem identification
 
 ## Notes for Future Investigation
+
+### Set aside, 2026-09-23: the cluster at 1023
+The validator's length histogram shows 675 poems at 1024 and 44 at 1023,
+against 19 at 1022, 10 at 1021 and none above 1024. Compared with the 1024
+group, the 1023 group has twice the share of replies that open with an
+@mention (30% vs 16%) and more HTML-escaped characters (14% vs 3%); no
+character was found that `compose_box_count` provably miscounts. The likely
+cause is text the compose box counted but the server discarded before
+storing -- trailing whitespace, or an extra blank line between paragraphs
+(three newlines are stored as one paragraph break, rebuilt as two) -- which
+the archive cannot show. Mastodon keeps the text as typed for editing
+(`GET /api/v1/statuses/<id>/source`), which would settle it for each post,
+but needs the owner's access token. Owner: "let's set aside the golden poem
+thing now because we have no way to validate it."
+
+### Earlier notes
 While the implementation successfully improved golden poem identification from 7 to 17 (143% increase), this is still below the user's estimate of ~100 poems. Additional processing artifacts not yet identified may exist in the compilation pipeline. The implemented methodology provides a foundation for further refinement as more patterns are discovered.
 
 ### 🚨 **CRITICAL DISCOVERY - DECEMBER 2025**: Title/ID Inclusion Issue
