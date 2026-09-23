@@ -215,7 +215,7 @@ end
 -- }}}
 
 -- {{{ load_word_colors
--- Issue 16-010: Load word colors from embeddings directory for colorized word cloud display
+-- Issue 16-011: Load word colors from embeddings directory for colorized word cloud display
 local function load_word_colors()
     local cache_file = utils.embeddings_dir() .. "/word_colors.json"
     local data = utils.read_json_file(cache_file)
@@ -493,7 +493,7 @@ end
 
 -- {{{ generate_wordcloud_html
 local function generate_wordcloud_html(words, output_dir, poems_data)
-    -- Issue 16-010: Load word colors and color configuration for colorized display
+    -- Issue 16-011: Load word colors and color configuration for colorized display
     local word_colors = load_word_colors()
     local color_config = unified_config.colors or {
         red = "#FF6B6B",
@@ -520,7 +520,7 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
 
     -- Generate word spans with links to similar pages
     -- Issue 8-043: Each word links to wordcloud/{word}.html showing poems similar to that word
-    -- Issue 16-010: Words are now colored by their semantic color
+    -- Issue 16-011: Words are now colored by their semantic color
     local word_html = {}
     for _, entry in ipairs(shuffled) do
         -- Sanitize word for URL (lowercase, no special chars)
@@ -536,7 +536,7 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
         local hex_color = "#868E96"  -- neutral gray for the long tail
         if is_significant then
             bold_open, bold_close = "<b>", "</b>"
-            -- Issue 16-010: Look up this word's semantic color. Large words never
+            -- Issue 16-011: Look up this word's semantic color. Large words never
             -- render gray (gray belongs to the de-emphasised small words), so we take
             -- the strongest NON-gray color from the word's full color ranking.
             local semantic_color = top_nongray_color(word_colors[safe_word]) or "gray"

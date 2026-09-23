@@ -31,7 +31,7 @@ Phase 5 focused on implementing the core flat HTML generation system, ensuring d
   - Simplified to basic "similar"/"unique" links
   - Integrated former golden poems into standard chronological listing
 - **Issue 5-014**: Simple navigation and discovery (CONSOLIDATED) - **COMPLETED** ✅
-- **Issue 5-014**: Similarity link navigation implementation - **COMPLETED** ✅
+- **Issue 5-027**: Similarity link navigation implementation - **COMPLETED** ✅
 - **Issue 5-015**: Refactored golden poem system to remove prioritization - **COMPLETED** ✅
 
 ### **✅ Design Consistency & Quality Assurance**
