@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-23 10:00:12
+Generated on: 2026-09-23 10:05:37
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -2739,6 +2739,29 @@ so, that is likely the whole story.
   extraction clean-up line. The same broom also heads the "Stripping excluded
   content" stage in `run.sh`, and I'll change that one once your pipeline run
   finishes.
+
+--------------------------------------------------------------------------------
+
+### User Request 25
+
+Okay let's set aside the golden poem thing now because we have no way to
+validate it.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 25
+
+> Setting it aside. I'll record what we found in the golden-poem counting issue,
+> so the 1023 cluster and the way to verify it aren't lost if it comes up again.
+
+I've set it aside. The findings are recorded in the golden-poem counting issue
+(4-003) as a "set aside" note, and committed (`625a7ece6`). The note covers the
+44 poems at 1023 against 675 at 1024, the likely cause, and the one way to check
+it (Mastodon's API for the text as typed).
+
+One thing is still waiting: the `🧹` at the head of the "Stripping excluded
+content" stage is inside `run.sh`. I'll swap it for `✂` once your pipeline run
+finishes. Let me know when it's done.
 
 --------------------------------------------------------------------------------
 

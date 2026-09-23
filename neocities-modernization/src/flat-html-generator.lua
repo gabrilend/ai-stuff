@@ -2934,6 +2934,13 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
         -- Issue 16-010: shared head block -- viewport + shipped monospace font
         local template
         if chronological_paginated and total_pages > 1 then
+            -- This template is formatted TWICE: here (page numbers, head,
+            -- navigation) and again below with the poems (the "%%s" left
+            -- in).  So the head goes in as PAGE_HEAD_BLOCK_IN_TEMPLATE: an
+            -- argument is copied verbatim, so its doubled "%%" survive this
+            -- first pass and the second pass turns them back into "%".
+            -- Passing the plain block crashed the second pass on the
+            -- stylesheet's "100%;" (the stage-9 failure of 2026-09-23).
             template = string.format([[<!DOCTYPE html>
 <html>
 <head>
@@ -2954,7 +2961,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 </td></tr></table>
 <center>%s</center>
 </body>
-</html>]], page_num, total_pages, PAGE_HEAD_BLOCK, page_nav_html, page_nav_html)
+</html>]], page_num, total_pages, PAGE_HEAD_BLOCK_IN_TEMPLATE, page_nav_html, page_nav_html)
         else
             template = [[<!DOCTYPE html>
 <html>
