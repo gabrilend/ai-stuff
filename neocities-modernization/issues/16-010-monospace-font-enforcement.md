@@ -17,6 +17,17 @@ Medium (was Low). Mobile readers see mangled frames.
 
 ## Current Behavior
 
+**Fixed 2026-09-22, found while testing 8-045:** the shared stylesheet says
+`text-size-adjust: 100%;`, and four page templates in
+`src/flat-html-generator.lua` spliced the whole head block into a string that
+then went through `string.format`, which reads `%;` as a broken placeholder
+and throws. That crashed the single-threaded similar/different pages, the
+unpaginated chronological page and the chronological redirect page. The
+templates now splice `PAGE_HEAD_BLOCK_IN_TEMPLATE` (every `%` doubled);
+places that pass the block as a format argument keep the plain one. The
+chronological-links and download-links tests had been failing on this since
+the shared head arrived.
+
 The font half works. Every generated page ships with the font it renders in.
 `fonts/` holds Hack Nerd Font in both weights. `scripts/install-fonts` copies
 them into `output/fonts/` before any page is built. `src/page-head.lua` writes

@@ -227,17 +227,28 @@ chrono_map[poem_idx] = {
 
 ### Steps for the 2026-09-22 reopening
 
-7. **Convert the single-threaded formatter.** Have
-   `format_single_poem_with_progress_and_color()` read the poem's
-   `timeline_progress` from the chronological map, the same way the worker does.
-8. **Delete the old formula.** Remove `calculate_chronological_progress()` and
-   both "largest id in the ranked list" blocks (in
-   `generate_paginated_poem_page_html()` and
-   `generate_flat_poem_list_html_with_progress()`). No caller should need a
-   corpus total any more.
-9. **Missing map entry is an error** in the worker, the single-threaded
-   formatter and the word pages, replacing the 50% default and the position
-   fallback.
+7. **Convert the single-threaded formatter.** **Done 2026-09-22.**
+   `format_single_poem_with_progress_and_color()` reads the poem's
+   `timeline_progress` from the chronological map, the same way the worker
+   does. It and `format_all_poems_with_progress_and_color()` no longer take a
+   poem total.
+8. **Delete the old formula.** **Done 2026-09-22.**
+   `calculate_chronological_progress()` and both "largest id in the ranked
+   list" blocks are gone.
+9. **Missing map entry is an error** **Done 2026-09-22** in the worker, the
+   single-threaded formatter and the word pages, replacing the 50% default and
+   the position fallback. Also: a poem with no date is an error in the
+   chronological sort (it used to be dated by its id -- a few seconds after
+   1970 -- which stretched the timeline back to 1970). The other date sources
+   (a date in the first line, the file's timestamp) still stand behind a
+   missing `creation_date`; every poem in the corpus has a `creation_date`
+   today, so they never run. Because a worker can now stop with an error, the
+   HTML orchestrator checks once a second for a failed worker and stops the
+   run with its error (before, a dead worker left the orchestrator waiting
+   forever). run.sh's pre-flight gate runs `scripts/check-poem-dates`, the
+   same date reading, before any stage (10-069). Tests:
+   `src/flat-html-generator.progress-bars.test.lua` (three poems numbered
+   against their date order; an undated poem is refused).
 10. **Bound the bar drawer.** **Done 2026-09-22.** `check_percentage()` in
     `src/poem-bars.lua` raises an error naming the poem (its `poem_id`, when
     the caller supplies one) when the percentage is below 0, above 100, missing

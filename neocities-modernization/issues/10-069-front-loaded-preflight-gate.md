@@ -35,9 +35,14 @@ without anymore input from us."
   1. **Threading library** (stage 9 with more than one thread): loads effil
      through `libs/effil-loader.lua`, the same loader the HTML generator uses.
   2. **Exclusion paths** (stage 2): `scripts/strip-excluded --check`.
-- `scripts/preflight-gate.test.sh` (9 checks): a missing library stops the
+  3. **Every poem has a date** (stage 9 or 10, when stage 3 is not rebuilding
+     the poem list this run): `scripts/check-poem-dates`, which runs the page
+     build's own date ordering over `assets/poems.json` (half a second for
+     8,531 poems) and names the first undated poem (8-045).
+- `scripts/preflight-gate.test.sh` (13 checks): a missing library stops the
   gate and names the check; the real library passes; one worker never checks
-  the library; no stages selected prints nothing; a malformed thread count is
+  the library; no stages selected prints nothing; an undated poem stops the
+  gate and is named; the real poem list passes; a malformed thread count is
   refused.
 - Before this issue, `run.sh` refused missing CLI values, a model without
   embeddings and an unreachable inference server up front, but a bad

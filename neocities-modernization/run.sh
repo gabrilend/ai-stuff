@@ -2720,6 +2720,11 @@ validate_supplied_values
 PREFLIGHT_ARGS=("$DIR")
 $GENERATE_HTML && PREFLIGHT_ARGS+=(--html-threads "$THREADS")
 $EXTRACT && PREFLIGHT_ARGS+=(--extract)
+# The poem list is checked only when this run reads the existing one: if stage
+# 3 is in the run it rebuilds the list first, and the old file proves nothing.
+if { $GENERATE_HTML || $GENERATE_WORDCLOUD; } && ! $PARSE; then
+    PREFLIGHT_ARGS+=(--poems-file "$ASSETS_DIR/poems.json")
+fi
 if ! "$DIR/scripts/preflight-gate" "${PREFLIGHT_ARGS[@]}"; then
     exit 1
 fi

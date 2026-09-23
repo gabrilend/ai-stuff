@@ -181,6 +181,16 @@ img, video, audio { margin-left: auto; margin-right: auto; }]]
 -- after its <title>, so adding it in one place adds it to all of them.
 local PAGE_HEAD_BLOCK = page_head.viewport_meta() .. "\n"
     .. page_head.style_block("..", POEM_PAGE_CSS)
+
+-- The same block, safe to splice INTO a string.format template.  The stylesheet
+-- says "text-size-adjust: 100%;", and string.format reads "%;" as a broken
+-- placeholder and throws -- so every template that concatenated the block into
+-- itself before formatting crashed (the single-threaded similar/different
+-- pages, the unpaginated chronological page, the chronological redirect).
+-- Doubling each % makes format print it as one.  Where the block is passed as
+-- a format ARGUMENT (a %s value) the plain PAGE_HEAD_BLOCK is right: arguments
+-- are not parsed for placeholders.
+local PAGE_HEAD_BLOCK_IN_TEMPLATE = PAGE_HEAD_BLOCK:gsub("%%", "%%%%")
 -- }}}
 
 -- Pagination configuration defaults
@@ -974,8 +984,12 @@ local function extract_post_date_from_poem(poem_data)
         end
     end
     
-    -- Final fallback to poem ID as timestamp approximation
-    return poem_data.id or 0
+    -- Issue 8-045: no date anywhere.  This used to return the poem's id as a
+    -- "timestamp" -- a number of seconds after 1970 -- which put the poem at
+    -- the very start of the timeline and stretched the timeline's span back to
+    -- 1970, squashing every real poem into the last sliver of its bar.  The
+    -- caller refuses a nil and names the poem.
+    return nil
 end
 -- }}}
 
@@ -987,6 +1001,14 @@ local function sort_poems_chronologically_by_dates(poems_data)
     for i, poem in ipairs(poems_data.poems) do
         if poem.id then
             local post_timestamp = extract_post_date_from_poem(poem)
+            -- Issue 8-045: a poem with no date has no place on the timeline;
+            -- the build stops rather than invent one.  run.sh's pre-flight
+            -- gate (10-069) checks every poem before any stage runs.
+            if not post_timestamp then
+                error(string.format("poem %s (%s, id %s) has no date: no creation_date, "
+                    .. "no date in its first line, no file to read one from",
+                    tostring(poem.poem_index), tostring(poem.category), tostring(poem.id)))
+            end
             table.insert(sorted_poems, {
                 poem = poem,
                 timestamp = post_timestamp,
@@ -1006,21 +1028,6 @@ local function sort_poems_chronologically_by_dates(poems_data)
     end)
     
     return sorted_poems
-end
--- }}}
-
--- {{{ function calculate_chronological_progress
-local function calculate_chronological_progress(poem_id, total_poems)
-    -- Calculate percentage through chronological corpus
-    local progress_percentage = (poem_id / total_poems) * 100
-
-    return {
-        poem_id = poem_id,
-        total_poems = total_poems,
-        percentage = progress_percentage,
-        position = poem_id,
-        quartile = math.ceil(progress_percentage / 25)
-    }
 end
 -- }}}
 
@@ -1049,8 +1056,9 @@ local function compute_chronological_mapping(poems_data, chrono_poems_per_page)
         local poem_index = poem.poem_index
         if poem_index then
             local page_number = chrono_poems_per_page and math.ceil(position / chrono_poems_per_page) or 1
-            -- Issue 8-045: Calculate timeline progress as percentage of time elapsed
-            local poem_timestamp = poem_info.timestamp or first_timestamp
+            -- Issue 8-045: Calculate timeline progress as percentage of time elapsed.
+            -- Every entry has a timestamp: the sort refuses poems without one.
+            local poem_timestamp = poem_info.timestamp
             local timeline_progress = ((poem_timestamp - first_timestamp) / timeline_span) * 100
             mapping[poem_index] = {
                 position = position,
@@ -2211,7 +2219,7 @@ end
 -- chrono_paginated: whether the chronological view was split into numbered pages.
 --   It cannot be read from PAGINATION_CONFIG here, because --chrono-per-page
 --   turns pagination on at runtime without touching the config table.
-local function format_single_poem_with_progress_and_color(poem, total_poems, poem_colors, chrono_mapping, chrono_paginated)
+local function format_single_poem_with_progress_and_color(poem, poem_colors, chrono_mapping, chrono_paginated)
     -- Issue 9-013: a ranked IMAGE entry (pseudo-poem) renders as an image box,
     -- not a poem. Inert until inject_pseudo_poems tags/append image entries.
     if poem.is_image then
@@ -2225,8 +2233,23 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
     local semantic_color = poem_color_data and poem_color_data.color or "gray"
     local hex_color = COLOR_CONFIG[semantic_color] or COLOR_CONFIG["gray"]
 
-    -- Calculate chronological progress (using poem_index for lookup)
-    local progress_info = calculate_chronological_progress(poem.poem_index, total_poems)
+    -- Issue 8-045: the bar shows how far through the writing span the poem
+    -- was written, read from the chronological map -- the same number the
+    -- page workers use.  This path used to divide the poem's position in the
+    -- combined list by the largest id on the page (two numbering schemes
+    -- mixed), which put early messages near 100% and some bars past it.
+    -- A poem the map does not hold cannot have a bar or a chronological link,
+    -- so the build stops and names it.
+    local chrono_entry = chrono_mapping and chrono_mapping[poem.poem_index]
+    if not chrono_entry then
+        error(string.format("poem %s (%s) is not in the chronological map%s",
+            tostring(poem.poem_index), tostring(poem.category),
+            chrono_mapping and "" or " (no map was passed)"))
+    end
+    local progress_info = {
+        poem_id = poem.poem_index,
+        percentage = chrono_entry.timeline_progress,
+    }
 
     -- Check if this is a golden poem (exactly 1024 characters)
     local is_golden = is_golden_poem(poem)
@@ -2457,17 +2480,17 @@ end
 
 -- {{{ function format_all_poems_with_progress_and_color
 -- Issue 10-036: Added chrono_mapping for correct paginated chronological links
-local function format_all_poems_with_progress_and_color(starting_poem, sorted_poems, total_poems, poem_colors, chrono_mapping, chrono_paginated)
+local function format_all_poems_with_progress_and_color(starting_poem, sorted_poems, poem_colors, chrono_mapping, chrono_paginated)
     local content = ""
 
     -- Add starting poem first with progress visualization
-    local formatted_starting = format_single_poem_with_progress_and_color(starting_poem, total_poems, poem_colors, chrono_mapping, chrono_paginated)
+    local formatted_starting = format_single_poem_with_progress_and_color(starting_poem, poem_colors, chrono_mapping, chrono_paginated)
     content = content .. formatted_starting.content .. "\n\n"
 
     -- Add all other poems sorted by similarity/diversity
     for _, poem_info in ipairs(sorted_poems) do
         if poem_info.id ~= starting_poem.id then  -- Skip starting poem since we already added it
-            local formatted_poem = format_single_poem_with_progress_and_color(poem_info.poem, total_poems, poem_colors, chrono_mapping, chrono_paginated)
+            local formatted_poem = format_single_poem_with_progress_and_color(poem_info.poem, poem_colors, chrono_mapping, chrono_paginated)
             content = content .. formatted_poem.content .. "\n\n"
         end
     end
@@ -2528,7 +2551,7 @@ function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poem
 <head>
 <meta charset="UTF-8">
 <title>Poems sorted by %s to: %s</title>
-]] .. PAGE_HEAD_BLOCK .. [[</head>
+]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
@@ -2547,23 +2570,10 @@ function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poem
     if use_progress then
         -- Load poem colors and use enhanced formatting
         local poem_colors = load_poem_colors()
-        
-        -- Calculate actual total poems by finding the maximum poem ID
-        -- This represents the total chronological span of the corpus
-        local max_poem_id = starting_poem.id or 1
-        
-        for _, poem_info in ipairs(sorted_poems) do
-            if poem_info.id and poem_info.id > max_poem_id then
-                max_poem_id = poem_info.id
-            elseif poem_info.poem and poem_info.poem.id and poem_info.poem.id > max_poem_id then
-                max_poem_id = poem_info.poem.id
-            end
-        end
-        
-        local total_poems = max_poem_id
 
         -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
-        formatted_content = format_all_poems_with_progress_and_color(starting_poem, sorted_poems, total_poems, poem_colors, chrono_mapping, chrono_paginated)
+        -- (and, since 8-045, for each poem's progress bar)
+        formatted_content = format_all_poems_with_progress_and_color(starting_poem, sorted_poems, poem_colors, chrono_mapping, chrono_paginated)
     else
         -- Use standard formatting with content warnings
         formatted_content = format_all_poems_with_content_warnings(starting_poem, sorted_poems)
@@ -2673,20 +2683,11 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
     -- Load poem colors for progress bars
     local poem_colors = load_poem_colors()
 
-    -- Calculate actual total poems (max ID in corpus)
-    local max_poem_id = starting_poem.id or 1
-    for _, poem_info in ipairs(sorted_poems) do
-        local pid = poem_info.id or (poem_info.poem and poem_info.poem.id)
-        if pid and pid > max_poem_id then
-            max_poem_id = pid
-        end
-    end
-    local corpus_total = max_poem_id
-
     -- Format the poems for this page
     -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
+    -- (and, since 8-045, for each poem's progress bar)
     local formatted_content = format_all_poems_with_progress_and_color(
-        starting_poem, page_poems, corpus_total, poem_colors, chrono_mapping, chrono_paginated)
+        starting_poem, page_poems, poem_colors, chrono_mapping, chrono_paginated)
 
     -- Build the page
     local page_type_desc = (page_type == "similar") and "similarity" or "difference"
@@ -2703,7 +2704,7 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
 <head>
 <meta charset="UTF-8">
 <title>Poems sorted by %s to: %s (Page %d of %d)</title>
-]] .. PAGE_HEAD_BLOCK .. [[</head>
+]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
@@ -2965,7 +2966,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <head>
 <meta charset="UTF-8">
 <title>Poetry Collection - Chronological Order</title>
-]] .. PAGE_HEAD_BLOCK .. [[</head>
+]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
@@ -3189,7 +3190,7 @@ local function explore_page_shell(title, heading, body)
 <head>
 <meta charset="UTF-8">
 <title>%s</title>
-]] .. PAGE_HEAD_BLOCK .. [[</head>
+]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>%s</h1>
@@ -3911,10 +3912,16 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local is_boost = is_boost_poem(poem)
 
                     -- Get chronological position from mapping
-                    local chrono_info = chrono_map[poem_idx] or {position = 1, page_number = 1, total_poems = 1, total_pages = 1, timeline_progress = 50}
-                    -- Issue 8-045: Use timeline_progress (time-based) instead of position-based
-                    -- Shows actual temporal position in the author's timeline, not just poem count
-                    local progress_pct = chrono_info.timeline_progress or ((chrono_info.position / chrono_info.total_poems) * 100)
+                    -- Issue 8-045: a poem missing from the chronological map has
+                    -- no bar and no chronological page.  This used to draw a 50%
+                    -- bar and link page 1; now the worker fails, and the
+                    -- orchestrator stops the run with this message.
+                    local chrono_info = chrono_map[poem_idx]
+                    if not chrono_info then
+                        error("poem " .. tostring(poem_idx) .. " is not in the chronological map")
+                    end
+                    -- Time-based: how far through the writing span, not poem count
+                    local progress_pct = chrono_info.timeline_progress
 
                     -- Calculate progress bar chars
                     -- Golden: 82 interior chars + 2 corners = 84 total
@@ -3927,7 +3934,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     -- regular / 84 golden). progress_chars above is still used to
                     -- progressively colour the regular nav corner boxes below.
                     local colored_progress = t_poem_bars.progress_dashes(
-                        { percentage = progress_pct }, semantic_color, is_golden, "top", false).visual
+                        { percentage = progress_pct, poem_id = poem_idx }, semantic_color, is_golden, "top", false).visual
 
                     -- Navigation links (absolute paths for local testing)
                     -- Issue 9-003 Fix: Use absolute file:// paths - helper script converts to production URLs
@@ -4212,7 +4219,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     -- progress_dashes is correct for both regular (83) and golden
                     -- (84) and seats the junctions under the corner-box walls.
                     local bottom_line = t_poem_bars.progress_dashes(
-                        { percentage = progress_pct }, semantic_color, is_golden, "bottom", true).visual
+                        { percentage = progress_pct, poem_id = poem_idx }, semantic_color, is_golden, "bottom", true).visual
 
                     -- Build formatted output
                     local output = {}
@@ -4516,6 +4523,24 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
             if now - last_progress_time >= progress_interval then
                 last_progress_time = now
 
+                -- A worker that raised an error stops asking for work, so the
+                -- loop above -- which ends when every worker has been told to
+                -- shut down -- would wait for it forever: an overnight build
+                -- that never finishes and never says why.  Once a second, look
+                -- for a failed worker and stop the whole run with its error.
+                -- (Workers raise errors on purpose now: a poem missing from
+                -- the chronological map, a bar outside 0-100 -- issue 8-045.)
+                for tid, worker in pairs(threads) do
+                    local status, worker_err, worker_stack = worker:status()
+                    if status == "failed" then
+                        progress.finish()
+                        utils.log_error(string.format("HTML worker %d failed: %s",
+                            tid, tostring(worker_err)))
+                        if worker_stack then io.stderr:write(tostring(worker_stack), "\n") end
+                        os.exit(1)
+                    end
+                end
+
                 local elapsed = now - start_time
                 local rate = elapsed > 0 and (completed_count / elapsed) or 0
                 local remaining = total_work - completed_count
@@ -4545,17 +4570,20 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
         for tid, thread in pairs(threads) do
             -- Wait for thread completion (may already be done)
-            local status = thread:wait()
+            local status, worker_err = thread:wait()
             if status == "completed" then
                 local sim_count, div_count, proc_count = thread:get()
                 total_similarity = total_similarity + (sim_count or 0)
                 total_diversity = total_diversity + (div_count or 0)
                 total_processed = total_processed + (proc_count or 0)
-            elseif status == "failed" then
-                local err = thread:get()
-                utils.log_error(string.format("Thread %d failed: %s", tid, tostring(err)))
             else
-                utils.log_warn(string.format("Thread %d in unexpected state: %s", tid, status))
+                -- A worker that did not complete built only part of its share:
+                -- the site would ship with pages missing.  This used to log and
+                -- carry on (and read the error with thread:get(), which returns
+                -- nothing for a failed thread).  Stop instead.
+                utils.log_error(string.format("HTML worker %d ended as '%s': %s",
+                    tid, tostring(status), tostring(worker_err)))
+                os.exit(1)
             end
         end
 
