@@ -21,6 +21,9 @@
 #   --extract       stage 2 (extract, then strip excluded content) will run
 #   --poems-file    stage 9 or 10 will read this existing poem list (run.sh
 #                   passes it only when stage 3 is not rebuilding it this run)
+#   --rankings-dir  stage 9 will read the saved similarity rankings in this
+#                   model cache folder as they are (not rebuilt by stage 7);
+#                   needs --poems-file too
 #   --effil-cpath   look for the threading library here instead of its real
 #                   home -- for the gate's own test, to prove a library that
 #                   cannot load is reported
@@ -32,6 +35,7 @@ DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 HTML_THREADS=0
 EXTRACT=false
 POEMS_FILE=""
+RANKINGS_DIR=""
 EFFIL_CPATH=""
 
 # {{{ parse arguments
@@ -40,6 +44,7 @@ while [ $# -gt 0 ]; do
         --html-threads) HTML_THREADS="$2"; shift 2 ;;
         --extract)      EXTRACT=true; shift ;;
         --poems-file)   POEMS_FILE="$2"; shift 2 ;;
+        --rankings-dir) RANKINGS_DIR="$2"; shift 2 ;;
         --effil-cpath)  EFFIL_CPATH="$2"; shift 2 ;;
         --*)            echo "preflight-gate: unknown option $1" >&2; exit 1 ;;
         *)              DIR="$1"; shift ;;
@@ -88,11 +93,26 @@ needs_dates() { [ -n "$POEMS_FILE" ]; }
 check_dates() { luajit "$DIR/scripts/check-poem-dates" "$DIR" "$POEMS_FILE"; }
 # }}}
 
+# {{{ needs_rankings / check_rankings
+# Stage 9 looks up each poem's neighbours in the saved rankings by poem number;
+# rankings saved before the poems were renumbered point at the wrong poems
+# (2-010).  Compares the rankings with the poem and image lists.
+needs_rankings() { [ -n "$RANKINGS_DIR" ]; }
+check_rankings() {
+    if [ -z "$POEMS_FILE" ]; then
+        echo "--rankings-dir needs --poems-file (the list to compare against)"
+        return 1
+    fi
+    luajit "$DIR/scripts/check-rankings-match-poems" "$DIR" "$POEMS_FILE" "$RANKINGS_DIR"
+}
+# }}}
+
 # label ; needs-function ; check-function
 CHECKS=(
     "threading library loads (stage 9, more than one thread);needs_threads;check_threads"
     "every excluded path resolves (stage 2);needs_exclusions;check_exclusions"
     "every poem has a date (stages 9-10);needs_dates;check_dates"
+    "saved rankings match the poem list (stage 9);needs_rankings;check_rankings"
 )
 # }}}
 
