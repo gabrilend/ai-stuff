@@ -84,6 +84,7 @@ rm -f "$WORK"/part.*.tsv   # merged; this folder is RAM
 # A "link" row is one missing target as seen by one worker, with its count in
 # column 5 (see the worker's header), so totals are sums, not row counts.
 WIDE=$(awk -F'\t' '$1=="wide"' "$WORK/findings.tsv" | wc -l)
+SHAPES=$(awk -F'\t' '$1=="shape"' "$WORK/findings.tsv" | wc -l)
 LINKS=$(awk -F'\t' '$1=="link" { n += $5 } END { print n + 0 }' "$WORK/findings.tsv")
 {
     echo "validate-output report"
@@ -96,6 +97,10 @@ LINKS=$(awk -F'\t' '$1=="link" { n += $5 } END { print n + 0 }' "$WORK/findings.
         END { for (c in n) printf "  %-6s %8d lines, widest %d\n", c, n[c], w[c] }' \
         "$WORK/findings.tsv" | sort
     echo ""
+    echo "Frame pieces the wrong width or with a junction out of place: $SHAPES"
+    awk -F'\t' '$1=="shape" { n[$5]++ } END { for (c in n) printf "  %-16s %8d lines\n", c, n[c] }' \
+        "$WORK/findings.tsv" | sort
+    echo ""
     echo "Broken links: $LINKS"
     awk -F'\t' '$1=="link" { n[$4] += $5 } END { for (t in n) printf "%8d  %s\n", n[t], t }' \
         "$WORK/findings.tsv" | sort -rn | head -20 | sed 's/^/  /'
@@ -103,10 +108,13 @@ LINKS=$(awk -F'\t' '$1=="link" { n += $5 } END { print n + 0 }' "$WORK/findings.
     echo "Examples, five per cause (page:line  width  text):"
     awk -F'\t' '$1=="wide" && seen[$5]++ < 5 {
             printf "  [%s] %s:%s  %s  %s\n", $5, $2, $3, $4, $6 }' "$WORK/findings.tsv"
+    awk -F'\t' '$1=="shape" && seen[$5]++ < 5 {
+            printf "  [%s] %s:%s  %s\n", $5, $2, $3, $6 }' "$WORK/findings.tsv"
     awk -F'\t' '$1=="link" && seen++ < 10 {
             printf "  [link] %s:%s  -> %s  (%s times)\n", $2, $3, $4, $5 }' "$WORK/findings.tsv"
     echo ""
-    echo "Every over-wide line, and every missing link target with its count"
+    echo "Every over-wide line and misshapen frame piece, and every missing link"
+    echo "target with its count"
     echo "and first page, tab-separated: $WORK/findings.tsv"
 } > "$REPORT"
 # }}}
@@ -114,7 +122,7 @@ LINKS=$(awk -F'\t' '$1=="link" { n += $5 } END { print n + 0 }' "$WORK/findings.
 cat "$REPORT" | head -40
 echo "(full report: $REPORT)"
 
-if [ "$WIDE" -gt 0 ] || [ "$LINKS" -gt 0 ]; then
+if [ "$WIDE" -gt 0 ] || [ "$SHAPES" -gt 0 ] || [ "$LINKS" -gt 0 ]; then
     exit 1
 fi
 exit 0

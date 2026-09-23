@@ -51,7 +51,7 @@ describe functionality as it stood several phases ago, not as it is now.
    data or calls the real stat/validator tool, printing the number it just
    derived. Candidates already in the repo:
    - `scripts/validate-pipeline-data`, `scripts/validate-poem-representation`,
-     `scripts/validate-poem-box-format`, `scripts/validate-diversity-cache`
+     `scripts/validate-output` (line widths, frame shapes, links), `scripts/validate-diversity-cache`
    - the generators' own counts (poem total, word total, page counts) — the
      word-page run already logs e.g. "Built chronological mapping for N poems".
 3. Refresh the narrative of each phase demo to the functionality that phase now

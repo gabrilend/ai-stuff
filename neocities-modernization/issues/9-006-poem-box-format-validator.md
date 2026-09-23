@@ -25,10 +25,24 @@ and, under the fediverse/696 sample (see 9-011):
   (`nproc`), each writing its findings to its own file in
   `tmp/shared-memory/validate-output/`; the coordinator merges them.
 - Width: each line inside `<pre>` has its tags removed, each entity counted as
-  one character and each UTF-8 character as one column. One limit for every
-  line, `--max-width` (default 84, the golden frame, the widest drawn) --
-  step 4's per-frame limit is not built, so a regular-frame line at 84 is not
-  caught yet.
+  one character and each UTF-8 character as one column. Every line is held to
+  `--max-width` (default 84, the golden frame, the widest drawn).
+- Frame shapes (2026-09-23, folded in from the retired one-file checker): a
+  line recognised as a frame piece -- progress bar, bottom line, the tops,
+  middles and bottoms of the similar/different boxes, regular and golden --
+  must be exactly its frame's width (83 regular, 84 golden), and a bottom line
+  must carry its junctions at columns 10 and 70 (golden: 10 and 71). The
+  shapes are a table in `scripts/validate-output-worker.lua`, matched over a
+  one-letter spelling of each box character, since Lua patterns work on bytes
+  and would confuse box characters built from the same bytes. Ordinary text
+  lines inside a regular frame are still only held to 84, not to their
+  frame's own width.
+- Widths and frame shapes are checked only on pages that show poems -- those
+  in `similar/`, `different/`, `chronological/` and `wordcloud/`. The first
+  run with frame shapes flagged 1,302 decorative 78-column rules on the
+  gallery pages and a few hundred quoted examples on the source-browser pages
+  (rendered issue files quoting old broken frames); none are poem frames.
+  Links are checked on every page.
 - Causes, first match wins: `cw` (content-warning box), `url` (web or magnet
   address), `bar` (a line of bar characters only), `frame` (starts or ends in
   a frame wall), else `text`.
@@ -57,9 +71,14 @@ and, under the fediverse/696 sample (see 9-011):
   warning box and an address filed under the right causes, an 83-wide bar and
   an accented/entity line not reported, one broken link found, a `..` link that
   resolves not reported, a clean site passing, a missing site refused).
-- Not built yet: step 4 (per-frame limits), the phase-demo half of step 8,
-  and step 9. The old `scripts/validate-poem-box-format` is untouched; see Open
-  Questions.
+- The old `scripts/validate-poem-box-format` was retired on 2026-09-23 after
+  its frame checks were folded in (owner's choice, see Open Questions); its
+  `--test` self-tests are replaced by `scripts/validate-output.test.sh`, which
+  now also draws every real frame piece with `src/poem-bars.lua` and requires
+  them to pass, and requires an 82-wide bar and a moved junction to fail
+  (15 checks).
+- Not built yet: the phase-demo half of step 8, and holding ordinary text
+  lines to their own frame's width.
 
 **Before 2026-09-22:** `scripts/validate-poem-box-format` (built 2026-03-18,
 described under "Implementation Complete" below) did not do what the owner
@@ -122,10 +141,11 @@ time, as the owner asked.
 
 ## Open Questions
 
-1. The old one-file checker, `scripts/validate-poem-box-format`, checks what
-   the new tool does not: where the junctions sit and the shape of each frame.
-   Its sizes are out of date (82/69/58; real 83/70/59). Fix its sizes and keep
-   it for frame shape, fold its checks into `validate-output`, or retire it?
+1. **Answered.** The old one-file checker, `scripts/validate-poem-box-format`,
+   checked what the new tool did not: where the junctions sit and the shape of
+   each frame. Fix its sizes and keep it, fold its checks in, or retire it?
+   Owner (2026-09-23): "let's fold the old tool's checks into the new tool and
+   then retire it." Done.
 
 ## Related Issues
 

@@ -46,6 +46,54 @@ check "names the missing page" "$(grep -c '0001-02.html' "$SCRATCH/broken.txt")"
 check "a link that resolves through .. is not reported" "$(grep -c 'chronological/01.html' "$SCRATCH/broken.txt")" "0"
 # }}}
 
+# {{{ frame shapes: the real pieces pass, a short bar and a moved junction fail
+# The real pieces come from src/poem-bars.lua, which draws the site's frames,
+# so this test follows the frames if their geometry ever changes.
+SHAPES="$SCRATCH/shapes"
+mkdir -p "$SHAPES/similar"  # poem folder: frame shapes are checked there
+REAL=$(luajit -e "
+    package.path = '$DIR/src/?.lua;' .. package.path
+    local B = require('poem-bars')
+    local s, d, c = '<a>similar</a>', '<a>different</a>', '<a>chronological</a>'
+    for _, golden in ipairs({ false, true }) do
+        print(B.progress_dashes({ percentage = 40 }, 'gray', golden, 'top').visual)
+        print(B.progress_dashes({ percentage = 40 }, 'gray', golden, 'bottom', true).visual)
+    end
+    print(B.corner_box_top(30, '#fff'))
+    print(B.corner_box_nav_line(s, d, c, 30, '#fff'))
+    print(B.corner_box_bottom())
+    print(B.golden_corner_box_separator('#fff', 30))
+    print(B.golden_corner_box_nav_line(s, d, c, '#fff', 30))
+")
+{ echo '<html><pre>'; printf '%s\n' "$REAL"; echo '</pre></html>'; } > "$SHAPES/similar/real.html"
+"$DIR/scripts/validate-output" "$DIR" --output "$SHAPES" --report "$SCRATCH/shapes-real.txt" >/dev/null 2>&1
+check "every real frame piece passes" "$?" "0"
+
+SHORT=$(printf '═%.0s' $(seq 1 82))
+# 83 wide, as a bottom line must be, but its left junction at column 11, not 10:
+# ╘ + 10 ═ + ╧ + 58 ═ + ┴ (column 70) + 11 ─ + ┘
+MOVED="╘$(printf '═%.0s' $(seq 1 10))╧$(printf '═%.0s' $(seq 1 58))┴$(printf '─%.0s' $(seq 1 11))┘"
+{ echo '<html><pre>'; echo "$SHORT"; echo "$MOVED"; echo '</pre></html>'; } > "$SHAPES/similar/bad.html"
+"$DIR/scripts/validate-output" "$DIR" --output "$SHAPES" --report "$SCRATCH/shapes-bad.txt" >/dev/null 2>&1
+check "misshapen pieces: fails" "$?" "1"
+check "counts two misshapen pieces" \
+    "$(grep -c 'with a junction out of place: 2$' "$SCRATCH/shapes-bad.txt")" "1"
+check "the 82-wide bar is named" "$(grep -c '82 wide, must be 83' "$SCRATCH/shapes-bad.txt")" "1"
+check "the moved junction is named" "$(grep -c 'no junction at column 10' "$SCRATCH/shapes-bad.txt")" "1"
+# }}}
+
+# {{{ pages that show no poems are held only to their links
+# The gallery draws its own 78-column rules and the source browser quotes code
+# and old broken examples; neither is a poem frame.
+OTHER="$SCRATCH/other"
+mkdir -p "$OTHER/gallery" "$OTHER/source"
+RULE=$(printf '─%.0s' $(seq 1 78))
+printf '<html><pre>\n%s\n%s\n</pre></html>\n' "$RULE" "$LONG$LONG" > "$OTHER/gallery/index.html"
+printf '<html><pre>\n%s\n</pre></html>\n' "$SHORT" > "$OTHER/source/quoted.html"
+"$DIR/scripts/validate-output" "$DIR" --output "$OTHER" --report "$SCRATCH/other.txt" >/dev/null 2>&1
+check "gallery rule, long line and quoted short bar outside poem folders: pass" "$?" "0"
+# }}}
+
 # {{{ a clean site passes
 CLEAN="$SCRATCH/clean"
 mkdir -p "$CLEAN"
