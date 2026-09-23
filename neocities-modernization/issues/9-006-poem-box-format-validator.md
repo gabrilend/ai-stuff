@@ -18,8 +18,52 @@ and, under the fediverse/696 sample (see 9-011):
 
 ## Current Behavior
 
-`scripts/validate-poem-box-format` exists (built 2026-03-18, described under
-"Implementation Complete" below) but does not do what the owner asks:
+**Built 2026-09-22: `scripts/validate-output`** (steps 1-3, 5-7, and the
+`run.sh` half of 8).
+- It walks every `*.html` under `output/` (or `--output PATH`), 200 pages per
+  batch, one `luajit scripts/validate-output-worker.lua` per processor
+  (`nproc`), each writing its findings to its own file in
+  `tmp/shared-memory/validate-output/`; the coordinator merges them.
+- Width: each line inside `<pre>` has its tags removed, each entity counted as
+  one character and each UTF-8 character as one column. One limit for every
+  line, `--max-width` (default 84, the golden frame, the widest drawn) --
+  step 4's per-frame limit is not built, so a regular-frame line at 84 is not
+  caught yet.
+- Causes, first match wins: `cw` (content-warning box), `url` (web or magnet
+  address), `bar` (a line of bar characters only), `frame` (starts or ends in
+  a frame wall), else `text`.
+- Links: every `href="…"`, `href='…'` and `src="…"` that is a relative path
+  is resolved against its page's folder (`..` walked out, `#…` and `?…`
+  dropped, `%XX` decoded) and must name an existing file. Web addresses,
+  in-page anchors and site-absolute paths are skipped.
+- Report: counts per cause with the widest of each, the 20 most common
+  missing link targets, five examples per cause, written to
+  `tmp/shared-memory/validate-output-report.txt`. The detail file
+  `tmp/shared-memory/validate-output/findings.tsv` holds every over-wide line
+  but only one row per missing link target per worker (with a count and the
+  first page it was seen on): the first version wrote a row per broken link,
+  and against today's `output/` (similar/different/chronological pages absent,
+  so 7.3 million broken links) that filled 4.1 GB of RAM. Exit 1 on any
+  finding.
+- First run, 2026-09-23, on the `output/` then on disk (7,807 pages: the word
+  pages, gallery, explore and source-browser pages; no poem pages): 3 min 40 s
+  on 12 processors. 24,416 over-wide lines (cw 18,285, url 4,760, text 1,188,
+  frame 177, bar 6); 7.3 million broken links, nearly all to the absent
+  similar/different/chronological pages. Rerun with the command for current
+  numbers.
+- `run.sh` runs it last in any run that includes stage 9 or 10
+  (`run_validate_output`); a finding fails the run after every page is written.
+- Tests: `scripts/validate-output.test.sh` (10 checks on handmade sites: a
+  warning box and an address filed under the right causes, an 83-wide bar and
+  an accented/entity line not reported, one broken link found, a `..` link that
+  resolves not reported, a clean site passing, a missing site refused).
+- Not built yet: step 4 (per-frame limits), the phase-demo half of step 8,
+  and step 9. The old `scripts/validate-poem-box-format` is untouched; see Open
+  Questions.
+
+**Before 2026-09-22:** `scripts/validate-poem-box-format` (built 2026-03-18,
+described under "Implementation Complete" below) did not do what the owner
+asks:
 
 - **It checks one file at a time.** It takes a single file (or `--test`), has no
   way to walk `output/`, and nothing in `run.sh` calls it.
@@ -75,6 +119,13 @@ time, as the owner asked.
    counts in the phase demo.
 9. Keep the `--test` self-tests, updated to the real sizes, and add cases for
    entity decoding and multi-byte characters.
+
+## Open Questions
+
+1. The old one-file checker, `scripts/validate-poem-box-format`, checks what
+   the new tool does not: where the junctions sit and the shape of each frame.
+   Its sizes are out of date (82/69/58; real 83/70/59). Fix its sizes and keep
+   it for frame shape, fold its checks into `validate-output`, or retire it?
 
 ## Related Issues
 
