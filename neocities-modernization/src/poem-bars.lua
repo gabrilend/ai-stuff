@@ -39,11 +39,32 @@ end
 
 local colorize_char = M.colorize_char
 
+-- {{{ function M.check_percentage()
+-- Issue 8-045: a bar's fill is a share of its width, so a percentage outside
+-- 0-100 has no drawing.  Above 100 the old code drew more cells than the frame
+-- holds (a 117% bar ran 14 columns past its box); below 0 it drew a negative
+-- count, which string.rep turns into nothing.  Both mean the number feeding the
+-- bar is wrong -- in 8-045's case a poem's position divided by the wrong total --
+-- so the build stops and names the poem rather than drawing a guess.
+--
+-- progress_info : table with .percentage (number) and, when the caller has it,
+--                 .poem_id (the poem's global index) for the error message.
+function M.check_percentage(progress_info)
+    local pct = progress_info.percentage
+    if type(pct) ~= "number" or pct ~= pct or pct < 0 or pct > 100 then
+        error(string.format(
+            "progress bar percentage out of range (0-100): %s for poem %s",
+            tostring(pct), tostring(progress_info.poem_id or "(no poem id given)")), 2)
+    end
+end
+-- }}}
+
 -- {{{ function M.progress_dashes()
 -- The top/bottom separator bar. position is "top" or "bottom"; has_corner_boxes
 -- inserts the ╧/┴ junctions that connect a bottom bar to the nav corner boxes.
 -- Returns { visual = <html>, accessibility = <aria-label attr> }.
 function M.progress_dashes(progress_info, color_name, is_golden, position, has_corner_boxes)
+    M.check_percentage(progress_info)
     local total_chars = is_golden and 82 or 83
     local progress_chars = math.floor((progress_info.percentage / 100) * total_chars)
     local remaining_chars = total_chars - progress_chars

@@ -95,5 +95,22 @@ do
     check("low progress: nav right wall single (║ similar │)", nav_low:find("║ similar │", 1, true) ~= nil)
 end
 
+-- Issue 8-045: the ends of the range draw; anything outside it is refused.
+do
+    local empty = B.progress_dashes({ percentage = 0 }, "gray", false, "top")
+    check("0% top bar is 83 wide", visible(empty.visual) == 83)
+    local full = B.progress_dashes({ percentage = 100 }, "gray", false, "top")
+    check("100% top bar is 83 wide", visible(full.visual) == 83)
+    local full_golden = B.progress_dashes({ percentage = 100 }, "gray", true, "top")
+    check("100% golden top bar is 84 wide (82 cells + 2 corners)", visible(full_golden.visual) == 84)
+
+    local ok, err = pcall(B.progress_dashes, { percentage = 117, poem_id = 7996 }, "gray", false, "top")
+    check("117% is refused (messages/1514's bar ran 14 columns past its box)", not ok)
+    check("the refusal names the poem", tostring(err):find("7996", 1, true) ~= nil)
+    check("-5% is refused", not pcall(B.progress_dashes, { percentage = -5 }, "gray", false, "top"))
+    check("a missing percentage is refused", not pcall(B.progress_dashes, {}, "gray", false, "top"))
+    check("NaN is refused", not pcall(B.progress_dashes, { percentage = 0/0 }, "gray", false, "top"))
+end
+
 print(string.format("\npoem-bars: %d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)
