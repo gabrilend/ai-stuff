@@ -290,6 +290,15 @@ local DIVERSITY_CACHE = nil
 -- Loaded from assets/embeddings/embeddinggemma_latest/similarity_rankings_cache.json
 local SIMILARITY_RANKINGS_CACHE = nil
 
+-- {{{ function M.use_similarity_rankings_for_tests
+-- Hands the module a rankings table directly ({ rankings = { ["<poem_index>"] =
+-- { neighbour poem_index, ... } } }), so a test can build pages from a few
+-- made-up poems without the real cache file.  The site build never calls it.
+function M.use_similarity_rankings_for_tests(cache_table)
+    SIMILARITY_RANKINGS_CACHE = cache_table
+end
+-- }}}
+
 -- {{{ local function load_diversity_cache
 -- Loads pre-computed diversity sequences from GPU cache (required for HTML generation)
 -- Errors out if cache doesn't exist - no fallback to on-the-fly computation
@@ -1457,24 +1466,21 @@ function M.generate_similarity_ranked_list(starting_poem_id, poems_data, similar
         end
     end
 
-    -- Initialize ranked list with starting poem
+    -- Issue 10-025: the list holds only the NEIGHBOURS.  The page draws the
+    -- anchor itself, first, from the poem it is handed.  This list used to open
+    -- with the anchor too -- looked up by array position rather than by
+    -- poem_index, and stamped with the global index while every other entry
+    -- carried its per-category id -- so the page's "skip the anchor" check
+    -- (which compared per-category ids) never matched it and the anchor
+    -- printed twice.  Entries are keyed by poem_index, the one number unique
+    -- across every source, and the anchor is left out if the cache lists it.
     local ranked_poems = {}
-    local starting_poem = poems_data.poems[starting_poem_id]
-    table.insert(ranked_poems, {
-        id = starting_poem_id,
-        poem = starting_poem,
-        similarity = 1.0,  -- Perfect similarity to self
-        rank = 1
-    })
-
-    -- Add poems in pre-sorted order from cache
-    -- Cache contains poem indices already sorted by similarity (descending)
-    local rank = 2
+    local rank = 1
     for _, target_poem_index in ipairs(cached_ranking) do
-        local poem = poem_by_index[target_poem_index]
+        local poem = target_poem_index ~= starting_poem_id and poem_by_index[target_poem_index]
         if poem then
             table.insert(ranked_poems, {
-                id = poem.id,
+                id = poem.poem_index,
                 poem = poem,
                 similarity = nil,  -- Not needed for display, saves memory
                 rank = rank
@@ -2466,7 +2472,9 @@ local function format_all_poems_with_progress_and_color(starting_poem, sorted_po
 
     -- Add all other poems sorted by similarity/diversity
     for _, poem_info in ipairs(sorted_poems) do
-        if poem_info.id ~= starting_poem.id then  -- Skip starting poem since we already added it
+        -- Issue 10-025: compare poem_index, unique across sources; a per-category
+        -- id match would also hide a different poem that shares the number.
+        if poem_info.poem.poem_index ~= starting_poem.poem_index then  -- skip the anchor, drawn above
             local formatted_poem = format_single_poem_with_progress_and_color(poem_info.poem, poem_colors, chrono_mapping, chrono_paginated)
             content = content .. formatted_poem.content .. "\n\n"
         end
@@ -2486,7 +2494,9 @@ local function format_all_poems_with_content_warnings(starting_poem, sorted_poem
     
     -- Add all other poems sorted by similarity/diversity
     for _, poem_info in ipairs(sorted_poems) do
-        if poem_info.id ~= starting_poem.id then  -- Skip starting poem since we already added it
+        -- Issue 10-025: compare poem_index, unique across sources; a per-category
+        -- id match would also hide a different poem that shares the number.
+        if poem_info.poem.poem_index ~= starting_poem.poem_index then  -- skip the anchor, drawn above
             content = content .. format_single_poem_with_warnings(poem_info.poem)
             content = content .. "\n\n"
         end
@@ -2506,7 +2516,9 @@ local function format_all_poems_80_width(starting_poem, sorted_poems)
     
     -- Add all other poems sorted by similarity/diversity
     for _, poem_info in ipairs(sorted_poems) do
-        if poem_info.id ~= starting_poem.id then  -- Skip starting poem since we already added it
+        -- Issue 10-025: compare poem_index, unique across sources; a per-category
+        -- id match would also hide a different poem that shares the number.
+        if poem_info.poem.poem_index ~= starting_poem.poem_index then  -- skip the anchor, drawn above
             content = content .. format_single_poem_80_width(poem_info.poem)
             content = content .. "\n\n"
         end
@@ -3816,7 +3828,11 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     if not ranking_data then return {} end
                     local result = {}
                     for i, neighbor_index in ipairs(ranking_data) do
-                        local neighbor_poem = poem_by_index[neighbor_index]
+                        -- Issue 10-025: the anchor is drawn once, above the
+                        -- list; a ranking that includes it must not draw it
+                        -- again (the diversity converter below already skips it).
+                        local neighbor_poem = neighbor_index ~= source_poem_index
+                            and poem_by_index[neighbor_index]
                         if neighbor_poem then
                             table.insert(result, {
                                 poem = neighbor_poem,
@@ -4758,10 +4774,11 @@ function M.main(interactive_mode)
                     
                     if poem_data then
                         local ranking = M.generate_similarity_ranked_list(poem_id, poems_data, similarity_data.similarities)
-                        -- Issue 10-036: nil chrono_mapping here on purpose -- interactive test, not the
-                        -- site build. The formatter warns once and falls back to
-                        -- chronological/index.html, which exists in both modes.
-                        local html = M.generate_flat_poem_list_html(poem_data, ranking, "similar", poem_id, nil)
+                        -- Every poem needs its chronological map entry (progress bar and
+                        -- chronological link, issues 8-045 / 10-036); an unpaginated map
+                        -- is right for a one-off test page.
+                        local html = M.generate_flat_poem_list_html(poem_data, ranking, "similar", poem_id,
+                            compute_chronological_mapping(poems_data, nil), false)
                         local test_file = string.format("%s/test_similar_%03d.html", output_dir, poem_id)
                         os.execute("mkdir -p " .. output_dir)
                         utils.write_file(test_file, html)
@@ -4787,10 +4804,11 @@ function M.main(interactive_mode)
 
                     if poem_data then
                         local sequence = M.generate_maximum_diversity_sequence(poem_id, poems_data, embeddings_data)
-                        -- Issue 10-036: nil chrono_mapping here on purpose -- interactive test, not the
-                        -- site build. The formatter warns once and falls back to
-                        -- chronological/index.html, which exists in both modes.
-                        local html = M.generate_flat_poem_list_html(poem_data, sequence, "different", poem_id, nil)
+                        -- Every poem needs its chronological map entry (progress bar and
+                        -- chronological link, issues 8-045 / 10-036); an unpaginated map
+                        -- is right for a one-off test page.
+                        local html = M.generate_flat_poem_list_html(poem_data, sequence, "different", poem_id,
+                            compute_chronological_mapping(poems_data, nil), false)
                         local test_file = string.format("%s/test_different_%03d.html", output_dir, poem_id)
                         os.execute("mkdir -p " .. output_dir)
                         utils.write_file(test_file, html)

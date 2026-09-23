@@ -1,6 +1,6 @@
 # Issue 10-025: The Anchor Poem Appears Exactly Once on Similar and Different Pages
 
-## Status: REOPENED (2026-09-22)
+## Status: REOPENED (2026-09-22) — built, one test gap
 
 - **Originally completed**: 2026-02-13, for the diversity ("different") pages in
   the threaded renderer only.
@@ -8,6 +8,11 @@
   from the diversity ranking alone to **both rankings** (similarity and
   diversity) and **both render paths** (the threaded worker and the
   single-threaded formatter).
+- **Built 2026-09-22** (steps 1-4). Step 5 is tested for the single-threaded
+  path (`src/flat-html-generator.anchor-once.test.lua`, 7 checks). The
+  worker's converters live inside the worker function, where no test can
+  reach them; their self-filter is a one-line comparison checked by reading.
+  Covering the worker needs the converters lifted into a module (8-058).
 
 ## What the owner reported
 
@@ -28,32 +33,22 @@ Every poem carries two numbers, and mixing them causes this defect:
 
 ## Current Behavior
 
-- **Diversity pages, threaded renderer (fixed 2026-02-13, still true).** The GPU
-  diversity sequence starts with the anchor poem itself, because the algorithm
-  seeds its running centroid from the anchor. The worker's diversity-sequence
-  reader skips any entry equal to the anchor's global index, so the anchor
-  shows once.
-- **Similarity pages, threaded renderer.** The worker's similarity-ranking
-  converter has **no** self-filter. It shows the anchor once today only because
-  the current similarity cache happens to contain no self entries. A cache that
-  did include the anchor would print it twice.
-- **Similar and different pages, single-threaded formatter.** This is the path
-  that produced the owner's sample (the ` -> file:` header line above the top
-  bar is written only by this formatter).
-  - The ranked-list builder always inserts the anchor at rank 1, tagged with
-    its **global index**.
-  - The page formatter prints the anchor, then walks the list and skips entries
-    whose number equals the anchor's **per-category id**.
-  - The rank-1 copy carries the global index, so it does not match and is
-    printed a second time. That is the reported defect.
-  - The same comparison **wrongly hides** any poem from another category whose
-    per-category id equals the anchor's (on the messages/260 page, fediverse/260
-    and notes/260 are dropped from the list).
-  - The anchor is looked up by array position rather than by global index. That
-    lines up today only by accident.
-- The single-threaded formatter runs when the thread count is 1 or the threading
-  library fails to load. That drift between the two paths is tracked by
-  8-058 (eliminate main-thread / worker code duplication).
+- **Ranked lists hold only neighbours.** The similarity list builder no
+  longer opens with the anchor; it skips the anchor's global index if the
+  cache lists it, and every entry is keyed by global index (`id =
+  poem_index`). The diversity reader already skipped the anchor.
+- **Threaded renderer.** The worker's similarity converter now skips the
+  anchor's global index, like its diversity converter.
+- **Single-threaded formatter.** The three "skip the anchor" checks compare
+  global indices, so the anchor prints once and a poem from another category
+  that shares the anchor's per-category id is shown.
+- Callers that relied on the anchor being first in the list were updated:
+  `scripts/test-html-generation` prints entries 1-3 as the top three.
+- Before 2026-09-22: the single-threaded list builder inserted the anchor at
+  rank 1 under its global index (looked up by array position) while the page
+  compared per-category ids, so the anchor printed twice and same-id poems
+  from other categories were hidden; the worker's similarity converter had no
+  self-filter.
 
 ## Intended Behavior
 
