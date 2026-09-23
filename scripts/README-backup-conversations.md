@@ -160,7 +160,7 @@ Two guards ride along with every export:
 
 Every rendering passes through `transcript-patches apply` before it is
 compared with the file on disk and written: deliberate edits recorded as
-patches (`<repository>/.transcript-patches/`, `llm-transcripts/.patches/`)
+per-conversation patches (`llm-transcripts/.patches/<conversation-id>/`)
 are re-applied on every export, so they survive it. A stale patch fails that
 conversation's export and leaves its file as it was. See
 `transcript-patches.info.md`; `transcript-patches original <transcript>`
