@@ -220,7 +220,7 @@ if [ -d "${TEMP_EXTRACT_DIR}/fediverse/extract/media_attachments" ]; then
 fi
 
 # Cleanup temporary files
-echo "🧹 Cleaning up temporary extraction files..."
+echo "✂ Cleaning up temporary extraction files..."
 rm -rf "${TEMP_EXTRACT_DIR}"
 
 echo "✅ Content extraction complete"

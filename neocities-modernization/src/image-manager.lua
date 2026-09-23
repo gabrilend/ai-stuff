@@ -612,32 +612,62 @@ end
 -- Summary (always shown): total, unique, duplicates count, size
 -- Detailed (verbose only): format distribution, size distribution, resolution distribution
 -- Warnings (always shown): duplicate groups
+-- {{{ local function print_aligned
+-- Prints one section of label/value pairs with the colons lined up, so a
+-- column of numbers reads straight down.  rows: array of {label, value}
+-- (strings); indent: string put before every line.
+local function print_aligned(rows, indent)
+    local widest = 0
+    for _, row in ipairs(rows) do widest = math.max(widest, #row[1]) end
+    for _, row in ipairs(rows) do
+        print(indent .. row[1] .. ":" .. string.rep(" ", widest - #row[1] + 1) .. row[2])
+    end
+end
+-- }}}
+
 function M.show_statistics(catalog, verbose)
     local stats = catalog.metadata.statistics
 
     print("\n=== IMAGE CATALOG STATISTICS ===")
-    print(string.format("Total Images: %d", stats.total_images))
-    print(string.format("Unique Images: %d", stats.unique_images))
-    print(string.format("Duplicate Images: %d", stats.duplicate_images))
-    print(string.format("Total Size: %.2f MB", stats.total_size_mb))
-    print(string.format("Average Size: %.3f MB", stats.average_size_mb))
+    print_aligned({
+        { "Total Images",     string.format("%d", stats.total_images) },
+        { "Unique Images",    string.format("%d", stats.unique_images) },
+        { "Duplicate Images", string.format("%d", stats.duplicate_images) },
+        { "Total Size",       string.format("%.2f MB", stats.total_size_mb) },
+        { "Average Size",     string.format("%.3f MB", stats.average_size_mb) },
+    }, "")
 
     -- Detailed statistics only shown when verbose flag is set
     if verbose then
         print("\nFormat Distribution:")
+        -- Most common format first (pairs() order changed from run to run).
+        local formats = {}
         for format, count in pairs(stats.format_distribution) do
-            print(string.format("  %s: %d images", format, count))
+            formats[#formats + 1] = { format, count }
         end
+        table.sort(formats, function(a, b)
+            if a[2] ~= b[2] then return a[2] > b[2] end
+            return a[1] < b[1]
+        end)
+        local format_rows = {}
+        for _, f in ipairs(formats) do
+            format_rows[#format_rows + 1] = { f[1], string.format("%d images", f[2]) }
+        end
+        print_aligned(format_rows, "  ")
 
         print("\nSize Distribution:")
-        print(string.format("  Small (<100KB): %d images", stats.size_distribution.small))
-        print(string.format("  Medium (100KB-1MB): %d images", stats.size_distribution.medium))
-        print(string.format("  Large (>1MB): %d images", stats.size_distribution.large))
+        print_aligned({
+            { "Small (<100KB)",      string.format("%d images", stats.size_distribution.small) },
+            { "Medium (100KB-1MB)",  string.format("%d images", stats.size_distribution.medium) },
+            { "Large (>1MB)",        string.format("%d images", stats.size_distribution.large) },
+        }, "  ")
 
         print("\nResolution Distribution:")
-        print(string.format("  Low (<500px): %d images", stats.resolution_distribution.low))
-        print(string.format("  Medium (500-1500px): %d images", stats.resolution_distribution.medium))
-        print(string.format("  High (>1500px): %d images", stats.resolution_distribution.high))
+        print_aligned({
+            { "Low (<500px)",        string.format("%d images", stats.resolution_distribution.low) },
+            { "Medium (500-1500px)", string.format("%d images", stats.resolution_distribution.medium) },
+            { "High (>1500px)",      string.format("%d images", stats.resolution_distribution.high) },
+        }, "  ")
     end
 
     -- Resolved duplicates are handled silently. The count is uninteresting
