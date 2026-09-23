@@ -108,7 +108,11 @@ inbox.
 
 ## Open Questions
 
-1. **Collision (open, being designed):** the hook refuses and leaves the
+1. **Collision (open; handed to the rmail project 2026-09-22):** building
+   the notice moved to `/home/ritz/programs/r-mail/notes/handoff-2026-09-22-names-timers-and-mailbox-hooks.md`,
+   so the conversation about it lives with rmail's transcripts. The contact
+   entries are now in place on both sides (the notes mailbox calls `~/mail`
+   `kuvalu-mail`, with `local-ip = 192.168.1.100`). The hook refuses and leaves the
    message in the inbox. Owner (2026-09-22): "can you instead make an outbox
    file pointing to the kuvalu-mail mailbox located at ~/mail/? ... This is
    only for if a name gets clobbered. ... we should only send the
@@ -117,10 +121,9 @@ inbox.
    - Intended: on a collision the hook keeps both files untouched and writes an
      outbox message in this mailbox addressed to the owner's main mailbox at
      `~/mail/`, saying which note name collided.
-   - Facts for the design: the `~/mail/` mailbox's configured name is `kuvalu`
-     (not `kuvalu-mail`), port 8025. It has no contact entry for
-     `kuvalu-notes`, and `kuvalu-notes` has none for it. Both sides need an
-     entry with a shared token before a message can travel.
+   - Facts for the design: the `~/mail/` mailbox's configured name is `kuvalu`,
+     port 8025; the notes mailbox addresses it by its local contact name,
+     `to: kuvalu-mail`.
    - The owner separately wants a shell-login notice for any mail in `~/mail/`
      (replacing the random-words display while mail is waiting). That is a
      side project for the `~/mail/` mailbox, not part of this issue.
