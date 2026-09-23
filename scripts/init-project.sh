@@ -401,6 +401,69 @@ EOF
     fi
 
     write_phase_demo_picker "${target}"
+    write_folder_notes "${target}"
+}
+# }}}
+
+# {{{ FOLDER_PURPOSE
+# What each skeleton folder is for, as the note written into it says. A table
+# rather than a chain of cases, so adding a folder is adding a line.
+# SKELETON_NOTE_FOLDERS is the order they are visited in (bash keeps no order
+# in an associative array); the unsaved-work check reads it too.
+declare -A FOLDER_PURPOSE=(
+    [notes]="Notes: the project's founding thoughts and raw material. The vision
+file lives here and is read first when the project is initialised; the
+documents in docs/ grow out of it."
+    [src]="Source code. Each file's name begins with a reading-order index
+taken from .file-index-counter, so the code can be read in order like a
+story."
+    [libs]="Libraries the project brings in. An external library may be given
+a very high index, so a reader can skip it."
+    [assets]="Assets: images, sounds, fonts and data files the program uses."
+    [scripts]="Helper scripts. Each one can be run from any directory: it names
+its project folder at the top and accepts another as an argument."
+    [docs/HTML]="The documentation as browsable HTML pages, generated from
+docs/, notes/, issues/ and the .info.md files, with a table of contents on the
+left of every page."
+    [issues/completed/demos]="Phase demos. At the end of each phase a demo
+shows what the phase built, with real outputs and figures. The demos are part
+of what the project delivers; run-phase-demo in the project folder runs one."
+    [llm-transcripts]="The conversations that built this project, written here
+by the conversation exporter and committed alongside the work. Do not edit
+them by hand; lasting corrections go in llm-transcripts/.patches/."
+    [input]="Input: whatever you would like to put into the program. The first
+thing the program does is read what is here, and from it know how to start."
+    [output]="Output: whatever the program hands back. The last thing the
+program does is write here, and what it writes last is goodbye."
+    [desire]="Desire: notes about what you would like to be better."
+    [faith]="Faith: an expectation of boons and blessings."
+    [strategems]="Strategems: data-flow patterns that turned out to match
+results in many different places, and so are proven useful."
+)
+SKELETON_NOTE_FOLDERS=(notes src libs assets scripts docs/HTML
+    issues/completed/demos llm-transcripts input output desire faith strategems)
+# }}}
+
+# {{{ write_folder_notes()
+# Git records files, not folders, so a folder with nothing in it never reaches
+# a remote: a fresh clone lacks it, and so does every tool that later expects
+# it (found 2026-09-23, when rao-chat's first push would have lost twelve).
+# Each skeleton folder that is still empty gets a short note saying what it is
+# for. Two paths: a folder holding anything survives on its own and is left
+# alone; an empty one gains its note. A note is never rewritten.
+#
+# The note is a plain file named README, not README.md, on purpose: tools read
+# every *.md in llm-transcripts/ as a transcript and every *.md in issues/ as
+# an issue, and documents in notes/ belong in the table of contents. GitHub
+# shows a README of any kind beneath a folder's listing.
+write_folder_notes() {
+    local target="$1"
+    local folder
+    for folder in "${SKELETON_NOTE_FOLDERS[@]}"; do
+        # holds something already: nothing to keep alive
+        [ -z "$(ls -A "${target}/${folder}")" ] || continue
+        printf '%s\n' "${FOLDER_PURPOSE[${folder}]}" > "${target}/${folder}/README"
+    done
 }
 # }}}
 
@@ -732,6 +795,11 @@ sandbox_has_unsaved_work() {
         --exclude '/run-phase-demo'
         --exclude '/issues/phase-1-progress.md'
     )
+    # the folder notes are seeds too, written where a folder is empty
+    local noted
+    for noted in "${SKELETON_NOTE_FOLDERS[@]}"; do
+        exclusions+=(--exclude "/${noted}/README")
+    done
 
     UNSAVED_WORK=$(rsync --archive --checksum --itemize-changes --dry-run \
         "${exclusions[@]}" \
