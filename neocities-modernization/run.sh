@@ -2213,6 +2213,26 @@ run_generate_html() {
 }
 # }}}
 
+# {{{ run_validate_output
+# Issue 9-006: after pages are built, count the width of every line inside every
+# poem column and check every link, across the whole of output/, all processors
+# at once. Anything over-wide or pointing at nothing fails the run -- after the
+# pages are written, so the build is complete and the report says what to fix.
+# The report lands in tmp/shared-memory/validate-output-report.txt.
+run_validate_output() {
+    log_stage "📏 Checking every page: line widths and links"
+    if $DRY_RUN; then
+        log_dry_run "$DIR/scripts/validate-output $DIR --output $OUTPUT_DIR"
+        return 0
+    fi
+    if ! "$DIR/scripts/validate-output" "$DIR" --output "$OUTPUT_DIR"; then
+        echo -e "${RED}❌ The built site has over-wide lines or broken links (report above).${NC}" >&2
+        echo "   The pages are all written; this run fails so nothing ships unnoticed." >&2
+        exit 1
+    fi
+}
+# }}}
+
 # {{{ run_generate_wordcloud
 # Issue 10-059: the word-cloud stage. Builds the site's entry menu (which carries the
 # live poem index) and the per-word similarity pages. Runs after stage 9, so the
@@ -3110,6 +3130,8 @@ $GENERATE_SIMILARITY && timed_stage generate-similarity run_generate_similarity
 $GENERATE_DIVERSITY && timed_stage generate-diversity run_generate_diversity
 $GENERATE_HTML && timed_stage generate-html run_generate_html
 $GENERATE_WORDCLOUD && timed_stage wordcloud run_generate_wordcloud
+# Issue 9-006: last, once every page is written.
+{ $GENERATE_HTML || $GENERATE_WORDCLOUD; } && timed_stage validate-output run_validate_output
 
 if ! $QUIET; then
     echo ""

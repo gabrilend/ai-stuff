@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# validate-output -- counts the width of every line and checks every link in
+# the built site.
+#
+# WHAT IT DOES (for a CEO): the site's poems are drawn inside fixed-width text
+# frames, so one character too many on a line pushes a wall out of place, and
+# a link to a page that was never written is a page-not-found for a reader.
+# This reads every page of a finished build, all processors at once, and
+# reports every line wider than the widest frame and every link that points
+# at nothing -- grouped by cause (content-warning boxes, web addresses,
+# progress bars, frames, ordinary text) so thousands of findings read as a
+# handful of problems to fix.  It changes nothing.  (Issue 9-006; owner:
+# "please write a character counting script and count every line".)
+#
+# Usage:
+#   scripts/validate-output [DIR] [--output PATH] [--max-width N] [--report PATH]
+#
+#   DIR          project directory (default below)
+#   --output     the built site to check (default DIR/output)
+#   --max-width  widest allowed line inside a poem column, in visible
+#                characters (default 84, the golden frame -- the widest drawn)
+#   --report     where the full report goes (default
+#                DIR/tmp/shared-memory/validate-output-report.txt)
+#
+# Exit status: 0 when nothing is over-wide or broken, 1 otherwise.
+
+DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+OUTPUT=""
+MAX_WIDTH=84
+REPORT=""
+
+# {{{ parse arguments
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --output)    OUTPUT="$2"; shift 2 ;;
+        --max-width) MAX_WIDTH="$2"; shift 2 ;;
+        --report)    REPORT="$2"; shift 2 ;;
+        --*)         echo "validate-output: unknown option $1" >&2; exit 1 ;;
+        *)           DIR="$1"; shift ;;
+    esac
+done
+[ -n "$OUTPUT" ] || OUTPUT="$DIR/output"
+[ -n "$REPORT" ] || REPORT="$DIR/tmp/shared-memory/validate-output-report.txt"
+if ! [[ "$MAX_WIDTH" =~ ^[1-9][0-9]*$ ]]; then
+    echo "validate-output: --max-width needs a whole number, got '$MAX_WIDTH'" >&2
+    exit 1
+fi
+if [ ! -d "$OUTPUT" ]; then
+    echo "validate-output: no built site at $OUTPUT" >&2
+    exit 1
+fi
+# }}}
+
+"$DIR/scripts/ensure-tmp-symlink" "$DIR" >/dev/null || exit 1
+WORK="$DIR/tmp/shared-memory/validate-output"
+rm -rf "$WORK"
+mkdir -p "$WORK"
+mkdir -p "$(dirname "$REPORT")"
+
+# Absolute paths throughout: the worker resolves each link against the folder
+# of the page it sits in.
+OUTPUT="$(cd "$OUTPUT" && pwd)"
+JOBS="$(nproc)"
+
+# {{{ scan, one worker per processor
+# Each worker gets batches of pages and writes its findings to its own file,
+# named after its process id, so parallel workers never write to the same file.
+PAGE_COUNT=$(find "$OUTPUT" -name '*.html' -type f | wc -l)
+echo "Checking $PAGE_COUNT pages under $OUTPUT on $JOBS processors (max width $MAX_WIDTH)..."
+export WORKER="$DIR/scripts/validate-output-worker.lua" FINDINGS_DIR="$WORK" MAX_WIDTH
+find "$OUTPUT" -name '*.html' -type f -print0 \
+    | xargs -0 -n 200 -P "$JOBS" sh -c \
+        'exec luajit "$WORKER" "$MAX_WIDTH" "$FINDINGS_DIR/part.$$.tsv" "$@"' _
+SCAN_STATUS=$?
+if [ "$SCAN_STATUS" -ne 0 ]; then
+    echo "validate-output: a worker failed (xargs status $SCAN_STATUS); the report would be incomplete" >&2
+    exit 1
+fi
+cat "$WORK"/part.*.tsv > "$WORK/findings.tsv" 2>/dev/null || : > "$WORK/findings.tsv"
+rm -f "$WORK"/part.*.tsv   # merged; this folder is RAM
+# }}}
+
+# {{{ summarise
+# A "link" row is one missing target as seen by one worker, with its count in
+# column 5 (see the worker's header), so totals are sums, not row counts.
+WIDE=$(awk -F'\t' '$1=="wide"' "$WORK/findings.tsv" | wc -l)
+LINKS=$(awk -F'\t' '$1=="link" { n += $5 } END { print n + 0 }' "$WORK/findings.tsv")
+{
+    echo "validate-output report"
+    echo "  site:      $OUTPUT"
+    echo "  pages:     $PAGE_COUNT"
+    echo "  max width: $MAX_WIDTH visible characters"
+    echo ""
+    echo "Over-wide lines: $WIDE"
+    awk -F'\t' '$1=="wide" { n[$5]++; if ($4 > w[$5]) w[$5] = $4 }
+        END { for (c in n) printf "  %-6s %8d lines, widest %d\n", c, n[c], w[c] }' \
+        "$WORK/findings.tsv" | sort
+    echo ""
+    echo "Broken links: $LINKS"
+    awk -F'\t' '$1=="link" { n[$4] += $5 } END { for (t in n) printf "%8d  %s\n", n[t], t }' \
+        "$WORK/findings.tsv" | sort -rn | head -20 | sed 's/^/  /'
+    echo ""
+    echo "Examples, five per cause (page:line  width  text):"
+    awk -F'\t' '$1=="wide" && seen[$5]++ < 5 {
+            printf "  [%s] %s:%s  %s  %s\n", $5, $2, $3, $4, $6 }' "$WORK/findings.tsv"
+    awk -F'\t' '$1=="link" && seen++ < 10 {
+            printf "  [link] %s:%s  -> %s  (%s times)\n", $2, $3, $4, $5 }' "$WORK/findings.tsv"
+    echo ""
+    echo "Every over-wide line, and every missing link target with its count"
+    echo "and first page, tab-separated: $WORK/findings.tsv"
+} > "$REPORT"
+# }}}
+
+cat "$REPORT" | head -40
+echo "(full report: $REPORT)"
+
+if [ "$WIDE" -gt 0 ] || [ "$LINKS" -gt 0 ]; then
+    exit 1
+fi
+exit 0
