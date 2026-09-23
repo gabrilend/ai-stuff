@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-23 09:07:37
+Generated on: 2026-09-23 09:21:02
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -2271,6 +2271,67 @@ report will be at `tmp/shared-memory/validate-output-report.txt`.
 
 The only test still failing is `augment-embeddings-with-images.test.lua`. It was
 failing before any of today's changes.
+
+--------------------------------------------------------------------------------
+
+### User Request 19
+
+Okay can we make an issue file for some run.sh improvements? There's some emojis
+that aren't showing on my machine, before the "Force regenerate" text at the
+top. Also if the user pushes esc to exit, it runs away in an infinite loop,
+ignoring ctrl+c. It should quit immediately after the interactive page is
+closed. Also, the "copy to clipboard" functionality isn't working - it should go
+to both the ctrl+v clipboard, and the middle mouse-click clipboard.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 19
+
+> Tracing the three problems in `run.sh` and its shared menu library
+> (`scripts/libs/lua-menu.sh` and `menu.lua`) before writing the issue, so it
+> names real causes.
+
+> Confirmed. The `$(…)` capture waited 38 seconds, until I killed `xclip` by
+> hand. The fix is to send `xclip`'s output to `/dev/null` so it can't hold
+> `run.sh`'s pipe. Writing the issue file now.
+
+> Correcting the function name in the issue: the prompt loop is
+> `menu.batch_pause`.
+
+I wrote issue `10-070-run-sh-menu-glyphs-escape-hang-and-clipboard.md` and
+committed it (`52d680615`). Nothing is fixed yet.
+
+**Missing glyph:** each per-stage "Force regenerate" line starts with `↳`, a
+small down-then-right arrow your terminal font doesn't have. The menu library
+draws no emoji of its own, so that's the one. The plan is to replace it with
+`└─`, which your font already draws elsewhere in the menu.
+
+**Hang after leaving:** I reproduced it, and it's tied to the clipboard.
+- **What happens:** copying the command starts `xclip`, which keeps running in
+  the background to hand the text to whoever pastes. It also keeps holding the
+  channel `run.sh` uses to read the menu's answer, so `run.sh` waits until
+  something else takes over the clipboard.
+- **Test:** a stand-in for the menu that copied and quit was killed after 8
+  seconds, but the shell stayed stuck until I killed `xclip` 38 seconds in.
+- **Fix:** start `xclip` so it can't hold that channel.
+- **A second possible cause:** a yes/no prompt at the bottom of the menu loops
+  forever if input stops, and it doesn't react to Ctrl+C. The fix is to treat
+  that as "cancel".
+
+**Clipboard:** the copy code already sends the command to both the Ctrl+V
+clipboard and the middle-click one, and the copy does land. The failure you saw
+is the same hang. The fix adds a check that both clipboards actually hold the
+text, and shows an error in the menu if they don't.
+
+The hang and clipboard fixes go in the shared menu library
+(`scripts/libs/menu.lua`), so every project using it benefits.
+
+Two questions, also recorded in the issue:
+1. When Escape ran away, had you copied the command first? If yes, it's the
+   clipboard hang. If not, the prompt loop is the likelier cause, and knowing
+   which screen was open would help.
+2. Is `└─` fine as the marker in front of the per-stage options, or would
+   you like something else?
 
 --------------------------------------------------------------------------------
 
