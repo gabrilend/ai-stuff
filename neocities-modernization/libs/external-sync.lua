@@ -321,7 +321,7 @@ function M.sync_source(source_entry)
                     message = "Could not remove stale excluded copy: " .. stale_copy_path
                 }
             end
-            log_warning("🧹 " .. name .. ": removed excluded subdirectory copy "
+            log_warning("✂ " .. name .. ": removed excluded subdirectory copy "
                 .. stale_copy_path)
         end
     end
