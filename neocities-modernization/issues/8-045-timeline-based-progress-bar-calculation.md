@@ -238,8 +238,13 @@ chrono_map[poem_idx] = {
 9. **Missing map entry is an error** in the worker, the single-threaded
    formatter and the word pages, replacing the 50% default and the position
    fallback.
-10. **Bound the bar drawer.** `progress_dashes()` in `src/poem-bars.lua` raises an
-    error naming the poem when the percentage is below 0 or above 100.
+10. **Bound the bar drawer.** **Done 2026-09-22.** `check_percentage()` in
+    `src/poem-bars.lua` raises an error naming the poem (its `poem_id`, when
+    the caller supplies one) when the percentage is below 0, above 100, missing
+    or not a number. `progress_dashes()` calls it, and so does the main-thread
+    copy (`generate_progress_dashes()` in `flat-html-generator.lua`) until step
+    11 removes that copy. Tests: the 0%/100%/117%/-5%/missing/NaN cases in
+    `src/poem-bars.test.lua` (40 checks pass).
 11. **One bar drawer.** Delete the main-thread copies of the bar-drawing code in
     `flat-html-generator.lua` so every caller goes through `src/poem-bars.lua`
     (overlaps 8-058).

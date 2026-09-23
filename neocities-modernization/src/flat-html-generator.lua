@@ -150,6 +150,11 @@ M.BOOST_COLOR_CONFIG = BOOST_COLOR_CONFIG
 -- rules come from the shared module so all four generators cannot disagree.
 local page_head = require("page-head")
 
+-- The bar-drawing module the page workers use.  The main thread still carries
+-- its own bar copy (generate_progress_dashes, below; merging them is 8-058),
+-- but both refuse an impossible percentage through the one shared check.
+local poem_bars_shared = require("poem-bars")
+
 -- {{{ POEM_PAGE_CSS
 -- True page-centering for the poem column. The old <table align="center">
 -- shrink-wrapped to its WIDEST line -- and an attached image (up to 800px) is
@@ -1095,6 +1100,7 @@ local function generate_progress_dashes(progress_info, color_name, is_golden, po
     -- For regular poems: 83 chars total (positions 0-82)
     -- Golden poems have corner characters (╔/┐ or ╚/┘) that add 2 to the width,
     -- so interior needs to be 1 less to maintain 84-char total alignment
+    poem_bars_shared.check_percentage(progress_info)  -- Issue 8-045: 0-100 or stop
     local total_chars = is_golden and 82 or 83
     local progress_chars = math.floor((progress_info.percentage / 100) * total_chars)
     local remaining_chars = total_chars - progress_chars
