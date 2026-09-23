@@ -1357,7 +1357,7 @@ run_extract() {
 # marked do-not-ship. The validation happens before any stripping and before the
 # expensive catalog/embed stages, so a bad path costs only the cheap re-run.
 run_strip_excluded() {
-    log_stage "🧹 Stripping excluded content from input/"
+    log_stage "✂ Stripping excluded content from input/"
     if $DRY_RUN; then
         log_dry_run "lua $DIR/scripts/strip-excluded $DIR"
         return 0
