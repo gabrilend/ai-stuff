@@ -21,7 +21,7 @@ EOF
 | `-F -` / `-F <file>` / `-m <message>` | the commit message; one is required |
 | `--leave-mixed` | commit the session's other blocks even when some are tangled with someone else's lines |
 | `--scripts-dir <dir>` | where the libraries live (for trying a copy) |
-| `-- <path>...` | commit only this session's changes in these files or folders (repository-relative), to commit work in small pieces; transcripts ride along only if listed too |
+| `-- <path>...` | commit only this session's changes in these files or folders (repository-relative), to commit work in small pieces; every changed transcript still rides along |
 
 Exit 0 when a commit was made; 1 for nothing to commit, a tangled block, a
 branch that kept moving, or any error. Preview first with
@@ -37,7 +37,8 @@ branch that kept moving, or any error. Preview first with
 4. Judges the ledger's files against it (`libs/own-changes-patch.lua`); stops
    on a tangled block unless `--leave-mixed`.
 5. Applies this session's blocks with `git apply --cached`, adds whole-claimed
-   files and this session's transcripts, writes the tree, and makes a commit
+   files and every changed transcript (any conversation's; a deleted one's
+   deletion too), writes the tree, and makes a commit
    with the tip as parent (`git commit-tree`).
 6. Moves the branch with `git update-ref <branch> <new> <tip>`, which refuses
    if the branch moved; then rebuilds on the new tip, up to 5 attempts.

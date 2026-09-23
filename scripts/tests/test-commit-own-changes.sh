@@ -16,8 +16,10 @@
 #     change survives on top of the commit, or is left alone with a warning
 #     when it overlaps;
 #   - another file's staged entry is untouched; the working tree is untouched;
-#   - new, deleted and renamed files; nothing to commit; transcripts ride along
-#     only when they are this session's conversation or its helpers';
+#   - new, deleted and renamed files; nothing to commit; every changed
+#     transcript rides along, whoever's conversation it is, even outside a
+#     path limit, even alone, and a transcript renamed by the exporter
+#     carries its deletion with it;
 #   - a branch other than main; the branch moved by someone else mid-commit;
 #   - stage-own-changes previews and writes nothing;
 #   - the commit gate turns plain git commit away and lets this route through.
@@ -251,7 +253,7 @@ printf 'foreign\n' >> "${REPO}/notes.md"
 coc "${S1}" "${REPO}" -m "empty"; s1=$?
 check "only someone else's change: still nothing, still exit 1" "$( [ $s1 = 1 ] && [ "$(git -C "${REPO}" rev-list --count main)" = 1 ] && echo yes || echo no)"
 
-printf '\nTranscripts ride along only when they are this session\x27s\n'
+printf '\nEvery changed transcript rides along, whoever\x27s it is\n'
 new_repo transcripts
 mkdir -p "${REPO}/proj/llm-transcripts" "${SESSIONS}/-proj/${S1}/subagents"
 : > "${SESSIONS}/-proj/${S1}/subagents/agent-abc123.jsonl"
@@ -264,7 +266,8 @@ coc "${S1}" "${REPO}" -m "with transcripts"; s1=$?
 check "the commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
 check "this session's transcript rides along" "$(yes_if git -C "${REPO}" cat-file -e main:proj/llm-transcripts/sep-1-26.md)"
 check "its helper's transcript rides along" "$(yes_if git -C "${REPO}" cat-file -e main:proj/llm-transcripts/sep-1-26_agent-1.md)"
-check "another conversation's transcript stays out" "$(absent main:proj/llm-transcripts/sep-1-26_other.md)"
+check "another conversation's transcript rides along too" "$(yes_if git -C "${REPO}" cat-file -e main:proj/llm-transcripts/sep-1-26_other.md)"
+check "the report tells this conversation's from another's" "$(yes_if grep -q 'sep-1-26_other.md (another conversation)' "${SCRATCH}/out-${S1}")"
 check "a file outside llm-transcripts/ is never taken for a transcript" "$(absent main:root-transcript.md)"
 
 # Transcripts are decided by whose conversation they are, never line by line.
@@ -286,7 +289,44 @@ set_line "${REPO}/notes.md" 1 B1; claim "${S1}" - "${REPO}/notes.md" line1; clai
 coc "${S1}" "${REPO}" -m "partial transcript records"; s1=$?
 check "the commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
 check "this session's transcript is committed whole" "$(yes_if git -C "${REPO}" grep -q 'second, written by the backup hook' main -- proj/llm-transcripts/sep-2-26.md)"
-check "another conversation's transcript stays out, ledger record or not" "$( ! git -C "${REPO}" grep -q 'their next line' main -- proj/llm-transcripts/sep-2-26_other.md && echo yes || echo no)"
+check "another conversation's transcript is committed whole, ledger record or not" "$(yes_if git -C "${REPO}" grep -q 'their next line' main -- proj/llm-transcripts/sep-2-26_other.md)"
+
+# The case that changed the rule (kiln, 2026-09-23): a session committed,
+# talked on, and quit, so its transcript grew after its last commit. A later
+# session with nothing else of its own to commit must still be able to carry
+# it, and a small commit limited to one file must carry it too.
+printf '\nA transcript left behind by a finished session is carried\n'
+new_repo transcript-left-behind
+mkdir -p "${REPO}/proj/llm-transcripts" "${REPO}/other-proj/llm-transcripts"
+printf '# Conversation Summary: finished-session\n\nfirst\n' > "${REPO}/proj/llm-transcripts/sep-22-26.md"
+git -C "${REPO}" add -A && git -C "${REPO}" commit -q -m "yesterday's transcript as it was"
+printf 'the last words, after its last commit\n' >> "${REPO}/proj/llm-transcripts/sep-22-26.md"
+coc "${S1}" "${REPO}" -m "transcripts catch up"; s1=$?
+check "a commit of transcripts alone succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
+check "the finished session's last words are committed" "$(yes_if git -C "${REPO}" grep -q 'the last words' main -- proj/llm-transcripts/sep-22-26.md)"
+printf '# Conversation Summary: third-session\n\nelsewhere\n' > "${REPO}/other-proj/llm-transcripts/sep-23-26.md"
+set_line "${REPO}/notes.md" 1 C1; claim "${S1}" - "${REPO}/notes.md" line1; claim "${S1}" + "${REPO}/notes.md" C1
+coc "${S1}" "${REPO}" -m "notes only" -- notes.md; s1=$?
+check "a commit limited to one file succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
+check "it carries a changed transcript outside the limit" "$(yes_if git -C "${REPO}" cat-file -e main:other-proj/llm-transcripts/sep-23-26.md)"
+
+# The exporter renames a transcript when its conversation crosses midnight
+# (one day's name becomes a date range). The old name's deletion rides along
+# with the new name, so the rename lands in one commit.
+printf '\nA transcript renamed by the exporter carries its deletion\n'
+new_repo transcript-renamed
+mkdir -p "${REPO}/proj/llm-transcripts"
+printf '# Conversation Summary: crossing-midnight\n\nday one\n' > "${REPO}/proj/llm-transcripts/sep-22-26.md"
+git -C "${REPO}" add -A && git -C "${REPO}" commit -q -m "one day's transcript"
+git -C "${REPO}" --no-optional-locks show main:proj/llm-transcripts/sep-22-26.md > "${REPO}/proj/llm-transcripts/sep-22-26-through-sep-23-26.md"
+printf 'day two\n' >> "${REPO}/proj/llm-transcripts/sep-22-26-through-sep-23-26.md"
+rm "${REPO}/proj/llm-transcripts/sep-22-26.md"
+coc "${S1}" "${REPO}" -m "the rename"; s1=$?
+check "the commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
+check "the new name is committed" "$(yes_if git -C "${REPO}" cat-file -e main:proj/llm-transcripts/sep-22-26-through-sep-23-26.md)"
+check "the old name's deletion is committed" "$(absent main:proj/llm-transcripts/sep-22-26.md)"
+check "the report says the old one is gone" "$(yes_if grep -q 'sep-22-26.md (gone from disk' "${SCRATCH}/out-${S1}")"
+check "nothing is left uncommitted" "$( [ -z "$(git -C "${REPO}" status --porcelain)" ] && echo yes || echo no)"
 
 printf '\nCommitting in small pieces with -- <paths>\n'
 new_repo pieces

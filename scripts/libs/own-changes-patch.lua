@@ -23,13 +23,20 @@
 --
 -- TRANSCRIPTS
 --
--- A transcript rides along when it is this session's conversation: its first
--- line, "# Conversation Summary: <id>", names this session or one of its
--- helpers ("agent-<id>", found as <sessions-root>/*/<session>/subagents/
--- agent-<id>.jsonl in Claude Code's session store). Where it lives does not
--- matter, and it is taken whole, because the exporter rewrites it whole. This
--- replaced "every llm-transcripts/ folder near a touched file", which also took
--- other sessions' transcripts from the same folder.
+-- Every transcript that differs from the branch tip rides along, whoever's
+-- conversation it is: new, grown, or gone. Transcripts are one story told
+-- across conversations, and the owner wants git to hold as much of it as
+-- possible. The rule before this one took only this session's transcripts (by
+-- the "# Conversation Summary: <id>" header), and so a session that committed,
+-- talked a little more and quit left its last lines uncommittable forever
+-- (kiln, 2026-09-23).
+-- Taking another conversation's transcript is safe where taking its source
+-- lines is not: the exporter writes each transcript to a temporary file and
+-- moves it into place, so what is on disk is always a whole rendering, and
+-- nobody edits a transcript line by line (lasting edits live in
+-- llm-transcripts/.patches/). A transcript gone from disk was renamed or
+-- retired by the exporter; its deletion rides along beside its new name.
+-- The header is still read, only to tell the report whose each one is.
 --
 -- LuaJIT compatible; no Lua 5.4 syntax.
 
@@ -206,7 +213,7 @@ end
 -- {{{ function M.ledger_files()
 -- The repository-relative paths this session's ledger names under `top`,
 -- sorted -- except transcripts. A transcript (any llm-transcripts/*.md) is
--- decided whole by whose conversation it is (own_transcripts below), never
+-- always taken whole (changed_transcripts below), never
 -- line by line: the backup hook writes most of its lines, so the ledger only
 -- ever holds scraps of one (from a backup run by hand, whose file diff the
 -- ledger hook records), and judging those scraps made this session's own
@@ -277,30 +284,60 @@ function M.own_ids(session_id, sessions_root)
 end
 -- }}}
 
--- {{{ function M.own_transcripts()
--- Changed or new transcript files (any llm-transcripts/*.md in the repository)
--- whose header names one of `ids`. Read-only: git status is run without
--- taking the index lock, so it never rewrites the shared staging list.
--- Returns a list of repository-relative paths, or nil and a reason.
-function M.own_transcripts(top, ids)
-    local out, ok, err = M.run_quiet({ "git", "-C", top, "--no-optional-locks", "status",
-        "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all", "--",
-        ":(glob)**/llm-transcripts/*.md" })
-    if not ok then return nil, "git status failed: " .. err end
-    local list = {}
-    for record in out:gmatch("([^%z]+)") do
-        local rel = record:sub(4)
-        local f = io.open(top .. "/" .. rel, "r")
-        -- a deleted transcript has no header to read; deletions are not ours
-        if f then
-            local first = f:read("*l") or ""
-            f:close()
-            local id = first:match("^# Conversation Summary: (%S+)")
-            if id and ids[id] then list[#list + 1] = rel end
-        end
+-- {{{ function M.changed_transcripts()
+-- Every transcript file (any llm-transcripts/*.md in the repository) that
+-- differs from the commit `tip`: new, changed, or deleted. Read-only: nothing
+-- here takes the shared staging list's lock or writes it.
+-- Returns a sorted list of { rel = path (string), ours = boolean (its header
+-- names one of `ids`), gone = boolean (deleted from disk) }, or nil and a
+-- reason.
+function M.changed_transcripts(top, tip, ids)
+    local glob = ":(glob)**/llm-transcripts/*.md"
+    -- tracked at the tip and different on disk (changed or deleted); compared
+    -- with the tip itself, not the shared staging list, so nothing anyone has
+    -- staged by hand changes the answer
+    local diff, ok, err = M.run_quiet({ "git", "-C", top, "--no-optional-locks", "diff",
+        "--name-status", "-z", "--no-renames", tip, "--", glob })
+    if not ok then return nil, "git diff failed: " .. err end
+    local found = {}
+    local status = nil
+    for word in diff:gmatch("([^%z]+)") do
+        -- -z name-status alternates: a status letter, then its path
+        if not status then status = word else found[word] = (status == "D"); status = nil end
     end
-    table.sort(list)
+    -- never tracked, and not ignored
+    local others
+    others, ok, err = M.run_quiet({ "git", "-C", top, "ls-files", "--others",
+        "--exclude-standard", "-z", "--", glob })
+    if not ok then return nil, "git ls-files failed: " .. err end
+    for rel in others:gmatch("([^%z]+)") do found[rel] = false end
+
+    local list = {}
+    for rel, gone in pairs(found) do
+        local ours = false
+        -- a deleted transcript has no header left to read: counted as not ours
+        -- (only the report uses this); a present one is read for its header
+        if not gone then
+            local f = io.open(top .. "/" .. rel, "r")
+            if f then
+                local id = (f:read("*l") or ""):match("^# Conversation Summary: (%S+)")
+                f:close()
+                ours = (id ~= nil and ids[id] == true)
+            end
+        end
+        list[#list + 1] = { rel = rel, ours = ours, gone = gone }
+    end
+    table.sort(list, function(a, b) return a.rel < b.rel end)
     return list
+end
+-- }}}
+
+-- {{{ function M.transcript_report_line()
+-- One report line for a transcript entry from changed_transcripts().
+function M.transcript_report_line(t)
+    local whose = t.ours and "this conversation" or "another conversation"
+    if t.gone then whose = "gone from disk, renamed or retired by the exporter" end
+    return "  transcript     " .. t.rel .. " (" .. whose .. ")"
 end
 -- }}}
 

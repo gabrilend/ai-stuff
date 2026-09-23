@@ -66,9 +66,11 @@ Three pieces, one ledger:
    for the ledger's files (no context lines), keeps each change block whose
    every line is claimed, renumbers the kept blocks so they still line up, and
    applies them to the private list with `git apply --cached --unidiff-zero`.
-   New files wholly written by the session are added whole, and so are this
-   session's own transcripts — a transcript counts when its header names this
-   conversation or one of its helpers, wherever it lives. It commits that list
+   New files wholly written by the session are added whole, and so is every
+   transcript that differs from the tip — this conversation's, another's, one
+   outside a `--` path limit, and a deletion left by the exporter's renaming —
+   so the story in git is as complete as it can be. (The exporter replaces a
+   transcript whole in one step, so there is never a half-written one to take.) It commits that list
    with the tip as parent and moves the branch only if the branch still points
    at the tip; otherwise it rebuilds on the new tip. Then it brings the shared
    staging area in step for the files it committed, and only those, keeping
