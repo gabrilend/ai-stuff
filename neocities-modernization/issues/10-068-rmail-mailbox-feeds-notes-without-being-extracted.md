@@ -4,7 +4,8 @@
 - **Phase**: 10 (Developer Tooling / Pipeline Infrastructure)
 - **Priority**: High (tooling files are currently being published as poems)
 - **Type**: Feature + input hygiene
-- **Status**: IN PROGRESS — built and tested; open questions below are unanswered.
+- **Status**: IN PROGRESS — built and tested; every open question is answered
+  (the collision notice was built 2026-09-23).  Ready to be completed.
 - **Created**: 2026-09-22
 - **Related**: 10-026 (sources + external sync config), 10-053 (excluding content),
   6-031 (poem exclusion tombstones)
@@ -50,6 +51,12 @@ Two halves:
     tested by hand against a scratch notes folder: normal move with the
     sender's timestamp kept, refusal on a name collision (message stays in the
     inbox, error logged), a name containing a quote and a space.
+  - On a name collision the hook also writes a notice into the mailbox's own
+    outbox, addressed `to: kuvalu-mail` (the owner's main mailbox at
+    `~/mail/`), naming the note, the sender, where the waiting message is and
+    where the existing note is.  Tested 2026-09-23 against a scratch notes
+    folder: a clash produced the notice and left both files untouched; a
+    free name moved as before with no notice.
   - The copy of the mailbox already in `input/notes/rmail/` is removed by the
     next sync.
 
@@ -66,8 +73,17 @@ keep it.
 
 1. Destination = notes directory + the inbox file's own name (rmail derives it
    from the subject, already sanitised to a single path component).
-2. If the destination exists: do nothing to either file, log an error line. A
-   note is never overwritten and the message is never lost.
+2. If the destination exists: do nothing to either file, log an error line,
+   and mail a notice to the owner's main mailbox (below). A note is never
+   overwritten and the message is never lost.  The same happens if the name
+   is taken in the instant between the check and the move.
+   - The notice is an outbox file named `note-name-taken-<note name>`, first
+     line `to: kuvalu-mail`, body naming the note, the sender, the waiting
+     inbox file and the existing note.  It is written under a hidden name
+     and renamed into view, because the daemon lists the outbox without
+     hidden files and so can never send a half-written notice.  A second
+     collision on the same name rewrites the same notice.  Nothing is sorted
+     until the owner resolves the clash by hand.
 3. Copy with timestamps preserved to a hidden temporary name in the notes
    directory, compare byte-for-byte with the inbox file, rename into place
    (atomic within one filesystem, so the extractor never sees a half-written
@@ -108,7 +124,11 @@ inbox.
 
 ## Open Questions
 
-1. **Collision (open; handed to the rmail project 2026-09-22):** building
+None.
+
+### Answered
+
+1. **Collision (built 2026-09-23, from the rmail project):** building
    the notice moved to `/home/ritz/programs/r-mail/notes/handoff-2026-09-22-names-timers-and-mailbox-hooks.md`,
    so the conversation about it lives with rmail's transcripts. The contact
    entries are now in place on both sides (the notes mailbox calls `~/mail`
@@ -126,10 +146,9 @@ inbox.
      `to: kuvalu-mail`.
    - The owner separately wants a shell-login notice for any mail in `~/mail/`
      (replacing the random-words display while mail is waiting). That is a
-     side project for the `~/mail/` mailbox, not part of this issue.
-
-### Answered
-
+     side project for the `~/mail/` mailbox, not part of this issue.  Built
+     2026-09-23 as `/home/ritz/scripts/ai-stuff/rmail-notice`, called from
+     `~/.bashrc`.
 2. **Note filename.** Should notes use the `YYYYMMDD-HHMMSS.txt` shape instead
    of rmail's subject-derived name? Owner (2026-09-22): "keep their filename.
    Rmail knows how to name them. The dated names are worse than the specific
