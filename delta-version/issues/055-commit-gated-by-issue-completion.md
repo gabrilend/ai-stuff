@@ -5,7 +5,8 @@
 **Created**: 2026-05-21
 **Type**: Wrapper utility + one extra rule in the shared commit gate
 **Depends on**: `scripts/issues/032-commit-only-your-own-lines.md` (the line
-ledger, `stage-own-changes`, and the `refuse-foreign-lines` commit gate)
+ledger) and `scripts/issues/032a-commit-through-a-private-staging-area.md`
+(`commit-own-changes`, the only commit route since 2026-09-22)
 
 ---
 
@@ -52,17 +53,16 @@ Two small pieces, sitting on top of 032 instead of beside it:
    - updates the phase progress file the standing instructions name
      (`issues/phase-X-progress.md`, or this project's `issues/progress.md`)
      and claims those lines;
-   - stages exactly the session's own lines with `stage-own-changes`, which
-     also stages the project's `llm-transcripts/`;
-   - commits the index as it stands -- no `-a`, no pathspec -- so the commit
-     gate from 032 would accept it even if it were typed by hand.
+   - commits with `commit-own-changes`, which takes exactly the session's own
+     lines and its transcripts on a private staging list.
    It refuses and changes nothing if any step fails.
-2. **One extra rule in the shared commit gate** (`refuse-foreign-lines`, from
-   032): if the index being committed moves an issue file into a
-   `completed/` folder, the same index must also change that project's
-   progress file. The gate reads this from `git diff --cached --name-status
-   -M`, not from the command text, so it holds however the commit is typed.
-   A commit that closes no issue is not affected.
+2. **One extra rule in `commit-own-changes`** (032a): if the commit it has
+   built moves an issue file into a `completed/` folder, the same commit must
+   also change that project's progress file, or nothing is committed. It reads
+   this from the built commit (`git diff --name-status -M` between the tip and
+   the new tree), so it holds however the move was made. A commit that closes
+   no issue is not affected. (Earlier drafts put this rule in the commit gate;
+   since 032a the gate refuses every plain commit and never sees content.)
 
 Deliberately not done: refusing commits that close no issue (conflicts with
 the standing instructions above), and any environment-variable handshake
@@ -70,14 +70,15 @@ between wrapper and gate (the gate never sees the wrapper's commit).
 
 ## Suggested Implementation Steps (redesign)
 
-1. Wait for 032's ledger, `claim-own-change`, `stage-own-changes` and
-   `refuse-foreign-lines` to land; this issue only adds to them.
+1. 032's ledger and `claim-own-change`, and 032a's `commit-own-changes`, have
+   landed; this issue only adds to them.
 2. Write `commit-completed-issue.sh` with the house script shape: hard-coded
    `DIR` overridable by the first argument, a header comment in plain
    language, fold markers per function.
-3. Add the progress-file rule to `refuse-foreign-lines`, with cases in
-   `test-refusal-gates`: a move into `completed/` without a progress change
-   is refused; with one, allowed; a commit that moves no issue is untouched.
+3. Add the progress-file rule to `commit-own-changes`, with cases in
+   `tests/test-commit-own-changes.sh`: a move into `completed/` without a
+   progress change stops the commit; with one, it lands; a commit that moves
+   no issue is untouched.
 4. Test the wrapper in a scratch repository: a valid issue closes in one
    commit that contains the move, the progress change and the transcripts;
    an issue missing a section leaves the tree exactly as it was.
