@@ -75,17 +75,23 @@ edge.
 
 ## Suggested Implementation Steps (reopened)
 
-1. Add one content-warning box formatter to `libs/text-formatter.lua`. It takes
-   the warning text and the interior width, measures in visible (UTF-8)
-   characters, breaks at spaces and after dashes, cuts tokens that still do not
-   fit, and pads each line by visible width.
+1. **Done 2026-09-22:** `format_cw_box(text, box_width)` in
+   `libs/text-formatter.lua`. It takes the warning text and the box's total
+   width (the text area is 4 narrower), collapses whitespace runs to single
+   spaces, measures in visible columns, breaks at the latest space or just
+   after the latest dash that fits (the dash stays on the line), cuts tokens
+   that still do not fit, and pads every line to exactly the box width. It
+   does not indent the box; the caller places it. Nothing calls it yet — that
+   is step 2, which changes every page and is checked against the next build.
 2. Replace all five builders (main-thread `format_warning_box`, the two worker
    builders, the word-page builder, and any chronological-page copy) with calls
    to it. The duplicate-code umbrella for this is 8-058, and 10-048 (codebase
    consolidation sweep) is related.
 3. Make word pages wrap poem text with the shared `wrap_preserving_indent`
    path instead of their own wrapper.
-4. Tests, beside the existing text-formatter tests:
+4. Tests, beside the existing text-formatter tests (**done 2026-09-22** in
+   `libs/text-formatter-test.lua`, all passing; the accented-letter case uses
+   "café &amp; crème", the emoji case one 🔥):
    - The fediverse/696 warning produces lines all exactly as wide as the box.
    - Breaks land after dashes when no space is available, and the dash stays
      at the end of the broken line (owner's choice, see Open Questions).

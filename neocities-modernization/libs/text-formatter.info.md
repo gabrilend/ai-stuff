@@ -69,6 +69,15 @@ plain line two rows down sat at 80 and stayed whole.
 - `utf8_char_count(str) -> integer`
   - Counts characters by discarding UTF-8 continuation bytes (0x80–0xBF).
 
+- `format_cw_box(text, box_width) -> string`
+  - The content-warning box (issue 9-011): a top rule, the wrapped warning,
+    a bottom rule, joined by newlines, every line exactly `box_width` visible
+    columns (`box_width` is a number, corners included; the text area is
+    `box_width - 4`). Whitespace runs in `text` become single spaces. Lines
+    break at a space or just after a dash — the dash stays at the end of the
+    line — and a word too long for the box (a URL, a magnet link) is cut at
+    the edge. No indentation; the caller places the box.
+
 ## Tests
 
 `libs/text-formatter-test.lua` — `luajit libs/text-formatter-test.lua`. Pure,

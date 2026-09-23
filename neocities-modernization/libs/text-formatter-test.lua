@@ -173,5 +173,84 @@ check("slicing keeps an entity whole",
     "chunk=[" .. ent_chunk .. "] rest=[" .. ent_rest .. "]")
 -- }}}
 
+-- {{{ content-warning box (Issue 9-011)
+-- The warning that came out mangled on fediverse/696: 170 characters, mostly
+-- one dash-joined chain with no spaces to break on.
+do
+    local cw = "CW: re: scary-absurdist-magic-symbolism-discipline-honor-dedication-"
+        .. "virtue-safehavens-meditation-[presupposed destinations]-hypnosis-"
+        .. "[clarity of purpose]-[something about how turntables turn or something]"
+    local box = tf.format_cw_box(cw, 80)
+    local lines = {}
+    for line in box:gmatch("[^\n]+") do lines[#lines + 1] = line end
+
+    local all_80 = true
+    for _, line in ipairs(lines) do
+        if tf.calculate_visible_width(line) ~= 80 then all_80 = false end
+    end
+    check("cw box: every line is exactly the box width", all_80, box)
+    check("cw box: top and bottom rules",
+        lines[1]:sub(1, 3) == "┌" and lines[#lines]:sub(1, 3) == "└", box)
+
+    -- Rebuild the text from the lines: a line ending in a dash joins the next
+    -- directly; any other line break stood for one space.
+    local text_lines = {}
+    for i = 2, #lines - 1 do
+        text_lines[#text_lines + 1] = lines[i]:gsub("^│ ", ""):gsub(" *│$", "")
+    end
+    local rebuilt = text_lines[1]
+    for i = 2, #text_lines do
+        if rebuilt:sub(-1) == "-" then
+            rebuilt = rebuilt .. text_lines[i]
+        else
+            rebuilt = rebuilt .. " " .. text_lines[i]
+        end
+    end
+    check("cw box: no word lost or split mid-word", rebuilt == cw, rebuilt)
+
+    local dash_ends = 0
+    for i = 1, #text_lines - 1 do
+        if text_lines[i]:sub(-1) == "-" then dash_ends = dash_ends + 1 end
+        check("cw box: no line starts with a dash (line " .. i + 1 .. ")",
+            text_lines[i + 1]:sub(1, 1) ~= "-", text_lines[i + 1])
+    end
+    check("cw box: the dash chain breaks after dashes", dash_ends >= 1, box)
+end
+
+do
+    local magnet = "CW: " .. "magnet:?xt=urn:btih:" .. string.rep("a1b2c3d4e5", 32)
+    local box = tf.format_cw_box(magnet, 80)
+    local widest, count = 0, 0
+    for line in box:gmatch("[^\n]+") do
+        widest = math.max(widest, tf.calculate_visible_width(line))
+        count = count + 1
+    end
+    check("cw box: a 340-character link is cut to the box width", widest == 80, box)
+    check("cw box: ... over several lines", count >= 7, box)
+end
+
+do
+    local box = tf.format_cw_box("CW: café &amp; crème", 30)
+    local ok = true
+    for line in box:gmatch("[^\n]+") do
+        if tf.calculate_visible_width(line) ~= 30 then ok = false end
+    end
+    check("cw box: accented letters and entities padded by visible width", ok, box)
+
+    -- One emoji is one character to the counter (4 bytes); whether a browser
+    -- draws it one cell wide is a font question (16-010), not a padding one.
+    local emoji_box = tf.format_cw_box("CW: fire \240\159\148\165 mention", 30)
+    local emoji_ok = true
+    for line in emoji_box:gmatch("[^\n]+") do
+        if tf.calculate_visible_width(line) ~= 30 then emoji_ok = false end
+    end
+    check("cw box: an emoji is padded as one character, not four bytes", emoji_ok, emoji_box)
+
+    local short = tf.format_cw_box("CW:  food\n\n mention ", 30)
+    check("cw box: whitespace runs and newlines collapse to single spaces",
+        short:find("│ CW: food mention", 1, true) ~= nil, short)
+end
+-- }}}
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)
