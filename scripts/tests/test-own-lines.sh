@@ -12,9 +12,9 @@
 # ledger hook exactly as Claude Code would feed them after an edit, a new file,
 # and a shell command that reported a diff; the other person's edits are made
 # behind the ledger's back. Then it checks that the preview writes nothing,
-# that a commit stops on a block where this session's line touches someone
-# else's, and that with --leave-mixed it commits only this session's lines --
-# in the right places, even when a skipped change above them shifts the line
+# that a commit takes this session's lines even out of a block where they
+# touch someone else's, and that it commits only this session's lines -- in
+# the right places, even when a skipped change above them shifts the line
 # numbers -- and that the gate turns a plain git commit away. The concurrency
 # and shared-staging-area cases live in test-commit-own-changes.sh.
 #
@@ -167,22 +167,20 @@ preview_status=$?
 printf '%s\n' "${preview}" | sed 's/^/    | /'
 check "the preview succeeded" "$( [ "${preview_status}" -eq 0 ] && echo yes || echo no)"
 check "the preview names a.lua as this session's" "$(grep -q 'ours .*a.lua' <<< "${preview}" && echo yes || echo no)"
-check "the preview reports the mixed block by file and line" "$(grep -q 'c.lua:2 (mixed)' <<< "${preview}" && echo yes || echo no)"
+check "the preview reports the touching block as taken apart" "$(grep -q 'untangled .*c.lua:2' <<< "${preview}" && echo yes || echo no)"
 check "the preview left the shared staging area alone" "$( [ "$(git -C "${REPO}" ls-files -s | sha256sum)" = "${index_before}" ] && echo yes || echo no)"
 
 printf '\ncommit-own-changes commits only this session\x27s lines\n'
 head_before="$(git -C "${REPO}" rev-parse HEAD)"
 "${DIR}/commit-own-changes" "${REPO}" -m "own work" --scripts-dir "${DIR}" > "${SCRATCH}/commit.out" 2>&1
-check "with a tangled block it stops" "$( [ $? -eq 1 ] && grep -q 'c.lua:2' "${SCRATCH}/commit.out" && echo yes || echo no)"
-check "and commits nothing" "$( [ "$(git -C "${REPO}" rev-parse HEAD)" = "${head_before}" ] && echo yes || echo no)"
-"${DIR}/commit-own-changes" "${REPO}" -m "own work" --leave-mixed --scripts-dir "${DIR}" > "${SCRATCH}/commit.out" 2>&1
 commit_status=$?
 sed 's/^/    | /' "${SCRATCH}/commit.out"
-check "with --leave-mixed it commits the rest" "$( [ "${commit_status}" -eq 0 ] && echo yes || echo no)"
+check "the commit succeeds, touching block and all" "$( [ "${commit_status}" -eq 0 ] && [ "$(git -C "${REPO}" rev-parse HEAD)" != "${head_before}" ] && echo yes || echo no)"
 check "own lines in a.lua land in place, the foreign line does not" \
     "$(git -C "${REPO}" show HEAD:a.lua | tr '\n' '|' | grep -qx 'line1|own-2|line3|line4|line5|own-6|' && echo yes || echo no)"
 check "b.lua (only foreign lines) is not committed" "$(git -C "${REPO}" show HEAD:b.lua | grep -qx 'b1' && echo yes || echo no)"
-check "c.lua (own line touching a foreign one) is not committed" "$(git -C "${REPO}" show HEAD:c.lua | grep -qx 'c2' && echo yes || echo no)"
+check "c.lua: the own line is committed, the foreign line beside it is not" \
+    "$(git -C "${REPO}" show HEAD:c.lua | tr '\n' '|' | grep -qx 'c1|own-c2|c3|' && echo yes || echo no)"
 check "a removed '-- comment' and an added '++ plus' line are committed" \
     "$(git -C "${REPO}" show HEAD:d.lua | tr '\n' '|' | grep -qx 'keep|++ plus|' && echo yes || echo no)"
 check "g.lua's second own change landed on the right line after the skipped one" \

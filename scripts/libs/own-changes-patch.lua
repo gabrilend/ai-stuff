@@ -15,7 +15,11 @@
 --   ours     every added and removed line in it is claimed in the ledger
 --   foreign  none is: another session's or person's work, left alone
 --   mixed    some are: this session's lines sit against someone else's with no
---            unchanged line between, so git cannot take one without the other
+--            unchanged line between, so git sees one block. This session's
+--            lines are taken out of it (an agent that wrote specific lines
+--            gets exactly those committed), unless both changed the same
+--            place, when the order of the two cannot be told; then it is left
+--            out and reported as tangled (see untangle_hunk).
 -- Our blocks are kept and renumbered so they still line up once the skipped
 -- ones are gone. A new or deleted file is all-or-nothing. A binary or
 -- mode-only change is ours only when the file is claimed whole. A file git has
@@ -23,20 +27,27 @@
 --
 -- TRANSCRIPTS
 --
--- Every transcript that differs from the branch tip rides along, whoever's
--- conversation it is: new, grown, or gone. Transcripts are one story told
--- across conversations, and the owner wants git to hold as much of it as
--- possible. The rule before this one took only this session's transcripts (by
--- the "# Conversation Summary: <id>" header), and so a session that committed,
--- talked a little more and quit left its last lines uncommittable forever
--- (kiln, 2026-09-23).
+-- A transcript that differs from the branch tip (new, grown, or gone) rides
+-- along, whoever's conversation it is, when it belongs to one of the
+-- commit's projects: the session's project (the folder the session runs in,
+-- where the exporter writes its transcripts and where earlier sessions'
+-- stragglers pile up), or the project of a file the commit carries (the
+-- nearest folder above it with an llm-transcripts/ folder). A transcript
+-- whose "# Conversation Summary: <id>" header names this session or a helper
+-- rides along wherever it is. Transcripts are one story told across
+-- conversations, and the owner wants git to hold as much of each project's
+-- part of it as possible; the rule before this one took only this session's
+-- transcripts, and so a session that committed, talked a little more and quit
+-- left its last lines uncommittable forever (kiln, 2026-09-23). Every
+-- transcript in the repository was briefly the rule, but in the monorepo that
+-- put every project's transcripts into one project's commit.
 -- Taking another conversation's transcript is safe where taking its source
 -- lines is not: the exporter writes each transcript to a temporary file and
 -- moves it into place, so what is on disk is always a whole rendering, and
 -- nobody edits a transcript line by line (lasting edits live in
 -- llm-transcripts/.patches/). A transcript gone from disk was renamed or
 -- retired by the exporter; its deletion rides along beside its new name.
--- The header is still read, only to tell the report whose each one is.
+-- Accidental deletions ride along too; git's history keeps the text.
 --
 -- LuaJIT compatible; no Lua 5.4 syntax.
 
@@ -116,6 +127,132 @@ local function classify_hunk(claims, path, hunk)
 end
 -- }}}
 
+-- {{{ local function owner_runs()
+-- One side of a change block (the removed lines, mark "-", or the added
+-- lines, mark "+") cut into runs of consecutive lines with the same owner:
+-- { { mine = boolean, texts = { string } } }, in file order.
+local function owner_runs(claims, path, hunk, mark)
+    local runs = {}
+    for _, line in ipairs(hunk.lines) do
+        if line:sub(1, 1) == mark then
+            local text = line:sub(2)
+            local mine = ledger.line_claimed(claims, path, mark, text) and true or false
+            local last = runs[#runs]
+            -- same owner as the line above: the run grows; otherwise a new run
+            if last and last.mine == mine then
+                last.texts[#last.texts + 1] = text
+            else
+                runs[#runs + 1] = { mine = mine, texts = { text } }
+            end
+        end
+    end
+    return runs
+end
+-- }}}
+
+-- {{{ local function embed_runs()
+-- Places runs, in order, into a sequence of regions (a list of owners,
+-- `regions[i]` true for ours), each run into a region of its own owner.
+-- `from_end` places them as late as possible instead of as early as possible.
+-- Returns the region index of each run, or nil when they do not fit.
+local function embed_runs(runs, regions, from_end)
+    local placed = {}
+    if not from_end then
+        local r = 1
+        for i, run in ipairs(runs) do
+            while regions[r] ~= nil and regions[r] ~= run.mine do r = r + 1 end
+            if regions[r] == nil then return nil end
+            placed[i] = r
+            r = r + 1
+        end
+    else
+        local r = #regions
+        for i = #runs, 1, -1 do
+            while r >= 1 and regions[r] ~= runs[i].mine do r = r - 1 end
+            if r < 1 then return nil end
+            placed[i] = r
+            r = r - 1
+        end
+    end
+    return placed
+end
+-- }}}
+
+-- {{{ local function region_text()
+-- The committed text of a block, given where its runs were placed: region by
+-- region, our regions give the lines this session added, their regions give
+-- back the lines they removed (their removal is theirs to commit). Lines we
+-- removed and lines they added are left out.
+local function region_text(removed, added, removed_at, added_at, region_count)
+    local out = {}
+    for region = 1, region_count do
+        for i, run in ipairs(added) do
+            if run.mine and added_at[i] == region then
+                for _, t in ipairs(run.texts) do out[#out + 1] = t end
+            end
+        end
+        for i, run in ipairs(removed) do
+            if not run.mine and removed_at[i] == region then
+                for _, t in ipairs(run.texts) do out[#out + 1] = t end
+            end
+        end
+    end
+    return out
+end
+-- }}}
+
+-- {{{ local function untangle_hunk()
+-- Takes this session's lines out of a mixed block. Returns the list of lines
+-- the region should hold once only this session's change is applied, or nil
+-- when the order of its lines against the other's cannot be told (both
+-- changed the same place). Why the order must be worked out at all: the
+-- ledger records which lines are ours by their text, not where they sat, and
+-- git lists a block as all its removed lines and then all its added lines.
+-- The two sides' runs of ours/theirs must fit one alternating sequence of
+-- regions; the shortest such sequence is the reading used, and if two
+-- shortest sequences, or two placements inside one, give different text, the
+-- block is truly tangled. (Worked examples: issue 032a, "Two sessions,
+-- touching lines".)
+local function untangle_hunk(claims, path, hunk)
+    for _, line in ipairs(hunk.lines) do
+        -- a "\ No newline" marker belongs to one line; splitting could move it
+        if line:sub(1, 1) == "\\" then return nil end
+    end
+    local removed = owner_runs(claims, path, hunk, "-")
+    local added = owner_runs(claims, path, hunk, "+")
+    local longest = math.max(#removed, #added)
+    for length = longest, #removed + #added do
+        local readings = {}
+        for _, first_mine in ipairs({ true, false }) do
+            local regions = {}
+            for i = 1, length do
+                -- regions alternate owner, starting with first_mine
+                regions[i] = (i % 2 == 1) == first_mine
+            end
+            -- every corner of where the runs could sit: earliest and latest
+            for _, removed_late in ipairs({ false, true }) do
+                for _, added_late in ipairs({ false, true }) do
+                    local r_at = embed_runs(removed, regions, removed_late)
+                    local a_at = embed_runs(added, regions, added_late)
+                    if r_at and a_at then
+                        readings[#readings + 1] = region_text(removed, added, r_at, a_at, length)
+                    end
+                end
+            end
+        end
+        if #readings > 0 then
+            -- the shortest fitting length: all its readings must agree
+            local first = table.concat(readings[1], "\n")
+            for i = 2, #readings do
+                if table.concat(readings[i], "\n") ~= first then return nil end
+            end
+            return readings[1]
+        end
+    end
+    return nil
+end
+-- }}}
+
 -- {{{ local function header_says()
 -- Whether a diff entry's header carries a line starting with the given text.
 local function header_says(entry, prefix)
@@ -149,22 +286,54 @@ local function filter_entry(claims, top, entry, result)
     -- a new or deleted file is all-or-nothing: git cannot half-create a file
     local all_or_nothing = header_says(entry, "new file mode") or header_says(entry, "deleted file mode")
 
+    -- `shift` is how many lines further down a spot sits on disk than in the
+    -- version being committed: skipped blocks' lines never land, and a block
+    -- taken apart lands shorter or longer than it is on disk
     local kept, shift = {}, 0
+    local untangled = 0
     for _, hunk in ipairs(entry.hunks) do
         local verdict = classify_hunk(claims, path, hunk)
+        local lines = nil
+        if verdict == "mixed" then
+            -- this session's lines come out of it, unless it is truly tangled
+            lines = untangle_hunk(claims, path, hunk)
+        end
         if verdict == "ours" then
             kept[#kept + 1] = { hunk = hunk, new_start = hunk.new_start - shift }
+        elseif lines then
+            -- the block becomes: remove every tip line in it, add `lines`.
+            -- With no context lines, a range of 0 lines names the line before
+            -- it, one of 1+ lines names its first line.
+            local before = (hunk.new_count == 0) and hunk.new_start or (hunk.new_start - 1)
+            local body = {}
+            for _, line in ipairs(hunk.lines) do
+                if line:sub(1, 1) == "-" then body[#body + 1] = line end
+            end
+            for _, text in ipairs(lines) do body[#body + 1] = "+" .. text end
+            kept[#kept + 1] = {
+                hunk = { old_start = hunk.old_start, old_count = hunk.old_count,
+                         new_count = #lines, suffix = hunk.suffix, lines = body },
+                new_start = before - shift + ((#lines > 0) and 1 or 0),
+            }
+            shift = shift + (hunk.new_count - #lines)
+            untangled = untangled + 1
+            result.report[#result.report + 1] = string.format(
+                "  untangled      %s:%d (this session's lines taken from a block that touches someone else's)", rel, hunk.new_start)
         else
             -- a skipped block's lines never land, so later blocks move up
             shift = shift + (hunk.new_count - hunk.old_count)
-            result.report[#result.report + 1] = string.format("  left out       %s:%d (%s)", rel, hunk.new_start, verdict)
+            -- a mixed block reaching here could not be taken apart
+            local why = (verdict == "mixed") and "tangled: both changed the same place" or verdict
+            result.report[#result.report + 1] = string.format("  left out       %s:%d (%s)", rel, hunk.new_start, why)
             if verdict == "mixed" then
                 result.mixed[#result.mixed + 1] = string.format("%s:%d", rel, hunk.new_start)
             end
         end
     end
     if #kept == 0 then return nil, false end
-    if all_or_nothing and #kept < #entry.hunks then
+    -- a new or deleted file cannot be half-made, so a block taken apart
+    -- counts as not wholly ours there
+    if all_or_nothing and (#kept < #entry.hunks or untangled > 0) then
         result.report[#result.report + 1] = "  left out       " .. rel .. " (a new or deleted file with lines that are not this session's)"
         return nil, false
     end
@@ -236,10 +405,12 @@ end
 -- {{{ function M.collect()
 -- Judges the working tree against the staging list that `env` selects (a
 -- private GIT_INDEX_FILE, normally), for the ledger's files. Returns
--- { patch = text or nil, whole = { rel }, report = { line }, mixed = { "rel:n" } }
+-- { patch = text or nil, whole = { rel }, taken = { rel } (files the patch
+-- changes), report = { line }, mixed = { "rel:n" } (blocks that could not be
+-- taken apart) }
 -- or nil and a reason when git fails.
 function M.collect(top, claims, rels, env)
-    local result = { patch = nil, whole = {}, report = {}, mixed = {} }
+    local result = { patch = nil, whole = {}, taken = {}, report = {}, mixed = {} }
     if #rels == 0 then return result end
 
     -- tracked files: changed, deleted, mode-changed
@@ -251,7 +422,10 @@ function M.collect(top, claims, rels, env)
     local patches = {}
     for _, entry in ipairs(ledger.parse_diff(diff)) do
         local patch, add_whole = filter_entry(claims, top, entry, result)
-        if patch then patches[#patches + 1] = patch end
+        if patch then
+            patches[#patches + 1] = patch
+            result.taken[#result.taken + 1] = ledger.file_path(entry)
+        end
         if add_whole then result.whole[#result.whole + 1] = ledger.file_path(entry) end
     end
     if #patches > 0 then result.patch = table.concat(patches) end
@@ -284,14 +458,69 @@ function M.own_ids(session_id, sessions_root)
 end
 -- }}}
 
+-- {{{ local function transcript_project()
+-- The project a transcript belongs to: the folder holding its llm-transcripts/
+-- folder, repository-relative ("" for the repository's top).
+local function transcript_project(rel)
+    if rel:match("^llm%-transcripts/[^/]+%.md$") then return "" end
+    return rel:match("^(.*)/llm%-transcripts/[^/]+%.md$")
+end
+-- }}}
+
+-- {{{ function M.project_of()
+-- The project a repository-relative file belongs to: the nearest folder above
+-- it (inside the repository) that has an llm-transcripts/ folder, as a
+-- repository-relative path ("" for the top). Nil when no folder above it has
+-- one, so the file brings no transcripts with it.
+function M.project_of(top, rel)
+    local dir = rel:match("^(.*)/[^/]+$") or ""
+    while true do
+        local candidate = (dir == "") and (top .. "/llm-transcripts") or (top .. "/" .. dir .. "/llm-transcripts")
+        local _, is_dir = M.run_quiet({ "test", "-d", candidate })
+        if is_dir then return dir end
+        -- at the top already: no project; otherwise one folder up
+        if dir == "" then return nil end
+        dir = dir:match("^(.*)/[^/]+$") or ""
+    end
+end
+-- }}}
+
+-- {{{ function M.transcript_projects()
+-- The projects whose transcripts ride along in a commit, as a set of
+-- repository-relative folders: the session's project, when `session_dir`
+-- (the folder the session runs in, an absolute path) is inside `top`, and the
+-- project of each file in `files` (repository-relative paths the commit
+-- carries). Returns the set, or nil and a reason.
+function M.transcript_projects(top, session_dir, files)
+    local projects = {}
+    -- the real path, so a symlinked spelling of the folder still matches
+    local real, ok, err = M.run_quiet({ "realpath", "-e", session_dir })
+    if not ok then return nil, "cannot resolve the session's folder " .. session_dir .. ": " .. err end
+    real = real:gsub("%s+$", "")
+    -- the session's folder: the top itself, somewhere inside, or elsewhere
+    if real == top then
+        projects[""] = true
+    elseif real:sub(1, #top + 1) == top .. "/" then
+        projects[real:sub(#top + 2)] = true
+    end
+    for _, rel in ipairs(files) do
+        local project = M.project_of(top, rel)
+        if project then projects[project] = true end
+    end
+    return projects
+end
+-- }}}
+
 -- {{{ function M.changed_transcripts()
 -- Every transcript file (any llm-transcripts/*.md in the repository) that
--- differs from the commit `tip`: new, changed, or deleted. Read-only: nothing
--- here takes the shared staging list's lock or writes it.
+-- differs from the commit `tip` (new, changed, or deleted) and belongs to one
+-- of `projects` (a set from transcript_projects) or is this session's by its
+-- header. Read-only: nothing here takes the shared staging list's lock or
+-- writes it.
 -- Returns a sorted list of { rel = path (string), ours = boolean (its header
 -- names one of `ids`), gone = boolean (deleted from disk) }, or nil and a
 -- reason.
-function M.changed_transcripts(top, tip, ids)
+function M.changed_transcripts(top, tip, ids, projects)
     local glob = ":(glob)**/llm-transcripts/*.md"
     -- tracked at the tip and different on disk (changed or deleted); compared
     -- with the tip itself, not the shared staging list, so nothing anyone has
@@ -315,8 +544,9 @@ function M.changed_transcripts(top, tip, ids)
     local list = {}
     for rel, gone in pairs(found) do
         local ours = false
-        -- a deleted transcript has no header left to read: counted as not ours
-        -- (only the report uses this); a present one is read for its header
+        -- a deleted transcript has no header left to read, so it counts as
+        -- not ours and rides along by its project alone; a present one is
+        -- read for its header
         if not gone then
             local f = io.open(top .. "/" .. rel, "r")
             if f then
@@ -325,7 +555,11 @@ function M.changed_transcripts(top, tip, ids)
                 ours = (id ~= nil and ids[id] == true)
             end
         end
-        list[#list + 1] = { rel = rel, ours = ours, gone = gone }
+        -- this session's, or in one of the commit's projects: rides along;
+        -- another project's: left for a commit in that project
+        if ours or projects[transcript_project(rel)] then
+            list[#list + 1] = { rel = rel, ours = ours, gone = gone }
+        end
     end
     table.sort(list, function(a, b) return a.rel < b.rel end)
     return list

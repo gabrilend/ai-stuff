@@ -66,19 +66,26 @@ Three pieces, one ledger:
    for the ledger's files (no context lines), keeps each change block whose
    every line is claimed, renumbers the kept blocks so they still line up, and
    applies them to the private list with `git apply --cached --unidiff-zero`.
-   New files wholly written by the session are added whole, and so is every
-   transcript that differs from the tip — this conversation's, another's, one
-   outside a `--` path limit, and a deletion left by the exporter's renaming —
-   so the story in git is as complete as it can be. (The exporter replaces a
-   transcript whole in one step, so there is never a half-written one to take.) It commits that list
-   with the tip as parent and moves the branch only if the branch still points
-   at the tip; otherwise it rebuilds on the new tip. Then it brings the shared
-   staging area in step for the files it committed, and only those, keeping
-   anything someone staged there by hand on top of the new commit. Blocks it
-   leaves out are listed by file and line — "foreign" (none of it is ours) or
-   "mixed" (our line touches someone else's with no unchanged line between). A
-   mixed block stops the commit, since two sessions have changed the same
-   lines; `--leave-mixed` commits the rest.
+   New files wholly written by the session are added whole. Every transcript
+   that differs from the tip rides along whole, whoever's conversation it is,
+   when it belongs to the session's project (the folder the session runs in)
+   or to the project of a file the commit carries (the nearest folder above it
+   with `llm-transcripts/`); this conversation's own ride along wherever they
+   are, and a deletion left by the exporter's renaming rides with them. (The
+   exporter replaces a transcript whole in one step, so there is never a
+   half-written one to take.) A block where the session's lines touch someone
+   else's ("mixed": no unchanged line between) is taken apart and only the
+   session's lines are kept. The repository's `pre-commit`,
+   `prepare-commit-msg` and `commit-msg` hooks run as git would run them
+   (`--no-verify` skips the first and last). It commits that list with the tip
+   as parent and moves the branch only if the branch still points at the tip;
+   otherwise it rebuilds on the new tip; then `post-commit` runs. Then it
+   brings the shared staging area in step for the files it committed, and only
+   those, keeping anything someone staged there by hand on top of the new
+   commit. Blocks it leaves out are listed by file and line — "foreign" (none
+   of it is ours) or "tangled" (both sessions changed the same place, so the
+   order of the two cannot be told). A tangled block stops the commit;
+   `--leave-mixed` commits the rest.
 3. **`refuse-foreign-lines` turns plain commits away.** Any `git commit` that
    would record something — however it is spelled, amends included — is
    refused with a pointer to `commit-own-changes`. Dry runs and `-h` pass.
@@ -102,8 +109,9 @@ not an edge: each commit is built on whatever the branch holds at that moment
 plus that session's own blocks, so the two commits land in either order, each
 with only its own lines, and nothing is reverted.
 
-If a block of yours is **mixed**, someone else changed lines right next to or
-on top of yours; decide with them (or the user) what that region should say.
+If a block of yours is **tangled**, someone else changed the same place as
+you (not just the line beside it, which is taken apart without asking);
+decide with them (or the user) what that region should say.
 If the lines are **yours but came from a shell command the ledger did not
 see**, claim the file out loud (`claim-own-change <file>`) and try again.
 
@@ -201,8 +209,9 @@ Known limits, each a place where a determined line passes:
   into a shell (`echo … | bash`) are not read.
 - A git alias (`git ci`) and commands that make commits without `git commit`
   (`commit-tree`, `merge`, `cherry-pick`) are not checked by the commit gate.
-- `commit-own-changes` makes its commit directly, so `pre-commit` and
-  `commit-msg` hooks do not run (no repository here uses them).
+- `commit-own-changes` runs the commit hooks itself; a hook that inspects
+  `.git/index` directly, rather than through git with the `GIT_INDEX_FILE` it
+  is given, would see the shared list instead of the commit.
 
 ## If a gate is wrong
 

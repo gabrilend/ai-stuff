@@ -170,9 +170,11 @@ fallback, and it is announced every time rather than taken silently.
 4. ~~The staging command staged the `llm-transcripts/` folder of every project
    the session touched, other sessions' transcripts included (seen 2026-09-22
    in neocities-modernization). Which transcripts should ride along?~~ Answered
-   by 032a: a transcript rides along when its header names this conversation or
-   one of its helpers, wherever it lives; file names are by date, but every
-   transcript's first line says whose conversation it is.
+   by 032a (settled 2026-09-23): every changed transcript of the commit's
+   projects, whoever's conversation it is — the session's own project folder
+   and the project of each committed file — plus this conversation's own
+   wherever they are. "Only this conversation's" was tried first and left
+   finished sessions' last lines stranded.
 
 ## Related
 

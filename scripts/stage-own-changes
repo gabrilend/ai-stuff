@@ -4,8 +4,8 @@
 --
 -- A preview: prints what commit-own-changes would commit in one repository --
 -- this Claude Code session's own change blocks, the files it would take whole,
--- every changed transcript, and every block it would leave out and why -- and
--- changes nothing at all.
+-- the changed transcripts of the commit's projects, and every block it would
+-- leave out and why -- and changes nothing at all.
 --
 -- It used to stage those lines into the repository's shared staging area for a
 -- plain `git commit`. On 2026-09-22 that sharing let another session's commit
@@ -21,17 +21,25 @@
 -- The session is read from CLAUDE_CODE_SESSION_ID, which Claude Code sets for
 -- every shell command it runs.
 --
--- Usage: stage-own-changes [repository-directory] [--scripts-dir <dir>]
+-- Usage: stage-own-changes [repository-directory] [--project <dir>]
+--                          [--scripts-dir <dir>]
 --   repository-directory defaults to the ai-stuff monorepo below.
+--   --project <dir> the session's project folder (default: the current one,
+--                   where Claude Code keeps the session).
+-- Hooks are not run: a preview must not have their effects.
 
 local DIR = "/mnt/mtwo/programming/ai-stuff"
 local SCRIPTS_DIR = "/home/ritz/programming/ai-stuff/scripts"
+local PROJECT_DIR = "."
 do
     local i = 1
     while arg[i] do
-        -- one option, the scripts directory; a bare word is the repository
+        -- two options; a bare word is the repository
         if arg[i] == "--scripts-dir" then
             SCRIPTS_DIR = arg[i + 1]
+            i = i + 2
+        elseif arg[i] == "--project" then
+            PROJECT_DIR = arg[i + 1]
             i = i + 2
         else
             DIR = arg[i]
@@ -82,7 +90,12 @@ local function main()
     if not result then fail(reason) end
 
     local sessions_root = os.getenv("CLAUDE_SESSIONS_ROOT") or (os.getenv("HOME") .. "/.claude/projects")
-    local transcripts, terr = patch.changed_transcripts(top, tip, patch.own_ids(session_id, sessions_root))
+    local carried = {}
+    for _, rel in ipairs(result.taken) do carried[#carried + 1] = rel end
+    for _, rel in ipairs(result.whole) do carried[#carried + 1] = rel end
+    local projects, perr = patch.transcript_projects(top, PROJECT_DIR, carried)
+    if not projects then fail(perr) end
+    local transcripts, terr = patch.changed_transcripts(top, tip, patch.own_ids(session_id, sessions_root), projects)
     if not transcripts then fail(terr) end
     for _, t in ipairs(transcripts) do result.report[#result.report + 1] = patch.transcript_report_line(t) end
 
@@ -91,7 +104,7 @@ local function main()
     if #result.report == 0 then result.report[1] = "  nothing: the ledger's files match the branch tip" end
     io.write(table.concat(result.report, "\n"), "\n")
     if #result.mixed > 0 then
-        io.write("and would stop, because of tangled blocks at ", table.concat(result.mixed, ", "),
+        io.write("and would stop, because this session and someone else changed the same place at ", table.concat(result.mixed, ", "),
             " (commit the rest with --leave-mixed)\n")
     end
 end
