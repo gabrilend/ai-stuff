@@ -2711,6 +2711,20 @@ report_missing_values
 validate_supplied_values
 # }}}
 
+# {{{ Issue 10-069: pre-flight gate
+# Every cheap check a selected stage can fail, run now -- before this run
+# records any state or starts any stage -- so an overnight build that gets
+# past this line needs no one watching it.  All failures are listed together.
+# Checks live in scripts/preflight-gate; this passes only which stages run.
+# Dry runs are checked too: a plan that would fail is worth knowing about.
+PREFLIGHT_ARGS=("$DIR")
+$GENERATE_HTML && PREFLIGHT_ARGS+=(--html-threads "$THREADS")
+$EXTRACT && PREFLIGHT_ARGS+=(--extract)
+if ! "$DIR/scripts/preflight-gate" "${PREFLIGHT_ARGS[@]}"; then
+    exit 1
+fi
+# }}}
+
 # {{{ Record this run's choices where the child programs will find them
 # Why this exists: run.sh launches a fresh luajit process per stage, and argv
 # reaches only the stages we remember to thread it through. Before the notepad, a
