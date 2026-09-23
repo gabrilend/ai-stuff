@@ -237,7 +237,10 @@ function menu.init(config)
                     required_values = dep.required_values or {"1"},
                     invert = dep.invert or false,
                     reason = dep.reason or nil,
-                    color = dep.color or "yellow"
+                    color = dep.color or "yellow",
+                    -- Up/down navigation passes over the item while this
+                    -- rule disables it (see menu_add_dependency, issue 10-070)
+                    skip_when_disabled = dep.skip_when_disabled or false
                 }
             end
         end
@@ -2946,15 +2949,66 @@ end
 -- }}}
 
 -- {{{ Navigation functions
-function menu.nav_up()
-    reset_flag_edit_state()
-    reset_digit_input_state()
+
+-- {{{ local function step_up / step_down
+-- One position up or down, crossing into the neighbouring section at the
+-- ends.  Return false when already at the very top or bottom.
+local function step_up()
     if state.current_item > 1 then
         state.current_item = state.current_item - 1
     elseif state.current_section > 1 then
         state.current_section = state.current_section - 1
         state.current_item = get_section_item_count(state.current_section)
+    else
+        return false
     end
+    return true
+end
+
+local function step_down()
+    if state.current_item < get_section_item_count(state.current_section) then
+        state.current_item = state.current_item + 1
+    elseif state.current_section < #state.sections then
+        state.current_section = state.current_section + 1
+        state.current_item = 1
+    else
+        return false
+    end
+    return true
+end
+-- }}}
+
+-- {{{ local function skipped_now
+-- True when the cursor sits on an item that is disabled by a rule marked
+-- "skip" (issue 10-070: e.g. a per-stage "force" option while "force all"
+-- is on -- it cannot be changed, so stopping on it is a wasted keypress).
+local function skipped_now()
+    local item_id = get_current_item_id()
+    local data = item_id and state.item_data[item_id]
+    local dep = item_id and state.dependencies[item_id]
+    return data and data.disabled and dep and dep.skip_when_disabled or false
+end
+-- }}}
+
+-- {{{ local function move_skipping
+-- Takes one step, then keeps stepping the same way past skipped items.  If
+-- that runs off the end of the menu, the cursor goes back where it started.
+local function move_skipping(step)
+    local from_section, from_item = state.current_section, state.current_item
+    if not step() then return end
+    while skipped_now() do
+        if not step() then
+            state.current_section, state.current_item = from_section, from_item
+            return
+        end
+    end
+end
+-- }}}
+
+function menu.nav_up()
+    reset_flag_edit_state()
+    reset_digit_input_state()
+    move_skipping(step_up)
     ensure_item_visible()
     menu.render()
 end
@@ -2962,14 +3016,7 @@ end
 function menu.nav_down()
     reset_flag_edit_state()
     reset_digit_input_state()
-    local item_count = get_section_item_count(state.current_section)
-
-    if state.current_item < item_count then
-        state.current_item = state.current_item + 1
-    elseif state.current_section < #state.sections then
-        state.current_section = state.current_section + 1
-        state.current_item = 1
-    end
+    move_skipping(step_down)
     ensure_item_visible()
     menu.render()
 end

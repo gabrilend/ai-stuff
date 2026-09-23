@@ -406,10 +406,17 @@ end
 -- {{{ tui.write_str
 -- Write string to back buffer starting at row, col
 function tui.write_str(row, col, str)
+    -- One cell per CHARACTER, not per byte (neocities-modernization issue
+    -- 10-070).  A character like └ or ─ is three bytes.  Split across three
+    -- cells, it only looked right when the cells went out back to back with
+    -- no colour codes; a highlighted or dimmed cell is sent with its own
+    -- colour code in front, which cut every such character into three
+    -- broken bytes -- unreadable glyphs on exactly the highlighted and
+    -- disabled menu items.  The pattern takes a lead byte (ASCII or
+    -- 0xC2-0xF4) and the continuation bytes (0x80-0xBF) that follow it.
     local x = col
-    for i = 1, #str do
+    for c in str:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
         if x > cols then break end
-        local c = str:sub(i, i)
         tui.set_cell(row, x, c)
         x = x + 1
     end

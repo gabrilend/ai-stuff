@@ -292,6 +292,11 @@ menu_add_content_source() {
 #   invert: If "true", item is enabled when depends_on is NOT in required_values
 #   reason: Optional message shown when item is disabled (e.g., "Requires Execute mode")
 #   color: Optional color for reason (yellow, orange, green, red) - default yellow
+#   skip: Optional "skip" -- while this rule disables item_id, up/down
+#         navigation passes over it.  Without it a disabled item can still be
+#         landed on, which shows what is disabling it; "skip" suits an item
+#         that is simply settled for now (e.g. a per-stage "force" option
+#         while "force all" is on).  (neocities-modernization issue 10-070)
 #
 # Examples:
 #   # "session" disabled when "streaming" is selected (incompatible)
@@ -308,8 +313,13 @@ menu_add_dependency() {
     local invert="${4:-false}"
     local reason="${5:-}"
     local color="${6:-yellow}"
+    local skip="${7:-}"
+    if [[ -n "$skip" && "$skip" != "skip" ]]; then
+        echo "menu_add_dependency: 7th argument must be \"skip\" or empty, got \"$skip\"" >&2
+        return 1
+    fi
 
-    MENU_DEPENDENCIES+=("${item_id}|${depends_on}|${required_values}|${invert}|single|${reason}|${color}")
+    MENU_DEPENDENCIES+=("${item_id}|${depends_on}|${required_values}|${invert}|single|${reason}|${color}|${skip}")
 }
 # }}}
 
@@ -519,7 +529,11 @@ _menu_build_json() {
             local dep_type="${rest%%|*}"
             rest="${rest#*|}"
             local dep_reason="${rest%%|*}"
-            local dep_color="${rest#*|}"
+            rest="${rest#*|}"
+            # color, then (single rules only) an optional "skip" field
+            local dep_color="${rest%%|*}"
+            local dep_skip=""
+            [[ "$rest" == *"|"* ]] && dep_skip="${rest#*|}"
 
             json+='{"item_id":"'"$dep_item"'"'
 
@@ -562,6 +576,9 @@ _menu_build_json() {
             fi
             if [[ -n "$dep_color" ]]; then
                 json+=',"color":"'"$dep_color"'"'
+            fi
+            if [[ "$dep_skip" == "skip" ]]; then
+                json+=',"skip_when_disabled":true'
             fi
             json+='}'
         done
