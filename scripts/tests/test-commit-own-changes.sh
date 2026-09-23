@@ -267,6 +267,27 @@ check "its helper's transcript rides along" "$(yes_if git -C "${REPO}" cat-file 
 check "another conversation's transcript stays out" "$(absent main:proj/llm-transcripts/sep-1-26_other.md)"
 check "a file outside llm-transcripts/ is never taken for a transcript" "$(absent main:root-transcript.md)"
 
+# Transcripts are decided by whose conversation they are, never line by line.
+# The ledger can still hold partial records of transcript lines -- a backup run
+# from a shell command reports its file diff, and the ledger hook records it --
+# and before 2026-09-22 those partial records made the session's own
+# transcript look tangled, so the whole commit stopped.
+printf '\nA partial ledger record inside a transcript does not tangle it\n'
+new_repo transcript-partial
+mkdir -p "${REPO}/proj/llm-transcripts" "${SESSIONS}/-proj/${S1}/subagents"
+printf '# Conversation Summary: %s\n\nfirst\n' "${S1}" > "${REPO}/proj/llm-transcripts/sep-2-26.md"
+printf '# Conversation Summary: someone-else\n\ntheirs\n' > "${REPO}/proj/llm-transcripts/sep-2-26_other.md"
+git -C "${REPO}" add -A && git -C "${REPO}" commit -q -m "transcripts exist"
+printf 'second, written by the backup hook\nthird, seen by the ledger\n' >> "${REPO}/proj/llm-transcripts/sep-2-26.md"
+printf 'their next line\n' >> "${REPO}/proj/llm-transcripts/sep-2-26_other.md"
+claim "${S1}" + "${REPO}/proj/llm-transcripts/sep-2-26.md" "third, seen by the ledger"
+claim "${S1}" + "${REPO}/proj/llm-transcripts/sep-2-26_other.md" "their next line"
+set_line "${REPO}/notes.md" 1 B1; claim "${S1}" - "${REPO}/notes.md" line1; claim "${S1}" + "${REPO}/notes.md" B1
+coc "${S1}" "${REPO}" -m "partial transcript records"; s1=$?
+check "the commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
+check "this session's transcript is committed whole" "$(yes_if git -C "${REPO}" grep -q 'second, written by the backup hook' main -- proj/llm-transcripts/sep-2-26.md)"
+check "another conversation's transcript stays out, ledger record or not" "$( ! git -C "${REPO}" grep -q 'their next line' main -- proj/llm-transcripts/sep-2-26_other.md && echo yes || echo no)"
+
 printf '\nCommitting in small pieces with -- <paths>\n'
 new_repo pieces
 mkdir -p "${REPO}/docs"
