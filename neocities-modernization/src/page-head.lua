@@ -80,6 +80,11 @@ body, pre {
   -moz-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+/* Issue 11-009: the stylesheet twin of the colour-scheme meta tag, for
+   browsers that read one and not the other. */
+:root {
+  color-scheme: dark;
+}
 /* The poem column is a fixed 83-character grid and must never reflow. On a
    screen narrower than that the page scrolls sideways, which is the honest
    outcome: wrapping the frames would break the alignment they exist to show. */
@@ -100,8 +105,17 @@ end
 --
 -- initial-scale=1 starts unzoomed; the user is deliberately left able to zoom,
 -- since an 83-column grid on a phone is something people will want to pinch.
+--
+-- Issue 11-009: the second tag declares the page already dark.  Phone browsers
+-- with a "force dark mode" setting repaint pages they think are light, and
+-- their repaint is not pure black -- it lifts #000000 to a dark grey on some
+-- regions and not others, which reads as two different panel colours on an
+-- OLED screen.  A page that says it is dark is left as authored.  It rides
+-- along with the viewport tag because every generator already emits that one,
+-- so no page type can be missed.
 function M.viewport_meta()
-    return '<meta name="viewport" content="width=device-width, initial-scale=1">'
+    return '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        .. '<meta name="color-scheme" content="dark">'
 end
 -- }}}
 

@@ -123,7 +123,8 @@ new page type correct by default rather than correct by remembering.
 3. Re-run the audit across every page family after the next build; the command
    above is the whole test.
 4. Check the diagnostic outputs separately, once their intent is settled.
-5. Declare the pages dark in the shared page head (`src/page-head.lua`): a
+5. **Done 2026-09-22** (tested by `src/page-head.test.lua`; the source
+   browser still waits on step 1). Declare the pages dark in the shared page head (`src/page-head.lua`): a
    `color-scheme` meta tag saying "dark", and the matching `color-scheme`
    property in its base style. That tells phone browsers the page is already
    dark, so their automatic dark mode leaves it alone. Every page that uses the
