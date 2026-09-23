@@ -1731,33 +1731,13 @@ end
 
 -- {{{ function format_warning_box
 local function format_warning_box(warning_text)
-    -- Create simple ASCII box around content warning
-    local content = wrap_text_80_chars(warning_text)
-    local lines = {}
-    for line in content:gmatch("[^\n]+") do
-        table.insert(lines, line)
-    end
-    
-    -- Find longest line for box width
-    local max_width = 0
-    for _, line in ipairs(lines) do
-        max_width = math.max(max_width, #line)
-    end
-    
-    -- Ensure minimum width and maximum of 76 chars (leave room for box borders)
-    max_width = math.min(math.max(max_width, 20), 76)
-    
-    local boxed = {}
-    table.insert(boxed, "┌" .. string.rep("─", max_width + 2) .. "┐")
-    
-    for _, line in ipairs(lines) do
-        local padded = line .. string.rep(" ", max_width - #line)
-        table.insert(boxed, "│ " .. padded .. " │")
-    end
-    
-    table.insert(boxed, "└" .. string.rep("─", max_width + 2) .. "┘")
-    
-    return table.concat(boxed, "\n")
+    -- Issue 9-011: the shared content-warning box.  At most 80 wide (a text
+    -- area of 76, as before) and shrinking to a short warning, so the look
+    -- is unchanged -- but a long warning now wraps after dashes as well as
+    -- spaces, and lines are padded by visible width, not bytes.  This copy
+    -- used to break only at spaces and pad by byte count, so dash-joined
+    -- warnings and accented letters pushed the right wall out.
+    return text_formatter.format_cw_box(warning_text, 80, true)
 end
 -- }}}
 
@@ -4118,14 +4098,20 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     -- Issue 9-011: Display content warning from poem.content_warning field (Mastodon CW)
                     -- This is separate from in-content CW: patterns - it comes from ActivityPub summary field
+                    -- Issue 9-011: warning boxes come from the shared builder
+                    -- (wraps long warnings after dashes and spaces, pads by
+                    -- visible width), indented one column as before.  These
+                    -- two copies used to put the whole warning on one line.
+                    local function add_cw_box(cw_display)
+                        local box = t_text_formatter.format_cw_box(cw_display, 80, true)
+                        for box_line in box:gmatch("[^\n]+") do
+                            table.insert(wrapped_lines, " " .. box_line)
+                        end
+                    end
+
                     if poem.content_warning and poem.content_warning ~= "" then
-                        -- Build box around ActivityPub content warning
-                        local cw_display = "CW: " .. poem.content_warning
-                        local box_width = math.min(math.max(#cw_display, 20), 76)
-                        local padded_cw = cw_display .. string.rep(" ", box_width - #cw_display)
-                        table.insert(wrapped_lines, " ┌" .. string.rep("─", box_width + 2) .. "┐")
-                        table.insert(wrapped_lines, " │ " .. padded_cw .. " │")
-                        table.insert(wrapped_lines, " └" .. string.rep("─", box_width + 2) .. "┘")
+                        -- Box around the ActivityPub content warning
+                        add_cw_box("CW: " .. poem.content_warning)
                         table.insert(wrapped_lines, "")  -- Empty line after CW
                         table.insert(wrapped_lines, "")  -- Second empty line for spacing
                     end
@@ -4146,13 +4132,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     -- If there's a content warning, format it in a box
                     if cw_text and #cw_text > 0 then
-                        -- Build simple box around CW
-                        local cw_display = "CW: " .. cw_text
-                        local box_width = math.min(math.max(#cw_display, 20), 76)
-                        local padded_cw = cw_display .. string.rep(" ", box_width - #cw_display)
-                        table.insert(wrapped_lines, " ┌" .. string.rep("─", box_width + 2) .. "┐")
-                        table.insert(wrapped_lines, " │ " .. padded_cw .. " │")
-                        table.insert(wrapped_lines, " └" .. string.rep("─", box_width + 2) .. "┘")
+                        add_cw_box("CW: " .. cw_text)
                         table.insert(wrapped_lines, "")  -- Empty line after CW
                     end
 

@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-23 08:41:27
+Generated on: 2026-09-23 08:43:35
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -2122,6 +2122,54 @@ $N/tmp/shared-memory/validate-output-report.txt" completed (exit code 0)*
 > numbers, and recording the poem-folder rule in issue 9-006.
 
 Waiting on the re-scan, then I'll commit.
+
+--------------------------------------------------------------------------------
+
+*[background task] Background command
+"N=/mnt/mtwo/programming/ai-stuff/neocities-modernization;
+$N/scripts/validate-output $N &gt;/dev/null 2&gt;&amp;1; sed -n 1,24p
+$N/tmp/shared-memory/validate-output-report.txt" completed (exit code 0)*
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 17 (continued)
+
+The old checker's frame rules are now part of the whole-site checker, and the
+old tool is retired (`d32d2b582`).
+
+- **What's checked now:** progress bars, bottom lines and the similar/different
+  boxes must be exactly 83 wide (84 for golden poems), with the bottom line's
+  junctions at columns 10 and 70 (71 for golden).
+- **Where it's checked:** only on pages that show poems. The first run flagged
+  1,302 decorative 78-column rules on the gallery pages and quoted examples on
+  the source-browser pages, none of which are poem frames.
+- **Result on the 7,283 word pages:** every frame is correct.
+- **Tests:** 16 checks pass, including drawing every real frame piece with the
+  shared bar code and requiring it to pass.
+
+## What's left for tonight's final check
+
+The word pages still have 23,858 over-wide lines:
+
+| Cause | Lines | Widest |
+|---|---|---|
+| Content-warning boxes | 18,281 | 217 |
+| Web addresses | 4,748 | 340 |
+| Ordinary text | 706 | 177 |
+| Frame lines | 123 | 90 |
+
+## Roadmap before the full run
+
+Easiest first. The first two should clear nearly all of those findings, so
+tonight's run could end with a passing check.
+
+| # | Issue | What changes | How it's proven without a build |
+|---|---|---|---|
+| 1 | 9-011, content warnings | Switch the five places that draw a warning box to the shared box builder. The box would still shrink to fit a short warning, so short ones look as they do today; long ones would wrap inside the frame instead of running through it. | Unit tests on the builder, then rebuild a handful of word pages and run the checker on them. |
+| 2 | 9-011, word-page text | Word pages wrap poem text with the shared wrapper instead of their own. Theirs never breaks a long word, so web addresses run out of the frame; the shared one cuts them at the edge and keeps the author's spacing. | Same: rebuild a few word pages and check them. |
+| 3 | Frame lines up to 90 wide | Find which poems produce the 123 over-wide frame lines. They look like golden-poem side walls pushed out by long content. | Checker counts before and after on the same pages. |
+
+Should I do all three before tonight's run?
 
 --------------------------------------------------------------------------------
 

@@ -362,32 +362,42 @@ end
 -- text      : string, the warning as it should read ("CW: re: ...").  Runs of
 --             whitespace, newlines included, become single spaces: a warning
 --             is one phrase, and the box decides where its lines break.
--- box_width : number, total visible width of every line of the box,
---             corners and walls included.  The text area is box_width - 4
---             ("│ " + text + " │").
+-- box_width : number, total visible width of the box, corners and walls
+--             included.  The text area is box_width - 4 ("│ " + text + " │").
+-- shrink    : boolean.  false: every line is exactly box_width wide.  true:
+--             box_width is the most the box may take, and it narrows to its
+--             longest wrapped line (never below a 20-column text area), so a
+--             short warning keeps the small box the pages have always drawn.
 -- returns   : string, the box's lines joined by "\n" -- a top rule, the
---             wrapped text lines, a bottom rule -- every one exactly
---             box_width visible columns wide.  No leading indentation; the
---             caller places the box.
+--             wrapped text lines, a bottom rule -- all the same visible
+--             width.  No leading indentation; the caller places the box.
 --
 -- Widths are counted in visible columns (UTF-8 characters, HTML entities as
 -- one), never bytes: the old builder padded by byte length, so a warning with
 -- an accented letter or an escaped ampersand came out a column short or long.
-function M.format_cw_box(text, box_width)
+function M.format_cw_box(text, box_width, shrink)
     assert(type(text) == "string", "format_cw_box: text must be a string")
-    assert(type(box_width) == "number" and box_width >= 5,
-        "format_cw_box: box_width must be a number of at least 5")
-    local inner = box_width - 4
+    assert(type(box_width) == "number" and box_width >= 24,
+        "format_cw_box: box_width must be a number of at least 24")
+    assert(type(shrink) == "boolean", "format_cw_box: shrink must be true or false")
+    local most = box_width - 4
     local rest = text:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
 
-    local lines = { "┌" .. string.rep("─", box_width - 2) .. "┐" }
+    local text_lines, longest = {}, 0
     repeat
         local line
-        line, rest = take_cw_line(rest, inner)
+        line, rest = take_cw_line(rest, most)
+        text_lines[#text_lines + 1] = line
+        longest = math.max(longest, M.calculate_visible_width(line))
+    until rest == ""
+
+    local inner = shrink and math.max(longest, 20) or most
+    local lines = { "┌" .. string.rep("─", inner + 2) .. "┐" }
+    for _, line in ipairs(text_lines) do
         local pad = inner - M.calculate_visible_width(line)
         lines[#lines + 1] = "│ " .. line .. string.rep(" ", pad) .. " │"
-    until rest == ""
-    lines[#lines + 1] = "└" .. string.rep("─", box_width - 2) .. "┘"
+    end
+    lines[#lines + 1] = "└" .. string.rep("─", inner + 2) .. "┘"
     return table.concat(lines, "\n")
 end
 -- }}}

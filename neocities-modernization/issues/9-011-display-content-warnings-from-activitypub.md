@@ -83,12 +83,25 @@ edge.
    that still do not fit, and pads every line to exactly the box width. It
    does not indent the box; the caller places it. Nothing calls it yet — that
    is step 2, which changes every page and is checked against the next build.
-2. Replace all five builders (main-thread `format_warning_box`, the two worker
+2. **Done 2026-09-23.** Replace all five builders (main-thread `format_warning_box`, the two worker
    builders, the word-page builder, and any chronological-page copy) with calls
    to it. The duplicate-code umbrella for this is 8-058, and 10-048 (codebase
-   consolidation sweep) is related.
-3. Make word pages wrap poem text with the shared `wrap_preserving_indent`
-   path instead of their own wrapper.
+   consolidation sweep) is related. Built: all five call
+   `format_cw_box(text, 80, true)`; the new `shrink` argument lets a short
+   warning keep the small box the pages always drew (text area 20 to 76,
+   box 24 to 80), while a long one wraps inside 80. The worker and word-page
+   copies indent the box one column, as before (81 at most).
+3. **Done 2026-09-23.** Make word pages wrap poem text with the shared
+   `wrap_preserving_indent` path instead of their own wrapper. Built: they
+   call `format_poem_content(main_content, 80)`, the same one-column margin,
+   80-column wrap the other pages use -- visible-width measuring, the
+   author's spacing kept, long words (web addresses) cut at the edge. Their
+   own wrapper counted bytes, collapsed runs of spaces and never broke a word.
+   Checked by rebuilding 60 word pages with the real generator
+   (`--html-only --words 60`) and running `scripts/validate-output` on them:
+   0 over-wide lines, 0 misshapen frames, 829 warning boxes on those pages
+   (the full scan before the change had 23,858 over-wide lines across the
+   7,283 word pages, 18,281 of them warning boxes).
 4. Tests, beside the existing text-formatter tests (**done 2026-09-22** in
    `libs/text-formatter-test.lua`, all passing; the accented-letter case uses
    "café &amp; crème", the emoji case one 🔥):

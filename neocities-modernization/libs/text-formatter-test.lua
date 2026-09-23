@@ -180,7 +180,7 @@ do
     local cw = "CW: re: scary-absurdist-magic-symbolism-discipline-honor-dedication-"
         .. "virtue-safehavens-meditation-[presupposed destinations]-hypnosis-"
         .. "[clarity of purpose]-[something about how turntables turn or something]"
-    local box = tf.format_cw_box(cw, 80)
+    local box = tf.format_cw_box(cw, 80, false)
     local lines = {}
     for line in box:gmatch("[^\n]+") do lines[#lines + 1] = line end
 
@@ -219,7 +219,7 @@ end
 
 do
     local magnet = "CW: " .. "magnet:?xt=urn:btih:" .. string.rep("a1b2c3d4e5", 32)
-    local box = tf.format_cw_box(magnet, 80)
+    local box = tf.format_cw_box(magnet, 80, false)
     local widest, count = 0, 0
     for line in box:gmatch("[^\n]+") do
         widest = math.max(widest, tf.calculate_visible_width(line))
@@ -230,7 +230,7 @@ do
 end
 
 do
-    local box = tf.format_cw_box("CW: café &amp; crème", 30)
+    local box = tf.format_cw_box("CW: café &amp; crème", 30, false)
     local ok = true
     for line in box:gmatch("[^\n]+") do
         if tf.calculate_visible_width(line) ~= 30 then ok = false end
@@ -239,14 +239,32 @@ do
 
     -- One emoji is one character to the counter (4 bytes); whether a browser
     -- draws it one cell wide is a font question (16-010), not a padding one.
-    local emoji_box = tf.format_cw_box("CW: fire \240\159\148\165 mention", 30)
+    local emoji_box = tf.format_cw_box("CW: fire \240\159\148\165 mention", 30, false)
     local emoji_ok = true
     for line in emoji_box:gmatch("[^\n]+") do
         if tf.calculate_visible_width(line) ~= 30 then emoji_ok = false end
     end
     check("cw box: an emoji is padded as one character, not four bytes", emoji_ok, emoji_box)
 
-    local short = tf.format_cw_box("CW:  food\n\n mention ", 30)
+    -- shrink = true: a short warning keeps a small box (never under a
+    -- 20-column text area); a long one still wraps to the most allowed.
+    local small = tf.format_cw_box("CW: food", 80, true)
+    local small_ok = true
+    for line in small:gmatch("[^\n]+") do
+        if tf.calculate_visible_width(line) ~= 24 then small_ok = false end
+    end
+    check("cw box, shrink: a short warning gets the smallest box (24 wide)", small_ok, small)
+    local mid = tf.format_cw_box("CW: " .. string.rep("x", 40), 80, true)
+    check("cw box, shrink: the box fits its longest line",
+        tf.calculate_visible_width(mid:match("^[^\n]+")) == 48, mid)
+    local long = tf.format_cw_box("CW: " .. string.rep("word ", 40), 80, true)
+    local long_ok = true
+    for line in long:gmatch("[^\n]+") do
+        if tf.calculate_visible_width(line) > 80 then long_ok = false end
+    end
+    check("cw box, shrink: a long warning still stays inside the most allowed", long_ok, long)
+
+    local short = tf.format_cw_box("CW:  food\n\n mention ", 30, false)
     check("cw box: whitespace runs and newlines collapse to single spaces",
         short:find("│ CW: food mention", 1, true) ~= nil, short)
 end

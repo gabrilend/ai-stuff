@@ -793,14 +793,20 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
 
     local wrapped_lines = {}
 
+    -- Issue 9-011: content-warning boxes come from the shared builder (wraps a
+    -- long warning after dashes and spaces, pads by visible width), indented
+    -- one column as before.  These copies used to put the whole warning on
+    -- one line, so a long one ran through the right side of the frame.
+    local function add_cw_box(cw_display)
+        local box = text_formatter.format_cw_box(cw_display, 80, true)
+        for box_line in box:gmatch("[^\n]+") do
+            table.insert(wrapped_lines, " " .. box_line)
+        end
+    end
+
     -- Handle content warning from poem.content_warning (ActivityPub CW)
     if poem.content_warning and poem.content_warning ~= "" then
-        local cw_display = "CW: " .. poem.content_warning
-        local box_width = math.min(math.max(#cw_display, 20), 76)
-        local padded_cw = cw_display .. string.rep(" ", box_width - #cw_display)
-        table.insert(wrapped_lines, " ┌" .. string.rep("─", box_width + 2) .. "┐")
-        table.insert(wrapped_lines, " │ " .. padded_cw .. " │")
-        table.insert(wrapped_lines, " └" .. string.rep("─", box_width + 2) .. "┘")
+        add_cw_box("CW: " .. poem.content_warning)
         table.insert(wrapped_lines, "")
         table.insert(wrapped_lines, "")
     end
@@ -816,32 +822,19 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
         main_content = content:gsub("^%s*[Cc][Ww]%s*:[^\n\r]*[\n\r]?", "")
         main_content = main_content:gsub("^%s*[Cc]ontent [Ww]arning%s*:[^\n\r]*[\n\r]?", "")
         if cw_text and #cw_text > 0 then
-            local cw_display = "CW: " .. cw_text
-            local box_width = math.min(math.max(#cw_display, 20), 76)
-            local padded_cw = cw_display .. string.rep(" ", box_width - #cw_display)
-            table.insert(wrapped_lines, " ┌" .. string.rep("─", box_width + 2) .. "┐")
-            table.insert(wrapped_lines, " │ " .. padded_cw .. " │")
-            table.insert(wrapped_lines, " └" .. string.rep("─", box_width + 2) .. "┘")
+            add_cw_box("CW: " .. cw_text)
             table.insert(wrapped_lines, "")
         end
     end
 
-    -- Word-wrap paragraphs
-    for para in (main_content .. "\n"):gmatch("(.-)\n") do
-        if para == "" then
-            table.insert(wrapped_lines, "")
-        else
-            local current_line = ""
-            for word in para:gmatch("%S+") do
-                if #current_line + #word + 1 <= 80 then
-                    current_line = current_line .. (current_line ~= "" and " " or "") .. word
-                else
-                    if current_line ~= "" then table.insert(wrapped_lines, " " .. current_line) end
-                    current_line = word
-                end
-            end
-            if current_line ~= "" then table.insert(wrapped_lines, " " .. current_line) end
-        end
+    -- Issue 9-011 (step 3): poem text is wrapped by the shared wrapper the
+    -- similar/different/chronological pages use -- one-column margin, 80
+    -- columns, the author's spacing kept, measured by visible width, and a
+    -- word too long for the line (a web address) cut at the edge.  This page's
+    -- own wrapper counted bytes, collapsed runs of spaces, and never broke a
+    -- long word, so addresses ran out of the frame.
+    for _, line in ipairs(text_formatter.format_poem_content(main_content, 80)) do
+        table.insert(wrapped_lines, line)
     end
 
     -- Apply golden side borders if needed
