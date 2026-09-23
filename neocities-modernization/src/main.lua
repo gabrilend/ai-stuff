@@ -855,10 +855,11 @@ function M.test_single_similarity_page(poem_id)
 
         if poem_data then
             local ranking = flat_html_generator.generate_similarity_ranked_list(poem_id, poems_data, similarity_data.similarities or similarity_data)
-            -- Issue 10-036: nil chrono_mapping here on purpose -- this is a dev test, not the
-            -- site build. The formatter now warns once and points at
-            -- chronological/index.html, which exists in both pagination modes.
-            local html = flat_html_generator.generate_flat_poem_list_html(poem_data, ranking, "similar", poem_id, nil)
+            -- Every poem needs its chronological map entry (progress bar and
+            -- chronological link, issues 8-045 / 10-036); an unpaginated map is
+            -- right for a one-off test page.
+            local html = flat_html_generator.generate_flat_poem_list_html(poem_data, ranking, "similar", poem_id,
+                flat_html_generator.compute_chronological_mapping(poems_data, nil), false)
             local test_file = string.format("%s/test_similar_%03d.html", output_dir, poem_id)
             os.execute("mkdir -p " .. output_dir)
             utils.write_file(test_file, html)
