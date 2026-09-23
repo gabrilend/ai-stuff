@@ -276,7 +276,7 @@ end
 -- {{{ local function sync_shared()
 -- Brings the shared staging list up to the new commit for the committed paths
 -- only. Returns report lines.
-local function sync_shared(top, old, new)
+local function sync_shared(top, old, new, first)
     local report = {}
     local names = git(top, { "diff", "--name-only", "-z", "--no-renames", old, new })
     for rel in names:gmatch("([^%z]+)") do
@@ -289,7 +289,7 @@ local function sync_shared(top, old, new)
         elseif same(shared, after) then
             -- already what the commit holds: nothing to do
             want = "skip"
-        elseif same(shared, before) or (shared and was_committed_version(top, old, rel, shared.id)) then
+        elseif same(shared, before) or (shared and not first and was_committed_version(top, old, rel, shared.id)) then
             -- nobody staged it (or it is a stale committed version): follow the commit
             want = after or "remove"
         elseif shared and before and after then
@@ -382,9 +382,10 @@ end
 
 -- {{{ local function build_commit()
 -- One attempt: seed a private list from `old`, apply this session's changes,
--- and make a commit. Returns the new commit id, or nil plus a reason
+-- and make a commit. `first` means the branch has no commit yet: `old` is then
+-- git's empty tree, and the commit has no parent. Returns the new commit id, or nil plus a reason
 -- ("nothing" or "mixed" or a message), plus the report lines.
-local function build_commit(top, old, claims, rels, ids, work, msg_path)
+local function build_commit(top, old, first, claims, rels, ids, work, msg_path)
     local index_path = work .. "/private-index-" .. tostring(os.time()) .. "-" .. tostring(math.random(1e9))
     local env = { GIT_INDEX_FILE = index_path }
     local function cleanup() os.remove(index_path) end
@@ -475,7 +476,13 @@ local function build_commit(top, old, claims, rels, ids, work, msg_path)
         return nil, "hook", report
     end
     cleanup()
-    local new = trim(git(top, { "commit-tree", tree, "-p", old, "-F", attempt_msg }))
+    -- the repository's first commit has no parent; every other has the tip
+    local commit_args = { "commit-tree", tree, "-F", attempt_msg }
+    if not first then
+        commit_args[#commit_args + 1] = "-p"
+        commit_args[#commit_args + 1] = old
+    end
+    local new = trim(git(top, commit_args))
     os.remove(attempt_msg)
     return new, nil, report
 end
@@ -509,11 +516,22 @@ local function main()
         if f then subject = (f:read("*l") or "commit"); f:close() end
     end
 
-    local new, old, report, notes = nil, nil, {}, {}
+    local new, old, first, report, notes = nil, nil, false, {}, {}
     for attempt = 1, MAX_ATTEMPTS do
-        old = trim(git(top, { "rev-parse", "--verify", branch_ref .. "^{commit}" }))
+        -- the branch's tip; a branch with no commit yet (a new repository, or
+        -- an orphan branch) starts from git's empty tree instead, so the
+        -- first commit goes through this route like every other. Found
+        -- 2026-09-23: a brand-new project could not make its first commit.
+        local tip, has_tip = git(top, { "rev-parse", "-q", "--verify", branch_ref .. "^{commit}" }, nil, true)
+        if has_tip then
+            old, first = trim(tip), false
+        else
+            local _, ref_exists = git(top, { "show-ref", "--verify", "-q", branch_ref }, nil, true)
+            if ref_exists then fail(branch_ref .. " exists but does not name a commit") end
+            old, first = trim(git(top, { "hash-object", "-t", "tree", "/dev/null" })), true
+        end
         local reason, mixed
-        new, reason, report, mixed = build_commit(top, old, claims, rels, ids, work, msg_path)
+        new, reason, report, mixed = build_commit(top, old, first, claims, rels, ids, work, msg_path)
         if not new then
             -- why nothing was made: a dispatch on the reason
             if reason == "nothing" then
@@ -533,7 +551,10 @@ local function main()
         -- a test can move the branch here, to prove the compare-and-swap
         local hook = os.getenv("COMMIT_OWN_CHANGES_TEST_BEFORE_SWAP")
         if hook and hook ~= "" then os.execute(hook) end
-        local _, swapped = git(top, { "update-ref", "-m", "commit-own-changes: " .. subject, branch_ref, new, old }, nil, true)
+        -- the compare-and-swap: an empty old value means "only if the branch
+        -- still does not exist", so a first commit made elsewhere meanwhile
+        -- sends this one round again to build on it
+        local _, swapped = git(top, { "update-ref", "-m", "commit-own-changes: " .. subject, branch_ref, new, first and "" or old }, nil, true)
         if swapped then break end
         notes[#notes + 1] = "  retried        the branch moved while this commit was being built (attempt " .. attempt .. "); rebuilt on the new tip"
         new = nil
@@ -547,7 +568,7 @@ local function main()
         local ok, out = run_hook(top, "post-commit", {}, nil)
         if ok ~= nil then hook_report(notes, "post-commit", ok, out) end
     end
-    local sync_ok, synced = pcall(sync_shared, top, old, new)
+    local sync_ok, synced = pcall(sync_shared, top, old, new, first)
     if not sync_ok then
         io.stderr:write("commit-own-changes: committed ", new:sub(1, 9), " on ", branch,
             ", but bringing the shared staging area in step with it failed:\n  ", tostring(synced),
