@@ -275,14 +275,25 @@ threading in `run.sh`'s word-cloud invocations.
 2. In paginated builds, never write a link through `chronological/index.html`;
    the redirect cannot carry the `#poem` anchor. (Unpaginated builds keep
    `index.html`, which is the real page there.)
-3. Compute "Next Page" and "Last Page" on similar / different pages from the set
+3. **Done 2026-09-22.** Compute "Next Page" and "Last Page" on similar / different pages from the set
    of pages actually written, not from the number of pages the list could fill:
    pass the list of pages being generated into the previous/next navigation
-   builder, and omit a link whose target is not in that list.
-4. Fix the worker's page count so `--pages all` writes every page.
-5. Extend `src/flat-html-generator.chronological-links.test.lua`: a poem with no
-   mapping entry must stop the build; a page-1-only build must not contain a
-   Next link to page 02.
+   builder, and omit a link whose target is not in that list. Built:
+   `generate_all_paginated_pages_for_poem` settles the pages it will write
+   first (requested pages within the filled, storage-capped range) and passes
+   that list down; Previous/Next link to the nearest written page on each
+   side, so a 1-and-3 build links 1 to 3. (The page workers' pages carry no
+   Previous/Next links at all.) A `--pages` value the page builder cannot read
+   is now an error rather than "build page 1", and run.sh checks the value up
+   front: a whole number for stages 7-8, a number, range or `all` for stage 9.
+4. **Done 2026-09-22.** Fix the worker's page count so `--pages all` writes every page: it now
+   writes every page its list fills, up to the storage cap, and a page list
+   writes exactly those pages (it used to write pages 1..N for a list of N).
+5. **Done 2026-09-22.** The missing-mapping cases are in
+   `src/flat-html-generator.chronological-links.test.lua`; the page-link
+   cases are in `src/flat-html-generator.page-links.test.lua` (page 1 only,
+   all three, 1 and 3, a page past the end -- every link must name a written
+   file).
 6. Run the whole-output link checker being built under 9-006 after every HTML
    build: resolve every relative link under `output/` and fail on any target
    that is missing. That check would have caught both reported symptoms.

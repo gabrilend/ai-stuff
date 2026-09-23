@@ -701,14 +701,13 @@ local function parse_pages_specification(pages_spec, total_pages_possible)
             end
             return {pages = pages, is_all = false}
         else
-            utils.log_error(string.format("Invalid page range: %s (start must be <= end)", pages_spec))
-            return {pages = {1}, is_all = false}  -- Fallback to page 1
+            -- Issue 10-036: this used to log and build page 1 anyway -- a whole
+            -- stage run on a guess about what was meant.
+            error(string.format("Invalid page range: %s (start must be <= end)", pages_spec))
         end
     end
 
-    -- Invalid format - fallback to page 1
-    utils.log_error(string.format("Invalid --pages format: '%s'. Expected: 1, all, or 1-10", pages_spec))
-    return {pages = {1}, is_all = false}
+    error(string.format("Invalid --pages format: '%s'. Expected: 1, all, or 1-10", pages_spec))
 end
 -- }}}
 
@@ -790,7 +789,20 @@ end
 -- total_corpus: optional - total poems in corpus (for storage context display)
 -- Returns: HTML string with navigation
 -- Updated for Issue 8-020: Shows storage constraint message on last page
-local function generate_prev_next_navigation(current_page, total_pages, poem_id, page_type, total_corpus)
+-- pages_written: array of page numbers (integers) this build writes for this
+--   poem and page type.  Issue 10-036: Previous/Next link only to pages in it.
+--   total_pages counts every page the ranking COULD fill, but a build writes
+--   only the pages it was asked for (by default just page 1), so "Next Page"
+--   used to point at NNNN-02.html on every page 1 -- a file never written.
+local function generate_prev_next_navigation(current_page, total_pages, poem_id, page_type, total_corpus, pages_written)
+    assert(type(pages_written) == "table",
+        "generate_prev_next_navigation: pages_written (the pages this build writes) is required")
+    -- The written neighbours of this page: the nearest written page on each side.
+    local prev_written, next_written
+    for _, p in ipairs(pages_written) do
+        if p < current_page and (not prev_written or p > prev_written) then prev_written = p end
+        if p > current_page and (not next_written or p < next_written) then next_written = p end
+    end
     local nav_parts = {}
 
     -- Calculate poem range for this page
@@ -838,13 +850,13 @@ local function generate_prev_next_navigation(current_page, total_pages, poem_id,
     local nav_line = ""
 
     -- Previous link (left aligned)
-    if current_page > 1 then
+    if prev_written then
         local prev_file
         if page_type == "chronological" then
             -- Issue 8-039 Fix: Chronological pages now in subdirectory, use relative paths
-            prev_file = string.format("%s.html", format_page_number(current_page - 1))
+            prev_file = string.format("%s.html", format_page_number(prev_written))
         else
-            prev_file = string.format("%s-%s.html", string.format("%04d", poem_id), format_page_number(current_page - 1))
+            prev_file = string.format("%s-%s.html", string.format("%04d", poem_id), format_page_number(prev_written))
         end
         nav_line = string.format("[<a href=\"%s\">◀ Previous Page</a>]", prev_file)
     else
@@ -857,13 +869,13 @@ local function generate_prev_next_navigation(current_page, total_pages, poem_id,
     nav_line = nav_line .. string.rep(" ", padding)
 
     -- Next link (right aligned)
-    if current_page < total_pages then
+    if next_written then
         local next_file
         if page_type == "chronological" then
             -- Issue 8-039 Fix: Chronological pages now in subdirectory, use relative paths
-            next_file = string.format("%s.html", format_page_number(current_page + 1))
+            next_file = string.format("%s.html", format_page_number(next_written))
         else
-            next_file = string.format("%s-%s.html", string.format("%04d", poem_id), format_page_number(current_page + 1))
+            next_file = string.format("%s-%s.html", string.format("%04d", poem_id), format_page_number(next_written))
         end
         nav_line = nav_line .. string.format("[<a href=\"%s\">Next Page ▶</a>]", next_file)
     else
@@ -2647,7 +2659,9 @@ end
 -- Returns: HTML string for this specific page
 -- Updated for Issue 8-020: Passes total_corpus to navigation for storage constraint messaging
 -- Issue 10-036: Added chrono_mapping for correct paginated chronological links
-function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_type, starting_poem_id, page_num, total_pages, total_corpus, chrono_mapping, chrono_paginated)
+-- pages_written: array of the page numbers this build writes for this poem and
+--   page type; Previous/Next link only to those (see generate_prev_next_navigation)
+function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_type, starting_poem_id, page_num, total_pages, total_corpus, chrono_mapping, chrono_paginated, pages_written)
     -- Ensure pagination config is loaded
     load_pagination_config()
 
@@ -2664,10 +2678,10 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
     local corpus_size = total_corpus or #sorted_poems
 
     -- Generate header navigation (with storage context)
-    local header_nav = generate_prev_next_navigation(page_num, total_pages, starting_poem_id, page_type, corpus_size)
+    local header_nav = generate_prev_next_navigation(page_num, total_pages, starting_poem_id, page_type, corpus_size, pages_written)
 
     -- Generate footer navigation (same as header)
-    local footer_nav = generate_prev_next_navigation(page_num, total_pages, starting_poem_id, page_type, corpus_size)
+    local footer_nav = generate_prev_next_navigation(page_num, total_pages, starting_poem_id, page_type, corpus_size, pages_written)
 
     -- Load poem colors for progress bars
     local poem_colors = load_poem_colors()
@@ -2773,13 +2787,25 @@ function M.generate_all_paginated_pages_for_poem(starting_poem, sorted_poems, pa
     local page_dir = output_dir .. "/" .. page_type
     os.execute("mkdir -p " .. page_dir)
 
-    -- Generate each requested page (respecting max_pages limit)
+    -- Issue 10-036: settle the set of pages that will be written BEFORE
+    -- writing any, so each page's Previous/Next can link only to pages that
+    -- exist.  A requested page past the last page the ranking fills (or past
+    -- the storage cap) is not written.
+    local pages_written = {}
     for _, page_num in ipairs(pages) do
-        if page_num <= total_pages then
+        if page_num >= 1 and page_num <= total_pages then
+            table.insert(pages_written, page_num)
+        end
+    end
+
+    -- Generate each page in that set
+    for _, page_num in ipairs(pages_written) do
+        do
             local html = M.generate_paginated_poem_page_html(
                 starting_poem, sorted_poems, page_type, starting_poem_id,
                 page_num, total_pages, total_poems,  -- Pass total_poems for storage context
-                chrono_mapping, chrono_paginated)    -- Issue 10-036: aim the chronological links at real pages
+                chrono_mapping, chrono_paginated,    -- Issue 10-036: aim the chronological links at real pages
+                pages_written)                       -- Issue 10-036: and Previous/Next at written ones
 
             if html then
                 local filename = generate_page_filename(starting_poem_id, page_num, page_type)
@@ -3675,6 +3701,8 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
             pages_is_all = pages_config.is_all,
             pages_list = pages_config.pages,
             poems_per_page = PAGINATION_CONFIG.poems_per_page,
+            -- Issue 10-036: "--pages all" stops at this storage cap (8-020)
+            max_pages_per_poem = PAGINATION_CONFIG.max_pages_per_poem,
             generate_html_archives = PAGINATION_CONFIG.generate_html_archives,
             generate_txt_exports = PAGINATION_CONFIG.generate_txt_exports,
             -- Issue 9-003 Fix D: Full formatting data
@@ -4415,16 +4443,33 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                             local similar_ranking = convert_similarity_ranking(work.similarity_ranking, poem_index)
                             local diverse_sequence = convert_diversity_sequence(work.diversity_sequence, poem_index)
 
-                            -- Generate similarity pages (page 1 only, respecting config)
+                            -- Issue 10-036: which pages to write for one list.
+                            -- "--pages all" means every page the list fills, up
+                            -- to the storage cap; a page list means exactly
+                            -- those page numbers.  This used to write ONE page
+                            -- for "all", and pages 1..N for a list of N pages
+                            -- (so "1,3" wrote 1 and 2).  A page past the end of
+                            -- the list is skipped by generate_page itself.
+                            local function pages_for(list)
+                                if config.pages_is_all then
+                                    local count = math.ceil(#list / config.poems_per_page)
+                                    count = math.min(count, config.max_pages_per_poem)
+                                    local all = {}
+                                    for p = 1, count do all[p] = p end
+                                    return all
+                                end
+                                return config.pages_list or { 1 }
+                            end
+
+                            -- Generate similarity pages
                             -- Issue 9-003 Fix D: Pass chrono_mapping and chrono_paginated for full formatting
-                            local max_pages = config.pages_is_all and 1 or (config.pages_list and #config.pages_list or 1)
-                            for page_num = 1, max_pages do
+                            for _, page_num in ipairs(pages_for(similar_ranking)) do
                                 local page_file = generate_page(poem, similar_ranking, "similar", page_num, config.poems_per_page, config.output_dir, config.chrono_mapping, config.chrono_paginated)
                                 if page_file then similarity_count = similarity_count + 1 end
                             end
 
                             -- Generate diversity pages
-                            for page_num = 1, max_pages do
+                            for _, page_num in ipairs(pages_for(diverse_sequence)) do
                                 local page_file = generate_page(poem, diverse_sequence, "different", page_num, config.poems_per_page, config.output_dir, config.chrono_mapping, config.chrono_paginated)
                                 if page_file then diversity_count = diversity_count + 1 end
                             end

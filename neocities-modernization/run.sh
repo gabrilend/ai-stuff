@@ -919,6 +919,22 @@ validate_supplied_values() {
         esac
     fi
 
+    # --pages is read by stages 7 and 8 as a count of pages to build caches for,
+    # and by stage 9 as which pages to write. Stages 7-8 need a plain number;
+    # stage 9 also takes a range (2-5) or "all". Checked here so a mistyped
+    # value stops the run now, not hours in at the stage that reads it
+    # (Issue 10-036: stage 9 used to build page 1 on a value it could not read).
+    if [ -n "$PAGES" ]; then
+        if { $GENERATE_SIMILARITY || $GENERATE_DIVERSITY; } && ! [[ "$PAGES" =~ ^[1-9][0-9]*$ ]]; then
+            echo "ERROR: --pages '$PAGES': stages 7 and 8 need a whole number of pages (1 or more)." >&2
+            exit 1
+        fi
+        if $GENERATE_HTML && ! [[ "$PAGES" =~ ^([1-9][0-9]*|[1-9][0-9]*-[1-9][0-9]*|all)$ ]]; then
+            echo "ERROR: --pages '$PAGES': stage 9 takes a page number (3), a range (2-5) or 'all'." >&2
+            exit 1
+        fi
+    fi
+
     # --boosts carries its own answer, so the answer has to be one we know.
     if [ -n "$BOOSTS" ] && [ "$BOOSTS" != "yes" ] && [ "$BOOSTS" != "no" ]; then
         echo "ERROR: --boosts takes 'yes' or 'no', not '$BOOSTS'." >&2
