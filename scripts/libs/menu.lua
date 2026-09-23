@@ -2870,14 +2870,14 @@ local function render_footer()
     local on_cmd = is_on_command_preview()
     if on_cmd then
         if state.cmd_input_mode == "vim-nav" then
-            base_help = "h/l:move  0-9:digit  spc:space  n/N:vals  i:ins  ~:copy  `:run  q:quit"
+            base_help = "h/l:move  0-9:digit  spc:space  n/N:vals  i:ins  ~:copy  `:run  q/esc:quit"
         elseif state.cmd_input_mode == "insert" then
             base_help = "-- INSERT --  type:edit  ENTER:next val  ESC:exit"
         else  -- arrow mode
             base_help = "arrows:cursor  type:edit  ENTER:next val  q:quit"
         end
     else
-        base_help = "j/k:nav  space:toggle  ~:copy  `:action  q:quit"
+        base_help = "j/k:nav  space:toggle  ~:copy  `:action  q/esc:quit"
     end
     local has_shortcuts = #shortcuts_parts > 0 and not on_cmd
 
@@ -4102,7 +4102,11 @@ function menu.run()
             if key == "Q" or key == "CTRL_C" then
                 return "quit", state.values
             end
-            if key == "q" and mode == "vim-nav" then
+            -- ESC also quits from vim-nav (neocities-modernization issue 10-070):
+            -- in insert/arrow mode it steps back to vim-nav, as in vim, so a
+            -- second ESC leaves the menu.  It used to do nothing here, which
+            -- is where the cursor sits after the copy key.
+            if (key == "q" or key == "ESCAPE") and mode == "vim-nav" then
                 return "quit", state.values
             end
 

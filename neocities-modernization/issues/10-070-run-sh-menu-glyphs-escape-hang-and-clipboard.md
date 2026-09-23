@@ -4,7 +4,7 @@
 - **Phase**: 10 (Developer Tooling)
 - **Priority**: High (the hang leaves a terminal stuck)
 - **Type**: Bug fixes
-- **Status**: BUILT 2026-09-23; one open question (below)
+- **Status**: BUILT 2026-09-23, confirmed by the owner
 - **Created**: 2026-09-23
 - **Related**: 10-016 (per-stage force options; added the `↳` labels),
   10-043 (dual-checkbox stage selection), 10-013 (TUI config editor)
@@ -56,6 +56,16 @@ use the same library, so fixes 2 and 3 land in the library and help them too.
    What was broken was the hang above and the copy dying with it.
 4. **Prompt loop.** `menu.batch_pause` now cancels on end of input (a nil
    key) and on Ctrl+C, instead of asking again forever.
+5. **Escape quits from the command preview too.** Owner, after the fixes
+   above (2026-09-23): "the escape key doesn't do anything now. But pushing q
+   seems to quit without the infinite loop. It also correctly copies to
+   middle-mouse click and ctrl+v's registers." Escape already quit from the
+   main list, but on the command preview -- where the cursor is after the
+   copy key -- it only left insert or arrow mode and did nothing in vim-nav.
+   It now quits from vim-nav like `q`; from insert or arrow mode the first
+   Escape returns to vim-nav (as in vim) and a second one quits. The help
+   lines read `q/esc:quit`. Checked in a real session: Escape on the command
+   preview quits at once; `i`, Escape, Escape quits on the second Escape.
 - Test: `scripts/libs/test-menu-clipboard.sh` -- a stand-in for the menu
   copies and exits, read through `$(…)` as `lua-menu.sh` does; it must return
   within two seconds and both selections must hold the text. Passes (45 ms);
@@ -93,12 +103,10 @@ use the same library, so fixes 2 and 3 land in the library and help them too.
 
 ## Open Questions
 
-1. **Partly answered.** Had the owner pressed the copy key before Escape
-   ran away? Owner (2026-09-23): "Nope the command didn't end up being
-   copied." Read as: the copy was tried and the text was gone afterwards,
-   which is exactly what the clipboard hang does (item 2). If the copy key
-   was never pressed, the runaway has another cause still to find -- the
-   owner is asked to try the menu again and, if it still happens, say which
-   screen was open.
+1. **Answered.** Had the owner pressed the copy key before Escape ran away?
+   Owner (2026-09-23): "Nope the command didn't end up being copied." After
+   the clipboard fix the owner found no more runaway ("pushing q seems to
+   quit without the infinite loop"), which fits the clipboard hang as the
+   cause; the remaining Escape complaint is item 5.
 2. **Answered.** `└─` for the per-stage labels: "The suggested marker seems
    fine to me."

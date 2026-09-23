@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-23 09:21:02
+Generated on: 2026-09-23 09:28:02
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -2332,6 +2332,80 @@ Two questions, also recorded in the issue:
    which screen was open would help.
 2. Is `└─` fine as the marker in front of the per-stage options, or would
    you like something else?
+
+--------------------------------------------------------------------------------
+
+### User Request 20
+
+Nope the command didn't end up being copied. The suggested marker seems fine to
+me.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 20
+
+> That rules out the clipboard hang, so the runaway is somewhere else. Escape
+> from the main list quit cleanly in my test, so I'm checking what Escape does
+> in the menu's other modes.
+
+> Marker replaced on all ten lines. Now the clipboard: first finding out why the
+> copy didn't land for you. Running the same command the menu runs and reading
+> both clipboards back.
+
+> That session hung until the 40-second timeout, with no "Goodbye". Afterwards
+> the clipboard was empty and no `xclip` was left running. Reading the screen
+> log to see what the menu displayed.
+
+> The menu never drew anything in that session. Only 302 bytes were logged, and
+> the hang happened before the first screen. Running it again and looking at
+> what the processes are doing while it hangs.
+
+> Now the prompt loop in `menu.batch_pause`: end of input or Ctrl+C now cancel
+> it instead of looping forever.
+
+> Same repo, good. Re-running the exact session that hung before: open the menu,
+> go to the command preview, copy, quit.
+
+> The test still passes (45 ms). Now proving it catches the old bug: running it
+> against the last committed menu code, with only the test hook added.
+
+> The commit tool flags one block in `menu.lua` as mixed. That's the rewritten
+> invocation, where I replaced code someone else wrote. Checking that the whole
+> block is mine before claiming it.
+
+> Every changed region of `menu.lua` is inside my three edits, and the "mixed"
+> flag comes from how the diff lines up old and new lines. Claiming the file and
+> committing.
+
+Fixed and committed (`6db0bf6c0`). The hang and the missing copy turned out to
+be the same bug.
+
+**What was happening:** the copy key starts `xclip`, the program that holds the
+copied text until someone pastes it. It stays running in the background, and it
+was holding open the channel `run.sh` reads the menu's answer through. So after
+you copied and closed the menu, `run.sh` waited forever. Pressing Ctrl+C or
+closing the window to get out killed `xclip` too, and the copied command
+vanished with it. I reproduced exactly that in a real menu session.
+
+**Changes:**
+- **Copy:** `xclip` now starts detached from both the terminal and `run.sh`.
+  Closing the menu returns immediately, and the command stays in both the Ctrl+V
+  clipboard and the middle-click selection. The same session that hung before
+  now exits the instant you quit and prints "Goodbye!".
+- **Prompt loop:** a yes/no prompt in the menu library no longer loops forever
+  if input stops, and Ctrl+C cancels it.
+- **Marker:** the per-stage options now use `└─ Force regenerate`.
+- **Test:** `scripts/libs/test-menu-clipboard.sh` checks the copy returns
+  quickly and lands in both clipboards (4 of 4 pass). Against the old code it
+  fails after 10 seconds with both clipboards empty.
+
+The copy and prompt fixes are in the shared menu library, so every project that
+uses it gets them.
+
+Could you try `run.sh -I` once more: copy, then Escape? I read "the command
+didn't end up being copied" as meaning you did press copy, which matches this
+bug. If you never pressed copy and Escape still runs away, tell me which screen
+was open when you pressed it. That would be a second cause I haven't found yet.
 
 --------------------------------------------------------------------------------
 
