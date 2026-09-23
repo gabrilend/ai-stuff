@@ -314,5 +314,83 @@ function M.wrap_external_url(prefix, url, content_width)
 end
 -- }}}
 
+-- {{{ local function take_cw_line
+-- Takes one line of at most `width` visible columns off the front of `rest`.
+-- Returns (line, remaining_text).
+--
+-- Break preference, latest first: at a space (the space is dropped), or just
+-- after a dash (the dash stays at the end of the line -- owner, 2026-09-22:
+-- "the dash stays at the end").  Content warnings are often long dash-joined
+-- chains with no spaces at all, which is why dashes count as break points
+-- here and not in poem text.  With neither available inside the width -- a
+-- URL, a magnet link -- the text is cut at the edge.
+--
+-- Dashes inside an HTML tag would also count; warning text carries no tags.
+local function take_cw_line(rest, width)
+    if M.calculate_visible_width(rest) <= width then
+        return rest, ""
+    end
+    local chunk, tail = M.slice_by_visible_width(rest, width)
+    -- The line is exactly full and a space follows: break on that space.
+    if tail:sub(1, 1) == " " then
+        return chunk, (tail:gsub("^ +", ""))
+    end
+    local last_space, last_dash
+    local search = 1
+    while true do
+        local at = chunk:find("[ %-]", search)
+        if not at then break end
+        if chunk:sub(at, at) == " " then last_space = at else last_dash = at end
+        search = at + 1
+    end
+    -- Where each candidate would END the line (in bytes): a space break ends
+    -- before the space, a dash break ends on the dash.  The later end wins.
+    local space_end = last_space and (last_space - 1) or -1
+    local dash_end = last_dash or -1
+    if dash_end > 0 and dash_end >= space_end then
+        return chunk:sub(1, dash_end), (chunk:sub(dash_end + 1) .. tail)
+    elseif space_end > 0 then
+        return chunk:sub(1, space_end), ((chunk:sub(last_space + 1) .. tail):gsub("^ +", ""))
+    end
+    return chunk, tail
+end
+-- }}}
+
+-- {{{ function M.format_cw_box
+-- Issue 9-011: the one content-warning box every page type draws.
+--
+-- text      : string, the warning as it should read ("CW: re: ...").  Runs of
+--             whitespace, newlines included, become single spaces: a warning
+--             is one phrase, and the box decides where its lines break.
+-- box_width : number, total visible width of every line of the box,
+--             corners and walls included.  The text area is box_width - 4
+--             ("│ " + text + " │").
+-- returns   : string, the box's lines joined by "\n" -- a top rule, the
+--             wrapped text lines, a bottom rule -- every one exactly
+--             box_width visible columns wide.  No leading indentation; the
+--             caller places the box.
+--
+-- Widths are counted in visible columns (UTF-8 characters, HTML entities as
+-- one), never bytes: the old builder padded by byte length, so a warning with
+-- an accented letter or an escaped ampersand came out a column short or long.
+function M.format_cw_box(text, box_width)
+    assert(type(text) == "string", "format_cw_box: text must be a string")
+    assert(type(box_width) == "number" and box_width >= 5,
+        "format_cw_box: box_width must be a number of at least 5")
+    local inner = box_width - 4
+    local rest = text:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
+
+    local lines = { "┌" .. string.rep("─", box_width - 2) .. "┐" }
+    repeat
+        local line
+        line, rest = take_cw_line(rest, inner)
+        local pad = inner - M.calculate_visible_width(line)
+        lines[#lines + 1] = "│ " .. line .. string.rep(" ", pad) .. " │"
+    until rest == ""
+    lines[#lines + 1] = "└" .. string.rep("─", box_width - 2) .. "┘"
+    return table.concat(lines, "\n")
+end
+-- }}}
+
 return M
 -- }}}
