@@ -21,6 +21,7 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | W05d | [Clean-room loop: describe, build, check](./W05d-clean-room-describe-build-check-loop.md) | open | W05a, W03 |
 | W05e | [Body-structure fit and body-plan standards](./W05e-body-structure-fit-and-body-plan-standards.md) | open | W05d, W03 |
 | W05c | ["Default client compatible" seal](./W05c-default-client-compatible-seal.md) | open | W05a, W01, W04 |
+| W08 | [Our own server, speaking the same protocol](./W08-our-own-server-speaking-the-same-protocol.md) | design research | W02, W04 |
 | W06 | [Restyle every model in one theme](./W06-restyle-every-model-in-one-theme.md) | open (later) | W05 |
 | W07 | [Phase W demo](./W07-phase-w-demo.md) | open | W02-W06 |
 

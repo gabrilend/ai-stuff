@@ -64,6 +64,18 @@ the licences as written, not legal advice.
   any C++ AzerothCore module for WC3 orders, and SQL/Lua shipped as a server
   module. Keep it in its own folder with its own LICENSE so a later switch
   elsewhere doesn't catch it.
+- **The move to the RGPL (2026-09-23).** The projects are moving to the
+  owner's RGPL. It can't be combined with GPL v3 code (the draft drops that
+  permission) or with AGPL v3 code (AGPL forbids adding the RGPL's extra
+  clause). The plan, in W08:
+  - *Stage 1:* AzerothCore is **installed, not bundled**, like the Blizzard
+    client. RGPL code never contains or links it; the only code that runs
+    inside it (the shim) stays AGPL v3 in its own folder. No new Lua engine is
+    needed for this.
+  - *Stage 2:* our own server, built as a soramech map, speaking the same
+    protocol, made clean-room and checked against AzerothCore by replaying the
+    same sessions against both. Then the whole stack can be RGPL, and LuaJIT
+    (MIT) runs the triggers.
 - **The W client needs a LICENSE file.** Until it has one, nobody else may
   legally use it.
 - **AGPL's network clause applies to the server.** Anyone running a modified
@@ -79,10 +91,20 @@ Separate from code licences, and not settled by any of the above:
   converted map is another and needs the author's permission. Blizzard's
   2020 Warcraft III terms also claim rights over custom games made with its
   editor; how far that reaches back to maps made under the original terms is
-  an open question. **Plan (2026-09-23): bundle none.** A map finder
-  (issue 1001) lists maps that are freely posted on the web, and the player's
-  own machine downloads the ones they pick, the way a browser would. Bundling
-  a map stays possible when its author agrees.
+  an open question. **Plan (2026-09-23):** the map browser (issue 1001) lists
+  maps that are freely posted on the web, and the player's own machine
+  downloads the ones they pick, the way a browser would. **Bundling policy
+  (owner, 2026-09-23):** "most authors will be unreachable, but we should do
+  our due diligence, and then just assume that their consent is given until
+  withdrawn. Like social media sites hosting things that other users posted,
+  except slightly inverted." So each bundled map carries a record of the
+  attempts to reach its author, and there is a fast, public way to withdraw.
+  One difference from social media sites, stated plainly: those sites are
+  *hosts* of what their users uploaded, and in the US that role (with a
+  takedown process) is what shields them. Here the project would be the one
+  uploading, and assumed consent is not permission under copyright. The
+  withdrawal channel limits the harm; it doesn't remove the exposure.
+  Fetching from the original post, rather than bundling, has none of it.
 - **Blizzard's assets** are never redistributed (see `docs/wow-client-bridge.md`).
 - **AzerothCore's world** (zones, quests, NPC text, loot) is Blizzard-derived.
   world-edit-to-execute's maps don't use it: each converted map is its own
@@ -98,9 +120,11 @@ Separate from code licences, and not settled by any of the above:
     even though our maps never touch it.
 
   So for our maps the concern shrinks from "the whole world" to the data
-  tables and the handful of rows we reference. Those can be replaced like
-  assets: custom spells in the server's database override tables, our own
-  factions, a stripped-down world database holding only what our maps use.
+  tables and the handful of rows we reference. **Decided (2026-09-23): this
+  project's world database starts empty**, holding only what each converted
+  map needs (W02h). The data tables are generated from each map's own object
+  data where possible; the W client treats data tables as assets too, with
+  Blizzard's as a counted, borrowed fallback.
 
 ## Before any release
 

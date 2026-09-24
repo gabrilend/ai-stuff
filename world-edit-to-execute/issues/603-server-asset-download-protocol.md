@@ -15,6 +15,12 @@ No asset download system exists. Players cannot receive community asset packs fr
 
 ## Intended Behavior
 
+> **Changed 2026-09-23.** A host never decides what other players see: "the
+> user uses whichever models they have installed, not what their playmates
+> suggest they do." Transfers here happen only for a map-and-model list the
+> receiving player has accepted (issue 609). The "required" priority below
+> applies to the **map file** only; art is always optional.
+
 A peer-to-peer asset download protocol that:
 1. Transfers community asset packs from LAN host to clients on connect
 2. Supports resumable downloads (connection drops shouldn't restart)
